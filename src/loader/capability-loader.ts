@@ -196,6 +196,11 @@ export class CapabilityLoader {
    * May return ApprovalRequiredResult if dependencies need user approval.
    * Use loadWithApproval() to handle the stateless approval flow.
    *
+   * @deprecated Use loadByFqdn() instead. In normal flow, server resolves FQDN
+   * via pml:execute and returns it in execute_locally response. This method
+   * does client-side resolution which bypasses server's multi-tenant support.
+   * Kept for backwards compatibility and testing.
+   *
    * @param namespace - Tool namespace (e.g., "filesystem:read_file")
    * @param continueWorkflow - Optional: approval from previous call
    * @returns Loaded capability or approval required result
@@ -332,16 +337,27 @@ export class CapabilityLoader {
 
     if (metadata.routing === "client" && metadata.type === "stdio") {
       if (serverName === "std") {
-        // std uses binary distribution - create dep without install command
-        // stdio-manager's binary-resolver will download the binary automatically
+        // std uses binary distribution - binary-resolver will download automatically
         stdioDep = {
           name: "std",
           type: "stdio" as const,
-          install: "", // Not used - binary-resolver handles this
+          install: "binary", // Marker for binary distribution
           version: "latest",
           integrity: metadata.integrity ?? "",
         };
-        logDebug(`std uses binary distribution - no install approval needed`);
+
+        // std still needs tool_permission approval before first use
+        const toolIdForPermission = `${serverName}:*`;
+        if (!continueWorkflow?.approved) {
+          const stdApproval = await this.ensureDependency(stdioDep, false, toolIdForPermission);
+          if (stdApproval) {
+            logDebug(`std binary requires approval before download`);
+            return stdApproval;
+          }
+        } else {
+          // User approved - ensure it's installed
+          await this.ensureDependency(stdioDep, true, toolIdForPermission);
+        }
       } else if (metadata.install) {
         // Other stdio servers use standard install flow
         stdioDep = {
@@ -436,6 +452,11 @@ export class CapabilityLoader {
    *
    * **Note:** Continuation handling (reloadEnv, etc.) is now managed by
    * stdio-command.ts via PendingWorkflowStore for unified workflow tracking.
+   *
+   * @deprecated Use callWithFqdn() instead. In normal flow, server resolves FQDN
+   * via pml:execute and returns it in execute_locally response. This method
+   * does client-side resolution which bypasses server's multi-tenant support.
+   * Kept for backwards compatibility and testing.
    *
    * @param toolId - Full tool ID (e.g., "filesystem:read_file")
    * @param args - Tool arguments
@@ -593,15 +614,31 @@ export class CapabilityLoader {
     // Build stdioDep for stdio types (same logic as load())
     let stdioDep: McpDependency | null = null;
 
+    // DEBUG: Log metadata for permission check
+    loaderLog.info(`[loadByFqdn] ${fqdn} → routing=${metadata.routing}, type=${metadata.type}, namespace=${namespace}`);
+
     if (metadata.routing === "client" && metadata.type === "stdio") {
       if (namespace === "std") {
         stdioDep = {
           name: "std",
           type: "stdio" as const,
-          install: "",
+          install: "binary", // Marker for binary distribution
           version: "latest",
           integrity: metadata.integrity ?? "",
         };
+
+        // std still needs tool_permission approval before first use (same as load())
+        const toolIdForPermission = `${namespace}:*`;
+        if (!continueWorkflow?.approved) {
+          const stdApproval = await this.ensureDependency(stdioDep, false, toolIdForPermission);
+          if (stdApproval) {
+            logDebug(`std binary requires approval before download (FQDN: ${fqdn})`);
+            return stdApproval;
+          }
+        } else {
+          // User approved - ensure it's installed
+          await this.ensureDependency(stdioDep, true, toolIdForPermission);
+        }
       } else if (metadata.install) {
         stdioDep = {
           name: namespace,
@@ -754,7 +791,16 @@ export class CapabilityLoader {
     // Auto-install if in allow list
     if (permission === "allowed" || forceInstall) {
       try {
-        await this.installer.install(dep);
+        // Special case: "binary" marker means this uses binary distribution
+        // Binary download happens lazily in stdioManager.getOrSpawn() via binary-resolver
+        // We just mark it as installed in depState for tracking
+        if (dep.install === "binary") {
+          logDebug(`Binary distribution for ${dep.name}@${dep.version} - marking as installed`);
+          this.depState.markInstalled(dep, dep.integrity || "binary");
+          await this.depState.save();
+        } else {
+          await this.installer.install(dep);
+        }
         logDebug(
           `Dependency ${dep.name}@${dep.version} installed (auto-approved)`,
         );

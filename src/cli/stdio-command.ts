@@ -3,6 +3,7 @@
  *
  * Starts the PML MCP server in stdio mode for Claude Code integration.
  * This is the PRIMARY interface - Claude Code spawns this process.
+ * Uses shared utilities from ./shared/ for common functionality.
  *
  * @module cli/stdio-command
  */
@@ -22,26 +23,29 @@ import {
   resolveToolRouting,
   syncRoutingConfig,
 } from "../routing/mod.ts";
-import {
-  type ApprovalRequiredResult,
-  CapabilityLoader,
-  type ContinueWorkflowParams,
-  type IntegrityApprovalRequired,
-  type ToolPermissionApprovalRequired,
-  LockfileManager,
-} from "../loader/mod.ts";
-import { SandboxExecutor } from "../execution/mod.ts";
+import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
 import { SessionClient } from "../session/mod.ts";
 import { PendingWorkflowStore } from "../workflow/mod.ts";
 import { TraceSyncer, type LocalExecutionTrace, type JsonValue } from "../tracing/mod.ts";
-import type { ToolCallRecord } from "../execution/types.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { reloadEnv } from "../byok/env-loader.ts";
 import { stdioLog } from "../logging.ts";
 
-/** Package version for registration */
-const PACKAGE_VERSION = "0.2.0";
+// Shared utilities
+import {
+  PML_CONFIG_FILE,
+  PACKAGE_VERSION,
+  SILENT_LOGGER,
+  PML_TOOLS_FULL,
+  forwardToCloud,
+  extractContinueWorkflow,
+  parseExecuteLocallyResponse,
+  formatApprovalRequired,
+  executeLocalCode,
+  type AnyApprovalResult,
+  type ContinueWorkflowParams,
+} from "./shared/mod.ts";
 
 /** Active session client (initialized at startup) */
 let sessionClient: SessionClient | null = null;
@@ -49,17 +53,12 @@ let sessionClient: SessionClient | null = null;
 /** Trace syncer for sending execution traces to cloud */
 let traceSyncer: TraceSyncer | null = null;
 
-/** Pending workflow store for local approval flows (Story 14.4) */
+/** Pending workflow store for local approval flows */
 const pendingWorkflowStore = new PendingWorkflowStore();
 
-const PML_CONFIG_FILE = ".pml.json";
-
-/**
- * Silent logger for initialization (stdio must be clean for JSON-RPC)
- */
-const silentLogger = {
-  info: () => {},
-  warn: () => {},
+/** Logger adapter for shared utilities */
+const stdioLogger = {
+  debug: (msg: string) => stdioLog.debug(msg),
 };
 
 /**
@@ -94,87 +93,11 @@ function handleInitialize(id: string | number): void {
     id,
     result: {
       protocolVersion: "2024-11-05",
-      capabilities: {
-        tools: {},
-      },
-      serverInfo: {
-        name: "pml",
-        version: "0.1.0",
-      },
+      capabilities: { tools: {} },
+      serverInfo: { name: "pml", version: PACKAGE_VERSION },
     },
   });
 }
-
-/**
- * PML base tools - forwarded to cloud server.
- * Names match src/mcp/tools/definitions.ts (pml:discover, pml:execute)
- */
-const PML_TOOLS = [
-  {
-    name: "pml:discover",
-    description: "Search MCP tools and learned capabilities by intent. Returns ranked results.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        intent: {
-          type: "string",
-          description: "What do you want to accomplish? Natural language description.",
-        },
-        filter: {
-          type: "object",
-          properties: {
-            type: { type: "string", enum: ["tool", "capability", "all"] },
-            minScore: { type: "number" },
-          },
-        },
-        limit: {
-          type: "number",
-          description: "Maximum results (default: 1, max: 50)",
-        },
-      },
-      required: ["intent"],
-    },
-  },
-  {
-    name: "pml:execute",
-    description:
-      "Execute intent with optional code. With code: runs and learns. Without: returns suggestions.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        intent: {
-          type: "string",
-          description: "Natural language description of what you want to accomplish.",
-        },
-        code: {
-          type: "string",
-          description: "TypeScript code. MCP tools via mcp.server.tool(). Triggers Direct Mode.",
-        },
-        options: {
-          type: "object",
-          properties: {
-            timeout: { type: "number" },
-            per_layer_validation: { type: "boolean" },
-          },
-        },
-        accept_suggestion: {
-          type: "object",
-          properties: {
-            callName: { type: "string" },
-            args: { type: "object" },
-          },
-        },
-        continue_workflow: {
-          type: "object",
-          properties: {
-            workflow_id: { type: "string" },
-            approved: { type: "boolean" },
-          },
-        },
-      },
-    },
-  },
-];
 
 /**
  * Handle MCP tools/list request
@@ -183,445 +106,12 @@ function handleToolsList(id: string | number): void {
   sendResponse({
     jsonrpc: "2.0",
     id,
-    result: {
-      tools: PML_TOOLS,
-    },
+    result: { tools: PML_TOOLS_FULL },
   });
 }
 
 /**
- * Format approval_required MCP response.
- *
- * Uses the same pattern as main codebase (src/mcp/server/responses.ts).
- *
- * For dependency approvals, stores the workflow in pendingWorkflowStore
- * so we can retrieve the code when continue_workflow arrives.
- *
- * Story 14.4: Dependency installation with stateful workflow tracking.
- * Story 14.6: Supports dependency and API key approval types.
- * Story 14.7: Supports integrity approval type.
- * Unified Permission Model: Supports tool_permission approval type.
- */
-function formatApprovalRequired(
-  toolName: string,
-  approvalResult: ApprovalRequiredResult | IntegrityApprovalRequired | ToolPermissionApprovalRequired,
-  /** Original code for approvals (stored for re-execution) */
-  originalCode?: string,
-  /** Server-resolved FQDNs for tools used in this code */
-  fqdnMap?: Record<string, string>,
-): {
-  content: Array<{ type: string; text: string }>;
-} {
-  // Handle tool permission approval (Unified Permission Model)
-  // Use workflowId from approval and store code for re-execution
-  if (approvalResult.approvalType === "tool_permission") {
-    const workflowId = approvalResult.workflowId;
-
-    // Store workflow with the SAME workflowId for unified tracking
-    // Note: toolId passed as parameter to setWithId, also store in fqdnMap for later retrieval
-    if (originalCode) {
-      pendingWorkflowStore.setWithId(workflowId, originalCode, approvalResult.toolId, "tool_permission", {
-        namespace: approvalResult.namespace,
-        needsInstallation: approvalResult.needsInstallation,
-        dependency: approvalResult.dependency,
-        fqdnMap,
-      });
-    }
-
-    const data = {
-      status: "approval_required",
-      approval_type: "tool_permission",
-      workflow_id: workflowId,
-      description: approvalResult.description,
-      context: {
-        tool: toolName,
-        tool_id: approvalResult.toolId,
-        namespace: approvalResult.namespace,
-        needs_installation: approvalResult.needsInstallation,
-        dependency: approvalResult.dependency ? {
-          name: approvalResult.dependency.name,
-          version: approvalResult.dependency.version,
-          install: approvalResult.dependency.install,
-        } : undefined,
-      },
-      options: ["continue", "abort"],
-    };
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(data, null, 2),
-        },
-      ],
-    };
-  }
-
-  // Handle API key approval (Story 14.6)
-  // Use workflowId from approval and store code for re-execution
-  if (approvalResult.approvalType === "api_key_required") {
-    const workflowId = approvalResult.workflowId;
-
-    // Store workflow with the SAME workflowId for unified tracking
-    if (originalCode) {
-      pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "api_key_required", {
-        missingKeys: approvalResult.missingKeys,
-        fqdnMap,
-      });
-    }
-
-    const data = {
-      status: "approval_required",
-      approval_type: "api_key_required",
-      workflow_id: workflowId,
-      context: {
-        tool: toolName,
-        missing_keys: approvalResult.missingKeys,
-        instruction: approvalResult.instruction,
-      },
-      options: ["continue", "abort"],
-    };
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(data, null, 2),
-        },
-      ],
-    };
-  }
-
-  // Handle integrity approval (Story 14.7)
-  // Use workflowId from approval and store code for re-execution
-  if (approvalResult.approvalType === "integrity") {
-    const workflowId = approvalResult.workflowId;
-
-    // Store workflow with the SAME workflowId for unified tracking
-    if (originalCode) {
-      pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "integrity", {
-        integrityInfo: {
-          fqdnBase: approvalResult.fqdnBase,
-          newHash: approvalResult.newHash,
-          oldHash: approvalResult.oldHash,
-        },
-        fqdnMap,
-      });
-    }
-
-    const data = {
-      status: "approval_required",
-      approval_type: "integrity",
-      workflow_id: workflowId,
-      description: approvalResult.description,
-      context: {
-        tool: toolName,
-        fqdn_base: approvalResult.fqdnBase,
-        old_hash: approvalResult.oldHash,
-        new_hash: approvalResult.newHash,
-        old_fetched_at: approvalResult.oldFetchedAt,
-      },
-      options: ["continue", "abort"],
-    };
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(data, null, 2),
-        },
-      ],
-    };
-  }
-
-  // Handle dependency approval - use workflowId from approval
-  const workflowId = approvalResult.workflowId;
-
-  // Store workflow with the SAME workflowId for unified tracking
-  if (originalCode) {
-    pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "dependency", {
-      dependency: approvalResult.dependency,
-      fqdnMap,
-    });
-  }
-
-  const data = {
-    status: "approval_required",
-    approval_type: "dependency",
-    workflow_id: workflowId,
-    description: approvalResult.description,
-    context: {
-      tool: toolName,
-      dependency: {
-        name: approvalResult.dependency.name,
-        version: approvalResult.dependency.version,
-        install: approvalResult.dependency.install,
-      },
-    },
-    options: ["continue", "abort", "replan"],
-  };
-
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(data, null, 2),
-      },
-    ],
-  };
-}
-
-/**
- * Extract continue_workflow from args if present.
- */
-function extractContinueWorkflow(
-  args: Record<string, unknown> | undefined,
-): {
-  continueWorkflow: ContinueWorkflowParams | undefined;
-  cleanArgs: Record<string, unknown>;
-} {
-  if (!args) {
-    return { continueWorkflow: undefined, cleanArgs: {} };
-  }
-
-  const { continue_workflow, ...cleanArgs } = args;
-
-  if (
-    continue_workflow &&
-    typeof continue_workflow === "object" &&
-    "approved" in continue_workflow
-  ) {
-    return {
-      continueWorkflow: {
-        approved: Boolean(
-          (continue_workflow as { approved: unknown }).approved,
-        ),
-        workflowId: (continue_workflow as { workflow_id?: string }).workflow_id,
-      },
-      cleanArgs,
-    };
-  }
-
-  return { continueWorkflow: undefined, cleanArgs: args };
-}
-
-/**
- * Forward a PML tool call to the cloud.
- *
- * Both pml_discover and pml_execute are handled by the cloud server
- * which has SHGAT, GraphRAG, and full execution infrastructure.
- *
- * Uses session header if registered, otherwise falls back to x-api-key detection.
- *
- * Returns the parsed JSON response for further processing.
- */
-async function forwardToCloud(
-  id: string | number,
-  toolName: string,
-  args: Record<string, unknown>,
-  cloudUrl: string,
-): Promise<{ ok: boolean; response?: unknown; error?: string }> {
-  const apiKey = Deno.env.get("PML_API_KEY");
-  if (!apiKey) {
-    return { ok: false, error: "PML_API_KEY required" };
-  }
-
-  // Build headers - use session header if registered
-  const headers: Record<string, string> = sessionClient?.isRegistered
-    ? sessionClient.getHeaders()
-    : {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-      };
-
-  try {
-    const response = await fetch(`${cloudUrl}/mcp`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id,
-        method: "tools/call",
-        params: { name: toolName, arguments: args },
-      }),
-    });
-
-    if (!response.ok) {
-      return { ok: false, error: `Cloud error: ${response.status} ${response.statusText}` };
-    }
-
-    const result = await response.json();
-    return { ok: true, response: result };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: `Cloud unreachable: ${message}` };
-  }
-}
-
-/**
- * Result of local code execution.
- *
- * Can be:
- * - Success with result
- * - Error with message
- * - Approval required (HIL pause for dependency/API key/integrity)
- */
-type LocalExecutionResult =
-  | { status: "success"; result: unknown; durationMs: number; toolCallRecords: ToolCallRecord[] }
-  | { status: "error"; error: string }
-  | { status: "approval_required"; approval: ApprovalRequiredResult | IntegrityApprovalRequired; toolId: string };
-
-/**
- * Execute code locally via SandboxExecutor (hybrid routing).
- *
- * Called when server returns execute_locally response.
- *
- * @param code - Code to execute in sandbox
- * @param loader - CapabilityLoader for client tool routing
- * @param cloudUrl - Cloud URL for server tool routing
- * @param fqdnMap - Map of tool ID to FQDN (resolved by server for multi-tenant)
- * @param continueWorkflow - Optional: approval from previous HIL pause
- * @returns Execution result, error, or approval_required for HIL
- */
-async function executeLocalCode(
-  code: string,
-  loader: CapabilityLoader | null,
-  cloudUrl: string,
-  fqdnMap: Map<string, string>,
-  continueWorkflow?: ContinueWorkflowParams,
-): Promise<LocalExecutionResult> {
-  const apiKey = Deno.env.get("PML_API_KEY");
-
-  const executor = new SandboxExecutor({
-    cloudUrl,
-    apiKey,
-  });
-
-  // Track if we hit an approval_required during execution
-  // Use object wrapper to allow mutation tracking from closure
-  type PendingApprovalType = { approval: ApprovalRequiredResult | IntegrityApprovalRequired; toolId: string };
-  const state: { pendingApproval: PendingApprovalType | null } = { pendingApproval: null };
-
-  try {
-    const result = await executor.execute(
-      code,
-      {},
-      // Client tool handler - routes through CapabilityLoader
-      async (toolId: string, args: unknown) => {
-        if (!loader) {
-          throw new Error("Capability loader not initialized for client tools");
-        }
-
-        // Use server-resolved FQDN (multi-tenant support)
-        const fqdn = fqdnMap.get(toolId);
-        if (!fqdn) {
-          throw new Error(`No FQDN resolved for tool ${toolId} - server should have provided it`);
-        }
-        stdioLog.debug(`Local tool call: ${toolId} → ${fqdn}${continueWorkflow ? " (with continue_workflow)" : ""}`);
-
-        const callResult = await loader.callWithFqdn(fqdn, args, continueWorkflow);
-
-        // Check if it's an approval_required response (HIL pause)
-        if (CapabilityLoader.isApprovalRequired(callResult)) {
-          stdioLog.debug(`Tool ${toolId} requires approval - pausing for HIL`);
-          // Store the approval and throw to stop sandbox execution
-          state.pendingApproval = { approval: callResult, toolId };
-          throw new Error(`__APPROVAL_REQUIRED__:${toolId}`);
-        }
-
-        return callResult;
-      },
-    );
-
-    if (!result.success) {
-      // Check if the error was our approval marker
-      if (state.pendingApproval && result.error?.message?.startsWith("__APPROVAL_REQUIRED__:")) {
-        return {
-          status: "approval_required",
-          approval: state.pendingApproval.approval,
-          toolId: state.pendingApproval.toolId,
-        };
-      }
-
-      return {
-        status: "error",
-        error: result.error?.message ?? "Sandbox execution failed",
-      };
-    }
-
-    return {
-      status: "success",
-      result: result.value,
-      durationMs: result.durationMs,
-      toolCallRecords: result.toolCallRecords ?? [],
-    };
-  } catch (error) {
-    // Check if this was an approval_required that bubbled up
-    if (state.pendingApproval) {
-      return {
-        status: "approval_required",
-        approval: state.pendingApproval.approval,
-        toolId: state.pendingApproval.toolId,
-      };
-    }
-
-    return {
-      status: "error",
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-/**
- * Resolved tool from server (id + FQDN).
- */
-interface ResolvedTool {
-  /** Tool call name (e.g., "fs:listDirectory") */
-  id: string;
-  /** Fully qualified domain name (e.g., "alice.default.fs.listDirectory.a1b2") */
-  fqdn: string;
-}
-
-/**
- * Parsed execute_locally response from server.
- */
-interface ExecuteLocallyResponse {
-  status: string;
-  code: string;
-  client_tools: string[];
-  /** Resolved tools with FQDNs from server (multi-tenant) */
-  tools_used: ResolvedTool[];
-  workflowId?: string;
-}
-
-/**
- * Parse execute_locally response from server.
- *
- * @param content - Text content from MCP response
- * @returns Parsed execute_locally data or null if not execute_locally
- */
-function parseExecuteLocallyResponse(
-  content: string,
-): ExecuteLocallyResponse | null {
-  try {
-    const parsed = JSON.parse(content);
-    if (parsed.status === "execute_locally" && parsed.code) {
-      return {
-        status: parsed.status,
-        code: parsed.code,
-        client_tools: parsed.client_tools ?? parsed.clientTools ?? [],
-        tools_used: parsed.tools_used ?? [],
-        workflowId: parsed.workflowId ?? parsed.workflow_id,
-      };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Handle MCP tools/call request with capability loader
+ * Handle MCP tools/call request
  */
 async function handleToolsCall(
   id: string | number,
@@ -635,7 +125,7 @@ async function handleToolsCall(
 
   // Handle pml:discover - always forward to cloud
   if (name === "pml:discover") {
-    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl);
+    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
       return;
@@ -646,101 +136,81 @@ async function handleToolsCall(
 
   // Handle pml:execute with hybrid routing support
   if (name === "pml:execute") {
-    // Extract continue_workflow for HIL approval flow
-    const { continueWorkflow: execContinueWorkflow, cleanArgs: execCleanArgs } =
-      extractContinueWorkflow(args);
+    const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
 
-    if (execContinueWorkflow) {
-      stdioLog.debug(`pml:execute with continue_workflow: approved=${execContinueWorkflow.approved}`);
+    if (continueWorkflow) {
+      stdioLog.debug(`pml:execute with continue_workflow: approved=${continueWorkflow.approved}`);
 
       // Check if this is a LOCAL workflow (stored in our pending store)
-      // If so, handle it locally instead of forwarding to cloud
-      const pendingWorkflow = execContinueWorkflow.workflowId
-        ? pendingWorkflowStore.get(execContinueWorkflow.workflowId)
+      const pendingWorkflow = continueWorkflow.workflowId
+        ? pendingWorkflowStore.get(continueWorkflow.workflowId)
         : null;
 
       if (pendingWorkflow) {
-        stdioLog.debug(`Found local pending workflow: ${execContinueWorkflow.workflowId}`);
+        stdioLog.debug(`Found local pending workflow: ${continueWorkflow.workflowId}`);
 
-        if (!execContinueWorkflow.approved) {
-          // User rejected - clean up and return
-          pendingWorkflowStore.delete(execContinueWorkflow.workflowId!);
+        if (!continueWorkflow.approved) {
+          pendingWorkflowStore.delete(continueWorkflow.workflowId!);
           sendResponse({
             jsonrpc: "2.0",
             id,
             result: {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    status: "aborted",
-                    reason: "User rejected approval",
-                  }, null, 2),
-                },
-              ],
+              content: [{
+                type: "text",
+                text: JSON.stringify({ status: "aborted", reason: "User rejected approval" }, null, 2),
+              }],
             },
           });
           return;
         }
 
-        // User approved - perform pre-continuation actions based on approval type
+        // Pre-continuation actions based on approval type
         stdioLog.debug(`Re-executing code after approval for: ${pendingWorkflow.approvalType}`);
 
-        // Pre-continuation actions for each approval type
         switch (pendingWorkflow.approvalType) {
           case "tool_permission":
-            // User approved tool - add to session's approved set
             if (loader && pendingWorkflow.toolId) {
               stdioLog.debug(`Approving tool for session: ${pendingWorkflow.toolId}`);
               loader.approveToolForSession(pendingWorkflow.toolId);
             }
             break;
-
           case "api_key_required":
-            // Reload environment variables from .env (user added keys there)
             stdioLog.debug(`Reloading environment for API key approval`);
             await reloadEnv(workspace);
             break;
-
           case "integrity":
-            // Update lockfile with new hash (user approved the integrity change)
             if (lockfileManager && pendingWorkflow.integrityInfo) {
               stdioLog.debug(`Approving integrity update: ${pendingWorkflow.integrityInfo.fqdnBase}`);
-              // The lockfile update happens in the loader when approved: true is passed
             }
             break;
-
           case "dependency":
-            // Dependency installation happens in the loader when approved: true is passed
             stdioLog.debug(`Proceeding with dependency installation`);
             break;
         }
 
-        // Restore fqdnMap from stored workflow (server resolved these during initial request)
-        const storedFqdnMap = new Map<string, string>(
-          Object.entries(pendingWorkflow.fqdnMap ?? {}),
-        );
+        // Re-execute with stored FQDN map
+        const storedFqdnMap = new Map<string, string>(Object.entries(pendingWorkflow.fqdnMap ?? {}));
         const localResult = await executeLocalCode(
           pendingWorkflow.code,
           loader,
           cloudUrl,
           storedFqdnMap,
-          { approved: true, workflowId: execContinueWorkflow.workflowId },
+          { approved: true, workflowId: continueWorkflow.workflowId },
+          stdioLogger,
         );
 
-        // Clean up the pending workflow
-        pendingWorkflowStore.delete(execContinueWorkflow.workflowId!);
+        pendingWorkflowStore.delete(continueWorkflow.workflowId!);
 
-        // Handle result (may trigger another approval if multiple deps needed)
         if (localResult.status === "approval_required") {
           sendResponse({
             jsonrpc: "2.0",
             id,
             result: formatApprovalRequired(
               localResult.toolId,
-              localResult.approval,
+              localResult.approval as AnyApprovalResult,
+              pendingWorkflowStore,
               pendingWorkflow.code,
-              pendingWorkflow.fqdnMap,  // Pass stored FQDNs for next approval
+              pendingWorkflow.fqdnMap,
             ),
           });
           return;
@@ -751,43 +221,31 @@ async function handleToolsCall(
             jsonrpc: "2.0",
             id,
             result: {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    status: "error",
-                    error: localResult.error,
-                    executed_locally: true,
-                  }, null, 2),
-                },
-              ],
+              content: [{
+                type: "text",
+                text: JSON.stringify({ status: "error", error: localResult.error, executed_locally: true }, null, 2),
+              }],
             },
           });
           return;
         }
 
-        // Success!
         sendResponse({
           jsonrpc: "2.0",
           id,
           result: {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  status: "success",
-                  result: localResult.result,
-                  executed_locally: true,
-                }, null, 2),
-              },
-            ],
+            content: [{
+              type: "text",
+              text: JSON.stringify({ status: "success", result: localResult.result, executed_locally: true }, null, 2),
+            }],
           },
         });
         return;
       }
     }
 
-    const cloudResult = await forwardToCloud(id, name, execCleanArgs || {}, cloudUrl);
+    // Forward to cloud
+    const cloudResult = await forwardToCloud(id, name, cleanArgs || {}, cloudUrl, sessionClient);
 
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
@@ -795,49 +253,43 @@ async function handleToolsCall(
     }
 
     // Check if server returned execute_locally
-    const response = cloudResult.response as {
-      result?: { content?: Array<{ type: string; text: string }> };
-    };
+    const response = cloudResult.response as { result?: { content?: Array<{ type: string; text: string }> } };
     const content = response?.result?.content?.[0]?.text;
 
     if (content) {
-      const executeLocally = parseExecuteLocallyResponse(content);
+      const execLocally = parseExecuteLocallyResponse(content);
 
-      if (executeLocally) {
-        // Server says execute locally - code contains client tools
-        stdioLog.debug(
-          `execute_locally received - client tools: ${executeLocally.client_tools.join(", ")}`,
-        );
+      if (execLocally) {
+        stdioLog.debug(`execute_locally received - client tools: ${execLocally.client_tools.join(", ")}`);
 
         // Create FQDN map from server-resolved tools
         const fqdnMap = new Map<string, string>();
-        for (const tool of executeLocally.tools_used) {
+        for (const tool of execLocally.tools_used) {
           fqdnMap.set(tool.id, tool.fqdn);
         }
         stdioLog.debug(`FQDN map: ${JSON.stringify(Object.fromEntries(fqdnMap))}`);
 
         const localResult = await executeLocalCode(
-          executeLocally.code,
+          execLocally.code,
           loader,
           cloudUrl,
           fqdnMap,
-          execContinueWorkflow, // Pass continue_workflow for HIL approval
+          continueWorkflow,
+          stdioLogger,
         );
 
-        // Handle approval_required (HIL pause for dependency/API key/integrity)
+        // Handle approval_required (HIL pause)
         if (localResult.status === "approval_required") {
-          stdioLog.debug(
-            `Local execution paused - tool ${localResult.toolId} requires approval`,
-          );
+          stdioLog.debug(`Local execution paused - tool ${localResult.toolId} requires approval`);
           sendResponse({
             jsonrpc: "2.0",
             id,
-            // Pass original code and FQDNs for storage in pending workflow store
             result: formatApprovalRequired(
               localResult.toolId,
-              localResult.approval,
-              executeLocally.code,
-              Object.fromEntries(fqdnMap),  // Convert Map to Record for storage
+              localResult.approval as AnyApprovalResult,
+              pendingWorkflowStore,
+              execLocally.code,
+              Object.fromEntries(fqdnMap),
             ),
           });
           return;
@@ -849,26 +301,20 @@ async function handleToolsCall(
             jsonrpc: "2.0",
             id,
             result: {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    status: "error",
-                    error: localResult.error,
-                    executed_locally: true,
-                  }, null, 2),
-                },
-              ],
+              content: [{
+                type: "text",
+                text: JSON.stringify({ status: "error", error: localResult.error, executed_locally: true }, null, 2),
+              }],
             },
           });
           return;
         }
 
         // Send trace to finalize capability creation if workflowId present
-        if (executeLocally.workflowId && traceSyncer) {
+        if (execLocally.workflowId && traceSyncer) {
           const trace: LocalExecutionTrace = {
-            workflowId: executeLocally.workflowId,
-            capabilityId: "", // Will be created server-side
+            workflowId: execLocally.workflowId,
+            capabilityId: "",
             success: true,
             durationMs: localResult.durationMs,
             taskResults: localResult.toolCallRecords.map((record, i) => ({
@@ -884,7 +330,7 @@ async function handleToolsCall(
             timestamp: new Date().toISOString(),
           };
           traceSyncer.enqueue(trace);
-          stdioLog.debug(`Trace queued for capability finalization: ${executeLocally.workflowId}`);
+          stdioLog.debug(`Trace queued for capability finalization: ${execLocally.workflowId}`);
         }
 
         // Return successful local execution result
@@ -892,16 +338,10 @@ async function handleToolsCall(
           jsonrpc: "2.0",
           id,
           result: {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  status: "success",
-                  result: localResult.result,
-                  executed_locally: true,
-                }, null, 2),
-              },
-            ],
+            content: [{
+              type: "text",
+              text: JSON.stringify({ status: "success", result: localResult.result, executed_locally: true }, null, 2),
+            }],
           },
         });
         return;
@@ -913,69 +353,37 @@ async function handleToolsCall(
     return;
   }
 
-  // Extract continue_workflow if present (for approval flow)
+  // Direct tool routing (deprecated path - backwards compatibility)
   const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
-
-  // Check routing
   const routing = resolveToolRouting(name);
-  stdioLog.debug(
-    `Tool ${name} → ${routing}${
-      continueWorkflow ? ` (continue: ${continueWorkflow.approved})` : ""
-    }`,
-  );
+  stdioLog.debug(`Tool ${name} → ${routing}${continueWorkflow ? ` (continue: ${continueWorkflow.approved})` : ""}`);
 
   if (routing === "client") {
-    // Client-side execution via CapabilityLoader
     if (!loader) {
       sendError(id, -32603, "Capability loader not initialized");
       return;
     }
 
     try {
-      // Call with continue_workflow if present (for approval flow)
       const result = await loader.call(name, cleanArgs, continueWorkflow);
 
-      // Check if result is an approval_required response
       if (CapabilityLoader.isApprovalRequired(result)) {
-        // Handle all approval types: tool_permission, dependency, API key, integrity
-        if (result.approvalType === "tool_permission") {
-          stdioLog.debug(
-            `Tool ${name} requires permission: ${result.toolId}${result.needsInstallation ? " (will install)" : ""}`,
-          );
-        } else if (result.approvalType === "api_key_required") {
-          stdioLog.debug(
-            `Tool ${name} requires API keys: ${result.missingKeys.join(", ")}`,
-          );
-        } else if (result.approvalType === "integrity") {
-          stdioLog.debug(
-            `Tool ${name} requires integrity approval: ${result.fqdnBase} (${result.oldHash} → ${result.newHash})`,
-          );
-        } else if (result.approvalType === "dependency") {
-          stdioLog.debug(
-            `Tool ${name} requires approval for dependency: ${result.dependency.name}`,
-          );
-        }
         sendResponse({
           jsonrpc: "2.0",
           id,
-          result: formatApprovalRequired(name, result),
+          result: formatApprovalRequired(name, result as AnyApprovalResult, pendingWorkflowStore),
         });
         return;
       }
 
-      // Normal result
       sendResponse({
         jsonrpc: "2.0",
         id,
         result: {
-          content: [
-            {
-              type: "text",
-              text: typeof result === "string"
-                ? result
-                : JSON.stringify(result, null, 2),
-            },
-          ],
+          content: [{
+            type: "text",
+            text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
+          }],
         },
       });
     } catch (error) {
@@ -988,23 +396,15 @@ async function handleToolsCall(
 
   // Server routing - forward to pml.casys.ai
   try {
-    // PML_API_KEY is required for cloud calls
     const apiKey = Deno.env.get("PML_API_KEY");
     if (!apiKey) {
-      sendError(
-        id,
-        -32603,
-        "PML_API_KEY environment variable is required for cloud calls. Set it with: export PML_API_KEY=your_key",
-      );
+      sendError(id, -32603, "PML_API_KEY environment variable is required");
       return;
     }
 
     const response = await fetch(`${cloudUrl}/mcp`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-      },
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey },
       body: JSON.stringify({
         jsonrpc: "2.0",
         id,
@@ -1014,24 +414,14 @@ async function handleToolsCall(
     });
 
     if (!response.ok) {
-      sendError(
-        id,
-        -32603,
-        `Cloud error: ${response.status} ${response.statusText}`,
-      );
+      sendError(id, -32603, `Cloud error: ${response.status} ${response.statusText}`);
       return;
     }
 
     const result = await response.json();
     sendResponse(result);
   } catch (error) {
-    sendError(
-      id,
-      -32603,
-      `Cloud unreachable: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
+    sendError(id, -32603, `Cloud unreachable: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -1114,7 +504,6 @@ async function runStdioLoop(
   for await (const chunk of Deno.stdin.readable) {
     buffer += decoder.decode(chunk);
 
-    // Process complete lines
     let newlineIndex: number;
     while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
       const line = buffer.slice(0, newlineIndex).trim();
@@ -1129,9 +518,6 @@ async function runStdioLoop(
 
 /**
  * Create stdio command
- *
- * Usage:
- *   pml stdio                   # Start stdio server (for Claude Code)
  */
 // deno-lint-ignore no-explicit-any
 export function createStdioCommand(): Command<any> {
@@ -1139,11 +525,11 @@ export function createStdioCommand(): Command<any> {
     .name("stdio")
     .description("Start the PML MCP server in stdio mode (for Claude Code)")
     .action(async () => {
-      // Step 1: Resolve workspace FIRST (needed for .env lookup)
-      const workspaceResult = resolveWorkspaceWithDetails(silentLogger);
+      // Resolve workspace
+      const workspaceResult = resolveWorkspaceWithDetails(SILENT_LOGGER);
       const workspace = workspaceResult.path;
 
-      // Step 2: Auto-load .env from workspace if PML_API_KEY not already set
+      // Auto-load .env from workspace
       if (!Deno.env.get("PML_API_KEY")) {
         try {
           await reloadEnv(workspace);
@@ -1155,12 +541,10 @@ export function createStdioCommand(): Command<any> {
         }
       }
 
-      // Step 3: Verify PML_API_KEY is set (required for all operations)
+      // Verify PML_API_KEY
       const apiKey = Deno.env.get("PML_API_KEY");
       if (!apiKey) {
-        console.error(
-          "[pml] ERROR: PML_API_KEY environment variable is required",
-        );
+        console.error("[pml] ERROR: PML_API_KEY environment variable is required");
         console.error("[pml] Set it with: export PML_API_KEY=your_key");
         console.error("[pml] Or add PML_API_KEY=your_key to .env in your project");
         Deno.exit(1);
@@ -1171,9 +555,8 @@ export function createStdioCommand(): Command<any> {
         Deno.exit(1);
       }
 
+      // Load config
       const configPath = join(workspace, PML_CONFIG_FILE);
-
-      // Step 2: Load config
       const defaultConfig: PmlConfig = {
         version: "0.1.0",
         workspace,
@@ -1192,71 +575,41 @@ export function createStdioCommand(): Command<any> {
         }
       }
 
-      // Step 3: Load permissions
-      const { permissions } = await loadUserPermissions(
-        workspace,
-        silentLogger,
-      );
+      // Load permissions
+      const { permissions } = await loadUserPermissions(workspace, SILENT_LOGGER);
 
-      // Step 4: Sync routing config from cloud
-      // Env var override for testing/development
+      // Sync routing config from cloud
       const cloudUrl = Deno.env.get("PML_CLOUD_URL") ?? config.cloud?.url ?? "https://pml.casys.ai";
-      const { config: routingConfig } = await syncRoutingConfig(
-        cloudUrl,
-        silentLogger,
-      );
+      const { config: routingConfig } = await syncRoutingConfig(cloudUrl, SILENT_LOGGER);
       initializeRouting(routingConfig);
 
-      // Step 5: Register session with server (handshake)
+      // Register session with server
       try {
-        sessionClient = new SessionClient({
-          cloudUrl,
-          apiKey,
-          version: PACKAGE_VERSION,
-          workspace,
-        });
+        sessionClient = new SessionClient({ cloudUrl, apiKey, version: PACKAGE_VERSION, workspace });
         await sessionClient.register();
         stdioLog.debug(`Session registered: ${sessionClient.sessionId?.slice(0, 8)}`);
       } catch (error) {
-        // Registration failure is not fatal - fallback to x-api-key detection
         stdioLog.debug(`Session registration failed (non-fatal): ${error}`);
         sessionClient = null;
       }
 
-      stdioLog.debug(
-        `Workspace: ${workspace} (${
-          getWorkspaceSourceDescription(workspaceResult)
-        })`,
-      );
+      stdioLog.debug(`Workspace: ${workspace} (${getWorkspaceSourceDescription(workspaceResult)})`);
       stdioLog.debug(`Cloud: ${cloudUrl}`);
-      stdioLog.debug(
-        `Routing: v${getRoutingVersion()} (${
-          isRoutingInitialized() ? "ready" : "failed"
-        })`,
-      );
+      stdioLog.debug(`Routing: v${getRoutingVersion()} (${isRoutingInitialized() ? "ready" : "failed"})`);
 
-      // Step 5: Initialize CapabilityLoader
-      // Note: HIL (approval_required) is handled via MCP response, not callback
+      // Initialize CapabilityLoader
       let loader: CapabilityLoader | null = null;
       let lockfileManager: LockfileManager | null = null;
       try {
-        // Story 14.7: Initialize lockfile manager for integrity validation (per-project)
         lockfileManager = new LockfileManager({ workspace });
-        await lockfileManager.load(); // Create/load lockfile
-
-        loader = await CapabilityLoader.create({
-          cloudUrl,
-          workspace,
-          permissions,
-          lockfileManager, // Story 14.7: Enable integrity validation
-        });
+        await lockfileManager.load();
+        loader = await CapabilityLoader.create({ cloudUrl, workspace, permissions, lockfileManager });
         stdioLog.debug(`CapabilityLoader initialized with permissions + lockfile`);
       } catch (error) {
         stdioLog.debug(`Failed to initialize CapabilityLoader: ${error}`);
-        // Continue without loader - server-side calls will still work
       }
 
-      // Step 6: Initialize TraceSyncer for sending execution traces
+      // Initialize TraceSyncer
       traceSyncer = new TraceSyncer({
         cloudUrl,
         apiKey,
@@ -1266,18 +619,15 @@ export function createStdioCommand(): Command<any> {
       });
       stdioLog.debug(`TraceSyncer initialized`);
 
-      // Step 7: Start stdio loop
+      // Start stdio loop
       try {
         await runStdioLoop(loader, cloudUrl, workspace, lockfileManager);
       } finally {
-        // Cleanup on exit
         loader?.shutdown();
-        // Flush and shutdown trace syncer
         if (traceSyncer) {
           await traceSyncer.shutdown();
           stdioLog.debug("TraceSyncer shutdown");
         }
-        // Graceful session unregister
         if (sessionClient) {
           await sessionClient.shutdown();
           stdioLog.debug("Session unregistered");

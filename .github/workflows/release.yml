@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: pml-linux-x64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact: pml-macos-x64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact: pml-macos-arm64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact: pml-windows-x64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Compile
+        shell: bash
+        run: |
+          deno compile -A --unstable-worker-options --no-check \
+            --include=./src/sandbox/execution/sandbox-script.ts \
+            --target ${{ matrix.target }} \
+            --output ${{ matrix.artifact }} \
+            ./src/cli/mod.ts
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          mv dist/pml-linux-x64/pml-linux-x64 release/
+          mv dist/pml-macos-x64/pml-macos-x64 release/
+          mv dist/pml-macos-arm64/pml-macos-arm64 release/
+          mv dist/pml-windows-x64.exe/pml-windows-x64.exe release/
+          cp scripts/install.sh release/
+          ls -la release/
+
+      - name: Create checksums
+        working-directory: release
+        run: |
+          sha256sum pml-* install.sh > checksums.sha256
+          cat checksums.sha256
+
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: PML ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          files: |
+            release/pml-linux-x64
+            release/pml-macos-x64
+            release/pml-macos-arm64
+            release/pml-windows-x64.exe
+            release/install.sh
+            release/checksums.sha256
+          body: |
+            ## Installation
+
+            ### Quick Install (Linux/macOS)
+            ```bash
+            curl -fsSL https://github.com/Casys-AI/casys-pml/releases/download/${{ steps.version.outputs.version }}/install.sh | sh
+            ```
+
+            ### Manual Download
+            - **Linux x64**: `pml-linux-x64`
+            - **macOS Intel**: `pml-macos-x64`
+            - **macOS Apple Silicon**: `pml-macos-arm64`
+            - **Windows**: `pml-windows-x64.exe`
+
+            ### Verify Checksums
+            ```bash
+            sha256sum -c checksums.sha256
+            ```
+
+            ## Upgrade
+            If you already have PML installed:
+            ```bash
+            pml upgrade
+            ```
