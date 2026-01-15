@@ -768,9 +768,10 @@ export class SHGAT {
   }
 
   // ==========================================================================
-  // V2 Scoring Methods
+  // V2 Scoring Methods (DEPRECATED - use V1 methods instead)
   // ==========================================================================
 
+  /** @deprecated V2 scoring path is legacy */
   private projectFeaturesV2(features: TraceFeatures): number[] {
     const { hiddenDim } = this.config;
     const statsVec = traceStatsToVector(features.traceStats);
@@ -793,6 +794,7 @@ export class SHGAT {
     return result;
   }
 
+  /** @deprecated V2 scoring path is legacy - uses hardcoded hiddenDim instead of dynamic W_q.length */
   private computeHeadScoreV2(projected: number[], headIdx: number): number {
     const hp = this.params.headParams[headIdx];
     const { hiddenDim } = this.config;
@@ -2172,8 +2174,8 @@ export class SHGAT {
 
     const t6 = Date.now();
 
-    // Log timing breakdown (only for first few batches to avoid log spam)
-    if (t6 - t0 > 1000) {
+    // Log timing breakdown only for very slow batches (>5s)
+    if (t6 - t0 > 5000) {
       console.error(
         `[SHGAT] Slow batch (${t6 - t0}ms): ` +
         `hierarchy=${t1 - t0}ms, matrices=${t2 - t1}ms, forward=${t3 - t2}ms, ` +

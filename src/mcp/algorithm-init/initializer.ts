@@ -37,6 +37,7 @@ import {
 } from "../../infrastructure/patterns/factory/algorithm-factory.ts";
 import { loadAllProvidesEdges } from "../../graphrag/provides-edge-calculator.ts";
 import pako from "pako";
+import { decode as msgpackDecode } from "npm:@msgpack/msgpack@3.0.0-beta2";
 
 // ==========================================================================
 // Types
@@ -223,30 +224,62 @@ export class AlgorithmInitializer {
   }
 
   /**
-   * Save SHGAT params to database
+   * Save SHGAT params to database (compressed with gzip)
    */
   async saveSHGATParams(): Promise<void> {
     if (!this.shgat) return;
 
     try {
       const params = this.shgat.exportParams();
-      // Global model - only one row, use upsert by checking if any row exists
+
+      // Compress with pako to avoid V8 string limits (~500MB)
+      const encoder = new TextEncoder();
+      const jsonBytes = encoder.encode(JSON.stringify(params));
+      const compressed = pako.gzip(jsonBytes, { level: 6 });
+
+      // Convert to base64 for JSONB storage
+      const base64 = this.bytesToBase64(compressed);
+
+      const wrapper = {
+        compressed: true,
+        format: "gzip+base64",
+        size: jsonBytes.length,
+        compressedSize: compressed.length,
+        data: base64,
+      };
+
+      log.info(`[AlgorithmInitializer] Saving SHGAT params (${(compressed.length / 1024 / 1024).toFixed(2)} MB compressed)`);
+
+      // Global model - only one row, use upsert
       await this.deps.db.query(
         `INSERT INTO shgat_params (params, updated_at)
          SELECT $1::jsonb, NOW()
          WHERE NOT EXISTS (SELECT 1 FROM shgat_params)
          ON CONFLICT DO NOTHING`,
-        [params],
+        [wrapper],
       );
-      // Update if row already exists
       await this.deps.db.query(
         `UPDATE shgat_params SET params = $1::jsonb, updated_at = NOW()`,
-        [params],
+        [wrapper],
       );
       log.info("[AlgorithmInitializer] SHGAT params saved to DB");
     } catch (error) {
       log.warn(`[AlgorithmInitializer] Could not save SHGAT params: ${error}`);
     }
+  }
+
+  /**
+   * Encode bytes to base64 in chunks to avoid string limits
+   * IMPORTANT: Chunk size must be multiple of 3 to avoid base64 padding in middle of string
+   */
+  private bytesToBase64(bytes: Uint8Array): string {
+    const CHUNK_SIZE = 32766; // Must be multiple of 3 to avoid padding issues
+    let base64 = "";
+    for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+      const chunk = bytes.slice(i, i + CHUNK_SIZE);
+      base64 += btoa(String.fromCharCode(...chunk));
+    }
+    return base64;
   }
 
   /**
@@ -277,13 +310,22 @@ export class AlgorithmInitializer {
         let params = rows[0].params;
 
         // Check if params are compressed (new format)
-        if (params.compressed && params.format === "gzip+base64" && params.data) {
-          log.info(`[AlgorithmInitializer] Decompressing SHGAT params (${(params.compressedSize / 1024 / 1024).toFixed(2)} MB)...`);
-          const compressed = this.base64ToBytes(params.data);
-          const decompressed = pako.ungzip(compressed);
-          const jsonStr = new TextDecoder().decode(decompressed);
-          params = JSON.parse(jsonStr);
-          log.info(`[AlgorithmInitializer] Decompressed to ${(params.compressedSize ? decompressed.length : JSON.stringify(params).length) / 1024 / 1024} MB`);
+        const compressed = params as { compressed?: boolean; format?: string; data?: string; compressedSize?: number };
+        if (compressed.compressed && compressed.data) {
+          log.info(`[AlgorithmInitializer] Decompressing SHGAT params (${((compressed.compressedSize ?? 0) / 1024 / 1024).toFixed(2)} MB, format=${compressed.format})...`);
+          const compressedBytes = this.base64ToBytes(compressed.data);
+          const decompressed = pako.ungzip(compressedBytes);
+
+          // Handle different serialization formats
+          if (compressed.format === "msgpack+gzip+base64") {
+            params = msgpackDecode(decompressed) as Record<string, unknown>;
+            log.info(`[AlgorithmInitializer] Decoded MessagePack (${(decompressed.length / 1024 / 1024).toFixed(2)} MB)`);
+          } else {
+            // Legacy JSON format
+            const jsonStr = new TextDecoder().decode(decompressed);
+            params = JSON.parse(jsonStr);
+            log.info(`[AlgorithmInitializer] Decoded JSON (${(decompressed.length / 1024 / 1024).toFixed(2)} MB)`);
+          }
         }
 
         this.shgat.importParams(params);
@@ -546,7 +588,13 @@ export class AlgorithmInitializer {
   // Private: Training
   // ==========================================================================
 
-  private async trainOnTraces(): Promise<void> {
+  /**
+   * @deprecated Kept for reference - batch training at startup disabled.
+   * Use `deno task train` or live training via train-shgat.use-case.ts instead.
+   */
+  // @ts-ignore: Kept for reference, may be re-enabled later
+  // deno-lint-ignore require-await
+  private async _trainOnTraces(): Promise<void> {
     if (!this.shgat) return;
 
     if (!trainingLock.acquire("BATCH")) {

@@ -30,6 +30,7 @@ import { PERBuffer, annealBeta, annealTemperature } from "./training/per-buffer.
 import { getLogger, setupLogger } from "../../../telemetry/logger.ts";
 import postgres from "postgres";
 import pako from "pako";
+import { encode as msgpackEncode } from "npm:@msgpack/msgpack@3.0.0-beta2";
 
 // Logger initialized in main() after setupLogger()
 let log: ReturnType<typeof getLogger>;
@@ -43,8 +44,8 @@ const logWarn = (msg: string) => {
   console.error(msg);
   log?.warn(msg);
 };
+// Debug logs only go to logger, not console (reduces noise)
 const logDebug = (msg: string) => {
-  console.error(msg);
   log?.debug(msg);
 };
 
@@ -92,9 +93,10 @@ interface WorkerOutput {
 
 /**
  * Encode bytes to base64 in chunks to avoid string limits
+ * IMPORTANT: Chunk size must be multiple of 3 to avoid base64 padding in middle of string
  */
 function bytesToBase64(bytes: Uint8Array): string {
-  const CHUNK_SIZE = 32768; // 32KB chunks
+  const CHUNK_SIZE = 32766; // Must be multiple of 3 to avoid padding issues
   let base64 = "";
   for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
     const chunk = bytes.slice(i, i + CHUNK_SIZE);
@@ -118,27 +120,24 @@ async function saveParamsToDb(
   });
 
   try {
-    // Serialize to JSON in chunks to avoid string limits
-    logInfo(`[SHGAT Worker] Compressing params...`);
-
-    // Use TextEncoder to get bytes directly without huge string
-    const encoder = new TextEncoder();
-    const jsonBytes = encoder.encode(JSON.stringify(params));
-    logInfo(`[SHGAT Worker] JSON size: ${(jsonBytes.length / 1024 / 1024).toFixed(2)} MB`);
+    // Serialize params using MessagePack (efficient binary format, handles large objects)
+    logDebug(`[SHGAT Worker] Serializing params with MessagePack...`);
+    const msgpackBytes = msgpackEncode(params);
+    logDebug(`[SHGAT Worker] MessagePack size: ${(msgpackBytes.length / 1024 / 1024).toFixed(2)} MB`);
 
     // Compress with pako (gzip level 6 for good compression/speed tradeoff)
-    const compressed = pako.gzip(jsonBytes, { level: 6 });
-    logInfo(`[SHGAT Worker] Compressed size: ${(compressed.length / 1024 / 1024).toFixed(2)} MB`);
+    const compressed = pako.gzip(msgpackBytes, { level: 6 });
+    logDebug(`[SHGAT Worker] Compressed size: ${(compressed.length / 1024 / 1024).toFixed(2)} MB`);
 
     // Convert to base64 for storage in JSONB
     const base64 = bytesToBase64(compressed);
 
-    // Store as wrapper object with compression flag
+    // Store as wrapper object with format info
     // deno-lint-ignore no-explicit-any
     const wrapper: any = {
       compressed: true,
-      format: "gzip+base64",
-      size: jsonBytes.length,
+      format: "msgpack+gzip+base64",
+      size: msgpackBytes.length,
       compressedSize: compressed.length,
       data: base64,
     };
@@ -153,7 +152,7 @@ async function saveParamsToDb(
       UPDATE shgat_params SET params = ${wrapper}::jsonb, updated_at = NOW()
     `;
 
-    logInfo(`[SHGAT Worker] Params saved (${(compressed.length / 1024 / 1024).toFixed(2)} MB compressed)`);
+    logDebug(`[SHGAT Worker] Params saved (${(compressed.length / 1024 / 1024).toFixed(2)} MB compressed)`);
     return true;
   } finally {
     await sql.end();
@@ -181,9 +180,9 @@ async function main() {
     throw new Error("Input file path required as first argument");
   }
 
-  logInfo(`[SHGAT Worker] Reading from ${inputFile}`);
+  logDebug(`[SHGAT Worker] Reading from ${inputFile}`);
   const inputJson = await Deno.readTextFile(inputFile);
-  logInfo(`[SHGAT Worker] Read ${(inputJson.length / 1024 / 1024).toFixed(2)} MB`);
+  logDebug(`[SHGAT Worker] Read ${(inputJson.length / 1024 / 1024).toFixed(2)} MB`);
 
   // Cleanup temp file
   try {
@@ -193,7 +192,7 @@ async function main() {
   }
 
   const input: WorkerInput = JSON.parse(inputJson);
-  logInfo(`[SHGAT Worker] Loaded: ${input.capabilities?.length} caps, ${input.examples?.length} examples`);
+  logDebug(`[SHGAT Worker] Loaded: ${input.capabilities?.length} caps, ${input.examples?.length} examples`);
 
   try {
     // Validate input
@@ -205,10 +204,10 @@ async function main() {
     }
 
     // Create SHGAT from capabilities
-    logInfo(`[SHGAT Worker] Creating SHGAT graph...`);
+    logDebug(`[SHGAT Worker] Creating SHGAT graph...`);
     const startCreate = Date.now();
     const shgat = createSHGATFromCapabilities(input.capabilities);
-    logInfo(`[SHGAT Worker] SHGAT created in ${Date.now() - startCreate}ms`);
+    logDebug(`[SHGAT Worker] SHGAT created in ${Date.now() - startCreate}ms`);
 
     // Register additional tools from examples (not in any capability's toolsUsed)
     if (input.additionalTools && input.additionalTools.length > 0) {
@@ -254,7 +253,7 @@ async function main() {
     const testSet = shuffled.slice(0, testSetSize);
     const trainSet = shuffled.slice(testSetSize);
 
-    logInfo(`[SHGAT Worker] Health check: ${testSet.length} test examples, ${trainSet.length} train examples`);
+    logDebug(`[SHGAT Worker] Health check: ${testSet.length} test examples, ${trainSet.length} train examples`);
 
     const numBatchesPerEpoch = Math.ceil(trainSet.length / batchSize);
 
@@ -279,7 +278,7 @@ async function main() {
     let earlyStopEpoch: number | undefined;
     const DEGRADATION_THRESHOLD = 0.15; // 15% drop from baseline = degradation
 
-    logInfo(`[SHGAT Worker] Starting ${epochs} epochs training with ${trainSet.length} train / ${testSet.length} test examples...`);
+    logDebug(`[SHGAT Worker] Starting ${epochs} epochs training with ${trainSet.length} train / ${testSet.length} test examples...`);
 
     for (let epoch = 0; epoch < epochs; epoch++) {
       // Anneal beta from 0.4 to 1.0 over training (reduces bias correction over time)
@@ -339,7 +338,7 @@ async function main() {
         }
       }
       if (curriculumUpdated > 0 && useCurriculum) {
-        logInfo(
+        logDebug(
           `[SHGAT Worker] Curriculum epoch ${epoch}: ${difficulty} tier (${tierSize}/${totalNegs} negs), ` +
           `sampled ${NUM_NEGATIVES}, updated ${curriculumUpdated}/${trainSet.length}, prevAcc=${prevAccuracy.toFixed(2)}`
         );
@@ -355,7 +354,7 @@ async function main() {
       const epochStartTime = Date.now();
       for (let b = 0; b < numBatchesPerEpoch; b++) {
         if (epoch === 0 && b === 0) {
-          logInfo(`[SHGAT Worker] Processing batch 1/${numBatchesPerEpoch}...`);
+          logDebug(`[SHGAT Worker] Processing batch 1/${numBatchesPerEpoch}...`);
         }
         let batch: TrainingExample[];
         let isWeights: number[];
@@ -377,7 +376,7 @@ async function main() {
         const batchStart = Date.now();
         const result = shgat.trainBatchV1KHeadBatched(batch, isWeights, false, temperature);
         if (epoch === 0 && b === 0) {
-          logInfo(`[SHGAT Worker] First batch took ${Date.now() - batchStart}ms`);
+          logDebug(`[SHGAT Worker] First batch took ${Date.now() - batchStart}ms`);
         }
         epochLoss += result.loss;
         epochAccuracy += result.accuracy;
@@ -423,12 +422,12 @@ async function main() {
         if (epoch === 0) {
           baselineTestAccuracy = testAccuracy;
           lastTestAccuracy = testAccuracy;
-          logInfo(`[SHGAT Worker] Health check baseline: testAcc=${testAccuracy.toFixed(2)}`);
+          logDebug(`[SHGAT Worker] Health check baseline: testAcc=${testAccuracy.toFixed(2)}`);
         } else {
           const dropFromBaseline = baselineTestAccuracy - testAccuracy;
           const dropFromLast = lastTestAccuracy - testAccuracy;
 
-          logInfo(
+          logDebug(
             `[SHGAT Worker] Health check epoch ${epoch}: testAcc=${testAccuracy.toFixed(2)}, ` +
             `Δbaseline=${(-dropFromBaseline * 100).toFixed(1)}%, Δlast=${(-dropFromLast * 100).toFixed(1)}%`
           );
@@ -450,15 +449,18 @@ async function main() {
 
     // Save params directly to DB if URL provided
     let savedToDb = false;
+    logDebug(`[SHGAT Worker] DB save check: databaseUrl=${input.databaseUrl ? "provided" : "MISSING"}`);
     if (input.databaseUrl) {
       try {
-        logInfo(`[SHGAT Worker] Exporting params...`);
+        logDebug(`[SHGAT Worker] Exporting params...`);
         const params = shgat.exportParams();
-        logInfo(`[SHGAT Worker] Params exported, keys: ${Object.keys(params).join(", ")}`);
+        logDebug(`[SHGAT Worker] Params exported, keys: ${Object.keys(params).join(", ")}`);
         savedToDb = await saveParamsToDb(input.databaseUrl, params);
         logInfo(`[SHGAT Worker] Params saved to DB`);
       } catch (e) {
-        logWarn(`[SHGAT Worker] Failed to save params to DB: ${e}`);
+        const errMsg = e instanceof Error ? `${e.message}\n${e.stack}` : String(e);
+        logWarn(`[SHGAT Worker] Failed to save params to DB: ${errMsg}`);
+        console.error(`[SHGAT Worker] DB SAVE ERROR: ${errMsg}`);
         // Continue - training still succeeded, params just couldn't be saved
       }
     } else {

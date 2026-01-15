@@ -133,6 +133,7 @@ import { getKv } from "../cache/kv.ts";
 // Phase 3.2: Post-execution service for learning
 import { PostExecutionService } from "../application/services/mod.ts";
 
+
 /** Type alias for execute adapters from bootstrap */
 type ExecuteAdapters = BootstrappedServices["executeAdapters"];
 
@@ -388,6 +389,14 @@ export class PMLGatewayServer {
       },
     });
 
+    // Phase 3.2: Event-driven PER training - triggers on capability registration
+    // This handles client-routed executions that don't go through PostExecutionService.process()
+    eventBus.on("capability.shgat.registered", () => {
+      postExecutionService.runPERBatchTraining().catch((err) => {
+        log.warn("[Gateway] PER training failed", { error: String(err) });
+      });
+    });
+
     // Create use cases
     const executeDirectUC = new ExecuteDirectUseCase({
       capabilityRepo,
@@ -459,9 +468,6 @@ export class PMLGatewayServer {
 
     log.info("[Gateway] ExecuteHandlerFacade initialized (Phase 3.1)");
   }
-
-  // TrainingSubscriber removed - PostExecutionService.runPERBatchTraining() handles
-  // proper PER batch training with subprocess (non-blocking, 50+ traces)
 
   /**
    * Initialize DiscoverHandlerFacade with use cases
