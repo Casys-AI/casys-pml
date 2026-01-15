@@ -8,7 +8,7 @@
 export const PML_CONFIG_FILE = ".pml.json";
 
 /** Package version for registration */
-export const PACKAGE_VERSION = "0.2.10";
+export const PACKAGE_VERSION = "0.2.11";
 
 /** Silent logger for initialization (stdio must be clean for JSON-RPC) */
 export const SILENT_LOGGER = {

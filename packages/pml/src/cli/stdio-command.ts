@@ -45,6 +45,7 @@ import {
   executeLocalCode,
   type AnyApprovalResult,
 } from "./shared/mod.ts";
+import { checkForUpdates } from "./shared/version-check.ts";
 
 /** Active session client (initialized at startup) */
 let sessionClient: SessionClient | null = null;
@@ -81,6 +82,42 @@ function sendError(
     id,
     error: { code, message },
   });
+}
+
+/**
+ * Send MCP notification to client
+ */
+function sendNotification(
+  level: "debug" | "info" | "warning" | "error",
+  message: string,
+): void {
+  sendResponse({
+    jsonrpc: "2.0",
+    method: "notifications/message",
+    params: {
+      level,
+      logger: "pml",
+      data: message,
+    },
+  });
+}
+
+/**
+ * Check for updates and notify if newer version available (non-blocking)
+ */
+function checkAndNotifyUpdates(): void {
+  checkForUpdates()
+    .then((latestVersion) => {
+      if (latestVersion) {
+        sendNotification(
+          "info",
+          `PML update available: v${latestVersion} (current: v${PACKAGE_VERSION}). Run 'pml upgrade' to update.`,
+        );
+      }
+    })
+    .catch(() => {
+      // Silently ignore version check errors
+    });
 }
 
 /**
@@ -498,6 +535,8 @@ async function processRequest(
       break;
     case "initialized":
       // Notification, no response needed
+      // Check for updates in background (non-blocking)
+      checkAndNotifyUpdates();
       break;
     case "tools/list":
       if (id !== null) handleToolsList(id);
