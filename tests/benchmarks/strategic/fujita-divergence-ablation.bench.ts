@@ -8,656 +8,134 @@
  *    - Ours: GAT-style concat: a^T · LeakyReLU([H·W || E·W])
  *
  * 2. ACTIVATION FUNCTION:
- *    - Fujita: σ (generic, likely ReLU or none)
+ *    - Fujita: none (identity)
  *    - Ours: ELU
  *
- * 3. AGGREGATION TARGET:
- *    - Fujita: aggregates unprojected H: E^new = σ(A^T · H)
- *    - Ours: aggregates projected H': E^new = ELU(A^T · H·W)
+ * Uses the real SHGAT implementation with OpenBLAS acceleration.
  *
  * Run: deno run --allow-all tests/benchmarks/strategic/fujita-divergence-ablation.bench.ts
  *
  * @module tests/benchmarks/strategic/fujita-divergence-ablation
  */
 
-import { loadScenario } from "../fixtures/scenario-loader.ts";
-import { createSHGATFromCapabilities } from "../../../src/graphrag/algorithms/shgat.ts";
-import type { TrainingExample as ProdTrainingExample } from "../../../src/graphrag/algorithms/shgat.ts";
+import { createSHGATFromCapabilities, type TrainingExample } from "../../../src/graphrag/algorithms/shgat.ts";
+import { NUM_NEGATIVES } from "../../../src/graphrag/algorithms/shgat/types.ts";
+import { mean, stdDev } from "../utils/metrics.ts";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface CapabilityData {
-  id: string;
-  embedding: number[];
-  toolsUsed: string[];
-  successRate: number;
-}
-
-interface TrainingExample {
-  intentEmbedding: number[];
-  contextTools: string[];
-  candidateId: string;
-  outcome: number;
-  negativeCapIds: string[];
-}
-
 interface AblationConfig {
   name: string;
   attentionType: "gat_concat" | "dot_product";
-  activation: "elu" | "relu" | "none";
-  aggregateProjected: boolean;
+  aggregationActivation: "elu" | "none";
   numHeads: number;
   headDim: number;
 }
 
-interface AblationResult {
-  config: string;
+interface RunResult {
   trainAccuracy: number;
   testAccuracy: number;
-  loss: number;
   mrr: number;
-  convergenceEpoch: number;
   timeMs: number;
 }
 
-// ============================================================================
-// Math Utilities
-// ============================================================================
-
-function dot(a: number[], b: number[]): number {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) {
-    sum += a[i] * b[i];
-  }
-  return sum;
+interface AggregatedResult {
+  config: AblationConfig;
+  runs: RunResult[];
+  meanTrainAcc: number;
+  meanTestAcc: number;
+  stdTestAcc: number;
+  meanMrr: number;
+  meanTimeMs: number;
 }
 
-function matmul(A: number[][], B: number[][]): number[][] {
-  const m = A.length;
-  const n = B[0].length;
-  const k = B.length;
-  const C: number[][] = Array.from({ length: m }, () => Array(n).fill(0));
-  for (let i = 0; i < m; i++) {
-    for (let j = 0; j < n; j++) {
-      for (let l = 0; l < k; l++) {
-        C[i][j] += A[i][l] * B[l][j];
-      }
-    }
-  }
-  return C;
-}
+// ============================================================================
+// Configurations
+// ============================================================================
 
-function transpose(A: number[][]): number[][] {
-  const m = A.length;
-  const n = A[0]?.length ?? 0;
-  return Array.from({ length: n }, (_, j) =>
-    Array.from({ length: m }, (_, i) => A[i][j])
+const ABLATION_CONFIGS: AblationConfig[] = [
+  // =========================================================================
+  // 4 HEADS (256-dim output)
+  // =========================================================================
+  {
+    name: "OURS 4h: GAT + ELU",
+    attentionType: "gat_concat",
+    aggregationActivation: "elu",
+    numHeads: 4,
+    headDim: 64,
+  },
+  {
+    name: "FUJITA 4h: dot + none",
+    attentionType: "dot_product",
+    aggregationActivation: "none",
+    numHeads: 4,
+    headDim: 64,
+  },
+  {
+    name: "HYBRID 4h: GAT + none",
+    attentionType: "gat_concat",
+    aggregationActivation: "none",
+    numHeads: 4,
+    headDim: 64,
+  },
+  {
+    name: "HYBRID 4h: dot + ELU",
+    attentionType: "dot_product",
+    aggregationActivation: "elu",
+    numHeads: 4,
+    headDim: 64,
+  },
+
+  // =========================================================================
+  // 16 HEADS (1024-dim output = BGE-M3 match)
+  // =========================================================================
+  {
+    name: "OURS 16h: GAT + ELU",
+    attentionType: "gat_concat",
+    aggregationActivation: "elu",
+    numHeads: 16,
+    headDim: 64,
+  },
+  {
+    name: "FUJITA 16h: dot + none",
+    attentionType: "dot_product",
+    aggregationActivation: "none",
+    numHeads: 16,
+    headDim: 64,
+  },
+  {
+    name: "HYBRID 16h: GAT + none",
+    attentionType: "gat_concat",
+    aggregationActivation: "none",
+    numHeads: 16,
+    headDim: 64,
+  },
+  {
+    name: "HYBRID 16h: dot + ELU",
+    attentionType: "dot_product",
+    aggregationActivation: "elu",
+    numHeads: 16,
+    headDim: 64,
+  },
+];
+
+// ============================================================================
+// Data Loading
+// ============================================================================
+
+async function loadProductionData(): Promise<{
+  capabilities: Array<{ id: string; embedding: number[]; toolsUsed: string[]; successRate: number }>;
+  toolEmbeddings: Map<string, number[]>;
+  trainExamples: TrainingExample[];
+  testExamples: TrainingExample[];
+}> {
+  const data = JSON.parse(
+    await Deno.readTextFile("tests/benchmarks/fixtures/scenarios/production-traces.json")
   );
-}
 
-function softmax(x: number[]): number[] {
-  const max = Math.max(...x);
-  const exp = x.map((v) => Math.exp(v - max));
-  const sum = exp.reduce((a, b) => a + b, 0);
-  return exp.map((v) => v / sum);
-}
-
-function leakyRelu(x: number, alpha: number = 0.2): number {
-  return x > 0 ? x : alpha * x;
-}
-
-function elu(x: number, alpha: number = 1.0): number {
-  return x >= 0 ? x : alpha * (Math.exp(x) - 1);
-}
-
-function relu(x: number): number {
-  return Math.max(0, x);
-}
-
-function applyActivation(x: number, type: "elu" | "relu" | "none"): number {
-  switch (type) {
-    case "elu":
-      return elu(x);
-    case "relu":
-      return relu(x);
-    case "none":
-      return x;
-  }
-}
-
-function initMatrix(rows: number, cols: number, scale: number = 0.1): number[][] {
-  return Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => (Math.random() - 0.5) * scale)
-  );
-}
-
-function initVector(size: number, scale: number = 0.1): number[] {
-  return Array.from({ length: size }, () => (Math.random() - 0.5) * scale);
-}
-
-// ============================================================================
-// Attention Implementations
-// ============================================================================
-
-/**
- * GAT-style attention (our implementation)
- * score(i,j) = a^T · LeakyReLU([H_i·W || E_j·W])
- */
-function gatAttention(
-  H_proj: number[][],
-  E_proj: number[][],
-  a: number[],
-  connectivity: number[][],
-): number[][] {
-  const numH = H_proj.length;
-  const numE = E_proj.length;
-  const headDim = H_proj[0].length;
-  const attention: number[][] = Array.from({ length: numH }, () => Array(numE).fill(0));
-
-  for (let i = 0; i < numH; i++) {
-    for (let j = 0; j < numE; j++) {
-      if (connectivity[i][j] === 1) {
-        // Concatenate and apply LeakyReLU
-        const concat = [...H_proj[i], ...E_proj[j]];
-        const activated = concat.map((x) => leakyRelu(x));
-        attention[i][j] = dot(a, activated);
-      } else {
-        attention[i][j] = -Infinity;
-      }
-    }
-  }
-
-  // Softmax per column (per edge)
-  for (let j = 0; j < numE; j++) {
-    const colIndices: number[] = [];
-    const colValues: number[] = [];
-    for (let i = 0; i < numH; i++) {
-      if (connectivity[i][j] === 1) {
-        colIndices.push(i);
-        colValues.push(attention[i][j]);
-      }
-    }
-    if (colIndices.length > 0) {
-      const softmaxed = softmax(colValues);
-      for (let k = 0; k < colIndices.length; k++) {
-        attention[colIndices[k]][j] = softmaxed[k];
-      }
-    }
-  }
-
-  return attention;
-}
-
-/**
- * Dot-product attention (Fujita's approach)
- * score(i,j) = (H_i·W) · (E_j·W)^T
- */
-function dotProductAttention(
-  H_proj: number[][],
-  E_proj: number[][],
-  connectivity: number[][],
-): number[][] {
-  const numH = H_proj.length;
-  const numE = E_proj.length;
-  const attention: number[][] = Array.from({ length: numH }, () => Array(numE).fill(0));
-
-  for (let i = 0; i < numH; i++) {
-    for (let j = 0; j < numE; j++) {
-      if (connectivity[i][j] === 1) {
-        attention[i][j] = dot(H_proj[i], E_proj[j]);
-      } else {
-        attention[i][j] = -Infinity;
-      }
-    }
-  }
-
-  // Softmax per column (per edge)
-  for (let j = 0; j < numE; j++) {
-    const colIndices: number[] = [];
-    const colValues: number[] = [];
-    for (let i = 0; i < numH; i++) {
-      if (connectivity[i][j] === 1) {
-        colIndices.push(i);
-        colValues.push(attention[i][j]);
-      }
-    }
-    if (colIndices.length > 0) {
-      const softmaxed = softmax(colValues);
-      for (let k = 0; k < colIndices.length; k++) {
-        attention[colIndices[k]][j] = softmaxed[k];
-      }
-    }
-  }
-
-  return attention;
-}
-
-// ============================================================================
-// Configurable Message Passing Layer
-// ============================================================================
-
-class ConfigurableMessagePassingLayer {
-  private W_h: number[][];
-  private W_e: number[][];
-  private a: number[];
-  private config: AblationConfig;
-  private readonly embDim: number;
-  private readonly outputDim: number; // numHeads × headDim
-
-  constructor(embDim: number, headDim: number, config: AblationConfig) {
-    this.embDim = embDim;
-    // Total output dimension = numHeads × headDim
-    // 4 heads × 64 = 256-dim (compression 4×)
-    // 16 heads × 64 = 1024-dim (no compression)
-    this.outputDim = config.numHeads * headDim;
-    this.config = config;
-
-    // Initialize weights with full output dimension
-    this.W_h = initMatrix(this.outputDim, embDim);
-    this.W_e = initMatrix(this.outputDim, embDim);
-    this.a = initVector(2 * this.outputDim);
-  }
-
-  forward(
-    H: number[][],
-    E: number[][],
-    connectivity: number[][],
-  ): { E_new: number[][]; attention: number[][] } {
-    const numE = E.length;
-
-    // Project embeddings to outputDim
-    const H_proj = H.map((h) => {
-      const proj = Array(this.outputDim).fill(0);
-      for (let i = 0; i < this.outputDim; i++) {
-        for (let j = 0; j < this.embDim; j++) {
-          proj[i] += this.W_h[i][j] * h[j];
-        }
-      }
-      return proj;
-    });
-
-    const E_proj = E.map((e) => {
-      const proj = Array(this.outputDim).fill(0);
-      for (let i = 0; i < this.outputDim; i++) {
-        for (let j = 0; j < this.embDim; j++) {
-          proj[i] += this.W_e[i][j] * e[j];
-        }
-      }
-      return proj;
-    });
-
-    // Compute attention based on config
-    let attention: number[][];
-    if (this.config.attentionType === "gat_concat") {
-      attention = gatAttention(H_proj, E_proj, this.a, connectivity);
-    } else {
-      attention = dotProductAttention(H_proj, E_proj, connectivity);
-    }
-
-    // Aggregate based on config
-    const E_new: number[][] = [];
-    // If aggregating projected, use outputDim; otherwise use original embDim
-    const aggregateDim = this.config.aggregateProjected ? this.outputDim : this.embDim;
-    const sourceEmb = this.config.aggregateProjected ? H_proj : H;
-
-    for (let j = 0; j < numE; j++) {
-      const agg = Array(aggregateDim).fill(0);
-      for (let i = 0; i < H.length; i++) {
-        if (attention[i][j] > 0) {
-          for (let d = 0; d < aggregateDim; d++) {
-            agg[d] += attention[i][j] * sourceEmb[i][d];
-          }
-        }
-      }
-      // Apply activation
-      E_new.push(agg.map((x) => applyActivation(x, this.config.activation)));
-    }
-
-    return { E_new, attention };
-  }
-
-  // Simple gradient update for benchmarking
-  updateWeights(lr: number, dW_h: number[][], dW_e: number[][], da: number[]): void {
-    for (let i = 0; i < this.outputDim; i++) {
-      for (let j = 0; j < this.embDim; j++) {
-        this.W_h[i][j] -= lr * dW_h[i][j];
-        this.W_e[i][j] -= lr * dW_e[i][j];
-      }
-    }
-    for (let i = 0; i < this.a.length; i++) {
-      this.a[i] -= lr * da[i];
-    }
-  }
-}
-
-// ============================================================================
-// Minimal SHGAT for Ablation
-// ============================================================================
-
-class AblationSHGAT {
-  private layer: ConfigurableMessagePassingLayer;
-  private W_intent: number[][];
-  private readonly config: AblationConfig;
-  private readonly capabilities: Map<string, { embedding: number[]; idx: number }>;
-  private readonly tools: Map<string, { embedding: number[]; idx: number }>;
-  private readonly connectivity: number[][];
-  private readonly embDim: number;
-  private readonly headDim: number;
-  private readonly scoreDim: number; // Dimension for scoring (matches E_new output)
-
-  constructor(
-    capabilities: CapabilityData[],
-    toolEmbeddings: Map<string, number[]>,
-    config: AblationConfig,
-    embDim: number = 1024,
-  ) {
-    this.config = config;
-    this.embDim = embDim;
-    this.headDim = config.headDim; // Use headDim from config
-
-    // Index capabilities
-    this.capabilities = new Map();
-    capabilities.forEach((cap, idx) => {
-      this.capabilities.set(cap.id, { embedding: cap.embedding, idx });
-    });
-
-    // Index tools
-    this.tools = new Map();
-    let toolIdx = 0;
-    for (const [id, emb] of toolEmbeddings) {
-      this.tools.set(id, { embedding: emb, idx: toolIdx++ });
-    }
-
-    // Build connectivity matrix [tools][caps]
-    this.connectivity = Array.from(
-      { length: this.tools.size },
-      () => Array(capabilities.length).fill(0),
-    );
-    for (const cap of capabilities) {
-      const capIdx = this.capabilities.get(cap.id)!.idx;
-      for (const toolId of cap.toolsUsed) {
-        const tool = this.tools.get(toolId);
-        if (tool) {
-          this.connectivity[tool.idx][capIdx] = 1;
-        }
-      }
-    }
-
-    // Initialize layer - use headDim from config
-    this.layer = new ConfigurableMessagePassingLayer(embDim, this.headDim, config);
-
-    // Score dimension depends on whether we aggregate projected or unprojected embeddings
-    // - aggregateProjected=true: E_new has outputDim (numHeads × headDim)
-    // - aggregateProjected=false: E_new has embDim (original embedding dimension)
-    const outputDim = config.numHeads * this.headDim;
-    this.scoreDim = config.aggregateProjected ? outputDim : embDim;
-    this.W_intent = initMatrix(this.scoreDim, embDim);
-  }
-
-  scoreAllCapabilities(intentEmbedding: number[]): Array<{ capabilityId: string; score: number }> {
-    // Build H (tool embeddings)
-    const H: number[][] = [];
-    for (const [_, { embedding }] of this.tools) {
-      H.push(embedding);
-    }
-
-    // Build E (capability embeddings)
-    const E: number[][] = [];
-    const capIds: string[] = [];
-    for (const [id, { embedding }] of this.capabilities) {
-      E.push(embedding);
-      capIds.push(id);
-    }
-
-    // Forward pass
-    const { E_new } = this.layer.forward(H, E, this.connectivity);
-
-    // Project intent to match E_new dimension (scoreDim)
-    const intentProj = Array(this.scoreDim).fill(0);
-    for (let i = 0; i < this.scoreDim; i++) {
-      for (let j = 0; j < this.embDim; j++) {
-        intentProj[i] += this.W_intent[i][j] * intentEmbedding[j];
-      }
-    }
-
-    // Score each capability
-    const results: Array<{ capabilityId: string; score: number }> = [];
-    for (let i = 0; i < E_new.length; i++) {
-      const score = dot(intentProj, E_new[i]) / Math.sqrt(this.scoreDim);
-      results.push({ capabilityId: capIds[i], score });
-    }
-
-    // Sort by score descending
-    results.sort((a, b) => b.score - a.score);
-    return results;
-  }
-
-  train(
-    examples: TrainingExample[],
-    epochs: number,
-    lr: number = 0.01,
-    temperature: number = 0.07,
-  ): { losses: number[]; accuracies: number[] } {
-    const losses: number[] = [];
-    const accuracies: number[] = [];
-
-    for (let epoch = 0; epoch < epochs; epoch++) {
-      let epochLoss = 0;
-      let epochCorrect = 0;
-
-      for (const ex of examples) {
-        const results = this.scoreAllCapabilities(ex.intentEmbedding);
-
-        // InfoNCE loss
-        const positiveScore = results.find((r) => r.capabilityId === ex.candidateId)?.score ?? 0;
-        const negativeScores = ex.negativeCapIds.map(
-          (id) => results.find((r) => r.capabilityId === id)?.score ?? 0,
-        );
-
-        const allScores = [positiveScore, ...negativeScores];
-        const scaledScores = allScores.map((s) => s / temperature);
-        const maxScore = Math.max(...scaledScores);
-        const expScores = scaledScores.map((s) => Math.exp(s - maxScore));
-        const sumExp = expScores.reduce((a, b) => a + b, 0);
-        const loss = -Math.log(expScores[0] / sumExp + 1e-10);
-
-        epochLoss += loss;
-
-        // Accuracy: positive ranked first?
-        if (results[0].capabilityId === ex.candidateId) {
-          epochCorrect++;
-        }
-
-        // Simple weight update (gradient approximation)
-        // In a real implementation, we'd compute proper gradients
-        const gradScale = (1 - expScores[0] / sumExp) * lr;
-        // Update W_intent towards positive embedding
-        const posEmb = this.capabilities.get(ex.candidateId)?.embedding;
-        if (posEmb) {
-          for (let i = 0; i < this.scoreDim; i++) {
-            for (let j = 0; j < this.embDim; j++) {
-              this.W_intent[i][j] += gradScale * ex.intentEmbedding[j] * 0.001;
-            }
-          }
-        }
-      }
-
-      losses.push(epochLoss / examples.length);
-      accuracies.push(epochCorrect / examples.length);
-    }
-
-    return { losses, accuracies };
-  }
-}
-
-// ============================================================================
-// Ablation Runner
-// ============================================================================
-
-async function runAblation(
-  config: AblationConfig,
-  capabilities: CapabilityData[],
-  toolEmbeddings: Map<string, number[]>,
-  trainExamples: TrainingExample[],
-  testExamples: TrainingExample[],
-  epochs: number = 25,
-): Promise<AblationResult> {
-  const startTime = performance.now();
-
-  // Create model with this config
-  const model = new AblationSHGAT(capabilities, toolEmbeddings, config);
-
-  // Train
-  const { losses, accuracies } = model.train(trainExamples, epochs);
-
-  // Find convergence epoch (first epoch where loss < 1.5 * final loss)
-  const finalLoss = losses[losses.length - 1];
-  const convergenceEpoch = losses.findIndex((l) => l < finalLoss * 1.5) + 1;
-
-  // Test accuracy and MRR
-  let testCorrect = 0;
-  let totalReciprocal = 0;
-
-  for (const ex of testExamples) {
-    const results = model.scoreAllCapabilities(ex.intentEmbedding);
-    const rank = results.findIndex((r) => r.capabilityId === ex.candidateId) + 1;
-
-    if (rank === 1) testCorrect++;
-    if (rank > 0) totalReciprocal += 1 / rank;
-  }
-
-  const endTime = performance.now();
-
-  return {
-    config: config.name,
-    trainAccuracy: accuracies[accuracies.length - 1],
-    testAccuracy: testCorrect / testExamples.length,
-    loss: finalLoss,
-    mrr: totalReciprocal / testExamples.length,
-    convergenceEpoch,
-    timeMs: endTime - startTime,
-  };
-}
-
-// ============================================================================
-// OURS Config Runner (uses real production SHGAT code)
-// ============================================================================
-
-async function runOursWithProdCode(
-  configName: string,
-  capabilities: CapabilityData[],
-  toolEmbeddings: Map<string, number[]>,
-  trainExamples: TrainingExample[],
-  testExamples: TrainingExample[],
-  epochs: number = 25,
-): Promise<AblationResult> {
-  const startTime = performance.now();
-
-  // Convert to prod format
-  const prodCaps = capabilities.map((c) => ({
-    id: c.id,
-    embedding: c.embedding,
-    toolsUsed: c.toolsUsed,
-    successRate: c.successRate,
-  }));
-
-  // Create real SHGAT model
-  const shgat = createSHGATFromCapabilities(prodCaps, toolEmbeddings);
-
-  // Convert training examples to prod format
-  const prodExamples: ProdTrainingExample[] = trainExamples.map((ex) => ({
-    intentEmbedding: ex.intentEmbedding,
-    contextTools: ex.contextTools,
-    candidateId: ex.candidateId,
-    outcome: ex.outcome,
-    negativeCapIds: ex.negativeCapIds,
-  }));
-
-  // Train using real production code
-  const batchSize = 16;
-  const temperature = 0.07;
-  let finalLoss = 0;
-  let finalAccuracy = 0;
-
-  for (let epoch = 0; epoch < epochs; epoch++) {
-    let epochLoss = 0;
-    let epochAcc = 0;
-    let batches = 0;
-
-    for (let i = 0; i < prodExamples.length; i += batchSize) {
-      const batch = prodExamples.slice(i, i + batchSize);
-      const weights = batch.map(() => 1.0);
-      const result = shgat.trainBatchV1KHeadBatched(batch, weights, false, temperature);
-      epochLoss += result.loss;
-      epochAcc += result.accuracy;
-      batches++;
-    }
-
-    finalLoss = epochLoss / batches;
-    finalAccuracy = epochAcc / batches;
-  }
-
-  // Evaluate on test set
-  let testCorrect = 0;
-  let totalReciprocal = 0;
-
-  for (const ex of testExamples) {
-    const results = shgat.scoreAllCapabilities(ex.intentEmbedding);
-    const rank = results.findIndex((r) => r.capabilityId === ex.candidateId) + 1;
-
-    if (rank === 1) testCorrect++;
-    if (rank > 0) totalReciprocal += 1 / rank;
-  }
-
-  const endTime = performance.now();
-
-  return {
-    config: configName,
-    trainAccuracy: finalAccuracy,
-    testAccuracy: testCorrect / testExamples.length,
-    loss: finalLoss,
-    mrr: totalReciprocal / testExamples.length,
-    convergenceEpoch: epochs, // Not tracked for prod code
-    timeMs: endTime - startTime,
-  };
-}
-
-// ============================================================================
-// Main Experiment
-// ============================================================================
-
-if (import.meta.main) {
-  console.log("╔════════════════════════════════════════════════════════════════════════════════╗");
-  console.log("║              FUJITA DIVERGENCE ABLATION STUDY                                  ║");
-  console.log("║                                                                                ║");
-  console.log("║  Comparing our implementation choices against Fujita's n-SuHGAT paper         ║");
-  console.log("╚════════════════════════════════════════════════════════════════════════════════╝\n");
-
-  // Load data
-  console.log("📦 Loading production-traces scenario...");
-  const scenario = await loadScenario("production-traces");
-
-  type RawCap = {
-    id: string;
-    embedding: number[];
-    toolsUsed: string[];
-    successRate: number;
-  };
-  type RawTool = { id: string; embedding: number[] };
-  type RawEvent = {
-    intentEmbedding: number[];
-    contextTools: string[];
-    selectedCapability: string;
-    outcome: string;
-  };
-
-  const rawCaps = scenario.nodes.capabilities as RawCap[];
-  const rawTools = scenario.nodes.tools as RawTool[];
-  const rawEvents = (scenario as { episodicEvents?: RawEvent[] }).episodicEvents || [];
-
-  const capabilities: CapabilityData[] = rawCaps.map((c) => ({
+  const capabilities = data.nodes.capabilities.map((c: { id: string; embedding: number[]; toolsUsed: string[]; successRate: number }) => ({
     id: c.id,
     embedding: c.embedding,
     toolsUsed: c.toolsUsed,
@@ -665,391 +143,281 @@ if (import.meta.main) {
   }));
 
   const toolEmbeddings = new Map<string, number[]>();
-  for (const t of rawTools) {
-    toolEmbeddings.set(t.id, t.embedding);
+  for (const t of data.nodes.tools) {
+    if (t.embedding) {
+      toolEmbeddings.set(t.id, t.embedding);
+    }
   }
 
-  // Create training examples with negatives
-  const allCapIds = capabilities.map((c) => c.id);
-  const examples: TrainingExample[] = rawEvents.map((event) => {
-    const negatives = allCapIds
-      .filter((id) => id !== event.selectedCapability)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 8);
+  // Build training examples
+  const allExamples: TrainingExample[] = data.episodicEvents.map((ev: { intentEmbedding: number[]; contextTools: string[]; selectedCapability: string; outcome: string }) => {
+    const selectedCap = capabilities.find((c: { id: string }) => c.id === ev.selectedCapability);
+
+    // Sort negatives by similarity (hard → easy)
+    const allNegativesSorted = capabilities
+      .filter((c: { id: string }) => c.id !== ev.selectedCapability)
+      .map((c: { id: string; embedding: number[] }) => {
+        let sim = 0;
+        if (selectedCap) {
+          const a = selectedCap.embedding;
+          const b = c.embedding;
+          let dot = 0, normA = 0, normB = 0;
+          for (let i = 0; i < a.length; i++) {
+            dot += a[i] * b[i];
+            normA += a[i] * a[i];
+            normB += b[i] * b[i];
+          }
+          sim = dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-8);
+        }
+        return { id: c.id, sim };
+      })
+      .sort((a: { sim: number }, b: { sim: number }) => b.sim - a.sim)
+      .map((c: { id: string }) => c.id);
 
     return {
-      intentEmbedding: event.intentEmbedding,
-      contextTools: event.contextTools,
-      candidateId: event.selectedCapability,
-      outcome: event.outcome === "success" ? 1 : 0,
-      negativeCapIds: negatives,
+      intentEmbedding: ev.intentEmbedding,
+      contextTools: ev.contextTools,
+      candidateId: ev.selectedCapability,
+      outcome: ev.outcome === "success" ? 1 : 0,
+      negativeCapIds: allNegativesSorted.slice(0, NUM_NEGATIVES),
+      allNegativesSorted,
     };
   });
 
-  // Split train/test 80/20
-  const splitIdx = Math.floor(examples.length * 0.8);
-  const trainExamples = examples.slice(0, splitIdx);
-  const testExamples = examples.slice(splitIdx);
+  // Split 80/20
+  const testSize = Math.floor(allExamples.length * 0.2);
+  const testExamples = allExamples.slice(-testSize);
+  const trainExamples = allExamples.slice(0, -testSize);
 
+  return { capabilities, toolEmbeddings, trainExamples, testExamples };
+}
+
+// ============================================================================
+// Ablation Runner
+// ============================================================================
+
+function runAblation(
+  config: AblationConfig,
+  capabilities: Array<{ id: string; embedding: number[]; toolsUsed: string[]; successRate: number }>,
+  toolEmbeddings: Map<string, number[]>,
+  trainExamples: TrainingExample[],
+  testExamples: TrainingExample[],
+  epochs: number = 10,
+): RunResult {
+  const startTime = performance.now();
+
+  // Create SHGAT with config options
+  const shgat = createSHGATFromCapabilities(capabilities, toolEmbeddings, {
+    numHeads: config.numHeads,
+    hiddenDim: config.numHeads * config.headDim,
+    headDim: config.headDim,
+    attentionType: config.attentionType,
+    aggregationActivation: config.aggregationActivation,
+  });
+
+  // Training
+  const batchSize = 32;
+  const numBatches = Math.ceil(trainExamples.length / batchSize);
+  const temperature = 0.07;
+
+  let finalTrainAcc = 0;
+
+  for (let epoch = 0; epoch < epochs; epoch++) {
+    let epochAcc = 0;
+    let batchCount = 0;
+
+    for (let b = 0; b < numBatches; b++) {
+      const startIdx = b * batchSize;
+      let batch = trainExamples.slice(startIdx, startIdx + batchSize);
+      if (batch.length < batchSize && b === numBatches - 1) {
+        // Pad last batch
+        batch = [...batch, ...trainExamples.slice(0, batchSize - batch.length)];
+      }
+
+      const weights = batch.map(() => 1.0);
+      const result = shgat.trainBatchV1KHeadBatched(batch, weights, false, temperature);
+      epochAcc += result.accuracy;
+      batchCount++;
+    }
+
+    finalTrainAcc = epochAcc / batchCount;
+  }
+
+  // Evaluation on test set
+  const testWeights = testExamples.map(() => 1.0);
+  const testResult = shgat.trainBatchV1KHeadBatched(testExamples, testWeights, true, temperature);
+
+  // Compute MRR using scoreAllCapabilities
+  let mrrSum = 0;
+  for (const ex of testExamples) {
+    const ranked = shgat.scoreAllCapabilities(ex.intentEmbedding, ex.contextTools);
+    const rank = ranked.findIndex((r: { capabilityId: string }) => r.capabilityId === ex.candidateId) + 1;
+    if (rank > 0) {
+      mrrSum += 1 / rank;
+    }
+  }
+  const mrr = mrrSum / testExamples.length;
+
+  const timeMs = performance.now() - startTime;
+
+  return {
+    trainAccuracy: finalTrainAcc,
+    testAccuracy: testResult.accuracy,
+    mrr,
+    timeMs,
+  };
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+async function runFullAblation(numRuns: number = 3): Promise<AggregatedResult[]> {
+  console.log("📦 Loading production data...");
+  const { capabilities, toolEmbeddings, trainExamples, testExamples } = await loadProductionData();
   console.log(`  Capabilities: ${capabilities.length}`);
   console.log(`  Tools: ${toolEmbeddings.size}`);
   console.log(`  Train examples: ${trainExamples.length}`);
   console.log(`  Test examples: ${testExamples.length}\n`);
 
-  // Define all configurations to test
-  // 4 heads × 64 = 256-dim (compression 4×)
-  // 16 heads × 64 = 1024-dim (no compression, fair comparison with Fujita)
-  const configs: AblationConfig[] = [
-    // =========================================================================
-    // 4 HEADS (256-dim output) - Current default for small graphs
-    // =========================================================================
+  const results: AggregatedResult[] = [];
 
-    // Baseline: Our current implementation (4 heads)
-    {
-      name: "OURS 4h: GAT + ELU + proj",
-      attentionType: "gat_concat",
-      activation: "elu",
-      aggregateProjected: true,
-      numHeads: 4,
-      headDim: 64,
-    },
+  console.log(`Running ${ABLATION_CONFIGS.length} configurations × ${numRuns} seeds...\n`);
 
-    // Fujita's approach (4 heads for comparison)
-    {
-      name: "FUJITA 4h: dot + none + unproj",
-      attentionType: "dot_product",
-      activation: "none",
-      aggregateProjected: false,
-      numHeads: 4,
-      headDim: 64,
-    },
+  console.log("┌──────────────────────────────────────────┬──────────┬──────────┬──────────┬──────────┐");
+  console.log("│ Config                                   │ Seed     │ Test Acc │ MRR      │ Time     │");
+  console.log("├──────────────────────────────────────────┼──────────┼──────────┼──────────┼──────────┤");
 
-    // =========================================================================
-    // 16 HEADS (1024-dim output) - Fair comparison, no compression
-    // =========================================================================
+  for (const config of ABLATION_CONFIGS) {
+    const runs: RunResult[] = [];
 
-    // Our implementation with 16 heads
-    {
-      name: "OURS 16h: GAT + ELU + proj",
-      attentionType: "gat_concat",
-      activation: "elu",
-      aggregateProjected: true,
-      numHeads: 16,
-      headDim: 64,
-    },
+    for (let seed = 0; seed < numRuns; seed++) {
+      const result = runAblation(
+        config,
+        capabilities,
+        toolEmbeddings,
+        [...trainExamples], // Copy to avoid mutation
+        testExamples,
+      );
+      runs.push(result);
 
-    // Fujita's approach with 16 heads (fair comparison)
-    {
-      name: "FUJITA 16h: dot + none + unproj",
-      attentionType: "dot_product",
-      activation: "none",
-      aggregateProjected: false,
-      numHeads: 16,
-      headDim: 64,
-    },
-
-    // =========================================================================
-    // ABLATION: Attention mechanism (16 heads, isolate variable)
-    // =========================================================================
-    {
-      name: "16h: dot + ELU + proj",
-      attentionType: "dot_product",
-      activation: "elu",
-      aggregateProjected: true,
-      numHeads: 16,
-      headDim: 64,
-    },
-
-    // =========================================================================
-    // ABLATION: Activation function (16 heads, isolate variable)
-    // =========================================================================
-    {
-      name: "16h: GAT + ReLU + proj",
-      attentionType: "gat_concat",
-      activation: "relu",
-      aggregateProjected: true,
-      numHeads: 16,
-      headDim: 64,
-    },
-    {
-      name: "16h: GAT + none + proj",
-      attentionType: "gat_concat",
-      activation: "none",
-      aggregateProjected: true,
-      numHeads: 16,
-      headDim: 64,
-    },
-
-    // =========================================================================
-    // ABLATION: Aggregation target (16 heads, isolate variable)
-    // =========================================================================
-    {
-      name: "16h: GAT + ELU + unproj",
-      attentionType: "gat_concat",
-      activation: "elu",
-      aggregateProjected: false,
-      numHeads: 16,
-      headDim: 64,
-    },
-
-    // =========================================================================
-    // HYBRID: Best of both? (16 heads)
-    // =========================================================================
-    {
-      name: "16h: dot + ELU + unproj",
-      attentionType: "dot_product",
-      activation: "elu",
-      aggregateProjected: false,
-      numHeads: 16,
-      headDim: 64,
-    },
-  ];
-
-  // Run ablations with multiple seeds for statistical significance
-  const NUM_SEEDS = 3;
-  const EPOCHS = 25;
-
-  console.log(`Running ${configs.length} configurations × ${NUM_SEEDS} seeds...\n`);
-
-  // Print header for live results
-  console.log("┌" + "─".repeat(42) + "┬" + "─".repeat(10) + "┬" + "─".repeat(10) + "┬" + "─".repeat(10) + "┬" + "─".repeat(10) + "┐");
-  console.log("│ " + "Config".padEnd(40) + " │ " + "Seed".padEnd(8) + " │ " + "Test Acc".padEnd(8) + " │ " + "MRR".padEnd(8) + " │ " + "Time".padEnd(8) + " │");
-  console.log("├" + "─".repeat(42) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┤");
-
-  const allResults: Map<string, AblationResult[]> = new Map();
-
-  for (const config of configs) {
-    const configResults: AblationResult[] = [];
-
-    for (let seed = 0; seed < NUM_SEEDS; seed++) {
-      // Reset random seed (approximation)
-      Math.random();
-
-      // Use real production code for "OURS" configs, ablation code for others
-      const result = config.name.startsWith("OURS")
-        ? await runOursWithProdCode(
-            config.name,
-            capabilities,
-            toolEmbeddings,
-            trainExamples,
-            testExamples,
-            EPOCHS,
-          )
-        : await runAblation(
-            config,
-            capabilities,
-            toolEmbeddings,
-            trainExamples,
-            testExamples,
-            EPOCHS,
-          );
-      configResults.push(result);
-
-      // Print result immediately
-      const testAcc = `${(result.testAccuracy * 100).toFixed(1)}%`;
-      const mrr = result.mrr.toFixed(3);
-      const time = `${(result.timeMs / 1000).toFixed(1)}s`;
       console.log(
-        "│ " + config.name.padEnd(40) + " │ " +
-        `#${seed + 1}`.padEnd(8) + " │ " +
-        testAcc.padEnd(8) + " │ " +
-        mrr.padEnd(8) + " │ " +
-        time.padEnd(8) + " │"
+        `│ ${config.name.padEnd(40)} │ #${(seed + 1).toString().padEnd(7)} │ ${(result.testAccuracy * 100).toFixed(1).padStart(5)}%   │ ${result.mrr.toFixed(3).padStart(5)}    │ ${(result.timeMs / 1000).toFixed(1).padStart(5)}s   │`
       );
     }
 
-    // Print mean for this config
-    const meanAcc = configResults.reduce((a, b) => a + b.testAccuracy, 0) / configResults.length;
-    const meanMrr = configResults.reduce((a, b) => a + b.mrr, 0) / configResults.length;
-    const meanTime = configResults.reduce((a, b) => a + b.timeMs, 0) / configResults.length;
-    console.log(
-      "│ " + `  ↳ MEAN`.padEnd(40) + " │ " +
-      ``.padEnd(8) + " │ " +
-      `${(meanAcc * 100).toFixed(1)}%`.padEnd(8) + " │ " +
-      meanMrr.toFixed(3).padEnd(8) + " │ " +
-      `${(meanTime / 1000).toFixed(1)}s`.padEnd(8) + " │"
-    );
-    console.log("├" + "─".repeat(42) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┤");
-
-    allResults.set(config.name, configResults);
-  }
-
-  console.log("└" + "─".repeat(42) + "┴" + "─".repeat(10) + "┴" + "─".repeat(10) + "┴" + "─".repeat(10) + "┴" + "─".repeat(10) + "┘");
-
-  // Compute statistics
-  interface AggregatedResult {
-    config: string;
-    testAccMean: number;
-    testAccStd: number;
-    mrrMean: number;
-    mrrStd: number;
-    lossMean: number;
-    convergenceMean: number;
-    timeMean: number;
-  }
-
-  const aggregated: AggregatedResult[] = [];
-
-  for (const [configName, results] of allResults) {
-    const testAccs = results.map((r) => r.testAccuracy);
-    const mrrs = results.map((r) => r.mrr);
-    const losses = results.map((r) => r.loss);
-    const convergences = results.map((r) => r.convergenceEpoch);
-    const times = results.map((r) => r.timeMs);
-
-    const mean = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
-    const std = (arr: number[]) => {
-      const m = mean(arr);
-      return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length);
+    const aggregated: AggregatedResult = {
+      config,
+      runs,
+      meanTrainAcc: mean(runs.map((r) => r.trainAccuracy)),
+      meanTestAcc: mean(runs.map((r) => r.testAccuracy)),
+      stdTestAcc: stdDev(runs.map((r) => r.testAccuracy)),
+      meanMrr: mean(runs.map((r) => r.mrr)),
+      meanTimeMs: mean(runs.map((r) => r.timeMs)),
     };
-
-    aggregated.push({
-      config: configName,
-      testAccMean: mean(testAccs),
-      testAccStd: std(testAccs),
-      mrrMean: mean(mrrs),
-      mrrStd: std(mrrs),
-      lossMean: mean(losses),
-      convergenceMean: mean(convergences),
-      timeMean: mean(times),
-    });
+    results.push(aggregated);
   }
+
+  console.log("└──────────────────────────────────────────┴──────────┴──────────┴──────────┴──────────┘");
+
+  return results;
+}
+
+function printSummary(results: AggregatedResult[]): void {
+  console.log("\n");
+  console.log("╔═══════════════════════════════════════════════════════════════════════════════╗");
+  console.log("║              FUJITA DIVERGENCE ABLATION SUMMARY                               ║");
+  console.log("╚═══════════════════════════════════════════════════════════════════════════════╝\n");
+
+  console.log(`Generated: ${new Date().toISOString()}\n`);
 
   // Sort by test accuracy
-  aggregated.sort((a, b) => b.testAccMean - a.testAccMean);
+  const sorted = [...results].sort((a, b) => b.meanTestAcc - a.meanTestAcc);
 
-  // Print results
-  console.log("\n" + "═".repeat(100));
-  console.log("RESULTS (sorted by Test Accuracy)");
-  console.log("═".repeat(100));
-  console.log(
-    "| " +
-      "Config".padEnd(40) +
-      " | " +
-      "Test Acc".padEnd(12) +
-      " | " +
-      "MRR".padEnd(12) +
-      " | " +
-      "Loss".padEnd(8) +
-      " | " +
-      "Conv".padEnd(6) +
-      " |",
-  );
-  console.log("|" + "-".repeat(42) + "|" + "-".repeat(14) + "|" + "-".repeat(14) + "|" + "-".repeat(10) + "|" + "-".repeat(8) + "|");
+  console.log("## Results (sorted by Test Accuracy)\n");
+  console.log("| Config | Train Acc | Test Acc | MRR | Time |");
+  console.log("|--------|-----------|----------|-----|------|");
 
-  for (const r of aggregated) {
-    const testAcc = `${(r.testAccMean * 100).toFixed(1)}±${(r.testAccStd * 100).toFixed(1)}%`;
-    const mrr = `${r.mrrMean.toFixed(3)}±${r.mrrStd.toFixed(3)}`;
-    const loss = r.lossMean.toFixed(3);
-    const conv = `${r.convergenceMean.toFixed(0)} ep`;
-
-    console.log(
-      "| " +
-        r.config.padEnd(40) +
-        " | " +
-        testAcc.padEnd(12) +
-        " | " +
-        mrr.padEnd(12) +
-        " | " +
-        loss.padEnd(8) +
-        " | " +
-        conv.padEnd(6) +
-        " |",
-    );
+  for (const r of sorted) {
+    const trainAcc = `${(r.meanTrainAcc * 100).toFixed(1)}%`;
+    const testAcc = `${(r.meanTestAcc * 100).toFixed(1)}±${(r.stdTestAcc * 100).toFixed(1)}%`;
+    const mrr = r.meanMrr.toFixed(3);
+    const time = `${(r.meanTimeMs / 1000).toFixed(1)}s`;
+    console.log(`| ${r.config.name.padEnd(25)} | ${trainAcc.padEnd(9)} | ${testAcc.padEnd(8)} | ${mrr} | ${time} |`);
   }
 
-  console.log("═".repeat(100));
+  console.log("\n## Key Findings\n");
 
-  // Statistical comparison: OURS vs FUJITA
-  const oursResults = allResults.get("OURS: GAT + ELU + projected") || [];
-  const fujitaResults = allResults.get("FUJITA: dot-prod + none + unprojected") || [];
+  // Compare OURS vs FUJITA for each head config
+  for (const heads of [4, 16]) {
+    const ours = results.find((r) => r.config.name.includes(`OURS ${heads}h`));
+    const fujita = results.find((r) => r.config.name.includes(`FUJITA ${heads}h`));
 
-  if (oursResults.length > 0 && fujitaResults.length > 0) {
-    const oursMean = oursResults.reduce((a, b) => a + b.testAccuracy, 0) / oursResults.length;
-    const fujitaMean = fujitaResults.reduce((a, b) => a + b.testAccuracy, 0) / fujitaResults.length;
-    const diff = oursMean - fujitaMean;
-
-    // Simple t-test approximation
-    const oursVar =
-      oursResults.reduce((a, b) => a + (b.testAccuracy - oursMean) ** 2, 0) / oursResults.length;
-    const fujitaVar =
-      fujitaResults.reduce((a, b) => a + (b.testAccuracy - fujitaMean) ** 2, 0) /
-      fujitaResults.length;
-    const pooledSE = Math.sqrt(oursVar / oursResults.length + fujitaVar / fujitaResults.length);
-    const tStat = diff / (pooledSE + 1e-10);
-
-    console.log("\n" + "═".repeat(100));
-    console.log("STATISTICAL COMPARISON: OURS vs FUJITA");
-    console.log("═".repeat(100));
-    console.log(`  OURS (GAT + ELU + projected):     ${(oursMean * 100).toFixed(1)}%`);
-    console.log(`  FUJITA (dot-prod + none + unproj): ${(fujitaMean * 100).toFixed(1)}%`);
-    console.log(`  Difference: ${diff > 0 ? "+" : ""}${(diff * 100).toFixed(1)}%`);
-    console.log(`  t-statistic: ${tStat.toFixed(2)}`);
-    console.log(`  Significant (|t| > 2): ${Math.abs(tStat) > 2 ? "YES" : "NO"}`);
-    console.log("═".repeat(100));
-
-    // Ablation insights
-    console.log("\n" + "═".repeat(100));
-    console.log("ABLATION INSIGHTS");
-    console.log("═".repeat(100));
-
-    // Attention impact
-    const gatConfigs = aggregated.filter((r) => r.config.includes("GAT"));
-    const dotConfigs = aggregated.filter((r) => r.config.includes("dot-prod"));
-    const gatMean = gatConfigs.reduce((a, b) => a + b.testAccMean, 0) / gatConfigs.length;
-    const dotMean = dotConfigs.reduce((a, b) => a + b.testAccMean, 0) / dotConfigs.length;
-    console.log(
-      `  ATTENTION: GAT-style avg=${(gatMean * 100).toFixed(1)}%, dot-product avg=${(dotMean * 100).toFixed(1)}% → ${gatMean > dotMean ? "GAT WINS" : "DOT-PROD WINS"} (Δ=${((gatMean - dotMean) * 100).toFixed(1)}%)`,
-    );
-
-    // Activation impact
-    const eluConfigs = aggregated.filter((r) => r.config.includes("ELU"));
-    const reluConfigs = aggregated.filter((r) => r.config.includes("ReLU"));
-    const noneConfigs = aggregated.filter((r) => r.config.includes("none"));
-    const eluMean = eluConfigs.reduce((a, b) => a + b.testAccMean, 0) / eluConfigs.length;
-    const reluMean =
-      reluConfigs.length > 0
-        ? reluConfigs.reduce((a, b) => a + b.testAccMean, 0) / reluConfigs.length
-        : 0;
-    const noneMean =
-      noneConfigs.length > 0
-        ? noneConfigs.reduce((a, b) => a + b.testAccMean, 0) / noneConfigs.length
-        : 0;
-    console.log(
-      `  ACTIVATION: ELU avg=${(eluMean * 100).toFixed(1)}%, ReLU avg=${(reluMean * 100).toFixed(1)}%, none avg=${(noneMean * 100).toFixed(1)}%`,
-    );
-
-    // Aggregation impact
-    const projConfigs = aggregated.filter((r) => r.config.includes("projected") && !r.config.includes("unprojected"));
-    const unprojConfigs = aggregated.filter((r) => r.config.includes("unprojected"));
-    const projMean = projConfigs.reduce((a, b) => a + b.testAccMean, 0) / projConfigs.length;
-    const unprojMean = unprojConfigs.reduce((a, b) => a + b.testAccMean, 0) / unprojConfigs.length;
-    console.log(
-      `  AGGREGATION: projected avg=${(projMean * 100).toFixed(1)}%, unprojected avg=${(unprojMean * 100).toFixed(1)}% → ${projMean > unprojMean ? "PROJECTED WINS" : "UNPROJECTED WINS"} (Δ=${((projMean - unprojMean) * 100).toFixed(1)}%)`,
-    );
-
-    console.log("═".repeat(100));
+    if (ours && fujita) {
+      const delta = (ours.meanTestAcc - fujita.meanTestAcc) * 100;
+      const winner = delta > 0 ? "OURS" : "FUJITA";
+      console.log(`- **${heads} heads**: ${winner} wins by ${Math.abs(delta).toFixed(1)}%`);
+      console.log(`  - OURS (GAT+ELU): ${(ours.meanTestAcc * 100).toFixed(1)}%`);
+      console.log(`  - FUJITA (dot+none): ${(fujita.meanTestAcc * 100).toFixed(1)}%`);
+    }
   }
+
+  // Attention type impact
+  const gatConfigs = results.filter((r) => r.config.attentionType === "gat_concat");
+  const dotConfigs = results.filter((r) => r.config.attentionType === "dot_product");
+  if (gatConfigs.length > 0 && dotConfigs.length > 0) {
+    const gatAvg = mean(gatConfigs.map((r) => r.meanTestAcc));
+    const dotAvg = mean(dotConfigs.map((r) => r.meanTestAcc));
+    console.log(`\n- **Attention type impact**: GAT concat ${gatAvg > dotAvg ? ">" : "<"} dot product by ${Math.abs((gatAvg - dotAvg) * 100).toFixed(1)}%`);
+  }
+
+  // Activation impact
+  const eluConfigs = results.filter((r) => r.config.aggregationActivation === "elu");
+  const noneConfigs = results.filter((r) => r.config.aggregationActivation === "none");
+  if (eluConfigs.length > 0 && noneConfigs.length > 0) {
+    const eluAvg = mean(eluConfigs.map((r) => r.meanTestAcc));
+    const noneAvg = mean(noneConfigs.map((r) => r.meanTestAcc));
+    console.log(`- **Activation impact**: ELU ${eluAvg > noneAvg ? ">" : "<"} none by ${Math.abs((eluAvg - noneAvg) * 100).toFixed(1)}%`);
+  }
+
+  console.log("");
+}
+
+if (import.meta.main) {
+  const numRuns = parseInt(Deno.env.get("FUJITA_RUNS") || "3");
+
+  console.log("╔═══════════════════════════════════════════════════════════════════════════════╗");
+  console.log("║              FUJITA DIVERGENCE ABLATION STUDY                                 ║");
+  console.log("║  Comparing our implementation choices against Fujita's n-SuHGAT paper        ║");
+  console.log("║                                                                               ║");
+  console.log("╚═══════════════════════════════════════════════════════════════════════════════╝\n");
+
+  const results = await runFullAblation(numRuns);
+  printSummary(results);
 
   // Save report
-  const reportPath = `tests/benchmarks/reports/fujita-divergence-${new Date().toISOString().split("T")[0]}.md`;
-  const report = `# Fujita Divergence Ablation Study
+  const reportPath = `tests/benchmarks/reports/fujita-ablation-${new Date().toISOString().split("T")[0]}.md`;
+  try {
+    await Deno.mkdir("tests/benchmarks/reports", { recursive: true });
 
-Generated: ${new Date().toISOString()}
+    let report = "# Fujita Divergence Ablation Study\n\n";
+    report += `Generated: ${new Date().toISOString()}\n\n`;
+    report += "## Results\n\n";
+    report += "| Config | Train Acc | Test Acc | MRR | Time |\n";
+    report += "|--------|-----------|----------|-----|------|\n";
 
-## Summary
+    const sorted = [...results].sort((a, b) => b.meanTestAcc - a.meanTestAcc);
+    for (const r of sorted) {
+      const trainAcc = `${(r.meanTrainAcc * 100).toFixed(1)}%`;
+      const testAcc = `${(r.meanTestAcc * 100).toFixed(1)}±${(r.stdTestAcc * 100).toFixed(1)}%`;
+      const mrr = r.meanMrr.toFixed(3);
+      const time = `${(r.meanTimeMs / 1000).toFixed(1)}s`;
+      report += `| ${r.config.name} | ${trainAcc} | ${testAcc} | ${mrr} | ${time} |\n`;
+    }
 
-| Config | Test Acc | MRR | Loss |
-|--------|----------|-----|------|
-${aggregated.map((r) => `| ${r.config} | ${(r.testAccMean * 100).toFixed(1)}±${(r.testAccStd * 100).toFixed(1)}% | ${r.mrrMean.toFixed(3)} | ${r.lossMean.toFixed(3)} |`).join("\n")}
-
-## Key Findings
-
-- **Attention**: GAT-style (concat) vs dot-product: ${gatMean > dotMean ? "GAT wins" : "dot-product wins"} by ${((gatMean - dotMean) * 100).toFixed(1)}%
-- **Activation**: ELU=${(eluMean * 100).toFixed(1)}%, ReLU=${(reluMean * 100).toFixed(1)}%, none=${(noneMean * 100).toFixed(1)}%
-- **Aggregation**: projected=${(projMean * 100).toFixed(1)}% vs unprojected=${(unprojMean * 100).toFixed(1)}%
-`;
-
-  await Deno.writeTextFile(reportPath, report);
-  console.log(`\n📄 Report saved to: ${reportPath}`);
+    await Deno.writeTextFile(reportPath, report);
+    console.log(`Report saved to: ${reportPath}`);
+  } catch (e) {
+    console.warn(`Could not save report: ${e}`);
+  }
 }

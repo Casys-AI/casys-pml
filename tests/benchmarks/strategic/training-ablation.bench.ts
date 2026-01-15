@@ -60,7 +60,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
 
   // === PER Ablation ===
@@ -77,7 +77,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "per_low_alpha",
@@ -92,7 +92,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "per_high_alpha",
@@ -107,7 +107,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
 
   // === Temperature Ablation ===
@@ -122,7 +122,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "temp_fixed_010",
@@ -135,7 +135,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "temp_fixed_020",
@@ -148,7 +148,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
 
   // === Curriculum Ablation ===
@@ -165,7 +165,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: false,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
 
   // === Learning Rate Ablation ===
@@ -182,7 +182,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.01,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "lr_003",
@@ -197,7 +197,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.03,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "lr_010",
@@ -212,7 +212,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.10,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
 
   // === Minimal Config (simplest possible) ===
@@ -227,7 +227,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: false,
     learningRate: 0.01,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
 
   // === GRID SEARCH: α × Curriculum Thresholds ===
@@ -245,7 +245,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     curriculumHardThreshold: 0.60,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "grid_a03_c50_70",
@@ -260,7 +260,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     curriculumHardThreshold: 0.70,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "grid_a04_c40_60",
@@ -275,7 +275,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     curriculumHardThreshold: 0.60,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "grid_a04_c50_70",
@@ -290,7 +290,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     curriculumHardThreshold: 0.70,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "grid_a04_c55_75",
@@ -305,7 +305,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     curriculumHardThreshold: 0.75,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "grid_a05_c50_70",
@@ -320,7 +320,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     curriculumHardThreshold: 0.70,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "grid_a05_c55_75",
@@ -335,7 +335,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     curriculumHardThreshold: 0.75,
     learningRate: 0.05,
     epochs: 10,
-    batchSize: 16,
+    batchSize: 32,
   },
 ];
 
@@ -358,7 +358,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
   // === Temperature for Live ===
   {
@@ -372,7 +372,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "live_temp_fixed_08",
@@ -385,7 +385,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
   // === Learning Rate for Live ===
   {
@@ -399,7 +399,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: false,
     learningRate: 0.02,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
   {
     name: "live_lr_003",
@@ -412,7 +412,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: false,
     learningRate: 0.03,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
   // === Beta for Live (less IS correction) ===
   {
@@ -426,7 +426,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: false,
     learningRate: 0.05,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
   // === No PER for Live ===
   {
@@ -440,7 +440,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: false,
     learningRate: 0.05,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
   // === No Curriculum for Live ===
   {
@@ -454,7 +454,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: false,
     learningRate: 0.05,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
   // === Hard Only for Live ===
   {
@@ -470,7 +470,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     curriculumHardThreshold: 0.0,
     learningRate: 0.05,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
   // === Minimal Live ===
   {
@@ -484,7 +484,7 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     useCurriculum: false,
     learningRate: 0.03,
     epochs: 3,
-    batchSize: 16,
+    batchSize: 32,
   },
 ];
 
@@ -654,11 +654,19 @@ function runTrainingAblation(
   capabilities: Array<{ id: string; embedding: number[]; toolsUsed: string[]; successRate: number }>,
   trainExamples: TrainingExample[],
   testExamples: TrainingExample[],
+  toolEmbeddings?: Map<string, number[]>,
+  numHeads: number = 16,
 ): AblationRunResult {
   const startTime = performance.now();
 
-  // Create SHGAT
-  const shgat = createSHGATFromCapabilities(capabilities);
+  // Create SHGAT with configurable heads (default 16 × 64 = 1024 dims = BGE-M3)
+  const headDim = 64;
+  const hiddenDim = numHeads * headDim;
+  const shgat = createSHGATFromCapabilities(capabilities, toolEmbeddings, {
+    numHeads,
+    hiddenDim,
+    headDim,
+  });
 
   // Override learning rate
   // Note: This would require exposing learningRate in SHGAT config
@@ -787,73 +795,177 @@ function runTrainingAblation(
 // Ablation Study Runner
 // ============================================================================
 
+/**
+ * Load production data from fixture
+ */
+async function loadProductionData(): Promise<{
+  capabilities: Array<{ id: string; embedding: number[]; toolsUsed: string[]; successRate: number }>;
+  tools: Array<{ id: string; embedding: number[] }>;
+  trainExamples: TrainingExample[];
+  testExamples: TrainingExample[];
+}> {
+  const data = JSON.parse(
+    await Deno.readTextFile("tests/benchmarks/fixtures/scenarios/production-traces.json")
+  );
+
+  const capabilities = data.nodes.capabilities.map((c: { id: string; embedding: number[]; toolsUsed: string[]; successRate: number }) => ({
+    id: c.id,
+    embedding: c.embedding,
+    toolsUsed: c.toolsUsed,
+    successRate: c.successRate,
+  }));
+
+  const tools = data.nodes.tools;
+
+  // Build training examples from episodic events
+  const allExamples: TrainingExample[] = data.episodicEvents.map((ev: { intentEmbedding: number[]; contextTools: string[]; selectedCapability: string; outcome: string }) => {
+    const selectedCap = capabilities.find((c: { id: string }) => c.id === ev.selectedCapability);
+
+    // Sort negatives by similarity (hard → easy) for curriculum
+    const allNegativesSorted = capabilities
+      .filter((c: { id: string }) => c.id !== ev.selectedCapability)
+      .map((c: { id: string; embedding: number[] }) => {
+        let sim = 0;
+        if (selectedCap) {
+          const a = selectedCap.embedding;
+          const b = c.embedding;
+          let dot = 0, normA = 0, normB = 0;
+          for (let i = 0; i < a.length; i++) {
+            dot += a[i] * b[i];
+            normA += a[i] * a[i];
+            normB += b[i] * b[i];
+          }
+          sim = dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-8);
+        }
+        return { id: c.id, sim };
+      })
+      .sort((a: { sim: number }, b: { sim: number }) => b.sim - a.sim)
+      .map((c: { id: string }) => c.id);
+
+    return {
+      intentEmbedding: ev.intentEmbedding,
+      contextTools: ev.contextTools,
+      candidateId: ev.selectedCapability,
+      outcome: ev.outcome === "success" ? 1 : 0,
+      negativeCapIds: allNegativesSorted.slice(0, NUM_NEGATIVES),
+      allNegativesSorted,
+    };
+  });
+
+  // Split 80/20
+  const testSize = Math.floor(allExamples.length * 0.2);
+  const testExamples = allExamples.slice(-testSize);
+  const trainExamples = allExamples.slice(0, -testSize);
+
+  return { capabilities, tools, trainExamples, testExamples };
+}
+
 async function runAblationStudy(
   configs: TrainingAblationConfig[],
   numRuns: number = 3,
-): Promise<AblationResult[]> {
-  console.log("Generating synthetic data...");
-  const capabilities = generateSyntheticCapabilities(50);
-  const allExamples = generateTrainingExamples(capabilities, 500);
+  headConfigs: number[] = [4, 16], // Run both 4 and 16 heads
+): Promise<Map<number, AblationResult[]>> {
+  console.log("Loading production data from fixture...");
+  const { capabilities, tools, trainExamples, testExamples } = await loadProductionData();
 
-  // Split into train/test
-  const testSize = Math.floor(allExamples.length * 0.2);
-  const testExamples = allExamples.slice(0, testSize);
-  const trainExamples = allExamples.slice(testSize);
-
-  console.log(`  ${capabilities.length} capabilities, ${trainExamples.length} train, ${testExamples.length} test\n`);
-
-  const results: AblationResult[] = [];
-
-  for (const config of configs) {
-    console.log(`Running: ${config.name} (${config.description})...`);
-
-    const runs: AblationRunResult[] = [];
-
-    for (let run = 0; run < numRuns; run++) {
-      const result = runTrainingAblation(config, capabilities, [...trainExamples], testExamples);
-      runs.push(result);
-      console.log(`  Run ${run + 1}/${numRuns}: loss=${result.finalLoss.toFixed(4)}, acc=${result.finalAccuracy.toFixed(2)}, testAcc=${result.testAccuracy.toFixed(2)}`);
+  // Build tool embeddings map
+  const toolEmbeddings = new Map<string, number[]>();
+  for (const tool of tools) {
+    if (tool.embedding) {
+      toolEmbeddings.set(tool.id, tool.embedding);
     }
-
-    // Aggregate
-    const finalLosses = runs.map((r) => r.finalLoss);
-    const finalAccs = runs.map((r) => r.finalAccuracy);
-    const testAccs = runs.map((r) => r.testAccuracy);
-    const times = runs.map((r) => r.trainingTimeMs);
-
-    // Epochs to converge (90% of final accuracy)
-    const targetAcc = mean(finalAccs) * 0.9;
-    const epochsToConverge = runs[0].epochMetrics.findIndex((m) => m.accuracy >= targetAcc) + 1 || config.epochs;
-
-    results.push({
-      config,
-      runs,
-      meanFinalLoss: mean(finalLosses),
-      stdFinalLoss: stdDev(finalLosses),
-      meanFinalAcc: mean(finalAccs),
-      stdFinalAcc: stdDev(finalAccs),
-      meanTestAcc: mean(testAccs),
-      stdTestAcc: stdDev(testAccs),
-      epochsToConverge,
-      trainingTimeMs: mean(times),
-    });
   }
 
-  return results;
+  console.log(`  ${capabilities.length} capabilities, ${tools.length} tools, ${trainExamples.length} train, ${testExamples.length} test\n`);
+
+  const allResults = new Map<number, AblationResult[]>();
+
+  for (const numHeads of headConfigs) {
+    console.log(`\n${"═".repeat(70)}`);
+    console.log(`  RUNNING WITH ${numHeads} HEADS (${numHeads * 64} dims)`);
+    console.log(`${"═".repeat(70)}\n`);
+
+    const results: AblationResult[] = [];
+
+    for (const config of configs) {
+      console.log(`Running: ${config.name} (${config.description})...`);
+
+      const runs: AblationRunResult[] = [];
+
+      for (let run = 0; run < numRuns; run++) {
+        const result = runTrainingAblation(
+          config,
+          capabilities,
+          [...trainExamples],
+          testExamples,
+          toolEmbeddings,
+          numHeads,
+        );
+        runs.push(result);
+        console.log(`  Run ${run + 1}/${numRuns}: loss=${result.finalLoss.toFixed(4)}, acc=${result.finalAccuracy.toFixed(2)}, testAcc=${result.testAccuracy.toFixed(2)}`);
+      }
+
+      // Aggregate
+      const finalLosses = runs.map((r) => r.finalLoss);
+      const finalAccs = runs.map((r) => r.finalAccuracy);
+      const testAccs = runs.map((r) => r.testAccuracy);
+      const times = runs.map((r) => r.trainingTimeMs);
+
+      // Epochs to converge (90% of final accuracy)
+      const targetAcc = mean(finalAccs) * 0.9;
+      const epochsToConverge = runs[0].epochMetrics.findIndex((m) => m.accuracy >= targetAcc) + 1 || config.epochs;
+
+      const aggregated: AblationResult = {
+        config,
+        runs,
+        meanFinalLoss: mean(finalLosses),
+        stdFinalLoss: stdDev(finalLosses),
+        meanFinalAcc: mean(finalAccs),
+        stdFinalAcc: stdDev(finalAccs),
+        meanTestAcc: mean(testAccs),
+        stdTestAcc: stdDev(testAccs),
+        epochsToConverge,
+        trainingTimeMs: mean(times),
+      };
+
+      results.push(aggregated);
+
+      // Print immediate result summary
+      console.log(`  → ${numHeads}H: trainAcc=${(aggregated.meanFinalAcc * 100).toFixed(1)}%, testAcc=${(aggregated.meanTestAcc * 100).toFixed(1)}%\n`);
+    }
+
+    allResults.set(numHeads, results);
+
+    // Print summary for this head config immediately
+    console.log(`\n${"─".repeat(50)}`);
+    console.log(`  ${numHeads} HEADS SUMMARY (sorted by test accuracy)`);
+    console.log(`${"─".repeat(50)}`);
+    const sorted = [...results].sort((a, b) => b.meanTestAcc - a.meanTestAcc);
+    for (const r of sorted.slice(0, 5)) {
+      console.log(`  ${r.config.name.padEnd(25)} testAcc=${(r.meanTestAcc * 100).toFixed(1)}%`);
+    }
+    console.log("");
+  }
+
+  return allResults;
 }
 
 // ============================================================================
 // Reporting
 // ============================================================================
 
-function formatAblationReport(results: AblationResult[]): string {
+function formatAblationReport(results: AblationResult[], numHeads?: number): string {
   const lines: string[] = [];
+  const headStr = numHeads ? ` (${numHeads} HEADS)` : "";
 
   lines.push("╔════════════════════════════════════════════════════════════════════════════════╗");
-  lines.push("║                    SHGAT TRAINING ABLATION STUDY                              ║");
+  lines.push(`║                    SHGAT TRAINING ABLATION STUDY${headStr.padEnd(30)}║`);
   lines.push("╚════════════════════════════════════════════════════════════════════════════════╝");
   lines.push("");
   lines.push(`Generated: ${new Date().toISOString()}`);
+  if (numHeads) {
+    lines.push(`Configuration: ${numHeads} heads × 64 dims = ${numHeads * 64} hidden dims`);
+  }
   lines.push("");
 
   // Summary table
@@ -985,20 +1097,51 @@ if (import.meta.main) {
     console.log("  Use --quick for fast ablation, --live for live learning ablation\n");
   }
 
-  const results = await runAblationStudy(configs, numRuns);
+  // Run with both 4 and 16 heads (or just 16 in quick mode)
+  const headConfigs = isQuick ? [16] : [4, 16];
+  const allResults = await runAblationStudy(configs, numRuns, headConfigs);
 
-  const report = formatAblationReport(results);
-  console.log("\n" + report);
-
-  // Save report to file
+  // Generate and save reports for each head config
   const suffix = isLive ? "-live" : (isQuick ? "-quick" : "");
-  const reportPath = `tests/benchmarks/reports/training-ablation${suffix}-${new Date().toISOString().split("T")[0]}.md`;
+  const date = new Date().toISOString().split("T")[0];
+
+  await Deno.mkdir("tests/benchmarks/reports", { recursive: true });
+
+  let combinedReport = "";
+  for (const [numHeads, results] of allResults) {
+    const report = formatAblationReport(results, numHeads);
+    console.log("\n" + report);
+    combinedReport += report + "\n\n" + "=".repeat(80) + "\n\n";
+
+    // Save individual report
+    const reportPath = `tests/benchmarks/reports/training-ablation${suffix}-${numHeads}h-${date}.md`;
+    try {
+      await Deno.writeTextFile(reportPath, report);
+      console.log(`Report saved to: ${reportPath}`);
+    } catch (e) {
+      console.warn(`Could not save report: ${e}`);
+    }
+  }
+
+  // Save combined report
+  const combinedPath = `tests/benchmarks/reports/training-ablation${suffix}-combined-${date}.md`;
   try {
-    await Deno.mkdir("tests/benchmarks/reports", { recursive: true });
-    await Deno.writeTextFile(reportPath, report);
-    console.log(`\nReport saved to: ${reportPath}`);
+    await Deno.writeTextFile(combinedPath, combinedReport);
+    console.log(`Combined report saved to: ${combinedPath}`);
   } catch (e) {
-    console.warn(`Could not save report: ${e}`);
+    console.warn(`Could not save combined report: ${e}`);
+  }
+
+  // Print final comparison
+  if (allResults.size > 1) {
+    console.log("\n" + "═".repeat(70));
+    console.log("  HEAD COUNT COMPARISON");
+    console.log("═".repeat(70));
+    for (const [numHeads, results] of allResults) {
+      const bestResult = [...results].sort((a, b) => b.meanTestAcc - a.meanTestAcc)[0];
+      console.log(`  ${numHeads} heads: best=${bestResult.config.name} @ ${(bestResult.meanTestAcc * 100).toFixed(1)}% testAcc`);
+    }
+    console.log("");
   }
 }
 
