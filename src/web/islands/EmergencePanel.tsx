@@ -49,7 +49,7 @@ type EmergenceMetrics = EmergenceMetricsResponse;
 export default function EmergencePanel({
   apiBase: apiBaseProp,
   apiKey,
-  scope: scopeProp = "user",
+  scope: scopeProp,
   onScopeChange,
   isLocalMode = false,
 }: EmergencePanelProps) {
@@ -60,10 +60,9 @@ export default function EmergencePanel({
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [showPhaseTransition, setShowPhaseTransition] = useState(true);
-  // Story 9.8: Local scope state if no prop/callback provided
-  const [localScope, setLocalScope] = useState<Scope>(scopeProp);
-  const scope = scopeProp ?? localScope;
-  const handleScopeChange = onScopeChange ?? setLocalScope;
+  // Story 9.8: Scope state (local unless controlled by parent)
+  const [scope, setScope] = useState<Scope>("user");
+  const handleScopeChange = onScopeChange ?? setScope;
 
   const entropyChartRef = useRef<HTMLDivElement>(null);
   const stabilityChartRef = useRef<HTMLDivElement>(null);
