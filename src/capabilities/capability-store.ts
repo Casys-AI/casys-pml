@@ -315,6 +315,8 @@ export class CapabilityStore {
 
     // UPSERT: Insert or update on conflict
     // Note: 'name' column removed in migration 022 - naming via capability_records.display_name
+    // Story 9.8 Fix: Include user_id for multi-tenant capability ownership
+    const userId = traceData?.userId ?? null;
     const result = await this.db.query(
       `INSERT INTO workflow_pattern (
         pattern_hash,
@@ -333,9 +335,10 @@ export class CapabilityStore {
         permission_set,
         permission_confidence,
         created_at,
-        source
+        source,
+        user_id
       ) VALUES (
-        $1, $2::jsonb, $3, 1, $4, NOW(), $5, $6, $7::jsonb, $8, $9, $10, $11::jsonb, $12, $13, NOW(), 'emergent'
+        $1, $2::jsonb, $3, 1, $4, NOW(), $5, $6, $7::jsonb, $8, $9, $10, $11::jsonb, $12, $13, NOW(), 'emergent', $14::uuid
       )
       ON CONFLICT (code_hash) WHERE code_hash IS NOT NULL DO UPDATE SET
         usage_count = workflow_pattern.usage_count + 1,
@@ -349,7 +352,8 @@ export class CapabilityStore {
         parameters_schema = $11::jsonb,
         permission_set = $12,
         permission_confidence = $13,
-        dag_structure = $2::jsonb
+        dag_structure = $2::jsonb,
+        user_id = COALESCE(workflow_pattern.user_id, $14::uuid)
       RETURNING *`,
       [
         patternHash,
@@ -365,6 +369,7 @@ export class CapabilityStore {
         parametersSchema ?? null, // postgres.js auto-serializes
         permissionSet,
         permissionConfidence,
+        userId,
       ],
     );
 
