@@ -8,10 +8,20 @@
 
 import { assertEquals, assertExists, assertGreater, assertLess } from "@std/assert";
 import {
+  batchedDownwardPass,
+  batchedForward,
+  batchedUpwardPass,
+  batchGetEmbeddings,
+  batchGetEmbeddingsByLevel,
+  batchScoreAllNodes,
+  buildAllIncidenceMatrices,
   buildGraph,
+  buildIncidenceMatrix,
   createSHGAT,
   createSHGATFromCapabilities,
+  groupNodesByLevel,
   type Node,
+  precomputeGraphStructure,
   SHGAT,
 } from "../mod.ts";
 
@@ -281,4 +291,248 @@ Deno.test("SHGAT - registerNode works", () => {
   });
 
   assertExists(shgat);
+});
+
+// =============================================================================
+// Batched Operations Tests
+// =============================================================================
+
+Deno.test("batchGetEmbeddings - returns matrix with correct dimensions", () => {
+  const nodes: Node[] = [
+    { id: "a", embedding: [1, 2, 3], children: [], level: 0 },
+    { id: "b", embedding: [4, 5, 6], children: [], level: 0 },
+    { id: "c", embedding: [7, 8, 9], children: [], level: 0 },
+  ];
+  const graph = buildGraph(nodes);
+
+  const { matrix, ids, indexMap } = batchGetEmbeddings(graph);
+
+  assertEquals(matrix.length, 3); // 3 nodes
+  assertEquals(matrix[0].length, 3); // 3-dim embeddings
+  assertEquals(ids.length, 3);
+  assertEquals(indexMap.size, 3);
+});
+
+Deno.test("batchGetEmbeddings - index map is correct", () => {
+  const nodes: Node[] = [
+    { id: "x", embedding: [1], children: [], level: 0 },
+    { id: "y", embedding: [2], children: [], level: 0 },
+  ];
+  const graph = buildGraph(nodes);
+
+  const { matrix, indexMap } = batchGetEmbeddings(graph);
+
+  // Verify we can use indexMap to find embeddings
+  for (const [id, idx] of indexMap) {
+    const node = graph.get(id)!;
+    assertEquals(matrix[idx], node.embedding);
+  }
+});
+
+Deno.test("batchGetEmbeddingsByLevel - filters by level", () => {
+  const nodes: Node[] = [
+    { id: "leaf1", embedding: [1], children: [], level: 0 },
+    { id: "leaf2", embedding: [2], children: [], level: 0 },
+    { id: "parent", embedding: [3], children: ["leaf1", "leaf2"], level: 0 },
+  ];
+  const graph = buildGraph(nodes);
+
+  // Level 0 should have 2 leaves
+  const level0 = batchGetEmbeddingsByLevel(graph, 0);
+  assertEquals(level0.matrix.length, 2);
+
+  // Level 1 should have 1 parent
+  const level1 = batchGetEmbeddingsByLevel(graph, 1);
+  assertEquals(level1.matrix.length, 1);
+});
+
+Deno.test("buildIncidenceMatrix - creates correct matrix", () => {
+  const nodes: Node[] = [
+    { id: "a", embedding: [], children: [], level: 0 },
+    { id: "b", embedding: [], children: [], level: 0 },
+    { id: "p1", embedding: [], children: ["a"], level: 0 },
+    { id: "p2", embedding: [], children: ["a", "b"], level: 0 },
+  ];
+  const graph = buildGraph(nodes);
+
+  const { matrix, childIndex, parentIndex } = buildIncidenceMatrix(graph, 0, 1);
+
+  // Should be [2 children x 2 parents]
+  assertEquals(matrix.length, 2);
+  assertEquals(matrix[0].length, 2);
+
+  // Check p1 contains only a
+  const aIdx = childIndex.get("a")!;
+  const p1Idx = parentIndex.get("p1")!;
+  assertEquals(matrix[aIdx][p1Idx], 1);
+
+  // Check p2 contains both a and b
+  const bIdx = childIndex.get("b")!;
+  const p2Idx = parentIndex.get("p2")!;
+  assertEquals(matrix[aIdx][p2Idx], 1);
+  assertEquals(matrix[bIdx][p2Idx], 1);
+
+  // b not in p1
+  assertEquals(matrix[bIdx][p1Idx], 0);
+});
+
+Deno.test("buildAllIncidenceMatrices - builds all level transitions", () => {
+  const nodes: Node[] = [
+    { id: "l0-a", embedding: [], children: [], level: 0 },
+    { id: "l0-b", embedding: [], children: [], level: 0 },
+    { id: "l1-x", embedding: [], children: ["l0-a"], level: 0 },
+    { id: "l1-y", embedding: [], children: ["l0-b"], level: 0 },
+    { id: "l2-z", embedding: [], children: ["l1-x", "l1-y"], level: 0 },
+  ];
+  const graph = buildGraph(nodes);
+
+  const matrices = buildAllIncidenceMatrices(graph);
+
+  // Should have matrices for level 1 (0→1) and level 2 (1→2)
+  assertEquals(matrices.size, 2);
+  assertExists(matrices.get(1));
+  assertExists(matrices.get(2));
+});
+
+Deno.test("groupNodesByLevel - groups correctly", () => {
+  const nodes: Node[] = [
+    { id: "a", embedding: [], children: [], level: 0 },
+    { id: "b", embedding: [], children: [], level: 0 },
+    { id: "c", embedding: [], children: ["a", "b"], level: 0 },
+  ];
+  const graph = buildGraph(nodes);
+
+  const groups = groupNodesByLevel(graph);
+
+  // Level 0 should have 2 nodes
+  assertEquals(groups.get(0)?.length, 2);
+
+  // Level 1 should have 1 node
+  assertEquals(groups.get(1)?.length, 1);
+});
+
+// =============================================================================
+// Batched Message Passing Tests
+// =============================================================================
+
+Deno.test("precomputeGraphStructure - builds all structures", () => {
+  const nodes: Node[] = [
+    { id: "a", embedding: [1, 0], children: [], level: 0 },
+    { id: "b", embedding: [0, 1], children: [], level: 0 },
+    { id: "p", embedding: [0.5, 0.5], children: ["a", "b"], level: 0 },
+  ];
+  const graph = buildGraph(nodes);
+
+  const structure = precomputeGraphStructure(graph);
+
+  assertEquals(structure.maxLevel, 1);
+  assertEquals(structure.embDim, 2);
+  assertExists(structure.nodesByLevel.get(0));
+  assertExists(structure.nodesByLevel.get(1));
+  assertExists(structure.embeddingsByLevel.get(0));
+  assertExists(structure.incidenceMatrices.get(1));
+});
+
+Deno.test("batchedUpwardPass - aggregates children to parent", () => {
+  // 2 children, 1 parent that contains both
+  const E_child = [
+    [1, 0, 0],  // child a
+    [0, 1, 0],  // child b
+  ];
+  const incidence = [
+    [1],  // a → p
+    [1],  // b → p
+  ];
+
+  const { E_parent, attention } = batchedUpwardPass(E_child, incidence);
+
+  // Parent should be average of children (softmax with equal weights)
+  assertEquals(E_parent.length, 1);
+  assertEquals(E_parent[0].length, 3);
+
+  // Attention has shape [numChildren × numParents] = [2 × 1]
+  assertEquals(attention.length, 2);  // One row per child
+  assertEquals(attention[0].length, 1);  // One column per parent
+
+  // With uniform attention, parent ≈ (a + b) / 2 = [0.5, 0.5, 0]
+  assertGreater(E_parent[0][0], 0.3);
+  assertGreater(E_parent[0][1], 0.3);
+});
+
+Deno.test("batchedDownwardPass - propagates parent to children", () => {
+  const E_child = [
+    [1, 0],  // child a
+    [0, 1],  // child b
+  ];
+  const E_parent = [
+    [0.5, 0.5],  // parent p
+  ];
+  const incidence = [
+    [1],  // a ← p
+    [1],  // b ← p
+  ];
+
+  const { E_child_updated } = batchedDownwardPass(
+    E_child,
+    E_parent,
+    incidence,
+    0.5,  // 50% residual
+  );
+
+  // Children should be mix of original and parent info
+  assertEquals(E_child_updated.length, 2);
+
+  // a was [1, 0], parent is [0.5, 0.5], with 50% residual:
+  // a' ≈ 0.5 * [1, 0] + 0.5 * [0.5, 0.5] = [0.75, 0.25]
+  assertGreater(E_child_updated[0][0], 0.6);
+  assertGreater(E_child_updated[0][1], 0.1);
+});
+
+Deno.test("batchedForward - full forward pass", () => {
+  const nodes: Node[] = [
+    { id: "a", embedding: [1, 0, 0, 0], children: [], level: 0 },
+    { id: "b", embedding: [0, 1, 0, 0], children: [], level: 0 },
+    { id: "p", embedding: [0, 0, 1, 0], children: ["a", "b"], level: 0 },
+  ];
+  const graph = buildGraph(nodes);
+  const structure = precomputeGraphStructure(graph);
+
+  const { E, attentionUp, attentionDown } = batchedForward(structure);
+
+  // Should have embeddings for level 0 and 1
+  assertExists(E.get(0));
+  assertExists(E.get(1));
+
+  // Level 0 should have 2 nodes (updated by downward pass)
+  assertEquals(E.get(0)?.length, 2);
+
+  // Level 1 should have 1 node
+  assertEquals(E.get(1)?.length, 1);
+
+  // Attention should exist
+  assertExists(attentionUp.get(1));
+  assertExists(attentionDown.get(1));
+});
+
+Deno.test("batchScoreAllNodes - scores all nodes in batch", () => {
+  // 2 queries, 3 nodes
+  const Q_batch = [
+    [1, 0],  // query 1
+    [0, 1],  // query 2
+  ];
+  const K_all = [
+    [1, 0],    // node a - similar to q1
+    [0, 1],    // node b - similar to q2
+    [0.5, 0.5], // node c - neutral
+  ];
+  const nodeIds = ["a", "b", "c"];
+
+  const scores = batchScoreAllNodes(Q_batch, K_all, nodeIds);
+
+  // Node a should score higher for query 1
+  const scoresA = scores.get("a")!;
+  const scoresB = scores.get("b")!;
+
+  assertGreater(scoresA[0], scoresA[1]); // a scores higher for q1
+  assertGreater(scoresB[1], scoresB[0]); // b scores higher for q2
 });

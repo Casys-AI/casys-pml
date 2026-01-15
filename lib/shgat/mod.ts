@@ -64,8 +64,34 @@ export {
 } from "./src/core/shgat.ts";
 
 // Additional types from types.ts
-export type { LevelParams, Member, Node } from "./src/core/types.ts";
-export { buildGraph, computeAllLevels } from "./src/core/types.ts";
+export type { BatchedEmbeddings, LevelParams, Member, Node } from "./src/core/types.ts";
+export {
+  batchGetEmbeddings,
+  batchGetEmbeddingsByLevel,
+  batchGetNodes,
+  buildAllIncidenceMatrices,
+  buildGraph,
+  buildIncidenceMatrix,
+  computeAllLevels,
+  groupNodesByLevel,
+} from "./src/core/types.ts";
+
+// Batched operations for unified Node type
+export type {
+  BatchedForwardResult,
+  BatchedGraphStructure,
+  BatchedScoringCache,
+} from "./src/core/batched-ops.ts";
+export {
+  batchedBackwardKHead,
+  batchedDownwardPass,
+  batchedForward,
+  batchedKHeadScoring,
+  batchedUpwardPass,
+  batchScoreAllNodes,
+  precomputeAllK,
+  precomputeGraphStructure,
+} from "./src/core/batched-ops.ts";
 
 // Graph construction
 export {

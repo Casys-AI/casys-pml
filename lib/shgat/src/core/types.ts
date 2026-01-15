@@ -482,6 +482,209 @@ function computeLevel(
 }
 
 // ============================================================================
+// Batched Operations for Node (BLAS-optimized)
+// ============================================================================
+
+/**
+ * Result of batched embeddings lookup
+ */
+export interface BatchedEmbeddings {
+  /** Embeddings matrix [N x dim] - row i is embedding for ids[i] */
+  matrix: number[][];
+  /** Node IDs in order */
+  ids: string[];
+  /** Index lookup: id → row index */
+  indexMap: Map<string, number>;
+}
+
+/**
+ * Get embeddings as a matrix for batched BLAS operations
+ *
+ * Instead of N separate lookups, returns a [N x dim] matrix.
+ * Use for K-head scoring: K_all = E @ W_k^T (single matmul vs N matVecs)
+ *
+ * @param nodes Map of nodes
+ * @param ids Optional subset of IDs (default: all nodes)
+ * @returns BatchedEmbeddings with matrix and index maps
+ *
+ * @example
+ * ```typescript
+ * const { matrix, indexMap } = batchGetEmbeddings(graph);
+ * // matrix is [numNodes x embDim]
+ * // Use with matmulTranspose for batched K computation
+ * const K_all = matmulTranspose(matrix, W_k); // [numNodes x scoringDim]
+ * ```
+ */
+export function batchGetEmbeddings(
+  nodes: Map<string, Node>,
+  ids?: string[],
+): BatchedEmbeddings {
+  const nodeIds = ids ?? Array.from(nodes.keys());
+  const matrix: number[][] = new Array(nodeIds.length);
+  const indexMap = new Map<string, number>();
+
+  for (let i = 0; i < nodeIds.length; i++) {
+    const id = nodeIds[i];
+    const node = nodes.get(id);
+    matrix[i] = node?.embedding ?? [];
+    indexMap.set(id, i);
+  }
+
+  return { matrix, ids: nodeIds, indexMap };
+}
+
+/**
+ * Get embeddings for nodes at a specific level as a matrix
+ *
+ * @param nodes Map of nodes
+ * @param level Hierarchy level to filter
+ * @returns BatchedEmbeddings for nodes at that level only
+ */
+export function batchGetEmbeddingsByLevel(
+  nodes: Map<string, Node>,
+  level: number,
+): BatchedEmbeddings {
+  const ids = Array.from(nodes.values())
+    .filter((n) => n.level === level)
+    .map((n) => n.id);
+  return batchGetEmbeddings(nodes, ids);
+}
+
+/**
+ * Build parent-child incidence matrix in one pass
+ *
+ * Returns matrix A where A[child_idx][parent_idx] = 1 if child is in parent.
+ * Used for batched message passing: E_parent = A^T @ E_child
+ *
+ * @param nodes Map of nodes
+ * @param childLevel Level of child nodes
+ * @param parentLevel Level of parent nodes (should be childLevel + 1)
+ * @returns Incidence matrix and index maps
+ *
+ * @example
+ * ```typescript
+ * const { matrix, childIndex, parentIndex } = buildIncidenceMatrix(graph, 0, 1);
+ * // Upward aggregation: E_level1 = matrix^T @ E_level0
+ * const E_agg = matmulTranspose(transpose(matrix), E_level0);
+ * ```
+ */
+export function buildIncidenceMatrix(
+  nodes: Map<string, Node>,
+  childLevel: number,
+  parentLevel: number,
+): {
+  matrix: number[][];
+  childIndex: Map<string, number>;
+  parentIndex: Map<string, number>;
+} {
+  // Get nodes at each level
+  const childNodes = Array.from(nodes.values()).filter((n) => n.level === childLevel);
+  const parentNodes = Array.from(nodes.values()).filter((n) => n.level === parentLevel);
+
+  // Build index maps
+  const childIndex = new Map<string, number>();
+  const parentIndex = new Map<string, number>();
+
+  for (let i = 0; i < childNodes.length; i++) {
+    childIndex.set(childNodes[i].id, i);
+  }
+  for (let i = 0; i < parentNodes.length; i++) {
+    parentIndex.set(parentNodes[i].id, i);
+  }
+
+  // Build matrix [numChildren x numParents]
+  const matrix: number[][] = Array.from(
+    { length: childNodes.length },
+    () => new Array(parentNodes.length).fill(0),
+  );
+
+  // Fill matrix: for each parent, mark its children
+  for (let p = 0; p < parentNodes.length; p++) {
+    const parent = parentNodes[p];
+    for (const childId of parent.children) {
+      const c = childIndex.get(childId);
+      if (c !== undefined) {
+        matrix[c][p] = 1;
+      }
+    }
+  }
+
+  return { matrix, childIndex, parentIndex };
+}
+
+/**
+ * Build all incidence matrices for multi-level hierarchy
+ *
+ * Returns matrices for each level transition (0→1, 1→2, etc.)
+ *
+ * @param nodes Map of nodes
+ * @returns Map of parentLevel → incidence info
+ */
+export function buildAllIncidenceMatrices(
+  nodes: Map<string, Node>,
+): Map<number, {
+  matrix: number[][];
+  childIndex: Map<string, number>;
+  parentIndex: Map<string, number>;
+}> {
+  const result = new Map<number, {
+    matrix: number[][];
+    childIndex: Map<string, number>;
+    parentIndex: Map<string, number>;
+  }>();
+
+  // Find max level
+  let maxLevel = 0;
+  for (const node of nodes.values()) {
+    if (node.level > maxLevel) maxLevel = node.level;
+  }
+
+  // Build matrix for each level transition
+  for (let level = 1; level <= maxLevel; level++) {
+    result.set(level, buildIncidenceMatrix(nodes, level - 1, level));
+  }
+
+  return result;
+}
+
+/**
+ * Batch lookup nodes by IDs
+ *
+ * @param nodes Map of all nodes
+ * @param ids IDs to lookup
+ * @returns Array of nodes (undefined for missing IDs)
+ */
+export function batchGetNodes(
+  nodes: Map<string, Node>,
+  ids: string[],
+): (Node | undefined)[] {
+  return ids.map((id) => nodes.get(id));
+}
+
+/**
+ * Group nodes by level for batched processing
+ *
+ * @param nodes Map of nodes
+ * @returns Map of level → array of nodes at that level
+ */
+export function groupNodesByLevel(
+  nodes: Map<string, Node>,
+): Map<number, Node[]> {
+  const groups = new Map<number, Node[]>();
+
+  for (const node of nodes.values()) {
+    let group = groups.get(node.level);
+    if (!group) {
+      group = [];
+      groups.set(node.level, group);
+    }
+    group.push(node);
+  }
+
+  return groups;
+}
+
+// ============================================================================
 // Legacy Node Types (kept for backward compatibility during migration)
 // ============================================================================
 
