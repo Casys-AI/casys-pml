@@ -20,7 +20,7 @@ import type {
   McpProxy,
   ToolPermissionApprovalRequired,
 } from "./types.ts";
-import type { ApprovalRequiredResult } from "./types.ts";
+import type { ApprovalRequiredResult, RegistryFetchResult } from "./types.ts";
 import { LoaderError } from "./types.ts";
 import { checkPermission } from "../permissions/loader.ts";
 import type { PmlPermissions } from "../types.ts";
@@ -542,16 +542,95 @@ export class CapabilityLoader {
   ): Promise<LoadedCapability | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Check cache (using FQDN as key)
     const cached = this.loadedCapabilities.get(fqdn);
-    if (cached) {
+
+    // If cached, still validate integrity (update lastValidated, detect hash changes)
+    if (cached && this.lockfileManager) {
+      logDebug(`Capability cache hit (FQDN): ${fqdn} - revalidating integrity`);
+
+      const fetchResult = await this.registryClient.fetchWithIntegrity(
+        fqdn,
+        this.lockfileManager,
+      );
+
+      // If hash changed, need re-approval even for cached capability
+      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+        const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+        if (continueWorkflow?.approved === true) {
+          // User approved integrity change - invalidate cache and reload
+          this.loadedCapabilities.delete(fqdn);
+          logDebug(`Integrity changed and approved - reloading ${fqdn}`);
+        } else if (continueWorkflow?.approved === false) {
+          throw new LoaderError(
+            "DEPENDENCY_INTEGRITY_FAILED",
+            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
+            {
+              fqdnBase: integrityApproval.fqdnBase,
+              oldHash: integrityApproval.oldHash,
+              newHash: integrityApproval.newHash,
+            },
+          );
+        } else {
+          // Need approval - return the approval request (HIL pause)
+          return integrityApproval;
+        }
+      } else {
+        // Integrity OK - return cached capability
+        return cached;
+      }
+    } else if (cached) {
+      // No lockfile manager - return cached directly
       logDebug(`Capability cache hit (FQDN): ${fqdn}`);
       return cached;
     }
 
     logDebug(`Loading capability by FQDN: ${fqdn}`);
 
-    // Fetch metadata directly by FQDN (no conversion, no integrity check)
-    // Server already resolved this FQDN, we trust it
-    const { metadata } = await this.registryClient.fetchByFqdn(fqdn);
+    // Fetch metadata with integrity validation (Story 14.7)
+    let metadata: CapabilityMetadata;
+
+    if (this.lockfileManager) {
+      // Use fetchWithIntegrity - accepts FQDNs (toolNameToFqdn passes them through)
+      const fetchResult = await this.registryClient.fetchWithIntegrity(
+        fqdn,
+        this.lockfileManager,
+      );
+
+      // Check if integrity approval is required (hash changed)
+      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+        const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+        if (continueWorkflow?.approved === true) {
+          // User approved - continue fetch with approval
+          const approvedResult = await this.registryClient.continueFetchWithApproval(
+            fqdn,
+            this.lockfileManager,
+            true,
+          );
+          metadata = approvedResult.metadata;
+        } else if (continueWorkflow?.approved === false) {
+          // User rejected
+          throw new LoaderError(
+            "DEPENDENCY_INTEGRITY_FAILED",
+            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
+            {
+              fqdnBase: integrityApproval.fqdnBase,
+              oldHash: integrityApproval.oldHash,
+              newHash: integrityApproval.newHash,
+            },
+          );
+        } else {
+          // Need approval - return the approval request (HIL pause)
+          return integrityApproval;
+        }
+      } else {
+        metadata = (fetchResult as RegistryFetchResult).metadata;
+      }
+    } else {
+      // No lockfile manager - fetch without integrity validation (backward compat)
+      const { metadata: fetchedMetadata } = await this.registryClient.fetchByFqdn(fqdn);
+      metadata = fetchedMetadata;
+    }
 
     // Check and install dependencies
     const forceInstall = continueWorkflow?.approved === true;
