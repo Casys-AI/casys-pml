@@ -12,8 +12,7 @@ import { createClient } from "../../db/mod.ts";
 import { getAllMigrations, MigrationRunner } from "../../db/migrations.ts";
 import { runDrizzleMigrationsAuto } from "../../db/drizzle.ts";
 import { MCPServerDiscovery } from "../../mcp/discovery.ts";
-import { MCPClient } from "../../mcp/client.ts";
-import { SmitheryMCPClient } from "../../mcp/smithery-client.ts";
+// Note: MCPClient and SmitheryMCPClient imports removed - code using them is commented out
 import { EmbeddingModel } from "../../vector/embeddings.ts";
 import { VectorSearch } from "../../vector/search.ts";
 import { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
@@ -87,7 +86,7 @@ Please check that the file exists and the path is correct.`,
  */
 async function connectToMCPServers(
   servers: MCPServer[],
-  smitheryApiKey?: string,
+  _smitheryApiKey?: string, // Prefixed: reserved for future HTTP server support
 ): Promise<Map<string, MCPClientBase>> {
   const clients = new Map<string, MCPClientBase>();
 
