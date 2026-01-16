@@ -24,7 +24,6 @@ import { PMLGatewayServer } from "../../mcp/gateway-server.ts";
 import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
 import { CodeOperationSyncService } from "../../graphrag/code-operation-sync.ts";
 import { getWorkflowTemplatesPath } from "../utils.ts";
-import { autoInitIfConfigChanged } from "../auto-init.ts";
 import type { MCPClientBase, MCPServer } from "../../mcp/types.ts";
 import type { ToolExecutor } from "../../dag/types.ts";
 import { CapabilityMatcher } from "../../capabilities/matcher.ts";
@@ -218,11 +217,6 @@ export function createServeCommand() {
       "Disable code execution caching (forces re-execution every time)",
       { default: true },
     )
-    .option(
-      "--force-reindex",
-      "Force re-indexing of all MCP tools (ignores config hash cache)",
-      { default: false },
-    )
     .action(async (options) => {
       try {
         log.info("🚀 Starting Casys PML MCP Gateway...\n");
@@ -267,15 +261,7 @@ export function createServeCommand() {
           );
         }
 
-        // 2.5 Auto-init if config changed (discovers tools & generates embeddings)
-        const autoInitResult = await autoInitIfConfigChanged(configPath, db, {
-          forceReindex: options.forceReindex,
-        });
-        if (autoInitResult.performed) {
-          log.info(
-            `✓ Auto-init: ${autoInitResult.toolsCount} tools discovered (${autoInitResult.reason})`,
-          );
-        }
+        // Note: Tool sync removed from startup - use `deno task tools:sync` manually
 
         // 3. Connect to MCP servers
         log.info("Step 3/6: Connecting to MCP servers...");
