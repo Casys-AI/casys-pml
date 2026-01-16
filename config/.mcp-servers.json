@@ -1,0 +1,141 @@
+{
+  "mcpServers": {
+    "std": {
+      "type": "stdio",
+      "command": "deno",
+      "args": [
+        "run",
+        "-A",
+        "jsr:@casys/mcp-std@0.2.1/server"
+      ]
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/ubuntu/CascadeProjects/AgentCards"
+      ]
+    },
+    "fast-fs": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "fast-filesystem-mcp"
+      ],
+      "env": {
+        "CREATE_BACKUP_FILES": "false"
+      }
+    },
+    "memory": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ]
+    },
+    "exa": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "exa-mcp-server"
+      ],
+      "env": {
+        "EXA_API_KEY": "${EXA_API_KEY}"
+      }
+    },
+    "fetch": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch"
+      ]
+    },
+    "plots": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-plots",
+        "-t",
+        "stdio"
+      ]
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "slack": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@mcp-monorepo/slack"
+      ],
+      "env": {
+        "SLACK_TOKEN": "${SLACK_BOT_TOKEN}"
+      }
+    },
+    "notion": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@notionhq/notion-mcp-server"
+      ],
+      "env": {
+        "NOTION_API_KEY": "${NOTION_API_KEY}"
+      }
+    },
+    "google-sheets": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-gsheets"
+      ],
+      "env": {
+        "GOOGLE_PROJECT_ID": "${GOOGLE_PROJECT_ID}",
+        "GOOGLE_APPLICATION_CREDENTIALS": "${GOOGLE_APPLICATION_CREDENTIALS}"
+      }
+    },
+    "telegram": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@iqai/mcp-telegram"
+      ],
+      "env": {
+        "TELEGRAM_BOT_TOKEN": "${TELEGRAM_BOT_TOKEN}"
+      }
+    }
+  }
+}
+
