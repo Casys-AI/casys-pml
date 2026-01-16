@@ -10,7 +10,7 @@
     "./permissions": "./src/permissions/mod.ts"
   },
   "publish": {
-    "include": ["mod.ts", "src/**/*.ts", "src/**/*.txt", "README.md"]
+    "include": ["mod.ts", "src/**/*.ts", "README.md"]
   },
   "imports": {
     "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.8",
@@ -30,11 +30,11 @@
     "dev": "deno run --watch -A --env-file=.env --unstable-worker-options src/cli/mod.ts serve",
     "serve": "deno run -A --unstable-worker-options src/cli/mod.ts serve",
     "stdio": "deno run -A --unstable-worker-options src/cli/mod.ts stdio",
-    "compile": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --include=./src/init/env.example.txt -o ~/.deno/bin/pml ./src/cli/mod.ts",
-    "compile:linux": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --include=./src/init/env.example.txt --target x86_64-unknown-linux-gnu -o dist/pml-linux-x64 ./src/cli/mod.ts",
-    "compile:macos-x64": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --include=./src/init/env.example.txt --target x86_64-apple-darwin -o dist/pml-macos-x64 ./src/cli/mod.ts",
-    "compile:macos-arm": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --include=./src/init/env.example.txt --target aarch64-apple-darwin -o dist/pml-macos-arm64 ./src/cli/mod.ts",
-    "compile:windows": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --include=./src/init/env.example.txt --target x86_64-pc-windows-msvc -o dist/pml-windows-x64.exe ./src/cli/mod.ts",
+    "compile": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts -o ~/.deno/bin/pml ./src/cli/mod.ts",
+    "compile:linux": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --target x86_64-unknown-linux-gnu -o dist/pml-linux-x64 ./src/cli/mod.ts",
+    "compile:macos-x64": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --target x86_64-apple-darwin -o dist/pml-macos-x64 ./src/cli/mod.ts",
+    "compile:macos-arm": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --target aarch64-apple-darwin -o dist/pml-macos-arm64 ./src/cli/mod.ts",
+    "compile:windows": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --target x86_64-pc-windows-msvc -o dist/pml-windows-x64.exe ./src/cli/mod.ts",
     "compile:all": "mkdir -p dist && deno task compile:linux && deno task compile:macos-x64 && deno task compile:macos-arm && deno task compile:windows",
     "install": "deno task compile",
     "test": "deno test -A --unstable-worker-options --unstable-broadcast-channel tests/",
