@@ -21,8 +21,14 @@ import {
   resolveWorkspaceWithDetails,
 } from "../workspace.ts";
 import { PACKAGE_VERSION } from "../cli/shared/constants.ts";
+
+// Load .env.example template from file at module initialization
+const envExampleUrl = new URL("./env.example.txt", import.meta.url);
+const ENV_EXAMPLE_CONTENT = await Deno.readTextFile(envExampleUrl);
+
 const MCP_CONFIG_FILE = ".mcp.json";
 const PML_CONFIG_FILE = ".pml.json";
+const ENV_EXAMPLE_FILE = ".env.example";
 
 // Note: PML_API_KEY is no longer passed via .mcp.json env
 // The pml stdio command auto-loads it from .env in the workspace
@@ -105,6 +111,9 @@ export async function initProject(
 
     // Update .gitignore with PML entries
     await updateGitignore(workspace);
+
+    // Create .env.example with MCP server configuration options
+    await createEnvExample(workspace);
 
     return {
       success: true,
@@ -250,6 +259,28 @@ async function updateGitignore(workspace: string): Promise<void> {
   } else {
     console.log(`  ${colors.dim("•")} .gitignore already has PML entries`);
   }
+}
+
+/**
+ * Create .env.example with MCP server configuration options
+ *
+ * This file documents all available environment variables for MCP servers.
+ * User copies relevant sections to their .env file.
+ */
+async function createEnvExample(workspace: string): Promise<void> {
+  const envExamplePath = join(workspace, ENV_EXAMPLE_FILE);
+
+  // Skip if already exists
+  if (await exists(envExamplePath)) {
+    console.log(
+      `  ${colors.dim("•")} ${ENV_EXAMPLE_FILE} already exists (skipped)`,
+    );
+    return;
+  }
+
+  const content = ENV_EXAMPLE_CONTENT;
+  await Deno.writeTextFile(envExamplePath, content);
+  console.log(`  ${colors.green("✓")} Created ${ENV_EXAMPLE_FILE}`);
 }
 
 /**
