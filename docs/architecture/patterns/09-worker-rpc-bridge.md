@@ -1,5 +1,8 @@
 # Pattern 6: Worker RPC Bridge & Emergent Capabilities (Epic 7)
 
+> **Note:** This document describes the **server-side** `WorkerBridge` (`src/sandbox/`).
+> For the **client-side** `SandboxWorker` (`@casys/pml`), see [packages/pml/docs/ARCHITECTURE.md](../../../packages/pml/docs/ARCHITECTURE.md).
+
 **Status:** 🟡 IN PROGRESS (Story 7.1 done, Story 7.1b planned)
 
 **Problem:** MCP client functions cannot be serialized to subprocess

@@ -96,6 +96,15 @@ this project. Focus on unobvious details that agents might otherwise miss._
   validation, vfs
 - **Nouveaux modules** — string, path, faker, color, geo, qrcode, resilience, schema, diff
 
+### Client Package (`@casys/pml` - `packages/pml/`)
+
+- **CLI léger** — Binaire standalone pour exécution locale
+- **Client-side sandbox** — `SandboxWorker` pour exécution isolée côté client
+- **RPC protocol** — Communication avec serveur via `rpc_call`/`rpc_result`
+- **execute_locally flow** — Serveur analyse, retourne code + FQDN map, client exécute
+- **Hybrid routing** — Client tools (filesystem, shell) local, server tools (tavily) cloud
+- **Documentation** — `packages/pml/docs/ARCHITECTURE.md`, `MODULES.md`, `API.md`
+
 ### Compilation & Communication
 
 - **SWC** — via Deno, compilation TS + parsing AST (remplace ts-morph)
