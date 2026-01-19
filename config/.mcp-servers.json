@@ -3,7 +3,7 @@
     "std": {
       "type": "stdio",
       "command": "deno",
-      "args": ["run", "-A", "jsr:@casys/mcp-std@0.2.1/server"]
+      "args": ["run", "-A", "jsr:@casys/mcp-std/server"]
     },
     "filesystem": {
       "type": "stdio",

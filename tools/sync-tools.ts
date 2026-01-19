@@ -178,6 +178,7 @@ async function main() {
           `✓ Embeddings: ${embeddingResult.newlyGenerated} new, ${embeddingResult.cachedCount} cached`
         )
       );
+      await embeddingModel.dispose();
     }
 
     // 6. Summary
@@ -197,6 +198,9 @@ async function main() {
 
     // Cleanup
     await db.close();
+    // Force exit: transformers.js WASM runtime doesn't release properly
+    // See: https://github.com/huggingface/transformers.js/issues/860
+    Deno.exit(0);
   } catch (error) {
     console.error(colors.red(`\n❌ Sync failed: ${error}`));
     if (options.verbose && error instanceof Error) {
