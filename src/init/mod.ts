@@ -21,6 +21,7 @@ import {
   resolveWorkspaceWithDetails,
 } from "../workspace.ts";
 import { PACKAGE_VERSION } from "../cli/shared/constants.ts";
+
 const MCP_CONFIG_FILE = ".mcp.json";
 const PML_CONFIG_FILE = ".pml.json";
 
@@ -68,12 +69,13 @@ export async function initProject(
   const port = options.port ?? 3003;
   const cloudUrl = options.cloudUrl ?? "https://pml.casys.ai";
 
-  let backedUp: string | undefined;
+  let backedUpMcp: string | undefined;
+  let backedUpPml: string | undefined;
 
   try {
     // Check for existing .mcp.json
     if (await exists(mcpConfigPath)) {
-      const shouldBackup = await handleExistingConfig(mcpConfigPath, options);
+      const shouldBackup = await handleExistingConfig(mcpConfigPath, MCP_CONFIG_FILE, options);
       if (shouldBackup === "abort") {
         return {
           success: false,
@@ -83,7 +85,23 @@ export async function initProject(
         };
       }
       if (shouldBackup === "backup") {
-        backedUp = await backupConfig(mcpConfigPath);
+        backedUpMcp = await backupConfig(mcpConfigPath, MCP_CONFIG_FILE);
+      }
+    }
+
+    // Check for existing .pml.json (may contain user's mcpServers config)
+    if (await exists(pmlConfigPath)) {
+      const shouldBackup = await handleExistingConfig(pmlConfigPath, PML_CONFIG_FILE, options);
+      if (shouldBackup === "abort") {
+        return {
+          success: false,
+          mcpConfigPath,
+          pmlConfigPath,
+          error: "Aborted by user",
+        };
+      }
+      if (shouldBackup === "backup") {
+        backedUpPml = await backupConfig(pmlConfigPath, PML_CONFIG_FILE);
       }
     }
 
@@ -105,6 +123,9 @@ export async function initProject(
 
     // Update .gitignore with PML entries
     await updateGitignore(workspace);
+
+    // Combine backup paths for result
+    const backedUp = [backedUpMcp, backedUpPml].filter(Boolean).join(", ") || undefined;
 
     return {
       success: true,
@@ -129,6 +150,7 @@ export async function initProject(
  */
 async function handleExistingConfig(
   _configPath: string,
+  configName: string,
   options: InitOptions,
 ): Promise<"backup" | "overwrite" | "abort"> {
   if (options.force) {
@@ -139,7 +161,7 @@ async function handleExistingConfig(
     return "backup";
   }
 
-  console.log(colors.yellow(`\n⚠ Existing ${MCP_CONFIG_FILE} found.\n`));
+  console.log(colors.yellow(`\n⚠ Existing ${configName} found.\n`));
 
   // Simple prompt without external dependencies
   const response = prompt(
@@ -163,10 +185,10 @@ async function handleExistingConfig(
 /**
  * Backup existing config file
  */
-async function backupConfig(configPath: string): Promise<string> {
+async function backupConfig(configPath: string, configName: string): Promise<string> {
   const backupPath = `${configPath}.backup`;
   await Deno.copyFile(configPath, backupPath);
-  console.log(`  ${colors.green("✓")} Backed up to ${MCP_CONFIG_FILE}.backup`);
+  console.log(`  ${colors.green("✓")} Backed up to ${configName}.backup`);
   return backupPath;
 }
 

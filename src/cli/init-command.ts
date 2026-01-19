@@ -68,7 +68,10 @@ export function createInitCommand(): Command<any> {
         }
         console.log();
         console.log(colors.dim("Next steps:"));
-        console.log(`  ${colors.cyan("pml serve")}  Start the MCP server`);
+        console.log(
+          `  ${colors.cyan("1.")} Copy .env.example to .env and configure your API keys`,
+        );
+        console.log(`  ${colors.cyan("2.")} Start your AI agent (Claude Code, Cursor, etc.)`);
         console.log();
       } else {
         console.error(colors.red(`\n✗ Init failed: ${result.error}\n`));
