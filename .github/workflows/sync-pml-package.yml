@@ -60,3 +60,24 @@ jobs:
           COMMIT_MSG=$(git log -1 --format="%s" ${{ github.sha }} 2>/dev/null || echo "Sync from pml-cloud")
           git commit -m "$COMMIT_MSG" -m "Synced from pml-cloud"
           git push origin main
+
+      - name: Create version tag if needed
+        run: |
+          cd public-repo
+
+          # Get version from deno.json
+          VERSION=$(grep '"version"' deno.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
+          TAG="v$VERSION"
+
+          echo "Current version: $VERSION"
+          echo "Tag to check: $TAG"
+
+          # Check if tag already exists
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
+            echo "Tag $TAG already exists, skipping"
+          else
+            echo "Creating tag $TAG"
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "Tag $TAG created and pushed - this will trigger the release workflow"
+          fi
