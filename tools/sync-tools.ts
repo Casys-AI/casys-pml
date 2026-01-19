@@ -42,7 +42,7 @@ ${colors.dim("USAGE:")}
 ${colors.dim("OPTIONS:")}
   --mode=<dev|prod>     Environment mode (default: dev)
                         dev  = loads .env
-                        prod = loads .env.prod
+                        prod = loads .env.production
 
   --update              Only add new tools, keep existing (default)
   --override            Clear all tools and re-sync from scratch
@@ -122,7 +122,7 @@ async function main() {
   }
 
   // Load .env file based on mode
-  const envFile = options.mode === "prod" ? ".env.prod" : ".env";
+  const envFile = options.mode === "prod" ? ".env.production" : ".env";
   try {
     await loadEnv({ envPath: envFile, export: true });
     console.log(`  ${colors.dim("Env:")}      ${envFile}`);
