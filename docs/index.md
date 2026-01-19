@@ -1,6 +1,7 @@
 # Casys PML - Documentation
 
-_Updated: 2026-01-14_
+_Updated: 2026-01-19_
+_Deep-Dives: 4_
 
 **Procedural Memory Layer** — Une couche mémoire open source pour agents IA qui capture les workflows et les cristallise en compétences réutilisables.
 
@@ -176,11 +177,24 @@ _Updated: 2026-01-14_
 
 ---
 
+## Deep-Dive Documentation
+
+Detailed exhaustive analysis of specific areas:
+
+| Document | Description | Files | Date |
+|----------|-------------|-------|------|
+| [Tech Specs Deep-Dive](./deep-dive-tech-specs.md) | Comprehensive analysis of all 66 tech-specs | 66 files, 28K LOC | 2026-01-19 |
+| [Tech Specs Relationships](./deep-dive-tech-specs-relationships.md) | Dependency graph and critical chains | - | 2026-01-19 |
+| [Tech Specs Code Mapping](./deep-dive-tech-specs-code-mapping.md) | Implementation ↔ specs correlation | - | 2026-01-19 |
+| [Rust Crates Deep-Dive](./deep-dive-crates.md) | CasysDB engine architecture | 8 crates | 2026-01-03 |
+
+---
+
 ## Technical Reference
 
 ### Tech Specs
 
-[→ All Tech Specs (56)](tech-specs/)
+[→ All Tech Specs (66)](_bmad-output/implementation-artifacts/tech-specs/)
 
 ### Spikes & Research
 

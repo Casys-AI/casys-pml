@@ -1,5 +1,7 @@
 # Tech Spec: User FQDN Multi-Tenant
 
+**Status:** ✅ Completed
+
 ## Contexte
 
 Les capabilities sont actuellement créées avec `org: "local", project: "default"` hardcodé, ce qui empêche:

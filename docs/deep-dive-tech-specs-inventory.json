@@ -1,0 +1,116 @@
+{
+  "scan_date": "2026-01-19",
+  "total_files": 66,
+  "categories": {
+    "standalone_specs": 26,
+    "architecture_refactor_phase2": 10,
+    "modular_dag_execution": 11,
+    "shgat_v1_refactor": 10,
+    "archived": 5,
+    "indexes_and_guides": 4
+  },
+  "status_summary": {
+    "completed": 8,
+    "in_progress": 11,
+    "ready_for_dev": 18,
+    "draft": 15,
+    "proposed": 5,
+    "unknown": 9
+  },
+  "key_metrics": {
+    "date_range": {
+      "earliest": "2025-12-10",
+      "latest": "2026-01-16"
+    },
+    "critical_blockers": [
+      "BUG-HIL-DEADLOCK (5 tests blocked on Deferred Escalation Pattern)",
+      "incomplete loadByFqdn integrity migration",
+      "Architecture refactoring Phase 2-3 in progress"
+    ]
+  },
+  "organizational_structure": {
+    "standalone": "26 individual tech specs addressing features, fixes, and integrations",
+    "modular_dag_execution": "11-part series on DAG-based code execution with SHGAT learning",
+    "architecture_refactor_phase2": "10-part series addressing god classes and circular dependencies",
+    "shgat_v1_refactor": "10-part series on n-SuperHyperGraph message passing architecture",
+    "archived": "5 specs in _archive/ for historical reference and completed inventory"
+  },
+  "files": {
+    "standalone": [
+      {"path": "2025-12-10-tech-spec-fresh-bff-refactoring.md", "status": "Ready", "purpose": "Refactor Fresh framework BFF pattern"},
+      {"path": "2025-12-10-tech-spec-open-core-workspace.md", "status": "Completed", "purpose": "Open-core model workspace management"},
+      {"path": "2025-12-12-tech-spec-smithery-mcp-loader.md", "status": "Ready", "purpose": "Dynamic MCP tool loading via Smithery"},
+      {"path": "2025-12-16-tech-spec-dag-capability-learning.md", "status": "Draft", "purpose": "SHGAT learning from DAG paths"},
+      {"path": "2025-12-16-tech-spec-hil-permission-escalation-fix.md", "status": "Partial", "purpose": "Fix HIL workflow deadlock"},
+      {"path": "2025-12-16-tech-spec-permission-matrix-refactor.md", "status": "Completed", "purpose": "Matrix-based ACL permissions"},
+      {"path": "2025-12-17-tech-spec-pml-discover-api.md", "status": "Draft", "purpose": "Unified tool/capability discovery API"},
+      {"path": "2025-12-19-tech-spec-std-server-concurrency.md", "status": "Done", "purpose": "Concurrent request handling in MCP server"},
+      {"path": "2025-12-23-tech-spec-mcp-agent-nodes.md", "status": "Draft", "purpose": "Agent nodes in MCP graph"},
+      {"path": "2025-12-24-tech-spec-shgat-multihead-traces.md", "status": "Complete", "purpose": "Multi-head attention traces for SHGAT"},
+      {"path": "2025-12-27-tech-spec-capability-naming-curation.md", "status": "Draft", "purpose": "DNS-like capability naming with FQDN"},
+      {"path": "2025-12-27-tech-spec-github-auth-multitenancy.md", "status": "Ready", "purpose": "Hybrid auth model for cloud/self-hosted"},
+      {"path": "2025-12-29-tech-spec-emergence-dashboard.md", "status": "Ready", "purpose": "CAS metrics dashboard"},
+      {"path": "2025-12-29-tech-spec-graph-insights-panel.md", "status": "In Progress", "purpose": "Multi-algorithm graph insights"},
+      {"path": "2025-12-30-tech-spec-cap-merge.md", "status": "Completed", "purpose": "Capability consolidation tool"},
+      {"path": "2025-12-30-tech-spec-inline-literal-parameterization.md", "status": "Implemented", "purpose": "Extract inline literals to args"},
+      {"path": "2025-12-30-user-fk-refactor.md", "status": "Proposed", "purpose": "UUID foreign keys for users"},
+      {"path": "2026-01-03-tech-spec-casysdb-gds-integration.md", "status": "Draft", "purpose": "Node2Vec + HNSW in Rust"},
+      {"path": "2026-01-08-tech-spec-user-docs-audit.md", "status": "In Progress", "purpose": "Documentation alignment audit"},
+      {"path": "2026-01-09-tech-spec-pml-execute-hybrid-routing.md", "status": "Complete", "purpose": "Hybrid routing client/server"},
+      {"path": "2026-01-12-tech-spec-refactor-cap-mcp-client.md", "status": "Complete", "purpose": "cap.ts to HTTP client refactor"},
+      {"path": "2026-01-14-tech-spec-user-fqdn-multi-tenant.md", "status": "Completed", "purpose": "User-scoped FQDNs for multi-tenant"},
+      {"path": "2026-01-15-tech-spec-complete-loadbyfqdn-integrity-migration.md", "status": "Complete", "purpose": "Integrity validation for loadByFqdn"},
+      {"path": "2026-01-15-tech-spec-mcp-tools-consolidation.md", "status": "Complete", "purpose": "9 tools → 3 unified tools"},
+      {"path": "2026-01-15-tech-spec-unified-node-type.md", "status": "Complete", "purpose": "Unified Node type for SHGAT"},
+      {"path": "2026-01-16-tech-spec-mcp-tools-auto-sync.md", "status": "Complete", "purpose": "Auto-sync MCP tools at startup"}
+    ],
+    "architecture_refactor_phase2": [
+      {"path": "index.md", "status": "In Progress", "purpose": "Overview of Phase 2-3 refactoring"},
+      {"path": "phase-2.1-dependency-injection.md", "status": "In Progress", "purpose": "diod DI container setup"},
+      {"path": "phase-2.2-god-classes.md", "status": "In Progress", "purpose": "Split 10 god classes >1000 LOC"},
+      {"path": "phase-2.3-type-splitting.md", "status": "Pending", "purpose": "Split monolithic type files"},
+      {"path": "phase-2.4-sandbox.md", "status": "Pending", "purpose": "Sandbox worker refactoring"},
+      {"path": "phase-2.5-patterns.md", "status": "Pending", "purpose": "Design patterns consolidation"},
+      {"path": "phase-2.6-testing.md", "status": "Pending", "purpose": "Test infrastructure improvements"},
+      {"path": "phase-2.7-deno-native.md", "status": "Pending", "purpose": "Deno native APIs migration"},
+      {"path": "phase-3.1-execute-handler-usecases.md", "status": "Pending", "purpose": "Extract execute handler use cases"},
+      {"path": "phase-3.2-di-expansion.md", "status": "Pending", "purpose": "Expand DI to all modules"},
+      {"path": "phase-3.3-god-classes-round2.md", "status": "Pending", "purpose": "Second round god class splitting"},
+      {"path": "phase-3.4-eventbus-injection.md", "status": "Pending", "purpose": "EventBus dependency injection"},
+      {"path": "quick-wins.md", "status": "Reference", "purpose": "Quick refactoring opportunities"}
+    ],
+    "modular_dag_execution": [
+      {"path": "index.md", "status": "Ready", "purpose": "Overview of modular DAG execution"},
+      {"path": "impact-analysis.md", "status": "Reference", "purpose": "Impact analysis for DAG changes"},
+      {"path": "loop-abstraction.md", "status": "Draft", "purpose": "Loop detection and abstraction"},
+      {"path": "modular-code-execution.md", "status": "Draft", "purpose": "Code execution modularization"},
+      {"path": "modular-operations-implementation.md", "status": "Draft", "purpose": "Operations implementation"},
+      {"path": "operation-embeddings.md", "status": "Draft", "purpose": "Embeddings for operations"},
+      {"path": "parseable-code-patterns.md", "status": "Draft", "purpose": "Parseable code pattern detection"},
+      {"path": "phase-2b-impl-plan.md", "status": "Draft", "purpose": "Phase 2b implementation plan"},
+      {"path": "pure-operations-permissions.md", "status": "Draft", "purpose": "Permissions for pure operations"},
+      {"path": "shgat-learning-and-dag-edges.md", "status": "Draft", "purpose": "SHGAT learning from DAG edges"},
+      {"path": "two-level-dag-architecture.md", "status": "Draft", "purpose": "Two-level DAG architecture"}
+    ],
+    "shgat_v1_refactor": [
+      {"path": "00-overview.md", "status": "Draft", "purpose": "n-SuperHyperGraph overview"},
+      {"path": "01-data-model.md", "status": "Draft", "purpose": "Unified data model"},
+      {"path": "02-hierarchy-computation.md", "status": "Draft", "purpose": "Level computation algorithms"},
+      {"path": "03-incidence-structure.md", "status": "Draft", "purpose": "Multi-level incidence"},
+      {"path": "04-message-passing.md", "status": "Draft", "purpose": "N-phase message passing"},
+      {"path": "05-parameters.md", "status": "Draft", "purpose": "Parameter configuration"},
+      {"path": "06-scoring-api.md", "status": "Draft", "purpose": "Scoring API design"},
+      {"path": "07-training.md", "status": "Draft", "purpose": "Training procedures"},
+      {"path": "08-migration.md", "status": "Draft", "purpose": "Migration from v0"},
+      {"path": "09-testing.md", "status": "Draft", "purpose": "Testing strategy"},
+      {"path": "progress.md", "status": "Tracking", "purpose": "Progress tracking"}
+    ],
+    "archived": [
+      {"path": "bug-parallel-execution-tracking.md", "status": "Archive", "purpose": "Bug report for parallel execution"},
+      {"path": "integration-test-plan-mcp-gateway.md", "status": "Archive", "purpose": "Test plan for MCP gateway"},
+      {"path": "integration-test-plan-summary.md", "status": "Archive", "purpose": "Test plan summary"},
+      {"path": "review-controlled-executor-refactor.md", "status": "Archive", "purpose": "Code review for executor"},
+      {"path": "tech-spec-failing-tests-inventory.md", "status": "Archive", "purpose": "Failing tests inventory"}
+    ]
+  }
+}

@@ -1,6 +1,24 @@
 # Tech Spec: Capability Naming & Curation System
 
-Status: draft
+**Status:** 🔄 Partially Implemented (Epic-level)
+
+## Implementation Progress
+
+| Feature | Status | Implemented In |
+|---------|--------|----------------|
+| `cap:merge` | ✅ Done | `pml:admin` (2025-12-30) |
+| `cap:rename` | ✅ Done | `pml:admin` |
+| `cap:lookup` | ✅ Done | `pml:discover` name mode |
+| `cap:whois` | ✅ Done | `pml:discover` id+details |
+| FQDN structure | ✅ Done | Migration 039 (2026-01-14) |
+| User scoping | ✅ Done | `user-fqdn-multi-tenant` |
+| `dns:query` | 📋 TODO | - |
+| `dns:history` | 📋 TODO | - |
+| `cap:fork` | 📋 TODO | - |
+| LLM curation | 📋 TODO | - |
+| Visibility control | 📋 TODO | - |
+
+---
 
 > **Epic:** 12 - Advanced Capability Management (proposed) **Related:** Story 10.7 (pml_execute),
 > Story 10.6 (pml_discover) **Author:** Erwan + BMad Master **Date:** 2025-12-22

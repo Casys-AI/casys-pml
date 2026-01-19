@@ -2,9 +2,18 @@
   "workflow_version": "1.2.0",
   "timestamps": {
     "started": "2025-12-31T10:00:00Z",
-    "last_updated": "2026-01-14T12:00:00Z",
+    "last_updated": "2026-01-19T12:00:00Z",
     "completed": "2026-01-14T12:00:00Z"
   },
+  "deep_dive_targets": [
+    {
+      "target_name": "Tech Specs",
+      "target_path": "_bmad-output/implementation-artifacts/tech-specs/",
+      "files_analyzed": 66,
+      "output_file": "deep-dive-tech-specs.md",
+      "timestamp": "2026-01-19T12:00:00Z"
+    }
+  ],
   "mode": "incremental_update",
   "scan_level": "exhaustive",
   "status": "completed",
