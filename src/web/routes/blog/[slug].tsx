@@ -629,7 +629,8 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
           /* Target all diagram images in scroll wrapper */
           .markdown-body .diagram-scroll img {
             display: inline-block;
-            width: auto;
+            width: 100%;
+            min-width: 100%;
             height: auto;
             max-width: 100%;
             margin: 0 auto;
@@ -642,16 +643,16 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
               0 1px 3px rgba(255, 184, 111, 0.1);
           }
 
-          /* Desktop: constrain diagram width */
+          /* Desktop: larger diagrams */
           @media (min-width: 768px) {
             .markdown-body .diagram-scroll {
-              overflow-x: visible;
+              overflow-x: auto;
             }
 
             .markdown-body .diagram-scroll img {
               width: auto;
-              max-width: min(100%, 800px);
-              min-width: auto;
+              min-width: 700px;
+              max-width: 100%;
               padding: 1.5rem;
             }
           }

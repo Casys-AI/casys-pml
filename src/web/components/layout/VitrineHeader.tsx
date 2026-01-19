@@ -34,12 +34,9 @@ export default function VitrineHeader({
   const SHOW_AUTH = false;
 
   const navLinks = [
-    { href: "/#problem", label: "Why", page: null },
-    { href: "/#how", label: "How", page: null },
-    { href: "/#tech", label: "Tech", page: null },
+    { href: "/#catalog", label: "Capabilities", page: null },
     { href: "/docs", label: "Docs", page: "docs" as const },
     { href: "/blog", label: "Blog", page: "blog" as const },
-    { href: "/catalog", label: "Catalog", page: "catalog" as const },
   ];
 
   return (
@@ -184,7 +181,7 @@ export default function VitrineHeader({
         .vitrine-nav {
           display: flex;
           align-items: center;
-          gap: 1.5rem;
+          gap: 2rem;
         }
 
         .vitrine-nav-link {
