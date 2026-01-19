@@ -1,177 +1,129 @@
 ---
-title: "Emergent Capabilities: Procedures Nobody Programmed"
+title: "Emergent Capabilities: Your AI Learns Your Workflows"
 slug: emergent-capabilities
 date: 2025-12-18
-category: architecture
+category: product
 tags:
-  - emergence
   - capabilities
   - learning
-  - self-organization
-snippet: "We didn't define 'deploy to production' as a capability. The system discovered it by watching patterns. Here's how capabilities emerge from usage—without explicit programming."
+  - workflows
+  - productivity
+snippet: "You use tools. PML watches. Next time, it suggests the right workflow automatically. No programming required."
 format: article
 language: en
 author: Erwan Lee Pesle
 ---
 
-# Emergent Capabilities: Procedures Nobody Programmed
+# Emergent Capabilities: Your AI Learns Your Workflows
 
-> The system learns procedures by watching you work
+> Stop repeating yourself. Let the system learn.
 
-## Tools vs Capabilities
+## The Problem
 
-A **tool** is an atomic action: read a file, push to git, send a message.
+Every day, you repeat the same sequences:
 
-A **capability** is a coordinated pattern: "deploy to production" involves 5-10 tools working in
-sequence.
+- Pull code, run tests, push changes
+- Check data, generate report, send email
+- Research topic, draft document, get feedback
 
-![Tools vs Capability](excalidraw:src/web/assets/diagrams/emerge-tools-vs-capability.excalidraw)
+You know these patterns by heart. But your AI tools? They start fresh every time.
 
-The key insight: **nobody programs capabilities**. They emerge from repeated patterns.
+**What if your AI remembered?**
 
-## How Emergence Works
+## How PML Learns
 
-### Step 1: Observation
+PML watches how you work. Not to spy—to help.
 
-Every workflow execution is recorded. Which tools were used? In what order? Did it succeed?
+When you complete a task, PML notices:
 
-![Observation](excalidraw:src/web/assets/diagrams/emerge-observation.excalidraw)
+- Which tools you used
+- In what order
+- Whether it worked
 
-### Step 2: Pattern Detection
+Do the same thing a few times, and PML connects the dots.
 
-Tools that frequently appear together get stronger edge weights in the graph.
+![Pattern Recognition](excalidraw:src/web/assets/diagrams/emerge-observation.excalidraw)
 
-| Workflow  | Tools Used                              |
-| --------- | --------------------------------------- |
-| Monday AM | git_commit → github_push → slack_notify |
-| Monday PM | git_commit → github_push → slack_notify |
-| Tuesday   | git_commit → github_push → slack_notify |
-| Wednesday | git_commit → github_push                |
+## From Patterns to Capabilities
 
-After enough observations: `{git_commit, github_push, slack_notify}` becomes a pattern.
+A **capability** is a workflow that PML learned from watching you.
 
-### Step 3: Clustering
+| What You Did | What PML Learned |
+| ------------ | ---------------- |
+| git add → commit → push (5 times) | "Git Publish" capability |
+| query DB → format CSV → email (3 times) | "Report Generation" capability |
+| search docs → summarize → save (4 times) | "Research & Archive" capability |
 
-Spectral clustering on the graph Laplacian detects natural groupings:
+You didn't program these. They emerged from your habits.
 
-![Clustering](excalidraw:src/web/assets/diagrams/emerge-clustering.excalidraw)
-
-### Step 4: Capability Birth
-
-When a cluster is stable and confident enough, it becomes a named capability:
-
-| Metric              | Threshold | Meaning                    |
-| ------------------- | --------- | -------------------------- |
-| Co-occurrence count | ≥ 5       | Seen together enough times |
-| Cluster stability   | ≥ 0.8     | Grouping is consistent     |
-| Success rate        | ≥ 0.7     | Pattern actually works     |
-
-The system names it based on the dominant tool or asks the user.
-
-## From Capabilities to Meta-Capabilities
-
-Here's where it gets interesting: **capabilities can contain other capabilities**.
-
-![Meta-Capabilities](excalidraw:src/web/assets/diagrams/emerge-meta-capabilities.excalidraw)
-
-When users repeatedly execute Git Workflow → Test Suite → Deploy in sequence, a meta-capability
-"Full Release" emerges.
-
-This nesting is unbounded. Meta-meta-capabilities can form. That's why we use n-SuperHyperGraphs.
+![From Tools to Capabilities](excalidraw:src/web/assets/diagrams/emerge-tools-vs-capability.excalidraw)
 
 ## Why This Matters
 
-### No Manual Definition
+### 1. No Setup Required
 
-Traditional systems require you to define capabilities upfront:
-
+Traditional automation:
 ```
-❌ "Define capability 'deploy' with tools X, Y, Z"
-```
-
-With emergence:
-
-```
-✅ Just use tools. Patterns become capabilities automatically.
+"Define workflow 'deploy' with steps A, B, C, permissions X, Y, Z..."
 ```
 
-### Personalization
-
-Different users develop different capabilities based on their workflows:
-
-| User                 | Emerged Capability | Tools                          |
-| -------------------- | ------------------ | ------------------------------ |
-| DevOps Alice         | "Quick Deploy"     | docker_build → ecs_update      |
-| Developer Bob        | "Full CI/CD"       | test → build → deploy → notify |
-| Data Scientist Carol | "Model Pipeline"   | train → evaluate → register    |
-
-Same system, different capabilities—based on usage.
-
-### Continuous Evolution
-
-Capabilities aren't static. As workflows change, capabilities evolve:
-
-- New tools get added to existing capabilities
-- Unused patterns fade (confidence decay)
-
-**Future directions** we're exploring:
-
-- Capability merge (when two capabilities consistently co-occur)
-- Capability split (when a capability develops distinct sub-patterns)
-
-![Evolution](excalidraw:src/web/assets/diagrams/emerge-evolution.excalidraw)
-
-## The Detection Algorithm
-
-Simplified view of how we detect capabilities:
-
+With PML:
 ```
-1. Build tool co-occurrence matrix from workflows
-2. Compute normalized graph Laplacian
-3. Find k smallest eigenvectors (spectral embedding)
-4. K-means clustering on embeddings
-5. Filter clusters by stability and confidence
-6. Register stable clusters as capabilities
+Just work. Patterns become capabilities automatically.
 ```
 
-Key parameters:
+### 2. It's Personal
 
-| Parameter           | What It Controls                      |
-| ------------------- | ------------------------------------- |
-| Min cluster size    | Ignore tiny patterns                  |
-| Stability threshold | How consistent must grouping be?      |
-| Confidence decay    | How fast do unused patterns fade?     |
-| Merge threshold     | When do similar capabilities combine? |
+Your colleague might have different workflows. That's fine.
 
-## Real Examples
+PML learns **your** patterns, not a generic template. Same tool, different capabilities—based on how **you** use it.
 
-Capabilities that emerged in our testing:
+### 3. It Evolves
 
-| Emerged Capability  | Detection Confidence | Tools                                         |
-| ------------------- | -------------------- | --------------------------------------------- |
-| "Git Commit Flow"   | 94%                  | git_add, git_commit, git_push                 |
-| "PR Review Cycle"   | 87%                  | github_pr_create, github_review, github_merge |
-| "Deploy Pipeline"   | 91%                  | docker_build, ecr_push, ecs_update            |
-| "Bug Investigation" | 78%                  | grep_search, file_read, git_blame             |
+Changed your workflow? Added a new step? PML adapts.
 
-None of these were programmed. All emerged from usage patterns.
+- New patterns get recognized
+- Old patterns you stopped using fade away
+- Your capabilities stay current with how you actually work
 
-## The Magic
+## What It Feels Like
 
-The magic isn't in any single algorithm. It's in the combination:
+**Before PML:**
+> "I need to deploy. Let me remember... first I run tests, then build, then push to registry, then update the service, then notify the team..."
 
-1. **Observation** without interruption
-2. **Graph structure** that captures relationships
-3. **Spectral methods** that find natural clusters
-4. **Continuous learning** that adapts over time
+**With PML:**
+> "Deploy this."
+>
+> PML: "Got it. Running your usual deployment workflow."
 
-The result: a system that learns your procedures by watching you work.
+The cognitive load disappears. You focus on **what** you want, not **how** to do it.
+
+## Building on Capabilities
+
+Here's where it gets powerful: capabilities can combine.
+
+You have:
+- "Run Tests" capability
+- "Build Docker" capability
+- "Deploy to Cloud" capability
+
+Use them together a few times, and PML creates:
+- "Full Release" meta-capability
+
+![Meta-Capabilities](excalidraw:src/web/assets/diagrams/emerge-meta-capabilities.excalidraw)
+
+Your workflows compose. Complexity gets absorbed. You work at a higher level.
+
+## The Bottom Line
+
+PML doesn't ask you to define your workflows upfront.
+
+It watches. It learns. It suggests.
+
+The more you use it, the more it knows you. The more it knows you, the less you repeat yourself.
+
+**Your AI finally remembers how you work.**
 
 ---
 
-## References
-
-- Von Luxburg, U. (2007). "A Tutorial on Spectral Clustering." _Statistics and Computing_.
-- Blondel, V. et al. (2008). "Fast unfolding of communities in large networks." (Louvain method)
-
-#Emergence #Capabilities #MachineLearning #SelfOrganization
+_Ready to stop repeating yourself? [Try PML](https://pml.casys.ai)._

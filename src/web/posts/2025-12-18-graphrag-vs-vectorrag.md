@@ -1,285 +1,123 @@
 ---
-title: "GraphRAG + VectorRAG: Why You Need Both"
+title: "Similar vs Related: How PML Finds the Right Tool"
 slug: graphrag-vs-vectorrag
 date: 2025-12-18
-category: architecture
+category: product
 tags:
-  - graphrag
-  - rag
-  - knowledge-graph
-  - embeddings
-  - superhypergraph
-snippet: "Vector databases find similar content. Graph databases find related concepts. For AI agents, you need both—and a structure that goes beyond simple graphs."
+  - search
+  - discovery
+  - tools
+  - ai
+snippet: "Google finds similar pages. Your brain finds related ideas. PML does both—and that's why it finds tools you didn't know you needed."
 format: article
 language: en
 author: Erwan Lee Pesle
 ---
 
-# GraphRAG + VectorRAG: Why You Need Both
+# Similar vs Related: How PML Finds the Right Tool
 
-> It's not either/or. It's both/and.
+> The difference between a search engine and a brain
 
-## The False Dichotomy
+## Two Ways to Find Things
 
-The internet loves a good "X vs Y" debate. GraphRAG vs VectorRAG is no exception.
+When you search for something, there are two approaches:
 
-But here's the thing: **they solve different problems**.
+**Similar:** "Find things that look like this"
+- Google: pages with matching words
+- Spotify: songs that sound alike
+- Netflix: movies in the same genre
 
-| Approach  | Question It Answers         |
-| --------- | --------------------------- |
-| VectorRAG | "What's _similar_ to this?" |
-| GraphRAG  | "What's _related_ to this?" |
+**Related:** "Find things connected to this"
+- Your brain: "coffee" → "morning" → "alarm clock"
+- Wikipedia: links between concepts
+- Your workflow: "git commit" usually leads to "git push"
 
-Similar ≠ Related. And for AI agents, you need both.
+These aren't the same thing. And for AI tools, **you need both**.
 
-## VectorRAG: The Similarity Engine
+## The Search Engine Problem
 
-Vector embeddings capture **semantic similarity**. Two pieces of text that mean similar things will
-have similar vectors.
+Most AI tool finders work like search engines.
 
-![Vector RAG Similarity Search](excalidraw:src/web/assets/diagrams/rag-vector.excalidraw)
+You ask: *"I need to send a notification"*
 
-**Great for:**
+They find: Tools with "notification" in the description.
 
-- Finding relevant tools by intent
-- Matching user queries to capabilities
-- Discovering semantically similar patterns
+That works... sometimes. But it misses:
+- Tools you've used successfully before in similar situations
+- Tools that usually follow what you just did
+- Tools that your teammates use for this kind of task
 
-**Blind to:**
+**Search engines find what matches. They don't find what works.**
 
-- Execution order ("X must come before Y")
-- Structural relationships ("X contains Y")
-- Co-occurrence patterns ("X and Y often together")
+## The Brain Approach
 
-## GraphRAG: The Relationship Engine
+Your brain doesn't just match words. It follows connections.
 
-Graphs capture **structural relationships**. Nodes are entities, edges are how they relate.
+You think "deploy" and your brain automatically activates:
+- "tests" (because you always run tests first)
+- "docker" (because that's how you deploy)
+- "slack" (because you notify the team after)
 
-![Graph RAG Relationships](excalidraw:src/web/assets/diagrams/rag-graph.excalidraw)
+These connections come from experience. You've done this workflow before.
 
-**Great for:**
+**PML builds these connections for AI tools.**
 
-- Understanding tool dependencies
-- Finding execution sequences
-- Detecting capability clusters
-- Importance ranking (PageRank)
+## How PML Combines Both
 
-**Blind to:**
+PML uses two systems together:
 
-- Semantic meaning of new tools
-- Intent matching
-- Fuzzy similarity
+| System | What it does | Like... |
+| ------ | ------------ | ------- |
+| **Similarity** | Finds tools matching your intent | Google search |
+| **Relationships** | Finds tools connected by experience | Your brain |
 
----
+Ask for "send notification" and PML:
+1. Finds tools about notifications (similarity)
+2. Checks which ones worked in similar workflows (relationships)
+3. Suggests the one that fits your context best
 
-## Beyond Simple Graphs: The SuperHyperGraph
+## Why This Matters
 
-Here's where most "GraphRAG" articles stop. But for AI agents that orchestrate complex workflows,
-**simple graphs aren't enough**.
+### Better First Suggestions
 
-### The Problem With Regular Graphs
+Instead of showing you every "notification" tool, PML shows the one you're most likely to need—based on what you're doing right now.
 
-A standard graph connects pairs of nodes. A hypergraph can connect N nodes in one edge. But what
-happens when you need to express:
+### Workflows That Make Sense
 
-> _"The Deploy capability contains the Build capability, which itself contains compile, link, and
-> test tools"_
+PML knows that after "git commit" usually comes "git push". It doesn't suggest random tools—it suggests the logical next step.
 
-That's **recursive nesting**—a capability containing capabilities containing tools. Neither graphs
-nor hypergraphs can represent this cleanly.
+### Learning From Success
 
-### Enter the n-SuperHyperGraph
+When a tool works well in a workflow, that connection gets stronger. When it fails, the connection weakens. PML learns what actually works, not just what sounds right.
 
-Think of it like Russian nesting dolls for your workflow structure:
+## A Real Example
 
-![Graph Evolution](excalidraw:src/web/assets/diagrams/rag-graph-evolution.excalidraw)
+You're working on code and say: *"Check this for errors"*
 
-In PML, we use an **unbounded SuperHyperGraph** with natural hierarchy levels:
+**Search-only approach:**
+Shows you every linting, testing, and debugging tool alphabetically.
 
-| Level | What It Represents        | Example                                  |
-| ----- | ------------------------- | ---------------------------------------- |
-| 0     | **Tools**                 | `read_file`, `parse_json`, `http_post`   |
-| 1     | **Capabilities**          | "Parse Config" = {read_file, parse_json} |
-| 2+    | **Meta-Capabilities**     | "Deploy" = {Build, Test, Release}        |
-| n     | **Emergent compositions** | No depth limit                           |
+**PML approach:**
+1. Sees you're in a JavaScript project
+2. Knows you usually use ESLint for this
+3. Remembers ESLint worked well last time
+4. Suggests ESLint first, with alternatives if needed
 
-![SuperHyperGraph Hierarchy Levels](excalidraw:src/web/assets/diagrams/rag-superhypergraph-levels.excalidraw)
-
-<details>
-<summary><strong>Technical Deep Dive: Edge Types & DAG Constraints</strong></summary>
-
-Not all relationships are equal. PML uses 4 edge types with different cycle rules (following DASH
-constraints from Fujita 2025):
-
-| Edge Type    | Allows Cycles?      | Purpose                         |
-| ------------ | ------------------- | ------------------------------- |
-| `contains`   | **No** (strict DAG) | Composition hierarchy           |
-| `dependency` | **No** (strict DAG) | Execution prerequisites         |
-| `provides`   | Yes                 | Data flow between tools         |
-| `sequence`   | Yes                 | Temporal co-occurrence patterns |
-
-**Why the difference?**
-
-- `contains` cycles are logical impossibilities (A contains B contains A?)
-- `dependency` cycles create deadlocks
-- `provides` and `sequence` represent observed patterns, not constraints
-
-</details>
-
----
-
-## Tools vs Capabilities: A Critical Distinction
-
-Most RAG articles treat "tools" as a monolith. But there are two fundamentally different things to
-discover:
-
-| Aspect         | Tools                        | Capabilities                                           |
-| -------------- | ---------------------------- | ------------------------------------------------------ |
-| **Source**     | MCP servers (external)       | Learned from execution (emergent)                      |
-| **Scope**      | Single atomic operation      | Workflow composition                                   |
-| **Complexity** | Fixed                        | Recursive (can nest)                                   |
-| **Discovery**  | "Find me a tool that does X" | "Find me a workflow that achieves Y"                   |
-| **Example**    | `github:create_issue`        | "Bug Triage" = {search, analyze, create_issue, notify} |
-
-**Key insight:** Tools are **given**. Capabilities are **learned**.
-
-When an agent successfully completes a multi-tool workflow, that pattern becomes a reusable
-capability—stored with its intent, constituent tools, and reliability score.
-
----
-
-## Discovery Algorithms: Different Formulas for Different Targets
-
-Here's what most articles miss: **you can't use the same algorithm for tools and capabilities**.
-
-### Tool Discovery: Additive Formulas (Permissive)
-
-When searching for tools, we **combine weak signals**. A tool that scores moderately on semantics
-AND graph context is probably relevant.
-
-**Active Search (user intent):**
-
-<div class="formula-scroll">
-
-`Score = α × SemanticScore + (1-α) × GraphScore`
-
-</div>
-
-Where α adapts **per node** based on embedding coherence—comparing semantic (BGE-M3) vs structural
-(spectral) embeddings.
-
-**Passive Suggestion (workflow context):**
-
-<div class="formula-scroll">
-
-`Score = 0.6 × CoOccurrence + 0.3 × CommunityBoost + 0.1 × Recency`
-
-</div>
-
-Uses Louvain clustering for community detection and heat diffusion to propagate confidence.
-
-### Capability Discovery: Multiplicative Formulas (Strict)
-
-Capabilities require **higher confidence**. A capability with great semantic match but poor
-reliability? Disqualified.
-
-**Active Match (user intent):**
-
-<div class="formula-scroll">
-
-`Score = SemanticSimilarity × ReliabilityFactor`
-
-</div>
-
-If reliability < 0.5, the score becomes 0. One bad factor vetoes the whole match.
-
-**Strategic Discovery (workflow context):**
-
-<div class="formula-scroll">
-
-`Score = ToolsOverlap × (1 + SpectralClusteringBoost)`
-
-</div>
-
-- `ToolsOverlap`: How many capability tools are already in use
-- `SpectralClusteringBoost`: Whether capability is in same graph cluster as current context
-
-<details>
-<summary><strong>Why Multiplicative for Capabilities?</strong></summary>
-
-Capabilities represent **proven patterns**. Suggesting an unreliable capability wastes user time and
-erodes trust.
-
-With additive formulas, a capability could score high despite having 20% success rate (great
-semantics + graph context compensate). Multiplicative formulas prevent this:
-
-```
-Additive:   0.9 (semantic) + 0.1 (reliability) = 1.0  ✗ misleading
-Multiplicative: 0.9 × 0.2 = 0.18  ✓ honest
-```
-
-Tools don't need this strictness—a tool can be relevant even if rarely used. But suggesting a
-failing workflow? That's harmful.
-
-</details>
-
----
-
-## The Complete Hybrid Architecture
-
-Putting it all together:
-
-| Stage                | Method                  | Target               | Formula Type    |
-| -------------------- | ----------------------- | -------------------- | --------------- |
-| **Intent Match**     | Vector similarity       | Tools & Capabilities | —               |
-| **Tool Ranking**     | Hybrid (Vector + Graph) | Tools                | Additive        |
-| **Capability Match** | Semantic × Reliability  | Capabilities         | Multiplicative  |
-| **Sequencing**       | Graph traversal         | Both                 | DAG constraints |
-| **Clustering**       | Spectral analysis       | Capabilities         | SuperHyperGraph |
-| **Boosting**         | Co-occurrence           | Tools                | Additive        |
-
-### The Flow
-
-![Hybrid RAG Flow](excalidraw:src/web/assets/diagrams/rag-flow.excalidraw)
-
----
-
-## When To Use What
-
-| Situation                    | Primary Method       | Secondary             |
-| ---------------------------- | -------------------- | --------------------- |
-| New tool, never seen         | Vector only          | —                     |
-| Known tool, finding sequence | Graph traversal      | Vector (fallback)     |
-| Ambiguous query              | Vector               | Graph (structure)     |
-| Execution planning           | Graph DAG            | Vector (alternatives) |
-| Capability discovery         | Multiplicative match | —                     |
-| Tool suggestion in workflow  | Additive scoring     | Community boost       |
-
----
+Same question. Smarter answer.
 
 ## The Bottom Line
 
-Don't pick sides. But don't stop at "use both" either.
+Finding the right tool isn't just about matching words.
 
-For AI agents that orchestrate real workflows:
+It's about understanding:
+- What you're trying to do
+- What's worked before
+- What makes sense right now
 
-1. **Vectors** give you semantic understanding
-2. **Graphs** give you structural knowledge
-3. **SuperHyperGraphs** give you recursive composition
-4. **Different formulas** for different targets—permissive for tools, strict for capabilities
+PML combines similarity (like a search engine) with relationships (like your brain) to find tools that actually fit.
 
-The question isn't "GraphRAG or VectorRAG?"
-
-It's "How do I structure _both_ to match _what_ I'm discovering?"
+**Not just similar. Related. And that makes all the difference.**
 
 ---
 
-## References
-
-- Lewis, P. et al. (2020). "Retrieval-Augmented Generation." NeurIPS.
-- Microsoft Research. (2024). "GraphRAG: Unlocking LLM discovery on narrative private data."
-- Smarandache, F. (2019). "n-SuperHyperGraph and Plithogenic n-SuperHyperGraph." Neutrosophic Sets
-  and Systems.
-- Fujita, S. et al. (2025). "DASH: Directed Acyclic SuperHyperGraph for AI Agent Orchestration."
-
-#GraphRAG #VectorRAG #SuperHyperGraph #AIArchitecture #Hybrid
+_Experience smarter tool discovery at [pml.casys.ai](https://pml.casys.ai)_

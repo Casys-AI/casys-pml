@@ -1,149 +1,110 @@
 ---
-title: "Why MCP Protocol: The Universal Language for AI Tools"
+title: "MCP: The USB-C of AI Tools"
 slug: why-mcp-protocol
 date: 2025-12-18
-category: architecture
+category: product
 tags:
   - mcp
-  - protocol
-  - interoperability
   - tools
-snippet: "Function calling is proprietary. MCP is universal. Here's why we chose an open standard for tool integration—and why it matters for the AI ecosystem."
+  - interoperability
+  - ecosystem
+snippet: "Remember when every phone had a different charger? AI tools have the same problem today. MCP is fixing that."
 format: article
 language: en
 author: Erwan Lee Pesle
 ---
 
-# Why MCP Protocol: The Universal Language for AI Tools
+# MCP: The USB-C of AI Tools
 
-> From vendor lock-in to universal interoperability
+> One standard to connect them all
 
-## The Problem With Function Calling
+## The Charger Problem
 
-Every LLM provider invented their own tool interface:
+Remember 2010? Every phone brand had its own charger. Travel meant carrying a bag of cables.
 
-| Provider  | Format                  | Schema                            |
-| --------- | ----------------------- | --------------------------------- |
-| OpenAI    | `functions` / `tools`   | JSON Schema                       |
-| Anthropic | `tool_use`              | JSON Schema (different structure) |
-| Google    | `function_declarations` | Protocol Buffers                  |
-| Mistral   | `tool_calls`            | OpenAI-compatible-ish             |
+Then USB-C came along. One cable, every device.
 
-Same concept, different implementations. Want to support multiple models? Write adapters for each.
+**AI tools have the same problem today.**
 
-![Without MCP: N adapters](excalidraw:src/web/assets/diagrams/mcp-without.excalidraw)
+Every AI provider has their own way to connect tools:
+- OpenAI does it one way
+- Anthropic does it another
+- Google does it differently
+- And so on...
 
-**The maintenance burden grows with each new model.**
+Build a tool for one? Rebuild it for the others.
 
-## What Is MCP?
+![Different cables](excalidraw:src/web/assets/diagrams/mcp-without.excalidraw)
 
-**Model Context Protocol** is an open standard for tool integration. Think USB for AI tools—one
-interface, universal compatibility.
+## Enter MCP
 
-| Aspect     | Details                           |
-| ---------- | --------------------------------- |
-| Created by | Anthropic (open-sourced Nov 2024) |
-| Transport  | JSON-RPC 2.0                      |
-| Primitives | Tools, Resources, Prompts         |
-| License    | MIT                               |
+**Model Context Protocol** is USB-C for AI tools.
 
-![With MCP: 1 interface](excalidraw:src/web/assets/diagrams/mcp-with.excalidraw)
+One standard. Works everywhere.
 
-Write once, run everywhere. No more N×M adapter matrix.
+![One standard](excalidraw:src/web/assets/diagrams/mcp-with.excalidraw)
 
-## Why We Chose MCP
+Build your tool once. It works with Claude, GPT, local models, and whatever comes next.
 
-Our reasoning came down to four factors:
+## Why It Matters to You
 
-### 1. Vendor Independence
+### 1. No Lock-In
 
-Today we use Claude. Tomorrow? Who knows. MCP means our tools work with any model that supports the
-protocol—and that list is growing.
+Using Claude today? Great. Want to try GPT tomorrow? Your tools come with you.
 
-### 2. Ecosystem Growth
+You're not married to one AI provider anymore.
 
-MCP has momentum:
+### 2. More Tools, Less Work
 
-- Claude Desktop, Cursor, VS Code extensions support it
-- 100+ open source servers available
-- Major IDE integrations coming
+The MCP ecosystem is growing fast:
+- File management
+- GitHub integration
+- Database access
+- Web browsing
+- And hundreds more...
 
-### 3. Clean Separation
+These tools work out of the box. No setup, no integration headaches.
 
-MCP enforces good architecture:
+### 3. Future-Proof
 
-- **Server**: Exposes capabilities (tools, resources)
-- **Client**: Discovers and invokes
-- **Transport**: Pluggable (stdio, HTTP, WebSocket)
+New AI models appear constantly. With MCP, they can use your existing tools immediately.
 
-Your tool logic stays clean. Protocol handling is separate.
+Your investment in tools doesn't become obsolete.
 
-### 4. Simplicity
+## What PML Does With MCP
 
-Stdio transport means any language works. No HTTP server needed. Just read stdin, write stdout.
+PML connects to MCP tools and makes them smarter:
 
-| Approach                | Pros                         | Cons               |
-| ----------------------- | ---------------------------- | ------------------ |
-| Native function calling | Tight integration            | Vendor lock-in     |
-| Custom adapters         | Full control                 | Maintenance burden |
-| **MCP**                 | Universal, growing ecosystem | Newer, evolving    |
+| Without PML | With PML |
+| ----------- | -------- |
+| You pick which tool to use | PML suggests the right tool |
+| You chain tools manually | PML builds workflows automatically |
+| Tools are isolated | Tools learn to work together |
 
-## The MCP Architecture
+MCP provides the connections. PML provides the intelligence.
 
-Three layers, cleanly separated:
+## The Ecosystem Effect
 
-![MCP Architecture](excalidraw:src/web/assets/diagrams/mcp-architecture.excalidraw)
+Here's what's exciting: the more tools speak MCP, the more powerful the ecosystem becomes.
 
-### The Handshake
+- **Tool builders** reach more users
+- **AI developers** get more capabilities
+- **Users** get better AI assistants
 
-![MCP Handshake](excalidraw:src/web/assets/diagrams/mcp-handshake.excalidraw)
-
-### Primitives
-
-| Primitive     | Purpose                    | Example                   |
-| ------------- | -------------------------- | ------------------------- |
-| **Tools**     | Actions the model can take | `file_read`, `git_commit` |
-| **Resources** | Data the model can access  | File contents, DB rows    |
-| **Prompts**   | Reusable prompt templates  | Coding assistant setup    |
-
-## Practical Benefits
-
-What MCP gives us in practice:
-
-### Swap Models Freely
-
-Our tools work unchanged whether we use Claude, GPT, or local models. The abstraction holds.
-
-### Share Across Projects
-
-One MCP server can be used by:
-
-- CLI agents
-- Web applications
-- IDE extensions
-- Other teams' projects
-
-### Tap Into the Ecosystem
-
-Existing MCP servers we can use immediately:
-
-- **Filesystem**: Read/write files
-- **GitHub**: PRs, issues, repos
-- **Postgres/SQLite**: Database access
-- **Brave Search**: Web search
-- **Puppeteer**: Browser automation
-
-No integration work. Just configure and use.
-
-### Future-Proof
-
-As the AI landscape evolves, MCP-compatible tools remain relevant. New models adopt MCP → our tools
-work with them automatically.
+Everyone wins when we agree on the standard.
 
 ---
 
-## References
+## The Bottom Line
 
-- [Model Context Protocol Specification](https://modelcontextprotocol.io)
+MCP is doing for AI tools what USB-C did for devices.
 
-#MCP #Protocol #Interoperability #AITools
+One standard. Universal compatibility. No more cable bag.
+
+PML is built on MCP because we believe in open standards. Your tools should work everywhere, not just with one provider.
+
+**The future of AI is connected. MCP is the connection.**
+
+---
+
+_Learn more at [modelcontextprotocol.io](https://modelcontextprotocol.io)_
