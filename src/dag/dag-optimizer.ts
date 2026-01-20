@@ -114,6 +114,19 @@ function optimizeSequential(
   for (const task of logicalDAG.tasks) {
     if (processed.has(task.id)) continue;
 
+    // Option B: Skip non-executable tasks from physical DAG
+    // They stay in logicalDAG for trace-generator to include in executedPath for SHGAT
+    if (task.metadata?.executable === false) {
+      processed.add(task.id);
+      // No physical task, no mapping - trace-generator handles these separately
+      log.debug("Skipping non-executable task from physical DAG", {
+        taskId: task.id,
+        tool: task.tool,
+        parentOperation: task.metadata?.parentOperation,
+      });
+      continue;
+    }
+
     // If it's an MCP task, keep as-is
     if (task.type === "mcp_tool") {
       physicalTasks.push(task);

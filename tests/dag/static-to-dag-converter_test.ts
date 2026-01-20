@@ -210,10 +210,12 @@ Deno.test("estimateParallelLayers - parallel structure", () => {
 });
 
 // =============================================================================
-// Story 10.2c Fix: Non-executable Node Filtering
+// Story 10.2c Fix: Non-executable nodes in logical DAG for SHGAT learning
+// Non-executable nodes are KEPT in the DAG (for trace-generator to include in
+// executedPath for SHGAT). They are filtered during physical execution, not here.
 // =============================================================================
 
-Deno.test("staticStructureToDag - Story 10.2c fix: skips non-executable nodes", () => {
+Deno.test("staticStructureToDag - Story 10.2c fix: includes non-executable nodes in logical DAG", () => {
   // Simulate a method chain structure where intermediate nodes are non-executable
   const chainStructure: StaticStructure = {
     nodes: [
@@ -250,19 +252,20 @@ Deno.test("staticStructureToDag - Story 10.2c fix: skips non-executable nodes", 
 
   const dag = staticStructureToDag(chainStructure);
 
-  // Should only have 1 task (the executable one)
-  assertEquals(dag.tasks.length, 1, "Should create only 1 physical task");
+  // All 3 tasks should be in the DAG (logical DAG includes non-executables for SHGAT)
+  assertEquals(dag.tasks.length, 3, "Should create all 3 tasks in logical DAG");
 
-  const task = dag.tasks[0];
-  assertEquals(task.tool, "code:sort", "Task should be the sort operation");
-  assertEquals(
-    task.code?.includes("numbers.filter"),
-    true,
-    "Task should have full chain code",
-  );
+  // Non-executable tasks should have metadata.executable = false
+  const filterTask = dag.tasks.find((t) => t.tool === "code:filter");
+  const mapTask = dag.tasks.find((t) => t.tool === "code:map");
+  const sortTask = dag.tasks.find((t) => t.tool === "code:sort");
+
+  assertEquals(filterTask?.metadata?.executable, false, "filter should be non-executable");
+  assertEquals(mapTask?.metadata?.executable, false, "map should be non-executable");
+  assertEquals(sortTask?.metadata?.executable, true, "sort should be executable");
 });
 
-Deno.test("staticStructureToDag - Story 10.2c fix: preserves executable nodes", () => {
+Deno.test("staticStructureToDag - Story 10.2c fix: preserves executable metadata", () => {
   // Regular MCP tools should still work (they're always executable)
   const mixedStructure: StaticStructure = {
     nodes: [
@@ -296,15 +299,19 @@ Deno.test("staticStructureToDag - Story 10.2c fix: preserves executable nodes", 
 
   const dag = staticStructureToDag(mixedStructure);
 
-  // Should have 2 tasks: n1 (MCP) and n3 (executable code)
-  assertEquals(dag.tasks.length, 2, "Should have 2 executable tasks");
+  // All 3 tasks should be in the DAG (for SHGAT learning via trace-generator)
+  assertEquals(dag.tasks.length, 3, "Should have all 3 tasks in logical DAG");
 
   const taskTools = dag.tasks.map((t) => t.tool);
   assertEquals(taskTools.includes("fs:read_file"), true, "Should include MCP tool");
+  assertEquals(taskTools.includes("code:filter"), true, "Should include non-executable code op");
   assertEquals(taskTools.includes("code:map"), true, "Should include executable code op");
+
+  // Verify executable metadata is preserved
+  const filterTask = dag.tasks.find((t) => t.tool === "code:filter");
   assertEquals(
-    taskTools.includes("code:filter"),
+    filterTask?.metadata?.executable,
     false,
-    "Should NOT include non-executable code op",
+    "Non-executable task should have executable=false",
   );
 });
