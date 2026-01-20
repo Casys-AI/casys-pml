@@ -3,7 +3,7 @@ stepsCompleted: [1]
 inputDocuments: []
 session_topic: 'Business model et stratégie de déploiement pour Casys PML Cloud'
 session_goals: 'Évaluer les options entre commercialisation vs. concept open-source à adoption globale, définir une stratégie de mise en place, explorer comment maximiser impact et adoption'
-selected_approach: ''
+selected_approach: 'Progressive Technique Flow'
 techniques_used: []
 ideas_generated: []
 context_file: ''
