@@ -188,17 +188,21 @@ export function staticStructureToDag(
   const forkChildren = new Map<string, string[]>(); // fork.id -> child task IDs
 
   for (const node of structure.nodes) {
-    // Story 10.2c fix: Skip non-executable nested operations
-    // These are tracked in the logical DAG (SHGAT) but not executed as separate tasks
+    // Story 10.2c fix: Non-executable nested operations are KEPT in the logical DAG
+    // for SHGAT learning, but filtered out during physical execution.
+    // See: trace-generator.ts (includes them in executedPath for learning)
+    // See: dag-optimizer.ts canFuseTasks() (excludes them from fusion)
+    // See: controlled-executor.ts (filters them from execution layers)
     const nodeMetadata = (node as { metadata?: { executable?: boolean; nestingLevel?: number } })
       .metadata;
     if (nodeMetadata?.executable === false) {
-      logger.debug("Skipping non-executable nested operation", {
+      logger.debug("Including non-executable operation in logical DAG for SHGAT learning", {
         nodeId: node.id,
         tool: node.type === "task" ? node.tool : undefined,
         nestingLevel: nodeMetadata?.nestingLevel,
+        parentOperation: (nodeMetadata as { parentOperation?: string })?.parentOperation,
       });
-      continue;
+      // NOTE: We do NOT skip here - the task is added to the DAG for learning purposes
     }
 
     // Loop Execution Fix: Skip nodes that are INSIDE a loop
