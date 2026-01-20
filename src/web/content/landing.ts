@@ -53,12 +53,12 @@ export const hero = {
 
   cta: {
     primary: {
-      label: "See How It Works",
-      href: "#how",
+      label: "Get Started",
+      href: "#quickstart",
     },
     secondary: {
-      label: "View on GitHub",
-      href: "https://github.com/Casys-AI/casys-pml",
+      label: "Read the Docs",
+      href: "/docs",
     },
   },
 };
@@ -263,8 +263,8 @@ export const cta = {
       icon: "github",
     },
     secondary: {
-      label: "Read the Blog",
-      href: "/blog",
+      label: "Request Beta Access",
+      href: "#beta",
       icon: "arrow",
     },
   },
@@ -283,6 +283,7 @@ export const navigation = {
     { href: "#catalog", label: "Capabilities" },
     { href: "/docs", label: "Docs" },
     { href: "/blog", label: "Blog" },
+    { href: "#beta", label: "Beta", highlight: true },
   ],
   github: "https://github.com/Casys-AI/casys-pml",
 };

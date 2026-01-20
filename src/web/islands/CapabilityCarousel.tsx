@@ -6,7 +6,7 @@
  * @module web/islands/CapabilityCarousel
  */
 
-import { useRef } from "preact/hooks";
+import { useRef, useState, useEffect } from "preact/hooks";
 
 interface Capability {
   namespace: string;
@@ -22,6 +22,33 @@ interface Props {
 
 export default function CapabilityCarousel({ capabilities }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  // Auto-scroll every 5 seconds
+  useEffect(() => {
+    if (isPaused || isDragging) return;
+
+    const interval = setInterval(() => {
+      const container = scrollRef.current;
+      if (!container) return;
+
+      const maxScroll = container.scrollWidth - container.clientWidth;
+      const isAtEnd = container.scrollLeft >= maxScroll - 10;
+
+      if (isAtEnd) {
+        // Loop back to start
+        container.scrollTo({ left: 0, behavior: "smooth" });
+      } else {
+        // Scroll to next card
+        container.scrollBy({ left: 360, behavior: "smooth" });
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isPaused, isDragging]);
 
   const handleScroll = (direction: "prev" | "next") => {
     const container = scrollRef.current;
@@ -30,8 +57,39 @@ export default function CapabilityCarousel({ capabilities }: Props) {
     container.scrollBy({ left: scrollAmount, behavior: "smooth" });
   };
 
+  // Drag-to-scroll handlers for desktop
+  const handleMouseDown = (e: MouseEvent) => {
+    const container = scrollRef.current;
+    if (!container) return;
+    setIsDragging(true);
+    setStartX(e.pageX - container.offsetLeft);
+    setScrollLeft(container.scrollLeft);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const container = scrollRef.current;
+    if (!container) return;
+    const x = e.pageX - container.offsetLeft;
+    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    container.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
   return (
-    <div class="carousel-wrapper">
+    <div
+      class="carousel-wrapper"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
       {/* Navigation */}
       <button
         type="button"
@@ -51,7 +109,14 @@ export default function CapabilityCarousel({ capabilities }: Props) {
       </button>
 
       {/* Scroll container */}
-      <div ref={scrollRef} class="carousel-scroll">
+      <div
+        ref={scrollRef}
+        class={`carousel-scroll ${isDragging ? "carousel-scroll--dragging" : ""}`}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+      >
         {capabilities.map((cap) => (
           <article class="carousel-card" key={`${cap.namespace}:${cap.action}`}>
             {/* Header */}
@@ -92,7 +157,7 @@ export default function CapabilityCarousel({ capabilities }: Props) {
           width: 100%;
           max-width: 1200px;
           margin: 0 auto;
-          padding: 0 1rem;
+          padding: 0 3rem;
         }
 
         /* Scroll container */
@@ -102,8 +167,18 @@ export default function CapabilityCarousel({ capabilities }: Props) {
           overflow-x: auto;
           scroll-snap-type: x mandatory;
           scroll-behavior: smooth;
-          padding: 1rem 0.5rem 1.5rem;
+          padding: 1rem 1rem 1.5rem;
           -webkit-overflow-scrolling: touch;
+          cursor: grab;
+          user-select: none;
+          scroll-padding-inline-start: 1rem;
+        }
+
+        /* Dragging state */
+        .carousel-scroll--dragging {
+          cursor: grabbing;
+          scroll-snap-type: none;
+          scroll-behavior: auto;
         }
 
         /* Hide scrollbar but keep functionality */
@@ -124,6 +199,10 @@ export default function CapabilityCarousel({ capabilities }: Props) {
           border-radius: 14px;
           padding: 1.5rem;
           transition: border-color 0.25s, transform 0.25s;
+        }
+
+        .carousel-card:last-child {
+          margin-right: 1rem;
         }
 
         .carousel-card:hover {
@@ -195,9 +274,9 @@ export default function CapabilityCarousel({ capabilities }: Props) {
 
         .carousel-card__code code {
           font-family: 'Geist Mono', monospace;
-          font-size: 0.72rem;
-          line-height: 1.65;
-          color: #a8a29e;
+          font-size: 0.78rem;
+          line-height: 1.6;
+          color: #b8b2a8;
         }
 
         /* Syntax */
@@ -238,33 +317,36 @@ export default function CapabilityCarousel({ capabilities }: Props) {
           top: 50%;
           transform: translateY(-50%);
           z-index: 10;
-          width: 42px;
-          height: 42px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          width: 46px;
+          height: 46px;
+          border: 1px solid rgba(255, 184, 111, 0.3);
           border-radius: 50%;
-          background: rgba(12, 12, 15, 0.95);
-          color: #888;
-          font-size: 1.5rem;
+          background: rgba(12, 12, 15, 0.98);
+          color: #FFB86F;
+          font-size: 1.6rem;
           cursor: pointer;
           transition: all 0.2s;
           display: flex;
           align-items: center;
           justify-content: center;
-          backdrop-filter: blur(8px);
+          backdrop-filter: blur(12px);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
         }
 
         .carousel-nav:hover {
-          border-color: rgba(255, 184, 111, 0.4);
+          border-color: rgba(255, 184, 111, 0.6);
+          background: rgba(255, 184, 111, 0.15);
           color: #FFB86F;
-          transform: translateY(-50%) scale(1.05);
+          transform: translateY(-50%) scale(1.08);
+          box-shadow: 0 4px 24px rgba(255, 184, 111, 0.2);
         }
 
         .carousel-nav--prev {
-          left: -0.5rem;
+          left: 0.75rem;
         }
 
         .carousel-nav--next {
-          right: -0.5rem;
+          right: 0.75rem;
         }
 
         /* Responsive */
@@ -279,14 +361,49 @@ export default function CapabilityCarousel({ capabilities }: Props) {
             font-size: 1.25rem;
           }
 
-          .carousel-nav--prev { left: 0; }
-          .carousel-nav--next { right: 0; }
+          .carousel-nav--prev { left: 0.25rem; }
+          .carousel-nav--next { right: 0.25rem; }
         }
 
         @media (max-width: 480px) {
-          .carousel-card {
-            flex: 0 0 280px;
+          .carousel-wrapper {
+            padding: 0;
           }
+
+          .carousel-scroll {
+            gap: 1rem;
+            padding: 0.75rem 1rem 1.25rem;
+            scroll-padding-inline-start: 1rem;
+          }
+
+          .carousel-card {
+            flex: 0 0 calc(100vw - 2rem);
+            padding: 1.25rem;
+          }
+
+          .carousel-card:last-child {
+            margin-right: 1rem;
+          }
+
+          .carousel-card__header {
+            font-size: 1rem;
+          }
+
+          .carousel-card__code code {
+            font-size: 0.7rem;
+          }
+
+          .carousel-nav {
+            width: 32px;
+            height: 32px;
+            font-size: 1.1rem;
+            top: auto;
+            bottom: 0;
+            transform: none;
+          }
+
+          .carousel-nav--prev { left: calc(50% - 40px); }
+          .carousel-nav--next { right: calc(50% - 40px); }
         }
         `}
       </style>
