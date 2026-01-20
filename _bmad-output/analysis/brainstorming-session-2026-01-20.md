@@ -307,3 +307,177 @@ Session initiée pour explorer les différentes options stratégiques pour Casys
 - Casys choisit le meilleur model automatiquement (pas juste "vous pouvez choisir")
 - Workflows qui s'auto-optimisent (pas statiques)
 - Marketplace où on "loue" workflows existants (pas juste créer from scratch)
+
+## Phase 4: Action Planning - Decision Tree Mapping
+
+**Technique:** Decision Tree Mapping
+**Focus:** Transformer insights en plan d'action concret
+
+### 🎯 POSITIONNEMENT VALIDÉ FINAL
+
+**Core Value Proposition:**
+> "Casys PML = The Model-Agnostic MCP Gateway with Workflow Intelligence"
+
+**Deux Piliers Différenciateurs:**
+
+1. **Model-Agnostic Gateway** ✅ (Déjà implémenté)
+   - Fonctionne avec ANY LLM (Claude, GPT, Gemini, Ollama local)
+   - Switch providers en une ligne de code
+   - Intelligent routing (best/cheapest/fastest par task)
+   - Auto-failover quand provider down
+   - **Unique:** Personne d'autre ne fait ça pour MCP workflows
+
+2. **Workflow Intelligence via Traces** 🔬 (Avantage défendable)
+   - 500+ traces actuelles = training data historique
+   - LLM-powered analysis: debugging, cost optimization, bottlenecks
+   - SHGAT apprentissage en temps réel
+   - Auto-optimization suggestions basées sur patterns communautaires
+   - **Moat:** Plus de traces = meilleur système (impossible à rattraper tard)
+
+### 📊 CE QUI EXISTE DÉJÀ (Audit Codebase)
+
+**✅ Features Implémentées:**
+- Model-agnostic gateway architecture
+- SHGAT + GraphRAG (Adamic-Adar, PageRank, Louvain, Heat Diffusion)
+- 500 traces collectées pour learning
+- Dashboard Fresh/Preact (port 8081)
+- Sandbox execution (Deno workers isolés)
+- Open-core model (SDK AGPL, plateforme cloud prep)
+- DAG execution parallèle avec dépendances
+- Intent-based execution (`pml:discover`, `pml:execute`)
+- FQDN registry (org.projet.namespace.action)
+- Adaptive learning (Thompson Sampling, Local Alpha)
+- HIL checkpoints (Human-in-the-Loop)
+- MiniTools library (120+ outils internes)
+- BGE-M3 embeddings locaux
+
+**❌ Gaps Identifiés (Opportunités):**
+- Scheduled execution / webhooks triggers
+- LLM-powered workflow debugging intelligent
+- Cost tracking par provider/workflow
+- Intelligent model router (auto-select best/cheapest/fastest)
+- Workflow health scores & monitoring proactif
+- A/B testing pour variants de workflows
+- Analytics dashboard avancé
+- Enterprise features (SSO/RBAC, private multi-tenant registry)
+- Marketplace avec revenue share créateurs
+- VS Code / Cursor extension
+- Namespace registry crypto (Base blockchain)
+- Auto-optimization automatique
+
+### 🗺️ ROADMAP STRATÉGIQUE 90 JOURS
+
+**Mois 1 - Foundation & Positioning:**
+- [ ] Finalize messaging: "Model-Agnostic MCP Gateway with Workflow Intelligence"
+- [ ] Document killer features: model-agnostic + trace analysis
+- [ ] Polish dashboard pour demo (focus: 2 piliers)
+- [ ] Create 10-20 reference workflows showcasing different LLMs
+- [ ] Prepare Product Hunt/HN launch materials
+
+**Mois 2 - Launch & Traction:**
+- [ ] Product Hunt launch (focus: model-agnostic angle)
+- [ ] Show HN: "Run MCP workflows with any AI model"
+- [ ] Twitter launch thread (demo switching between Claude/GPT/local)
+- [ ] Setup Discord community
+- [ ] First blog posts: "Why vendor lock-in kills AI projects"
+
+**Mois 3 - Intelligence Differentiation:**
+- [ ] Implement LLM-powered workflow debugging (MVP)
+- [ ] Cost tracking par provider (dashboard feature)
+- [ ] Trace bounty program (500→5k traces objectif)
+- [ ] Partner avec 3-5 créateurs MCP servers populaires
+- [ ] Content: "How Casys learns from your workflows"
+
+**Metrics à Tracker:**
+- Workflows exécutés avec différents LLMs (diversity metric)
+- Traces collectées par semaine
+- Users actifs (MAU)
+- Conversion blog/PH → signup
+- Community engagement (Discord active users)
+
+### 🎯 BUSINESS MODEL FINAL
+
+**Open-Core Strategy:**
+
+**Open Source (AGPL):**
+- Runtime d'exécution MCP
+- CLI (`pml`) standalone
+- Gateway model-agnostic
+- Basic workflow execution
+
+**Propriétaire/Cloud:**
+- SHGAT Intelligence (recommendations basées sur traces)
+- Dashboard analytics & monitoring
+- LLM-powered workflow analysis
+- Scheduled execution / webhooks
+- Team collaboration
+- Advanced features (health scores, A/B testing)
+
+**Pricing Tiers:**
+- **Free:** 5k exécutions/mois, tous LLMs, community support
+- **Pro ($49/mois):** 50k exécutions, workflow intelligence, analytics
+- **Enterprise ($500+/mois):** Illimité, private registry, SSO/RBAC, SLA
+
+### 🎪 GO-TO-MARKET FOCUS
+
+**Target Audience:**
+- **Primary:** AI Agent Builders (tech-savvy, early adopters)
+- **Secondary:** Enterprise teams avec compliance (besoin local models)
+
+**Key Message:**
+> "Build AI workflows once. Run with any model. Never locked in.
+> Plus, Casys learns from every execution to make your workflows smarter."
+
+**Distribution Channels:**
+1. Product Hunt + Show HN (organic reach)
+2. Twitter tech community (#AIAgents, #LLMOps)
+3. Discord AI communities (Loom, AI Tinkerers)
+4. Content marketing (blog, tutorials, comparisons)
+5. Partnerships avec MCP server creators
+
+### 🔥 NEXT ACTIONS (Immediate)
+
+**This Week:**
+1. Finalize positioning deck (model-agnostic + workflow intelligence)
+2. Audit dashboard to highlight 2 piliers
+3. Create comparison table vs Claude Skills / Zapier
+4. Draft Product Hunt launch post
+5. Reach out to 3 potential early adopters for feedback
+
+**This Month:**
+1. Polish demo workflow showcasing LLM switching
+2. Implement basic cost tracking dashboard
+3. Prepare launch materials (video, screenshots, pitch)
+4. Setup analytics tracking
+5. Create Discord server structure
+
+## Session Summary
+
+**Total Ideas Generated:** 83 business models, strategies, and features
+
+**Key Outcomes:**
+- ✅ Validated positioning: Model-Agnostic Gateway + Workflow Intelligence
+- ✅ Identified 2 defensible moats: Architecture (déjà fait) + Data (500 traces)
+- ✅ Clarified Open-Core strategy with clear OSS/propriétaire split
+- ✅ Prioritized ICP: AI Agent Builders first, Enterprise second
+- ✅ Created 90-day roadmap focused on differentiation
+- ✅ Mapped existing features vs gaps (évite de réinventer la roue)
+
+**Critical Insights:**
+1. **Model-agnostic = killer différenciateur** que personne d'autre n'a
+2. **Traces = moat défendable** - plus de données = meilleur système
+3. **Open-core = best strategy** - adoption (OSS) + monétisation (intelligence)
+4. **Claude Skills = complémentaire** pas concurrent (positioning important)
+5. **Speed to market matters** - Anthropic va lancer marketplace, need traction
+
+**Recommended Next Step:**
+Focus launch sur les 2 piliers (model-agnostic + workflow intelligence) avec demo killer qui montre le switching entre LLMs et l'analyse intelligente des workflows.
+
+---
+
+**Session completed:** 2026-01-20
+**Facilitator:** Claude (Sonnet 4.5)
+**Participant:** Erwan
+**Techniques Used:** What If Scenarios, Mind Mapping, SCAMPER, Decision Tree Mapping
+**Duration:** ~90 minutes
+**Output:** Strategic roadmap avec 83 idées explorées, 2 différenciateurs validés, plan d'action 90 jours
