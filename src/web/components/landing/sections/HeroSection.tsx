@@ -33,7 +33,7 @@ export function HeroSection() {
                 <path d="M12 5v14M5 12l7 7 7-7" />
               </svg>
             </a>
-            <a href={hero.cta.secondary.href} class="hero__btn-secondary" target="_blank" rel="noopener">
+            <a href={hero.cta.secondary.href} class="hero__btn-secondary">
               {hero.cta.secondary.label}
             </a>
           </div>
@@ -332,21 +332,26 @@ export function HeroSection() {
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 0.5rem 0;
+          padding: 0.75rem 0;
         }
 
         .hero__arrow-down {
           width: 24px;
-          height: 60px;
+          height: 50px;
         }
 
         .hero__transition-label {
           font-family: 'Geist Mono', monospace;
-          font-size: 0.6rem;
-          color: #666;
+          font-size: 0.7rem;
+          font-weight: 500;
+          color: #4ade80;
           text-transform: uppercase;
-          letter-spacing: 0.1em;
-          margin-top: 0.25rem;
+          letter-spacing: 0.15em;
+          margin-top: 0.5rem;
+          padding: 0.25rem 0.75rem;
+          background: rgba(74, 222, 128, 0.08);
+          border: 1px solid rgba(74, 222, 128, 0.2);
+          border-radius: 4px;
         }
 
         /* Day 30 content */
@@ -421,13 +426,39 @@ export function HeroSection() {
 
         @media (max-width: 480px) {
           .hero {
-            padding: 4rem 1.5rem 2rem;
+            padding: 5rem 1.25rem 2rem;
+            min-height: auto;
+          }
+          .hero__eyebrow {
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+          }
+          .hero__title {
+            font-size: 1.75rem;
+          }
+          .hero__desc {
+            font-size: 0.95rem;
           }
           .hero__question-text {
             font-size: 0.75rem;
           }
           .hero__capability-name {
             font-size: 0.85rem;
+          }
+          .hero__day {
+            max-width: 100%;
+          }
+          .hero__day-content {
+            padding: 1.25rem 1rem;
+          }
+          .hero__cta {
+            flex-direction: column;
+            gap: 0.75rem;
+          }
+          .hero__btn-primary,
+          .hero__btn-secondary {
+            width: 100%;
+            justify-content: center;
           }
         }
         `}

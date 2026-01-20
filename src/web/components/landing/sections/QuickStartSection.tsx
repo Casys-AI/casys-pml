@@ -296,19 +296,49 @@ export function QuickStartSection() {
 
         /* Responsive */
         @media (max-width: 640px) {
+          .quickstart {
+            padding: 4rem 1rem;
+          }
+
+          .quickstart__steps {
+            max-width: 100%;
+          }
+
           .quickstart__step {
-            grid-template-columns: 32px 1fr;
-            gap: 1rem;
+            grid-template-columns: 28px 1fr;
+            gap: 0.75rem;
           }
 
           .quickstart__step-number {
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             font-size: 0.7rem;
           }
 
+          .quickstart__step-content {
+            min-width: 0;
+            overflow: hidden;
+          }
+
+          .quickstart__step-desc {
+            font-size: 0.8rem;
+            word-wrap: break-word;
+          }
+
+          .quickstart__code {
+            max-width: 100%;
+          }
+
+          .quickstart__code-body {
+            padding: 0.75rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+
           .quickstart__code-body code {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
+            white-space: pre;
+            display: block;
           }
         }
         `}

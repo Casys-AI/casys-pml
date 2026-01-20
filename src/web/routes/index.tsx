@@ -20,6 +20,7 @@ import {
   CatalogPreviewSection,
   QuickStartSection,
   BlogSection,
+  BetaSignupSection,
   CTASection,
 } from "../components/landing/index.ts";
 import { GoogleAnalytics } from "../components/GoogleAnalytics.tsx";
@@ -110,6 +111,9 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
 
           {/* Blog */}
           <BlogSection posts={latestPosts} formatDate={formatDate} />
+
+          {/* Beta Signup */}
+          <BetaSignupSection />
 
           {/* CTA */}
           <CTASection />

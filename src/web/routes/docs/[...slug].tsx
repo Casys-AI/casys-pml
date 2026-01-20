@@ -519,8 +519,24 @@ export default function DocsPage({ data }: { data: DocsPageData }) {
             /* Hide desktop nav on mobile - MobileMenu handles navigation */
             .nav-link:not(.nav-link-github) { display: none; }
 
+            .docs-main {
+              padding: 1rem;
+            }
+
             .markdown-body h1 { font-size: 1.75rem; }
             .markdown-body h2 { font-size: 1.25rem; }
+
+            .markdown-body pre {
+              margin-left: -1rem !important;
+              margin-right: -1rem !important;
+              border-radius: 0 !important;
+              padding: 1rem !important;
+              font-size: 0.8rem !important;
+            }
+
+            .markdown-body pre code {
+              font-size: 0.75rem !important;
+            }
           }
         `}
         </style>
