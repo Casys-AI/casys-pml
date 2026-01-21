@@ -7,6 +7,8 @@
  */
 
 export { HeroSection } from "./HeroSection.tsx";
+export { IntelligenceSection } from "./IntelligenceSection.tsx";
+export { ArchitectureSection } from "./ArchitectureSection.tsx";
 export { CatalogPreviewSection } from "./CatalogPreviewSection.tsx";
 export { QuickStartSection } from "./QuickStartSection.tsx";
 export { BlogSection } from "./BlogSection.tsx";

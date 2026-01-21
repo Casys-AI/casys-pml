@@ -17,6 +17,8 @@ import type { AuthState } from "./_middleware.ts";
 import VitrineHeader from "../components/layout/VitrineHeader.tsx";
 import {
   HeroSection,
+  IntelligenceSection,
+  ArchitectureSection,
   CatalogPreviewSection,
   QuickStartSection,
   BlogSection,
@@ -102,6 +104,12 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
         <main>
           {/* Hero */}
           <HeroSection />
+
+          {/* Intelligence - right after Hero */}
+          <IntelligenceSection />
+
+          {/* Architecture */}
+          <ArchitectureSection />
 
           {/* Catalog Preview */}
           <CatalogPreviewSection />
