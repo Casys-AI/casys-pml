@@ -1,13 +1,60 @@
 /**
- * HeroSection - Procedural Memory for AI Agents
+ * HeroSection - Refonte alignée brainstorming
  *
- * New messaging: "Your agent repeats itself. What if it learned instead?"
- * Visual: Day 1 vs Day 30 contrast showing learned capabilities.
+ * Nouveau message: "One gateway. Any model. Full observability."
+ * Visual: Carousel vertical montrant un workflow complexe avec scroll infini
  *
  * @module web/components/landing/sections/HeroSection
  */
 
 import { hero } from "../../../content/landing.ts";
+import { MaterialIcon } from "../atoms/MaterialIcon.tsx";
+import { TraceCarousel } from "../organisms/TraceCarousel.tsx";
+import type { TraceRowData } from "../atoms/TraceRow.tsx";
+
+// Complex workflow trace data for carousel
+// Shows: tools, LLM calls, loops, agents across multiple providers
+// With costs, error states, and proper tree structure
+const workflowTrace: TraceRowData[] = [
+  // Phase 1: Git & Analysis - with parallel fetch
+  { name: "git.diff", type: "tool", args: "HEAD~1", result: "+142 -38", time: 24 },
+  { name: "parallel", type: "parallel", args: "fork ×2", result: "890ms", time: 890 },
+  { name: "analyze.code", type: "llm", model: "claude-3.5", result: "5 issues", time: 890, cost: 0.0034, depth: 1, lane: 1, inParallel: true },
+  { name: "lint.check", type: "tool", result: "2 warnings", time: 156, depth: 1, lane: 2, inParallel: true, isLast: true },
+
+  // Phase 2: Testing (with children)
+  { name: "test.suite", type: "agent", model: "claude-3.5", time: 6800, cost: 0.0089 },
+  { name: "unit.run", type: "loop", args: "×24", result: "24/24 ✓", time: 2340, depth: 1 },
+  { name: "integration", type: "tool", result: "7/8 ✓", time: 4200, depth: 1, success: false },
+  { name: "retry", type: "tool", result: "8/8 ✓", time: 1200, depth: 1 },
+  { name: "coverage", type: "tool", result: "94.2%", time: 89, depth: 1, isLast: true },
+
+  // Phase 3: Security - parallel layer execution
+  { name: "security.scan", type: "agent", model: "gpt-4o", time: 1660, cost: 0.0156 },
+  { name: "parallel", type: "parallel", args: "fork ×3", result: "1.2s", time: 1200, depth: 1 },
+  { name: "deps.audit", type: "tool", result: "all safe", time: 340, depth: 2, lane: 1, inParallel: true },
+  { name: "secrets.check", type: "tool", result: "0 found", time: 120, depth: 2, lane: 2, inParallel: true },
+  { name: "vuln.scan", type: "tool", result: "0 CVEs", time: 1200, depth: 2, lane: 3, inParallel: true, isLast: true },
+
+  // Phase 4: Build & Deploy (with nested)
+  { name: "build", type: "tool", args: "--tag v2.1.0", time: 18400 },
+  { name: "approve.prod", type: "checkpoint", args: "→ prod", result: "approved", time: 45000 },
+  { name: "deploy.k8s", type: "agent", model: "ollama", time: 12500, cost: 0.0 },
+  { name: "registry.push", type: "tool", result: "sha:a3f2", time: 8900, depth: 1 },
+  { name: "rollout", type: "tool", result: "3/3 ready", time: 450, depth: 1 },
+  { name: "health.check", type: "loop", args: "×3", result: "healthy", time: 890, depth: 1, isLast: true },
+
+  // Phase 5: Notify
+  { name: "notify.slack", type: "tool", args: "#deploy", result: "sent", time: 120 },
+  { name: "metrics.push", type: "tool", result: "recorded", time: 45 },
+];
+
+// Pillars with Material icons
+const pillars = [
+  { icon: "shuffle" as const, label: "Model-Agnostic" },
+  { icon: "visibility" as const, label: "Full Traceability" },
+  { icon: "psychology" as const, label: "Learns Patterns" },
+];
 
 export function HeroSection() {
   return (
@@ -18,82 +65,38 @@ export function HeroSection() {
           <p class="hero__eyebrow">{hero.eyebrow}</p>
 
           <h1 class="hero__title">
-            <span class="hero__title-line1">{hero.title.line1}</span>
-            <span class="hero__title-accent">{hero.title.accent}</span>
+            <span class="hero__title-line1">One gateway. Any model.</span>
+            <span class="hero__title-accent">Full observability.</span>
           </h1>
 
           <p class="hero__desc">
-            {hero.description}
+            Build AI workflows once, run them with Claude, GPT, Gemini, or your local Ollama.
+            Every tool call traced. Debug in seconds, not hours.
           </p>
 
           <div class="hero__cta">
             <a href={hero.cta.primary.href} class="hero__btn-primary">
               {hero.cta.primary.label}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 5v14M5 12l7 7 7-7" />
-              </svg>
+              <MaterialIcon name="arrow_downward" size={16} />
             </a>
             <a href={hero.cta.secondary.href} class="hero__btn-secondary">
               {hero.cta.secondary.label}
             </a>
           </div>
-        </div>
 
-        {/* Right: Day 1 vs Day 30 Visual */}
-        <div class="hero__diagram">
-          {/* Day 1: The Question */}
-          <div class="hero__day hero__day--before">
-            <div class="hero__day-label">
-              <span class="hero__day-badge hero__day-badge--before">Day 1</span>
-            </div>
-            <div class="hero__day-content hero__day-content--before">
-              <div class="hero__question-mark">?</div>
-              <div class="hero__question-bubble">
-                <span class="hero__quote">"</span>
-                <span class="hero__question-text">How do I query your database?</span>
-                <span class="hero__quote">"</span>
+          {/* 3 Pillars with Material Icons */}
+          <div class="hero__pillars">
+            {pillars.map((pillar) => (
+              <div class="hero__pillar" key={pillar.label}>
+                <MaterialIcon name={pillar.icon} size={18} color="#FFB86F" />
+                <span class="hero__pillar-text">{pillar.label}</span>
               </div>
-              <div class="hero__thinking">
-                <span class="hero__dot"></span>
-                <span class="hero__dot"></span>
-                <span class="hero__dot"></span>
-              </div>
-            </div>
-          </div>
-
-          {/* Arrow / Transition */}
-          <div class="hero__transition">
-            <svg class="hero__arrow-down" viewBox="0 0 24 80" fill="none">
-              <defs>
-                <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#FFB86F" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="#4ade80" stopOpacity="0.9" />
-                </linearGradient>
-              </defs>
-              <path d="M12 0 L12 60 M6 54 L12 60 L18 54" stroke="url(#arrowGrad)" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <span class="hero__transition-label">learns once</span>
-          </div>
-
-          {/* Day 30: The Reflex */}
-          <div class="hero__day hero__day--after">
-            <div class="hero__day-label">
-              <span class="hero__day-badge hero__day-badge--after">Day 30</span>
-            </div>
-            <div class="hero__day-content hero__day-content--after">
-              <div class="hero__capability">
-                <span class="hero__capability-name">db:query</span>
-                <span class="hero__capability-check">✓</span>
-              </div>
-              <div class="hero__result">Done</div>
-              <div class="hero__stats">
-                <span class="hero__stat">236 calls</span>
-                <span class="hero__stat-separator">·</span>
-                <span class="hero__stat">Zero re-explanations</span>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
+
+        {/* Right: Trace Carousel */}
+        <TraceCarousel rows={workflowTrace} height={320} speed={25} />
       </div>
 
       <style>
@@ -167,6 +170,7 @@ export function HeroSection() {
           display: flex;
           gap: 1rem;
           flex-wrap: wrap;
+          margin-bottom: 2.5rem;
           opacity: 0;
           animation: fadeUp 0.5s ease 0.3s forwards;
         }
@@ -210,197 +214,27 @@ export function HeroSection() {
           color: #f0ede8;
         }
 
-        /* === RIGHT: DIAGRAM === */
-        .hero__diagram {
+        /* === PILLARS === */
+        .hero__pillars {
           display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0;
+          gap: 1.5rem;
           opacity: 0;
-          animation: fadeUp 0.6s ease 0.3s forwards;
+          animation: fadeUp 0.5s ease 0.4s forwards;
         }
 
-        /* Day blocks */
-        .hero__day {
-          width: 100%;
-          max-width: 340px;
-        }
-
-        .hero__day-label {
+        .hero__pillar {
           display: flex;
-          justify-content: center;
-          margin-bottom: 0.75rem;
-        }
-
-        .hero__day-badge {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.65rem;
-          font-weight: 600;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          padding: 0.3rem 0.75rem;
-          border-radius: 4px;
-        }
-
-        .hero__day-badge--before {
-          color: #FFB86F;
-          background: rgba(255, 184, 111, 0.1);
-          border: 1px solid rgba(255, 184, 111, 0.2);
-        }
-
-        .hero__day-badge--after {
-          color: #4ade80;
-          background: rgba(74, 222, 128, 0.1);
-          border: 1px solid rgba(74, 222, 128, 0.2);
-        }
-
-        .hero__day-content {
-          padding: 1.5rem;
-          border-radius: 12px;
-          text-align: center;
-        }
-
-        .hero__day-content--before {
-          background: rgba(255, 184, 111, 0.03);
-          border: 1px solid rgba(255, 184, 111, 0.15);
-        }
-
-        .hero__day-content--after {
-          background: rgba(74, 222, 128, 0.03);
-          border: 1px solid rgba(74, 222, 128, 0.2);
-        }
-
-        /* Day 1 content */
-        .hero__question-mark {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 2.5rem;
-          color: #FFB86F;
-          opacity: 0.4;
-          margin-bottom: 0.5rem;
-        }
-
-        .hero__question-bubble {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.25rem;
-          padding: 0.5rem 1rem;
-          background: #0d0d10;
-          border-radius: 8px;
-          margin-bottom: 0.75rem;
-        }
-
-        .hero__quote {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 1.25rem;
-          color: #FFB86F;
-          opacity: 0.5;
-          line-height: 1;
-        }
-
-        .hero__question-text {
-          font-family: 'Geist', sans-serif;
-          font-size: 0.85rem;
-          color: #a8a29e;
-          font-style: italic;
-        }
-
-        .hero__thinking {
-          display: flex;
-          justify-content: center;
-          gap: 0.3rem;
-        }
-
-        .hero__dot {
-          width: 6px;
-          height: 6px;
-          background: #FFB86F;
-          border-radius: 50%;
-          opacity: 0.4;
-          animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        .hero__dot:nth-child(2) { animation-delay: 0.2s; }
-        .hero__dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 0.2; transform: scale(0.8); }
-          50% { opacity: 0.6; transform: scale(1); }
-        }
-
-        /* Transition arrow */
-        .hero__transition {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 0.75rem 0;
-        }
-
-        .hero__arrow-down {
-          width: 24px;
-          height: 50px;
-        }
-
-        .hero__transition-label {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.7rem;
-          font-weight: 500;
-          color: #4ade80;
-          text-transform: uppercase;
-          letter-spacing: 0.15em;
-          margin-top: 0.5rem;
-          padding: 0.25rem 0.75rem;
-          background: rgba(74, 222, 128, 0.08);
-          border: 1px solid rgba(74, 222, 128, 0.2);
-          border-radius: 4px;
-        }
-
-        /* Day 30 content */
-        .hero__capability {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.6rem 1rem;
-          background: #0d0d10;
-          border: 1px solid rgba(74, 222, 128, 0.3);
-          border-radius: 8px;
-          margin-bottom: 0.5rem;
-        }
-
-        .hero__capability-name {
-          font-family: 'Geist Mono', monospace;
-          font-size: 1rem;
-          font-weight: 600;
-          color: #4ade80;
-        }
-
-        .hero__capability-check {
-          font-size: 1rem;
-          color: #4ade80;
-        }
-
-        .hero__result {
-          font-family: 'Geist', sans-serif;
-          font-size: 0.9rem;
-          font-weight: 500;
-          color: #f0ede8;
-          margin-bottom: 0.75rem;
-        }
-
-        .hero__stats {
-          display: flex;
-          justify-content: center;
           align-items: center;
           gap: 0.5rem;
         }
 
-        .hero__stat {
+        .hero__pillar-text {
           font-family: 'Geist Mono', monospace;
           font-size: 0.7rem;
-          color: #666;
-        }
-
-        .hero__stat-separator {
-          color: #444;
+          font-weight: 500;
+          color: #6b6560;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
         /* Animation */
@@ -410,7 +244,7 @@ export function HeroSection() {
         }
 
         /* Responsive */
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
           .hero__container {
             grid-template-columns: 1fr;
             gap: 3rem;
@@ -422,9 +256,12 @@ export function HeroSection() {
           .hero__cta {
             justify-content: center;
           }
+          .hero__pillars {
+            justify-content: center;
+          }
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 600px) {
           .hero {
             padding: 5rem 1.25rem 2rem;
             min-height: auto;
@@ -439,17 +276,10 @@ export function HeroSection() {
           .hero__desc {
             font-size: 0.95rem;
           }
-          .hero__question-text {
-            font-size: 0.75rem;
-          }
-          .hero__capability-name {
-            font-size: 0.85rem;
-          }
-          .hero__day {
-            max-width: 100%;
-          }
-          .hero__day-content {
-            padding: 1.25rem 1rem;
+          .hero__pillars {
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
           }
           .hero__cta {
             flex-direction: column;
