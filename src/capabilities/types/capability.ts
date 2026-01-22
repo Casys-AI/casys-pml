@@ -135,6 +135,8 @@ export interface SaveCapabilityInput {
    * If provided, an ExecutionTrace will be created linked to the capability
    */
   traceData?: {
+    /** Pre-generated trace ID (used as DB id for hierarchy) */
+    id?: string;
     /** Input context for this execution */
     initialContext?: Record<string, JsonValue>;
     /** Path of executed nodes */
@@ -160,6 +162,11 @@ export interface SaveCapabilityInput {
    * Used to create "contains" edges for meta-capabilities
    */
   staticStructure?: StaticStructure;
+  /**
+   * Skip emitting zone events (capability.zone.created/updated)
+   * Used when caller will emit events after additional processing (e.g., registry creation)
+   */
+  skipZoneEvents?: boolean;
 }
 
 /**

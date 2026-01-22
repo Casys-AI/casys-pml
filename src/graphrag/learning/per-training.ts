@@ -801,9 +801,14 @@ export async function trainSHGATOnPathTracesSubprocess(
     }
   }
 
+  // Helper: check if string is a UUID (capability ID) vs tool ID (has colon like "code:filter")
+  const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
   const additionalToolIds: string[] = [];
   for (const ex of allExamples) {
     for (const tool of ex.contextTools) {
+      // Skip UUIDs (capability IDs) - they have embeddings in workflow_pattern, not tool_embedding
+      if (isUUID(tool)) continue;
       if (!toolsInCaps.has(tool) && !additionalToolIds.includes(tool)) {
         additionalToolIds.push(tool);
       }
@@ -813,15 +818,34 @@ export async function trainSHGATOnPathTracesSubprocess(
   // Load real embeddings for additional tools if dbClient available
   const toolEmbeddingsMap = new Map<string, number[]>();
   if (dbClient && additionalToolIds.length > 0) {
+    // Debug: log what tools we're searching for
+    log.info(`[PER-Subprocess] Searching for additionalToolIds: ${JSON.stringify(additionalToolIds.slice(0, 10))}${additionalToolIds.length > 10 ? '...' : ''}`);
     try {
+      // CRITICAL-8 Fix: pgvector can't cast directly to float8[], select as-is
       const rows = await dbClient.query(
-        `SELECT tool_id, embedding::float8[] as embedding
+        `SELECT tool_id, embedding
          FROM tool_embedding
          WHERE tool_id = ANY($1)`,
         [additionalToolIds],
-      ) as Array<{ tool_id: string; embedding: number[] }>;
+      ) as Array<{ tool_id: string; embedding: number[] | string }>;
       for (const row of rows) {
-        toolEmbeddingsMap.set(row.tool_id, row.embedding);
+        // Handle array, string, or pgvector format (PGlite vs PostgreSQL)
+        let emb: number[];
+        if (Array.isArray(row.embedding)) {
+          emb = row.embedding;
+        } else if (typeof row.embedding === 'string') {
+          // pgvector returns "[1,2,3]" format, parse it
+          try {
+            emb = JSON.parse(row.embedding);
+          } catch (parseErr) {
+            log.warn(`[PER-Subprocess] Failed to parse embedding for ${row.tool_id}: ${parseErr}`);
+            continue;
+          }
+        } else {
+          log.warn(`[PER-Subprocess] Invalid embedding type for ${row.tool_id}: ${typeof row.embedding}`);
+          continue;
+        }
+        toolEmbeddingsMap.set(row.tool_id, emb);
       }
       log.info(
         `[PER-Subprocess] Loaded ${toolEmbeddingsMap.size}/${additionalToolIds.length} tool embeddings from DB`,

@@ -130,6 +130,7 @@ export class CapabilityStore {
       toolInvocations,
       traceData,
       staticStructure,
+      skipZoneEvents = false,
     } = input;
 
     // Transform capability references: display_name → FQDN (makes code robust to renames)
@@ -409,38 +410,41 @@ export class CapabilityStore {
     });
 
     // Story 8.3: Emit zone events for hypergraph incremental updates
-    if (isNew) {
-      // New capability = new zone
-      const zonePayload = {
-        capabilityId: capability.id,
-        label: capabilityName,
-        toolIds: capabilityTools,
-        successRate: capability.successRate,
-        usageCount: capability.usageCount,
-      };
-      logger.info("[SSE-DEBUG] Emitting capability.zone.created", {
-        capabilityId: zonePayload.capabilityId,
-        label: zonePayload.label,
-        toolCount: zonePayload.toolIds.length,
-      });
-      eventBus.emit({
-        type: "capability.zone.created",
-        source: "capability-store",
-        payload: zonePayload,
-      });
-    } else {
-      // Existing capability updated = zone metadata update
-      eventBus.emit({
-        type: "capability.zone.updated",
-        source: "capability-store",
-        payload: {
+    // Skip if caller wants to emit events later (after registry creation)
+    if (!skipZoneEvents) {
+      if (isNew) {
+        // New capability = new zone
+        const zonePayload = {
           capabilityId: capability.id,
           label: capabilityName,
           toolIds: capabilityTools,
           successRate: capability.successRate,
           usageCount: capability.usageCount,
-        },
-      });
+        };
+        logger.info("[SSE-DEBUG] Emitting capability.zone.created", {
+          capabilityId: zonePayload.capabilityId,
+          label: zonePayload.label,
+          toolCount: zonePayload.toolIds.length,
+        });
+        eventBus.emit({
+          type: "capability.zone.created",
+          source: "capability-store",
+          payload: zonePayload,
+        });
+      } else {
+        // Existing capability updated = zone metadata update
+        eventBus.emit({
+          type: "capability.zone.updated",
+          source: "capability-store",
+          payload: {
+            capabilityId: capability.id,
+            label: capabilityName,
+            toolIds: capabilityTools,
+            successRate: capability.successRate,
+            usageCount: capability.usageCount,
+          },
+        });
+      }
     }
 
     // Story 10.1: Create CapabilityDependency records for nested capability calls
@@ -541,6 +545,7 @@ export class CapabilityStore {
     if (traceData && this.traceStore) {
       try {
         trace = await this.traceStore.saveTrace({
+          id: traceData.id, // Pre-generated trace ID (used as DB id for hierarchy)
           capabilityId: capability.id,
           intentText: intent,
           intentEmbedding: traceData.intentEmbedding,
