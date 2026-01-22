@@ -54,6 +54,8 @@ interface ApiNodeData {
     duration_ms: number;
     error_message?: string;
     priority: number;
+    // Two-level DAG: All logical operations (includes non-executable ops)
+    executed_path?: string[];
     task_results: Array<{
       task_id: string;
       tool: string;
@@ -62,6 +64,14 @@ interface ApiNodeData {
       success: boolean;
       duration_ms: number;
       layer_index?: number;
+      // Phase 2a: Fusion metadata
+      is_fused?: boolean;
+      logical_operations?: Array<{ tool_id: string; duration_ms?: number }>;
+      // Loop Abstraction metadata
+      loop_id?: string;
+      loop_type?: "for" | "while" | "forOf" | "forIn" | "doWhile";
+      loop_condition?: string;
+      body_tools?: string[];
       is_capability_call?: boolean;
       nested_tools?: string[];
     }>;
@@ -124,6 +134,13 @@ interface ToolInvocation {
 }
 
 // Story 11.4: Trace task result with layerIndex for fan-in/fan-out
+/** Phase 2a: Logical operation within a fused task */
+export interface LogicalOperation {
+  toolId: string;
+  durationMs?: number;
+}
+
+// Story 11.4: Trace task result with layerIndex for fan-in/fan-out
 export interface TraceTaskResult {
   taskId: string;
   tool: string;
@@ -143,6 +160,13 @@ export interface TraceTaskResult {
   bodyTools?: string[];
   /** Story 10.1: Flag indicating this is a capability call (not a regular tool) */
   isCapabilityCall?: boolean;
+  /** Story 10.1: Nested tools inside the called capability */
+  nestedTools?: string[];
+  // Phase 2a: Fusion metadata for two-level DAG
+  /** Whether this is a fused physical task containing multiple logical operations */
+  isFused?: boolean;
+  /** Logical operations within this fused task (only present when isFused is true) */
+  logicalOperations?: LogicalOperation[];
 }
 
 // Story 11.4: Execution trace for capability
@@ -155,6 +179,8 @@ export interface ExecutionTrace {
   errorMessage?: string;
   priority: number;
   taskResults: TraceTaskResult[];
+  // Two-level DAG: All logical operations (includes non-executable ops)
+  executedPath?: string[];
 }
 
 // Transformed types for internal use
@@ -1195,6 +1221,8 @@ export default function CytoscapeGraph({
               duration_ms: number;
               error_message?: string;
               priority: number;
+              // Two-level DAG: All logical operations (includes non-executable ops)
+              executed_path?: string[];
               task_results: Array<{
                 task_id: string;
                 tool: string;
@@ -1203,6 +1231,9 @@ export default function CytoscapeGraph({
                 success: boolean;
                 duration_ms: number;
                 layer_index?: number;
+                // Phase 2a: Fusion metadata (snake_case from API)
+                is_fused?: boolean;
+                logical_operations?: Array<{ tool_id: string; duration_ms?: number }>;
                 // Loop Abstraction metadata (snake_case from API)
                 loop_id?: string;
                 loop_type?: "for" | "while" | "forOf" | "forIn" | "doWhile";
@@ -1219,6 +1250,8 @@ export default function CytoscapeGraph({
               durationMs: t.duration_ms,
               errorMessage: t.error_message,
               priority: t.priority,
+              // Two-level DAG: All logical operations for display
+              executedPath: t.executed_path,
               taskResults: t.task_results.map((r) => ({
                 taskId: r.task_id,
                 tool: r.tool,
@@ -1227,6 +1260,12 @@ export default function CytoscapeGraph({
                 success: r.success,
                 durationMs: r.duration_ms,
                 layerIndex: r.layer_index,
+                // Phase 2a: Fusion metadata (snake_case → camelCase)
+                isFused: r.is_fused,
+                logicalOperations: r.logical_operations?.map((op) => ({
+                  toolId: op.tool_id,
+                  durationMs: op.duration_ms,
+                })),
                 // Loop Abstraction metadata (snake_case → camelCase)
                 loopId: r.loop_id,
                 loopType: r.loop_type,

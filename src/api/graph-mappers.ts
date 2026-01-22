@@ -62,6 +62,8 @@ export function mapNodeData(node: GraphNode): Record<string, unknown> {
           duration_ms: trace.durationMs,
           error_message: trace.errorMessage,
           priority: trace.priority,
+          // Two-level DAG: All logical operations (includes non-executable ops for display)
+          executed_path: trace.executedPath,
           task_results: trace.taskResults.map((r) => ({
             task_id: r.taskId,
             tool: r.tool,
@@ -71,6 +73,13 @@ export function mapNodeData(node: GraphNode): Record<string, unknown> {
             success: r.success,
             duration_ms: r.durationMs,
             layer_index: r.layerIndex,
+            // Phase 2a: Fusion metadata for two-level DAG
+            is_fused: r.isFused,
+            logical_operations: r.logicalOperations?.map((op) => ({
+              tool_id: op.toolId,
+              duration_ms: op.durationMs,
+            })),
+            // Loop Abstraction metadata
             loop_id: r.loopId,
             loop_type: r.loopType,
             loop_condition: r.loopCondition,

@@ -16,7 +16,11 @@
 
 import type { TaskResult } from "./types.ts";
 import type { OptimizedDAGStructure } from "./dag-optimizer.ts";
+import type { LogicalOperation } from "../capabilities/types/execution.ts";
 import { getLogger } from "../telemetry/logger.ts";
+
+// Re-export LogicalOperation for consumers of this module
+export type { LogicalOperation } from "../capabilities/types/execution.ts";
 
 const log = getLogger("trace-generator");
 
@@ -259,4 +263,70 @@ export function getLogicalTasks(
   optimizedDAG: OptimizedDAGStructure,
 ): string[] {
   return optimizedDAG.physicalToLogical.get(physicalTaskId) || [];
+}
+
+/**
+ * Fusion metadata result
+ */
+export interface FusionMetadata {
+  /** Whether this physical task is a fusion of multiple logical operations */
+  isFused: boolean;
+  /** Individual logical operations (only present when isFused is true) */
+  logicalOperations?: LogicalOperation[];
+}
+
+/**
+ * Minimal interface for getFusionMetadata()
+ *
+ * Allows both OptimizedDAGStructure (from dag-optimizer.ts) and
+ * OptimizedDAG (from dag-converter-adapter.ts) to be passed without casting.
+ */
+export interface FusionDAGInput {
+  physicalToLogical: Map<string, string[]>;
+  logicalDAG: {
+    tasks: Array<{ id: string; tool?: string }>;
+  };
+}
+
+/**
+ * Get fusion metadata for a physical task
+ *
+ * Determines if a physical task is a fusion of multiple logical operations
+ * and returns the individual operations with estimated durations.
+ *
+ * @param physicalTaskId - ID of the physical task
+ * @param durationMs - Total duration of the physical task execution
+ * @param optimizedDAG - Optimized DAG with physicalToLogical mapping
+ * @returns Fusion metadata with isFused flag and optional logicalOperations
+ */
+export function getFusionMetadata(
+  physicalTaskId: string,
+  durationMs: number,
+  optimizedDAG: FusionDAGInput,
+): FusionMetadata {
+  const logicalTaskIds = optimizedDAG.physicalToLogical.get(physicalTaskId) || [];
+  const fused = logicalTaskIds.length > 1;
+
+  if (!fused) {
+    return { isFused: false };
+  }
+
+  // Defensive: ensure valid duration (handles 0, negative, NaN)
+  const safeDuration = Math.max(0, durationMs || 0);
+  const estimatedDuration = safeDuration / logicalTaskIds.length;
+  const logicalOperations: LogicalOperation[] = logicalTaskIds.map((logicalId) => {
+    const logicalTask = optimizedDAG.logicalDAG.tasks.find((t) => t.id === logicalId);
+    return {
+      toolId: logicalTask?.tool || "unknown",
+      durationMs: estimatedDuration,
+    };
+  });
+
+  log.debug("Generated fusion metadata", {
+    physicalTaskId,
+    logicalOpsCount: logicalOperations.length,
+    tools: logicalOperations.map((op) => op.toolId),
+  });
+
+  return { isFused: true, logicalOperations };
 }

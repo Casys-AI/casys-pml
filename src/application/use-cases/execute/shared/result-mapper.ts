@@ -8,8 +8,9 @@
  * @module application/use-cases/execute/shared/result-mapper
  */
 
-import type { JsonValue, TraceTaskResult, LogicalOperation } from "../../../../capabilities/types/mod.ts";
+import type { JsonValue, TraceTaskResult } from "../../../../capabilities/types/mod.ts";
 import type { ExecuteResponse, ExecuteDirectResult, ExecuteSuggestionResult } from "../types.ts";
+import { getFusionMetadata } from "../../../../dag/trace-generator.ts";
 
 /**
  * Physical task result from DAG execution
@@ -79,21 +80,13 @@ export function buildTaskResults(
 ): TraceTaskResult[] {
   return physicalResults.results.map((physicalResult) => {
     const physicalTask = optimizedDAG.tasks.find((t) => t.id === physicalResult.taskId);
-    const logicalTaskIds = optimizedDAG.physicalToLogical.get(physicalResult.taskId) || [];
-    const fused = logicalTaskIds.length > 1;
 
-    let logicalOps: LogicalOperation[] | undefined;
-    if (fused) {
-      // Extract logical operations for fused task
-      const estimatedDuration = (physicalResult.executionTimeMs || 0) / logicalTaskIds.length;
-      logicalOps = logicalTaskIds.map((logicalId) => {
-        const logicalTask = optimizedDAG.logicalDAG.tasks.find((t) => t.id === logicalId);
-        return {
-          toolId: logicalTask?.tool || "unknown",
-          durationMs: estimatedDuration,
-        };
-      });
-    }
+    // Use shared getFusionMetadata() helper for fusion detection
+    const fusionMeta = getFusionMetadata(
+      physicalResult.taskId,
+      physicalResult.executionTimeMs || 0,
+      optimizedDAG,
+    );
 
     // Loop abstraction: get iteration count from actual traces
     const toolName = physicalTask?.tool || "unknown";
@@ -108,9 +101,9 @@ export function buildTaskResults(
       success: physicalResult.status === "success",
       durationMs: physicalResult.executionTimeMs || 0,
       layerIndex: physicalResult.layerIndex,
-      // Phase 2a: Fusion metadata
-      isFused: fused,
-      logicalOperations: logicalOps,
+      // Phase 2a: Fusion metadata (via shared helper)
+      isFused: fusionMeta.isFused || undefined, // Keep undefined if not fused (matches original behavior)
+      logicalOperations: fusionMeta.logicalOperations,
       // Loop abstraction
       loopId,
       loopIteration: loopIterations,

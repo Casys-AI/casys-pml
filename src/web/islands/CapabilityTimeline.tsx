@@ -262,6 +262,12 @@ export default function CapabilityTimeline({
                 success: tr.success,
                 durationMs: tr.duration_ms,
                 layerIndex: tr.layer_index,
+                // Phase 2a: Fusion metadata (snake_case → camelCase)
+                isFused: tr.is_fused,
+                logicalOperations: tr.logical_operations?.map((op: { tool_id: string; duration_ms?: number }) => ({
+                  toolId: op.tool_id,
+                  durationMs: op.duration_ms,
+                })),
                 // Loop Abstraction metadata
                 loopId: tr.loop_id,
                 loopType: tr.loop_type,

@@ -45,6 +45,8 @@ interface ExecutionTrace {
   errorMessage?: string | null;
   priority: number;
   taskResults: TaskResult[];
+  // Two-level DAG: All logical operations (includes non-executable ops)
+  executedPath?: string[];
 }
 
 interface TraceTimelineProps {
@@ -140,9 +142,6 @@ export default function TraceTimeline({
   trace,
   getServerColor,
 }: TraceTimelineProps) {
-  // DEBUG: Log trace data to verify bodyTools
-  console.log("[TraceTimeline] trace.taskResults:", JSON.stringify(trace.taskResults, null, 2));
-
   // Group tasks by layerIndex for fan-in/fan-out visualization
   const tasksByLayer = new Map<number, TaskResult[]>();
   for (const task of trace.taskResults) {
@@ -215,6 +214,8 @@ export default function TraceTimeline({
       )}
 
       {/* Task Timeline by Layer (Fan-in/Fan-out) */}
+      {/* Note: "Operation Chain" workaround removed - fusion metadata now enriched in taskResults */}
+      {/* FusedTaskCard will display fused operations when task.isFused is true */}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {sortedLayers.map(([layerIdx, tasks]) => {
           return (

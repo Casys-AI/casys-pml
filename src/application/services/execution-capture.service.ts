@@ -17,7 +17,9 @@ import type { CapabilityRegistry } from "../../capabilities/capability-registry.
 import type { TraceTaskResult } from "../../capabilities/types/mod.ts";
 import type { IDAGConverter, OptimizedDAG } from "../../infrastructure/di/adapters/execute/dag-converter-adapter.ts";
 import type { TaskResult } from "../../dag/types.ts";
+import { getFusionMetadata } from "../../dag/trace-generator.ts";
 import { getUserScope } from "../../lib/user.ts";
+import { eventBus } from "../../events/event-bus.ts";
 
 // ============================================================================
 // Interfaces
@@ -114,6 +116,9 @@ export class ExecutionCaptureService {
       const physicalResults = this.mapClientResultsToPhysical(taskResults, optimizedDAG);
       const logicalTrace = this.deps.dagConverter.generateLogicalTrace(optimizedDAG, physicalResults);
       executedPath = logicalTrace.executedPath;
+
+      // Enrich taskResults with fusion metadata (isFused, logicalOperations)
+      this.enrichTaskResultsWithFusion(taskResults, physicalResults, optimizedDAG);
     } catch (pipelineError) {
       log.error("[ExecutionCaptureService] Pipeline failed, skipping capability creation", {
         error: pipelineError instanceof Error ? pipelineError.message : String(pipelineError),
@@ -126,6 +131,7 @@ export class ExecutionCaptureService {
       const toolsUsed = ctx.toolsUsed ?? executedPath;
 
       // 1. Save to workflow_pattern (UPSERT via code hash)
+      // Skip zone events - we'll emit them AFTER registry.create() to avoid race condition
       const { capability } = await this.deps.capabilityStore.saveCapability({
         code: ctx.code,
         intent: ctx.intent,
@@ -133,6 +139,8 @@ export class ExecutionCaptureService {
         success: true,
         toolsUsed,
         traceData: {
+          id: ctx.traceId, // Pre-generated trace ID for hierarchy (ADR-041)
+          parentTraceId: ctx.parentTraceId, // Parent trace for nested execution (ADR-041)
           executedPath,
           taskResults,
           decisions: [],
@@ -141,6 +149,7 @@ export class ExecutionCaptureService {
           userId: effectiveUserId,
         },
         staticStructure: ctx.staticStructure,
+        skipZoneEvents: true, // Emit after registry.create() to avoid SSE race condition
       });
 
       log.debug("[ExecutionCaptureService] Capability saved to workflow_pattern", {
@@ -198,6 +207,36 @@ export class ExecutionCaptureService {
         }
       }
 
+      // 3. Emit zone events AFTER registry.create() to ensure capability_record exists
+      // This fixes the race condition where SSE event triggered hypergraph fetch before DB record
+      const capabilityLabel = this.generateCapabilityName(ctx.intent);
+      const zonePayload = {
+        capabilityId: capability.id,
+        label: capabilityLabel,
+        toolIds: toolsUsed,
+        successRate: capability.successRate,
+        usageCount: capability.usageCount,
+      };
+
+      if (created) {
+        log.info("[ExecutionCaptureService][SSE] Emitting capability.zone.created (post-registry)", {
+          capabilityId: zonePayload.capabilityId,
+          label: zonePayload.label,
+          toolCount: zonePayload.toolIds.length,
+        });
+        eventBus.emit({
+          type: "capability.zone.created",
+          source: "execution-capture-service",
+          payload: zonePayload,
+        });
+      } else {
+        eventBus.emit({
+          type: "capability.zone.updated",
+          source: "execution-capture-service",
+          payload: zonePayload,
+        });
+      }
+
       return {
         capability: {
           id: capability.id,
@@ -232,15 +271,50 @@ export class ExecutionCaptureService {
     const physicalResults = new Map<string, TaskResult>();
     const usedPhysicalIds = new Set<string>();
 
-    // Get physical MCP tasks (code:* tasks are non-executable, handled by trace-generator)
-    const physicalMcpTasks = (optimizedDAG.tasks as Array<{ id: string; type?: string; tool?: string }>)
-      .filter((t) => t.type === "mcp_tool");
+    // Cast tasks for easier access to metadata
+    type PhysicalTask = {
+      id: string;
+      type?: string;
+      tool?: string;
+      metadata?: { logicalTools?: string[]; fusedFrom?: string[] };
+    };
+    const allPhysicalTasks = optimizedDAG.tasks as PhysicalTask[];
+
+    // DEBUG: Log physical tasks to understand structure
+    log.info("[ExecutionCaptureService] DEBUG physical tasks", {
+      count: allPhysicalTasks.length,
+      tasks: allPhysicalTasks.map((t) => ({
+        id: t.id,
+        tool: t.tool,
+        type: t.type,
+        hasMetadata: !!t.metadata,
+        logicalTools: t.metadata?.logicalTools,
+      })),
+    });
+
+    // DEBUG: Log client results
+    log.info("[ExecutionCaptureService] DEBUG client results", {
+      count: taskResults.length,
+      results: taskResults.map((r) => ({ tool: r.tool, taskId: r.taskId })),
+    });
 
     // Match by tool name in order
     for (const clientResult of taskResults) {
-      const physicalTask = physicalMcpTasks.find(
+      // First try: exact tool name match (MCP tasks and single code tasks)
+      let physicalTask = allPhysicalTasks.find(
         (t) => t.tool === clientResult.tool && !usedPhysicalIds.has(t.id),
       );
+
+      // Second try: fused task match (client reports last logical tool, fused task has "code:computation")
+      if (!physicalTask) {
+        physicalTask = allPhysicalTasks.find((t) => {
+          if (usedPhysicalIds.has(t.id)) return false;
+          if (t.tool !== "code:computation") return false;
+          // Fused task: check if client result's tool is the last logical tool
+          const logicalTools = t.metadata?.logicalTools || [];
+          return logicalTools.length > 0 && logicalTools[logicalTools.length - 1] === clientResult.tool;
+        });
+      }
 
       if (physicalTask) {
         usedPhysicalIds.add(physicalTask.id);
@@ -250,6 +324,14 @@ export class ExecutionCaptureService {
           output: clientResult.result,
           executionTimeMs: clientResult.durationMs,
         });
+
+        if (physicalTask.metadata?.fusedFrom) {
+          log.debug("[ExecutionCaptureService] Matched fused task", {
+            physicalId: physicalTask.id,
+            clientTool: clientResult.tool,
+            logicalTools: physicalTask.metadata.logicalTools,
+          });
+        }
       } else {
         log.warn("[ExecutionCaptureService] No matching physical task for client result", {
           tool: clientResult.tool,
@@ -264,5 +346,91 @@ export class ExecutionCaptureService {
     });
 
     return physicalResults;
+  }
+
+  /**
+   * Enrich task results with fusion metadata from optimized DAG
+   *
+   * Uses getFusionMetadata() to determine which physical tasks are fusions
+   * of multiple logical operations. Mutates taskResults in place.
+   *
+   * @param taskResults - Original task results (will be mutated)
+   * @param physicalResults - Map of physical taskId → TaskResult
+   * @param optimizedDAG - Optimized DAG with physicalToLogical mapping
+   */
+  private enrichTaskResultsWithFusion(
+    taskResults: TraceTaskResult[],
+    physicalResults: Map<string, TaskResult>,
+    optimizedDAG: OptimizedDAG,
+  ): void {
+    // Build reverse map: tool name → client taskResult indices (for matching)
+    const toolToClientIndices = new Map<string, number[]>();
+    taskResults.forEach((t, idx) => {
+      const indices = toolToClientIndices.get(t.tool) || [];
+      indices.push(idx);
+      toolToClientIndices.set(t.tool, indices);
+    });
+
+    // Track which client indices have been used
+    const usedClientIndices = new Set<number>();
+
+    // Cast for metadata access
+    type PhysicalTask = {
+      id: string;
+      tool?: string;
+      metadata?: { logicalTools?: string[] };
+    };
+
+    // Enrich each physical result
+    for (const [physicalId] of physicalResults) {
+      // Find the physical task to get its tool name
+      const physicalTask = (optimizedDAG.tasks as PhysicalTask[])
+        .find((t) => t.id === physicalId);
+
+      if (!physicalTask?.tool) continue;
+
+      // For fused tasks (tool = "code:computation"), use the last logical tool for matching
+      let matchTool = physicalTask.tool;
+      if (physicalTask.tool === "code:computation" && physicalTask.metadata?.logicalTools?.length) {
+        matchTool = physicalTask.metadata.logicalTools[physicalTask.metadata.logicalTools.length - 1];
+      }
+
+      // Find matching client taskResult (first unused one with same tool)
+      const candidateIndices = toolToClientIndices.get(matchTool) || [];
+      const clientIdx = candidateIndices.find((idx) => !usedClientIndices.has(idx));
+
+      if (clientIdx === undefined) continue;
+      usedClientIndices.add(clientIdx);
+
+      const clientResult = taskResults[clientIdx];
+
+      // Get fusion metadata using the shared helper
+      const fusionMeta = getFusionMetadata(
+        physicalId,
+        clientResult.durationMs,
+        optimizedDAG,
+      );
+
+      if (fusionMeta.isFused) {
+        clientResult.isFused = true;
+        clientResult.logicalOperations = fusionMeta.logicalOperations;
+
+        log.debug("[ExecutionCaptureService] Enriched fused task", {
+          physicalId,
+          logicalOpsCount: fusionMeta.logicalOperations?.length,
+          tools: fusionMeta.logicalOperations?.map((op) => op.toolId),
+        });
+      }
+    }
+  }
+
+  /**
+   * Generate a human-readable name from intent
+   * Takes first 3-5 words and capitalizes first letter
+   */
+  private generateCapabilityName(intent: string): string {
+    const words = intent.split(/\s+/).slice(0, 5);
+    const name = words.join(" ");
+    return name.charAt(0).toUpperCase() + name.slice(1);
   }
 }
