@@ -1,18 +1,18 @@
 /**
- * SHGAT (SuperHyperGraph Attention Networks) v2
+ * SHGAT (SuperHyperGraph Attention Networks)
  *
  * Implementation based on "SuperHyperGraph Attention Networks" research paper.
  * Key architecture:
  * - Two-phase message passing: Vertex→Hyperedge, Hyperedge→Vertex
  * - Incidence matrix A where A[v][e] = 1 if vertex v is in hyperedge e
- * - K-head attention (K=4-16, adaptive) learning patterns on TraceFeatures
+ * - K-head attention (K=4-16, adaptive) learning patterns
  *
  * This file is the main orchestrator that delegates to specialized modules:
  * - graph/: Node registration and incidence matrix
  * - initialization/: Parameter initialization
  * - message-passing/: Two-phase message passing
- * - scoring/: V1 and V2 scoring
- * - training/: V1 and V2 training logic
+ * - scoring/: V1 scoring (multi-head K-head attention)
+ * - training/: V1 and multi-level K-head training logic
  *
  * @module graphrag/algorithms/shgat
  */
@@ -35,10 +35,7 @@ import {
   importParams as importParamsHelper,
   initializeLevelParameters,
   initializeParameters,
-  initializeV2GradientAccumulators,
-  resetV2GradientAccumulators,
   type SHGATParams,
-  type V2GradientAccumulators,
 } from "./shgat/initialization/index.ts";
 import {
   DEFAULT_V2V_PARAMS,
@@ -60,14 +57,6 @@ import {
   initV1Gradients,
   trainOnEpisodes,
 } from "./shgat/training/v1-trainer.ts";
-import {
-  applyV2Gradients,
-  backwardV2,
-  buildTraceFeatures,
-  createDefaultTraceStatsFromFeatures,
-  forwardV2WithCache,
-  traceStatsToVector,
-} from "./shgat/training/v2-trainer.ts";
 import {
   applyKHeadGradients,
   applyWIntentGradients,
@@ -129,8 +118,6 @@ import {
   createMembersFromLegacy,
   DEFAULT_HYPERGRAPH_FEATURES,
   DEFAULT_SHGAT_CONFIG,
-  DEFAULT_TOOL_GRAPH_FEATURES,
-  DEFAULT_TRACE_STATS,
   type ForwardCache,
   type FusionWeights,
   type HypergraphFeatures,
@@ -138,8 +125,6 @@ import {
   type SHGATConfig,
   type ToolGraphFeatures,
   type ToolNode,
-  type TraceFeatures,
-  type TraceStats,
   type TrainingExample,
 } from "./shgat/types.ts";
 
@@ -163,7 +148,6 @@ export class SHGAT {
   private orchestrator: MultiLevelOrchestrator;
   private trainingMode = false;
   private lastCache: ForwardCache | null = null;
-  private v2GradAccum: V2GradientAccumulators;
 
   // Multi-level n-SuperHyperGraph structures
   private hierarchy: HierarchyResult | null = null;
@@ -184,7 +168,6 @@ export class SHGAT {
     this.graphBuilder = new GraphBuilder();
     this.orchestrator = new MultiLevelOrchestrator(this.trainingMode);
     this.params = initializeParameters(this.config);
-    this.v2GradAccum = initializeV2GradientAccumulators(this.config);
   }
 
   // ==========================================================================
@@ -768,259 +751,6 @@ export class SHGAT {
   }
 
   // ==========================================================================
-  // V2 Scoring Methods (DEPRECATED - use V1 methods instead)
-  // ==========================================================================
-
-  /** @deprecated V2 scoring path is legacy */
-  private projectFeaturesV2(features: TraceFeatures): number[] {
-    const { hiddenDim } = this.config;
-    const statsVec = traceStatsToVector(features.traceStats);
-    const combined = [
-      ...features.intentEmbedding,
-      ...features.candidateEmbedding,
-      ...features.contextAggregated,
-      ...statsVec,
-    ];
-
-    const result = new Array(hiddenDim).fill(0);
-    for (let i = 0; i < hiddenDim; i++) {
-      let sum = this.params.b_proj[i];
-      for (let j = 0; j < combined.length; j++) {
-        sum += this.params.W_proj[i][j] * combined[j];
-      }
-      result[i] = Math.max(0, sum);
-    }
-
-    return result;
-  }
-
-  /** @deprecated V2 scoring path is legacy - uses hardcoded hiddenDim instead of dynamic W_q.length */
-  private computeHeadScoreV2(projected: number[], headIdx: number): number {
-    const hp = this.params.headParams[headIdx];
-    const { hiddenDim } = this.config;
-
-    const Q = new Array(hiddenDim).fill(0);
-    const K = new Array(hiddenDim).fill(0);
-    const V = new Array(hiddenDim).fill(0);
-
-    for (let i = 0; i < hiddenDim; i++) {
-      for (let j = 0; j < projected.length; j++) {
-        Q[i] += hp.W_q[i][j] * projected[j];
-        K[i] += hp.W_k[i][j] * projected[j];
-        V[i] += hp.W_v[i][j] * projected[j];
-      }
-    }
-
-    const scale = Math.sqrt(hiddenDim);
-    const attentionWeight = math.sigmoid(math.dot(Q, K) / scale);
-    return attentionWeight * V.reduce((a, b) => a + b, 0) / hiddenDim;
-  }
-
-  /** @deprecated V2 scoring path is legacy */
-  private computeMultiHeadScoresV2(features: TraceFeatures): number[] {
-    const projected = this.projectFeaturesV2(features);
-    return Array.from(
-      { length: this.config.numHeads },
-      (_, h) => this.computeHeadScoreV2(projected, h),
-    );
-  }
-
-  /** @deprecated V2 scoring path is legacy */
-  private fusionMLPForward(headScores: number[]): number {
-    const { mlpHiddenDim } = this.config;
-    const hidden = new Array(mlpHiddenDim).fill(0);
-
-    for (let i = 0; i < mlpHiddenDim; i++) {
-      let sum = this.params.fusionMLP.b1[i];
-      for (let j = 0; j < headScores.length; j++) {
-        sum += this.params.fusionMLP.W1[i][j] * headScores[j];
-      }
-      hidden[i] = Math.max(0, sum);
-    }
-
-    let output = this.params.fusionMLP.b2;
-    for (let i = 0; i < mlpHiddenDim; i++) {
-      output += this.params.fusionMLP.W2[i] * hidden[i];
-    }
-
-    return output; // Raw logit, no sigmoid
-  }
-
-  /**
-   * @deprecated Use scoreAllCapabilities() instead - V2 TraceFeatures path is legacy
-   */
-  scoreWithTraceFeaturesV2(features: TraceFeatures): { score: number; headScores: number[] } {
-    const headScores = this.computeMultiHeadScoresV2(features);
-    return { score: this.fusionMLPForward(headScores), headScores };
-  }
-
-  /**
-   * @deprecated Use scoreAllCapabilities() instead - V2 is slower and not optimized
-   */
-  scoreAllCapabilitiesV2(
-    intentEmbedding: number[],
-    traceFeaturesMap: Map<string, TraceFeatures>,
-    contextToolIds: string[] = [],
-  ): AttentionResult[] {
-    const results: AttentionResult[] = [];
-    const { numHeads } = this.config;
-    const capabilityNodes = this.graphBuilder.getCapabilityNodes();
-    const toolNodes = this.graphBuilder.getToolNodes();
-
-    const contextEmbeddings: number[][] = [];
-    for (const toolId of contextToolIds.slice(-this.config.maxContextLength)) {
-      const tool = toolNodes.get(toolId);
-      if (tool) contextEmbeddings.push(tool.embedding);
-    }
-    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
-
-    for (const [capId, cap] of capabilityNodes) {
-      const providedFeatures = traceFeaturesMap.get(capId);
-      const hgFeatures = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
-
-      const features: TraceFeatures = {
-        intentEmbedding,
-        candidateEmbedding: cap.embedding,
-        contextEmbeddings,
-        contextAggregated,
-        traceStats: providedFeatures?.traceStats ?? createDefaultTraceStatsFromFeatures(
-          cap.successRate,
-          hgFeatures.cooccurrence,
-          hgFeatures.recency,
-          hgFeatures.hypergraphPageRank,
-        ),
-      };
-
-      const { score, headScores } = this.scoreWithTraceFeaturesV2(features);
-      const reliabilityMult = cap.successRate < 0.5 ? 0.5 : (cap.successRate > 0.9 ? 1.2 : 1.0);
-
-      results.push({
-        capabilityId: capId,
-        score: Math.min(0.95, Math.max(0, score * reliabilityMult)),
-        headWeights: new Array(numHeads).fill(1 / numHeads),
-        headScores,
-        recursiveContribution: 0,
-        featureContributions: {
-          semantic: headScores[0] ?? 0,
-          structure: headScores[1] ?? 0,
-          temporal: headScores[2] ?? 0,
-          reliability: reliabilityMult,
-        },
-        toolAttention: this.getCapabilityToolAttention(
-          this.graphBuilder.getCapabilityIndex(capId)!,
-        ),
-      });
-    }
-
-    return results.sort((a, b) => b.score - a.score);
-  }
-
-  /**
-   * @deprecated Use scoreAllTools() instead - V2 is slower and not optimized
-   */
-  scoreAllToolsV2(
-    intentEmbedding: number[],
-    traceFeaturesMap: Map<string, TraceFeatures>,
-    contextToolIds: string[] = [],
-  ): Array<{ toolId: string; score: number; headScores: number[] }> {
-    const results: Array<{ toolId: string; score: number; headScores: number[] }> = [];
-    const toolNodes = this.graphBuilder.getToolNodes();
-
-    const contextEmbeddings: number[][] = [];
-    for (const toolId of contextToolIds.slice(-this.config.maxContextLength)) {
-      const tool = toolNodes.get(toolId);
-      if (tool) contextEmbeddings.push(tool.embedding);
-    }
-    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
-
-    for (const [toolId, tool] of toolNodes) {
-      const providedFeatures = traceFeaturesMap.get(toolId);
-      const toolFeatures = tool.toolFeatures || DEFAULT_TOOL_GRAPH_FEATURES;
-
-      const features: TraceFeatures = {
-        intentEmbedding,
-        candidateEmbedding: tool.embedding,
-        contextEmbeddings,
-        contextAggregated,
-        traceStats: providedFeatures?.traceStats ??
-          createDefaultTraceStatsFromFeatures(
-            0.5,
-            toolFeatures.cooccurrence,
-            toolFeatures.recency,
-            toolFeatures.pageRank,
-          ),
-      };
-
-      const { score, headScores } = this.scoreWithTraceFeaturesV2(features);
-      results.push({ toolId, score: Math.min(0.95, Math.max(0, score)), headScores });
-    }
-
-    return results.sort((a, b) => b.score - a.score);
-  }
-
-  /**
-   * @deprecated Use scoreAllCapabilities() instead - V3 hybrid path is legacy
-   */
-  scoreAllCapabilitiesV3(
-    intentEmbedding: number[],
-    traceFeaturesMap: Map<string, TraceFeatures>,
-    contextToolIds: string[] = [],
-  ): AttentionResult[] {
-    const results: AttentionResult[] = [];
-    const { numHeads } = this.config;
-    const capabilityNodes = this.graphBuilder.getCapabilityNodes();
-    const toolNodes = this.graphBuilder.getToolNodes();
-
-    const { E } = this.forward();
-
-    const contextEmbeddings: number[][] = [];
-    for (const toolId of contextToolIds.slice(-this.config.maxContextLength)) {
-      const tool = toolNodes.get(toolId);
-      if (tool) contextEmbeddings.push(tool.embedding);
-    }
-    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
-
-    for (const [capId, cap] of capabilityNodes) {
-      const cIdx = this.graphBuilder.getCapabilityIndex(capId)!;
-      const providedFeatures = traceFeaturesMap.get(capId);
-      const hgFeatures = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
-
-      const features: TraceFeatures = {
-        intentEmbedding,
-        candidateEmbedding: E[cIdx],
-        contextEmbeddings,
-        contextAggregated,
-        traceStats: providedFeatures?.traceStats ?? createDefaultTraceStatsFromFeatures(
-          cap.successRate,
-          hgFeatures.cooccurrence,
-          hgFeatures.recency,
-          hgFeatures.hypergraphPageRank,
-        ),
-      };
-
-      const { score, headScores } = this.scoreWithTraceFeaturesV2(features);
-      const reliabilityMult = cap.successRate < 0.5 ? 0.5 : (cap.successRate > 0.9 ? 1.2 : 1.0);
-
-      results.push({
-        capabilityId: capId,
-        score: Math.min(0.95, Math.max(0, score * reliabilityMult)),
-        headWeights: new Array(numHeads).fill(1 / numHeads),
-        headScores,
-        recursiveContribution: 0,
-        featureContributions: {
-          semantic: headScores[0] ?? 0,
-          structure: headScores[1] ?? 0,
-          temporal: headScores[2] ?? 0,
-          reliability: reliabilityMult,
-        },
-        toolAttention: this.getCapabilityToolAttention(cIdx),
-      });
-    }
-
-    return results.sort((a, b) => b.score - a.score);
-  }
-
-  // ==========================================================================
   // V1 Scoring Methods (Multi-Head n-SuperHyperGraph)
   // ==========================================================================
 
@@ -1472,95 +1202,6 @@ export class SHGAT {
 
     this.trainingMode = false;
     return { loss: totalLoss / examples.length, accuracy: correct / examples.length, tdErrors };
-  }
-
-  resetV2Gradients(): void {
-    resetV2GradientAccumulators(this.v2GradAccum, this.config);
-  }
-
-  trainBatchV2(
-    examples: TrainingExample[],
-    traceStatsMap: Map<string, TraceStats>,
-    isWeights?: number[],
-    gamma: number = 0.99,
-  ): { loss: number; accuracy: number; tdErrors: number[] } {
-    const weights = isWeights ?? new Array(examples.length).fill(1);
-    const tdErrors: number[] = [];
-    this.trainingMode = true;
-
-    let totalLoss = 0, correct = 0;
-    this.resetV2Gradients();
-
-    for (let i = 0; i < examples.length; i++) {
-      const example = examples[i];
-      const isWeight = weights[i];
-
-      const capNode = this.graphBuilder.getCapabilityNode(example.candidateId);
-      if (!capNode) {
-        tdErrors.push(0);
-        continue;
-      }
-
-      const traceStats = traceStatsMap.get(example.candidateId) ?? { ...DEFAULT_TRACE_STATS };
-      const contextEmbeddings: number[][] = [];
-      for (const toolId of example.contextTools.slice(0, 5)) {
-        const toolNode = this.graphBuilder.getToolNode(toolId);
-        if (toolNode) contextEmbeddings.push(toolNode.embedding);
-      }
-
-      const features = buildTraceFeatures(
-        example.intentEmbedding,
-        capNode.embedding,
-        contextEmbeddings,
-        traceStats,
-        this.config.embeddingDim,
-      );
-      const cache = forwardV2WithCache(
-        features,
-        this.config,
-        this.params.headParams,
-        this.params.W_proj,
-        this.params.b_proj,
-        this.params.fusionMLP,
-      );
-
-      const tdError = example.outcome * Math.pow(gamma, example.contextTools.length) - cache.score;
-      tdErrors.push(tdError);
-
-      totalLoss += math.binaryCrossEntropy(cache.score, example.outcome) * isWeight;
-      if ((cache.score > 0.5 ? 1 : 0) === example.outcome) correct++;
-
-      backwardV2(
-        cache,
-        (cache.score - example.outcome) * isWeight,
-        this.config,
-        this.params.headParams,
-        this.params.fusionMLP,
-        this.v2GradAccum,
-      );
-    }
-
-    applyV2Gradients(
-      this.v2GradAccum,
-      this.config,
-      this.params.W_proj,
-      this.params.b_proj,
-      this.params.fusionMLP,
-      examples.length,
-    );
-    this.trainingMode = false;
-    return { loss: totalLoss / examples.length, accuracy: correct / examples.length, tdErrors };
-  }
-
-  applyV2Gradients(batchSize: number): void {
-    applyV2Gradients(
-      this.v2GradAccum,
-      this.config,
-      this.params.W_proj,
-      this.params.b_proj,
-      this.params.fusionMLP,
-      batchSize,
-    );
   }
 
   /**
