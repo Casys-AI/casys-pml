@@ -64,7 +64,8 @@ export function createEmptyHierarchy(): HierarchyBuildResult {
  * Rebuild multi-level hierarchy and incidence structures
  *
  * This function:
- * 1. Computes hierarchy levels from capability parents/children
+ * 1. Uses pre-computed levels from unified Node API (preferred)
+ *    OR computes hierarchy levels from capability parents/children (legacy)
  * 2. Updates hierarchyLevel on each capability node
  * 3. Builds multi-level incidence structure
  * 4. Initializes level parameters if needed
@@ -86,14 +87,54 @@ export function rebuildHierarchy(
     return createEmptyHierarchy();
   }
 
-  // 1. Compute hierarchy levels
-  const hierarchy = computeHierarchyLevels(capabilityNodes);
+  // Try to use unified Node API levels first (new path)
+  const unifiedNodes = graphBuilder.getNodes();
+  const useUnifiedLevels = unifiedNodes.size > 0;
 
-  // 2. Update hierarchyLevel on each capability
-  for (const [level, capIds] of hierarchy.hierarchyLevels) {
-    for (const capId of capIds) {
-      const cap = capabilityNodes.get(capId);
-      if (cap) cap.hierarchyLevel = level;
+  let hierarchy: HierarchyResult;
+
+  if (useUnifiedLevels) {
+    // Use pre-computed levels from unified Node API
+    const hierarchyLevels = graphBuilder.getNodeIdsByLevel();
+    const maxHierarchyLevel = graphBuilder.getMaxLevel();
+
+    // Only include composite nodes (capabilities) in hierarchy
+    const capOnlyLevels = new Map<number, Set<string>>();
+    for (const [level, nodeIds] of hierarchyLevels) {
+      const capIds = new Set<string>();
+      for (const id of nodeIds) {
+        if (capabilityNodes.has(id)) {
+          capIds.add(id);
+        }
+      }
+      if (capIds.size > 0) {
+        capOnlyLevels.set(level, capIds);
+      }
+    }
+
+    hierarchy = {
+      hierarchyLevels: capOnlyLevels,
+      maxHierarchyLevel,
+      capabilities: capabilityNodes,
+    };
+
+    // Update hierarchyLevel on each capability from unified nodes
+    for (const [capId, cap] of capabilityNodes) {
+      const node = unifiedNodes.get(capId);
+      if (node) {
+        cap.hierarchyLevel = node.level;
+      }
+    }
+  } else {
+    // Legacy path: compute hierarchy from capability containment
+    hierarchy = computeHierarchyLevels(capabilityNodes);
+
+    // Update hierarchyLevel on each capability
+    for (const [level, capIds] of hierarchy.hierarchyLevels) {
+      for (const capId of capIds) {
+        const cap = capabilityNodes.get(capId);
+        if (cap) cap.hierarchyLevel = level;
+      }
     }
   }
 

@@ -26,6 +26,9 @@ export {
   projectIntent,
   scoreAllCapabilities as scoreAllCapabilitiesKHead,
   scoreAllTools as scoreAllToolsKHead,
+  // Unified Node API
+  scoreNodes,
+  type NodeScore,
 } from "./khead-scorer.ts";
 
 // Re-export types from shgat-types for convenience
