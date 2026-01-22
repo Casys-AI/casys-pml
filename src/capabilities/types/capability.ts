@@ -264,6 +264,16 @@ export interface CapabilityFilters {
    * Migration 039: created_by → user_id (UUID FK)
    */
   userId?: string;
+  /**
+   * Filter capability_records by organization (multi-tenant)
+   * When set, only returns capability_records where org = userOrg
+   */
+  userOrg?: string;
+  /**
+   * Filter capability_records by project (multi-tenant)
+   * When set, only returns capability_records where project = userProject
+   */
+  userProject?: string;
 }
 
 /**

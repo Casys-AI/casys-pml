@@ -370,8 +370,17 @@ export async function handleGraphHypergraph(
     }
 
     // Story 9.8: Multi-tenant isolation - filter by logged-in user
-    if (ctx.userId) {
+    // Note: "local" is not a valid UUID, skip filtering in local mode
+    if (ctx.userId && ctx.userId !== "local") {
       options.userId = ctx.userId;
+    }
+
+    // Multi-tenant: filter capability_records by org/project
+    if (ctx.userOrg) {
+      options.userOrg = ctx.userOrg;
+    }
+    if (ctx.userProject) {
+      options.userProject = ctx.userProject;
     }
 
     // Build hypergraph data

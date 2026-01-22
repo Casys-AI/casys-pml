@@ -165,6 +165,8 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
       ...deps.routeContext,
       eventsStream: deps.eventsStream,
       userId: authResult.user_id,
+      userOrg: authResult.org,
+      userProject: authResult.project,
     });
 
     return next();

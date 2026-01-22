@@ -32,6 +32,14 @@ export interface HypergraphOptions {
    * When set, only shows capabilities created by or executed by this user
    */
   userId?: string;
+  /**
+   * Filter capability_records by organization (multi-tenant)
+   */
+  userOrg?: string;
+  /**
+   * Filter capability_records by project (multi-tenant)
+   */
+  userProject?: string;
 }
 
 /**
