@@ -15,6 +15,8 @@ import type { LearningContext } from "../../cache/types.ts";
 import type { CapabilityStore } from "../../capabilities/capability-store.ts";
 import type { CapabilityRegistry } from "../../capabilities/capability-registry.ts";
 import type { TraceTaskResult } from "../../capabilities/types/mod.ts";
+import type { IDAGConverter, OptimizedDAG } from "../../infrastructure/di/adapters/execute/dag-converter-adapter.ts";
+import type { TaskResult } from "../../dag/types.ts";
 import { getUserScope } from "../../lib/user.ts";
 
 // ============================================================================
@@ -43,6 +45,8 @@ export interface ExecutionCaptureDeps {
   capabilityStore: CapabilityStore;
   /** Optional registry for creating FQDN in pml_registry */
   capabilityRegistry?: CapabilityRegistry;
+  /** DAG converter for building complete executedPath from staticStructure */
+  dagConverter?: IDAGConverter;
 }
 
 /**
@@ -84,15 +88,41 @@ export class ExecutionCaptureService {
    */
   async capture(input: ExecutionCaptureInput): Promise<ExecutionCaptureResult | null> {
     const { learningContext: ctx, durationMs, taskResults, userId } = input;
-    const effectiveUserId = userId ?? ctx.userId;
+    // Note: "local" is not a valid UUID, treat as undefined for DB storage
+    const rawUserId = userId ?? ctx.userId;
+    const effectiveUserId = rawUserId && rawUserId !== "local" ? rawUserId : undefined;
+
+    // Build executedPath via DAG pipeline (required for complete trace)
+    if (!ctx.staticStructure) {
+      log.error("[ExecutionCaptureService] Missing staticStructure - cannot build complete trace, skipping capability creation", {
+        intent: ctx.intent.substring(0, 50),
+      });
+      return null;
+    }
+
+    if (!this.deps.dagConverter) {
+      log.error("[ExecutionCaptureService] Missing dagConverter dependency - cannot build complete trace, skipping capability creation", {
+        intent: ctx.intent.substring(0, 50),
+      });
+      return null;
+    }
+
+    let executedPath: string[];
+    try {
+      const logicalDAG = this.deps.dagConverter.staticStructureToDag(ctx.staticStructure);
+      const optimizedDAG = this.deps.dagConverter.optimizeDAG(logicalDAG);
+      const physicalResults = this.mapClientResultsToPhysical(taskResults, optimizedDAG);
+      const logicalTrace = this.deps.dagConverter.generateLogicalTrace(optimizedDAG, physicalResults);
+      executedPath = logicalTrace.executedPath;
+    } catch (pipelineError) {
+      log.error("[ExecutionCaptureService] Pipeline failed, skipping capability creation", {
+        error: pipelineError instanceof Error ? pipelineError.message : String(pipelineError),
+        intent: ctx.intent.substring(0, 50),
+      });
+      return null;
+    }
 
     try {
-      // Extract executed tools from task results
-      const executedPath = taskResults
-        .filter((t) => t.success)
-        .map((t) => t.tool)
-        .filter((tool): tool is string => !!tool);
-
       const toolsUsed = ctx.toolsUsed ?? executedPath;
 
       // 1. Save to workflow_pattern (UPSERT via code hash)
@@ -183,5 +213,56 @@ export class ExecutionCaptureService {
       });
       return null;
     }
+  }
+
+  /**
+   * Map client task results to physical DAG task results
+   *
+   * Client taskIds (t1, t2, t3...) don't match DAG taskIds, so we match by tool name.
+   * If the same tool is called multiple times, matches are made in order of appearance.
+   *
+   * @param taskResults - Task results from client execution
+   * @param optimizedDAG - Optimized DAG with physical tasks
+   * @returns Map of physical taskId → TaskResult
+   */
+  private mapClientResultsToPhysical(
+    taskResults: TraceTaskResult[],
+    optimizedDAG: OptimizedDAG,
+  ): Map<string, TaskResult> {
+    const physicalResults = new Map<string, TaskResult>();
+    const usedPhysicalIds = new Set<string>();
+
+    // Get physical MCP tasks (code:* tasks are non-executable, handled by trace-generator)
+    const physicalMcpTasks = (optimizedDAG.tasks as Array<{ id: string; type?: string; tool?: string }>)
+      .filter((t) => t.type === "mcp_tool");
+
+    // Match by tool name in order
+    for (const clientResult of taskResults) {
+      const physicalTask = physicalMcpTasks.find(
+        (t) => t.tool === clientResult.tool && !usedPhysicalIds.has(t.id),
+      );
+
+      if (physicalTask) {
+        usedPhysicalIds.add(physicalTask.id);
+        physicalResults.set(physicalTask.id, {
+          taskId: physicalTask.id,
+          status: clientResult.success ? "success" : "error",
+          output: clientResult.result,
+          executionTimeMs: clientResult.durationMs,
+        });
+      } else {
+        log.warn("[ExecutionCaptureService] No matching physical task for client result", {
+          tool: clientResult.tool,
+          clientTaskId: clientResult.taskId,
+        });
+      }
+    }
+
+    log.debug("[ExecutionCaptureService] Mapped client results to physical", {
+      clientResultCount: taskResults.length,
+      physicalResultCount: physicalResults.size,
+    });
+
+    return physicalResults;
   }
 }

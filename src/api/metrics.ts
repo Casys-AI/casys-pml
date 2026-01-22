@@ -81,7 +81,8 @@ export async function handleMetrics(
 
     // Story 9.8: Filter PageRank top 10 by scope
     if (ctx.db && metrics.current?.pagerankTop10) {
-      const userId = ctx.userId || "local";
+      // Migration 039: user_id is UUID FK - "local" is not valid
+      const userId = ctx.userId && ctx.userId !== "local" ? ctx.userId : undefined;
       const executedToolIds = await getExecutedToolIds(ctx.db, scope, userId);
 
       // Only filter if we have executed tools

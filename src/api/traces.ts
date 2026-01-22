@@ -20,6 +20,7 @@ import type { DbClient } from "../db/types.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import { getWorkflowStateRecord, deleteWorkflowState } from "../cache/workflow-state-cache.ts";
 import { ExecutionCaptureService } from "../application/services/execution-capture.service.ts";
+import { DAGConverterAdapter } from "../infrastructure/di/adapters/execute/dag-converter-adapter.ts";
 
 const logger = getLogger("default");
 
@@ -182,7 +183,9 @@ function mapIncomingToSaveInput(
     taskResults,
     decisions,
     priority: 0.5, // Default priority - TD-Error will update later
-    userId: userId ?? incoming.userId ?? undefined, // Migration 039: createdBy removed, use userId (UUID FK or null)
+    // Migration 039: createdBy removed, use userId (UUID FK or null)
+    // Note: "local" is not a valid UUID, treat as undefined
+    userId: (userId && userId !== "local") ? userId : (incoming.userId && incoming.userId !== "local") ? incoming.userId : undefined,
     executedAt,
   };
 }
@@ -281,6 +284,7 @@ export async function handleTracesPost(
           const captureService = new ExecutionCaptureService({
             capabilityStore: ctx.capabilityStore,
             capabilityRegistry,
+            dagConverter: new DAGConverterAdapter(),
           });
 
           // Map incoming taskResults to TraceTaskResult format

@@ -112,7 +112,7 @@ export class CapabilityRegistry {
         input.action,
         input.hash,
         input.workflowPatternId,
-        input.userId || null,  // NULL for local/system records
+        input.userId && input.userId !== "local" ? input.userId : null,  // NULL for local/system records
         now.toISOString(),
         input.visibility || "private",
         resolveRouting(input.toolsUsed || [], input.routing),

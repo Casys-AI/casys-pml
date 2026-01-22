@@ -274,7 +274,7 @@ async function fetchRealTimeseries(
   currentEntropy: number,
   currentStability: number,
   scope: Scope,
-  userId: string,
+  userId: string | undefined,
 ): Promise<EmergenceMetricsResponse["timeseries"]> {
   if (!db) {
     // Fallback to current values as flat line
@@ -287,8 +287,10 @@ async function fetchRealTimeseries(
 
   try {
     // Story 9.8: Filter by user scope (Migration 039: UUID FK)
-    const userFilter = scope === "user" ? "AND user_id = $3::uuid" : "";
-    const velocityParams = scope === "user"
+    // Only filter by user if scope is "user" AND we have a valid UUID
+    const hasValidUserId = scope === "user" && userId;
+    const userFilter = hasValidUserId ? "AND user_id = $3::uuid" : "";
+    const velocityParams = hasValidUserId
       ? [bucketMinutes, startDate.toISOString(), userId]
       : [bucketMinutes, startDate.toISOString()];
 
@@ -475,7 +477,8 @@ export async function handleEmergenceMetrics(
     );
 
     // Story 9.8: userId for per-user filtering
-    const userId = ctx.userId || "local";
+    // Migration 039: user_id is UUID FK - "local" is not valid
+    const userId = ctx.userId && ctx.userId !== "local" ? ctx.userId : undefined;
 
     // Get full graph snapshot
     const fullSnapshot = ctx.graphEngine.getGraphSnapshot();

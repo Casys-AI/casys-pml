@@ -316,7 +316,8 @@ export class CapabilityStore {
     // UPSERT: Insert or update on conflict
     // Note: 'name' column removed in migration 022 - naming via capability_records.display_name
     // Story 9.8 Fix: Include user_id for multi-tenant capability ownership
-    const userId = traceData?.userId ?? null;
+    // Note: "local" is not a valid UUID, treat as null in local mode
+    const userId = traceData?.userId && traceData.userId !== "local" ? traceData.userId : null;
     const result = await this.db.query(
       `INSERT INTO workflow_pattern (
         pattern_hash,
@@ -539,13 +540,6 @@ export class CapabilityStore {
     let trace: ExecutionTrace | undefined;
     if (traceData && this.traceStore) {
       try {
-        // Prepend capability ID to executed_path for consistent flattening
-        // This ensures sequencePosition works for capabilities (not just tools)
-        // Path structure: [capability_id, tool1, tool2, ...] or [cap_id, sub_cap_id, tool1, ...]
-        const executedPathWithCapability = capability.id
-          ? [capability.id, ...(traceData.executedPath ?? [])]
-          : traceData.executedPath;
-
         trace = await this.traceStore.saveTrace({
           capabilityId: capability.id,
           intentText: intent,
@@ -555,13 +549,14 @@ export class CapabilityStore {
           success,
           durationMs,
           errorMessage: traceData.errorMessage,
-          executedPath: executedPathWithCapability,
+          executedPath: traceData.executedPath,
           decisions: traceData.decisions ?? [],
           taskResults: traceData.taskResults ?? [],
           priority: DEFAULT_TRACE_PRIORITY,
           parentTraceId: traceData.parentTraceId,
           // Migration 039: createdBy removed, use userId (UUID FK)
-          userId: traceData.userId,
+          // Note: "local" is not a valid UUID, treat as null in local mode
+          userId: traceData.userId && traceData.userId !== "local" ? traceData.userId : undefined,
         });
         logger.debug("Execution trace saved with capability", {
           capabilityId: capability.id,
