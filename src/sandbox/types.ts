@@ -249,6 +249,8 @@ export interface InitMessage {
   capabilityContext?: string;
   /** ADR-041: Parent trace ID from workflow/task context for hierarchical tracking */
   parentTraceId?: string;
+  /** Pre-generated trace UUID for this execution (used as DB id) */
+  traceId?: string;
 }
 
 /**

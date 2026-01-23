@@ -17,6 +17,12 @@
  * - Real-time capability tracing via BroadcastChannel
  *
  * @module sandbox/worker-bridge
+ *
+ * NOTE: Server-side execution (this file) is used for:
+ * - Direct MCP clients (not packages/pml)
+ * - Server-routed capabilities (execute_locally: false)
+ *
+ * Client-routed execution uses packages/pml/src/sandbox/sandbox-worker.ts
  */
 
 import type { MCPClientBase } from "../mcp/types.ts";
@@ -164,6 +170,7 @@ export class WorkerBridge {
   private lastIntent?: string;
   private lastContext?: Record<string, unknown>;
   private lastParentTraceId?: string;
+  private lastTraceId?: string;
 
   // Story 7.3b: BroadcastChannel for real-time capability trace collection (ADR-036)
   private traceChannel: BroadcastChannel;
@@ -277,7 +284,7 @@ export class WorkerBridge {
     context?: Record<string, unknown>,
     capabilityContext?: string,
     parentTraceId?: string,
-    options?: { preserveTraces?: boolean },
+    options?: { preserveTraces?: boolean; traceId?: string },
   ): Promise<ExecutionResult> {
     this.startTime = performance.now();
     // Reset traces for new execution (unless preserveTraces is set)
@@ -288,6 +295,7 @@ export class WorkerBridge {
     this.lastIntent = context?.intent as string | undefined;
     this.lastContext = context; // Story 11.2: Store for traceData
     this.lastParentTraceId = parentTraceId; // Story 11.2: Store for traceData
+    this.lastTraceId = options?.traceId; // Pre-generated trace ID (used as DB id)
 
     try {
       logger.debug("Starting Worker execution", {
@@ -356,6 +364,7 @@ export class WorkerBridge {
           context,
           capabilityContext,
           parentTraceId, // ADR-041: Propagate trace hierarchy
+          traceId: this.lastTraceId, // Pre-generated trace ID (used as DB id)
         };
 
         this.worker!.postMessage(initMessage);
@@ -428,6 +437,7 @@ export class WorkerBridge {
             toolInvocations,
             // Story 11.2: Include traceData for execution trace persistence
             traceData: {
+              id: this.lastTraceId, // Pre-generated trace ID (used as DB id)
               initialContext: (this.lastContext ?? {}) as Record<string, JsonValue>,
               executedPath,
               decisions: [], // Branch decisions not yet captured at runtime
@@ -785,7 +795,8 @@ export class WorkerBridge {
 
     try {
       // Route via RpcRouter (handles cap_*, $cap:uuid, capabilities, MCP servers)
-      const routeResult = await this.rpcRouter.route(server, tool, args || {});
+      // Pass parentTraceId for hierarchical tracking of nested capabilities
+      const routeResult = await this.rpcRouter.route(server, tool, args || {}, parentTraceId);
 
       const endTime = Date.now();
       const durationMs = endTime - startTime;

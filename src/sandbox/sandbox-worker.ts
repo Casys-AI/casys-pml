@@ -11,6 +11,12 @@
  * - Capability traces emitted via BroadcastChannel (real-time)
  *
  * @module sandbox/sandbox-worker
+ *
+ * NOTE: Server-side execution (this file) is used for:
+ * - Direct MCP clients (not packages/pml)
+ * - Server-routed capabilities (execute_locally: false)
+ *
+ * Client-routed execution uses packages/pml/src/sandbox/sandbox-worker.ts
  */
 
 /// <reference lib="deno.worker" />
@@ -48,18 +54,57 @@ interface TraceContext {
 }
 const __traceContextStack: TraceContext[] = [];
 
-// ADR-041: Root parent trace ID from workflow/task context
-// Initialized from InitMessage.parentTraceId
+/**
+ * ADR-041: Root parent trace ID from workflow/task context.
+ * Initialized from InitMessage.parentTraceId.
+ *
+ * This is the traceId of the PARENT execution that spawned this sandbox.
+ * Used to link child traces back to their parent for hierarchical tracking.
+ *
+ * Example: Capability A calls Capability B
+ * - Capability A's traceId becomes B's __rootParentTraceId
+ * - B's trace will have parent_trace_id = A's trace id
+ */
 let __rootParentTraceId: string | undefined;
+
+/**
+ * Pre-generated trace UUID from entry point (execute-handler-facade.ts).
+ * When set, __trace() uses this as the trace ID instead of crypto.randomUUID().
+ *
+ * ADR-041 / AC1: Ensures trace.id in DB matches the traceId used in sandbox.
+ *
+ * Flow:
+ * 1. execute-handler-facade.ts: executionTraceId = crypto.randomUUID()
+ * 2. execute-direct.use-case.ts: passes to workerBridgeFactory.create({ traceId })
+ * 3. worker-bridge.ts: includes in InitMessage.traceId
+ * 4. sandbox-worker.ts: stores in __preGeneratedTraceId
+ * 5. __trace(): uses __preGeneratedTraceId for capability_start event
+ * 6. Clears after first use (one trace per execution)
+ * 7. execution-trace-store.ts: INSERT with COALESCE($1, gen_random_uuid())
+ *
+ * @see tech-spec-parent-trace-id-hierarchy.md for full specification
+ */
+let __preGeneratedTraceId: string | undefined;
+
+/**
+ * ADR-041: Store current execution's traceId for parentTraceId propagation.
+ * Unlike __preGeneratedTraceId (cleared after first __trace call),
+ * this persists for the entire execution lifetime.
+ */
+let __currentExecutionTraceId: string | undefined;
 
 /**
  * Get current trace context (for parentTraceId propagation)
  * Returns the traceId of the currently executing capability,
+ * or the current execution's own traceId (for root calling nested),
  * or the root parent trace ID from workflow, or undefined
  */
 function __getCurrentTraceId(): string | undefined {
-  if (__traceContextStack.length === 0) return __rootParentTraceId;
-  return __traceContextStack[__traceContextStack.length - 1].traceId;
+  if (__traceContextStack.length > 0) {
+    return __traceContextStack[__traceContextStack.length - 1].traceId;
+  }
+  // ADR-041: Return this execution's traceId so nested calls have correct parent
+  return __currentExecutionTraceId ?? __rootParentTraceId;
 }
 
 // Note: __capabilityDepth is now closure-scoped in the capability context
@@ -75,8 +120,12 @@ function __getCurrentTraceId(): string | undefined {
  */
 function __trace(event: Partial<CapabilityTraceEvent>): void {
   try {
-    // ADR-041: Generate traceId for this event
-    const traceId = crypto.randomUUID();
+    // Use pre-generated traceId if available, otherwise generate new one
+    const traceId = __preGeneratedTraceId ?? crypto.randomUUID();
+    // Clear after first use (one trace per execution)
+    if (event.type === "capability_start" && __preGeneratedTraceId) {
+      __preGeneratedTraceId = undefined;
+    }
 
     // ADR-041: Get parentTraceId from current context (before push/pop)
     const parentTraceId = event.type === "capability_start"
@@ -303,10 +352,14 @@ self.onmessage = async (e: MessageEvent<BridgeToWorkerMessage>) => {
  * ADR-041: Initializes root parent trace ID for hierarchical tracking
  */
 async function handleInit(msg: InitMessage): Promise<void> {
-  const { code, toolDefinitions, context, capabilityContext, parentTraceId } = msg;
+  const { code, toolDefinitions, context, capabilityContext, parentTraceId, traceId } = msg;
 
   // ADR-041: Initialize root parent trace ID from workflow/task context
   __rootParentTraceId = parentTraceId;
+  // Store pre-generated traceId (will be used as DB id)
+  __preGeneratedTraceId = traceId;
+  // ADR-041: Store for parentTraceId propagation (persists unlike __preGeneratedTraceId)
+  __currentExecutionTraceId = traceId;
 
   try {
     // Generate tool proxies from definitions
