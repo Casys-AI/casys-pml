@@ -39,12 +39,19 @@ export async function executeLocalCode(
   // Track if we hit an approval_required during execution
   const state: { pendingApproval: PendingApprovalState | null } = { pendingApproval: null };
 
+  // Reuse workflowId from continue_workflow (same execution, same trace ID)
+  const existingWorkflowId = continueWorkflow?.workflowId;
+  if (existingWorkflowId) {
+    logger?.debug(`Continuing workflow: ${existingWorkflowId}`);
+  }
+
   try {
     const result = await executor.execute(
       code,
       {},
       // Client tool handler - routes through CapabilityLoader
-      async (toolId: string, args: unknown) => {
+      // ADR-041: parentTraceId passed for parent-child trace linking
+      async (toolId: string, args: unknown, parentTraceId: string) => {
         if (!loader) {
           throw new Error("Capability loader not initialized for client tools");
         }
@@ -57,7 +64,7 @@ export async function executeLocalCode(
 
         logger?.debug(`Local tool call: ${toolId} → ${fqdn}${continueWorkflow ? " (with continue_workflow)" : ""}`);
 
-        const callResult = await loader.callWithFqdn(fqdn, args, continueWorkflow);
+        const callResult = await loader.callWithFqdn(fqdn, args, continueWorkflow, parentTraceId);
 
         // Check if it's an approval_required response (HIL pause)
         if (CapabilityLoader.isApprovalRequired(callResult)) {
@@ -68,6 +75,7 @@ export async function executeLocalCode(
 
         return callResult;
       },
+      existingWorkflowId, // Reuse workflow ID for HIL continuation
     );
 
     if (!result.success) {
@@ -80,10 +88,34 @@ export async function executeLocalCode(
         };
       }
 
+      // ADR-041: Enqueue parent trace for failed execution, then flush
+      if (loader) {
+        loader.enqueueDirectExecutionTrace(
+          result.traceId,
+          false,
+          result.durationMs,
+          result.error?.message,
+          result.toolCallRecords,
+        );
+        await loader.flushTraces();
+      }
+
       return {
         status: "error",
         error: result.error?.message ?? "Sandbox execution failed",
       };
+    }
+
+    // ADR-041: Enqueue parent trace for successful execution, then flush
+    if (loader) {
+      loader.enqueueDirectExecutionTrace(
+        result.traceId,
+        true,
+        result.durationMs,
+        undefined,
+        result.toolCallRecords,
+      );
+      await loader.flushTraces();
     }
 
     return {

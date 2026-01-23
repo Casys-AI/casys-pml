@@ -195,6 +195,8 @@ function validateMetadata(data: unknown): CapabilityMetadata {
     integrity: typeof obj.integrity === "string" ? obj.integrity : undefined,
     // Include install info for stdio/http types
     install: obj.install as CapabilityMetadata["install"],
+    // Include parameters schema for validation
+    parametersSchema: obj.parametersSchema as Record<string, unknown> | undefined,
   };
 }
 

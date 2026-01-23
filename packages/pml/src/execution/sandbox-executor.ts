@@ -71,14 +71,20 @@ export class SandboxExecutor {
    * @param code - TypeScript code to execute
    * @param context - Context/arguments passed to the code
    * @param clientToolHandler - Handler for client-routed tool calls
+   * @param workflowId - Optional workflow ID to reuse (for HIL continuation)
    * @returns Execution result
    */
   async execute(
     code: string,
     context: Record<string, unknown>,
     clientToolHandler?: ToolCallHandler,
+    workflowId?: string,
   ): Promise<SandboxExecutionResult> {
     logDebug(`Executing code in sandbox (${code.length} chars)`);
+
+    // Use provided workflowId or generate new one (ADR-041: unified ID for traces + HIL)
+    const traceId = workflowId ?? crypto.randomUUID();
+    logDebug(`Workflow/Trace ID: ${traceId}${workflowId ? " (continued)" : " (new)"}`);
 
     const toolsCalled: string[] = [];
     const toolCallRecords: ToolCallRecord[] = [];
@@ -92,7 +98,7 @@ export class SandboxExecutor {
         let result: unknown;
         let success = true;
         try {
-          result = await this.routeToolCall(method, args, clientToolHandler);
+          result = await this.routeToolCall(method, args, clientToolHandler, traceId);
         } catch (error) {
           success = false;
           result = error instanceof Error ? error.message : String(error);
@@ -125,6 +131,7 @@ export class SandboxExecutor {
           durationMs,
           toolsCalled,
           toolCallRecords,
+          traceId,
         };
       }
 
@@ -135,6 +142,7 @@ export class SandboxExecutor {
         durationMs,
         toolsCalled,
         toolCallRecords,
+        traceId,
       };
     } finally {
       sandbox.shutdown();
@@ -152,7 +160,8 @@ export class SandboxExecutor {
   private async routeToolCall(
     toolId: string,
     args: unknown,
-    clientHandler?: ToolCallHandler,
+    clientHandler: ToolCallHandler | undefined,
+    parentTraceId: string,
   ): Promise<unknown> {
     const routing = resolveToolRouting(toolId);
 
@@ -164,7 +173,7 @@ export class SandboxExecutor {
           `Client tool ${toolId} requires handler but none provided`,
         );
       }
-      return clientHandler(toolId, args);
+      return clientHandler(toolId, args, parentTraceId);
     }
 
     // Server routing - forward to cloud

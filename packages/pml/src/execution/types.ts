@@ -40,6 +40,8 @@ export interface SandboxExecutionResult {
   toolsCalled?: string[];
   /** Detailed records of each tool call */
   toolCallRecords?: ToolCallRecord[];
+  /** Trace ID for this execution (for parent-child linking) */
+  traceId: string;
 }
 
 /**
@@ -63,8 +65,13 @@ export type ToolRouting = "client" | "server";
 
 /**
  * Tool call handler function type.
+ *
+ * @param toolId - Tool identifier (e.g., "std:exec_35eb9188")
+ * @param args - Arguments for the tool
+ * @param parentTraceId - Trace ID of the parent execution (for linking nested traces)
  */
 export type ToolCallHandler = (
   toolId: string,
   args: unknown,
+  parentTraceId: string,
 ) => Promise<unknown>;

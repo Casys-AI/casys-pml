@@ -96,6 +96,9 @@ export interface CapabilityMetadata {
   install?: McpInstallInfo;
   /** Proxy URL for http type (server-side) */
   proxyTo?: string;
+
+  /** JSON Schema for input parameters validation */
+  parametersSchema?: Record<string, unknown>;
 }
 
 /**
@@ -314,7 +317,8 @@ export type LoaderErrorCode =
   | "INVALID_FQDN" // Invalid FQDN format (expected org.project.namespace.action)
   | "SUBPROCESS_SPAWN_FAILED"
   | "SUBPROCESS_CALL_FAILED"
-  | "SUBPROCESS_TIMEOUT";
+  | "SUBPROCESS_TIMEOUT"
+  | "VALIDATION_ERROR"; // Arguments don't match parametersSchema
 
 /**
  * Loader error with code and context.
