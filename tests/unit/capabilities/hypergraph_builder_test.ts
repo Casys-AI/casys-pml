@@ -89,7 +89,7 @@ Deno.test("HypergraphBuilder - creates capability node with correct structure", 
 
   // Find capability node
   const capNode = result.nodes.find(
-    (n) => n.data.type === "capability" && n.data.id === "cap-uuid-1",
+    (n) => n.data.type === "capability" && n.data.id === "uuid-1",
   );
   assertExists(capNode);
   assertEquals(capNode.data.type, "capability");
@@ -126,7 +126,7 @@ Deno.test("HypergraphBuilder - creates tool node with parents[] array", () => {
     assertExists(toolNode.data.parents);
     assertEquals(Array.isArray(toolNode.data.parents), true);
     assertEquals(toolNode.data.parents.length, 1);
-    assertEquals(toolNode.data.parents[0], "cap-uuid-1");
+    assertEquals(toolNode.data.parents[0], "uuid-1");
   }
 });
 
@@ -151,8 +151,8 @@ Deno.test("HypergraphBuilder - deduplicates tools with multiple parents", () => 
   if (sharedTool.data.type === "tool") {
     assertExists(sharedTool.data.parents);
     assertEquals(sharedTool.data.parents.length, 2);
-    assertEquals(sharedTool.data.parents.includes("cap-uuid-1"), true);
-    assertEquals(sharedTool.data.parents.includes("cap-uuid-2"), true);
+    assertEquals(sharedTool.data.parents.includes("uuid-1"), true);
+    assertEquals(sharedTool.data.parents.includes("uuid-2"), true);
   }
 });
 
@@ -164,15 +164,15 @@ Deno.test("HypergraphBuilder - creates hierarchical edges from parents[]", () =>
   const result = builder.buildCompoundGraph([cap1, cap2], undefined);
 
   // Should have 3 hierarchical edges:
-  // - cap-uuid-1 → filesystem:read
-  // - cap-uuid-2 → filesystem:read
-  // - cap-uuid-2 → github:create_issue
+  // - uuid-1 → filesystem:read
+  // - uuid-2 → filesystem:read
+  // - uuid-2 → github:create_issue
   const hierEdges = result.edges.filter((e) => e.data.edgeType === "hierarchy");
   assertEquals(hierEdges.length, 3);
 
   // Verify edge structure
   const edge = hierEdges.find(
-    (e) => e.data.source === "cap-uuid-1" && e.data.target === "filesystem:read",
+    (e) => e.data.source === "uuid-1" && e.data.target === "filesystem:read",
   );
   assertExists(edge);
   if (edge.data.edgeType === "hierarchy") {
@@ -181,26 +181,21 @@ Deno.test("HypergraphBuilder - creates hierarchical edges from parents[]", () =>
   }
 });
 
-Deno.test("HypergraphBuilder - creates capability_link edges for shared tools", () => {
+Deno.test("HypergraphBuilder - capability_link edges removed (O(n²) optimization)", () => {
+  // NOTE: capability_link edges were removed to avoid O(n²) combinatorial explosion
+  // when capabilities share common tools. See HypergraphBuilder comment for details.
   const builder = new HypergraphBuilder();
   const cap1 = createMockCapability("uuid-1", ["filesystem:read", "github:create_issue"]);
   const cap2 = createMockCapability("uuid-2", ["filesystem:read", "slack:post_message"]);
 
   const result = builder.buildCompoundGraph([cap1, cap2], undefined);
 
-  // Should have 1 capability_link edge (they share filesystem:read)
+  // capability_link edges are no longer generated
   const linkEdges = result.edges.filter((e) => e.data.edgeType === "capability_link");
-  assertEquals(linkEdges.length, 1);
-
-  const linkEdge = linkEdges[0];
-  // Verify sharedTools count and edgeSource
-  if (linkEdge.data.edgeType === "capability_link") {
-    assertEquals(linkEdge.data.edgeSource, "inferred");
-    assertEquals(linkEdge.data.sharedTools, 1);
-  }
+  assertEquals(linkEdges.length, 0, "capability_link edges were removed for performance");
 });
 
-Deno.test("HypergraphBuilder - creates capability_link with correct sharedTools count", () => {
+Deno.test("HypergraphBuilder - shared tools tracked via tool.parents array instead", () => {
   const builder = new HypergraphBuilder();
   // Two capabilities sharing 2 tools
   const cap1 = createMockCapability("uuid-1", [
@@ -216,11 +211,13 @@ Deno.test("HypergraphBuilder - creates capability_link with correct sharedTools 
 
   const result = builder.buildCompoundGraph([cap1, cap2], undefined);
 
-  const linkEdges = result.edges.filter((e) => e.data.edgeType === "capability_link");
-  assertEquals(linkEdges.length, 1);
-
-  if (linkEdges[0].data.edgeType === "capability_link") {
-    assertEquals(linkEdges[0].data.sharedTools, 2); // filesystem:read + slack:post_message
+  // Instead of capability_link edges, shared tools have multiple parents
+  const sharedFileRead = result.nodes.find(
+    (n) => n.data.type === "tool" && n.data.id === "filesystem:read",
+  );
+  assertExists(sharedFileRead);
+  if (sharedFileRead.data.type === "tool") {
+    assertEquals(sharedFileRead.data.parents.length, 2, "Shared tool should have 2 parents");
   }
 });
 
@@ -234,7 +231,7 @@ Deno.test("HypergraphBuilder - generates capabilityZones for hull rendering", ()
   assertEquals(result.capabilityZones.length, 2);
 
   // Verify zone structure
-  const zone1 = result.capabilityZones.find((z) => z.id === "cap-uuid-1");
+  const zone1 = result.capabilityZones.find((z) => z.id === "uuid-1");
   assertExists(zone1);
   assertEquals(zone1.label, "Capability uuid-1");
   assertEquals(zone1.toolIds.length, 2);
@@ -245,7 +242,7 @@ Deno.test("HypergraphBuilder - generates capabilityZones for hull rendering", ()
   assertEquals(zone1.padding, 20);
   assertEquals(zone1.minRadius, 50);
 
-  const zone2 = result.capabilityZones.find((z) => z.id === "cap-uuid-2");
+  const zone2 = result.capabilityZones.find((z) => z.id === "uuid-2");
   assertExists(zone2);
   assertEquals(zone2.toolIds.length, 1);
 });
@@ -260,7 +257,7 @@ Deno.test("HypergraphBuilder - handles capability with 0 tools", () => {
   assertEquals(result.toolsCount, 0);
 
   // Capability node should exist
-  const capNode = result.nodes.find((n) => n.data.id === "cap-uuid-empty");
+  const capNode = result.nodes.find((n) => n.data.id === "uuid-empty");
   assertExists(capNode);
 
   if (capNode.data.type === "capability") {
@@ -268,7 +265,7 @@ Deno.test("HypergraphBuilder - handles capability with 0 tools", () => {
   }
 
   // Zone should exist but with empty toolIds
-  const zone = result.capabilityZones.find((z) => z.id === "cap-uuid-empty");
+  const zone = result.capabilityZones.find((z) => z.id === "uuid-empty");
   assertExists(zone);
   assertEquals(zone.toolIds.length, 0);
 });
@@ -330,7 +327,7 @@ Deno.test("HypergraphBuilder - addCapabilityDependencyEdges adds dependency edge
   const cap2 = createMockCapability("uuid-2", ["github:create_issue"]);
 
   const result = builder.buildCompoundGraph([cap1, cap2], undefined);
-  const existingCapIds = new Set(["cap-uuid-1", "cap-uuid-2"]);
+  const existingCapIds = new Set(["uuid-1", "uuid-2"]);
 
   // Add dependency edges
   const dependencies = [
@@ -350,8 +347,8 @@ Deno.test("HypergraphBuilder - addCapabilityDependencyEdges adds dependency edge
   assertEquals(depEdges.length, 1);
 
   const depEdge = depEdges[0] as CapabilityDependencyEdge;
-  assertEquals(depEdge.data.source, "cap-uuid-1");
-  assertEquals(depEdge.data.target, "cap-uuid-2");
+  assertEquals(depEdge.data.source, "uuid-1");
+  assertEquals(depEdge.data.target, "uuid-2");
 
   assertEquals(depEdge.data.edgeType, "sequence");
   assertEquals(depEdge.data.edgeSource, "observed");
@@ -363,7 +360,7 @@ Deno.test("HypergraphBuilder - addCapabilityDependencyEdges skips missing capabi
   const cap1 = createMockCapability("uuid-1", ["filesystem:read"]);
 
   const result = builder.buildCompoundGraph([cap1], undefined);
-  const existingCapIds = new Set(["cap-uuid-1"]); // uuid-2 NOT in set
+  const existingCapIds = new Set(["uuid-1"]); // uuid-2 NOT in set
 
   // Add dependency to non-existent capability
   const dependencies = [
@@ -389,7 +386,7 @@ Deno.test("HypergraphBuilder - validates edge_type and edge_source", () => {
   const cap2 = createMockCapability("uuid-2", ["github:create_issue"]);
 
   const result = builder.buildCompoundGraph([cap1, cap2], undefined);
-  const existingCapIds = new Set(["cap-uuid-1", "cap-uuid-2"]);
+  const existingCapIds = new Set(["uuid-1", "uuid-2"]);
 
   // Add dependency with invalid edge_type
   const dependencies = [

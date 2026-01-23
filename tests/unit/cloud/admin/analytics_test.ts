@@ -242,24 +242,34 @@ Deno.test("isAdminUser - returns true for 'local' user", async () => {
   await db.close();
 });
 
-Deno.test("isAdminUser - returns true for admin role user", async () => {
-  const db = await setupTestDb();
-  await seedTestData(db);
+Deno.test({
+  name: "isAdminUser - returns true for admin role user",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    await seedTestData(db);
 
-  const result = await isAdminUser(db, "admin_user");
-  assertEquals(result, true);
+    const result = await isAdminUser(db, "admin_user");
+    assertEquals(result, true);
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("isAdminUser - returns false for non-admin user", async () => {
-  const db = await setupTestDb();
-  await seedTestData(db);
+Deno.test({
+  name: "isAdminUser - returns false for non-admin user",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    await seedTestData(db);
 
-  const result = await isAdminUser(db, "normal_user");
-  assertEquals(result, false);
+    const result = await isAdminUser(db, "normal_user");
+    assertEquals(result, false);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test("isAdminUser - returns false for non-existent user", async () => {
@@ -271,27 +281,32 @@ Deno.test("isAdminUser - returns false for non-existent user", async () => {
   await db.close();
 });
 
-Deno.test("isAdminUser - returns true for user in ADMIN_USERNAMES env var", async () => {
-  const db = await setupTestDb();
-  await seedTestData(db);
+Deno.test({
+  name: "isAdminUser - returns true for user in ADMIN_USERNAMES env var",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    await seedTestData(db);
 
-  // Set ADMIN_USERNAMES env var
-  const originalEnv = Deno.env.get("ADMIN_USERNAMES");
-  Deno.env.set("ADMIN_USERNAMES", "normal_user,another_admin");
+    // Set ADMIN_USERNAMES env var
+    const originalEnv = Deno.env.get("ADMIN_USERNAMES");
+    Deno.env.set("ADMIN_USERNAMES", "normal_user,another_admin");
 
-  try {
-    // normal_user is not admin role, but is in ADMIN_USERNAMES
-    const result = await isAdminUser(db, "some_id", "normal_user");
-    assertEquals(result, true);
-  } finally {
-    // Restore original env
-    if (originalEnv) {
-      Deno.env.set("ADMIN_USERNAMES", originalEnv);
-    } else {
-      Deno.env.delete("ADMIN_USERNAMES");
+    try {
+      // normal_user is not admin role, but is in ADMIN_USERNAMES
+      const result = await isAdminUser(db, "some_id", "normal_user");
+      assertEquals(result, true);
+    } finally {
+      // Restore original env
+      if (originalEnv) {
+        Deno.env.set("ADMIN_USERNAMES", originalEnv);
+      } else {
+        Deno.env.delete("ADMIN_USERNAMES");
+      }
+      await db.close();
     }
-    await db.close();
-  }
+  },
 });
 
 Deno.test("isAdminUser - ADMIN_USERNAMES is case insensitive", async () => {
@@ -351,16 +366,21 @@ Deno.test("queryUserActivity - returns user activity metrics for 7d", async () =
   await db.close();
 });
 
-Deno.test("queryUserActivity - returns new registrations", async () => {
-  const db = await setupTestDb();
-  await seedTestData(db);
+Deno.test({
+  name: "queryUserActivity - returns new registrations",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    await seedTestData(db);
 
-  const activity = await queryUserActivity(db, "24h");
+    const activity = await queryUserActivity(db, "24h");
 
-  // Should have new_user registered in last 24h
-  assertGreater(activity.newRegistrations, 0);
+    // Should have new_user registered in last 24h
+    assertGreater(activity.newRegistrations, 0);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================
@@ -641,17 +661,22 @@ Deno.test("queryTechnical - returns capability registry metrics", async () => {
   await db.close();
 });
 
-Deno.test("queryTechnical - handles empty database", async () => {
-  const db = await setupTestDb();
-  // No seed data
+Deno.test({
+  name: "queryTechnical - handles empty database",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    // No seed data
 
-  const technical = await queryTechnical(db, "24h");
+    const technical = await queryTechnical(db, "24h");
 
-  assertEquals(technical.shgat.usersWithParams, 0);
-  assertEquals(technical.algorithms.totalTraces, 0);
-  assertEquals(technical.capabilities.totalRecords, 0);
+    assertEquals(technical.shgat.usersWithParams, 0);
+    assertEquals(technical.algorithms.totalTraces, 0);
+    assertEquals(technical.capabilities.totalRecords, 0);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================

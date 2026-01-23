@@ -120,7 +120,11 @@ Deno.test("Migration 039: capability_records - add user_id UUID FK column", asyn
   await client.close();
 });
 
-Deno.test("Migration 039: capability_records - drop created_by and updated_by columns", async () => {
+Deno.test({
+  name: "Migration 039: capability_records - drop created_by and updated_by columns",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
   const client = await setupTestDb("cap-drop-created-by");
 
   // Setup with old schema
@@ -156,6 +160,7 @@ Deno.test("Migration 039: capability_records - drop created_by and updated_by co
   assertEquals(columns.length, 0);
 
   await client.close();
+  },
 });
 
 // =============================================================================
@@ -364,7 +369,11 @@ Deno.test("Migration 039: cleanup orphaned UUIDs that reference deleted users", 
 // AC5: FK ON DELETE SET NULL behavior
 // =============================================================================
 
-Deno.test("Migration 039: ON DELETE SET NULL preserves records when user deleted", async () => {
+Deno.test({
+  name: "Migration 039: ON DELETE SET NULL preserves records when user deleted",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
   const client = await setupTestDb("on-delete-set-null");
 
   // Setup users
@@ -411,6 +420,7 @@ Deno.test("Migration 039: ON DELETE SET NULL preserves records when user deleted
   assertEquals(after.user_id, null);
 
   await client.close();
+  },
 });
 
 // =============================================================================

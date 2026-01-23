@@ -7,7 +7,11 @@ import { assertEquals, assertExists } from "@std/assert";
 import { MetricsCollector } from "../../../src/telemetry/metrics-collector.ts";
 import { eventBus } from "../../../src/events/mod.ts";
 
-Deno.test("MetricsCollector", async (t) => {
+Deno.test({
+  name: "MetricsCollector",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async (t) => {
   await t.step("initializes with zero counters", () => {
     const collector = new MetricsCollector();
     const metrics = collector.getMetrics();
@@ -320,4 +324,5 @@ Deno.test("MetricsCollector", async (t) => {
 
     collector.close();
   });
+  },
 });

@@ -20,31 +20,36 @@ async function createTestDb(): Promise<PGliteClient> {
 }
 
 // TEST CRITIQUE 1: Structure du snapshot (valide tous les ACs)
-Deno.test("GraphRAGEngine.getGraphSnapshot - structure correcte", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
-  await engine.syncFromDatabase();
+Deno.test({
+  name: "GraphRAGEngine.getGraphSnapshot - structure correcte",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
+    await engine.syncFromDatabase();
 
-  const snapshot = engine.getGraphSnapshot();
+    const snapshot = engine.getGraphSnapshot();
 
-  // Vérifier que la structure existe
-  assertExists(snapshot);
-  assertExists(snapshot.nodes);
-  assertExists(snapshot.edges);
-  assertExists(snapshot.metadata);
+    // Vérifier que la structure existe
+    assertExists(snapshot);
+    assertExists(snapshot.nodes);
+    assertExists(snapshot.edges);
+    assertExists(snapshot.metadata);
 
-  // Vérifier les types
-  assertEquals(Array.isArray(snapshot.nodes), true, "nodes doit être un array");
-  assertEquals(Array.isArray(snapshot.edges), true, "edges doit être un array");
-  assertEquals(typeof snapshot.metadata, "object", "metadata doit être un object");
+    // Vérifier les types
+    assertEquals(Array.isArray(snapshot.nodes), true, "nodes doit être un array");
+    assertEquals(Array.isArray(snapshot.edges), true, "edges doit être un array");
+    assertEquals(typeof snapshot.metadata, "object", "metadata doit être un object");
 
-  // Vérifier les métadonnées requises
-  assertEquals(typeof snapshot.metadata.total_nodes, "number");
-  assertEquals(typeof snapshot.metadata.total_edges, "number");
-  assertEquals(typeof snapshot.metadata.density, "number");
-  assertExists(snapshot.metadata.last_updated);
+    // Vérifier les métadonnées requises
+    assertEquals(typeof snapshot.metadata.total_nodes, "number");
+    assertEquals(typeof snapshot.metadata.total_edges, "number");
+    assertEquals(typeof snapshot.metadata.density, "number");
+    assertExists(snapshot.metadata.last_updated);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // TEST CRITIQUE 2: Graphe vide ne plante pas (robustesse)

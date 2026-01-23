@@ -27,26 +27,31 @@ Deno.test("AC1: PGlite database initialization", async () => {
   await client.close();
 });
 
-Deno.test("AC2: pgvector extension loaded", async () => {
-  const client = new PGliteClient(getTestDbPath("ac2"));
-  await client.connect();
+Deno.test({
+  name: "AC2: pgvector extension loaded",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const client = new PGliteClient(getTestDbPath("ac2"));
+    await client.connect();
 
-  // Try to use vector type
-  await client.exec(
-    "CREATE TABLE test_vector (id SERIAL PRIMARY KEY, vec vector(3))",
-  );
+    // Try to use vector type
+    await client.exec(
+      "CREATE TABLE test_vector (id SERIAL PRIMARY KEY, vec vector(3))",
+    );
 
-  // Verify the table was created
-  const tables = await client.query(
-    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
-  );
+    // Verify the table was created
+    const tables = await client.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
+    );
 
-  const hasTestVector = tables.some(
-    (t) => t.table_name === "test_vector",
-  );
-  assertEquals(hasTestVector, true);
+    const hasTestVector = tables.some(
+      (t) => t.table_name === "test_vector",
+    );
+    assertEquals(hasTestVector, true);
 
-  await client.close();
+    await client.close();
+  },
 });
 
 Deno.test("AC3: Database schema creation", async () => {
@@ -186,31 +191,36 @@ Deno.test("AC5: CRUD operations - Update", async () => {
   await client.close();
 });
 
-Deno.test("AC5: CRUD operations - Delete", async () => {
-  const client = new PGliteClient(getTestDbPath("ac5-delete"));
-  await client.connect();
+Deno.test({
+  name: "AC5: CRUD operations - Delete",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const client = new PGliteClient(getTestDbPath("ac5-delete"));
+    await client.connect();
 
-  const runner = new MigrationRunner(client);
-  await runner.runUp(getAllMigrations());
+    const runner = new MigrationRunner(client);
+    await runner.runUp(getAllMigrations());
 
-  // Insert test data
-  await client.exec(
-    `INSERT INTO tool_schema (tool_id, server_id, name, input_schema)
-     VALUES ('delete-test', 'test-server', 'ToDelete', '${JSON.stringify({ type: "object" })}')`,
-  );
+    // Insert test data
+    await client.exec(
+      `INSERT INTO tool_schema (tool_id, server_id, name, input_schema)
+       VALUES ('delete-test', 'test-server', 'ToDelete', '${JSON.stringify({ type: "object" })}')`,
+    );
 
-  // Delete the data
-  await client.exec(
-    "DELETE FROM tool_schema WHERE tool_id = 'delete-test'",
-  );
+    // Delete the data
+    await client.exec(
+      "DELETE FROM tool_schema WHERE tool_id = 'delete-test'",
+    );
 
-  // Verify deletion
-  const result = await client.queryOne(
-    "SELECT tool_id FROM tool_schema WHERE tool_id = 'delete-test'",
-  );
+    // Verify deletion
+    const result = await client.queryOne(
+      "SELECT tool_id FROM tool_schema WHERE tool_id = 'delete-test'",
+    );
 
-  assertEquals(result, null);
-  await client.close();
+    assertEquals(result, null);
+    await client.close();
+  },
 });
 
 Deno.test("AC5: Transaction support", async () => {

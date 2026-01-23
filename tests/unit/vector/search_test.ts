@@ -372,17 +372,22 @@ Deno.test(
 );
 
 // Edge case: Empty query
-Deno.test("VectorSearch - handles empty query", async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel(); // Don't load model for this test
+Deno.test({
+  name: "VectorSearch - handles empty query",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel(); // Don't load model for this test
 
-  const vectorSearch = new VectorSearch(db, model);
-  const results = await vectorSearch.searchTools("", 5);
+    const vectorSearch = new VectorSearch(db, model);
+    const results = await vectorSearch.searchTools("", 5);
 
-  // Should return empty array for empty query
-  assertEquals(results.length, 0);
+    // Should return empty array for empty query
+    assertEquals(results.length, 0);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // Edge case: No results above threshold

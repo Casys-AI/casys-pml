@@ -20,12 +20,17 @@ import type { JSONSchema } from "../../../src/graphrag/types.ts";
 // areTypesCompatible Tests
 // =============================================================================
 
-Deno.test("areTypesCompatible - exact matches", () => {
-  assertEquals(areTypesCompatible("string", "string"), true);
-  assertEquals(areTypesCompatible("number", "number"), true);
-  assertEquals(areTypesCompatible("boolean", "boolean"), true);
-  assertEquals(areTypesCompatible("object", "object"), true);
-  assertEquals(areTypesCompatible("array", "array"), true);
+Deno.test({
+  name: "areTypesCompatible - exact matches",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: () => {
+    assertEquals(areTypesCompatible("string", "string"), true);
+    assertEquals(areTypesCompatible("number", "number"), true);
+    assertEquals(areTypesCompatible("boolean", "boolean"), true);
+    assertEquals(areTypesCompatible("object", "object"), true);
+    assertEquals(areTypesCompatible("array", "array"), true);
+  },
 });
 
 Deno.test("areTypesCompatible - case insensitive", () => {
@@ -624,7 +629,11 @@ Deno.test("DB Persistence - getToolProvidesEdges queries from DB", async () => {
   await db.close();
 });
 
-Deno.test("DB Persistence - findDirectProvidesEdge returns edge or null", async () => {
+Deno.test({
+  name: "DB Persistence - findDirectProvidesEdge returns edge or null",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
   const db = await createTestDb();
   await insertToolSchemas(db);
 
@@ -646,6 +655,7 @@ Deno.test("DB Persistence - findDirectProvidesEdge returns edge or null", async 
   assertEquals(noEdge, null);
 
   await db.close();
+  },
 });
 
 Deno.test("DB Persistence - syncAllProvidesEdges calculates and stores", async () => {
@@ -733,54 +743,59 @@ Deno.test({
   },
 });
 
-Deno.test("DB Persistence - coverage to confidence mapping", async () => {
-  const db = await createTestDb();
+Deno.test({
+  name: "DB Persistence - coverage to confidence mapping",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await createTestDb();
 
-  // Test all coverage levels
-  const edges: ProvidesEdge[] = [
-    {
-      from: "a",
-      to: "b",
-      type: "provides",
-      coverage: "strict",
-      providerOutputSchema: {},
-      consumerInputSchema: {},
-      fieldMapping: [],
-      weight: 0.7,
-    },
-    {
-      from: "c",
-      to: "d",
-      type: "provides",
-      coverage: "partial",
-      providerOutputSchema: {},
-      consumerInputSchema: {},
-      fieldMapping: [],
-      weight: 0.7,
-    },
-    {
-      from: "e",
-      to: "f",
-      type: "provides",
-      coverage: "optional",
-      providerOutputSchema: {},
-      consumerInputSchema: {},
-      fieldMapping: [],
-      weight: 0.7,
-    },
-  ];
+    // Test all coverage levels
+    const edges: ProvidesEdge[] = [
+      {
+        from: "a",
+        to: "b",
+        type: "provides",
+        coverage: "strict",
+        providerOutputSchema: {},
+        consumerInputSchema: {},
+        fieldMapping: [],
+        weight: 0.7,
+      },
+      {
+        from: "c",
+        to: "d",
+        type: "provides",
+        coverage: "partial",
+        providerOutputSchema: {},
+        consumerInputSchema: {},
+        fieldMapping: [],
+        weight: 0.7,
+      },
+      {
+        from: "e",
+        to: "f",
+        type: "provides",
+        coverage: "optional",
+        providerOutputSchema: {},
+        consumerInputSchema: {},
+        fieldMapping: [],
+        weight: 0.7,
+      },
+    ];
 
-  await persistProvidesEdges(db, edges);
+    await persistProvidesEdges(db, edges);
 
-  // Query back and check coverage conversion
-  const strictEdge = await getToolProvidesEdges(db, "a", "from");
-  assertEquals(strictEdge[0].coverage, "strict");
+    // Query back and check coverage conversion
+    const strictEdge = await getToolProvidesEdges(db, "a", "from");
+    assertEquals(strictEdge[0].coverage, "strict");
 
-  const partialEdge = await getToolProvidesEdges(db, "c", "from");
-  assertEquals(partialEdge[0].coverage, "partial");
+    const partialEdge = await getToolProvidesEdges(db, "c", "from");
+    assertEquals(partialEdge[0].coverage, "partial");
 
-  const optionalEdge = await getToolProvidesEdges(db, "e", "from");
-  assertEquals(optionalEdge[0].coverage, "optional");
+    const optionalEdge = await getToolProvidesEdges(db, "e", "from");
+    assertEquals(optionalEdge[0].coverage, "optional");
 
-  await db.close();
+    await db.close();
+  },
 });

@@ -128,57 +128,62 @@ Deno.test("Migration 041: DEFERRABLE FK allows deep nesting - grandchild → chi
 // AC2: Orphan Cleanup Before FK Creation
 // =============================================================================
 
-Deno.test("Migration 041: cleans up orphan parent_trace_id references", async () => {
-  const client = await setupTestDb("orphan-cleanup");
+Deno.test({
+  name: "Migration 041: cleans up orphan parent_trace_id references",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const client = await setupTestDb("orphan-cleanup");
 
-  // Create orphan data BEFORE migration: parent_trace_id points to non-existent trace
-  const orphanParentId = crypto.randomUUID();
-  const traceWithOrphan = crypto.randomUUID();
-  const validParentId = crypto.randomUUID();
-  const traceWithValidParent = crypto.randomUUID();
+    // Create orphan data BEFORE migration: parent_trace_id points to non-existent trace
+    const orphanParentId = crypto.randomUUID();
+    const traceWithOrphan = crypto.randomUUID();
+    const validParentId = crypto.randomUUID();
+    const traceWithValidParent = crypto.randomUUID();
 
-  // Insert valid parent
-  await client.exec(`
-    INSERT INTO execution_trace (id, capability_id)
-    VALUES ('${validParentId}', 'test:valid-parent');
-  `);
+    // Insert valid parent
+    await client.exec(`
+      INSERT INTO execution_trace (id, capability_id)
+      VALUES ('${validParentId}', 'test:valid-parent');
+    `);
 
-  // Insert trace with valid parent_trace_id
-  await client.exec(`
-    INSERT INTO execution_trace (id, parent_trace_id, capability_id)
-    VALUES ('${traceWithValidParent}', '${validParentId}', 'test:valid-child');
-  `);
+    // Insert trace with valid parent_trace_id
+    await client.exec(`
+      INSERT INTO execution_trace (id, parent_trace_id, capability_id)
+      VALUES ('${traceWithValidParent}', '${validParentId}', 'test:valid-child');
+    `);
 
-  // Insert trace with orphan parent_trace_id (parent doesn't exist)
-  await client.exec(`
-    INSERT INTO execution_trace (id, parent_trace_id, capability_id)
-    VALUES ('${traceWithOrphan}', '${orphanParentId}', 'test:orphan-child');
-  `);
+    // Insert trace with orphan parent_trace_id (parent doesn't exist)
+    await client.exec(`
+      INSERT INTO execution_trace (id, parent_trace_id, capability_id)
+      VALUES ('${traceWithOrphan}', '${orphanParentId}', 'test:orphan-child');
+    `);
 
-  // Verify orphan exists before migration
-  const beforeMigration = await client.queryOne(`
-    SELECT parent_trace_id::text FROM execution_trace WHERE id = '${traceWithOrphan}'
-  `);
-  assertEquals(beforeMigration?.parent_trace_id, orphanParentId);
+    // Verify orphan exists before migration
+    const beforeMigration = await client.queryOne(`
+      SELECT parent_trace_id::text FROM execution_trace WHERE id = '${traceWithOrphan}'
+    `);
+    assertEquals(beforeMigration?.parent_trace_id, orphanParentId);
 
-  // Apply migration 041 (should clean up orphans)
-  const migration = createParentTraceIdFkMigration();
-  const runner = new MigrationRunner(client);
-  await runner.runUp([migration]);
+    // Apply migration 041 (should clean up orphans)
+    const migration = createParentTraceIdFkMigration();
+    const runner = new MigrationRunner(client);
+    await runner.runUp([migration]);
 
-  // Verify orphan was cleaned up (parent_trace_id set to NULL)
-  const afterMigration = await client.queryOne(`
-    SELECT parent_trace_id FROM execution_trace WHERE id = '${traceWithOrphan}'
-  `);
-  assertEquals(afterMigration?.parent_trace_id, null);
+    // Verify orphan was cleaned up (parent_trace_id set to NULL)
+    const afterMigration = await client.queryOne(`
+      SELECT parent_trace_id FROM execution_trace WHERE id = '${traceWithOrphan}'
+    `);
+    assertEquals(afterMigration?.parent_trace_id, null);
 
-  // Verify valid parent_trace_id was NOT affected
-  const validChild = await client.queryOne(`
-    SELECT parent_trace_id::text FROM execution_trace WHERE id = '${traceWithValidParent}'
-  `);
-  assertEquals(validChild?.parent_trace_id, validParentId);
+    // Verify valid parent_trace_id was NOT affected
+    const validChild = await client.queryOne(`
+      SELECT parent_trace_id::text FROM execution_trace WHERE id = '${traceWithValidParent}'
+    `);
+    assertEquals(validChild?.parent_trace_id, validParentId);
 
-  await client.close();
+    await client.close();
+  },
 });
 
 // =============================================================================

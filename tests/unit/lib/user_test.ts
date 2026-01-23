@@ -69,18 +69,23 @@ Deno.test("getUsernameById: returns username for valid user ID", async () => {
   await client.close();
 });
 
-Deno.test("getUsernameById: returns null for non-existent user ID", async () => {
-  const client = await setupTestDb("get-username-nonexistent");
+Deno.test({
+  name: "getUsernameById: returns null for non-existent user ID",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
+    const client = await setupTestDb("get-username-nonexistent");
 
-  // Query with non-existent UUID
-  const nonExistentId = crypto.randomUUID();
-  const userResult = await client.queryOne(`
-    SELECT username FROM users WHERE id = '${nonExistentId}'::uuid;
-  `);
-  // queryOne returns undefined when no rows found
-  assertEquals(userResult, null);
+    // Query with non-existent UUID
+    const nonExistentId = crypto.randomUUID();
+    const userResult = await client.queryOne(`
+      SELECT username FROM users WHERE id = '${nonExistentId}'::uuid;
+    `);
+    // queryOne returns undefined when no rows found
+    assertEquals(userResult, null);
 
-  await client.close();
+    await client.close();
+  },
 });
 
 Deno.test("getUsernameById: returns null for null user ID", async () => {
@@ -155,26 +160,31 @@ Deno.test("users table: username is unique", async () => {
 // org/project FQDN Pattern Tests
 // =============================================================================
 
-Deno.test("FQDN generation: username becomes org in FQDN", async () => {
-  const client = await setupTestDb("fqdn-username-org");
+Deno.test({
+  name: "FQDN generation: username becomes org in FQDN",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const client = await setupTestDb("fqdn-username-org");
 
-  // Insert user
-  const result = await client.query(`
-    INSERT INTO users (username) VALUES ('myuser') RETURNING id::text, username;
-  `);
-  const { id, username } = result[0];
-  assertExists(id);
+    // Insert user
+    const result = await client.query(`
+      INSERT INTO users (username) VALUES ('myuser') RETURNING id::text, username;
+    `);
+    const { id, username } = result[0];
+    assertExists(id);
 
-  // Verify FQDN pattern: {username}.{project}.{namespace}.{action}
-  const org = username;
-  const project = "default";
-  const namespace = "test";
-  const action = "doSomething";
-  const expectedFqdn = `${org}.${project}.${namespace}.${action}`;
+    // Verify FQDN pattern: {username}.{project}.{namespace}.{action}
+    const org = username;
+    const project = "default";
+    const namespace = "test";
+    const action = "doSomething";
+    const expectedFqdn = `${org}.${project}.${namespace}.${action}`;
 
-  assertEquals(expectedFqdn, "myuser.default.test.doSomething");
+    assertEquals(expectedFqdn, "myuser.default.test.doSomething");
 
-  await client.close();
+    await client.close();
+  },
 });
 
 Deno.test({

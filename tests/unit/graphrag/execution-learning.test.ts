@@ -55,63 +55,73 @@ class MockGraph implements ExecutionLearningGraph {
 // Test: Operation nodes have type="operation"
 // =============================================================================
 
-Deno.test("learnSequenceEdgesFromTasks - creates operation nodes with type='operation'", async () => {
-  const graph = new MockGraph();
-  const tasks: TaskResultWithLayer[] = [
-    {
-      taskId: "task1",
-      tool: "code:filter",
-      layerIndex: 0,
-    },
-    {
-      taskId: "task2",
-      tool: "code:map",
-      layerIndex: 1,
-    },
-  ];
+Deno.test({
+  name: "learnSequenceEdgesFromTasks - creates operation nodes with type='operation'",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const graph = new MockGraph();
+    const tasks: TaskResultWithLayer[] = [
+      {
+        taskId: "task1",
+        tool: "code:filter",
+        layerIndex: 0,
+      },
+      {
+        taskId: "task2",
+        tool: "code:map",
+        layerIndex: 1,
+      },
+    ];
 
-  await learnSequenceEdgesFromTasks(graph, tasks);
+    await learnSequenceEdgesFromTasks(graph, tasks);
 
-  // Verify code:filter node
-  const filterNode = graph.getNodeAttributes("code:filter");
-  assertEquals(filterNode?.type, "operation", "code:filter should have type='operation'");
-  assertEquals(filterNode?.category, "array", "code:filter should have category='array'");
-  assertEquals(filterNode?.pure, true, "code:filter should be pure");
-  assertEquals(filterNode?.serverId, "code", "code:filter should have serverId='code'");
+    // Verify code:filter node
+    const filterNode = graph.getNodeAttributes("code:filter");
+    assertEquals(filterNode?.type, "operation", "code:filter should have type='operation'");
+    assertEquals(filterNode?.category, "array", "code:filter should have category='array'");
+    assertEquals(filterNode?.pure, true, "code:filter should be pure");
+    assertEquals(filterNode?.serverId, "code", "code:filter should have serverId='code'");
 
-  // Verify code:map node
-  const mapNode = graph.getNodeAttributes("code:map");
-  assertEquals(mapNode?.type, "operation", "code:map should have type='operation'");
-  assertEquals(mapNode?.category, "array", "code:map should have category='array'");
-  assertEquals(mapNode?.pure, true, "code:map should be pure");
+    // Verify code:map node
+    const mapNode = graph.getNodeAttributes("code:map");
+    assertEquals(mapNode?.type, "operation", "code:map should have type='operation'");
+    assertEquals(mapNode?.category, "array", "code:map should have category='array'");
+    assertEquals(mapNode?.pure, true, "code:map should be pure");
+  },
 });
 
-Deno.test("learnSequenceEdgesFromTasks - creates tool nodes with type='tool'", async () => {
-  const graph = new MockGraph();
-  const tasks: TaskResultWithLayer[] = [
-    {
-      taskId: "task1",
-      tool: "github:create_issue",
-      layerIndex: 0,
-    },
-    {
-      taskId: "task2",
-      tool: "filesystem:read",
-      layerIndex: 1,
-    },
-  ];
+Deno.test({
+  name: "learnSequenceEdgesFromTasks - creates tool nodes with type='tool'",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const graph = new MockGraph();
+    const tasks: TaskResultWithLayer[] = [
+      {
+        taskId: "task1",
+        tool: "github:create_issue",
+        layerIndex: 0,
+      },
+      {
+        taskId: "task2",
+        tool: "filesystem:read",
+        layerIndex: 1,
+      },
+    ];
 
-  await learnSequenceEdgesFromTasks(graph, tasks);
+    await learnSequenceEdgesFromTasks(graph, tasks);
 
-  // Verify github:create_issue node
-  const githubNode = graph.getNodeAttributes("github:create_issue");
-  assertEquals(githubNode?.type, "tool", "github:create_issue should have type='tool'");
-  assert(!githubNode?.category, "MCP tools should not have category attribute");
-  assert(!githubNode?.pure, "MCP tools should not have pure attribute");
+    // Verify github:create_issue node
+    const githubNode = graph.getNodeAttributes("github:create_issue");
+    assertEquals(githubNode?.type, "tool", "github:create_issue should have type='tool'");
+    assert(!githubNode?.category, "MCP tools should not have category attribute");
+    assert(!githubNode?.pure, "MCP tools should not have pure attribute");
 
-  // Verify filesystem:read node
-  const fsNode = graph.getNodeAttributes("filesystem:read");
-  assertEquals(fsNode?.type, "tool", "filesystem:read should have type='tool'");
+    // Verify filesystem:read node
+    const fsNode = graph.getNodeAttributes("filesystem:read");
+    assertEquals(fsNode?.type, "tool", "filesystem:read should have type='tool'");
+  },
 });
 
 Deno.test("learnSequenceEdgesFromTasks - handles mixed operation and tool nodes", async () => {

@@ -57,27 +57,32 @@ function createTestTrace(overrides: Partial<TraceInput> = {}): TraceInput {
   };
 }
 
-Deno.test("AlgorithmTracer - logTrace() writes to DB and returns traceId", async () => {
-  const db = await setupTestDb();
-  const tracer = new AlgorithmTracer(db);
+Deno.test({
+  name: "AlgorithmTracer - logTrace() writes to DB and returns traceId",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const tracer = new AlgorithmTracer(db);
 
-  const traceId = await tracer.logTrace(createTestTrace());
+    const traceId = await tracer.logTrace(createTestTrace());
 
-  assertExists(traceId);
-  assertEquals(typeof traceId, "string");
-  assertEquals(traceId.length, 36); // UUID format
-  // Note: logTrace now flushes immediately for SSE real-time updates
-  assertEquals(tracer.getBufferSize(), 0);
+    assertExists(traceId);
+    assertEquals(typeof traceId, "string");
+    assertEquals(traceId.length, 36); // UUID format
+    // Note: logTrace now flushes immediately for SSE real-time updates
+    assertEquals(tracer.getBufferSize(), 0);
 
-  // Verify trace was written to DB
-  const result = await db.query(
-    "SELECT COUNT(*) as count FROM algorithm_traces WHERE trace_id = $1",
-    [traceId],
-  );
-  assertEquals(Number(result[0]?.count), 1);
+    // Verify trace was written to DB
+    const result = await db.query(
+      "SELECT COUNT(*) as count FROM algorithm_traces WHERE trace_id = $1",
+      [traceId],
+    );
+    assertEquals(Number(result[0]?.count), 1);
 
-  await tracer.stop();
-  await db.close();
+    await tracer.stop();
+    await db.close();
+  },
 });
 
 Deno.test("AlgorithmTracer - logTrace() immediately flushes to database", async () => {
@@ -100,39 +105,44 @@ Deno.test("AlgorithmTracer - logTrace() immediately flushes to database", async 
   await db.close();
 });
 
-Deno.test("AlgorithmTracer - updateOutcome() updates trace in buffer", async () => {
-  const db = await setupTestDb();
-  const tracer = new AlgorithmTracer(db);
+Deno.test({
+  name: "AlgorithmTracer - updateOutcome() updates trace in buffer",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const tracer = new AlgorithmTracer(db);
 
-  const traceId = await tracer.logTrace(createTestTrace());
+    const traceId = await tracer.logTrace(createTestTrace());
 
-  // Update outcome while still in buffer
-  await tracer.updateOutcome(traceId, {
-    userAction: "selected",
-    executionSuccess: true,
-    durationMs: 150,
-  });
+    // Update outcome while still in buffer
+    await tracer.updateOutcome(traceId, {
+      userAction: "selected",
+      executionSuccess: true,
+      durationMs: 150,
+    });
 
-  // Flush and verify outcome is preserved
-  await tracer.flush();
+    // Flush and verify outcome is preserved
+    await tracer.flush();
 
-  const result = await db.query(
-    `SELECT outcome FROM algorithm_traces WHERE trace_id = $1`,
-    [traceId],
-  );
+    const result = await db.query(
+      `SELECT outcome FROM algorithm_traces WHERE trace_id = $1`,
+      [traceId],
+    );
 
-  assertExists(result[0]?.outcome);
-  const outcome = result[0].outcome as {
-    userAction: string;
-    executionSuccess: boolean;
-    durationMs: number;
-  };
-  assertEquals(outcome.userAction, "selected");
-  assertEquals(outcome.executionSuccess, true);
-  assertEquals(outcome.durationMs, 150);
+    assertExists(result[0]?.outcome);
+    const outcome = result[0].outcome as {
+      userAction: string;
+      executionSuccess: boolean;
+      durationMs: number;
+    };
+    assertEquals(outcome.userAction, "selected");
+    assertEquals(outcome.executionSuccess, true);
+    assertEquals(outcome.durationMs, 150);
 
-  await tracer.stop();
-  await db.close();
+    await tracer.stop();
+    await db.close();
+  },
 });
 
 Deno.test("AlgorithmTracer - updateOutcome() updates trace in database", async () => {

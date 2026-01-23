@@ -43,17 +43,22 @@ function createMockDeps(): HonoAppDependencies {
 
 // === Public Routes Tests (no auth required) ===
 
-Deno.test("Hono App - health endpoint returns ok", async () => {
-  const deps = createMockDeps();
-  const app = createApp(deps, ["http://localhost:3003"]);
+Deno.test({
+  name: "Hono App - health endpoint returns ok",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  async fn() {
+    const deps = createMockDeps();
+    const app = createApp(deps, ["http://localhost:3003"]);
 
-  const req = new Request("http://localhost:3003/health");
-  const res = await app.fetch(req);
+    const req = new Request("http://localhost:3003/health");
+    const res = await app.fetch(req);
 
-  assertEquals(res.status, 200);
-  const body = await res.json();
-  assertEquals(body.status, "ok");
-  assertExists(body.timestamp);
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.status, "ok");
+    assertExists(body.timestamp);
+  },
 });
 
 Deno.test({
@@ -73,33 +78,43 @@ Deno.test({
   },
 });
 
-Deno.test("Hono App - dashboard redirects to correct port", async () => {
-  // Set dev port
-  Deno.env.set("PORT_DASHBOARD", "8081");
+Deno.test({
+  name: "Hono App - dashboard redirects to correct port",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    // Set dev port
+    Deno.env.set("PORT_DASHBOARD", "8081");
 
-  const deps = createMockDeps();
-  const app = createApp(deps, ["http://localhost:3003"]);
+    const deps = createMockDeps();
+    const app = createApp(deps, ["http://localhost:3003"]);
 
-  const req = new Request("http://localhost:3003/dashboard");
-  const res = await app.fetch(req);
+    const req = new Request("http://localhost:3003/dashboard");
+    const res = await app.fetch(req);
 
-  assertEquals(res.status, 302);
-  assertStringIncludes(res.headers.get("Location") || "", "8081");
+    assertEquals(res.status, 302);
+    assertStringIncludes(res.headers.get("Location") || "", "8081");
 
-  // Cleanup
-  Deno.env.delete("PORT_DASHBOARD");
+    // Cleanup
+    Deno.env.delete("PORT_DASHBOARD");
+  },
 });
 
-Deno.test("Hono App - events stream returns 503 when not initialized", async () => {
-  const deps = createMockDeps();
-  const app = createApp(deps, ["http://localhost:3003"]);
+Deno.test({
+  name: "Hono App - events stream returns 503 when not initialized",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const deps = createMockDeps();
+    const app = createApp(deps, ["http://localhost:3003"]);
 
-  const req = new Request("http://localhost:3003/events/stream");
-  const res = await app.fetch(req);
+    const req = new Request("http://localhost:3003/events/stream");
+    const res = await app.fetch(req);
 
-  assertEquals(res.status, 503);
-  const body = await res.json();
-  assertEquals(body.error, "Events stream not initialized");
+    assertEquals(res.status, 503);
+    const body = await res.json();
+    assertEquals(body.error, "Events stream not initialized");
+  },
 });
 
 // === Auth Tests (cloud mode) ===
@@ -129,57 +144,72 @@ Deno.test({
   sanitizeResources: false, // KV may have async ops that complete after test
 });
 
-Deno.test("Hono App - MCP endpoint requires auth in cloud mode", async () => {
-  Deno.env.set("GITHUB_CLIENT_ID", "test-client-id");
+Deno.test({
+  name: "Hono App - MCP endpoint requires auth in cloud mode",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  async fn() {
+    Deno.env.set("GITHUB_CLIENT_ID", "test-client-id");
 
-  try {
-    const deps = createMockDeps();
-    const app = createApp(deps, ["http://localhost:3003"]);
+    try {
+      const deps = createMockDeps();
+      const app = createApp(deps, ["http://localhost:3003"]);
 
-    const req = new Request("http://localhost:3003/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", method: "tools/list", id: 1 }),
-    });
-    const res = await app.fetch(req);
+      const req = new Request("http://localhost:3003/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "tools/list", id: 1 }),
+      });
+      const res = await app.fetch(req);
 
-    assertEquals(res.status, 401);
-  } finally {
-    Deno.env.delete("GITHUB_CLIENT_ID");
-  }
+      assertEquals(res.status, 401);
+    } finally {
+      Deno.env.delete("GITHUB_CLIENT_ID");
+    }
+  },
 });
 
-Deno.test("Hono App - API graph route requires auth in cloud mode", async () => {
-  Deno.env.set("GITHUB_CLIENT_ID", "test-client-id");
+Deno.test({
+  name: "Hono App - API graph route requires auth in cloud mode",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    Deno.env.set("GITHUB_CLIENT_ID", "test-client-id");
 
-  try {
+    try {
+      const deps = createMockDeps();
+      const app = createApp(deps, ["http://localhost:3003"]);
+
+      const req = new Request("http://localhost:3003/api/graph/snapshot");
+      const res = await app.fetch(req);
+
+      assertEquals(res.status, 401);
+    } finally {
+      Deno.env.delete("GITHUB_CLIENT_ID");
+    }
+  },
+});
+
+// === Local Mode Tests (no auth required) ===
+
+Deno.test({
+  name: "Hono App - protected routes work in local mode",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    // Make sure cloud mode is disabled
+    Deno.env.delete("GITHUB_CLIENT_ID");
+
     const deps = createMockDeps();
     const app = createApp(deps, ["http://localhost:3003"]);
 
     const req = new Request("http://localhost:3003/api/graph/snapshot");
     const res = await app.fetch(req);
 
-    assertEquals(res.status, 401);
-  } finally {
-    Deno.env.delete("GITHUB_CLIENT_ID");
-  }
-});
-
-// === Local Mode Tests (no auth required) ===
-
-Deno.test("Hono App - protected routes work in local mode", async () => {
-  // Make sure cloud mode is disabled
-  Deno.env.delete("GITHUB_CLIENT_ID");
-
-  const deps = createMockDeps();
-  const app = createApp(deps, ["http://localhost:3003"]);
-
-  const req = new Request("http://localhost:3003/api/graph/snapshot");
-  const res = await app.fetch(req);
-
-  // In local mode, should pass auth and hit the handler
-  // Handler returns 200 with graph snapshot
-  assertEquals(res.status, 200);
+    // In local mode, should pass auth and hit the handler
+    // Handler returns 200 with graph snapshot
+    assertEquals(res.status, 200);
+  },
 });
 
 Deno.test({

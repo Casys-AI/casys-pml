@@ -86,10 +86,15 @@ async function insertTestDependencies(db: PGliteClient): Promise<void> {
 // AC1: Graphology dependencies integration
 // ============================================
 
-Deno.test("GraphRAGEngine - can import Graphology dependencies", () => {
-  // Test that Graphology modules are accessible
-  const engine = new GraphRAGEngine(new PGliteClient(`memory://${crypto.randomUUID()}`));
-  assertExists(engine);
+Deno.test({
+  name: "GraphRAGEngine - can import Graphology dependencies",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: () => {
+    // Test that Graphology modules are accessible
+    const engine = new GraphRAGEngine(new PGliteClient(`memory://${crypto.randomUUID()}`));
+    assertExists(engine);
+  },
 });
 
 // ============================================
@@ -201,22 +206,27 @@ Deno.test("GraphRAGEngine - community detection groups related tools", async () 
   await db.close();
 });
 
-Deno.test("GraphRAGEngine - findCommunityMembers returns tools in same cluster", async () => {
-  const db = await createTestDb();
-  await insertTestTools(db);
-  await insertTestDependencies(db);
+Deno.test({
+  name: "GraphRAGEngine - findCommunityMembers returns tools in same cluster",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await createTestDb();
+    await insertTestTools(db);
+    await insertTestDependencies(db);
 
-  const engine = new GraphRAGEngine(db);
-  await engine.syncFromDatabase();
+    const engine = new GraphRAGEngine(db);
+    await engine.syncFromDatabase();
 
-  const members = engine.findCommunityMembers("json:parse");
+    const members = engine.findCommunityMembers("json:parse");
 
-  // Should return other tools in same community (at least 1)
-  assert(Array.isArray(members), "Should return array of community members");
-  // Should not include the tool itself
-  assert(!members.includes("json:parse"), "Should not include the tool itself");
+    // Should return other tools in same community (at least 1)
+    assert(Array.isArray(members), "Should return array of community members");
+    // Should not include the tool itself
+    assert(!members.includes("json:parse"), "Should not include the tool itself");
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================
@@ -556,64 +566,74 @@ Deno.test("GraphRAGEngine - searchToolsHybrid boosts tools with graph context", 
   await db.close();
 });
 
-Deno.test("GraphRAGEngine - searchToolsHybrid includes related tools when requested", async () => {
-  const db = await createTestDb();
-  await insertTestTools(db);
-  await insertTestDependencies(db);
+Deno.test({
+  name: "GraphRAGEngine - searchToolsHybrid includes related tools when requested",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await createTestDb();
+    await insertTestTools(db);
+    await insertTestDependencies(db);
 
-  const engine = new GraphRAGEngine(db);
-  await engine.syncFromDatabase();
+    const engine = new GraphRAGEngine(db);
+    await engine.syncFromDatabase();
 
-  const mockVectorSearch = new MockVectorSearch();
-  mockVectorSearch.setResults([
-    { toolId: "json:parse", serverId: "json", toolName: "parse", score: 0.9 },
-  ]);
+    const mockVectorSearch = new MockVectorSearch();
+    mockVectorSearch.setResults([
+      { toolId: "json:parse", serverId: "json", toolName: "parse", score: 0.9 },
+    ]);
 
-  const results = await engine.searchToolsHybrid(
-    mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
-    "parse json",
-    5,
-    [],
-    true, // Include related tools
-  );
+    const results = await engine.searchToolsHybrid(
+      mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
+      "parse json",
+      5,
+      [],
+      true, // Include related tools
+    );
 
-  assertExists(results);
-  assert(results.length > 0);
+    assertExists(results);
+    assert(results.length > 0);
 
-  const parseResult = results.find((r) => r.toolId === "json:parse");
-  assertExists(parseResult);
+    const parseResult = results.find((r) => r.toolId === "json:parse");
+    assertExists(parseResult);
 
-  // json:parse has neighbors (http:get → json:parse → filesystem:write)
-  // Should have related tools from graph neighbors
-  assertExists(parseResult.relatedTools);
-  // May or may not have related tools depending on graph structure
-  // But the array should exist
-  assert(Array.isArray(parseResult.relatedTools));
+    // json:parse has neighbors (http:get → json:parse → filesystem:write)
+    // Should have related tools from graph neighbors
+    assertExists(parseResult.relatedTools);
+    // May or may not have related tools depending on graph structure
+    // But the array should exist
+    assert(Array.isArray(parseResult.relatedTools));
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("GraphRAGEngine - searchToolsHybrid handles empty results gracefully", async () => {
-  const db = await createTestDb();
-  await insertTestTools(db);
+Deno.test({
+  name: "GraphRAGEngine - searchToolsHybrid handles empty results gracefully",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await createTestDb();
+    await insertTestTools(db);
 
-  const engine = new GraphRAGEngine(db);
-  await engine.syncFromDatabase();
+    const engine = new GraphRAGEngine(db);
+    await engine.syncFromDatabase();
 
-  const mockVectorSearch = new MockVectorSearch();
-  mockVectorSearch.setResults([]); // No results
+    const mockVectorSearch = new MockVectorSearch();
+    mockVectorSearch.setResults([]); // No results
 
-  const results = await engine.searchToolsHybrid(
-    mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
-    "nonexistent tool query",
-    5,
-    [],
-    false,
-  );
+    const results = await engine.searchToolsHybrid(
+      mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
+      "nonexistent tool query",
+      5,
+      [],
+      false,
+    );
 
-  assertEquals(results.length, 0, "Should return empty array when no semantic results");
+    assertEquals(results.length, 0, "Should return empty array when no semantic results");
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test("GraphRAGEngine - searchToolsHybrid respects limit parameter", async () => {
