@@ -36,7 +36,7 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 |----------|------|-------|
 | **High** | per-training.ts | N+1 queries in `flattenExecutedPath()` |
 | **High** | per-training.ts | IS weight/example index mismatch |
-| **Low** | execution-learning.ts | Silent skip when parent trace missing |
+| ~~Low~~ | ~~execution-learning.ts~~ | ~~Silent skip when parent trace missing~~ → **RESOLVED** |
 | **Low** | per-training.ts | Global mutable `executionCounter` |
 | ~~Low~~ | ~~per-training.ts~~ | ~~Code duplication~~ → **RESOLVED** (dead code removed) |
 
@@ -219,7 +219,7 @@ for (let t = 0; t < traces.length; t++) {
 
 ---
 
-## Issue 3: Silent Skip When Parent Trace Missing (LOW)
+## Issue 3: Silent Skip When Parent Trace Missing (RESOLVED)
 
 ### Current Behavior
 
@@ -255,9 +255,9 @@ if (!parentNodeId) {
 
 - `src/graphrag/dag/execution-learning.ts` - Add debug logging
 
-### Tests
+### Resolution
 
-- [ ] Manual verification via log output
+**Commit:** `f37c3ac` - Added `log.debug()` with parentTraceId, childCount, and hint.
 
 ---
 
@@ -334,14 +334,15 @@ Option B: Use atomic counter or move to a service class.
 | 1.4 | Fix IS weight calculation alignment | 30m |
 | 1.5 | Add unit tests for both fixes | 2h |
 
-### Phase 2: Low Priority (Issues 3 & 4)
+### Phase 2: Low Priority (Issue 4 only)
 
 | Step | Task | Effort |
 |------|------|--------|
-| 2.1 | Add debug logging for missing parent | 15m |
-| 2.2 | Refactor executionCounter (optional) | 30m |
+| 2.1 | Refactor executionCounter (optional) | 30m |
 
-> **Note:** Issue 5 (code duplication) already resolved - dead code removed in commit `ed3c19a`.
+> **Notes:**
+> - Issue 3 (silent skip) resolved in commit `f37c3ac`
+> - Issue 5 (code duplication) resolved in commit `ed3c19a`
 
 ---
 
@@ -349,7 +350,7 @@ Option B: Use atomic counter or move to a service class.
 
 - [ ] **AC1:** `flattenExecutedPath()` makes O(depth) queries instead of O(traces * depth)
 - [ ] **AC2:** `exampleWeights.length === allExamples.length` always true (in subprocess version)
-- [ ] **AC3:** Missing parent traces logged at debug level
+- [x] **AC3:** Missing parent traces logged at debug level ✅
 - [ ] **AC4:** All existing tests pass
 - [ ] **AC5:** New tests added for critical fixes (Issues 1 & 2)
 
