@@ -28,6 +28,10 @@ export interface ExecuteDirectRequest {
   code: string;
   /** Natural language intent */
   intent: string;
+  /** Pre-generated trace UUID (used as DB id for hierarchy) */
+  executionTraceId?: string;
+  /** Parent trace UUID for nested capability execution (ADR-041) */
+  parentTraceId?: string;
   /** Execution options */
   options?: {
     timeout?: number;

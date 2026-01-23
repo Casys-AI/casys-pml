@@ -194,8 +194,8 @@ export class ContinueWorkflowUseCase {
       return {
         success: false,
         error: {
-          code: "NO_EXECUTOR",
-          message: "Workflow has no active executor to continue",
+          code: "WORKFLOW_SESSION_EXPIRED",
+          message: "Workflow session expired, cannot resume",
           details: { workflowId },
         },
       };

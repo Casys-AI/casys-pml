@@ -27,4 +27,8 @@ export interface LearningContext {
   toolsUsed?: string[];
   /** User ID for multi-tenant isolation */
   userId?: string;
+  /** Pre-generated trace ID for hierarchy (ADR-041) */
+  traceId?: string;
+  /** Parent trace ID for nested execution (ADR-041) */
+  parentTraceId?: string;
 }
