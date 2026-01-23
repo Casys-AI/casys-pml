@@ -38,11 +38,10 @@ declare const self: DedicatedWorkerGlobalScope;
 // =============================================================================
 
 /**
- * BroadcastChannel for real-time trace emission
- * Bridge subscribes to this channel to receive capability traces
- * Channel name: PML_TRACES_CHANNEL from src/events/event-bus.ts
+ * BroadcastChannel for real-time trace emission (legacy, kept for backward compatibility)
+ * Now primarily using postMessage for more reliable Worker ↔ main thread communication
  */
-const traceChannel = new BroadcastChannel("pml-traces");
+let traceChannel: BroadcastChannel | null = null;
 
 // ADR-041: Context stack for hierarchical trace tracking
 // Tracks current trace context (traceId of active capability)
@@ -167,7 +166,16 @@ function __trace(event: Partial<CapabilityTraceEvent>): void {
       }
     }
 
-    traceChannel.postMessage(fullEvent);
+    // Send trace via postMessage (more reliable than BroadcastChannel for Worker ↔ main thread)
+    self.postMessage({
+      type: "capability_trace",
+      trace: fullEvent,
+    });
+
+    // Also send via BroadcastChannel for backward compatibility (if available)
+    if (traceChannel) {
+      traceChannel.postMessage(fullEvent);
+    }
   } catch {
     // Never throw - tracing must not break execution
   }
@@ -175,7 +183,9 @@ function __trace(event: Partial<CapabilityTraceEvent>): void {
 
 // Cleanup on worker termination
 self.addEventListener("unload", () => {
-  traceChannel.close();
+  if (traceChannel) {
+    traceChannel.close();
+  }
 });
 
 /**
@@ -352,7 +362,7 @@ self.onmessage = async (e: MessageEvent<BridgeToWorkerMessage>) => {
  * ADR-041: Initializes root parent trace ID for hierarchical tracking
  */
 async function handleInit(msg: InitMessage): Promise<void> {
-  const { code, toolDefinitions, context, capabilityContext, parentTraceId, traceId } = msg;
+  const { code, toolDefinitions, context, capabilityContext, parentTraceId, traceId, traceChannelName } = msg;
 
   // ADR-041: Initialize root parent trace ID from workflow/task context
   __rootParentTraceId = parentTraceId;
@@ -360,6 +370,10 @@ async function handleInit(msg: InitMessage): Promise<void> {
   __preGeneratedTraceId = traceId;
   // ADR-041: Store for parentTraceId propagation (persists unlike __preGeneratedTraceId)
   __currentExecutionTraceId = traceId;
+
+  // Create BroadcastChannel with unique name from WorkerBridge (prevents test interference)
+  // Falls back to default name for backward compatibility
+  traceChannel = new BroadcastChannel(traceChannelName || "pml-traces");
 
   try {
     // Generate tool proxies from definitions

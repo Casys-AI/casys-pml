@@ -158,53 +158,63 @@ Deno.test("TraceFeatureExtractor - computes historical success rate", async () =
   await db.close();
 });
 
-Deno.test("TraceFeatureExtractor - computes recency score", async () => {
-  const db = await setupTestDb();
-  const extractor = new TraceFeatureExtractor(db, {
-    minTracesForStats: 1,
-    recencyHalfLifeHours: 24,
-  });
+Deno.test({
+  name: "TraceFeatureExtractor - computes recency score",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const extractor = new TraceFeatureExtractor(db, {
+      minTracesForStats: 1,
+      recencyHalfLifeHours: 24,
+    });
 
-  // Insert trace from 12 hours ago (half life = 24h, so recency ~0.7)
-  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-  await insertTestTraces(db, [
-    { executedPath: ["tool-recent"], success: true, durationMs: 100, executedAt: twelveHoursAgo },
-  ]);
+    // Insert trace from 12 hours ago (half life = 24h, so recency ~0.7)
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    await insertTestTraces(db, [
+      { executedPath: ["tool-recent"], success: true, durationMs: 100, executedAt: twelveHoursAgo },
+    ]);
 
-  const stats = await extractor.getTraceStats("tool-recent");
+    const stats = await extractor.getTraceStats("tool-recent");
 
-  // exp(-12 * ln(2) / 24) ≈ 0.707
-  assertGreater(stats.recencyScore, 0.6);
-  assertLessOrEqual(stats.recencyScore, 0.8);
+    // exp(-12 * ln(2) / 24) ≈ 0.707
+    assertGreater(stats.recencyScore, 0.6);
+    assertLessOrEqual(stats.recencyScore, 0.8);
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("TraceFeatureExtractor - computes usage frequency normalized", async () => {
-  const db = await setupTestDb();
-  const extractor = new TraceFeatureExtractor(db, { minTracesForStats: 1 });
+Deno.test({
+  name: "TraceFeatureExtractor - computes usage frequency normalized",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const extractor = new TraceFeatureExtractor(db, { minTracesForStats: 1 });
 
-  // Tool A: 5 uses, Tool B: 2 uses
-  await insertTestTraces(db, [
-    { executedPath: ["tool-A"], success: true, durationMs: 100 },
-    { executedPath: ["tool-A"], success: true, durationMs: 100 },
-    { executedPath: ["tool-A"], success: true, durationMs: 100 },
-    { executedPath: ["tool-A"], success: true, durationMs: 100 },
-    { executedPath: ["tool-A"], success: true, durationMs: 100 },
-    { executedPath: ["tool-B"], success: true, durationMs: 100 },
-    { executedPath: ["tool-B"], success: true, durationMs: 100 },
-  ]);
+    // Tool A: 5 uses, Tool B: 2 uses
+    await insertTestTraces(db, [
+      { executedPath: ["tool-A"], success: true, durationMs: 100 },
+      { executedPath: ["tool-A"], success: true, durationMs: 100 },
+      { executedPath: ["tool-A"], success: true, durationMs: 100 },
+      { executedPath: ["tool-A"], success: true, durationMs: 100 },
+      { executedPath: ["tool-A"], success: true, durationMs: 100 },
+      { executedPath: ["tool-B"], success: true, durationMs: 100 },
+      { executedPath: ["tool-B"], success: true, durationMs: 100 },
+    ]);
 
-  const statsA = await extractor.getTraceStats("tool-A");
-  const statsB = await extractor.getTraceStats("tool-B");
+    const statsA = await extractor.getTraceStats("tool-A");
+    const statsB = await extractor.getTraceStats("tool-B");
 
-  // Tool A has max usage, so frequency = 1.0
-  assertEquals(statsA.usageFrequency, 1.0);
+    // Tool A has max usage, so frequency = 1.0
+    assertEquals(statsA.usageFrequency, 1.0);
 
-  // Tool B has 2/5 = 0.4 frequency
-  assertAlmostEquals(statsB.usageFrequency, 0.4, 0.01);
+    // Tool B has 2/5 = 0.4 frequency
+    assertAlmostEquals(statsB.usageFrequency, 0.4, 0.01);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================================================
@@ -441,26 +451,31 @@ Deno.test({
 // Edge Case Tests: Cache Hit/Miss Tracking
 // ============================================================================
 
-Deno.test("TraceFeatureExtractor - cache miss increments on first access", async () => {
-  const db = await setupTestDb();
-  const extractor = new TraceFeatureExtractor(db, { minTracesForStats: 1 });
+Deno.test({
+  name: "TraceFeatureExtractor - cache miss increments on first access",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const extractor = new TraceFeatureExtractor(db, { minTracesForStats: 1 });
 
-  await insertTestTraces(db, [
-    { executedPath: ["tool-miss-test"], success: true, durationMs: 100 },
-  ]);
+    await insertTestTraces(db, [
+      { executedPath: ["tool-miss-test"], success: true, durationMs: 100 },
+    ]);
 
-  extractor.resetCacheStats();
-  const statsBefore = extractor.getCacheStats();
-  assertEquals(statsBefore.hits, 0);
-  assertEquals(statsBefore.misses, 0);
+    extractor.resetCacheStats();
+    const statsBefore = extractor.getCacheStats();
+    assertEquals(statsBefore.hits, 0);
+    assertEquals(statsBefore.misses, 0);
 
-  await extractor.getTraceStats("tool-miss-test");
+    await extractor.getTraceStats("tool-miss-test");
 
-  const statsAfter = extractor.getCacheStats();
-  assertEquals(statsAfter.misses, 1);
-  assertEquals(statsAfter.hits, 0);
+    const statsAfter = extractor.getCacheStats();
+    assertEquals(statsAfter.misses, 1);
+    assertEquals(statsAfter.hits, 0);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test("TraceFeatureExtractor - cache hit increments on second access", async () => {
@@ -598,23 +613,28 @@ Deno.test("TraceFeatureExtractor - sequencePosition normalizes correctly", async
   await db.close();
 });
 
-Deno.test("TraceFeatureExtractor - sequencePosition at end normalizes to 1.0", async () => {
-  const db = await setupTestDb();
-  const extractor = new TraceFeatureExtractor(db, { minTracesForStats: 1 });
+Deno.test({
+  name: "TraceFeatureExtractor - sequencePosition at end normalizes to 1.0",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const extractor = new TraceFeatureExtractor(db, { minTracesForStats: 1 });
 
-  // Tool always at last position
-  await insertTestTraces(db, [
-    { executedPath: ["start", "middle", "last-tool"], success: true, durationMs: 100 },
-    { executedPath: ["A", "B", "last-tool"], success: true, durationMs: 100 },
-  ]);
+    // Tool always at last position
+    await insertTestTraces(db, [
+      { executedPath: ["start", "middle", "last-tool"], success: true, durationMs: 100 },
+      { executedPath: ["A", "B", "last-tool"], success: true, durationMs: 100 },
+    ]);
 
-  const batchStats = await extractor.batchExtractTraceStats(["last-tool"]);
-  const stats = batchStats.get("last-tool")!;
+    const batchStats = await extractor.batchExtractTraceStats(["last-tool"]);
+    const stats = batchStats.get("last-tool")!;
 
-  // Position 3 of 3 -> normalized = (3-1)/(3-1) = 1.0
-  assertAlmostEquals(stats.sequencePosition, 1.0, 0.01);
+    // Position 3 of 3 -> normalized = (3-1)/(3-1) = 1.0
+    assertAlmostEquals(stats.sequencePosition, 1.0, 0.01);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================================================

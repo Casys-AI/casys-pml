@@ -587,7 +587,7 @@ Deno.test({
     assertEquals(result.success, true);
     assertStringIncludes(
       (result.result as Record<string, string>).error,
-      "not connected",
+      "unreachable", // RpcRouter returns "unreachable" for unknown servers
     );
     bridge.cleanup(); // Story 7.3b: Close BroadcastChannel
   },
@@ -1068,10 +1068,12 @@ Deno.test({
       capabilityContext,
     );
 
-    // Give BroadcastChannel time to deliver message
-    await new Promise((r) => setTimeout(r, 50));
-
-    const traces = bridge.getTraces();
+    // Wait for BroadcastChannel with polling (more reliable than fixed timeout)
+    let traces = bridge.getTraces();
+    for (let i = 0; i < 40 && traces.filter((t) => t.type === "capability_end").length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      traces = bridge.getTraces();
+    }
 
     // Should have capability_start and capability_end traces
     const startTrace = traces.find((t) => t.type === "capability_start");

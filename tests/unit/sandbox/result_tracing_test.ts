@@ -229,11 +229,14 @@ Deno.test({
       assertEquals(result.success, true);
       assertEquals(result.result, { transformed: "test-value" });
 
-      // Wait a bit for BroadcastChannel to propagate traces
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait for BroadcastChannel with polling (more reliable than fixed timeout)
+      let traces = bridge.getTraces();
+      for (let i = 0; i < 40 && traces.filter((t) => t.type === "capability_end").length === 0; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        traces = bridge.getTraces();
+      }
 
       // Assert: Check traces for capability_end with result
-      const traces = bridge.getTraces();
       const capabilityEndTrace = traces.find((t) => t.type === "capability_end") as TraceEvent & {
         result?: unknown;
         durationMs?: number;

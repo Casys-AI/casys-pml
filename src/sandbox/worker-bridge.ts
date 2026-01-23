@@ -173,7 +173,8 @@ export class WorkerBridge {
   private lastTraceId?: string;
 
   // Story 7.3b: BroadcastChannel for real-time capability trace collection (ADR-036)
-  private traceChannel: BroadcastChannel;
+  private traceChannel: BroadcastChannel | null = null;
+  private traceChannelName: string;
   private codeGenerator: CapabilityCodeGenerator;
   private rpcRouter: RpcRouter;
 
@@ -207,43 +208,8 @@ export class WorkerBridge {
 
     // Story 7.3b: Setup BroadcastChannel for capability traces
     // Story 6.5: Bridge capability traces to unified EventBus (ADR-036)
-    // Channel name: PML_TRACES_CHANNEL from src/events/event-bus.ts
-    this.traceChannel = new BroadcastChannel("pml-traces");
-    this.traceChannel.onmessage = (e: MessageEvent<CapabilityTraceEvent>) => {
-      // Add capability traces to unified trace array in real-time (backward compat)
-      this.traces.push(e.data);
-
-      // Story 6.5: Forward capability traces to unified EventBus
-      // ADR-041: Include parentTraceId for hierarchical tracking
-      if (e.data.type === "capability_start") {
-        eventBus.emit({
-          type: "capability.start",
-          source: "sandbox-worker",
-          payload: {
-            capabilityId: e.data.capabilityId,
-            capability: e.data.capability,
-            traceId: e.data.traceId,
-            parentTraceId: e.data.parentTraceId, // ADR-041
-            args: e.data.args, // ADR-041
-          },
-        });
-      } else if (e.data.type === "capability_end") {
-        eventBus.emit({
-          type: "capability.end",
-          source: "sandbox-worker",
-          payload: {
-            capabilityId: e.data.capabilityId,
-            capability: e.data.capability,
-            traceId: e.data.traceId,
-            parentTraceId: e.data.parentTraceId, // ADR-041
-            success: e.data.success ?? true,
-            durationMs: e.data.durationMs ?? 0,
-            error: e.data.error,
-            result: e.data.result, // Story 11.1
-          },
-        });
-      }
-    };
+    // Use unique channel name per WorkerBridge to prevent test interference
+    this.traceChannelName = `pml-traces-${crypto.randomUUID()}`;
 
     // Story 7.3b: Code generator for capability injection
     this.codeGenerator = new CapabilityCodeGenerator();
@@ -324,6 +290,44 @@ export class WorkerBridge {
         },
       });
 
+      // Setup BroadcastChannel for this execution (unique name per execution)
+      this.traceChannel = new BroadcastChannel(this.traceChannelName);
+      this.traceChannel.onmessage = (e: MessageEvent<CapabilityTraceEvent>) => {
+        // Add capability traces to unified trace array in real-time (backward compat)
+        this.traces.push(e.data);
+
+        // Story 6.5: Forward capability traces to unified EventBus
+        // ADR-041: Include parentTraceId for hierarchical tracking
+        if (e.data.type === "capability_start") {
+          eventBus.emit({
+            type: "capability.start",
+            source: "sandbox-worker",
+            payload: {
+              capabilityId: e.data.capabilityId,
+              capability: e.data.capability,
+              traceId: e.data.traceId,
+              parentTraceId: e.data.parentTraceId, // ADR-041
+              args: e.data.args, // ADR-041
+            },
+          });
+        } else if (e.data.type === "capability_end") {
+          eventBus.emit({
+            type: "capability.end",
+            source: "sandbox-worker",
+            payload: {
+              capabilityId: e.data.capabilityId,
+              capability: e.data.capability,
+              traceId: e.data.traceId,
+              parentTraceId: e.data.parentTraceId, // ADR-041
+              success: e.data.success ?? true,
+              durationMs: e.data.durationMs ?? 0,
+              error: e.data.error,
+              result: e.data.result, // Story 11.1
+            },
+          });
+        }
+      };
+
       // 2. Setup message handler
       this.worker.onmessage = (e: MessageEvent<WorkerToBridgeMessage>) => {
         this.handleWorkerMessage(e.data);
@@ -365,6 +369,7 @@ export class WorkerBridge {
           capabilityContext,
           parentTraceId, // ADR-041: Propagate trace hierarchy
           traceId: this.lastTraceId, // Pre-generated trace ID (used as DB id)
+          traceChannelName: this.traceChannelName, // Unique channel name per WorkerBridge
         };
 
         this.worker!.postMessage(initMessage);
@@ -762,6 +767,47 @@ export class WorkerBridge {
       this.handleRPCCall(msg as RPCCallMessage);
     } else if (msg.type === "execution_complete") {
       this.handleExecutionComplete(msg as ExecutionCompleteMessage);
+    } else if (msg.type === "capability_trace") {
+      this.handleCapabilityTrace(msg.trace);
+    }
+  }
+
+  /**
+   * Handle capability trace from Worker via postMessage
+   * More reliable than BroadcastChannel for Worker ↔ main thread communication
+   */
+  private handleCapabilityTrace(trace: CapabilityTraceEvent): void {
+    // Add to unified trace array
+    this.traces.push(trace);
+
+    // Forward to EventBus (ADR-036)
+    if (trace.type === "capability_start") {
+      eventBus.emit({
+        type: "capability.start",
+        source: "sandbox-worker",
+        payload: {
+          capabilityId: trace.capabilityId,
+          capability: trace.capability,
+          traceId: trace.traceId,
+          parentTraceId: trace.parentTraceId,
+          args: trace.args,
+        },
+      });
+    } else if (trace.type === "capability_end") {
+      eventBus.emit({
+        type: "capability.end",
+        source: "sandbox-worker",
+        payload: {
+          capabilityId: trace.capabilityId,
+          capability: trace.capability,
+          traceId: trace.traceId,
+          parentTraceId: trace.parentTraceId,
+          success: trace.success ?? true,
+          durationMs: trace.durationMs ?? 0,
+          error: trace.error,
+          result: trace.result,
+        },
+      });
     }
   }
 
@@ -1067,7 +1113,10 @@ export class WorkerBridge {
    */
   cleanup(): void {
     this.terminate();
-    this.traceChannel.close();
+    if (this.traceChannel) {
+      this.traceChannel.close();
+      this.traceChannel = null;
+    }
     logger.debug("WorkerBridge cleanup complete");
   }
 }

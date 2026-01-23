@@ -50,28 +50,33 @@ Deno.test("AlgorithmOTELSubscriber - isActive() returns false before start", () 
   assertEquals(subscriber.isActive(), false);
 });
 
-Deno.test("AlgorithmOTELSubscriber - start() subscribes to events when OTEL enabled", () => {
-  // Save original env
-  const originalOtelDeno = Deno.env.get("OTEL_DENO");
+Deno.test({
+  name: "AlgorithmOTELSubscriber - start() subscribes to events when OTEL enabled",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: () => {
+    // Save original env
+    const originalOtelDeno = Deno.env.get("OTEL_DENO");
 
-  try {
-    // Enable OTEL
-    Deno.env.set("OTEL_DENO", "true");
+    try {
+      // Enable OTEL
+      Deno.env.set("OTEL_DENO", "true");
 
-    const subscriber = new AlgorithmOTELSubscriber();
-    subscriber.start();
+      const subscriber = new AlgorithmOTELSubscriber();
+      subscriber.start();
 
-    assertEquals(subscriber.isActive(), true);
+      assertEquals(subscriber.isActive(), true);
 
-    subscriber.stop();
-  } finally {
-    // Restore env
-    if (originalOtelDeno) {
-      Deno.env.set("OTEL_DENO", originalOtelDeno);
-    } else {
-      Deno.env.delete("OTEL_DENO");
+      subscriber.stop();
+    } finally {
+      // Restore env
+      if (originalOtelDeno) {
+        Deno.env.set("OTEL_DENO", originalOtelDeno);
+      } else {
+        Deno.env.delete("OTEL_DENO");
+      }
     }
-  }
+  },
 });
 
 Deno.test({
@@ -157,7 +162,11 @@ Deno.test("AlgorithmOTELSubscriber - handles algorithm.decision events", async (
   }
 });
 
-Deno.test("AlgorithmOTELSubscriber - handles rejected decisions", async () => {
+Deno.test({
+  name: "AlgorithmOTELSubscriber - handles rejected decisions",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
   const originalOtelDeno = Deno.env.get("OTEL_DENO");
 
   try {
@@ -187,9 +196,14 @@ Deno.test("AlgorithmOTELSubscriber - handles rejected decisions", async () => {
       Deno.env.delete("OTEL_DENO");
     }
   }
+  },
 });
 
-Deno.test("AlgorithmOTELSubscriber - handles filtered decisions", async () => {
+Deno.test({
+  name: "AlgorithmOTELSubscriber - handles filtered decisions",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
   const originalOtelDeno = Deno.env.get("OTEL_DENO");
 
   try {
@@ -219,6 +233,7 @@ Deno.test("AlgorithmOTELSubscriber - handles filtered decisions", async () => {
       Deno.env.delete("OTEL_DENO");
     }
   }
+  },
 });
 
 Deno.test("AlgorithmOTELSubscriber - handles missing algorithmName", async () => {
@@ -252,69 +267,79 @@ Deno.test("AlgorithmOTELSubscriber - handles missing algorithmName", async () =>
   }
 });
 
-Deno.test("AlgorithmOTELSubscriber - handles missing intent", async () => {
-  const originalOtelDeno = Deno.env.get("OTEL_DENO");
+Deno.test({
+  name: "AlgorithmOTELSubscriber - handles missing intent",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const originalOtelDeno = Deno.env.get("OTEL_DENO");
 
-  try {
-    Deno.env.set("OTEL_DENO", "true");
+    try {
+      Deno.env.set("OTEL_DENO", "true");
 
-    const subscriber = new AlgorithmOTELSubscriber();
-    subscriber.start();
+      const subscriber = new AlgorithmOTELSubscriber();
+      subscriber.start();
 
-    // Emit with undefined intent
-    const testPayload = createTestPayload();
-    testPayload.intent = undefined;
+      // Emit with undefined intent
+      const testPayload = createTestPayload();
+      testPayload.intent = undefined;
 
-    eventBus.emit({
-      type: "algorithm.decision",
-      source: "test",
-      payload: testPayload,
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    subscriber.stop();
-  } finally {
-    if (originalOtelDeno) {
-      Deno.env.set("OTEL_DENO", originalOtelDeno);
-    } else {
-      Deno.env.delete("OTEL_DENO");
-    }
-  }
-});
-
-Deno.test("AlgorithmOTELSubscriber - handles rapid event burst", async () => {
-  const originalOtelDeno = Deno.env.get("OTEL_DENO");
-
-  try {
-    Deno.env.set("OTEL_DENO", "true");
-
-    const subscriber = new AlgorithmOTELSubscriber();
-    subscriber.start();
-
-    // Rapid fire 10 events
-    for (let i = 0; i < 10; i++) {
       eventBus.emit({
         type: "algorithm.decision",
         source: "test",
-        payload: createTestPayload({
-          algorithmName: `Algorithm${i}`,
-          finalScore: Math.random(),
-          decision: Math.random() > 0.5 ? "accepted" : "rejected",
-        }),
+        payload: testPayload,
       });
-    }
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
-    subscriber.stop();
-  } finally {
-    if (originalOtelDeno) {
-      Deno.env.set("OTEL_DENO", originalOtelDeno);
-    } else {
-      Deno.env.delete("OTEL_DENO");
+      subscriber.stop();
+    } finally {
+      if (originalOtelDeno) {
+        Deno.env.set("OTEL_DENO", originalOtelDeno);
+      } else {
+        Deno.env.delete("OTEL_DENO");
+      }
     }
-  }
+  },
+});
+
+Deno.test({
+  name: "AlgorithmOTELSubscriber - handles rapid event burst",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const originalOtelDeno = Deno.env.get("OTEL_DENO");
+
+    try {
+      Deno.env.set("OTEL_DENO", "true");
+
+      const subscriber = new AlgorithmOTELSubscriber();
+      subscriber.start();
+
+      // Rapid fire 10 events
+      for (let i = 0; i < 10; i++) {
+        eventBus.emit({
+          type: "algorithm.decision",
+          source: "test",
+          payload: createTestPayload({
+            algorithmName: `Algorithm${i}`,
+            finalScore: Math.random(),
+            decision: Math.random() > 0.5 ? "accepted" : "rejected",
+          }),
+        });
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      subscriber.stop();
+    } finally {
+      if (originalOtelDeno) {
+        Deno.env.set("OTEL_DENO", originalOtelDeno);
+      } else {
+        Deno.env.delete("OTEL_DENO");
+      }
+    }
+  },
 });
 
 Deno.test("AlgorithmOTELSubscriber - multiple start/stop cycles work", () => {
@@ -392,8 +417,12 @@ Deno.test("AlgorithmOTELSubscriber - different target types handled", async () =
   }
 });
 
-Deno.test("AlgorithmOTELSubscriber - different algorithm modes handled", async () => {
-  const originalOtelDeno = Deno.env.get("OTEL_DENO");
+Deno.test({
+  name: "AlgorithmOTELSubscriber - different algorithm modes handled",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const originalOtelDeno = Deno.env.get("OTEL_DENO");
 
   try {
     Deno.env.set("OTEL_DENO", "true");
@@ -429,4 +458,5 @@ Deno.test("AlgorithmOTELSubscriber - different algorithm modes handled", async (
       Deno.env.delete("OTEL_DENO");
     }
   }
+  },
 });

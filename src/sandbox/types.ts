@@ -251,6 +251,8 @@ export interface InitMessage {
   parentTraceId?: string;
   /** Pre-generated trace UUID for this execution (used as DB id) */
   traceId?: string;
+  /** Unique BroadcastChannel name for this execution (prevents test interference) */
+  traceChannelName?: string;
 }
 
 /**
@@ -268,9 +270,18 @@ export interface ExecutionCompleteMessage {
 }
 
 /**
+ * Capability trace message from Worker to Bridge
+ * Sent via postMessage (more reliable than BroadcastChannel for Worker ↔ main thread)
+ */
+export interface CapabilityTraceMessage {
+  type: "capability_trace";
+  trace: CapabilityTraceEvent;
+}
+
+/**
  * Union type for all Worker → Bridge messages
  */
-export type WorkerToBridgeMessage = RPCCallMessage | ExecutionCompleteMessage;
+export type WorkerToBridgeMessage = RPCCallMessage | ExecutionCompleteMessage | CapabilityTraceMessage;
 
 /**
  * Union type for all Bridge → Worker messages
