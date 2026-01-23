@@ -38,11 +38,11 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 | **High** | per-training.ts | IS weight/example index mismatch |
 | **Low** | execution-learning.ts | Silent skip when parent trace missing |
 | **Low** | per-training.ts | Global mutable `executionCounter` |
-| **Low** | per-training.ts | Code duplication (acceptable - in-process version unused in prod) |
+| ~~Low~~ | ~~per-training.ts~~ | ~~Code duplication~~ → **RESOLVED** (dead code removed) |
 
 > **Notes:**
 > - Sibling order was initially flagged but verified as FALSE POSITIVE - `getTraces()` sorts by timestamp (worker-bridge.ts:960).
-> - Code duplication downgraded to LOW - `trainSHGATOnPathTraces` (in-process) is not used in production, only `trainSHGATOnPathTracesSubprocess`.
+> - Code duplication RESOLVED - `trainSHGATOnPathTraces` (in-process) deleted, only subprocess version remains.
 
 ## Issue 1: N+1 Queries in flattenExecutedPath (HIGH)
 
@@ -307,35 +307,18 @@ Option B: Use atomic counter or move to a service class.
 
 ---
 
-## Issue 5: Code Duplication Between Training Functions (LOW - Acceptable Tech Debt)
+## Issue 5: Code Duplication Between Training Functions (RESOLVED)
 
-### Current Behavior
+### Resolution
 
-`trainSHGATOnPathTracesSubprocess()` duplicates ~80% of `trainSHGATOnPathTraces()`.
+**Deleted `trainSHGATOnPathTraces()`** - the in-process version was not used in production. Only `trainSHGATOnPathTracesSubprocess` is imported by `post-execution.service.ts`.
 
-### Analysis
+**Commit:** `ed3c19a` - Removed ~289 lines of dead code.
 
-**Production usage check:**
-- `post-execution.service.ts` imports **only** `trainSHGATOnPathTracesSubprocess`
-- `trainSHGATOnPathTraces` (in-process) is **not used in production** - only in tests
-
-**Conclusion:** The in-process version is effectively **dead code** in production. The subprocess version is the canonical implementation (non-blocking, better performance).
-
-### Recommended Action
-
-**Option A: Keep as-is (Recommended)**
-- In-process version serves as reference/test implementation
-- Subprocess is production path
-- No refactor needed - just ensure bug fixes go to subprocess version
-
-**Option B: Remove in-process version**
-- Delete `trainSHGATOnPathTraces()`
-- Update tests to use subprocess version or mock
-- Reduces maintenance burden
-
-### Decision
-
-**Downgraded to LOW** - Not a bug, just acceptable tech debt. The subprocess version is the only one used in production, so bug fixes (like Issue 2) only need to be applied there.
+**Changes:**
+- `src/graphrag/learning/per-training.ts` - Removed function
+- `src/graphrag/learning/mod.ts` - Removed export
+- `src/graphrag/learning/path-level-features.ts` - Updated comment
 
 ---
 
@@ -351,13 +334,14 @@ Option B: Use atomic counter or move to a service class.
 | 1.4 | Fix IS weight calculation alignment | 30m |
 | 1.5 | Add unit tests for both fixes | 2h |
 
-### Phase 2: Low Priority (Issues 3, 4, 5)
+### Phase 2: Low Priority (Issues 3 & 4)
 
 | Step | Task | Effort |
 |------|------|--------|
 | 2.1 | Add debug logging for missing parent | 15m |
 | 2.2 | Refactor executionCounter (optional) | 30m |
-| 2.3 | (Optional) Remove in-process training function if not needed for tests | 1h |
+
+> **Note:** Issue 5 (code duplication) already resolved - dead code removed in commit `ed3c19a`.
 
 ---
 
