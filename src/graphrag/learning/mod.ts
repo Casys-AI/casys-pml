@@ -44,7 +44,6 @@ export {
   shouldRunBatchTraining,
   type SubprocessPEROptions,
   traceToTrainingExamples,
-  trainSHGATOnPathTraces,
   trainSHGATOnPathTracesSubprocess,
 } from "./per-training.ts";
 
