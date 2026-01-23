@@ -6,7 +6,7 @@ Toutes les décisions d'architecture sont documentées dans le dossier dédié :
 
 L'index contient :
 
-- Liste complète des 41 ADRs (001-041)
+- Liste complète des 65 ADRs (001-065)
 - Statut de chaque décision (accepted, draft, proposed, superseded, rejected)
 - Statut d'implémentation (done, in_progress, partial, not_started)
 - Liens vers les fichiers détaillés
@@ -20,8 +20,10 @@ L'index contient :
 | 009-016 | Config, Transport, Graph Algorithms                                      | done           |
 | 017-026 | Gateway, Control Protocol, Search                                        | mostly done    |
 | 027-032 | Capabilities & Sandbox                                                   | in_progress    |
-| 033-041 | Future (OTel, Permissions, Multi-tenant)                                 | proposed/draft |
+| 033-049 | OTel, Permissions, Multi-tenant, Thresholds                              | proposed/draft |
+| 050-059 | SHGAT, Contrastive Learning, BLAS, Hybrid Routing                        | done           |
+| 060-065 | Hard Negatives, Schema Inference, Distribution, Trace Flush              | mostly done    |
 
 ---
 
-_Updated: 2025-12-10_
+_Updated: 2026-01-23_
