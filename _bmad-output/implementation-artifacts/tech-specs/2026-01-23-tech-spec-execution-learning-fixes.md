@@ -34,6 +34,7 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 
 | Severity | File | Issue |
 |----------|------|-------|
+| **CRITICAL** | per-training.ts | childTraceMap key mismatch - uses UUID but executedPath contains names (Issue 6) |
 | ~~**High**~~ **Medium** | per-training.ts | N+1 queries in `flattenExecutedPath()` (see investigation) |
 | ~~High~~ | ~~per-training.ts~~ | ~~IS weight/example index mismatch~~ → **RESOLVED** (was in deleted code) |
 | ~~Low~~ | ~~execution-learning.ts~~ | ~~Silent skip when parent trace missing~~ → **RESOLVED** |
@@ -309,22 +310,110 @@ Global mutable state can cause issues in:
 
 ---
 
+## Issue 6: childTraceMap Key Mismatch (CRITICAL)
+
+### Discovery (2026-01-23)
+
+Found during investigation of Issue 1 optimization.
+
+### Current Behavior
+
+```typescript
+// per-training.ts:166-182
+// Build a map of capability ID → child trace for efficient lookup
+const childTraceMap = new Map<string, ExecutionTrace>();
+for (const child of childTraces) {
+  if (child.capabilityId) {
+    childTraceMap.set(child.capabilityId, child);  // Key = UUID (e.g., "abc-123-...")
+  }
+}
+
+// ...
+for (const nodeId of executedPath) {
+  // nodeId comes from executedPath which contains NAMES (e.g., "fake:person")
+  const childTrace = childTraceMap.get(nodeId);  // NEVER MATCHES!
+  if (childTrace) {
+    // This code is never reached
+  }
+}
+```
+
+### Root Cause
+
+1. **executedPath** contains capability **names** (e.g., `"fake:person"`):
+   - Built in `worker-bridge.ts:432-433` using `t.capability` (the name)
+
+2. **childTraceMap** is keyed by **UUIDs** (`child.capabilityId`):
+   - `capabilityId` is the FK to `workflow_pattern.pattern_id`
+
+3. **Lookup fails** because `"fake:person" !== "abc-123-def-456"`
+
+### Impact
+
+**Hierarchical trace flattening does NOT work in production.**
+
+- `flattenExecutedPath()` never actually flattens nested capabilities
+- SHGAT training only sees top-level tools, missing nested structure
+- Tests pass because they mock with matching IDs (e.g., `capabilityId: "B"` matches `nodeId: "B"`)
+
+### Proposed Fix
+
+**Option A:** Use capability name as key (simpler)
+```typescript
+for (const child of childTraces) {
+  // Use intentText or lookup capability name from workflow_pattern
+  const capName = child.intentText ?? child.capabilityId;  // Needs proper name lookup
+  childTraceMap.set(capName, child);
+}
+```
+
+**Option B:** Store capability name in child trace
+- Add `calledAsName` field to ExecutionTrace
+- Populated when nested capability starts with the name used to call it
+
+**Option C:** Enrich executedPath with capabilityId
+- Store `{name, capabilityId}` objects instead of strings
+- Breaking change to executedPath format
+
+### Files to Modify
+
+- `src/graphrag/learning/per-training.ts` - Fix key lookup logic
+- `src/sandbox/worker-bridge.ts` - Potentially add capabilityId to executedPath
+- `src/capabilities/types/execution.ts` - Potentially add field to ExecutionTrace
+
+### Tests
+
+- [ ] Fix existing `flattenExecutedPath` tests to use realistic data (UUID vs name)
+- [ ] Integration test: verify nested capability actually flattens in real execution
+
+---
+
 ## Implementation Plan
 
-### Phase 1: Performance Optimization (Issue 1 - MEDIUM)
+### Phase 0: Critical Bug Fix (Issue 6 - CRITICAL)
 
 | Step | Task | Effort |
 |------|------|--------|
-| 1.1 | Add `getChildTracesForMultipleParents()` to ExecutionTraceStore | 1h |
-| 1.2 | Add `preloadAllChildTraces()` helper | 1h |
-| 1.3 | Update `flattenExecutedPath()` to use preloaded map | 1h |
-| 1.4 | Add unit tests for batch loading | 1h |
+| 0.1 | Investigate best fix approach (Option A/B/C) | 1h |
+| 0.2 | Implement fix | 2h |
+| 0.3 | Fix tests to use realistic data | 1h |
 
-> **All issues resolved except Issue 1:**
+### Phase 1: Performance Optimization (Issue 1 - MEDIUM)
+
+| Step | Task | Effort | Status |
+|------|------|--------|--------|
+| 1.1 | Add `getChildTracesForMultipleParents()` to ExecutionTraceStore | 1h | ✅ `d3c9bb7` |
+| 1.2 | Add `preloadAllChildTraces()` helper | 1h | ⏸️ Blocked by Issue 6 |
+| 1.3 | Update `flattenExecutedPath()` to use preloaded map | 1h | ⏸️ Blocked by Issue 6 |
+| 1.4 | Add unit tests for batch loading | 1h | |
+
+> **Status:**
+> - Issue 1 (N+1 queries) → Step 1.1 done, rest blocked by Issue 6
 > - Issue 2 (IS weight mismatch) → **RESOLVED** (was in deleted code)
 > - Issue 3 (silent skip) → commit `f37c3ac`
 > - Issue 4 (global counter) → commit `38494dc` (documented)
 > - Issue 5 (code duplication) → commit `ed3c19a`
+> - **Issue 6 (key mismatch) → CRITICAL - flattenExecutedPath is broken**
 
 ### Priority Assessment
 
