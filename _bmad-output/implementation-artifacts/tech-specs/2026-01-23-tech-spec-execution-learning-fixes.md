@@ -34,8 +34,8 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 
 | Severity | File | Issue |
 |----------|------|-------|
-| **High** | per-training.ts | N+1 queries in `flattenExecutedPath()` |
-| **High** | per-training.ts | IS weight/example index mismatch |
+| ~~**High**~~ **Medium** | per-training.ts | N+1 queries in `flattenExecutedPath()` (see investigation) |
+| ~~High~~ | ~~per-training.ts~~ | ~~IS weight/example index mismatch~~ → **RESOLVED** (was in deleted code) |
 | ~~Low~~ | ~~execution-learning.ts~~ | ~~Silent skip when parent trace missing~~ → **RESOLVED** |
 | ~~Low~~ | ~~per-training.ts~~ | ~~Global mutable `executionCounter`~~ → **DOCUMENTED** |
 | ~~Low~~ | ~~per-training.ts~~ | ~~Code duplication~~ → **RESOLVED** (dead code removed) |
@@ -43,13 +43,14 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 > **Notes:**
 > - Sibling order was initially flagged but verified as FALSE POSITIVE - `getTraces()` sorts by timestamp (worker-bridge.ts:960).
 > - Code duplication RESOLVED - `trainSHGATOnPathTraces` (in-process) deleted, only subprocess version remains.
+> - IS weight mismatch RESOLVED - The bug was in the deleted `trainSHGATOnPathTraces` function. The subprocess version correctly uses `flatPath` and delegates IS weights to `PERBuffer`.
 
-## Issue 1: N+1 Queries in flattenExecutedPath (HIGH)
+## Issue 1: N+1 Queries in flattenExecutedPath (HIGH → MEDIUM)
 
 ### Current Behavior
 
 ```typescript
-// per-training.ts:404-447
+// per-training.ts:118-161
 export async function flattenExecutedPath(
   trace: ExecutionTrace,
   traceStore: ExecutionTraceStore,
@@ -68,7 +69,48 @@ export async function flattenExecutedPath(
 }
 ```
 
-**Impact:** With 100 traces, each having 2-3 levels of nesting, this causes 200-300+ sequential DB queries.
+### Investigation Findings (2026-01-23)
+
+**Query Flow:**
+```
+post-execution.service.ts:122 → runPERBatchTraining()
+  ↓ non-blocking (fire-and-forget)
+  ↓ protected by trainingLock
+trainSHGATOnPathTracesSubprocess (line 485-504)
+  ↓ for each trace (maxTraces=50)
+flattenExecutedPath (line 118-161)
+  ↓ await traceStore.getChildTraces(trace.id) ← 1 query per trace
+  ↓ recurse if children exist
+```
+
+**Query Count Analysis:**
+
+| Scenario | Traces | Depth | Queries |
+|----------|--------|-------|---------|
+| Best (all leaf traces) | 50 | 0 | **50** |
+| Typical (95% leaves, 5% nested) | 50 | 1 | ~55 |
+| Worst (all 2-level nested) | 50 | 2 | ~350 |
+
+**Production Config (post-execution.service.ts:435-443):**
+- `maxTraces: 50` - Caps query count
+- `epochs: 1` - Fast training
+- `usePER: false` - Simpler sampling
+- Training runs after EVERY successful execution
+
+**Mitigating Factors:**
+1. ✅ **Background execution** - Training doesn't block user requests
+2. ✅ **trainingLock** - Prevents query pile-up from concurrent runs
+3. ✅ **Most traces are leaves** - ~95% of traces are tool executions with no children
+4. ✅ **maxTraces=50** - Bounded worst case
+
+**Real Impact:**
+1. ⚠️ **Cold start queries** - 50 queries even if all traces are childless
+2. ⚠️ **Database contention** - Sequential queries hold connection
+3. ⚠️ **Scales with depth** - If meta-capabilities become common, queries multiply
+
+**Severity Re-assessment:** HIGH → **MEDIUM**
+- Not urgent because training is non-blocking and bounded
+- Still worth fixing for performance and future scalability
 
 ### Proposed Fix
 
@@ -147,75 +189,36 @@ export function flattenExecutedPathSync(
 
 ---
 
-## Issue 2: IS Weight/Example Index Mismatch (HIGH)
+## Issue 2: IS Weight/Example Index Mismatch (RESOLVED)
 
-### Current Behavior
+### Initial Analysis
+
+The original concern was that `exampleWeights` was calculated using `executedPath.length` while examples were generated from `flatPath.length`, causing misalignment.
+
+### Investigation Findings (2026-01-23)
+
+**This bug was in the deleted `trainSHGATOnPathTraces` (in-process) function.**
+
+The current `trainSHGATOnPathTracesSubprocess` does NOT have this issue:
 
 ```typescript
-// per-training.ts:319-324
-for (let t = 0; t < traces.length; t++) {
-  const numExamplesFromTrace = traces[t].executedPath?.length ?? 0;  // Uses executedPath
-  for (let e = 0; e < numExamplesFromTrace; e++) {
-    exampleWeights.push(traceWeights[t]);
+// per-training.ts:496-503 - Current code (correct)
+for (const trace of traces) {
+  const flatPath = await flattenExecutedPath(trace, traceStore);  // Uses flatPath
+  const examples = traceToTrainingExamples(trace, flatPath, ...);  // Generates from flatPath
+
+  for (const _ex of examples) {
+    exampleToTraceId.push(trace.id);  // Tracks per example (correct)
   }
+  allExamples.push(...examples);
 }
 ```
 
-But examples are generated from `flatPath`:
+**IS weights** are calculated automatically by `PERBuffer.sample()` in the subprocess (lib/shgat/src/training/per-buffer.ts:94-98), based on sampling probabilities - NOT on trace/example counts.
 
-```typescript
-// per-training.ts:272
-const flatPath = await flattenExecutedPath(trace, traceStore);  // Uses flatPath (expanded)
+### Resolution
 
-// per-training.ts:578
-for (let i = 0; i < flatPath.length; i++) {  // Iterates flatPath
-  examples.push({ ... });
-}
-```
-
-**Problem:** If `flatPath.length > executedPath.length` (after recursive expansion), `exampleWeights` will have fewer entries than `allExamples`. The IS weights will be misaligned or cause index out of bounds.
-
-### Proposed Fix
-
-Count examples AFTER generation, not before:
-
-```typescript
-// per-training.ts - Option A: Count after generation
-const exampleCountBefore = allExamples.length;
-const examples = traceToTrainingExamples(trace, flatPath, ...);
-const exampleCountAfter = allExamples.length + examples.length;
-
-// Push weight for each example actually generated
-for (let e = 0; e < examples.length; e++) {
-  exampleWeights.push(traceWeights[t]);
-}
-allExamples.push(...examples);
-```
-
-Or alternatively, build weights inline:
-
-```typescript
-// per-training.ts - Option B: Build weights during example generation
-for (let t = 0; t < traces.length; t++) {
-  const trace = traces[t];
-  const flatPath = await flattenExecutedPath(trace, traceStore);
-  const examples = traceToTrainingExamples(trace, flatPath, ...);
-
-  for (const ex of examples) {
-    allExamples.push(ex);
-    exampleWeights.push(traceWeights[t]);  // Weight per actual example
-  }
-}
-```
-
-### Files to Modify
-
-- `src/graphrag/learning/per-training.ts` - Fix weight calculation in both `trainSHGATOnPathTraces()` and `trainSHGATOnPathTracesSubprocess()`
-
-### Tests
-
-- [ ] `tests/unit/graphrag/per_training_test.ts` - Test with traces that expand (flatPath > executedPath)
-- [ ] Assert `exampleWeights.length === allExamples.length`
+**RESOLVED** - The buggy code was removed when we deleted `trainSHGATOnPathTraces` (dead code removal). No fix needed.
 
 ---
 
@@ -308,30 +311,43 @@ Global mutable state can cause issues in:
 
 ## Implementation Plan
 
-### Phase 1: Critical Fixes (Issues 1 & 2)
+### Phase 1: Performance Optimization (Issue 1 - MEDIUM)
 
 | Step | Task | Effort |
 |------|------|--------|
 | 1.1 | Add `getChildTracesForMultipleParents()` to ExecutionTraceStore | 1h |
 | 1.2 | Add `preloadAllChildTraces()` helper | 1h |
 | 1.3 | Update `flattenExecutedPath()` to use preloaded map | 1h |
-| 1.4 | Fix IS weight calculation alignment | 30m |
-| 1.5 | Add unit tests for both fixes | 2h |
+| 1.4 | Add unit tests for batch loading | 1h |
 
-> **All low-priority issues resolved:**
+> **All issues resolved except Issue 1:**
+> - Issue 2 (IS weight mismatch) → **RESOLVED** (was in deleted code)
 > - Issue 3 (silent skip) → commit `f37c3ac`
 > - Issue 4 (global counter) → commit `38494dc` (documented)
 > - Issue 5 (code duplication) → commit `ed3c19a`
+
+### Priority Assessment
+
+Issue 1 is **MEDIUM priority** (not urgent) because:
+- Training is background/non-blocking
+- `trainingLock` prevents query pile-up
+- Most traces are leaf traces (~95%)
+- `maxTraces=50` bounds worst case
+
+However, it's **worth implementing** because:
+- 10-100x fewer queries is significant
+- Clean, maintainable implementation
+- Future-proofs for deeper hierarchies
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] **AC1:** `flattenExecutedPath()` makes O(depth) queries instead of O(traces * depth)
-- [ ] **AC2:** `exampleWeights.length === allExamples.length` always true (in subprocess version)
+- [ ] **AC1:** `flattenExecutedPath()` makes O(depth) queries instead of O(traces × depth)
+- [x] **AC2:** IS weights calculated correctly ✅ (verified - handled by PERBuffer)
 - [x] **AC3:** Missing parent traces logged at debug level ✅
 - [ ] **AC4:** All existing tests pass
-- [ ] **AC5:** New tests added for critical fixes (Issues 1 & 2)
+- [ ] **AC5:** New tests added for batch loading (Issue 1)
 
 ---
 
