@@ -340,13 +340,17 @@ for (const nodeId of executedPath) {
 
 ### Root Cause
 
-1. **executedPath** contains capability **names** (e.g., `"fake:person"`):
-   - Built in `worker-bridge.ts:432-433` using `t.capability` (the name)
+1. **executedPath** contains **normalized UUIDs** (underscores):
+   - Built in `worker-bridge.ts:432-433` using `t.capability`
+   - `t.capability` comes from `code-generator.ts:95` → `normalizeCapabilityName(cap.name || "", cap.id)`
+   - Since `cap.name` is deprecated (migration 022), it uses `cap.id` (UUID)
+   - `normalizeCapabilityName` replaces `-` with `_`: `"abc-def-123"` → `"abc_def_123"`
 
-2. **childTraceMap** is keyed by **UUIDs** (`child.capabilityId`):
-   - `capabilityId` is the FK to `workflow_pattern.pattern_id`
+2. **childTraceMap** is keyed by **raw UUIDs** (dashes):
+   - `child.capabilityId` comes from `execution_trace.capability_id` column
+   - This is the raw UUID: `"abc-def-123"`
 
-3. **Lookup fails** because `"fake:person" !== "abc-123-def-456"`
+3. **Lookup fails** because `"abc_def_123" !== "abc-def-123"` (underscores vs dashes)
 
 ### Impact
 
@@ -358,22 +362,24 @@ for (const nodeId of executedPath) {
 
 ### Proposed Fix
 
-**Option A:** Use capability name as key (simpler)
+**Option A:** Normalize the key in childTraceMap (simplest)
 ```typescript
 for (const child of childTraces) {
-  // Use intentText or lookup capability name from workflow_pattern
-  const capName = child.intentText ?? child.capabilityId;  // Needs proper name lookup
-  childTraceMap.set(capName, child);
+  if (child.capabilityId) {
+    // Normalize UUID to match executedPath format (dashes → underscores)
+    const normalizedId = child.capabilityId.replace(/-/g, "_");
+    childTraceMap.set(normalizedId, child);
+  }
 }
 ```
 
-**Option B:** Store capability name in child trace
-- Add `calledAsName` field to ExecutionTrace
-- Populated when nested capability starts with the name used to call it
+**Option B:** Store raw UUID in executedPath
+- Modify `worker-bridge.ts:433` to use `t.capabilityId` instead of `t.capability`
+- Breaking change to executedPath format (but data is ephemeral)
 
-**Option C:** Enrich executedPath with capabilityId
+**Option C:** Store both in executedPath
 - Store `{name, capabilityId}` objects instead of strings
-- Breaking change to executedPath format
+- More invasive change
 
 ### Files to Modify
 
