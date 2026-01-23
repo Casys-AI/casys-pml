@@ -36,11 +36,13 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 |----------|------|-------|
 | **High** | per-training.ts | N+1 queries in `flattenExecutedPath()` |
 | **High** | per-training.ts | IS weight/example index mismatch |
-| **Medium** | per-training.ts | Code duplication between training functions |
 | **Low** | execution-learning.ts | Silent skip when parent trace missing |
 | **Low** | per-training.ts | Global mutable `executionCounter` |
+| **Low** | per-training.ts | Code duplication (acceptable - in-process version unused in prod) |
 
-> **Note:** Sibling order was initially flagged but verified as FALSE POSITIVE - `getTraces()` sorts by timestamp (worker-bridge.ts:960).
+> **Notes:**
+> - Sibling order was initially flagged but verified as FALSE POSITIVE - `getTraces()` sorts by timestamp (worker-bridge.ts:960).
+> - Code duplication downgraded to LOW - `trainSHGATOnPathTraces` (in-process) is not used in production, only `trainSHGATOnPathTracesSubprocess`.
 
 ## Issue 1: N+1 Queries in flattenExecutedPath (HIGH)
 
@@ -305,92 +307,35 @@ Option B: Use atomic counter or move to a service class.
 
 ---
 
-## Issue 5: Code Duplication Between Training Functions (MEDIUM)
+## Issue 5: Code Duplication Between Training Functions (LOW - Acceptable Tech Debt)
 
 ### Current Behavior
 
-`trainSHGATOnPathTracesSubprocess()` (lines 675-950) duplicates ~80% of `trainSHGATOnPathTraces()` (lines 130-379):
+`trainSHGATOnPathTracesSubprocess()` duplicates ~80% of `trainSHGATOnPathTraces()`.
 
-```typescript
-// Both functions have nearly identical:
-// 1. Trace count check (lines 148-165 vs 701-718)
-// 2. PER sampling (lines 168-182 vs 721-735)
-// 3. Path features extraction (line 185 vs 738)
-// 4. Embedding collection (lines 188-204 vs 741-751)
-// 5. Adaptive threshold computation (lines 236-257 vs implicit)
-// 6. Example generation loop (lines 260-281 vs 761-780)
-// 7. Empty examples check (lines 283-295 vs 782-794)
-```
+### Analysis
 
-**Problems:**
-- Bug fixes must be applied in two places
-- Divergence risk (already happening - subprocess version missing adaptive thresholds)
-- Maintenance burden
+**Production usage check:**
+- `post-execution.service.ts` imports **only** `trainSHGATOnPathTracesSubprocess`
+- `trainSHGATOnPathTraces` (in-process) is **not used in production** - only in tests
 
-### Proposed Fix
+**Conclusion:** The in-process version is effectively **dead code** in production. The subprocess version is the canonical implementation (non-blocking, better performance).
 
-Extract common logic into shared helpers:
+### Recommended Action
 
-```typescript
-// per-training.ts - Shared types
-interface TrainingPreparation {
-  traces: ExecutionTrace[];
-  pathFeatures: Map<string, PathLevelFeatures>;
-  allEmbeddings: Map<string, number[]>;
-  capToTools: Map<string, Set<string>>;
-  adaptiveMin: number;
-  adaptiveMax: number;
-}
+**Option A: Keep as-is (Recommended)**
+- In-process version serves as reference/test implementation
+- Subprocess is production path
+- No refactor needed - just ensure bug fixes go to subprocess version
 
-// Shared preparation function
-async function prepareTrainingData(
-  traceStore: ExecutionTraceStore,
-  options: PERTrainingOptions,
-  capabilities?: CapabilityForTraining[],
-): Promise<TrainingPreparation | { fallback: PERTrainingResult }> {
-  // All common logic here:
-  // - Trace count check
-  // - PER sampling
-  // - Path features extraction
-  // - Embedding collection
-  // - Adaptive threshold computation
-}
+**Option B: Remove in-process version**
+- Delete `trainSHGATOnPathTraces()`
+- Update tests to use subprocess version or mock
+- Reduces maintenance burden
 
-// Shared example generation
-async function generateTrainingExamples(
-  traces: ExecutionTrace[],
-  traceStore: ExecutionTraceStore,
-  preparation: TrainingPreparation,
-): Promise<{ examples: TrainingExample[]; exampleToTraceId: string[] }> {
-  // Common example generation loop
-}
+### Decision
 
-// Simplified main functions
-export async function trainSHGATOnPathTraces(...): Promise<PERTrainingResult> {
-  const prep = await prepareTrainingData(traceStore, options);
-  if ('fallback' in prep) return prep.fallback;
-
-  const { examples, exampleToTraceId } = await generateTrainingExamples(traces, traceStore, prep);
-  // ... in-process training specific code
-}
-
-export async function trainSHGATOnPathTracesSubprocess(...): Promise<PERTrainingResult> {
-  const prep = await prepareTrainingData(traceStore, options, capabilities);
-  if ('fallback' in prep) return prep.fallback;
-
-  const { examples, exampleToTraceId } = await generateTrainingExamples(traces, traceStore, prep);
-  // ... subprocess specific code (spawnSHGATTraining, etc.)
-}
-```
-
-### Files to Modify
-
-- `src/graphrag/learning/per-training.ts` - Extract shared helpers
-
-### Tests
-
-- [ ] Existing tests should pass after refactor
-- [ ] Both functions produce identical results for same input
+**Downgraded to LOW** - Not a bug, just acceptable tech debt. The subprocess version is the only one used in production, so bug fixes (like Issue 2) only need to be applied there.
 
 ---
 
@@ -406,32 +351,23 @@ export async function trainSHGATOnPathTracesSubprocess(...): Promise<PERTraining
 | 1.4 | Fix IS weight calculation alignment | 30m |
 | 1.5 | Add unit tests for both fixes | 2h |
 
-### Phase 2: Medium Fix (Issue 5)
+### Phase 2: Low Priority (Issues 3, 4, 5)
 
 | Step | Task | Effort |
 |------|------|--------|
-| 2.1 | Extract `prepareTrainingData()` shared helper | 1h |
-| 2.2 | Extract `generateTrainingExamples()` shared helper | 1h |
-| 2.3 | Refactor both training functions to use helpers | 1h |
-| 2.4 | Verify both functions produce identical results | 30m |
-
-### Phase 3: Low Priority (Issues 3 & 4)
-
-| Step | Task | Effort |
-|------|------|--------|
-| 3.1 | Add debug logging for missing parent | 15m |
-| 3.2 | Refactor executionCounter (optional) | 30m |
+| 2.1 | Add debug logging for missing parent | 15m |
+| 2.2 | Refactor executionCounter (optional) | 30m |
+| 2.3 | (Optional) Remove in-process training function if not needed for tests | 1h |
 
 ---
 
 ## Acceptance Criteria
 
 - [ ] **AC1:** `flattenExecutedPath()` makes O(depth) queries instead of O(traces * depth)
-- [ ] **AC2:** `exampleWeights.length === allExamples.length` always true
+- [ ] **AC2:** `exampleWeights.length === allExamples.length` always true (in subprocess version)
 - [ ] **AC3:** Missing parent traces logged at debug level
 - [ ] **AC4:** All existing tests pass
-- [ ] **AC5:** New tests added for each fix
-- [ ] **AC6:** `trainSHGATOnPathTraces` and `trainSHGATOnPathTracesSubprocess` share common helpers (DRY)
+- [ ] **AC5:** New tests added for critical fixes (Issues 1 & 2)
 
 ---
 
