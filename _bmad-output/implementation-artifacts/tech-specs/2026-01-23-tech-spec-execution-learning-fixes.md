@@ -37,6 +37,7 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 | **High** | per-training.ts | N+1 queries in `flattenExecutedPath()` |
 | **High** | per-training.ts | IS weight/example index mismatch |
 | **Medium** | execution-learning.ts | Sibling order not guaranteed by timestamp |
+| **Medium** | per-training.ts | Code duplication between training functions |
 | **Low** | execution-learning.ts | Silent skip when parent trace missing |
 | **Low** | per-training.ts | Global mutable `executionCounter` |
 
@@ -366,6 +367,95 @@ Option B: Use atomic counter or move to a service class.
 
 ---
 
+## Issue 6: Code Duplication Between Training Functions (MEDIUM)
+
+### Current Behavior
+
+`trainSHGATOnPathTracesSubprocess()` (lines 675-950) duplicates ~80% of `trainSHGATOnPathTraces()` (lines 130-379):
+
+```typescript
+// Both functions have nearly identical:
+// 1. Trace count check (lines 148-165 vs 701-718)
+// 2. PER sampling (lines 168-182 vs 721-735)
+// 3. Path features extraction (line 185 vs 738)
+// 4. Embedding collection (lines 188-204 vs 741-751)
+// 5. Adaptive threshold computation (lines 236-257 vs implicit)
+// 6. Example generation loop (lines 260-281 vs 761-780)
+// 7. Empty examples check (lines 283-295 vs 782-794)
+```
+
+**Problems:**
+- Bug fixes must be applied in two places
+- Divergence risk (already happening - subprocess version missing adaptive thresholds)
+- Maintenance burden
+
+### Proposed Fix
+
+Extract common logic into shared helpers:
+
+```typescript
+// per-training.ts - Shared types
+interface TrainingPreparation {
+  traces: ExecutionTrace[];
+  pathFeatures: Map<string, PathLevelFeatures>;
+  allEmbeddings: Map<string, number[]>;
+  capToTools: Map<string, Set<string>>;
+  adaptiveMin: number;
+  adaptiveMax: number;
+}
+
+// Shared preparation function
+async function prepareTrainingData(
+  traceStore: ExecutionTraceStore,
+  options: PERTrainingOptions,
+  capabilities?: CapabilityForTraining[],
+): Promise<TrainingPreparation | { fallback: PERTrainingResult }> {
+  // All common logic here:
+  // - Trace count check
+  // - PER sampling
+  // - Path features extraction
+  // - Embedding collection
+  // - Adaptive threshold computation
+}
+
+// Shared example generation
+async function generateTrainingExamples(
+  traces: ExecutionTrace[],
+  traceStore: ExecutionTraceStore,
+  preparation: TrainingPreparation,
+): Promise<{ examples: TrainingExample[]; exampleToTraceId: string[] }> {
+  // Common example generation loop
+}
+
+// Simplified main functions
+export async function trainSHGATOnPathTraces(...): Promise<PERTrainingResult> {
+  const prep = await prepareTrainingData(traceStore, options);
+  if ('fallback' in prep) return prep.fallback;
+
+  const { examples, exampleToTraceId } = await generateTrainingExamples(traces, traceStore, prep);
+  // ... in-process training specific code
+}
+
+export async function trainSHGATOnPathTracesSubprocess(...): Promise<PERTrainingResult> {
+  const prep = await prepareTrainingData(traceStore, options, capabilities);
+  if ('fallback' in prep) return prep.fallback;
+
+  const { examples, exampleToTraceId } = await generateTrainingExamples(traces, traceStore, prep);
+  // ... subprocess specific code (spawnSHGATTraining, etc.)
+}
+```
+
+### Files to Modify
+
+- `src/graphrag/learning/per-training.ts` - Extract shared helpers
+
+### Tests
+
+- [ ] Existing tests should pass after refactor
+- [ ] Both functions produce identical results for same input
+
+---
+
 ## Implementation Plan
 
 ### Phase 1: Critical Fixes (Issues 1 & 2)
@@ -378,13 +468,17 @@ Option B: Use atomic counter or move to a service class.
 | 1.4 | Fix IS weight calculation alignment | 30m |
 | 1.5 | Add unit tests for both fixes | 2h |
 
-### Phase 2: Medium Fixes (Issue 3)
+### Phase 2: Medium Fixes (Issues 3 & 6)
 
 | Step | Task | Effort |
 |------|------|--------|
 | 2.1 | Add timestamp tracking to execution-learning | 30m |
 | 2.2 | Sort children before sequence edge creation | 30m |
 | 2.3 | Add unit test with out-of-order traces | 1h |
+| 2.4 | Extract `prepareTrainingData()` shared helper | 1h |
+| 2.5 | Extract `generateTrainingExamples()` shared helper | 1h |
+| 2.6 | Refactor both training functions to use helpers | 1h |
+| 2.7 | Verify both functions produce identical results | 30m |
 
 ### Phase 3: Low Priority (Issues 4 & 5)
 
@@ -403,6 +497,7 @@ Option B: Use atomic counter or move to a service class.
 - [ ] **AC4:** Missing parent traces logged at debug level
 - [ ] **AC5:** All existing tests pass
 - [ ] **AC6:** New tests added for each fix
+- [ ] **AC7:** `trainSHGATOnPathTraces` and `trainSHGATOnPathTracesSubprocess` share common helpers (DRY)
 
 ---
 
