@@ -37,7 +37,7 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 | **High** | per-training.ts | N+1 queries in `flattenExecutedPath()` |
 | **High** | per-training.ts | IS weight/example index mismatch |
 | ~~Low~~ | ~~execution-learning.ts~~ | ~~Silent skip when parent trace missing~~ → **RESOLVED** |
-| **Low** | per-training.ts | Global mutable `executionCounter` |
+| ~~Low~~ | ~~per-training.ts~~ | ~~Global mutable `executionCounter`~~ → **DOCUMENTED** |
 | ~~Low~~ | ~~per-training.ts~~ | ~~Code duplication~~ → **RESOLVED** (dead code removed) |
 
 > **Notes:**
@@ -261,7 +261,7 @@ if (!parentNodeId) {
 
 ---
 
-## Issue 4: Global Mutable executionCounter (LOW)
+## Issue 4: Global Mutable executionCounter (DOCUMENTED)
 
 ### Current Behavior
 
@@ -280,30 +280,14 @@ Global mutable state can cause issues in:
 - Multiple server instances
 - Worker threads
 
-### Proposed Fix
+### Resolution
 
-Option A: Make counter instance-based (pass to function):
+**Decision:** Document rather than refactor. The limitation is acceptable because:
+- Training is idempotent (running more/less often is fine)
+- `trainingLock` prevents concurrent training runs
+- The interval is approximate, not strict
 
-```typescript
-export function shouldRunBatchTraining(
-  counter: { value: number },
-  interval = 10,
-  force = false,
-): boolean {
-  counter.value++;
-  return force || counter.value % interval === 0;
-}
-```
-
-Option B: Use atomic counter or move to a service class.
-
-### Files to Modify
-
-- `src/graphrag/learning/per-training.ts` - Refactor counter
-
-### Tests
-
-- [ ] Test parallel calls don't interfere
+**Commit:** `38494dc` - Added NOTE comment explaining shared state limitations.
 
 ---
 
@@ -334,15 +318,10 @@ Option B: Use atomic counter or move to a service class.
 | 1.4 | Fix IS weight calculation alignment | 30m |
 | 1.5 | Add unit tests for both fixes | 2h |
 
-### Phase 2: Low Priority (Issue 4 only)
-
-| Step | Task | Effort |
-|------|------|--------|
-| 2.1 | Refactor executionCounter (optional) | 30m |
-
-> **Notes:**
-> - Issue 3 (silent skip) resolved in commit `f37c3ac`
-> - Issue 5 (code duplication) resolved in commit `ed3c19a`
+> **All low-priority issues resolved:**
+> - Issue 3 (silent skip) → commit `f37c3ac`
+> - Issue 4 (global counter) → commit `38494dc` (documented)
+> - Issue 5 (code duplication) → commit `ed3c19a`
 
 ---
 
