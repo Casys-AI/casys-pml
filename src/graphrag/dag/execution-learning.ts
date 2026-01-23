@@ -7,6 +7,7 @@
  * @module graphrag/dag/execution-learning
  */
 
+import * as log from "@std/log";
 import type { TraceEvent } from "../../sandbox/types.ts";
 import type { EdgeSource, EdgeType } from "../algorithms/edge-weights.ts";
 import {
@@ -140,7 +141,14 @@ export async function updateFromCodeExecution(
   // Phase 2: Create 'contains' edges (parent → child)
   for (const [parentTraceId, children] of parentToChildren) {
     const parentNodeId = traceToNode.get(parentTraceId);
-    if (!parentNodeId) continue;
+    if (!parentNodeId) {
+      log.debug("[execution-learning] Parent trace not in traceToNode, skipping contains edges", {
+        parentTraceId,
+        childCount: children.length,
+        hint: "Parent may lack tool_end/capability_end event",
+      });
+      continue;
+    }
 
     for (const childNodeId of children) {
       if (parentNodeId === childNodeId) continue;
