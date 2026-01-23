@@ -313,6 +313,16 @@ export function traceToTrainingExamples(
 
 /**
  * Execution counter for periodic batch training
+ *
+ * NOTE: This is global mutable state shared across all sessions/workers in the
+ * same process. This means:
+ * - In tests: counter may be affected by parallel tests (use resetExecutionCounter)
+ * - In prod with multiple workers: each worker has its own counter (not synchronized)
+ *
+ * This is acceptable because:
+ * - Training is idempotent (running more/less often is fine)
+ * - The interval is approximate, not a strict requirement
+ * - trainingLock prevents concurrent training runs
  */
 let executionCounter = 0;
 
