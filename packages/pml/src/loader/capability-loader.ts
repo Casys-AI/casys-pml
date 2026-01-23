@@ -34,7 +34,7 @@ import { resolveToolRouting } from "../routing/mod.ts";
 import { SandboxWorker } from "../sandbox/mod.ts";
 import type { SandboxResult } from "../sandbox/mod.ts";
 import { TraceCollector, TraceSyncer } from "../tracing/mod.ts";
-import type { TraceSyncConfig } from "../tracing/mod.ts";
+import type { TraceSyncConfig, LocalExecutionTrace, JsonValue } from "../tracing/mod.ts";
 import { sanitize } from "../byok/sanitizer.ts";
 import {
   checkKeys,
@@ -45,6 +45,13 @@ import {
 import { LockfileManager } from "../lockfile/mod.ts";
 import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
 import { loaderLog } from "../logging.ts";
+import AjvModule from "ajv";
+import type { ErrorObject } from "ajv";
+
+// Singleton AJV instance for schema validation
+// deno-lint-ignore no-explicit-any
+const Ajv = (AjvModule as any).default || AjvModule;
+const ajv = new Ajv({ allErrors: true, strict: false });
 
 /**
  * Log debug message for loader operations.
@@ -52,6 +59,36 @@ import { loaderLog } from "../logging.ts";
  */
 function logDebug(message: string): void {
   loaderLog.debug(sanitize(message));
+}
+
+/**
+ * Validate arguments against a JSON Schema using AJV.
+ *
+ * @param args - Arguments to validate
+ * @param schema - JSON Schema
+ * @returns Array of validation errors (empty if valid)
+ */
+function validateArgsAgainstSchema(
+  args: unknown,
+  schema: Record<string, unknown>,
+): string[] {
+  const validate = ajv.compile(schema);
+  const valid = validate(args);
+
+  if (valid) {
+    return [];
+  }
+
+  // Format AJV errors into readable messages
+  return (validate.errors ?? []).map((err: ErrorObject) => {
+    const path = err.instancePath || "/";
+    const message = err.message || "validation failed";
+    if (err.keyword === "required") {
+      const missing = (err.params as { missingProperty?: string })?.missingProperty;
+      return `Missing required field: '${missing}'`;
+    }
+    return `${path}: ${message}`;
+  });
 }
 
 /**
@@ -133,8 +170,34 @@ export class CapabilityLoader {
    */
   private readonly approvedTools = new Set<string>();
 
+  /**
+   * Stack of active trace IDs for parent-child linking.
+   * When a capability calls another capability, the current traceId
+   * becomes the parentTraceId for the nested call.
+   */
+  private readonly traceIdStack: string[] = [];
+
+  /**
+   * Pending traces collected during execution.
+   * ADR-041: Traces are NOT synced during execution to avoid FK violations.
+   * They are collected here and flushed at the end via flushTraces().
+   */
+  private pendingTraces: LocalExecutionTrace[] = [];
+
   /** Whether initialization is complete */
   private initialized = false;
+
+  /**
+   * Get the root workflow ID for approval_required responses.
+   * ADR-041: Uses the root traceId from traceIdStack if available,
+   * otherwise generates a new one. This ensures the same ID is used
+   * for traces and HIL continuation.
+   */
+  private getRootWorkflowId(): string {
+    return this.traceIdStack.length > 0
+      ? this.traceIdStack[0]
+      : crypto.randomUUID();
+  }
 
   private constructor(
     options: CapabilityLoaderOptions,
@@ -498,12 +561,14 @@ export class CapabilityLoader {
    * @param fqdn - Full FQDN (e.g., "alice.default.fs.listDirectory")
    * @param args - Tool arguments
    * @param continueWorkflow - Optional: approval from previous call
+   * @param parentTraceId - Optional: trace ID of parent execution (ADR-041)
    * @returns Tool result or ApprovalRequiredResult
    */
   async callWithFqdn(
     fqdn: string,
     args: unknown,
     continueWorkflow?: ContinueWorkflowParams,
+    parentTraceId?: string,
   ): Promise<unknown | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Extract action from FQDN: org.project.namespace.action[.hash]
     const parts = fqdn.split(".");
@@ -523,7 +588,20 @@ export class CapabilityLoader {
       return loadResult;
     }
 
-    return loadResult.call(action, args);
+    // ADR-041: Push parent trace ID onto stack before execution
+    // This links nested capability traces to their parent
+    if (parentTraceId) {
+      this.traceIdStack.push(parentTraceId);
+    }
+
+    try {
+      return await loadResult.call(action, args);
+    } finally {
+      // Pop parent trace ID from stack
+      if (parentTraceId) {
+        this.traceIdStack.pop();
+      }
+    }
   }
 
   /**
@@ -897,11 +975,12 @@ export class CapabilityLoader {
     }
 
     // Permission is "ask" - return unified tool_permission approval
+    // ADR-041: Use root workflowId for trace consistency
     loaderLog.info(`⏸ APPROVAL_REQUIRED: ${effectiveToolId} (install ${dep.name}@${dep.version})`);
     return {
       approvalRequired: true,
       approvalType: "tool_permission",
-      workflowId: crypto.randomUUID(),
+      workflowId: this.getRootWorkflowId(),
       toolId: effectiveToolId,
       namespace: dep.name,
       needsInstallation: true,
@@ -964,8 +1043,37 @@ export class CapabilityLoader {
   ): Promise<unknown> {
     logDebug(`Executing ${meta.fqdn} in sandbox`);
 
-    // Story 14.5b: Create trace collector if tracing is enabled
-    const traceCollector = this.tracingEnabled ? new TraceCollector() : null;
+    // Fail-fast: Validate arguments against schema if available
+    if (meta.parametersSchema) {
+      const validationErrors = validateArgsAgainstSchema(args, meta.parametersSchema);
+      if (validationErrors.length > 0) {
+        throw new LoaderError(
+          "VALIDATION_ERROR",
+          `Invalid arguments for ${meta.fqdn}: ${validationErrors.join(", ")}`,
+          {
+            fqdn: meta.fqdn,
+            errors: validationErrors,
+            schema: meta.parametersSchema,
+          },
+        );
+      }
+      logDebug(`Arguments validated against schema for ${meta.fqdn}`);
+    }
+
+    // Story 14.5b + ADR-041: Create trace collector with parent-child linking
+    // If there's an active parent trace, pass its ID as parentTraceId
+    const parentTraceId = this.traceIdStack.length > 0
+      ? this.traceIdStack[this.traceIdStack.length - 1]
+      : undefined;
+
+    const traceCollector = this.tracingEnabled
+      ? new TraceCollector({ parentTraceId })
+      : null;
+
+    // Push this trace's ID onto the stack for any nested calls
+    if (traceCollector) {
+      this.traceIdStack.push(traceCollector.getTraceId());
+    }
 
     // Create sandbox with RPC handler that records mcp.* calls
     const sandbox = new SandboxWorker({
@@ -1007,14 +1115,15 @@ export class CapabilityLoader {
       const result: SandboxResult = await sandbox.execute(code, args);
 
       if (!result.success) {
-        // Story 14.5b: Finalize trace with failure
+        // ADR-041: Finalize trace with failure - add to pending (not synced yet)
         if (traceCollector) {
           const trace = traceCollector.finalize(
             meta.fqdn,
             false,
             result.error?.message,
           );
-          this.traceSyncer.enqueue(trace);
+          this.pendingTraces.push(trace);
+          logDebug(`Pending trace added (failure): ${meta.fqdn}`);
         }
 
         // Convert sandbox error to LoaderError
@@ -1030,16 +1139,20 @@ export class CapabilityLoader {
         );
       }
 
-      // Story 14.5b: Finalize trace with success and enqueue for sync
+      // ADR-041: Finalize trace with success - add to pending (not synced yet)
       if (traceCollector) {
         const trace = traceCollector.finalize(meta.fqdn, true);
-        this.traceSyncer.enqueue(trace);
-        logDebug(`Trace collected: ${meta.fqdn} - ${trace.taskResults.length} mcp.* calls`);
+        this.pendingTraces.push(trace);
+        logDebug(`Pending trace added: ${meta.fqdn} - ${trace.taskResults.length} mcp.* calls`);
       }
 
       logDebug(`Sandbox execution completed in ${result.durationMs}ms`);
       return result.value;
     } finally {
+      // Pop trace ID from stack (must happen even on error)
+      if (traceCollector) {
+        this.traceIdStack.pop();
+      }
       // Always clean up sandbox
       sandbox.shutdown();
     }
@@ -1112,10 +1225,11 @@ export class CapabilityLoader {
 
         logDebug(`Tool ${toolId} requires approval (needsInstallation: ${needsInstallation})`);
 
+        // ADR-041: Use root workflowId for trace consistency
         return {
           approvalRequired: true,
           approvalType: "tool_permission",
-          workflowId: crypto.randomUUID(),
+          workflowId: this.getRootWorkflowId(),
           toolId,
           namespace,
           needsInstallation,
@@ -1268,6 +1382,107 @@ export class CapabilityLoader {
   clearCache(): void {
     this.loadedCapabilities.clear();
     this.registryClient.clearCache();
+  }
+
+  /**
+   * Enqueue a trace to pending list (for later flush).
+   *
+   * ADR-041: Traces are collected during execution and only flushed at the end.
+   * This ensures parent traces exist before children (FK constraint).
+   *
+   * @param trace - Trace to add to pending list
+   */
+  enqueuePendingTrace(trace: LocalExecutionTrace): void {
+    this.pendingTraces.push(trace);
+    logDebug(`Pending trace added: ${trace.capabilityId} (total: ${this.pendingTraces.length})`);
+  }
+
+  /**
+   * Get and clear pending traces.
+   *
+   * Returns the current pending traces and clears the list.
+   * Used for testing and for manual trace handling.
+   *
+   * @returns Array of pending traces (list is cleared after call)
+   */
+  getPendingTraces(): LocalExecutionTrace[] {
+    const traces = this.pendingTraces;
+    this.pendingTraces = [];
+    return traces;
+  }
+
+  /**
+   * Enqueue a trace for the direct code execution (parent trace).
+   *
+   * This creates a trace entry for the outer SandboxExecutor execution,
+   * which serves as the parent for any capability traces created during execution.
+   *
+   * @param traceId - Trace ID generated by SandboxExecutor
+   * @param success - Whether execution succeeded
+   * @param durationMs - Execution duration in milliseconds
+   * @param error - Error message if failed
+   * @param toolCallRecords - Records of tool calls made during execution
+   */
+  /**
+   * Enqueue a trace for direct code execution (no registered capability).
+   *
+   * @param traceId - Trace ID generated by SandboxExecutor
+   * @param success - Whether execution succeeded
+   * @param durationMs - Execution duration in milliseconds
+   * @param error - Error message if failed
+   * @param toolCallRecords - Records of tool calls made during execution
+   * @param workflowId - Workflow ID for server-side capability creation
+   */
+  enqueueDirectExecutionTrace(
+    traceId: string,
+    success: boolean,
+    durationMs: number,
+    error?: string,
+    toolCallRecords?: Array<{ tool: string; args: unknown; result: unknown; success: boolean; durationMs: number }>,
+    workflowId?: string,
+  ): void {
+    const trace: LocalExecutionTrace = {
+      traceId,
+      parentTraceId: undefined, // Direct execution has no parent
+      workflowId, // Server will create capability using stored LearningContext
+      // capabilityId omitted - server creates it when workflowId is present
+      success,
+      error,
+      durationMs,
+      taskResults: (toolCallRecords ?? []).map((r, i) => ({
+        taskId: `t${i + 1}`,
+        tool: r.tool,
+        args: (r.args ?? {}) as Record<string, JsonValue>,
+        result: r.result as JsonValue,
+        success: r.success,
+        durationMs: r.durationMs,
+        timestamp: new Date().toISOString(),
+      })),
+      decisions: [],
+      timestamp: new Date().toISOString(),
+    };
+    this.pendingTraces.push(trace);
+    logDebug(`Direct execution trace added: ${traceId} (workflowId: ${workflowId ?? "none"})`);
+  }
+
+  /**
+   * Flush pending traces with dependency ordering.
+   *
+   * ADR-041: Moves all pending traces to syncer, sorts by dependency,
+   * then flushes to cloud. Parents are saved before children (FK constraint).
+   *
+   * Call this at the end of a complete execution before returning results.
+   */
+  async flushTraces(): Promise<void> {
+    // Move all pending traces to syncer
+    for (const trace of this.pendingTraces) {
+      this.traceSyncer.enqueue(trace);
+    }
+    this.pendingTraces = [];
+
+    // Sort and flush
+    this.traceSyncer.sortQueueByDependency();
+    await this.traceSyncer.flush();
   }
 
   /**
