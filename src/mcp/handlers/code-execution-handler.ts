@@ -289,6 +289,30 @@ async function tryDagExecution(
       const clientTools = toolsUsed.filter((t) => getToolRouting(t) === "client");
 
       if (deps.isPackageClient) {
+        // Fail-fast: Check for $cap:uuid references that can't be executed in package sandbox
+        // The package sandbox only supports mcp.namespace.action() syntax, not mcp["$cap:uuid"]
+        const capRefPattern = /mcp\["\$cap:([0-9a-f-]{36})"\]/gi;
+        const capRefs = [...request.code.matchAll(capRefPattern)];
+
+        if (capRefs.length > 0) {
+          const unresolvedUuids = capRefs.map((m) => m[1]);
+          log.warn("[Hybrid Routing] Code contains unresolved $cap:uuid references", {
+            unresolvedCount: unresolvedUuids.length,
+            uuids: unresolvedUuids.slice(0, 5), // Log first 5
+          });
+
+          return formatMCPToolError(
+            `Code contains ${unresolvedUuids.length} unresolved capability reference(s) that cannot be executed in the package sandbox. ` +
+            `The package sandbox only supports mcp.namespace.action() syntax. ` +
+            `Found: ${unresolvedUuids.slice(0, 3).map((u) => `mcp["$cap:${u}"]`).join(", ")}${unresolvedUuids.length > 3 ? "..." : ""}. ` +
+            `Please use explicit tool calls like mcp.filesystem.read_file() instead of capability references.`,
+            {
+              error_code: "UNRESOLVED_CAP_REFERENCES",
+              unresolved_uuids: unresolvedUuids,
+            },
+          );
+        }
+
         // Resolve tool IDs to FQDNs (user scope → public → pml.mcp)
         const resolvedTools = await resolveToolFqdns(toolsUsed, deps);
 
