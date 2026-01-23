@@ -508,6 +508,45 @@ export class ExecutionTraceStore {
     return result.map((row) => this.rowToTrace(row as Row));
   }
 
+  /**
+   * Get child traces for multiple parents in a single query (N+1 optimization)
+   *
+   * Batch-loads child traces for multiple parent IDs in one query,
+   * reducing O(n) queries to O(1) for flat traces.
+   *
+   * @param parentIds - Array of parent trace UUIDs
+   * @returns Map of parent trace ID → child traces
+   */
+  async getChildTracesForMultipleParents(
+    parentIds: string[],
+  ): Promise<Map<string, ExecutionTrace[]>> {
+    if (parentIds.length === 0) {
+      return new Map();
+    }
+
+    const result = await this.db.query(
+      `${SELECT_TRACE_WITH_INTENT}
+       WHERE et.parent_trace_id = ANY($1)
+       ORDER BY et.parent_trace_id, et.executed_at ASC`,
+      [parentIds],
+    );
+
+    // Group by parent_trace_id
+    const childMap = new Map<string, ExecutionTrace[]>();
+    for (const row of result) {
+      const trace = this.rowToTrace(row as Row);
+      const parentId = trace.parentTraceId;
+      if (parentId) {
+        if (!childMap.has(parentId)) {
+          childMap.set(parentId, []);
+        }
+        childMap.get(parentId)!.push(trace);
+      }
+    }
+
+    return childMap;
+  }
+
   // NOTE: pruneOldTraces() was removed - traces are precious for learning
   // and should not be automatically deleted. If storage becomes an issue,
   // consider archiving to cold storage instead of deletion.
