@@ -36,10 +36,11 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 |----------|------|-------|
 | **High** | per-training.ts | N+1 queries in `flattenExecutedPath()` |
 | **High** | per-training.ts | IS weight/example index mismatch |
-| **Medium** | execution-learning.ts | Sibling order not guaranteed by timestamp |
 | **Medium** | per-training.ts | Code duplication between training functions |
 | **Low** | execution-learning.ts | Silent skip when parent trace missing |
 | **Low** | per-training.ts | Global mutable `executionCounter` |
+
+> **Note:** Sibling order was initially flagged but verified as FALSE POSITIVE - `getTraces()` sorts by timestamp (worker-bridge.ts:960).
 
 ## Issue 1: N+1 Queries in flattenExecutedPath (HIGH)
 
@@ -216,70 +217,7 @@ for (let t = 0; t < traces.length; t++) {
 
 ---
 
-## Issue 3: Sibling Order Not Guaranteed by Timestamp (MEDIUM)
-
-### Current Behavior
-
-```typescript
-// execution-learning.ts:104-108
-if (trace.parentTraceId) {
-  if (!parentToChildren.has(trace.parentTraceId)) {
-    parentToChildren.set(trace.parentTraceId, []);
-  }
-  parentToChildren.get(trace.parentTraceId)!.push(nodeId);  // Order = input order
-}
-```
-
-The order of children depends on the order traces are passed to `updateFromCodeExecution()`. If traces are not sorted by `created_at` or `timestamp`, sequence edges will be wrong.
-
-### Proposed Fix
-
-Sort children by timestamp before creating sequence edges:
-
-```typescript
-// execution-learning.ts - Add timestamp tracking
-const traceTimestamps = new Map<string, number>();
-
-// Phase 1: Also track timestamps
-for (const trace of traces) {
-  if (trace.type !== "tool_end" && trace.type !== "capability_end") continue;
-
-  const nodeId = /* ... */;
-  traceToNode.set(trace.traceId, nodeId);
-  traceTimestamps.set(nodeId, trace.timestamp);  // Track timestamp
-
-  if (trace.parentTraceId) {
-    // ... same as before
-  }
-}
-
-// Phase 3: Sort children by timestamp before creating sequence edges
-for (const [parentTraceId, children] of parentToChildren) {
-  // Sort by timestamp
-  children.sort((a, b) => {
-    const tsA = traceTimestamps.get(a) ?? 0;
-    const tsB = traceTimestamps.get(b) ?? 0;
-    return tsA - tsB;
-  });
-
-  for (let i = 0; i < children.length - 1; i++) {
-    // ... create sequence edge
-  }
-}
-```
-
-### Files to Modify
-
-- `src/graphrag/dag/execution-learning.ts` - Add timestamp tracking and sorting
-
-### Tests
-
-- [ ] `tests/unit/graphrag/execution_learning_test.ts` - Test with out-of-order traces
-- [ ] Verify sequence edges follow temporal order
-
----
-
-## Issue 4: Silent Skip When Parent Trace Missing (LOW)
+## Issue 3: Silent Skip When Parent Trace Missing (LOW)
 
 ### Current Behavior
 
@@ -321,7 +259,7 @@ if (!parentNodeId) {
 
 ---
 
-## Issue 5: Global Mutable executionCounter (LOW)
+## Issue 4: Global Mutable executionCounter (LOW)
 
 ### Current Behavior
 
@@ -367,7 +305,7 @@ Option B: Use atomic counter or move to a service class.
 
 ---
 
-## Issue 6: Code Duplication Between Training Functions (MEDIUM)
+## Issue 5: Code Duplication Between Training Functions (MEDIUM)
 
 ### Current Behavior
 
@@ -468,19 +406,16 @@ export async function trainSHGATOnPathTracesSubprocess(...): Promise<PERTraining
 | 1.4 | Fix IS weight calculation alignment | 30m |
 | 1.5 | Add unit tests for both fixes | 2h |
 
-### Phase 2: Medium Fixes (Issues 3 & 6)
+### Phase 2: Medium Fix (Issue 5)
 
 | Step | Task | Effort |
 |------|------|--------|
-| 2.1 | Add timestamp tracking to execution-learning | 30m |
-| 2.2 | Sort children before sequence edge creation | 30m |
-| 2.3 | Add unit test with out-of-order traces | 1h |
-| 2.4 | Extract `prepareTrainingData()` shared helper | 1h |
-| 2.5 | Extract `generateTrainingExamples()` shared helper | 1h |
-| 2.6 | Refactor both training functions to use helpers | 1h |
-| 2.7 | Verify both functions produce identical results | 30m |
+| 2.1 | Extract `prepareTrainingData()` shared helper | 1h |
+| 2.2 | Extract `generateTrainingExamples()` shared helper | 1h |
+| 2.3 | Refactor both training functions to use helpers | 1h |
+| 2.4 | Verify both functions produce identical results | 30m |
 
-### Phase 3: Low Priority (Issues 4 & 5)
+### Phase 3: Low Priority (Issues 3 & 4)
 
 | Step | Task | Effort |
 |------|------|--------|
@@ -493,11 +428,10 @@ export async function trainSHGATOnPathTracesSubprocess(...): Promise<PERTraining
 
 - [ ] **AC1:** `flattenExecutedPath()` makes O(depth) queries instead of O(traces * depth)
 - [ ] **AC2:** `exampleWeights.length === allExamples.length` always true
-- [ ] **AC3:** Sequence edges follow temporal order regardless of input trace order
-- [ ] **AC4:** Missing parent traces logged at debug level
-- [ ] **AC5:** All existing tests pass
-- [ ] **AC6:** New tests added for each fix
-- [ ] **AC7:** `trainSHGATOnPathTraces` and `trainSHGATOnPathTracesSubprocess` share common helpers (DRY)
+- [ ] **AC3:** Missing parent traces logged at debug level
+- [ ] **AC4:** All existing tests pass
+- [ ] **AC5:** New tests added for each fix
+- [ ] **AC6:** `trainSHGATOnPathTraces` and `trainSHGATOnPathTracesSubprocess` share common helpers (DRY)
 
 ---
 
