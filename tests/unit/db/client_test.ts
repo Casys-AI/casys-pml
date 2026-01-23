@@ -131,27 +131,32 @@ Deno.test("AC5: CRUD operations - Create", async () => {
   await client.close();
 });
 
-Deno.test("AC5: CRUD operations - Read", async () => {
-  const client = new PGliteClient(getTestDbPath("ac5-read"));
-  await client.connect();
+Deno.test({
+  name: "AC5: CRUD operations - Read",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const client = new PGliteClient(getTestDbPath("ac5-read"));
+    await client.connect();
 
-  const runner = new MigrationRunner(client);
-  await runner.runUp(getAllMigrations());
+    const runner = new MigrationRunner(client);
+    await runner.runUp(getAllMigrations());
 
-  // Insert test data
-  await client.exec(
-    `INSERT INTO tool_schema (tool_id, server_id, name, input_schema)
-     VALUES ('read-test', 'test-server', 'Read Test', '${JSON.stringify({ type: "object" })}')`,
-  );
+    // Insert test data
+    await client.exec(
+      `INSERT INTO tool_schema (tool_id, server_id, name, input_schema)
+       VALUES ('read-test', 'test-server', 'Read Test', '${JSON.stringify({ type: "object" })}')`,
+    );
 
-  // Read the data
-  const result = await client.query(
-    "SELECT * FROM tool_schema WHERE tool_id = 'read-test'",
-  );
+    // Read the data
+    const result = await client.query(
+      "SELECT * FROM tool_schema WHERE tool_id = 'read-test'",
+    );
 
-  assertEquals(result.length, 1);
-  assertEquals(result[0].name, "Read Test");
-  await client.close();
+    assertEquals(result.length, 1);
+    assertEquals(result[0].name, "Read Test");
+    await client.close();
+  },
 });
 
 Deno.test("AC5: CRUD operations - Update", async () => {

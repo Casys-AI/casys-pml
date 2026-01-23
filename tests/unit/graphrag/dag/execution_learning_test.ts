@@ -494,60 +494,65 @@ Deno.test("Execution Learning - updateFromCodeExecution with complex hierarchy",
   await db.close();
 });
 
-Deno.test("Execution Learning - updateFromCodeExecution with multiple parents", async () => {
-  const graph = new DirectedGraph() as ExecutionLearningGraph;
-  const db = await createTestDb();
+Deno.test({
+  name: "Execution Learning - updateFromCodeExecution with multiple parents",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const graph = new DirectedGraph() as ExecutionLearningGraph;
+    const db = await createTestDb();
 
-  const traces: TraceEvent[] = [
-    {
-      type: "capability_end",
-      capability: "parent1",
-      capabilityId: "cap-p1",
-      traceId: "trace-p1",
-      ts: Date.now(),
-      success: true,
-      durationMs: 50,
-    },
-    {
-      type: "capability_end",
-      capability: "parent2",
-      capabilityId: "cap-p2",
-      traceId: "trace-p2",
-      ts: Date.now(),
-      success: true,
-      durationMs: 50,
-    },
-    {
-      type: "tool_end",
-      tool: "tool:A",
-      traceId: "trace-a",
-      parentTraceId: "trace-p1",
-      ts: Date.now() + 10,
-      success: true,
-      durationMs: 5,
-    },
-    {
-      type: "tool_end",
-      tool: "tool:B",
-      traceId: "trace-b",
-      parentTraceId: "trace-p2",
-      ts: Date.now() + 10,
-      success: true,
-      durationMs: 5,
-    },
-  ];
+    const traces: TraceEvent[] = [
+      {
+        type: "capability_end",
+        capability: "parent1",
+        capabilityId: "cap-p1",
+        traceId: "trace-p1",
+        ts: Date.now(),
+        success: true,
+        durationMs: 50,
+      },
+      {
+        type: "capability_end",
+        capability: "parent2",
+        capabilityId: "cap-p2",
+        traceId: "trace-p2",
+        ts: Date.now(),
+        success: true,
+        durationMs: 50,
+      },
+      {
+        type: "tool_end",
+        tool: "tool:A",
+        traceId: "trace-a",
+        parentTraceId: "trace-p1",
+        ts: Date.now() + 10,
+        success: true,
+        durationMs: 5,
+      },
+      {
+        type: "tool_end",
+        tool: "tool:B",
+        traceId: "trace-b",
+        parentTraceId: "trace-p2",
+        ts: Date.now() + 10,
+        success: true,
+        durationMs: 5,
+      },
+    ];
 
-  const result = await updateFromCodeExecution(graph, db, traces);
+    const result = await updateFromCodeExecution(graph, db, traces);
 
-  assertEquals(result.nodesCreated, 4);
-  assertEquals(result.edgesCreated, 2); // Two separate parent->child edges
+    assertEquals(result.nodesCreated, 4);
+    assertEquals(result.edgesCreated, 2); // Two separate parent->child edges
 
-  assertEquals(graph.hasEdge("capability:cap-p1", "tool:A"), true);
-  assertEquals(graph.hasEdge("capability:cap-p2", "tool:B"), true);
-  // No sequence edge between tool:A and tool:B (different parents)
-  assertEquals(graph.hasEdge("tool:A", "tool:B"), false);
+    assertEquals(graph.hasEdge("capability:cap-p1", "tool:A"), true);
+    assertEquals(graph.hasEdge("capability:cap-p2", "tool:B"), true);
+    // No sequence edge between tool:A and tool:B (different parents)
+    assertEquals(graph.hasEdge("tool:A", "tool:B"), false);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test({

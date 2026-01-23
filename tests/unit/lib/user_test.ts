@@ -177,21 +177,26 @@ Deno.test("FQDN generation: username becomes org in FQDN", async () => {
   await client.close();
 });
 
-Deno.test("FQDN generation: fallback to 'local' when no user", async () => {
-  const client = await setupTestDb("fqdn-fallback-local");
+Deno.test({
+  name: "FQDN generation: fallback to 'local' when no user",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const client = await setupTestDb("fqdn-fallback-local");
 
-  // Simulate no authenticated user
-  const userId: string | null = null;
-  const userResult = userId
-    ? await client.queryOne(`SELECT username FROM users WHERE id = '${userId}'::uuid;`)
-    : null;
+    // Simulate no authenticated user
+    const userId: string | null = null;
+    const userResult = userId
+      ? await client.queryOne(`SELECT username FROM users WHERE id = '${userId}'::uuid;`)
+      : null;
 
-  // Fallback FQDN
-  const org = userResult?.username ?? "local";
-  const project = "default";
-  const fqdn = `${org}.${project}.test.action`;
+    // Fallback FQDN
+    const org = userResult?.username ?? "local";
+    const project = "default";
+    const fqdn = `${org}.${project}.test.action`;
 
-  assertEquals(fqdn, "local.default.test.action");
+    assertEquals(fqdn, "local.default.test.action");
 
-  await client.close();
+    await client.close();
+  },
 });

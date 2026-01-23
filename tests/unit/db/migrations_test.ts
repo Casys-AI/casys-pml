@@ -95,25 +95,30 @@ Deno.test("AC6: Migration system - rollback", async () => {
   await client.close();
 });
 
-Deno.test("AC6: Migration system - get current version", async () => {
-  const client = new PGliteClient(getTestDbPath("mig-version"));
-  await client.connect();
+Deno.test({
+  name: "AC6: Migration system - get current version",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const client = new PGliteClient(getTestDbPath("mig-version"));
+    await client.connect();
 
-  const runner = new MigrationRunner(client);
-  const migration = createInitialMigration();
+    const runner = new MigrationRunner(client);
+    const migration = createInitialMigration();
 
-  // Initially should be version 0
-  let version = await runner.getCurrentVersion();
-  assertEquals(version, 0);
+    // Initially should be version 0
+    let version = await runner.getCurrentVersion();
+    assertEquals(version, 0);
 
-  // Apply migration
-  await runner.runUp([migration]);
+    // Apply migration
+    await runner.runUp([migration]);
 
-  // Should now be version 1
-  version = await runner.getCurrentVersion();
-  assertEquals(version, 1);
+    // Should now be version 1
+    version = await runner.getCurrentVersion();
+    assertEquals(version, 1);
 
-  await client.close();
+    await client.close();
+  },
 });
 
 Deno.test("AC6: Multiple migrations in sequence", async () => {

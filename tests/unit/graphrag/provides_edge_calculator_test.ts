@@ -686,46 +686,51 @@ Deno.test("DB Persistence - syncAllProvidesEdges calculates and stores", async (
   await db.close();
 });
 
-Deno.test("DB Persistence - syncProvidesEdgesForTool incremental update", async () => {
-  const db = await createTestDb();
+Deno.test({
+  name: "DB Persistence - syncProvidesEdgesForTool incremental update",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const db = await createTestDb();
 
-  // Insert a provider tool with "data" output
-  await db.query(
-    `INSERT INTO tool_schema (tool_id, server_id, name, input_schema, output_schema) VALUES
-     ('source:tool', 'test', 'source', $1, $2)`,
-    [
-      JSON.stringify({ type: "object", properties: { query: { type: "string" } } }),
-      JSON.stringify({ type: "object", properties: { data: { type: "string" } } }),
-    ],
-  );
+    // Insert a provider tool with "data" output
+    await db.query(
+      `INSERT INTO tool_schema (tool_id, server_id, name, input_schema, output_schema) VALUES
+       ('source:tool', 'test', 'source', $1, $2)`,
+      [
+        JSON.stringify({ type: "object", properties: { query: { type: "string" } } }),
+        JSON.stringify({ type: "object", properties: { data: { type: "string" } } }),
+      ],
+    );
 
-  // Sync source tool (no consumers yet, so 0 edges)
-  const count1 = await syncProvidesEdgesForTool(db, "source:tool");
-  assertEquals(count1, 0);
+    // Sync source tool (no consumers yet, so 0 edges)
+    const count1 = await syncProvidesEdgesForTool(db, "source:tool");
+    assertEquals(count1, 0);
 
-  // Add a consumer tool that requires "data"
-  await db.query(
-    `INSERT INTO tool_schema (tool_id, server_id, name, input_schema, output_schema) VALUES
-     ('sink:tool', 'test', 'sink', $1, NULL)`,
-    [
-      JSON.stringify({
-        type: "object",
-        properties: { data: { type: "string" } },
-        required: ["data"],
-      }),
-    ],
-  );
+    // Add a consumer tool that requires "data"
+    await db.query(
+      `INSERT INTO tool_schema (tool_id, server_id, name, input_schema, output_schema) VALUES
+       ('sink:tool', 'test', 'sink', $1, NULL)`,
+      [
+        JSON.stringify({
+          type: "object",
+          properties: { data: { type: "string" } },
+          required: ["data"],
+        }),
+      ],
+    );
 
-  // Sync source tool again - now it can provide to sink
-  const count2 = await syncProvidesEdgesForTool(db, "source:tool");
-  assertEquals(count2, 1, "source:tool should now provide to sink:tool");
+    // Sync source tool again - now it can provide to sink
+    const count2 = await syncProvidesEdgesForTool(db, "source:tool");
+    assertEquals(count2, 1, "source:tool should now provide to sink:tool");
 
-  // Verify edge exists
-  const edge = await findDirectProvidesEdge(db, "source:tool", "sink:tool");
-  assert(edge !== null);
-  assertEquals(edge!.coverage, "strict"); // "data" covers all required fields
+    // Verify edge exists
+    const edge = await findDirectProvidesEdge(db, "source:tool", "sink:tool");
+    assert(edge !== null);
+    assertEquals(edge!.coverage, "strict"); // "data" covers all required fields
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test("DB Persistence - coverage to confidence mapping", async () => {

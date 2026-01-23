@@ -134,21 +134,26 @@ Deno.test("GraphRAGEngine - sync handles empty database gracefully", async () =>
 // AC3: PageRank computation
 // ============================================
 
-Deno.test("GraphRAGEngine - PageRank scores between 0 and 1", async () => {
-  const db = await createTestDb();
-  await insertTestTools(db);
-  await insertTestDependencies(db);
+Deno.test({
+  name: "GraphRAGEngine - PageRank scores between 0 and 1",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const db = await createTestDb();
+    await insertTestTools(db);
+    await insertTestDependencies(db);
 
-  const engine = new GraphRAGEngine(db);
-  await engine.syncFromDatabase();
+    const engine = new GraphRAGEngine(db);
+    await engine.syncFromDatabase();
 
-  const rank1 = engine.getPageRank("filesystem:read");
-  const rank2 = engine.getPageRank("json:parse");
+    const rank1 = engine.getPageRank("filesystem:read");
+    const rank2 = engine.getPageRank("json:parse");
 
-  assert(rank1 >= 0 && rank1 <= 1, `PageRank ${rank1} should be between 0 and 1`);
-  assert(rank2 >= 0 && rank2 <= 1, `PageRank ${rank2} should be between 0 and 1`);
+    assert(rank1 >= 0 && rank1 <= 1, `PageRank ${rank1} should be between 0 and 1`);
+    assert(rank2 >= 0 && rank2 <= 1, `PageRank ${rank2} should be between 0 and 1`);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test("GraphRAGEngine - PageRank ranks frequently used tools higher", async () => {

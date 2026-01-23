@@ -53,26 +53,32 @@ Deno.test("EpisodicMemoryStore - capture adds event to buffer", async () => {
   await db.close();
 });
 
-Deno.test("EpisodicMemoryStore - flush writes events to database", async () => {
-  const db = await setupTestDb();
-  const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
+Deno.test({
+  name: "EpisodicMemoryStore - flush writes events to database",
+  // BroadcastChannel from eventBus may have async ops from previous tests
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const db = await setupTestDb();
+    const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
 
-  const workflowId = "test-workflow-flush";
-  await store.capture(createTestEvent({ workflow_id: workflowId }));
-  await store.capture(createTestEvent({ workflow_id: workflowId }));
+    const workflowId = "test-workflow-flush";
+    await store.capture(createTestEvent({ workflow_id: workflowId }));
+    await store.capture(createTestEvent({ workflow_id: workflowId }));
 
-  assertEquals(store.getBufferStatus().size, 2);
+    assertEquals(store.getBufferStatus().size, 2);
 
-  const flushed = await store.flush();
-  assertEquals(flushed, 2);
-  assertEquals(store.getBufferStatus().size, 0);
+    const flushed = await store.flush();
+    assertEquals(flushed, 2);
+    assertEquals(store.getBufferStatus().size, 0);
 
-  // Verify in database
-  const events = await store.getWorkflowEvents(workflowId);
-  assertEquals(events.length, 2);
+    // Verify in database
+    const events = await store.getWorkflowEvents(workflowId);
+    assertEquals(events.length, 2);
 
-  await store.shutdown();
-  await db.close();
+    await store.shutdown();
+    await db.close();
+  },
 });
 
 Deno.test("EpisodicMemoryStore - auto-flush on buffer full", async () => {

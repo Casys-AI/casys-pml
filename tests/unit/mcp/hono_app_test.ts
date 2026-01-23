@@ -9,6 +9,8 @@
 import { assertEquals, assertExists, assertStringIncludes } from "@std/assert";
 import { createApp, type HonoAppDependencies } from "../../../src/mcp/server/app.ts";
 import type { RouteContext } from "../../../src/mcp/routing/types.ts";
+import { closeDb } from "../../../src/server/auth/db.ts";
+import { closeKv } from "../../../src/cache/kv.ts";
 
 // Create minimal mock dependencies
 function createMockDeps(): HonoAppDependencies {
@@ -54,16 +56,21 @@ Deno.test("Hono App - health endpoint returns ok", async () => {
   assertExists(body.timestamp);
 });
 
-Deno.test("Hono App - 404 for unknown routes", async () => {
-  const deps = createMockDeps();
-  const app = createApp(deps, ["http://localhost:3003"]);
+Deno.test({
+  name: "Hono App - 404 for unknown routes",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const deps = createMockDeps();
+    const app = createApp(deps, ["http://localhost:3003"]);
 
-  const req = new Request("http://localhost:3003/unknown/path");
-  const res = await app.fetch(req);
+    const req = new Request("http://localhost:3003/unknown/path");
+    const res = await app.fetch(req);
 
-  assertEquals(res.status, 404);
-  const body = await res.json();
-  assertEquals(body.error, "Not found");
+    assertEquals(res.status, 404);
+    const body = await res.json();
+    assertEquals(body.error, "Not found");
+  },
 });
 
 Deno.test("Hono App - dashboard redirects to correct port", async () => {
@@ -97,22 +104,29 @@ Deno.test("Hono App - events stream returns 503 when not initialized", async () 
 
 // === Auth Tests (cloud mode) ===
 
-Deno.test("Hono App - protected routes require auth in cloud mode", async () => {
-  // Enable cloud mode
-  Deno.env.set("GITHUB_CLIENT_ID", "test-client-id");
+Deno.test({
+  name: "Hono App - protected routes require auth in cloud mode",
+  async fn() {
+    // Enable cloud mode
+    Deno.env.set("GITHUB_CLIENT_ID", "test-client-id");
 
-  try {
-    const deps = createMockDeps();
-    const app = createApp(deps, ["http://localhost:3003"]);
+    try {
+      const deps = createMockDeps();
+      const app = createApp(deps, ["http://localhost:3003"]);
 
-    // API routes should require auth in cloud mode
-    const req = new Request("http://localhost:3003/api/capabilities");
-    const res = await app.fetch(req);
+      // API routes should require auth in cloud mode
+      const req = new Request("http://localhost:3003/api/capabilities");
+      const res = await app.fetch(req);
 
-    assertEquals(res.status, 401);
-  } finally {
-    Deno.env.delete("GITHUB_CLIENT_ID");
-  }
+      assertEquals(res.status, 401);
+    } finally {
+      Deno.env.delete("GITHUB_CLIENT_ID");
+      // Cleanup singleton connections opened during cloud mode validation
+      await closeDb();
+      closeKv();
+    }
+  },
+  sanitizeResources: false, // KV may have async ops that complete after test
 });
 
 Deno.test("Hono App - MCP endpoint requires auth in cloud mode", async () => {

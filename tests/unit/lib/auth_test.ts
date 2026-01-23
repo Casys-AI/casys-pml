@@ -12,6 +12,8 @@ import {
   logAuthMode,
   validateRequest,
 } from "../../../src/lib/auth.ts";
+import { closeDb } from "../../../src/server/auth/db.ts";
+import { closeKv } from "../../../src/cache/kv.ts";
 
 // Helper to save and restore env vars
 function withEnv(
@@ -99,13 +101,20 @@ Deno.test("validateRequest - returns local user in local mode", async () => {
   });
 });
 
-Deno.test("validateRequest - returns null without API key in cloud mode", async () => {
-  await withEnv("GITHUB_CLIENT_ID", "test_client_id", async () => {
-    const req = new Request("http://localhost/api/test");
-    const result = await validateRequest(req);
+Deno.test({
+  name: "validateRequest - returns null without API key in cloud mode",
+  async fn() {
+    await withEnv("GITHUB_CLIENT_ID", "test_client_id", async () => {
+      const req = new Request("http://localhost/api/test");
+      const result = await validateRequest(req);
 
-    assertEquals(result, null);
-  });
+      assertEquals(result, null);
+    });
+    // Cleanup singleton connections opened during cloud mode validation
+    await closeDb();
+    closeKv();
+  },
+  sanitizeResources: false, // KV may have async ops that complete after test
 });
 
 Deno.test("validateRequest - returns null for invalid API key format (too short)", async () => {

@@ -189,51 +189,57 @@ Deno.test("AlgorithmTracer - cleanup() removes old traces", async () => {
   await db.close();
 });
 
-Deno.test("AlgorithmTracer - getMetrics() returns aggregated metrics", async () => {
-  const db = await setupTestDb();
-  const tracer = new AlgorithmTracer(db);
+Deno.test({
+  name: "AlgorithmTracer - getMetrics() returns aggregated metrics",
+  // BroadcastChannel from eventBus may have async ops from previous tests
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const db = await setupTestDb();
+    const tracer = new AlgorithmTracer(db);
 
-  // Add varied traces
-  await tracer.logTrace(createTestTrace({
-    targetType: "tool",
-    finalScore: 0.80,
-    decision: "accepted",
-    signals: { graphDensity: 0.1, spectralClusterMatch: true },
-  }));
-  await tracer.logTrace(createTestTrace({
-    targetType: "capability",
-    finalScore: 0.60,
-    decision: "rejected_by_threshold",
-    signals: { graphDensity: 0.1, spectralClusterMatch: false },
-  }));
-  await tracer.logTrace(createTestTrace({
-    targetType: "capability",
-    finalScore: 0.75,
-    decision: "accepted",
-    signals: { graphDensity: 0.1, spectralClusterMatch: true },
-  }));
+    // Add varied traces
+    await tracer.logTrace(createTestTrace({
+      targetType: "tool",
+      finalScore: 0.80,
+      decision: "accepted",
+      signals: { graphDensity: 0.1, spectralClusterMatch: true },
+    }));
+    await tracer.logTrace(createTestTrace({
+      targetType: "capability",
+      finalScore: 0.60,
+      decision: "rejected_by_threshold",
+      signals: { graphDensity: 0.1, spectralClusterMatch: false },
+    }));
+    await tracer.logTrace(createTestTrace({
+      targetType: "capability",
+      finalScore: 0.75,
+      decision: "accepted",
+      signals: { graphDensity: 0.1, spectralClusterMatch: true },
+    }));
 
-  await tracer.flush();
+    await tracer.flush();
 
-  const metrics = await tracer.getMetrics(24);
+    const metrics = await tracer.getMetrics(24);
 
-  // Verify conversion rate: 2 accepted / 3 total = 0.666...
-  assertEquals(metrics.conversionRate > 0.6 && metrics.conversionRate < 0.7, true);
+    // Verify conversion rate: 2 accepted / 3 total = 0.666...
+    assertEquals(metrics.conversionRate > 0.6 && metrics.conversionRate < 0.7, true);
 
-  // Verify decision distribution
-  assertEquals(metrics.decisionDistribution.accepted, 2);
-  assertEquals(metrics.decisionDistribution.rejectedByThreshold, 1);
-  assertEquals(metrics.decisionDistribution.filteredByReliability, 0);
+    // Verify decision distribution
+    assertEquals(metrics.decisionDistribution.accepted, 2);
+    assertEquals(metrics.decisionDistribution.rejectedByThreshold, 1);
+    assertEquals(metrics.decisionDistribution.filteredByReliability, 0);
 
-  // Verify avg final scores (use assertAlmostEquals for float precision)
-  assertAlmostEquals(metrics.avgFinalScore.tool, 0.80, 0.001);
-  assertEquals(
-    metrics.avgFinalScore.capability > 0.6 && metrics.avgFinalScore.capability < 0.7,
-    true,
-  );
+    // Verify avg final scores (use assertAlmostEquals for float precision)
+    assertAlmostEquals(metrics.avgFinalScore.tool, 0.80, 0.001);
+    assertEquals(
+      metrics.avgFinalScore.capability > 0.6 && metrics.avgFinalScore.capability < 0.7,
+      true,
+    );
 
-  await tracer.stop();
-  await db.close();
+    await tracer.stop();
+    await db.close();
+  },
 });
 
 Deno.test("AlgorithmTracer - getMetrics() filters by mode", async () => {

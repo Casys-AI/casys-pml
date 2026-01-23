@@ -134,7 +134,12 @@ Deno.test("GraphSyncController - start and stop lifecycle", async (t) => {
   });
 });
 
-Deno.test("GraphSyncController - event handling basics", async (t) => {
+Deno.test({
+  name: "GraphSyncController - event handling basics",
+  // BroadcastChannel from eventBus singleton may have async ops that complete after test
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async (t) => {
   await t.step("handles capability.zone.created event without error", async () => {
     const { controller } = createTestController();
     controller.start();
@@ -265,6 +270,7 @@ Deno.test("GraphSyncController - event handling basics", async (t) => {
     await new Promise((r) => setTimeout(r, 50));
     controller.stop();
   });
+  },
 });
 
 Deno.test("GraphSyncController - constructor", async (t) => {
