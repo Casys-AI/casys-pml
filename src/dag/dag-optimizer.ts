@@ -111,6 +111,25 @@ function optimizeSequential(
   const physicalToLogical = new Map<string, string[]>();
   const processed = new Set<string>();
 
+  // CRITICAL-7 Fix: First pass - identify all tasks that will be skipped
+  // This is needed to clean up dependsOn references before adding tasks
+  const skippedTaskIds = new Set<string>();
+  for (const task of logicalDAG.tasks) {
+    if (task.metadata?.executable === false) {
+      skippedTaskIds.add(task.id);
+      log.debug("Marking non-executable task for skip", {
+        taskId: task.id,
+        tool: task.tool,
+        parentOperation: task.metadata?.parentOperation,
+      });
+    }
+  }
+
+  // CRITICAL-7 Fix: Helper to clean dependsOn by removing skipped tasks
+  const cleanDependsOn = (deps: string[]): string[] => {
+    return deps.filter((dep) => !skippedTaskIds.has(dep));
+  };
+
   for (const task of logicalDAG.tasks) {
     if (processed.has(task.id)) continue;
 
@@ -119,17 +138,13 @@ function optimizeSequential(
     if (task.metadata?.executable === false) {
       processed.add(task.id);
       // No physical task, no mapping - trace-generator handles these separately
-      log.debug("Skipping non-executable task from physical DAG", {
-        taskId: task.id,
-        tool: task.tool,
-        parentOperation: task.metadata?.parentOperation,
-      });
       continue;
     }
 
-    // If it's an MCP task, keep as-is
+    // If it's an MCP task, keep as-is (with cleaned deps)
     if (task.type === "mcp_tool") {
-      physicalTasks.push(task);
+      const cleanedTask = { ...task, dependsOn: cleanDependsOn(task.dependsOn) };
+      physicalTasks.push(cleanedTask);
       logicalToPhysical.set(task.id, task.id);
       physicalToLogical.set(task.id, [task.id]);
       processed.add(task.id);
@@ -140,9 +155,20 @@ function optimizeSequential(
     if (task.type === "code_execution" && task.tool?.startsWith("code:")) {
       const chain = findSequentialChain(task, logicalDAG, processed, maxFusionSize);
 
+      // DEBUG: Log chain and fusion check
+      log.info("[DEBUG] Checking fusion for chain", {
+        startTaskId: task.id,
+        chainLength: chain.length,
+        chainTools: chain.map((t) => t.tool),
+        pureFlags: chain.map((t) => t.metadata?.pure),
+        canFuse: chain.length > 1 ? canFuseTasks(chain) : "N/A (single task)",
+      });
+
       if (chain.length > 1 && canFuseTasks(chain)) {
         // Fuse the chain
         const fusedTask = fuseTasks(chain);
+        // CRITICAL-7 Fix: Clean dependencies on fused task too
+        fusedTask.dependsOn = cleanDependsOn(fusedTask.dependsOn);
         physicalTasks.push(fusedTask);
 
         // Update mappings
@@ -158,15 +184,34 @@ function optimizeSequential(
           operations: chain.map((t) => t.tool),
         });
       } else {
-        // Keep as-is (single task or can't fuse)
-        physicalTasks.push(task);
-        logicalToPhysical.set(task.id, task.id);
-        physicalToLogical.set(task.id, [task.id]);
+        // Keep as-is (single task or can't fuse, with cleaned deps)
+        const cleanedTask = { ...task, dependsOn: cleanDependsOn(task.dependsOn) };
+        physicalTasks.push(cleanedTask);
+
+        // Collect all chain operations (includes non-executable predecessors + nested ops)
+        const chainOps = collectChainOperations(task, logicalDAG, skippedTaskIds);
+
+        // Map all chain tasks to this physical task
+        for (const chainTaskId of chainOps) {
+          logicalToPhysical.set(chainTaskId, task.id);
+        }
+        physicalToLogical.set(task.id, chainOps);
         processed.add(task.id);
+
+        if (chainOps.length > 1) {
+          log.debug("Chain operations collected for physical task", {
+            physicalTaskId: task.id,
+            chainOps,
+            chainTools: chainOps.map((id) =>
+              logicalDAG.tasks.find((t) => t.id === id)?.tool
+            ),
+          });
+        }
       }
     } else {
-      // Other task types (capability, etc.) - keep as-is
-      physicalTasks.push(task);
+      // Other task types (capability, etc.) - keep as-is (with cleaned deps)
+      const cleanedTask = { ...task, dependsOn: cleanDependsOn(task.dependsOn) };
+      physicalTasks.push(cleanedTask);
       logicalToPhysical.set(task.id, task.id);
       physicalToLogical.set(task.id, [task.id]);
       processed.add(task.id);
@@ -235,6 +280,70 @@ function findSequentialChain(
   }
 
   return chain;
+}
+
+/**
+ * Collect all chain operations for an executable task
+ *
+ * Includes:
+ * 1. All non-executable tasks reachable via dependsOn (transitive)
+ * 2. Nested operations whose parentOperation matches a task in the chain
+ *
+ * This allows physicalToLogical to map a single physical task to all
+ * logical operations it represents (for chain operations like split().map().join())
+ */
+function collectChainOperations(
+  executableTask: Task,
+  logicalDAG: DAGStructure,
+  skippedTaskIds: Set<string>,
+): string[] {
+  const chainTaskIds = new Set<string>();
+
+  // 1. Follow dependsOn backwards to collect direct chain
+  const queue = [executableTask.id];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const taskId = queue.shift()!;
+    if (visited.has(taskId)) continue;
+    visited.add(taskId);
+
+    const task = logicalDAG.tasks.find((t) => t.id === taskId);
+    if (!task) continue;
+
+    // Add to chain if it's either the executable task or a skipped task
+    if (taskId === executableTask.id || skippedTaskIds.has(taskId)) {
+      chainTaskIds.add(taskId);
+    }
+
+    // Continue following dependencies
+    for (const depId of task.dependsOn) {
+      queue.push(depId);
+    }
+  }
+
+  // 2. Find nested operations (those with parentOperation pointing to a task in the chain)
+  // e.g., toUpperCase nested inside map callback
+  for (const task of logicalDAG.tasks) {
+    if (skippedTaskIds.has(task.id) && !chainTaskIds.has(task.id)) {
+      const parentOp = task.metadata?.parentOperation as string | undefined;
+      if (parentOp) {
+        // Check if any chain task has this tool
+        for (const chainTaskId of chainTaskIds) {
+          const chainTask = logicalDAG.tasks.find((t) => t.id === chainTaskId);
+          if (chainTask?.tool === parentOp) {
+            chainTaskIds.add(task.id);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Return in DAG order (by position in logicalDAG.tasks)
+  return logicalDAG.tasks
+    .filter((t) => chainTaskIds.has(t.id))
+    .map((t) => t.id);
 }
 
 /**

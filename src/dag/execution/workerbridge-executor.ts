@@ -11,6 +11,9 @@
  * 3. Consistent execution model across all handlers
  *
  * @module dag/execution/workerbridge-executor
+ *
+ * NOTE: Used for server-routed MCP execution (execute_locally: false).
+ * Client-routed execution uses packages/pml/src/loader/capability-loader.ts.
  */
 
 import type { ToolExecutor } from "../types.ts";
@@ -38,6 +41,10 @@ export interface WorkerBridgeExecutorConfig {
   capModule?: WorkerBridgeConfig["capModule"];
   /** Execution timeout in ms (default: 30000) */
   timeout?: number;
+  /** Pre-generated trace ID for hierarchy (used as DB id) */
+  traceId?: string;
+  /** Parent trace ID for nested execution (ADR-041) */
+  parentTraceId?: string;
 }
 
 /**
@@ -85,6 +92,8 @@ export function createToolExecutorViaWorker(
     capabilityRegistry,
     capModule,
     timeout = 30000,
+    traceId,
+    parentTraceId,
   } = config;
 
   // Create persistent WorkerBridge for all tool calls
@@ -144,7 +153,15 @@ export function createToolExecutorViaWorker(
 
     try {
       // Execute via WorkerBridge (100% traced!)
-      const result = await callBridge.execute(code, toolDefs, {});
+      // Pass traceId and parentTraceId for hierarchical trace linking (ADR-041)
+      const result = await callBridge.execute(
+        code,
+        toolDefs,
+        {}, // context
+        undefined, // capabilityContext
+        parentTraceId, // Parent trace ID for hierarchy (ADR-041)
+        { traceId }, // options with pre-generated trace ID
+      );
 
       // Accumulate traces for later retrieval
       context.traces.push(...callBridge.getTraces());
