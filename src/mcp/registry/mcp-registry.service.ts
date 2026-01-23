@@ -385,6 +385,21 @@ export class McpRegistryService {
         });
       }
 
+      // For capabilities, fetch parameters_schema from workflow_pattern
+      let parametersSchema: Record<string, unknown> | undefined;
+      if (row.record_type === "capability" && row.workflow_pattern_id) {
+        const schemaResult = await this.db.query(
+          `SELECT parameters_schema FROM workflow_pattern WHERE pattern_id = $1`,
+          [row.workflow_pattern_id],
+        );
+        if (schemaResult.length > 0 && schemaResult[0].parameters_schema) {
+          const schema = schemaResult[0].parameters_schema;
+          parametersSchema = typeof schema === "string"
+            ? JSON.parse(schema)
+            : schema as Record<string, unknown>;
+        }
+      }
+
       // Build entry
       const entry: McpRegistryEntry = {
         fqdn,
@@ -396,6 +411,7 @@ export class McpRegistryService {
         recordType: row.record_type,
         codeUrl: row.code_url || undefined,
         envRequired: deriveEnvRequired(config),
+        parametersSchema,
       };
 
       // Add type-specific fields

@@ -80,6 +80,9 @@ export interface McpRegistryEntry {
 
   /** Warnings about side effects */
   warnings?: McpWarnings;
+
+  /** JSON Schema for input parameters (capabilities only) */
+  parametersSchema?: Record<string, unknown>;
 }
 
 /**
