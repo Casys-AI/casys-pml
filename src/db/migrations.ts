@@ -46,6 +46,7 @@ import { createRoutingClientServerMigration } from "./migrations/037_routing_cli
 import { createAlgorithmTracesUserIdMigration } from "./migrations/038_algorithm_traces_user_id.ts";
 import { createUserFqdnMultiTenantMigration } from "./migrations/039_user_fqdn_multi_tenant.ts";
 import { createPmlRegistryHashColumnMigration } from "./migrations/040_pml_registry_hash_column.ts";
+import { createParentTraceIdFkMigration } from "./migrations/041_parent_trace_id_fk.ts";
 
 /**
  * Migration definition
@@ -445,5 +446,6 @@ export function getAllMigrations(): Migration[] {
     createAlgorithmTracesUserIdMigration(), // Story 9.8: Multi-tenant algorithm traces
     createUserFqdnMultiTenantMigration(), // User FQDN Multi-Tenant: TEXT user_id → UUID FK
     createPmlRegistryHashColumnMigration(), // Fix: Add hash column to pml_registry VIEW
+    createParentTraceIdFkMigration(), // ADR-041: Ensure parent_trace_id FK is DEFERRABLE
   ];
 }
