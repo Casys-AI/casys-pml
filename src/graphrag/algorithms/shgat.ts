@@ -1631,14 +1631,11 @@ export class SHGAT {
     let totalLoss = 0;
     let correct = 0;
 
-    // Accumulate dCapEmbedding gradients per level (for capabilities, level 1+)
+    // Accumulate dCapEmbedding gradients per level
     const dE_accum = new Map<number, Map<number, number[]>>();
     for (let level = 0; level <= maxLevel; level++) {
       dE_accum.set(level, new Map());
     }
-
-    // Accumulate dToolEmbedding gradients (for tools, level 0)
-    const dH_accum = new Map<number, number[]>();
 
     // === BATCHED BACKWARD: Collect all entries, then process in ONE batched call ===
     // This replaces 576 separate outer products with 16 matmuls (one per head)
@@ -1648,15 +1645,10 @@ export class SHGAT {
       const example = examples[exIdx];
       const isWeight = weights[exIdx];
 
-      // Get positive node (can be capability OR tool)
+      // Get capability index for positive node
       const posCapIdx = this.graphBuilder.getCapabilityIndex(example.candidateId);
-      const posToolIdx = this.graphBuilder.getToolIndex(example.candidateId);
-      const posIsLeaf = posToolIdx !== undefined;
-      const posNodeIdx = posIsLeaf ? posToolIdx : posCapIdx;
-
-      if (posNodeIdx === undefined) {
-        // Node not found - fail fast instead of silent skip
-        getLog().warn(`[trainBatchV1KHeadBatched] Node "${example.candidateId}" not found, skipping example`);
+      if (posCapIdx === undefined) {
+        // Capability not found - skip (could be a tool, not trained in this path)
         tdErrors.push(0);
         continue;
       }
@@ -1666,19 +1658,14 @@ export class SHGAT {
       if (example.negativeCapIds && example.negativeCapIds.length > 0) {
         // === CONTRASTIVE (InfoNCE) - collect entries for batched backward ===
         const negLogits: number[] = [];
-        const negNodeInfos: { idx: number; isLeaf: boolean }[] = [];
+        const negCapIdxs: number[] = [];
         const validNegIds: string[] = [];
 
         for (const negId of example.negativeCapIds) {
-          // Check both capability and tool indices
           const negCapIdx = this.graphBuilder.getCapabilityIndex(negId);
-          const negToolIdx = this.graphBuilder.getToolIndex(negId);
-          const negIsLeaf = negToolIdx !== undefined;
-          const negNodeIdx = negIsLeaf ? negToolIdx : negCapIdx;
-
-          if (negNodeIdx === undefined) continue;
+          if (negCapIdx === undefined) continue;
           negLogits.push(allLogits.get(negId)?.[exIdx] ?? 0);
-          negNodeInfos.push({ idx: negNodeIdx, isLeaf: negIsLeaf });
+          negCapIdxs.push(negCapIdx);
           validNegIds.push(negId);
         }
 
@@ -1700,25 +1687,23 @@ export class SHGAT {
         if (negLogits.length === 0 || posLogit > Math.max(...negLogits)) correct++;
 
         // Collect backward entries (instead of processing immediately)
-        // Positive node entry
+        // Positive capability entry
         const dLossPos = (softmax[0] - 1) / TEMPERATURE * isWeight;
         backwardEntries.push({
           dLogit: dLossPos,
           exIdx,
           capId: example.candidateId,
-          capIdx: posNodeIdx,
-          isLeaf: posIsLeaf,
+          capIdx: posCapIdx,
         });
 
-        // Negative nodes entries
+        // Negative capability entries
         for (let i = 0; i < negLogits.length; i++) {
           const dLossNeg = softmax[i + 1] / TEMPERATURE * isWeight;
           backwardEntries.push({
             dLogit: dLossNeg,
             exIdx,
             capId: validNegIds[i],
-            capIdx: negNodeInfos[i].idx,
-            isLeaf: negNodeInfos[i].isLeaf,
+            capIdx: negCapIdxs[i],
           });
         }
       }
@@ -1727,7 +1712,7 @@ export class SHGAT {
 
     // === BATCHED BACKWARD CALL ===
     // Process all InfoNCE entries with batched matmuls (16 matmuls instead of 576 outer products)
-    const { dIntentsAccum, dCapEmbeddings: batchedDCapEmbs, dToolEmbeddings: batchedDToolEmbs } = batchedBackwardAllHeads(
+    const { dIntentsAccum, dCapEmbeddings: batchedDCapEmbs } = batchedBackwardAllHeads(
       backwardEntries,
       kheadCache,
       intentsBatched,
@@ -1737,14 +1722,9 @@ export class SHGAT {
       this.config,
     );
 
-    // Route dCapEmbeddings (level 1+) to dE_accum for message passing backward
+    // Route dCapEmbeddings to dE_accum for message passing backward
     for (const [capIdx, dCap] of batchedDCapEmbs) {
       this.accumulateDCapGradient(dE_accum, capIdx, dCap, capIndexToLevel);
-    }
-
-    // Route dToolEmbeddings (level 0 / leaf) to dH_accum
-    for (const [toolIdx, dTool] of batchedDToolEmbs) {
-      this.accumulateDToolGradient(dH_accum, toolIdx, dTool);
     }
 
     // Build dIntentsBatched from accumulated results
@@ -1758,14 +1738,11 @@ export class SHGAT {
     // === BACKWARD: Multi-level message passing ===
     let mpGradNorm = 0;
     let v2vGradNorm = 0;
-    const hasCapGrads = dE_accum.size > 0;
-    const hasToolGrads = dH_accum.size > 0;
-    if (mpCache && (hasCapGrads || hasToolGrads)) {
+    if (mpCache && dE_accum.size > 0) {
       const dE_final = this.buildDEFinalFromAccum(dE_accum, mpCache);
-      const dH_final = this.buildDHFinalFromAccum(dH_accum, mpCache);
       const mpGrads = this.orchestrator.backwardMultiLevel(
         dE_final,
-        dH_final,
+        null,
         mpCache,
         this.levelParams,
         this.v2vParams,
@@ -1850,24 +1827,6 @@ export class SHGAT {
   }
 
   /**
-   * Accumulate dToolEmbedding gradient for level 0 / leaf nodes
-   */
-  private accumulateDToolGradient(
-    dH_accum: Map<number, number[]>,
-    toolIdx: number,
-    dTool: number[],
-  ): void {
-    const existing = dH_accum.get(toolIdx);
-    if (existing) {
-      for (let i = 0; i < dTool.length; i++) {
-        existing[i] += dTool[i] ?? 0;
-      }
-    } else {
-      dH_accum.set(toolIdx, [...dTool]);
-    }
-  }
-
-  /**
    * Build dE_final Map from accumulated gradients
    */
   private buildDEFinalFromAccum(
@@ -1902,37 +1861,6 @@ export class SHGAT {
     }
 
     return dE_final;
-  }
-
-  /**
-   * Build dH_final array from accumulated tool gradients
-   */
-  private buildDHFinalFromAccum(
-    dH_accum: Map<number, number[]>,
-    cache: MultiLevelBackwardCache,
-  ): number[][] | null {
-    if (dH_accum.size === 0) return null;
-
-    const H = cache.H_init;
-    const numTools = H.length;
-    const embDim = H[0]?.length ?? 0;
-
-    // Initialize with zeros
-    const dH_final: number[][] = Array.from(
-      { length: numTools },
-      () => Array(embDim).fill(0),
-    );
-
-    // Fill in accumulated gradients
-    for (const [toolIdx, dTool] of dH_accum) {
-      if (toolIdx < numTools) {
-        for (let i = 0; i < Math.min(embDim, dTool.length); i++) {
-          dH_final[toolIdx][i] = dTool[i];
-        }
-      }
-    }
-
-    return dH_final;
   }
 
   /**
