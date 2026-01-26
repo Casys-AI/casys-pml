@@ -2,8 +2,8 @@
 title: 'Execution Learning & PER Training Fixes'
 slug: 'execution-learning-fixes'
 created: '2026-01-23'
-updated: '2026-01-23'
-status: 'draft'
+updated: '2026-01-26'
+status: 'complete'
 stepsCompleted: []
 tech_stack: ['deno', 'typescript', 'postgresql']
 files_to_modify:
@@ -34,12 +34,13 @@ Code review of `execution-learning.ts` and `per-training.ts` revealed several is
 
 | Severity | File | Issue |
 |----------|------|-------|
-| **CRITICAL** | per-training.ts | childTraceMap key mismatch - uses UUID but executedPath contains names (Issue 6) |
+| ~~**CRITICAL**~~ | ~~per-training.ts~~ | ~~childTraceMap key mismatch~~ → **FIXED** (Issue 6) |
 | ~~**High**~~ **Medium** | per-training.ts | N+1 queries in `flattenExecutedPath()` (see investigation) |
 | ~~High~~ | ~~per-training.ts~~ | ~~IS weight/example index mismatch~~ → **RESOLVED** (was in deleted code) |
 | ~~Low~~ | ~~execution-learning.ts~~ | ~~Silent skip when parent trace missing~~ → **RESOLVED** |
 | ~~Low~~ | ~~per-training.ts~~ | ~~Global mutable `executionCounter`~~ → **DOCUMENTED** |
 | ~~Low~~ | ~~per-training.ts~~ | ~~Code duplication~~ → **RESOLVED** (dead code removed) |
+| ~~**High**~~ | ~~src/api/traces.ts~~ | ~~PML CLI traces have empty executedPath~~ → **FIXED** (Issue 7) |
 
 > **Notes:**
 > - Sibling order was initially flagged but verified as FALSE POSITIVE - `getTraces()` sorts by timestamp (worker-bridge.ts:960).
@@ -319,18 +320,18 @@ Found during investigation of Issue 1 optimization.
 ### Current Behavior
 
 ```typescript
-// per-training.ts:166-182
+// per-training.ts:136-152
 // Build a map of capability ID → child trace for efficient lookup
 const childTraceMap = new Map<string, ExecutionTrace>();
 for (const child of childTraces) {
   if (child.capabilityId) {
-    childTraceMap.set(child.capabilityId, child);  // Key = UUID (e.g., "abc-123-...")
+    childTraceMap.set(child.capabilityId, child);  // Key = UUID (e.g., "0a01917e-79d0-4580-...")
   }
 }
 
 // ...
 for (const nodeId of executedPath) {
-  // nodeId comes from executedPath which contains NAMES (e.g., "fake:person")
+  // nodeId comes from executedPath which contains TOOL NAMES (e.g., "std:psql_query")
   const childTrace = childTraceMap.get(nodeId);  // NEVER MATCHES!
   if (childTrace) {
     // This code is never reached
@@ -338,19 +339,43 @@ for (const nodeId of executedPath) {
 }
 ```
 
-### Root Cause
+### Root Cause (CORRECTED 2026-01-24)
 
-1. **executedPath** contains **normalized UUIDs** (underscores):
-   - Built in `worker-bridge.ts:432-433` using `t.capability`
-   - `t.capability` comes from `code-generator.ts:95` → `normalizeCapabilityName(cap.name || "", cap.id)`
-   - Since `cap.name` is deprecated (migration 022), it uses `cap.id` (UUID)
-   - `normalizeCapabilityName` replaces `-` with `_`: `"abc-def-123"` → `"abc_def_123"`
+> **Previous analysis was INCORRECT.** The issue is NOT underscores vs dashes in UUIDs.
+> The real issue is **TOOL NAMES vs UUIDs** - completely different formats.
 
-2. **childTraceMap** is keyed by **raw UUIDs** (dashes):
+**Verified with production data:**
+
+```sql
+SELECT executed_path[1], capability_id FROM execution_trace LIMIT 3;
+--    node_in_path    |               cap_uuid
+-- -------------------+--------------------------------------
+--  std:psql_query    | 0a01917e-79d0-4580-8619-65f5de42ca11
+--  std:exec_35eb9188 | f540ce5e-07e0-476f-86cd-8a30ef8019db
+--  code:log_test     | cc48a02a-bdd8-4af7-b1f1-b43d5207d39b
+```
+
+1. **executedPath** contains **TOOL/CAPABILITY NAMES** (e.g., `std:psql_query`):
+   - Built in `worker-bridge.ts:431-434`:
+     ```typescript
+     .map((t) => {
+       if (t.type === "tool_end") return t.tool;      // "std:psql_query"
+       return (t as CapabilityTraceEvent).capability; // capability name
+     });
+     ```
+   - `t.tool` is the MCP tool name, NOT a UUID
+
+2. **childTraceMap** is keyed by **UUIDs** (e.g., `0a01917e-79d0-4580-...`):
    - `child.capabilityId` comes from `execution_trace.capability_id` column
-   - This is the raw UUID: `"abc-def-123"`
+   - This is a UUID pointing to `workflow_pattern.pattern_id`
 
-3. **Lookup fails** because `"abc_def_123" !== "abc-def-123"` (underscores vs dashes)
+3. **Lookup fails** because `"std:psql_query" !== "0a01917e-79d0-4580-..."` (names vs UUIDs)
+
+**Why the original analysis was wrong:**
+
+The tech-spec incorrectly cited `normalizeCapabilityName()` from `code-generator.ts:217`.
+This function is only used to generate **JavaScript variable names** in generated code,
+NOT to build `executedPath`. The original analyst confused code generation with trace building.
 
 ### Impact
 
@@ -362,35 +387,156 @@ for (const nodeId of executedPath) {
 
 ### Proposed Fix
 
-**Option A:** Normalize the key in childTraceMap (simplest)
+**Option A: Store capability name in child trace (RECOMMENDED)**
+
+Add a `capabilityName` field to trace events so we can match by name:
+
 ```typescript
+// worker-bridge.ts - when emitting capability_end
+{
+  type: "capability_end",
+  capability: capabilityName,      // Already exists: "my_capability"
+  capabilityId: capabilityUuid,    // Add this: "0a01917e-79d0-..."
+}
+```
+
+Then in `per-training.ts`:
+```typescript
+// Use capability name (from trace event) instead of capabilityId
 for (const child of childTraces) {
-  if (child.capabilityId) {
-    // Normalize UUID to match executedPath format (dashes → underscores)
-    const normalizedId = child.capabilityId.replace(/-/g, "_");
-    childTraceMap.set(normalizedId, child);
+  const capName = child.capabilityName; // Need to add this field
+  if (capName) {
+    childTraceMap.set(capName, child);
   }
 }
 ```
 
-**Option B:** Store raw UUID in executedPath
-- Modify `worker-bridge.ts:433` to use `t.capabilityId` instead of `t.capability`
-- Breaking change to executedPath format (but data is ephemeral)
+**Option B: Lookup capability name from workflow_pattern**
 
-**Option C:** Store both in executedPath
-- Store `{name, capabilityId}` objects instead of strings
-- More invasive change
+Query `workflow_pattern` to get the capability name for each child trace:
+
+```typescript
+// Requires JOIN or separate query to get name from pattern_id
+const pattern = await patternStore.getPattern(child.capabilityId);
+childTraceMap.set(pattern.name, child); // Assuming pattern has name
+```
+
+**Option C: Store capabilityId in executedPath**
+
+Change `worker-bridge.ts` to store UUIDs instead of names in executedPath.
+- Breaking change to executedPath format
+- Would require updating all code that reads executedPath
 
 ### Files to Modify
 
-- `src/graphrag/learning/per-training.ts` - Fix key lookup logic
-- `src/sandbox/worker-bridge.ts` - Potentially add capabilityId to executedPath
-- `src/capabilities/types/execution.ts` - Potentially add field to ExecutionTrace
+- `src/sandbox/worker-bridge.ts` - Add `capabilityId` to capability trace events
+- `src/capabilities/types/execution.ts` - Add `capabilityName` field to ExecutionTrace
+- `src/graphrag/learning/per-training.ts` - Use name-based lookup
 
 ### Tests
 
-- [ ] Fix existing `flattenExecutedPath` tests to use realistic data (UUID vs name)
+- [ ] Fix existing `flattenExecutedPath` tests to use realistic data (names in path, UUIDs in capabilityId)
 - [ ] Integration test: verify nested capability actually flattens in real execution
+- [ ] Add test case with production-like data: `executed_path=["std:psql_query"]`, `capability_id=UUID`
+
+### Resolution (2026-01-26)
+
+**Implemented Option C with frontend resolution:**
+
+1. **`src/sandbox/worker-bridge.ts:433`** - Use `capabilityId` (UUID) instead of `capability` (name)
+   ```typescript
+   // Before:
+   return (t as CapabilityTraceEvent).capability;  // NAME
+
+   // After:
+   return (t as CapabilityTraceEvent).capabilityId;  // UUID
+   ```
+
+2. **`src/api/graph-mappers.ts`** - Add `resolveExecutedPathForDisplay()` helper
+   - Detects UUIDs in `executedPath` via regex
+   - Resolves to `namespace:action` via `capabilityNameMap`
+   - Fallback to `cap:${uuid.slice(0,8)}` for unresolved
+
+3. **`src/api/graph.ts`** - Build `capabilityNameMap` from `capability_records`
+   - Query `workflow_pattern_id, namespace, action` from DB
+   - Pass to `mapNodeData()` for resolution
+
+**Result:**
+- `flattenExecutedPath()` now matches child traces correctly (UUID → UUID)
+- Frontend displays human-readable names (UUID → `namespace:action`)
+- SHGAT training can learn from hierarchical traces
+
+---
+
+## Issue 7: PML CLI Traces Have Empty executedPath (FIXED)
+
+### Discovery (2026-01-26)
+
+Found during investigation of Issue 6 - all traces from PML CLI had `executed_path = []`.
+
+### Current Behavior (Before Fix)
+
+```typescript
+// src/api/traces.ts - mapIncomingToSaveInput
+return {
+  taskResults,
+  decisions,
+  // executedPath: NOT SET → defaults to [] in DB
+};
+```
+
+PML CLI sends `taskResults` with tool names but doesn't send `executedPath`.
+Server API didn't derive `executedPath` from `taskResults`.
+
+**Evidence from production:**
+```sql
+SELECT executed_path, task_results FROM execution_trace
+WHERE parent_trace_id IS NOT NULL LIMIT 1;
+-- executed_path: []
+-- task_results: [{"tool": "filesystem:read_file", ...}]
+```
+
+### Root Cause
+
+1. `LocalExecutionTrace` (packages/pml) doesn't have `executedPath` field
+2. Server's `mapIncomingToSaveInput()` didn't derive it from `taskResults`
+3. `execution-trace-store.saveTrace()` uses `trace.executedPath ?? []` → always empty
+
+### Fix Applied (2026-01-26)
+
+```typescript
+// src/api/traces.ts - mapIncomingToSaveInput
+// Derive executedPath from taskResults (tool names in execution order)
+// PML CLI sends taskResults but not executedPath - we reconstruct it here
+const executedPath = taskResults.map((tr) => tr.tool);
+
+return {
+  taskResults,
+  decisions,
+  executedPath,  // NOW SET
+  // ...
+};
+```
+
+### Impact
+
+- All new PML CLI traces will have `executed_path` populated
+- `flattenExecutedPath()` can now iterate over child trace paths
+- SHGAT training will see actual tool sequences, not empty arrays
+
+### Files Modified
+
+- `src/api/traces.ts` - Derive `executedPath` from `taskResults` in `mapIncomingToSaveInput()`
+
+### Tests Added
+
+- `tests/unit/api/traces_test.ts` - 6 tests for `executedPath` derivation
+  - Extracts tool names in order
+  - Empty taskResults returns empty array
+  - Preserves order of multiple same tools
+  - Handles various tool namespaces (std, filesystem, code, playwright)
+  - Includes failed tool calls
+  - **REGRESSION test**: executedPath must not be empty when taskResults exist
 
 ---
 
@@ -398,11 +544,15 @@ for (const child of childTraces) {
 
 ### Phase 0: Critical Bug Fix (Issue 6 - CRITICAL)
 
-| Step | Task | Effort |
-|------|------|--------|
-| 0.1 | Investigate best fix approach (Option A/B/C) | 1h |
-| 0.2 | Implement fix | 2h |
-| 0.3 | Fix tests to use realistic data | 1h |
+| Step | Task | Effort | Status |
+|------|------|--------|--------|
+| 0.1 | Investigate root cause | 1h | ✅ Done (2026-01-24) |
+| 0.2 | Choose fix approach (Option A recommended) | - | ⏳ Pending |
+| 0.3 | Implement fix | 2h | |
+| 0.4 | Fix tests to use realistic data | 1h | |
+
+> **Investigation complete (2026-01-24):** Root cause is NAMES vs UUIDs, not underscores vs dashes.
+> See updated "Root Cause (CORRECTED)" section above.
 
 ### Phase 1: Performance Optimization (Issue 1 - MEDIUM)
 
@@ -414,12 +564,13 @@ for (const child of childTraces) {
 | 1.4 | Add unit tests for batch loading | 1h | |
 
 > **Status:**
-> - Issue 1 (N+1 queries) → Step 1.1 done, rest blocked by Issue 6
+> - Issue 1 (N+1 queries) → Step 1.1 done, rest now unblocked
 > - Issue 2 (IS weight mismatch) → **RESOLVED** (was in deleted code)
 > - Issue 3 (silent skip) → commit `f37c3ac`
 > - Issue 4 (global counter) → commit `38494dc` (documented)
 > - Issue 5 (code duplication) → commit `ed3c19a`
-> - **Issue 6 (key mismatch) → CRITICAL - flattenExecutedPath is broken**
+> - **Issue 6 (key mismatch) → FIXED (2026-01-26): Use capabilityId in executedPath + UUID→name resolution**
+> - **Issue 7 (empty executedPath) → FIXED (2026-01-26): Derive from taskResults in API**
 
 ### Priority Assessment
 
@@ -438,11 +589,65 @@ However, it's **worth implementing** because:
 
 ## Acceptance Criteria
 
-- [ ] **AC1:** `flattenExecutedPath()` makes O(depth) queries instead of O(traces × depth)
+- [ ] **AC1:** `flattenExecutedPath()` makes O(depth) queries instead of O(traces × depth) (deferred - Issue 1 is MEDIUM priority)
 - [x] **AC2:** IS weights calculated correctly ✅ (verified - handled by PERBuffer)
 - [x] **AC3:** Missing parent traces logged at debug level ✅
-- [ ] **AC4:** All existing tests pass
-- [ ] **AC5:** New tests added for batch loading (Issue 1)
+- [x] **AC4:** All existing tests pass ✅
+- [ ] **AC5:** New tests added for batch loading (Issue 1) (deferred - MEDIUM priority)
+- [x] **AC6:** Issue 6 fixed - childTraceMap key mismatch ✅ (2026-01-26)
+- [x] **AC7:** Issue 7 fixed - PML CLI traces have executedPath ✅ (2026-01-26)
+- [x] **AC8:** Issue 8 fixed - Frontend FQDN parsing ✅ (2026-01-26)
+
+---
+
+## Issue 8: Frontend FQDN Parsing (FIXED)
+
+### Discovery (2026-01-26)
+
+Related to Issue 6 - after `tools_used` started storing FQDNs (e.g., `pml.mcp.std.psql_query.3cd9`),
+frontend components broke because they parsed tool IDs with `split(":")`.
+
+### Root Cause
+
+All UI components used colon-based parsing:
+```typescript
+// BROKEN for FQDNs
+const [server, ...nameParts] = toolId.split(":");
+const name = nameParts.join(":") || toolId;
+// "pml.mcp.std.psql_query.3cd9".split(":") → ["pml.mcp.std.psql_query.3cd9"]
+// Result: server = "pml.mcp.std.psql_query.3cd9", name = "" ❌
+```
+
+Primary source: `hypergraph-builder.ts:createToolNode()` created graph nodes with FQDN as label.
+
+### Fix Applied (2026-01-26)
+
+**Commit:** `bf2c6819`
+
+1. **New utility:** `src/capabilities/tool-id-utils.ts`
+   ```typescript
+   export function parseToolId(toolId: string): { namespace: string; action: string } {
+     // FQDN: pml.mcp.std.psql_query.3cd9 → { namespace: "std", action: "psql_query" }
+     // Colon: std:psql_query → { namespace: "std", action: "psql_query" }
+     // MCP dot: mcp.std.psql_query → { namespace: "std", action: "psql_query" }
+   }
+   ```
+
+2. **Root cause fix:** `src/capabilities/hypergraph-builder.ts:createToolNode()`
+   - Changed from `split(":")` to `parseToolId()`
+
+3. **UI components updated:**
+   - Atoms: ToolBadge, FusedTaskCard, LoopTaskCard, CapabilityTaskCard
+   - Molecules: TraceTimeline
+   - Islands: CodePanel, CytoscapeGraph, CapabilityTimeline, NamespaceDetailIsland
+
+### Files Modified
+
+- `src/capabilities/tool-id-utils.ts` (NEW)
+- `src/capabilities/hypergraph-builder.ts`
+- `src/web/components/ui/atoms/*.tsx` (4 files)
+- `src/web/components/ui/molecules/TraceTimeline.tsx`
+- `src/web/islands/*.tsx` (5 files)
 
 ---
 
