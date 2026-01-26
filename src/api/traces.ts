@@ -21,6 +21,7 @@ import { getLogger } from "../telemetry/logger.ts";
 import { getWorkflowStateRecord, deleteWorkflowState } from "../cache/workflow-state-cache.ts";
 import { ExecutionCaptureService } from "../application/services/execution-capture.service.ts";
 import { DAGConverterAdapter } from "../infrastructure/di/adapters/execute/dag-converter-adapter.ts";
+import { McpRegistryService } from "../mcp/registry/mcp-registry.service.ts";
 
 const logger = getLogger("default");
 
@@ -113,6 +114,7 @@ interface IncomingTrace {
     success: boolean;
     durationMs: number;
     timestamp: string;
+    layerIndex?: number; // Story 11.4: Parallel execution layer
   }>;
   decisions: Array<{
     nodeId: string;
@@ -148,11 +150,12 @@ interface TracesResponse {
  * @param resolvedCapabilityId - Resolved workflowPatternId (UUID) or null for standalone
  * @param userId - User ID from context
  */
-function mapIncomingToSaveInput(
+async function mapIncomingToSaveInput(
   incoming: IncomingTrace,
   resolvedCapabilityId: string | null,
-  userId?: string,
-): SaveTraceInput {
+  userId: string | undefined,
+  db: DbClient,
+): Promise<SaveTraceInput> {
   // Map task results (align field names)
   const taskResults: TraceTaskResult[] = incoming.taskResults.map((tr) => ({
     taskId: tr.taskId,
@@ -161,6 +164,7 @@ function mapIncomingToSaveInput(
     result: tr.result as JsonValue,
     success: tr.success,
     durationMs: tr.durationMs,
+    layerIndex: tr.layerIndex, // Story 11.4: Include layerIndex for TraceTimeline
   }));
 
   // Map decisions (already aligned)
@@ -178,6 +182,15 @@ function mapIncomingToSaveInput(
     executedAt = new Date();
   }
 
+  // Issue 6 fix: Derive executedPath from taskResults and resolve FQDNs to UUIDs
+  // PML CLI now sends FQDNs (e.g., "local.default.meta.personWithAddress.xxxx") for capabilities
+  // We resolve these to UUIDs so flattenExecutedPath() can match child traces
+  const executedPath: string[] = [];
+  for (const tr of taskResults) {
+    const resolved = await resolveCapabilityId(tr.tool, db);
+    executedPath.push(resolved ?? tr.tool); // UUID if resolved, original tool ID otherwise
+  }
+
   return {
     // ADR-041: Use package-generated traceId as the trace's ID for parent-child linking
     // Validate UUID format - if invalid, let DB generate one
@@ -189,6 +202,7 @@ function mapIncomingToSaveInput(
     durationMs: incoming.durationMs,
     taskResults,
     decisions,
+    executedPath,
     priority: 0.5, // Default priority - TD-Error will update later
     // Migration 039: createdBy removed, use userId (UUID FK or null)
     // Note: "local" is not a valid UUID, treat as undefined
@@ -293,10 +307,12 @@ export async function handleTracesPost(
           }
           const capabilityRegistry = new CapabilityRegistry(ctx.db);
 
+          const mcpRegistry = new McpRegistryService(ctx.db);
           const captureService = new ExecutionCaptureService({
             capabilityStore: ctx.capabilityStore,
             capabilityRegistry,
             dagConverter: new DAGConverterAdapter(),
+            mcpRegistry,
           });
 
           // Map incoming taskResults to TraceTaskResult format
@@ -307,6 +323,7 @@ export async function handleTracesPost(
             result: tr.result as JsonValue,
             success: tr.success,
             durationMs: tr.durationMs,
+            layerIndex: tr.layerIndex, // Story 11.4: Include layerIndex for TraceTimeline
           }));
 
           const captureResult = await captureService.capture({
@@ -347,6 +364,15 @@ export async function handleTracesPost(
         errors.push(`Invalid trace: missing capabilityId (required when no workflowId)`);
         continue;
       }
+      // Validate required array fields (must exist and be arrays)
+      if (!Array.isArray(incoming.taskResults)) {
+        errors.push(`Invalid trace ${incoming.capabilityId}: missing or invalid taskResults array`);
+        continue;
+      }
+      if (!Array.isArray(incoming.decisions)) {
+        errors.push(`Invalid trace ${incoming.capabilityId}: missing or invalid decisions array`);
+        continue;
+      }
 
       // Resolve FQDN → workflowPatternId (UUID)
       // Client sends FQDN like "local.default.fs.read_file.a7f3"
@@ -354,7 +380,8 @@ export async function handleTracesPost(
       const resolvedCapabilityId = await resolveCapabilityId(incoming.capabilityId, ctx.db);
 
       // Map to server format with resolved UUID
-      const saveInput = mapIncomingToSaveInput(incoming, resolvedCapabilityId, ctx.userId);
+      // Issue 6 fix: Pass db for FQDN → UUID resolution in executedPath
+      const saveInput = await mapIncomingToSaveInput(incoming, resolvedCapabilityId, ctx.userId, ctx.db);
 
       // Save trace (triggers existing TD-Error + PER via eventBus)
       await traceStore.saveTrace(saveInput);

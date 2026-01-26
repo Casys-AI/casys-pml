@@ -424,13 +424,15 @@ export class WorkerBridge {
             }));
 
           // Build executedPath from traces (tool and capability nodes in execution order)
+          // Issue 6 fix: Use capabilityId (UUID) for capabilities so flattenExecutedPath() can match child traces
+          // Tools use names (e.g., "std:psql_query"), capabilities use UUIDs (e.g., "abc-123-...")
           const executedPath = sortedTraces
             .filter((t): t is ToolTraceEvent | CapabilityTraceEvent =>
               t.type === "tool_end" || t.type === "capability_end"
             )
             .map((t) => {
               if (t.type === "tool_end") return t.tool;
-              return (t as CapabilityTraceEvent).capability;
+              return (t as CapabilityTraceEvent).capabilityId;
             });
 
           const { trace } = await this.capabilityStore.saveCapability({

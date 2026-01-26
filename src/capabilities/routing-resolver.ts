@@ -222,11 +222,14 @@ function isInServerList(toolId: string): boolean {
  * Normalize tool ID to canonical format: server:action
  *
  * Handles multiple input formats:
+ * - org.project.namespace.action.hash (5-part FQDN - Issue 6 fix)
  * - mcp.server.action (JavaScript dot notation from sandbox)
  * - mcp__server__action (double underscore internal format)
  * - server:action (already canonical)
  *
  * @example
+ * normalizeToolId("pml.mcp.std.psql_query.3cd9") // "std:psql_query" (FQDN)
+ * normalizeToolId("local.default.meta.myFunc.a1b2") // "meta:myFunc" (FQDN)
  * normalizeToolId("mcp.std.fetch_url") // "std:fetch_url"
  * normalizeToolId("mcp.filesystem.read_file") // "filesystem:read_file"
  * normalizeToolId("mcp__code__analyze") // "code:analyze"
@@ -235,6 +238,16 @@ function isInServerList(toolId: string): boolean {
  */
 export function normalizeToolId(toolId: string): string {
   if (!toolId || typeof toolId !== "string") return "";
+
+  // Issue 6 fix: Handle FQDN format (org.project.namespace.action.hash)
+  // FQDNs have 4-5 parts separated by dots, where parts[2] is namespace and parts[3] is action
+  const dotParts = toolId.split(".");
+  if (dotParts.length >= 4 && !toolId.startsWith("mcp.")) {
+    // FQDN: org.project.namespace.action[.hash] -> namespace:action
+    const namespace = dotParts[2];
+    const action = dotParts[3];
+    return `${namespace}:${action}`;
+  }
 
   // Handle mcp.server.action format (JavaScript dot notation from sandbox code)
   if (toolId.startsWith("mcp.")) {
