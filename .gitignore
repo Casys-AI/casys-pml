@@ -16,6 +16,14 @@ _fresh/
 /pml
 lib/std/bundle.js
 
+# Rust / Cargo
+target/
+# Note: Cargo.lock is committed for apps/desktop (binary app) but not for crates/ (library)
+crates/Cargo.lock
+
+# Tauri
+apps/desktop/src-tauri/gen/
+
 # Logs
 *.log
 logs/
