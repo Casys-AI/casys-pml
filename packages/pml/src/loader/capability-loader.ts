@@ -184,6 +184,12 @@ export class CapabilityLoader {
    */
   private pendingTraces: LocalExecutionTrace[] = [];
 
+  /**
+   * Map of toolId (namespace:action) to FQDN for trace recording.
+   * Issue 6 fix: Use FQDN in taskResults.tool so server can resolve to UUID.
+   */
+  private fqdnMap: Map<string, string> = new Map();
+
   /** Whether initialization is complete */
   private initialized = false;
 
@@ -328,6 +334,10 @@ export class CapabilityLoader {
       const { metadata: fetchedMetadata } = await this.registryClient.fetch(namespace);
       metadata = fetchedMetadata;
     }
+
+    // Issue 6 fix: Populate fqdnMap from capability's toolsUsed
+    // This enables nested capability calls to use FQDNs in traces for hierarchical matching
+    this.populateFqdnMapFromToolsUsed(metadata.toolsUsed);
 
     // 2. Check and install dependencies
     // If continueWorkflow.approved is true, force install (user approved)
@@ -709,6 +719,10 @@ export class CapabilityLoader {
       const { metadata: fetchedMetadata } = await this.registryClient.fetchByFqdn(fqdn);
       metadata = fetchedMetadata;
     }
+
+    // Issue 6 fix: Populate fqdnMap from capability's toolsUsed
+    // This enables nested capability calls to use FQDNs in traces for hierarchical matching
+    this.populateFqdnMapFromToolsUsed(metadata.toolsUsed);
 
     // Check and install dependencies
     const forceInstall = continueWorkflow?.approved === true;
@@ -1096,10 +1110,12 @@ export class CapabilityLoader {
           throw error;
         } finally {
           // Story 14.5b: Record the mcp.* call in trace collector
+          // Issue 6 fix: Use FQDN if available so server can resolve to UUID
           if (traceCollector) {
             const callDuration = Date.now() - callStart;
+            const toolId = this.fqdnMap.get(rpcMethod) ?? rpcMethod;
             traceCollector.recordMcpCall(
-              rpcMethod,
+              toolId,
               rpcArgs,
               callResult,
               callDuration,
@@ -1432,6 +1448,7 @@ export class CapabilityLoader {
    * @param error - Error message if failed
    * @param toolCallRecords - Records of tool calls made during execution
    * @param workflowId - Workflow ID for server-side capability creation
+   * @param dagTasks - Story 11.4: DAG tasks with layerIndex from server (execute_locally)
    */
   enqueueDirectExecutionTrace(
     traceId: string,
@@ -1440,7 +1457,31 @@ export class CapabilityLoader {
     error?: string,
     toolCallRecords?: Array<{ tool: string; args: unknown; result: unknown; success: boolean; durationMs: number }>,
     workflowId?: string,
+    dagTasks?: Array<{ id: string; tool: string; layerIndex: number }>,
   ): void {
+    // DEBUG: Log incoming data for layerIndex debugging
+    logDebug(`[enqueueDirectExecutionTrace] dagTasks: ${dagTasks?.length ?? 0}, toolCallRecords: ${toolCallRecords?.length ?? 0}`);
+    if (dagTasks?.[0]) {
+      logDebug(`[enqueueDirectExecutionTrace] dagTasks[0].tool: ${dagTasks[0].tool}, layerIndex: ${dagTasks[0].layerIndex}`);
+    }
+    if (toolCallRecords?.[0]) {
+      logDebug(`[enqueueDirectExecutionTrace] toolCallRecords[0].tool: ${toolCallRecords[0].tool}`);
+    }
+
+    // Story 11.4: Build tool→layerIndex map from DAG tasks
+    // If same tool appears multiple times, use first occurrence (sequential matching)
+    const toolLayerMap = new Map<string, number[]>();
+    if (dagTasks) {
+      for (const task of dagTasks) {
+        const layers = toolLayerMap.get(task.tool) ?? [];
+        layers.push(task.layerIndex);
+        toolLayerMap.set(task.tool, layers);
+      }
+    }
+
+    // Track which layer index to use for each tool (for multiple occurrences)
+    const toolOccurrenceIndex = new Map<string, number>();
+
     const trace: LocalExecutionTrace = {
       traceId,
       parentTraceId: undefined, // Direct execution has no parent
@@ -1449,20 +1490,78 @@ export class CapabilityLoader {
       success,
       error,
       durationMs,
-      taskResults: (toolCallRecords ?? []).map((r, i) => ({
-        taskId: `t${i + 1}`,
-        tool: r.tool,
-        args: (r.args ?? {}) as Record<string, JsonValue>,
-        result: r.result as JsonValue,
-        success: r.success,
-        durationMs: r.durationMs,
-        timestamp: new Date().toISOString(),
-      })),
+      taskResults: (toolCallRecords ?? []).map((r, i) => {
+        // Story 11.4: Look up layerIndex from DAG tasks
+        let layerIndex: number | undefined;
+        if (dagTasks) {
+          const layers = toolLayerMap.get(r.tool);
+          logDebug(`[enqueueDirectExecutionTrace] lookup r.tool=${r.tool}, layers=${JSON.stringify(layers)}`);
+          if (layers && layers.length > 0) {
+            const occIdx = toolOccurrenceIndex.get(r.tool) ?? 0;
+            layerIndex = layers[occIdx] ?? layers[layers.length - 1];
+            toolOccurrenceIndex.set(r.tool, occIdx + 1);
+            logDebug(`[enqueueDirectExecutionTrace] layerIndex resolved: ${layerIndex}`);
+          }
+        }
+
+        return {
+          taskId: `t${i + 1}`,
+          tool: this.fqdnMap.get(r.tool) ?? r.tool, // Issue 6: Use FQDN for UUID resolution
+          args: (r.args ?? {}) as Record<string, JsonValue>,
+          result: r.result as JsonValue,
+          success: r.success,
+          durationMs: r.durationMs,
+          timestamp: new Date().toISOString(),
+          layerIndex,
+        };
+      }),
       decisions: [],
       timestamp: new Date().toISOString(),
     };
     this.pendingTraces.push(trace);
     logDebug(`Direct execution trace added: ${traceId} (workflowId: ${workflowId ?? "none"})`);
+  }
+
+  /**
+   * Set the FQDN map for trace recording.
+   * Issue 6 fix: Use FQDN in taskResults.tool so server can resolve to UUID.
+   *
+   * @param map - Map of toolId (namespace:action) to FQDN
+   */
+  setFqdnMap(map: Map<string, string>): void {
+    this.fqdnMap = map;
+  }
+
+  /**
+   * Populate fqdnMap from capability's toolsUsed metadata.
+   *
+   * Issue 6 fix: When loading a capability that calls other capabilities/tools,
+   * we need to populate fqdnMap so that nested calls use FQDNs in traces.
+   * This allows the server to resolve FQDNs to UUIDs for hierarchical trace matching.
+   *
+   * @param toolsUsed - Array of FQDNs from capability metadata
+   */
+  private populateFqdnMapFromToolsUsed(toolsUsed: string[] | undefined): void {
+    if (!toolsUsed || toolsUsed.length === 0) {
+      return;
+    }
+
+    for (const fqdn of toolsUsed) {
+      // Skip non-FQDN entries (like code:* pseudo-tools)
+      if (!fqdn.includes(".")) {
+        continue;
+      }
+
+      // Extract name from FQDN: "org.project.namespace.action.hash" → "namespace:action"
+      const parts = fqdn.split(".");
+      if (parts.length >= 4) {
+        const namespace = parts[2];
+        const action = parts[3];
+        const name = `${namespace}:${action}`;
+        this.fqdnMap.set(name, fqdn);
+        logDebug(`[fqdnMap] Added ${name} → ${fqdn}`);
+      }
+    }
   }
 
   /**

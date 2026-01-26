@@ -26,7 +26,7 @@ import {
 import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
 import { SessionClient } from "../session/mod.ts";
 import { PendingWorkflowStore } from "../workflow/mod.ts";
-import { TraceSyncer, type LocalExecutionTrace, type JsonValue } from "../tracing/mod.ts";
+import { TraceSyncer } from "../tracing/mod.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { reloadEnv } from "../byok/env-loader.ts";
@@ -266,6 +266,8 @@ async function handleToolsCall(
           storedFqdnMap,
           { approved: true, workflowId: continueWorkflow.workflowId },
           stdioLogger,
+          undefined, // serverWorkflowId not needed for continuation
+          pendingWorkflow.dagTasks, // Story 11.4: DAG tasks with layerIndex
         );
 
         pendingWorkflowStore.delete(continueWorkflow.workflowId!);
@@ -280,6 +282,7 @@ async function handleToolsCall(
               pendingWorkflowStore,
               pendingWorkflow.code,
               pendingWorkflow.fqdnMap,
+              pendingWorkflow.dagTasks, // Story 11.4
             ),
           });
           return;
@@ -345,6 +348,8 @@ async function handleToolsCall(
           fqdnMap,
           continueWorkflow,
           stdioLogger,
+          execLocally.workflowId, // ADR-065: server workflowId = client traceId
+          execLocally.dag?.tasks, // Story 11.4: DAG tasks with layerIndex
         );
 
         // Handle approval_required (HIL pause)
@@ -359,6 +364,7 @@ async function handleToolsCall(
               pendingWorkflowStore,
               execLocally.code,
               Object.fromEntries(fqdnMap),
+              execLocally.dag?.tasks, // Story 11.4
             ),
           });
           return;
@@ -379,28 +385,8 @@ async function handleToolsCall(
           return;
         }
 
-        // Send trace to finalize capability creation if workflowId present
-        if (execLocally.workflowId && traceSyncer) {
-          const trace: LocalExecutionTrace = {
-            workflowId: execLocally.workflowId,
-            capabilityId: "",
-            success: true,
-            durationMs: localResult.durationMs,
-            taskResults: localResult.toolCallRecords.map((record, i) => ({
-              taskId: `task_${i}`,
-              tool: record.tool,
-              args: (record.args ?? {}) as Record<string, JsonValue>,
-              result: (record.result ?? null) as JsonValue,
-              success: record.success,
-              durationMs: record.durationMs,
-              timestamp: new Date().toISOString(),
-            })),
-            decisions: [],
-            timestamp: new Date().toISOString(),
-          };
-          traceSyncer.enqueue(trace);
-          stdioLog.debug(`Trace queued for capability finalization: ${execLocally.workflowId}`);
-        }
+        // ADR-065: Trace is now sent by local-executor.ts with unified workflowId/traceId
+        // No need for duplicate trace here - local-executor passes workflowId to enqueueDirectExecutionTrace()
 
         // Return successful local execution result
         sendResponse({
@@ -680,12 +666,11 @@ export function createStdioCommand(): Command<any> {
         stdioLog.debug(`Failed to initialize CapabilityLoader: ${error}`);
       }
 
-      // Initialize TraceSyncer
+      // Initialize TraceSyncer (ADR-065: explicit flush only, no auto-flush timer)
       traceSyncer = new TraceSyncer({
         cloudUrl,
         apiKey,
         batchSize: 10,
-        flushIntervalMs: 5000,
         maxRetries: 3,
       });
       stdioLog.debug(`TraceSyncer initialized`);

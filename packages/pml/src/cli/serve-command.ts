@@ -12,10 +12,9 @@ import * as colors from "@std/fmt/colors";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { Hono } from "hono";
-import { cors } from "hono/cors";
+import { cors } from "jsr:@hono/hono@^4/cors";
 import type { PmlConfig } from "../types.ts";
 import {
-  getWorkspaceSourceDescription,
   isValidWorkspace,
   resolveWorkspaceWithDetails,
 } from "../workspace.ts";
@@ -29,7 +28,7 @@ import {
 import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
 import { SessionClient } from "../session/mod.ts";
 import { PendingWorkflowStore } from "../workflow/mod.ts";
-import { TraceSyncer, type LocalExecutionTrace, type JsonValue } from "../tracing/mod.ts";
+import { TraceSyncer } from "../tracing/mod.ts";
 import { reloadEnv } from "../byok/env-loader.ts";
 
 // Shared utilities
@@ -141,11 +140,11 @@ export function createServeCommand(): Command<any> {
       }
 
       // Initialize TraceSyncer for capability creation after local execution
+      // ADR-065: explicit flush only, no auto-flush timer
       traceSyncer = new TraceSyncer({
         cloudUrl,
         apiKey,
         batchSize: 10,
-        flushIntervalMs: 5000,
         maxRetries: 3,
       });
       log(`${colors.green("✓")} TraceSyncer ready`);
@@ -251,6 +250,8 @@ export function createServeCommand(): Command<any> {
                   fqdnMap,
                   { approved: true, workflowId: continueWorkflow.workflowId },
                   httpLogger,
+                  undefined, // serverWorkflowId not needed for continuation
+                  pending.dagTasks, // Story 11.4: DAG tasks with layerIndex
                 );
                 pendingWorkflowStore.delete(continueWorkflow.workflowId);
 
@@ -264,6 +265,7 @@ export function createServeCommand(): Command<any> {
                       pendingWorkflowStore,
                       pending.code,
                       pending.fqdnMap,
+                      pending.dagTasks, // Story 11.4
                     ),
                   });
                 }
@@ -308,6 +310,8 @@ export function createServeCommand(): Command<any> {
                   fqdnMap,
                   continueWorkflow,
                   httpLogger,
+                  execLocally.workflowId, // ADR-065: server workflowId = client traceId
+                  execLocally.dag?.tasks, // Story 11.4: DAG tasks with layerIndex
                 );
 
                 if (result.status === "approval_required") {
@@ -321,6 +325,7 @@ export function createServeCommand(): Command<any> {
                       pendingWorkflowStore,
                       execLocally.code,
                       Object.fromEntries(fqdnMap),
+                      execLocally.dag?.tasks, // Story 11.4
                     ),
                   });
                 }
@@ -332,28 +337,8 @@ export function createServeCommand(): Command<any> {
                     result: { content: [{ type: "text", text: JSON.stringify({ status: "error", error: result.error, executed_locally: true }) }] },
                   });
                 }
-                // Send trace to finalize capability creation if workflowId present
-                if (execLocally.workflowId && traceSyncer) {
-                  const trace: LocalExecutionTrace = {
-                    workflowId: execLocally.workflowId,
-                    capabilityId: "",
-                    success: true,
-                    durationMs: result.durationMs,
-                    taskResults: result.toolCallRecords.map((record, i) => ({
-                      taskId: `task_${i}`,
-                      tool: record.tool,
-                      args: (record.args ?? {}) as Record<string, JsonValue>,
-                      result: (record.result ?? null) as JsonValue,
-                      success: record.success,
-                      durationMs: record.durationMs,
-                      timestamp: new Date().toISOString(),
-                    })),
-                    decisions: [],
-                    timestamp: new Date().toISOString(),
-                  };
-                  traceSyncer.enqueue(trace);
-                  log(`  Trace queued: ${execLocally.workflowId.slice(0, 8)}`);
-                }
+                // ADR-065: Trace is now sent by local-executor.ts with unified workflowId/traceId
+                // No need for duplicate trace here - local-executor passes workflowId to enqueueDirectExecutionTrace()
 
                 log(`  ${colors.green("✓")} success (${result.durationMs}ms)`);
                 return c.json({
