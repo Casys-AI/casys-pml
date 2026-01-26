@@ -501,7 +501,7 @@ export class StdioSimulator {
       "status" in data &&
       (data as Record<string, unknown>).status === "approval_required"
     ) {
-      const approvalData = data as {
+      const approvalData = data as unknown as {
         approval_type: string;
         workflow_id: string;
         context?: unknown;
