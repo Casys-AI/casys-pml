@@ -437,3 +437,31 @@ export async function isPortAvailable(port: number): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Wait for server to stop (no longer accepting connections)
+ *
+ * Uses deterministic polling instead of hard-coded delays.
+ *
+ * @param port - Port to check
+ * @param timeoutMs - Maximum time to wait (default: 5000ms)
+ * @param intervalMs - Poll interval (default: 50ms)
+ */
+export async function waitForServerStopped(
+  port: number,
+  timeoutMs = 5000,
+  intervalMs = 50,
+): Promise<void> {
+  await waitFor(
+    async () => {
+      try {
+        await makeGatewayRequest(port, "/health");
+        return false; // Server still running
+      } catch {
+        return true; // Server stopped (connection refused)
+      }
+    },
+    timeoutMs,
+    intervalMs,
+  );
+}

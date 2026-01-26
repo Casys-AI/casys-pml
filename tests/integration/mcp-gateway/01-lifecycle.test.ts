@@ -14,6 +14,7 @@ import {
   createTestGatewayServer,
   getRandomPort,
   makeGatewayRequest,
+  waitForServerStopped,
 } from "./fixtures/gateway-test-helpers.ts";
 
 Deno.test({
@@ -63,8 +64,8 @@ Deno.test({
     // Stop server
     await gateway.stop();
 
-    // Wait a bit for server to fully stop
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait for server to fully stop (deterministic polling instead of hard-coded delay)
+    await waitForServerStopped(port);
 
     // Verify server is no longer accepting connections
     try {
@@ -106,8 +107,8 @@ Deno.test({
       // Stop server
       await gateway.stop();
 
-      // Wait for cleanup
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      // Wait for server to fully stop (deterministic polling instead of hard-coded delay)
+      await waitForServerStopped(port);
     }
 
     console.log(`  ✓ Completed ${cycles} start/stop cycles without errors`);
