@@ -1494,8 +1494,10 @@ export class CapabilityLoader {
         // Story 11.4: Look up layerIndex from DAG tasks
         let layerIndex: number | undefined;
         if (dagTasks) {
-          const layers = toolLayerMap.get(r.tool);
-          logDebug(`[enqueueDirectExecutionTrace] lookup r.tool=${r.tool}, layers=${JSON.stringify(layers)}`);
+          // Issue 7 fix: Convert short format to FQDN for lookup (dagTasks uses FQDN)
+          const fqdn = this.fqdnMap.get(r.tool);
+          const layers = toolLayerMap.get(fqdn ?? r.tool);
+          logDebug(`[enqueueDirectExecutionTrace] lookup r.tool=${r.tool}, fqdn=${fqdn}, layers=${JSON.stringify(layers)}`);
           if (layers && layers.length > 0) {
             const occIdx = toolOccurrenceIndex.get(r.tool) ?? 0;
             layerIndex = layers[occIdx] ?? layers[layers.length - 1];
