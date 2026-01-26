@@ -18,6 +18,7 @@ import type { CheckpointManager } from "../../dag/checkpoint-manager.ts";
 import type { AdaptiveThresholdManager } from "../adaptive-threshold.ts";
 import type { AlgorithmTracer } from "../../telemetry/algorithm-tracer.ts";
 import type { EpisodicMemoryStore } from "../../dag/episodic/store.ts";
+import type { McpRegistryService } from "../registry/mcp-registry.service.ts";
 
 /**
  * Dependencies required for workflow handler
@@ -29,6 +30,8 @@ export interface WorkflowHandlerDependencies {
   capabilityStore?: CapabilityStore;
   /** Capability registry for routing to learned capabilities (meta-capabilities) */
   capabilityRegistry?: CapabilityRegistry;
+  /** MCP Registry for tool FQDN lookup (Issue 6 fix) */
+  mcpRegistry?: McpRegistryService;
   mcpClients: Map<string, MCPClientBase>;
   gatewayHandler: GatewayHandler;
   checkpointManager: CheckpointManager | null;

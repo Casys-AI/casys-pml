@@ -1003,6 +1003,7 @@ export class PMLGatewayServer {
       dagSuggester: this.dagSuggester,
       capabilityStore: this.capabilityStore,
       capabilityRegistry: this.capabilityRegistry ?? undefined,
+      mcpRegistry: this.mcpRegistry ?? undefined, // Issue 6 fix: FQDN resolution
       mcpClients: this.mcpClients,
       gatewayHandler: this.gatewayHandler,
       checkpointManager: this.checkpointManager,

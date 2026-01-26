@@ -66,6 +66,13 @@ export interface ExecuteDirectResult {
     layersCount: number;
     speedup?: number;
     toolsDiscovered?: string[];
+    /** Story 11.4: Tasks with layerIndex for client-side TraceTimeline visualization */
+    tasks?: Array<{
+      id: string;
+      tool: string;
+      dependsOn: string[];
+      layerIndex: number;
+    }>;
   };
   /** Tool failures (if any) */
   toolFailures?: Array<{ tool: string; error: string }>;
@@ -295,5 +302,12 @@ export interface ExecuteResponse {
     layersCount?: number;
     speedup?: number;
     toolsDiscovered?: string[];
+    /** Story 11.4: Tasks with layerIndex for client-side TraceTimeline visualization */
+    tasks?: Array<{
+      id: string;
+      tool: string;
+      dependsOn: string[];
+      layerIndex: number;
+    }>;
   };
 }

@@ -56,6 +56,14 @@ export interface TraceTaskResult {
 
   /** Timestamp when call was made (ISO string for serialization) */
   timestamp: string;
+
+  /**
+   * Story 11.4: DAG layer index for TraceTimeline visualization
+   * - Layer 0: root tasks (no dependencies)
+   * - Layer N: tasks that depend on layer N-1
+   * Computed by server, passed in execute_locally response
+   */
+  layerIndex?: number;
 }
 
 /**

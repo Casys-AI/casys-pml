@@ -83,6 +83,13 @@ export interface McpRegistryEntry {
 
   /** JSON Schema for input parameters (capabilities only) */
   parametersSchema?: Record<string, unknown>;
+
+  /**
+   * Tools used by this capability (FQDNs) - Issue 6 fix.
+   * When client loads this capability, it populates fqdnMap with these FQDNs
+   * so that nested capability calls can be resolved to UUIDs for trace matching.
+   */
+  toolsUsed?: string[];
 }
 
 /**

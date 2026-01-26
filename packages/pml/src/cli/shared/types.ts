@@ -45,6 +45,27 @@ export interface ResolvedTool {
 }
 
 /**
+ * Task from DAG with layerIndex for TraceTimeline visualization.
+ * Story 11.4: Server computes layerIndex, client uses it.
+ */
+export interface DAGTask {
+  id: string;
+  tool: string;
+  arguments?: Record<string, unknown>;
+  dependsOn: string[];
+  /** Parallel execution layer (0 = no dependencies) */
+  layerIndex: number;
+}
+
+/**
+ * DAG structure included in execute_locally response.
+ * Story 11.4: Includes layerIndex for each task.
+ */
+export interface ExecuteLocallyDAG {
+  tasks: DAGTask[];
+}
+
+/**
  * Parsed execute_locally response from server.
  */
 export interface ExecuteLocallyResponse {
@@ -54,6 +75,8 @@ export interface ExecuteLocallyResponse {
   /** Resolved tools with FQDNs from server (multi-tenant) */
   tools_used: ResolvedTool[];
   workflowId?: string;
+  /** Story 11.4: DAG with layerIndex for TraceTimeline */
+  dag?: ExecuteLocallyDAG;
 }
 
 /**

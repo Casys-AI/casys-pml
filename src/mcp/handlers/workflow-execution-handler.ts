@@ -686,6 +686,7 @@ export async function processGeneratorUntilPause(
       if (learningContext && deps.capabilityStore && (event.failedTasks ?? 0) === 0) {
         try {
           // Build task results for trace data (TraceTaskResult format)
+          // Story 11.4: Include layerIndex from DAG executor for TraceTimeline visualization
           const taskResults = layerResults.map((r) => {
             const task = dag.tasks.find((t) => t.id === r.taskId);
             return {
@@ -695,6 +696,7 @@ export async function processGeneratorUntilPause(
               result: (r.output ?? null) as import("../../capabilities/types.ts").JsonValue,
               success: r.status === "success",
               durationMs: r.executionTimeMs ?? 0,
+              layerIndex: r.layerIndex,
             };
           });
 
@@ -703,6 +705,7 @@ export async function processGeneratorUntilPause(
             capabilityStore: deps.capabilityStore,
             capabilityRegistry: deps.capabilityRegistry,
             dagConverter: new DAGConverterAdapter(),
+            mcpRegistry: deps.mcpRegistry,
           });
 
           const result = await captureService.capture({

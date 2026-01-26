@@ -38,6 +38,7 @@ import {
 import { getUserScope, resolveToolFqdn } from "../../../lib/user.ts";
 import { saveWorkflowState } from "../../../cache/workflow-state-cache.ts";
 import type { LearningContext } from "../../../cache/types.ts";
+import { computeLayerIndexForTasks } from "../../../dag/mod.ts";
 
 // ============================================================================
 // Interfaces (Clean Architecture - no concrete imports)
@@ -373,12 +374,27 @@ export class ExecuteDirectUseCase {
               })),
             );
 
+            // Story 11.4: Compute layerIndex for each task so client can track layers
+            // Cast tasks to proper type (IDAGConverter returns unknown[] for flexibility)
+            type DAGTask = { id: string; dependsOn: string[]; tool?: string };
+            const tasksWithLayers = computeLayerIndexForTasks(logicalDAG.tasks as DAGTask[]);
+
+            // DEBUG: Log DAG tasks with dependencies to verify static analysis
+            log.info(`[ExecuteDirectUseCase] DEBUG DAG tasks: ${JSON.stringify(
+              (logicalDAG.tasks as DAGTask[]).map(t => ({
+                id: t.id,
+                tool: t.tool,
+                dependsOn: t.dependsOn,
+                layerIndex: (tasksWithLayers.find(tw => tw.id === t.id) as { layerIndex: number } | undefined)?.layerIndex,
+              }))
+            )}`);
+
             // Build LearningContext for capability creation when trace is received
             const learningContext: LearningContext = {
               code,
               intent,
               staticStructure,
-              toolsUsed,
+              toolsUsed: toolsWithFqdn.map(t => t.fqdn), // FQDNs for capability registration
               userId: this.userId ?? undefined,
               traceId: request.executionTraceId, // Pre-generated trace ID (ADR-041)
               parentTraceId: request.parentTraceId, // Parent trace for nested execution (ADR-041)
@@ -410,8 +426,23 @@ export class ExecuteDirectUseCase {
                 dag: {
                   mode: "dag",
                   tasksCount: logicalDAG.tasks.length,
-                  layersCount: 0,
+                  layersCount: tasksWithLayers.length > 0
+                    ? Math.max(...tasksWithLayers.map((t) => t.layerIndex)) + 1
+                    : 0,
                   toolsDiscovered: toolsUsed,
+                  // Story 11.4: Include tasks with layerIndex for TraceTimeline visualization
+                  // Use FQDN in tool field - client normalizes via getToolDisplayName for layerIndex lookup
+                  tasks: tasksWithLayers
+                    .filter((t): t is typeof t & { tool: string } => !!t.tool)
+                    .map((t) => {
+                      const fqdn = toolsWithFqdn.find(tw => tw.id === t.tool)?.fqdn;
+                      return {
+                        id: t.id,
+                        tool: fqdn ?? t.tool,  // FQDN for consistency
+                        dependsOn: t.dependsOn,
+                        layerIndex: t.layerIndex,
+                      };
+                    }),
                 },
               },
             };

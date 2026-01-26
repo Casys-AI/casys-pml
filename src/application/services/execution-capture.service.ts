@@ -18,8 +18,9 @@ import type { TraceTaskResult } from "../../capabilities/types/mod.ts";
 import type { IDAGConverter, OptimizedDAG } from "../../infrastructure/di/adapters/execute/dag-converter-adapter.ts";
 import type { TaskResult } from "../../dag/types.ts";
 import { getFusionMetadata } from "../../dag/trace-generator.ts";
-import { getUserScope } from "../../lib/user.ts";
+import { getUserScope, resolveToolFqdn, type UserScope } from "../../lib/user.ts";
 import { eventBus } from "../../events/event-bus.ts";
+import { getToolDisplayName } from "../../capabilities/tool-id-utils.ts";
 
 // ============================================================================
 // Interfaces
@@ -40,6 +41,14 @@ export interface ExecutionCaptureInput {
 }
 
 /**
+ * MCP Registry interface for tool FQDN lookup
+ */
+export interface IMcpRegistry {
+  /** Get MCP tool by FQDN without hash (e.g., "pml.mcp.std.fs_list") */
+  getByFqdnWithoutHash(fqdnWithoutHash: string): Promise<{ fqdn: string } | null>;
+}
+
+/**
  * Dependencies for ExecutionCaptureService
  */
 export interface ExecutionCaptureDeps {
@@ -49,6 +58,8 @@ export interface ExecutionCaptureDeps {
   capabilityRegistry?: CapabilityRegistry;
   /** DAG converter for building complete executedPath from staticStructure */
   dagConverter?: IDAGConverter;
+  /** MCP Registry for tool FQDN lookup (Issue 6 fix) */
+  mcpRegistry?: IMcpRegistry;
 }
 
 /**
@@ -113,6 +124,7 @@ export class ExecutionCaptureService {
     try {
       const logicalDAG = this.deps.dagConverter.staticStructureToDag(ctx.staticStructure);
       const optimizedDAG = this.deps.dagConverter.optimizeDAG(logicalDAG);
+      // Use getToolDisplayName to convert client FQDN to short format for matching with DAG tasks
       const physicalResults = this.mapClientResultsToPhysical(taskResults, optimizedDAG);
       const logicalTrace = this.deps.dagConverter.generateLogicalTrace(optimizedDAG, physicalResults);
       executedPath = logicalTrace.executedPath;
@@ -128,7 +140,10 @@ export class ExecutionCaptureService {
     }
 
     try {
-      const toolsUsed = ctx.toolsUsed ?? executedPath;
+      // toolsUsed for DB storage: use FQDNs from ctx.toolsUsed or resolve from executedPath
+      const toolsUsed = ctx.toolsUsed && ctx.toolsUsed.length > 0
+        ? ctx.toolsUsed  // Already FQDNs
+        : await this.resolveToolsToFqdns(executedPath, await getUserScope(effectiveUserId ?? null));
 
       // 1. Save to workflow_pattern (UPSERT via code hash)
       // Skip zone events - we'll emit them AFTER registry.create() to avoid race condition
@@ -260,8 +275,10 @@ export class ExecutionCaptureService {
    * Client taskIds (t1, t2, t3...) don't match DAG taskIds, so we match by tool name.
    * If the same tool is called multiple times, matches are made in order of appearance.
    *
-   * @param taskResults - Task results from client execution
-   * @param optimizedDAG - Optimized DAG with physical tasks
+   * Uses getToolDisplayName to convert client FQDN to short format for matching.
+   *
+   * @param taskResults - Task results from client execution (tools in FQDN format)
+   * @param optimizedDAG - Optimized DAG with physical tasks (tools in short format)
    * @returns Map of physical taskId → TaskResult
    */
   private mapClientResultsToPhysical(
@@ -292,27 +309,38 @@ export class ExecutionCaptureService {
       })),
     });
 
-    // DEBUG: Log client results
+    // DEBUG: Log client results (with normalized short format for debugging)
     log.info("[ExecutionCaptureService] DEBUG client results", {
       count: taskResults.length,
-      results: taskResults.map((r) => ({ tool: r.tool, taskId: r.taskId })),
+      results: taskResults.map((r) => ({
+        tool: r.tool,
+        toolShort: getToolDisplayName(r.tool),
+        taskId: r.taskId,
+      })),
     });
 
     // Match by tool name in order
+    // Client uses FQDN, DAG uses short format - convert client FQDN to short format
     for (const clientResult of taskResults) {
-      // First try: exact tool name match (MCP tasks and single code tasks)
-      let physicalTask = allPhysicalTasks.find(
-        (t) => t.tool === clientResult.tool && !usedPhysicalIds.has(t.id),
-      );
+      // Convert client FQDN to short format (namespace:action) for matching with DAG tasks
+      const clientToolShort = getToolDisplayName(clientResult.tool);
+
+      // First try: match via short format
+      let physicalTask = allPhysicalTasks.find((t) => {
+        if (!t.tool || usedPhysicalIds.has(t.id)) return false;
+        return t.tool === clientToolShort;
+      });
 
       // Second try: fused task match (client reports last logical tool, fused task has "code:computation")
       if (!physicalTask) {
         physicalTask = allPhysicalTasks.find((t) => {
           if (usedPhysicalIds.has(t.id)) return false;
           if (t.tool !== "code:computation") return false;
-          // Fused task: check if client result's tool is the last logical tool
+          // Fused task: check if client result's tool matches the last logical tool
           const logicalTools = t.metadata?.logicalTools || [];
-          return logicalTools.length > 0 && logicalTools[logicalTools.length - 1] === clientResult.tool;
+          if (logicalTools.length === 0) return false;
+          const lastTool = logicalTools[logicalTools.length - 1];
+          return lastTool === clientToolShort;
         });
       }
 
@@ -432,5 +460,48 @@ export class ExecutionCaptureService {
     const words = intent.split(/\s+/).slice(0, 5);
     const name = words.join(" ");
     return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
+  /**
+   * Resolve tool IDs to FQDNs for hierarchical trace matching (Issue 6 fix).
+   *
+   * When capability A calls capability B, A's trace needs FQDNs so the server
+   * can match parent executed_path entries with child capability_id (UUID).
+   *
+   * @param toolIds - Array of tool IDs (namespace:action format)
+   * @param scope - User scope for FQDN resolution
+   * @returns Array of FQDNs (or original ID if resolution fails)
+   */
+  private async resolveToolsToFqdns(
+    toolIds: string[],
+    scope: UserScope,
+  ): Promise<string[]> {
+    const resolvedTools = await Promise.all(
+      toolIds.map(async (toolId) => {
+        try {
+          // Skip code:* pseudo-tools (filter, map, split, etc.)
+          if (toolId.startsWith("code:")) {
+            return toolId;
+          }
+
+          const fqdn = await resolveToolFqdn(toolId, scope, {
+            lookupCapability: this.deps.capabilityRegistry?.resolveByName
+              ? async (id, s) => await this.deps.capabilityRegistry!.resolveByName(id, s)
+              : undefined,
+            lookupMcpTool: this.deps.mcpRegistry
+              ? async (fqdnWithoutHash) => await this.deps.mcpRegistry!.getByFqdnWithoutHash(fqdnWithoutHash)
+              : undefined,
+          });
+
+          return fqdn;
+        } catch (error) {
+          // If resolution fails, keep original ID (fallback)
+          log.debug(`[ExecutionCaptureService] Failed to resolve ${toolId} to FQDN: ${error}`);
+          return toolId;
+        }
+      }),
+    );
+
+    return resolvedTools;
   }
 }

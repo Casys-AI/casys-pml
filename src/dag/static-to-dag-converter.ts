@@ -732,3 +732,4 @@ export function estimateParallelLayers(structure: StaticStructure): number {
   // Each fork adds potential parallelism
   return Math.max(1, forkCount + 1);
 }
+

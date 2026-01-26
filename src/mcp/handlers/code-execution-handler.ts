@@ -29,6 +29,7 @@ import { hashSemanticStructure } from "../../capabilities/hash.ts";
 import { StaticStructureBuilder } from "../../capabilities/static-structure-builder.ts";
 import {
   cleanupWorkerBridgeExecutor,
+  computeLayerIndexForTasks,
   type ConditionalDAGStructure,
   createToolExecutorViaWorker,
   isValidForDagConversion,
@@ -284,6 +285,13 @@ async function tryDagExecution(
     const toolsUsed = optimizedDAG.tasks.map((t) => t.tool);
     const routing = resolveRouting(toolsUsed);
 
+    // DEBUG Story 11.4: Log optimizedDAG.tasks info
+    log.info("[DEBUG Story 11.4] optimizedDAG.tasks before routing check", {
+      count: optimizedDAG.tasks.length,
+      taskIds: optimizedDAG.tasks.map((t) => t.id),
+      taskTools: optimizedDAG.tasks.map((t) => t.tool),
+    });
+
     if (routing === "client") {
       // Code contains client tools - check if caller is PML package
       const clientTools = toolsUsed.filter((t) => getToolRouting(t) === "client");
@@ -316,6 +324,25 @@ async function tryDagExecution(
         // Resolve tool IDs to FQDNs (user scope → public → pml.mcp)
         const resolvedTools = await resolveToolFqdns(toolsUsed, deps);
 
+        // Story 11.4: Include layerIndex in tasks so client can track layers without recomputing
+        log.info("[DEBUG Story 11.4] About to compute layerIndex", {
+          optimizedTasksCount: optimizedDAG.tasks.length,
+          optimizedTasks: optimizedDAG.tasks.map((t) => ({
+            id: t.id,
+            tool: t.tool,
+            dependsOn: t.dependsOn,
+          })),
+        });
+        const tasksWithLayers = computeLayerIndexForTasks(optimizedDAG.tasks);
+        log.info("[DEBUG Story 11.4] tasksWithLayers computed", {
+          count: tasksWithLayers.length,
+          tasks: tasksWithLayers.map((t) => ({
+            id: t.id,
+            tool: t.tool,
+            layerIndex: t.layerIndex,
+          })),
+        });
+
         // Package can execute locally - return execute_locally response
         log.info("[Hybrid Routing] Returning execute_locally for client tools", {
           clientTools,
@@ -329,7 +356,7 @@ async function tryDagExecution(
             text: JSON.stringify({
               status: "execute_locally",
               code: request.code,
-              dag: { tasks: optimizedDAG.tasks },
+              dag: { tasks: tasksWithLayers },
               tools_used: resolvedTools,
               client_tools: clientTools,
             }),
