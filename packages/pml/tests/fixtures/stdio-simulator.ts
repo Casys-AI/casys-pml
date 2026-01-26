@@ -6,10 +6,10 @@
  *
  * Story 14.8: E2E Integration Testing
  *
- * @module tests/e2e/stdio-simulator
+ * @module tests/fixtures/stdio-simulator
  */
 
-import type { E2ETestContext } from "./test-harness.ts";
+import type { E2ETestContext } from "../e2e/test-harness.ts";
 
 /**
  * JSON-RPC request structure.

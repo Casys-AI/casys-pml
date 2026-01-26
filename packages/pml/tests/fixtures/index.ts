@@ -20,3 +20,18 @@ export {
   type TestCapabilityMetadata,
   type McpDependency,
 } from "./test-utils.ts";
+
+export {
+  StdioSimulator,
+  type ToolCallResult,
+  type ContinueWorkflowParams,
+  type StdioMetrics,
+  type StdioSimulatorOptions,
+} from "./stdio-simulator.ts";
+
+export {
+  MockCloudServer,
+  createMockServer,
+  type MockCapabilityResponse,
+  type MockCloudServerOptions,
+} from "./mock-cloud-server.ts";
