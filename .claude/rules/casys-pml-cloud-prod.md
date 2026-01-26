@@ -2,12 +2,22 @@
 
 ## Deployment
 
-| Script | Description |
-|--------|-------------|
-| `deno task deploy:all` | Full deploy: git pull, vite build, restart services |
-| `deno task prod:restart` | Restart services without rebuild |
-| `deno task prod:logs` | Stream logs from both services |
-| `deno task prod:status` | Check service status |
+**IMPORTANT**: Production scripts have been removed from deno.json for safety.
+Use direct systemctl commands ON THE PRODUCTION SERVER ONLY:
+
+```bash
+# Status
+sudo systemctl status casys-dashboard casys-api
+
+# Logs
+journalctl -u casys-api -u casys-dashboard -f
+
+# Restart (NEVER without explicit user approval)
+sudo systemctl restart casys-dashboard casys-api
+
+# Full deploy
+git pull origin main && cd src/web && vite build && sudo systemctl restart casys-dashboard casys-api
+```
 
 ## Services
 
