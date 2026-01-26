@@ -4,6 +4,7 @@
  */
 
 import { useState } from "preact/hooks";
+import { parseToolId } from "../../../../capabilities/tool-id-utils.ts";
 
 interface NestedTask {
   toolId: string;
@@ -149,8 +150,7 @@ export default function LoopTaskCard({
             Pattern per iteration:
           </div>
           {nestedTasks.map((task, idx) => {
-            const [server = "", ...nameParts] = task.toolId.split(":");
-            const toolName = nameParts.join(":") || task.toolId;
+            const { namespace: server, action: toolName } = parseToolId(task.toolId);
             const isLast = idx === nestedTasks.length - 1;
 
             return (

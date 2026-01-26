@@ -22,6 +22,7 @@ import {
   expandHull,
   type HullPoint,
 } from "../utils/graph/index.ts";
+import { parseToolId, getToolShortName } from "../../capabilities/tool-id-utils.ts";
 
 // Tool invocation from API (snake_case)
 interface ApiToolInvocation {
@@ -396,6 +397,8 @@ export default function CytoscapeGraph({
   const animationFrameRef = useRef<number | null>(null);
   const serverColorsRef = useRef<Map<string, string>>(new Map());
   const capabilityColorsRef = useRef<Map<string, string>>(new Map());
+  // AbortController to cancel previous fetches and prevent race conditions
+  const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1160,6 +1163,17 @@ export default function CytoscapeGraph({
     const MAX_RETRIES = 5;
     const BASE_DELAY = 1000;
 
+    // Cancel any previous fetch to prevent race conditions
+    if (retryCount === 0 && fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this fetch chain
+    if (retryCount === 0) {
+      fetchAbortControllerRef.current = new AbortController();
+    }
+    const signal = fetchAbortControllerRef.current?.signal;
+
     console.log(`[CytoscapeGraph] loadData called (retry ${retryCount}, silent=${silent})`);
     // Only show loading indicator on initial load, not SSE refreshes
     if (!silent) {
@@ -1180,6 +1194,7 @@ export default function CytoscapeGraph({
         cache: "no-store", // Ensure fresh data after SSE refresh
         headers,
         credentials: "include",
+        signal, // Pass AbortSignal to allow cancellation
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -1416,10 +1431,15 @@ export default function CytoscapeGraph({
 
       console.log("[CytoscapeGraph] Data loaded, calling renderGraph(true)");
       renderGraph(true);
-      if (!silent) {
-        setIsLoading(false);
-      }
+      // Always reset loading state on success (fixes reconnection bug where silent refresh never reset loading)
+      setIsLoading(false);
     } catch (err) {
+      // Ignore AbortError (voluntary cancellation from new fetch starting)
+      if (err instanceof Error && err.name === "AbortError") {
+        console.log("[CytoscapeGraph] Fetch aborted (new fetch started)");
+        return;
+      }
+
       console.error("[CytoscapeGraph] Failed to load graph data:", err);
 
       // Retry with exponential backoff
@@ -1435,8 +1455,9 @@ export default function CytoscapeGraph({
       // Only show error on non-silent loads (silent SSE refreshes fail silently)
       if (!silent) {
         setError(err instanceof Error ? err.message : "Failed to load graph");
-        setIsLoading(false);
       }
+      // Always reset loading state after all retries exhausted
+      setIsLoading(false);
     }
   };
 
@@ -1561,8 +1582,7 @@ export default function CytoscapeGraph({
         if (latestTrace && latestTrace.taskResults.length > 0) {
           for (let i = 0; i < latestTrace.taskResults.length; i++) {
             const task = latestTrace.taskResults[i];
-            const [server = "unknown", ...nameParts] = task.tool.split(":");
-            const toolName = nameParts.join(":") || task.tool;
+            const { namespace: server, action: toolName } = parseToolId(task.tool);
             const color = getServerColor(server);
             const layerIndex = task.layerIndex ?? 0;
             const invId = `${cap.id}:inv-${i}`;
@@ -1591,8 +1611,7 @@ export default function CytoscapeGraph({
         } else if (cap.toolInvocations && cap.toolInvocations.length > 0) {
           // Priority 2: toolInvocations (full sequence with timestamps, no layerIndex)
           for (const inv of cap.toolInvocations) {
-            const [server = "unknown", ...nameParts] = inv.tool.split(":");
-            const toolName = nameParts.join(":") || inv.tool;
+            const { namespace: server, action: toolName } = parseToolId(inv.tool);
             const color = getServerColor(server);
             const invId = `${cap.id}:inv-${inv.sequenceIndex}`;
 
@@ -1626,8 +1645,7 @@ export default function CytoscapeGraph({
           // Priority 3: toolsUsed (deduplicated, no timestamps)
           for (let i = 0; i < cap.toolsUsed.length; i++) {
             const toolId = cap.toolsUsed[i];
-            const [server = "unknown", ...nameParts] = toolId.split(":");
-            const toolName = nameParts.join(":") || toolId;
+            const { namespace: server } = parseToolId(toolId);
             const color = getServerColor(server);
             const invId = `${cap.id}:inv-${i}`;
 
@@ -1635,9 +1653,7 @@ export default function CytoscapeGraph({
               group: "nodes",
               data: {
                 id: invId,
-                label: `#${i + 1} ${
-                  toolName.length > 12 ? toolName.slice(0, 10) + ".." : toolName
-                }`,
+                label: `#${i + 1} ${getToolShortName(toolId, 12)}`,
                 type: "tool_invocation",
                 tool: toolId,
                 server,

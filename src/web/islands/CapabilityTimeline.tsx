@@ -20,6 +20,7 @@ import {
   TraceInfo,
 } from "../components/ui/molecules/CapabilityCard.tsx";
 import type { ExecutionTrace } from "./CytoscapeGraph.tsx";
+import { parseToolId } from "../../capabilities/tool-id-utils.ts";
 
 // Server color palette
 const SERVER_COLORS = [
@@ -237,6 +238,9 @@ export default function CapabilityTimeline({
                 success: boolean;
                 duration_ms: number;
                 layer_index?: number;
+                // Phase 2a: Fusion metadata
+                is_fused?: boolean;
+                logical_operations?: Array<{ tool_id: string; duration_ms?: number }>;
                 // Loop Abstraction metadata
                 loop_id?: string;
                 loop_type?: "for" | "while" | "forOf" | "forIn" | "doWhile";
@@ -530,20 +534,21 @@ export default function CapabilityTimeline({
         if (!seen.has(taskTool)) {
           seen.add(taskTool);
 
-          // Try exact match first, then try short name (after colon)
-          let toolInfo = toolInfoMap.get(taskTool);
-          if (!toolInfo && taskTool.includes(":")) {
-            const shortName = taskTool.split(":").pop()!;
-            toolInfo = toolInfoMap.get(shortName);
-          }
+          // Parse tool ID to get short name for lookup (handles FQDN + colon formats)
+          const { action: shortName } = parseToolId(taskTool);
+          // Try exact match first, then short name
+          let toolInfo = toolInfoMap.get(taskTool) || toolInfoMap.get(shortName);
 
           if (toolInfo) {
             layerMap.get(layer)!.push(toolInfo);
           } else {
-            // Tool not in tools list - extract server from task.tool if possible
-            const parts = taskTool.split(":");
-            const server = parts.length > 1 ? parts[0] : "unknown";
-            const name = parts.length > 1 ? parts.slice(1).join(":") : taskTool;
+            // Tool not in graph nodes - create from parsed FQDN
+            // WARNING: This means the hypergraph is missing this tool node
+            console.warn(
+              `[CapabilityTimeline] Tool "${taskTool}" not found in graph nodes. ` +
+              `Creating ToolInfo from FQDN. This may indicate a sync issue.`
+            );
+            const { namespace: server, action: name } = parseToolId(taskTool);
             layerMap.get(layer)!.push({
               id: taskTool,
               name,

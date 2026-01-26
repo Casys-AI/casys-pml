@@ -9,6 +9,7 @@ import TaskCard from "../atoms/TaskCard.tsx";
 import FusedTaskCard from "../atoms/FusedTaskCard.tsx";
 import LoopTaskCard from "../atoms/LoopTaskCard.tsx";
 import CapabilityTaskCard from "../atoms/CapabilityTaskCard.tsx";
+import { parseToolId } from "../../../../capabilities/tool-id-utils.ts";
 
 interface LogicalOperation {
   toolId: string;
@@ -270,17 +271,19 @@ export default function TraceTimeline({
                       {nonLoopTasks.map((task, taskIdx) => {
                         // Story 10.1: Check if this is a capability call (marked by backend)
                         if (task.isCapabilityCall) {
-                          // tool is already the resolved name (e.g., "fake:person")
                           // nestedTools contains the toolsUsed of this capability
                           const nestedTasks = (task.nestedTools || []).map((toolId) => ({
                             toolId,
                             durationMs: task.durationMs / (task.nestedTools?.length || 1),
                           }));
+                          // Parse capability name for display (FQDN → short format)
+                          const { namespace, action } = parseToolId(task.tool);
+                          const displayName = `${namespace}:${action}`;
                           return (
                             <CapabilityTaskCard
                               key={`${layerIdx}-cap-${taskIdx}`}
                               capabilityId={task.tool}
-                              capabilityName={task.tool}
+                              capabilityName={displayName}
                               nestedTasks={nestedTasks}
                               durationMs={task.durationMs}
                               success={task.success}
@@ -288,8 +291,7 @@ export default function TraceTimeline({
                           );
                         }
 
-                        const [server = "unknown", ...nameParts] = task.tool.split(":");
-                        const toolName = nameParts.join(":") || task.tool;
+                        const { namespace: server, action: toolName } = parseToolId(task.tool);
                         const color = getServerColor?.(server) ||
                           DEFAULT_COLORS[server.charCodeAt(0) % DEFAULT_COLORS.length];
 

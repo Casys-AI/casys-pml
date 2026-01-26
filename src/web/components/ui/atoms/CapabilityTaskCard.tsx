@@ -4,6 +4,7 @@
  */
 
 import { useState } from "preact/hooks";
+import { parseToolId } from "../../../../capabilities/tool-id-utils.ts";
 
 interface NestedTask {
   toolId: string;
@@ -143,8 +144,7 @@ export default function CapabilityTaskCard({
             Nested DAG:
           </div>
           {nestedTasks.map((task, idx) => {
-            const [server = "", ...nameParts] = task.toolId.split(":");
-            const toolName = nameParts.join(":") || task.toolId;
+            const { namespace: server, action: toolName } = parseToolId(task.toolId);
             const displayName = toolName.length > 15 ? toolName.slice(0, 13) + ".." : toolName;
             const taskSuccess = task.success !== false;
             // Generate color from server name (same logic as TaskCard)

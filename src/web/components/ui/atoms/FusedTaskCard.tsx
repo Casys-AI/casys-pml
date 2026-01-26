@@ -5,6 +5,7 @@
 
 import { useState } from "preact/hooks";
 import TaskCard from "./TaskCard.tsx";
+import { parseToolId } from "../../../../capabilities/tool-id-utils.ts";
 
 interface LogicalOp {
   toolId: string;
@@ -87,9 +88,8 @@ export default function FusedTaskCard({
           }}
         >
           {logicalOps.map((op, idx) => {
-            // Extract server and tool name from toolId (e.g., "code:filter" -> server="code", name="filter")
-            const [server = "code", ...nameParts] = op.toolId.split(":");
-            const toolName = nameParts.join(":") || op.toolId;
+            // Extract server and tool name from toolId (supports FQDNs and colon format)
+            const { namespace: server, action: toolName } = parseToolId(op.toolId);
 
             return (
               <TaskCard
