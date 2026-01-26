@@ -53,17 +53,21 @@ export function createPmlRegistryViewMigration(): Migration {
       log.info("  ✓ Added routing column to tool_schema");
 
       // Add CHECK constraint separately for PGlite compatibility
-      try {
-        await db.exec(`
-          ALTER TABLE tool_schema
-          ADD CONSTRAINT tool_schema_routing_check
-          CHECK (routing IN ('local', 'cloud'))
-        `);
-        log.info("  ✓ Added routing CHECK constraint");
-      } catch {
-        // Constraint may already exist or PGlite doesn't support named constraints
-        log.debug("  ○ Could not add named constraint (may already exist)");
-      }
+      // Use DO block to check if constraint exists before adding (avoids transaction abort)
+      await db.exec(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'tool_schema_routing_check'
+          ) THEN
+            ALTER TABLE tool_schema
+            ADD CONSTRAINT tool_schema_routing_check
+            CHECK (routing IN ('local', 'cloud'));
+          END IF;
+        END $$
+      `);
+      log.info("  ✓ Added routing CHECK constraint (if not exists)");
 
       // ============================================
       // 3. Create pml_registry VIEW (AC2)
