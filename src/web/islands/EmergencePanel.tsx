@@ -61,35 +61,46 @@ export default function EmergencePanel({
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [showPhaseTransition, setShowPhaseTransition] = useState(true);
   // Story 9.8: Scope state (local unless controlled by parent)
-  const [scope, setScope] = useState<Scope>("user");
+  const [scope, setScope] = useState<Scope>(scopeProp ?? "user");
   const handleScopeChange = onScopeChange ?? setScope;
 
   const entropyChartRef = useRef<HTMLDivElement>(null);
   const stabilityChartRef = useRef<HTMLDivElement>(null);
   const chartInstances = useRef<Record<string, unknown>>({});
+  // AbortController to cancel previous fetches and prevent race conditions
+  const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch metrics function - Story 9.8: Add scope parameter
   const fetchMetrics = useCallback(async () => {
+    // Cancel any previous fetch to prevent race conditions
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    fetchAbortControllerRef.current = controller;
+
+    setLoading(true);
     try {
-      setLoading(true);
       const headers: HeadersInit = {};
       if (apiKey) {
         headers["x-api-key"] = apiKey;
       }
       const res = await fetch(
         `${apiBase}/api/metrics/emergence?range=${timeRange}&scope=${scope}`,
-        { headers, credentials: "include" },
+        { headers, credentials: "include", signal: controller.signal },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setMetrics(data);
       setError(null);
       setShowPhaseTransition(data.phaseTransition?.detected || false);
+      setLoading(false);
     } catch (err) {
-      if (err instanceof Error && err.name !== "AbortError") {
-        setError(err instanceof Error ? err.message : "Failed to fetch");
+      // Ignore AbortError (voluntary cancellation from new fetch starting)
+      if (err instanceof Error && err.name === "AbortError") {
+        return; // Don't set loading=false, new fetch is in progress
       }
-    } finally {
+      setError(err instanceof Error ? err.message : "Failed to fetch");
       setLoading(false);
     }
   }, [apiBase, apiKey, timeRange, scope]);
