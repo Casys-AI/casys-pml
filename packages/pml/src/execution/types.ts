@@ -75,3 +75,21 @@ export type ToolCallHandler = (
   args: unknown,
   parentTraceId: string,
 ) => Promise<unknown>;
+
+/**
+ * Options for SandboxExecutor.execute() method.
+ */
+export interface SandboxExecuteOptions {
+  /** Context/arguments passed to the sandboxed code */
+  context: Record<string, unknown>;
+  /** Handler for client-routed tool calls */
+  clientToolHandler?: ToolCallHandler;
+  /** Workflow ID for HIL continuation (also used as traceId per ADR-065) */
+  workflowId?: string;
+  /**
+   * Map from short tool format to FQDN.
+   * Used to record FQDNs in toolCallRecords for layerIndex resolution.
+   * Example: "filesystem:read_file" → "pml.mcp.filesystem.read_file.4ff0"
+   */
+  fqdnMap?: Map<string, string>;
+}

@@ -16,6 +16,7 @@ import { SandboxWorker } from "../sandbox/mod.ts";
 import type { SandboxResult } from "../sandbox/mod.ts";
 import { resolveToolRouting } from "../routing/mod.ts";
 import type {
+  SandboxExecuteOptions,
   SandboxExecutionResult,
   SandboxExecutorOptions,
   ToolCallHandler,
@@ -69,17 +70,15 @@ export class SandboxExecutor {
    * Execute code in an isolated sandbox with hybrid routing.
    *
    * @param code - TypeScript code to execute
-   * @param context - Context/arguments passed to the code
-   * @param clientToolHandler - Handler for client-routed tool calls
-   * @param workflowId - Optional workflow ID to reuse (for HIL continuation)
+   * @param options - Execution options (context, handlers, fqdnMap)
    * @returns Execution result
    */
   async execute(
     code: string,
-    context: Record<string, unknown>,
-    clientToolHandler?: ToolCallHandler,
-    workflowId?: string,
+    options: SandboxExecuteOptions,
   ): Promise<SandboxExecutionResult> {
+    const { context, clientToolHandler, workflowId, fqdnMap } = options;
+
     logDebug(`Executing code in sandbox (${code.length} chars)`);
 
     // Use provided workflowId or generate new one (ADR-041: unified ID for traces + HIL)
@@ -104,8 +103,10 @@ export class SandboxExecutor {
           result = error instanceof Error ? error.message : String(error);
           throw error; // Re-throw to propagate the error
         } finally {
+          // Map short format to FQDN for layerIndex resolution in traces
+          const toolFqdn = fqdnMap?.get(method) ?? method;
           toolCallRecords.push({
-            tool: method,
+            tool: toolFqdn,
             args,
             result,
             success,

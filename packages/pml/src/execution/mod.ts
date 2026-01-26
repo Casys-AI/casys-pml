@@ -8,6 +8,7 @@
 
 // Types
 export type {
+  SandboxExecuteOptions,
   SandboxExecutionResult,
   SandboxExecutorOptions,
   ToolCallHandler,

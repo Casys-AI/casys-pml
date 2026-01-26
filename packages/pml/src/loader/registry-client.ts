@@ -197,6 +197,8 @@ function validateMetadata(data: unknown): CapabilityMetadata {
     install: obj.install as CapabilityMetadata["install"],
     // Include parameters schema for validation
     parametersSchema: obj.parametersSchema as Record<string, unknown> | undefined,
+    // Issue 6 fix: Tools used by this capability (FQDNs for nested trace matching)
+    toolsUsed: Array.isArray(obj.toolsUsed) ? obj.toolsUsed as string[] : undefined,
   };
 }
 
