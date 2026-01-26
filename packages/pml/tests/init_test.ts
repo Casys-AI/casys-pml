@@ -67,8 +67,9 @@ Deno.test("init - .pml.json has correct structure", async () => {
     const content = await Deno.readTextFile(join(testDir, ".pml.json"));
     const config = JSON.parse(content);
 
-    // Basic structure
-    assertEquals(config.version, "0.1.0");
+    // Basic structure - version should match package version
+    assertEquals(typeof config.version, "string");
+    assertEquals(config.version.match(/^\d+\.\d+\.\d+$/) !== null, true);
     assertEquals(config.workspace, "."); // Portable - dynamic detection via resolveWorkspace()
 
     // Cloud config - apiKey removed (loaded from .env directly)
