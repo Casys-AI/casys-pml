@@ -2,7 +2,7 @@
 title: 'PML Desktop - Increment 2: WebGPU Renderer'
 slug: 'pml-desktop-02-renderer'
 created: '2026-01-26'
-status: 'ready-for-dev'
+status: 'completed'
 parent_spec: '../tech-spec-pml-desktop.md'
 increment: 2
 estimated_tasks: 5
@@ -20,7 +20,7 @@ depends_on: ['01-tauri-shell-setup.md']
 
 ## Tasks
 
-- [ ] **Task 2.1: Setup WebGPU canvas component**
+- [x] **Task 2.1: Setup WebGPU canvas component**
   - File: `apps/desktop/src/components/GraphCanvas.tsx`
   - Action: Create Preact component with WebGPU context
   - Code pattern:
@@ -47,17 +47,17 @@ depends_on: ['01-tauri-shell-setup.md']
     }
     ```
 
-- [ ] **Task 2.2: Implement node rendering shader**
+- [x] **Task 2.2: Implement node rendering shader**
   - File: `apps/desktop/src/shaders/node.wgsl`
   - Action: WGSL shader for instanced circle rendering
   - Notes: Use instance buffer for position, size, color per node
 
-- [ ] **Task 2.3: Implement edge rendering shader**
+- [x] **Task 2.3: Implement edge rendering shader**
   - File: `apps/desktop/src/shaders/edge.wgsl`
   - Action: WGSL shader for line segments
   - Notes: Use vertex buffer with start/end positions
 
-- [ ] **Task 2.4: Create render pipeline**
+- [x] **Task 2.4: Create render pipeline**
   - File: `apps/desktop/src/renderer/Pipeline.ts`
   - Action: Setup WebGPU render pipeline
   - Structure:
@@ -68,7 +68,7 @@ depends_on: ['01-tauri-shell-setup.md']
     └── TextPass (labels, optional for MVP)
     ```
 
-- [ ] **Task 2.5: Implement zoom/pan controls**
+- [x] **Task 2.5: Implement zoom/pan controls**
   - File: `apps/desktop/src/renderer/Camera.ts`
   - Action: Camera with transform matrix
   - Features:
@@ -78,11 +78,11 @@ depends_on: ['01-tauri-shell-setup.md']
 
 ## Acceptance Criteria
 
-- [ ] **AC1:** Given hardcoded node data, when app launches, then nodes render as circles
-- [ ] **AC2:** Given hardcoded edges, when app launches, then edges render as lines between nodes
-- [ ] **AC3:** Given the canvas, when user scrolls mouse wheel, then graph zooms in/out smoothly
-- [ ] **AC4:** Given the canvas, when user drags, then graph pans
-- [ ] **AC5:** Given 100 nodes, when rendering, then frame rate is 60fps
+- [x] **AC1:** Given hardcoded node data, when app launches, then nodes render as circles
+- [x] **AC2:** Given hardcoded edges, when app launches, then edges render as lines between nodes
+- [x] **AC3:** Given the canvas, when user scrolls mouse wheel, then graph zooms in/out smoothly
+- [x] **AC4:** Given the canvas, when user drags, then graph pans
+- [x] **AC5:** Given 100 nodes, when rendering, then frame rate is 60fps
 
 ## Test Data
 
@@ -102,3 +102,21 @@ Canvas showing nodes and edges, zoomable and pannable. No layout algorithm yet -
 ## Next Increment
 
 → `03-rust-layout.md` - Graph layout computed in Rust
+
+---
+
+## Review Notes
+
+- Adversarial review completed: 2026-01-27
+- Findings: 8 total, 8 fixed, 0 skipped
+- Resolution approach: auto-fix
+
+### Fixed Issues:
+- **F1 (Critical):** Memory leak - Deferred buffer destruction to avoid race conditions
+- **F2 (Critical):** Stale closure - Used refs for nodes/edges to keep render loop updated
+- **F3 (High):** Stride mismatch - Fixed edge buffer stride from 32 to 36 bytes
+- **F4 (High):** Camera stale - Used ref for camera state in render loop
+- **F5 (High):** Device lost - Added device.lost promise handling with error display
+- **F6 (Medium):** Hard-coded dimensions - Replaced 400/300 with actual canvas dimensions
+- **F7 (Medium):** No ResizeObserver - Added ResizeObserver for proper canvas buffer sizing
+- **F8 (Low):** Dead code - Removed unused Camera.ts file
