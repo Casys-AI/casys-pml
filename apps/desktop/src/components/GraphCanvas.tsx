@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { GraphNode, GraphEdge, CameraState } from '../types';
 import { GraphRenderer } from '../renderer/GraphRenderer';
+import { ZOOM_MIN, ZOOM_MAX } from '../App';
 
 interface GraphCanvasProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
   onZoomLevelChange?: (zoom: number) => void;
+  targetZoom?: number; // Controlled zoom from parent
 }
 
-export function GraphCanvas({ nodes, edges, onZoomLevelChange }: GraphCanvasProps) {
+export function GraphCanvas({ nodes, edges, onZoomLevelChange, targetZoom }: GraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<GraphRenderer | null>(null);
   const contextRef = useRef<GPUCanvasContext | null>(null);
@@ -154,12 +156,19 @@ export function GraphCanvas({ nodes, edges, onZoomLevelChange }: GraphCanvasProp
     onZoomLevelChange?.(camera.zoom);
   }, [camera.zoom, onZoomLevelChange]);
 
+  // Sync with controlled zoom from parent (sidebar navigation)
+  useEffect(() => {
+    if (targetZoom !== undefined && Math.abs(camera.zoom - targetZoom) > 0.01) {
+      setCamera((prev) => ({ ...prev, zoom: targetZoom }));
+    }
+  }, [targetZoom]);
+
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
     setCamera((prev) => ({
       ...prev,
-      zoom: Math.max(0.1, Math.min(10, prev.zoom * zoomFactor)),
+      zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, prev.zoom * zoomFactor)),
     }));
   };
 
@@ -176,7 +185,7 @@ export function GraphCanvas({ nodes, edges, onZoomLevelChange }: GraphCanvasProp
     setCamera((prev) => ({
       ...prev,
       x: prev.x + dx / prev.zoom,
-      y: prev.y + dy / prev.zoom,
+      y: prev.y - dy / prev.zoom,
     }));
   };
 

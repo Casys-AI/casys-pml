@@ -1,18 +1,12 @@
-/** Graph node representation */
-export interface GraphNode {
+/** Hexagonal cell representation */
+export interface HexCell {
   id: string;
-  x: number;
-  y: number;
+  q: number;           // Axial Q coordinate
+  r: number;           // Axial R coordinate
+  level: number;       // Hierarchy depth (0 = root, 1 = child, etc.)
   label: string;
-  size?: number;
-  color?: [number, number, number, number]; // RGBA 0-1
-}
-
-/** Graph edge representation */
-export interface GraphEdge {
-  id: string;
-  source: string;
-  target: string;
+  parentId?: string;   // Parent cell ID
+  children?: string[]; // Child cell IDs
   color?: [number, number, number, number]; // RGBA 0-1
 }
 
@@ -28,4 +22,23 @@ export interface RendererContext {
   device: GPUDevice;
   context: GPUCanvasContext;
   format: GPUTextureFormat;
+}
+
+// Legacy types kept for backward compatibility
+/** @deprecated Use HexCell instead */
+export interface GraphNode {
+  id: string;
+  x: number;
+  y: number;
+  label: string;
+  size?: number;
+  color?: [number, number, number, number];
+}
+
+/** @deprecated No longer used in hex visualization */
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  color?: [number, number, number, number];
 }

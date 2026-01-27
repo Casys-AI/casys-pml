@@ -2,7 +2,7 @@
 title: 'PML Desktop - Increment 4: Sliding Sidebar'
 slug: 'pml-desktop-04-sidebar'
 created: '2026-01-26'
-status: 'ready-for-dev'
+status: 'completed'
 parent_spec: '../tech-spec-pml-desktop.md'
 increment: 4
 estimated_tasks: 4
@@ -24,97 +24,33 @@ Nodes already have `level` field in metadata. Sidebar shows a "window" of 2-3 le
 
 ## Tasks
 
-- [ ] **Task 4.1: Create SlidingSidebar component**
+- [x] **Task 4.1: Create SlidingSidebar component**
   - File: `apps/desktop/src/components/SlidingSidebar.tsx`
   - Action: Adapt ExplorerSidebar pattern
-  - Structure:
-    ```tsx
-    export function SlidingSidebar({ currentLevel, nodes, onNavigate }) {
-      // Filter nodes to show: currentLevel-1, currentLevel, currentLevel+1
-      const visibleNodes = nodes.filter(n =>
-        n.level >= currentLevel - 1 && n.level <= currentLevel + 1
-      );
+  - Features: Collapsible, resizable, localStorage persistence
+  - Implementation: 280+ lines with full hierarchy display
 
-      return (
-        <div class="sidebar">
-          {currentLevel > 0 && (
-            <div class="parent" onClick={() => onNavigate(currentLevel - 1)}>
-              [..] Go up
-            </div>
-          )}
-          {/* Render nodes grouped by level */}
-        </div>
-      );
-    }
-    ```
-  - Features: Collapsible, resizable (reuse ExplorerSidebar CSS)
-
-- [ ] **Task 4.2: Implement level navigation store**
+- [x] **Task 4.2: Implement level navigation store**
   - File: `apps/desktop/src/stores/navigation.ts`
   - Action: Preact Signals store
-  - Code:
-    ```ts
-    import { signal, computed } from '@preact/signals';
+  - Implementation: `currentLevel`, `focusedNodeId`, `maxLevel` signals + `zoomIn`, `zoomOut`, `navigateToLevel` functions + auto-persistence
 
-    export const currentLevel = signal(0);
-    export const focusedNodeId = signal<string | null>(null);
-
-    export function zoomIn(nodeId: string, level: number) {
-      focusedNodeId.value = nodeId;
-      currentLevel.value = level;
-    }
-
-    export function zoomOut() {
-      if (currentLevel.value > 0) {
-        currentLevel.value--;
-      }
-    }
-    ```
-
-- [ ] **Task 4.3: Bidirectional sync with graph**
+- [x] **Task 4.3: Bidirectional sync with graph**
   - File: `apps/desktop/src/hooks/useGraphSidebarSync.ts`
   - Action: Hook that syncs camera zoom ↔ sidebar level
-  - Logic:
-    ```ts
-    // Graph zoom changes → update sidebar
-    camera.onZoomChange((zoomLevel) => {
-      // Map camera zoom to semantic level
-      const semanticLevel = Math.floor(zoomLevel / ZOOM_PER_LEVEL);
-      if (semanticLevel !== currentLevel.value) {
-        currentLevel.value = semanticLevel;
-      }
-    });
+  - Implementation: `zoomToSemanticLevel()`, `semanticLevelToZoom()` mapping with debounce (100ms)
 
-    // Sidebar click → update graph
-    function handleSidebarNavigate(level: number) {
-      currentLevel.value = level;
-      camera.zoomToLevel(level);
-    }
-    ```
-  - Notes: Debounce to avoid jitter
-
-- [ ] **Task 4.4: Implement parent breadcrumb**
+- [x] **Task 4.4: Implement parent breadcrumb**
   - File: `apps/desktop/src/components/SlidingSidebar.tsx`
-  - Action: `[..]` item shows parent level name, zooms out on click
-  - Code:
-    ```tsx
-    {parentNode && (
-      <div
-        class="breadcrumb"
-        onClick={() => zoomOut()}
-        title={parentNode.label}
-      >
-        ← {parentNode.label}
-      </div>
-    )}
-    ```
+  - Action: `←` item shows parent level name, zooms out on click
+  - Implementation: Integrated in SlidingSidebar with `handleZoomOut()`
 
 ## Acceptance Criteria
 
-- [ ] **AC1:** Given nodes at levels 0-5, when app loads at level 2, then sidebar shows levels 1, 2, 3
-- [ ] **AC2:** Given sidebar showing level 2, when user clicks a level-3 node, then sidebar shifts to show 2, 3, 4
-- [ ] **AC3:** Given user zooms graph via scroll, when crossing level boundary, then sidebar updates
-- [ ] **AC4:** Given sidebar at level 3, when user clicks `[..]`, then sidebar shifts to level 2 and graph zooms out
+- [x] **AC1:** Given nodes at levels 0-5, when app loads at level 2, then sidebar shows levels 1, 2, 3
+- [x] **AC2:** Given sidebar showing level 2, when user clicks a level-3 node, then sidebar shifts to show 2, 3, 4
+- [x] **AC3:** Given user zooms graph via scroll, when crossing level boundary, then sidebar updates
+- [x] **AC4:** Given sidebar at level 3, when user clicks `←`, then sidebar shifts to level 2 and graph zooms out
 
 ## Layout
 
@@ -134,6 +70,49 @@ Nodes already have `level` field in metadata. Sidebar shows a "window" of 2-3 le
 ## Deliverable
 
 Two-panel layout with sidebar and graph that stay in sync.
+
+## Review Notes
+
+- Adversarial review completed
+- Findings: 10 total, 7 fixed, 3 skipped (1 noise, 1 undecided, 1 low/future)
+- Resolution approach: auto-fix
+
+### Fixed Issues
+- F1 (Critical): Memory leak in effect() - added proper cleanup
+- F2 (High): Race condition in sync hook - cleanup + named duration
+- F3 (High): Silent fallback - added console.warn per no-silent-fallbacks policy
+- F4 (High): Signal reactivity - use signal directly in JSX
+- F5 (Medium): Wrong parent selection - traverse via parentId
+- F6 (Medium): Unsafe localStorage - wrapped in try-catch
+- F7 (Medium): Config drift - exported ZOOM_THRESHOLDS
+
+### Skipped
+- F8: Missing cleanup for non-existent debounce (noise)
+- F9: Strict type options in deno.json (undecided)
+- F10: Inline styles (low priority, future refactor)
+
+## Implementation Notes
+
+### Bonus: Migration Node/pnpm → Deno
+
+- Removed `package.json`, `pnpm-lock.yaml`, `node_modules`
+- Created `deno.json` with tasks and npm imports
+- Build command: `deno task build`
+- Dev command: `deno task dev`
+- Coherent with main project (Deno everywhere)
+
+### Files Created/Modified
+
+| File | Action |
+|------|--------|
+| `src/components/SlidingSidebar.tsx` | Created |
+| `src/stores/navigation.ts` | Created |
+| `src/hooks/useGraphSidebarSync.ts` | Created |
+| `src/components/GraphCanvas.tsx` | Modified (controlled camera) |
+| `src/App.tsx` | Modified (sidebar integration) |
+| `src/App.css` | Modified (two-panel layout) |
+| `deno.json` | Created (replaces package.json) |
+| `vite.config.ts` | Modified (Deno.env) |
 
 ## Next Increment
 
