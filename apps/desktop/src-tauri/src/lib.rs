@@ -2,6 +2,8 @@
 use casys_engine::Engine;
 use std::fs;
 
+mod commands;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! Engine ready.", name)
@@ -30,7 +32,12 @@ fn engine_status() -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, engine_status])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            engine_status,
+            commands::compute_layout,
+            commands::update_layout_incremental
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
