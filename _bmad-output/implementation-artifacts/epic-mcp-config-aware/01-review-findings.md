@@ -10,7 +10,7 @@
 
 | Severity | Count | Fixed |
 |----------|-------|-------|
-| Critical | 3 | 1 noise, 1 fixed, 1 documented |
+| Critical | 3 | 1 noise, 1 fixed, 1 accepted |
 | High | 4 | ✅ 4/4 (F6 was undecided, now fixed) |
 | Medium | 5 | ✅ 5/5 |
 | Low | 5 | ✅ 2/5 |
@@ -41,13 +41,19 @@ La table `tool_schema` existe déjà dans migration 001_initial.sql. Faux positi
 
 ---
 
-### F3: Command Injection via MCP Server Config
-**Severity:** Critical | **Validity:** Valid
-**Location:** `packages/pml/src/config.ts:74-80`
+### F3: Command Injection via MCP Server Config ✅ ACCEPTED RISK
+**Severity:** Critical | **Validity:** Valid but Accepted
+**Location:** `packages/pml/src/config.ts`
 
-Les `command` et `args` de la config sont passés directement à `Deno.Command`. Si `.pml.json` est compromis (package malveillant, CI), exécution de commandes arbitraires.
+Les `command` et `args` de la config sont passés directement à `Deno.Command`.
 
-**Mitigation:** Config contrôlée par l'utilisateur local. Documenter le risque. Potentiellement valider les chemins de commandes.
+**Risk Assessment:**
+- La config MCP (`.pml.json`) est **locale sur la machine du client**
+- Les commandes ne sont **jamais envoyées au serveur cloud** - seuls les tools découverts (name, description, schema) sont sync
+- Si un attaquant peut modifier `.pml.json`, il a déjà accès local à la machine
+- Même modèle de sécurité que la config MCP de Claude Code
+
+**Decision:** Risque accepté. La config est sous contrôle de l'utilisateur local.
 
 ---
 
