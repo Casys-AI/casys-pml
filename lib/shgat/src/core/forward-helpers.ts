@@ -31,6 +31,27 @@ export interface ForwardContext {
 export interface ForwardPassContext extends ForwardContext {
   levelParams: Map<number, LevelParams>;
   orchestrator: MultiLevelOrchestrator;
+  /** Learnable per-level residual logits (sigmoid → α) */
+  residualLogits?: number[];
+}
+
+/**
+ * Cache for backward pass of per-level residuals
+ */
+export interface ResidualCache {
+  /** Original embeddings before message passing */
+  E_original: number[][];
+  H_original: number[][];
+  /** Propagated embeddings after message passing (before residual) */
+  E_propagated: number[][];
+  H_propagated: number[][];
+  /** Hierarchy level for each embedding */
+  E_levels: number[];
+  H_levels: number[];
+  /** Computed alphas for each level (sigmoid of logits) */
+  alphas: number[];
+  /** Original logits (for gradient computation) */
+  logits: number[];
 }
 
 // ==========================================================================
@@ -293,7 +314,7 @@ export function convertAttentionToLayerFormat(
  */
 export function forwardCore(
   ctx: ForwardPassContext,
-): { H: number[][]; E: number[][]; cache: ForwardCache } {
+): { H: number[][]; E: number[][]; cache: ForwardCache; residualCache: ResidualCache | null } {
   const H_init = ctx.graphBuilder.getToolEmbeddings();
   const capabilityNodes = ctx.graphBuilder.getCapabilityNodes();
 
@@ -303,6 +324,7 @@ export function forwardCore(
       H: H_init,
       E: [],
       cache: { H: [H_init], E: [[]], attentionVE: [], attentionEV: [] },
+      residualCache: null,
     };
   }
 
@@ -336,6 +358,7 @@ export function forwardCore(
       numLayers: ctx.config.numLayers,
       dropout: ctx.config.dropout,
       leakyReluSlope: ctx.config.leakyReluSlope,
+      downwardResidual: ctx.config.downwardResidual,
     },
   );
 
@@ -343,14 +366,58 @@ export function forwardCore(
   let E_flat = flattenEmbeddingsByCapabilityOrder(ctx, result.E);
   let H_final = result.H;
 
+  // Store propagated embeddings BEFORE residual for backward pass
+  const E_propagated = E_flat.map(row => [...row]);
+  const H_propagated = H_final.map(row => [...row]);
+
+  // Cache for backward pass of learnable residuals
+  let residualCache: ResidualCache | null = null;
+
   // PreserveDim: add residual connection to ORIGINAL embeddings
   if (ctx.config.preserveDim) {
     const E_original = ctx.graphBuilder.getCapabilityEmbeddings();
     const H_original = ctx.graphBuilder.getToolEmbeddings();
-    const residual = ctx.config.preserveDimResidual ?? 0.3;
+    const defaultResidual = ctx.config.preserveDimResidual ?? 0.3;
 
-    E_flat = applyResidualConnection(E_flat, E_original, residual);
-    H_final = applyResidualConnection(H_final, H_original, residual);
+    // Check for learnable per-level residuals (from params.residualLogits)
+    const maxLevel = ctx.hierarchy?.maxHierarchyLevel ?? 0;
+    if (ctx.residualLogits && ctx.residualLogits.length > 0 && maxLevel > 0) {
+      // Convert logits to alphas: α = sigmoid(logit)
+      // Only use levels up to maxLevel in the hierarchy
+      const logits = ctx.residualLogits.slice(0, maxLevel + 1);
+      const perLevelResiduals = logits.map(logit =>
+        1 / (1 + Math.exp(-Math.max(-500, Math.min(500, logit))))
+      );
+
+      const E_levels = ctx.graphBuilder.getCapabilityLevels();
+      const H_levels = ctx.graphBuilder.getToolLevels();
+
+      // Store cache for backward pass
+      residualCache = {
+        E_original,
+        H_original,
+        E_propagated,
+        H_propagated,
+        E_levels,
+        H_levels,
+        alphas: perLevelResiduals,
+        logits,
+      };
+
+      E_flat = applyResidualConnectionPerLevel(E_flat, E_original, E_levels, perLevelResiduals, defaultResidual);
+      H_final = applyResidualConnectionPerLevel(H_final, H_original, H_levels, perLevelResiduals, defaultResidual);
+    } else if (ctx.config.preserveDimResiduals && ctx.config.preserveDimResiduals.length > 0) {
+      // Fixed per-level residuals from config (non-learnable)
+      const E_levels = ctx.graphBuilder.getCapabilityLevels();
+      const H_levels = ctx.graphBuilder.getToolLevels();
+
+      E_flat = applyResidualConnectionPerLevel(E_flat, E_original, E_levels, ctx.config.preserveDimResiduals, defaultResidual);
+      H_final = applyResidualConnectionPerLevel(H_final, H_original, H_levels, ctx.config.preserveDimResiduals, defaultResidual);
+    } else {
+      // Single residual value for all nodes
+      E_flat = applyResidualConnection(E_flat, E_original, defaultResidual);
+      H_final = applyResidualConnection(H_final, H_original, defaultResidual);
+    }
   }
 
   // Build cache for training backward compatibility
@@ -363,13 +430,89 @@ export function forwardCore(
     multiCache.attentionDownward,
   );
 
-  return { H: H_final, E: E_flat, cache };
+  return { H: H_final, E: E_flat, cache, residualCache };
+}
+
+/**
+ * Backward pass for learnable per-level residual logits
+ *
+ * Computes gradients for residualLogits based on the loss gradient.
+ * Formula: d(loss)/d(logit) = d(loss)/d(α) * d(α)/d(logit)
+ * Where d(α)/d(logit) = sigmoid'(logit) = α * (1 - α)
+ *
+ * @param dE - Gradient of loss w.r.t. capability embeddings
+ * @param dH - Gradient of loss w.r.t. tool embeddings
+ * @param cache - ResidualCache from forward pass
+ * @param lr - Learning rate
+ * @returns Updated logits (mutates in place and returns)
+ */
+export function backwardResidualLogits(
+  dE: number[][] | null,
+  dH: number[][] | null,
+  cache: ResidualCache,
+  residualLogits: number[],
+  lr: number,
+): void {
+  const dLogits = new Array(cache.logits.length).fill(0);
+
+  // Accumulate gradients from capability embeddings
+  if (dE) {
+    for (let i = 0; i < dE.length && i < cache.E_propagated.length; i++) {
+      const level = cache.E_levels[i] ?? 0;
+      if (level >= cache.alphas.length) continue;
+
+      const alpha = cache.alphas[level];
+      const orig = cache.E_original[i];
+      const prop = cache.E_propagated[i];
+      const dOut = dE[i];
+
+      if (!orig || !prop || !dOut) continue;
+
+      // d(loss)/d(alpha) = sum over dims of dOut * (original - propagated)
+      let dAlpha = 0;
+      for (let d = 0; d < dOut.length; d++) {
+        dAlpha += dOut[d] * ((orig[d] ?? 0) - (prop[d] ?? 0));
+      }
+
+      // Chain rule: d(alpha)/d(logit) = alpha * (1 - alpha)
+      dLogits[level] += dAlpha * alpha * (1 - alpha);
+    }
+  }
+
+  // Accumulate gradients from tool embeddings
+  if (dH) {
+    for (let i = 0; i < dH.length && i < cache.H_propagated.length; i++) {
+      const level = cache.H_levels[i] ?? 0;
+      if (level >= cache.alphas.length) continue;
+
+      const alpha = cache.alphas[level];
+      const orig = cache.H_original[i];
+      const prop = cache.H_propagated[i];
+      const dOut = dH[i];
+
+      if (!orig || !prop || !dOut) continue;
+
+      let dAlpha = 0;
+      for (let d = 0; d < dOut.length; d++) {
+        dAlpha += dOut[d] * ((orig[d] ?? 0) - (prop[d] ?? 0));
+      }
+
+      dLogits[level] += dAlpha * alpha * (1 - alpha);
+    }
+  }
+
+  // Update logits with gradient descent
+  for (let l = 0; l < residualLogits.length && l < dLogits.length; l++) {
+    // Clip gradient to prevent explosion
+    const clippedGrad = Math.max(-1.0, Math.min(1.0, dLogits[l]));
+    residualLogits[l] -= lr * clippedGrad;
+  }
 }
 
 /**
  * Apply residual connection with normalization
  */
-function applyResidualConnection(
+export function applyResidualConnection(
   propagated: number[][],
   original: number[][],
   residual: number,
@@ -377,6 +520,37 @@ function applyResidualConnection(
   return propagated.map((vec, idx) => {
     const orig = original[idx];
     if (!orig || orig.length !== vec.length) return vec;
+
+    const mixed = vec.map((v, i) => (1 - residual) * v + residual * orig[i]);
+    const norm = Math.sqrt(mixed.reduce((s, x) => s + x * x, 0));
+    return norm > 0 ? mixed.map((x) => x / norm) : mixed;
+  });
+}
+
+/**
+ * Apply per-level residual connection with normalization
+ * Each node uses a residual value based on its hierarchy level.
+ *
+ * @param propagated - Propagated embeddings from message passing
+ * @param original - Original (input) embeddings
+ * @param levels - Hierarchy level for each embedding (same order as propagated/original)
+ * @param perLevelResiduals - Residual values indexed by level [L0, L1, L2, ...]
+ * @param defaultResidual - Fallback residual for levels not in perLevelResiduals
+ */
+export function applyResidualConnectionPerLevel(
+  propagated: number[][],
+  original: number[][],
+  levels: number[],
+  perLevelResiduals: number[],
+  defaultResidual: number,
+): number[][] {
+  return propagated.map((vec, idx) => {
+    const orig = original[idx];
+    if (!orig || orig.length !== vec.length) return vec;
+
+    // Get residual for this node's level
+    const level = levels[idx] ?? 0;
+    const residual = perLevelResiduals[level] ?? defaultResidual;
 
     const mixed = vec.map((v, i) => (1 - residual) * v + residual * orig[i]);
     const norm = Math.sqrt(mixed.reduce((s, x) => s + x * x, 0));

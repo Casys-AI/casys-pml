@@ -450,6 +450,31 @@ export class GraphBuilder {
     return embeddings;
   }
 
+  /**
+   * Get capability hierarchy levels in index order (same order as getCapabilityEmbeddings)
+   * Used for per-level residual connections.
+   */
+  getCapabilityLevels(): number[] {
+    const levels: number[] = [];
+    for (const [_, cap] of this.capabilityNodes) {
+      levels.push(cap.hierarchyLevel ?? 0);
+    }
+    return levels;
+  }
+
+  /**
+   * Get tool hierarchy levels in index order (same order as getToolEmbeddings)
+   * Tools are typically level 0 (leaves).
+   */
+  getToolLevels(): number[] {
+    const levels: number[] = [];
+    for (const [id, _] of this.toolNodes) {
+      const node = this.nodes.get(id);
+      levels.push(node?.level ?? 0);
+    }
+    return levels;
+  }
+
   // =========================================================================
   // Index and Incidence Matrix Management
   // =========================================================================

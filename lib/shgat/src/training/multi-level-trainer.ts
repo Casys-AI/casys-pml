@@ -606,7 +606,9 @@ export function applyLevelGradients(
   config: SHGATConfig,
   batchSize: number,
 ): void {
-  const lr = config.learningRate / batchSize;
+  // Apply mpLearningRateScale to compensate for vanishing gradients through attention layers
+  const mpScale = config.mpLearningRateScale ?? 1;
+  const lr = (config.learningRate * mpScale) / batchSize;
   const l2 = config.l2Lambda;
 
   for (const [level, params] of levelParams) {

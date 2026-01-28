@@ -227,6 +227,40 @@ export interface SHGATConfig {
    */
   preserveDimResidual?: number;
 
+  /**
+   * Per-level residual weights for adaptive blending.
+   * Index corresponds to node level (0=leaves, 1=intermediate, 2=root, etc.)
+   * If provided, overrides preserveDimResidual for nodes at each level.
+   * Falls back to preserveDimResidual for levels not specified.
+   * @example [0.9, 0.3, 0.5] // L0: 90% original, L1: 30%, L2: 50%
+   */
+  preserveDimResiduals?: number[];
+
+  // === Multi-Location Residuals ===
+  /**
+   * Residual weight for V2V (vertex-to-vertex) message passing phase.
+   * output = (1-r)*enriched + r*original
+   * @default 0 (no residual in V2V)
+   */
+  v2vResidual?: number;
+
+  /**
+   * Residual weight for downward message passing phase.
+   * output = (1-r)*propagated + r*original
+   * @default 0 (no residual in downward)
+   */
+  downwardResidual?: number;
+
+  // === Gradient Scaling ===
+  /**
+   * Learning rate multiplier for message passing parameters.
+   * Compensates for vanishing gradients through attention layers.
+   * MP gradients are typically ~100x smaller than K-head gradients.
+   * @default 1 (same learning rate as K-head)
+   * @recommended 50-100 (to match K-head gradient scale)
+   */
+  mpLearningRateScale?: number;
+
   // === Legacy (kept for backward compatibility) ===
   /** @deprecated Which heads are active - all heads active in v2 */
   activeHeads?: number[];
@@ -256,6 +290,13 @@ export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
   // (initializeLevelParametersPreserveDim handles this separately)
   preserveDim: true,
   preserveDimResidual: 0.3, // 30% original + 70% propagated
+
+  // Multi-location residuals (default: disabled)
+  v2vResidual: 0,       // No residual in V2V phase
+  downwardResidual: 0,  // No residual in downward phase
+
+  // Gradient scaling for MP (compensate vanishing gradients)
+  mpLearningRateScale: 1, // Default 1 for backward compatibility, set to 50-100 to enable MP learning
 
   // Training
   learningRate: 0.05,  // Increased 5x for InfoNCE with fixed τ=0.07 (CLIP-style)

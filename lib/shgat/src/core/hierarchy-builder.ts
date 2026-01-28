@@ -98,22 +98,15 @@ export function rebuildHierarchy(
     const hierarchyLevels = graphBuilder.getNodeIdsByLevel();
     const maxHierarchyLevel = graphBuilder.getMaxLevel();
 
-    // Only include composite nodes (capabilities) in hierarchy
-    const capOnlyLevels = new Map<number, Set<string>>();
+    // Include ALL nodes in hierarchy (tools at level 0, capabilities at level 1+)
+    // This enables training on both tools and capabilities
+    const allNodeLevels = new Map<number, Set<string>>();
     for (const [level, nodeIds] of hierarchyLevels) {
-      const capIds = new Set<string>();
-      for (const id of nodeIds) {
-        if (capabilityNodes.has(id)) {
-          capIds.add(id);
-        }
-      }
-      if (capIds.size > 0) {
-        capOnlyLevels.set(level, capIds);
-      }
+      allNodeLevels.set(level, new Set(nodeIds));
     }
 
     hierarchy = {
-      hierarchyLevels: capOnlyLevels,
+      hierarchyLevels: allNodeLevels,
       maxHierarchyLevel,
       capabilities: capabilityNodes,
     };

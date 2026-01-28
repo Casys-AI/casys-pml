@@ -105,13 +105,23 @@ for (const t of rawTools) {
   }
 }
 
-// Build training examples (use all available)
-const trainingExamples: LibTrainingExample[] = rawEvents.map((event) => ({
-  intentEmbedding: event.intentEmbedding,
-  contextTools: event.contextTools,
-  candidateId: event.selectedCapability,
-  outcome: event.outcome === "success" ? 1 : 0,
-}));
+// Build training examples (use all available) with negative samples
+const allCapIds = capabilities.map(c => c.id);
+const trainingExamples: LibTrainingExample[] = rawEvents.map((event) => {
+  // Generate random negatives (exclude the positive)
+  const negatives = allCapIds
+    .filter(id => id !== event.selectedCapability)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 10);
+
+  return {
+    intentEmbedding: event.intentEmbedding,
+    contextTools: event.contextTools,
+    candidateId: event.selectedCapability,
+    outcome: event.outcome === "success" ? 1 : 0,
+    negativeCapIds: negatives,
+  };
+});
 
 // Test intent
 const testIntent = rawQueries[0]?.intentEmbedding || new Array(1024).fill(0.1);

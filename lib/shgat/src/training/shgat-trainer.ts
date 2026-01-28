@@ -14,6 +14,12 @@ import type {
   SHGATConfig,
   TrainingExample,
 } from "../core/types.ts";
+import {
+  backwardResidualLogits,
+  applyResidualConnectionPerLevel,
+  applyResidualConnection,
+  type ResidualCache,
+} from "../core/forward-helpers.ts";
 import { DEFAULT_HYPERGRAPH_FEATURES } from "../core/types.ts";
 import type { SHGATParams } from "../initialization/index.ts";
 import type { V2VParams, MultiLevelBackwardCache } from "../message-passing/index.ts";
@@ -31,11 +37,7 @@ import {
 import {
   applyKHeadGradients,
   applyWIntentGradients,
-  backpropMultiHeadKHead,
-  backpropMultiHeadKHeadLogit,
-  backpropWIntent,
   computeKHeadGradientNorm,
-  computeMultiHeadKHeadScoresWithCache,
   initMultiLevelKHeadGradients,
 } from "./multi-level-trainer-khead.ts";
 import {
@@ -79,6 +81,9 @@ export interface TrainingContext {
   forward(): { H: number[][]; E: number[][]; cache: ForwardCache };
   projectIntent(intentEmbedding: number[]): number[];
   rebuildHierarchy(): void;
+
+  /** ResidualCache from forward pass for learnable per-level residuals backward */
+  getResidualCache?: () => import("../core/forward-helpers.ts").ResidualCache | null;
 }
 
 // Helper to create ForwardContext from TrainingContext
@@ -242,6 +247,94 @@ export function buildDEFinalFromAccum(
 }
 
 /**
+ * Accumulate gradient for a tool (level 0) embedding
+ */
+export function accumulateDToolGradient(
+  dH_accum: Map<number, number[]>,
+  toolIdx: number,
+  dTool: number[],
+): void {
+  const existing = dH_accum.get(toolIdx);
+  if (existing) {
+    for (let j = 0; j < dTool.length; j++) {
+      existing[j] += dTool[j];
+    }
+  } else {
+    dH_accum.set(toolIdx, [...dTool]);
+  }
+}
+
+/**
+ * Build dH_final from accumulated tool gradients
+ */
+export function buildDHFinalFromAccum(
+  dH_accum: Map<number, number[]>,
+  numTools: number,
+  embDim: number,
+): number[][] {
+  const dH: number[][] = Array.from({ length: numTools }, () => new Array(embDim).fill(0));
+
+  for (const [idx, grad] of dH_accum) {
+    if (idx < numTools) {
+      for (let j = 0; j < Math.min(grad.length, embDim); j++) {
+        dH[idx][j] = grad[j];
+      }
+    }
+  }
+
+  return dH;
+}
+
+/**
+ * Get node index and type (tool or capability) for a given node ID.
+ * Works with both unified Node API and legacy Tool/Capability APIs.
+ * Returns null if node not found.
+ */
+export function getNodeIndexInfo(
+  graphBuilder: {
+    getNode: (id: string) => { level: number } | undefined;
+    getToolIndex: (id: string) => number | undefined;
+    getCapabilityIndex: (id: string) => number | undefined;
+    getToolNodes?: () => Map<string, unknown>;
+    getCapabilityNodes?: () => Map<string, { hierarchyLevel?: number }>;
+  },
+  nodeId: string,
+): { idx: number; isLeaf: boolean; level: number } | null {
+  // Try unified Node API first
+  const node = graphBuilder.getNode(nodeId);
+  if (node) {
+    const isLeaf = node.level === 0;
+    const idx = isLeaf
+      ? graphBuilder.getToolIndex(nodeId)
+      : graphBuilder.getCapabilityIndex(nodeId);
+    if (idx === undefined) return null;
+    return { idx, isLeaf, level: node.level };
+  }
+
+  // Fall back to legacy APIs: check if it's a tool (level 0)
+  const toolIdx = graphBuilder.getToolIndex(nodeId);
+  if (toolIdx !== undefined) {
+    return { idx: toolIdx, isLeaf: true, level: 0 };
+  }
+
+  // Check if it's a capability (level 1+)
+  const capIdx = graphBuilder.getCapabilityIndex(nodeId);
+  if (capIdx !== undefined) {
+    // Get level from capability node if available
+    let level = 1; // Default to level 1 for capabilities
+    if (graphBuilder.getCapabilityNodes) {
+      const capNode = graphBuilder.getCapabilityNodes().get(nodeId);
+      if (capNode?.hierarchyLevel !== undefined) {
+        level = capNode.hierarchyLevel;
+      }
+    }
+    return { idx: capIdx, isLeaf: false, level };
+  }
+
+  return null;
+}
+
+/**
  * Convert MP gradients to accumulator format for applyLevelGradients
  */
 export function convertMPGradsToAccumFormat(
@@ -281,267 +374,7 @@ export function computeMPGradNorm(
 }
 
 // ==========================================================================
-// K-Head Training (InfoNCE / BCE)
-// ==========================================================================
-
-/**
- * Train using K-head attention with InfoNCE or BCE loss
- *
- * @param ctx Training context
- * @param examples Training examples
- * @param isWeights Importance sampling weights
- * @param orchestrator MultiLevelOrchestrator in training mode
- * @returns Training result
- */
-export function trainBatchV1KHeadCore(
-  ctx: TrainingContext,
-  examples: TrainingExample[],
-  isWeights: number[],
-  orchestrator: MultiLevelOrchestrator,
-): { loss: number; accuracy: number; tdErrors: number[]; gradNorm: number } {
-  const tdErrors: number[] = [];
-  const weights = isWeights;
-
-  // Rebuild hierarchy
-  ctx.rebuildHierarchy();
-
-  // Initialize gradients
-  const grads = initMultiLevelKHeadGradients(
-    ctx.levelParams,
-    ctx.params.headParams,
-    ctx.config,
-  );
-
-  // Build cap index → level mapping
-  const fwdCtx = getForwardContext(ctx);
-  const capIndexToLevel = buildCapIndexToLevelMapFn(fwdCtx);
-  const maxLevel = ctx.hierarchy?.maxHierarchyLevel ?? 0;
-
-  // Accumulate dCapEmbedding gradients per level
-  const dE_accum = new Map<number, Map<number, number[]>>();
-  for (let level = 0; level <= maxLevel; level++) {
-    dE_accum.set(level, new Map());
-  }
-
-  let totalLoss = 0;
-  let correct = 0;
-  let mpCache: MultiLevelBackwardCache | null = null;
-
-  const TEMPERATURE = 0.1;
-
-  for (let exIdx = 0; exIdx < examples.length; exIdx++) {
-    const example = examples[exIdx];
-    const isWeight = weights[exIdx];
-
-    const H_init = ctx.graphBuilder.getToolEmbeddings();
-    const capabilityNodes = ctx.graphBuilder.getCapabilityNodes();
-
-    if (capabilityNodes.size === 0 || !ctx.hierarchy || !ctx.multiLevelIncidence) {
-      tdErrors.push(0);
-      continue;
-    }
-
-    // Build E_levels_init
-    const E_levels_init = new Map<number, number[][]>();
-    for (let level = 0; level <= maxLevel; level++) {
-      const capsAtLevel = ctx.hierarchy.hierarchyLevels.get(level) ?? new Set<string>();
-      const embeddings: number[][] = [];
-      for (const capId of capsAtLevel) {
-        const cap = capabilityNodes.get(capId);
-        if (cap) embeddings.push([...cap.embedding]);
-      }
-      if (embeddings.length > 0) {
-        E_levels_init.set(level, embeddings);
-      }
-    }
-
-    const toolToCapMatrix = buildToolToCapMatrixFn(fwdCtx);
-    const capToCapMatrices = buildCapToCapMatricesFn(fwdCtx);
-
-    const { result, cache } = orchestrator.forwardMultiLevelWithCache(
-      H_init,
-      E_levels_init,
-      toolToCapMatrix,
-      capToCapMatrices,
-      ctx.levelParams,
-      {
-        numHeads: ctx.config.numHeads,
-        numLayers: ctx.config.numLayers,
-        dropout: ctx.config.dropout,
-        leakyReluSlope: ctx.config.leakyReluSlope,
-      },
-      ctx.v2vParams,
-    );
-
-    mpCache = cache;
-    const E_flat = flattenEmbeddingsFn(fwdCtx, result.E);
-    const intentProjected = ctx.projectIntent(example.intentEmbedding);
-
-    const posCapIdx = ctx.graphBuilder.getCapabilityIndex(example.candidateId);
-    if (posCapIdx === undefined) {
-      tdErrors.push(0);
-      continue;
-    }
-
-    const posCapEmbedding = E_flat[posCapIdx];
-
-    const { scores: posHeadScores, logits: posHeadLogits, caches: posHeadCaches } =
-      computeMultiHeadKHeadScoresWithCache(
-        intentProjected,
-        posCapEmbedding,
-        ctx.params.headParams,
-        ctx.config,
-      );
-    const posScore = posHeadScores.reduce((a, b) => a + b, 0) / ctx.config.numHeads;
-    const posLogit = posHeadLogits.reduce((a, b) => a + b, 0) / ctx.config.numHeads;
-
-    if (example.negativeCapIds && example.negativeCapIds.length > 0) {
-      // InfoNCE contrastive
-      const negLogits: number[] = [];
-      const negCaches: Array<{ Q: number[]; K: number[]; dotQK: number }[]> = [];
-      const negCapIndices: number[] = [];
-      const negEmbeddings: number[][] = [];
-
-      for (const negCapId of example.negativeCapIds) {
-        const negCapIdx = ctx.graphBuilder.getCapabilityIndex(negCapId);
-        if (negCapIdx === undefined) continue;
-
-        const negCapEmbedding = E_flat[negCapIdx];
-        const { logits, caches } = computeMultiHeadKHeadScoresWithCache(
-          intentProjected,
-          negCapEmbedding,
-          ctx.params.headParams,
-          ctx.config,
-        );
-
-        negLogits.push(logits.reduce((a, b) => a + b, 0) / ctx.config.numHeads);
-        negCaches.push(caches);
-        negCapIndices.push(negCapIdx);
-        negEmbeddings.push(negCapEmbedding);
-      }
-
-      const allLogits = [posLogit, ...negLogits];
-      const scaledScores = allLogits.map((s) => s / TEMPERATURE);
-      const maxScoreVal = Math.max(...scaledScores);
-      const expScores = scaledScores.map((s) => Math.exp(s - maxScoreVal));
-      const sumExp = expScores.reduce((a, b) => a + b, 0);
-      const softmax = expScores.map((e) => e / sumExp);
-
-      totalLoss += -Math.log(softmax[0] + 1e-7) * isWeight;
-
-      const margin = negLogits.length > 0 ? posLogit - Math.max(...negLogits) : 3;
-      const clippedMargin = Math.max(-3, Math.min(3, margin));
-      tdErrors.push(Math.exp(-clippedMargin));
-
-      if (negLogits.length === 0 || posLogit > Math.max(...negLogits)) correct++;
-
-      const dLossPos = (softmax[0] - 1) / TEMPERATURE * isWeight;
-      const { dIntentProjected: dIntentPos, dCapEmbedding: dCapPos } = backpropMultiHeadKHeadLogit(
-        dLossPos,
-        posHeadCaches,
-        intentProjected,
-        posCapEmbedding,
-        ctx.params.headParams,
-        grads.khead,
-        ctx.config,
-      );
-
-      accumulateDCapGradient(dE_accum, posCapIdx, dCapPos, capIndexToLevel);
-
-      let dIntentAccum = [...dIntentPos];
-      for (let i = 0; i < negLogits.length; i++) {
-        const dLossNeg = softmax[i + 1] / TEMPERATURE * isWeight;
-        const { dIntentProjected: dIntentNeg, dCapEmbedding: dCapNeg } = backpropMultiHeadKHeadLogit(
-          dLossNeg,
-          negCaches[i],
-          intentProjected,
-          negEmbeddings[i],
-          ctx.params.headParams,
-          grads.khead,
-          ctx.config,
-        );
-
-        for (let j = 0; j < dIntentAccum.length; j++) {
-          dIntentAccum[j] += dIntentNeg[j] ?? 0;
-        }
-
-        accumulateDCapGradient(dE_accum, negCapIndices[i], dCapNeg, capIndexToLevel);
-      }
-
-      backpropWIntent(dIntentAccum, example.intentEmbedding, grads, ctx.config);
-    } else {
-      // BCE fallback
-      const predScore = Math.min(0.95, Math.max(0.05, posScore));
-      totalLoss += math.binaryCrossEntropy(predScore, example.outcome) * isWeight;
-      tdErrors.push(example.outcome - predScore);
-
-      if ((predScore > 0.5 ? 1 : 0) === example.outcome) correct++;
-
-      const dLossRaw = example.outcome === 1 ? -1 / (predScore + 1e-7) : 1 / (1 - predScore + 1e-7);
-      const dLoss = dLossRaw * isWeight;
-      const { dIntentProjected, dCapEmbedding } = backpropMultiHeadKHead(
-        dLoss,
-        posHeadScores,
-        posHeadCaches,
-        intentProjected,
-        posCapEmbedding,
-        ctx.params.headParams,
-        grads.khead,
-        ctx.config,
-      );
-
-      accumulateDCapGradient(dE_accum, posCapIdx, dCapEmbedding, capIndexToLevel);
-      backpropWIntent(dIntentProjected, example.intentEmbedding, grads, ctx.config);
-    }
-  }
-
-  // Backward through message passing
-  let mpGradNorm = 0;
-  let v2vGradNorm = 0;
-  if (mpCache && dE_accum.size > 0) {
-    const dE_final = buildDEFinalFromAccum(dE_accum, mpCache);
-    const mpGrads = orchestrator.backwardMultiLevel(
-      dE_final,
-      null,
-      mpCache,
-      ctx.levelParams,
-      ctx.v2vParams,
-    );
-
-    const mpGradsConverted = { levelGradients: mpGrads.levelGrads };
-    applyLevelGradients(mpGradsConverted, ctx.levelParams, ctx.config, examples.length);
-    mpGradNorm = computeMPGradNorm(mpGradsConverted);
-
-    if (mpGrads.v2vGrads) {
-      const lr = ctx.config.learningRate;
-      const batchSize = examples.length;
-      ctx.v2vParams.residualLogit -= lr * mpGrads.v2vGrads.dResidualLogit / batchSize;
-      ctx.v2vParams.temperatureLogit -= lr * mpGrads.v2vGrads.dTemperatureLogit / batchSize;
-      v2vGradNorm = Math.sqrt(
-        mpGrads.v2vGrads.dResidualLogit ** 2 + mpGrads.v2vGrads.dTemperatureLogit ** 2
-      );
-    }
-  }
-
-  const levelGradNorm = computeGradientNorm(grads);
-  const kheadGradNorm = computeKHeadGradientNorm(grads.khead);
-  const gradNorm = Math.sqrt(
-    levelGradNorm ** 2 + kheadGradNorm ** 2 + mpGradNorm ** 2 + v2vGradNorm ** 2
-  );
-
-  applyKHeadGradients(grads.khead, ctx.params.headParams, ctx.config, examples.length);
-  applyWIntentGradients(grads, ctx.params.W_intent, ctx.config, examples.length);
-
-  return {
-    loss: totalLoss / examples.length,
-    accuracy: correct / examples.length,
-    tdErrors,
-    gradNorm,
-  };
-}
-
-// ==========================================================================
-// Batched K-Head Training (10x faster)
+// Batched K-Head Training
 // ==========================================================================
 
 /**
@@ -583,46 +416,116 @@ export function trainBatchV1KHeadBatchedCore(
   const H_init = ctx.graphBuilder.getToolEmbeddings();
   const capabilityNodes = ctx.graphBuilder.getCapabilityNodes();
 
-  if (capabilityNodes.size === 0 || !ctx.hierarchy || !ctx.multiLevelIncidence) {
-    return { loss: 0, accuracy: 0, tdErrors: [], gradNorm: 0 };
+  // Handle flat structure (all level 0, no capabilities)
+  const isFlat = capabilityNodes.size === 0;
+  // Note: Flat structure warning logged only once at module level to avoid spam
+
+  if (!ctx.hierarchy || !ctx.multiLevelIncidence) {
+    throw new Error(
+      "[trainBatchV1KHeadBatchedCore] Training requires hierarchy and incidence matrices. " +
+      "Call forward() before training to initialize the graph structure."
+    );
   }
 
-  // Build E_levels_init
-  const E_levels_init = new Map<number, number[][]>();
-  for (let level = 0; level <= maxLevel; level++) {
-    const capsAtLevel = ctx.hierarchy.hierarchyLevels.get(level) ?? new Set<string>();
-    const embeddings: number[][] = [];
-    for (const capId of capsAtLevel) {
-      const cap = capabilityNodes.get(capId);
-      if (cap) embeddings.push([...cap.embedding]);
+  // Build E_levels_init for hierarchical structures
+  let E_flat: number[][] = [];
+  let H_final: number[][] = H_init.map(row => [...row]); // Default to original
+  let mpCache: import("../message-passing/multi-level-orchestrator.ts").MultiLevelBackwardCache | null = null;
+
+  if (!isFlat) {
+    // HIERARCHICAL: Do message passing
+    const E_levels_init = new Map<number, number[][]>();
+    for (let level = 0; level <= maxLevel; level++) {
+      const capsAtLevel = ctx.hierarchy.hierarchyLevels.get(level) ?? new Set<string>();
+      const embeddings: number[][] = [];
+      for (const capId of capsAtLevel) {
+        const cap = capabilityNodes.get(capId);
+        if (cap) embeddings.push([...cap.embedding]);
+      }
+      if (embeddings.length > 0) {
+        E_levels_init.set(level, embeddings);
+      }
     }
-    if (embeddings.length > 0) {
-      E_levels_init.set(level, embeddings);
+
+    // Build matrices
+    const toolToCapMatrix = buildToolToCapMatrixFn(fwdCtx);
+    const capToCapMatrices = buildCapToCapMatricesFn(fwdCtx);
+
+    // Forward with cache
+    // Only pass v2vParams if V2V is actually configured (v2vResidual > 0)
+    const useV2V = ctx.config.v2vResidual !== undefined && ctx.config.v2vResidual > 0;
+    const { result, cache } = orchestrator.forwardMultiLevelWithCache(
+      H_init,
+      E_levels_init,
+      toolToCapMatrix,
+      capToCapMatrices,
+      ctx.levelParams,
+      {
+        numHeads: ctx.config.numHeads,
+        numLayers: ctx.config.numLayers,
+        dropout: ctx.config.dropout,
+        leakyReluSlope: ctx.config.leakyReluSlope,
+      },
+      useV2V ? ctx.v2vParams : undefined,
+    );
+
+    // Flatten E for K-head scoring
+    E_flat = flattenEmbeddingsFn(fwdCtx, result.E);
+    H_final = result.H;
+    mpCache = cache;
+  }
+  // FLAT: Skip message passing, use original tool embeddings directly
+  // H_final already initialized to H_init
+
+  // Store propagated embeddings BEFORE residual for backward pass
+  const E_propagated = E_flat.map(row => [...row]);
+  const H_propagated = H_final.map(row => [...row]);
+
+  // Apply per-level residual connection (same as forwardCore)
+  let residualCache: ResidualCache | null = null;
+  if (ctx.config.preserveDim) {
+    const E_original = ctx.graphBuilder.getCapabilityEmbeddings();
+    const H_original = ctx.graphBuilder.getToolEmbeddings();
+    const defaultResidual = ctx.config.preserveDimResidual ?? 0.3;
+
+    // Check for learnable per-level residuals
+    const maxLevel = ctx.hierarchy?.maxHierarchyLevel ?? 0;
+    if (ctx.params.residualLogits && ctx.params.residualLogits.length > 0 && maxLevel > 0) {
+      // Convert logits to alphas: α = sigmoid(logit)
+      const logits = ctx.params.residualLogits.slice(0, maxLevel + 1);
+      const perLevelResiduals = logits.map(logit =>
+        1 / (1 + Math.exp(-Math.max(-500, Math.min(500, logit))))
+      );
+
+      const E_levels = ctx.graphBuilder.getCapabilityLevels();
+      const H_levels = ctx.graphBuilder.getToolLevels();
+
+      // Store cache for backward pass
+      residualCache = {
+        E_original,
+        H_original,
+        E_propagated,
+        H_propagated,
+        E_levels,
+        H_levels,
+        alphas: perLevelResiduals,
+        logits,
+      };
+
+      E_flat = applyResidualConnectionPerLevel(E_flat, E_original, E_levels, perLevelResiduals, defaultResidual);
+      H_final = applyResidualConnectionPerLevel(H_final, H_original, H_levels, perLevelResiduals, defaultResidual);
+    } else if (ctx.config.preserveDimResiduals && ctx.config.preserveDimResiduals.length > 0) {
+      // Fixed per-level residuals from config
+      const E_levels = ctx.graphBuilder.getCapabilityLevels();
+      const H_levels = ctx.graphBuilder.getToolLevels();
+      E_flat = applyResidualConnectionPerLevel(E_flat, E_original, E_levels, ctx.config.preserveDimResiduals, defaultResidual);
+      H_final = applyResidualConnectionPerLevel(H_final, H_original, H_levels, ctx.config.preserveDimResiduals, defaultResidual);
+    } else if (defaultResidual > 0) {
+      // Single residual value
+      E_flat = applyResidualConnection(E_flat, E_original, defaultResidual);
+      H_final = applyResidualConnection(H_final, H_original, defaultResidual);
     }
   }
-
-  // Build matrices
-  const toolToCapMatrix = buildToolToCapMatrixFn(fwdCtx);
-  const capToCapMatrices = buildCapToCapMatricesFn(fwdCtx);
-
-  // Forward with cache
-  const { result, cache: mpCache } = orchestrator.forwardMultiLevelWithCache(
-    H_init,
-    E_levels_init,
-    toolToCapMatrix,
-    capToCapMatrices,
-    ctx.levelParams,
-    {
-      numHeads: ctx.config.numHeads,
-      numLayers: ctx.config.numLayers,
-      dropout: ctx.config.dropout,
-      leakyReluSlope: ctx.config.leakyReluSlope,
-    },
-    ctx.v2vParams,
-  );
-
-  // Flatten E for K-head scoring
-  const E_flat = flattenEmbeddingsFn(fwdCtx, result.E);
 
   // Build capId → embedding map for batched scoring
   const capEmbeddings = new Map<string, number[]>();
@@ -630,11 +533,14 @@ export function trainBatchV1KHeadBatchedCore(
   for (let i = 0; i < capIds.length; i++) {
     capEmbeddings.set(capIds[i], E_flat[i]);
   }
-  // Also add tools
+  // Also add tools - use H_final (after message passing) not original embeddings
   const toolNodes = ctx.graphBuilder.getToolNodes();
-  for (const [toolId, tool] of toolNodes) {
-    if (tool.embedding) {
-      capEmbeddings.set(toolId, tool.embedding);
+  const toolIds = Array.from(toolNodes.keys());
+  for (let i = 0; i < toolIds.length; i++) {
+    const toolId = toolIds[i];
+    // Use H_final which contains embeddings AFTER message passing + residual
+    if (H_final[i]) {
+      capEmbeddings.set(toolId, H_final[i]);
     }
   }
 
@@ -643,7 +549,7 @@ export function trainBatchV1KHeadBatchedCore(
   const intentsBatched = batchProjectIntents(intents, ctx.params.W_intent);
 
   // === BATCHED K-HEAD FORWARD ===
-  const { scores: allScores, logits: allLogits, cache: kheadCache } = batchedKHeadForward(
+  const { logits: allLogits, cache: kheadCache } = batchedKHeadForward(
     intents,
     ctx.params.W_intent,
     capEmbeddings,
@@ -657,11 +563,14 @@ export function trainBatchV1KHeadBatchedCore(
   let totalLoss = 0;
   let correct = 0;
 
-  // Accumulate dCapEmbedding gradients per level
+  // Accumulate dCapEmbedding gradients per level (for level 1+)
   const dE_accum = new Map<number, Map<number, number[]>>();
   for (let level = 0; level <= maxLevel; level++) {
     dE_accum.set(level, new Map());
   }
+
+  // Accumulate dToolEmbedding gradients (for level 0)
+  const dH_accum = new Map<number, number[]>();
 
   // Accumulate dIntentsBatched for W_intent backprop
   const dIntentsBatched: number[][] = [];
@@ -670,28 +579,30 @@ export function trainBatchV1KHeadBatchedCore(
     const example = examples[exIdx];
     const isWeight = weights[exIdx];
 
-    // Get positive cap scores
-    const posCapIdx = ctx.graphBuilder.getCapabilityIndex(example.candidateId);
-    if (posCapIdx === undefined) {
-      tdErrors.push(0);
-      dIntentsBatched.push(new Array(ctx.config.hiddenDim).fill(0));
-      continue;
+    // Get positive node (any level)
+    const posNodeInfo = getNodeIndexInfo(ctx.graphBuilder, example.candidateId);
+    if (!posNodeInfo) {
+      throw new Error(
+        `[trainBatchV1KHeadBatchedCore] Node "${example.candidateId}" not found. ` +
+        `Ensure the node is registered before training.`
+      );
     }
+    const { idx: posNodeIdx, isLeaf: posIsLeaf } = posNodeInfo;
 
     const posLogit = allLogits.get(example.candidateId)?.[exIdx] ?? 0;
 
     if (example.negativeCapIds && example.negativeCapIds.length > 0) {
       // === CONTRASTIVE (InfoNCE) ===
       const negLogits: number[] = [];
-      const negCapIndices: number[] = [];
-      const validNegCapIds: string[] = [];
+      const negNodeInfos: { idx: number; isLeaf: boolean; level: number }[] = [];
+      const validNegIds: string[] = [];
 
-      for (const negCapId of example.negativeCapIds) {
-        const negCapIdx = ctx.graphBuilder.getCapabilityIndex(negCapId);
-        if (negCapIdx === undefined) continue;
-        negLogits.push(allLogits.get(negCapId)?.[exIdx] ?? 0);
-        negCapIndices.push(negCapIdx);
-        validNegCapIds.push(negCapId);
+      for (const negId of example.negativeCapIds) {
+        const negInfo = getNodeIndexInfo(ctx.graphBuilder, negId);
+        if (!negInfo) continue;
+        negLogits.push(allLogits.get(negId)?.[exIdx] ?? 0);
+        negNodeInfos.push(negInfo);
+        validNegIds.push(negId);
       }
 
       // InfoNCE loss
@@ -713,21 +624,21 @@ export function trainBatchV1KHeadBatchedCore(
       // === BACKWARD ===
       let dIntentAccum = new Array(ctx.config.hiddenDim).fill(0);
 
-      // Positive cap gradient
+      // Positive node gradient
       const dLossPos = (softmax[0] - 1) / TEMPERATURE * isWeight;
       const posKCaps = kheadCache.K_caps.get(example.candidateId);
-      const posCapEmb = capEmbeddings.get(example.candidateId);
-      if (posKCaps && posCapEmb) {
+      const posNodeEmb = capEmbeddings.get(example.candidateId);
+      if (posKCaps && posNodeEmb) {
         for (let h = 0; h < ctx.config.numHeads; h++) {
           const Q = kheadCache.Q_batches[h][exIdx];
           const K = posKCaps[h];
           if (!K) continue;
-          const { dIntentsBatched: dI, dCapEmbedding: dCap } = batchedBackpropKHeadLogit(
+          const { dIntentsBatched: dI, dCapEmbedding: dNode } = batchedBackpropKHeadLogit(
             [dLossPos / ctx.config.numHeads],
             [Q],
             K,
             [intentsBatched[exIdx]],
-            posCapEmb,
+            posNodeEmb,
             ctx.params.headParams[h],
             grads.khead,
             h,
@@ -735,29 +646,34 @@ export function trainBatchV1KHeadBatchedCore(
           for (let j = 0; j < dIntentAccum.length; j++) {
             dIntentAccum[j] += dI[0]?.[j] ?? 0;
           }
-          accumulateDCapGradient(dE_accum, posCapIdx, dCap, capIndexToLevel);
+          // Accumulate in the right place based on node level
+          if (posIsLeaf) {
+            accumulateDToolGradient(dH_accum, posNodeIdx, dNode);
+          } else {
+            accumulateDCapGradient(dE_accum, posNodeIdx, dNode, capIndexToLevel);
+          }
         }
       }
 
-      // Negative caps gradients
+      // Negative nodes gradients
       for (let i = 0; i < negLogits.length; i++) {
         const dLossNeg = softmax[i + 1] / TEMPERATURE * isWeight;
-        const negCapId = validNegCapIds[i];
-        const negCapIdx = negCapIndices[i];
-        const negKCaps = kheadCache.K_caps.get(negCapId);
-        const negCapEmb = capEmbeddings.get(negCapId);
-        if (!negKCaps || !negCapEmb) continue;
+        const negId = validNegIds[i];
+        const negInfo = negNodeInfos[i];
+        const negKCaps = kheadCache.K_caps.get(negId);
+        const negNodeEmb = capEmbeddings.get(negId);
+        if (!negKCaps || !negNodeEmb) continue;
 
         for (let h = 0; h < ctx.config.numHeads; h++) {
           const Q = kheadCache.Q_batches[h][exIdx];
           const K = negKCaps[h];
           if (!K) continue;
-          const { dIntentsBatched: dI, dCapEmbedding: dCap } = batchedBackpropKHeadLogit(
+          const { dIntentsBatched: dI, dCapEmbedding: dNode } = batchedBackpropKHeadLogit(
             [dLossNeg / ctx.config.numHeads],
             [Q],
             K,
             [intentsBatched[exIdx]],
-            negCapEmb,
+            negNodeEmb,
             ctx.params.headParams[h],
             grads.khead,
             h,
@@ -765,54 +681,23 @@ export function trainBatchV1KHeadBatchedCore(
           for (let j = 0; j < dIntentAccum.length; j++) {
             dIntentAccum[j] += dI[0]?.[j] ?? 0;
           }
-          accumulateDCapGradient(dE_accum, negCapIdx, dCap, capIndexToLevel);
+          // Accumulate in the right place based on node level
+          if (negInfo.isLeaf) {
+            accumulateDToolGradient(dH_accum, negInfo.idx, dNode);
+          } else {
+            accumulateDCapGradient(dE_accum, negInfo.idx, dNode, capIndexToLevel);
+          }
         }
       }
 
       dIntentsBatched.push(dIntentAccum);
     } else {
-      // === LEGACY BCE ===
-      const posScore = allScores.get(example.candidateId)?.[exIdx] ?? 0.5;
-      const predScore = Math.min(0.95, Math.max(0.05, posScore));
-      totalLoss += math.binaryCrossEntropy(predScore, example.outcome) * isWeight;
-      tdErrors.push(example.outcome - predScore);
-
-      if ((predScore > 0.5 ? 1 : 0) === example.outcome) correct++;
-
-      // BCE backward
-      const dLossRaw = example.outcome === 1 ? -1 / (predScore + 1e-7) : 1 / (1 - predScore + 1e-7);
-      const dLoss = dLossRaw * isWeight;
-      let dIntentAccum = new Array(ctx.config.hiddenDim).fill(0);
-
-      const bceKCaps = kheadCache.K_caps.get(example.candidateId);
-      const bceCapEmb = capEmbeddings.get(example.candidateId);
-      if (bceKCaps && bceCapEmb) {
-        for (let h = 0; h < ctx.config.numHeads; h++) {
-          const Q = kheadCache.Q_batches[h][exIdx];
-          const K = bceKCaps[h];
-          if (!K) continue;
-          const score = allScores.get(example.candidateId)?.[exIdx] ?? 0.5;
-          const scoringDim = K.length;
-          const scale = Math.sqrt(scoringDim);
-          const dDotQK = dLoss * score * (1 - score) / scale / ctx.config.numHeads;
-
-          const dQ = K.map((k) => dDotQK * k);
-          const dK = Q.map((q) => dDotQK * q);
-
-          math.outerProductAdd(grads.khead.dW_q[h], dQ, intentsBatched[exIdx]);
-          math.outerProductAdd(grads.khead.dW_k[h], dK, bceCapEmb);
-
-          const dIntent = math.matVecTransposeBlas(ctx.params.headParams[h].W_q, dQ);
-          for (let j = 0; j < dIntentAccum.length; j++) {
-            dIntentAccum[j] += dIntent[j] ?? 0;
-          }
-
-          const dCap = math.matVecTransposeBlas(ctx.params.headParams[h].W_k, dK);
-          accumulateDCapGradient(dE_accum, posCapIdx, dCap, capIndexToLevel);
-        }
-      }
-
-      dIntentsBatched.push(dIntentAccum);
+      // No silent fallback - require contrastive examples
+      throw new Error(
+        `[trainBatchV1KHeadBatchedCore] Example ${exIdx} has no negativeCapIds. ` +
+        `InfoNCE contrastive training requires negative samples. ` +
+        `Provide negativeCapIds in each TrainingExample.`
+      );
     }
   }
 
@@ -822,11 +707,57 @@ export function trainBatchV1KHeadBatchedCore(
   // === BACKWARD: Multi-level message passing ===
   let mpGradNorm = 0;
   let v2vGradNorm = 0;
-  if (mpCache && dE_accum.size > 0) {
+  if (mpCache && (dE_accum.size > 0 || dH_accum.size > 0)) {
     const dE_final = buildDEFinalFromAccum(dE_accum, mpCache);
+
+    // Build dH_final from accumulated tool gradients
+    const numTools = ctx.graphBuilder.getToolNodes().size;
+    const dH_final = dH_accum.size > 0
+      ? buildDHFinalFromAccum(dH_accum, numTools, ctx.config.embeddingDim)
+      : null;
+
+    // === BACKWARD: Per-level residual logits ===
+    // Use local residualCache created during forward pass (not ctx.getResidualCache)
+    if (!evaluateOnly && residualCache) {
+        // Flatten dE_final to match residualCache order (sorted by capId)
+        // The residualCache.E_levels contains levels in capability order
+        const capNodes = ctx.graphBuilder.getCapabilityNodes();
+        const sortedCapIds = Array.from(capNodes.keys()).sort();
+        const dE_flat: number[][] = [];
+
+        for (const capId of sortedCapIds) {
+          const cap = capNodes.get(capId);
+          if (!cap) continue;
+          const level = cap.hierarchyLevel ?? 0;
+          const levelDEs = dE_final.get(level);
+          if (!levelDEs) {
+            dE_flat.push(new Array(ctx.config.embeddingDim).fill(0));
+            continue;
+          }
+          // Find index within level
+          const capsAtLevel = ctx.hierarchy?.hierarchyLevels.get(level);
+          if (!capsAtLevel) {
+            dE_flat.push(new Array(ctx.config.embeddingDim).fill(0));
+            continue;
+          }
+          const sortedCapsAtLevel = Array.from(capsAtLevel).sort();
+          const idxWithinLevel = sortedCapsAtLevel.indexOf(capId);
+          dE_flat.push(levelDEs[idxWithinLevel] ?? new Array(ctx.config.embeddingDim).fill(0));
+        }
+
+        // Call backward for residual logits (now with dH support)
+        backwardResidualLogits(
+          dE_flat,
+          dH_final, // Now passing tool gradients for level 0
+          residualCache,
+          ctx.params.residualLogits,
+          ctx.config.learningRate,
+        );
+    }
+
     const mpGrads = orchestrator.backwardMultiLevel(
       dE_final,
-      null,
+      dH_final, // Now passing tool gradients
       mpCache,
       ctx.levelParams,
       ctx.v2vParams,
@@ -862,6 +793,11 @@ export function trainBatchV1KHeadBatchedCore(
   if (!evaluateOnly) {
     applyKHeadGradients(grads.khead, ctx.params.headParams, ctx.config, examples.length);
     applyWIntentGradients(grads, ctx.params.W_intent, ctx.config, examples.length);
+
+    // DEBUG: Log gradient info
+    if (Math.random() < 0.1) { // 10% of batches
+      console.log(`[TRAIN DEBUG] gradNorm=${gradNorm.toFixed(4)}, khead=${kheadGradNorm.toFixed(4)}, loss=${(totalLoss/examples.length).toFixed(4)}, W_q[0][0][0]=${ctx.params.headParams[0].W_q[0][0].toFixed(6)}`);
+    }
   }
 
   return {

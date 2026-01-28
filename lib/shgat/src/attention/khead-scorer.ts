@@ -119,8 +119,10 @@ export function batchComputeScores(
     for (let h = 0; h < numHeads; h++) {
       const Q = precomputedQ[h];
       const K = K_all[h][c];
-      const scale = Math.sqrt(Q.length);
-      scores[c][h] = math.dot(Q, K) / scale;
+      // Use cosine similarity instead of scaled dot-product
+      // BGE embeddings are pre-normalized, but W_q/W_k projections aren't calibrated
+      // Cosine keeps only angular (direction) information, ignoring magnitude
+      scores[c][h] = math.cosineSimilarity(Q, K);
     }
   }
 
@@ -163,8 +165,8 @@ export function computeHeadScoreV1(
     }
   }
 
-  const scale = Math.sqrt(outputDim);
-  return math.dot(Q, K) / scale;
+  // Use cosine similarity instead of scaled dot-product
+  return math.cosineSimilarity(Q, K);
 }
 
 /**
@@ -195,8 +197,8 @@ export function computeMultiHeadScoresWithPrecomputedQ(
       }
     }
 
-    const scale = Math.sqrt(outputDim);
-    scores.push(math.dot(Q, K) / scale);
+    // Use cosine similarity instead of scaled dot-product
+    scores.push(math.cosineSimilarity(Q, K));
   }
 
   return scores;

@@ -129,6 +129,10 @@ import {
   type TrainingExample,
 } from "./types.ts";
 
+// Auto-initialize BLAS acceleration on module load
+import { initBlasAcceleration } from "../utils/math.ts";
+await initBlasAcceleration();
+
 const log = getLogger();
 
 // ============================================================================
@@ -149,6 +153,7 @@ export class SHGAT {
   private orchestrator: MultiLevelOrchestrator;
   private trainingMode = false;
   private lastCache: ForwardCache | null = null;
+  private lastResidualCache: import("./forward-helpers.ts").ResidualCache | null = null;
 
   // Multi-level n-SuperHyperGraph structures
   private hierarchy: HierarchyResult | null = null;
@@ -167,7 +172,11 @@ export class SHGAT {
     // Each head gets 16 dims for consistent expressiveness
 
     this.graphBuilder = new GraphBuilder();
-    this.orchestrator = new MultiLevelOrchestrator(this.trainingMode);
+    // Pass v2vResidual to the V2V phase config
+    const v2vConfig = this.config.v2vResidual !== undefined && this.config.v2vResidual > 0
+      ? { residualWeight: this.config.v2vResidual }
+      : undefined;
+    this.orchestrator = new MultiLevelOrchestrator(this.trainingMode, v2vConfig);
     this.params = initializeParameters(this.config);
   }
 
@@ -314,6 +323,7 @@ export class SHGAT {
     // Delegate to extracted core function
     const result = forwardCore(this.getForwardPassContext());
     this.lastCache = result.cache;
+    this.lastResidualCache = result.residualCache;
     return result;
   }
 
@@ -326,6 +336,7 @@ export class SHGAT {
       multiLevelIncidence: this.multiLevelIncidence,
       levelParams: this.levelParams,
       orchestrator: this.orchestrator,
+      residualLogits: this.params.residualLogits,
     };
   }
 
@@ -498,6 +509,7 @@ export class SHGAT {
       forward: () => this.forward(),
       projectIntent: (e) => this.projectIntent(e),
       rebuildHierarchy: () => this.rebuildHierarchy(),
+      getResidualCache: () => this.lastResidualCache,
     };
   }
 
@@ -506,7 +518,11 @@ export class SHGAT {
     if (examples.length === 0) return { loss: 0, accuracy: 0, tdErrors: [] as number[], gradNorm: 0 };
 
     this.trainingMode = true;
-    this.orchestrator = new MultiLevelOrchestrator(true);
+    // Pass v2vResidual to the V2V phase config
+    const v2vConfig = this.config.v2vResidual !== undefined && this.config.v2vResidual > 0
+      ? { residualWeight: this.config.v2vResidual }
+      : undefined;
+    this.orchestrator = new MultiLevelOrchestrator(true, v2vConfig);
     const weights = isWeights ?? new Array(examples.length).fill(1.0);
 
     const result = trainBatchV1KHeadBatchedCore(
@@ -518,7 +534,17 @@ export class SHGAT {
       temperature,
     );
 
+    // Note: Backward pass for learnable per-level residuals is now handled
+    // inside trainBatchV1KHeadBatchedCore via ctx.getResidualCache()
+
     this.trainingMode = false;
+
+    // CRITICAL: Invalidate cache after training so scoreNodes() recalculates
+    // forward pass with updated weights (W_q, W_k, etc.)
+    if (!evaluateOnly) {
+      this.lastCache = null;
+    }
+
     return result;
   }
 
