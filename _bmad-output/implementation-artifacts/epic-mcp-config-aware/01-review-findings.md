@@ -12,7 +12,7 @@
 |----------|-------|-------|
 | Critical | 3 | 1 noise, 1 fixed, 1 documented |
 | High | 4 | ✅ 4/4 (F6 was undecided, now fixed) |
-| Medium | 5 | ✅ 4/5 |
+| Medium | 5 | ✅ 5/5 |
 | Low | 5 | ✅ 2/5 |
 
 ---
@@ -164,13 +164,13 @@ Manque :
 
 ---
 
-### F12: Missing FK tool_observations → tool_schema
-**Severity:** Medium | **Validity:** Undecided
-**Location:** `src/db/migrations/042_tool_observations.ts:29`
+### ~~F12: Missing FK tool_observations → tool_schema~~ ✅ FIXED
+**Severity:** Medium | **Validity:** Valid → Fixed
+**Location:** `src/db/migrations/043_tool_observations_fk.ts`
 
-Pas de foreign key de `tool_observations.tool_id` vers `tool_schema.tool_id`.
+~~Pas de foreign key de `tool_observations.tool_id` vers `tool_schema.tool_id`.~~
 
-**Consideration:** Peut être intentionnel - on peut observer des tools avant qu'ils soient dans tool_schema. À discuter.
+**Fix:** Nouvelle migration 043 ajoute la FK avec `ON DELETE CASCADE`. L'ordre d'insertion (tool_schema avant tool_observations) dans la transaction F15 garantit que la FK ne bloque pas.
 
 ---
 
@@ -319,6 +319,13 @@ Les variables `env` de `mcpServers[name].env` n'étaient pas passées aux proces
 **Fixed:** 2026-01-28
 
 **Fix:** Ajout de validation serveur-side `isValidName()` dans `src/api/tools.ts`. Valide `serverName` et `tool.name` avant construction du `toolId`. Même pattern que F10 côté client (max 256 chars, regex alphanumeric + `_-.`).
+
+---
+
+### ✅ F12: Missing FK tool_observations → tool_schema
+**Fixed:** 2026-01-28
+
+**Fix:** Nouvelle migration `043_tool_observations_fk.ts` ajoute la FK `fk_tool_observations_tool_schema` avec `ON DELETE CASCADE`. Garantit l'intégrité référentielle au niveau DB.
 
 ---
 

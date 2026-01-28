@@ -47,6 +47,8 @@ import { createAlgorithmTracesUserIdMigration } from "./migrations/038_algorithm
 import { createUserFqdnMultiTenantMigration } from "./migrations/039_user_fqdn_multi_tenant.ts";
 import { createPmlRegistryHashColumnMigration } from "./migrations/040_pml_registry_hash_column.ts";
 import { createParentTraceIdFkMigration } from "./migrations/041_parent_trace_id_fk.ts";
+import { createToolObservationsMigration } from "./migrations/042_tool_observations.ts";
+import { createToolObservationsFkMigration } from "./migrations/043_tool_observations_fk.ts";
 
 /**
  * Migration definition
@@ -447,5 +449,7 @@ export function getAllMigrations(): Migration[] {
     createUserFqdnMultiTenantMigration(), // User FQDN Multi-Tenant: TEXT user_id → UUID FK
     createPmlRegistryHashColumnMigration(), // Fix: Add hash column to pml_registry VIEW
     createParentTraceIdFkMigration(), // ADR-041: Ensure parent_trace_id FK is DEFERRABLE
+    createToolObservationsMigration(), // Tech-spec 01: Tool observations (multi-tenant BYOK MCP)
+    createToolObservationsFkMigration(), // F12 Fix: Add FK tool_observations → tool_schema
   ];
 }
