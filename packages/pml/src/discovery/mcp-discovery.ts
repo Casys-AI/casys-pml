@@ -134,6 +134,114 @@ function logDebug(message: string): void {
 }
 
 /**
+ * Discover tools from an HTTP MCP server.
+ *
+ * Makes a JSON-RPC call to the server's URL to get tools/list.
+ *
+ * @param serverName - Name of the server (from config key)
+ * @param config - MCP server configuration (must have url)
+ * @param timeout - Timeout in ms for the HTTP call
+ * @returns Discovery result with tools or error
+ */
+export async function discoverHttpMcpTools(
+  serverName: string,
+  config: McpServerConfig,
+  timeout: number = DISCOVERY_TIMEOUT_MS,
+): Promise<DiscoveryResult> {
+  logDebug(`Starting HTTP discovery for ${serverName}`);
+
+  if (!config.url) {
+    return {
+      serverName,
+      tools: [],
+      config,
+      error: "HTTP server missing url",
+    };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      // JSON-RPC 2.0 request for tools/list
+      const response = await fetch(config.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/list",
+          params: {},
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json() as {
+        result?: { tools?: unknown[] };
+        error?: { message: string };
+      };
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      // Process tools
+      const rawTools = (result.result?.tools ?? []) as Array<{
+        name: string;
+        description?: string;
+        inputSchema?: unknown;
+      }>;
+
+      const validTools: DiscoveredTool[] = [];
+      const skippedTools: string[] = [];
+
+      for (const tool of rawTools) {
+        if (validateToolSchema(tool)) {
+          validTools.push({
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
+          });
+        } else {
+          log.warn(`[pml:discovery] ${serverName}: invalid schema for "${tool.name}", skipping`);
+          skippedTools.push(tool.name);
+        }
+      }
+
+      logDebug(`${serverName}: discovered ${validTools.length} tools (${skippedTools.length} skipped)`);
+
+      return {
+        serverName,
+        tools: validTools,
+        config,
+        skippedTools: skippedTools.length > 0 ? skippedTools : undefined,
+      };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.warn(`[pml:discovery] ${serverName}: HTTP discovery failed - ${errorMessage}`);
+
+    return {
+      serverName,
+      tools: [],
+      config,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
  * Discover tools from a single MCP server.
  *
  * Spawns the MCP server, initializes MCP protocol, calls tools/list,
@@ -255,17 +363,11 @@ export async function discoverAllMcpTools(
     const batch = entries.slice(i, i + concurrency);
 
     const batchPromises = batch.map(async ([name, config]) => {
-      // Only support stdio for now
-      if (config.type !== "stdio") {
-        log.warn(`[pml:discovery] ${name}: HTTP servers not yet supported, skipping`);
-        return {
-          serverName: name,
-          tools: [],
-          config,
-          error: "HTTP servers not yet supported for discovery",
-        } as DiscoveryResult;
+      // Route to appropriate discovery function based on server type
+      if (config.type === "http") {
+        return await discoverHttpMcpTools(name, config, timeout);
       }
-
+      // Default to stdio
       return await discoverMcpTools(name, config, stdioManager, timeout);
     });
 
