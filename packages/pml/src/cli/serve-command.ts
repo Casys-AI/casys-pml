@@ -25,7 +25,9 @@ import {
   isRoutingInitialized,
   syncRoutingConfig,
 } from "../routing/mod.ts";
-import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
+import { CapabilityLoader, LockfileManager, StdioManager } from "../loader/mod.ts";
+import { loadMcpServers } from "../config.ts";
+import { discoverAllMcpToolsWithTimeout, summarizeDiscovery, syncDiscoveredTools } from "../discovery/mod.ts";
 import { SessionClient } from "../session/mod.ts";
 import { PendingWorkflowStore } from "../workflow/mod.ts";
 import { TraceSyncer } from "../tracing/mod.ts";
@@ -148,6 +150,53 @@ export function createServeCommand(): Command<any> {
         maxRetries: 3,
       });
       log(`${colors.green("✓")} TraceSyncer ready`);
+
+      // Discover tools from user-configured MCP servers
+      const userMcpServers = loadMcpServers(config);
+      if (userMcpServers.size > 0) {
+        log(`${colors.dim("⟳")} Discovering tools from ${userMcpServers.size} MCP server(s)...`);
+
+        // Run discovery in background (don't block server startup)
+        (async () => {
+          const discoveryManager = new StdioManager(60_000); // 1min idle timeout
+
+          try {
+            const discoveryResults = await discoverAllMcpToolsWithTimeout(
+              userMcpServers,
+              discoveryManager,
+              10_000,  // 10s per server
+              60_000,  // 60s global timeout
+              5,       // 5 parallel
+            );
+
+            const summary = summarizeDiscovery(discoveryResults);
+            log(
+              `${colors.green("✓")} MCP Discovery: ${summary.successfulServers}/${summary.totalServers} servers, ` +
+              `${summary.totalTools} tools found`
+            );
+
+            if (summary.failures.length > 0) {
+              for (const failure of summary.failures) {
+                log(`${colors.yellow("⚠")} ${failure.server}: ${failure.error}`);
+              }
+            }
+
+            // Sync discovered tools to cloud
+            if (summary.totalTools > 0) {
+              const syncResult = await syncDiscoveredTools(cloudUrl, apiKey, discoveryResults);
+              if (syncResult.success) {
+                log(`${colors.green("✓")} MCP Sync: ${syncResult.synced} tools synced to cloud`);
+              } else {
+                log(`${colors.yellow("⚠")} MCP Sync failed: ${syncResult.error}`);
+              }
+            }
+          } catch (error) {
+            log(`${colors.yellow("⚠")} MCP Discovery failed: ${error}`);
+          } finally {
+            discoveryManager.shutdownAll();
+          }
+        })();
+      }
 
       const port = options.port;
 
