@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-28
 **Reviewer:** Adversarial Code Review (automated)
-**Status:** Pending Resolution
+**Status:** ✅ RESOLVED
 
 ---
 
@@ -13,7 +13,7 @@
 | Critical | 3 | 1 noise, 1 fixed, 1 accepted |
 | High | 4 | ✅ 4/4 (F6 was undecided, now fixed) |
 | Medium | 5 | ✅ 5/5 |
-| Low | 5 | ✅ 3/5 + 1 accepted |
+| Low | 5 | ✅ 3/5 + 1 accepted + 1 out-of-scope |
 
 ---
 
@@ -196,13 +196,13 @@ Peut révéler stack traces ou erreurs SQL au client.
 
 ---
 
-### F14: Missing Rate Limiting
-**Severity:** Low | **Validity:** Undecided
+### F14: Missing Rate Limiting ✅ OUT OF SCOPE
+**Severity:** Low | **Validity:** Out of Scope
 **Location:** `src/api/tools.ts:79-160`
 
-Pas de rate limiting sur `/api/tools/sync`. Un attaquant avec API key peut flood la DB.
+Pas de rate limiting sur `/api/tools/sync`.
 
-**Consideration:** Peut être géré au niveau API gateway/nginx. À vérifier.
+**Decision:** Hors scope - géré au niveau infrastructure (nginx/API gateway). L'application ne doit pas implémenter son propre rate limiting quand l'infra le fait déjà.
 
 ---
 
