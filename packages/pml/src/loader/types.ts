@@ -6,6 +6,8 @@
  * @module loader/types
  */
 
+import type { UiOrchestration } from "../types/ui-orchestration.ts";
+
 // ============================================================================
 // Capability Metadata Types
 // ============================================================================
@@ -106,6 +108,29 @@ export interface CapabilityMetadata {
    * so that nested capability calls can be resolved to UUIDs for trace matching.
    */
   toolsUsed?: string[];
+
+  /**
+   * UI orchestration configuration for MCP Apps composite display.
+   *
+   * When defined, this capability can produce a composite UI by
+   * collecting UI resources from multiple tool calls and arranging
+   * them according to the layout and sync rules.
+   *
+   * @example
+   * ```typescript
+   * {
+   *   intent: "Analyze and visualize sales",
+   *   code: `...`,
+   *   ui: {
+   *     layout: "split",
+   *     sync: [{ from: "postgres:query", event: "filter", to: "viz:render", action: "update" }]
+   *   }
+   * }
+   * ```
+   *
+   * @see UiOrchestration
+   */
+  ui?: UiOrchestration;
 }
 
 /**
