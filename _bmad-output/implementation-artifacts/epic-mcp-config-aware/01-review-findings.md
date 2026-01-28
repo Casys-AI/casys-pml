@@ -13,7 +13,7 @@
 | Critical | 3 | 1 noise, 1 fixed, 1 accepted |
 | High | 4 | ✅ 4/4 (F6 was undecided, now fixed) |
 | Medium | 5 | ✅ 5/5 |
-| Low | 5 | ✅ 2/5 + 1 accepted |
+| Low | 5 | ✅ 3/5 + 1 accepted |
 
 ---
 
@@ -216,18 +216,17 @@ Les inserts dans `tool_schema` et `tool_observations` ne sont pas dans une trans
 
 ---
 
-### F16: Missing Tests
-**Severity:** Low | **Validity:** Valid
-**Location:** Tous les nouveaux fichiers
+### ~~F16: Missing Tests~~ ✅ FIXED
+**Severity:** Low | **Validity:** Valid → Fixed
+**Location:** Nouveaux fichiers de test
 
-Aucun test pour :
-- `packages/pml/src/config.ts`
-- `packages/pml/src/discovery/mcp-discovery.ts`
-- `packages/pml/src/discovery/tool-sync.ts`
-- `src/api/tools.ts` (handleToolsSync)
-- `src/db/migrations/042_tool_observations.ts`
+~~Aucun test pour les nouveaux fichiers.~~
 
-**Resolution:** Écrire des tests unitaires.
+**Fix:** Tests ajoutés :
+- `packages/pml/tests/config_test.ts` — 15 tests pour loadMcpServers, getMcpServersList, getMissingEnvVars
+- `packages/pml/tests/discovery_test.ts` — 6 tests pour summarizeDiscovery
+- `packages/pml/tests/tool_sync_test.ts` — 4 tests pour syncDiscoveredTools
+- `tests/unit/api/tools_api_test.ts` — 19 tests pour toPostgresArray, isValidName
 
 ---
 
@@ -339,6 +338,17 @@ Les variables `env` de `mcpServers[name].env` n'étaient pas passées aux proces
 **Fixed:** 2026-01-28
 
 **Fix:** Ajout de `toPostgresArray()` dans `src/api/tools.ts` pour sérialiser `string[]` → PostgreSQL array littéral. Compatible postgres.js et PGlite.
+
+---
+
+### ✅ F16: Missing Tests
+**Fixed:** 2026-01-28
+
+**Fix:** Ajout de 44 tests unitaires couvrant :
+- Config loader (15 tests)
+- MCP Discovery (6 tests)
+- Tool Sync (4 tests)
+- Tools API utils (19 tests)
 
 ---
 
