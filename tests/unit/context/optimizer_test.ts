@@ -152,7 +152,11 @@ Deno.test("ContextOptimizer - tracks query latency (AC7)", async () => {
   await db.close();
 });
 
-Deno.test("ContextOptimizer - showContextComparison displays before/after (AC5)", async () => {
+Deno.test({
+  name: "ContextOptimizer - showContextComparison displays before/after (AC5)",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
   const db = await setupTestDatabase();
   const mockSearch = new MockVectorSearch();
   const optimizer = new ContextOptimizer(mockSearch as unknown as VectorSearch, db);
@@ -173,24 +177,30 @@ Deno.test("ContextOptimizer - showContextComparison displays before/after (AC5)"
   assertEquals(value, 23.75);
 
   await db.close();
+  },
 });
 
-Deno.test("ContextOptimizer - empty query handling", async () => {
-  const db = await setupTestDatabase();
-  const mockSearch = new MockVectorSearch();
-  const optimizer = new ContextOptimizer(mockSearch as unknown as VectorSearch, db);
+Deno.test({
+  name: "ContextOptimizer - empty query handling",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDatabase();
+    const mockSearch = new MockVectorSearch();
+    const optimizer = new ContextOptimizer(mockSearch as unknown as VectorSearch, db);
 
-  // Empty results from search
-  mockSearch.setMockResults([]);
+    // Empty results from search
+    mockSearch.setMockResults([]);
 
-  const result = await optimizer.getRelevantSchemas("empty query", 5);
+    const result = await optimizer.getRelevantSchemas("empty query", 5);
 
-  assertEquals(result.schemas.length, 0);
-  assertEquals(result.contextUsagePercent, 0);
-  assertEquals(result.cacheHits, 0);
-  assertEquals(result.cacheMisses, 0);
+    assertEquals(result.schemas.length, 0);
+    assertEquals(result.contextUsagePercent, 0);
+    assertEquals(result.cacheHits, 0);
+    assertEquals(result.cacheMisses, 0);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test("ContextOptimizer - clearCache resets cache", async () => {

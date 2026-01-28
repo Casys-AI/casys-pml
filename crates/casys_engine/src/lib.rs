@@ -8,6 +8,7 @@ pub mod exec;
 pub mod txn;
 pub mod gds;
 pub mod ann;
+pub mod layout;
 
 // Optional higher-level facades (placeholders kept for future API surface)
 pub mod branch;

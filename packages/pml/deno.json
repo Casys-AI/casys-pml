@@ -13,6 +13,7 @@
     "include": ["mod.ts", "src/**/*.ts", "README.md"]
   },
   "imports": {
+    "ajv": "npm:ajv@8.17.1",
     "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.8",
     "@std/fs": "jsr:@std/fs@1.0.19",
     "@std/path": "jsr:@std/path@^1",

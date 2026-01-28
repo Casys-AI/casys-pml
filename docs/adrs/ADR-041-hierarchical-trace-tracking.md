@@ -1,8 +1,11 @@
 # ADR-041: Hierarchical Trace Tracking with parent_trace_id
 
-**Status:** Implemented (Code Review Complete) **Date:** 2025-12-09 | **Deciders:** Architecture
-Team **Implemented:** 2025-12-09 **Code Review:** 2025-12-09 - 8 issues fixed (3 CRITICAL, 3 MEDIUM,
-2 LOW)
+**Status:** Implemented (Code Review Complete)
+**Date:** 2025-12-09
+**Deciders:** Architecture Team
+**Implemented:** 2025-12-09
+**Code Review:** 2025-12-09 - 8 issues fixed (3 CRITICAL, 3 MEDIUM, 2 LOW)
+**Extended by:** [ADR-065](./ADR-065-deferred-trace-flush-unified-ids.md) - Deferred Trace Flush (fixes UUID mismatch & HIL FK violations)
 
 ## Context
 

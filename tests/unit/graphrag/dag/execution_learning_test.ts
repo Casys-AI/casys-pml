@@ -101,30 +101,35 @@ Deno.test("Execution Learning - updateFromCodeExecution creates node from tool_e
   await db.close();
 });
 
-Deno.test("Execution Learning - updateFromCodeExecution creates node from capability_end", async () => {
-  const graph = new DirectedGraph() as ExecutionLearningGraph;
-  const db = await createTestDb();
+Deno.test({
+  name: "Execution Learning - updateFromCodeExecution creates node from capability_end",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const graph = new DirectedGraph() as ExecutionLearningGraph;
+    const db = await createTestDb();
 
-  const traces: TraceEvent[] = [
-    {
-      type: "capability_end",
-      capability: "read_file",
-      capabilityId: "cap-123",
-      traceId: "trace-1",
-      ts: Date.now(),
-      success: true,
-      durationMs: 20,
-    },
-  ];
+    const traces: TraceEvent[] = [
+      {
+        type: "capability_end",
+        capability: "read_file",
+        capabilityId: "cap-123",
+        traceId: "trace-1",
+        ts: Date.now(),
+        success: true,
+        durationMs: 20,
+      },
+    ];
 
-  const result = await updateFromCodeExecution(graph, db, traces);
+    const result = await updateFromCodeExecution(graph, db, traces);
 
-  assertEquals(result.nodesCreated, 1);
-  assertEquals(graph.hasNode("capability:cap-123"), true);
-  // Use type assertion since DirectedGraph has getNodeAttributes but interface doesn't expose it
-  assertEquals((graph as any).getNodeAttributes("capability:cap-123").type, "capability");
+    assertEquals(result.nodesCreated, 1);
+    assertEquals(graph.hasNode("capability:cap-123"), true);
+    // Use type assertion since DirectedGraph has getNodeAttributes but interface doesn't expose it
+    assertEquals((graph as any).getNodeAttributes("capability:cap-123").type, "capability");
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test("Execution Learning - updateFromCodeExecution ignores tool_start events", async () => {
@@ -187,52 +192,57 @@ Deno.test("Execution Learning - updateFromCodeExecution creates contains edge pa
   await db.close();
 });
 
-Deno.test("Execution Learning - updateFromCodeExecution creates sequence edges between siblings", async () => {
-  const graph = new DirectedGraph() as ExecutionLearningGraph;
-  const db = await createTestDb();
+Deno.test({
+  name: "Execution Learning - updateFromCodeExecution creates sequence edges between siblings",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const graph = new DirectedGraph() as ExecutionLearningGraph;
+    const db = await createTestDb();
 
-  const traces: TraceEvent[] = [
-    {
-      type: "capability_end",
-      capability: "parent_cap",
-      capabilityId: "cap-parent",
-      traceId: "trace-parent",
-      ts: Date.now(),
-      success: true,
-      durationMs: 100,
-    },
-    {
-      type: "tool_end",
-      tool: "filesystem:read",
-      traceId: "trace-child-1",
-      parentTraceId: "trace-parent",
-      ts: Date.now(),
-      success: true,
-      durationMs: 10,
-    },
-    {
-      type: "tool_end",
-      tool: "json:parse",
-      traceId: "trace-child-2",
-      parentTraceId: "trace-parent",
-      ts: Date.now() + 10,
-      success: true,
-      durationMs: 5,
-    },
-  ];
+    const traces: TraceEvent[] = [
+      {
+        type: "capability_end",
+        capability: "parent_cap",
+        capabilityId: "cap-parent",
+        traceId: "trace-parent",
+        ts: Date.now(),
+        success: true,
+        durationMs: 100,
+      },
+      {
+        type: "tool_end",
+        tool: "filesystem:read",
+        traceId: "trace-child-1",
+        parentTraceId: "trace-parent",
+        ts: Date.now(),
+        success: true,
+        durationMs: 10,
+      },
+      {
+        type: "tool_end",
+        tool: "json:parse",
+        traceId: "trace-child-2",
+        parentTraceId: "trace-parent",
+        ts: Date.now() + 10,
+        success: true,
+        durationMs: 5,
+      },
+    ];
 
-  const result = await updateFromCodeExecution(graph, db, traces);
+    const result = await updateFromCodeExecution(graph, db, traces);
 
-  assertEquals(result.nodesCreated, 3);
-  // Contains edges: parent -> child1, parent -> child2
-  // Sequence edge: child1 -> child2
-  assertEquals(result.edgesCreated, 3);
-  assertEquals(graph.hasEdge("filesystem:read", "json:parse"), true);
+    assertEquals(result.nodesCreated, 3);
+    // Contains edges: parent -> child1, parent -> child2
+    // Sequence edge: child1 -> child2
+    assertEquals(result.edgesCreated, 3);
+    assertEquals(graph.hasEdge("filesystem:read", "json:parse"), true);
 
-  const edgeAttrs = graph.getEdgeAttributes("filesystem:read", "json:parse");
-  assertEquals(edgeAttrs.edge_type, "sequence");
+    const edgeAttrs = graph.getEdgeAttributes("filesystem:read", "json:parse");
+    assertEquals(edgeAttrs.edge_type, "sequence");
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test("Execution Learning - updateFromCodeExecution prevents self-loops", async () => {
@@ -393,16 +403,21 @@ Deno.test("Execution Learning - createOrUpdateEdge keeps observed source", async
   assertEquals(edgeAttrs.weight, 0.8);
 });
 
-Deno.test("Execution Learning - createOrUpdateEdge with dependency edge type", async () => {
-  const graph = new DirectedGraph() as ExecutionLearningGraph;
-  graph.addNode("A", {});
-  graph.addNode("B", {});
+Deno.test({
+  name: "Execution Learning - createOrUpdateEdge with dependency edge type",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const graph = new DirectedGraph() as ExecutionLearningGraph;
+    graph.addNode("A", {});
+    graph.addNode("B", {});
 
-  await createOrUpdateEdge(graph, "A", "B", "dependency");
+    await createOrUpdateEdge(graph, "A", "B", "dependency");
 
-  const edgeAttrs = graph.getEdgeAttributes("A", "B");
-  assertEquals(edgeAttrs.edge_type, "dependency");
-  assertEquals(edgeAttrs.weight, 0.7); // 1.0 × 0.7 (inferred)
+    const edgeAttrs = graph.getEdgeAttributes("A", "B");
+    assertEquals(edgeAttrs.edge_type, "dependency");
+    assertEquals(edgeAttrs.weight, 0.7); // 1.0 × 0.7 (inferred)
+  },
 });
 
 Deno.test("Execution Learning - createOrUpdateEdge with sequence edge type", async () => {
@@ -494,60 +509,65 @@ Deno.test("Execution Learning - updateFromCodeExecution with complex hierarchy",
   await db.close();
 });
 
-Deno.test("Execution Learning - updateFromCodeExecution with multiple parents", async () => {
-  const graph = new DirectedGraph() as ExecutionLearningGraph;
-  const db = await createTestDb();
+Deno.test({
+  name: "Execution Learning - updateFromCodeExecution with multiple parents",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const graph = new DirectedGraph() as ExecutionLearningGraph;
+    const db = await createTestDb();
 
-  const traces: TraceEvent[] = [
-    {
-      type: "capability_end",
-      capability: "parent1",
-      capabilityId: "cap-p1",
-      traceId: "trace-p1",
-      ts: Date.now(),
-      success: true,
-      durationMs: 50,
-    },
-    {
-      type: "capability_end",
-      capability: "parent2",
-      capabilityId: "cap-p2",
-      traceId: "trace-p2",
-      ts: Date.now(),
-      success: true,
-      durationMs: 50,
-    },
-    {
-      type: "tool_end",
-      tool: "tool:A",
-      traceId: "trace-a",
-      parentTraceId: "trace-p1",
-      ts: Date.now() + 10,
-      success: true,
-      durationMs: 5,
-    },
-    {
-      type: "tool_end",
-      tool: "tool:B",
-      traceId: "trace-b",
-      parentTraceId: "trace-p2",
-      ts: Date.now() + 10,
-      success: true,
-      durationMs: 5,
-    },
-  ];
+    const traces: TraceEvent[] = [
+      {
+        type: "capability_end",
+        capability: "parent1",
+        capabilityId: "cap-p1",
+        traceId: "trace-p1",
+        ts: Date.now(),
+        success: true,
+        durationMs: 50,
+      },
+      {
+        type: "capability_end",
+        capability: "parent2",
+        capabilityId: "cap-p2",
+        traceId: "trace-p2",
+        ts: Date.now(),
+        success: true,
+        durationMs: 50,
+      },
+      {
+        type: "tool_end",
+        tool: "tool:A",
+        traceId: "trace-a",
+        parentTraceId: "trace-p1",
+        ts: Date.now() + 10,
+        success: true,
+        durationMs: 5,
+      },
+      {
+        type: "tool_end",
+        tool: "tool:B",
+        traceId: "trace-b",
+        parentTraceId: "trace-p2",
+        ts: Date.now() + 10,
+        success: true,
+        durationMs: 5,
+      },
+    ];
 
-  const result = await updateFromCodeExecution(graph, db, traces);
+    const result = await updateFromCodeExecution(graph, db, traces);
 
-  assertEquals(result.nodesCreated, 4);
-  assertEquals(result.edgesCreated, 2); // Two separate parent->child edges
+    assertEquals(result.nodesCreated, 4);
+    assertEquals(result.edgesCreated, 2); // Two separate parent->child edges
 
-  assertEquals(graph.hasEdge("capability:cap-p1", "tool:A"), true);
-  assertEquals(graph.hasEdge("capability:cap-p2", "tool:B"), true);
-  // No sequence edge between tool:A and tool:B (different parents)
-  assertEquals(graph.hasEdge("tool:A", "tool:B"), false);
+    assertEquals(graph.hasEdge("capability:cap-p1", "tool:A"), true);
+    assertEquals(graph.hasEdge("capability:cap-p2", "tool:B"), true);
+    // No sequence edge between tool:A and tool:B (different parents)
+    assertEquals(graph.hasEdge("tool:A", "tool:B"), false);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test({
@@ -580,14 +600,19 @@ Deno.test({
   },
 });
 
-Deno.test("Execution Learning - createOrUpdateEdge weight calculation precision", async () => {
-  const graph = new DirectedGraph() as ExecutionLearningGraph;
-  graph.addNode("A", {});
-  graph.addNode("B", {});
+Deno.test({
+  name: "Execution Learning - createOrUpdateEdge weight calculation precision",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const graph = new DirectedGraph() as ExecutionLearningGraph;
+    graph.addNode("A", {});
+    graph.addNode("B", {});
 
-  await createOrUpdateEdge(graph, "A", "B", "provides");
+    await createOrUpdateEdge(graph, "A", "B", "provides");
 
-  const edgeAttrs = graph.getEdgeAttributes("A", "B");
-  // provides: 0.7, inferred: 0.7, weight: 0.7 × 0.7 = 0.49 (Story 10.3)
-  assertEquals(Math.round((edgeAttrs.weight as number) * 100) / 100, 0.49);
+    const edgeAttrs = graph.getEdgeAttributes("A", "B");
+    // provides: 0.7, inferred: 0.7, weight: 0.7 × 0.7 = 0.49 (Story 10.3)
+    assertEquals(Math.round((edgeAttrs.weight as number) * 100) / 100, 0.49);
+  },
 });

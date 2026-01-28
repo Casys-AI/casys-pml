@@ -57,12 +57,19 @@ export function parseExecuteLocallyResponse(
   try {
     const parsed = JSON.parse(content);
     if (parsed.status === "execute_locally" && parsed.code) {
+      // DEBUG: Log dag info
+      console.error(`[DEBUG parseExecuteLocallyResponse] dag present: ${!!parsed.dag}, tasks: ${parsed.dag?.tasks?.length ?? 0}`);
+      if (parsed.dag?.tasks?.[0]) {
+        console.error(`[DEBUG] first task layerIndex: ${parsed.dag.tasks[0].layerIndex}`);
+      }
       return {
         status: parsed.status,
         code: parsed.code,
         client_tools: parsed.client_tools ?? parsed.clientTools ?? [],
         tools_used: parsed.tools_used ?? [],
         workflowId: parsed.workflowId ?? parsed.workflow_id,
+        // Story 11.4: Include DAG with layerIndex for TraceTimeline
+        dag: parsed.dag,
       };
     }
     return null;

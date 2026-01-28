@@ -4,7 +4,7 @@
  * @module cli/shared/approval-formatter
  */
 
-import type { AnyApprovalResult } from "./types.ts";
+import type { AnyApprovalResult, DAGTask } from "./types.ts";
 import type { PendingWorkflowStore } from "../../workflow/mod.ts";
 
 /**
@@ -26,6 +26,7 @@ import type { PendingWorkflowStore } from "../../workflow/mod.ts";
  * @param pendingStore - Store to save pending workflow state
  * @param originalCode - Original code for re-execution after approval
  * @param fqdnMap - Server-resolved FQDNs for tools used in this code
+ * @param dagTasks - Story 11.4: DAG tasks with layerIndex for trace recording
  */
 export function formatApprovalRequired(
   toolName: string,
@@ -33,6 +34,7 @@ export function formatApprovalRequired(
   pendingStore: PendingWorkflowStore,
   originalCode?: string,
   fqdnMap?: Record<string, string>,
+  dagTasks?: DAGTask[],
 ): { content: Array<{ type: string; text: string }> } {
   // Handle tool permission approval (Unified Permission Model)
   if (approvalResult.approvalType === "tool_permission") {
@@ -44,6 +46,7 @@ export function formatApprovalRequired(
         needsInstallation: approvalResult.needsInstallation,
         dependency: approvalResult.dependency,
         fqdnMap,
+        dagTasks,
       });
     }
 
@@ -80,6 +83,7 @@ export function formatApprovalRequired(
       pendingStore.setWithId(workflowId, originalCode, toolName, "api_key_required", {
         missingKeys: approvalResult.missingKeys,
         fqdnMap,
+        dagTasks,
       });
     }
 
@@ -113,6 +117,7 @@ export function formatApprovalRequired(
           oldHash: approvalResult.oldHash,
         },
         fqdnMap,
+        dagTasks,
       });
     }
 
@@ -143,6 +148,7 @@ export function formatApprovalRequired(
     pendingStore.setWithId(workflowId, originalCode, toolName, "dependency", {
       dependency: approvalResult.dependency,
       fqdnMap,
+      dagTasks,
     });
   }
 

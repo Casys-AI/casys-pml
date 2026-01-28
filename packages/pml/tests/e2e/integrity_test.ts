@@ -15,7 +15,7 @@ import {
   teardownE2EContext,
   type E2ETestContext,
 } from "./test-harness.ts";
-import { createMockServer, MockCloudServer } from "./mock-cloud-server.ts";
+import { createMockServer, MockCloudServer } from "../fixtures/mock-cloud-server.ts";
 import { CapabilityLoader } from "../../src/loader/capability-loader.ts";
 import { LockfileManager } from "../../src/lockfile/lockfile-manager.ts";
 import type { IntegrityApprovalRequired } from "../../src/lockfile/types.ts";

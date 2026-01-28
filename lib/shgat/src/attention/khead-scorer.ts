@@ -119,8 +119,10 @@ export function batchComputeScores(
     for (let h = 0; h < numHeads; h++) {
       const Q = precomputedQ[h];
       const K = K_all[h][c];
-      const scale = Math.sqrt(Q.length);
-      scores[c][h] = math.dot(Q, K) / scale;
+      // Use cosine similarity instead of scaled dot-product
+      // BGE embeddings are pre-normalized, but W_q/W_k projections aren't calibrated
+      // Cosine keeps only angular (direction) information, ignoring magnitude
+      scores[c][h] = math.cosineSimilarity(Q, K);
     }
   }
 
@@ -163,8 +165,8 @@ export function computeHeadScoreV1(
     }
   }
 
-  const scale = Math.sqrt(outputDim);
-  return math.dot(Q, K) / scale;
+  // Use cosine similarity instead of scaled dot-product
+  return math.cosineSimilarity(Q, K);
 }
 
 /**
@@ -195,8 +197,8 @@ export function computeMultiHeadScoresWithPrecomputedQ(
       }
     }
 
-    const scale = Math.sqrt(outputDim);
-    scores.push(math.dot(Q, K) / scale);
+    // Use cosine similarity instead of scaled dot-product
+    scores.push(math.cosineSimilarity(Q, K));
   }
 
   return scores;
@@ -310,6 +312,70 @@ export function scoreAllTools(
       toolId: toolIds[i],
       score: avgScore,
       headScores,
+    });
+  }
+
+  return results.sort((a, b) => b.score - a.score);
+}
+
+// ==========================================================================
+// Unified Node Scoring (new API)
+// ==========================================================================
+
+/**
+ * Result of scoring a node
+ */
+export interface NodeScore {
+  nodeId: string;
+  score: number;
+  headScores: number[];
+  level: number;
+}
+
+/**
+ * Score nodes using K-head attention (unified API)
+ *
+ * This is the main scoring function for the unified Node API.
+ * It replaces both scoreAllCapabilities and scoreAllTools.
+ *
+ * @param embeddings - Node embeddings matrix [numNodes][embDim]
+ * @param nodeIds - Array of node IDs (same order as embeddings)
+ * @param levels - Array of node levels (same order as embeddings)
+ * @param intentEmbedding - User intent embedding
+ * @param headParams - K-head parameters
+ * @param W_intent - Intent projection matrix
+ * @param config - SHGAT config
+ * @returns Sorted array of node scores
+ */
+export function scoreNodes(
+  embeddings: number[][],
+  nodeIds: string[],
+  levels: number[],
+  intentEmbedding: number[],
+  headParams: HeadParams[],
+  W_intent: number[][],
+  config: SHGATConfig,
+): NodeScore[] {
+  const results: NodeScore[] = [];
+  const { numHeads } = config;
+
+  const intentForScoring = config.preserveDim
+    ? intentEmbedding
+    : projectIntent(intentEmbedding, W_intent);
+
+  const precomputedQ = precomputeQForAllHeads(intentForScoring, headParams, config);
+  const K_all = batchComputeKForAllHeads(embeddings, headParams, numHeads);
+  const allScores = batchComputeScores(precomputedQ, K_all, numHeads);
+
+  for (let i = 0; i < nodeIds.length; i++) {
+    const headScores = allScores[i];
+    const avgScore = headScores.reduce((a, b) => a + b, 0) / numHeads;
+
+    results.push({
+      nodeId: nodeIds[i],
+      score: avgScore,
+      headScores,
+      level: levels[i],
     });
   }
 

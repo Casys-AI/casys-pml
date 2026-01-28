@@ -57,27 +57,32 @@ function createTestTrace(overrides: Partial<TraceInput> = {}): TraceInput {
   };
 }
 
-Deno.test("AlgorithmTracer - logTrace() writes to DB and returns traceId", async () => {
-  const db = await setupTestDb();
-  const tracer = new AlgorithmTracer(db);
+Deno.test({
+  name: "AlgorithmTracer - logTrace() writes to DB and returns traceId",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const tracer = new AlgorithmTracer(db);
 
-  const traceId = await tracer.logTrace(createTestTrace());
+    const traceId = await tracer.logTrace(createTestTrace());
 
-  assertExists(traceId);
-  assertEquals(typeof traceId, "string");
-  assertEquals(traceId.length, 36); // UUID format
-  // Note: logTrace now flushes immediately for SSE real-time updates
-  assertEquals(tracer.getBufferSize(), 0);
+    assertExists(traceId);
+    assertEquals(typeof traceId, "string");
+    assertEquals(traceId.length, 36); // UUID format
+    // Note: logTrace now flushes immediately for SSE real-time updates
+    assertEquals(tracer.getBufferSize(), 0);
 
-  // Verify trace was written to DB
-  const result = await db.query(
-    "SELECT COUNT(*) as count FROM algorithm_traces WHERE trace_id = $1",
-    [traceId],
-  );
-  assertEquals(Number(result[0]?.count), 1);
+    // Verify trace was written to DB
+    const result = await db.query(
+      "SELECT COUNT(*) as count FROM algorithm_traces WHERE trace_id = $1",
+      [traceId],
+    );
+    assertEquals(Number(result[0]?.count), 1);
 
-  await tracer.stop();
-  await db.close();
+    await tracer.stop();
+    await db.close();
+  },
 });
 
 Deno.test("AlgorithmTracer - logTrace() immediately flushes to database", async () => {
@@ -100,39 +105,44 @@ Deno.test("AlgorithmTracer - logTrace() immediately flushes to database", async 
   await db.close();
 });
 
-Deno.test("AlgorithmTracer - updateOutcome() updates trace in buffer", async () => {
-  const db = await setupTestDb();
-  const tracer = new AlgorithmTracer(db);
+Deno.test({
+  name: "AlgorithmTracer - updateOutcome() updates trace in buffer",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const tracer = new AlgorithmTracer(db);
 
-  const traceId = await tracer.logTrace(createTestTrace());
+    const traceId = await tracer.logTrace(createTestTrace());
 
-  // Update outcome while still in buffer
-  await tracer.updateOutcome(traceId, {
-    userAction: "selected",
-    executionSuccess: true,
-    durationMs: 150,
-  });
+    // Update outcome while still in buffer
+    await tracer.updateOutcome(traceId, {
+      userAction: "selected",
+      executionSuccess: true,
+      durationMs: 150,
+    });
 
-  // Flush and verify outcome is preserved
-  await tracer.flush();
+    // Flush and verify outcome is preserved
+    await tracer.flush();
 
-  const result = await db.query(
-    `SELECT outcome FROM algorithm_traces WHERE trace_id = $1`,
-    [traceId],
-  );
+    const result = await db.query(
+      `SELECT outcome FROM algorithm_traces WHERE trace_id = $1`,
+      [traceId],
+    );
 
-  assertExists(result[0]?.outcome);
-  const outcome = result[0].outcome as {
-    userAction: string;
-    executionSuccess: boolean;
-    durationMs: number;
-  };
-  assertEquals(outcome.userAction, "selected");
-  assertEquals(outcome.executionSuccess, true);
-  assertEquals(outcome.durationMs, 150);
+    assertExists(result[0]?.outcome);
+    const outcome = result[0].outcome as {
+      userAction: string;
+      executionSuccess: boolean;
+      durationMs: number;
+    };
+    assertEquals(outcome.userAction, "selected");
+    assertEquals(outcome.executionSuccess, true);
+    assertEquals(outcome.durationMs, 150);
 
-  await tracer.stop();
-  await db.close();
+    await tracer.stop();
+    await db.close();
+  },
 });
 
 Deno.test("AlgorithmTracer - updateOutcome() updates trace in database", async () => {
@@ -189,51 +199,57 @@ Deno.test("AlgorithmTracer - cleanup() removes old traces", async () => {
   await db.close();
 });
 
-Deno.test("AlgorithmTracer - getMetrics() returns aggregated metrics", async () => {
-  const db = await setupTestDb();
-  const tracer = new AlgorithmTracer(db);
+Deno.test({
+  name: "AlgorithmTracer - getMetrics() returns aggregated metrics",
+  // BroadcastChannel from eventBus may have async ops from previous tests
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const db = await setupTestDb();
+    const tracer = new AlgorithmTracer(db);
 
-  // Add varied traces
-  await tracer.logTrace(createTestTrace({
-    targetType: "tool",
-    finalScore: 0.80,
-    decision: "accepted",
-    signals: { graphDensity: 0.1, spectralClusterMatch: true },
-  }));
-  await tracer.logTrace(createTestTrace({
-    targetType: "capability",
-    finalScore: 0.60,
-    decision: "rejected_by_threshold",
-    signals: { graphDensity: 0.1, spectralClusterMatch: false },
-  }));
-  await tracer.logTrace(createTestTrace({
-    targetType: "capability",
-    finalScore: 0.75,
-    decision: "accepted",
-    signals: { graphDensity: 0.1, spectralClusterMatch: true },
-  }));
+    // Add varied traces
+    await tracer.logTrace(createTestTrace({
+      targetType: "tool",
+      finalScore: 0.80,
+      decision: "accepted",
+      signals: { graphDensity: 0.1, spectralClusterMatch: true },
+    }));
+    await tracer.logTrace(createTestTrace({
+      targetType: "capability",
+      finalScore: 0.60,
+      decision: "rejected_by_threshold",
+      signals: { graphDensity: 0.1, spectralClusterMatch: false },
+    }));
+    await tracer.logTrace(createTestTrace({
+      targetType: "capability",
+      finalScore: 0.75,
+      decision: "accepted",
+      signals: { graphDensity: 0.1, spectralClusterMatch: true },
+    }));
 
-  await tracer.flush();
+    await tracer.flush();
 
-  const metrics = await tracer.getMetrics(24);
+    const metrics = await tracer.getMetrics(24);
 
-  // Verify conversion rate: 2 accepted / 3 total = 0.666...
-  assertEquals(metrics.conversionRate > 0.6 && metrics.conversionRate < 0.7, true);
+    // Verify conversion rate: 2 accepted / 3 total = 0.666...
+    assertEquals(metrics.conversionRate > 0.6 && metrics.conversionRate < 0.7, true);
 
-  // Verify decision distribution
-  assertEquals(metrics.decisionDistribution.accepted, 2);
-  assertEquals(metrics.decisionDistribution.rejectedByThreshold, 1);
-  assertEquals(metrics.decisionDistribution.filteredByReliability, 0);
+    // Verify decision distribution
+    assertEquals(metrics.decisionDistribution.accepted, 2);
+    assertEquals(metrics.decisionDistribution.rejectedByThreshold, 1);
+    assertEquals(metrics.decisionDistribution.filteredByReliability, 0);
 
-  // Verify avg final scores (use assertAlmostEquals for float precision)
-  assertAlmostEquals(metrics.avgFinalScore.tool, 0.80, 0.001);
-  assertEquals(
-    metrics.avgFinalScore.capability > 0.6 && metrics.avgFinalScore.capability < 0.7,
-    true,
-  );
+    // Verify avg final scores (use assertAlmostEquals for float precision)
+    assertAlmostEquals(metrics.avgFinalScore.tool, 0.80, 0.001);
+    assertEquals(
+      metrics.avgFinalScore.capability > 0.6 && metrics.avgFinalScore.capability < 0.7,
+      true,
+    );
 
-  await tracer.stop();
-  await db.close();
+    await tracer.stop();
+    await db.close();
+  },
 });
 
 Deno.test("AlgorithmTracer - getMetrics() filters by mode", async () => {

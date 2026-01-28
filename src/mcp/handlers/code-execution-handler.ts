@@ -29,6 +29,7 @@ import { hashSemanticStructure } from "../../capabilities/hash.ts";
 import { StaticStructureBuilder } from "../../capabilities/static-structure-builder.ts";
 import {
   cleanupWorkerBridgeExecutor,
+  computeLayerIndexForTasks,
   type ConditionalDAGStructure,
   createToolExecutorViaWorker,
   isValidForDagConversion,
@@ -284,13 +285,63 @@ async function tryDagExecution(
     const toolsUsed = optimizedDAG.tasks.map((t) => t.tool);
     const routing = resolveRouting(toolsUsed);
 
+    // DEBUG Story 11.4: Log optimizedDAG.tasks info
+    log.info("[DEBUG Story 11.4] optimizedDAG.tasks before routing check", {
+      count: optimizedDAG.tasks.length,
+      taskIds: optimizedDAG.tasks.map((t) => t.id),
+      taskTools: optimizedDAG.tasks.map((t) => t.tool),
+    });
+
     if (routing === "client") {
       // Code contains client tools - check if caller is PML package
       const clientTools = toolsUsed.filter((t) => getToolRouting(t) === "client");
 
       if (deps.isPackageClient) {
+        // Fail-fast: Check for $cap:uuid references that can't be executed in package sandbox
+        // The package sandbox only supports mcp.namespace.action() syntax, not mcp["$cap:uuid"]
+        const capRefPattern = /mcp\["\$cap:([0-9a-f-]{36})"\]/gi;
+        const capRefs = [...request.code.matchAll(capRefPattern)];
+
+        if (capRefs.length > 0) {
+          const unresolvedUuids = capRefs.map((m) => m[1]);
+          log.warn("[Hybrid Routing] Code contains unresolved $cap:uuid references", {
+            unresolvedCount: unresolvedUuids.length,
+            uuids: unresolvedUuids.slice(0, 5), // Log first 5
+          });
+
+          return formatMCPToolError(
+            `Code contains ${unresolvedUuids.length} unresolved capability reference(s) that cannot be executed in the package sandbox. ` +
+            `The package sandbox only supports mcp.namespace.action() syntax. ` +
+            `Found: ${unresolvedUuids.slice(0, 3).map((u) => `mcp["$cap:${u}"]`).join(", ")}${unresolvedUuids.length > 3 ? "..." : ""}. ` +
+            `Please use explicit tool calls like mcp.filesystem.read_file() instead of capability references.`,
+            {
+              error_code: "UNRESOLVED_CAP_REFERENCES",
+              unresolved_uuids: unresolvedUuids,
+            },
+          );
+        }
+
         // Resolve tool IDs to FQDNs (user scope → public → pml.mcp)
         const resolvedTools = await resolveToolFqdns(toolsUsed, deps);
+
+        // Story 11.4: Include layerIndex in tasks so client can track layers without recomputing
+        log.info("[DEBUG Story 11.4] About to compute layerIndex", {
+          optimizedTasksCount: optimizedDAG.tasks.length,
+          optimizedTasks: optimizedDAG.tasks.map((t) => ({
+            id: t.id,
+            tool: t.tool,
+            dependsOn: t.dependsOn,
+          })),
+        });
+        const tasksWithLayers = computeLayerIndexForTasks(optimizedDAG.tasks);
+        log.info("[DEBUG Story 11.4] tasksWithLayers computed", {
+          count: tasksWithLayers.length,
+          tasks: tasksWithLayers.map((t) => ({
+            id: t.id,
+            tool: t.tool,
+            layerIndex: t.layerIndex,
+          })),
+        });
 
         // Package can execute locally - return execute_locally response
         log.info("[Hybrid Routing] Returning execute_locally for client tools", {
@@ -305,7 +356,7 @@ async function tryDagExecution(
             text: JSON.stringify({
               status: "execute_locally",
               code: request.code,
-              dag: { tasks: optimizedDAG.tasks },
+              dag: { tasks: tasksWithLayers },
               tools_used: resolvedTools,
               client_tools: clientTools,
             }),

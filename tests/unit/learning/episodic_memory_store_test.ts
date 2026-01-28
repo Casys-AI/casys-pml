@@ -40,39 +40,50 @@ function createTestEvent(overrides: Partial<EpisodicEventInput> = {}): EpisodicE
   };
 }
 
-Deno.test("EpisodicMemoryStore - capture adds event to buffer", async () => {
-  const db = await setupTestDb();
-  const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
+Deno.test({
+  name: "EpisodicMemoryStore - capture adds event to buffer",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
 
-  const eventId = await store.capture(createTestEvent());
+    const eventId = await store.capture(createTestEvent());
 
-  assertExists(eventId);
-  assertEquals(store.getBufferStatus().size, 1);
+    assertExists(eventId);
+    assertEquals(store.getBufferStatus().size, 1);
 
-  await store.shutdown();
-  await db.close();
+    await store.shutdown();
+    await db.close();
+  },
 });
 
-Deno.test("EpisodicMemoryStore - flush writes events to database", async () => {
-  const db = await setupTestDb();
-  const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
+Deno.test({
+  name: "EpisodicMemoryStore - flush writes events to database",
+  // BroadcastChannel from eventBus may have async ops from previous tests
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const db = await setupTestDb();
+    const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
 
-  const workflowId = "test-workflow-flush";
-  await store.capture(createTestEvent({ workflow_id: workflowId }));
-  await store.capture(createTestEvent({ workflow_id: workflowId }));
+    const workflowId = "test-workflow-flush";
+    await store.capture(createTestEvent({ workflow_id: workflowId }));
+    await store.capture(createTestEvent({ workflow_id: workflowId }));
 
-  assertEquals(store.getBufferStatus().size, 2);
+    assertEquals(store.getBufferStatus().size, 2);
 
-  const flushed = await store.flush();
-  assertEquals(flushed, 2);
-  assertEquals(store.getBufferStatus().size, 0);
+    const flushed = await store.flush();
+    assertEquals(flushed, 2);
+    assertEquals(store.getBufferStatus().size, 0);
 
-  // Verify in database
-  const events = await store.getWorkflowEvents(workflowId);
-  assertEquals(events.length, 2);
+    // Verify in database
+    const events = await store.getWorkflowEvents(workflowId);
+    assertEquals(events.length, 2);
 
-  await store.shutdown();
-  await db.close();
+    await store.shutdown();
+    await db.close();
+  },
 });
 
 Deno.test("EpisodicMemoryStore - auto-flush on buffer full", async () => {
@@ -100,46 +111,51 @@ Deno.test("EpisodicMemoryStore - auto-flush on buffer full", async () => {
   await db.close();
 });
 
-Deno.test("EpisodicMemoryStore - retrieveRelevant with context hash", async () => {
-  const db = await setupTestDb();
-  const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
+Deno.test({
+  name: "EpisodicMemoryStore - retrieveRelevant with context hash",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await setupTestDb();
+    const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
 
-  const context = { workflowType: "data_analysis", domain: "github" };
-  const contextHash = store.hashContext(context);
+    const context = { workflowType: "data_analysis", domain: "github" };
+    const contextHash = store.hashContext(context);
 
-  // Add events with matching context
-  await store.capture(
-    createTestEvent({
-      workflow_id: "wf-1",
-      context_hash: contextHash,
-      data: { context, result: { status: "success" } },
-    }),
-  );
-  await store.capture(
-    createTestEvent({
-      workflow_id: "wf-2",
-      context_hash: contextHash,
-      data: { context, result: { status: "success" } },
-    }),
-  );
+    // Add events with matching context
+    await store.capture(
+      createTestEvent({
+        workflow_id: "wf-1",
+        context_hash: contextHash,
+        data: { context, result: { status: "success" } },
+      }),
+    );
+    await store.capture(
+      createTestEvent({
+        workflow_id: "wf-2",
+        context_hash: contextHash,
+        data: { context, result: { status: "success" } },
+      }),
+    );
 
-  // Add event with different context
-  await store.capture(
-    createTestEvent({
-      workflow_id: "wf-3",
-      context_hash: "different-hash",
-      data: { result: { status: "success" } },
-    }),
-  );
+    // Add event with different context
+    await store.capture(
+      createTestEvent({
+        workflow_id: "wf-3",
+        context_hash: "different-hash",
+        data: { result: { status: "success" } },
+      }),
+    );
 
-  await store.flush();
+    await store.flush();
 
-  // Retrieve by context
-  const relevant = await store.retrieveRelevant(context);
-  assertEquals(relevant.length, 2);
+    // Retrieve by context
+    const relevant = await store.retrieveRelevant(context);
+    assertEquals(relevant.length, 2);
 
-  await store.shutdown();
-  await db.close();
+    await store.shutdown();
+    await db.close();
+  },
 });
 
 Deno.test("EpisodicMemoryStore - retrieveRelevant with event type filter", async () => {
@@ -229,30 +245,35 @@ Deno.test("EpisodicMemoryStore - getStats returns correct statistics", async () 
   await db.close();
 });
 
-Deno.test("EpisodicMemoryStore - hashContext generates consistent hashes", async () => {
-  const db = new PGliteClient(":memory:");
-  const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
+Deno.test({
+  name: "EpisodicMemoryStore - hashContext generates consistent hashes",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = new PGliteClient(":memory:");
+    const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
 
-  const context1 = { workflowType: "analysis", domain: "github", complexity: "high" };
-  const context2 = { workflowType: "analysis", domain: "github", complexity: "high" };
-  const context3 = { workflowType: "analysis", domain: "gitlab", complexity: "high" };
+    const context1 = { workflowType: "analysis", domain: "github", complexity: "high" };
+    const context2 = { workflowType: "analysis", domain: "github", complexity: "high" };
+    const context3 = { workflowType: "analysis", domain: "gitlab", complexity: "high" };
 
-  const hash1 = store.hashContext(context1);
-  const hash2 = store.hashContext(context2);
-  const hash3 = store.hashContext(context3);
+    const hash1 = store.hashContext(context1);
+    const hash2 = store.hashContext(context2);
+    const hash3 = store.hashContext(context3);
 
-  // Same context should produce same hash
-  assertEquals(hash1, hash2);
+    // Same context should produce same hash
+    assertEquals(hash1, hash2);
 
-  // Different context should produce different hash
-  assertEquals(hash1 !== hash3, true);
+    // Different context should produce different hash
+    assertEquals(hash1 !== hash3, true);
 
-  // Hash format should match expected pattern
-  assertEquals(hash1.includes("workflowType:analysis"), true);
-  assertEquals(hash1.includes("domain:github"), true);
+    // Hash format should match expected pattern
+    assertEquals(hash1.includes("workflowType:analysis"), true);
+    assertEquals(hash1.includes("domain:github"), true);
 
-  // Cleanup to avoid timer leak
-  await store.shutdown();
+    // Cleanup to avoid timer leak
+    await store.shutdown();
+  },
 });
 
 Deno.test("EpisodicMemoryStore - shutdown flushes remaining events", async () => {

@@ -14,6 +14,7 @@ import type {
   InitOptions,
   InitResult,
   McpConfig,
+  McpServerConfig,
   PmlConfig,
 } from "../types.ts";
 import {
@@ -27,6 +28,76 @@ const PML_CONFIG_FILE = ".pml.json";
 
 // Note: PML_API_KEY is no longer passed via .mcp.json env
 // The pml stdio command auto-loads it from .env in the workspace
+
+/**
+ * Detect existing MCP servers from .mcp.json.
+ * Excludes "pml" since that's managed separately.
+ *
+ * @param mcpConfigPath - Path to .mcp.json
+ * @returns Record of server configs or null if none found
+ */
+async function detectExistingServers(
+  mcpConfigPath: string,
+): Promise<Record<string, McpServerConfig> | null> {
+  try {
+    const content = await Deno.readTextFile(mcpConfigPath);
+    const config = JSON.parse(content) as McpConfig;
+
+    if (!config.mcpServers) {
+      return null;
+    }
+
+    // Exclude "pml" - we manage that separately
+    const otherServers: Record<string, McpServerConfig> = {};
+    for (const [name, serverConfig] of Object.entries(config.mcpServers)) {
+      if (name !== "pml") {
+        otherServers[name] = serverConfig;
+      }
+    }
+
+    return Object.keys(otherServers).length > 0 ? otherServers : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Prompt user to migrate existing servers to .pml.json
+ *
+ * @param existingServers - Servers detected from .mcp.json
+ * @param options - Init options
+ * @returns Servers to migrate or undefined
+ */
+async function promptMigration(
+  existingServers: Record<string, McpServerConfig>,
+  options: InitOptions,
+): Promise<Record<string, McpServerConfig> | undefined> {
+  const serverCount = Object.keys(existingServers).length;
+  const serverNames = Object.keys(existingServers).join(", ");
+
+  if (options.yes) {
+    // Auto-migrate in non-interactive mode
+    console.log(`  ${colors.green("+")} Auto-migrating ${serverCount} MCP server(s): ${serverNames}`);
+    return existingServers;
+  }
+
+  console.log(
+    colors.cyan(`\n  Found ${serverCount} MCP server(s) in existing config: ${serverNames}`),
+  );
+  console.log(
+    colors.dim("  Migrating enables tool discovery for config-aware suggestions."),
+  );
+
+  const response = prompt("  Copy them to .pml.json? (y/n)");
+
+  if (response?.toLowerCase() === "y" || response?.toLowerCase() === "yes") {
+    console.log(`  ${colors.green("+")} Migrating ${serverCount} MCP server(s)`);
+    return existingServers;
+  }
+
+  console.log(`  ${colors.dim("-")} Skipping MCP server migration`);
+  return undefined;
+}
 
 /**
  * Silent logger for init (we display our own messages)
@@ -72,9 +143,15 @@ export async function initProject(
   let backedUpMcp: string | undefined;
   let backedUpPml: string | undefined;
 
+  // Detect existing MCP servers for migration (before backup)
+  let migratedServers: Record<string, McpServerConfig> | undefined;
+
   try {
     // Check for existing .mcp.json
     if (await exists(mcpConfigPath)) {
+      // Detect servers BEFORE asking about backup
+      const existingServers = await detectExistingServers(mcpConfigPath);
+
       const shouldBackup = await handleExistingConfig(mcpConfigPath, MCP_CONFIG_FILE, options);
       if (shouldBackup === "abort") {
         return {
@@ -86,6 +163,11 @@ export async function initProject(
       }
       if (shouldBackup === "backup") {
         backedUpMcp = await backupConfig(mcpConfigPath, MCP_CONFIG_FILE);
+      }
+
+      // Prompt for migration if servers found
+      if (existingServers) {
+        migratedServers = await promptMigration(existingServers, options);
       }
     }
 
@@ -113,8 +195,8 @@ export async function initProject(
     );
     console.log(`  ${colors.green("✓")} Created ${MCP_CONFIG_FILE}`);
 
-    // Generate .pml.json
-    const pmlConfig = generatePmlConfig(workspace, port, cloudUrl);
+    // Generate .pml.json (with migrated servers if any)
+    const pmlConfig = generatePmlConfig(workspace, port, cloudUrl, migratedServers);
     await Deno.writeTextFile(
       pmlConfigPath,
       JSON.stringify(pmlConfig, null, 2) + "\n",
@@ -289,8 +371,9 @@ function generatePmlConfig(
   _workspace: string, // Unused - we store "." for portability
   _port: number, // Unused - server section omitted from template
   cloudUrl: string,
+  mcpServers?: Record<string, McpServerConfig>,
 ): PmlConfig {
-  return {
+  const config: PmlConfig = {
     version: PACKAGE_VERSION,
     workspace: ".", // Dynamic detection via resolveWorkspace() - portable!
     cloud: {
@@ -302,5 +385,8 @@ function generatePmlConfig(
       deny: [], // Empty = nothing blocked
       ask: [], // Empty = implicit ask for everything
     },
+    mcpServers: mcpServers ?? {},
   };
+
+  return config;
 }

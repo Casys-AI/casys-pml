@@ -227,6 +227,40 @@ export interface SHGATConfig {
    */
   preserveDimResidual?: number;
 
+  /**
+   * Per-level residual weights for adaptive blending.
+   * Index corresponds to node level (0=leaves, 1=intermediate, 2=root, etc.)
+   * If provided, overrides preserveDimResidual for nodes at each level.
+   * Falls back to preserveDimResidual for levels not specified.
+   * @example [0.9, 0.3, 0.5] // L0: 90% original, L1: 30%, L2: 50%
+   */
+  preserveDimResiduals?: number[];
+
+  // === Multi-Location Residuals ===
+  /**
+   * Residual weight for V2V (vertex-to-vertex) message passing phase.
+   * output = (1-r)*enriched + r*original
+   * @default 0 (no residual in V2V)
+   */
+  v2vResidual?: number;
+
+  /**
+   * Residual weight for downward message passing phase.
+   * output = (1-r)*propagated + r*original
+   * @default 0 (no residual in downward)
+   */
+  downwardResidual?: number;
+
+  // === Gradient Scaling ===
+  /**
+   * Learning rate multiplier for message passing parameters.
+   * Compensates for vanishing gradients through attention layers.
+   * MP gradients are typically ~100x smaller than K-head gradients.
+   * @default 1 (same learning rate as K-head)
+   * @recommended 50-100 (to match K-head gradient scale)
+   */
+  mpLearningRateScale?: number;
+
   // === Legacy (kept for backward compatibility) ===
   /** @deprecated Which heads are active - all heads active in v2 */
   activeHeads?: number[];
@@ -237,16 +271,16 @@ export interface SHGATConfig {
 /**
  * Default configuration for SHGAT v2
  *
- * Conservative defaults (K=4) for cold start / empty graph.
- * createSHGATFromCapabilities() automatically uses getAdaptiveHeadsByGraphSize()
- * to scale numHeads based on graph size (4-16 heads for 20-2000+ nodes).
+ * Uses 16 heads by default for optimal performance.
+ * 16 heads × 64 dim = 1024 exactly matches BGE-M3 embedding dimension.
+ * Benchmarks show 16 heads consistently outperforms 4 heads (+12% train, +5% test).
  */
 export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
-  // Architecture (overridden by adaptive config in createSHGATFromCapabilities)
+  // Architecture: 16 heads is optimal for BGE-M3 embeddings
   // hiddenDim/headDim are for SCORING (K-head attention)
   // Message passing with preserveDim uses embeddingDim/numHeads separately
-  numHeads: 4, // Fallback for empty graph, scales up automatically
-  hiddenDim: 256, // = numHeads * 64 for scoring
+  numHeads: 16, // Fixed at 16 for optimal performance
+  hiddenDim: 1024, // = numHeads * 64 for scoring (16 * 64 = 1024)
   headDim: 64, // Fixed at 64 for scoring K-head
   embeddingDim: 1024,
   numLayers: 2,
@@ -256,6 +290,13 @@ export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
   // (initializeLevelParametersPreserveDim handles this separately)
   preserveDim: true,
   preserveDimResidual: 0.3, // 30% original + 70% propagated
+
+  // Multi-location residuals (default: disabled)
+  v2vResidual: 0,       // No residual in V2V phase
+  downwardResidual: 0,  // No residual in downward phase
+
+  // Gradient scaling for MP (compensate vanishing gradients)
+  mpLearningRateScale: 1, // Default 1 for backward compatibility, set to 50-100 to enable MP learning
 
   // Training
   learningRate: 0.05,  // Increased 5x for InfoNCE with fixed τ=0.07 (CLIP-style)
@@ -283,7 +324,7 @@ export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
 export function getAdaptiveConfig(_traceCount: number): Partial<SHGATConfig> {
   // Deprecated - kept for backward compatibility with tests
   // Use getAdaptiveHeadsByGraphSize() instead
-  return { numHeads: 4, hiddenDim: 256, headDim: 64, mlpHiddenDim: 32 };
+  return { numHeads: 16, hiddenDim: 1024, headDim: 64, mlpHiddenDim: 32 };
 }
 
 // ============================================================================

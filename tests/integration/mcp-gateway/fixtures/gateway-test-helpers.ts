@@ -42,6 +42,49 @@ export interface TestGatewayServer {
 }
 
 /**
+ * Create mock execute adapters for testing
+ * These are required by PMLGatewayServer.startHttp() since Phase 3.1
+ */
+// deno-lint-ignore no-explicit-any
+function createMockExecuteAdapters(db: PGliteClient, capabilityStore: any): any {
+  return {
+    dagSuggester: {
+      suggest: async () => ({ tasks: [] }),
+      suggestFromIntent: async () => ({ tasks: [] }),
+    },
+    workflowRepo: {
+      save: async () => "mock-workflow-id",
+      load: async () => null,
+      getRecent: async () => [],
+    },
+    shgatTrainer: {
+      train: async () => ({ loss: 0, accuracy: 1 }),
+      isTraining: () => false,
+    },
+    toolDefsBuilder: {
+      build: async () => [],
+      buildForServers: async () => [],
+    },
+    dagConverter: {
+      convert: async (dag: unknown) => dag,
+      toExecutable: async (dag: unknown) => dag,
+    },
+    workerBridgeFactory: {
+      create: () => ({
+        executeCodeTask: async () => ({ success: true, result: "mock" }),
+        terminate: () => {},
+        cleanup: async () => {},
+      }),
+    },
+    capabilityRepo: {
+      find: async () => null,
+      save: async () => {},
+      list: async () => [],
+    },
+  };
+}
+
+/**
  * Mock MCP client for testing
  */
 export function createMockMCPClient(): MCPClientBase {
@@ -182,6 +225,9 @@ export async function createTestGatewayServer(
     adaptiveThresholdManager,
     config,
   );
+
+  // Configure mock execute adapters (required since Phase 3.1)
+  gateway.setExecuteAdapters(createMockExecuteAdapters(db, capabilityStore));
 
   const cleanup = async () => {
     try {
@@ -436,4 +482,32 @@ export async function isPortAvailable(port: number): Promise<boolean> {
   } catch (_error) {
     return false;
   }
+}
+
+/**
+ * Wait for server to stop (no longer accepting connections)
+ *
+ * Uses deterministic polling instead of hard-coded delays.
+ *
+ * @param port - Port to check
+ * @param timeoutMs - Maximum time to wait (default: 5000ms)
+ * @param intervalMs - Poll interval (default: 50ms)
+ */
+export async function waitForServerStopped(
+  port: number,
+  timeoutMs = 5000,
+  intervalMs = 50,
+): Promise<void> {
+  await waitFor(
+    async () => {
+      try {
+        await makeGatewayRequest(port, "/health");
+        return false; // Server still running
+      } catch {
+        return true; // Server stopped (connection refused)
+      }
+    },
+    timeoutMs,
+    intervalMs,
+  );
 }

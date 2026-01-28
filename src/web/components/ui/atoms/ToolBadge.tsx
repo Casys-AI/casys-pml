@@ -3,6 +3,8 @@
  * Shows server:tool_name with icon and hover state
  */
 
+import { parseToolId } from "../../../../capabilities/tool-id-utils.ts";
+
 interface ToolBadgeProps {
   /** Full tool name (e.g., "filesystem:get_file_info") */
   tool: string;
@@ -35,8 +37,7 @@ function getServerIcon(server: string): string {
 }
 
 export default function ToolBadge({ tool, onClick, class: className }: ToolBadgeProps) {
-  const [server, ...actionParts] = tool.split(":");
-  const action = actionParts.join(":") || tool;
+  const { namespace: server, action } = parseToolId(tool);
   const icon = getServerIcon(server);
   const isClickable = !!onClick;
 

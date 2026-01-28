@@ -47,9 +47,10 @@ const SELECT_TRACE_WITH_INTENT = `
 `;
 
 /**
- * Input type for saving a trace (id is auto-generated)
+ * Input type for saving a trace
+ * id is optional - if provided, uses that UUID; if not, DB generates via gen_random_uuid()
  */
-export type SaveTraceInput = Omit<ExecutionTrace, "id">;
+export type SaveTraceInput = Omit<ExecutionTrace, "id"> & { id?: string };
 
 /**
  * ExecutionTraceStore - Persistence layer for execution traces
@@ -131,14 +132,19 @@ export class ExecutionTraceStore {
     // They are retrieved via JOIN on workflow_pattern (migration 030)
 
     // Migration 039: created_by column removed, user_id is now UUID FK
+    // id: Use provided trace.id or let DB generate via gen_random_uuid()
     const result = await this.db.query(
       `INSERT INTO execution_trace (
-        capability_id, initial_context, success, duration_ms,
+        id, capability_id, initial_context, success, duration_ms,
         error_message, user_id, executed_path, decisions,
         task_results, priority, parent_trace_id
-      ) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11)
+      ) VALUES (
+        COALESCE($1, gen_random_uuid()),
+        $2, $3::jsonb, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12
+      )
       RETURNING *`,
       [
+        trace.id ?? null, // Pre-generated trace ID or null for DB to generate
         trace.capabilityId ?? null,
         sanitizedContext, // postgres.js auto-serializes to JSONB
         trace.success,
@@ -500,6 +506,45 @@ export class ExecutionTraceStore {
     );
 
     return result.map((row) => this.rowToTrace(row as Row));
+  }
+
+  /**
+   * Get child traces for multiple parents in a single query (N+1 optimization)
+   *
+   * Batch-loads child traces for multiple parent IDs in one query,
+   * reducing O(n) queries to O(1) for flat traces.
+   *
+   * @param parentIds - Array of parent trace UUIDs
+   * @returns Map of parent trace ID → child traces
+   */
+  async getChildTracesForMultipleParents(
+    parentIds: string[],
+  ): Promise<Map<string, ExecutionTrace[]>> {
+    if (parentIds.length === 0) {
+      return new Map();
+    }
+
+    const result = await this.db.query(
+      `${SELECT_TRACE_WITH_INTENT}
+       WHERE et.parent_trace_id = ANY($1)
+       ORDER BY et.parent_trace_id, et.executed_at ASC`,
+      [parentIds],
+    );
+
+    // Group by parent_trace_id
+    const childMap = new Map<string, ExecutionTrace[]>();
+    for (const row of result) {
+      const trace = this.rowToTrace(row as Row);
+      const parentId = trace.parentTraceId;
+      if (parentId) {
+        if (!childMap.has(parentId)) {
+          childMap.set(parentId, []);
+        }
+        childMap.get(parentId)!.push(trace);
+      }
+    }
+
+    return childMap;
   }
 
   // NOTE: pruneOldTraces() was removed - traces are precious for learning

@@ -93,292 +93,6 @@ export interface PERTrainingResult {
 }
 
 // ============================================================================
-// Main Training Function
-// ============================================================================
-
-/**
- * Train SHGAT on path-level traces with PER sampling
- *
- * This is the main entry point for Story 11.6 training.
- *
- * 1. Samples traces using PER (priority^α weighting)
- * 2. Flattens hierarchical paths
- * 3. Generates multi-example per trace
- * 4. Trains SHGAT in batches
- * 5. Updates trace priorities post-training
- *
- * @param shgat - SHGAT instance to train
- * @param traceStore - ExecutionTraceStore for fetching/updating traces
- * @param embeddingProvider - Provider for intent embeddings
- * @param options - Training configuration
- * @returns Training results with metrics
- *
- * @example
- * ```typescript
- * const result = await trainSHGATOnPathTraces(
- *   shgat,
- *   traceStore,
- *   embeddingModel,
- *   { minTraces: 20, maxTraces: 100 }
- * );
- *
- * if (result.fallback) {
- *   console.log("Insufficient traces, using tool-level training");
- * }
- * ```
- */
-export async function trainSHGATOnPathTraces(
-  shgat: SHGAT,
-  traceStore: ExecutionTraceStore,
-  _embeddingProvider: EmbeddingProvider, // Unused since migration 030 (embeddings from JOIN)
-  options: PERTrainingOptions = {},
-): Promise<PERTrainingResult> {
-  const {
-    minTraces = DEFAULT_MIN_TRACES,
-    maxTraces = DEFAULT_MAX_TRACES,
-    batchSize = DEFAULT_BATCH_SIZE,
-    minPriority = DEFAULT_MIN_PRIORITY,
-    alpha = DEFAULT_PER_ALPHA,
-    capabilityId,
-  } = options;
-
-  const startTime = performance.now();
-
-  // Step 1: Check trace availability
-  const traceCount = await traceStore.getTraceCount(capabilityId);
-
-  if (traceCount < minTraces) {
-    log.debug("[PER-Training] Insufficient traces for path-level training", {
-      available: traceCount,
-      required: minTraces,
-    });
-    return {
-      loss: 0,
-      accuracy: 0,
-      tracesProcessed: 0,
-      highPriorityCount: 0,
-      prioritiesUpdated: 0,
-      examplesGenerated: 0,
-      fallback: "tool-level",
-      fallbackReason: `insufficient traces (${traceCount} < ${minTraces})`,
-    };
-  }
-
-  // Step 2: Sample traces using PER
-  const traces = await traceStore.sampleByPriority(maxTraces, minPriority, alpha);
-
-  if (traces.length === 0) {
-    log.debug("[PER-Training] No traces sampled (all below minPriority)", { minPriority });
-    return {
-      loss: 0,
-      accuracy: 0,
-      tracesProcessed: 0,
-      highPriorityCount: 0,
-      prioritiesUpdated: 0,
-      examplesGenerated: 0,
-      fallback: "tool-level",
-      fallbackReason: "no traces above minPriority threshold",
-    };
-  }
-
-  // Step 3: Extract path-level features
-  const pathFeatures = extractPathLevelFeatures(traces);
-
-  // Step 4: Get ALL embeddings (capabilities + tools) for negative mining
-  const graphBuilder = (shgat as unknown as { graphBuilder: {
-    getCapabilityNodes: () => Map<string, { embedding: number[]; toolsUsed?: string[] }>;
-    getToolNodes: () => Map<string, { embedding: number[] }>;
-  } }).graphBuilder;
-
-  const allEmbeddings = new Map<string, number[]>();
-
-  // Add capability embeddings and build capToTools map
-  const capToTools = new Map<string, Set<string>>();
-  for (const [capId, cap] of graphBuilder.getCapabilityNodes()) {
-    if (cap.embedding) allEmbeddings.set(capId, cap.embedding);
-    capToTools.set(capId, new Set(cap.toolsUsed ?? []));
-  }
-
-  // @deprecated - Tool clusters no longer needed since tools are excluded from negatives
-  // Keeping empty map for backward compatibility with traceToTrainingExamples signature
-  const toolClusters = new Map<string, Set<string>>();
-
-  // Step 5: Flatten paths and generate training examples
-  const allExamples: TrainingExample[] = [];
-  // Track which examples belong to which trace (for TD error aggregation)
-  const exampleToTraceId: string[] = [];
-
-  // Note: Since migration 030, intentEmbedding comes from capability via JOIN.
-  // No need to regenerate embeddings - use trace.intentEmbedding directly.
-  // This ensures perfect consistency when capabilities are renamed.
-
-  // Helper: compute percentile
-  const percentile = (arr: number[], p: number): number => {
-    if (arr.length === 0) return 0;
-    const sorted = [...arr].sort((a, b) => a - b);
-    const idx = Math.floor((p / 100) * (sorted.length - 1));
-    return sorted[idx];
-  };
-
-  // Helper: cosine similarity
-  const cosineSim = (a: number[], b: number[]): number => {
-    let dot = 0, normA = 0, normB = 0;
-    for (let i = 0; i < Math.min(a.length, b.length); i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    const denom = Math.sqrt(normA) * Math.sqrt(normB);
-    return denom > 0 ? dot / denom : 0;
-  };
-
-  // Compute adaptive thresholds from all traces
-  const allSims: number[] = [];
-  for (const trace of traces) {
-    const intentEmb = trace.intentEmbedding;
-    if (!intentEmb || intentEmb.length === 0) continue;
-    for (const [capId, emb] of allEmbeddings) {
-      if (capId === trace.capabilityId) continue;
-      allSims.push(cosineSim(intentEmb, emb));
-    }
-  }
-  let adaptiveMin = allSims.length > 0 ? percentile(allSims, 25) : 0.15;
-  let adaptiveMax = allSims.length > 0 ? percentile(allSims, 75) : 0.65;
-
-  // Ensure minimum spread of 0.3 (if too narrow, embeddings are too clustered)
-  const MIN_SPREAD = 0.3;
-  if (adaptiveMax - adaptiveMin < MIN_SPREAD) {
-    const mid = (adaptiveMin + adaptiveMax) / 2;
-    adaptiveMin = Math.max(0, mid - MIN_SPREAD / 2);
-    adaptiveMax = Math.min(1, mid + MIN_SPREAD / 2);
-    log.debug(`[PER-Training] Spread too narrow, expanded to: [${adaptiveMin.toFixed(2)}, ${adaptiveMax.toFixed(2)}]`);
-  }
-
-  log.debug(`[PER-Training] Adaptive thresholds: [${adaptiveMin.toFixed(2)}, ${adaptiveMax.toFixed(2)}]`);
-
-  // Generate examples for each trace
-  for (const trace of traces) {
-    // Use intentEmbedding from JOIN (comes from workflow_pattern.intent_embedding)
-    const intentEmbedding = trace.intentEmbedding;
-    if (!intentEmbedding || intentEmbedding.length === 0) {
-      log.debug("[PER-Training] Skipping trace without intent embedding", {
-        traceId: trace.id,
-        capabilityId: trace.capabilityId,
-      });
-      continue;
-    }
-
-    // Flatten hierarchical path
-    const flatPath = await flattenExecutedPath(trace, traceStore);
-
-    // Generate multi-example (one per node) with semi-hard negative mining
-    // Pass capToTools and toolClusters to exclude anchor capability's tools + similar tools
-    const examples = traceToTrainingExamples(trace, flatPath, intentEmbedding, pathFeatures, allEmbeddings, capToTools, toolClusters, adaptiveMin, adaptiveMax);
-    for (const _ex of examples) {
-      exampleToTraceId.push(trace.id);
-    }
-    allExamples.push(...examples);
-  }
-
-  if (allExamples.length === 0) {
-    log.warn("[PER-Training] No training examples generated");
-    return {
-      loss: 0,
-      accuracy: 0,
-      tracesProcessed: traces.length,
-      highPriorityCount: traces.filter((t) => t.priority > 0.7).length,
-      prioritiesUpdated: 0,
-      examplesGenerated: 0,
-      fallback: "tool-level",
-      fallbackReason: "no valid training examples could be generated",
-    };
-  }
-
-  // Step 5: Train SHGAT in batches with IS weights
-  let totalLoss = 0;
-  let totalAccuracy = 0;
-  let batchCount = 0;
-  const allTdErrors: number[] = [];
-
-  // Compute IS weights for PER (Schaul et al. 2015)
-  // P(i) ∝ priority^alpha, weight = (N * P(i))^(-beta) / max_weight
-  const beta = 0.4; // IS exponent (anneals to 1.0 over training)
-  const tracePriorities = traces.map((t) => Math.pow(t.priority + 1e-6, alpha));
-  const totalPriority = tracePriorities.reduce((a, b) => a + b, 0);
-  const probs = tracePriorities.map((p) => p / totalPriority);
-  // Use loop instead of Math.min(...) to avoid stack overflow with large arrays
-  let minProb = Infinity;
-  for (const p of probs) {
-    if (p < minProb) minProb = p;
-  }
-  const maxWeight = Math.pow(traces.length * minProb, -beta);
-  const traceWeights = probs.map((p) => Math.pow(traces.length * p, -beta) / maxWeight);
-
-  // Map trace index to example indices (multi-example per trace)
-  const exampleWeights: number[] = [];
-  for (let t = 0; t < traces.length; t++) {
-    const numExamplesFromTrace = traces[t].executedPath?.length ?? 0;
-    for (let e = 0; e < numExamplesFromTrace; e++) {
-      exampleWeights.push(traceWeights[t]);
-    }
-  }
-
-  for (let i = 0; i < allExamples.length; i += batchSize) {
-    const batch = allExamples.slice(i, i + batchSize);
-    const batchWeights = exampleWeights.slice(i, i + batchSize);
-    const result = shgat.trainBatchV1KHeadBatched(batch, batchWeights);
-    totalLoss += result.loss;
-    totalAccuracy += result.accuracy;
-    allTdErrors.push(...result.tdErrors);
-    batchCount++;
-  }
-
-  const avgLoss = batchCount > 0 ? totalLoss / batchCount : 0;
-  const avgAccuracy = batchCount > 0 ? totalAccuracy / batchCount : 0;
-
-  // Step 6: Aggregate TD errors per trace and update priorities
-  // Use max |TD error| per trace as priority (surprising = high priority)
-  const tdErrorsPerTrace = new Map<string, number>();
-  for (let i = 0; i < allTdErrors.length; i++) {
-    const traceId = exampleToTraceId[i];
-    if (!traceId) continue;
-    const absError = Math.abs(allTdErrors[i]);
-    const current = tdErrorsPerTrace.get(traceId) ?? 0;
-    if (absError > current) {
-      tdErrorsPerTrace.set(traceId, absError);
-    }
-  }
-
-  // Update priorities using pre-computed TD errors (no recalculation needed)
-  const prioritiesUpdated = await batchUpdatePrioritiesFromTDErrors(
-    traceStore,
-    traces,
-    tdErrorsPerTrace,
-  );
-
-  const elapsed = performance.now() - startTime;
-
-  log.info("[PER-Training] Training completed", {
-    tracesProcessed: traces.length,
-    examplesGenerated: allExamples.length,
-    batches: batchCount,
-    avgLoss: avgLoss.toFixed(4),
-    avgAccuracy: avgAccuracy.toFixed(4),
-    prioritiesUpdated,
-    elapsedMs: elapsed.toFixed(1),
-  });
-
-  return {
-    loss: avgLoss,
-    accuracy: avgAccuracy,
-    tracesProcessed: traces.length,
-    highPriorityCount: traces.filter((t) => t.priority > 0.7).length,
-    prioritiesUpdated,
-    examplesGenerated: allExamples.length,
-  };
-}
-
-// ============================================================================
 // Path Flattening (AC13)
 // ============================================================================
 
@@ -599,6 +313,16 @@ export function traceToTrainingExamples(
 
 /**
  * Execution counter for periodic batch training
+ *
+ * NOTE: This is global mutable state shared across all sessions/workers in the
+ * same process. This means:
+ * - In tests: counter may be affected by parallel tests (use resetExecutionCounter)
+ * - In prod with multiple workers: each worker has its own counter (not synchronized)
+ *
+ * This is acceptable because:
+ * - Training is idempotent (running more/less often is fine)
+ * - The interval is approximate, not a strict requirement
+ * - trainingLock prevents concurrent training runs
  */
 let executionCounter = 0;
 
@@ -663,7 +387,7 @@ export interface SubprocessPEROptions extends PERTrainingOptions {
 /**
  * Train SHGAT on path traces using subprocess (non-blocking)
  *
- * Same algorithm as trainSHGATOnPathTraces but runs training in subprocess.
+ * Train SHGAT on path traces using subprocess (non-blocking, production path).
  * Uses TD errors from subprocess to update priorities.
  *
  * @param shgat - SHGAT instance (will import returned params)
@@ -801,9 +525,14 @@ export async function trainSHGATOnPathTracesSubprocess(
     }
   }
 
+  // Helper: check if string is a UUID (capability ID) vs tool ID (has colon like "code:filter")
+  const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
   const additionalToolIds: string[] = [];
   for (const ex of allExamples) {
     for (const tool of ex.contextTools) {
+      // Skip UUIDs (capability IDs) - they have embeddings in workflow_pattern, not tool_embedding
+      if (isUUID(tool)) continue;
       if (!toolsInCaps.has(tool) && !additionalToolIds.includes(tool)) {
         additionalToolIds.push(tool);
       }
@@ -813,15 +542,34 @@ export async function trainSHGATOnPathTracesSubprocess(
   // Load real embeddings for additional tools if dbClient available
   const toolEmbeddingsMap = new Map<string, number[]>();
   if (dbClient && additionalToolIds.length > 0) {
+    // Debug: log what tools we're searching for
+    log.info(`[PER-Subprocess] Searching for additionalToolIds: ${JSON.stringify(additionalToolIds.slice(0, 10))}${additionalToolIds.length > 10 ? '...' : ''}`);
     try {
+      // CRITICAL-8 Fix: pgvector can't cast directly to float8[], select as-is
       const rows = await dbClient.query(
-        `SELECT tool_id, embedding::float8[] as embedding
+        `SELECT tool_id, embedding
          FROM tool_embedding
          WHERE tool_id = ANY($1)`,
         [additionalToolIds],
-      ) as Array<{ tool_id: string; embedding: number[] }>;
+      ) as Array<{ tool_id: string; embedding: number[] | string }>;
       for (const row of rows) {
-        toolEmbeddingsMap.set(row.tool_id, row.embedding);
+        // Handle array, string, or pgvector format (PGlite vs PostgreSQL)
+        let emb: number[];
+        if (Array.isArray(row.embedding)) {
+          emb = row.embedding;
+        } else if (typeof row.embedding === 'string') {
+          // pgvector returns "[1,2,3]" format, parse it
+          try {
+            emb = JSON.parse(row.embedding);
+          } catch (parseErr) {
+            log.warn(`[PER-Subprocess] Failed to parse embedding for ${row.tool_id}: ${parseErr}`);
+            continue;
+          }
+        } else {
+          log.warn(`[PER-Subprocess] Invalid embedding type for ${row.tool_id}: ${typeof row.embedding}`);
+          continue;
+        }
+        toolEmbeddingsMap.set(row.tool_id, emb);
       }
       log.info(
         `[PER-Subprocess] Loaded ${toolEmbeddingsMap.size}/${additionalToolIds.length} tool embeddings from DB`,

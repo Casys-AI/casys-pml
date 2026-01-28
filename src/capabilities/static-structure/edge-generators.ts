@@ -134,39 +134,44 @@ export function generateSequenceEdges(
         (n.metadata?.executable !== false), // Skip non-executable nested operations
     );
 
-    for (let i = 0; i < taskNodes.length - 1; i++) {
-      const from = taskNodes[i];
-      const to = taskNodes[i + 1];
-
-      // Don't create sequence edge if "to" is inside a different decision branch
-      if (to.parentScope?.includes(":") && !from.parentScope?.includes(":")) {
-        continue;
-      }
+    // Check ALL previous nodes for dependencies, not just consecutive pairs
+    // This fixes: a (independent), b (independent), c (depends on a) - now detects a→c
+    for (let j = 0; j < taskNodes.length; j++) {
+      const to = taskNodes[j];
 
       // Fix: If "to" has a chain, connect to the chain root instead
-      // This ensures dependencies flow to the first operation in the chain
       const targetNode = findChainRoot(to, nodes);
 
-      // Skip if already exists (e.g., from chained edges)
-      const edgeKey = `${from.id}->${targetNode.id}:sequence`;
-      if (edgeSet.has(edgeKey)) continue;
+      for (let i = 0; i < j; i++) {
+        const from = taskNodes[i];
 
-      // Only create sequence edge if there's a real data dependency
-      // Check if targetNode's arguments reference the from node
-      if (!nodeReferencesNode(targetNode, from.id)) {
-        logger.debug("Skipping sequence edge - no data dependency", {
+        // Don't create sequence edge if "to" is inside a different decision branch
+        if (targetNode.parentScope?.includes(":") && !from.parentScope?.includes(":")) {
+          continue;
+        }
+
+        // Skip if already exists (e.g., from chained edges)
+        const edgeKey = `${from.id}->${targetNode.id}:sequence`;
+        if (edgeSet.has(edgeKey)) continue;
+
+        // Only create sequence edge if there's a real data dependency
+        // Check if targetNode's arguments reference the from node
+        if (!nodeReferencesNode(targetNode, from.id)) {
+          continue;
+        }
+
+        logger.debug("Creating sequence edge for data dependency", {
           from: from.id,
           to: targetNode.id,
         });
-        continue;
-      }
 
-      edges.push({
-        from: from.id,
-        to: targetNode.id,
-        type: "sequence",
-      });
-      edgeSet.add(edgeKey);
+        edges.push({
+          from: from.id,
+          to: targetNode.id,
+          type: "sequence",
+        });
+        edgeSet.add(edgeKey);
+      }
     }
   }
 }

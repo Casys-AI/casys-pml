@@ -25,7 +25,7 @@ import type {
 export interface IDRDSP {
   findShortestHyperpath(source: string, target: string): {
     path: string[];
-    hyperedges: Array<{ id: string }>;
+    hyperedges: Array<{ id: string; sources?: string[]; targets?: string[] }>;
     totalWeight: number;
     nodeSequence: string[];
     found: boolean;

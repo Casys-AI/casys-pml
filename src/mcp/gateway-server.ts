@@ -393,7 +393,8 @@ export class PMLGatewayServer {
     // This handles client-routed executions that don't go through PostExecutionService.process()
     eventBus.on("capability.shgat.registered", () => {
       postExecutionService.runPERBatchTraining().catch((err) => {
-        log.warn("[Gateway] PER training failed", { error: String(err) });
+        const errMsg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
+        log.warn(`[Gateway] PER training failed: ${errMsg}`);
       });
     });
 
@@ -1002,6 +1003,7 @@ export class PMLGatewayServer {
       dagSuggester: this.dagSuggester,
       capabilityStore: this.capabilityStore,
       capabilityRegistry: this.capabilityRegistry ?? undefined,
+      mcpRegistry: this.mcpRegistry ?? undefined, // Issue 6 fix: FQDN resolution
       mcpClients: this.mcpClients,
       gatewayHandler: this.gatewayHandler,
       checkpointManager: this.checkpointManager,

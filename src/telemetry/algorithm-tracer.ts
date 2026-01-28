@@ -378,7 +378,7 @@ export class AlgorithmTracer {
           ${t.thresholdUsed},
           '${t.decision}',
           ${outcomeJson ? `'${outcomeJson}'::jsonb` : "NULL"},
-          ${t.userId ? `'${escapeSql(t.userId)}'` : "NULL"}
+          ${t.userId && t.userId !== "local" ? `'${escapeSql(t.userId)}'` : "NULL"}
         )`;
       });
 
@@ -766,7 +766,7 @@ export class AlgorithmTracer {
     try {
       const sinceClause = since ? `AND timestamp > '${since}'::timestamptz` : "";
       // Story 9.8: Filter by user_id if provided
-      const userClause = userId ? `AND user_id = '${escapeSql(userId)}'` : "";
+      const userClause = userId && userId !== "local" ? `AND user_id = '${escapeSql(userId)}'` : "";
 
       const result = await this.db.query(`
         SELECT

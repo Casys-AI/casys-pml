@@ -89,24 +89,30 @@ Index des décisions d'architecture du projet Casys PML.
 | 057  | [Message Passing Backward](./ADR-057-message-passing-backward-training.md)                  | accepted   | done           | Backward pass for message passing layers              |
 | 058  | [BLAS FFI Matrix Acceleration](./ADR-058-blas-ffi-matrix-acceleration.md)                   | accepted   | done           | OpenBLAS FFI for 15x scoring speedup                  |
 | 059  | [Hybrid Routing Server Analysis](./ADR-059-hybrid-routing-server-analysis-package-execution.md) | accepted | done           | Server analyzes, package executes client tools        |
+| 060  | [Hard Negative Mining PER Curriculum](./ADR-060-hard-negative-mining-per-curriculum.md)     | accepted   | done           | Hard negatives + curriculum learning for SHGAT        |
+| 061  | [Output Schema Inference from Traces](./ADR-061-output-schema-inference-from-traces.md)     | proposed   | not_started    | Infer output schemas from execution traces            |
+| 062  | [Client-Server Workflow Separation](./ADR-062-client-server-workflow-separation.md)         | accepted   | done           | Clear separation of workflow concerns                 |
+| 063  | [Open Source Distribution Strategy](./ADR-063-open-source-distribution-strategy.md)         | accepted   | in_progress    | Distribution strategy for open source release         |
+| 064  | [Registry Stored Hash Lookup](./ADR-064-registry-stored-hash-lookup.md)                     | accepted   | done           | Hash-based capability lookup in registry              |
+| 065  | [Deferred Trace Flush & Unified IDs](./ADR-065-deferred-trace-flush-unified-ids.md)         | accepted   | done           | Fix UUID mismatch & HIL FK violations (extends 041)   |
 
 ---
 
 ## By Status
 
-### Accepted (41)
+### Accepted (47)
 
 ADR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 016, 020, 020b, 021, 021b,
 023, 024, 025, 026, 028, 030, 032, 036, 040, 041, 042, 043, 044, 045, 046, 047, 050, 051, 052, 053,
-054, 055, 056, 057, 058, 059
+054, 055, 056, 057, 058, 059, 060, 062, 063, 064, 065
 
 ### Draft (3)
 
 ADR-017, ADR-029, ADR-031
 
-### Proposed (5)
+### Proposed (6)
 
-ADR-033, ADR-034, ADR-035, ADR-039, ADR-049
+ADR-033, ADR-034, ADR-035, ADR-039, ADR-049, ADR-061
 
 ### Superseded (7)
 
@@ -126,15 +132,15 @@ ADR-033, ADR-034, ADR-035, ADR-039, ADR-049
 
 ## By Implementation Status
 
-### Done (39)
+### Done (44)
 
 ADR-001, 002, 003, 004, 005, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 018, 019, 020, 020b,
 021, 021b, 022, 023, 024, 025, 026, 030, 036, 038, 041, 042, 043, 044, 045, 047, 048, 050, 051, 052,
-053, 054, 055, 056, 057, 058, 059
+053, 054, 055, 056, 057, 058, 059, 060, 062, 064, 065
 
-### In Progress (2)
+### In Progress (3)
 
-ADR-028, ADR-032
+ADR-028, ADR-032, ADR-063
 
 ### Partial (2)
 

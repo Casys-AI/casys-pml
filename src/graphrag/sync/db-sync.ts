@@ -29,6 +29,7 @@ export interface SyncableGraph {
   addEdge(source: string, target: string, attributes: Record<string, unknown>): void;
   hasNode(nodeId: string): boolean;
   hasEdge(source: string, target: string): boolean;
+  setNodeAttribute?(nodeId: string, name: string, value: unknown): void;
   order: number;
   size: number;
   edges(): string[];
@@ -108,6 +109,33 @@ export async function syncGraphFromDatabase(
     }
 
     graph.addNode(toolId, attributes);
+  }
+
+  // 1b. Load tool observations (aggregated across all users)
+  // Tech-Spec 01: observedConfigs = all observed configurations per tool
+  let observationsLoaded = 0;
+  try {
+    const observations = await db.query(`
+      SELECT tool_id, array_agg(DISTINCT observed_args ORDER BY observed_args) as observed_configs
+      FROM tool_observations
+      GROUP BY tool_id
+    `);
+
+    for (const obs of observations) {
+      const toolId = obs.tool_id as string;
+      if (graph.hasNode(toolId) && graph.setNodeAttribute) {
+        // Set observedConfigs attribute on existing tool node
+        graph.setNodeAttribute(toolId, "observedConfigs", obs.observed_configs);
+        observationsLoaded++;
+      }
+    }
+
+    if (observationsLoaded > 0) {
+      log.debug(`Loaded observations for ${observationsLoaded} tools`);
+    }
+  } catch {
+    // Table might not exist yet (migration not run) - that's OK
+    log.debug("tool_observations table not yet available, skipping observation loading");
   }
 
   // 2. Load edges (dependencies) from PGlite

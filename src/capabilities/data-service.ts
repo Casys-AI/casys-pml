@@ -87,6 +87,8 @@ export class CapabilityDataService {
       sort = "lastUsed",
       order = "desc",
       userId, // Story 9.8
+      userOrg, // Multi-tenant: filter capability_records by org
+      userProject, // Multi-tenant: filter capability_records by project
     } = filters;
 
     // Validate and cap limit
@@ -145,11 +147,22 @@ export class CapabilityDataService {
         params.push(userId, userId);
       }
 
+      // Multi-tenant: filter capability_records by org/project to prevent duplicates
+      if (userOrg) {
+        conditions.push(`cr.org = $${paramIndex++}::text`);
+        params.push(userOrg);
+      }
+      if (userProject) {
+        conditions.push(`cr.project = $${paramIndex++}::text`);
+        params.push(userProject);
+      }
+
       const whereClause = conditions.join(" AND ");
 
       // Query capabilities with JOIN to capability_records for name
       // Migration 028: display_name removed, use namespace:action
       // Migration 029: hierarchy_level for nested compound nodes
+      // Multi-tenant: WHERE filters by org/project, INNER JOIN ensures match
       const query = `
         SELECT
           wp.pattern_id as id,
@@ -174,7 +187,7 @@ export class CapabilityDataService {
             ELSE wp.description
           END as intent_preview
         FROM workflow_pattern wp
-        LEFT JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+        INNER JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
         WHERE ${whereClause}
         ORDER BY ${dbSortField} ${order.toUpperCase()}
         LIMIT $${paramIndex++} OFFSET $${paramIndex}
@@ -183,10 +196,11 @@ export class CapabilityDataService {
 
       const result = await this.db.query(query, params);
 
-      // Count total matching records
+      // Count total matching records (needs same JOIN for org/project filters)
       const countQuery = `
         SELECT COUNT(*) as total
         FROM workflow_pattern wp
+        INNER JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
         WHERE ${whereClause}
       `;
       const countResult = await this.db.query(
@@ -415,17 +429,21 @@ export class CapabilityDataService {
       minUsage = 0,
       includeTraces = false, // Story 11.4
       userId, // Story 9.8: Multi-tenant isolation
+      userOrg, // Multi-tenant: filter capability_records by org
+      userProject, // Multi-tenant: filter capability_records by project
     } = options;
 
-    logger.debug("Building hypergraph data", { options, includeTraces, userId });
+    logger.debug("Building hypergraph data", { options, includeTraces, userId, userOrg, userProject });
 
     try {
-      // 1. Fetch capabilities (filtered by userId if provided)
+      // 1. Fetch capabilities (filtered by userId and org/project if provided)
       const capabilityList = await this.listCapabilities({
         minSuccessRate,
         minUsage,
         limit: 100, // Reasonable max for visualization
         userId, // Story 9.8: Filter by user
+        userOrg, // Multi-tenant: filter capability_records by org
+        userProject, // Multi-tenant: filter capability_records by project
       });
 
       const capabilities = capabilityList.capabilities;

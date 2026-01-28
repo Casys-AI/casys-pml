@@ -51,7 +51,8 @@ Deno.test("Smoke test - getGraphSnapshot retourne structure JSON valide", async 
 Deno.test("Smoke test - Fresh dashboard.tsx exists and contains required elements", async () => {
   // Story 6.2: Dashboard migrated from public/dashboard.html to Fresh
   const routeCode = await Deno.readTextFile("src/web/routes/dashboard.tsx");
-  const graphVizCode = await Deno.readTextFile("src/web/islands/D3GraphVisualization.tsx");
+  const graphExplorerCode = await Deno.readTextFile("src/web/islands/GraphExplorer.tsx");
+  const cytoscapeCode = await Deno.readTextFile("src/web/islands/CytoscapeGraph.tsx");
   const metricsCode = await Deno.readTextFile("src/web/islands/MetricsPanel.tsx");
 
   // Vérifier dashboard route
@@ -77,17 +78,23 @@ Deno.test("Smoke test - Fresh dashboard.tsx exists and contains required element
     "Route doit utiliser MetricsPanel island (Story 6.3)",
   );
 
-  // Vérifier GraphVisualization island (composant avec API/SSE)
+  // Vérifier CytoscapeGraph island (composant avec API)
   assertEquals(
-    graphVizCode.includes("/api/graph/hypergraph"),
+    cytoscapeCode.includes("/api/graph/hypergraph"),
     true,
-    "Island doit appeler l'API hypergraph",
+    "CytoscapeGraph doit appeler l'API hypergraph",
   );
-  assertEquals(graphVizCode.includes("/events/stream"), true, "Island doit se connecter au SSE");
+
+  // Vérifier GraphExplorer island (composant avec SSE via useSSE hook)
   assertEquals(
-    graphVizCode.includes("EventSource"),
+    graphExplorerCode.includes("/events/stream"),
     true,
-    "Island doit utiliser EventSource pour SSE",
+    "GraphExplorer doit se connecter au SSE",
+  );
+  assertEquals(
+    graphExplorerCode.includes("useSSE"),
+    true,
+    "GraphExplorer doit utiliser useSSE hook pour SSE robuste",
   );
 
   // Vérifier MetricsPanel island (Story 6.3)

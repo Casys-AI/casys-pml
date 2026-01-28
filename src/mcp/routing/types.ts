@@ -29,6 +29,10 @@ export interface RouteContext {
   healthChecker?: HealthChecker;
   mcpClients: Map<string, MCPClientBase>;
   userId?: string;
+  /** Organization for capability_records filtering */
+  userOrg?: string;
+  /** Project for capability_records filtering */
+  userProject?: string;
   /** Path parameters extracted from URL */
   params?: Record<string, string>;
   /** Database client for scope filtering (Story 9.8) */

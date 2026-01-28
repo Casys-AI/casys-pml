@@ -385,6 +385,37 @@ export class McpRegistryService {
         });
       }
 
+      // For capabilities, fetch parameters_schema and tools_used from workflow_pattern
+      let parametersSchema: Record<string, unknown> | undefined;
+      let toolsUsed: string[] | undefined;
+
+      if (row.record_type === "capability" && row.workflow_pattern_id) {
+        const wpResult = await this.db.query(
+          `SELECT parameters_schema, dag_structure FROM workflow_pattern WHERE pattern_id = $1`,
+          [row.workflow_pattern_id],
+        );
+        if (wpResult.length > 0) {
+          // Extract parameters_schema
+          if (wpResult[0].parameters_schema) {
+            const schema = wpResult[0].parameters_schema;
+            parametersSchema = typeof schema === "string"
+              ? JSON.parse(schema)
+              : schema as Record<string, unknown>;
+          }
+
+          // Issue 6 fix: Extract tools_used from dag_structure (now contains FQDNs)
+          // Client uses this to populate fqdnMap for nested capability trace matching
+          if (wpResult[0].dag_structure) {
+            const dagStructure = typeof wpResult[0].dag_structure === "string"
+              ? JSON.parse(wpResult[0].dag_structure)
+              : wpResult[0].dag_structure;
+            if (Array.isArray(dagStructure?.tools_used)) {
+              toolsUsed = dagStructure.tools_used;
+            }
+          }
+        }
+      }
+
       // Build entry
       const entry: McpRegistryEntry = {
         fqdn,
@@ -396,6 +427,8 @@ export class McpRegistryService {
         recordType: row.record_type,
         codeUrl: row.code_url || undefined,
         envRequired: deriveEnvRequired(config),
+        parametersSchema,
+        toolsUsed, // Issue 6 fix: FQDNs for nested capability trace matching
       };
 
       // Add type-specific fields

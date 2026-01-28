@@ -4,7 +4,7 @@
  * Extracts path-level statistics from execution traces for SHGAT training.
  * Path = sequence of nodes executed (tools, capabilities, decisions).
  *
- * Used by trainSHGATOnPathTraces() to enrich training examples with:
+ * Used by trainSHGATOnPathTracesSubprocess() to enrich training examples with:
  * - Path success rates (historical performance)
  * - Path frequency (popular vs rare paths)
  * - Decision success rates (branch prediction quality)

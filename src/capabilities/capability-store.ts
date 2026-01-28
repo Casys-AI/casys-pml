@@ -130,6 +130,7 @@ export class CapabilityStore {
       toolInvocations,
       traceData,
       staticStructure,
+      skipZoneEvents = false,
     } = input;
 
     // Transform capability references: display_name → FQDN (makes code robust to renames)
@@ -316,7 +317,8 @@ export class CapabilityStore {
     // UPSERT: Insert or update on conflict
     // Note: 'name' column removed in migration 022 - naming via capability_records.display_name
     // Story 9.8 Fix: Include user_id for multi-tenant capability ownership
-    const userId = traceData?.userId ?? null;
+    // Note: "local" is not a valid UUID, treat as null in local mode
+    const userId = traceData?.userId && traceData.userId !== "local" ? traceData.userId : null;
     const result = await this.db.query(
       `INSERT INTO workflow_pattern (
         pattern_hash,
@@ -408,38 +410,41 @@ export class CapabilityStore {
     });
 
     // Story 8.3: Emit zone events for hypergraph incremental updates
-    if (isNew) {
-      // New capability = new zone
-      const zonePayload = {
-        capabilityId: capability.id,
-        label: capabilityName,
-        toolIds: capabilityTools,
-        successRate: capability.successRate,
-        usageCount: capability.usageCount,
-      };
-      logger.info("[SSE-DEBUG] Emitting capability.zone.created", {
-        capabilityId: zonePayload.capabilityId,
-        label: zonePayload.label,
-        toolCount: zonePayload.toolIds.length,
-      });
-      eventBus.emit({
-        type: "capability.zone.created",
-        source: "capability-store",
-        payload: zonePayload,
-      });
-    } else {
-      // Existing capability updated = zone metadata update
-      eventBus.emit({
-        type: "capability.zone.updated",
-        source: "capability-store",
-        payload: {
+    // Skip if caller wants to emit events later (after registry creation)
+    if (!skipZoneEvents) {
+      if (isNew) {
+        // New capability = new zone
+        const zonePayload = {
           capabilityId: capability.id,
           label: capabilityName,
           toolIds: capabilityTools,
           successRate: capability.successRate,
           usageCount: capability.usageCount,
-        },
-      });
+        };
+        logger.info("[SSE-DEBUG] Emitting capability.zone.created", {
+          capabilityId: zonePayload.capabilityId,
+          label: zonePayload.label,
+          toolCount: zonePayload.toolIds.length,
+        });
+        eventBus.emit({
+          type: "capability.zone.created",
+          source: "capability-store",
+          payload: zonePayload,
+        });
+      } else {
+        // Existing capability updated = zone metadata update
+        eventBus.emit({
+          type: "capability.zone.updated",
+          source: "capability-store",
+          payload: {
+            capabilityId: capability.id,
+            label: capabilityName,
+            toolIds: capabilityTools,
+            successRate: capability.successRate,
+            usageCount: capability.usageCount,
+          },
+        });
+      }
     }
 
     // Story 10.1: Create CapabilityDependency records for nested capability calls
@@ -539,14 +544,8 @@ export class CapabilityStore {
     let trace: ExecutionTrace | undefined;
     if (traceData && this.traceStore) {
       try {
-        // Prepend capability ID to executed_path for consistent flattening
-        // This ensures sequencePosition works for capabilities (not just tools)
-        // Path structure: [capability_id, tool1, tool2, ...] or [cap_id, sub_cap_id, tool1, ...]
-        const executedPathWithCapability = capability.id
-          ? [capability.id, ...(traceData.executedPath ?? [])]
-          : traceData.executedPath;
-
         trace = await this.traceStore.saveTrace({
+          id: traceData.id, // Pre-generated trace ID (used as DB id for hierarchy)
           capabilityId: capability.id,
           intentText: intent,
           intentEmbedding: traceData.intentEmbedding,
@@ -555,13 +554,14 @@ export class CapabilityStore {
           success,
           durationMs,
           errorMessage: traceData.errorMessage,
-          executedPath: executedPathWithCapability,
+          executedPath: traceData.executedPath,
           decisions: traceData.decisions ?? [],
           taskResults: traceData.taskResults ?? [],
           priority: DEFAULT_TRACE_PRIORITY,
           parentTraceId: traceData.parentTraceId,
           // Migration 039: createdBy removed, use userId (UUID FK)
-          userId: traceData.userId,
+          // Note: "local" is not a valid UUID, treat as null in local mode
+          userId: traceData.userId && traceData.userId !== "local" ? traceData.userId : undefined,
         });
         logger.debug("Execution trace saved with capability", {
           capabilityId: capability.id,

@@ -115,12 +115,14 @@ Deno.test({
       capabilityContext,
     );
 
-    // Wait for BroadcastChannel
-    await new Promise((r) => setTimeout(r, 100));
-
     assertEquals(result.success, true);
 
-    const traces = bridge.getTraces();
+    // Wait for BroadcastChannel with polling (more reliable than fixed timeout)
+    let traces = bridge.getTraces();
+    for (let i = 0; i < 40 && traces.filter((t) => t.type === "capability_end").length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      traces = bridge.getTraces();
+    }
 
     // Should have both capability and tool traces
     const capStart = traces.find((t) => t.type === "capability_start");
@@ -181,13 +183,15 @@ Deno.test({
       capabilityContext,
     );
 
-    // Wait for BroadcastChannel
-    await new Promise((r) => setTimeout(r, 100));
-
     assertEquals(result.success, true);
     assertEquals(result.result, 115); // 100 + 10 + 5
 
-    const traces = bridge.getTraces();
+    // Wait for BroadcastChannel with polling (more reliable than fixed timeout)
+    let traces = bridge.getTraces();
+    for (let i = 0; i < 40 && traces.filter((t) => t.type === "capability_end").length < 2; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      traces = bridge.getTraces();
+    }
 
     // Should have 4 capability traces (2 starts + 2 ends)
     const capStarts = traces.filter((t) => t.type === "capability_start");
@@ -265,13 +269,15 @@ Deno.test({
       capabilityContext,
     );
 
-    // Wait for BroadcastChannel
-    await new Promise((r) => setTimeout(r, 100));
-
     assertEquals(result.success, true);
     assertEquals(result.result, 12); // (5 * 2) + 1 + 1 = 12
 
-    const traces = bridge.getTraces();
+    // Wait for BroadcastChannel with polling (more reliable than fixed timeout)
+    let traces = bridge.getTraces();
+    for (let i = 0; i < 40 && traces.filter((t) => t.type === "capability_end").length < 3; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      traces = bridge.getTraces();
+    }
 
     // Should have 6 capability traces (3 starts + 3 ends)
     const capStarts = traces.filter((t) => t.type === "capability_start");

@@ -22,19 +22,6 @@ export {
   type V1GradientAccumulators,
 } from "./v1-trainer.ts";
 
-// V2 Training (multi-head with TraceFeatures)
-export {
-  applyV2Gradients,
-  backwardV2,
-  buildTraceFeatures,
-  computeHeadScores,
-  createDefaultTraceStatsFromFeatures,
-  forwardV2WithCache,
-  fusionMLPForward,
-  traceStatsToVector,
-  type V2ForwardCache,
-} from "./v2-trainer.ts";
-
 // Multi-Level Training (n-SuperHyperGraph v1 refactor)
 export {
   applyLevelGradients,

@@ -66,6 +66,10 @@ export function getDefaultUserId(): string | null {
 export interface AuthResult {
   user_id: string;
   username?: string;
+  /** Organization for capability_records filtering (= username in cloud, "local" in local mode) */
+  org: string;
+  /** Project for capability_records filtering (default: "default") */
+  project: string;
 }
 
 /**
@@ -84,7 +88,7 @@ export async function validateRequest(
 ): Promise<AuthResult | null> {
   // Local mode: bypass auth, return default user
   if (!isCloudMode()) {
-    return { user_id: "local", username: "local" };
+    return { user_id: "local", username: "local", org: "local", project: "default" };
   }
 
   // Try API Key first (preferred for programmatic access)
@@ -112,6 +116,8 @@ export async function validateRequest(
       return {
         user_id: session.userId,
         username: session.username,
+        org: session.username, // org = username in cloud mode
+        project: "default",
       };
     }
   } catch (error) {
@@ -175,6 +181,8 @@ export async function validateApiKeyFromDb(
     return {
       user_id: user.id,
       username: user.username,
+      org: user.username, // org = username in cloud mode
+      project: "default",
     };
   } catch (error) {
     log.error("Error validating API key", { error });

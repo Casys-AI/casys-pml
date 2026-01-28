@@ -119,40 +119,49 @@ Deno.test("logContextUsage - stores metric in database", async () => {
   await db.close();
 });
 
-Deno.test("logQueryLatency - stores latency metric in database", async () => {
-  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
-  await db.connect();
+Deno.test({
+  name: "logQueryLatency - stores latency metric in database",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
+    await db.connect();
 
-  await db.exec(`
-    CREATE TABLE metrics (
-      id SERIAL PRIMARY KEY,
-      metric_name TEXT NOT NULL,
-      value REAL NOT NULL,
-      timestamp TIMESTAMPTZ DEFAULT NOW(),
-      metadata JSONB
-    )
-  `);
+    await db.exec(`
+      CREATE TABLE metrics (
+        id SERIAL PRIMARY KEY,
+        metric_name TEXT NOT NULL,
+        value REAL NOT NULL,
+        timestamp TIMESTAMPTZ DEFAULT NOW(),
+        metadata JSONB
+      )
+    `);
 
-  await logQueryLatency(db, 150.5, { query: "test query", schema_count: 5 });
+    await logQueryLatency(db, 150.5, { query: "test query", schema_count: 5 });
 
-  const rows = await db.query(
-    "SELECT * FROM metrics WHERE metric_name = 'query_latency_ms'",
-  );
+    const rows = await db.query(
+      "SELECT * FROM metrics WHERE metric_name = 'query_latency_ms'",
+    );
 
-  assertEquals(rows.length, 1);
-  assertEquals(parseFloat(rows[0].value as string), 150.5);
+    assertEquals(rows.length, 1);
+    assertEquals(parseFloat(rows[0].value as string), 150.5);
 
-  // PGlite returns JSONB as object, not string
-  const metadata = typeof rows[0].metadata === "string"
-    ? JSON.parse(rows[0].metadata)
-    : rows[0].metadata as Record<string, unknown>;
-  assertEquals(metadata.query, "test query");
-  assertEquals(metadata.schema_count, 5);
+    // PGlite returns JSONB as object, not string
+    const metadata = typeof rows[0].metadata === "string"
+      ? JSON.parse(rows[0].metadata)
+      : rows[0].metadata as Record<string, unknown>;
+    assertEquals(metadata.query, "test query");
+    assertEquals(metadata.schema_count, 5);
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("logCacheHitRate - stores hit rate metric", async () => {
+Deno.test({
+  name: "logCacheHitRate - stores hit rate metric",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
   const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
@@ -176,9 +185,14 @@ Deno.test("logCacheHitRate - stores hit rate metric", async () => {
   assertEquals(parseFloat(rows[0].value as string), 75); // Converted to percentage
 
   await db.close();
+  },
 });
 
-Deno.test("getRecentMetrics - retrieves metrics from database", async () => {
+Deno.test({
+  name: "getRecentMetrics - retrieves metrics from database",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
   const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
@@ -215,9 +229,14 @@ Deno.test("getRecentMetrics - retrieves metrics from database", async () => {
   assertEquals(metrics[0].metadata.test, "data2");
 
   await db.close();
+  },
 });
 
-Deno.test("calculateP95Latency - computes 95th percentile correctly", async () => {
+Deno.test({
+  name: "calculateP95Latency - computes 95th percentile correctly",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
   const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
@@ -246,6 +265,7 @@ Deno.test("calculateP95Latency - computes 95th percentile correctly", async () =
   assertEquals(p95, 95);
 
   await db.close();
+  },
 });
 
 Deno.test("calculateP95Latency - returns null when no data", async () => {

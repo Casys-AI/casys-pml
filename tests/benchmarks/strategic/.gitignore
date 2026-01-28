@@ -1,0 +1,9 @@
+# Large temporary data files
+benchmark-data.json
+*.tmp
+
+# Keep results and scripts
+!*-results.json
+!*.ts
+!*.py
+!*.md

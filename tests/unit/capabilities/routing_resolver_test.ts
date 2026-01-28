@@ -65,23 +65,27 @@ Deno.test("isLocalServer: docker/kubernetes are local", () => {
   assertEquals(isLocalServer("kubernetes"), true);
 });
 
-Deno.test("isCloudServer: memory is cloud", () => {
-  assertEquals(isCloudServer("memory"), true);
-  assertEquals(isLocalServer("memory"), false);
+// Note: With default "all client" config, no tools are server-routed
+// These tests verify the current security-first configuration
+
+Deno.test("isCloudServer: memory defaults to client (security-first config)", () => {
+  // With empty server list in config, all tools default to client
+  assertEquals(isCloudServer("memory"), false);
+  assertEquals(isLocalServer("memory"), true);
 });
 
-Deno.test("isCloudServer: tavily is cloud", () => {
-  assertEquals(isCloudServer("tavily"), true);
+Deno.test("isCloudServer: tavily defaults to client (security-first config)", () => {
+  assertEquals(isCloudServer("tavily"), false);
 });
 
-Deno.test("isCloudServer: pml is cloud", () => {
-  assertEquals(isCloudServer("pml"), true);
+Deno.test("isCloudServer: pml defaults to client (security-first config)", () => {
+  assertEquals(isCloudServer("pml"), false);
 });
 
-Deno.test("isCloudServer: json/math/crypto are cloud", () => {
-  assertEquals(isCloudServer("json"), true);
-  assertEquals(isCloudServer("math"), true);
-  assertEquals(isCloudServer("crypto"), true);
+Deno.test("isCloudServer: json/math/crypto default to client (security-first config)", () => {
+  assertEquals(isCloudServer("json"), false);
+  assertEquals(isCloudServer("math"), false);
+  assertEquals(isCloudServer("crypto"), false);
 });
 
 Deno.test("isLocalServer: unknown server defaults to local", () => {
@@ -93,64 +97,67 @@ Deno.test("isLocalServer: unknown server defaults to local", () => {
 // getToolRouting tests
 // ============================================
 
-Deno.test("getToolRouting: filesystem:read_file -> local", () => {
-  assertEquals(getToolRouting("filesystem:read_file"), "local");
+Deno.test("getToolRouting: filesystem:read_file -> client", () => {
+  assertEquals(getToolRouting("filesystem:read_file"), "client");
 });
 
-Deno.test("getToolRouting: memory:store -> cloud", () => {
-  assertEquals(getToolRouting("memory:store"), "cloud");
+Deno.test("getToolRouting: memory:store -> client (security-first config)", () => {
+  // With empty server list, all tools default to client
+  assertEquals(getToolRouting("memory:store"), "client");
 });
 
-Deno.test("getToolRouting: mcp__fs__read -> local", () => {
-  assertEquals(getToolRouting("mcp__fs__read"), "local");
+Deno.test("getToolRouting: mcp__fs__read -> client", () => {
+  assertEquals(getToolRouting("mcp__fs__read"), "client");
 });
 
 // ============================================
 // resolveRouting tests
 // ============================================
 
-Deno.test("resolveRouting: empty tools -> cloud (pure compute)", () => {
-  assertEquals(resolveRouting([]), "cloud");
+Deno.test("resolveRouting: empty tools -> server (pure compute)", () => {
+  assertEquals(resolveRouting([]), "server");
 });
 
 Deno.test("resolveRouting: explicit override takes precedence", () => {
-  // Even with filesystem tool, explicit "cloud" wins
-  assertEquals(resolveRouting(["filesystem:read"], "cloud"), "cloud");
-  // Explicit "local" wins over cloud tools
-  assertEquals(resolveRouting(["memory:store"], "local"), "local");
+  // Even with filesystem tool, explicit "server" wins
+  assertEquals(resolveRouting(["filesystem:read"], "server"), "server");
+  // Explicit "client" wins over server tools
+  assertEquals(resolveRouting(["memory:store"], "client"), "client");
 });
 
-Deno.test("resolveRouting: any local tool -> local", () => {
-  // Mix of local and cloud -> local wins
+Deno.test("resolveRouting: any client tool -> client", () => {
+  // Mix of client and server -> client wins
   assertEquals(
     resolveRouting(["filesystem:read", "memory:store", "tavily:search"]),
-    "local",
+    "client",
   );
 });
 
-Deno.test("resolveRouting: all cloud tools -> cloud", () => {
+Deno.test("resolveRouting: with security-first config, all tools -> client", () => {
+  // With empty server list, all tools default to client
   assertEquals(
     resolveRouting(["memory:store", "tavily:search", "json:parse"]),
-    "cloud",
+    "client",
   );
 });
 
-Deno.test("resolveRouting: single local tool -> local", () => {
-  assertEquals(resolveRouting(["filesystem:read"]), "local");
-  assertEquals(resolveRouting(["shell:execute"]), "local");
-  assertEquals(resolveRouting(["docker:run"]), "local");
+Deno.test("resolveRouting: single client tool -> client", () => {
+  assertEquals(resolveRouting(["filesystem:read"]), "client");
+  assertEquals(resolveRouting(["shell:execute"]), "client");
+  assertEquals(resolveRouting(["docker:run"]), "client");
 });
 
-Deno.test("resolveRouting: single cloud tool -> cloud", () => {
-  assertEquals(resolveRouting(["memory:store"]), "cloud");
-  assertEquals(resolveRouting(["pml:search"]), "cloud");
+Deno.test("resolveRouting: with security-first config, single tool -> client", () => {
+  // With empty server list, all tools default to client
+  assertEquals(resolveRouting(["memory:store"]), "client");
+  assertEquals(resolveRouting(["pml:search"]), "client");
 });
 
 Deno.test("resolveRouting: capability tools resolve correctly", () => {
-  // mcp__fs__read -> fs -> local
-  assertEquals(resolveRouting(["mcp__fs__read"]), "local");
-  // mcp__json__parse -> json -> cloud
-  assertEquals(resolveRouting(["mcp__json__parse"]), "cloud");
+  // mcp__fs__read -> fs -> client
+  assertEquals(resolveRouting(["mcp__fs__read"]), "client");
+  // mcp__json__parse -> json -> client (with security-first config)
+  assertEquals(resolveRouting(["mcp__json__parse"]), "client");
 });
 
 // ============================================
@@ -161,13 +168,13 @@ Deno.test("reloadRoutingConfig: clears cache", async () => {
   // First load
   await initRoutingConfig();
   const result1 = resolveRouting(["memory:store"]);
-  assertEquals(result1, "cloud");
+  assertEquals(result1, "client"); // With security-first config
 
   // Reload and verify still works
   reloadRoutingConfig();
   await initRoutingConfig();
   const result2 = resolveRouting(["memory:store"]);
-  assertEquals(result2, "cloud");
+  assertEquals(result2, "client"); // With security-first config
 });
 
 // ============================================
@@ -191,31 +198,31 @@ Deno.test("extractServerName: colon only", () => {
 Deno.test("resolveRouting: null/undefined in array filtered out", () => {
   // @ts-ignore - testing runtime behavior with bad data
   const result = resolveRouting([null, "memory:store", undefined, ""]);
-  // memory:store is cloud, invalid entries filtered
-  assertEquals(result, "cloud");
+  // memory:store defaults to client with security-first config, invalid entries filtered
+  assertEquals(result, "client");
 });
 
-Deno.test("resolveRouting: all invalid entries -> cloud (pure compute)", () => {
+Deno.test("resolveRouting: all invalid entries -> server (pure compute)", () => {
   // @ts-ignore - testing runtime behavior with bad data
   const result = resolveRouting([null, undefined, ""]);
-  // All filtered out = no tools = cloud
-  assertEquals(result, "cloud");
+  // All filtered out = no tools = server
+  assertEquals(result, "server");
 });
 
-Deno.test("isLocalServer: empty string -> local (safe default)", () => {
+Deno.test("isLocalServer: empty string -> client (safe default)", () => {
   assertEquals(isLocalServer(""), true);
 });
 
-Deno.test("isCloudServer: empty string -> false (not cloud)", () => {
+Deno.test("isCloudServer: empty string -> false (not server)", () => {
   assertEquals(isCloudServer(""), false);
 });
 
-Deno.test("getToolRouting: empty string -> local", () => {
-  assertEquals(getToolRouting(""), "local");
+Deno.test("getToolRouting: empty string -> client", () => {
+  assertEquals(getToolRouting(""), "client");
 });
 
-Deno.test("resolveRouting: mixed valid/invalid with local tool -> local", () => {
+Deno.test("resolveRouting: mixed valid/invalid with client tool -> client", () => {
   // @ts-ignore - testing runtime behavior
   const result = resolveRouting([null, "filesystem:read", "memory:store"]);
-  assertEquals(result, "local");
+  assertEquals(result, "client");
 });

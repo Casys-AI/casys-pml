@@ -45,9 +45,10 @@ Deno.test("isToolAllowed - crypto:* tools are allowed", () => {
   assertEquals(isToolAllowed("crypto:uuid"), true);
 });
 
-Deno.test("isToolAllowed - filesystem:* tools are allowed (in default config)", () => {
-  assertEquals(isToolAllowed("filesystem:read"), true);
-  assertEquals(isToolAllowed("filesystem:write"), true);
+Deno.test("isToolAllowed - filesystem:* tools are NOT in default allow list (require HIL)", () => {
+  // filesystem:* is not in the default allow list, so requires HIL approval
+  assertEquals(isToolAllowed("filesystem:read"), false);
+  assertEquals(isToolAllowed("filesystem:write"), false);
 });
 
 Deno.test("isToolAllowed - docker:* tools are NOT allowed (in ask list)", () => {

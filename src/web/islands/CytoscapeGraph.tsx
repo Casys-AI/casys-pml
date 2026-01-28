@@ -22,6 +22,7 @@ import {
   expandHull,
   type HullPoint,
 } from "../utils/graph/index.ts";
+import { parseToolId, getToolShortName } from "../../capabilities/tool-id-utils.ts";
 
 // Tool invocation from API (snake_case)
 interface ApiToolInvocation {
@@ -54,6 +55,8 @@ interface ApiNodeData {
     duration_ms: number;
     error_message?: string;
     priority: number;
+    // Two-level DAG: All logical operations (includes non-executable ops)
+    executed_path?: string[];
     task_results: Array<{
       task_id: string;
       tool: string;
@@ -62,6 +65,14 @@ interface ApiNodeData {
       success: boolean;
       duration_ms: number;
       layer_index?: number;
+      // Phase 2a: Fusion metadata
+      is_fused?: boolean;
+      logical_operations?: Array<{ tool_id: string; duration_ms?: number }>;
+      // Loop Abstraction metadata
+      loop_id?: string;
+      loop_type?: "for" | "while" | "forOf" | "forIn" | "doWhile";
+      loop_condition?: string;
+      body_tools?: string[];
       is_capability_call?: boolean;
       nested_tools?: string[];
     }>;
@@ -124,6 +135,13 @@ interface ToolInvocation {
 }
 
 // Story 11.4: Trace task result with layerIndex for fan-in/fan-out
+/** Phase 2a: Logical operation within a fused task */
+export interface LogicalOperation {
+  toolId: string;
+  durationMs?: number;
+}
+
+// Story 11.4: Trace task result with layerIndex for fan-in/fan-out
 export interface TraceTaskResult {
   taskId: string;
   tool: string;
@@ -143,6 +161,13 @@ export interface TraceTaskResult {
   bodyTools?: string[];
   /** Story 10.1: Flag indicating this is a capability call (not a regular tool) */
   isCapabilityCall?: boolean;
+  /** Story 10.1: Nested tools inside the called capability */
+  nestedTools?: string[];
+  // Phase 2a: Fusion metadata for two-level DAG
+  /** Whether this is a fused physical task containing multiple logical operations */
+  isFused?: boolean;
+  /** Logical operations within this fused task (only present when isFused is true) */
+  logicalOperations?: LogicalOperation[];
 }
 
 // Story 11.4: Execution trace for capability
@@ -155,6 +180,8 @@ export interface ExecutionTrace {
   errorMessage?: string;
   priority: number;
   taskResults: TraceTaskResult[];
+  // Two-level DAG: All logical operations (includes non-executable ops)
+  executedPath?: string[];
 }
 
 // Transformed types for internal use
@@ -370,6 +397,8 @@ export default function CytoscapeGraph({
   const animationFrameRef = useRef<number | null>(null);
   const serverColorsRef = useRef<Map<string, string>>(new Map());
   const capabilityColorsRef = useRef<Map<string, string>>(new Map());
+  // AbortController to cancel previous fetches and prevent race conditions
+  const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1134,6 +1163,17 @@ export default function CytoscapeGraph({
     const MAX_RETRIES = 5;
     const BASE_DELAY = 1000;
 
+    // Cancel any previous fetch to prevent race conditions
+    if (retryCount === 0 && fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this fetch chain
+    if (retryCount === 0) {
+      fetchAbortControllerRef.current = new AbortController();
+    }
+    const signal = fetchAbortControllerRef.current?.signal;
+
     console.log(`[CytoscapeGraph] loadData called (retry ${retryCount}, silent=${silent})`);
     // Only show loading indicator on initial load, not SSE refreshes
     if (!silent) {
@@ -1154,6 +1194,7 @@ export default function CytoscapeGraph({
         cache: "no-store", // Ensure fresh data after SSE refresh
         headers,
         credentials: "include",
+        signal, // Pass AbortSignal to allow cancellation
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -1195,6 +1236,8 @@ export default function CytoscapeGraph({
               duration_ms: number;
               error_message?: string;
               priority: number;
+              // Two-level DAG: All logical operations (includes non-executable ops)
+              executed_path?: string[];
               task_results: Array<{
                 task_id: string;
                 tool: string;
@@ -1203,6 +1246,9 @@ export default function CytoscapeGraph({
                 success: boolean;
                 duration_ms: number;
                 layer_index?: number;
+                // Phase 2a: Fusion metadata (snake_case from API)
+                is_fused?: boolean;
+                logical_operations?: Array<{ tool_id: string; duration_ms?: number }>;
                 // Loop Abstraction metadata (snake_case from API)
                 loop_id?: string;
                 loop_type?: "for" | "while" | "forOf" | "forIn" | "doWhile";
@@ -1219,6 +1265,8 @@ export default function CytoscapeGraph({
               durationMs: t.duration_ms,
               errorMessage: t.error_message,
               priority: t.priority,
+              // Two-level DAG: All logical operations for display
+              executedPath: t.executed_path,
               taskResults: t.task_results.map((r) => ({
                 taskId: r.task_id,
                 tool: r.tool,
@@ -1227,6 +1275,12 @@ export default function CytoscapeGraph({
                 success: r.success,
                 durationMs: r.duration_ms,
                 layerIndex: r.layer_index,
+                // Phase 2a: Fusion metadata (snake_case → camelCase)
+                isFused: r.is_fused,
+                logicalOperations: r.logical_operations?.map((op) => ({
+                  toolId: op.tool_id,
+                  durationMs: op.duration_ms,
+                })),
                 // Loop Abstraction metadata (snake_case → camelCase)
                 loopId: r.loop_id,
                 loopType: r.loop_type,
@@ -1377,10 +1431,15 @@ export default function CytoscapeGraph({
 
       console.log("[CytoscapeGraph] Data loaded, calling renderGraph(true)");
       renderGraph(true);
-      if (!silent) {
-        setIsLoading(false);
-      }
+      // Always reset loading state on success (fixes reconnection bug where silent refresh never reset loading)
+      setIsLoading(false);
     } catch (err) {
+      // Ignore AbortError (voluntary cancellation from new fetch starting)
+      if (err instanceof Error && err.name === "AbortError") {
+        console.log("[CytoscapeGraph] Fetch aborted (new fetch started)");
+        return;
+      }
+
       console.error("[CytoscapeGraph] Failed to load graph data:", err);
 
       // Retry with exponential backoff
@@ -1396,8 +1455,9 @@ export default function CytoscapeGraph({
       // Only show error on non-silent loads (silent SSE refreshes fail silently)
       if (!silent) {
         setError(err instanceof Error ? err.message : "Failed to load graph");
-        setIsLoading(false);
       }
+      // Always reset loading state after all retries exhausted
+      setIsLoading(false);
     }
   };
 
@@ -1522,8 +1582,7 @@ export default function CytoscapeGraph({
         if (latestTrace && latestTrace.taskResults.length > 0) {
           for (let i = 0; i < latestTrace.taskResults.length; i++) {
             const task = latestTrace.taskResults[i];
-            const [server = "unknown", ...nameParts] = task.tool.split(":");
-            const toolName = nameParts.join(":") || task.tool;
+            const { namespace: server, action: toolName } = parseToolId(task.tool);
             const color = getServerColor(server);
             const layerIndex = task.layerIndex ?? 0;
             const invId = `${cap.id}:inv-${i}`;
@@ -1552,8 +1611,7 @@ export default function CytoscapeGraph({
         } else if (cap.toolInvocations && cap.toolInvocations.length > 0) {
           // Priority 2: toolInvocations (full sequence with timestamps, no layerIndex)
           for (const inv of cap.toolInvocations) {
-            const [server = "unknown", ...nameParts] = inv.tool.split(":");
-            const toolName = nameParts.join(":") || inv.tool;
+            const { namespace: server, action: toolName } = parseToolId(inv.tool);
             const color = getServerColor(server);
             const invId = `${cap.id}:inv-${inv.sequenceIndex}`;
 
@@ -1587,8 +1645,7 @@ export default function CytoscapeGraph({
           // Priority 3: toolsUsed (deduplicated, no timestamps)
           for (let i = 0; i < cap.toolsUsed.length; i++) {
             const toolId = cap.toolsUsed[i];
-            const [server = "unknown", ...nameParts] = toolId.split(":");
-            const toolName = nameParts.join(":") || toolId;
+            const { namespace: server } = parseToolId(toolId);
             const color = getServerColor(server);
             const invId = `${cap.id}:inv-${i}`;
 
@@ -1596,9 +1653,7 @@ export default function CytoscapeGraph({
               group: "nodes",
               data: {
                 id: invId,
-                label: `#${i + 1} ${
-                  toolName.length > 12 ? toolName.slice(0, 10) + ".." : toolName
-                }`,
+                label: `#${i + 1} ${getToolShortName(toolId, 12)}`,
                 type: "tool_invocation",
                 tool: toolId,
                 server,

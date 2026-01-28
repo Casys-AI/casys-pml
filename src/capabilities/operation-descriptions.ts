@@ -19,7 +19,7 @@ export interface OperationDescription {
   description: string;
 
   /** Category for grouping */
-  category: "array" | "string" | "object" | "math" | "json" | "binary" | "logical" | "bitwise";
+  category: "array" | "string" | "object" | "math" | "json" | "binary" | "logical" | "bitwise" | "control";
 }
 
 /**
@@ -506,6 +506,45 @@ export const OPERATION_DESCRIPTIONS: OperationDescription[] = [
     description:
       "Shift bits right by specified positions without sign preservation. Zero-fill right shift. Common for unsigned bit operations.",
     category: "bitwise",
+  },
+
+  // ============================================================================
+  // Control Flow Operations (DAG Loop Pseudo-Tools)
+  // ============================================================================
+  {
+    toolId: "loop:for",
+    name: "for loop",
+    description:
+      "Iterate with initialization, condition, and increment expression. Classic C-style loop for index-based iteration. Common for counted repetition and array traversal by index.",
+    category: "control",
+  },
+  {
+    toolId: "loop:forOf",
+    name: "for-of loop",
+    description:
+      "Iterate over iterable values like arrays, strings, maps, and sets. Returns each element value directly. Common for collection traversal and element-by-element processing.",
+    category: "control",
+  },
+  {
+    toolId: "loop:forIn",
+    name: "for-in loop",
+    description:
+      "Iterate over enumerable property names of an object. Returns each property key as string. Common for object property enumeration and dynamic key access.",
+    category: "control",
+  },
+  {
+    toolId: "loop:while",
+    name: "while loop",
+    description:
+      "Repeat execution while condition is true. Evaluates condition before each iteration. Common for conditional repetition and unknown iteration counts.",
+    category: "control",
+  },
+  {
+    toolId: "loop:doWhile",
+    name: "do-while loop",
+    description:
+      "Execute at least once, then repeat while condition is true. Evaluates condition after each iteration. Common for menu loops and input validation requiring at least one execution.",
+    category: "control",
   },
 ];
 

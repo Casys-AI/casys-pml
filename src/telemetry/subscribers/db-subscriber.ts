@@ -138,7 +138,7 @@ export class AlgorithmDBSubscriber {
           ${t.thresholdUsed},
           '${t.decision}',
           NULL,
-          ${t.userId ? `'${escapeSql(t.userId)}'` : "NULL"}
+          ${t.userId && t.userId !== "local" ? `'${escapeSql(t.userId)}'` : "NULL"}
         )`;
       });
 

@@ -333,7 +333,8 @@ Deno.test("CapabilityStore - description preserved but name undefined", async ()
   });
 
   // name is derived from hash, not explicitly set (migration 022)
-  assertEquals(capability.name, null);
+  // Returns undefined (not null) when not set
+  assertEquals(capability.name, undefined);
   // description is still preserved
   assertEquals(capability.description, "Calculates the meaning of life");
 

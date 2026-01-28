@@ -13,6 +13,7 @@ import CatalogLayout from "../components/layout/CatalogLayout.tsx";
 import CodeBlock from "../components/ui/atoms/CodeBlock.tsx";
 import InputSchema from "../components/ui/atoms/InputSchema.tsx";
 import ToolBadge from "../components/ui/atoms/ToolBadge.tsx";
+import { parseToolId } from "../../capabilities/tool-id-utils.ts";
 
 interface ParametersSchema {
   type: string;
@@ -68,14 +69,13 @@ export default function NamespaceDetailIsland({
     );
   }, [capabilities, search]);
 
-  // Group and deduplicate tools by server
+  // Group and deduplicate tools by server (supports FQDNs, colon format, MCP dot notation)
   const groupedTools = useMemo(() => {
     if (!selectedCapability?.toolsUsed.length) return new Map<string, string[]>();
 
     const groups = new Map<string, Set<string>>();
     for (const tool of selectedCapability.toolsUsed) {
-      const [server, ...rest] = tool.split(":");
-      const action = rest.join(":") || tool;
+      const { namespace: server, action } = parseToolId(tool);
       if (!groups.has(server)) {
         groups.set(server, new Set());
       }

@@ -49,43 +49,53 @@ async function insertTestTools(db: PGliteClient): Promise<void> {
   }
 }
 
-Deno.test("GraphRAGEngine - getEdgeCount returns 0 for empty graph", async () => {
-  const db = await createTestDb();
-  await insertTestTools(db);
-  const engine = new GraphRAGEngine(db);
-  await engine.syncFromDatabase();
+Deno.test({
+  name: "GraphRAGEngine - getEdgeCount returns 0 for empty graph",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await createTestDb();
+    await insertTestTools(db);
+    const engine = new GraphRAGEngine(db);
+    await engine.syncFromDatabase();
 
-  const edgeCount = engine.getEdgeCount();
-  assertEquals(edgeCount, 0, "Empty graph should have 0 edges");
+    const edgeCount = engine.getEdgeCount();
+    assertEquals(edgeCount, 0, "Empty graph should have 0 edges");
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("GraphRAGEngine - getEdgeCount increases after updateFromExecution", async () => {
-  const db = await createTestDb();
-  await insertTestTools(db);
-  const engine = new GraphRAGEngine(db);
-  await engine.syncFromDatabase();
+Deno.test({
+  name: "GraphRAGEngine - getEdgeCount increases after updateFromExecution",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await createTestDb();
+    await insertTestTools(db);
+    const engine = new GraphRAGEngine(db);
+    await engine.syncFromDatabase();
 
-  // Execute workflow with dependencies
-  await engine.updateFromExecution({
-    executionId: "test-1",
-    executedAt: new Date(),
-    intentText: "test workflow",
-    dagStructure: {
-      tasks: [
-        { id: "t1", tool: "filesystem:read", arguments: {}, dependsOn: [] },
-        { id: "t2", tool: "filesystem:write", arguments: {}, dependsOn: ["t1"] },
-      ],
-    },
-    success: true,
-    executionTimeMs: 100,
-  });
+    // Execute workflow with dependencies
+    await engine.updateFromExecution({
+      executionId: "test-1",
+      executedAt: new Date(),
+      intentText: "test workflow",
+      dagStructure: {
+        tasks: [
+          { id: "t1", tool: "filesystem:read", arguments: {}, dependsOn: [] },
+          { id: "t2", tool: "filesystem:write", arguments: {}, dependsOn: ["t1"] },
+        ],
+      },
+      success: true,
+      executionTimeMs: 100,
+    });
 
-  const edgeCount = engine.getEdgeCount();
-  assertEquals(edgeCount, 1, "Graph should have 1 edge (read → write)");
+    const edgeCount = engine.getEdgeCount();
+    assertEquals(edgeCount, 1, "Graph should have 1 edge (read → write)");
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test("GraphRAGEngine - computeAdamicAdar finds related tools", async () => {

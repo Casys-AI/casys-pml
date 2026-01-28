@@ -50,8 +50,9 @@ export async function getExecutedToolIds(
   let rows;
 
   if (scope === "user") {
-    if (!userId) {
-      // No userId provided, return empty set
+    // Migration 039: user_id is UUID FK - "local" is not a valid UUID
+    if (!userId || userId === "local") {
+      // No valid userId provided, return empty set
       return new Set();
     }
     // Get tool_keys from task_results JSONB array for this user
@@ -162,6 +163,10 @@ export async function getUserCapabilities(
   db: DbClient,
   userId: string,
 ): Promise<unknown[]> {
+  // Migration 039: user_id is UUID FK - "local" is not a valid UUID
+  if (!userId || userId === "local") {
+    return [];
+  }
   return db.query(
     `SELECT * FROM workflow_pattern
      WHERE user_id = $1::uuid

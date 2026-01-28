@@ -370,15 +370,47 @@ export async function handleGraphHypergraph(
     }
 
     // Story 9.8: Multi-tenant isolation - filter by logged-in user
-    if (ctx.userId) {
+    // Note: "local" is not a valid UUID, skip filtering in local mode
+    if (ctx.userId && ctx.userId !== "local") {
       options.userId = ctx.userId;
+    }
+
+    // Multi-tenant: filter capability_records by org/project
+    if (ctx.userOrg) {
+      options.userOrg = ctx.userOrg;
+    }
+    if (ctx.userProject) {
+      options.userProject = ctx.userProject;
     }
 
     // Build hypergraph data
     const result = await ctx.capabilityDataService.buildHypergraphData(options);
 
+    // Issue 6 fix: Build capability UUID → name map for executedPath display resolution
+    // executedPath now contains UUIDs for capabilities (instead of names) for proper trace matching
+    let capabilityNameMap: Map<string, string> | undefined;
+    if (ctx.db && options.includeTraces) {
+      try {
+        const capRecords = await ctx.db.query(
+          `SELECT workflow_pattern_id, namespace, action FROM capability_records`,
+        );
+        capabilityNameMap = new Map();
+        for (const row of capRecords) {
+          const wpId = row.workflow_pattern_id as string | undefined;
+          const ns = row.namespace as string | undefined;
+          const act = row.action as string | undefined;
+          if (wpId && ns && act) {
+            capabilityNameMap.set(wpId, `${ns}:${act}`);
+          }
+        }
+        log.debug(`Built capability name map with ${capabilityNameMap.size} entries`);
+      } catch (err) {
+        log.warn("Failed to build capability name map for executedPath resolution", { error: err });
+      }
+    }
+
     const response = {
-      nodes: result.nodes.map(mapNodeData),
+      nodes: result.nodes.map((node) => mapNodeData(node, capabilityNameMap)),
       edges: result.edges.map(mapEdgeData),
       capability_zones: result.capabilityZones || [],
       capabilities_count: result.capabilitiesCount,

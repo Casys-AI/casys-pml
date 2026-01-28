@@ -67,6 +67,13 @@ export {
   isValidForDagConversion,
   staticStructureToDag,
 } from "./static-to-dag-converter.ts";
+
+// Story 11.4: Topological sort utilities (extracted for reuse)
+export {
+  CircularDependencyError,
+  computeLayerIndexForTasks,
+  topologicalSortTasks,
+} from "./topological-sort.ts";
 export type {
   ConditionalDAGStructure,
   ConditionalTask,

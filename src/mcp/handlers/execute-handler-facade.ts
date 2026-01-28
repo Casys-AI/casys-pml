@@ -131,9 +131,14 @@ export class ExecuteHandlerFacade {
       return this.notConfiguredError("ExecuteDirectUseCase not configured");
     }
 
+    // Pre-generate trace UUID at entry point (same pattern as workflowId)
+    // This ensures trace.id in DB matches the traceId used in sandbox
+    const executionTraceId = crypto.randomUUID();
+
     const result = await this.deps.executeDirectUC.execute({
       code: request.code!,
       intent: request.intent || "execute code",
+      executionTraceId,
       options: {
         timeout: request.options?.timeout,
         perLayerValidation: request.options?.per_layer_validation,

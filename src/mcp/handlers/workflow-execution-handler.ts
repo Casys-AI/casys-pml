@@ -33,6 +33,7 @@ import type { CapabilityStore } from "../../capabilities/capability-store.ts";
 import { getToolPermissionConfig } from "../../capabilities/permission-inferrer.ts";
 import { type AdaptiveThresholdManager, type ThresholdMode, updateThompsonSampling } from "../adaptive-threshold.ts";
 import { ExecutionCaptureService } from "../../application/services/execution-capture.service.ts";
+import { DAGConverterAdapter } from "../../infrastructure/di/adapters/execute/dag-converter-adapter.ts";
 // Story 10.5 AC10: WorkerBridge-based executor for 100% traceability
 import {
   cleanupWorkerBridgeExecutor,
@@ -685,6 +686,7 @@ export async function processGeneratorUntilPause(
       if (learningContext && deps.capabilityStore && (event.failedTasks ?? 0) === 0) {
         try {
           // Build task results for trace data (TraceTaskResult format)
+          // Story 11.4: Include layerIndex from DAG executor for TraceTimeline visualization
           const taskResults = layerResults.map((r) => {
             const task = dag.tasks.find((t) => t.id === r.taskId);
             return {
@@ -694,6 +696,7 @@ export async function processGeneratorUntilPause(
               result: (r.output ?? null) as import("../../capabilities/types.ts").JsonValue,
               success: r.status === "success",
               durationMs: r.executionTimeMs ?? 0,
+              layerIndex: r.layerIndex,
             };
           });
 
@@ -701,6 +704,8 @@ export async function processGeneratorUntilPause(
           const captureService = new ExecutionCaptureService({
             capabilityStore: deps.capabilityStore,
             capabilityRegistry: deps.capabilityRegistry,
+            dagConverter: new DAGConverterAdapter(),
+            mcpRegistry: deps.mcpRegistry,
           });
 
           const result = await captureService.capture({

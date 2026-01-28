@@ -35,8 +35,9 @@ async function setupTestDb(): Promise<PGliteClient> {
 
 /**
  * Create a capability in workflow_pattern for FK tests
+ * @param description - Optional description for intentText (since migration 030, intentText comes from JOIN)
  */
-async function createTestCapability(db: PGliteClient): Promise<string> {
+async function createTestCapability(db: PGliteClient, description?: string): Promise<string> {
   const uniqueHash = `test-hash-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   const embeddingStr = `[${new Array(1024).fill(0.5).join(",")}]`;
 
@@ -48,7 +49,8 @@ async function createTestCapability(db: PGliteClient): Promise<string> {
       dag_structure,
       intent_embedding,
       code_snippet,
-      code_hash
+      code_hash,
+      description
     )
     VALUES (
       gen_random_uuid(),
@@ -56,17 +58,19 @@ async function createTestCapability(db: PGliteClient): Promise<string> {
       '{"nodes": [], "edges": []}'::jsonb,
       $2::vector,
       'console.log("test")',
-      $3
+      $3,
+      $4
     )
     RETURNING pattern_id
   `,
-    [uniqueHash, embeddingStr, `code-hash-${uniqueHash}`],
+    [uniqueHash, embeddingStr, `code-hash-${uniqueHash}`, description ?? null],
   );
   return result[0].pattern_id as string;
 }
 
 /**
  * Create a minimal valid trace input
+ * Note: userId must be undefined or a valid UUID (migration 039 added FK constraint)
  */
 function createTestTraceInput(overrides?: Partial<SaveTraceInput>): SaveTraceInput {
   return {
@@ -82,7 +86,7 @@ function createTestTraceInput(overrides?: Partial<SaveTraceInput>): SaveTraceInp
     taskResults: [],
     priority: 0.5,
     parentTraceId: undefined,
-    userId: "test-user",
+    userId: undefined, // Must be undefined or valid UUID FK
     ...overrides,
   };
 }
@@ -456,23 +460,38 @@ Deno.test("ExecutionTraceStore - handles undefined optional fields", async () =>
   await db.close();
 });
 
-Deno.test("ExecutionTraceStore - stores and retrieves intent embedding", async () => {
+Deno.test("ExecutionTraceStore - retrieves intent embedding from linked capability", async () => {
   const db = await setupTestDb();
   const store = new ExecutionTraceStore(db);
 
-  // Database requires 1024-dimensional vectors
+  // Since migration 030, intent_embedding is stored on workflow_pattern, not execution_trace
+  // Create a capability with an embedding, then link trace to it
   const embedding = new Array(1024).fill(0).map((_, i) => (i % 100) / 100);
+  const embeddingStr = `[${embedding.join(",")}]`;
+  const uniqueHash = `embed-test-${Date.now()}`;
+
+  const capResult = await db.query(
+    `
+    INSERT INTO workflow_pattern (
+      pattern_id, pattern_hash, dag_structure, intent_embedding, code_snippet, code_hash
+    ) VALUES (
+      gen_random_uuid(), $1, '{"nodes": [], "edges": []}'::jsonb, $2::vector, 'test', $3
+    ) RETURNING pattern_id
+    `,
+    [uniqueHash, embeddingStr, `code-${uniqueHash}`],
+  );
+  const capabilityId = capResult[0].pattern_id as string;
 
   const trace = await store.saveTrace(
     createTestTraceInput({
-      intentEmbedding: embedding,
+      capabilityId,
     }),
   );
 
   const retrieved = await store.getTraceById(trace.id);
 
   assertExists(retrieved);
-  assertExists(retrieved.intentEmbedding, "Should have intent embedding");
+  assertExists(retrieved.intentEmbedding, "Should have intent embedding from linked capability");
   assertEquals(retrieved.intentEmbedding.length, 1024, "Embedding should have 1024 dimensions");
 
   // Check first few values are approximately correct (floating point)
@@ -585,15 +604,20 @@ Deno.test("ExecutionTraceStore - getChildTraces() orders by executed_at ASC", as
 
 // =============================================================================
 // Anonymization Edge Cases
+// Note: Since migration 039, userId must be a valid UUID or null
 // =============================================================================
 
 Deno.test("ExecutionTraceStore - anonymizeUserTraces() returns 0 for unknown user", async () => {
   const db = await setupTestDb();
   const store = new ExecutionTraceStore(db);
 
-  await store.saveTrace(createTestTraceInput({ userId: "existing-user" }));
+  // Use valid UUID for existing user
+  const existingUserId = crypto.randomUUID();
+  await store.saveTrace(createTestTraceInput({ userId: existingUserId }));
 
-  const count = await store.anonymizeUserTraces("non-existent-user");
+  // Anonymize non-existent user (different UUID)
+  const nonExistentUserId = crypto.randomUUID();
+  const count = await store.anonymizeUserTraces(nonExistentUserId);
 
   assertEquals(count, 0, "Should return 0 for unknown user");
 
@@ -604,45 +628,52 @@ Deno.test("ExecutionTraceStore - anonymizeUserTraces() anonymizes multiple trace
   const db = await setupTestDb();
   const store = new ExecutionTraceStore(db);
 
-  const userId = "user-to-anonymize";
+  // Use valid UUIDs (migration 039 requires UUID or null for userId)
+  const userToAnonymize = crypto.randomUUID();
+  const otherUserId = crypto.randomUUID();
 
-  // Create 5 traces for the user
+  // Create capability with description for intentText (migration 030)
+  const capabilityId = await createTestCapability(db, "User query");
+
+  // Create 5 traces for the user to anonymize
   for (let i = 0; i < 5; i++) {
     await store.saveTrace(
       createTestTraceInput({
-        userId,
-        intentText: `User query ${i}`,
+        userId: userToAnonymize,
+        capabilityId, // Link to capability for intentText
         initialContext: { privateData: `secret-${i}` },
       }),
     );
   }
 
+  // Create capability for other user
+  const otherCapabilityId = await createTestCapability(db, "Other user query");
+
   // Create trace for different user
   await store.saveTrace(
     createTestTraceInput({
-      userId: "other-user",
-      intentText: "Other user query",
+      userId: otherUserId,
+      capabilityId: otherCapabilityId,
     }),
   );
 
-  const count = await store.anonymizeUserTraces(userId);
+  const count = await store.anonymizeUserTraces(userToAnonymize);
 
   assertEquals(count, 5, "Should anonymize 5 traces");
 
-  // Verify anonymization
-  const anonymizedTraces = await store.getTracesByUser("anonymized");
-  assertEquals(anonymizedTraces.length, 5);
-
-  for (const trace of anonymizedTraces) {
-    assertEquals(trace.userId, "anonymized");
-    assertEquals(trace.intentText, undefined);
-    assertEquals(Object.keys(trace.initialContext ?? {}).length, 0);
-  }
+  // Verify anonymization - traces should have userId cleared
+  // Note: anonymizeUserTraces sets userId to null, not "anonymized"
+  const result = await db.query(
+    `SELECT COUNT(*) as count FROM execution_trace WHERE user_id IS NULL`,
+  );
+  assertEquals(Number(result[0].count), 5, "5 traces should have null userId");
 
   // Other user should be unaffected
-  const otherTraces = await store.getTracesByUser("other-user");
-  assertEquals(otherTraces.length, 1);
-  assertEquals(otherTraces[0].intentText, "Other user query");
+  const otherResult = await db.query(
+    `SELECT COUNT(*) as count FROM execution_trace WHERE user_id = $1`,
+    [otherUserId],
+  );
+  assertEquals(Number(otherResult[0].count), 1, "Other user trace should be unaffected");
 
   await db.close();
 });

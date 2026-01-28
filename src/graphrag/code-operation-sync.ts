@@ -157,13 +157,14 @@ export class CodeOperationSyncService {
               );
               updated++;
             } else {
-              // Insert new
+              // Insert new - extract server_id from toolId prefix (e.g., "code:filter" -> "code", "loop:for" -> "loop")
+              const serverId = operation.toolId.split(":")[0] || "code";
               await this.db.query(
                 `INSERT INTO tool_embedding (tool_id, server_id, tool_name, embedding, metadata, created_at)
                  VALUES ($1, $2, $3, $4::vector, $5, NOW())`,
                 [
                   operation.toolId,
-                  "code",
+                  serverId,
                   operation.name,
                   `[${embedding.join(",")}]`,
                   metadata,
@@ -210,20 +211,20 @@ export class CodeOperationSyncService {
    */
   async bootstrapIfEmpty(): Promise<boolean> {
     try {
-      // Check if any code operations exist
+      // Check if any code/loop operations exist
       const result = await this.db.query(
-        `SELECT COUNT(*) as count FROM tool_embedding WHERE tool_id LIKE 'code:%'`,
+        `SELECT COUNT(*) as count FROM tool_embedding WHERE tool_id LIKE 'code:%' OR tool_id LIKE 'loop:%'`,
       );
       const count = Number(result[0]?.count ?? 0);
 
       if (count > 0) {
-        log.debug(`[CodeOperationSync] ${count} code operations already exist, checking for updates...`);
+        log.debug(`[CodeOperationSync] ${count} code/loop operations already exist, checking for updates...`);
         // Still check for updates (new operations added to source)
         const syncResult = await this.sync(false);
         return syncResult.inserted > 0;
       }
 
-      log.info("[CodeOperationSync] No code operations found, bootstrapping...");
+      log.info("[CodeOperationSync] No code/loop operations found, bootstrapping...");
       const syncResult = await this.sync(true);
       return syncResult.success && syncResult.inserted > 0;
     } catch (error) {

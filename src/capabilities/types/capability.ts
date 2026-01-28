@@ -135,6 +135,8 @@ export interface SaveCapabilityInput {
    * If provided, an ExecutionTrace will be created linked to the capability
    */
   traceData?: {
+    /** Pre-generated trace ID (used as DB id for hierarchy) */
+    id?: string;
     /** Input context for this execution */
     initialContext?: Record<string, JsonValue>;
     /** Path of executed nodes */
@@ -160,6 +162,11 @@ export interface SaveCapabilityInput {
    * Used to create "contains" edges for meta-capabilities
    */
   staticStructure?: StaticStructure;
+  /**
+   * Skip emitting zone events (capability.zone.created/updated)
+   * Used when caller will emit events after additional processing (e.g., registry creation)
+   */
+  skipZoneEvents?: boolean;
 }
 
 /**
@@ -264,6 +271,16 @@ export interface CapabilityFilters {
    * Migration 039: created_by → user_id (UUID FK)
    */
   userId?: string;
+  /**
+   * Filter capability_records by organization (multi-tenant)
+   * When set, only returns capability_records where org = userOrg
+   */
+  userOrg?: string;
+  /**
+   * Filter capability_records by project (multi-tenant)
+   * When set, only returns capability_records where project = userProject
+   */
+  userProject?: string;
 }
 
 /**

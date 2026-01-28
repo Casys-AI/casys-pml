@@ -40,6 +40,8 @@ export interface SandboxExecutionResult {
   toolsCalled?: string[];
   /** Detailed records of each tool call */
   toolCallRecords?: ToolCallRecord[];
+  /** Trace ID for this execution (for parent-child linking) */
+  traceId: string;
 }
 
 /**
@@ -63,8 +65,31 @@ export type ToolRouting = "client" | "server";
 
 /**
  * Tool call handler function type.
+ *
+ * @param toolId - Tool identifier (e.g., "std:exec_35eb9188")
+ * @param args - Arguments for the tool
+ * @param parentTraceId - Trace ID of the parent execution (for linking nested traces)
  */
 export type ToolCallHandler = (
   toolId: string,
   args: unknown,
+  parentTraceId: string,
 ) => Promise<unknown>;
+
+/**
+ * Options for SandboxExecutor.execute() method.
+ */
+export interface SandboxExecuteOptions {
+  /** Context/arguments passed to the sandboxed code */
+  context: Record<string, unknown>;
+  /** Handler for client-routed tool calls */
+  clientToolHandler?: ToolCallHandler;
+  /** Workflow ID for HIL continuation (also used as traceId per ADR-065) */
+  workflowId?: string;
+  /**
+   * Map from short tool format to FQDN.
+   * Used to record FQDNs in toolCallRecords for layerIndex resolution.
+   * Example: "filesystem:read_file" → "pml.mcp.filesystem.read_file.4ff0"
+   */
+  fqdnMap?: Map<string, string>;
+}

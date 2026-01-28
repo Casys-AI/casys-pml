@@ -120,6 +120,12 @@ export interface OrchestratorConfig {
   numLayers: number;
   dropout: number;
   leakyReluSlope: number;
+  /**
+   * Residual weight for downward message passing.
+   * output = (1-α)*propagated + α*original
+   * @default 0 (pure propagation, no residual)
+   */
+  downwardResidual?: number;
 }
 
 /**
@@ -477,10 +483,14 @@ export class MultiLevelOrchestrator {
       if (headsE.length > 0) {
         const E_concat = math.concatHeads(headsE);
 
-        // THEN apply residual connection: E^k ← E^k_pre + E_concat
-        // Both have same dimension [numCaps][numHeads * headDim]
+        // Apply residual connection with configurable weight
+        // E_new = (1-α)*propagated + α*original, where α = downwardResidual
+        const alpha = config.downwardResidual ?? 0;
         const E_new = capsAtLevelPreDownward.map((row, i) =>
-          row.map((val, j) => val + (E_concat[i]?.[j] ?? 0))
+          row.map((val, j) => {
+            const propagated = E_concat[i]?.[j] ?? 0;
+            return (1 - alpha) * propagated + alpha * val;
+          })
         );
 
         E.set(level, E_new);
@@ -528,9 +538,15 @@ export class MultiLevelOrchestrator {
         if (headsH.length > 0) {
           const H_concat = math.concatHeads(headsH);
 
-          // THEN apply residual connection: H ← H_pre + H_concat
-          // Both have same dimension [numTools][numHeads * headDim]
-          H = H_preDownward.map((row, i) => row.map((val, j) => val + (H_concat[i]?.[j] ?? 0)));
+          // Apply residual connection with configurable weight
+          // H = (1-α)*propagated + α*original, where α = downwardResidual
+          const alpha = config.downwardResidual ?? 0;
+          H = H_preDownward.map((row, i) =>
+            row.map((val, j) => {
+              const propagated = H_concat[i]?.[j] ?? 0;
+              return (1 - alpha) * propagated + alpha * val;
+            })
+          );
         }
 
         attentionDownward.set(-1, levelAttention);
@@ -616,7 +632,7 @@ export class MultiLevelOrchestrator {
       E.set(level, embs.map((row) => [...row]));
     }
 
-    // Apply V→V enrichment (with cache if trainable params provided)
+    // Apply V→V enrichment (with cache for backward pass)
     let v2vCache: V2VForwardCache | undefined;
     let H_enriched: number[][];
 
@@ -625,9 +641,15 @@ export class MultiLevelOrchestrator {
       const v2vResult = this.vertexToVertexPhase.forwardWithCache(H_init, this.cooccurrenceData, v2vParams);
       H_enriched = v2vResult.embeddings;
       v2vCache = v2vResult.cache;
+    } else if (v2vParams) {
+      // v2vParams provided but V2V not configured - this is a bug
+      throw new Error(
+        "[MultiLevelOrchestrator] v2vParams provided but V2V phase not configured. " +
+        "Either call setCooccurrenceData() or don't pass v2vParams."
+      );
     } else {
-      // Use config-based V2V (no cache)
-      H_enriched = this.applyV2VEnrichment(H_init);
+      // No V2V requested - pass through unchanged
+      H_enriched = H_init.map(row => [...row]);
     }
 
     let H = H_enriched.map((row) => [...row]);

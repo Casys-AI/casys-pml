@@ -6,6 +6,8 @@
  * @module loader/types
  */
 
+import type { UiOrchestration } from "../types/ui-orchestration.ts";
+
 // ============================================================================
 // Capability Metadata Types
 // ============================================================================
@@ -96,6 +98,39 @@ export interface CapabilityMetadata {
   install?: McpInstallInfo;
   /** Proxy URL for http type (server-side) */
   proxyTo?: string;
+
+  /** JSON Schema for input parameters validation */
+  parametersSchema?: Record<string, unknown>;
+
+  /**
+   * Tools used by this capability (FQDNs) - Issue 6 fix.
+   * When loading this capability, populate fqdnMap with these FQDNs
+   * so that nested capability calls can be resolved to UUIDs for trace matching.
+   */
+  toolsUsed?: string[];
+
+  /**
+   * UI orchestration configuration for MCP Apps composite display.
+   *
+   * When defined, this capability can produce a composite UI by
+   * collecting UI resources from multiple tool calls and arranging
+   * them according to the layout and sync rules.
+   *
+   * @example
+   * ```typescript
+   * {
+   *   intent: "Analyze and visualize sales",
+   *   code: `...`,
+   *   ui: {
+   *     layout: "split",
+   *     sync: [{ from: "postgres:query", event: "filter", to: "viz:render", action: "update" }]
+   *   }
+   * }
+   * ```
+   *
+   * @see UiOrchestration
+   */
+  ui?: UiOrchestration;
 }
 
 /**
@@ -133,6 +168,8 @@ export interface McpDependency {
   command?: string;
   /** Optional: command arguments */
   args?: string[];
+  /** Optional: environment variables to pass to the process */
+  env?: Record<string, string>;
 }
 
 // ============================================================================
@@ -314,7 +351,8 @@ export type LoaderErrorCode =
   | "INVALID_FQDN" // Invalid FQDN format (expected org.project.namespace.action)
   | "SUBPROCESS_SPAWN_FAILED"
   | "SUBPROCESS_CALL_FAILED"
-  | "SUBPROCESS_TIMEOUT";
+  | "SUBPROCESS_TIMEOUT"
+  | "VALIDATION_ERROR"; // Arguments don't match parametersSchema
 
 /**
  * Loader error with code and context.

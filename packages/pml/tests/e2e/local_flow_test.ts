@@ -16,7 +16,7 @@ import {
   teardownE2EContext,
   type E2ETestContext,
 } from "./test-harness.ts";
-import { createMockServer, type MockCloudServer } from "./mock-cloud-server.ts";
+import { createMockServer, type MockCloudServer } from "../fixtures/mock-cloud-server.ts";
 import { CapabilityLoader } from "../../src/loader/capability-loader.ts";
 import { SandboxWorker } from "../../src/sandbox/mod.ts";
 

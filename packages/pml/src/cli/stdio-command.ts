@@ -26,11 +26,14 @@ import {
 import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
 import { SessionClient } from "../session/mod.ts";
 import { PendingWorkflowStore } from "../workflow/mod.ts";
-import { TraceSyncer, type LocalExecutionTrace, type JsonValue } from "../tracing/mod.ts";
+import { TraceSyncer } from "../tracing/mod.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { reloadEnv } from "../byok/env-loader.ts";
 import { stdioLog } from "../logging.ts";
+import { loadMcpServers } from "../config.ts";
+import { discoverAllMcpToolsWithTimeout, summarizeDiscovery, syncDiscoveredTools } from "../discovery/mod.ts";
+import { StdioManager } from "../loader/stdio-manager.ts";
 
 // Shared utilities
 import {
@@ -85,7 +88,8 @@ function sendError(
 }
 
 /**
- * Send MCP notification to client
+ * Send MCP notification to client (notifications/message)
+ * @see https://spec.modelcontextprotocol.io/specification/server/utilities/logging/
  */
 function sendNotification(
   level: "debug" | "info" | "warning" | "error",
@@ -266,6 +270,8 @@ async function handleToolsCall(
           storedFqdnMap,
           { approved: true, workflowId: continueWorkflow.workflowId },
           stdioLogger,
+          undefined, // serverWorkflowId not needed for continuation
+          pendingWorkflow.dagTasks, // Story 11.4: DAG tasks with layerIndex
         );
 
         pendingWorkflowStore.delete(continueWorkflow.workflowId!);
@@ -280,6 +286,7 @@ async function handleToolsCall(
               pendingWorkflowStore,
               pendingWorkflow.code,
               pendingWorkflow.fqdnMap,
+              pendingWorkflow.dagTasks, // Story 11.4
             ),
           });
           return;
@@ -345,6 +352,8 @@ async function handleToolsCall(
           fqdnMap,
           continueWorkflow,
           stdioLogger,
+          execLocally.workflowId, // ADR-065: server workflowId = client traceId
+          execLocally.dag?.tasks, // Story 11.4: DAG tasks with layerIndex
         );
 
         // Handle approval_required (HIL pause)
@@ -359,6 +368,7 @@ async function handleToolsCall(
               pendingWorkflowStore,
               execLocally.code,
               Object.fromEntries(fqdnMap),
+              execLocally.dag?.tasks, // Story 11.4
             ),
           });
           return;
@@ -379,28 +389,8 @@ async function handleToolsCall(
           return;
         }
 
-        // Send trace to finalize capability creation if workflowId present
-        if (execLocally.workflowId && traceSyncer) {
-          const trace: LocalExecutionTrace = {
-            workflowId: execLocally.workflowId,
-            capabilityId: "",
-            success: true,
-            durationMs: localResult.durationMs,
-            taskResults: localResult.toolCallRecords.map((record, i) => ({
-              taskId: `task_${i}`,
-              tool: record.tool,
-              args: (record.args ?? {}) as Record<string, JsonValue>,
-              result: (record.result ?? null) as JsonValue,
-              success: record.success,
-              durationMs: record.durationMs,
-              timestamp: new Date().toISOString(),
-            })),
-            decisions: [],
-            timestamp: new Date().toISOString(),
-          };
-          traceSyncer.enqueue(trace);
-          stdioLog.debug(`Trace queued for capability finalization: ${execLocally.workflowId}`);
-        }
+        // ADR-065: Trace is now sent by local-executor.ts with unified workflowId/traceId
+        // No need for duplicate trace here - local-executor passes workflowId to enqueueDirectExecutionTrace()
 
         // Return successful local execution result
         sendResponse({
@@ -680,15 +670,70 @@ export function createStdioCommand(): Command<any> {
         stdioLog.debug(`Failed to initialize CapabilityLoader: ${error}`);
       }
 
-      // Initialize TraceSyncer
+      // Initialize TraceSyncer (ADR-065: explicit flush only, no auto-flush timer)
       traceSyncer = new TraceSyncer({
         cloudUrl,
         apiKey,
         batchSize: 10,
-        flushIntervalMs: 5000,
         maxRetries: 3,
       });
       stdioLog.debug(`TraceSyncer initialized`);
+
+      // F5 Fix: Discover tools from user-configured MCP servers (fully async, non-blocking)
+      // Discovery runs in background and doesn't block stdio loop startup
+      const userMcpServers = loadMcpServers(config);
+      if (userMcpServers.size > 0) {
+        stdioLog.debug(`Starting async discovery for ${userMcpServers.size} user MCP server(s)...`);
+
+        // Fire-and-forget: don't await, let it run in background
+        (async () => {
+          const discoveryManager = new StdioManager(60_000); // 1min idle timeout
+
+          try {
+            // Use timeout version with parallel execution (5 concurrent, 60s global timeout)
+            const discoveryResults = await discoverAllMcpToolsWithTimeout(
+              userMcpServers,
+              discoveryManager,
+              10_000,  // 10s per server
+              60_000,  // 60s global timeout
+              5,       // 5 parallel
+            );
+
+            const summary = summarizeDiscovery(discoveryResults);
+
+            stdioLog.debug(
+              `MCP Discovery: ${summary.successfulServers}/${summary.totalServers} servers, ` +
+              `${summary.totalTools} tools found`
+            );
+
+            // F11 Fix: Send MCP notification for failures (visible to user in Claude Code)
+            // stderr logs are invisible in stdio mode, so use notifications/message
+            if (summary.failures.length > 0) {
+              const failureDetails = summary.failures
+                .map((f) => `${f.server}: ${f.error}`)
+                .join("; ");
+              sendNotification(
+                "warning",
+                `MCP Discovery: ${summary.failures.length} server(s) failed - ${failureDetails}`,
+              );
+            }
+
+            // Sync discovered tools to cloud
+            if (summary.totalTools > 0) {
+              const syncResult = await syncDiscoveredTools(cloudUrl, apiKey, discoveryResults);
+              if (syncResult.success) {
+                stdioLog.debug(`MCP Sync: ${syncResult.synced} tools synced to cloud`);
+              } else {
+                stdioLog.debug(`MCP Sync failed (non-fatal): ${syncResult.error}`);
+              }
+            }
+          } catch (error) {
+            stdioLog.debug(`MCP Discovery failed (non-fatal): ${error}`);
+          } finally {
+            discoveryManager.shutdownAll();
+          }
+        })();
+      }
 
       // Start stdio loop
       try {

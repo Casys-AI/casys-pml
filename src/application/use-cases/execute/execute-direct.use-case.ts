@@ -7,6 +7,9 @@
  * Phase 3.1: Execute Handler → Use Cases refactoring
  *
  * @module application/use-cases/execute/execute-direct
+ *
+ * NOTE: Used for server-routed MCP execution (execute_locally: false).
+ * Client-routed execution uses packages/pml/src/loader/capability-loader.ts.
  */
 
 import * as log from "@std/log";
@@ -35,6 +38,7 @@ import {
 import { getUserScope, resolveToolFqdn } from "../../../lib/user.ts";
 import { saveWorkflowState } from "../../../cache/workflow-state-cache.ts";
 import type { LearningContext } from "../../../cache/types.ts";
+import { computeLayerIndexForTasks } from "../../../dag/mod.ts";
 
 // ============================================================================
 // Interfaces (Clean Architecture - no concrete imports)
@@ -87,7 +91,7 @@ export interface IDAGConverter {
  * Worker bridge factory interface
  */
 export interface IWorkerBridgeFactory {
-  create(config: unknown): [IDAGExecutor, { bridge: unknown; traces: unknown[] }];
+  create(config: { toolDefinitions?: unknown[]; traceId?: string; parentTraceId?: string }): [IDAGExecutor, { bridge: unknown; traces: unknown[] }];
   cleanup(context: { bridge: unknown }): void;
 }
 
@@ -272,8 +276,8 @@ export class ExecuteDirectUseCase {
         return {
           success: false,
           error: {
-            code: "INVALID_CODE",
-            message: "Code must use MCP tools to be executable. No valid DAG could be created.",
+            code: "NO_TOOL_CALLS",
+            message: "No MCP tool calls detected in code.",
             details: {
               hint: "Ensure your code calls MCP tools like: const result = await mcp.filesystem.read_file({ path: '...' });",
             },
@@ -287,7 +291,7 @@ export class ExecuteDirectUseCase {
         return {
           success: false,
           error: {
-            code: "EMPTY_DAG",
+            code: "NO_EXECUTABLE_TASKS",
             message: "No executable tasks found in code.",
           },
         };
@@ -296,10 +300,16 @@ export class ExecuteDirectUseCase {
       // Step 5: Optimize DAG
       const optimizedDAG = this.deps.dagConverter.optimizeDAG(logicalDAG);
 
+      // DEBUG: Check if fusion is happening
+      const fusedEntries = Array.from(optimizedDAG.physicalToLogical.entries())
+        .filter(([_, logicalIds]) => logicalIds.length > 1);
+
       log.info("[ExecuteDirectUseCase] Executing via DAG", {
         logicalTasks: logicalDAG.tasks.length,
         physicalTasks: optimizedDAG.tasks.length,
         fusionRate: Math.round((1 - optimizedDAG.tasks.length / logicalDAG.tasks.length) * 100),
+        fusedTasksCount: fusedEntries.length,
+        fusedMappings: fusedEntries.map(([phys, log]) => ({ physical: phys, logicalCount: log.length })),
       });
 
       // Step 5.5: Hybrid routing check (Story 14 - PML Execute Hybrid Routing)
@@ -364,13 +374,30 @@ export class ExecuteDirectUseCase {
               })),
             );
 
+            // Story 11.4: Compute layerIndex for each task so client can track layers
+            // Cast tasks to proper type (IDAGConverter returns unknown[] for flexibility)
+            type DAGTask = { id: string; dependsOn: string[]; tool?: string };
+            const tasksWithLayers = computeLayerIndexForTasks(logicalDAG.tasks as DAGTask[]);
+
+            // DEBUG: Log DAG tasks with dependencies to verify static analysis
+            log.info(`[ExecuteDirectUseCase] DEBUG DAG tasks: ${JSON.stringify(
+              (logicalDAG.tasks as DAGTask[]).map(t => ({
+                id: t.id,
+                tool: t.tool,
+                dependsOn: t.dependsOn,
+                layerIndex: (tasksWithLayers.find(tw => tw.id === t.id) as { layerIndex: number } | undefined)?.layerIndex,
+              }))
+            )}`);
+
             // Build LearningContext for capability creation when trace is received
             const learningContext: LearningContext = {
               code,
               intent,
               staticStructure,
-              toolsUsed,
+              toolsUsed: toolsWithFqdn.map(t => t.fqdn), // FQDNs for capability registration
               userId: this.userId ?? undefined,
+              traceId: request.executionTraceId, // Pre-generated trace ID (ADR-041)
+              parentTraceId: request.parentTraceId, // Parent trace for nested execution (ADR-041)
             };
 
             // Store in Deno KV with 1-hour TTL for correlation when client sends trace
@@ -399,18 +426,33 @@ export class ExecuteDirectUseCase {
                 dag: {
                   mode: "dag",
                   tasksCount: logicalDAG.tasks.length,
-                  layersCount: 0,
+                  layersCount: tasksWithLayers.length > 0
+                    ? Math.max(...tasksWithLayers.map((t) => t.layerIndex)) + 1
+                    : 0,
                   toolsDiscovered: toolsUsed,
+                  // Story 11.4: Include tasks with layerIndex for TraceTimeline visualization
+                  // Use FQDN in tool field - client normalizes via getToolDisplayName for layerIndex lookup
+                  tasks: tasksWithLayers
+                    .filter((t): t is typeof t & { tool: string } => !!t.tool)
+                    .map((t) => {
+                      const fqdn = toolsWithFqdn.find(tw => tw.id === t.tool)?.fqdn;
+                      return {
+                        id: t.id,
+                        tool: fqdn ?? t.tool,  // FQDN for consistency
+                        dependsOn: t.dependsOn,
+                        layerIndex: t.layerIndex,
+                      };
+                    }),
                 },
               },
             };
           } else {
-            // Non-package client: error - they need to install the package
+            // Non-package client: error - MCP server not reachable
             return {
               success: false,
               error: {
-                code: "CLIENT_TOOLS_REQUIRE_PACKAGE",
-                message: "Code contains client-side tools that cannot be executed on the server. Install PML package: deno install -Agf jsr:@anthropic/pml",
+                code: "MCP_SERVER_UNREACHABLE",
+                message: `MCP server unreachable for tools: ${clientTools.join(", ")}`,
                 details: {
                   clientTools,
                   toolsUsed,
@@ -424,6 +466,8 @@ export class ExecuteDirectUseCase {
       // Step 6: Create executor and execute
       const [executor, executorContext] = this.deps.workerBridgeFactory.create({
         toolDefinitions: toolDefs,
+        traceId: request.executionTraceId, // Pre-generated trace ID for hierarchy
+        parentTraceId: request.parentTraceId, // Parent trace ID for nested execution (ADR-041)
       });
 
       try {
@@ -488,6 +532,8 @@ export class ExecuteDirectUseCase {
           taskResults,
           staticStructure,
           correlationId,
+          request.executionTraceId, // Pre-generated trace ID for hierarchy (ADR-041)
+          request.parentTraceId, // Parent trace ID for nested execution (ADR-041)
         );
 
         // Step 9: Post-execution learning (DR-DSP, SHGAT nodes, PER training)
@@ -576,6 +622,8 @@ export class ExecuteDirectUseCase {
     taskResults: TraceTaskResult[],
     staticStructure: StaticStructure,
     correlationId: string,
+    executionTraceId?: string, // Pre-generated trace ID for hierarchy (ADR-041)
+    parentTraceId?: string, // Parent trace ID for nested execution (ADR-041)
   ): Promise<{
     capability: { id: string; codeHash: string; name?: string };
     capabilityFqdn?: string;
@@ -608,6 +656,8 @@ export class ExecuteDirectUseCase {
     );
 
     // Save capability
+    // Note: traceData.id is the pre-generated trace UUID from entry point (execute-handler-facade.ts)
+    // This ensures trace.id in DB matches the traceId used in sandbox (AC1 - ADR-041)
     const { capability } = await this.deps.capabilityRepo.saveCapability({
       code,
       intent,
@@ -615,6 +665,8 @@ export class ExecuteDirectUseCase {
       success: true,
       toolsUsed: toolsCalled,
       traceData: {
+        id: executionTraceId, // Pre-generated trace ID for parent-child hierarchy (ADR-041)
+        parentTraceId, // Parent trace ID for nested execution (ADR-041)
         executedPath: toolsCalled,
         taskResults,
         decisions: inferredDecisions,

@@ -52,8 +52,25 @@ export class TraceCollector {
   /** Whether the collector has been finalized */
   private finalized = false;
 
-  constructor() {
+  /** Unique trace ID (generated at creation) */
+  private readonly traceId: string;
+
+  /** Parent trace ID for nested calls */
+  private readonly parentTraceId?: string;
+
+  constructor(options?: { traceId?: string; parentTraceId?: string }) {
     this.startTime = Date.now();
+    // Generate traceId if not provided (same pattern as workflowId)
+    this.traceId = options?.traceId ?? crypto.randomUUID();
+    this.parentTraceId = options?.parentTraceId;
+  }
+
+  /**
+   * Get the trace ID for this collector.
+   * Used to pass as parentTraceId to nested capability calls.
+   */
+  getTraceId(): string {
+    return this.traceId;
   }
 
   /**
@@ -154,6 +171,8 @@ export class TraceCollector {
     this.finalized = true;
 
     const trace: LocalExecutionTrace = {
+      traceId: this.traceId,
+      parentTraceId: this.parentTraceId,
       capabilityId,
       success,
       error,

@@ -6,11 +6,24 @@
  * - Load params from database
  * - Params survive server restart simulation
  *
+ * NOTE: Uses trainBatchV1KHeadBatched (production method) instead of legacy trainOnExample.
+ * In preserveDim mode (default), layerParams are not used - headParams/levelParams are.
+ *
  * @module tests/unit/mcp/shgat_persistence_test
  */
 
 import { assertEquals, assertExists } from "@std/assert";
 import { createSHGATFromCapabilities } from "../../../src/graphrag/algorithms/shgat.ts";
+
+/**
+ * Helper to train SHGAT using the production method (trainBatchV1KHeadBatched)
+ */
+function trainExample(
+  shgat: ReturnType<typeof createSHGATFromCapabilities>,
+  example: { intentEmbedding: number[]; contextTools: string[]; candidateId: string; outcome: number },
+): void {
+  shgat.trainBatchV1KHeadBatched([example]);
+}
 
 // =============================================================================
 // SHGAT exportParams/importParams Tests
@@ -60,8 +73,8 @@ Deno.test("SHGAT Persistence - importParams restores weights", () => {
   const shgat1 = createSHGATFromCapabilities(capabilities);
   const shgat2 = createSHGATFromCapabilities(capabilities);
 
-  // Train shgat1 to modify weights
-  shgat1.trainOnExample({
+  // Train shgat1 to modify weights (using production method)
+  trainExample(shgat1, {
     intentEmbedding: new Array(1024).fill(0.3),
     contextTools: ["fs:read"],
     candidateId: "cap-1",
@@ -77,11 +90,11 @@ Deno.test("SHGAT Persistence - importParams restores weights", () => {
   // Export from shgat2 should match
   const params2 = shgat2.exportParams();
 
-  // layerParams should be the same
+  // headParams should be the same (preserveDim mode uses headParams, not layerParams)
   assertEquals(
-    JSON.stringify(params.layerParams),
-    JSON.stringify(params2.layerParams),
-    "layerParams should match after import",
+    JSON.stringify(params.headParams),
+    JSON.stringify(params2.headParams),
+    "headParams should match after import",
   );
 });
 
@@ -97,9 +110,9 @@ Deno.test("SHGAT Persistence - round-trip through JSON preserves params", () => 
 
   const shgat = createSHGATFromCapabilities(capabilities);
 
-  // Train a bit
+  // Train a bit (using production method)
   for (let i = 0; i < 5; i++) {
-    shgat.trainOnExample({
+    trainExample(shgat, {
       intentEmbedding: new Array(1024).fill(0.1 + i * 0.01),
       contextTools: ["fs:read"],
       candidateId: "cap-1",
@@ -115,11 +128,11 @@ Deno.test("SHGAT Persistence - round-trip through JSON preserves params", () => 
   const shgat2 = createSHGATFromCapabilities(capabilities);
   shgat2.importParams(parsed);
 
-  // Verify the weights are preserved
+  // Verify the weights are preserved (headParams in preserveDim mode)
   const exported2 = shgat2.exportParams();
   assertEquals(
-    JSON.stringify(exported.layerParams),
-    JSON.stringify(exported2.layerParams),
+    JSON.stringify(exported.headParams),
+    JSON.stringify(exported2.headParams),
     "Weights should survive JSON round-trip",
   );
 });
@@ -143,7 +156,7 @@ Deno.test("SHGAT Persistence - simulate DB save/load cycle", async () => {
   ];
 
   const shgat1 = createSHGATFromCapabilities(capabilities);
-  shgat1.trainOnExample({
+  trainExample(shgat1, {
     intentEmbedding: new Array(1024).fill(0.5),
     contextTools: ["fs:read"],
     candidateId: "cap-1",
@@ -164,11 +177,11 @@ Deno.test("SHGAT Persistence - simulate DB save/load cycle", async () => {
   const loadedParams = JSON.parse(savedJson);
   shgat2.importParams(loadedParams);
 
-  // Verify weights match
+  // Verify weights match (headParams in preserveDim mode)
   const finalParams = shgat2.exportParams();
   assertEquals(
-    JSON.stringify(params.layerParams),
-    JSON.stringify(finalParams.layerParams),
+    JSON.stringify(params.headParams),
+    JSON.stringify(finalParams.headParams),
     "Weights should survive simulated restart",
   );
 });

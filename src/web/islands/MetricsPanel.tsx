@@ -108,6 +108,8 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
     scoreDistribution: useRef<HTMLCanvasElement>(null),
   };
   const chartInstances = useRef<Record<string, any>>({});
+  // AbortController to cancel previous fetches and prevent race conditions
+  const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -117,22 +119,35 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
 
   // Fetch metrics function
   const fetchMetrics = useCallback(async () => {
+    // Cancel any previous fetch to prevent race conditions
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    fetchAbortControllerRef.current = controller;
+
     try {
       const headers: HeadersInit = {};
       if (apiKey) {
         headers["x-api-key"] = apiKey;
       }
-      const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`, { headers, credentials: "include" });
+      const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`, {
+        headers,
+        credentials: "include",
+        signal: controller.signal,
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: GraphMetricsResponse = await res.json();
       setMetrics(data);
       setError(null);
       setLoading(false);
     } catch (err) {
-      if (err instanceof Error && err.name !== "AbortError") {
-        setError(err instanceof Error ? err.message : "Failed");
-        setLoading(false);
+      // Ignore AbortError (voluntary cancellation from new fetch starting)
+      if (err instanceof Error && err.name === "AbortError") {
+        return;
       }
+      setError(err instanceof Error ? err.message : "Failed");
+      setLoading(false);
     }
   }, [apiBase, apiKey, dateRange]);
 

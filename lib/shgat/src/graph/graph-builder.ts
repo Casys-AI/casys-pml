@@ -67,12 +67,54 @@ export class GraphBuilder {
   /**
    * Register a unified node
    *
+   * Also populates legacy Maps for backward compatibility with scoring functions.
+   * Note: Call finalizeNodes() after registering all nodes to rebuild indices.
+   *
    * @param node Node to register
    */
   registerNode(node: Node): void {
     this.nodes.set(node.id, node);
-    // Recompute levels for all nodes when graph changes
+
+    // Populate legacy Maps for backward compatibility with scoreAllTools/scoreAllCapabilities
+    if (node.children.length === 0) {
+      // Leaf node → ToolNode
+      const toolNode: ToolNode = {
+        id: node.id,
+        embedding: node.embedding,
+        toolFeatures: DEFAULT_TOOL_GRAPH_FEATURES,
+      };
+      this.toolNodes.set(node.id, toolNode);
+    } else {
+      // Composite node → CapabilityNode
+      const capNode: CapabilityNode = {
+        id: node.id,
+        embedding: node.embedding,
+        members: createMembersFromLegacy(node.children, []),
+        hierarchyLevel: node.level,
+        successRate: 1.0,
+        toolsUsed: node.children,
+        hypergraphFeatures: DEFAULT_HYPERGRAPH_FEATURES,
+      };
+      this.capabilityNodes.set(node.id, capNode);
+    }
+  }
+
+  /**
+   * Finalize node registration - call after registering all nodes
+   * Recomputes levels and rebuilds indices once.
+   */
+  finalizeNodes(): void {
     computeAllLevels(this.nodes);
+
+    // Sync computed levels to legacy capabilityNodes Map
+    for (const node of this.nodes.values()) {
+      const capNode = this.capabilityNodes.get(node.id);
+      if (capNode) {
+        capNode.hierarchyLevel = node.level;
+      }
+    }
+
+    this.rebuildIndices();
   }
 
   /**
@@ -94,6 +136,33 @@ export class GraphBuilder {
    */
   getNodesByLevel(level: number): Node[] {
     return Array.from(this.nodes.values()).filter((n) => n.level === level);
+  }
+
+  /**
+   * Get maximum hierarchy level from unified nodes
+   */
+  getMaxLevel(): number {
+    let maxLevel = 0;
+    for (const node of this.nodes.values()) {
+      if (node.level > maxLevel) maxLevel = node.level;
+    }
+    return maxLevel;
+  }
+
+  /**
+   * Get node IDs grouped by level (for hierarchy building)
+   */
+  getNodeIdsByLevel(): Map<number, Set<string>> {
+    const byLevel = new Map<number, Set<string>>();
+    for (const node of this.nodes.values()) {
+      let levelSet = byLevel.get(node.level);
+      if (!levelSet) {
+        levelSet = new Set();
+        byLevel.set(node.level, levelSet);
+      }
+      levelSet.add(node.id);
+    }
+    return byLevel;
   }
 
   /**
@@ -379,6 +448,31 @@ export class GraphBuilder {
       embeddings.push([...cap.embedding]);
     }
     return embeddings;
+  }
+
+  /**
+   * Get capability hierarchy levels in index order (same order as getCapabilityEmbeddings)
+   * Used for per-level residual connections.
+   */
+  getCapabilityLevels(): number[] {
+    const levels: number[] = [];
+    for (const [_, cap] of this.capabilityNodes) {
+      levels.push(cap.hierarchyLevel ?? 0);
+    }
+    return levels;
+  }
+
+  /**
+   * Get tool hierarchy levels in index order (same order as getToolEmbeddings)
+   * Tools are typically level 0 (leaves).
+   */
+  getToolLevels(): number[] {
+    const levels: number[] = [];
+    for (const [id, _] of this.toolNodes) {
+      const node = this.nodes.get(id);
+      levels.push(node?.level ?? 0);
+    }
+    return levels;
   }
 
   // =========================================================================

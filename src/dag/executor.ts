@@ -20,6 +20,8 @@ import { DAGExecutionError, TimeoutError } from "../errors/error-types.ts";
 import { RateLimiter } from "@casys/mcp-server";
 // Story 6.5: EventBus integration (ADR-036)
 import { eventBus } from "../events/mod.ts";
+// Story 11.4: Extracted topological sort for reuse
+import { topologicalSortTasks, CircularDependencyError } from "./topological-sort.ts";
 
 const log = getLogger("default");
 
@@ -250,52 +252,21 @@ export class ParallelExecutor {
   /**
    * Topological sort to identify parallel execution layers
    *
+   * Story 11.4: Now delegates to standalone topologicalSortTasks for reuse.
+   *
    * @param dag - DAG structure
    * @returns Array of layers, where each layer contains tasks that can execute in parallel
-   * @throws Error if circular dependency detected
+   * @throws DAGExecutionError if circular dependency detected
    */
   protected topologicalSort(dag: DAGStructure): Task[][] {
-    const layers: Task[][] = [];
-    const completed = new Set<string>();
-    const remaining = new Map(dag.tasks.map((t) => [t.id, t]));
-    const inProgress = new Set<string>();
-
-    while (remaining.size > 0) {
-      // Find tasks with all dependencies satisfied
-      const ready: Task[] = [];
-
-      for (const [taskId, task] of remaining) {
-        // Check if all dependencies are completed
-        const allDepsSatisfied = task.dependsOn.every((depId: string) => completed.has(depId));
-
-        if (allDepsSatisfied && !inProgress.has(taskId)) {
-          ready.push(task);
-          inProgress.add(taskId);
-        }
+    try {
+      return topologicalSortTasks(dag.tasks);
+    } catch (error) {
+      if (error instanceof CircularDependencyError) {
+        throw new DAGExecutionError(error.message, undefined, false);
       }
-
-      // Circular dependency check
-      if (ready.length === 0 && remaining.size > 0) {
-        const remainingIds = Array.from(remaining.keys());
-        throw new DAGExecutionError(
-          `Circular dependency detected in DAG. Remaining tasks: ${remainingIds.join(", ")}`,
-          undefined,
-          false, // Not recoverable
-        );
-      }
-
-      // Add ready tasks as a new parallel execution layer
-      layers.push(ready);
-
-      // Mark as completed and remove from remaining
-      for (const task of ready) {
-        completed.add(task.id);
-        remaining.delete(task.id);
-        inProgress.delete(task.id);
-      }
+      throw error;
     }
-
-    return layers;
   }
 
   /**

@@ -22,6 +22,7 @@ import type {
 } from "./CytoscapeGraph.tsx";
 import TraceSelector from "../components/ui/molecules/TraceSelector.tsx";
 import TraceTimeline from "../components/ui/molecules/TraceTimeline.tsx";
+import { parseToolId } from "../../capabilities/tool-id-utils.ts";
 
 // Re-export for convenience
 export type { CapabilityData, ExecutionTrace, ToolData, TraceTaskResult };
@@ -249,16 +250,6 @@ export default function CodePanel({
     return DEFAULT_COLORS[hash % DEFAULT_COLORS.length];
   };
 
-  /**
-   * Parse tool ID to extract server and tool name
-   */
-  const parseToolId = (toolId: string): { server: string; name: string } => {
-    const match = toolId.match(/^([^:]+):(.+)$/);
-    if (match) {
-      return { server: match[1], name: match[2] };
-    }
-    return { server: "unknown", name: toolId };
-  };
 
   // Split content into lines for line numbers
   const contentLines = displayContent?.split("\n") || [];
@@ -750,7 +741,7 @@ export default function CodePanel({
                     Tools:
                   </span>
                   {capability.toolIds.map((toolId) => {
-                    const { server, name } = parseToolId(toolId);
+                    const { namespace: server, action: name } = parseToolId(toolId);
                     const color = getColor(server);
 
                     return (

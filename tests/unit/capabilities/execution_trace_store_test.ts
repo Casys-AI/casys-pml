@@ -26,6 +26,13 @@ import {
 } from "../../../src/capabilities/execution-trace-store.ts";
 import type { BranchDecision, TraceTaskResult } from "../../../src/capabilities/types.ts";
 
+// Test user UUIDs (valid UUID format for FK column)
+const TEST_USER_ID = "00000000-0000-0000-0000-000000000001";
+const USER_ALICE_ID = "00000000-0000-0000-0000-000000000002";
+const USER_BOB_ID = "00000000-0000-0000-0000-000000000003";
+const USER_TO_DELETE_ID = "00000000-0000-0000-0000-000000000004";
+const OTHER_USER_ID = "00000000-0000-0000-0000-000000000005";
+
 /**
  * Setup test database with migrations
  */
@@ -45,7 +52,7 @@ async function setupTestDb(): Promise<PGliteClient> {
  * Note: Migration 022 removed 'name' column from workflow_pattern.
  * Names now live in capability_records.display_name (Story 13.2).
  */
-async function createTestCapability(db: PGliteClient): Promise<string> {
+async function createTestCapability(db: PGliteClient, description?: string): Promise<string> {
   // Generate unique hash to avoid conflicts
   const uniqueHash = `test-hash-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
@@ -60,7 +67,8 @@ async function createTestCapability(db: PGliteClient): Promise<string> {
       dag_structure,
       intent_embedding,
       code_snippet,
-      code_hash
+      code_hash,
+      description
     )
     VALUES (
       gen_random_uuid(),
@@ -68,11 +76,12 @@ async function createTestCapability(db: PGliteClient): Promise<string> {
       '{"nodes": [], "edges": []}'::jsonb,
       $2::vector,
       'console.log("test")',
-      $3
+      $3,
+      $4
     )
     RETURNING pattern_id
   `,
-    [uniqueHash, embeddingStr, `code-hash-${uniqueHash}`],
+    [uniqueHash, embeddingStr, `code-hash-${uniqueHash}`, description ?? null],
   );
   return result[0].pattern_id as string;
 }
@@ -94,7 +103,7 @@ function createTestTraceInput(overrides?: Partial<SaveTraceInput>): SaveTraceInp
     taskResults: [],
     priority: 0.5,
     parentTraceId: undefined,
-    userId: "test-user",
+    userId: TEST_USER_ID,
     ...overrides,
   };
 }
@@ -107,7 +116,9 @@ Deno.test("ExecutionTraceStore - saveTrace() inserts with auto-generated id", as
   const db = await setupTestDb();
   const store = new ExecutionTraceStore(db);
 
-  const input = createTestTraceInput();
+  // Create capability with description (intentText comes from JOIN)
+  const capId = await createTestCapability(db, "Test intent");
+  const input = createTestTraceInput({ capabilityId: capId });
   const trace = await store.saveTrace(input);
 
   assertExists(trace);
@@ -115,7 +126,7 @@ Deno.test("ExecutionTraceStore - saveTrace() inserts with auto-generated id", as
   assertEquals(trace.success, true);
   assertEquals(trace.durationMs, 100);
   assertEquals(trace.intentText, "Test intent");
-  assertEquals(trace.userId, "test-user");
+  assertEquals(trace.userId, TEST_USER_ID);
 
   await db.close();
 });
@@ -124,7 +135,9 @@ Deno.test("ExecutionTraceStore - getTraceById() retrieves single trace", async (
   const db = await setupTestDb();
   const store = new ExecutionTraceStore(db);
 
-  const input = createTestTraceInput({ intentText: "Unique intent" });
+  // Create capability with description (intentText comes from JOIN)
+  const capId = await createTestCapability(db, "Unique intent");
+  const input = createTestTraceInput({ capabilityId: capId });
   const saved = await store.saveTrace(input);
 
   const retrieved = await store.getTraceById(saved.id);
@@ -248,21 +261,25 @@ Deno.test("ExecutionTraceStore - AC8: getTraces() orders by executed_at DESC", a
   const db = await setupTestDb();
   const store = new ExecutionTraceStore(db);
 
-  const capId = await createTestCapability(db);
+  // Create capability with description (intentText comes from JOIN)
+  // All traces for same capability will have same intentText
+  const capId = await createTestCapability(db, "Test capability");
 
-  // Create traces with small delay
-  await store.saveTrace(createTestTraceInput({ capabilityId: capId, intentText: "First" }));
+  // Create traces with small delay - verify ordering by executed_at
+  const trace1 = await store.saveTrace(createTestTraceInput({ capabilityId: capId }));
   await new Promise((resolve) => setTimeout(resolve, 10));
-  await store.saveTrace(createTestTraceInput({ capabilityId: capId, intentText: "Second" }));
+  const trace2 = await store.saveTrace(createTestTraceInput({ capabilityId: capId }));
   await new Promise((resolve) => setTimeout(resolve, 10));
-  await store.saveTrace(createTestTraceInput({ capabilityId: capId, intentText: "Third" }));
+  const trace3 = await store.saveTrace(createTestTraceInput({ capabilityId: capId }));
 
   const traces = await store.getTraces(capId);
 
-  // Most recent first
-  assertEquals(traces[0].intentText, "Third");
-  assertEquals(traces[1].intentText, "Second");
-  assertEquals(traces[2].intentText, "First");
+  // Most recent first (by executed_at DESC)
+  assertEquals(traces[0].id, trace3.id);
+  assertEquals(traces[1].id, trace2.id);
+  assertEquals(traces[2].id, trace1.id);
+  // All have same intentText from capability
+  assertEquals(traces[0].intentText, "Test capability");
 
   await db.close();
 });
@@ -570,16 +587,16 @@ Deno.test("ExecutionTraceStore - getTracesByUser() filters by userId", async () 
   const store = new ExecutionTraceStore(db);
 
   // Create traces for different users
-  await store.saveTrace(createTestTraceInput({ userId: "user-alice" }));
-  await store.saveTrace(createTestTraceInput({ userId: "user-alice" }));
-  await store.saveTrace(createTestTraceInput({ userId: "user-bob" }));
+  await store.saveTrace(createTestTraceInput({ userId: USER_ALICE_ID }));
+  await store.saveTrace(createTestTraceInput({ userId: USER_ALICE_ID }));
+  await store.saveTrace(createTestTraceInput({ userId: USER_BOB_ID }));
 
-  const aliceTraces = await store.getTracesByUser("user-alice");
-  const bobTraces = await store.getTracesByUser("user-bob");
+  const aliceTraces = await store.getTracesByUser(USER_ALICE_ID);
+  const bobTraces = await store.getTracesByUser(USER_BOB_ID);
 
   assertEquals(aliceTraces.length, 2);
   assertEquals(bobTraces.length, 1);
-  assertEquals(aliceTraces.every((t) => t.userId === "user-alice"), true);
+  assertEquals(aliceTraces.every((t) => t.userId === USER_ALICE_ID), true);
 
   await db.close();
 });
@@ -587,6 +604,93 @@ Deno.test("ExecutionTraceStore - getTracesByUser() filters by userId", async () 
 // =============================================================================
 // Hierarchical Traces Tests (ADR-041)
 // =============================================================================
+
+Deno.test("ExecutionTraceStore - AC1: saveTrace() with pre-generated id uses that id", async () => {
+  const db = await setupTestDb();
+  const store = new ExecutionTraceStore(db);
+
+  const preGeneratedId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+  const input = createTestTraceInput({
+    id: preGeneratedId,
+    intentText: "Trace with pre-generated ID",
+  });
+
+  const trace = await store.saveTrace(input);
+
+  // AC1: trace.id in database equals the pre-generated executionTraceId
+  assertExists(trace);
+  assertEquals(trace.id, preGeneratedId);
+
+  // Verify in database directly
+  const dbResult = await db.query(
+    `SELECT id FROM execution_trace WHERE id = $1`,
+    [preGeneratedId],
+  );
+  assertEquals(dbResult.length, 1);
+  assertEquals(dbResult[0].id, preGeneratedId);
+
+  await db.close();
+});
+
+Deno.test("ExecutionTraceStore - AC3: saveTrace() without id uses DB-generated id (backward compat)", async () => {
+  const db = await setupTestDb();
+  const store = new ExecutionTraceStore(db);
+
+  // Create trace WITHOUT providing id (backward compatibility)
+  const input = createTestTraceInput({
+    intentText: "Trace without pre-generated ID",
+  });
+  // Ensure id is not set
+  delete (input as { id?: string }).id;
+
+  const trace = await store.saveTrace(input);
+
+  // AC3: trace is saved with database-generated id (UUID format)
+  assertExists(trace);
+  assertExists(trace.id);
+  // Verify it's a valid UUID format (8-4-4-4-12)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  assertEquals(uuidRegex.test(trace.id), true);
+
+  await db.close();
+});
+
+Deno.test("ExecutionTraceStore - AC2: nested capability has valid parent_trace_id FK", async () => {
+  const db = await setupTestDb();
+  const store = new ExecutionTraceStore(db);
+
+  // Create parent trace with pre-generated ID (simulating root execution)
+  const parentTraceId = "11111111-2222-3333-4444-555555555555";
+  const parent = await store.saveTrace(createTestTraceInput({
+    id: parentTraceId,
+    durationMs: 100,
+  }));
+
+  // Create child trace with parent_trace_id = parent.id (simulating nested capability)
+  const childTraceId = "66666666-7777-8888-9999-aaaaaaaaaaaa";
+  const child = await store.saveTrace(createTestTraceInput({
+    id: childTraceId,
+    parentTraceId: parentTraceId,
+    durationMs: 50,
+  }));
+
+  // AC2: trace_B.parent_trace_id = trace_A.id
+  assertEquals(child.parentTraceId, parent.id);
+
+  // AC2: SELECT * FROM execution_trace WHERE id = trace_B.parent_trace_id returns trace_A
+  const parentFromDb = await store.getTraceById(child.parentTraceId!);
+  assertExists(parentFromDb);
+  assertEquals(parentFromDb.id, parent.id);
+  assertEquals(parentFromDb.durationMs, 100); // Verify correct parent by durationMs
+
+  // Verify getChildTraces returns the child
+  const children = await store.getChildTraces(parent.id);
+  assertEquals(children.length, 1);
+  assertEquals(children[0].id, child.id);
+  assertEquals(children[0].durationMs, 50); // Verify correct child by durationMs
+
+  await db.close();
+});
 
 Deno.test("ExecutionTraceStore - getChildTraces() returns child traces", async () => {
   const db = await setupTestDb();
@@ -622,26 +726,25 @@ Deno.test("ExecutionTraceStore - anonymizeUserTraces() anonymizes user data", as
   const db = await setupTestDb();
   const store = new ExecutionTraceStore(db);
 
-  // Create traces for user
-  await store.saveTrace(createTestTraceInput({
-    userId: "user-to-delete",
-    intentText: "Personal query",
+  // Create traces for user - save the trace to get its ID
+  const traceToAnonymize = await store.saveTrace(createTestTraceInput({
+    userId: USER_TO_DELETE_ID,
     initialContext: { secret: "data" },
   }));
-  await store.saveTrace(createTestTraceInput({ userId: "other-user" }));
+  await store.saveTrace(createTestTraceInput({ userId: OTHER_USER_ID }));
 
   // Anonymize user traces
-  const count = await store.anonymizeUserTraces("user-to-delete");
+  const count = await store.anonymizeUserTraces(USER_TO_DELETE_ID);
   assertEquals(count, 1);
 
-  // Verify anonymization
-  const traces = await store.getTracesByUser("anonymized");
-  assertEquals(traces.length, 1);
-  assertEquals(traces[0].intentText, undefined);
-  assertEquals(Object.keys(traces[0].initialContext ?? {}).length, 0);
+  // Verify anonymization - fetch by ID and check user_id is null
+  const anonymizedTrace = await store.getTraceById(traceToAnonymize.id);
+  assertExists(anonymizedTrace);
+  assertEquals(anonymizedTrace.userId, undefined); // NULL in DB maps to undefined
+  assertEquals(Object.keys(anonymizedTrace.initialContext ?? {}).length, 0);
 
   // Other user unaffected
-  const otherTraces = await store.getTracesByUser("other-user");
+  const otherTraces = await store.getTracesByUser(OTHER_USER_ID);
   assertEquals(otherTraces.length, 1);
 
   await db.close();

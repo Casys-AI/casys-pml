@@ -1,9 +1,11 @@
 /**
  * FusedTaskCard Atom - Displays a fused task with expandable logical operations
- * Phase 2a: Shows physical task with atomic operations detail
+ * Phase 2a: Shows physical task with atomic operations detail using TaskCards
  */
 
 import { useState } from "preact/hooks";
+import TaskCard from "./TaskCard.tsx";
+import { parseToolId } from "../../../../capabilities/tool-id-utils.ts";
 
 interface LogicalOp {
   toolId: string;
@@ -75,41 +77,29 @@ export default function FusedTaskCard({
         </span>
       </div>
 
-      {/* Expandable - Logical Operations */}
+      {/* Expandable - Logical Operations using TaskCards */}
       {expanded && (
         <div
           style={{
             marginTop: "8px",
-            paddingLeft: "20px",
-            borderLeft: "2px solid rgba(255, 184, 111, 0.2)",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "6px",
           }}
         >
           {logicalOps.map((op, idx) => {
-            const toolName = op.toolId.replace("code:", "");
-            const isLast = idx === logicalOps.length - 1;
+            // Extract server and tool name from toolId (supports FQDNs and colon format)
+            const { namespace: server, action: toolName } = parseToolId(op.toolId);
 
             return (
-              <div
+              <TaskCard
                 key={idx}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted, #d5c3b5)",
-                  marginBottom: isLast ? "0" : "4px",
-                }}
-              >
-                <span style={{ color: "var(--text-dim, #8a8078)" }}>
-                  {isLast ? "└─" : "├─"}
-                </span>
-                <span style={{ fontFamily: "monospace" }}>{toolName}</span>
-                {op.durationMs !== undefined && (
-                  <span style={{ color: "var(--text-dim, #8a8078)" }}>
-                    ({Math.round(op.durationMs)}ms)
-                  </span>
-                )}
-              </div>
+                toolName={toolName}
+                server={server}
+                durationMs={op.durationMs ?? 0}
+                success={success}
+                color={color}
+              />
             );
           })}
         </div>

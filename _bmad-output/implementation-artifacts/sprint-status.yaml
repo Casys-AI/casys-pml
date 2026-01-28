@@ -326,3 +326,19 @@ development_status:
   15-10-embedding-persistence: backlog # Store embeddings with graph data (5 pts)
   15-11-storage-adapters: deferred # pg/redis/s3 - deferred until GDS/ANN complete (21 pts)
   epic-15-retrospective: optional
+
+  # Epic 16: MCP Apps UI Orchestration
+  # Epic: epic-16-mcp-apps-ui-orchestration.md
+  # Spike: spikes/2026-01-27-mcp-apps-ui-orchestration.md
+  # 6 stories, POC validated 2026-01-27
+  # PML becomes UI orchestrator for MCP Apps (SEP-1865)
+  # Collection + Composition + Event Routing (PML innovation)
+  # Depends on: None (new feature based on MCP Apps spec)
+  epic-16: in-progress
+  16-1-types-schema-ui-orchestration: done # Types & Schema - Code Review APPROVED 2026-01-28, 7 issues fixed
+  16-2-mcp-server-resources-handlers: backlog # resources/list, resources/read
+  16-3-ui-collection-sandbox-executor: backlog # Collect _meta.ui from MCP calls
+  16-4-composite-ui-generator: backlog # Build composite HTML with event bus
+  16-5-message-transport-abstraction: backlog # MessageTransport interface for Workers & iframes
+  16-6-dev-frontend-preview-mode: backlog # Optional - Storybook-like preview
+  epic-16-retrospective: optional

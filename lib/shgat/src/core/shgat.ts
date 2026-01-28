@@ -42,6 +42,8 @@ import {
   projectIntent as projectIntentFn,
   scoreAllCapabilities as scoreAllCapabilitiesFn,
   scoreAllTools as scoreAllToolsFn,
+  scoreNodes as scoreNodesFn,
+  type NodeScore,
 } from "../attention/khead-scorer.ts";
 
 // Training functions (extracted)
@@ -127,6 +129,10 @@ import {
   type TrainingExample,
 } from "./types.ts";
 
+// Auto-initialize BLAS acceleration on module load
+import { initBlasAcceleration } from "../utils/math.ts";
+await initBlasAcceleration();
+
 const log = getLogger();
 
 // ============================================================================
@@ -147,6 +153,7 @@ export class SHGAT {
   private orchestrator: MultiLevelOrchestrator;
   private trainingMode = false;
   private lastCache: ForwardCache | null = null;
+  private lastResidualCache: import("./forward-helpers.ts").ResidualCache | null = null;
 
   // Multi-level n-SuperHyperGraph structures
   private hierarchy: HierarchyResult | null = null;
@@ -165,7 +172,11 @@ export class SHGAT {
     // Each head gets 16 dims for consistent expressiveness
 
     this.graphBuilder = new GraphBuilder();
-    this.orchestrator = new MultiLevelOrchestrator(this.trainingMode);
+    // Pass v2vResidual to the V2V phase config
+    const v2vConfig = this.config.v2vResidual !== undefined && this.config.v2vResidual > 0
+      ? { residualWeight: this.config.v2vResidual }
+      : undefined;
+    this.orchestrator = new MultiLevelOrchestrator(this.trainingMode, v2vConfig);
     this.params = initializeParameters(this.config);
   }
 
@@ -180,6 +191,15 @@ export class SHGAT {
    */
   registerNode(node: Node): void {
     this.graphBuilder.registerNode(node);
+    this.hierarchyDirty = true;
+  }
+
+  /**
+   * Finalize node registration - call after registering all nodes
+   * Rebuilds indices once for efficiency.
+   */
+  finalizeNodes(): void {
+    this.graphBuilder.finalizeNodes();
     this.hierarchyDirty = true;
   }
 
@@ -303,6 +323,7 @@ export class SHGAT {
     // Delegate to extracted core function
     const result = forwardCore(this.getForwardPassContext());
     this.lastCache = result.cache;
+    this.lastResidualCache = result.residualCache;
     return result;
   }
 
@@ -315,6 +336,7 @@ export class SHGAT {
       multiLevelIncidence: this.multiLevelIncidence,
       levelParams: this.levelParams,
       orchestrator: this.orchestrator,
+      residualLogits: this.params.residualLogits,
     };
   }
 
@@ -355,6 +377,91 @@ export class SHGAT {
       this.params.W_intent,
       this.config,
     );
+  }
+
+  // ==========================================================================
+  // Unified Node Scoring (new API)
+  // ==========================================================================
+
+  /**
+   * Score nodes using K-head attention (unified API)
+   *
+   * This is the main scoring function for the unified Node API.
+   * It replaces the legacy scoreAllCapabilities/scoreAllTools for new code.
+   *
+   * @param intentEmbedding - User intent embedding
+   * @param level - Optional level filter. If undefined, scores all nodes.
+   * @returns Sorted array of node scores
+   */
+  scoreNodes(intentEmbedding: number[], level?: number): NodeScore[] {
+    // Run forward pass to get propagated embeddings
+    this.forward();
+
+    // Get nodes (optionally filtered by level)
+    const nodes = level !== undefined
+      ? this.graphBuilder.getNodesByLevel(level)
+      : Array.from(this.graphBuilder.getNodes().values());
+
+    if (nodes.length === 0) return [];
+
+    // Build embedding matrix and metadata arrays
+    const embeddings: number[][] = [];
+    const nodeIds: string[] = [];
+    const levels: number[] = [];
+
+    // Get propagated embeddings from cache
+    const H = this.lastCache?.H[this.lastCache.H.length - 1] ?? [];
+    const E = this.lastCache?.E[this.lastCache.E.length - 1] ?? [];
+
+    for (const node of nodes) {
+      if (node.children.length === 0) {
+        // Leaf node - get from H (tool embeddings)
+        const idx = this.graphBuilder.getToolIndex(node.id);
+        if (idx !== undefined && H[idx]) {
+          embeddings.push(H[idx]);
+          nodeIds.push(node.id);
+          levels.push(node.level);
+        }
+      } else {
+        // Composite node - get from E (capability embeddings)
+        const idx = this.graphBuilder.getCapabilityIndex(node.id);
+        if (idx !== undefined && E[idx]) {
+          embeddings.push(E[idx]);
+          nodeIds.push(node.id);
+          levels.push(node.level);
+        }
+      }
+    }
+
+    if (embeddings.length === 0) return [];
+
+    return scoreNodesFn(
+      embeddings,
+      nodeIds,
+      levels,
+      intentEmbedding,
+      this.params.headParams,
+      this.params.W_intent,
+      this.config,
+    );
+  }
+
+  /**
+   * Score only leaf nodes (level 0)
+   *
+   * Convenience method equivalent to scoreNodes(intent, 0)
+   */
+  scoreLeaves(intentEmbedding: number[]): NodeScore[] {
+    return this.scoreNodes(intentEmbedding, 0);
+  }
+
+  /**
+   * Score only composite nodes at a given level (default: 1)
+   *
+   * Convenience method for scoring higher-level nodes
+   */
+  scoreComposites(intentEmbedding: number[], level: number = 1): NodeScore[] {
+    return this.scoreNodes(intentEmbedding, level);
   }
 
   predictPathSuccess(intentEmbedding: number[], path: string[]): number {
@@ -402,6 +509,7 @@ export class SHGAT {
       forward: () => this.forward(),
       projectIntent: (e) => this.projectIntent(e),
       rebuildHierarchy: () => this.rebuildHierarchy(),
+      getResidualCache: () => this.lastResidualCache,
     };
   }
 
@@ -410,7 +518,11 @@ export class SHGAT {
     if (examples.length === 0) return { loss: 0, accuracy: 0, tdErrors: [] as number[], gradNorm: 0 };
 
     this.trainingMode = true;
-    this.orchestrator = new MultiLevelOrchestrator(true);
+    // Pass v2vResidual to the V2V phase config
+    const v2vConfig = this.config.v2vResidual !== undefined && this.config.v2vResidual > 0
+      ? { residualWeight: this.config.v2vResidual }
+      : undefined;
+    this.orchestrator = new MultiLevelOrchestrator(true, v2vConfig);
     const weights = isWeights ?? new Array(examples.length).fill(1.0);
 
     const result = trainBatchV1KHeadBatchedCore(
@@ -422,7 +534,17 @@ export class SHGAT {
       temperature,
     );
 
+    // Note: Backward pass for learnable per-level residuals is now handled
+    // inside trainBatchV1KHeadBatchedCore via ctx.getResidualCache()
+
     this.trainingMode = false;
+
+    // CRITICAL: Invalidate cache after training so scoreNodes() recalculates
+    // forward pass with updated weights (W_q, W_k, etc.)
+    if (!evaluateOnly) {
+      this.lastCache = null;
+    }
+
     return result;
   }
 

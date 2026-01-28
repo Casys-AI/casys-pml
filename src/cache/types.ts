@@ -23,8 +23,12 @@ export interface LearningContext {
   staticStructure: StaticStructure;
   /** Pre-computed intent embedding for similarity search */
   intentEmbedding?: number[];
-  /** Tools used in the code (for capability registration) */
+  /** Tools used in the code (FQDNs for capability registration) */
   toolsUsed?: string[];
   /** User ID for multi-tenant isolation */
   userId?: string;
+  /** Pre-generated trace ID for hierarchy (ADR-041) */
+  traceId?: string;
+  /** Parent trace ID for nested execution (ADR-041) */
+  parentTraceId?: string;
 }

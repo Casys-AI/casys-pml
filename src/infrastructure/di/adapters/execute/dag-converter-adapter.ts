@@ -10,6 +10,7 @@
 
 import type { StaticStructure } from "../../../../capabilities/types/mod.ts";
 import type { DAGStructure } from "../../../../graphrag/types.ts";
+import type { TaskResult } from "../../../../dag/types.ts";
 import {
   isValidForDagConversion,
   staticStructureToDag,
@@ -37,9 +38,10 @@ export interface IDAGConverter {
   isValidForDagConversion(structure: StaticStructure): boolean;
   staticStructureToDag(structure: StaticStructure): { tasks: unknown[] };
   optimizeDAG(dag: { tasks: unknown[] }): OptimizedDAG;
+  /** Generate logical trace - caller provides properly typed Map<string, TaskResult> */
   generateLogicalTrace(
     dag: OptimizedDAG,
-    results: Map<string, unknown>,
+    results: Map<string, TaskResult>,
   ): { executedPath: string[]; toolsUsed: string[] };
 }
 
@@ -80,24 +82,13 @@ export class DAGConverterAdapter implements IDAGConverter {
 
   /**
    * Generate logical trace from physical execution results
+   *
+   * Caller provides properly typed Map<string, TaskResult> - no internal conversion needed.
    */
   generateLogicalTrace(
     dag: OptimizedDAG,
-    results: Map<string, unknown>,
+    results: Map<string, TaskResult>,
   ): { executedPath: string[]; toolsUsed: string[] } {
-    // Convert results to TaskResult format
-    type TaskResultStatus = "success" | "error" | "failed_safe";
-    const taskResults = new Map<string, { taskId: string; status: TaskResultStatus; output?: unknown }>();
-    for (const [taskId, result] of results) {
-      const resultObj = result as { taskId?: string; status?: string; output?: unknown };
-      const status = resultObj.status as TaskResultStatus ?? "success";
-      taskResults.set(taskId, {
-        taskId: resultObj.taskId ?? taskId,
-        status,
-        output: resultObj.output ?? result,
-      });
-    }
-
     const optimizedDAG: OptimizedDAGStructure = {
       tasks: dag.tasks as DAGStructure["tasks"],
       logicalToPhysical: dag.logicalToPhysical,
@@ -105,7 +96,7 @@ export class DAGConverterAdapter implements IDAGConverter {
       logicalDAG: dag.logicalDAG,
     };
 
-    const trace = generateLogicalTraceImpl(optimizedDAG, taskResults);
+    const trace = generateLogicalTraceImpl(optimizedDAG, results);
 
     return {
       executedPath: trace.executedPath,

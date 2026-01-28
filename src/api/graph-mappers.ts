@@ -24,9 +24,48 @@ for (const [category, tools] of Object.entries(toolsByCategory)) {
 }
 
 /**
- * Map node data to snake_case for external API
+ * UUID v4 regex pattern for detecting capability UUIDs in executedPath
+ * Issue 6 fix: executedPath now contains UUIDs for capabilities, names for tools
  */
-export function mapNodeData(node: GraphNode): Record<string, unknown> {
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolve executedPath entries to display names.
+ * - Tool names (e.g., "std:psql_query") → kept as-is
+ * - Capability UUIDs → resolved via capabilityNameMap, fallback to short UUID
+ *
+ * @param executedPath - Array of tool names and capability UUIDs
+ * @param capabilityNameMap - Map of UUID → display name (namespace:action)
+ */
+export function resolveExecutedPathForDisplay(
+  executedPath: string[] | undefined,
+  capabilityNameMap?: Map<string, string>,
+): string[] | undefined {
+  if (!executedPath) return undefined;
+
+  return executedPath.map((entry) => {
+    // If it's a UUID, resolve to name
+    if (UUID_REGEX.test(entry)) {
+      const name = capabilityNameMap?.get(entry);
+      if (name) return name;
+      // Fallback: show short UUID prefix for unresolved
+      return `cap:${entry.slice(0, 8)}`;
+    }
+    // Tool names pass through unchanged
+    return entry;
+  });
+}
+
+/**
+ * Map node data to snake_case for external API
+ *
+ * @param node - Graph node to map
+ * @param capabilityNameMap - Optional map of UUID → display name for resolving executedPath
+ */
+export function mapNodeData(
+  node: GraphNode,
+  capabilityNameMap?: Map<string, string>,
+): Record<string, unknown> {
   if (node.data.type === "capability") {
     const capNode = node as CapabilityNode;
     return {
@@ -62,6 +101,9 @@ export function mapNodeData(node: GraphNode): Record<string, unknown> {
           duration_ms: trace.durationMs,
           error_message: trace.errorMessage,
           priority: trace.priority,
+          // Two-level DAG: All logical operations (includes non-executable ops for display)
+          // Issue 6 fix: resolve capability UUIDs to display names
+          executed_path: resolveExecutedPathForDisplay(trace.executedPath, capabilityNameMap),
           task_results: trace.taskResults.map((r) => ({
             task_id: r.taskId,
             tool: r.tool,
@@ -71,6 +113,13 @@ export function mapNodeData(node: GraphNode): Record<string, unknown> {
             success: r.success,
             duration_ms: r.durationMs,
             layer_index: r.layerIndex,
+            // Phase 2a: Fusion metadata for two-level DAG
+            is_fused: r.isFused,
+            logical_operations: r.logicalOperations?.map((op) => ({
+              tool_id: op.toolId,
+              duration_ms: op.durationMs,
+            })),
+            // Loop Abstraction metadata
             loop_id: r.loopId,
             loop_type: r.loopType,
             loop_condition: r.loopCondition,

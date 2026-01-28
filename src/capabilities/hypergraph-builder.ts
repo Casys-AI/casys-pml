@@ -23,6 +23,7 @@ import type {
 } from "./types.ts";
 import type { GraphSnapshot } from "../graphrag/graph-engine.ts";
 import { getLogger } from "../telemetry/logger.ts";
+import { parseToolId } from "./tool-id-utils.ts";
 
 const logger = getLogger("default");
 
@@ -348,9 +349,8 @@ export class HypergraphBuilder {
     snapshot?: GraphSnapshot,
     parents: string[] = [],
   ): ToolNode {
-    // Extract server and name from tool_id
-    const [server = "unknown", ...nameParts] = toolId.split(":");
-    const name = nameParts.join(":") || toolId;
+    // Extract server and name from tool_id (handles FQDN and colon formats)
+    const { namespace: server, action: name } = parseToolId(toolId);
 
     // Get metrics from snapshot if available
     let pagerank = 0;

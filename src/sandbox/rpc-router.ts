@@ -10,6 +10,13 @@
  * Extracted from worker-bridge.ts for separation of concerns.
  *
  * @module sandbox/rpc-router
+ *
+ * NOTE: Server-side execution (this file) is used for:
+ * - Direct MCP clients (not packages/pml)
+ * - Server-routed capabilities (execute_locally: false)
+ *
+ * Client-routed execution uses packages/pml/src/loader/capability-loader.ts
+ * which sends traces via POST /api/traces with its own parentTraceId propagation.
  */
 
 import type { MCPClientBase } from "../mcp/types.ts";
@@ -58,6 +65,9 @@ export interface WorkerBridgeExecutor {
     code: string,
     toolDefinitions: ToolDefinition[],
     context?: Record<string, unknown>,
+    capabilityContext?: string,
+    parentTraceId?: string,
+    options?: { preserveTraces?: boolean; traceId?: string },
   ) => Promise<{ success: boolean; result?: unknown; error?: unknown; executionTimeMs: number }>;
   cleanup: () => void;
 }
@@ -95,12 +105,14 @@ export class RpcRouter {
    * @param server - Server namespace (e.g., "std", "$cap", "filesystem")
    * @param tool - Tool name (e.g., "cap_list", "uuid", "read_file")
    * @param args - Tool arguments
+   * @param parentTraceId - Parent trace ID for hierarchical tracking
    * @returns Route result with success, result/error, and route type
    */
   async route(
     server: string,
     tool: string,
     args: Record<string, unknown>,
+    parentTraceId?: string,
   ): Promise<RpcRouteResult> {
     // 1. Handle cap_* tools via CapModule
     if (server === "std" && tool.startsWith("cap_")) {
@@ -109,11 +121,11 @@ export class RpcRouter {
 
     // 2. Handle $cap:<uuid> capability references
     if (server === "$cap") {
-      return this.routeToCapUuid(tool, args);
+      return this.routeToCapUuid(tool, args, parentTraceId);
     }
 
     // 3. Try routing to named capability first
-    const capabilityResult = await this.routeToCapability(server, tool, args);
+    const capabilityResult = await this.routeToCapability(server, tool, args, parentTraceId);
     if (capabilityResult) {
       return capabilityResult;
     }
@@ -159,6 +171,7 @@ export class RpcRouter {
   private async routeToCapUuid(
     uuid: string,
     args: Record<string, unknown>,
+    parentTraceId?: string,
   ): Promise<RpcRouteResult> {
     if (!this.config.capabilityRegistry || !this.config.capabilityStore) {
       return {
@@ -188,7 +201,14 @@ export class RpcRouter {
 
     logger.info("Routing $cap:<uuid> to capability", { uuid, id: record.id });
 
-    return this.executeCapability(pattern.codeSnippet, args, record.id, "cap_uuid");
+    return this.executeCapability(
+      pattern.codeSnippet,
+      args,
+      record.id,
+      "cap_uuid",
+      parentTraceId,
+      pattern.description, // Intent for trace saving
+    );
   }
 
   /**
@@ -199,8 +219,15 @@ export class RpcRouter {
     server: string,
     tool: string,
     args: Record<string, unknown>,
+    parentTraceId?: string,
   ): Promise<RpcRouteResult | null> {
     if (!this.config.capabilityRegistry || !this.config.capabilityStore) {
+      logger.warn("[RpcRouter.routeToCapability] Missing deps", {
+        hasRegistry: !!this.config.capabilityRegistry,
+        hasStore: !!this.config.capabilityStore,
+        server,
+        tool,
+      });
       return null;
     }
 
@@ -227,7 +254,14 @@ export class RpcRouter {
       fqdn: getCapabilityFqdn(record),
     });
 
-    return this.executeCapability(pattern.codeSnippet, args, record.id, "capability");
+    return this.executeCapability(
+      pattern.codeSnippet,
+      args,
+      record.id,
+      "capability",
+      parentTraceId,
+      pattern.description, // Intent for trace saving
+    );
   }
 
   /**
@@ -242,7 +276,7 @@ export class RpcRouter {
     if (!client) {
       return {
         success: false,
-        error: `MCP server "${server}" not connected and no capability "${server}:${tool}" found`,
+        error: `MCP server "${server}" unreachable`,
         routeType: "mcp_server",
       };
     }
@@ -266,13 +300,30 @@ export class RpcRouter {
 
   /**
    * Execute a capability via new WorkerBridge instance
+   *
+   * @param code - Capability code to execute
+   * @param args - Arguments for the capability
+   * @param capabilityId - UUID of the capability record
+   * @param routeType - Type of routing (cap_uuid or capability)
+   * @param parentTraceId - Parent trace ID for hierarchy linking
+   * @param intent - Intent/description for trace saving (from workflow_pattern.description)
    */
   private async executeCapability(
     code: string,
     args: Record<string, unknown>,
     capabilityId: string,
     routeType: "cap_uuid" | "capability",
+    parentTraceId?: string,
+    intent?: string,
   ): Promise<RpcRouteResult> {
+    logger.info("[RpcRouter.executeCapability] DEBUG parentTraceId + capabilityStore", {
+      parentTraceId,
+      capabilityId,
+      intent,
+      routeType,
+      hasCapabilityStore: !!this.config.capabilityStore,
+    });
+
     const bridge = this.bridgeFactory({
       timeout: this.config.timeout,
       capabilityStore: this.config.capabilityStore,
@@ -281,10 +332,19 @@ export class RpcRouter {
     });
 
     try {
+      // Generate child traceId for this nested capability
+      const childTraceId = crypto.randomUUID();
       const capResult = await bridge.execute(
         code,
         [],
-        { ...args, __capability_id: capabilityId },
+        {
+          ...args,
+          __capability_id: capabilityId,
+          intent: intent ?? "nested capability execution", // Required for trace saving
+        },
+        undefined, // capabilityContext
+        parentTraceId, // parent trace for hierarchy
+        { traceId: childTraceId }, // this execution's trace ID
       );
 
       return {

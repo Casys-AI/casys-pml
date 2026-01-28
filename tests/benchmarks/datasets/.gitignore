@@ -1,0 +1,9 @@
+# Large dataset files - download separately
+*.json
+*.npy
+*.zip
+*.gz
+*.parquet
+
+# Keep README
+!README.md

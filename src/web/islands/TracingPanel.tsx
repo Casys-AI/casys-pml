@@ -199,6 +199,8 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
   const eventsContainerRef = useRef<HTMLDivElement>(null);
   const lastTimestampRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  // AbortController to cancel previous fetches and prevent race conditions
+  const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
   // Persist panel width
   useEffect(() => {
@@ -243,12 +245,21 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
 
   // Fetch traces from API (Fresh server, not MCP)
   const fetchTraces = async (since?: string) => {
+    // Cancel any previous fetch to prevent race conditions
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    fetchAbortControllerRef.current = controller;
+
     try {
       const params = new URLSearchParams({ type: "traces", limit: "50" });
       if (since) params.set("since", since);
 
       // Use relative URL to call Fresh server (same origin), not apiBase (MCP)
-      const resp = await fetch(`/api/algorithm-feedback?${params}`);
+      const resp = await fetch(`/api/algorithm-feedback?${params}`, {
+        signal: controller.signal,
+      });
       if (!resp.ok) return;
 
       const data = await resp.json();
@@ -273,6 +284,10 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
         }
       }
     } catch (err) {
+      // Ignore AbortError (voluntary cancellation from new fetch starting)
+      if (err instanceof Error && err.name === "AbortError") {
+        return;
+      }
       console.warn("[TracingPanel] Failed to fetch traces:", err);
     }
   };

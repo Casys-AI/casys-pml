@@ -116,6 +116,11 @@ export interface SHGATParams {
   fusionMLP: FusionMLPParams;
   W_stats: number[][];
   b_stats: number[];
+
+  // Per-level residual logits (learnable)
+  // sigmoid(residualLogits[level]) = α for that level
+  // Initialized to logit(0.3) ≈ -0.847 so sigmoid gives ~0.3
+  residualLogits: number[];
 }
 
 /**
@@ -309,6 +314,13 @@ export function initializeParameters(config: SHGATConfig): SHGATParams {
     b2: 0,
   };
 
+  // Per-level residual logits (learnable)
+  // Initialize to logit(0.3) = log(0.3/0.7) ≈ -0.847 so sigmoid gives ~0.3
+  // Support up to 10 hierarchy levels (typical is 2-3)
+  const MAX_LEVELS = 10;
+  const initLogit = Math.log(0.3 / 0.7); // ≈ -0.847
+  const residualLogits = new Array(MAX_LEVELS).fill(initLogit);
+
   return {
     layerParams,
     headParams,
@@ -320,6 +332,7 @@ export function initializeParameters(config: SHGATConfig): SHGATParams {
     fusionMLP,
     W_stats,
     b_stats,
+    residualLogits,
   };
 }
 

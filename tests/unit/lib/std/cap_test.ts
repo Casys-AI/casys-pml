@@ -25,15 +25,25 @@ Deno.test("globToSqlLike - converts * to %", () => {
   assertEquals(globToSqlLike("read*json"), "read%json");
 });
 
-Deno.test("globToSqlLike - converts ? to _", () => {
-  assertEquals(globToSqlLike("read_?"), "read\\__");
-  assertEquals(globToSqlLike("file?"), "file_");
+Deno.test({
+  name: "globToSqlLike - converts ? to _",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: () => {
+    assertEquals(globToSqlLike("read_?"), "read\\__");
+    assertEquals(globToSqlLike("file?"), "file_");
+  },
 });
 
-Deno.test("globToSqlLike - escapes existing % and _", () => {
-  assertEquals(globToSqlLike("100%"), "100\\%");
-  assertEquals(globToSqlLike("file_name"), "file\\_name");
-  assertEquals(globToSqlLike("api:get_*"), "api:get\\_%");
+Deno.test({
+  name: "globToSqlLike - escapes existing % and _",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: () => {
+    assertEquals(globToSqlLike("100%"), "100\\%");
+    assertEquals(globToSqlLike("file_name"), "file\\_name");
+    assertEquals(globToSqlLike("api:get_*"), "api:get\\_%");
+  },
 });
 
 Deno.test("globToSqlLike - complex patterns", () => {
@@ -671,7 +681,11 @@ Deno.test("cap:merge - uses MIN created_at (AC2)", async () => {
   assertEquals(createdAtParam.toISOString(), "2024-06-01T00:00:00.000Z");
 });
 
-Deno.test("cap:merge - uses newest code_snippet by default (AC4)", async () => {
+Deno.test({
+  name: "cap:merge - uses newest code_snippet by default (AC4)",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
   const mockDb = new MockDb();
   const mockRegistry = new MockRegistry();
 
@@ -723,9 +737,14 @@ Deno.test("cap:merge - uses newest code_snippet by default (AC4)", async () => {
 
   assertEquals(data.success, true);
   assertEquals(data.codeSource, "source"); // Source code used because newer
+  },
 });
 
-Deno.test("cap:merge - preferSourceCode override forces source code (AC5)", async () => {
+Deno.test({
+  name: "cap:merge - preferSourceCode override forces source code (AC5)",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
   const mockDb = new MockDb();
   const mockRegistry = new MockRegistry();
 
@@ -778,45 +797,51 @@ Deno.test("cap:merge - preferSourceCode override forces source code (AC5)", asyn
 
   assertEquals(data.success, true);
   assertEquals(data.codeSource, "source"); // Source forced via preferSourceCode
+  },
 });
 
-Deno.test("cap:merge - deletes source capability (AC6)", async () => {
-  const mockDb = new MockDb();
-  const mockRegistry = new MockRegistry();
+Deno.test({
+  name: "cap:merge - deletes source capability (AC6)",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const mockDb = new MockDb();
+    const mockRegistry = new MockRegistry();
 
-  const sourceCap = createMockCapability({
-    id: "source-uuid-ac6",
-    namespace: "fs",
-    action: "read_old",
-  });
-  const targetCap = createMockCapability({
-    id: "target-uuid-ac6",
-    namespace: "fs",
-    action: "read_new",
-  });
-  mockRegistry.addCapability(sourceCap);
-  mockRegistry.addCapability(targetCap);
+    const sourceCap = createMockCapability({
+      id: "source-uuid-ac6",
+      namespace: "fs",
+      action: "read_old",
+    });
+    const targetCap = createMockCapability({
+      id: "target-uuid-ac6",
+      namespace: "fs",
+      action: "read_new",
+    });
+    mockRegistry.addCapability(sourceCap);
+    mockRegistry.addCapability(targetCap);
 
-  mockDb.setMockRows([
-    { tools_used: ["mcp__fs__read"], code_snippet: "// code", updated_at: new Date("2025-01-01") },
-  ]);
+    mockDb.setMockRows([
+      { tools_used: ["mcp__fs__read"], code_snippet: "// code", updated_at: new Date("2025-01-01") },
+    ]);
 
-  // deno-lint-ignore no-explicit-any
-  const capModule = new CapModule(mockRegistry as any, mockDb as any);
+    // deno-lint-ignore no-explicit-any
+    const capModule = new CapModule(mockRegistry as any, mockDb as any);
 
-  const result = await capModule.call("cap:merge", {
-    source: "fs:read_old",
-    target: "fs:read_new",
-  });
-  const data = JSON.parse(result.content[0].text);
+    const result = await capModule.call("cap:merge", {
+      source: "fs:read_old",
+      target: "fs:read_new",
+    });
+    const data = JSON.parse(result.content[0].text);
 
-  assertEquals(data.success, true);
-  assertEquals(data.deletedSourceId, "source-uuid-ac6");
+    assertEquals(data.success, true);
+    assertEquals(data.deletedSourceId, "source-uuid-ac6");
 
-  // Verify DELETE query was executed with correct source ID
-  const deleteQuery = mockDb.queries.find((q) => q.sql.includes("DELETE FROM capability_records"));
-  assertEquals(deleteQuery !== undefined, true, "DELETE query must be executed");
-  assertEquals(deleteQuery!.params[0], "source-uuid-ac6");
+    // Verify DELETE query was executed with correct source ID
+    const deleteQuery = mockDb.queries.find((q) => q.sql.includes("DELETE FROM capability_records"));
+    assertEquals(deleteQuery !== undefined, true, "DELETE query must be executed");
+    assertEquals(deleteQuery!.params[0], "source-uuid-ac6");
+  },
 });
 
 Deno.test("cap:merge - calls onMerged callback after successful merge", async () => {

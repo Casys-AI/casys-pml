@@ -90,6 +90,9 @@ export function createSHGAT(
     shgat.registerNode(node);
   }
 
+  // Finalize: rebuild indices once after all nodes are registered
+  shgat.finalizeNodes();
+
   return shgat;
 }
 

@@ -12,10 +12,9 @@ import * as colors from "@std/fmt/colors";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { Hono } from "hono";
-import { cors } from "hono/cors";
+import { cors } from "jsr:@hono/hono@^4/cors";
 import type { PmlConfig } from "../types.ts";
 import {
-  getWorkspaceSourceDescription,
   isValidWorkspace,
   resolveWorkspaceWithDetails,
 } from "../workspace.ts";
@@ -26,10 +25,13 @@ import {
   isRoutingInitialized,
   syncRoutingConfig,
 } from "../routing/mod.ts";
-import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
+import { CapabilityLoader, LockfileManager, StdioManager } from "../loader/mod.ts";
+import { loadMcpServers } from "../config.ts";
+import { discoverAllMcpToolsWithTimeout, summarizeDiscovery, syncDiscoveredTools } from "../discovery/mod.ts";
+import { ConfigWatcher } from "../discovery/config-watcher.ts";
 import { SessionClient } from "../session/mod.ts";
 import { PendingWorkflowStore } from "../workflow/mod.ts";
-import { TraceSyncer, type LocalExecutionTrace, type JsonValue } from "../tracing/mod.ts";
+import { TraceSyncer } from "../tracing/mod.ts";
 import { reloadEnv } from "../byok/env-loader.ts";
 
 // Shared utilities
@@ -54,6 +56,9 @@ let sessionClient: SessionClient | null = null;
 
 /** Trace syncer for sending execution traces to cloud */
 let traceSyncer: TraceSyncer | null = null;
+
+/** Config watcher for hot-reload of mcpServers */
+let configWatcher: ConfigWatcher | null = null;
 
 /** Pending workflow store for HIL flows */
 const pendingWorkflowStore = new PendingWorkflowStore();
@@ -141,14 +146,90 @@ export function createServeCommand(): Command<any> {
       }
 
       // Initialize TraceSyncer for capability creation after local execution
+      // ADR-065: explicit flush only, no auto-flush timer
       traceSyncer = new TraceSyncer({
         cloudUrl,
         apiKey,
         batchSize: 10,
-        flushIntervalMs: 5000,
         maxRetries: 3,
       });
       log(`${colors.green("✓")} TraceSyncer ready`);
+
+      // Discover tools from user-configured MCP servers
+      const userMcpServers = loadMcpServers(config);
+      log(`${colors.dim("mcpServers in config:")} ${config.mcpServers ? Object.keys(config.mcpServers).length : 0}`);
+      log(`${colors.dim("userMcpServers loaded:")} ${userMcpServers.size}`);
+      if (userMcpServers.size > 0) {
+        log(`${colors.dim("⟳")} Discovering tools from ${userMcpServers.size} MCP server(s)...`);
+
+        // Run discovery in background (don't block server startup)
+        (async () => {
+          const discoveryManager = new StdioManager(60_000); // 1min idle timeout
+
+          try {
+            const discoveryResults = await discoverAllMcpToolsWithTimeout(
+              userMcpServers,
+              discoveryManager,
+              10_000,  // 10s per server
+              60_000,  // 60s global timeout
+              5,       // 5 parallel
+            );
+
+            const summary = summarizeDiscovery(discoveryResults);
+            log(
+              `${colors.green("✓")} MCP Discovery: ${summary.successfulServers}/${summary.totalServers} servers, ` +
+              `${summary.totalTools} tools found`
+            );
+
+            if (summary.failures.length > 0) {
+              for (const failure of summary.failures) {
+                log(`${colors.yellow("⚠")} ${failure.server}: ${failure.error}`);
+              }
+            }
+
+            // Sync discovered tools to cloud
+            if (summary.totalTools > 0) {
+              const syncResult = await syncDiscoveredTools(cloudUrl, apiKey, discoveryResults);
+              if (syncResult.success) {
+                log(`${colors.green("✓")} MCP Sync: ${syncResult.synced} tools synced to cloud`);
+              } else {
+                log(`${colors.yellow("⚠")} MCP Sync failed: ${syncResult.error}`);
+              }
+            }
+          } catch (error) {
+            log(`${colors.yellow("⚠")} MCP Discovery failed: ${error}`);
+          } finally {
+            discoveryManager.shutdownAll();
+          }
+        })();
+      }
+
+      // Start config watcher for hot-reload of mcpServers
+      configWatcher = new ConfigWatcher();
+      configWatcher.start(configPath, async (newServers, added, removed) => {
+        log(`${colors.cyan("⟳")} Config changed: +${added.length} -${removed.length} servers`);
+
+        // Re-run discovery with new config
+        const servers = new Map(Object.entries(newServers));
+        if (servers.size > 0) {
+          const discoveryManager = new StdioManager(60_000);
+          try {
+            const results = await discoverAllMcpToolsWithTimeout(servers, discoveryManager, 10_000, 60_000, 5);
+            const summary = summarizeDiscovery(results);
+            log(`${colors.green("✓")} Re-discovery: ${summary.totalTools} tools from ${summary.successfulServers} servers`);
+
+            if (summary.totalTools > 0) {
+              const syncResult = await syncDiscoveredTools(cloudUrl, apiKey, results);
+              if (syncResult.success) {
+                log(`${colors.green("✓")} Re-sync: ${syncResult.synced} tools`);
+              }
+            }
+          } finally {
+            discoveryManager.shutdownAll();
+          }
+        }
+      });
+      log(`${colors.green("✓")} Config watcher started`);
 
       const port = options.port;
 
@@ -251,6 +332,8 @@ export function createServeCommand(): Command<any> {
                   fqdnMap,
                   { approved: true, workflowId: continueWorkflow.workflowId },
                   httpLogger,
+                  undefined, // serverWorkflowId not needed for continuation
+                  pending.dagTasks, // Story 11.4: DAG tasks with layerIndex
                 );
                 pendingWorkflowStore.delete(continueWorkflow.workflowId);
 
@@ -264,6 +347,7 @@ export function createServeCommand(): Command<any> {
                       pendingWorkflowStore,
                       pending.code,
                       pending.fqdnMap,
+                      pending.dagTasks, // Story 11.4
                     ),
                   });
                 }
@@ -308,6 +392,8 @@ export function createServeCommand(): Command<any> {
                   fqdnMap,
                   continueWorkflow,
                   httpLogger,
+                  execLocally.workflowId, // ADR-065: server workflowId = client traceId
+                  execLocally.dag?.tasks, // Story 11.4: DAG tasks with layerIndex
                 );
 
                 if (result.status === "approval_required") {
@@ -321,6 +407,7 @@ export function createServeCommand(): Command<any> {
                       pendingWorkflowStore,
                       execLocally.code,
                       Object.fromEntries(fqdnMap),
+                      execLocally.dag?.tasks, // Story 11.4
                     ),
                   });
                 }
@@ -332,28 +419,8 @@ export function createServeCommand(): Command<any> {
                     result: { content: [{ type: "text", text: JSON.stringify({ status: "error", error: result.error, executed_locally: true }) }] },
                   });
                 }
-                // Send trace to finalize capability creation if workflowId present
-                if (execLocally.workflowId && traceSyncer) {
-                  const trace: LocalExecutionTrace = {
-                    workflowId: execLocally.workflowId,
-                    capabilityId: "",
-                    success: true,
-                    durationMs: result.durationMs,
-                    taskResults: result.toolCallRecords.map((record, i) => ({
-                      taskId: `task_${i}`,
-                      tool: record.tool,
-                      args: (record.args ?? {}) as Record<string, JsonValue>,
-                      result: (record.result ?? null) as JsonValue,
-                      success: record.success,
-                      durationMs: record.durationMs,
-                      timestamp: new Date().toISOString(),
-                    })),
-                    decisions: [],
-                    timestamp: new Date().toISOString(),
-                  };
-                  traceSyncer.enqueue(trace);
-                  log(`  Trace queued: ${execLocally.workflowId.slice(0, 8)}`);
-                }
+                // ADR-065: Trace is now sent by local-executor.ts with unified workflowId/traceId
+                // No need for duplicate trace here - local-executor passes workflowId to enqueueDirectExecutionTrace()
 
                 log(`  ${colors.green("✓")} success (${result.durationMs}ms)`);
                 return c.json({
@@ -397,6 +464,11 @@ export function createServeCommand(): Command<any> {
         if (sessionClient) {
           await sessionClient.shutdown();
           log(`${colors.dim("✓")} Session unregistered`);
+        }
+
+        if (configWatcher) {
+          configWatcher.stop();
+          log(`${colors.dim("✓")} Config watcher stopped`);
         }
 
         log(`${colors.green("✓")} Cleanup complete`);

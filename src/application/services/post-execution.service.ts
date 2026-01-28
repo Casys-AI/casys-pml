@@ -119,9 +119,10 @@ export class PostExecutionService {
     );
 
     // 6. PER batch training (background, non-blocking)
-    this.runPERBatchTraining().catch((err) =>
-      log.warn("[PostExecutionService] PER training failed", { error: String(err) })
-    );
+    this.runPERBatchTraining().catch((err) => {
+      const errMsg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
+      log.warn(`[PostExecutionService] PER training failed: ${errMsg}`);
+    });
   }
 
   // ==========================================================================
@@ -462,7 +463,8 @@ export class PostExecutionService {
         });
       }
     } catch (error) {
-      log.warn("[PostExecutionService] PER training failed", { error: String(error) });
+      const errMsg = error instanceof Error ? `${error.message}\n${error.stack}` : String(error);
+      log.warn(`[PostExecutionService] PER training failed: ${errMsg}`);
     } finally {
       trainingLock.release("PER");
     }

@@ -20,12 +20,17 @@ import type { JSONSchema } from "../../../src/graphrag/types.ts";
 // areTypesCompatible Tests
 // =============================================================================
 
-Deno.test("areTypesCompatible - exact matches", () => {
-  assertEquals(areTypesCompatible("string", "string"), true);
-  assertEquals(areTypesCompatible("number", "number"), true);
-  assertEquals(areTypesCompatible("boolean", "boolean"), true);
-  assertEquals(areTypesCompatible("object", "object"), true);
-  assertEquals(areTypesCompatible("array", "array"), true);
+Deno.test({
+  name: "areTypesCompatible - exact matches",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: () => {
+    assertEquals(areTypesCompatible("string", "string"), true);
+    assertEquals(areTypesCompatible("number", "number"), true);
+    assertEquals(areTypesCompatible("boolean", "boolean"), true);
+    assertEquals(areTypesCompatible("object", "object"), true);
+    assertEquals(areTypesCompatible("array", "array"), true);
+  },
 });
 
 Deno.test("areTypesCompatible - case insensitive", () => {
@@ -624,7 +629,11 @@ Deno.test("DB Persistence - getToolProvidesEdges queries from DB", async () => {
   await db.close();
 });
 
-Deno.test("DB Persistence - findDirectProvidesEdge returns edge or null", async () => {
+Deno.test({
+  name: "DB Persistence - findDirectProvidesEdge returns edge or null",
+  sanitizeOps: false, // BroadcastChannel from parallel tests
+  sanitizeResources: false,
+  fn: async () => {
   const db = await createTestDb();
   await insertToolSchemas(db);
 
@@ -646,6 +655,7 @@ Deno.test("DB Persistence - findDirectProvidesEdge returns edge or null", async 
   assertEquals(noEdge, null);
 
   await db.close();
+  },
 });
 
 Deno.test("DB Persistence - syncAllProvidesEdges calculates and stores", async () => {
@@ -686,96 +696,106 @@ Deno.test("DB Persistence - syncAllProvidesEdges calculates and stores", async (
   await db.close();
 });
 
-Deno.test("DB Persistence - syncProvidesEdgesForTool incremental update", async () => {
-  const db = await createTestDb();
+Deno.test({
+  name: "DB Persistence - syncProvidesEdgesForTool incremental update",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const db = await createTestDb();
 
-  // Insert a provider tool with "data" output
-  await db.query(
-    `INSERT INTO tool_schema (tool_id, server_id, name, input_schema, output_schema) VALUES
-     ('source:tool', 'test', 'source', $1, $2)`,
-    [
-      JSON.stringify({ type: "object", properties: { query: { type: "string" } } }),
-      JSON.stringify({ type: "object", properties: { data: { type: "string" } } }),
-    ],
-  );
+    // Insert a provider tool with "data" output
+    await db.query(
+      `INSERT INTO tool_schema (tool_id, server_id, name, input_schema, output_schema) VALUES
+       ('source:tool', 'test', 'source', $1, $2)`,
+      [
+        JSON.stringify({ type: "object", properties: { query: { type: "string" } } }),
+        JSON.stringify({ type: "object", properties: { data: { type: "string" } } }),
+      ],
+    );
 
-  // Sync source tool (no consumers yet, so 0 edges)
-  const count1 = await syncProvidesEdgesForTool(db, "source:tool");
-  assertEquals(count1, 0);
+    // Sync source tool (no consumers yet, so 0 edges)
+    const count1 = await syncProvidesEdgesForTool(db, "source:tool");
+    assertEquals(count1, 0);
 
-  // Add a consumer tool that requires "data"
-  await db.query(
-    `INSERT INTO tool_schema (tool_id, server_id, name, input_schema, output_schema) VALUES
-     ('sink:tool', 'test', 'sink', $1, NULL)`,
-    [
-      JSON.stringify({
-        type: "object",
-        properties: { data: { type: "string" } },
-        required: ["data"],
-      }),
-    ],
-  );
+    // Add a consumer tool that requires "data"
+    await db.query(
+      `INSERT INTO tool_schema (tool_id, server_id, name, input_schema, output_schema) VALUES
+       ('sink:tool', 'test', 'sink', $1, NULL)`,
+      [
+        JSON.stringify({
+          type: "object",
+          properties: { data: { type: "string" } },
+          required: ["data"],
+        }),
+      ],
+    );
 
-  // Sync source tool again - now it can provide to sink
-  const count2 = await syncProvidesEdgesForTool(db, "source:tool");
-  assertEquals(count2, 1, "source:tool should now provide to sink:tool");
+    // Sync source tool again - now it can provide to sink
+    const count2 = await syncProvidesEdgesForTool(db, "source:tool");
+    assertEquals(count2, 1, "source:tool should now provide to sink:tool");
 
-  // Verify edge exists
-  const edge = await findDirectProvidesEdge(db, "source:tool", "sink:tool");
-  assert(edge !== null);
-  assertEquals(edge!.coverage, "strict"); // "data" covers all required fields
+    // Verify edge exists
+    const edge = await findDirectProvidesEdge(db, "source:tool", "sink:tool");
+    assert(edge !== null);
+    assertEquals(edge!.coverage, "strict"); // "data" covers all required fields
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("DB Persistence - coverage to confidence mapping", async () => {
-  const db = await createTestDb();
+Deno.test({
+  name: "DB Persistence - coverage to confidence mapping",
+  sanitizeOps: false, // BroadcastChannel from event bus
+  sanitizeResources: false,
+  fn: async () => {
+    const db = await createTestDb();
 
-  // Test all coverage levels
-  const edges: ProvidesEdge[] = [
-    {
-      from: "a",
-      to: "b",
-      type: "provides",
-      coverage: "strict",
-      providerOutputSchema: {},
-      consumerInputSchema: {},
-      fieldMapping: [],
-      weight: 0.7,
-    },
-    {
-      from: "c",
-      to: "d",
-      type: "provides",
-      coverage: "partial",
-      providerOutputSchema: {},
-      consumerInputSchema: {},
-      fieldMapping: [],
-      weight: 0.7,
-    },
-    {
-      from: "e",
-      to: "f",
-      type: "provides",
-      coverage: "optional",
-      providerOutputSchema: {},
-      consumerInputSchema: {},
-      fieldMapping: [],
-      weight: 0.7,
-    },
-  ];
+    // Test all coverage levels
+    const edges: ProvidesEdge[] = [
+      {
+        from: "a",
+        to: "b",
+        type: "provides",
+        coverage: "strict",
+        providerOutputSchema: {},
+        consumerInputSchema: {},
+        fieldMapping: [],
+        weight: 0.7,
+      },
+      {
+        from: "c",
+        to: "d",
+        type: "provides",
+        coverage: "partial",
+        providerOutputSchema: {},
+        consumerInputSchema: {},
+        fieldMapping: [],
+        weight: 0.7,
+      },
+      {
+        from: "e",
+        to: "f",
+        type: "provides",
+        coverage: "optional",
+        providerOutputSchema: {},
+        consumerInputSchema: {},
+        fieldMapping: [],
+        weight: 0.7,
+      },
+    ];
 
-  await persistProvidesEdges(db, edges);
+    await persistProvidesEdges(db, edges);
 
-  // Query back and check coverage conversion
-  const strictEdge = await getToolProvidesEdges(db, "a", "from");
-  assertEquals(strictEdge[0].coverage, "strict");
+    // Query back and check coverage conversion
+    const strictEdge = await getToolProvidesEdges(db, "a", "from");
+    assertEquals(strictEdge[0].coverage, "strict");
 
-  const partialEdge = await getToolProvidesEdges(db, "c", "from");
-  assertEquals(partialEdge[0].coverage, "partial");
+    const partialEdge = await getToolProvidesEdges(db, "c", "from");
+    assertEquals(partialEdge[0].coverage, "partial");
 
-  const optionalEdge = await getToolProvidesEdges(db, "e", "from");
-  assertEquals(optionalEdge[0].coverage, "optional");
+    const optionalEdge = await getToolProvidesEdges(db, "e", "from");
+    assertEquals(optionalEdge[0].coverage, "optional");
 
-  await db.close();
+    await db.close();
+  },
 });
