@@ -25,11 +25,11 @@ const DISCOVERY_TIMEOUT_MS = 10_000;
  * ajv07: draft-07 (default, most MCP servers)
  * ajv2020: draft/2020-12 (modern servers like Playwright)
  * strict: false to allow unknown keywords often found in MCP schemas.
- * validateSchema: false to skip $schema URI validation (accepts any draft URI).
  */
 const Ajv07Constructor = Ajv.default || Ajv;
-const ajv07 = new Ajv07Constructor({ strict: false, validateSchema: false });
-const ajv2020 = new Ajv2020({ strict: false, validateSchema: false });
+const ajv07 = new Ajv07Constructor({ strict: false });
+const Ajv2020Constructor = Ajv2020.default || Ajv2020;
+const ajv2020 = new Ajv2020Constructor({ strict: false });
 
 /**
  * Tool discovered from an MCP server.

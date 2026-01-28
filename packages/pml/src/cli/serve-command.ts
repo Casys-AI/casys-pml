@@ -28,6 +28,7 @@ import {
 import { CapabilityLoader, LockfileManager, StdioManager } from "../loader/mod.ts";
 import { loadMcpServers } from "../config.ts";
 import { discoverAllMcpToolsWithTimeout, summarizeDiscovery, syncDiscoveredTools } from "../discovery/mod.ts";
+import { ConfigWatcher } from "../discovery/config-watcher.ts";
 import { SessionClient } from "../session/mod.ts";
 import { PendingWorkflowStore } from "../workflow/mod.ts";
 import { TraceSyncer } from "../tracing/mod.ts";
@@ -55,6 +56,9 @@ let sessionClient: SessionClient | null = null;
 
 /** Trace syncer for sending execution traces to cloud */
 let traceSyncer: TraceSyncer | null = null;
+
+/** Config watcher for hot-reload of mcpServers */
+let configWatcher: ConfigWatcher | null = null;
 
 /** Pending workflow store for HIL flows */
 const pendingWorkflowStore = new PendingWorkflowStore();
@@ -199,6 +203,33 @@ export function createServeCommand(): Command<any> {
           }
         })();
       }
+
+      // Start config watcher for hot-reload of mcpServers
+      configWatcher = new ConfigWatcher();
+      configWatcher.start(configPath, async (newServers, added, removed) => {
+        log(`${colors.cyan("⟳")} Config changed: +${added.length} -${removed.length} servers`);
+
+        // Re-run discovery with new config
+        const servers = new Map(Object.entries(newServers));
+        if (servers.size > 0) {
+          const discoveryManager = new StdioManager(60_000);
+          try {
+            const results = await discoverAllMcpToolsWithTimeout(servers, discoveryManager, 10_000, 60_000, 5);
+            const summary = summarizeDiscovery(results);
+            log(`${colors.green("✓")} Re-discovery: ${summary.totalTools} tools from ${summary.successfulServers} servers`);
+
+            if (summary.totalTools > 0) {
+              const syncResult = await syncDiscoveredTools(cloudUrl, apiKey, results);
+              if (syncResult.success) {
+                log(`${colors.green("✓")} Re-sync: ${syncResult.synced} tools`);
+              }
+            }
+          } finally {
+            discoveryManager.shutdownAll();
+          }
+        }
+      });
+      log(`${colors.green("✓")} Config watcher started`);
 
       const port = options.port;
 
@@ -433,6 +464,11 @@ export function createServeCommand(): Command<any> {
         if (sessionClient) {
           await sessionClient.shutdown();
           log(`${colors.dim("✓")} Session unregistered`);
+        }
+
+        if (configWatcher) {
+          configWatcher.stop();
+          log(`${colors.dim("✓")} Config watcher stopped`);
         }
 
         log(`${colors.green("✓")} Cleanup complete`);
