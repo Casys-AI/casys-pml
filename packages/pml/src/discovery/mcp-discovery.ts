@@ -1,0 +1,357 @@
+/**
+ * MCP Tool Discovery Module
+ *
+ * Discovers tools from MCP servers via tools/list.
+ * Validates schemas with AJV before accepting.
+ *
+ * @module discovery/mcp-discovery
+ */
+
+import type { McpServerConfig } from "../types.ts";
+import type { McpDependency } from "../loader/types.ts";
+import { StdioManager } from "../loader/stdio-manager.ts";
+import * as log from "@std/log";
+import Ajv from "npm:ajv@8.17.1";
+
+/**
+ * Default timeout for tools/list call (10 seconds).
+ * Shorter than the 30s request timeout - we want fast discovery.
+ */
+const DISCOVERY_TIMEOUT_MS = 10_000;
+
+/**
+ * AJV instance for schema validation.
+ * strict: false to allow unknown keywords often found in MCP schemas.
+ */
+const AjvConstructor = Ajv.default || Ajv;
+const ajv = new AjvConstructor({ strict: false });
+
+/**
+ * Tool discovered from an MCP server.
+ */
+export interface DiscoveredTool {
+  /** Tool name */
+  name: string;
+  /** Optional description */
+  description?: string;
+  /** JSON Schema for input parameters */
+  inputSchema?: Record<string, unknown>;
+}
+
+/**
+ * Result of discovering tools from a single MCP server.
+ */
+export interface DiscoveryResult {
+  /** Server name (from config key) */
+  serverName: string;
+  /** Discovered tools with valid schemas */
+  tools: DiscoveredTool[];
+  /** Server config used */
+  config: McpServerConfig;
+  /** Error message if discovery failed */
+  error?: string;
+  /** Tools skipped due to invalid schemas */
+  skippedTools?: string[];
+}
+
+/**
+ * Convert McpServerConfig to McpDependency format for StdioManager.
+ */
+function configToDependency(name: string, config: McpServerConfig): McpDependency {
+  if (config.type === "stdio") {
+    return {
+      name,
+      type: "stdio",
+      install: config.command ?? "",
+      version: "latest",
+      integrity: "", // Not used for discovery
+      command: config.command,
+      args: config.args,
+      env: config.env, // Pass env vars to spawn process
+    };
+  }
+
+  // HTTP type - not yet supported for discovery
+  throw new Error(`HTTP MCP servers not yet supported for discovery: ${name}`);
+}
+
+/**
+ * Maximum allowed tool name length.
+ */
+const MAX_TOOL_NAME_LENGTH = 256;
+
+/**
+ * Valid tool name pattern: alphanumeric, underscore, hyphen, dot.
+ * Must not contain colons (reserved for serverName:toolName format).
+ */
+const VALID_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_\-\.]+$/;
+
+/**
+ * Validate that a tool's inputSchema is a valid JSON Schema.
+ * Uses validateSchema() instead of compile() to avoid memory leak (F6 fix).
+ *
+ * @param tool - Tool object with optional inputSchema
+ * @returns true if schema is valid or not present
+ */
+function validateToolSchema(tool: { name: string; inputSchema?: unknown }): boolean {
+  // Name is required and must be a string
+  if (!tool.name || typeof tool.name !== "string") {
+    return false;
+  }
+
+  // F10 Fix: Validate tool name length
+  if (tool.name.length > MAX_TOOL_NAME_LENGTH) {
+    return false;
+  }
+
+  // F10 Fix: Validate tool name characters (no colons, control chars, etc.)
+  if (!VALID_TOOL_NAME_PATTERN.test(tool.name)) {
+    return false;
+  }
+
+  // No schema = OK (tool without parameters)
+  if (!tool.inputSchema) {
+    return true;
+  }
+
+  // Schema must be an object
+  if (typeof tool.inputSchema !== "object" || tool.inputSchema === null) {
+    return false;
+  }
+
+  // F6 Fix: Use validateSchema() instead of compile() to avoid memory leak.
+  // validateSchema() checks if the schema is valid JSON Schema without storing it.
+  // compile() would cache the compiled schema in the global ajv instance forever.
+  const isValid = ajv.validateSchema(tool.inputSchema as Record<string, unknown>);
+  return isValid === true;
+}
+
+/**
+ * Log debug message for discovery operations.
+ */
+function logDebug(message: string): void {
+  log.debug(`[pml:discovery] ${message}`);
+}
+
+/**
+ * Discover tools from a single MCP server.
+ *
+ * Spawns the MCP server, initializes MCP protocol, calls tools/list,
+ * validates each tool's schema, and returns valid tools.
+ *
+ * @param serverName - Name of the server (from config key)
+ * @param config - MCP server configuration
+ * @param stdioManager - StdioManager instance for process management
+ * @param timeout - Timeout in ms for tools/list call
+ * @returns Discovery result with tools or error
+ */
+export async function discoverMcpTools(
+  serverName: string,
+  config: McpServerConfig,
+  stdioManager: StdioManager,
+  timeout: number = DISCOVERY_TIMEOUT_MS,
+): Promise<DiscoveryResult> {
+  logDebug(`Starting discovery for ${serverName}`);
+
+  try {
+    // Convert config to dependency format
+    const dep = configToDependency(serverName, config);
+
+    // Spawn MCP server (includes initialize handshake)
+    await stdioManager.getOrSpawn(dep);
+
+    // Call tools/list with timeout
+    const response = await Promise.race([
+      stdioManager.call(serverName, "tools/list", {}),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Discovery timeout after ${timeout}ms`)), timeout)
+      ),
+    ]) as { tools?: unknown[] };
+
+    // Process tools
+    const rawTools = (response?.tools ?? []) as Array<{
+      name: string;
+      description?: string;
+      inputSchema?: unknown;
+    }>;
+
+    const validTools: DiscoveredTool[] = [];
+    const skippedTools: string[] = [];
+
+    for (const tool of rawTools) {
+      if (validateToolSchema(tool)) {
+        validTools.push({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
+        });
+      } else {
+        log.warn(`[pml:discovery] ${serverName}: invalid schema for "${tool.name}", skipping`);
+        skippedTools.push(tool.name);
+      }
+    }
+
+    logDebug(`${serverName}: discovered ${validTools.length} tools (${skippedTools.length} skipped)`);
+
+    return {
+      serverName,
+      tools: validTools,
+      config,
+      skippedTools: skippedTools.length > 0 ? skippedTools : undefined,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.warn(`[pml:discovery] ${serverName}: discovery failed - ${errorMessage}`);
+
+    // F7 Fix: Clean up spawned process on error to avoid zombie processes
+    try {
+      stdioManager.shutdown(serverName);
+    } catch {
+      // Ignore shutdown errors - process may not have been spawned
+    }
+
+    return {
+      serverName,
+      tools: [],
+      config,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * Default concurrency limit for parallel discovery.
+ */
+const DEFAULT_CONCURRENCY = 5;
+
+/**
+ * Global timeout for entire discovery process (60 seconds).
+ */
+const GLOBAL_DISCOVERY_TIMEOUT_MS = 60_000;
+
+/**
+ * Discover tools from multiple MCP servers.
+ *
+ * F5 Fix: Runs discovery in parallel with concurrency limit.
+ * Also has a global timeout to prevent indefinite blocking.
+ *
+ * @param servers - Map of server name to config
+ * @param stdioManager - StdioManager instance
+ * @param timeout - Per-server timeout
+ * @param concurrency - Max parallel discoveries (default: 5)
+ * @returns Array of discovery results
+ */
+export async function discoverAllMcpTools(
+  servers: Map<string, McpServerConfig>,
+  stdioManager: StdioManager,
+  timeout: number = DISCOVERY_TIMEOUT_MS,
+  concurrency: number = DEFAULT_CONCURRENCY,
+): Promise<DiscoveryResult[]> {
+  const entries = Array.from(servers.entries());
+  const results: DiscoveryResult[] = [];
+
+  // Process in batches with concurrency limit
+  for (let i = 0; i < entries.length; i += concurrency) {
+    const batch = entries.slice(i, i + concurrency);
+
+    const batchPromises = batch.map(async ([name, config]) => {
+      // Only support stdio for now
+      if (config.type !== "stdio") {
+        log.warn(`[pml:discovery] ${name}: HTTP servers not yet supported, skipping`);
+        return {
+          serverName: name,
+          tools: [],
+          config,
+          error: "HTTP servers not yet supported for discovery",
+        } as DiscoveryResult;
+      }
+
+      return await discoverMcpTools(name, config, stdioManager, timeout);
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    results.push(...batchResults);
+  }
+
+  return results;
+}
+
+/**
+ * Discover tools with global timeout.
+ * Wraps discoverAllMcpTools with a global timeout to prevent indefinite blocking.
+ *
+ * @param servers - Map of server name to config
+ * @param stdioManager - StdioManager instance
+ * @param perServerTimeout - Per-server timeout
+ * @param globalTimeout - Global timeout for entire discovery
+ * @param concurrency - Max parallel discoveries
+ * @returns Array of discovery results (partial if timeout)
+ */
+export async function discoverAllMcpToolsWithTimeout(
+  servers: Map<string, McpServerConfig>,
+  stdioManager: StdioManager,
+  perServerTimeout: number = DISCOVERY_TIMEOUT_MS,
+  globalTimeout: number = GLOBAL_DISCOVERY_TIMEOUT_MS,
+  concurrency: number = DEFAULT_CONCURRENCY,
+): Promise<DiscoveryResult[]> {
+  try {
+    return await Promise.race([
+      discoverAllMcpTools(servers, stdioManager, perServerTimeout, concurrency),
+      new Promise<DiscoveryResult[]>((_, reject) =>
+        setTimeout(() => reject(new Error(`Global discovery timeout after ${globalTimeout}ms`)), globalTimeout)
+      ),
+    ]);
+  } catch (error) {
+    log.warn(`[pml:discovery] ${error instanceof Error ? error.message : error}`);
+    // Return empty results on global timeout
+    return [];
+  }
+}
+
+/**
+ * Summary statistics for discovery results.
+ */
+export interface DiscoverySummary {
+  /** Total servers attempted */
+  totalServers: number;
+  /** Servers with successful discovery */
+  successfulServers: number;
+  /** Servers that failed */
+  failedServers: number;
+  /** Total tools discovered */
+  totalTools: number;
+  /** Total tools skipped */
+  skippedTools: number;
+  /** List of failed server names with errors */
+  failures: Array<{ server: string; error: string }>;
+}
+
+/**
+ * Summarize discovery results.
+ */
+export function summarizeDiscovery(results: DiscoveryResult[]): DiscoverySummary {
+  const failures: Array<{ server: string; error: string }> = [];
+
+  let totalTools = 0;
+  let skippedTools = 0;
+  let successfulServers = 0;
+
+  for (const result of results) {
+    if (result.error) {
+      failures.push({ server: result.serverName, error: result.error });
+    } else {
+      successfulServers++;
+      totalTools += result.tools.length;
+      skippedTools += result.skippedTools?.length ?? 0;
+    }
+  }
+
+  return {
+    totalServers: results.length,
+    successfulServers,
+    failedServers: failures.length,
+    totalTools,
+    skippedTools,
+    failures,
+  };
+}

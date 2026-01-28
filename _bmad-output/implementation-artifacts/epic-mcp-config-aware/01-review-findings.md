@@ -11,7 +11,7 @@
 | Severity | Count | Fixed |
 |----------|-------|-------|
 | Critical | 3 | 1 noise, 1 undecided, 1 documented |
-| High | 4 | ✅ 4/4 |
+| High | 4 | ✅ 4/4 (F6 was undecided, now fixed) |
 | Medium | 5 | ✅ 4/5 |
 | Low | 5 | ✅ 2/5 |
 
@@ -80,18 +80,13 @@ Discovery séquentielle : 100 serveurs × 10s timeout = 1000+ secondes de blocag
 
 ---
 
-### F6: Memory Leak - AJV Compiled Schemas
-**Severity:** High | **Validity:** Undecided
-**Location:** `packages/pml/src/discovery/mcp-discovery.ts:26-27, 102-103`
+### ~~F6: Memory Leak - AJV Compiled Schemas~~ ✅ FIXED
+**Severity:** High | **Validity:** Valid → Fixed
+**Location:** `packages/pml/src/discovery/mcp-discovery.ts:122-127`
 
-Le global `ajv` compile chaque schema sans éviction :
-```typescript
-ajv.compile(tool.inputSchema);
-```
+~~Le global `ajv` compile chaque schema sans éviction.~~
 
-Si des milliers de tools sont découverts, croissance mémoire non bornée.
-
-**Resolution:** Utiliser `ajv.validateSchema()` au lieu de `compile()`, ou appeler `ajv.removeSchema()` après validation.
+**Fix:** Utilise `ajv.validateSchema()` au lieu de `compile()`. `validateSchema()` vérifie que le schema est un JSON Schema valide sans le stocker en mémoire.
 
 ---
 
@@ -310,6 +305,13 @@ Les variables `env` de `mcpServers[name].env` n'étaient pas passées aux proces
 **Fixed:** 2026-01-28
 
 **Fix:** Les failures de discovery envoient maintenant une **notification MCP** (`notifications/message` level=warning) via `sendNotification()` dans `stdio-command.ts:709-718`. Le client (Claude Code) affiche ce warning à l'utilisateur. Les logs stderr sont invisibles en mode stdio.
+
+---
+
+### ✅ F6: Memory Leak - AJV Compiled Schemas
+**Fixed:** 2026-01-28
+
+**Fix:** Remplacé `ajv.compile()` par `ajv.validateSchema()` dans `mcp-discovery.ts:122-127`. `validateSchema()` vérifie la validité du schema sans le stocker en mémoire, évitant ainsi la croissance non bornée.
 
 ---
 
