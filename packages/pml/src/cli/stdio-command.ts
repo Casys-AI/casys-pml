@@ -31,6 +31,9 @@ import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { reloadEnv } from "../byok/env-loader.ts";
 import { stdioLog } from "../logging.ts";
+import { loadMcpServers } from "../config.ts";
+import { discoverAllMcpToolsWithTimeout, summarizeDiscovery, syncDiscoveredTools } from "../discovery/mod.ts";
+import { StdioManager } from "../loader/stdio-manager.ts";
 
 // Shared utilities
 import {
@@ -85,7 +88,8 @@ function sendError(
 }
 
 /**
- * Send MCP notification to client
+ * Send MCP notification to client (notifications/message)
+ * @see https://spec.modelcontextprotocol.io/specification/server/utilities/logging/
  */
 function sendNotification(
   level: "debug" | "info" | "warning" | "error",
@@ -674,6 +678,62 @@ export function createStdioCommand(): Command<any> {
         maxRetries: 3,
       });
       stdioLog.debug(`TraceSyncer initialized`);
+
+      // F5 Fix: Discover tools from user-configured MCP servers (fully async, non-blocking)
+      // Discovery runs in background and doesn't block stdio loop startup
+      const userMcpServers = loadMcpServers(config);
+      if (userMcpServers.size > 0) {
+        stdioLog.debug(`Starting async discovery for ${userMcpServers.size} user MCP server(s)...`);
+
+        // Fire-and-forget: don't await, let it run in background
+        (async () => {
+          const discoveryManager = new StdioManager(60_000); // 1min idle timeout
+
+          try {
+            // Use timeout version with parallel execution (5 concurrent, 60s global timeout)
+            const discoveryResults = await discoverAllMcpToolsWithTimeout(
+              userMcpServers,
+              discoveryManager,
+              10_000,  // 10s per server
+              60_000,  // 60s global timeout
+              5,       // 5 parallel
+            );
+
+            const summary = summarizeDiscovery(discoveryResults);
+
+            stdioLog.debug(
+              `MCP Discovery: ${summary.successfulServers}/${summary.totalServers} servers, ` +
+              `${summary.totalTools} tools found`
+            );
+
+            // F11 Fix: Send MCP notification for failures (visible to user in Claude Code)
+            // stderr logs are invisible in stdio mode, so use notifications/message
+            if (summary.failures.length > 0) {
+              const failureDetails = summary.failures
+                .map((f) => `${f.server}: ${f.error}`)
+                .join("; ");
+              sendNotification(
+                "warning",
+                `MCP Discovery: ${summary.failures.length} server(s) failed - ${failureDetails}`,
+              );
+            }
+
+            // Sync discovered tools to cloud
+            if (summary.totalTools > 0) {
+              const syncResult = await syncDiscoveredTools(cloudUrl, apiKey, discoveryResults);
+              if (syncResult.success) {
+                stdioLog.debug(`MCP Sync: ${syncResult.synced} tools synced to cloud`);
+              } else {
+                stdioLog.debug(`MCP Sync failed (non-fatal): ${syncResult.error}`);
+              }
+            }
+          } catch (error) {
+            stdioLog.debug(`MCP Discovery failed (non-fatal): ${error}`);
+          } finally {
+            discoveryManager.shutdownAll();
+          }
+        })();
+      }
 
       // Start stdio loop
       try {
