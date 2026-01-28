@@ -153,6 +153,8 @@ export function createServeCommand(): Command<any> {
 
       // Discover tools from user-configured MCP servers
       const userMcpServers = loadMcpServers(config);
+      log(`${colors.dim("mcpServers in config:")} ${config.mcpServers ? Object.keys(config.mcpServers).length : 0}`);
+      log(`${colors.dim("userMcpServers loaded:")} ${userMcpServers.size}`);
       if (userMcpServers.size > 0) {
         log(`${colors.dim("⟳")} Discovering tools from ${userMcpServers.size} MCP server(s)...`);
 

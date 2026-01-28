@@ -12,6 +12,22 @@ import type { RouteContext } from "../mcp/routing/types.ts";
 import { errorResponse, jsonResponse } from "../mcp/routing/types.ts";
 
 /**
+ * Normalize userId to valid UUID.
+ * Maps "local" and other non-UUID values to LOCAL_DEV_USER_ID from env.
+ */
+function normalizeUserId(userId: string): string | null {
+  // Check if already valid UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(userId)) {
+    return userId;
+  }
+  // Map non-UUID values to dev UUID from env
+  const devUserId = Deno.env.get("LOCAL_DEV_USER_ID");
+  log.debug(`[tools/sync] normalizeUserId: "${userId}" → devUserId=${devUserId ?? "NOT SET"}`);
+  return devUserId ?? null;
+}
+
+/**
  * Input for a discovered tool from client.
  */
 interface DiscoveredToolInput {
@@ -122,10 +138,12 @@ export async function handleToolsSync(
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
   // Get userId from context (set by auth middleware)
-  const userId = ctx.userId;
-  if (!userId) {
+  const rawUserId = ctx.userId;
+  if (!rawUserId) {
     return errorResponse("Unauthorized: Missing or invalid API key", 401, corsHeaders);
   }
+  // Normalize to UUID (maps "local" → dev UUID)
+  const userId = normalizeUserId(rawUserId);
 
   // Require db for this endpoint
   if (!ctx.db) {
@@ -182,25 +200,27 @@ export async function handleToolsSync(
                 cached_at = NOW()
             `, [toolId, result.serverName, tool.name, tool.description || null, JSON.stringify(tool.inputSchema || {})]);
 
-            // 2. Insert observation (multi-tenant)
+            // 2. Insert observation (multi-tenant) - skip if no valid userId
             // F9 Fix: Serialize args to PostgreSQL array literal for cross-driver compatibility
-            await tx.exec(`
-              INSERT INTO tool_observations (user_id, tool_id, server_namespace, observed_args)
-              VALUES ($1, $2, $3, $4::text[])
-              ON CONFLICT (user_id, tool_id, observed_args) DO UPDATE SET
-                observed_at = NOW()
-            `, [userId, toolId, result.serverName, toPostgresArray(args)]);
+            if (userId) {
+              await tx.exec(`
+                INSERT INTO tool_observations (user_id, tool_id, server_namespace, observed_args)
+                VALUES ($1, $2, $3, $4::text[])
+                ON CONFLICT (user_id, tool_id, observed_args) DO UPDATE SET
+                  observed_at = NOW()
+              `, [userId, toolId, result.serverName, toPostgresArray(args)]);
+              syncedObservations++;
+            }
           });
 
           syncedTools++;
-          syncedObservations++;
         } catch (error) {
           log.warn(`[tools/sync] Failed to sync tool ${toolId}: ${error}`);
         }
       }
     }
 
-    log.info(`[tools/sync] User ${userId.slice(0, 8)}: synced ${syncedTools} tools, ${syncedObservations} observations`);
+    log.info(`[tools/sync] User ${userId?.slice(0, 8) ?? rawUserId}: synced ${syncedTools} tools, ${syncedObservations} observations`);
 
     return jsonResponse({
       synced: syncedTools,

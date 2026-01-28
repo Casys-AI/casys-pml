@@ -168,6 +168,8 @@ Manque :
 
 **Fix:** Les failures de discovery envoient une **notification MCP** (`notifications/message` level=warning). Le client (Claude Code) affiche ce warning à l'utilisateur. Les logs stderr sont invisibles en mode stdio, donc la notification MCP est la seule façon de communiquer avec l'utilisateur.
 
+**Update 2026-01-28:** HTTP discovery maintenant supporté via `discoverHttpMcpTools()`. Les serveurs HTTP ne sont plus skippés - ils utilisent JSON-RPC 2.0 POST pour récupérer tools/list.
+
 ---
 
 ### ~~F12: Missing FK tool_observations → tool_schema~~ ✅ FIXED

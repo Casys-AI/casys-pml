@@ -12,6 +12,7 @@ import type { McpDependency } from "../loader/types.ts";
 import { StdioManager } from "../loader/stdio-manager.ts";
 import * as log from "@std/log";
 import Ajv from "npm:ajv@8.17.1";
+import Ajv2020 from "npm:ajv@8.17.1/dist/2020.js";
 
 /**
  * Default timeout for tools/list call (10 seconds).
@@ -20,11 +21,15 @@ import Ajv from "npm:ajv@8.17.1";
 const DISCOVERY_TIMEOUT_MS = 10_000;
 
 /**
- * AJV instance for schema validation.
+ * AJV instances for schema validation.
+ * ajv07: draft-07 (default, most MCP servers)
+ * ajv2020: draft/2020-12 (modern servers like Playwright)
  * strict: false to allow unknown keywords often found in MCP schemas.
+ * validateSchema: false to skip $schema URI validation (accepts any draft URI).
  */
-const AjvConstructor = Ajv.default || Ajv;
-const ajv = new AjvConstructor({ strict: false });
+const Ajv07Constructor = Ajv.default || Ajv;
+const ajv07 = new Ajv07Constructor({ strict: false, validateSchema: false });
+const ajv2020 = new Ajv2020({ strict: false, validateSchema: false });
 
 /**
  * Tool discovered from an MCP server.
@@ -122,8 +127,26 @@ function validateToolSchema(tool: { name: string; inputSchema?: unknown }): bool
   // F6 Fix: Use validateSchema() instead of compile() to avoid memory leak.
   // validateSchema() checks if the schema is valid JSON Schema without storing it.
   // compile() would cache the compiled schema in the global ajv instance forever.
-  const isValid = ajv.validateSchema(tool.inputSchema as Record<string, unknown>);
-  return isValid === true;
+  // Try draft-07 first (most common), fallback to 2020-12 for modern schemas.
+  // Note: validateSchema() throws on unknown $schema URI, so we need try/catch.
+  const schema = tool.inputSchema as Record<string, unknown>;
+
+  try {
+    const isValid07 = ajv07.validateSchema(schema);
+    if (isValid07 === true) {
+      return true;
+    }
+  } catch {
+    // draft-07 failed, try 2020-12
+  }
+
+  try {
+    const isValid2020 = ajv2020.validateSchema(schema);
+    return isValid2020 === true;
+  } catch {
+    // Both drafts failed
+    return false;
+  }
 }
 
 /**

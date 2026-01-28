@@ -143,6 +143,8 @@ export interface McpDependency {
   command?: string;
   /** Optional: command arguments */
   args?: string[];
+  /** Optional: environment variables to pass to the process */
+  env?: Record<string, string>;
 }
 
 // ============================================================================
