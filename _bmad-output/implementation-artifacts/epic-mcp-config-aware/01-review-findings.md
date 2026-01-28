@@ -10,7 +10,7 @@
 
 | Severity | Count | Fixed |
 |----------|-------|-------|
-| Critical | 3 | 1 noise, 1 undecided, 1 documented |
+| Critical | 3 | 1 noise, 1 fixed, 1 documented |
 | High | 4 | ✅ 4/4 (F6 was undecided, now fixed) |
 | Medium | 5 | ✅ 4/5 |
 | Low | 5 | ✅ 2/5 |
@@ -19,18 +19,18 @@
 
 ## Critical Issues
 
-### F1: SQL Injection via Tool Names
-**Severity:** Critical | **Validity:** Undecided
-**Location:** `src/api/tools.ts:118-129`
+### ~~F1: SQL Injection via Tool Names~~ ✅ FIXED
+**Severity:** Critical | **Validity:** Valid → Fixed
+**Location:** `src/api/tools.ts:40-55, 135-145`
 
-Le `toolId` est construit par concaténation de `serverName` et `tool.name` provenant du client :
-```typescript
-const toolId = `${result.serverName}:${tool.name}`;
-```
+~~Le `toolId` est construit par concaténation de `serverName` et `tool.name` provenant du client.~~
 
-Les queries sont paramétrisées, donc pas d'injection SQL directe. Cependant, si `toolId` est utilisé ailleurs sans paramétrage, risque potentiel.
-
-**Resolution:** Valider les caractères autorisés dans serverName et tool.name.
+**Fix:** Ajout de validation serveur-side avec `isValidName()`:
+- Max 256 caractères
+- Pattern regex: alphanumeric, `_`, `-`, `.` uniquement
+- Pas de `:` (réservé pour format `serverName:toolName`)
+- Pas de control characters, newlines, null bytes
+- Skip et log warning si invalide
 
 ---
 
@@ -312,6 +312,13 @@ Les variables `env` de `mcpServers[name].env` n'étaient pas passées aux proces
 **Fixed:** 2026-01-28
 
 **Fix:** Remplacé `ajv.compile()` par `ajv.validateSchema()` dans `mcp-discovery.ts:122-127`. `validateSchema()` vérifie la validité du schema sans le stocker en mémoire, évitant ainsi la croissance non bornée.
+
+---
+
+### ✅ F1: SQL Injection via Tool Names
+**Fixed:** 2026-01-28
+
+**Fix:** Ajout de validation serveur-side `isValidName()` dans `src/api/tools.ts`. Valide `serverName` et `tool.name` avant construction du `toolId`. Même pattern que F10 côté client (max 256 chars, regex alphanumeric + `_-.`).
 
 ---
 
