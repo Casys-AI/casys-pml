@@ -43,6 +43,28 @@ const MAX_NAME_LENGTH = 256;
 const VALID_NAME_PATTERN = /^[a-zA-Z0-9_\-\.]+$/;
 
 /**
+ * F9 Fix: Convert JS string[] to PostgreSQL TEXT[] literal format.
+ * Works with both postgres.js (.unsafe()) and PGlite (.exec()).
+ *
+ * Format: {val1,val2} or {"val with space","another"}
+ */
+function toPostgresArray(arr: string[]): string {
+  if (arr.length === 0) return "{}";
+
+  const escaped = arr.map((val) => {
+    // Escape backslashes and double quotes
+    const esc = val.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    // Quote if contains special chars (comma, space, brace, quote, backslash)
+    if (/[,\s{}"\\ ]/.test(val)) {
+      return `"${esc}"`;
+    }
+    return esc;
+  });
+
+  return `{${escaped.join(",")}}`;
+}
+
+/**
  * Validate a server or tool name.
  * - Max 256 characters
  * - Only alphanumeric, underscore, hyphen, dot
@@ -161,12 +183,13 @@ export async function handleToolsSync(
             `, [toolId, result.serverName, tool.name, tool.description || null, JSON.stringify(tool.inputSchema || {})]);
 
             // 2. Insert observation (multi-tenant)
+            // F9 Fix: Serialize args to PostgreSQL array literal for cross-driver compatibility
             await tx.exec(`
               INSERT INTO tool_observations (user_id, tool_id, server_namespace, observed_args)
-              VALUES ($1, $2, $3, $4)
+              VALUES ($1, $2, $3, $4::text[])
               ON CONFLICT (user_id, tool_id, observed_args) DO UPDATE SET
                 observed_at = NOW()
-            `, [userId, toolId, result.serverName, args]);
+            `, [userId, toolId, result.serverName, toPostgresArray(args)]);
           });
 
           syncedTools++;

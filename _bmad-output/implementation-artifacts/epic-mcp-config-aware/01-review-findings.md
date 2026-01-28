@@ -13,7 +13,7 @@
 | Critical | 3 | 1 noise, 1 fixed, 1 accepted |
 | High | 4 | ✅ 4/4 (F6 was undecided, now fixed) |
 | Medium | 5 | ✅ 5/5 |
-| Low | 5 | ✅ 2/5 |
+| Low | 5 | ✅ 2/5 + 1 accepted |
 
 ---
 
@@ -130,13 +130,13 @@ return `\${${varName}}`;  // Révèle le nom du secret attendu
 
 ---
 
-### F9: TEXT[] Type Mismatch
-**Severity:** Medium | **Validity:** Undecided
-**Location:** `src/api/tools.ts:142`
+### ~~F9: TEXT[] Type Mismatch~~ ✅ FIXED
+**Severity:** Medium | **Validity:** Valid → Fixed
+**Location:** `src/api/tools.ts:40-57, 180`
 
-`args` est un `string[]` JavaScript, la colonne est `TEXT[]` PostgreSQL. La sérialisation dépend du driver.
+~~`args` est un `string[]` JavaScript, la colonne est `TEXT[]` PostgreSQL.~~
 
-**Resolution:** Vérifier avec le driver postgres.js utilisé. Potentiellement utiliser `array_to_string()` ou sérialiser explicitement.
+**Fix:** Ajout de `toPostgresArray()` qui sérialise explicitement en format PostgreSQL array littéral (`{val1,val2}`). Fonctionne avec postgres.js (`.unsafe()`) et PGlite (`.exec()`). Cast explicite `$4::text[]` pour plus de sécurité.
 
 ---
 
@@ -231,13 +231,13 @@ Aucun test pour :
 
 ---
 
-### F17: Restart Count Reset Behavior
-**Severity:** Low | **Validity:** Undecided
+### F17: Restart Count Reset Behavior ✅ ACCEPTED
+**Severity:** Low | **Validity:** Intentional
 **Location:** `packages/pml/src/loader/stdio-manager.ts:466`
 
-Le compteur de restart est effacé sur succès. Si le process crash plus tard, compteur repart à 0.
+Le compteur de restart est effacé après un restart réussi.
 
-**Consideration:** Comportement peut être intentionnel (reset après stabilisation). À discuter.
+**Decision:** Comportement voulu. Après stabilisation du process, on considère que le crash précédent était isolé. Le max 3 restarts protège contre les crash loops rapides.
 
 ---
 
@@ -332,6 +332,13 @@ Les variables `env` de `mcpServers[name].env` n'étaient pas passées aux proces
 **Fixed:** 2026-01-28
 
 **Fix:** Nouvelle migration `043_tool_observations_fk.ts` ajoute la FK `fk_tool_observations_tool_schema` avec `ON DELETE CASCADE`. Garantit l'intégrité référentielle au niveau DB.
+
+---
+
+### ✅ F9: TEXT[] Type Mismatch
+**Fixed:** 2026-01-28
+
+**Fix:** Ajout de `toPostgresArray()` dans `src/api/tools.ts` pour sérialiser `string[]` → PostgreSQL array littéral. Compatible postgres.js et PGlite.
 
 ---
 
