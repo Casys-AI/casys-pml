@@ -102,12 +102,18 @@ export function loadMcpServers(pmlConfig: PmlConfig): Map<string, McpServerConfi
     return servers;
   }
 
-  for (const [name, config] of Object.entries(pmlConfig.mcpServers)) {
+  for (const [name, rawConfig] of Object.entries(pmlConfig.mcpServers)) {
     // Skip "pml" server - that's us
     if (name === "pml") {
       log.debug(`[config] Skipping 'pml' server (that's us)`);
       continue;
     }
+
+    // Default type to "stdio" if not specified (matches Claude Code/Desktop behavior)
+    const config: McpServerConfig = {
+      ...rawConfig,
+      type: rawConfig.type ?? "stdio",
+    };
 
     // Validate required fields based on type
     if (config.type === "stdio" && !config.command) {
