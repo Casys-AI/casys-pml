@@ -90,14 +90,28 @@ export class PGliteClient implements DbClient {
   }
 
   /**
-   * Execute SQL statement without returning results
+   * Throw if database is not connected
    */
-  async exec(sql: string, params?: unknown[]): Promise<void> {
+  private ensureConnected(): asserts this is { db: PGlite } {
     if (!this.db) {
       throw new Error("Database not connected");
     }
+  }
+
+  /**
+   * Check if params array has values
+   */
+  private hasParams(params?: unknown[]): params is unknown[] {
+    return params !== undefined && params.length > 0;
+  }
+
+  /**
+   * Execute SQL statement without returning results
+   */
+  async exec(sql: string, params?: unknown[]): Promise<void> {
+    this.ensureConnected();
     try {
-      if (params && params.length > 0) {
+      if (this.hasParams(params)) {
         // PGlite exec doesn't support params directly, use query instead for parameterized execution
         await (this.db as any).exec(sql, params as any);
       } else {
@@ -113,43 +127,35 @@ export class PGliteClient implements DbClient {
    * Execute query and return results
    */
   async query(sql: string, params?: unknown[]): Promise<Row[]> {
-    if (!this.db) {
-      throw new Error("Database not connected");
-    }
+    this.ensureConnected();
 
     const queryId = crypto.randomUUID().slice(0, 8);
     const startTime = performance.now();
 
-    // Emit db.query.started event
     eventBus.emit({
       type: "db.query.started",
       source: "db-client",
       payload: {
         queryId,
-        sql: sql.slice(0, 100), // Truncate for safety
-        hasParams: params ? params.length > 0 : false,
+        sql: sql.slice(0, 100),
+        hasParams: this.hasParams(params),
       },
     });
 
     try {
-      const result = params && params.length > 0
+      const result = this.hasParams(params)
         ? await (this.db as any).query(sql, params)
         : await (this.db as any).query(sql);
 
       const durationMs = performance.now() - startTime;
+      const rowCount = result.rows?.length ?? 0;
 
-      // Emit db.query.completed event
       eventBus.emit({
         type: "db.query.completed",
         source: "db-client",
-        payload: {
-          queryId,
-          durationMs,
-          rowCount: result.rows?.length ?? 0,
-        },
+        payload: { queryId, durationMs, rowCount },
       });
 
-      // Emit db.query.slow event if threshold exceeded
       if (durationMs > SLOW_QUERY_THRESHOLD_MS) {
         eventBus.emit({
           type: "db.query.slow",
@@ -181,12 +187,8 @@ export class PGliteClient implements DbClient {
   /**
    * Run a transaction
    */
-  async transaction<T>(
-    fn: (tx: Transaction) => Promise<T>,
-  ): Promise<T> {
-    if (!this.db) {
-      throw new Error("Database not connected");
-    }
+  async transaction<T>(fn: (tx: Transaction) => Promise<T>): Promise<T> {
+    this.ensureConnected();
 
     const txId = crypto.randomUUID().slice(0, 8);
 

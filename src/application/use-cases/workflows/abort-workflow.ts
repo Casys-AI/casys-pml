@@ -50,6 +50,18 @@ export interface ActiveWorkflowState {
 /**
  * Use case for aborting a running workflow
  */
+/**
+ * Map raw status string to valid WorkflowTaskResult status
+ */
+function mapStatusToWorkflowResult(status: string): "success" | "error" | "failed_safe" {
+  if (status === "completed" || status === "success") return "success";
+  if (status === "failed" || status === "error") return "error";
+  return "failed_safe";
+}
+
+/**
+ * Use case for aborting a running workflow
+ */
 export class AbortWorkflowUseCase {
   constructor(
     private readonly workflowRepo: IWorkflowRepository,
@@ -132,20 +144,6 @@ export class AbortWorkflowUseCase {
 
     log.info(`Workflow ${workflowId} aborted: ${reason}`);
 
-    // Map status to valid WorkflowTaskResult status
-    const mapStatus = (status: string): "success" | "error" | "failed_safe" => {
-      switch (status) {
-        case "completed":
-        case "success":
-          return "success";
-        case "failed":
-        case "error":
-          return "error";
-        default:
-          return "failed_safe";
-      }
-    };
-
     return {
       success: true,
       data: {
@@ -154,7 +152,7 @@ export class AbortWorkflowUseCase {
         completedLayers,
         partialResults: partialResults.map((r) => ({
           taskId: r.taskId,
-          status: mapStatus(r.status),
+          status: mapStatusToWorkflowResult(r.status),
           output: r.output,
         })),
       },

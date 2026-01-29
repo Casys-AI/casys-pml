@@ -3,16 +3,17 @@
  * Phase 2a: Shows physical task with atomic operations detail using TaskCards
  */
 
+import type { JSX } from "preact";
 import { useState } from "preact/hooks";
 import TaskCard from "./TaskCard.tsx";
 import { parseToolId } from "../../../../capabilities/tool-id-utils.ts";
 
-interface LogicalOp {
+export interface LogicalOp {
   toolId: string;
   durationMs?: number;
 }
 
-interface FusedTaskCardProps {
+export interface FusedTaskCardProps {
   /** Logical operations within this fused task */
   logicalOps: LogicalOp[];
   /** Total duration of the fused task */
@@ -23,31 +24,44 @@ interface FusedTaskCardProps {
   color: string;
 }
 
+function getStatusColors(success: boolean): { background: string; border: string } {
+  if (success) {
+    return {
+      background: "rgba(34, 197, 94, 0.1)",
+      border: "rgba(34, 197, 94, 0.3)",
+    };
+  }
+  return {
+    background: "rgba(239, 68, 68, 0.1)",
+    border: "rgba(239, 68, 68, 0.3)",
+  };
+}
+
 export default function FusedTaskCard({
   logicalOps,
   durationMs,
   success,
   color,
-}: FusedTaskCardProps) {
+}: FusedTaskCardProps): JSX.Element {
   const [expanded, setExpanded] = useState(false);
+  const statusColors = getStatusColors(success);
 
-  const bgColor = success
-    ? "rgba(34, 197, 94, 0.1)" // green
-    : "rgba(239, 68, 68, 0.1)"; // red
-  const borderColor = success ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)";
+  function handleClick(): void {
+    setExpanded((prev) => !prev);
+  }
 
   return (
     <div
       style={{
-        background: bgColor,
-        border: `1px solid ${borderColor}`,
+        background: statusColors.background,
+        border: `1px solid ${statusColors.border}`,
         borderLeft: `3px solid ${color}`,
         borderRadius: "4px",
         padding: "8px",
         cursor: "pointer",
         transition: "all 0.2s",
       }}
-      onClick={() => setExpanded(!expanded)}
+      onClick={handleClick}
     >
       {/* Header - Physical Task */}
       <div
@@ -59,7 +73,9 @@ export default function FusedTaskCard({
           fontWeight: 500,
         }}
       >
-        <span style={{ fontSize: "0.9rem" }}>📦</span>
+        <span style={{ fontSize: "0.9rem" }}>
+          {"\uD83D\uDCE6"}
+        </span>
         <span style={{ color: "var(--text, #E8DFD0)" }}>
           Fused ({logicalOps.length} ops)
         </span>
@@ -73,7 +89,7 @@ export default function FusedTaskCard({
             color: "var(--text-dim, #8a8078)",
           }}
         >
-          {expanded ? "▼" : "▶"}
+          {expanded ? "\u25BC" : "\u25B6"}
         </span>
       </div>
 
@@ -88,9 +104,7 @@ export default function FusedTaskCard({
           }}
         >
           {logicalOps.map((op, idx) => {
-            // Extract server and tool name from toolId (supports FQDNs and colon format)
             const { namespace: server, action: toolName } = parseToolId(op.toolId);
-
             return (
               <TaskCard
                 key={idx}

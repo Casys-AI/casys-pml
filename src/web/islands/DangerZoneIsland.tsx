@@ -7,22 +7,77 @@
  * @module web/islands/DangerZoneIsland
  */
 
-import { useSignal } from "@preact/signals";
+import { useSignal, type Signal } from "@preact/signals";
 
-export default function DangerZoneIsland() {
+const DELETE_CONFIRMATION_TEXT = "DELETE";
+
+interface ModalProps {
+  title: string;
+  children: JSX.Element | JSX.Element[];
+  onClose: () => void;
+  actions: JSX.Element;
+}
+
+function Modal({ title, children, onClose, actions }: ModalProps): JSX.Element {
+  function handleOverlayClick(): void {
+    onClose();
+  }
+
+  function handleContentClick(e: MouseEvent): void {
+    e.stopPropagation();
+  }
+
+  return (
+    <div class="modal-overlay" onClick={handleOverlayClick}>
+      <div class="modal-content" onClick={handleContentClick}>
+        <h2>{title}</h2>
+        {children}
+        <div class="modal-actions">{actions}</div>
+      </div>
+    </div>
+  );
+}
+
+interface DangerItemProps {
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonClass: string;
+  onClick: () => void;
+}
+
+function DangerItem({
+  title,
+  description,
+  buttonText,
+  buttonClass,
+  onClick,
+}: DangerItemProps): JSX.Element {
+  return (
+    <div class="danger-item">
+      <div class="danger-info">
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </div>
+      <button type="button" class={`btn ${buttonClass}`} onClick={onClick}>
+        {buttonText}
+      </button>
+    </div>
+  );
+}
+
+export default function DangerZoneIsland(): JSX.Element {
   const showRegenerateModal = useSignal(false);
   const showDeleteModal = useSignal(false);
   const deleteConfirmText = useSignal("");
   const isLoading = useSignal(false);
 
-  const handleRegenerate = async () => {
+  async function handleRegenerate(): Promise<void> {
     isLoading.value = true;
     try {
       const res = await fetch("/auth/regenerate", { method: "POST" });
       const data = await res.json();
       if (data.key) {
-        // Reload page - the new key will be displayed via flash session
-        // This is more secure than showing in an alert (no screenshot risk)
         showRegenerateModal.value = false;
         location.reload();
       } else {
@@ -34,11 +89,11 @@ export default function DangerZoneIsland() {
       isLoading.value = false;
       showRegenerateModal.value = false;
     }
-  };
+  }
 
-  const handleDelete = async () => {
-    if (deleteConfirmText.value !== "DELETE") {
-      alert("Please type DELETE to confirm");
+  async function handleDelete(): Promise<void> {
+    if (deleteConfirmText.value !== DELETE_CONFIRMATION_TEXT) {
+      alert(`Please type ${DELETE_CONFIRMATION_TEXT} to confirm`);
       return;
     }
 
@@ -61,59 +116,44 @@ export default function DangerZoneIsland() {
       isLoading.value = false;
       showDeleteModal.value = false;
     }
-  };
+  }
+
+  function closeDeleteModal(): void {
+    showDeleteModal.value = false;
+    deleteConfirmText.value = "";
+  }
+
+  function handleConfirmInput(e: Event): void {
+    deleteConfirmText.value = (e.target as HTMLInputElement).value;
+  }
 
   return (
     <div class="danger-zone-island">
       {/* Danger Zone Content */}
       <div class="danger-content">
-        <div class="danger-item">
-          <div class="danger-info">
-            <h3>Regenerate API Key</h3>
-            <p>
-              This will invalidate your current API key. Any applications using the old key will
-              stop working.
-            </p>
-          </div>
-          <button
-            type="button"
-            class="btn btn-danger"
-            onClick={() => (showRegenerateModal.value = true)}
-          >
-            Regenerate Key
-          </button>
-        </div>
-        <div class="danger-item">
-          <div class="danger-info">
-            <h3>Delete Account</h3>
-            <p>
-              Permanently delete your account and all associated data. This action cannot be undone.
-            </p>
-          </div>
-          <button
-            type="button"
-            class="btn btn-danger-outline"
-            onClick={() => (showDeleteModal.value = true)}
-          >
-            Delete Account
-          </button>
-        </div>
+        <DangerItem
+          title="Regenerate API Key"
+          description="This will invalidate your current API key. Any applications using the old key will stop working."
+          buttonText="Regenerate Key"
+          buttonClass="btn-danger"
+          onClick={() => (showRegenerateModal.value = true)}
+        />
+        <DangerItem
+          title="Delete Account"
+          description="Permanently delete your account and all associated data. This action cannot be undone."
+          buttonText="Delete Account"
+          buttonClass="btn-danger-outline"
+          onClick={() => (showDeleteModal.value = true)}
+        />
       </div>
 
       {/* Regenerate Modal */}
       {showRegenerateModal.value && (
-        <div class="modal-overlay" onClick={() => (showRegenerateModal.value = false)}>
-          <div
-            class="modal-content"
-            onClick={(e) =>
-              e.stopPropagation()}
-          >
-            <h2>Regenerate API Key?</h2>
-            <p>
-              Your current API key will be permanently invalidated. Any applications using the old
-              key will stop working immediately.
-            </p>
-            <div class="modal-actions">
+        <Modal
+          title="Regenerate API Key?"
+          onClose={() => (showRegenerateModal.value = false)}
+          actions={
+            <>
               <button
                 type="button"
                 class="btn btn-ghost"
@@ -129,43 +169,24 @@ export default function DangerZoneIsland() {
               >
                 {isLoading.value ? "..." : "Regenerate"}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <p>
+            Your current API key will be permanently invalidated. Any applications using the old
+            key will stop working immediately.
+          </p>
+        </Modal>
       )}
 
       {/* Delete Modal */}
       {showDeleteModal.value && (
-        <div class="modal-overlay" onClick={() => (showDeleteModal.value = false)}>
-          <div
-            class="modal-content"
-            onClick={(e) =>
-              e.stopPropagation()}
-          >
-            <h2>Delete Account?</h2>
-            <p>
-              This will permanently delete your account and anonymize all associated data. This
-              action cannot be undone.
-            </p>
-            <p class="confirm-text">
-              Type <strong>DELETE</strong> to confirm:
-            </p>
-            <input
-              type="text"
-              class="confirm-input"
-              placeholder="DELETE"
-              value={deleteConfirmText.value}
-              onInput={(e) => (deleteConfirmText.value = (e.target as HTMLInputElement).value)}
-            />
-            <div class="modal-actions">
-              <button
-                type="button"
-                class="btn btn-ghost"
-                onClick={() => {
-                  showDeleteModal.value = false;
-                  deleteConfirmText.value = "";
-                }}
-              >
+        <Modal
+          title="Delete Account?"
+          onClose={closeDeleteModal}
+          actions={
+            <>
+              <button type="button" class="btn btn-ghost" onClick={closeDeleteModal}>
                 Cancel
               </button>
               <button
@@ -176,9 +197,24 @@ export default function DangerZoneIsland() {
               >
                 {isLoading.value ? "..." : "Delete Account"}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <p>
+            This will permanently delete your account and anonymize all associated data. This
+            action cannot be undone.
+          </p>
+          <p class="confirm-text">
+            Type <strong>{DELETE_CONFIRMATION_TEXT}</strong> to confirm:
+          </p>
+          <input
+            type="text"
+            class="confirm-input"
+            placeholder={DELETE_CONFIRMATION_TEXT}
+            value={deleteConfirmText.value}
+            onInput={handleConfirmInput}
+          />
+        </Modal>
       )}
 
       <style>

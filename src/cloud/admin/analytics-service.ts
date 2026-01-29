@@ -142,11 +142,14 @@ export function clearAnalyticsCache(): void {
   log.debug("[AdminAnalytics] Cache cleared");
 }
 
-/** Get cache statistics */
-export function getCacheStats(): {
+/** Cache statistics */
+export interface CacheStats {
   entries: number;
   keys: string[];
-} {
+}
+
+/** Get cache statistics */
+export function getCacheStats(): CacheStats {
   return {
     entries: cache.size,
     keys: Array.from(cache.keys()),

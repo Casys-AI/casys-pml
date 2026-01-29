@@ -7,9 +7,10 @@
  * Broadcasts all events from unified EventBus to connected clients with heartbeat support.
  */
 
+import * as log from "@std/log";
+
 import type { EventType, PmlEvent } from "../events/types.ts";
 import { eventBus } from "../events/mod.ts";
-import * as log from "@std/log";
 
 /**
  * Configuration for EventsStreamManager
@@ -24,24 +25,27 @@ export interface EventsStreamConfig {
 }
 
 /**
- * Default configuration
- */
-const DEFAULT_CONFIG: EventsStreamConfig = {
-  maxClients: 100,
-  heartbeatIntervalMs: 15_000, // Reduced from 30s for faster dead connection detection
-  corsOrigins: [
-    "http://localhost:*", // Allow any localhost port (dev)
-    "http://127.0.0.1:*",
-  ],
-};
-
-/**
  * Client connection with optional filters
  */
 interface ClientConnection {
   writer: WritableStreamDefaultWriter<Uint8Array>;
-  filters: string[]; // Event type prefixes to include (empty = all events)
+  /** Event type prefixes to include (empty = all events) */
+  filters: string[];
 }
+
+/**
+ * Stats returned by getStats()
+ */
+export interface StreamStats {
+  connectedClients: number;
+  uptimeSeconds: number;
+}
+
+const DEFAULT_CONFIG: EventsStreamConfig = {
+  maxClients: 100,
+  heartbeatIntervalMs: 15_000,
+  corsOrigins: ["http://localhost:*", "http://127.0.0.1:*"],
+};
 
 /**
  * Manages SSE connections for system events
@@ -78,29 +82,15 @@ export class EventsStreamManager {
    * @returns SSE response stream or 503 if too many clients
    */
   handleRequest(request: Request): Response {
-    // Check client limit
     if (this.clients.size >= this.config.maxClients) {
-      log.warn(
-        `SSE connection rejected: max clients reached (${this.config.maxClients})`,
-      );
+      log.warn(`SSE connection rejected: max clients reached (${this.config.maxClients})`);
       return new Response(
-        JSON.stringify({
-          error: "Too many clients",
-          max: this.config.maxClients,
-        }),
-        {
-          status: 503,
-          headers: { "Content-Type": "application/json" },
-        },
+        JSON.stringify({ error: "Too many clients", max: this.config.maxClients }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
       );
     }
 
-    // Story 6.5 AC#12: Parse optional filter param
-    const url = new URL(request.url);
-    const filterParam = url.searchParams.get("filter");
-    const filters = filterParam
-      ? filterParam.split(",").map((f) => f.trim()).filter((f) => f.length > 0)
-      : [];
+    const filters = this.parseFilters(request.url);
 
     // Create transform stream for SSE
     const { readable, writable } = new TransformStream<
@@ -181,25 +171,27 @@ export class EventsStreamManager {
   }
 
   /**
+   * Parse filter query parameter from URL
+   * Story 6.5 AC#12: Support optional ?filter= query param
+   */
+  private parseFilters(url: string): string[] {
+    const filterParam = new URL(url).searchParams.get("filter");
+    if (!filterParam) return [];
+    return filterParam.split(",").map((f) => f.trim()).filter((f) => f.length > 0);
+  }
+
+  /**
    * Check if event matches client filters
    * Story 6.5 AC#12: Filter syntax ?filter=algorithm.*,dag.*
-   *
-   * @param eventType - Event type to check
-   * @param filters - Client filter prefixes
-   * @returns True if event should be sent to client
    */
   private matchesFilters(eventType: EventType, filters: string[]): boolean {
-    // Empty filters = receive all events
     if (filters.length === 0) return true;
 
-    // Check if event type starts with any filter prefix
     return filters.some((filter) => {
       if (filter.endsWith(".*")) {
-        // Wildcard match: "algorithm.*" matches "algorithm.scored"
         const prefix = filter.slice(0, -2);
         return eventType.startsWith(prefix);
       }
-      // Exact match
       return eventType === filter;
     });
   }
@@ -207,20 +199,16 @@ export class EventsStreamManager {
   /**
    * Broadcast event to all connected clients
    * Story 6.5: Broadcasts PmlEvent from EventBus
-   *
-   * @param event - Event to broadcast
    */
   private async broadcastEvent(event: PmlEvent): Promise<void> {
     const deadClients: string[] = [];
     let sentCount = 0;
     let filteredCount = 0;
 
-    // Send to all clients (with filter check)
     for (const [clientId, client] of this.clients) {
-      // Story 6.5 AC#12: Check if event matches client filters
       if (!this.matchesFilters(event.type, client.filters)) {
         filteredCount++;
-        continue; // Skip this client
+        continue;
       }
 
       try {
@@ -232,37 +220,36 @@ export class EventsStreamManager {
       }
     }
 
-    // Summary log for algorithm/capability events (one line instead of N)
-    if (
-      (event.type.startsWith("algorithm.") ||
-        event.type.startsWith("capability.")) &&
-      this.clients.size > 0
-    ) {
-      log.debug(
-        `[SSE] Broadcast ${event.type} → ${sentCount} clients${
-          filteredCount > 0 ? ` (${filteredCount} filtered)` : ""
-        }`,
-      );
-    }
+    this.logBroadcast(event.type, sentCount, filteredCount);
+    await this.cleanupDeadClients(deadClients);
+  }
 
-    // Clean up dead clients
-    for (const clientId of deadClients) {
+  /**
+   * Log broadcast summary for algorithm/capability events
+   */
+  private logBroadcast(eventType: EventType, sentCount: number, filteredCount: number): void {
+    const isLoggableEvent = eventType.startsWith("algorithm.") || eventType.startsWith("capability.");
+    if (!isLoggableEvent || this.clients.size === 0) return;
+
+    const filterSuffix = filteredCount > 0 ? ` (${filteredCount} filtered)` : "";
+    log.debug(`[SSE] Broadcast ${eventType} → ${sentCount} clients${filterSuffix}`);
+  }
+
+  /**
+   * Remove dead clients and close their connections
+   */
+  private async cleanupDeadClients(deadClientIds: string[]): Promise<void> {
+    if (deadClientIds.length === 0) return;
+
+    for (const clientId of deadClientIds) {
       const client = this.clients.get(clientId);
       this.clients.delete(clientId);
       if (client) {
-        try {
-          await client.writer.close();
-        } catch {
-          // Ignore close errors
-        }
+        await client.writer.close().catch(() => {});
       }
     }
 
-    if (deadClients.length > 0) {
-      log.info(
-        `Removed ${deadClients.length} dead clients (${this.clients.size} remaining)`,
-      );
-    }
+    log.info(`Removed ${deadClientIds.length} dead clients (${this.clients.size} remaining)`);
   }
 
   /**
@@ -312,36 +299,36 @@ export class EventsStreamManager {
 
   /**
    * Get CORS headers based on origin
-   *
-   * @param origin - Request origin
-   * @returns CORS headers object
    */
   private getCorsHeaders(origin: string): Record<string, string> {
-    const isAllowed = this.config.corsOrigins.some((pattern) => {
+    if (!this.isOriginAllowed(origin)) return {};
+
+    return {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    };
+  }
+
+  /**
+   * Check if origin is allowed by CORS config
+   */
+  private isOriginAllowed(origin: string): boolean {
+    if (origin === "*") return true;
+
+    return this.config.corsOrigins.some((pattern) => {
       if (pattern.includes("*")) {
         const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
         return regex.test(origin);
       }
       return pattern === origin;
     });
-
-    if (isAllowed || origin === "*") {
-      return {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      };
-    }
-
-    return {};
   }
 
   /**
    * Get current stream stats
-   *
-   * @returns Stats object with client count and uptime
    */
-  getStats(): { connectedClients: number; uptimeSeconds: number } {
+  getStats(): StreamStats {
     return {
       connectedClients: this.clients.size,
       uptimeSeconds: Math.floor((Date.now() - this.startTime) / 1000),
@@ -349,26 +336,22 @@ export class EventsStreamManager {
   }
 
   /**
-   * Cleanup on shutdown
-   * Closes all client connections and stops heartbeat
+   * Cleanup on shutdown - closes all client connections and stops heartbeat
    */
   close(): void {
     log.info("Shutting down EventsStreamManager...");
 
-    // Stop heartbeat
     if (this.heartbeatInterval !== undefined) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = undefined;
     }
 
-    // Unsubscribe from EventBus
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = null;
     }
 
-    // Close all client connections
-    for (const [_, client] of this.clients) {
+    for (const client of this.clients.values()) {
       client.writer.close().catch(() => {});
     }
     this.clients.clear();

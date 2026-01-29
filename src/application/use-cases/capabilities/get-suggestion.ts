@@ -410,9 +410,9 @@ export class GetSuggestionUseCase {
     const addedItems = new Set<string>();
     const itemTypeMap = new Map(sortedItems.map(i => [i.id, i.type]));
 
-    // Helper to check if a node ID is a hyperedge (not a tool/capability)
-    const isHyperedgeId = (id: string) =>
-      id.startsWith("seq:") || id.startsWith("contains:") || id.startsWith("provides:") || id.startsWith("invokes:");
+    const hyperedgePrefixes = ["seq:", "contains:", "provides:", "invokes:"];
+    const isHyperedgeId = (id: string): boolean =>
+      hyperedgePrefixes.some((prefix) => id.startsWith(prefix));
 
     for (let i = 0; i < pathResult.nodeSequence.length; i++) {
       const nodeId = pathResult.nodeSequence[i];

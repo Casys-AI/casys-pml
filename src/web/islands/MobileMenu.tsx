@@ -3,6 +3,7 @@
  * Design: Matches the Casys PML dark theme with amber accent
  */
 
+import type { JSX } from "preact";
 import { useSignal } from "@preact/signals";
 
 interface NavLink {
@@ -11,7 +12,7 @@ interface NavLink {
   isExternal?: boolean;
 }
 
-const navLinks: NavLink[] = [
+const NAV_LINKS: NavLink[] = [
   { href: "/", label: "Home" },
   { href: "/docs", label: "Docs" },
   { href: "/blog", label: "Blog" },
@@ -19,19 +20,49 @@ const navLinks: NavLink[] = [
   { href: "https://github.com/Casys-AI/casys-pml", label: "GitHub", isExternal: true },
 ];
 
-export default function MobileMenu() {
+function CloseIcon(): JSX.Element {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon(): JSX.Element {
+  return (
+    <svg
+      class="mobile-menu-external-icon"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
+    </svg>
+  );
+}
+
+export default function MobileMenu(): JSX.Element {
   const isOpen = useSignal(false);
 
-  const toggleMenu = () => {
+  function toggleMenu(): void {
     isOpen.value = !isOpen.value;
-    // Prevent body scroll when menu is open
     document.body.style.overflow = isOpen.value ? "hidden" : "";
-  };
+  }
 
-  const closeMenu = () => {
+  function closeMenu(): void {
     isOpen.value = false;
     document.body.style.overflow = "";
-  };
+  }
 
   return (
     <>
@@ -64,7 +95,6 @@ export default function MobileMenu() {
         aria-hidden={!isOpen.value}
         style={{ transform: isOpen.value ? "translateX(0)" : "translateX(100%)" }}
       >
-        {/* Drawer Header */}
         <div class="mobile-menu-header">
           <span class="mobile-menu-logo">Casys PML</span>
           <button
@@ -73,22 +103,12 @@ export default function MobileMenu() {
             class="mobile-menu-close"
             aria-label="Close menu"
           >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
+            <CloseIcon />
           </button>
         </div>
 
-        {/* Navigation Links */}
         <ul class="mobile-menu-links">
-          {navLinks.map((link, index) => (
+          {NAV_LINKS.map((link, index) => (
             <li
               key={link.href}
               class="mobile-menu-item"
@@ -102,19 +122,7 @@ export default function MobileMenu() {
                 rel={link.isExternal ? "noopener noreferrer" : undefined}
               >
                 <span class="mobile-menu-link-text">{link.label}</span>
-                {link.isExternal && (
-                  <svg
-                    class="mobile-menu-external-icon"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
-                  </svg>
-                )}
+                {link.isExternal && <ExternalLinkIcon />}
               </a>
             </li>
           ))}

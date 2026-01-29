@@ -21,9 +21,6 @@ const logger = getLogger("default");
 export const PML_EVENTS_CHANNEL = "pml-events";
 export const PML_TRACES_CHANNEL = "pml-traces";
 
-/** @deprecated Use PML_EVENTS_CHANNEL instead */
-const CHANNEL_NAME = PML_EVENTS_CHANNEL;
-
 /**
  * EventBus class - Singleton for unified event distribution
  *
@@ -74,16 +71,14 @@ export class EventBus {
    */
   private initChannel(): void {
     try {
-      this.channel = new BroadcastChannel(CHANNEL_NAME);
+      this.channel = new BroadcastChannel(PML_EVENTS_CHANNEL);
       this.channel.onmessage = (e: MessageEvent<PmlEvent>) => {
-        // Dispatch received events to local handlers
-        // Note: We don't emit back to channel (would cause loop)
-        this.dispatchLocal(e.data, false);
+        this.dispatchLocal(e.data);
       };
       this.channel.onmessageerror = (e) => {
         logger.warn("EventBus BroadcastChannel message error", { error: String(e) });
       };
-      logger.debug("EventBus initialized with BroadcastChannel", { channel: CHANNEL_NAME });
+      logger.debug("EventBus initialized with BroadcastChannel", { channel: PML_EVENTS_CHANNEL });
     } catch (error) {
       // BroadcastChannel may not be available in all contexts
       logger.warn("EventBus: BroadcastChannel not available, using local-only mode", {
@@ -125,7 +120,7 @@ export class EventBus {
     }
 
     // 2. Dispatch locally for same-process handlers
-    this.dispatchLocal(fullEvent, true);
+    this.dispatchLocal(fullEvent);
   }
 
   /**
@@ -195,55 +190,40 @@ export class EventBus {
 
   /**
    * Dispatch event to local handlers only
-   *
-   * @param event - Event to dispatch
-   * @param isLocal - Whether this is a locally emitted event (vs received from channel)
    */
-  private dispatchLocal(event: PmlEvent, _isLocal: boolean): void {
-    // Dispatch to specific type handlers
+  private dispatchLocal(event: PmlEvent): void {
     const typeHandlers = this.handlers.get(event.type);
-    if (typeHandlers) {
-      for (const handler of typeHandlers) {
-        try {
-          const result = handler(event);
-          // Handle async handlers (fire-and-forget, but log errors)
-          if (result instanceof Promise) {
-            result.catch((error) => {
-              logger.error("EventBus: Async handler error", {
-                type: event.type,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            });
-          }
-        } catch (error) {
-          logger.error("EventBus: Handler error", {
-            type: event.type,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-    }
-
-    // Dispatch to wildcard handlers
     const wildcardHandlers = this.handlers.get("*");
-    if (wildcardHandlers) {
-      for (const handler of wildcardHandlers) {
-        try {
-          const result = handler(event);
-          if (result instanceof Promise) {
-            result.catch((error) => {
-              logger.error("EventBus: Async wildcard handler error", {
-                type: event.type,
-                error: error instanceof Error ? error.message : String(error),
-              });
+
+    this.invokeHandlers(typeHandlers, event);
+    this.invokeHandlers(wildcardHandlers, event);
+  }
+
+  /**
+   * Invoke a set of handlers for an event, handling both sync and async handlers
+   */
+  private invokeHandlers(
+    handlers: Set<EventHandler | WildcardEventHandler> | undefined,
+    event: PmlEvent,
+  ): void {
+    if (!handlers) return;
+
+    for (const handler of handlers) {
+      try {
+        const result = handler(event);
+        if (result instanceof Promise) {
+          result.catch((error) => {
+            logger.error("EventBus: Async handler error", {
+              type: event.type,
+              error: error instanceof Error ? error.message : String(error),
             });
-          }
-        } catch (error) {
-          logger.error("EventBus: Wildcard handler error", {
-            type: event.type,
-            error: error instanceof Error ? error.message : String(error),
           });
         }
+      } catch (error) {
+        logger.error("EventBus: Handler error", {
+          type: event.type,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

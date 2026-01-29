@@ -12,6 +12,15 @@ import type { DbClient } from "../db/types.ts";
 import type { MCPTool } from "../mcp/types.ts";
 
 /**
+ * Metric entry from database
+ */
+export interface MetricEntry {
+  value: number;
+  timestamp: Date;
+  metadata: Record<string, unknown>;
+}
+
+/**
  * Claude model context window sizes (in tokens)
  * Need to change to 4.5
  */
@@ -251,18 +260,27 @@ export async function logCacheHitRate(
 }
 
 /**
+ * Parse metadata from database row (handles both string and object formats)
+ */
+function parseMetadata(metadata: unknown): Record<string, unknown> {
+  if (typeof metadata === "string") {
+    return JSON.parse(metadata || "{}");
+  }
+  return (metadata as Record<string, unknown>) || {};
+}
+
+/**
  * Get recent metrics from database
  *
  * @param db Database client
  * @param metricName Metric name to retrieve
  * @param limit Number of recent entries (default: 100)
- * @returns Array of metric values with timestamps
  */
 export async function getRecentMetrics(
   db: DbClient,
   metricName: string,
   limit: number = 100,
-): Promise<Array<{ value: number; timestamp: Date; metadata: Record<string, unknown> }>> {
+): Promise<MetricEntry[]> {
   try {
     const rows = await db.query(
       `SELECT value, timestamp, metadata
@@ -276,10 +294,7 @@ export async function getRecentMetrics(
     return rows.map((row) => ({
       value: parseFloat(row.value as string),
       timestamp: new Date(row.timestamp as string),
-      // PGlite returns JSONB as object, not string
-      metadata: typeof row.metadata === "string"
-        ? JSON.parse(row.metadata || "{}")
-        : (row.metadata as Record<string, unknown> || {}),
+      metadata: parseMetadata(row.metadata),
     }));
   } catch (error) {
     log.error(`Failed to retrieve metrics: ${error}`);

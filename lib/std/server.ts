@@ -20,9 +20,10 @@
  * @module lib/std/server
  */
 
-import { ConcurrentMCPServer, SamplingBridge } from "@casys/mcp-server";
+import { ConcurrentMCPServer, MCP_APP_MIME_TYPE, SamplingBridge } from "@casys/mcp-server";
 import { MiniToolsClient } from "./src/client.ts";
 import { createAgenticSamplingClient, setSamplingClient } from "./src/tools/agent.ts";
+import { loadUiHtml, UI_RESOURCES } from "./src/ui/mod.ts";
 
 async function main() {
   // Parse command line arguments for category filtering
@@ -72,6 +73,33 @@ async function main() {
   }
 
   server.registerTools(mcpTools, handlers);
+
+  // Collect and register UI resources from tools with _meta.ui
+  const registeredUris = new Set<string>();
+  for (const tool of toolsClient.listTools()) {
+    const ui = tool._meta?.ui;
+    if (ui?.resourceUri && !registeredUris.has(ui.resourceUri)) {
+      registeredUris.add(ui.resourceUri);
+      const resourceMeta = UI_RESOURCES[ui.resourceUri];
+      if (resourceMeta) {
+        server.registerResource(
+          {
+            uri: ui.resourceUri,
+            name: resourceMeta.name,
+            description: resourceMeta.description,
+            mimeType: MCP_APP_MIME_TYPE,
+          },
+          async () => {
+            const html = await loadUiHtml(ui.resourceUri);
+            return { uri: ui.resourceUri, mimeType: MCP_APP_MIME_TYPE, text: html };
+          },
+        );
+        console.error(`[mcp-std] Registered UI resource: ${ui.resourceUri}`);
+      } else {
+        console.error(`[mcp-std] Warning: UI resource metadata not found for ${ui.resourceUri}`);
+      }
+    }
+  }
 
   // Start server
   await server.start();

@@ -177,6 +177,11 @@ export class DiscoverCapabilitiesUseCase {
 
       const capabilityName = capability.name ?? shgatResult.capabilityId.substring(0, 8);
 
+      const headScores = shgatResult.headScores ?? [];
+      const avgHeadScore = headScores.length > 0
+        ? headScores.reduce((a, b) => a + b, 0) / headScores.length
+        : 0;
+
       // Log decision with name for TracingPanel display
       decisionLogger?.logDecision({
         algorithm: "SHGAT",
@@ -190,10 +195,8 @@ export class DiscoverCapabilitiesUseCase {
         targetName: capabilityName,
         correlationId,
         signals: {
-          numHeads: shgatResult.headScores?.length ?? 0,
-          avgHeadScore: shgatResult.headScores
-            ? shgatResult.headScores.reduce((a, b) => a + b, 0) / shgatResult.headScores.length
-            : 0,
+          numHeads: headScores.length,
+          avgHeadScore,
           targetSuccessRate: capability.successRate,
           targetUsageCount: capability.usageCount,
         },

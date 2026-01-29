@@ -78,7 +78,7 @@ export interface GatewayDependencies {
  */
 export class GatewayFactory {
   /**
-   * Create gateway from explicit dependencies
+   * Create gateway from explicit dependencies.
    *
    * @param deps All required and optional dependencies
    * @param options Factory options
@@ -88,26 +88,19 @@ export class GatewayFactory {
     deps: GatewayDependencies,
     options: GatewayFactoryOptions = {},
   ): ReturnType<GatewayBuilder["build"]> {
-    const builder = new GatewayBuilder()
-      .withDatabase(deps.db)
-      .withVectorSearch(deps.vectorSearch)
-      .withGraphEngine(deps.graphEngine)
-      .withDAGSuggester(deps.dagSuggester)
-      .withExecutor(deps.executor)
-      .withMCPClients(deps.mcpClients);
+    // Start with required dependencies
+    const builder = this.createBuilder(deps);
 
-    // Optional dependencies
-    if (deps.capabilityStore) {
-      builder.withCapabilityStore(deps.capabilityStore);
-    }
-    if (deps.adaptiveThresholdManager) {
-      builder.withAdaptiveThresholdManager(deps.adaptiveThresholdManager);
-    }
-    if (deps.embeddingModel) {
-      builder.withEmbeddingModel(deps.embeddingModel);
-    }
+    // Apply configuration options
+    this.applyOptions(builder, options);
 
-    // Configuration options
+    return builder.build();
+  }
+
+  /**
+   * Apply factory options to a builder.
+   */
+  private static applyOptions(builder: GatewayBuilder, options: GatewayFactoryOptions): void {
     if (options.config) {
       builder.withConfig(options.config);
     }
@@ -120,8 +113,6 @@ export class GatewayFactory {
         types: options.piiTypes,
       });
     }
-
-    return builder.build();
   }
 
   /**
@@ -155,7 +146,7 @@ export class GatewayFactory {
   }
 
   /**
-   * Create a pre-configured builder
+   * Create a pre-configured builder.
    *
    * Useful when you need to customize beyond factory options.
    *
@@ -165,16 +156,17 @@ export class GatewayFactory {
   static createBuilder(deps: Partial<GatewayDependencies> = {}): GatewayBuilder {
     const builder = new GatewayBuilder();
 
+    // Required dependencies (when provided)
     if (deps.db) builder.withDatabase(deps.db);
     if (deps.vectorSearch) builder.withVectorSearch(deps.vectorSearch);
     if (deps.graphEngine) builder.withGraphEngine(deps.graphEngine);
     if (deps.dagSuggester) builder.withDAGSuggester(deps.dagSuggester);
     if (deps.executor) builder.withExecutor(deps.executor);
     if (deps.mcpClients) builder.withMCPClients(deps.mcpClients);
+
+    // Optional dependencies
     if (deps.capabilityStore) builder.withCapabilityStore(deps.capabilityStore);
-    if (deps.adaptiveThresholdManager) {
-      builder.withAdaptiveThresholdManager(deps.adaptiveThresholdManager);
-    }
+    if (deps.adaptiveThresholdManager) builder.withAdaptiveThresholdManager(deps.adaptiveThresholdManager);
     if (deps.embeddingModel) builder.withEmbeddingModel(deps.embeddingModel);
 
     return builder;

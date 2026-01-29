@@ -11,7 +11,7 @@ import * as log from "@std/log";
 import { FileHandler } from "@std/log/file-handler";
 import type { LevelName, LogRecord } from "@std/log";
 import { ensureDir } from "@std/fs";
-import type { LoggerConfig } from "./types.ts";
+import type { LoggerConfig, LoggerName } from "./types.ts";
 
 /**
  * Default log file path
@@ -210,17 +210,7 @@ export async function setupLogger(config?: LoggerConfig): Promise<void> {
  * @param name Logger name (default, mcp, vector, event-stream, command-queue, controlled-executor)
  * @returns Logger instance
  */
-export function getLogger(
-  name:
-    | "default"
-    | "mcp"
-    | "vector"
-    | "event-stream"
-    | "command-queue"
-    | "controlled-executor"
-    | "dag-optimizer"
-    | "trace-generator" = "default",
-) {
+export function getLogger(name: LoggerName = "default"): log.Logger {
   return log.getLogger(name);
 }
 
@@ -228,8 +218,8 @@ export function getLogger(
  * Log convenience functions for default logger
  */
 export const logger = {
-  debug: (msg: string, ...args: unknown[]) => log.debug(msg, ...args),
-  info: (msg: string, ...args: unknown[]) => log.info(msg, ...args),
-  warn: (msg: string, ...args: unknown[]) => log.warn(msg, ...args),
-  error: (msg: string, ...args: unknown[]) => log.error(msg, ...args),
+  debug: log.debug,
+  info: log.info,
+  warn: log.warn,
+  error: log.error,
 };

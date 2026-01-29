@@ -25,6 +25,78 @@ import type {
 } from "./types.ts";
 import * as log from "@std/log";
 
+// --- Query result row types ---
+
+interface CountRow {
+  count: number;
+}
+
+interface TopUserRow {
+  user_id: string;
+  username?: string;
+  execution_count: number;
+  last_active: Date;
+}
+
+interface DailyCountRow {
+  date: string;
+  count: number;
+}
+
+interface ErrorTypeRow {
+  error_type: string;
+  count: number;
+}
+
+interface LatencyRow {
+  p50: number;
+  p95: number;
+  p99: number;
+  avg: number;
+}
+
+interface SHGATRow {
+  count: number;
+  last_updated: Date | null;
+}
+
+interface ModeCountRow {
+  mode: string;
+  count: number;
+}
+
+interface TargetTypeRow {
+  target_type: string;
+  count: number;
+}
+
+interface DecisionRow {
+  decision: string;
+  count: number;
+}
+
+interface ScoresRow {
+  avg_score: number;
+  avg_threshold: number;
+}
+
+interface CapabilityCountsRow {
+  total: number;
+  verified: number;
+  usage: number;
+  success: number;
+}
+
+interface VisibilityRow {
+  visibility: string;
+  count: number;
+}
+
+interface RoutingRow {
+  routing: string;
+  count: number;
+}
+
 /** Get interval string for time range */
 function getIntervalString(timeRange: TimeRange): string {
   // These are safe, fixed values - no user input
@@ -58,37 +130,37 @@ export async function queryUserActivity(
   const userTimeFilter = buildTimeFilter("created_at", timeRange);
 
   // Active users in time range
-  const activeResult = await db.queryOne<{ count: number }>(`
+  const activeResult = await db.queryOne<CountRow>(`
     SELECT COUNT(DISTINCT user_id) as count
     FROM execution_trace
     WHERE ${timeFilter}
   `);
 
   // DAU (last 24h)
-  const dauResult = await db.queryOne<{ count: number }>(`
+  const dauResult = await db.queryOne<CountRow>(`
     SELECT COUNT(DISTINCT user_id) as count
     FROM execution_trace
     WHERE executed_at > NOW() - INTERVAL '1 day'
   `);
 
   // WAU (last 7 days)
-  const wauResult = await db.queryOne<{ count: number }>(`
+  const wauResult = await db.queryOne<CountRow>(`
     SELECT COUNT(DISTINCT user_id) as count
     FROM execution_trace
     WHERE executed_at > NOW() - INTERVAL '7 days'
   `);
 
   // MAU (last 30 days)
-  const mauResult = await db.queryOne<{ count: number }>(`
+  const mauResult = await db.queryOne<CountRow>(`
     SELECT COUNT(DISTINCT user_id) as count
     FROM execution_trace
     WHERE executed_at > NOW() - INTERVAL '30 days'
   `);
 
   // New registrations (users table requires cloud auth - not yet implemented)
-  let newUsersResult: { count: number } | null = null;
+  let newUsersResult: CountRow | null = null;
   try {
-    newUsersResult = await db.queryOne<{ count: number }>(`
+    newUsersResult = await db.queryOne<CountRow>(`
       SELECT COUNT(*) as count FROM users WHERE ${userTimeFilter}
     `);
   } catch {
@@ -97,7 +169,7 @@ export async function queryUserActivity(
 
   // Returning users (had activity before time range AND during)
   const interval = getIntervalString(timeRange);
-  const returningResult = await db.queryOne<{ count: number }>(`
+  const returningResult = await db.queryOne<CountRow>(`
     SELECT COUNT(DISTINCT et.user_id) as count
     FROM execution_trace et
     WHERE ${timeFilter.replace("executed_at", "et.executed_at")}
@@ -110,14 +182,8 @@ export async function queryUserActivity(
 
   // Top users by execution count
   // Try with users join first (if tryQuery available), fallback to without users table
-  let topUsers: TopUser[] = [];
   const topUsersWithJoin = db.tryQuery
-    ? await db.tryQuery<{
-        user_id: string;
-        username: string;
-        execution_count: number;
-        last_active: Date;
-      }>(`
+    ? await db.tryQuery<TopUserRow>(`
         SELECT
           et.user_id,
           COALESCE(u.username, et.user_id) as username,
@@ -132,20 +198,8 @@ export async function queryUserActivity(
       `)
     : null;
 
-  if (topUsersWithJoin) {
-    topUsers = topUsersWithJoin.map((row) => ({
-      userId: row.user_id,
-      username: row.username,
-      executionCount: Number(row.execution_count),
-      lastActive: new Date(row.last_active),
-    }));
-  } else {
-    // users table doesn't exist - query without join
-    const topUsersRows = await db.query<{
-      user_id: string;
-      execution_count: number;
-      last_active: Date;
-    }>(`
+  const topUsersRows = topUsersWithJoin ??
+    await db.query<TopUserRow>(`
       SELECT
         user_id,
         COUNT(*) as execution_count,
@@ -156,13 +210,13 @@ export async function queryUserActivity(
       ORDER BY execution_count DESC
       LIMIT ${topUsersLimit}
     `);
-    topUsers = topUsersRows.map((row) => ({
-      userId: row.user_id,
-      username: row.user_id,
-      executionCount: Number(row.execution_count),
-      lastActive: new Date(row.last_active),
-    }));
-  }
+
+  const topUsers: TopUser[] = topUsersRows.map((row) => ({
+    userId: row.user_id,
+    username: row.username ?? row.user_id,
+    executionCount: Number(row.execution_count),
+    lastActive: new Date(row.last_active),
+  }));
 
   return {
     activeUsers: Number(activeResult?.count || 0),
@@ -183,14 +237,14 @@ export async function querySystemUsage(
   const timeFilter = buildTimeFilter("executed_at", timeRange);
 
   // Total executions
-  const totalResult = await db.queryOne<{ count: number }>(`
+  const totalResult = await db.queryOne<CountRow>(`
     SELECT COUNT(*) as count
     FROM execution_trace
     WHERE ${timeFilter}
   `);
 
   // Capability executions (with capability_id)
-  const capabilityResult = await db.queryOne<{ count: number }>(`
+  const capabilityResult = await db.queryOne<CountRow>(`
     SELECT COUNT(*) as count
     FROM execution_trace
     WHERE ${timeFilter}
@@ -198,7 +252,7 @@ export async function querySystemUsage(
   `);
 
   // Unique capabilities used
-  const uniqueCapResult = await db.queryOne<{ count: number }>(`
+  const uniqueCapResult = await db.queryOne<CountRow>(`
     SELECT COUNT(DISTINCT capability_id) as count
     FROM execution_trace
     WHERE ${timeFilter}
@@ -206,7 +260,7 @@ export async function querySystemUsage(
   `);
 
   // DAG/workflow executions (multi-step executions with parent trace)
-  const dagResult = await db.queryOne<{ count: number }>(`
+  const dagResult = await db.queryOne<CountRow>(`
     SELECT COUNT(*) as count
     FROM execution_trace
     WHERE ${timeFilter}
@@ -214,7 +268,7 @@ export async function querySystemUsage(
   `);
 
   // Active users for avg calculation
-  const activeUsersResult = await db.queryOne<{ count: number }>(`
+  const activeUsersResult = await db.queryOne<CountRow>(`
     SELECT COUNT(DISTINCT user_id) as count
     FROM execution_trace
     WHERE ${timeFilter}
@@ -224,7 +278,7 @@ export async function querySystemUsage(
   const activeUsers = Number(activeUsersResult?.count || 0);
 
   // Executions by day (for chart)
-  const dailyRows = await db.query<{ date: string; count: number }>(`
+  const dailyRows = await db.query<DailyCountRow>(`
     SELECT
       DATE(executed_at) as date,
       COUNT(*) as count
@@ -259,10 +313,7 @@ export async function queryErrorHealth(
   const timeFilter = buildTimeFilter("executed_at", timeRange);
 
   // Total and failed executions
-  const execResult = await db.queryOne<{
-    total: number;
-    failed: number;
-  }>(`
+  const execResult = await db.queryOne<{ total: number; failed: number }>(`
     SELECT
       COUNT(*) as total,
       COUNT(*) FILTER (WHERE success = false) as failed
@@ -275,7 +326,7 @@ export async function queryErrorHealth(
 
   // Errors by type (using error_message patterns)
   // Note: GROUP BY 1 refers to the first SELECT column (the CASE expression)
-  const errorRows = await db.query<{ error_type: string; count: number }>(`
+  const errorRows = await db.query<ErrorTypeRow>(`
     SELECT
       CASE
         WHEN error_message ILIKE '%timeout%' THEN 'timeout'
@@ -299,12 +350,7 @@ export async function queryErrorHealth(
   }));
 
   // Latency percentiles
-  const latencyResult = await db.queryOne<{
-    p50: number;
-    p95: number;
-    p99: number;
-    avg: number;
-  }>(`
+  const latencyResult = await db.queryOne<LatencyRow>(`
     SELECT
       PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY duration_ms) as p50,
       PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) as p95,
@@ -323,7 +369,7 @@ export async function queryErrorHealth(
   };
 
   // Rate limit hits (count errors with rate_limit pattern)
-  const rateLimitResult = await db.queryOne<{ count: number }>(`
+  const rateLimitResult = await db.queryOne<CountRow>(`
     SELECT COUNT(*) as count
     FROM execution_trace
     WHERE ${timeFilter}
@@ -345,9 +391,9 @@ export async function queryErrorHealth(
 /** Query resource metrics */
 export async function queryResources(db: QueryClient): Promise<ResourceMetrics> {
   // Total users (users table only exists with cloud auth - not yet implemented)
-  let usersResult: { count: number } | null = null;
+  let usersResult: CountRow | null = null;
   try {
-    usersResult = await db.queryOne<{ count: number }>(`
+    usersResult = await db.queryOne<CountRow>(`
       SELECT COUNT(*) as count FROM users
     `);
   } catch {
@@ -356,22 +402,22 @@ export async function queryResources(db: QueryClient): Promise<ResourceMetrics> 
   }
 
   // Total capabilities (workflow_pattern)
-  const capResult = await db.queryOne<{ count: number }>(`
+  const capResult = await db.queryOne<CountRow>(`
     SELECT COUNT(*) as count FROM workflow_pattern
   `);
 
   // Total traces
-  const tracesResult = await db.queryOne<{ count: number }>(`
+  const tracesResult = await db.queryOne<CountRow>(`
     SELECT COUNT(*) as count FROM execution_trace
   `);
 
   // Graph nodes (tool_schema count - mcp_tool was merged into tool_schema in migration 019)
-  const nodesResult = await db.queryOne<{ count: number }>(`
+  const nodesResult = await db.queryOne<CountRow>(`
     SELECT COUNT(*) as count FROM tool_schema
   `);
 
   // Graph edges (tool_dependency count)
-  const edgesResult = await db.queryOne<{ count: number }>(`
+  const edgesResult = await db.queryOne<CountRow>(`
     SELECT COUNT(*) as count FROM tool_dependency
   `);
 
@@ -401,34 +447,45 @@ export async function queryTechnical(
   return { shgat, algorithms, capabilities };
 }
 
+/** Default SHGAT metrics when table doesn't exist */
+const DEFAULT_SHGAT_METRICS: SHGATMetrics = {
+  hasParams: false,
+  usersWithParams: 0,
+  lastUpdated: null,
+};
+
 /** Query SHGAT model metrics */
 async function querySHGATMetrics(db: QueryClient): Promise<SHGATMetrics> {
   // Check if shgat_params table exists and has data
   try {
-    const result = await db.queryOne<{
-      count: number;
-      last_updated: Date | null;
-    }>(`
+    const result = await db.queryOne<SHGATRow>(`
       SELECT
         COUNT(*) as count,
         MAX(updated_at) as last_updated
       FROM shgat_params
     `);
 
+    const count = Number(result?.count || 0);
     return {
-      hasParams: Number(result?.count || 0) > 0,
-      usersWithParams: Number(result?.count || 0),
+      hasParams: count > 0,
+      usersWithParams: count,
       lastUpdated: result?.last_updated ? new Date(result.last_updated) : null,
     };
   } catch {
     // Table might not exist yet
-    return {
-      hasParams: false,
-      usersWithParams: 0,
-      lastUpdated: null,
-    };
+    return DEFAULT_SHGAT_METRICS;
   }
 }
+
+/** Default algorithm metrics when table doesn't exist */
+const DEFAULT_ALGORITHM_METRICS: AlgorithmMetrics = {
+  totalTraces: 0,
+  byMode: [],
+  byTargetType: [],
+  byDecision: [],
+  avgFinalScore: 0,
+  avgThreshold: 0,
+};
 
 /** Query algorithm decision metrics */
 async function queryAlgorithmMetrics(
@@ -437,14 +494,14 @@ async function queryAlgorithmMetrics(
 ): Promise<AlgorithmMetrics> {
   try {
     // Total traces
-    const totalResult = await db.queryOne<{ count: number }>(`
+    const totalResult = await db.queryOne<CountRow>(`
       SELECT COUNT(*) as count
       FROM algorithm_traces
       WHERE ${timeFilter}
     `);
 
     // By mode (active_search, passive_suggestion)
-    const modeRows = await db.query<{ mode: string; count: number }>(`
+    const modeRows = await db.query<ModeCountRow>(`
       SELECT algorithm_mode as mode, COUNT(*) as count
       FROM algorithm_traces
       WHERE ${timeFilter}
@@ -453,7 +510,7 @@ async function queryAlgorithmMetrics(
     `);
 
     // By target type (tool, capability)
-    const targetRows = await db.query<{ target_type: string; count: number }>(`
+    const targetRows = await db.query<TargetTypeRow>(`
       SELECT target_type, COUNT(*) as count
       FROM algorithm_traces
       WHERE ${timeFilter}
@@ -462,7 +519,7 @@ async function queryAlgorithmMetrics(
     `);
 
     // By decision (accept, reject, defer)
-    const decisionRows = await db.query<{ decision: string; count: number }>(`
+    const decisionRows = await db.query<DecisionRow>(`
       SELECT decision, COUNT(*) as count
       FROM algorithm_traces
       WHERE ${timeFilter}
@@ -471,10 +528,7 @@ async function queryAlgorithmMetrics(
     `);
 
     // Average scores
-    const scoresResult = await db.queryOne<{
-      avg_score: number;
-      avg_threshold: number;
-    }>(`
+    const scoresResult = await db.queryOne<ScoresRow>(`
       SELECT
         AVG(final_score) as avg_score,
         AVG(threshold_used) as avg_threshold
@@ -498,16 +552,20 @@ async function queryAlgorithmMetrics(
     };
   } catch {
     // Table might not exist yet
-    return {
-      totalTraces: 0,
-      byMode: [],
-      byTargetType: [],
-      byDecision: [],
-      avgFinalScore: 0,
-      avgThreshold: 0,
-    };
+    return DEFAULT_ALGORITHM_METRICS;
   }
 }
+
+/** Default capability registry metrics when table doesn't exist */
+const DEFAULT_CAPABILITY_REGISTRY_METRICS: CapabilityRegistryMetrics = {
+  totalRecords: 0,
+  verifiedCount: 0,
+  byVisibility: [],
+  byRouting: [],
+  totalUsageCount: 0,
+  totalSuccessCount: 0,
+  successRate: 0,
+};
 
 /** Query capability registry metrics */
 async function queryCapabilityRegistryMetrics(
@@ -515,12 +573,7 @@ async function queryCapabilityRegistryMetrics(
 ): Promise<CapabilityRegistryMetrics> {
   try {
     // Total and verified counts
-    const countsResult = await db.queryOne<{
-      total: number;
-      verified: number;
-      usage: number;
-      success: number;
-    }>(`
+    const countsResult = await db.queryOne<CapabilityCountsRow>(`
       SELECT
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE verified = true) as verified,
@@ -530,10 +583,7 @@ async function queryCapabilityRegistryMetrics(
     `);
 
     // By visibility
-    const visibilityRows = await db.query<{
-      visibility: string;
-      count: number;
-    }>(`
+    const visibilityRows = await db.query<VisibilityRow>(`
       SELECT visibility, COUNT(*) as count
       FROM capability_records
       GROUP BY visibility
@@ -541,7 +591,7 @@ async function queryCapabilityRegistryMetrics(
     `);
 
     // By routing
-    const routingRows = await db.query<{ routing: string; count: number }>(`
+    const routingRows = await db.query<RoutingRow>(`
       SELECT routing, COUNT(*) as count
       FROM capability_records
       GROUP BY routing
@@ -568,14 +618,6 @@ async function queryCapabilityRegistryMetrics(
     };
   } catch {
     // Table might not exist yet
-    return {
-      totalRecords: 0,
-      verifiedCount: 0,
-      byVisibility: [],
-      byRouting: [],
-      totalUsageCount: 0,
-      totalSuccessCount: 0,
-      successRate: 0,
-    };
+    return DEFAULT_CAPABILITY_REGISTRY_METRICS;
   }
 }

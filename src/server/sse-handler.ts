@@ -10,11 +10,12 @@
 import type { DAGStructure } from "../graphrag/types.ts";
 import type { ToolExecutor } from "../dag/types.ts";
 import type { SSEEvent } from "../dag/streaming.ts";
-import { StreamingExecutor } from "../dag/streaming.ts";
 import { ParallelExecutor } from "../dag/executor.ts";
+import { StreamingExecutor } from "../dag/streaming.ts";
 import { getLogger } from "../telemetry/logger.ts";
 
 const log = getLogger("default");
+const textEncoder = new TextEncoder();
 
 /**
  * Configuration for SSE handler
@@ -63,70 +64,15 @@ export async function handleSSERequest(
 ): Promise<Response> {
   log.info(`Starting SSE request for DAG with ${dag.tasks.length} tasks`);
 
-  // Create transform stream for SSE
   const { readable, writable } = new TransformStream<string, string>();
+  const writer = writable.getWriter();
 
-  // Start execution in background
-  (async () => {
-    const writer = writable.getWriter();
+  executeDAGWithStreaming(dag, toolExecutor, config, writer);
 
-    try {
-      // Create event stream that formats events as SSE
-      const eventStream = new WritableStream<SSEEvent>({
-        write(event) {
-          // Format as SSE specification
-          const sseData = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
-          return writer.write(sseData);
-        },
-      });
-
-      // Execute DAG with streaming
-      const executor = new StreamingExecutor(
-        toolExecutor,
-        {
-          maxConcurrency: config.maxConcurrency,
-          taskTimeout: config.taskTimeout,
-          verbose: config.verbose,
-        },
-      );
-
-      await executor.executeWithStreaming(
-        dag,
-        eventStream,
-        { maxBufferSize: config.maxBufferSize },
-      );
-
-      log.info("SSE request completed successfully");
-    } catch (error) {
-      // Send error event on critical failure
-      const errorData = `event: error\ndata: ${
-        JSON.stringify({
-          error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString(),
-        })
-      }\n\n`;
-
-      try {
-        await writer.write(errorData);
-      } catch (writeError) {
-        log.error("Failed to write error event to SSE stream", writeError);
-      }
-
-      log.error("SSE request failed", error);
-    } finally {
-      try {
-        await writer.close();
-      } catch (closeError) {
-        log.error("Failed to close SSE writer", closeError);
-      }
-    }
-  })();
-
-  // Transform SSE events to encoded bytes
   const encodedStream = readable.pipeThrough(
     new TransformStream<string, Uint8Array>({
       transform(chunk, controller) {
-        controller.enqueue(new TextEncoder().encode(chunk));
+        controller.enqueue(textEncoder.encode(chunk));
       },
     }),
   );
@@ -136,9 +82,56 @@ export async function handleSSERequest(
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       "Connection": "keep-alive",
-      "X-Accel-Buffering": "no", // Disable nginx buffering
+      "X-Accel-Buffering": "no",
     },
   });
+}
+
+/**
+ * Execute DAG with streaming and write events to the SSE writer.
+ * Runs in background without blocking the response.
+ */
+function executeDAGWithStreaming(
+  dag: DAGStructure,
+  toolExecutor: ToolExecutor,
+  config: SSEHandlerConfig,
+  writer: WritableStreamDefaultWriter<string>,
+): void {
+  const eventStream = new WritableStream<SSEEvent>({
+    write(event) {
+      const sseData = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
+      return writer.write(sseData);
+    },
+  });
+
+  const executor = new StreamingExecutor(toolExecutor, {
+    maxConcurrency: config.maxConcurrency,
+    taskTimeout: config.taskTimeout,
+    verbose: config.verbose,
+  });
+
+  executor
+    .executeWithStreaming(dag, eventStream, { maxBufferSize: config.maxBufferSize })
+    .then(() => {
+      log.info("SSE request completed successfully");
+    })
+    .catch((error) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorData = `event: error\ndata: ${JSON.stringify({
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+      })}\n\n`;
+
+      writer.write(errorData).catch((writeError) => {
+        log.error("Failed to write error event to SSE stream", writeError);
+      });
+      log.error("SSE request failed", error);
+    })
+    .finally(() => {
+      writer.close().catch((closeError) => {
+        log.error("Failed to close SSE writer", closeError);
+      });
+    });
 }
 
 /**
@@ -159,19 +152,16 @@ export async function handleWorkflowRequest(
   toolExecutor: ToolExecutor,
   config: SSEHandlerConfig = {},
 ): Promise<Response> {
-  // Check if client supports SSE
   const acceptHeader = request.headers.get("Accept");
   const acceptsSSE = acceptHeader?.includes("text/event-stream");
 
   if (acceptsSSE) {
     log.info("Client accepts SSE - using streaming mode");
-    // SSE streaming mode
     return handleSSERequest(request, dag, toolExecutor, config);
-  } else {
-    log.info("Client does not accept SSE - using batch mode");
-    // Batch mode (graceful degradation)
-    return handleBatchRequest(dag, toolExecutor, config);
   }
+
+  log.info("Client does not accept SSE - using batch mode");
+  return handleBatchRequest(dag, toolExecutor, config);
 }
 
 /**
@@ -190,39 +180,32 @@ async function handleBatchRequest(
   toolExecutor: ToolExecutor,
   config: SSEHandlerConfig = {},
 ): Promise<Response> {
+  const executor = new ParallelExecutor(toolExecutor, {
+    maxConcurrency: config.maxConcurrency,
+    taskTimeout: config.taskTimeout,
+    verbose: config.verbose,
+  });
+
   try {
-    const executor = new ParallelExecutor(
-      toolExecutor,
-      {
-        maxConcurrency: config.maxConcurrency,
-        taskTimeout: config.taskTimeout,
-        verbose: config.verbose,
-      },
-    );
-
     const result = await executor.execute(dag);
-
     return new Response(JSON.stringify(result), {
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     log.error("Batch request failed", error);
-
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString(),
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
+    return createErrorResponse(error);
   }
+}
+
+/**
+ * Create a JSON error response with timestamp
+ */
+function createErrorResponse(error: unknown): Response {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  return new Response(
+    JSON.stringify({ error: errorMessage, timestamp: new Date().toISOString() }),
+    { status: 500, headers: { "Content-Type": "application/json" } },
+  );
 }
 
 /**

@@ -34,14 +34,12 @@ import { getToolPermissionConfig } from "../../capabilities/permission-inferrer.
 import { type AdaptiveThresholdManager, type ThresholdMode, updateThompsonSampling } from "../adaptive-threshold.ts";
 import { ExecutionCaptureService } from "../../application/services/execution-capture.service.ts";
 import { DAGConverterAdapter } from "../../infrastructure/di/adapters/execute/dag-converter-adapter.ts";
-// Story 10.5 AC10: WorkerBridge-based executor for 100% traceability
+// Story 10.5 AC10: WorkerBridge cleanup and shared executor factory
 import {
   cleanupWorkerBridgeExecutor,
-  createToolExecutorViaWorker,
   type ExecutorContext,
 } from "../../dag/execution/workerbridge-executor.ts";
-import type { ToolDefinition } from "../../sandbox/types.ts";
-import { buildToolDefinitionsFromDAG } from "./shared/tool-definitions.ts";
+import { buildToolDefinitionsFromDAG, createTracingExecutor } from "./shared/mod.ts";
 
 /**
  * Determine if a DAG requires per-layer validation based on permissions.
@@ -228,29 +226,7 @@ export function smartHILCheck(
   };
 }
 
-/**
- * Create tool executor using WorkerBridge for 100% traceability
- *
- * Story 10.5 AC10: All MCP tool calls go through WorkerBridge RPC.
- * This ensures complete tracing with tool_start/tool_end events.
- *
- * @deprecated Use createToolExecutorViaWorker directly for new code
- */
-function createToolExecutorWithTracing(
-  deps: WorkflowHandlerDependencies,
-  toolDefs: ToolDefinition[],
-): { executor: import("../../dag/types.ts").ToolExecutor; context: ExecutorContext } {
-  const [executor, context] = createToolExecutorViaWorker({
-    mcpClients: deps.mcpClients,
-    toolDefinitions: toolDefs,
-    capabilityStore: deps.capabilityStore,
-    graphRAG: deps.graphEngine,
-    capabilityRegistry: deps.capabilityRegistry,
-    capModule: deps.capModule,
-  });
-
-  return { executor, context };
-}
+// createToolExecutorWithTracing moved to shared/executor-factory.ts as createTracingExecutor
 
 /**
  * Handle workflow execution request
@@ -407,7 +383,7 @@ async function executeStandardWorkflow(
   const toolDefs = await buildToolDefinitionsFromDAG(dag, deps);
 
   // Create WorkerBridge-based executor for tracing
-  const { executor, context } = createToolExecutorWithTracing(deps, toolDefs);
+  const { executor, context } = createTracingExecutor(deps, toolDefs);
 
   try {
     const controlledExecutor = new ControlledExecutor(executor, {
@@ -495,7 +471,7 @@ async function executeWithPerLayerValidation(
   const toolDefs = await buildToolDefinitionsFromDAG(dag, deps);
 
   // Create WorkerBridge-based executor for tracing
-  const { executor, context } = createToolExecutorWithTracing(deps, toolDefs);
+  const { executor, context } = createTracingExecutor(deps, toolDefs);
 
   // Create ControlledExecutor for this workflow
   // Story 10.7c fix: Enable perLayerValidation so generator pauses after checkpoints

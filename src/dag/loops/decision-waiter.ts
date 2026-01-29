@@ -32,14 +32,17 @@ export interface DecisionCommand {
  */
 export function isDecisionCommand(cmd: unknown): cmd is DecisionCommand {
   if (typeof cmd !== "object" || cmd === null) return false;
+
   const obj = cmd as Record<string, unknown>;
-  // Required: type must be a string
   if (typeof obj.type !== "string") return false;
-  // Optional fields type validation
+
+  // Validate optional fields if present
+  const optionalStringFields = ["feedback", "reason", "new_requirement"];
+  for (const field of optionalStringFields) {
+    if (obj[field] !== undefined && typeof obj[field] !== "string") return false;
+  }
   if (obj.approved !== undefined && typeof obj.approved !== "boolean") return false;
-  if (obj.feedback !== undefined && typeof obj.feedback !== "string") return false;
-  if (obj.reason !== undefined && typeof obj.reason !== "string") return false;
-  if (obj.new_requirement !== undefined && typeof obj.new_requirement !== "string") return false;
+
   return true;
 }
 

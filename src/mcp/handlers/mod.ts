@@ -28,6 +28,26 @@ export {
   type WorkflowHandlerDependencies,
 } from "./workflow-handler.ts";
 
+// Shared handler utilities
+export {
+  addHandlerBreadcrumb,
+  buildToolDefinitionsFromDAG,
+  buildToolDefinitionsFromStaticStructure,
+  createHandlerContext,
+  createTracingExecutor,
+  formatErrorResponse,
+  formatSuccessResponse,
+  handleError,
+  validateRequiredParams,
+  type DAGWithTasks,
+  type HandlerContext,
+  type StaticStructureWithNodes,
+  type ToolDefinitionDeps,
+  type TransactionContext,
+  type WorkerBridgeExecutorDeps,
+  type WorkerBridgeExecutorResult,
+} from "./shared/mod.ts";
+
 // Story 13.5: cap:* management tools (moved from lib/std/cap.ts)
 export { buildEmbeddingText, CapModule, globToSqlLike, PmlStdServer } from "./cap-handler.ts";
 export type {

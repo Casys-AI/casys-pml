@@ -141,18 +141,14 @@ export class AlgorithmFactory {
   }
 
   /**
-   * Load tool embeddings from the database (tool_embedding table)
+   * Load tool embeddings from the database (tool_embedding table).
    *
    * Loads real BGE-M3 embeddings for tools and code operations.
    * Cached after first load for performance.
    *
-   * TODO: Add embeddings for loop:* and decision:* node types
-   * (currently only tools and code operations have embeddings)
-   *
-   * @returns Map of toolId → embedding vector
+   * @returns Map of toolId to embedding vector
    */
   private static async loadToolEmbeddingsFromDB(): Promise<Map<string, number[]>> {
-    // Return cached if available
     if (this.toolEmbeddingsCache) {
       return this.toolEmbeddingsCache;
     }
@@ -161,37 +157,36 @@ export class AlgorithmFactory {
 
     try {
       const db = await getDb();
-      const rows = await db.query(
-        `SELECT tool_id, embedding::text FROM tool_embedding`,
-      );
+      const rows = await db.query(`SELECT tool_id, embedding::text FROM tool_embedding`);
 
       for (const row of rows) {
-        const toolId = row.tool_id as string;
-        const embeddingStr = row.embedding as string;
-
-        // Parse the vector string format: "[0.1, 0.2, ...]"
-        try {
-          const parsed = JSON.parse(embeddingStr);
-          if (Array.isArray(parsed)) {
-            embeddings.set(toolId, parsed);
-          }
-        } catch {
-          // Skip malformed embeddings
-          log.debug(`[AlgorithmFactory] Skipping malformed embedding for ${toolId}`);
+        const parsed = this.parseEmbedding(row.embedding as string);
+        if (parsed) {
+          embeddings.set(row.tool_id as string, parsed);
         }
       }
 
       await db.close();
       log.info(`[AlgorithmFactory] Loaded ${embeddings.size} tool embeddings from DB`);
-
-      // Cache for subsequent calls
       this.toolEmbeddingsCache = embeddings;
     } catch (e) {
       log.warn(`[AlgorithmFactory] Failed to load tool embeddings from DB: ${e}`);
-      // Return empty map - SHGAT will use hash-based fallback
     }
 
     return embeddings;
+  }
+
+  /**
+   * Parse embedding string from database.
+   * Returns null for malformed embeddings.
+   */
+  private static parseEmbedding(embeddingStr: string): number[] | null {
+    try {
+      const parsed = JSON.parse(embeddingStr);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
   }
 
   /**

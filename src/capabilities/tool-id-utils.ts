@@ -5,6 +5,12 @@
  * Handles legacy colon format, MCP dot notation, and FQDNs.
  */
 
+/** Parsed tool ID result */
+interface ParsedToolId {
+  namespace: string;
+  action: string;
+}
+
 /**
  * Parse tool ID from any format to { namespace, action }
  *
@@ -13,19 +19,22 @@
  * - Colon: "std:psql_query" → { namespace: "std", action: "psql_query" }
  * - MCP dot: "mcp.std.psql_query" → { namespace: "std", action: "psql_query" }
  */
-export function parseToolId(toolId: string): { namespace: string; action: string } {
+export function parseToolId(toolId: string): ParsedToolId {
   if (!toolId || typeof toolId !== "string") {
     return { namespace: "unknown", action: toolId || "" };
   }
 
-  // FQDN: org.project.namespace.action[.hash] (4-5 parts, not starting with mcp.)
   const dotParts = toolId.split(".");
-  if (dotParts.length >= 4 && !toolId.startsWith("mcp.")) {
+
+  // FQDN: org.project.namespace.action[.hash] (4-5 parts, not starting with mcp.)
+  const isFqdn = dotParts.length >= 4 && !toolId.startsWith("mcp.");
+  if (isFqdn) {
     return { namespace: dotParts[2], action: dotParts[3] };
   }
 
   // MCP dot notation: mcp.namespace.action
-  if (toolId.startsWith("mcp.") && dotParts.length >= 3) {
+  const isMcpDot = toolId.startsWith("mcp.") && dotParts.length >= 3;
+  if (isMcpDot) {
     return { namespace: dotParts[1], action: dotParts.slice(2).join("_") };
   }
 

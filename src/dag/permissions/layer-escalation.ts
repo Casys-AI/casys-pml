@@ -42,9 +42,7 @@ export interface EscalationEntry {
   event: ExecutionEvent;
 }
 
-/**
- * Permission suggestion based on detected operation
- */
+/** Permission suggestions based on detected operation */
 const PERMISSION_SUGGESTIONS: Record<string, string> = {
   net: "Use primitives:http_get or primitives:http_post for HTTP requests.",
   read: "Use filesystem:read_file for file access.",
@@ -54,9 +52,7 @@ const PERMISSION_SUGGESTIONS: Record<string, string> = {
   ffi: "FFI calls are not allowed in sandbox mode.",
 };
 
-/**
- * Get helpful suggestion for permission errors
- */
+/** Get helpful suggestion for permission errors */
 export function getPermissionSuggestion(detectedOperation: string): string {
   return PERMISSION_SUGGESTIONS[detectedOperation] ?? "Consider using an authorized MCP tool instead.";
 }

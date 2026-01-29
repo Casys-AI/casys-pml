@@ -38,6 +38,37 @@ export interface SyncableGraph {
 }
 
 /**
+ * Create node attributes for a tool or operation
+ */
+function createToolNodeAttributes(toolId: string): Record<string, unknown> {
+  const isOp = toolId.startsWith("code:");
+  const name = toolId.split(":").pop() ?? toolId;
+
+  if (isOp) {
+    return {
+      type: "operation",
+      name,
+      pure: isPureOperation(toolId),
+      category: getOperationCategory(toolId) || "unknown",
+    };
+  }
+
+  return {
+    type: "tool",
+    name,
+    pure: false,
+  };
+}
+
+/**
+ * Ensure a tool/operation node exists in the graph
+ */
+function ensureToolNode(graph: SyncableGraph, toolId: string): void {
+  if (graph.hasNode(toolId)) return;
+  graph.addNode(toolId, createToolNodeAttributes(toolId));
+}
+
+/**
  * Database sync result
  */
 export interface SyncResult {
@@ -151,22 +182,8 @@ export async function syncGraphFromDatabase(
     const to = dep.to_tool_id as string;
 
     // Create missing nodes (e.g., code:* operations not in tool_schema)
-    if (!graph.hasNode(from)) {
-      const isOp = from.startsWith("code:");
-      graph.addNode(from, {
-        type: isOp ? "operation" : "tool",
-        name: from.split(":").pop() ?? from,
-        pure: isOp ? isPureOperation(from) : false,
-      });
-    }
-    if (!graph.hasNode(to)) {
-      const isOp = to.startsWith("code:");
-      graph.addNode(to, {
-        type: isOp ? "operation" : "tool",
-        name: to.split(":").pop() ?? to,
-        pure: isOp ? isPureOperation(to) : false,
-      });
-    }
+    ensureToolNode(graph, from);
+    ensureToolNode(graph, to);
 
     graph.addEdge(from, to, {
       weight: dep.confidence_score as number,
@@ -244,15 +261,7 @@ export async function syncGraphFromDatabase(
     for (const toolId of tools) {
       if (!toolId || typeof toolId !== "string") continue;
 
-      // Ensure tool node exists
-      if (!graph.hasNode(toolId)) {
-        const isOp = toolId.startsWith("code:");
-        graph.addNode(toolId, {
-          type: isOp ? "operation" : "tool",
-          name: toolId.split(":").pop() ?? toolId,
-          pure: isOp ? isPureOperation(toolId) : false,
-        });
-      }
+      ensureToolNode(graph, toolId);
 
       // Add contains edge if not present
       if (!graph.hasEdge(capNode, toolId)) {

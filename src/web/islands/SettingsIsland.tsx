@@ -9,92 +9,136 @@
  * @module web/islands/SettingsIsland
  */
 
+import type { JSX } from "preact";
 import { useSignal } from "@preact/signals";
 
-interface SettingsIslandProps {
+const TOAST_DURATION_MS = 3000;
+const MASKED_KEY_LENGTH = 16;
+
+export interface SettingsIslandProps {
   flashApiKey: string | null;
   apiKeyPrefix: string | null;
+}
+
+function InfoIcon(): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4M12 8h.01" />
+    </svg>
+  );
+}
+
+function EyeOpenIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeClosedIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+function CopyIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function CheckIcon(): JSX.Element {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+function getMaskedKey(flashApiKey: string | null, showKey: boolean, apiKeyPrefix: string | null): string {
+  if (flashApiKey && showKey) {
+    return flashApiKey;
+  }
+  if (apiKeyPrefix) {
+    return `${apiKeyPrefix}${"\u2022".repeat(MASKED_KEY_LENGTH)}`;
+  }
+  return "No API key generated";
+}
+
+function getKeyNote(hasFlashKey: boolean): string {
+  if (hasFlashKey) {
+    return "This is your full API key. Copy it now - it won't be visible after you leave this page.";
+  }
+  return "The full API key is only shown once when generated. You can regenerate a new key if needed.";
 }
 
 export default function SettingsIsland({
   flashApiKey,
   apiKeyPrefix,
-}: SettingsIslandProps) {
+}: SettingsIslandProps): JSX.Element {
   const showKey = useSignal(false);
   const copied = useSignal(false);
   const toastMessage = useSignal<string | null>(null);
 
-  // Mask the API key for display
-  const getMaskedKey = () => {
-    if (flashApiKey && showKey.value) {
-      return flashApiKey;
-    }
-    if (apiKeyPrefix) {
-      return `${apiKeyPrefix}${"•".repeat(16)}`;
-    }
-    return "No API key generated";
-  };
+  function showToast(message: string): void {
+    toastMessage.value = message;
+    setTimeout(() => {
+      toastMessage.value = null;
+    }, TOAST_DURATION_MS);
+  }
 
-  const handleCopy = async () => {
-    // Only copy if full key is available
+  async function handleCopy(): Promise<void> {
     if (!flashApiKey) {
-      toastMessage.value = "Full key not available - regenerate to copy";
-      setTimeout(() => {
-        toastMessage.value = null;
-      }, 3000);
+      showToast("Full key not available - regenerate to copy");
       return;
     }
 
     try {
       await navigator.clipboard.writeText(flashApiKey);
       copied.value = true;
-      toastMessage.value = "API key copied!";
+      showToast("API key copied!");
       setTimeout(() => {
         copied.value = false;
-        toastMessage.value = null;
-      }, 3000);
+      }, TOAST_DURATION_MS);
     } catch {
-      toastMessage.value = "Failed to copy to clipboard";
-      setTimeout(() => {
-        toastMessage.value = null;
-      }, 3000);
+      showToast("Failed to copy to clipboard");
     }
-  };
+  }
 
-  const handleToggleShow = () => {
+  function handleToggleShow(): void {
     if (flashApiKey) {
       showKey.value = !showKey.value;
     }
-  };
+  }
+
+  const maskedKey = getMaskedKey(flashApiKey, showKey.value, apiKeyPrefix);
+  const keyNote = getKeyNote(Boolean(flashApiKey));
+  const copyTitle = flashApiKey ? "Copy API key" : "Regenerate key to copy";
 
   return (
     <div class="api-key-section">
-      {/* Flash API Key Alert - shown once after login/regenerate */}
       {flashApiKey && (
         <div class="flash-key-alert">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 16v-4M12 8h.01" />
-          </svg>
+          <InfoIcon />
           <div class="flash-key-text">
             <strong>New API Key Generated!</strong>
-            <span>
-              Save this key now - it won't be shown again after you leave this page.
-            </span>
+            <span>Save this key now - it won't be shown again after you leave this page.</span>
           </div>
         </div>
       )}
 
-      {/* API Key Display */}
       <div class="api-key-display">
-        <code class="api-key-value">{getMaskedKey()}</code>
+        <code class="api-key-value">{maskedKey}</code>
         <div class="api-key-actions">
           {flashApiKey && (
             <button
@@ -103,33 +147,7 @@ export default function SettingsIsland({
               onClick={handleToggleShow}
               title={showKey.value ? "Hide key" : "Show key"}
             >
-              {showKey.value
-                ? (
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                )
-                : (
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
+              {showKey.value ? <EyeClosedIcon /> : <EyeOpenIcon />}
               <span>{showKey.value ? "Hide" : "Show"}</span>
             </button>
           )}
@@ -138,45 +156,19 @@ export default function SettingsIsland({
             class="btn-sm"
             onClick={handleCopy}
             disabled={!flashApiKey}
-            title={!flashApiKey ? "Regenerate key to copy" : "Copy API key"}
+            title={copyTitle}
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
+            <CopyIcon />
             <span>{copied.value ? "Copied!" : "Copy"}</span>
           </button>
         </div>
       </div>
 
-      {/* Note about key visibility */}
-      <p class="api-key-note">
-        {flashApiKey
-          ? "This is your full API key. Copy it now - it won't be visible after you leave this page."
-          : "The full API key is only shown once when generated. You can regenerate a new key if needed."}
-      </p>
+      <p class="api-key-note">{keyNote}</p>
 
-      {/* Toast notification */}
       {toastMessage.value && (
         <div class="toast">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
+          <CheckIcon />
           {toastMessage.value}
         </div>
       )}

@@ -26,6 +26,125 @@ export interface SearchResult {
 }
 
 /**
+ * Database row from search query
+ */
+interface SearchRow {
+  tool_id: string;
+  server_id: string;
+  tool_name: string;
+  schema_json: string | MCPTool;
+  score?: string | number;
+}
+
+/**
+ * Validated search parameters
+ */
+interface SearchParams {
+  query: string;
+  topK: number;
+  minScore: number;
+}
+
+/** Default number of results to return */
+const DEFAULT_TOP_K = 5;
+
+/** Default minimum similarity score */
+const DEFAULT_MIN_SCORE = 0.7;
+
+/** Fixed score for keyword search matches */
+const KEYWORD_MATCH_SCORE = 0.5;
+
+/** SQL for vector similarity search */
+const VECTOR_SEARCH_SQL = `
+  SELECT
+    te.tool_id,
+    te.server_id,
+    te.tool_name,
+    json_build_object(
+      'name', ts.name,
+      'description', ts.description,
+      'inputSchema', ts.input_schema
+    ) AS schema_json,
+    1 - (te.embedding <=> $1::vector) AS score
+  FROM tool_embedding te
+  JOIN tool_schema ts ON te.tool_id = ts.tool_id
+  WHERE 1 - (te.embedding <=> $1::vector) >= $2
+  ORDER BY te.embedding <=> $1::vector
+  LIMIT $3`;
+
+/** SQL for keyword fallback search */
+const KEYWORD_SEARCH_SQL = `
+  SELECT
+    te.tool_id,
+    te.server_id,
+    te.tool_name,
+    json_build_object(
+      'name', ts.name,
+      'description', ts.description,
+      'inputSchema', ts.input_schema
+    ) AS schema_json
+  FROM tool_embedding te
+  JOIN tool_schema ts ON te.tool_id = ts.tool_id
+  WHERE te.tool_name ILIKE $1
+     OR ts.description ILIKE $1
+  LIMIT $2`;
+
+/**
+ * Parse a schema JSON field, handling both string and object formats
+ */
+function parseSchemaJson(value: string | MCPTool): MCPTool {
+  if (typeof value === "string") {
+    return JSON.parse(value) as MCPTool;
+  }
+  return value;
+}
+
+/**
+ * Convert a database row to a SearchResult
+ */
+function rowToSearchResult(row: SearchRow, defaultScore?: number): SearchResult {
+  const score = row.score !== undefined ? parseFloat(String(row.score)) : (defaultScore ?? 0);
+
+  return {
+    toolId: row.tool_id,
+    serverId: row.server_id,
+    toolName: row.tool_name,
+    score,
+    schema: parseSchemaJson(row.schema_json),
+  };
+}
+
+/**
+ * Validate and normalize search parameters
+ */
+function validateSearchParams(query: string, topK: number, minScore: number): SearchParams | null {
+  if (!query || query.trim().length === 0) {
+    log.warn("Empty query provided to searchTools");
+    return null;
+  }
+
+  let validatedTopK = topK;
+  if (topK <= 0) {
+    log.warn(`Invalid topK value: ${topK}. Using default: ${DEFAULT_TOP_K}`);
+    validatedTopK = DEFAULT_TOP_K;
+  }
+
+  let validatedMinScore = minScore;
+  if (minScore < 0 || minScore > 1) {
+    log.warn(
+      `Invalid minScore value: ${minScore}. Must be between 0 and 1. Using default: ${DEFAULT_MIN_SCORE}`,
+    );
+    validatedMinScore = DEFAULT_MIN_SCORE;
+  }
+
+  return {
+    query,
+    topK: validatedTopK,
+    minScore: validatedMinScore,
+  };
+}
+
+/**
  * Vector Search Engine
  *
  * Performs semantic search over tool embeddings using natural language queries.
@@ -54,136 +173,67 @@ export class VectorSearch {
    */
   async searchTools(
     query: string,
-    topK: number = 5,
-    minScore: number = 0.7,
+    topK: number = DEFAULT_TOP_K,
+    minScore: number = DEFAULT_MIN_SCORE,
   ): Promise<SearchResult[]> {
-    // Validate inputs
-    if (!query || query.trim().length === 0) {
-      log.warn("Empty query provided to searchTools");
+    const params = validateSearchParams(query, topK, minScore);
+    if (!params) {
       return [];
     }
 
-    if (topK <= 0) {
-      log.warn(`Invalid topK value: ${topK}. Using default: 5`);
-      topK = 5;
-    }
-
-    if (minScore < 0 || minScore > 1) {
-      log.warn(
-        `Invalid minScore value: ${minScore}. Must be between 0 and 1. Using default: 0.7`,
-      );
-      minScore = 0.7;
-    }
-
     const searchId = crypto.randomUUID().slice(0, 8);
-
-    // Emit vector.search.started event
-    eventBus.emit({
-      type: "vector.search.started",
-      source: "vector-search",
-      payload: {
-        searchId,
-        query: query.slice(0, 100),
-        topK,
-        minScore,
-      },
-    });
+    this.emitSearchStarted(searchId, params);
 
     try {
-      log.info(`Searching for tools with query: "${query}" (topK=${topK}, minScore=${minScore})`);
-
-      // AC1: Generate query embedding using BGE-Large-EN-v1.5
-      const startEmbedding = performance.now();
-      const queryEmbedding = await this.embeddingModel.encode(query);
-      const embeddingTime = performance.now() - startEmbedding;
-      log.debug(`Query embedding generated in ${embeddingTime.toFixed(2)}ms`);
-
-      // Emit vector.embedding.generated event
-      eventBus.emit({
-        type: "vector.embedding.generated",
-        source: "vector-search",
-        payload: {
-          searchId,
-          dimensions: queryEmbedding.length,
-          durationMs: embeddingTime,
-        },
-      });
-
-      // AC2: Perform cosine similarity search with pgvector
-      // AC4: Results sorted by relevance score (ORDER BY distance ASC = highest similarity first)
-      // AC5: Configurable similarity threshold (WHERE clause)
-      const startSearch = performance.now();
-
-      // Format embedding as PostgreSQL vector literal
-      const vectorLiteral = `[${queryEmbedding.join(",")}]`;
-
-      // SQL Query using pgvector cosine distance operator (<=>)
-      // Note: <=> returns distance (0 = identical, 2 = opposite)
-      // We convert to similarity score: 1 - distance (1 = perfect match, 0 = no match)
-      const results = await this.db.query(
-        `SELECT
-          te.tool_id,
-          te.server_id,
-          te.tool_name,
-          json_build_object(
-            'name', ts.name,
-            'description', ts.description,
-            'inputSchema', ts.input_schema
-          ) AS schema_json,
-          1 - (te.embedding <=> $1::vector) AS score
-        FROM tool_embedding te
-        JOIN tool_schema ts ON te.tool_id = ts.tool_id
-        WHERE 1 - (te.embedding <=> $1::vector) >= $2
-        ORDER BY te.embedding <=> $1::vector
-        LIMIT $3`,
-        [vectorLiteral, minScore, topK],
-      );
-
-      const searchTime = performance.now() - startSearch;
-      log.info(
-        `Found ${results.length} results in ${searchTime.toFixed(2)}ms (embedding: ${
-          embeddingTime.toFixed(2)
-        }ms, search: ${(searchTime - embeddingTime).toFixed(2)}ms)`,
-      );
-
-      // AC3: Parse and return results with tool_ids + scores
-      const searchResults: SearchResult[] = results.map((row) => ({
-        toolId: row.tool_id as string,
-        serverId: row.server_id as string,
-        toolName: row.tool_name as string,
-        score: parseFloat(row.score as string),
-        schema: (typeof row.schema_json === "string"
-          ? JSON.parse(row.schema_json)
-          : row.schema_json) as MCPTool,
-      }));
-
-      // Emit vector.search.completed event
-      eventBus.emit({
-        type: "vector.search.completed",
-        source: "vector-search",
-        payload: {
-          searchId,
-          resultCount: searchResults.length,
-          topScore: searchResults[0]?.score ?? 0,
-          durationMs: searchTime,
-        },
-      });
-
-      return searchResults;
+      return await this.performVectorSearch(searchId, params);
     } catch (error) {
-      // Graceful degradation: fallback to keyword search
-      log.warn(`⚠️  Vector search failed, falling back to keyword search: ${error}`);
+      log.warn(`Vector search failed, falling back to keyword search: ${error}`);
 
       try {
-        return await this.keywordSearchFallback(query, topK, minScore);
+        return await this.keywordSearchFallback(params.query, params.topK);
       } catch (_fallbackError) {
-        // Both methods failed - throw VectorSearchError
         throw new VectorSearchError(
           `Both vector and keyword search failed: ${error}`,
-          query,
+          params.query,
         );
       }
     }
+  }
+
+  /**
+   * Perform the vector similarity search
+   */
+  private async performVectorSearch(
+    searchId: string,
+    params: SearchParams,
+  ): Promise<SearchResult[]> {
+    const { query, topK, minScore } = params;
+
+    log.info(`Searching for tools with query: "${query}" (topK=${topK}, minScore=${minScore})`);
+
+    const startEmbedding = performance.now();
+    const queryEmbedding = await this.embeddingModel.encode(query);
+    const embeddingTime = performance.now() - startEmbedding;
+    log.debug(`Query embedding generated in ${embeddingTime.toFixed(2)}ms`);
+
+    this.emitEmbeddingGenerated(searchId, queryEmbedding.length, embeddingTime);
+
+    const startSearch = performance.now();
+    const vectorLiteral = `[${queryEmbedding.join(",")}]`;
+
+    const results = await this.db.query(VECTOR_SEARCH_SQL, [vectorLiteral, minScore, topK]);
+
+    const searchTime = performance.now() - startSearch;
+    log.info(
+      `Found ${results.length} results in ${searchTime.toFixed(2)}ms ` +
+        `(embedding: ${embeddingTime.toFixed(2)}ms, search: ${(searchTime - embeddingTime).toFixed(2)}ms)`,
+    );
+
+    const searchResults = results.map((row) => rowToSearchResult(row as unknown as SearchRow));
+
+    this.emitSearchCompleted(searchId, searchResults, searchTime);
+
+    return searchResults;
   }
 
   /**
@@ -191,50 +241,66 @@ export class VectorSearch {
    *
    * Performs simple keyword matching against tool names and descriptions
    * using PostgreSQL's ILIKE (case-insensitive LIKE) operator.
-   *
-   * @param query - Search query
-   * @param topK - Number of results to return
-   * @param minScore - Minimum score threshold (always returns 0.5 for keyword matches)
-   * @returns Search results with fixed score of 0.5
    */
-  private async keywordSearchFallback(
-    query: string,
-    topK: number,
-    _minScore: number, // Not used in keyword search (always returns 0.5)
-  ): Promise<SearchResult[]> {
+  private async keywordSearchFallback(query: string, topK: number): Promise<SearchResult[]> {
     log.info(`Performing keyword search fallback for: "${query}"`);
 
     const pattern = `%${query}%`;
-
-    const results = await this.db.query(
-      `SELECT
-        te.tool_id,
-        te.server_id,
-        te.tool_name,
-        json_build_object(
-          'name', ts.name,
-          'description', ts.description,
-          'inputSchema', ts.input_schema
-        ) AS schema_json
-      FROM tool_embedding te
-      JOIN tool_schema ts ON te.tool_id = ts.tool_id
-      WHERE te.tool_name ILIKE $1
-         OR ts.description ILIKE $1
-      LIMIT $2`,
-      [pattern, topK],
-    );
+    const results = await this.db.query(KEYWORD_SEARCH_SQL, [pattern, topK]);
 
     log.info(`Keyword search found ${results.length} results`);
 
-    return results.map((row) => ({
-      toolId: row.tool_id as string,
-      serverId: row.server_id as string,
-      toolName: row.tool_name as string,
-      score: 0.5, // Fixed score for keyword matches
-      schema:
-        (typeof row.schema_json === "string"
-          ? JSON.parse(row.schema_json)
-          : row.schema_json) as MCPTool,
-    }));
+    return results.map((row) => rowToSearchResult(row as unknown as SearchRow, KEYWORD_MATCH_SCORE));
+  }
+
+  /**
+   * Emit search started event
+   */
+  private emitSearchStarted(searchId: string, params: SearchParams): void {
+    eventBus.emit({
+      type: "vector.search.started",
+      source: "vector-search",
+      payload: {
+        searchId,
+        query: params.query.slice(0, 100),
+        topK: params.topK,
+        minScore: params.minScore,
+      },
+    });
+  }
+
+  /**
+   * Emit embedding generated event
+   */
+  private emitEmbeddingGenerated(searchId: string, dimensions: number, durationMs: number): void {
+    eventBus.emit({
+      type: "vector.embedding.generated",
+      source: "vector-search",
+      payload: {
+        searchId,
+        dimensions,
+        durationMs,
+      },
+    });
+  }
+
+  /**
+   * Emit search completed event
+   */
+  private emitSearchCompleted(
+    searchId: string,
+    results: SearchResult[],
+    durationMs: number,
+  ): void {
+    eventBus.emit({
+      type: "vector.search.completed",
+      source: "vector-search",
+      payload: {
+        searchId,
+        resultCount: results.length,
+        topScore: results[0]?.score ?? 0,
+        durationMs,
+      },
+    });
   }
 }

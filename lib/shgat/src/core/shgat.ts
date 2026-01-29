@@ -397,39 +397,38 @@ export class SHGAT {
     // Run forward pass to get propagated embeddings
     this.forward();
 
-    // Get nodes (optionally filtered by level)
-    const nodes = level !== undefined
-      ? this.graphBuilder.getNodesByLevel(level)
-      : Array.from(this.graphBuilder.getNodes().values());
-
-    if (nodes.length === 0) return [];
-
-    // Build embedding matrix and metadata arrays
-    const embeddings: number[][] = [];
-    const nodeIds: string[] = [];
-    const levels: number[] = [];
-
     // Get propagated embeddings from cache
     const H = this.lastCache?.H[this.lastCache.H.length - 1] ?? [];
     const E = this.lastCache?.E[this.lastCache.E.length - 1] ?? [];
 
-    for (const node of nodes) {
-      if (node.children.length === 0) {
-        // Leaf node - get from H (tool embeddings)
-        const idx = this.graphBuilder.getToolIndex(node.id);
-        if (idx !== undefined && H[idx]) {
-          embeddings.push(H[idx]);
-          nodeIds.push(node.id);
-          levels.push(node.level);
+    // Build embedding matrix and metadata arrays
+    const embeddings: number[][] = [];
+    const nodeIds: string[] = [];
+    const nodeLevels: number[] = [];
+
+    // Tools are level 0
+    if (level === undefined || level === 0) {
+      const toolIds = this.graphBuilder.getToolIds();
+      for (let i = 0; i < toolIds.length; i++) {
+        if (H[i]) {
+          embeddings.push(H[i]);
+          nodeIds.push(toolIds[i]);
+          nodeLevels.push(0);
         }
-      } else {
-        // Composite node - get from E (capability embeddings)
-        const idx = this.graphBuilder.getCapabilityIndex(node.id);
-        if (idx !== undefined && E[idx]) {
-          embeddings.push(E[idx]);
-          nodeIds.push(node.id);
-          levels.push(node.level);
+      }
+    }
+
+    // Capabilities are level 1
+    if (level === undefined || level === 1) {
+      const capNodes = this.graphBuilder.getCapabilityNodes();
+      let capIdx = 0;
+      for (const [capId] of capNodes) {
+        if (E[capIdx]) {
+          embeddings.push(E[capIdx]);
+          nodeIds.push(capId);
+          nodeLevels.push(1);
         }
+        capIdx++;
       }
     }
 
@@ -438,7 +437,7 @@ export class SHGAT {
     return scoreNodesFn(
       embeddings,
       nodeIds,
-      levels,
+      nodeLevels,
       intentEmbedding,
       this.params.headParams,
       this.params.W_intent,

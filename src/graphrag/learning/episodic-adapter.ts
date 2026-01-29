@@ -33,14 +33,13 @@ export type { EpisodicEvent } from "../../dag/episodic/types.ts";
 function hasPredictionData(
   data: unknown,
 ): data is { prediction: PredictionData } {
-  return (
-    typeof data === "object" &&
-    data !== null &&
-    "prediction" in data &&
-    typeof (data as { prediction: unknown }).prediction === "object" &&
-    (data as { prediction: { toolId: unknown } }).prediction !== null &&
-    typeof (data as { prediction: { toolId: unknown } }).prediction.toolId === "string"
-  );
+  if (typeof data !== "object" || data === null) return false;
+  if (!("prediction" in data)) return false;
+
+  const prediction = (data as { prediction: unknown }).prediction;
+  if (typeof prediction !== "object" || prediction === null) return false;
+
+  return typeof (prediction as { toolId: unknown }).toolId === "string";
 }
 
 /**

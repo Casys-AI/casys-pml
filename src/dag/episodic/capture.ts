@@ -37,6 +37,16 @@ import { getLogger } from "../../telemetry/logger.ts";
 const log = getLogger("default");
 
 /**
+ * Get size of output for metadata tracking
+ */
+function getOutputSize(output: unknown): number | undefined {
+  if (typeof output === "string") return output.length;
+  if (Array.isArray(output)) return output.length;
+  if (typeof output === "object" && output !== null) return Object.keys(output).length;
+  return undefined;
+}
+
+/**
  * Context for episodic capture operations
  */
 export interface CaptureContext {
@@ -56,17 +66,10 @@ export interface CaptureContext {
 export function getContextHash(state: WorkflowState | null): string {
   if (!state) return "no-state";
 
-  // Build context for hashing (consistent with EpisodicMemoryStore.hashContext)
-  const context = {
-    workflowType: "dag-execution",
-    domain: "pml",
-    complexity: state.tasks.length > 10 ? "high" : state.tasks.length > 5 ? "medium" : "low",
-  };
+  const taskCount = state.tasks.length;
+  const complexity = taskCount > 10 ? "high" : taskCount > 5 ? "medium" : "low";
 
-  // Simple hash matching EpisodicMemoryStore pattern
-  return ["workflowType", "domain", "complexity"]
-    .map((k) => `${k}:${context[k as keyof typeof context] ?? "default"}`)
-    .join("|");
+  return `workflowType:dag-execution|domain:pml|complexity:${complexity}`;
 }
 
 /**
@@ -108,18 +111,7 @@ export function captureTaskComplete(
         errorMessage: error,
         // No output/arguments content for PII safety (ADR-008)
         // Enriched metadata allowed: output_size, output_type
-        output: output !== null && output !== undefined
-          ? {
-            type: typeof output,
-            size: typeof output === "string"
-              ? output.length
-              : Array.isArray(output)
-              ? output.length
-              : typeof output === "object"
-              ? Object.keys(output as object).length
-              : undefined,
-          }
-          : undefined,
+        output: output != null ? { type: typeof output, size: getOutputSize(output) } : undefined,
       },
       context: ctx.state
         ? {

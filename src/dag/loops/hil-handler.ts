@@ -40,17 +40,14 @@ export function shouldRequireApproval(
 ): boolean {
   if (!config.hil?.enabled) return false;
 
-  const mode = config.hil.approval_required;
-  if (mode === "always") return true;
-  if (mode === "never") return false;
-  // "critical_only" was based on deprecated sideEffects field
-  // Now handled by requiresValidation() server-side using mcp-permissions.yaml
-  // Returning false until Phase 4 per-task HIL is implemented
-  if (mode === "critical_only") {
-    return false;
+  switch (config.hil.approval_required) {
+    case "always":
+      return true;
+    case "never":
+    case "critical_only": // Handled by requiresValidation() server-side
+    default:
+      return false;
   }
-
-  return false;
 }
 
 /**

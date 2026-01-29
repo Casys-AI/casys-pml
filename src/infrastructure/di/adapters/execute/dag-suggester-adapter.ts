@@ -121,13 +121,13 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
   }
 
   /**
-   * Generate DAG suggestion from natural language intent
+   * Generate DAG suggestion from natural language intent.
    *
    * Strategy:
    * 1. Score both capabilities AND tools with SHGAT
    * 2. Compare best capability vs best tool
-   * 3. If best score >= threshold → return capability OR tool directly
-   * 4. If below threshold → use DR-DSP to compose path
+   * 3. If best score >= threshold, return capability OR tool directly
+   * 4. If below threshold, use DR-DSP to compose path
    */
   async suggest(intent: string, correlationId?: string, precomputedEmbedding?: number[]): Promise<SuggestionResult> {
     if (!this.deps.shgat) {
@@ -135,15 +135,8 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
     }
 
     try {
-      // Use pre-computed embedding if available, otherwise generate
-      let intentEmbedding = precomputedEmbedding;
+      const intentEmbedding = await this.resolveEmbedding(intent, precomputedEmbedding);
       if (!intentEmbedding) {
-        if (!this.deps.embeddingModel) {
-          return { confidence: 0 };
-        }
-        intentEmbedding = await this.deps.embeddingModel.encode(intent);
-      }
-      if (!intentEmbedding || intentEmbedding.length === 0) {
         return { confidence: 0 };
       }
 
@@ -154,81 +147,25 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
       const bestCap = capResults[0];
       const bestTool = toolResults[0];
 
-      // No results at all - nothing to suggest
       if (!bestCap && !bestTool) {
         return { confidence: 0 };
       }
 
       const GOOD_MATCH_THRESHOLD = 0.6;
-
-      // Compare best capability vs best tool
       const bestCapScore = bestCap?.score ?? 0;
       const bestToolScore = bestTool?.score ?? 0;
 
-      // Case 1: Best capability wins (or no tools)
+      // Case 1: Best capability wins
       if (bestCapScore >= bestToolScore && bestCapScore >= GOOD_MATCH_THRESHOLD) {
-        const capability = await this.deps.capabilityRepo.findById(bestCap.capabilityId);
-        if (capability) {
-          const callName = await this.resolveCallName(capability.id, capability.fqdn);
-
-          const suggestedDag: DAGSuggestion = {
-            tasks: [{
-              id: "task_0",
-              callName: callName || bestCap.capabilityId,
-              type: "capability",
-              inputSchema: capability.parametersSchema,
-              dependsOn: [],
-            }],
-          };
-
-          log.info("[DAGSuggesterAdapter] Good match - returning capability directly", {
-            correlationId,
-            capabilityId: capability.id,
-            callName,
-            score: bestCapScore,
-          });
-
-          const bestMatch: CapabilityMatch = {
-            capabilityId: bestCap.capabilityId,
-            score: bestCap.score,
-            headScores: bestCap.headScores,
-            headWeights: bestCap.headWeights,
-            recursiveContribution: bestCap.recursiveContribution,
-            featureContributions: bestCap.featureContributions,
-          };
-
-          return {
-            suggestedDag,
-            confidence: bestCapScore,
-            bestMatch,
-            canSpeculate: bestCapScore >= 0.7 && capability.successRate >= 0.8,
-          };
+        const result = await this.buildCapabilitySuggestion(bestCap, bestCapScore, correlationId);
+        if (result) {
+          return result;
         }
       }
 
       // Case 2: Best tool wins
       if (bestToolScore > bestCapScore && bestToolScore >= GOOD_MATCH_THRESHOLD) {
-        const suggestedDag: DAGSuggestion = {
-          tasks: [{
-            id: "task_0",
-            callName: bestTool.toolId,
-            type: "tool",
-            inputSchema: undefined, // Tools get schema from MCP registry
-            dependsOn: [],
-          }],
-        };
-
-        log.info("[DAGSuggesterAdapter] Good match - returning tool directly", {
-          correlationId,
-          toolId: bestTool.toolId,
-          score: bestToolScore,
-        });
-
-        return {
-          suggestedDag,
-          confidence: bestToolScore,
-          canSpeculate: false, // Tools don't have successRate tracking
-        };
+        return this.buildToolSuggestion(bestTool, correlationId);
       }
 
       // Case 3: Below threshold - use DR-DSP composition
@@ -241,17 +178,8 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
 
       const composed = await this.composeWithDRDSP(intentEmbedding, correlationId);
 
-      // Include best capability match info if available
       if (bestCap) {
-        const bestMatch: CapabilityMatch = {
-          capabilityId: bestCap.capabilityId,
-          score: bestCap.score,
-          headScores: bestCap.headScores,
-          headWeights: bestCap.headWeights,
-          recursiveContribution: bestCap.recursiveContribution,
-          featureContributions: bestCap.featureContributions,
-        };
-        return { ...composed, bestMatch };
+        return { ...composed, bestMatch: this.toCapabilityMatch(bestCap) };
       }
 
       return composed;
@@ -259,6 +187,110 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
       log.error(`[DAGSuggesterAdapter] Suggestion failed: ${error}`);
       return { confidence: 0 };
     }
+  }
+
+  /**
+   * Resolve intent embedding from precomputed value or generate via model.
+   */
+  private async resolveEmbedding(intent: string, precomputed?: number[]): Promise<number[] | null> {
+    if (precomputed && precomputed.length > 0) {
+      return precomputed;
+    }
+    if (!this.deps.embeddingModel) {
+      return null;
+    }
+    const embedding = await this.deps.embeddingModel.encode(intent);
+    return embedding && embedding.length > 0 ? embedding : null;
+  }
+
+  /**
+   * Build a suggestion result for a capability match.
+   */
+  private async buildCapabilitySuggestion(
+    bestCap: { capabilityId: string; score: number; headScores?: number[]; headWeights?: number[]; recursiveContribution?: number; featureContributions?: { semantic?: number; structure?: number; temporal?: number; reliability?: number } },
+    bestCapScore: number,
+    correlationId?: string,
+  ): Promise<SuggestionResult | null> {
+    const capability = await this.deps.capabilityRepo.findById(bestCap.capabilityId);
+    if (!capability) {
+      return null;
+    }
+
+    const callName = await this.resolveCallName(capability.id, capability.fqdn);
+    const suggestedDag: DAGSuggestion = {
+      tasks: [{
+        id: "task_0",
+        callName: callName || bestCap.capabilityId,
+        type: "capability",
+        inputSchema: capability.parametersSchema,
+        dependsOn: [],
+      }],
+    };
+
+    log.info("[DAGSuggesterAdapter] Good match - returning capability directly", {
+      correlationId,
+      capabilityId: capability.id,
+      callName,
+      score: bestCapScore,
+    });
+
+    return {
+      suggestedDag,
+      confidence: bestCapScore,
+      bestMatch: this.toCapabilityMatch(bestCap),
+      canSpeculate: bestCapScore >= 0.7 && capability.successRate >= 0.8,
+    };
+  }
+
+  /**
+   * Build a suggestion result for a tool match.
+   */
+  private buildToolSuggestion(
+    bestTool: { toolId: string; score: number },
+    correlationId?: string,
+  ): SuggestionResult {
+    const suggestedDag: DAGSuggestion = {
+      tasks: [{
+        id: "task_0",
+        callName: bestTool.toolId,
+        type: "tool",
+        inputSchema: undefined,
+        dependsOn: [],
+      }],
+    };
+
+    log.info("[DAGSuggesterAdapter] Good match - returning tool directly", {
+      correlationId,
+      toolId: bestTool.toolId,
+      score: bestTool.score,
+    });
+
+    return {
+      suggestedDag,
+      confidence: bestTool.score,
+      canSpeculate: false,
+    };
+  }
+
+  /**
+   * Convert raw SHGAT result to CapabilityMatch.
+   */
+  private toCapabilityMatch(raw: {
+    capabilityId: string;
+    score: number;
+    headScores?: number[];
+    headWeights?: number[];
+    recursiveContribution?: number;
+    featureContributions?: { semantic?: number; structure?: number; temporal?: number; reliability?: number };
+  }): CapabilityMatch {
+    return {
+      capabilityId: raw.capabilityId,
+      score: raw.score,
+      headScores: raw.headScores,
+      headWeights: raw.headWeights,
+      recursiveContribution: raw.recursiveContribution,
+      featureContributions: raw.featureContributions,
+    };
   }
 
   /**

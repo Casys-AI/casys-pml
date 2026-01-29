@@ -42,6 +42,11 @@ export interface ScoredCandidate {
 }
 
 /**
+ * Hop count to confidence mapping
+ */
+type HopConfidenceKey = 1 | 2 | 3;
+
+/**
  * Calculate path confidence based on hop count
  *
  * Direct paths (1 hop) have highest confidence, decreasing with distance.
@@ -52,10 +57,14 @@ export interface ScoredCandidate {
  */
 export function calculatePathConfidence(hops: number, config: DagScoringConfig): number {
   const { hop1, hop2, hop3, hop4Plus } = config.hopConfidence;
-  if (hops === 1) return hop1;
-  if (hops === 2) return hop2;
-  if (hops === 3) return hop3;
-  return hop4Plus;
+
+  const hopConfidenceMap: Record<HopConfidenceKey, number> = {
+    1: hop1,
+    2: hop2,
+    3: hop3,
+  };
+
+  return hopConfidenceMap[hops as HopConfidenceKey] ?? hop4Plus;
 }
 
 /**

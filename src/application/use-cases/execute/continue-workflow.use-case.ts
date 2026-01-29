@@ -250,17 +250,17 @@ export class ContinueWorkflowUseCase {
       },
     });
 
-    // Collect partial results
+    // Collect successful partial results
     const partialResults = workflow.results
       .filter((r) => r.status === "success")
-      .map((r) => r.output);
+      .map((r) => r.output) as JsonValue[];
 
     return {
       success: true,
       data: {
         success: false,
         status: "aborted",
-        result: partialResults.length > 0 ? partialResults as JsonValue : undefined,
+        result: partialResults.length > 0 ? partialResults : undefined,
         executionTimeMs: performance.now() - startTime,
       },
     };

@@ -17,6 +17,44 @@ interface CatalogIslandProps {
   entries: CatalogEntry[];
 }
 
+/** Check if entry matches search query */
+function matchesSearch(entry: CatalogEntry, query: string): boolean {
+  const searchLower = query.toLowerCase();
+  return (
+    entry.name.toLowerCase().includes(searchLower) ||
+    (entry.description?.toLowerCase().includes(searchLower) ?? false) ||
+    entry.id.toLowerCase().includes(searchLower) ||
+    (entry.namespace?.toLowerCase().includes(searchLower) ?? false) ||
+    (entry.action?.toLowerCase().includes(searchLower) ?? false)
+  );
+}
+
+/** Filter entries based on current filter state */
+function filterEntries(
+  entries: CatalogEntry[],
+  filters: CatalogFiltersType,
+): CatalogEntry[] {
+  return entries.filter((entry) => {
+    // Search filter
+    if (filters.search && !matchesSearch(entry, filters.search)) {
+      return false;
+    }
+    // Record type filter (MCP Tool vs Capability)
+    if (filters.recordTypes.length > 0 && !filters.recordTypes.includes(entry.recordType)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+/** Get display subtitle for entry */
+function getEntrySubtitle(entry: CatalogEntry): string {
+  if (entry.recordType === "capability" && entry.namespace && entry.action) {
+    return `${entry.namespace}:${entry.action}`;
+  }
+  return entry.serverId || entry.id;
+}
+
 export default function CatalogIsland({ entries }: CatalogIslandProps) {
   const [filters, setFilters] = useState<CatalogFiltersType>({
     search: "",
@@ -25,28 +63,10 @@ export default function CatalogIsland({ entries }: CatalogIslandProps) {
 
   const [selectedEntry, setSelectedEntry] = useState<CatalogEntry | null>(null);
 
-  const filteredEntries = useMemo(() => {
-    return entries.filter((entry) => {
-      // Search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesSearch =
-          entry.name.toLowerCase().includes(searchLower) ||
-          (entry.description?.toLowerCase().includes(searchLower) ?? false) ||
-          entry.id.toLowerCase().includes(searchLower) ||
-          (entry.namespace?.toLowerCase().includes(searchLower) ?? false) ||
-          (entry.action?.toLowerCase().includes(searchLower) ?? false);
-        if (!matchesSearch) return false;
-      }
-
-      // Record type filter (MCP Tool vs Capability)
-      if (filters.recordTypes.length > 0 && !filters.recordTypes.includes(entry.recordType)) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [entries, filters]);
+  const filteredEntries = useMemo(
+    () => filterEntries(entries, filters),
+    [entries, filters],
+  );
 
   return (
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -123,9 +143,7 @@ export default function CatalogIsland({ entries }: CatalogIslandProps) {
                   {selectedEntry.name}
                 </h2>
                 <span class="font-mono text-sm" style={{ color: "var(--text-dim)" }}>
-                  {selectedEntry.recordType === "capability" && selectedEntry.namespace && selectedEntry.action
-                    ? `${selectedEntry.namespace}:${selectedEntry.action}`
-                    : selectedEntry.serverId || selectedEntry.id}
+                  {getEntrySubtitle(selectedEntry)}
                 </span>
               </div>
               <button

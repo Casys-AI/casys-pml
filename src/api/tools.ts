@@ -10,53 +10,25 @@
 import * as log from "@std/log";
 import type { RouteContext } from "../mcp/routing/types.ts";
 import { errorResponse, jsonResponse } from "../mcp/routing/types.ts";
+import {
+  MAX_NAME_LENGTH,
+  type ToolsSyncRequest,
+  UUID_REGEX,
+  VALID_NAME_PATTERN,
+} from "./types.ts";
 
 /**
  * Normalize userId to valid UUID.
  * Maps "local" and other non-UUID values to LOCAL_DEV_USER_ID from env.
  */
 function normalizeUserId(userId: string): string | null {
-  // Check if already valid UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (uuidRegex.test(userId)) {
+  if (UUID_REGEX.test(userId)) {
     return userId;
   }
-  // Map non-UUID values to dev UUID from env
   const devUserId = Deno.env.get("LOCAL_DEV_USER_ID");
   log.debug(`[tools/sync] normalizeUserId: "${userId}" → devUserId=${devUserId ?? "NOT SET"}`);
   return devUserId ?? null;
 }
-
-/**
- * Input for a discovered tool from client.
- */
-interface DiscoveredToolInput {
-  name: string;
-  description?: string;
-  inputSchema?: Record<string, unknown>;
-}
-
-/**
- * Discovery result for a single MCP server.
- */
-interface DiscoveryResultInput {
-  serverName: string;
-  tools: DiscoveredToolInput[];
-  error?: string;
-}
-
-/**
- * Request body for POST /api/tools/sync.
- */
-interface ToolsSyncRequest {
-  tools: DiscoveryResultInput[];
-  observedArgs?: Record<string, string[]>;
-}
-
-// F1 Fix: Server-side validation for tool names and server names
-// Must match client-side validation in mcp-discovery.ts (F10)
-const MAX_NAME_LENGTH = 256;
-const VALID_NAME_PATTERN = /^[a-zA-Z0-9_\-\.]+$/;
 
 /**
  * F9 Fix: Convert JS string[] to PostgreSQL TEXT[] literal format.

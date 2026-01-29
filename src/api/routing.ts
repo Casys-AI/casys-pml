@@ -11,33 +11,20 @@ import * as log from "@std/log";
 import { encodeHex } from "@std/encoding/hex";
 import type { RouteContext } from "../mcp/routing/types.ts";
 import { jsonResponse } from "../mcp/routing/types.ts";
+import type { RoutingResponse } from "./types.ts";
 
-/**
- * Cached routing config (loaded once)
- */
+/** Cached routing config (loaded once) */
 let cachedConfig: RoutingResponse | null = null;
 let configVersion: string | null = null;
 
 /**
  * Compute SHA-256 hash of config content for versioning.
- * Version changes automatically when config changes.
  */
 async function computeConfigHash(content: string): Promise<string> {
   const data = new TextEncoder().encode(content);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashHex = encodeHex(new Uint8Array(hashBuffer));
-  // Use first 8 chars for readable version
   return `1.0.0-${hashHex.slice(0, 8)}`;
-}
-
-/**
- * Package-expected routing config format
- */
-interface RoutingResponse {
-  version: string;
-  clientTools: string[];
-  serverTools: string[];
-  defaultRouting: "client" | "server";
 }
 
 /**

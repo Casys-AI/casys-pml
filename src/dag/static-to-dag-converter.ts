@@ -654,15 +654,10 @@ return input;`;
 /**
  * Add a dependency to the dependency map
  */
-function addDependency(
-  deps: Map<string, string[]>,
-  taskId: string,
-  dependsOn: string,
-): void {
-  if (!deps.has(taskId)) {
-    deps.set(taskId, []);
-  }
-  deps.get(taskId)!.push(dependsOn);
+function addDependency(deps: Map<string, string[]>, taskId: string, dependsOn: string): void {
+  const existing = deps.get(taskId) ?? [];
+  if (!deps.has(taskId)) deps.set(taskId, existing);
+  existing.push(dependsOn);
 }
 
 /**
@@ -675,16 +670,8 @@ function addDependency(
  * @returns true if structure can be converted to a meaningful DAG
  */
 export function isValidForDagConversion(structure: StaticStructure): boolean {
-  if (!structure || !structure.nodes || structure.nodes.length === 0) {
-    return false;
-  }
-
-  // Check if there's at least one executable node (task or capability)
-  const hasExecutableNode = structure.nodes.some(
-    (node) => node.type === "task" || node.type === "capability",
-  );
-
-  return hasExecutableNode;
+  if (!structure?.nodes?.length) return false;
+  return structure.nodes.some((node) => node.type === "task" || node.type === "capability");
 }
 
 /**

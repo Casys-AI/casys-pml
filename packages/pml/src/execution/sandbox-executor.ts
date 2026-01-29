@@ -22,12 +22,28 @@ import type {
   ToolCallHandler,
   ToolCallRecord,
 } from "./types.ts";
+import type { CollectedUiResource } from "../types/mod.ts";
+import { extractUiMeta } from "./ui-utils.ts";
 
 /**
  * Log debug message for sandbox operations.
  */
 function logDebug(message: string): void {
   log.debug(`[pml:sandbox-executor] ${message}`);
+}
+
+/**
+ * Context for RPC call handling.
+ * Groups mutable state accessed during tool call processing.
+ */
+interface RpcCallContext {
+  clientToolHandler: ToolCallHandler | undefined;
+  traceId: string;
+  fqdnMap: Map<string, string> | undefined;
+  toolsCalled: string[];
+  toolCallRecords: ToolCallRecord[];
+  collectedUiResources: CollectedUiResource[];
+  getNextSlot: () => number;
 }
 
 /**
@@ -87,33 +103,22 @@ export class SandboxExecutor {
 
     const toolsCalled: string[] = [];
     const toolCallRecords: ToolCallRecord[] = [];
+    const collectedUiResources: CollectedUiResource[] = [];
+    let uiSlotCounter = 0;
     const startTime = Date.now();
 
     // Create sandbox with hybrid RPC handler
     const sandbox = new SandboxWorker({
       onRpc: async (method: string, args: unknown) => {
-        toolsCalled.push(method);
-        const callStart = Date.now();
-        let result: unknown;
-        let success = true;
-        try {
-          result = await this.routeToolCall(method, args, clientToolHandler, traceId);
-        } catch (error) {
-          success = false;
-          result = error instanceof Error ? error.message : String(error);
-          throw error; // Re-throw to propagate the error
-        } finally {
-          // Map short format to FQDN for layerIndex resolution in traces
-          const toolFqdn = fqdnMap?.get(method) ?? method;
-          toolCallRecords.push({
-            tool: toolFqdn,
-            args,
-            result,
-            success,
-            durationMs: Date.now() - callStart,
-          });
-        }
-        return result;
+        return this.handleRpcCall(method, args, {
+          clientToolHandler,
+          traceId,
+          fqdnMap,
+          toolsCalled,
+          toolCallRecords,
+          collectedUiResources,
+          getNextSlot: () => uiSlotCounter++,
+        });
       },
       executionTimeoutMs: this.executionTimeoutMs,
       rpcTimeoutMs: this.rpcTimeoutMs,
@@ -144,10 +149,70 @@ export class SandboxExecutor {
         toolsCalled,
         toolCallRecords,
         traceId,
+        // Only include collectedUi if non-empty (Story 16.3)
+        ...(collectedUiResources.length > 0 && { collectedUi: collectedUiResources }),
       };
     } finally {
       sandbox.shutdown();
     }
+  }
+
+  /**
+   * Handle an RPC call from the sandbox worker.
+   * Routes the tool call, collects UI metadata, and records execution metrics.
+   */
+  private async handleRpcCall(
+    method: string,
+    args: unknown,
+    ctx: RpcCallContext,
+  ): Promise<unknown> {
+    ctx.toolsCalled.push(method);
+    const callStart = Date.now();
+    let result: unknown;
+    let success = true;
+
+    try {
+      result = await this.routeToolCall(method, args, ctx.clientToolHandler, ctx.traceId);
+      this.collectUiMetadata(result, method, args, ctx);
+    } catch (error) {
+      success = false;
+      result = error instanceof Error ? error.message : String(error);
+      throw error;
+    } finally {
+      const toolFqdn = ctx.fqdnMap?.get(method) ?? method;
+      ctx.toolCallRecords.push({
+        tool: toolFqdn,
+        args,
+        result,
+        success,
+        durationMs: Date.now() - callStart,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Collect UI metadata from tool result if present.
+   */
+  private collectUiMetadata(
+    result: unknown,
+    method: string,
+    args: unknown,
+    ctx: RpcCallContext,
+  ): void {
+    const uiMeta = extractUiMeta(result);
+    if (!uiMeta) {
+      return;
+    }
+
+    ctx.collectedUiResources.push({
+      source: method,
+      resourceUri: uiMeta.resourceUri,
+      context: { ...uiMeta.context, _args: args },
+      slot: ctx.getNextSlot(),
+    });
+    logDebug(`Collected UI from ${method}: ${uiMeta.resourceUri}`);
   }
 
   /**

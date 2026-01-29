@@ -3,13 +3,13 @@
  * Variants: default, primary, ghost, danger
  */
 
-import type { JSX } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 
-type ButtonVariant = "default" | "primary" | "ghost" | "danger";
-type ButtonSize = "sm" | "md" | "lg";
+export type ButtonVariant = "default" | "primary" | "ghost" | "danger";
+export type ButtonSize = "sm" | "md" | "lg";
 
-interface ButtonProps {
-  children: JSX.Element | string;
+export interface ButtonProps {
+  children: ComponentChildren;
   variant?: ButtonVariant;
   size?: ButtonSize;
   onClick?: () => void;
@@ -19,7 +19,12 @@ interface ButtonProps {
   type?: "button" | "submit" | "reset";
 }
 
-const variantStyles: Record<ButtonVariant, { base: string; hover: string }> = {
+interface VariantStyle {
+  base: string;
+  hover: string;
+}
+
+const VARIANT_STYLES: Record<ButtonVariant, VariantStyle> = {
   default: {
     base:
       "background: var(--accent-dim); border: 1px solid var(--border-strong); color: var(--text-muted);",
@@ -40,11 +45,36 @@ const variantStyles: Record<ButtonVariant, { base: string; hover: string }> = {
   },
 };
 
-const sizeStyles: Record<ButtonSize, string> = {
+const SIZE_CLASSES: Record<ButtonSize, string> = {
   sm: "py-1.5 px-3 text-xs",
   md: "py-2 px-4 text-sm",
   lg: "py-3 px-5 text-base",
 };
+
+/**
+ * Converts a CSS property string like "border-color" to camelCase "borderColor"
+ */
+function toCamelCase(str: string): string {
+  return str.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+/**
+ * Applies CSS styles from a semicolon-separated string to an element
+ */
+function applyStyleString(element: HTMLElement, styleStr: string): void {
+  const parts = styleStr.split(";").filter(Boolean);
+  for (const part of parts) {
+    const colonIndex = part.indexOf(":");
+    if (colonIndex === -1) continue;
+
+    const prop = part.slice(0, colonIndex).trim();
+    const val = part.slice(colonIndex + 1).trim();
+    if (prop && val) {
+      // deno-lint-ignore no-explicit-any
+      (element.style as any)[toCamelCase(prop)] = val;
+    }
+  }
+}
 
 export default function Button({
   children,
@@ -55,43 +85,34 @@ export default function Button({
   title,
   class: className,
   type = "button",
-}: ButtonProps) {
-  const styles = variantStyles[variant];
+}: ButtonProps): JSX.Element {
+  const styles = VARIANT_STYLES[variant];
+
+  function handleMouseOver(e: MouseEvent): void {
+    if (!disabled) {
+      applyStyleString(e.currentTarget as HTMLElement, styles.hover);
+    }
+  }
+
+  function handleMouseOut(e: MouseEvent): void {
+    if (!disabled) {
+      applyStyleString(e.currentTarget as HTMLElement, styles.base);
+    }
+  }
+
+  const baseClasses = `rounded-lg font-medium cursor-pointer transition-all duration-200 ${SIZE_CLASSES[size]}`;
+  const combinedClasses = `${baseClasses} ${className || ""}`.trim();
 
   return (
     <button
       type={type}
-      class={`rounded-lg font-medium cursor-pointer transition-all duration-200 ${
-        sizeStyles[size]
-      } ${className || ""}`}
+      class={combinedClasses}
       style={styles.base}
       onClick={onClick}
       disabled={disabled}
       title={title}
-      onMouseOver={(e) => {
-        if (!disabled) {
-          const hoverParts = styles.hover.split(";").filter(Boolean);
-          hoverParts.forEach((part) => {
-            const [prop, val] = part.split(":").map((s) => s.trim());
-            if (prop && val) {
-              (e.currentTarget.style as any)[prop.replace(/-([a-z])/g, (_, l) => l.toUpperCase())] =
-                val;
-            }
-          });
-        }
-      }}
-      onMouseOut={(e) => {
-        if (!disabled) {
-          const baseParts = styles.base.split(";").filter(Boolean);
-          baseParts.forEach((part) => {
-            const [prop, val] = part.split(":").map((s) => s.trim());
-            if (prop && val) {
-              (e.currentTarget.style as any)[prop.replace(/-([a-z])/g, (_, l) => l.toUpperCase())] =
-                val;
-            }
-          });
-        }
-      }}
+      onMouseOver={handleMouseOver}
+      onMouseOut={handleMouseOut}
     >
       {children}
     </button>

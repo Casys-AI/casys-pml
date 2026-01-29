@@ -279,48 +279,34 @@ export class SandboxWorker {
   }
 
   /**
+   * Detect sandbox error code from error message and code property.
+   */
+  private detectErrorCode(message: string, code?: string): SandboxError["code"] {
+    if (message.includes("timeout") || message.includes("Timeout")) {
+      return "EXECUTION_TIMEOUT";
+    }
+    if (message.includes("PermissionDenied") || code === "PERMISSION_DENIED") {
+      return "PERMISSION_DENIED";
+    }
+    if (message.includes("Worker") || code === "WORKER_TERMINATED") {
+      return "WORKER_TERMINATED";
+    }
+    return "CODE_ERROR";
+  }
+
+  /**
    * Format an error into SandboxError.
    */
   private formatError(error: unknown): SandboxError {
-    if (error instanceof Error) {
-      // Check for specific error types
-      const message = error.message;
-      const code = (error as Error & { code?: string }).code;
-
-      if (message.includes("timeout") || message.includes("Timeout")) {
-        return {
-          code: "EXECUTION_TIMEOUT",
-          message: message,
-          stack: error.stack,
-        };
-      }
-
-      if (message.includes("PermissionDenied") || code === "PERMISSION_DENIED") {
-        return {
-          code: "PERMISSION_DENIED",
-          message: message,
-          stack: error.stack,
-        };
-      }
-
-      if (message.includes("Worker") || code === "WORKER_TERMINATED") {
-        return {
-          code: "WORKER_TERMINATED",
-          message: message,
-          stack: error.stack,
-        };
-      }
-
-      return {
-        code: "CODE_ERROR",
-        message: message,
-        stack: error.stack,
-      };
+    if (!(error instanceof Error)) {
+      return { code: "CODE_ERROR", message: String(error) };
     }
 
+    const code = (error as Error & { code?: string }).code;
     return {
-      code: "CODE_ERROR",
-      message: String(error),
+      code: this.detectErrorCode(error.message, code),
+      message: error.message,
+      stack: error.stack,
     };
   }
 

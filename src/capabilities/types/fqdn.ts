@@ -155,15 +155,19 @@ export interface CapabilityRecord {
   routing: CapabilityRouting;
 }
 
+/** Required fields for computing FQDN */
+type FqdnFields = Pick<CapabilityRecord, "org" | "project" | "namespace" | "action" | "hash">;
+
+/** Required fields for display name */
+type DisplayNameFields = Pick<CapabilityRecord, "namespace" | "action">;
+
 /**
  * Compute FQDN from CapabilityRecord components
  *
  * @param record - The capability record (or partial with FQDN components)
  * @returns FQDN string: org.project.namespace.action.hash
  */
-export function getCapabilityFqdn(
-  record: Pick<CapabilityRecord, "org" | "project" | "namespace" | "action" | "hash">,
-): string {
+export function getCapabilityFqdn(record: FqdnFields): string {
   return `${record.org}.${record.project}.${record.namespace}.${record.action}.${record.hash}`;
 }
 
@@ -173,9 +177,7 @@ export function getCapabilityFqdn(
  * @param record - The capability record (or partial with namespace/action)
  * @returns Display name string: namespace:action
  */
-export function getCapabilityDisplayName(
-  record: Pick<CapabilityRecord, "namespace" | "action">,
-): string {
+export function getCapabilityDisplayName(record: DisplayNameFields): string {
   return `${record.namespace}:${record.action}`;
 }
 

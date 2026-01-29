@@ -101,6 +101,49 @@ const DEFAULT_PERMISSIONS: PmlPermissions = {
 };
 
 /**
+ * Handle approval denial by throwing appropriate error.
+ * Extracted to reduce duplication in load/loadByFqdn methods.
+ */
+function handleApprovalDenial(approvalResult: ApprovalRequiredResult): never {
+  if (approvalResult.approvalType === "tool_permission") {
+    throw new LoaderError(
+      "PERMISSION_DENIED",
+      `Tool ${approvalResult.toolId} was not approved by user`,
+      { toolId: approvalResult.toolId },
+    );
+  }
+  if (approvalResult.approvalType === "api_key_required") {
+    throw new LoaderError(
+      "API_KEY_NOT_CONFIGURED",
+      `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
+      { missingKeys: approvalResult.missingKeys },
+    );
+  }
+  // For other approval types, throw generic error
+  throw new LoaderError(
+    "PERMISSION_DENIED",
+    `Approval was denied`,
+    { approvalType: approvalResult.approvalType },
+  );
+}
+
+/**
+ * Handle integrity approval rejection.
+ * Extracted to reduce duplication.
+ */
+function handleIntegrityRejection(integrityApproval: IntegrityApprovalRequired): never {
+  throw new LoaderError(
+    "DEPENDENCY_INTEGRITY_FAILED",
+    `User rejected integrity change for ${integrityApproval.fqdnBase}`,
+    {
+      fqdnBase: integrityApproval.fqdnBase,
+      oldHash: integrityApproval.oldHash,
+      newHash: integrityApproval.newHash,
+    },
+  );
+}
+
+/**
  * Options for creating a capability loader.
  */
 export interface CapabilityLoaderOptions {
@@ -301,9 +344,7 @@ export class CapabilityLoader {
       if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
         const integrityApproval = fetchResult as IntegrityApprovalRequired;
 
-        // Handle continueWorkflow for integrity approval
         if (continueWorkflow?.approved === true) {
-          // User approved - continue fetch with approval
           const approvedResult = await this.registryClient.continueFetchWithApproval(
             namespace,
             this.lockfileManager,
@@ -311,59 +352,27 @@ export class CapabilityLoader {
           );
           metadata = approvedResult.metadata;
         } else if (continueWorkflow?.approved === false) {
-          // User rejected - throw error
-          throw new LoaderError(
-            "DEPENDENCY_INTEGRITY_FAILED",
-            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
-            {
-              fqdnBase: integrityApproval.fqdnBase,
-              oldHash: integrityApproval.oldHash,
-              newHash: integrityApproval.newHash,
-            },
-          );
+          handleIntegrityRejection(integrityApproval);
         } else {
-          // Return approval request (HIL pause)
           return integrityApproval;
         }
       } else {
-        // No approval needed - extract metadata
         metadata = (fetchResult as { metadata: CapabilityMetadata }).metadata;
       }
     } else {
-      // No lockfile manager - use simple fetch
       const { metadata: fetchedMetadata } = await this.registryClient.fetch(namespace);
       metadata = fetchedMetadata;
     }
 
-    // Issue 6 fix: Populate fqdnMap from capability's toolsUsed
-    // This enables nested capability calls to use FQDNs in traces for hierarchical matching
     this.populateFqdnMapFromToolsUsed(metadata.toolsUsed);
 
-    // 2. Check and install dependencies
-    // If continueWorkflow.approved is true, force install (user approved)
+    // Check and install dependencies
     const forceInstall = continueWorkflow?.approved === true;
-    const approvalResult = await this.ensureDependencies(
-      metadata,
-      forceInstall,
-    );
+    const approvalResult = await this.ensureDependencies(metadata, forceInstall);
 
-    // If approval is required and not yet approved, return the approval request
     if (approvalResult) {
       if (continueWorkflow?.approved === false) {
-        // Handle denial based on approval type
-        if (approvalResult.approvalType === "tool_permission") {
-          throw new LoaderError(
-            "PERMISSION_DENIED",
-            `Tool ${approvalResult.toolId} was not approved by user`,
-            { toolId: approvalResult.toolId },
-          );
-        } else if (approvalResult.approvalType === "api_key_required") {
-          throw new LoaderError(
-            "API_KEY_NOT_CONFIGURED",
-            `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
-            { missingKeys: approvalResult.missingKeys },
-          );
-        }
+        handleApprovalDenial(approvalResult);
       }
       return approvalResult;
     }
@@ -645,29 +654,17 @@ export class CapabilityLoader {
         const integrityApproval = fetchResult as IntegrityApprovalRequired;
 
         if (continueWorkflow?.approved === true) {
-          // User approved integrity change - invalidate cache and reload
           this.loadedCapabilities.delete(fqdn);
           logDebug(`Integrity changed and approved - reloading ${fqdn}`);
         } else if (continueWorkflow?.approved === false) {
-          throw new LoaderError(
-            "DEPENDENCY_INTEGRITY_FAILED",
-            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
-            {
-              fqdnBase: integrityApproval.fqdnBase,
-              oldHash: integrityApproval.oldHash,
-              newHash: integrityApproval.newHash,
-            },
-          );
+          handleIntegrityRejection(integrityApproval);
         } else {
-          // Need approval - return the approval request (HIL pause)
           return integrityApproval;
         }
       } else {
-        // Integrity OK - return cached capability
         return cached;
       }
     } else if (cached) {
-      // No lockfile manager - return cached directly
       logDebug(`Capability cache hit (FQDN): ${fqdn}`);
       return cached;
     }
@@ -689,7 +686,6 @@ export class CapabilityLoader {
         const integrityApproval = fetchResult as IntegrityApprovalRequired;
 
         if (continueWorkflow?.approved === true) {
-          // User approved - continue fetch with approval
           const approvedResult = await this.registryClient.continueFetchWithApproval(
             fqdn,
             this.lockfileManager,
@@ -697,31 +693,18 @@ export class CapabilityLoader {
           );
           metadata = approvedResult.metadata;
         } else if (continueWorkflow?.approved === false) {
-          // User rejected
-          throw new LoaderError(
-            "DEPENDENCY_INTEGRITY_FAILED",
-            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
-            {
-              fqdnBase: integrityApproval.fqdnBase,
-              oldHash: integrityApproval.oldHash,
-              newHash: integrityApproval.newHash,
-            },
-          );
+          handleIntegrityRejection(integrityApproval);
         } else {
-          // Need approval - return the approval request (HIL pause)
           return integrityApproval;
         }
       } else {
         metadata = (fetchResult as RegistryFetchResult).metadata;
       }
     } else {
-      // No lockfile manager - fetch without integrity validation (backward compat)
       const { metadata: fetchedMetadata } = await this.registryClient.fetchByFqdn(fqdn);
       metadata = fetchedMetadata;
     }
 
-    // Issue 6 fix: Populate fqdnMap from capability's toolsUsed
-    // This enables nested capability calls to use FQDNs in traces for hierarchical matching
     this.populateFqdnMapFromToolsUsed(metadata.toolsUsed);
 
     // Check and install dependencies
@@ -730,19 +713,7 @@ export class CapabilityLoader {
 
     if (approvalResult) {
       if (continueWorkflow?.approved === false) {
-        if (approvalResult.approvalType === "tool_permission") {
-          throw new LoaderError(
-            "PERMISSION_DENIED",
-            `Tool ${approvalResult.toolId} was not approved by user`,
-            { toolId: approvalResult.toolId },
-          );
-        } else if (approvalResult.approvalType === "api_key_required") {
-          throw new LoaderError(
-            "API_KEY_NOT_CONFIGURED",
-            `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
-            { missingKeys: approvalResult.missingKeys },
-          );
-        }
+        handleApprovalDenial(approvalResult);
       }
       return approvalResult;
     }

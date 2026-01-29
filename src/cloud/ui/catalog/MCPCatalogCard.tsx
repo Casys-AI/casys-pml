@@ -16,14 +16,56 @@ interface CatalogCardProps {
   onClick?: () => void;
 }
 
+/** Get display subtitle for catalog entry */
+function getSubtitle(entry: CatalogEntry): string {
+  if (entry.recordType === "capability" && entry.namespace && entry.action) {
+    return `${entry.namespace}:${entry.action}`;
+  }
+  return entry.serverId || entry.id;
+}
+
+/** Routing badge configuration */
+const ROUTING_CONFIG = {
+  cloud: {
+    background: "rgba(96, 165, 250, 0.15)",
+    color: "#60a5fa",
+    label: "Cloud",
+    icon: "M3 15a4 4 0 0 0 4 4h9a5 5 0 1 0-.1-9.999 5.002 5.002 0 0 0-9.78 2.096A4.001 4.001 0 0 0 3 15z",
+  },
+  local: {
+    background: "rgba(74, 222, 128, 0.15)",
+    color: "#4ade80",
+    label: "Local",
+    icon: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z",
+    extraIcon: { cx: 12, cy: 10, r: 3 },
+  },
+} as const;
+
+interface RoutingBadgeProps {
+  routing: "cloud" | "local";
+}
+
+function RoutingBadge({ routing }: RoutingBadgeProps) {
+  const config = ROUTING_CONFIG[routing];
+  return (
+    <span
+      class="text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
+      style={{ background: config.background, color: config.color }}
+    >
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeWidth="2" d={config.icon} />
+        {"extraIcon" in config && (
+          <circle cx={config.extraIcon.cx} cy={config.extraIcon.cy} r={config.extraIcon.r} strokeWidth="2" />
+        )}
+      </svg>
+      {config.label}
+    </span>
+  );
+}
+
 export default function CatalogCard({ entry, onClick }: CatalogCardProps) {
   const typeInfo = RECORD_TYPE_INFO[entry.recordType];
-
-  // For capabilities, show namespace:action as subtitle
-  const subtitle =
-    entry.recordType === "capability" && entry.namespace && entry.action
-      ? `${entry.namespace}:${entry.action}`
-      : entry.serverId || entry.id;
+  const subtitle = getSubtitle(entry);
 
   return (
     <div
@@ -76,32 +118,7 @@ export default function CatalogCard({ entry, onClick }: CatalogCardProps) {
         {/* Footer: routing indicator */}
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            {entry.routing === "cloud" && (
-              <span
-                class="text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
-                style={{ background: "rgba(96, 165, 250, 0.15)", color: "#60a5fa" }}
-              >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeWidth="2"
-                    d="M3 15a4 4 0 0 0 4 4h9a5 5 0 1 0-.1-9.999 5.002 5.002 0 0 0-9.78 2.096A4.001 4.001 0 0 0 3 15z"
-                  />
-                </svg>
-                Cloud
-              </span>
-            )}
-            {entry.routing === "local" && (
-              <span
-                class="text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
-                style={{ background: "rgba(74, 222, 128, 0.15)", color: "#4ade80" }}
-              >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeWidth="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                  <circle cx="12" cy="10" r="3" strokeWidth="2" />
-                </svg>
-                Local
-              </span>
-            )}
+            <RoutingBadge routing={entry.routing} />
           </div>
         </div>
       </div>

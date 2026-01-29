@@ -11,6 +11,7 @@ export { ContextOptimizer } from "./optimizer.ts";
 export type { RelevantSchemasResult } from "./optimizer.ts";
 
 export { SchemaCache } from "./cache.ts";
+export type { CacheStats, ToolHitStats } from "./cache.ts";
 
 export {
   calculateP95Latency,
@@ -27,4 +28,4 @@ export {
   TOKENS_PER_SCHEMA,
 } from "./metrics.ts";
 
-export type { ContextComparison, ContextUsage } from "./metrics.ts";
+export type { ContextComparison, ContextUsage, MetricEntry } from "./metrics.ts";

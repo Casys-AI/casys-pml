@@ -47,6 +47,46 @@ interface CapabilityRow {
 }
 
 /**
+ * Parsed capability with validated embedding
+ */
+interface ParsedCapability {
+  id: string;
+  embedding: number[];
+  toolsUsed: string[];
+  successRate: number;
+}
+
+/**
+ * Parse capability row and validate embedding format
+ */
+function parseCapabilityWithEmbedding(row: CapabilityRow): ParsedCapability | null {
+  let embedding: number[];
+
+  if (Array.isArray(row.embedding)) {
+    embedding = row.embedding;
+  } else if (typeof row.embedding === "string") {
+    try {
+      embedding = JSON.parse(row.embedding);
+    } catch {
+      return null;
+    }
+  } else {
+    return null;
+  }
+
+  if (!Array.isArray(embedding) || embedding.length === 0) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    embedding,
+    toolsUsed: row.tools_used ?? [],
+    successRate: row.success_rate,
+  };
+}
+
+/**
  * Dependencies for PostExecutionService
  */
 export interface PostExecutionServiceDeps {
@@ -394,27 +434,7 @@ export class PostExecutionService {
 
       // Parse embeddings (handle pgvector string format)
       const capabilities = rows
-        .map((c) => {
-          let embedding: number[];
-          if (Array.isArray(c.embedding)) {
-            embedding = c.embedding;
-          } else if (typeof c.embedding === "string") {
-            try {
-              embedding = JSON.parse(c.embedding);
-            } catch {
-              return null;
-            }
-          } else {
-            return null;
-          }
-          if (!Array.isArray(embedding) || embedding.length === 0) return null;
-          return {
-            id: c.id,
-            embedding,
-            toolsUsed: c.tools_used ?? [],
-            successRate: c.success_rate,
-          };
-        })
+        .map((c) => parseCapabilityWithEmbedding(c))
         .filter((c): c is NonNullable<typeof c> => c !== null);
 
       if (capabilities.length === 0) {

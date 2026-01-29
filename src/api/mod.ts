@@ -7,6 +7,7 @@
  * @module api
  */
 
+// Route handlers
 export { handleGraphRoutes } from "./graph.ts";
 export { handleCapabilitiesRoutes } from "./capabilities.ts";
 export { handleMetricsRoutes, handlePrometheusMetrics } from "./metrics.ts";
@@ -26,9 +27,18 @@ export {
   isValidUserAction,
   isValidUUID,
   recordFeedback,
-  type AlphaStatsResult,
-  type FeedbackRequest,
-  type FeedbackResult,
-  type MetricsResult,
-  type TracesResult,
 } from "./algorithm.ts";
+
+// Re-export types from centralized types module
+export type {
+  AlgorithmMode,
+  AlgorithmScore,
+  AlphaStatsResult,
+  FeedbackRequest,
+  FeedbackResult,
+  InsightItem,
+  InsightsResponse,
+  MetricsResult,
+  RoutingResponse,
+  TracesResult,
+} from "./types.ts";

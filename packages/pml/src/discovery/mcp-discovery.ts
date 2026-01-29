@@ -157,6 +157,43 @@ function logDebug(message: string): void {
 }
 
 /**
+ * Raw tool from MCP server response.
+ */
+interface RawTool {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+}
+
+/**
+ * Process and validate raw tools from MCP server.
+ * Extracted to reduce duplication between HTTP and stdio discovery.
+ */
+function processRawTools(
+  rawTools: RawTool[],
+  serverName: string,
+): { validTools: DiscoveredTool[]; skippedTools: string[] } {
+  const validTools: DiscoveredTool[] = [];
+  const skippedTools: string[] = [];
+
+  for (const tool of rawTools) {
+    if (validateToolSchema(tool)) {
+      validTools.push({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
+      });
+    } else {
+      log.warn(`[pml:discovery] ${serverName}: invalid schema for "${tool.name}", skipping`);
+      skippedTools.push(tool.name);
+    }
+  }
+
+  logDebug(`${serverName}: discovered ${validTools.length} tools (${skippedTools.length} skipped)`);
+  return { validTools, skippedTools };
+}
+
+/**
  * Discover tools from an HTTP MCP server.
  *
  * Makes a JSON-RPC call to the server's URL to get tools/list.
@@ -217,30 +254,8 @@ export async function discoverHttpMcpTools(
         throw new Error(result.error.message);
       }
 
-      // Process tools
-      const rawTools = (result.result?.tools ?? []) as Array<{
-        name: string;
-        description?: string;
-        inputSchema?: unknown;
-      }>;
-
-      const validTools: DiscoveredTool[] = [];
-      const skippedTools: string[] = [];
-
-      for (const tool of rawTools) {
-        if (validateToolSchema(tool)) {
-          validTools.push({
-            name: tool.name,
-            description: tool.description,
-            inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
-          });
-        } else {
-          log.warn(`[pml:discovery] ${serverName}: invalid schema for "${tool.name}", skipping`);
-          skippedTools.push(tool.name);
-        }
-      }
-
-      logDebug(`${serverName}: discovered ${validTools.length} tools (${skippedTools.length} skipped)`);
+      const rawTools = (result.result?.tools ?? []) as RawTool[];
+      const { validTools, skippedTools } = processRawTools(rawTools, serverName);
 
       return {
         serverName,
@@ -299,30 +314,8 @@ export async function discoverMcpTools(
       ),
     ]) as { tools?: unknown[] };
 
-    // Process tools
-    const rawTools = (response?.tools ?? []) as Array<{
-      name: string;
-      description?: string;
-      inputSchema?: unknown;
-    }>;
-
-    const validTools: DiscoveredTool[] = [];
-    const skippedTools: string[] = [];
-
-    for (const tool of rawTools) {
-      if (validateToolSchema(tool)) {
-        validTools.push({
-          name: tool.name,
-          description: tool.description,
-          inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
-        });
-      } else {
-        log.warn(`[pml:discovery] ${serverName}: invalid schema for "${tool.name}", skipping`);
-        skippedTools.push(tool.name);
-      }
-    }
-
-    logDebug(`${serverName}: discovered ${validTools.length} tools (${skippedTools.length} skipped)`);
+    const rawTools = (response?.tools ?? []) as RawTool[];
+    const { validTools, skippedTools } = processRawTools(rawTools, serverName);
 
     return {
       serverName,

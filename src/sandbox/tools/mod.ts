@@ -6,4 +6,4 @@
  * @module sandbox/tools
  */
 
-export { CodeWrapper, codeWrapper } from "./code-wrapper.ts";
+export { CodeWrapper, codeWrapper, STATEMENT_PATTERN } from "./code-wrapper.ts";

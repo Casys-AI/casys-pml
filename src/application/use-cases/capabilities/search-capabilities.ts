@@ -98,11 +98,13 @@ export class SearchCapabilitiesUseCase {
         };
       }
 
+      const displayName = match.capability.name ?? match.capability.id;
+
       // Map to use case result format (all fields needed by handlers)
       const capabilities = [{
         id: match.capability.id,
-        name: match.capability.name ?? match.capability.id,
-        displayName: match.capability.name ?? match.capability.id,
+        name: displayName,
+        displayName,
         description: match.capability.description ?? "",
         score: match.score,
         semanticScore: match.semanticScore,

@@ -45,7 +45,14 @@ export interface HyperedgeSummary {
   computedAt: number;
 }
 
-// KV key prefixes
+/** Input for building hyperedges from SHGAT data */
+export interface CapabilityHyperedgeInput {
+  id: string;
+  children?: string[];
+  toolsUsed?: string[];
+}
+
+/** KV key prefixes */
 const HYPEREDGE_PREFIX = ["graph", "hyperedges"];
 const SUMMARY_KEY = ["graph", "hyperedges", "_summary"];
 
@@ -133,42 +140,37 @@ export async function clearHyperedgeCache(): Promise<void> {
 }
 
 /**
- * Build hyperedges from SHGAT data
- *
+ * Build hyperedges from SHGAT data.
  * Converts SHGAT's children/tools_used maps into CachedHyperedge format.
- *
- * @param capabilities - Map of capabilityId → { children?: string[], toolsUsed?: string[] }
- * @returns Array of hyperedges ready for caching
  */
 export function buildHyperedgesFromSHGAT(
-  capabilities: Array<{
-    id: string;
-    children?: string[];
-    toolsUsed?: string[];
-  }>,
+  capabilities: CapabilityHyperedgeInput[],
 ): CachedHyperedge[] {
   const hyperedges: CachedHyperedge[] = [];
+  const now = Date.now();
 
   for (const cap of capabilities) {
+    const { id, children, toolsUsed } = cap;
+
     // cap→cap hyperedges (from capability_dependency.contains)
-    if (cap.children && cap.children.length >= 2) {
+    if (children && children.length >= 2) {
       hyperedges.push({
-        capabilityId: cap.id,
-        members: cap.children,
-        order: cap.children.length,
+        capabilityId: id,
+        members: children,
+        order: children.length,
         type: "cap_to_cap",
-        cachedAt: Date.now(),
+        cachedAt: now,
       });
     }
 
     // cap→tool hyperedges (from dag_structure.tools_used)
-    if (cap.toolsUsed && cap.toolsUsed.length >= 2) {
+    if (toolsUsed && toolsUsed.length >= 2) {
       hyperedges.push({
-        capabilityId: cap.id,
-        members: cap.toolsUsed,
-        order: cap.toolsUsed.length,
+        capabilityId: id,
+        members: toolsUsed,
+        order: toolsUsed.length,
         type: "cap_to_tool",
-        cachedAt: Date.now(),
+        cachedAt: now,
       });
     }
   }
@@ -176,83 +178,95 @@ export function buildHyperedgesFromSHGAT(
   return hyperedges;
 }
 
+/** Helper to create a default empty summary */
+function createEmptySummary(now: number): HyperedgeSummary {
+  return { total: 0, capToTool: 0, capToCap: 0, computedAt: now };
+}
+
+/** Helper to adjust summary count for a hyperedge type */
+function adjustSummaryCount(
+  summary: HyperedgeSummary,
+  type: CachedHyperedge["type"],
+  delta: 1 | -1,
+): void {
+  if (type === "cap_to_tool") {
+    summary.capToTool += delta;
+  } else {
+    summary.capToCap += delta;
+  }
+  summary.total += delta;
+}
+
+/** Build a hyperedge from tools or children (prefers tools) */
+function buildHyperedge(
+  capabilityId: string,
+  toolsUsed: string[],
+  children: string[] | undefined,
+  now: number,
+): CachedHyperedge | null {
+  const hasToolHyperedge = toolsUsed.length >= 2;
+  const hasCapHyperedge = children && children.length >= 2;
+
+  if (hasToolHyperedge) {
+    return {
+      capabilityId,
+      members: toolsUsed,
+      order: toolsUsed.length,
+      type: "cap_to_tool",
+      cachedAt: now,
+    };
+  }
+
+  if (hasCapHyperedge) {
+    return {
+      capabilityId,
+      members: children,
+      order: children.length,
+      type: "cap_to_cap",
+      cachedAt: now,
+    };
+  }
+
+  return null;
+}
+
 /**
- * Update or add a single hyperedge incrementally
- *
+ * Update or add a single hyperedge incrementally.
  * Called when a new capability is created or updated.
  * Updates both the hyperedge entry and the summary counts.
- *
- * @param capabilityId - The capability ID
- * @param toolsUsed - Tools used by this capability
- * @param children - Child capabilities (for cap→cap hyperedges)
  */
 export async function updateHyperedge(
   capabilityId: string,
   toolsUsed: string[],
   children?: string[],
 ): Promise<void> {
-  const kv = await getKv();
   const now = Date.now();
+  const hyperedge = buildHyperedge(capabilityId, toolsUsed, children, now);
 
-  // Determine if this creates a hyperedge (need 2+ members)
-  const hasToolHyperedge = toolsUsed.length >= 2;
-  const hasCapHyperedge = children && children.length >= 2;
-
-  // If no hyperedge, nothing to cache
-  if (!hasToolHyperedge && !hasCapHyperedge) {
-    log.debug(`[HyperedgeCache] No hyperedge for ${capabilityId} (tools=${toolsUsed.length}, children=${children?.length ?? 0})`);
+  if (!hyperedge) {
+    log.debug(
+      `[HyperedgeCache] No hyperedge for ${capabilityId} (tools=${toolsUsed.length}, children=${children?.length ?? 0})`,
+    );
     return;
   }
 
-  // Get current summary to update counts
-  const currentSummary = await kv.get<HyperedgeSummary>(SUMMARY_KEY);
-  const summary: HyperedgeSummary = currentSummary.value ?? {
-    total: 0,
-    capToTool: 0,
-    capToCap: 0,
-    computedAt: now,
-  };
-
-  // Check if this capability already had a hyperedge
+  const kv = await getKv();
   const existingKey = [...HYPEREDGE_PREFIX, capabilityId];
-  const existing = await kv.get<CachedHyperedge>(existingKey);
-  const hadExisting = existing.value !== null;
 
-  // Build new hyperedge (prefer cap→tool if both exist)
-  const hyperedge: CachedHyperedge = hasToolHyperedge
-    ? {
-        capabilityId,
-        members: toolsUsed,
-        order: toolsUsed.length,
-        type: "cap_to_tool",
-        cachedAt: now,
-      }
-    : {
-        capabilityId,
-        members: children!,
-        order: children!.length,
-        type: "cap_to_cap",
-        cachedAt: now,
-      };
+  const [currentSummary, existing] = await Promise.all([
+    kv.get<HyperedgeSummary>(SUMMARY_KEY),
+    kv.get<CachedHyperedge>(existingKey),
+  ]);
 
-  // Update summary counts
-  if (hadExisting) {
-    // Decrement old type count
-    if (existing.value!.type === "cap_to_tool") {
-      summary.capToTool--;
-    } else {
-      summary.capToCap--;
-    }
-    summary.total--;
+  const summary = currentSummary.value ?? createEmptySummary(now);
+
+  // Decrement count for existing hyperedge if present
+  if (existing.value) {
+    adjustSummaryCount(summary, existing.value.type, -1);
   }
 
-  // Increment new type count
-  if (hyperedge.type === "cap_to_tool") {
-    summary.capToTool++;
-  } else {
-    summary.capToCap++;
-  }
-  summary.total++;
+  // Increment count for new hyperedge
+  adjustSummaryCount(summary, hyperedge.type, 1);
   summary.computedAt = now;
 
   // Atomic update
@@ -267,13 +281,10 @@ export async function updateHyperedge(
 }
 
 /**
- * Remove a hyperedge from cache (e.g., after capability merge/delete)
- *
- * @param capabilityId - The capability ID to remove
+ * Remove a hyperedge from cache (e.g., after capability merge/delete).
  */
 export async function invalidateHyperedge(capabilityId: string): Promise<void> {
   const kv = await getKv();
-
   const existingKey = [...HYPEREDGE_PREFIX, capabilityId];
   const existing = await kv.get<CachedHyperedge>(existingKey);
 
@@ -282,32 +293,19 @@ export async function invalidateHyperedge(capabilityId: string): Promise<void> {
     return;
   }
 
-  // Get current summary to update counts
   const currentSummary = await kv.get<HyperedgeSummary>(SUMMARY_KEY);
+  const atomic = kv.atomic();
+  atomic.delete(existingKey);
+
   if (currentSummary.value) {
     const summary = currentSummary.value;
-
-    // Decrement type count
-    if (existing.value.type === "cap_to_tool") {
-      summary.capToTool--;
-    } else {
-      summary.capToCap--;
-    }
-    summary.total--;
+    adjustSummaryCount(summary, existing.value.type, -1);
     summary.computedAt = Date.now();
-
-    // Atomic delete + summary update
-    const atomic = kv.atomic();
-    atomic.delete(existingKey);
     atomic.set(SUMMARY_KEY, summary);
-    await atomic.commit();
-
-    log.debug(
-      `[HyperedgeCache] Invalidated hyperedge for ${capabilityId} (total=${summary.total})`,
-    );
-  } else {
-    // No summary, just delete the entry
-    await kv.delete(existingKey);
-    log.debug(`[HyperedgeCache] Deleted hyperedge for ${capabilityId}`);
   }
+
+  await atomic.commit();
+
+  const totalInfo = currentSummary.value ? ` (total=${currentSummary.value.total})` : "";
+  log.debug(`[HyperedgeCache] Invalidated hyperedge for ${capabilityId}${totalInfo}`);
 }

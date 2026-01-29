@@ -298,16 +298,7 @@ export class CheckpointManager {
     }
 
     const s = state as Record<string, unknown>;
-
-    // Required fields
-    const requiredFields = [
-      "workflow_id",
-      "current_layer",
-      "messages",
-      "tasks",
-      "decisions",
-      "context",
-    ];
+    const requiredFields = ["workflow_id", "current_layer", "messages", "tasks", "decisions", "context"];
 
     for (const field of requiredFields) {
       if (!(field in s)) {
@@ -315,27 +306,21 @@ export class CheckpointManager {
       }
     }
 
-    // Type checks
     if (typeof s.workflow_id !== "string" || s.workflow_id === "") {
       throw new Error("State workflow_id must be non-empty string");
     }
-
     if (typeof s.current_layer !== "number" || s.current_layer < 0) {
       throw new Error("State current_layer must be non-negative number");
     }
-
     if (!Array.isArray(s.messages)) {
       throw new Error("State messages must be an array");
     }
-
     if (!Array.isArray(s.tasks)) {
       throw new Error("State tasks must be an array");
     }
-
     if (!Array.isArray(s.decisions)) {
       throw new Error("State decisions must be an array");
     }
-
     if (typeof s.context !== "object" || s.context === null) {
       throw new Error("State context must be an object");
     }

@@ -100,20 +100,19 @@ export class TelemetryService {
       const configText = await Deno.readTextFile(this.configPath);
       const config = parseYaml(configText) as Record<string, unknown>;
 
-      // Check if telemetry config exists
-      if (config.telemetry && typeof config.telemetry === "object") {
-        const telemetryConfig = config.telemetry as TelemetryConfig;
-        return telemetryConfig.enabled ?? false;
+      if (!config.telemetry || typeof config.telemetry !== "object") {
+        return false;
       }
 
-      return false; // Default to disabled
+      const telemetryConfig = config.telemetry as TelemetryConfig;
+      return telemetryConfig.enabled ?? false;
     } catch (error) {
       if (error instanceof Deno.errors.NotFound) {
         log.debug("Config file not found, telemetry disabled by default");
       } else {
         log.error(`Failed to load telemetry preference: ${error}`);
       }
-      return false; // Default to disabled on error
+      return false;
     }
   }
 

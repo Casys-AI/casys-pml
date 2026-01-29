@@ -10,6 +10,14 @@ import { Command } from "@cliffy/command";
 import { ConfigMigrator } from "../config-migrator.ts";
 
 /**
+ * Init command options
+ */
+interface InitOptions {
+  dryRun: boolean;
+  config?: string;
+}
+
+/**
  * Create init command
  *
  * Usage:
@@ -21,16 +29,9 @@ export function createInitCommand() {
   return new Command()
     .name("init")
     .description("Migrate existing MCP configuration to Casys PML")
-    .option(
-      "--dry-run",
-      "Preview changes without applying them",
-      { default: false },
-    )
-    .option(
-      "--config <path:string>",
-      "Path to MCP config file (auto-detected if not provided)",
-    )
-    .action(async (options) => {
+    .option("--dry-run", "Preview changes without applying them", { default: false })
+    .option("--config <path:string>", "Path to MCP config file (auto-detected if not provided)")
+    .action(async (options: InitOptions) => {
       const migrator = new ConfigMigrator();
 
       const result = await migrator.migrate({
@@ -38,7 +39,6 @@ export function createInitCommand() {
         dryRun: options.dryRun,
       });
 
-      // Exit with error code if migration failed
       if (!result.success) {
         Deno.exit(1);
       }

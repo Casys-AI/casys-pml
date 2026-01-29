@@ -17,6 +17,12 @@ import { getLogger } from "../telemetry/logger.ts";
 const logger = getLogger("default");
 
 /**
+ * Pattern for valid JavaScript variable names
+ * Must start with letter or underscore, followed by alphanumeric or underscore
+ */
+const VALID_VARIABLE_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+/**
  * Security error class for validation failures
  */
 export class SecurityValidationError extends Error {
@@ -289,7 +295,7 @@ export class SecurityValidator {
 
       // Validate variable name is safe (alphanumeric + underscore only)
       // This prevents injection via context keys
-      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+      if (!VALID_VARIABLE_NAME_PATTERN.test(key)) {
         logger.warn("Invalid context variable name", { key });
 
         throw new SecurityValidationError(

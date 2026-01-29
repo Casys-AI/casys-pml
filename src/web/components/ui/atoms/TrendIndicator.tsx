@@ -6,13 +6,16 @@
  * @module web/components/ui/atoms/TrendIndicator
  */
 
+import type { JSX } from "preact";
 import type { Trend } from "../../../../shared/emergence.types.ts";
 
-interface TrendIndicatorProps {
+export type TrendSize = "sm" | "md";
+
+export interface TrendIndicatorProps {
   /** Trend direction */
   trend: Trend;
   /** Size variant */
-  size?: "sm" | "md";
+  size?: TrendSize;
 }
 
 const COLORS: Record<Trend, string> = {
@@ -22,20 +25,26 @@ const COLORS: Record<Trend, string> = {
 };
 
 const ARROWS: Record<Trend, string> = {
-  rising: "↑",
-  falling: "↓",
-  stable: "→",
+  rising: "\u2191",
+  falling: "\u2193",
+  stable: "\u2192",
+};
+
+const SIZE_CLASSES: Record<TrendSize, string> = {
+  sm: "text-xs",
+  md: "text-sm",
 };
 
 /**
- * Displays a trend indicator arrow (↑↓→) with semantic colors
+ * Displays a trend indicator arrow with semantic colors
  */
-export function TrendIndicator({ trend, size = "sm" }: TrendIndicatorProps) {
-  const sizeClass = size === "sm" ? "text-xs" : "text-sm";
-
+export function TrendIndicator({
+  trend,
+  size = "sm",
+}: TrendIndicatorProps): JSX.Element {
   return (
     <span
-      class={`font-bold ${sizeClass}`}
+      class={`font-bold ${SIZE_CLASSES[size]}`}
       style={{ color: COLORS[trend] }}
       title={`Trend: ${trend}`}
     >

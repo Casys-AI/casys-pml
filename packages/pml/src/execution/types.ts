@@ -7,6 +7,7 @@
  */
 
 import type { SandboxError } from "../sandbox/mod.ts";
+import type { CollectedUiResource, UiOrchestration } from "../types/mod.ts";
 
 /**
  * Record of a single tool call during execution.
@@ -42,6 +43,12 @@ export interface SandboxExecutionResult {
   toolCallRecords?: ToolCallRecord[];
   /** Trace ID for this execution (for parent-child linking) */
   traceId: string;
+  /**
+   * UI resources collected from MCP tool responses containing `_meta.ui`.
+   * Only present when at least one tool returned UI metadata.
+   * @see CollectedUiResource
+   */
+  collectedUi?: CollectedUiResource[];
 }
 
 /**
@@ -92,4 +99,10 @@ export interface SandboxExecuteOptions {
    * Example: "filesystem:read_file" → "pml.mcp.filesystem.read_file.4ff0"
    */
   fqdnMap?: Map<string, string>;
+  /**
+   * UI orchestration config from capability definition.
+   * Specifies layout and sync rules for composing collected UIs.
+   * @see UiOrchestration
+   */
+  uiOrchestration?: UiOrchestration;
 }

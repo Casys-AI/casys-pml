@@ -15,7 +15,26 @@ import type { MCPTool } from "../mcp/types.ts";
 interface CacheEntry {
   schema: MCPTool;
   hits: number;
-  lastAccessed: number; // timestamp in ms
+  lastAccessed: number;
+}
+
+/**
+ * Tool usage statistics for analytics
+ */
+export interface ToolHitStats {
+  toolId: string;
+  hits: number;
+}
+
+/**
+ * Cache statistics for monitoring
+ */
+export interface CacheStats {
+  size: number;
+  maxSize: number;
+  hits: number;
+  misses: number;
+  hitRate: number;
 }
 
 /**
@@ -119,25 +138,16 @@ export class SchemaCache {
 
   /**
    * Get cache statistics
-   *
-   * @returns Object with cache metrics
    */
-  getStats(): {
-    size: number;
-    maxSize: number;
-    hits: number;
-    misses: number;
-    hitRate: number;
-  } {
+  getStats(): CacheStats {
     const totalAccesses = this.hits + this.misses;
-    const hitRate = totalAccesses > 0 ? this.hits / totalAccesses : 0;
 
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
       hits: this.hits,
       misses: this.misses,
-      hitRate,
+      hitRate: totalAccesses > 0 ? this.hits / totalAccesses : 0,
     };
   }
 
@@ -165,18 +175,12 @@ export class SchemaCache {
   /**
    * Get most frequently accessed tools
    *
-   * Useful for analytics and cache optimization
-   *
    * @param limit Number of top tools to return (default: 10)
    * @returns Array of tool IDs sorted by hit count (descending)
    */
-  getTopTools(limit: number = 10): Array<{ toolId: string; hits: number }> {
-    const entries = Array.from(this.cache.entries()).map(([toolId, entry]) => ({
-      toolId,
-      hits: entry.hits,
-    }));
-
-    return entries
+  getTopTools(limit: number = 10): ToolHitStats[] {
+    return Array.from(this.cache.entries())
+      .map(([toolId, entry]) => ({ toolId, hits: entry.hits }))
       .sort((a, b) => b.hits - a.hits)
       .slice(0, limit);
   }

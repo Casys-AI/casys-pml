@@ -8,8 +8,9 @@
  * @module cache
  */
 
-// KV singleton
-export { closeKv, getKv } from "./kv.ts";
+// KV singleton and cross-process events
+export { closeKv, getKv, signalEvent, watchEvents } from "./kv.ts";
+export type { EventSignal } from "./kv.ts";
 
 // Workflow state cache
 export {

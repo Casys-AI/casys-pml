@@ -6,6 +6,41 @@
 
 import { type MiniTool, runCommand } from "./common.ts";
 
+/** PostgreSQL connection parameters */
+interface PsqlConnectionParams {
+  url?: string;
+  host?: string;
+  port?: number;
+  database?: string;
+  user?: string;
+  password?: string;
+}
+
+/**
+ * Build PostgreSQL connection string from params.
+ * Priority: explicit url > DATABASE_URL env > individual params
+ */
+function buildPsqlConnectionString(params: PsqlConnectionParams): string {
+  const { url, host = "localhost", port = 5432, database, user = "postgres", password } = params;
+
+  if (url) {
+    return url;
+  }
+
+  const envUrl = Deno.env.get("DATABASE_URL");
+  if (envUrl) {
+    return envUrl;
+  }
+
+  if (!database) {
+    throw new Error("Either url, DATABASE_URL env, or database param is required");
+  }
+
+  return password
+    ? `postgres://${user}:${password}@${host}:${port}/${database}`
+    : `postgres://${user}@${host}:${port}/${database}`;
+}
+
 export const databaseTools: MiniTool[] = [
   {
     name: "sqlite_query",
@@ -24,6 +59,13 @@ export const databaseTools: MiniTool[] = [
         },
       },
       required: ["database", "query"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["filter", "sort", "select", "paginate"],
+        accepts: ["setData", "highlight", "scrollTo"],
+      },
     },
     handler: async ({ database, query, mode = "json" }) => {
       const args = [database as string, "-cmd", `.mode ${mode}`, query as string];
@@ -64,24 +106,25 @@ export const databaseTools: MiniTool[] = [
       },
       required: ["query"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["filter", "sort", "select", "paginate"],
+        accepts: ["setData", "highlight", "scrollTo"],
+      },
+    },
     handler: async (
-      { url, host = "localhost", port = 5432, database, user = "postgres", password, query },
+      { url, host, port, database, user, password, query },
     ) => {
       const postgres = (await import("postgres")).default;
-
-      // Priority: explicit url > DATABASE_URL env > individual params
-      let connectionString = url as string | undefined;
-      if (!connectionString) {
-        connectionString = Deno.env.get("DATABASE_URL");
-      }
-      if (!connectionString) {
-        if (!database) {
-          throw new Error("Either url, DATABASE_URL env, or database param is required");
-        }
-        connectionString = password
-          ? `postgres://${user}:${password}@${host}:${port}/${database}`
-          : `postgres://${user}@${host}:${port}/${database}`;
-      }
+      const connectionString = buildPsqlConnectionString({
+        url: url as string | undefined,
+        host: host as string | undefined,
+        port: port as number | undefined,
+        database: database as string | undefined,
+        user: user as string | undefined,
+        password: password as string | undefined,
+      });
 
       const sql = postgres(connectionString);
       try {
@@ -254,23 +297,17 @@ export const databaseTools: MiniTool[] = [
       },
     },
     handler: async (
-      { url, host = "localhost", port = 5432, database, user = "postgres", password, schema = "public" },
+      { url, host, port, database, user, password, schema = "public" },
     ) => {
       const postgres = (await import("postgres")).default;
-
-      // Priority: explicit url > DATABASE_URL env > individual params
-      let connectionString = url as string | undefined;
-      if (!connectionString) {
-        connectionString = Deno.env.get("DATABASE_URL");
-      }
-      if (!connectionString) {
-        if (!database) {
-          throw new Error("Either url, DATABASE_URL env, or database param is required");
-        }
-        connectionString = password
-          ? `postgres://${user}:${password}@${host}:${port}/${database}`
-          : `postgres://${user}@${host}:${port}/${database}`;
-      }
+      const connectionString = buildPsqlConnectionString({
+        url: url as string | undefined,
+        host: host as string | undefined,
+        port: port as number | undefined,
+        database: database as string | undefined,
+        user: user as string | undefined,
+        password: password as string | undefined,
+      });
 
       const sql = postgres(connectionString);
       try {
@@ -312,23 +349,17 @@ export const databaseTools: MiniTool[] = [
       required: ["table"],
     },
     handler: async (
-      { url, host = "localhost", port = 5432, database, user = "postgres", password, table },
+      { url, host, port, database, user, password, table },
     ) => {
       const postgres = (await import("postgres")).default;
-
-      // Priority: explicit url > DATABASE_URL env > individual params
-      let connectionString = url as string | undefined;
-      if (!connectionString) {
-        connectionString = Deno.env.get("DATABASE_URL");
-      }
-      if (!connectionString) {
-        if (!database) {
-          throw new Error("Either url, DATABASE_URL env, or database param is required");
-        }
-        connectionString = password
-          ? `postgres://${user}:${password}@${host}:${port}/${database}`
-          : `postgres://${user}@${host}:${port}/${database}`;
-      }
+      const connectionString = buildPsqlConnectionString({
+        url: url as string | undefined,
+        host: host as string | undefined,
+        port: port as number | undefined,
+        database: database as string | undefined,
+        user: user as string | undefined,
+        password: password as string | undefined,
+      });
 
       const sql = postgres(connectionString);
       try {

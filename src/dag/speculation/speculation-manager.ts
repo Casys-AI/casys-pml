@@ -104,18 +104,13 @@ export class SpeculationManager {
    * @returns true if speculation should be triggered
    */
   shouldSpeculate(prediction: PredictedNode): boolean {
-    if (!this.config.enabled) {
-      return false;
-    }
+    if (!this.config.enabled) return false;
 
     const threshold = this.getSpeculationThreshold();
     const shouldTrigger = prediction.confidence >= threshold;
 
-    log.debug(
-      `[SpeculationManager] shouldSpeculate(${prediction.toolId}): confidence=${
-        prediction.confidence.toFixed(2)
-      }, threshold=${threshold.toFixed(2)}, result=${shouldTrigger}`,
-    );
+    log.debug(`[SpeculationManager] shouldSpeculate(${prediction.toolId}): ` +
+      `confidence=${prediction.confidence.toFixed(2)}, threshold=${threshold.toFixed(2)}, result=${shouldTrigger}`);
 
     return shouldTrigger;
   }

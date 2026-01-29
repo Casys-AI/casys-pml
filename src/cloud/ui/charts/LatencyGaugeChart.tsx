@@ -7,19 +7,28 @@
  */
 
 import { useEffect, useRef } from "preact/hooks";
-
-// ECharts type declaration
-declare global {
-  interface Window {
-    echarts: typeof import("echarts");
-  }
-}
+import type { EChartsInstance } from "./types.ts";
 
 interface LatencyGaugeChartProps {
   p50: number;
   p95: number;
   p99: number;
   height?: string;
+}
+
+/** Format milliseconds as human-readable duration */
+function formatLatency(ms: number): string {
+  if (ms >= 1000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
+  return `${ms}ms`;
+}
+
+/** Get color based on latency threshold */
+function getLatencyColor(ms: number): string {
+  if (ms > 2000) return "#ef4444"; // red - bad
+  if (ms > 500) return "#eab308"; // yellow - warning
+  return "#22c55e"; // green - good
 }
 
 export default function LatencyGaugeChart({
@@ -29,9 +38,7 @@ export default function LatencyGaugeChart({
   height = "150px",
 }: LatencyGaugeChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<ReturnType<typeof window.echarts.init> | null>(
-    null,
-  );
+  const chartInstance = useRef<EChartsInstance | null>(null);
 
   useEffect(() => {
     if (!chartRef.current || !window.echarts) return;
@@ -106,8 +113,8 @@ export default function LatencyGaugeChart({
             offsetCenter: [0, "-15%"],
             fontSize: 20,
             fontWeight: "bold",
-            formatter: `p95: ${p95 >= 1000 ? (p95 / 1000).toFixed(1) + "s" : p95 + "ms"}`,
-            color: p95 > 2000 ? "#ef4444" : p95 > 500 ? "#eab308" : "#22c55e",
+            formatter: `p95: ${formatLatency(p95)}`,
+            color: getLatencyColor(p95),
           },
           data: [{ value: p95, name: "p95" }],
         },

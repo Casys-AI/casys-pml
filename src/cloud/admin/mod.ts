@@ -27,6 +27,7 @@ export type {
 } from "./types.ts";
 
 // Service
+export type { CacheStats } from "./analytics-service.ts";
 export {
   clearAnalyticsCache,
   getAdminAnalytics,

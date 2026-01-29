@@ -53,10 +53,7 @@ const ActionSchema = z
  * Build text for embedding generation
  */
 function buildEmbeddingText(name: string, description?: string | null): string {
-  if (description) {
-    return `${name}: ${description}`;
-  }
-  return name;
+  return description ? `${name}: ${description}` : name;
 }
 
 // ============================================================================

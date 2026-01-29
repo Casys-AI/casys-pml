@@ -25,12 +25,15 @@ export function shouldTriggerAIL(
 ): boolean {
   if (!config.ail?.enabled) return false;
 
-  const mode = config.ail.decision_points;
-  if (mode === "per_layer") return true;
-  if (mode === "on_error") return hasErrors;
-  if (mode === "manual") return false; // Only trigger via explicit command
-
-  return false;
+  switch (config.ail.decision_points) {
+    case "per_layer":
+      return true;
+    case "on_error":
+      return hasErrors;
+    case "manual":
+    default:
+      return false;
+  }
 }
 
 /**

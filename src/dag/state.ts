@@ -148,16 +148,12 @@ export function contextReducer(
  * @throws Error if invariants violated
  */
 export function validateStateInvariants(state: WorkflowState): void {
-  if (!state.workflowId || state.workflowId.trim() === "") {
+  if (!state.workflowId?.trim()) {
     throw new Error("State invariant violated: workflow_id must be non-empty");
   }
-
   if (state.currentLayer < 0) {
-    throw new Error(
-      `State invariant violated: current_layer must be >= 0 (got ${state.currentLayer})`,
-    );
+    throw new Error(`State invariant violated: current_layer must be >= 0 (got ${state.currentLayer})`);
   }
-
   if (state.tasks.length < state.decisions.length) {
     throw new Error(
       `State invariant violated: tasks.length (${state.tasks.length}) must be >= decisions.length (${state.decisions.length})`,

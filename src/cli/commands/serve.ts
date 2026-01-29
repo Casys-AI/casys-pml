@@ -12,7 +12,6 @@ import { createClient } from "../../db/mod.ts";
 import { getAllMigrations, MigrationRunner } from "../../db/migrations.ts";
 import { runDrizzleMigrationsAuto } from "../../db/drizzle.ts";
 import { MCPServerDiscovery } from "../../mcp/discovery.ts";
-// Note: MCPClient and SmitheryMCPClient imports removed - code using them is commented out
 import { EmbeddingModel } from "../../vector/embeddings.ts";
 import { VectorSearch } from "../../vector/search.ts";
 import { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
@@ -34,10 +33,32 @@ import { StaticStructureBuilder } from "../../capabilities/static-structure-buil
 import { AdaptiveThresholdManager } from "../../mcp/adaptive-threshold.ts";
 import { AlgorithmTracer } from "../../telemetry/algorithm-tracer.ts";
 import { initAlgorithmSubscribers, stopAlgorithmSubscribers } from "../../telemetry/mod.ts";
-// Note: Std bundle no longer needed - using MCP stdio server approach
 import { bootstrapDI } from "../../infrastructure/di/mod.ts";
 import { GatewayBuilder } from "../../infrastructure/patterns/mod.ts";
 import { EpisodicMemoryStore } from "../../dag/episodic/store.ts";
+
+/**
+ * Serve command options
+ */
+interface ServeOptions {
+  config?: string;
+  port?: number;
+  speculative: boolean;
+  piiProtection: boolean;
+  cache: boolean;
+}
+
+/**
+ * Callback type for tool execution tracking (Story 3.7 cache invalidation)
+ */
+type OnToolCallCallback = (toolKey: string) => void;
+
+/**
+ * Gateway reference for tool usage tracking
+ */
+interface GatewayTracker {
+  trackToolUsage: (toolKey: string) => Promise<void>;
+}
 
 /**
  * Find and validate config file
@@ -145,11 +166,6 @@ async function connectToMCPServers(
 }
 
 /**
- * Callback type for tool execution tracking (Story 3.7 cache invalidation)
- */
-type OnToolCallCallback = (toolKey: string) => void;
-
-/**
  * Create tool executor function for ParallelExecutor
  *
  * This function is called by the executor to execute individual tools.
@@ -183,6 +199,74 @@ function createToolExecutor(
 }
 
 /**
+ * Check if a feature is enabled based on CLI option and environment variables
+ */
+function isFeatureEnabled(
+  cliOption: boolean,
+  envVars: string[],
+): boolean {
+  if (cliOption === false) {
+    return false;
+  }
+  for (const envVar of envVars) {
+    if (Deno.env.get(envVar) === "1") {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Setup graceful shutdown handlers
+ */
+function setupShutdownHandlers(
+  gateway: PMLGatewayServer,
+  episodicMemory: EpisodicMemoryStore,
+  db: ReturnType<typeof createClient>,
+): void {
+  let isShuttingDown = false;
+
+  const shutdown = (): void => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    log.info("\n\nShutting down...");
+    log.info("Shutting down Casys PML gateway...");
+
+    const forceExitTimer = setTimeout(() => {
+      log.warn("Graceful shutdown timeout - forcing exit");
+      Deno.exit(1);
+    }, 10000);
+
+    Promise.all([
+      gateway.stop(),
+      stopAlgorithmSubscribers(),
+      episodicMemory.shutdown(),
+    ])
+      .then(() => db.close())
+      .then(() => {
+        clearTimeout(forceExitTimer);
+        log.info("✓ Shutdown complete");
+        Deno.exit(0);
+      })
+      .catch((err) => {
+        clearTimeout(forceExitTimer);
+        log.error(`Shutdown error: ${err}`);
+        Deno.exit(1);
+      });
+  };
+
+  Deno.addSignalListener("SIGINT", () => {
+    log.info("[Shutdown] Received SIGINT (Ctrl+C)");
+    shutdown();
+  });
+  Deno.addSignalListener("SIGTERM", () => {
+    log.info("[Shutdown] Received SIGTERM (external kill)");
+    shutdown();
+  });
+}
+
+/**
  * Create serve command
  *
  * Usage:
@@ -193,330 +277,209 @@ export function createServeCommand() {
   return new Command()
     .name("serve")
     .description("Start Casys PML MCP gateway server")
-    .option(
-      "--config <path:string>",
-      "Path to MCP servers config file (required)",
-    )
-    .option(
-      "--port <port:number>",
-      "HTTP port for HTTP/SSE transport (optional, stdio is default)",
-    )
-    .option(
-      "--no-speculative",
-      "Disable speculative execution mode",
-      { default: true },
-    )
-    .option(
-      "--no-pii-protection",
-      "Disable PII detection and tokenization (use in trusted environments only)",
-      { default: true },
-    )
-    .option(
-      "--no-cache",
-      "Disable code execution caching (forces re-execution every time)",
-      { default: true },
-    )
-    .action(async (options) => {
+    .option("--config <path:string>", "Path to MCP servers config file (required)")
+    .option("--port <port:number>", "HTTP port for HTTP/SSE transport (optional, stdio is default)")
+    .option("--no-speculative", "Disable speculative execution mode", { default: true })
+    .option("--no-pii-protection", "Disable PII detection and tokenization (use in trusted environments only)", { default: true })
+    .option("--no-cache", "Disable code execution caching (forces re-execution every time)", { default: true })
+    .action(async (options: ServeOptions) => {
       try {
-        log.info("🚀 Starting Casys PML MCP Gateway...\n");
-
-        // 1. Find and load config
-        log.info("Step 1/7: Loading configuration...");
-        const configPath = await findConfigFile(options.config);
-        const discovery = new MCPServerDiscovery(configPath);
-        await discovery.loadConfig();
-
-        // Load from Smithery if API key is set
-        const smitheryApiKey = Deno.env.get("SMITHERY_API_KEY");
-        if (smitheryApiKey) {
-          log.info("  → Loading servers from Smithery...");
-          await discovery.loadFromSmithery(smitheryApiKey);
-        }
-
-        // Get all servers (local + Smithery merged)
-        const allServers = await discovery.discoverServers();
-
-        if (allServers.length === 0) {
-          throw new Error("No MCP servers configured");
-        }
-
-        // 2. Initialize database
-        log.info("Step 2/6: Initializing database...");
-        const db = createClient();
-        await db.connect();
-
-        // Run migrations (custom .ts migrations)
-        const runner = new MigrationRunner(db);
-        await runner.runUp(getAllMigrations());
-
-        // Run Drizzle migrations (users table, etc.)
-        await runDrizzleMigrationsAuto();
-
-        // Story 13.9: Sync capability routing if config changed
-        const routingResult = await checkAndSyncRouting(db);
-        if (routingResult.synced) {
-          log.info(
-            `✓ Routing sync: ${routingResult.updated} capabilities updated`,
-          );
-        }
-
-        // Note: Tool sync removed from startup - use `deno task tools:sync` manually
-
-        // 3. Connect to MCP servers
-        log.info("Step 3/6: Connecting to MCP servers...");
-        const mcpClients = await connectToMCPServers(allServers, smitheryApiKey);
-
-        // 4. Initialize AI components
-        log.info("Step 4/6: Loading AI models...");
-        const embeddingModel = new EmbeddingModel();
-        await embeddingModel.load();
-
-        const vectorSearch = new VectorSearch(db, embeddingModel);
-
-        // Story 5.2: Auto-bootstrap graph from workflow templates if empty
-        // Must be after MCP connection (tool_schema populated) and embedding model loaded
-        const workflowSyncService = new WorkflowSyncService(db);
-        const bootstrapped = await workflowSyncService.bootstrapIfEmpty(
-          getWorkflowTemplatesPath(),
-        );
-        if (bootstrapped) {
-          log.info("✓ Graph bootstrapped from workflow-templates.yaml");
-        }
-
-        // Sync code operation embeddings (code:filter, code:map, etc.)
-        // These are JS operations traced during capability execution
-        const codeOpSyncService = new CodeOperationSyncService(db);
-        const codeOpBootstrapped = await codeOpSyncService.bootstrapIfEmpty();
-        if (codeOpBootstrapped) {
-          log.info("✓ Code operation embeddings synced");
-        }
-
-        const graphEngine = new GraphRAGEngine(db);
-        await graphEngine.syncFromDatabase();
-
-        // Calculate provides edges from tool schemas (Definition mode data flow)
-        const providesEdgeCount = await syncAllProvidesEdges(db);
-        if (providesEdgeCount > 0) {
-          log.info(`✓ Synced ${providesEdgeCount} provides edges from tool schemas`);
-          // Re-sync graph to include new provides edges
-          await graphEngine.syncFromDatabase();
-        }
-
-        // 4.1 Initialize Capabilities System (Story 7.3a)
-        const schemaInferrer = new SchemaInferrer(db);
-        const staticStructureBuilder = new StaticStructureBuilder(db);
-        // Pass staticStructureBuilder to enable nested capability detection (meta-capabilities)
-        const capabilityStore = new CapabilityStore(
-          db,
-          embeddingModel,
-          schemaInferrer,
-          staticStructureBuilder,
-        );
-        const adaptiveThresholdManager = new AdaptiveThresholdManager({}, db);
-        const capabilityMatcher = new CapabilityMatcher(capabilityStore, adaptiveThresholdManager);
-
-        const dagSuggester = new DAGSuggester(
-          graphEngine,
-          vectorSearch,
-          capabilityMatcher,
-          capabilityStore,
-        );
-
-        // Story 7.6: Wire AlgorithmTracer for observability (ADR-039)
-        const algorithmTracer = new AlgorithmTracer(db);
-        capabilityMatcher.setAlgorithmTracer(algorithmTracer);
-        dagSuggester.setAlgorithmTracer(algorithmTracer);
-        graphEngine.setAlgorithmTracer(algorithmTracer);
-
-        // Initialize EventBus subscribers for algorithm.decision events
-        // DBSubscriber writes to Postgres, OTELSubscriber emits spans
-        initAlgorithmSubscribers(db);
-        log.info("✓ Algorithm tracing enabled (EventBus-centric)");
-
-        // ADR-008: Initialize EpisodicMemoryStore for learning from workflow executions
-        const episodicMemory = new EpisodicMemoryStore(db, {
-          bufferSize: 50,
-          retentionDays: 30,
-          maxEvents: 10000,
-          flushIntervalMs: 5000,
-        });
-        dagSuggester.setEpisodicMemoryStore(episodicMemory);
-        log.info("✓ Episodic memory enabled (ADR-008)");
-
-        // Create CapabilityRegistry for namespace:action resolution
-        const capabilityRegistry = new CapabilityRegistry(db);
-
-        // Phase 2.2: Bootstrap DI container with real implementations
-        // Phase 3.1: Also creates execute adapters for use cases
-        const { container: _diContainer, mcpRegistry, codeAnalyzer, executeAdapters } = bootstrapDI({
-          db,
-          embeddingModel,
-          vectorSearch,
-          graphEngine,
-          capabilityStore,
-          mcpClients,
-          capabilityRegistry,
-          // Note: shgat/drdsp not available yet, will be set via setters after gateway.start()
-        });
-        await mcpRegistry.refreshTools();
-        log.info(`✓ DI container initialized (${mcpRegistry.getAllTools().length} tools registered)`);
-
-        // Create tool executor with tracking callback (Story 3.7)
-        // Gateway reference will be set after gateway is created
-        let gatewayRef: { trackToolUsage: (toolKey: string) => Promise<void> } | null = null;
-        const toolExecutor = createToolExecutor(mcpClients, (toolKey) => {
-          // Fire-and-forget tracking - don't block tool execution
-          gatewayRef?.trackToolUsage(toolKey).catch(() => {});
-        });
-        const executor = new ParallelExecutor(toolExecutor, {
-          verbose: false,
-          taskTimeout: 30000,
-        });
-
-        // Check PII protection settings
-        // --no-pii-protection sets options.piiProtection to false
-        // Support both CAI_NO_PII_PROTECTION and legacy AGENTCARDS_NO_PII_PROTECTION
-        const piiProtectionEnabled = options.piiProtection !== false &&
-          Deno.env.get("CAI_NO_PII_PROTECTION") !== "1" &&
-          Deno.env.get("AGENTCARDS_NO_PII_PROTECTION") !== "1";
-
-        if (!piiProtectionEnabled) {
-          log.warn(
-            "⚠️  PII protection is DISABLED. Sensitive data may be exposed to LLM context.",
-          );
-        }
-
-        // Check cache settings
-        // --no-cache sets options.cache to false
-        // Support both CAI_NO_CACHE and legacy AGENTCARDS_NO_CACHE
-        const cacheEnabled = options.cache !== false &&
-          Deno.env.get("CAI_NO_CACHE") !== "1" &&
-          Deno.env.get("AGENTCARDS_NO_CACHE") !== "1";
-
-        if (!cacheEnabled) {
-          log.warn(
-            "⚠️  Code execution cache is DISABLED. Performance may be degraded for repetitive queries.",
-          );
-        }
-
-        // 5. Create gateway server using Builder pattern (Phase 2.5)
-        log.info("Step 5/6: Starting MCP gateway...");
-        const gatewayDeps = new GatewayBuilder()
-          .withDatabase(db)
-          .withVectorSearch(vectorSearch)
-          .withGraphEngine(graphEngine)
-          .withDAGSuggester(dagSuggester)
-          .withExecutor(executor)
-          .withMCPClients(mcpClients)
-          .withCapabilityStore(capabilityStore)
-          .withAdaptiveThresholdManager(adaptiveThresholdManager)
-          .withEmbeddingModel(embeddingModel)
-          .withServerInfo("pml", "1.0.0")
-          .withSpeculation(options.speculative ?? false)
-          .withDefaultToolLimit(10)
-          .withPIIProtection({ enabled: piiProtectionEnabled })
-          .withCaching({
-            enabled: cacheEnabled,
-            maxEntries: 100,
-            ttlSeconds: 300,
-            persistence: false,
-          })
-          .build();
-
-        const gateway = new PMLGatewayServer(
-          gatewayDeps.db,
-          gatewayDeps.vectorSearch,
-          gatewayDeps.graphEngine,
-          gatewayDeps.dagSuggester,
-          gatewayDeps.executor,
-          gatewayDeps.mcpClients,
-          gatewayDeps.capabilityStore,
-          gatewayDeps.adaptiveThresholdManager,
-          gatewayDeps.config,
-          gatewayDeps.embeddingModel,
-        );
-
-        // Story 7.6: Wire AlgorithmTracer to gateway for execute observability
-        gateway.setAlgorithmTracer(algorithmTracer);
-
-        // ADR-008: Wire EpisodicMemoryStore to gateway for workflow learning
-        gateway.setEpisodicMemoryStore(episodicMemory);
-
-        // Phase 3.2: Wire CodeAnalyzer to gateway for static structure analysis
-        gateway.setCodeAnalyzer(codeAnalyzer);
-
-        // Phase 3.1: Wire execute adapters for use cases (DI)
-        gateway.setExecuteAdapters(executeAdapters);
-
-        // Story 13.5: Wire CapModule to WorkerBridgeFactory for cap_* tool routing
-        const capModule = gateway.getCapModule();
-        if (capModule) {
-          executeAdapters.workerBridgeFactory.setCapModule(capModule);
-          log.info("✓ CapModule wired to WorkerBridgeFactory for cap_* tools");
-        }
-
-        // Connect gateway to tool tracking callback (Story 3.7)
-        gatewayRef = gateway;
-
-        // 6. Start gateway (stdio or HTTP mode based on --port option)
-        log.info("Step 6/6: Listening for MCP requests...\n");
-        if (options.port) {
-          await gateway.startHttp(options.port);
-        } else {
-          await gateway.start();
-        }
-
-        // Setup graceful shutdown (ADR-020: Fix hanging shutdown)
-        let isShuttingDown = false;
-        const shutdown = () => {
-          if (isShuttingDown) return;
-          isShuttingDown = true;
-
-          log.info("\n\nShutting down...");
-          log.info("Shutting down Casys PML gateway...");
-
-          // Force exit after 10 seconds if graceful shutdown hangs
-          // PGlite needs time to flush WAL and close cleanly
-          const forceExitTimer = setTimeout(() => {
-            log.warn("Graceful shutdown timeout - forcing exit");
-            Deno.exit(1);
-          }, 10000);
-
-          // Attempt graceful shutdown
-          // Phase 1: Stop services that need DB access (save SHGAT params, flush events)
-          Promise.all([
-            gateway.stop(),
-            stopAlgorithmSubscribers(), // Must complete before db.close()
-            episodicMemory.shutdown(), // ADR-008: Flush pending events
-          ])
-            .then(() => db.close()) // Phase 2: Close DB after services are stopped
-            .then(() => {
-              clearTimeout(forceExitTimer);
-              log.info("✓ Shutdown complete");
-              Deno.exit(0);
-            })
-            .catch((err) => {
-              clearTimeout(forceExitTimer);
-              log.error(`Shutdown error: ${err}`);
-              Deno.exit(1);
-            });
-        };
-
-        Deno.addSignalListener("SIGINT", () => {
-          log.info("[Shutdown] Received SIGINT (Ctrl+C)");
-          shutdown();
-        });
-        Deno.addSignalListener("SIGTERM", () => {
-          log.info("[Shutdown] Received SIGTERM (external kill)");
-          shutdown();
-        });
-
-        // Keep process alive
-        await new Promise(() => {}); // Run forever
+        await executeServeCommand(options);
       } catch (error) {
         log.error(`❌ Failed to start gateway: ${error}`);
         console.error(error);
         Deno.exit(1);
       }
     });
+}
+
+/**
+ * Execute the serve command
+ */
+async function executeServeCommand(options: ServeOptions): Promise<void> {
+  log.info("🚀 Starting Casys PML MCP Gateway...\n");
+
+  // Step 1: Load configuration
+  log.info("Step 1/7: Loading configuration...");
+  const configPath = await findConfigFile(options.config);
+  const discovery = new MCPServerDiscovery(configPath);
+  await discovery.loadConfig();
+
+  const smitheryApiKey = Deno.env.get("SMITHERY_API_KEY");
+  if (smitheryApiKey) {
+    log.info("  → Loading servers from Smithery...");
+    await discovery.loadFromSmithery(smitheryApiKey);
+  }
+
+  const allServers = await discovery.discoverServers();
+  if (allServers.length === 0) {
+    throw new Error("No MCP servers configured");
+  }
+
+  // Step 2: Initialize database
+  log.info("Step 2/6: Initializing database...");
+  const db = createClient();
+  await db.connect();
+
+  const runner = new MigrationRunner(db);
+  await runner.runUp(getAllMigrations());
+  await runDrizzleMigrationsAuto();
+
+  const routingResult = await checkAndSyncRouting(db);
+  if (routingResult.synced) {
+    log.info(`✓ Routing sync: ${routingResult.updated} capabilities updated`);
+  }
+
+  // Step 3: Connect to MCP servers
+  log.info("Step 3/6: Connecting to MCP servers...");
+  const mcpClients = await connectToMCPServers(allServers, smitheryApiKey);
+
+  // Step 4: Initialize AI components
+  log.info("Step 4/6: Loading AI models...");
+  const embeddingModel = new EmbeddingModel();
+  await embeddingModel.load();
+
+  const vectorSearch = new VectorSearch(db, embeddingModel);
+
+  // Bootstrap graph and code operations
+  const workflowSyncService = new WorkflowSyncService(db);
+  if (await workflowSyncService.bootstrapIfEmpty(getWorkflowTemplatesPath())) {
+    log.info("✓ Graph bootstrapped from workflow-templates.yaml");
+  }
+
+  const codeOpSyncService = new CodeOperationSyncService(db);
+  if (await codeOpSyncService.bootstrapIfEmpty()) {
+    log.info("✓ Code operation embeddings synced");
+  }
+
+  const graphEngine = new GraphRAGEngine(db);
+  await graphEngine.syncFromDatabase();
+
+  const providesEdgeCount = await syncAllProvidesEdges(db);
+  if (providesEdgeCount > 0) {
+    log.info(`✓ Synced ${providesEdgeCount} provides edges from tool schemas`);
+    await graphEngine.syncFromDatabase();
+  }
+
+  // Initialize Capabilities System
+  const schemaInferrer = new SchemaInferrer(db);
+  const staticStructureBuilder = new StaticStructureBuilder(db);
+  const capabilityStore = new CapabilityStore(db, embeddingModel, schemaInferrer, staticStructureBuilder);
+  const adaptiveThresholdManager = new AdaptiveThresholdManager({}, db);
+  const capabilityMatcher = new CapabilityMatcher(capabilityStore, adaptiveThresholdManager);
+  const dagSuggester = new DAGSuggester(graphEngine, vectorSearch, capabilityMatcher, capabilityStore);
+
+  // Wire algorithm tracing
+  const algorithmTracer = new AlgorithmTracer(db);
+  capabilityMatcher.setAlgorithmTracer(algorithmTracer);
+  dagSuggester.setAlgorithmTracer(algorithmTracer);
+  graphEngine.setAlgorithmTracer(algorithmTracer);
+  initAlgorithmSubscribers(db);
+  log.info("✓ Algorithm tracing enabled (EventBus-centric)");
+
+  // Initialize episodic memory
+  const episodicMemory = new EpisodicMemoryStore(db, {
+    bufferSize: 50,
+    retentionDays: 30,
+    maxEvents: 10000,
+    flushIntervalMs: 5000,
+  });
+  dagSuggester.setEpisodicMemoryStore(episodicMemory);
+  log.info("✓ Episodic memory enabled (ADR-008)");
+
+  // Bootstrap DI container
+  const capabilityRegistry = new CapabilityRegistry(db);
+  const { mcpRegistry, codeAnalyzer, executeAdapters } = bootstrapDI({
+    db,
+    embeddingModel,
+    vectorSearch,
+    graphEngine,
+    capabilityStore,
+    mcpClients,
+    capabilityRegistry,
+  });
+  await mcpRegistry.refreshTools();
+  log.info(`✓ DI container initialized (${mcpRegistry.getAllTools().length} tools registered)`);
+
+  // Create tool executor with tracking
+  let gatewayRef: GatewayTracker | null = null;
+  const toolExecutor = createToolExecutor(mcpClients, (toolKey) => {
+    gatewayRef?.trackToolUsage(toolKey).catch(() => {});
+  });
+  const executor = new ParallelExecutor(toolExecutor, { verbose: false, taskTimeout: 30000 });
+
+  // Check feature flags
+  const piiProtectionEnabled = isFeatureEnabled(
+    options.piiProtection,
+    ["CAI_NO_PII_PROTECTION", "AGENTCARDS_NO_PII_PROTECTION"],
+  );
+  const cacheEnabled = isFeatureEnabled(
+    options.cache,
+    ["CAI_NO_CACHE", "AGENTCARDS_NO_CACHE"],
+  );
+
+  if (!piiProtectionEnabled) {
+    log.warn("⚠️  PII protection is DISABLED. Sensitive data may be exposed to LLM context.");
+  }
+  if (!cacheEnabled) {
+    log.warn("⚠️  Code execution cache is DISABLED. Performance may be degraded for repetitive queries.");
+  }
+
+  // Step 5: Create gateway server
+  log.info("Step 5/6: Starting MCP gateway...");
+  const gatewayDeps = new GatewayBuilder()
+    .withDatabase(db)
+    .withVectorSearch(vectorSearch)
+    .withGraphEngine(graphEngine)
+    .withDAGSuggester(dagSuggester)
+    .withExecutor(executor)
+    .withMCPClients(mcpClients)
+    .withCapabilityStore(capabilityStore)
+    .withAdaptiveThresholdManager(adaptiveThresholdManager)
+    .withEmbeddingModel(embeddingModel)
+    .withServerInfo("pml", "1.0.0")
+    .withSpeculation(options.speculative ?? false)
+    .withDefaultToolLimit(10)
+    .withPIIProtection({ enabled: piiProtectionEnabled })
+    .withCaching({ enabled: cacheEnabled, maxEntries: 100, ttlSeconds: 300, persistence: false })
+    .build();
+
+  const gateway = new PMLGatewayServer(
+    gatewayDeps.db,
+    gatewayDeps.vectorSearch,
+    gatewayDeps.graphEngine,
+    gatewayDeps.dagSuggester,
+    gatewayDeps.executor,
+    gatewayDeps.mcpClients,
+    gatewayDeps.capabilityStore,
+    gatewayDeps.adaptiveThresholdManager,
+    gatewayDeps.config,
+    gatewayDeps.embeddingModel,
+  );
+
+  // Wire additional components to gateway
+  gateway.setAlgorithmTracer(algorithmTracer);
+  gateway.setEpisodicMemoryStore(episodicMemory);
+  gateway.setCodeAnalyzer(codeAnalyzer);
+  gateway.setExecuteAdapters(executeAdapters);
+
+  const capModule = gateway.getCapModule();
+  if (capModule) {
+    executeAdapters.workerBridgeFactory.setCapModule(capModule);
+    log.info("✓ CapModule wired to WorkerBridgeFactory for cap_* tools");
+  }
+
+  gatewayRef = gateway;
+
+  // Step 6: Start gateway
+  log.info("Step 6/6: Listening for MCP requests...\n");
+  if (options.port) {
+    await gateway.startHttp(options.port);
+  } else {
+    await gateway.start();
+  }
+
+  setupShutdownHandlers(gateway, episodicMemory, db);
+
+  await new Promise(() => {}); // Run forever
 }

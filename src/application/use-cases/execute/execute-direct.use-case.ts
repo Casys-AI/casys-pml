@@ -608,10 +608,10 @@ export class ExecuteDirectUseCase {
   // ==========================================================================
 
   private getFirstError(results: DAGExecutionResults): string {
-    const failedResults = results.results.filter(
+    const failedResult = results.results.find(
       (r) => r.status === "error" || r.status === "failed_safe",
     );
-    return failedResults[0]?.error ?? results.errors[0]?.error ?? "Unknown error";
+    return failedResult?.error ?? results.errors[0]?.error ?? "Unknown error";
   }
 
   private async saveCapability(

@@ -205,16 +205,15 @@ function resolveReference(
  */
 function parseExpression(expression: string): string[] {
   // Remove template literal backticks if present
-  let cleaned = expression;
-  if (cleaned.startsWith("`") && cleaned.endsWith("`")) {
-    cleaned = cleaned.slice(1, -1);
-  }
+  const cleaned = expression.startsWith("`") && expression.endsWith("`")
+    ? expression.slice(1, -1)
+    : expression;
 
-  // Split by dots and brackets
   const parts: string[] = [];
   let current = "";
+  let i = 0;
 
-  for (let i = 0; i < cleaned.length; i++) {
+  while (i < cleaned.length) {
     const char = cleaned[i];
 
     if (char === ".") {
@@ -222,12 +221,12 @@ function parseExpression(expression: string): string[] {
         parts.push(current);
         current = "";
       }
+      i++;
     } else if (char === "[") {
       if (current) {
         parts.push(current);
         current = "";
       }
-      // Find the closing bracket
       const closeBracket = cleaned.indexOf("]", i);
       if (closeBracket > i) {
         let indexPart = cleaned.slice(i + 1, closeBracket);
@@ -239,10 +238,15 @@ function parseExpression(expression: string): string[] {
           indexPart = indexPart.slice(1, -1);
         }
         parts.push(indexPart);
-        i = closeBracket;
+        i = closeBracket + 1;
+      } else {
+        i++;
       }
-    } else if (char !== "]") {
+    } else if (char === "]") {
+      i++;
+    } else {
       current += char;
+      i++;
     }
   }
 
@@ -264,25 +268,23 @@ function navigatePath(obj: unknown, path: string[]): unknown {
   let current = obj;
 
   for (const part of path) {
-    if (current === null || current === undefined) {
-      return undefined;
-    }
+    if (current === null || current === undefined) return undefined;
 
     if (Array.isArray(current)) {
       const index = parseInt(part, 10);
-      if (isNaN(index) || index < 0 || index >= current.length) {
-        return undefined;
-      }
+      if (isNaN(index) || index < 0 || index >= current.length) return undefined;
       current = current[index];
-    } else if (typeof current === "object") {
-      const objCurrent = current as Record<string, unknown>;
-      if (!(part in objCurrent)) {
-        return undefined;
-      }
-      current = objCurrent[part];
-    } else {
-      return undefined;
+      continue;
     }
+
+    if (typeof current === "object") {
+      const objCurrent = current as Record<string, unknown>;
+      if (!(part in objCurrent)) return undefined;
+      current = objCurrent[part];
+      continue;
+    }
+
+    return undefined;
   }
 
   return current;

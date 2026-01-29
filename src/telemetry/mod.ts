@@ -8,7 +8,17 @@
 
 export { getLogger, logger, setupLogger } from "./logger.ts";
 export { TelemetryService } from "./telemetry.ts";
-export type { LoggerConfig, LogLevel, TelemetryConfig, TelemetryMetric } from "./types.ts";
+export type {
+  HistogramBucket,
+  LatencyHistogram,
+  LoggerConfig,
+  LoggerName,
+  LogLevel,
+  SentryTagField,
+  TelemetryConfig,
+  TelemetryMetric,
+} from "./types.ts";
+export { SENTRY_TAG_FIELDS } from "./types.ts";
 // Story 6.5: MetricsCollector for EventBus-based metrics (ADR-036)
 export { MetricsCollector } from "./metrics-collector.ts";
 // Story 7.6: AlgorithmTracer for algorithm observability (ADR-039)
@@ -36,7 +46,13 @@ export {
 export type { AlgorithmSpanAttributes } from "./otel.ts";
 // Decision Logger (Clean Architecture adapter)
 export { getTelemetryAdapter, NoOpDecisionLogger, TelemetryAdapter } from "./decision-logger.ts";
-export type { AlgorithmDecision, IDecisionLogger } from "./decision-logger.ts";
+export type {
+  AlgorithmDecision,
+  DecisionOutcome,
+  DecisionParams,
+  DecisionSignals,
+  IDecisionLogger,
+} from "./decision-logger.ts";
 // EventBus Subscribers (algorithm.decision handlers)
 export {
   AlgorithmDBSubscriber,

@@ -2,25 +2,43 @@
  * MetricCard Atom - Compact metric display
  */
 
-interface MetricCardProps {
+import type { JSX } from "preact";
+
+export type TrendDirection = "up" | "down" | "neutral";
+
+export interface MetricCardProps {
   label: string;
   value: string | number;
   icon?: string;
   color?: string;
-  trend?: "up" | "down" | "neutral";
+  trend?: TrendDirection;
   compact?: boolean;
 }
 
-export function MetricCard({ label, value, color, trend, compact }: MetricCardProps) {
-  const trendIcon = trend === "up" ? "↑" : trend === "down" ? "↓" : "";
-  const trendColor = trend === "up" ? "var(--success)" : trend === "down" ? "var(--error)" : "";
+const CARD_STYLE = {
+  background: "var(--bg-surface)",
+  border: "1px solid var(--border)",
+};
+
+function getTrendIcon(trend: TrendDirection | undefined): string {
+  if (trend === "up") return "\u2191";
+  if (trend === "down") return "\u2193";
+  return "";
+}
+
+function getTrendColor(trend: TrendDirection | undefined): string {
+  if (trend === "up") return "var(--success)";
+  if (trend === "down") return "var(--error)";
+  return "";
+}
+
+export function MetricCard({ label, value, color, trend, compact }: MetricCardProps): JSX.Element {
+  const trendIcon = getTrendIcon(trend);
+  const trendColor = getTrendColor(trend);
 
   if (compact) {
     return (
-      <div
-        class="flex items-center justify-between px-2 py-1.5 rounded-lg"
-        style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-      >
+      <div class="flex items-center justify-between px-2 py-1.5 rounded-lg" style={CARD_STYLE}>
         <span class="text-[10px] uppercase tracking-wide" style={{ color: "var(--text-dim)" }}>
           {label}
         </span>
@@ -36,10 +54,7 @@ export function MetricCard({ label, value, color, trend, compact }: MetricCardPr
   }
 
   return (
-    <div
-      class="p-3 rounded-lg transition-all duration-200"
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-    >
+    <div class="p-3 rounded-lg transition-all duration-200" style={CARD_STYLE}>
       <span
         class="block text-[10px] uppercase tracking-wider mb-1"
         style={{ color: "var(--text-dim)" }}

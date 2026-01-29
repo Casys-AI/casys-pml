@@ -56,6 +56,17 @@ const logger = getLogger("default");
  */
 const MAX_TOSTRING_LENGTH = 500;
 
+// =============================================================================
+// Type Guards
+// =============================================================================
+
+/**
+ * Type guard for end trace events (tool or capability)
+ */
+function isEndTraceEvent(event: TraceEvent): event is (ToolTraceEvent | CapabilityTraceEvent) & { type: "tool_end" | "capability_end" } {
+  return event.type === "tool_end" || event.type === "capability_end";
+}
+
 /**
  * Safely serialize a result for tracing (Story 11.1)
  * Handles circular references and non-serializable objects gracefully.
@@ -405,35 +416,9 @@ export class WorkerBridge {
             }));
 
           // Story 11.2: Build taskResults from tool traces for execution trace persistence
-          const sortedTraces = [...this.traces].sort((a, b) => a.ts - b.ts);
-          const taskResults: TraceTaskResult[] = sortedTraces
-            .filter((
-              t,
-            ): t is TraceEvent & {
-              tool: string;
-              args?: Record<string, unknown>;
-              result?: unknown;
-            } => t.type === "tool_end" && "tool" in t)
-            .map((t, idx) => ({
-              taskId: `task-${idx}`,
-              tool: t.tool,
-              args: (t.args ?? {}) as Record<string, JsonValue>,
-              result: (t.result ?? null) as JsonValue,
-              success: t.success ?? false,
-              durationMs: t.durationMs ?? 0,
-            }));
-
-          // Build executedPath from traces (tool and capability nodes in execution order)
-          // Issue 6 fix: Use capabilityId (UUID) for capabilities so flattenExecutedPath() can match child traces
-          // Tools use names (e.g., "std:psql_query"), capabilities use UUIDs (e.g., "abc-123-...")
-          const executedPath = sortedTraces
-            .filter((t): t is ToolTraceEvent | CapabilityTraceEvent =>
-              t.type === "tool_end" || t.type === "capability_end"
-            )
-            .map((t) => {
-              if (t.type === "tool_end") return t.tool;
-              return (t as CapabilityTraceEvent).capabilityId;
-            });
+          const sortedTraces = this.getSortedTraces();
+          const taskResults = this.buildTaskResults(sortedTraces);
+          const executedPath = this.buildExecutedPath(sortedTraces);
 
           const { trace } = await this.capabilityStore.saveCapability({
             code: this.lastExecutedCode,
@@ -973,12 +958,12 @@ export class WorkerBridge {
     const toolsCalled = new Set<string>();
 
     for (const trace of this.traces) {
-      if (trace.type === "tool_end" && trace.success) {
-        toolsCalled.add(trace.tool);
-      }
-      // Include capability calls for meta-capability learning
-      if (trace.type === "capability_end" && trace.success) {
-        toolsCalled.add(trace.capability);
+      if (!isEndTraceEvent(trace) || !trace.success) continue;
+
+      if (trace.type === "tool_end") {
+        toolsCalled.add((trace as ToolTraceEvent).tool);
+      } else {
+        toolsCalled.add((trace as CapabilityTraceEvent).capability);
       }
     }
 
@@ -992,22 +977,12 @@ export class WorkerBridge {
    * Story 13.x: Also includes capability_end traces for meta-capability learning.
    */
   getToolsSequence(): string[] {
-    const toolsSequence: string[] = [];
-
-    // Sort traces by timestamp to preserve execution order
-    const sortedTraces = [...this.traces].sort((a, b) => a.ts - b.ts);
-
-    for (const trace of sortedTraces) {
-      if (trace.type === "tool_end" && trace.success) {
-        toolsSequence.push(trace.tool);
-      }
-      // Include capability calls for meta-capability learning
-      if (trace.type === "capability_end" && trace.success) {
-        toolsSequence.push(trace.capability);
-      }
-    }
-
-    return toolsSequence;
+    return this.getSortedTraces()
+      .filter((t) => isEndTraceEvent(t) && t.success)
+      .map((t) => {
+        if (t.type === "tool_end") return (t as ToolTraceEvent).tool;
+        return (t as CapabilityTraceEvent).capability;
+      });
   }
 
   /**
@@ -1017,16 +992,7 @@ export class WorkerBridge {
    * Story 13.x: Also checks capability_end failures for meta-capability learning.
    */
   hasAnyToolFailed(): boolean {
-    for (const trace of this.traces) {
-      if (trace.type === "tool_end" && !trace.success) {
-        return true;
-      }
-      // Include capability failures for meta-capability learning
-      if (trace.type === "capability_end" && !trace.success) {
-        return true;
-      }
-    }
-    return false;
+    return this.traces.some((t) => isEndTraceEvent(t) && !t.success);
   }
 
   /**
@@ -1037,43 +1003,62 @@ export class WorkerBridge {
    * Story 13.x: Also includes capability_end traces for meta-capability learning.
    */
   getToolInvocations(): import("./types.ts").ToolInvocation[] {
-    const invocations: import("./types.ts").ToolInvocation[] = [];
-    let sequenceIndex = 0;
+    return this.getSortedTraces()
+      .filter(isEndTraceEvent)
+      .map((trace, sequenceIndex) => {
+        const toolName = trace.type === "tool_end"
+          ? (trace as ToolTraceEvent).tool
+          : (trace as CapabilityTraceEvent).capability;
 
-    // Sort traces by timestamp to get execution order
-    const sortedTraces = [...this.traces].sort((a, b) => a.ts - b.ts);
-
-    for (const trace of sortedTraces) {
-      if (trace.type === "tool_end" && "tool" in trace) {
-        invocations.push({
-          id: `${trace.tool}#${sequenceIndex}`,
-          tool: trace.tool,
+        return {
+          id: `${toolName}#${sequenceIndex}`,
+          tool: toolName,
           traceId: trace.traceId,
           ts: trace.ts,
           durationMs: trace.durationMs ?? 0,
           success: trace.success ?? false,
           sequenceIndex,
           error: trace.error,
-        });
-        sequenceIndex++;
-      }
-      // Include capability invocations for meta-capability learning
-      if (trace.type === "capability_end" && "capability" in trace) {
-        invocations.push({
-          id: `${trace.capability}#${sequenceIndex}`,
-          tool: trace.capability, // Use capability name as tool for consistency
-          traceId: trace.traceId,
-          ts: trace.ts,
-          durationMs: trace.durationMs ?? 0,
-          success: trace.success ?? false,
-          sequenceIndex,
-          error: trace.error,
-        });
-        sequenceIndex++;
-      }
-    }
+        };
+      });
+  }
 
-    return invocations;
+  // === Private Helper Methods ===
+
+  /**
+   * Get traces sorted chronologically
+   */
+  private getSortedTraces(): TraceEvent[] {
+    return [...this.traces].sort((a, b) => a.ts - b.ts);
+  }
+
+  /**
+   * Build task results from tool traces for execution trace persistence
+   */
+  private buildTaskResults(sortedTraces: TraceEvent[]): TraceTaskResult[] {
+    return sortedTraces
+      .filter((t): t is ToolTraceEvent => t.type === "tool_end")
+      .map((t, idx) => ({
+        taskId: `task-${idx}`,
+        tool: t.tool,
+        args: (t.args ?? {}) as Record<string, JsonValue>,
+        result: (t.result ?? null) as JsonValue,
+        success: t.success ?? false,
+        durationMs: t.durationMs ?? 0,
+      }));
+  }
+
+  /**
+   * Build executed path from traces
+   * Tools use names (e.g., "std:psql_query"), capabilities use UUIDs
+   */
+  private buildExecutedPath(sortedTraces: TraceEvent[]): string[] {
+    return sortedTraces
+      .filter(isEndTraceEvent)
+      .map((t) => {
+        if (t.type === "tool_end") return (t as ToolTraceEvent).tool;
+        return (t as CapabilityTraceEvent).capabilityId;
+      });
   }
 
   /**

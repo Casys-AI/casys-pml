@@ -71,6 +71,26 @@ export async function generateHash(code: string): Promise<string> {
 }
 
 /**
+ * Validate a FQDN component and throw if invalid
+ */
+function validateComponent(value: string, componentName: string): void {
+  if (!COMPONENT_REGEX.test(value)) {
+    throw new Error(
+      `Invalid ${componentName} component: "${value}". Must be alphanumeric with underscores/hyphens, starting with letter or underscore.`,
+    );
+  }
+}
+
+/**
+ * Validate a 4-char hex hash and throw if invalid
+ */
+function validateHash(hash: string): void {
+  if (!HASH_REGEX.test(hash)) {
+    throw new Error(`Invalid hash: "${hash}". Must be exactly 4 lowercase hex characters.`);
+  }
+}
+
+/**
  * Generate a FQDN from components (AC4)
  *
  * FQDN format: `<org>.<project>.<namespace>.<action>.<hash>`
@@ -94,32 +114,22 @@ export async function generateHash(code: string): Promise<string> {
 export function generateFQDN(components: FQDNComponents): string {
   const { org, project, namespace, action, hash } = components;
 
-  // Validate each component
-  if (!COMPONENT_REGEX.test(org)) {
-    throw new Error(
-      `Invalid org component: "${org}". Must be alphanumeric with underscores/hyphens, starting with letter or underscore.`,
-    );
-  }
-  if (!COMPONENT_REGEX.test(project)) {
-    throw new Error(
-      `Invalid project component: "${project}". Must be alphanumeric with underscores/hyphens, starting with letter or underscore.`,
-    );
-  }
-  if (!COMPONENT_REGEX.test(namespace)) {
-    throw new Error(
-      `Invalid namespace component: "${namespace}". Must be alphanumeric with underscores/hyphens, starting with letter or underscore.`,
-    );
-  }
-  if (!COMPONENT_REGEX.test(action)) {
-    throw new Error(
-      `Invalid action component: "${action}". Must be alphanumeric with underscores/hyphens, starting with letter or underscore.`,
-    );
-  }
-  if (!HASH_REGEX.test(hash)) {
-    throw new Error(`Invalid hash: "${hash}". Must be exactly 4 lowercase hex characters.`);
-  }
+  validateComponent(org, "org");
+  validateComponent(project, "project");
+  validateComponent(namespace, "namespace");
+  validateComponent(action, "action");
+  validateHash(hash);
 
   return `${org}.${project}.${namespace}.${action}.${hash}`;
+}
+
+/**
+ * Validate a FQDN component from parsed input and throw if invalid
+ */
+function validateParsedComponent(value: string, componentName: string): void {
+  if (!COMPONENT_REGEX.test(value)) {
+    throw new Error(`Invalid ${componentName} in FQDN: "${value}".`);
+  }
 }
 
 /**
@@ -146,19 +156,11 @@ export function parseFQDN(fqdn: string): FQDNComponents {
 
   const [org, project, namespace, action, hash] = parts;
 
-  // Validate each component
-  if (!COMPONENT_REGEX.test(org)) {
-    throw new Error(`Invalid org in FQDN: "${org}".`);
-  }
-  if (!COMPONENT_REGEX.test(project)) {
-    throw new Error(`Invalid project in FQDN: "${project}".`);
-  }
-  if (!COMPONENT_REGEX.test(namespace)) {
-    throw new Error(`Invalid namespace in FQDN: "${namespace}".`);
-  }
-  if (!COMPONENT_REGEX.test(action)) {
-    throw new Error(`Invalid action in FQDN: "${action}".`);
-  }
+  validateParsedComponent(org, "org");
+  validateParsedComponent(project, "project");
+  validateParsedComponent(namespace, "namespace");
+  validateParsedComponent(action, "action");
+
   if (!HASH_REGEX.test(hash)) {
     throw new Error(`Invalid hash in FQDN: "${hash}". Must be 4 lowercase hex characters.`);
   }
@@ -339,19 +341,10 @@ export function parseFQDNWithoutHash(fqdn: string): FQDNComponentsWithoutHash {
 
   const [org, project, namespace, action] = parts;
 
-  // Validate each component
-  if (!COMPONENT_REGEX.test(org)) {
-    throw new Error(`Invalid org in FQDN: "${org}".`);
-  }
-  if (!COMPONENT_REGEX.test(project)) {
-    throw new Error(`Invalid project in FQDN: "${project}".`);
-  }
-  if (!COMPONENT_REGEX.test(namespace)) {
-    throw new Error(`Invalid namespace in FQDN: "${namespace}".`);
-  }
-  if (!COMPONENT_REGEX.test(action)) {
-    throw new Error(`Invalid action in FQDN: "${action}".`);
-  }
+  validateParsedComponent(org, "org");
+  validateParsedComponent(project, "project");
+  validateParsedComponent(namespace, "namespace");
+  validateParsedComponent(action, "action");
 
   return { org, project, namespace, action };
 }

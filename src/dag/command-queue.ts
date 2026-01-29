@@ -111,47 +111,26 @@ export function isValidCommand(cmd: unknown): cmd is Command {
   if (!cmd || typeof cmd !== "object") return false;
 
   const command = cmd as Record<string, unknown>;
-
-  // Check type field exists
   if (!command.type || typeof command.type !== "string") return false;
 
-  // Validate based on type
   switch (command.type) {
     case "continue":
-      // reason is optional
       return true;
-
     case "abort":
       return typeof command.reason === "string";
-
     case "inject_tasks":
-      return Array.isArray(command.tasks) &&
-        typeof command.targetLayer === "number";
-
+      return Array.isArray(command.tasks) && typeof command.targetLayer === "number";
     case "replan_dag":
-      // Story 2.5-3: Updated fields
-      return typeof command.newRequirement === "string" &&
-        typeof command.availableContext === "object";
-
+      return typeof command.newRequirement === "string" && typeof command.availableContext === "object";
     case "skip_layer":
-      return typeof command.layerIndex === "number" &&
-        typeof command.reason === "string";
-
+      return typeof command.layerIndex === "number" && typeof command.reason === "string";
     case "modify_args":
-      return typeof command.taskId === "string" &&
-        typeof command.updates === "object";
-
+      return typeof command.taskId === "string" && typeof command.updates === "object";
     case "checkpoint_response":
       return typeof command.checkpointId === "string" &&
-        (command.decision === "continue" ||
-          command.decision === "rollback" ||
-          command.decision === "modify");
-
+        ["continue", "rollback", "modify"].includes(command.decision as string);
     case "approval_response":
-      // Story 2.5-3: HIL approval response
-      return typeof command.checkpointId === "string" &&
-        typeof command.approved === "boolean";
-
+      return typeof command.checkpointId === "string" && typeof command.approved === "boolean";
     default:
       return false;
   }

@@ -258,22 +258,22 @@ export class GraphRAGEngine {
    */
   getToolNode(
     toolId: string,
-  ):
-    | {
-      name: string;
-      serverId: string;
-      description: string;
-      schema?: { inputSchema?: unknown };
-      embedding?: number[];
-    }
-    | null {
+  ): {
+    name: string;
+    serverId: string;
+    description: string;
+    schema?: { inputSchema?: unknown };
+    embedding?: number[];
+  } | null {
     if (!this.graph.hasNode(toolId)) return null;
+
     const attrs = this.graph.getNodeAttributes(toolId);
-    // Extract description from metadata or generate from tool name
     const metadata = attrs.metadata as Record<string, unknown> | undefined;
+    const [serverPart, namePart] = toolId.split(":");
+
     return {
-      name: attrs.name as string ?? toolId.split(":")[1] ?? toolId,
-      serverId: attrs.serverId as string ?? toolId.split(":")[0] ?? "unknown",
+      name: (attrs.name as string) ?? namePart ?? toolId,
+      serverId: (attrs.serverId as string) ?? serverPart ?? "unknown",
       description: (metadata?.description as string) ?? `Tool: ${attrs.name ?? toolId}`,
       schema: metadata?.schema as { inputSchema?: unknown } | undefined,
       embedding: attrs.embedding as number[] | undefined,

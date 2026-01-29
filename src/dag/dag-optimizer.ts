@@ -155,13 +155,10 @@ function optimizeSequential(
     if (task.type === "code_execution" && task.tool?.startsWith("code:")) {
       const chain = findSequentialChain(task, logicalDAG, processed, maxFusionSize);
 
-      // DEBUG: Log chain and fusion check
-      log.info("[DEBUG] Checking fusion for chain", {
+      log.debug("Checking fusion for chain", {
         startTaskId: task.id,
         chainLength: chain.length,
         chainTools: chain.map((t) => t.tool),
-        pureFlags: chain.map((t) => t.metadata?.pure),
-        canFuse: chain.length > 1 ? canFuseTasks(chain) : "N/A (single task)",
       });
 
       if (chain.length > 1 && canFuseTasks(chain)) {
@@ -419,10 +416,9 @@ export function fuseTasks(tasks: Task[]): Task {
     return tasks[0];
   }
 
-  log.info("[DEBUG] Fusing tasks", {
+  log.debug("Fusing tasks", {
     taskIds: tasks.map((t) => t.id),
     operations: tasks.map((t) => t.tool),
-    codes: tasks.map((t) => t.code?.substring(0, 100)),
   });
 
   // Collect external dependencies (dependencies outside the fused group)
@@ -440,7 +436,7 @@ export function fuseTasks(tasks: Task[]): Task {
   // Generate fused code
   const fusedCode = generateFusedCode(tasks);
 
-  log.info("[DEBUG] Generated fused code:", { fusedCode });
+  log.debug("Generated fused code", { codeLength: fusedCode.length });
 
   // Merge literal bindings from all tasks (Story 10.2c fix)
   const mergedLiteralBindings: Record<string, unknown> = {};
