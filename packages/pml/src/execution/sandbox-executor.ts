@@ -110,7 +110,7 @@ export class SandboxExecutor {
     // Create sandbox with hybrid RPC handler
     const sandbox = new SandboxWorker({
       onRpc: async (method: string, args: unknown) => {
-        return this.handleRpcCall(method, args, {
+        return await this.handleRpcCall(method, args, {
           clientToolHandler,
           traceId,
           fqdnMap,
@@ -239,11 +239,11 @@ export class SandboxExecutor {
           `Client tool ${toolId} requires handler but none provided`,
         );
       }
-      return clientHandler(toolId, args, parentTraceId);
+      return await clientHandler(toolId, args, parentTraceId);
     }
 
     // Server routing - forward to cloud
-    return this.callServer(toolId, args);
+    return await this.callServer(toolId, args);
   }
 
   /**
