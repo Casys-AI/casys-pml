@@ -10,6 +10,8 @@
 
 import { Command } from "@cliffy/command";
 import type { PmlConfig } from "../types.ts";
+import type { MCPResource, ResourceContent } from "@casys/mcp-server";
+import { MCP_APP_MIME_TYPE } from "@casys/mcp-server";
 import {
   getWorkspaceSourceDescription,
   isValidWorkspace,
@@ -58,6 +60,37 @@ let traceSyncer: TraceSyncer | null = null;
 
 /** Pending workflow store for local approval flows */
 const pendingWorkflowStore = new PendingWorkflowStore();
+
+/** Resource store for MCP Apps (Story 16.2) */
+type ResourceHandler = (uri: URL) => Promise<ResourceContent> | ResourceContent;
+const resourceStore = new Map<string, { resource: MCPResource; handler: ResourceHandler }>();
+
+/**
+ * Register a resource for MCP Apps
+ * @public - Will be used by Story 16.3 (UI Collection)
+ */
+export function registerResource(resource: MCPResource, handler: ResourceHandler): void {
+  resourceStore.set(resource.uri, { resource, handler });
+}
+
+/**
+ * Get all registered resources
+ */
+function getResources(): MCPResource[] {
+  return Array.from(resourceStore.values()).map(r => ({
+    ...r.resource,
+    mimeType: r.resource.mimeType ?? MCP_APP_MIME_TYPE,
+  }));
+}
+
+/**
+ * Read a resource by URI
+ */
+async function readResource(uri: string): Promise<ResourceContent | null> {
+  const entry = resourceStore.get(uri);
+  if (!entry) return null;
+  return await entry.handler(new URL(uri));
+}
 
 /** Logger adapter for shared utilities */
 const stdioLogger = {
@@ -133,7 +166,10 @@ function handleInitialize(id: string | number): void {
     id,
     result: {
       protocolVersion: "2024-11-05",
-      capabilities: { tools: {} },
+      capabilities: {
+        tools: {},
+        resources: resourceStore.size > 0 ? {} : undefined,
+      },
       serverInfo: { name: "pml", version: PACKAGE_VERSION },
     },
   });
@@ -147,6 +183,33 @@ function handleToolsList(id: string | number): void {
     jsonrpc: "2.0",
     id,
     result: { tools: PML_TOOLS_FULL },
+  });
+}
+
+/**
+ * Handle MCP resources/list request (Story 16.2)
+ */
+function handleResourcesList(id: string | number): void {
+  sendResponse({
+    jsonrpc: "2.0",
+    id,
+    result: { resources: getResources() },
+  });
+}
+
+/**
+ * Handle MCP resources/read request (Story 16.2)
+ */
+async function handleResourcesRead(id: string | number, uri: string): Promise<void> {
+  const content = await readResource(uri);
+  if (!content) {
+    sendError(id, -32602, `Resource not found: ${uri}`);
+    return;
+  }
+  sendResponse({
+    jsonrpc: "2.0",
+    id,
+    result: { contents: [content] },
   });
 }
 
@@ -530,6 +593,14 @@ async function processRequest(
       break;
     case "tools/list":
       if (id !== null) handleToolsList(id);
+      break;
+    case "resources/list":
+      if (id !== null) handleResourcesList(id);
+      break;
+    case "resources/read":
+      if (id !== null && params?.uri) {
+        await handleResourcesRead(id, params.uri as string);
+      }
       break;
     case "tools/call":
       if (id !== null && params) {
