@@ -26,26 +26,6 @@
     "db:cleanup": "deno run --allow-all scripts/cleanup-db.ts",
     "dev:fresh": "cd src/web && deno run -A --env=../../.env --unstable-kv --node-modules-dir=auto npm:vite",
     "dev:build": "cd src/web && vite build",
-    "prod:start": "sudo systemctl start casys-dashboard casys-api",
-    "prod:start:dashboard": "sudo systemctl start casys-dashboard",
-    "prod:start:api": "sudo systemctl start casys-api",
-    "prod:stop": "sudo systemctl stop casys-dashboard casys-api",
-    "prod:stop:dashboard": "sudo systemctl stop casys-dashboard",
-    "prod:stop:api": "sudo systemctl stop casys-api",
-    "prod:restart": "sudo systemctl restart casys-dashboard casys-api",
-    "prod:restart:dashboard": "sudo systemctl restart casys-dashboard",
-    "prod:restart:api": "sudo systemctl restart casys-api",
-    "prod:status": "sudo systemctl status casys-dashboard casys-api --no-pager",
-    "prod:status:dashboard": "sudo systemctl status casys-dashboard --no-pager",
-    "prod:status:api": "sudo systemctl status casys-api --no-pager",
-    "prod:logs": "journalctl -u casys-api -u casys-dashboard -f",
-    "prod:logs:dashboard": "journalctl -u casys-dashboard -f",
-    "prod:logs:api": "journalctl -u casys-api -f",
-    "prod:build": "cd src/web && vite build",
-    "deploy:dashboard": "git pull origin main && cd src/web && vite build && sudo systemctl restart casys-dashboard",
-    "deploy:all": "git pull origin main && cd src/web && vite build && sudo systemctl restart casys-dashboard casys-api",
-    "rebuild:dashboard": "cd src/web && vite build && sudo systemctl restart casys-dashboard",
-    "rebuild:all": "cd src/web && vite build && sudo systemctl restart casys-dashboard casys-api",
     "test": "deno test --allow-all --unstable-worker-options --unstable-broadcast-channel --unstable-kv --unstable-ffi --no-check --ignore=tests/benchmarks/",
     "test:unit": "deno task test:unit:fast && deno task test:unit:slow",
     "test:unit:fast": "deno test --allow-all --unstable-worker-options --unstable-broadcast-channel --unstable-kv --unstable-ffi --no-check --parallel tests/unit/vector/ tests/unit/graphrag/ tests/unit/context/ tests/unit/telemetry/ tests/unit/db/ tests/unit/cli/ tests/unit/events/ tests/unit/health/ tests/unit/learning/ tests/unit/errors/ tests/unit/utils/ tests/unit/lib/ tests/unit/mcp/ tests/unit/web/ tests/unit/cloud/",
@@ -230,5 +210,6 @@
       "run": false,
       "ffi": false
     }
-  }
+  },
+  "allowScripts": ["npm:@tensorflow/tfjs-node@4.22.0"]
 }

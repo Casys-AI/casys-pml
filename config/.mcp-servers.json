@@ -1,37 +1,5 @@
 {
   "mcpServers": {
-    "std": {
-      "type": "stdio",
-      "command": "deno",
-      "args": ["run", "-A", "jsr:@casys/mcp-std/server"]
-    },
-    "filesystem": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
-    },
-    "memory": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
-    },
-    "fetch": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["mcp-server-fetch"]
-    },
-    "playwright": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
-    },
-    "exa": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "exa-mcp-server"],
-      "env": {
-        "EXA_API_KEY": "${EXA_API_KEY}"
-      }
-    }
+
   }
 }

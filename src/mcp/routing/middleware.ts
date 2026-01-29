@@ -59,12 +59,13 @@ export function isPublicRoute(pathname: string): boolean {
 
 /**
  * Get allowed CORS origin based on environment
+ * In dev (no DOMAIN), returns "*" to allow all localhost origins
  */
 export function getAllowedOrigin(): string {
   const domain = Deno.env.get("DOMAIN");
   if (domain) return `https://${domain}`;
-  const dashboardPort = Deno.env.get("FRESH_PORT") || "8081";
-  return `http://localhost:${dashboardPort}`;
+  // Dev mode: allow all origins (desktop app on 1420, dashboard on 8081, etc.)
+  return "*";
 }
 
 /**
