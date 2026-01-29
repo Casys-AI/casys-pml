@@ -1,0 +1,17 @@
+{
+  "name": "@pml/gru",
+  "version": "0.1.0",
+  "exports": "./src/mod.ts",
+  "imports": {
+    "@tensorflow/tfjs": "npm:@tensorflow/tfjs@4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "npm:@tensorflow/tfjs-backend-wasm@4.22.0"
+  },
+  "tasks": {
+    "test": "deno test --allow-read --allow-env src/",
+    "check": "deno check src/mod.ts"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true
+  }
+}
