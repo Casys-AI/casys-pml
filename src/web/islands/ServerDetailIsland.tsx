@@ -1,15 +1,16 @@
 /**
- * ServerDetailIsland - Server tools explorer
+ * ServerDetailIsland - Node detail explorer
  *
- * Split-pane layout:
- * - Left: tools list (searchable)
- * - Right: selected tool schema viewer (Swagger-like)
+ * New compact design:
+ * - Top: breadcrumb + node info + search
+ * - Middle: horizontal chip grid for tools (grouped by prefix)
+ * - Bottom: selected tool schema viewer
  *
  * @module web/islands/ServerDetailIsland
  */
 
-import { useMemo, useState } from "preact/hooks";
-import CatalogLayout from "../components/layout/CatalogLayout.tsx";
+import { useEffect, useMemo, useState } from "preact/hooks";
+import VitrineHeader from "../components/layout/VitrineHeader.tsx";
 
 interface ToolEntry {
   id: string;
@@ -17,6 +18,13 @@ interface ToolEntry {
   description: string | null;
   routing: "local" | "cloud";
   inputSchema: Record<string, unknown> | null;
+}
+
+interface NodeNavItem {
+  id: string;
+  name: string;
+  icon: string;
+  toolCount: number;
 }
 
 interface ServerDetailIslandProps {
@@ -29,10 +37,11 @@ interface ServerDetailIslandProps {
     avatarUrl?: string;
   } | null;
   isCloudMode?: boolean;
+  allNodes?: NodeNavItem[];
 }
 
-/** Icon for server category */
-function getServerIcon(displayName: string): string {
+/** Icon for node category */
+function getNodeIcon(displayName: string): string {
   const icons: Record<string, string> = {
     Docker: "🐳",
     Git: "📦",
@@ -75,153 +84,587 @@ function getServerIcon(displayName: string): string {
   return icons[displayName] || "🔧";
 }
 
+/** Extract prefix groups from tools (e.g., docker_compose_*, docker_container_*) */
+function extractPrefixGroups(tools: ToolEntry[]): Map<string, ToolEntry[]> {
+  const groups = new Map<string, ToolEntry[]>();
+
+  for (const tool of tools) {
+    // Extract prefix: take first two parts if underscore-separated
+    const parts = tool.name.split("_");
+    const prefix = parts.length >= 2 ? `${parts[0]}_${parts[1]}` : parts[0];
+
+    if (!groups.has(prefix)) {
+      groups.set(prefix, []);
+    }
+    groups.get(prefix)!.push(tool);
+  }
+
+  // Sort groups by size (largest first), then alphabetically
+  return new Map(
+    [...groups.entries()].sort((a, b) => {
+      if (b[1].length !== a[1].length) return b[1].length - a[1].length;
+      return a[0].localeCompare(b[0]);
+    })
+  );
+}
+
 export default function ServerDetailIsland({
-  serverId: _serverId,
+  serverId,
   displayName,
-  description: _description,
+  description,
   tools,
-  user,
-  isCloudMode,
+  user: _user,
+  isCloudMode: _isCloudMode,
+  allNodes = [],
 }: ServerDetailIslandProps) {
-  // Note: serverId and description are passed for future use (breadcrumbs, SEO)
-  void _serverId;
-  void _description;
+  void _user;
+  void _isCloudMode;
 
   const [search, setSearch] = useState("");
   const [selectedTool, setSelectedTool] = useState<ToolEntry | null>(tools[0] || null);
+  const [activePrefix, setActivePrefix] = useState<string | null>(null);
+  const [showNodeNav, setShowNodeNav] = useState(false);
 
-  // Filter tools by search
+  const icon = getNodeIcon(displayName);
+
+  // Find prev/next nodes
+  const currentIndex = allNodes.findIndex((n) => n.id === serverId);
+  const prevNode = currentIndex > 0 ? allNodes[currentIndex - 1] : null;
+  const nextNode = currentIndex < allNodes.length - 1 ? allNodes[currentIndex + 1] : null;
+
+  // Compute prefix groups
+  const prefixGroups = useMemo(() => extractPrefixGroups(tools), [tools]);
+  const prefixes = useMemo(() => [...prefixGroups.keys()], [prefixGroups]);
+
+  // Filter tools by search and active prefix
   const filteredTools = useMemo(() => {
-    if (!search) return tools;
-    const searchLower = search.toLowerCase();
-    return tools.filter(
-      (t) =>
-        t.name.toLowerCase().includes(searchLower) ||
-        (t.description?.toLowerCase().includes(searchLower) ?? false)
-    );
-  }, [tools, search]);
+    let result = tools;
 
-  const icon = getServerIcon(displayName);
+    if (activePrefix) {
+      result = prefixGroups.get(activePrefix) || [];
+    }
 
-  // Sidebar: tools list
-  const sidebar = (
-    <div class="server-sidebar">
-      {/* Server header */}
-      <div class="server-sidebar-header">
-        <a href="/catalog" class="server-back-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
-          </svg>
-          Catalog
-        </a>
-        <div class="server-info">
-          <span class="server-icon">{icon}</span>
-          <div>
-            <h2 class="server-name">{displayName}</h2>
-            <span class="server-count">{tools.length} tools</span>
+    if (search) {
+      const searchLower = search.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.name.toLowerCase().includes(searchLower) ||
+          (t.description?.toLowerCase().includes(searchLower) ?? false)
+      );
+    }
+
+    return result;
+  }, [tools, search, activePrefix, prefixGroups]);
+
+  // Auto-select first tool when filter changes
+  useEffect(() => {
+    if (filteredTools.length > 0) {
+      // Check if current selection is still in filtered list
+      const stillVisible = selectedTool && filteredTools.some(t => t.id === selectedTool.id);
+      if (!stillVisible) {
+        setSelectedTool(filteredTools[0]);
+      }
+    } else {
+      setSelectedTool(null);
+    }
+  }, [activePrefix, search]);
+
+  // Get short name (remove common prefix when prefix is active)
+  const getShortName = (tool: ToolEntry): string => {
+    if (!activePrefix) return tool.name;
+    if (tool.name.startsWith(activePrefix + "_")) {
+      return tool.name.slice(activePrefix.length + 1);
+    }
+    return tool.name;
+  };
+
+  return (
+    <div class="node-detail-page">
+      {/* Site header */}
+      <VitrineHeader activePage="catalog" />
+
+      {/* Node header bar */}
+      <header class="node-header">
+        <div class="node-header-left">
+          <a href="/catalog" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+              <path strokeWidth="2" strokeLinecap="round" d="M15 18l-6-6 6-6" />
+            </svg>
+          </a>
+          <div class="node-breadcrumb">
+            <a href="/catalog" class="breadcrumb-link">Catalog</a>
+            <span class="breadcrumb-sep">/</span>
+            <button
+              type="button"
+              class="breadcrumb-current node-selector"
+              onClick={() => setShowNodeNav(!showNodeNav)}
+            >
+              <span class="node-icon">{icon}</span>
+              {displayName}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="12" height="12" class="chevron-down">
+                <path strokeWidth="2" strokeLinecap="round" d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
           </div>
+        </div>
+        <div class="node-header-right">
+          {/* Prev/Next navigation */}
+          <div class="node-nav-box">
+            {prevNode ? (
+              <a href={`/catalog/${prevNode.id}`} class="nav-link prev" title={prevNode.name}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+                  <path strokeWidth="2.5" strokeLinecap="round" d="M15 18l-6-6 6-6" />
+                </svg>
+                <span class="nav-link-name">{prevNode.name}</span>
+              </a>
+            ) : (
+              <span class="nav-link prev disabled">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+                  <path strokeWidth="2.5" strokeLinecap="round" d="M15 18l-6-6 6-6" />
+                </svg>
+              </span>
+            )}
+            <span class="nav-counter">{currentIndex + 1}<span class="nav-sep">/</span>{allNodes.length}</span>
+            {nextNode ? (
+              <a href={`/catalog/${nextNode.id}`} class="nav-link next" title={nextNode.name}>
+                <span class="nav-link-name">{nextNode.name}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+                  <path strokeWidth="2.5" strokeLinecap="round" d="M9 6l6 6-6 6" />
+                </svg>
+              </a>
+            ) : (
+              <span class="nav-link next disabled">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+                  <path strokeWidth="2.5" strokeLinecap="round" d="M9 6l6 6-6 6" />
+                </svg>
+              </span>
+            )}
+          </div>
+          <span class="node-stat">{tools.length} tools</span>
+        </div>
+      </header>
+
+      {/* Node dropdown navigation */}
+      {showNodeNav && (
+        <div class="node-nav-dropdown">
+          <div class="node-nav-grid">
+            {allNodes.map((node) => (
+              <a
+                key={node.id}
+                href={`/catalog/${node.id}`}
+                class={`node-nav-item ${node.id === serverId ? "current" : ""}`}
+              >
+                <span class="node-nav-icon">{node.icon}</span>
+                <span class="node-nav-name">{node.name}</span>
+                <span class="node-nav-count">{node.toolCount}</span>
+              </a>
+            ))}
+          </div>
+          <button
+            type="button"
+            class="node-nav-close"
+            onClick={() => setShowNodeNav(false)}
+          >
+            Close
+          </button>
+        </div>
+      )}
+
+      {/* Node info + search */}
+      <div class="node-info-bar">
+        <p class="node-description">{description || `Tools for ${displayName.toLowerCase()} operations`}</p>
+        <div class="search-wrapper">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="11" cy="11" r="8" strokeWidth="2" />
+            <path strokeWidth="2" d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+            placeholder="Filter tools..."
+            class="search-input"
+          />
         </div>
       </div>
 
-      {/* Search */}
-      <div class="server-search-wrapper">
-        <svg class="server-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="11" cy="11" r="8" strokeWidth="2" />
-          <path strokeWidth="2" d="m21 21-4.35-4.35" />
-        </svg>
-        <input
-          type="text"
-          value={search}
-          onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-          placeholder="Search tools..."
-          class="server-search-input"
-        />
-      </div>
+      {/* Prefix filter pills */}
+      {prefixes.length > 1 && (
+        <div class="prefix-filters">
+          <button
+            type="button"
+            class={`prefix-pill ${!activePrefix ? "active" : ""}`}
+            onClick={() => setActivePrefix(null)}
+          >
+            All ({tools.length})
+          </button>
+          {prefixes.slice(0, 8).map((prefix) => (
+            <button
+              key={prefix}
+              type="button"
+              class={`prefix-pill ${activePrefix === prefix ? "active" : ""}`}
+              onClick={() => setActivePrefix(activePrefix === prefix ? null : prefix)}
+            >
+              {prefix.replace(/_/g, " ")} ({prefixGroups.get(prefix)?.length})
+            </button>
+          ))}
+          {prefixes.length > 8 && (
+            <span class="prefix-more">+{prefixes.length - 8} more</span>
+          )}
+        </div>
+      )}
 
-      {/* Tools list */}
-      <div class="server-tools-list">
+      {/* Tools grid (compact chips) */}
+      <div class="tools-grid">
         {filteredTools.map((tool) => (
           <button
             key={tool.id}
             type="button"
-            class={`server-tool-item ${selectedTool?.id === tool.id ? "active" : ""}`}
-            onClick={() => setSelectedTool(tool)}
+            class={`tool-chip ${selectedTool?.id === tool.id ? "selected" : ""}`}
+            onClick={() => setSelectedTool(selectedTool?.id === tool.id ? null : tool)}
+            title={tool.description || tool.name}
           >
-            <span class="server-tool-name">{tool.name}</span>
-            <span class="server-tool-routing">
-              {tool.routing === "cloud" ? "☁️" : "💻"}
-            </span>
+            <span class="tool-chip-name">{getShortName(tool)}</span>
+            {tool.routing === "cloud" && <span class="tool-chip-cloud">☁</span>}
           </button>
         ))}
         {filteredTools.length === 0 && (
-          <div class="server-tools-empty">No tools match your search</div>
+          <div class="tools-empty">No tools match "{search}"</div>
         )}
       </div>
 
+      {/* Selected tool detail */}
+      {selectedTool && (
+        <div class="tool-detail-panel">
+          <div class="tool-detail-header">
+            <div class="tool-detail-title-row">
+              <code class="tool-detail-name">{selectedTool.name}</code>
+              <button
+                type="button"
+                class="tool-detail-close"
+                onClick={() => setSelectedTool(null)}
+              >
+                ×
+              </button>
+            </div>
+            <p class="tool-detail-desc">
+              {selectedTool.description || "No description"}
+            </p>
+          </div>
+
+          {/* Schema */}
+          <div class="tool-schema-section">
+            <div class="schema-header">
+              <span class="schema-label">Input Schema</span>
+              {selectedTool.inputSchema && (
+                <span class="schema-params">
+                  {Object.keys((selectedTool.inputSchema as any).properties || {}).length} params
+                </span>
+              )}
+            </div>
+            {selectedTool.inputSchema ? (
+              <SchemaViewer schema={selectedTool.inputSchema} />
+            ) : (
+              <div class="schema-empty">No parameters required</div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style>
         {`
-        .server-sidebar {
+        .node-detail-page {
+          min-height: 100vh;
+          background: #0a0908;
+          color: #f0ede8;
+          font-family: 'Inter', -apple-system, sans-serif;
+          padding-top: 60px; /* Space for VitrineHeader */
+        }
+
+        /* Node Header */
+        .node-header {
           display: flex;
-          flex-direction: column;
-          height: 100%;
-        }
-
-        .server-sidebar-header {
-          padding-bottom: 1rem;
-          border-bottom: 1px solid rgba(255, 184, 111, 0.08);
-          margin-bottom: 1rem;
-        }
-
-        .server-back-link {
-          display: inline-flex;
           align-items: center;
-          gap: 0.375rem;
-          font-size: 0.75rem;
+          justify-content: space-between;
+          padding: 0.75rem 1.5rem;
+          background: rgba(15, 15, 18, 0.95);
+          border-bottom: 1px solid rgba(255, 184, 111, 0.06);
+          position: sticky;
+          top: 60px; /* Below VitrineHeader */
+          z-index: 90;
+          backdrop-filter: blur(12px);
+        }
+
+        .node-header-left {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .back-link {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
           color: #6b6560;
           text-decoration: none;
-          margin-bottom: 1rem;
-          transition: color 0.2s;
+          transition: all 0.15s;
         }
 
-        .server-back-link:hover {
+        .back-link:hover {
+          background: rgba(255, 184, 111, 0.08);
           color: #FFB86F;
         }
 
-        .server-back-link svg {
-          width: 14px;
-          height: 14px;
-        }
-
-        .server-info {
+        .node-breadcrumb {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          gap: 0.5rem;
+          font-size: 0.8125rem;
         }
 
-        .server-icon {
-          font-size: 2rem;
+        .breadcrumb-link {
+          color: #6b6560;
+          text-decoration: none;
+          transition: color 0.15s;
         }
 
-        .server-name {
-          font-size: 1.125rem;
-          font-weight: 600;
+        .breadcrumb-link:hover {
+          color: #FFB86F;
+        }
+
+        .breadcrumb-sep {
+          color: #3a3835;
+        }
+
+        .breadcrumb-current {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
           color: #f0ede8;
+          font-weight: 500;
         }
 
-        .server-count {
+        .node-icon {
+          font-size: 1rem;
+        }
+
+        .node-header-right {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .node-stat {
           font-size: 0.75rem;
           font-family: 'Geist Mono', monospace;
           color: #6b6560;
+          background: rgba(255, 184, 111, 0.06);
+          padding: 0.25rem 0.625rem;
+          border-radius: 4px;
         }
 
-        .server-search-wrapper {
+        /* Node selector dropdown trigger */
+        .node-selector {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0.25rem 0.5rem;
+          margin: -0.25rem -0.5rem;
+          border-radius: 4px;
+          transition: background 0.15s;
+        }
+
+        .node-selector:hover {
+          background: rgba(255, 184, 111, 0.08);
+        }
+
+        .chevron-down {
+          opacity: 0.5;
+        }
+
+        /* Prev/Next navigation */
+        .node-nav-box {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: rgba(255, 184, 111, 0.04);
+          border: 1px solid rgba(255, 184, 111, 0.1);
+          border-radius: 8px;
+          padding: 0.25rem;
+        }
+
+        .nav-link {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          padding: 0.375rem 0.625rem;
+          border-radius: 6px;
+          color: #a8a29e;
+          text-decoration: none;
+          transition: all 0.15s;
+          font-size: 0.75rem;
+        }
+
+        .nav-link:hover {
+          background: rgba(255, 184, 111, 0.12);
+          color: #FFB86F;
+        }
+
+        .nav-link.disabled {
+          opacity: 0.25;
+          pointer-events: none;
+          padding: 0.375rem;
+        }
+
+        .nav-link-name {
+          font-family: 'Geist Mono', monospace;
+          font-weight: 500;
+          max-width: 80px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .nav-counter {
+          font-size: 0.8125rem;
+          font-family: 'Geist Mono', monospace;
+          font-weight: 600;
+          color: #f0ede8;
+          padding: 0.25rem 0.5rem;
+          min-width: 48px;
+          text-align: center;
+        }
+
+        .nav-sep {
+          color: #6b6560;
+          margin: 0 0.125rem;
+        }
+
+        /* Node dropdown */
+        .node-nav-dropdown {
+          position: fixed;
+          top: 108px; /* VitrineHeader (60px) + NodeHeader (~48px) */
+          left: 0;
+          right: 0;
+          background: #0f0f12;
+          border-bottom: 1px solid rgba(255, 184, 111, 0.1);
+          padding: 1rem 1.5rem;
+          z-index: 89;
+          max-height: 50vh;
+          overflow-y: auto;
+          animation: dropIn 0.15s ease-out;
+        }
+
+        @keyframes dropIn {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .node-nav-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.375rem;
+        }
+
+        .node-nav-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0.3rem 0.5rem;
+          font-size: 0.6875rem;
+          color: #a8a29e;
+          text-decoration: none;
+          background: #141418;
+          border: 1px solid rgba(255, 184, 111, 0.06);
+          border-radius: 4px;
+          transition: all 0.12s;
+        }
+
+        .node-nav-item:hover {
+          background: rgba(255, 184, 111, 0.08);
+          border-color: rgba(255, 184, 111, 0.2);
+          color: #f0ede8;
+        }
+
+        .node-nav-item.current {
+          background: rgba(255, 184, 111, 0.12);
+          border-color: #FFB86F;
+          color: #FFB86F;
+        }
+
+        .node-nav-icon {
+          font-size: 0.75rem;
+        }
+
+        .node-nav-name {
+          font-family: 'Geist Mono', monospace;
+        }
+
+        .node-nav-count {
+          font-family: 'Geist Mono', monospace;
+          font-size: 0.5625rem;
+          color: #6b6560;
+          background: rgba(255, 184, 111, 0.06);
+          padding: 0.0625rem 0.25rem;
+          border-radius: 2px;
+        }
+
+        .node-nav-close {
+          display: block;
+          margin: 0.75rem auto 0;
+          padding: 0.375rem 1rem;
+          font-size: 0.6875rem;
+          color: #6b6560;
+          background: none;
+          border: 1px solid rgba(255, 184, 111, 0.1);
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .node-nav-close:hover {
+          border-color: rgba(255, 184, 111, 0.3);
+          color: #a8a29e;
+        }
+
+        /* Info bar */
+        .node-info-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 2rem;
+          padding: 1rem 1.5rem;
+          border-bottom: 1px solid rgba(255, 184, 111, 0.04);
+        }
+
+        .node-description {
+          font-size: 0.875rem;
+          color: #a8a29e;
+          flex: 1;
+          line-height: 1.4;
+        }
+
+        .search-wrapper {
           position: relative;
-          margin-bottom: 1rem;
+          width: 220px;
+          flex-shrink: 0;
         }
 
-        .server-search-icon {
+        .search-icon {
           position: absolute;
-          left: 0.75rem;
+          left: 0.625rem;
           top: 50%;
           transform: translateY(-50%);
           width: 14px;
@@ -230,235 +673,232 @@ export default function ServerDetailIsland({
           pointer-events: none;
         }
 
-        .server-search-input {
+        .search-input {
           width: 100%;
-          padding: 0.5rem 0.75rem 0.5rem 2rem;
-          font-size: 0.8125rem;
+          padding: 0.4rem 0.625rem 0.4rem 2rem;
+          font-size: 0.75rem;
           color: #f0ede8;
           background: #141418;
-          border: 1px solid rgba(255, 184, 111, 0.1);
+          border: 1px solid rgba(255, 184, 111, 0.08);
           border-radius: 6px;
           outline: none;
-          transition: border-color 0.2s;
+          transition: border-color 0.15s;
         }
 
-        .server-search-input::placeholder {
+        .search-input::placeholder {
           color: #6b6560;
         }
 
-        .server-search-input:focus {
-          border-color: rgba(255, 184, 111, 0.3);
+        .search-input:focus {
+          border-color: rgba(255, 184, 111, 0.25);
         }
 
-        .server-tools-list {
-          flex: 1;
-          overflow-y: auto;
-          margin: 0 -1.5rem;
-          padding: 0 0.5rem;
-        }
-
-        .server-tool-item {
+        /* Prefix filters */
+        .prefix-filters {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-          padding: 0.625rem 1rem;
-          background: none;
-          border: none;
-          border-left: 2px solid transparent;
+          flex-wrap: wrap;
+          gap: 0.375rem;
+          padding: 0.75rem 1.5rem;
+          border-bottom: 1px solid rgba(255, 184, 111, 0.04);
+        }
+
+        .prefix-pill {
+          padding: 0.25rem 0.625rem;
+          font-size: 0.6875rem;
+          font-family: 'Geist Mono', monospace;
+          color: #6b6560;
+          background: transparent;
+          border: 1px solid rgba(255, 184, 111, 0.08);
+          border-radius: 4px;
           cursor: pointer;
-          text-align: left;
           transition: all 0.15s;
         }
 
-        .server-tool-item:hover {
-          background: rgba(255, 184, 111, 0.03);
-        }
-
-        .server-tool-item.active {
-          background: rgba(255, 184, 111, 0.08);
-          border-left-color: #FFB86F;
-        }
-
-        .server-tool-name {
-          font-size: 0.8125rem;
-          font-family: 'Geist Mono', monospace;
+        .prefix-pill:hover {
+          border-color: rgba(255, 184, 111, 0.2);
           color: #a8a29e;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          transition: color 0.15s;
         }
 
-        .server-tool-item.active .server-tool-name {
+        .prefix-pill.active {
+          background: rgba(255, 184, 111, 0.1);
+          border-color: #FFB86F;
           color: #FFB86F;
         }
 
-        .server-tool-routing {
-          font-size: 0.75rem;
-          opacity: 0.5;
+        .prefix-more {
+          padding: 0.25rem 0.5rem;
+          font-size: 0.6875rem;
+          color: #6b6560;
         }
 
-        .server-tools-empty {
-          padding: 1rem;
+        /* Tools grid */
+        .tools-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.375rem;
+          padding: 1rem 1.5rem;
+          min-height: 80px;
+        }
+
+        .tool-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0.3rem 0.5rem;
+          font-size: 0.6875rem;
+          font-family: 'Geist Mono', monospace;
+          color: #a8a29e;
+          background: #141418;
+          border: 1px solid rgba(255, 184, 111, 0.06);
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.12s;
+          max-width: 180px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .tool-chip:hover {
+          background: rgba(255, 184, 111, 0.06);
+          border-color: rgba(255, 184, 111, 0.15);
+          color: #f0ede8;
+        }
+
+        .tool-chip.selected {
+          background: rgba(255, 184, 111, 0.12);
+          border-color: #FFB86F;
+          color: #FFB86F;
+        }
+
+        .tool-chip-name {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .tool-chip-cloud {
+          font-size: 0.625rem;
+          opacity: 0.6;
+        }
+
+        .tools-empty {
+          width: 100%;
+          padding: 2rem;
           text-align: center;
           font-size: 0.8125rem;
           color: #6b6560;
         }
 
-        .server-tools-list::-webkit-scrollbar {
-          width: 4px;
+        /* Tool detail panel */
+        .tool-detail-panel {
+          margin: 0 1.5rem 1.5rem;
+          background: #0f0f12;
+          border: 1px solid rgba(255, 184, 111, 0.08);
+          border-radius: 10px;
+          overflow: hidden;
+          animation: slideUp 0.2s ease-out;
         }
 
-        .server-tools-list::-webkit-scrollbar-track {
-          background: transparent;
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
-        .server-tools-list::-webkit-scrollbar-thumb {
-          background: rgba(255, 184, 111, 0.15);
-          border-radius: 2px;
+        .tool-detail-header {
+          padding: 1rem 1.25rem;
+          border-bottom: 1px solid rgba(255, 184, 111, 0.06);
+        }
+
+        .tool-detail-title-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 0.5rem;
+        }
+
+        .tool-detail-name {
+          font-family: 'Geist Mono', monospace;
+          font-size: 0.9375rem;
+          font-weight: 600;
+          color: #FFB86F;
+        }
+
+        .tool-detail-close {
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: none;
+          border: none;
+          color: #6b6560;
+          font-size: 1.25rem;
+          cursor: pointer;
+          border-radius: 4px;
+          transition: all 0.15s;
+        }
+
+        .tool-detail-close:hover {
+          background: rgba(255, 184, 111, 0.1);
+          color: #FFB86F;
+        }
+
+        .tool-detail-desc {
+          font-size: 0.8125rem;
+          color: #a8a29e;
+          line-height: 1.5;
+        }
+
+        /* Schema section */
+        .tool-schema-section {
+          padding: 1rem 1.25rem;
+        }
+
+        .schema-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 0.75rem;
+        }
+
+        .schema-label {
+          font-size: 0.6875rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #6b6560;
+        }
+
+        .schema-params {
+          font-size: 0.625rem;
+          font-family: 'Geist Mono', monospace;
+          color: #6b6560;
+          background: rgba(255, 184, 111, 0.04);
+          padding: 0.125rem 0.375rem;
+          border-radius: 3px;
+        }
+
+        .schema-empty {
+          padding: 1rem;
+          text-align: center;
+          font-size: 0.75rem;
+          color: #6b6560;
+          background: rgba(255, 184, 111, 0.02);
+          border-radius: 6px;
         }
         `}
       </style>
     </div>
   );
-
-  return (
-    <CatalogLayout sidebar={sidebar} user={user} isCloudMode={isCloudMode}>
-      {/* Tool detail / schema viewer */}
-      {selectedTool ? (
-        <div class="tool-detail">
-          {/* Tool header */}
-          <div class="tool-header">
-            <div class="tool-header-main">
-              <h1 class="tool-title">{selectedTool.name}</h1>
-              <span class={`tool-routing-badge ${selectedTool.routing}`}>
-                {selectedTool.routing === "cloud" ? "☁️ Cloud" : "💻 Local"}
-              </span>
-            </div>
-            <p class="tool-description">
-              {selectedTool.description || "No description available"}
-            </p>
-          </div>
-
-          {/* Schema viewer */}
-          <div class="tool-schema">
-            <h2 class="schema-title">Input Schema</h2>
-            {selectedTool.inputSchema ? (
-              <SchemaViewer schema={selectedTool.inputSchema} />
-            ) : (
-              <div class="schema-empty">No input schema defined</div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div class="tool-empty">
-          <div class="tool-empty-icon">📋</div>
-          <h2 class="tool-empty-title">Select a tool</h2>
-          <p class="tool-empty-text">Choose a tool from the list to view its schema</p>
-        </div>
-      )}
-
-      <style>
-        {`
-        .tool-detail {
-          max-width: 800px;
-        }
-
-        .tool-header {
-          margin-bottom: 2rem;
-          padding-bottom: 1.5rem;
-          border-bottom: 1px solid rgba(255, 184, 111, 0.08);
-        }
-
-        .tool-header-main {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          margin-bottom: 0.75rem;
-        }
-
-        .tool-title {
-          font-family: 'Geist Mono', monospace;
-          font-size: 1.5rem;
-          font-weight: 600;
-          color: #f0ede8;
-        }
-
-        .tool-routing-badge {
-          font-size: 0.75rem;
-          padding: 0.25rem 0.625rem;
-          border-radius: 4px;
-          background: rgba(255, 184, 111, 0.1);
-          color: #FFB86F;
-        }
-
-        .tool-routing-badge.cloud {
-          background: rgba(96, 165, 250, 0.1);
-          color: #60a5fa;
-        }
-
-        .tool-description {
-          font-size: 1rem;
-          line-height: 1.6;
-          color: #a8a29e;
-        }
-
-        .tool-schema {
-          background: #0f0f12;
-          border: 1px solid rgba(255, 184, 111, 0.08);
-          border-radius: 12px;
-          padding: 1.5rem;
-        }
-
-        .schema-title {
-          font-size: 0.875rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #6b6560;
-          margin-bottom: 1.25rem;
-        }
-
-        .schema-empty {
-          padding: 2rem;
-          text-align: center;
-          color: #6b6560;
-          font-size: 0.875rem;
-        }
-
-        .tool-empty {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: 400px;
-          text-align: center;
-          color: #6b6560;
-        }
-
-        .tool-empty-icon {
-          font-size: 3rem;
-          margin-bottom: 1rem;
-          opacity: 0.5;
-        }
-
-        .tool-empty-title {
-          font-size: 1.25rem;
-          color: #a8a29e;
-          margin-bottom: 0.5rem;
-        }
-
-        .tool-empty-text {
-          font-size: 0.875rem;
-        }
-        `}
-      </style>
-    </CatalogLayout>
-  );
 }
 
-// Schema viewer component (Swagger-like)
+// Compact Schema viewer
 function SchemaViewer({ schema }: { schema: Record<string, unknown> }) {
   const properties = (schema.properties || {}) as Record<string, SchemaProperty>;
   const required = (schema.required || []) as string[];
@@ -468,9 +908,9 @@ function SchemaViewer({ schema }: { schema: Record<string, unknown> }) {
   }
 
   return (
-    <div class="schema-properties">
+    <div class="schema-props">
       {Object.entries(properties).map(([name, prop]) => (
-        <PropertyRow
+        <CompactPropertyRow
           key={name}
           name={name}
           property={prop}
@@ -480,12 +920,12 @@ function SchemaViewer({ schema }: { schema: Record<string, unknown> }) {
 
       <style>
         {`
-        .schema-properties {
+        .schema-props {
           display: flex;
           flex-direction: column;
           gap: 1px;
-          background: rgba(255, 184, 111, 0.04);
-          border-radius: 8px;
+          background: rgba(255, 184, 111, 0.03);
+          border-radius: 6px;
           overflow: hidden;
         }
         `}
@@ -506,7 +946,7 @@ interface SchemaProperty {
   anyOf?: SchemaProperty[];
 }
 
-function PropertyRow({
+function CompactPropertyRow({
   name,
   property,
   required,
@@ -517,7 +957,7 @@ function PropertyRow({
   required: boolean;
   depth?: number;
 }) {
-  const [expanded, setExpanded] = useState(depth < 2);
+  const [expanded, setExpanded] = useState(false);
   const hasNested =
     property.properties ||
     property.items?.properties ||
@@ -527,54 +967,56 @@ function PropertyRow({
   const typeLabel = getTypeLabel(property);
 
   return (
-    <div class="property-row" style={{ "--depth": depth } as any}>
-      <div class="property-header">
-        <div class="property-name-section">
+    <div class="prop-row" style={{ "--depth": depth } as any}>
+      <div class="prop-main">
+        <div class="prop-left">
           {hasNested && (
             <button
               type="button"
-              class={`property-expand ${expanded ? "expanded" : ""}`}
+              class={`prop-expand ${expanded ? "open" : ""}`}
               onClick={() => setExpanded(!expanded)}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="12" height="12">
                 <path strokeWidth="2" strokeLinecap="round" d="M9 18l6-6-6-6" />
               </svg>
             </button>
           )}
-          <span class="property-name">{name}</span>
-          {required && <span class="property-required">required</span>}
+          <code class="prop-name">{name}</code>
+          {required && <span class="prop-req">*</span>}
         </div>
-        <span class="property-type">{typeLabel}</span>
+        <div class="prop-right">
+          {property.enum && (
+            <span class="prop-enum-badge">enum</span>
+          )}
+          <span class="prop-type">{typeLabel}</span>
+        </div>
       </div>
 
       {property.description && (
-        <p class="property-desc">{property.description}</p>
+        <p class="prop-desc">{property.description}</p>
       )}
 
-      {property.enum && (
-        <div class="property-enum">
-          <span class="property-enum-label">Enum:</span>
+      {/* Inline enum values */}
+      {property.enum && property.enum.length <= 6 && (
+        <div class="prop-enum-vals">
           {property.enum.map((v, i) => (
-            <span key={i} class="property-enum-value">
-              {JSON.stringify(v)}
-            </span>
+            <code key={i} class="prop-enum-val">{JSON.stringify(v)}</code>
           ))}
         </div>
       )}
 
       {property.default !== undefined && (
-        <div class="property-default">
-          <span class="property-default-label">Default:</span>
-          <code class="property-default-value">{JSON.stringify(property.default)}</code>
+        <div class="prop-default">
+          default: <code>{JSON.stringify(property.default)}</code>
         </div>
       )}
 
       {/* Nested properties */}
       {expanded && hasNested && (
-        <div class="property-nested">
+        <div class="prop-nested">
           {property.properties &&
             Object.entries(property.properties).map(([n, p]) => (
-              <PropertyRow
+              <CompactPropertyRow
                 key={n}
                 name={n}
                 property={p}
@@ -584,7 +1026,7 @@ function PropertyRow({
             ))}
           {property.items?.properties &&
             Object.entries(property.items.properties).map(([n, p]) => (
-              <PropertyRow
+              <CompactPropertyRow
                 key={n}
                 name={`[].${n}`}
                 property={p}
@@ -597,132 +1039,128 @@ function PropertyRow({
 
       <style>
         {`
-        .property-row {
+        .prop-row {
           background: #141418;
-          padding: 1rem 1.25rem;
-          padding-left: calc(1.25rem + var(--depth) * 1.5rem);
+          padding: 0.5rem 0.75rem;
+          padding-left: calc(0.75rem + var(--depth) * 1rem);
         }
 
-        .property-header {
+        .prop-main {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 1rem;
-        }
-
-        .property-name-section {
-          display: flex;
-          align-items: center;
           gap: 0.5rem;
         }
 
-        .property-expand {
-          width: 18px;
-          height: 18px;
+        .prop-left {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          min-width: 0;
+        }
+
+        .prop-expand {
+          width: 16px;
+          height: 16px;
           padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           background: none;
           border: none;
           cursor: pointer;
           color: #6b6560;
-          transition: transform 0.15s, color 0.15s;
+          transition: transform 0.12s, color 0.12s;
+          flex-shrink: 0;
         }
 
-        .property-expand:hover {
+        .prop-expand:hover {
           color: #FFB86F;
         }
 
-        .property-expand.expanded {
+        .prop-expand.open {
           transform: rotate(90deg);
         }
 
-        .property-expand svg {
-          width: 14px;
-          height: 14px;
-        }
-
-        .property-name {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: #f0ede8;
-        }
-
-        .property-required {
-          font-size: 0.625rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          padding: 0.125rem 0.375rem;
-          background: rgba(239, 68, 68, 0.15);
-          color: #f87171;
-          border-radius: 3px;
-        }
-
-        .property-type {
+        .prop-name {
           font-family: 'Geist Mono', monospace;
           font-size: 0.75rem;
-          color: #FFB86F;
-          background: rgba(255, 184, 111, 0.08);
-          padding: 0.125rem 0.5rem;
-          border-radius: 4px;
+          font-weight: 500;
+          color: #f0ede8;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
-        .property-desc {
-          margin-top: 0.5rem;
-          font-size: 0.8125rem;
-          line-height: 1.5;
-          color: #a8a29e;
+        .prop-req {
+          color: #f87171;
+          font-weight: 600;
+          font-size: 0.75rem;
         }
 
-        .property-enum {
+        .prop-right {
           display: flex;
-          flex-wrap: wrap;
           align-items: center;
           gap: 0.375rem;
-          margin-top: 0.5rem;
+          flex-shrink: 0;
         }
 
-        .property-enum-label {
-          font-size: 0.6875rem;
+        .prop-enum-badge {
+          font-size: 0.5625rem;
           font-weight: 500;
           text-transform: uppercase;
-          color: #6b6560;
+          padding: 0.0625rem 0.25rem;
+          background: rgba(74, 222, 128, 0.1);
+          color: #4ade80;
+          border-radius: 2px;
         }
 
-        .property-enum-value {
+        .prop-type {
           font-family: 'Geist Mono', monospace;
-          font-size: 0.6875rem;
+          font-size: 0.625rem;
+          color: #FFB86F;
+          background: rgba(255, 184, 111, 0.06);
           padding: 0.125rem 0.375rem;
-          background: rgba(74, 222, 128, 0.08);
-          color: #4ade80;
           border-radius: 3px;
         }
 
-        .property-default {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-top: 0.5rem;
-        }
-
-        .property-default-label {
+        .prop-desc {
+          margin-top: 0.25rem;
           font-size: 0.6875rem;
-          font-weight: 500;
-          text-transform: uppercase;
+          line-height: 1.4;
           color: #6b6560;
         }
 
-        .property-default-value {
+        .prop-enum-vals {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.25rem;
+          margin-top: 0.25rem;
+        }
+
+        .prop-enum-val {
           font-family: 'Geist Mono', monospace;
-          font-size: 0.75rem;
+          font-size: 0.5625rem;
+          padding: 0.0625rem 0.25rem;
+          background: rgba(74, 222, 128, 0.06);
+          color: #4ade80;
+          border-radius: 2px;
+        }
+
+        .prop-default {
+          margin-top: 0.25rem;
+          font-size: 0.625rem;
+          color: #6b6560;
+        }
+
+        .prop-default code {
+          font-family: 'Geist Mono', monospace;
           color: #60a5fa;
         }
 
-        .property-nested {
-          margin-top: 0.5rem;
-          margin-left: -1.25rem;
-          margin-right: -1.25rem;
-          margin-bottom: -1rem;
-          border-top: 1px solid rgba(255, 184, 111, 0.04);
+        .prop-nested {
+          margin: 0.375rem -0.75rem -0.5rem;
+          border-top: 1px solid rgba(255, 184, 111, 0.03);
         }
         `}
       </style>
@@ -732,7 +1170,7 @@ function PropertyRow({
 
 function getTypeLabel(property: SchemaProperty): string {
   if (property.oneOf || property.anyOf) {
-    return "oneOf";
+    return "union";
   }
   if (property.type === "array") {
     const itemType = property.items?.type || "any";
