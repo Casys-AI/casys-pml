@@ -1,0 +1,24 @@
+{
+  "name": "@casys/mcp-std-ui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "panda codegen && node build-all.mjs",
+    "build:ui": "vite build",
+    "dev": "vite",
+    "panda": "panda codegen"
+  },
+  "dependencies": {
+    "preact": "^10.25.4",
+    "@ark-ui/react": "^4.5.0",
+    "@modelcontextprotocol/ext-apps": "^1.0.1"
+  },
+  "devDependencies": {
+    "@pandacss/dev": "^1.8.1",
+    "@park-ui/panda-preset": "^0.42.0",
+    "@preact/preset-vite": "^2.9.4",
+    "vite": "^6.2.0",
+    "vite-plugin-singlefile": "^2.0.3"
+  }
+}
