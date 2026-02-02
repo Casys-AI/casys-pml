@@ -10,6 +10,7 @@
  */
 
 import * as log from "@std/log";
+import { uuidv7 } from "../../utils/uuid.ts";
 import type {
   RpcHandler,
   SandboxError,
@@ -91,7 +92,7 @@ export class SandboxWorker {
 
     const startTime = Date.now();
     // Generate execution ID early for cleanup tracking
-    const executionId = crypto.randomUUID();
+    const executionId = uuidv7();
 
     try {
       // Create worker, transport and bridge if not exists

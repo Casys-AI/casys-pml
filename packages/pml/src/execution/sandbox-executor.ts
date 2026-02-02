@@ -12,6 +12,7 @@
  */
 
 import * as log from "@std/log";
+import { uuidv7 } from "../utils/uuid.ts";
 import { SandboxWorker } from "../sandbox/mod.ts";
 import type { SandboxResult } from "../sandbox/mod.ts";
 import { resolveToolRouting } from "../routing/mod.ts";
@@ -98,7 +99,7 @@ export class SandboxExecutor {
     logDebug(`Executing code in sandbox (${code.length} chars)`);
 
     // Use provided workflowId or generate new one (ADR-041: unified ID for traces + HIL)
-    const traceId = workflowId ?? crypto.randomUUID();
+    const traceId = workflowId ?? uuidv7();
     logDebug(`Workflow/Trace ID: ${traceId}${workflowId ? " (continued)" : " (new)"}`);
 
     const toolsCalled: string[] = [];

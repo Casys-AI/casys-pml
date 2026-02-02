@@ -20,6 +20,7 @@ import type {
 } from "./types.ts";
 import { DEFAULT_SYNC_CONFIG } from "./types.ts";
 import * as log from "@std/log";
+import { uuidv7 } from "../utils/uuid.ts";
 
 /**
  * Log debug message for tracing operations.
@@ -244,7 +245,7 @@ export class TraceSyncer {
     const visited = new Set<string>();
 
     const visit = (trace: LocalExecutionTrace) => {
-      const traceId = trace.traceId ?? crypto.randomUUID();
+      const traceId = trace.traceId ?? uuidv7();
       if (visited.has(traceId)) return;
 
       // Visit parent first if it's in the queue

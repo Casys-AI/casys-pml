@@ -15,6 +15,7 @@
  */
 
 import type { McpDependency } from "../loader/types.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 // =============================================================================
 // Types
@@ -143,7 +144,7 @@ export class PendingWorkflowStore {
     // Clean up expired workflows on each create
     this.cleanup();
 
-    const id = crypto.randomUUID();
+    const id = uuidv7();
     this.workflows.set(id, {
       code,
       toolId,

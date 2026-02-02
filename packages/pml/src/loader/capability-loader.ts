@@ -45,6 +45,7 @@ import {
 import { LockfileManager } from "../lockfile/mod.ts";
 import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
 import { loaderLog } from "../logging.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 import AjvModule from "ajv";
 import type { ErrorObject } from "ajv";
 
@@ -245,7 +246,7 @@ export class CapabilityLoader {
   private getRootWorkflowId(): string {
     return this.traceIdStack.length > 0
       ? this.traceIdStack[0]
-      : crypto.randomUUID();
+      : uuidv7();
   }
 
   private constructor(

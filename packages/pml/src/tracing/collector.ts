@@ -18,6 +18,7 @@ import type {
   TraceTaskResult,
 } from "./types.ts";
 import { sanitizeTrace } from "./sanitizer.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 /**
  * TraceCollector - Accumulates execution trace data.
@@ -61,7 +62,7 @@ export class TraceCollector {
   constructor(options?: { traceId?: string; parentTraceId?: string }) {
     this.startTime = Date.now();
     // Generate traceId if not provided (same pattern as workflowId)
-    this.traceId = options?.traceId ?? crypto.randomUUID();
+    this.traceId = options?.traceId ?? uuidv7();
     this.parentTraceId = options?.parentTraceId;
   }
 

@@ -9,6 +9,7 @@
 
 import { join } from "@std/path";
 import { ensureDir } from "@std/fs";
+import { uuidv7 } from "../utils/uuid.ts";
 import type {
   AddEntryOptions,
   IntegrityApprovalRequired,
@@ -235,7 +236,7 @@ export class LockfileManager {
       newHash: shortHash(serverIntegrity),
       oldFetchedAt: entry.fetchedAt,
       description: `MCP ${base} has changed since last fetch (${entry.fetchedAt}). Old hash: ${shortHash(entry.integrity)}, new hash: ${shortHash(serverIntegrity)}. Approve update?`,
-      workflowId: existingWorkflowId ?? crypto.randomUUID(),
+      workflowId: existingWorkflowId ?? uuidv7(),
     };
   }
 

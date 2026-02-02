@@ -22,6 +22,7 @@ import type {
   UiLayout,
   UiOrchestration,
 } from "../types/ui-orchestration.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 /**
  * Build a composite UI descriptor from collected resources.
@@ -53,7 +54,7 @@ export function buildCompositeUi(
   resources: CollectedUiResource[],
   orchestration?: UiOrchestration,
 ): CompositeUiDescriptor {
-  const workflowId = crypto.randomUUID();
+  const workflowId = uuidv7();
 
   // Build source → slot mapping for sync rule resolution
   const toolToSlot = new Map<string, number>();
