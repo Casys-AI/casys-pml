@@ -325,6 +325,212 @@ This library includes tools inspired by:
 
 ---
 
+---
+
+## MCP Apps UI Components
+
+> **Interactive UI components for MCP hosts** using the MCP Apps extension (SEP-1865).
+
+mcp-std includes **12 interactive UI components** that display tool results visually. When an MCP host supports the Apps extension, these UIs are rendered alongside tool responses. Each UI is atomic and composable.
+
+### UI Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Framework | **Preact** | Lightweight React-compatible (3KB) |
+| Styling | **Panda CSS** | Build-time CSS-in-JS (0KB runtime) |
+| Design System | **Park UI** preset | Tokens, colors, dark mode |
+| Bundle | **Vite + singlefile** | Single HTML with inline CSS/JS (~105KB gzip) |
+
+### Available UIs
+
+#### Data Display
+
+| UI | Description | Associated Tools |
+|----|-------------|------------------|
+| `table-viewer` | Sortable, filterable table with pagination | `psql_query`, `pglite_query`, `mysql_query`, `sqlite_query`, `docker_ps`, `docker_stats` |
+| `json-viewer` | Collapsible tree view with search and path copying | `json_parse`, `json_query`, `schema_infer` |
+| `chart-viewer` | Bar, line, pie charts with interactivity | `math_stats`, `collections_group` |
+
+#### Code & Diff
+
+| UI | Description | Associated Tools |
+|----|-------------|------------------|
+| `diff-viewer` | Unified/split diff display with hunk navigation | `git_diff`, `diff_lines`, `diff_unified` |
+| `log-viewer` | Filterable logs with level highlighting and auto-scroll | `docker_logs` |
+
+#### Metrics & Monitoring
+
+| UI | Description | Associated Tools |
+|----|-------------|------------------|
+| `gauge` | Circular/linear/compact gauge with thresholds | `free` (memory) |
+| `sparkline` | Inline mini chart with trend indicator | `uptime` (load average) |
+| `metrics-panel` | Grafana-style grid of metrics | `df` (disk usage) |
+
+#### Design & Input
+
+| UI | Description | Associated Tools |
+|----|-------------|------------------|
+| `color-picker` | Swatches, formats (HEX/RGB/HSL), palettes, WCAG contrast | `color_parse`, `color_palette`, `color_contrast` |
+| `form-viewer` | Dynamic forms from JSON Schema with validation | `schema_infer`, `validate_schema` |
+| `qr-viewer` | QR code display with download and copy | `qr_generate_url` |
+| `status-badge` | Valid/invalid/warning badges with details | `validate_email`, `validate_url`, `validate_ip` |
+
+### Tool → UI Mapping
+
+Each tool declares its UI via `_meta.ui.resourceUri`:
+
+```typescript
+// In tool definition
+_meta: {
+  ui: {
+    resourceUri: "ui://mcp-std/gauge",
+    emits: ["click"],      // Events the UI sends to model
+    accepts: ["refresh"],  // Commands the UI accepts
+  },
+}
+```
+
+**Complete mapping:**
+
+| Category | Tool | UI |
+|----------|------|----|
+| **Database** | `psql_query` | table-viewer |
+| | `pglite_query` | table-viewer |
+| | `mysql_query` | table-viewer |
+| | `sqlite_query` | table-viewer |
+| **JSON** | `json_parse` | json-viewer |
+| | `json_query` | json-viewer |
+| | `json_compare` | json-viewer |
+| **Math** | `math_stats` | chart-viewer |
+| **Git** | `git_status` | table-viewer |
+| | `git_log` | table-viewer |
+| | `git_diff` | diff-viewer |
+| | `git_branch` | table-viewer |
+| **Diff** | `diff_lines` | diff-viewer |
+| | `diff_unified` | diff-viewer |
+| | `diff_words` | diff-viewer |
+| | `diff_chars` | diff-viewer |
+| | `diff_similarity` | gauge |
+| **Compare** | `diff_text` | diff-viewer |
+| | `diff_json` | json-viewer |
+| | `diff_arrays` | table-viewer |
+| | `compare_deep_equal` | status-badge |
+| **Color** | `color_parse` | color-picker |
+| | `color_palette` | color-picker |
+| | `color_contrast` | color-picker |
+| **System** | `df` | metrics-panel |
+| | `du` | table-viewer |
+| | `free` | gauge |
+| | `uptime` | sparkline |
+| **Docker** | `docker_ps` | table-viewer |
+| | `docker_images` | table-viewer |
+| | `docker_stats` | table-viewer |
+| | `docker_logs` | log-viewer |
+| | `docker_network_ls` | table-viewer |
+| | `docker_volume_ls` | table-viewer |
+| **Kubernetes** | `kubectl_get` | table-viewer |
+| | `kubectl_apply` | status-badge |
+| | `kubectl_logs` | log-viewer |
+| | `kubectl_exec` | log-viewer |
+| **Archive** | `tar_extract` | table-viewer |
+| | `unzip` | table-viewer |
+| **Schema** | `schema_infer` | json-viewer |
+| **QR Code** | `qr_generate_url` | qr-viewer |
+| | `qr_wifi` | qr-viewer |
+| | `qr_vcard` | qr-viewer |
+| **Validation** | `validate_email` | status-badge |
+| | `validate_url` | status-badge |
+| | `validate_ip` | status-badge |
+| **HTTP** | `http_get` | json-viewer |
+| | `http_post` | json-viewer |
+| | `http_request` | json-viewer |
+| | `http_parse_url` | json-viewer |
+| **Network** | `curl_fetch` | json-viewer |
+| | `ping_host` | status-badge |
+| | `dig_lookup` | table-viewer |
+| | `ip_address` | table-viewer |
+| | `traceroute` | table-viewer |
+| **IP Tools** | `cidr_calculate` | json-viewer |
+| | `cidr_contains` | status-badge |
+| | `subnet_divide` | table-viewer |
+| | `ip_convert` | json-viewer |
+| | `ipv6_expand` | json-viewer |
+| | `mac_format` | json-viewer |
+| | `ip_range` | table-viewer |
+| **SSH** | `ssh_exec` | log-viewer |
+| | `rsync` | log-viewer |
+| **Packages** | `npm_run` | log-viewer |
+| | `pip_run` | log-viewer |
+| | `apt_install` | status-badge |
+| | `apt_search` | table-viewer |
+| | `brew_install` | status-badge |
+| **Process** | `ps_list` | table-viewer |
+| **Crypto** | `crypto_jwt_decode` | json-viewer |
+| **Security** | `jwt_verify` | status-badge |
+| | `password_strength` | gauge |
+| **Text Analysis** | `text_readability` | gauge |
+| | `text_sentiment_simple` | gauge |
+| | `text_word_frequency` | chart-viewer |
+| | `text_statistics` | metrics-panel |
+| **Datetime** | `datetime_parse` | json-viewer |
+| | `datetime_cron_parse` | json-viewer |
+| **Timezone** | `tz_world_clock` | table-viewer |
+| | `tz_meeting_planner` | table-viewer |
+| **Geo** | `geo_nearest` | table-viewer |
+| | `geo_distance_matrix` | table-viewer |
+| | `geo_validate` | status-badge |
+| | `geo_point_in_polygon` | status-badge |
+| **Faker** | `faker_person` | table-viewer |
+| | `faker_company` | table-viewer |
+| **State** | `state_keys` | table-viewer |
+| | `state_stats` | metrics-panel |
+| **Collections** | `array_group` | json-viewer |
+| | `array_count_by` | chart-viewer |
+
+### Event Communication
+
+UIs emit events via `structuredContent` that can trigger PML sync rules:
+
+```typescript
+// Table: user selects a row
+{ event: "select", rowIndex: 5, row: { id: 123, name: "Alice" } }
+
+// Log viewer: user filters by level
+{ event: "filterLevel", levels: ["error", "warn"] }
+
+// Gauge: user clicks metric
+{ event: "click", id: "cpu", value: 73 }
+
+// Color picker: user copies color
+{ event: "copy", format: "HEX", value: "#ff5733" }
+```
+
+### Building UIs
+
+```bash
+cd lib/std/src/ui
+npm install
+npm run build    # Builds all 12 UIs to dist/
+```
+
+### Creating Custom UIs
+
+1. Create folder: `src/ui/my-viewer/`
+2. Add `index.html` and `src/main.tsx`
+3. Import Panda CSS: `import { css } from "../../styled-system/css"`
+4. Connect to MCP host:
+   ```typescript
+   const app = new App({ name: "My Viewer", version: "1.0.0" });
+   app.connect();
+   app.ontoolresult = (result) => { /* handle data */ };
+   ```
+5. Build: `npm run build`
+
+See `src/ui/table-viewer/` for a complete example.
+
+---
+
 ## License
 
 MIT

@@ -68,6 +68,13 @@ export const diffTools: MiniTool[] = [
       },
       required: ["oldText", "newText"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/diff-viewer",
+        emits: ["navigate", "copy", "toggleMode"],
+        accepts: ["goToChange", "setMode"],
+      },
+    },
     handler: ({ oldText, newText, contextLines = 3 }) => {
       const oldLines = (oldText as string).split("\n");
       const newLines = (newText as string).split("\n");
@@ -204,6 +211,13 @@ export const diffTools: MiniTool[] = [
       },
       required: ["oldText", "newText"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/diff-viewer",
+        emits: ["navigate", "copy"],
+        accepts: ["goToChange"],
+      },
+    },
     handler: ({ oldText, newText }) => {
       // Tokenize by words while preserving whitespace
       const tokenize = (text: string): string[] => {
@@ -302,6 +316,13 @@ export const diffTools: MiniTool[] = [
       },
       required: ["oldText", "newText"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/diff-viewer",
+        emits: ["navigate", "copy"],
+        accepts: [],
+      },
+    },
     handler: ({ oldText, newText, maxLength = 1000 }) => {
       const old = (oldText as string).slice(0, maxLength as number);
       const new_ = (newText as string).slice(0, maxLength as number);
@@ -383,6 +404,13 @@ export const diffTools: MiniTool[] = [
         contextLines: { type: "number", description: "Context lines (default: 3)" },
       },
       required: ["oldText", "newText"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/diff-viewer",
+        emits: ["navigate", "copy"],
+        accepts: ["goToChange", "setContext"],
+      },
     },
     handler: ({ oldText, newText, oldFile = "a", newFile = "b", contextLines = 3 }) => {
       const oldLines = (oldText as string).split("\n");
@@ -607,6 +635,13 @@ export const diffTools: MiniTool[] = [
         },
       },
       required: ["text1", "text2"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/gauge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: ({ text1, text2, method = "lcs" }) => {
       const t1 = text1 as string;

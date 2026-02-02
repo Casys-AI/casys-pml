@@ -81,6 +81,13 @@ export const pgliteTools: MiniTool[] = [
       },
       required: ["query"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["filter", "sort", "select", "paginate"],
+        accepts: ["setData", "highlight", "scrollTo"],
+      },
+    },
     handler: async ({ query, params, limit = 100, dbPath: customPath }) => {
       const pglite = await getDb(customPath as string | undefined);
 

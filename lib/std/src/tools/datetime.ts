@@ -208,6 +208,13 @@ export const datetimeTools: MiniTool[] = [
       },
       required: ["date"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ date, inputFormat }) => {
       let d: Date;
       if (inputFormat) {
@@ -255,6 +262,13 @@ export const datetimeTools: MiniTool[] = [
         },
       },
       required: ["expression"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ expression }) => {
       const parts = (expression as string).trim().split(/\s+/);

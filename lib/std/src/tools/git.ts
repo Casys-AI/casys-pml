@@ -19,6 +19,13 @@ export const gitTools: MiniTool[] = [
         short: { type: "boolean", description: "Short format output" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "stage", "unstage"],
+        accepts: ["filter"],
+      },
+    },
     handler: async ({ cwd, short = false }) => {
       const args = ["status"];
       if (short) args.push("-s");
@@ -59,6 +66,13 @@ export const gitTools: MiniTool[] = [
         oneline: { type: "boolean", description: "One line per commit" },
         author: { type: "string", description: "Filter by author" },
         since: { type: "string", description: "Show commits since date (e.g., '1 week ago')" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "viewDetails", "copy"],
+        accepts: ["filter", "sort"],
       },
     },
     handler: async ({ cwd, count = 10, oneline = true, author, since }) => {
@@ -104,6 +118,13 @@ export const gitTools: MiniTool[] = [
         stat: { type: "boolean", description: "Show diffstat only" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/diff-viewer",
+        emits: ["navigate", "copy", "toggleMode"],
+        accepts: ["goToChange", "setMode"],
+      },
+    },
     handler: async ({ cwd, staged = false, file, stat = false }) => {
       const args = ["diff"];
       if (staged) args.push("--staged");
@@ -128,6 +149,13 @@ export const gitTools: MiniTool[] = [
         cwd: { type: "string", description: "Repository path" },
         all: { type: "boolean", description: "Show all branches including remote" },
         current: { type: "boolean", description: "Show current branch only" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "checkout", "delete"],
+        accepts: ["filter"],
       },
     },
     handler: async ({ cwd, all = false, current = false }) => {

@@ -27,6 +27,13 @@ export const httpTools: MiniTool[] = [
       },
       required: ["url"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "copy"],
+        accepts: ["expandPath"],
+      },
+    },
     handler: async ({ url, headers, responseType = "json" }) => {
       try {
         const response = await fetch(url as string, {
@@ -76,6 +83,13 @@ export const httpTools: MiniTool[] = [
         },
       },
       required: ["url"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "copy"],
+        accepts: ["expandPath"],
+      },
     },
     handler: async ({ url, body, headers = {}, contentType = "json" }) => {
       try {
@@ -131,6 +145,13 @@ export const httpTools: MiniTool[] = [
         body: { description: "Request body" },
       },
       required: ["url", "method"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "copy"],
+        accepts: ["expandPath"],
+      },
     },
     handler: async ({ url, method, headers, body }) => {
       try {
@@ -206,6 +227,13 @@ export const httpTools: MiniTool[] = [
         url: { type: "string", description: "URL to parse" },
       },
       required: ["url"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ url }) => {
       try {

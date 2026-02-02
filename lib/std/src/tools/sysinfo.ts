@@ -112,6 +112,13 @@ export const sysinfoTools: MiniTool[] = [
         human: { type: "boolean", description: "Human readable sizes (default: true)" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/metrics-panel",
+        emits: ["selectMetric"],
+        accepts: ["refresh"],
+      },
+    },
     handler: async ({ path, human = true }) => {
       const args = [];
       if (human) args.push("-h");
@@ -154,6 +161,13 @@ export const sysinfoTools: MiniTool[] = [
       },
       required: ["path"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "sort"],
+        accepts: ["highlight"],
+      },
+    },
     handler: async ({ path, depth, human = true, summarize }) => {
       const args = [];
       if (human) args.push("-h");
@@ -184,6 +198,13 @@ export const sysinfoTools: MiniTool[] = [
       type: "object",
       properties: {
         human: { type: "boolean", description: "Human readable sizes (default: true)" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/gauge",
+        emits: ["click"],
+        accepts: ["refresh"],
       },
     },
     handler: async ({ human = true }) => {
@@ -290,6 +311,13 @@ export const sysinfoTools: MiniTool[] = [
       type: "object",
       properties: {},
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/sparkline",
+        emits: ["click"],
+        accepts: ["refresh"],
+      },
+    },
     handler: async () => {
       const result = await runCommand("uptime", ["-p"]);
       const uptime = result.stdout.trim();
@@ -332,4 +360,4 @@ export const sysinfoTools: MiniTool[] = [
       };
     },
   },
-];
+  ];

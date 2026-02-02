@@ -84,6 +84,13 @@ export const iptoolsTools: MiniTool[] = [
       },
       required: ["cidr"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy", "expand"],
+        accepts: [],
+      },
+    },
     handler: ({ cidr }) => {
       const [ipStr, prefixStr] = (cidr as string).split("/");
       if (!isValidIPv4(ipStr)) {
@@ -161,6 +168,13 @@ export const iptoolsTools: MiniTool[] = [
       },
       required: ["cidr", "ip"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: ({ cidr, ip }) => {
       const [networkStr, prefixStr] = (cidr as string).split("/");
       if (!isValidIPv4(networkStr) || !isValidIPv4(ip as string)) {
@@ -203,6 +217,13 @@ export const iptoolsTools: MiniTool[] = [
         },
       },
       required: ["cidr"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "copy"],
+        accepts: ["filter", "sort"],
+      },
     },
     handler: ({ cidr, count, newPrefix }) => {
       const [networkStr, prefixStr] = (cidr as string).split("/");
@@ -276,6 +297,13 @@ export const iptoolsTools: MiniTool[] = [
       },
       required: ["ip"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ ip, from }) => {
       let num: number;
       const input = (ip as string).trim();
@@ -340,6 +368,13 @@ export const iptoolsTools: MiniTool[] = [
         },
       },
       required: ["ipv6"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ ipv6, action: _action = "expand" }) => {
       const input = (ipv6 as string).toLowerCase().trim();
@@ -411,6 +446,13 @@ export const iptoolsTools: MiniTool[] = [
       },
       required: ["mac"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ mac, format = "colon", uppercase = true }) => {
       // Extract hex digits
       const input = (mac as string).replace(/[^0-9a-fA-F]/g, "");
@@ -477,6 +519,13 @@ export const iptoolsTools: MiniTool[] = [
         end: { type: "string", description: "End IP address" },
       },
       required: ["start", "end"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "copy"],
+        accepts: ["filter"],
+      },
     },
     handler: ({ start, end }) => {
       if (!isValidIPv4(start as string) || !isValidIPv4(end as string)) {

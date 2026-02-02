@@ -31,6 +31,13 @@ export const kubernetesTools: MiniTool[] = [
       },
       required: ["resource"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "describe", "delete"],
+        accepts: ["filter", "namespace"],
+      },
+    },
     handler: async (
       { resource, name, namespace, output = "json", selector, allNamespaces = false },
     ) => {
@@ -70,6 +77,13 @@ export const kubernetesTools: MiniTool[] = [
       },
       required: ["file"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click", "viewOutput"],
+        accepts: [],
+      },
+    },
     handler: async ({ file, namespace, dryRun = false }) => {
       const args = ["apply", "-f", file as string];
       if (namespace) args.push("-n", namespace as string);
@@ -99,6 +113,13 @@ export const kubernetesTools: MiniTool[] = [
       },
       required: ["pod"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["search", "filter", "copy"],
+        accepts: ["filter", "tail", "refresh"],
+      },
+    },
     handler: async ({ pod, namespace, container, tail, since, follow }) => {
       const args = ["logs", pod as string];
       if (namespace) args.push("-n", namespace as string);
@@ -125,6 +146,13 @@ export const kubernetesTools: MiniTool[] = [
         container: { type: "string", description: "Container name" },
       },
       required: ["pod", "command"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: async ({ pod, command, namespace, container }) => {
       const args = ["exec", pod as string];

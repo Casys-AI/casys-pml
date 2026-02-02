@@ -649,6 +649,13 @@ export const cryptoTools: MiniTool[] = [
       },
       required: ["token"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy", "select"],
+        accepts: ["expandPath"],
+      },
+    },
     handler: ({ token }) => {
       const parts = (token as string).split(".");
       if (parts.length !== 3) {

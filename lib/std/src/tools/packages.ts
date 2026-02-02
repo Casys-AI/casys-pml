@@ -25,6 +25,13 @@ export const packagesTools: MiniTool[] = [
       },
       required: ["command"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["copy", "search"],
+        accepts: [],
+      },
+    },
     handler: async ({ command, args = [], cwd }) => {
       const cmdArgs = [command as string, ...(args as string[])];
       const result = await runCommand("npm", cmdArgs, { cwd: cwd as string, timeout: 300000 });
@@ -55,6 +62,13 @@ export const packagesTools: MiniTool[] = [
       },
       required: ["command"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["copy", "search"],
+        accepts: [],
+      },
+    },
     handler: async ({ command, packages = [], upgrade = false }) => {
       const args = [command as string];
       if (upgrade && command === "install") args.push("--upgrade");
@@ -83,6 +97,13 @@ export const packagesTools: MiniTool[] = [
       },
       required: ["packages"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["viewOutput"],
+        accepts: [],
+      },
+    },
     handler: async ({ packages, update }) => {
       if (update) {
         await runCommand("apt", ["update"], { timeout: 120000 });
@@ -109,6 +130,13 @@ export const packagesTools: MiniTool[] = [
       },
       required: ["query"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "install"],
+        accepts: ["filter"],
+      },
+    },
     handler: async ({ query }) => {
       const result = await runCommand("apt", ["search", query as string]);
       return { output: result.stdout };
@@ -126,6 +154,13 @@ export const packagesTools: MiniTool[] = [
         cask: { type: "boolean", description: "Install as cask" },
       },
       required: ["packages"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["viewOutput"],
+        accepts: [],
+      },
     },
     handler: async ({ packages, cask }) => {
       const args = cask ? ["install", "--cask"] : ["install"];

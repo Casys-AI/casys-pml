@@ -272,6 +272,13 @@ export const geoTools: MiniTool[] = [
       },
       required: ["point", "polygon"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: ({ point, polygon }) => {
       const pt = point as { lat: number; lon: number };
       const poly = polygon as Array<{ lat: number; lon: number }>;
@@ -388,6 +395,13 @@ export const geoTools: MiniTool[] = [
         lon: { type: "number", description: "Longitude to validate" },
       },
       required: ["lat", "lon"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: ({ lat, lon }) => {
       const latValid = (lat as number) >= -90 && (lat as number) <= 90;
@@ -510,6 +524,13 @@ export const geoTools: MiniTool[] = [
         maxDistance: { type: "number", description: "Max distance in km (optional)" },
       },
       required: ["reference", "points"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "mapPin"],
+        accepts: ["highlight", "sort"],
+      },
     },
     handler: ({ reference, points, limit = 1, maxDistance }) => {
       const ref = reference as { lat: number; lon: number };
@@ -634,6 +655,13 @@ export const geoTools: MiniTool[] = [
         },
       },
       required: ["points"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["cellClick", "export"],
+        accepts: ["highlight"],
+      },
     },
     handler: ({ points, unit = "km" }) => {
       const pts = points as Array<{ lat: number; lon: number; id?: string }>;

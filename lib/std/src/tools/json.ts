@@ -20,6 +20,13 @@ export const jsonTools: MiniTool[] = [
       },
       required: ["json"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "expand", "collapse", "copy"],
+        accepts: ["highlight", "expandPath"],
+      },
+    },
     handler: ({ json }) => JSON.parse(json as string),
   },
   {
@@ -53,6 +60,13 @@ export const jsonTools: MiniTool[] = [
         },
       },
       required: ["data", "expression"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "expand", "collapse", "copy"],
+        accepts: ["highlight", "expandPath"],
+      },
     },
     handler: ({ data, expression }) => {
       try {
@@ -254,6 +268,13 @@ export const jsonTools: MiniTool[] = [
         ignoreOrder: { type: "boolean", description: "Ignore array order (default: false)" },
       },
       required: ["obj1", "obj2"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "expand", "goToDiff"],
+        accepts: ["highlight", "expandPath"],
+      },
     },
     handler: ({ obj1, obj2, ignoreOrder = false }) => {
       type Diff = {

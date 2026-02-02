@@ -23,6 +23,13 @@ export const sshTools: MiniTool[] = [
       },
       required: ["host", "command"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["copy", "search"],
+        accepts: [],
+      },
+    },
     handler: async ({ host, command, port, identity, timeout = 30 }) => {
       const args = ["-o", "StrictHostKeyChecking=no", "-o", `ConnectTimeout=${timeout}`];
       if (port) args.push("-p", String(port));
@@ -85,6 +92,13 @@ export const sshTools: MiniTool[] = [
         exclude: { type: "array", items: { type: "string" }, description: "Patterns to exclude" },
       },
       required: ["source", "destination"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: async ({ source, destination, delete: del = false, dryRun = false, exclude = [] }) => {
       const args = ["-avz", "--progress"];

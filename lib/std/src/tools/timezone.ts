@@ -212,6 +212,13 @@ export const timezoneTools: MiniTool[] = [
         },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "refresh"],
+        accepts: ["refresh"],
+      },
+    },
     handler: ({ timezones, format = "24h" }) => {
       const tzList = (timezones as string[]) || WORLD_TIMEZONES;
       const now = new Date();
@@ -434,6 +441,13 @@ export const timezoneTools: MiniTool[] = [
         duration: { type: "number", description: "Meeting duration in minutes (default: 60)" },
       },
       required: ["timezones"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "slotClick"],
+        accepts: ["highlight"],
+      },
     },
     handler: ({ timezones, date, workStart = 9, workEnd = 17, duration = 60 }) => {
       const tzList = (timezones as string[]).map(

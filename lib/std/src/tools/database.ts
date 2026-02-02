@@ -181,6 +181,13 @@ export const databaseTools: MiniTool[] = [
       },
       required: ["database", "user", "query"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["filter", "sort", "select", "paginate"],
+        accepts: ["setData", "highlight", "scrollTo"],
+      },
+    },
     handler: async ({ host = "localhost", port = 3306, database, user, password, query }) => {
       const args = ["-h", host as string, "-P", String(port), "-u", user as string];
       if (password) args.push(`-p${password}`);

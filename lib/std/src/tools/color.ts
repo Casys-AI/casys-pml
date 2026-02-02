@@ -376,6 +376,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["copy", "select"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color }) => {
       const c = (color as string).trim().toLowerCase();
 
@@ -586,6 +593,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["select", "copy"],
+        accepts: ["setPalette", "setType"],
+      },
+    },
     handler: ({ color, type = "complementary", count = 5 }) => {
       const c = (color as string).trim().toLowerCase();
       const hex = c.startsWith("#") ? c : namedColors[c] || `#${c}`;
@@ -707,6 +721,13 @@ export const colorTools: MiniTool[] = [
         background: { type: "string", description: "Background color in hex" },
       },
       required: ["foreground", "background"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["copy", "swapColors"],
+        accepts: ["setForeground", "setBackground"],
+      },
     },
     handler: ({ foreground, background }) => {
       const fg = hexToRgb(

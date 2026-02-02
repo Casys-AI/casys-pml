@@ -135,6 +135,13 @@ export const securityTools: MiniTool[] = [
       },
       required: ["token", "secret"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: async ({ token, secret, ignoreExpiration = false }) => {
       try {
         const parts = (token as string).split(".");
@@ -211,6 +218,13 @@ export const securityTools: MiniTool[] = [
         password: { type: "string", description: "Password to analyze" },
       },
       required: ["password"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/gauge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: ({ password }) => {
       const pwd = password as string;

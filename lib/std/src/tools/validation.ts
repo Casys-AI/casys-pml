@@ -23,6 +23,13 @@ export const validationTools: MiniTool[] = [
       },
       required: ["email"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: ({ email }) => ({
       valid: validator.isEmail(email as string),
       normalized: validator.normalizeEmail(email as string) || email,
@@ -45,6 +52,13 @@ export const validationTools: MiniTool[] = [
         requireProtocol: { type: "boolean", description: "Require protocol (default: true)" },
       },
       required: ["url"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: ({ url, protocols = ["http", "https"], requireProtocol = true }) => ({
       valid: validator.isURL(url as string, {
@@ -98,6 +112,13 @@ export const validationTools: MiniTool[] = [
         version: { type: "number", enum: [4, 6], description: "IP version (4 or 6)" },
       },
       required: ["ip"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: ({ ip, version }) => ({
       valid: validator.isIP(ip as string, version as 4 | 6 | undefined),

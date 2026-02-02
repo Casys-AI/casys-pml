@@ -50,6 +50,13 @@ export const mathTools: MiniTool[] = [
       },
       required: ["numbers"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/chart-viewer",
+        emits: ["select", "hover", "zoom"],
+        accepts: ["setChartType", "highlight"],
+      },
+    },
     handler: ({ numbers }) => {
       const nums = numbers as number[];
       if (nums.length === 0) {

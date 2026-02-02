@@ -21,6 +21,13 @@ export const processTools: MiniTool[] = [
         limit: { type: "number", description: "Limit number of results" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "sort", "filter"],
+        accepts: ["highlight"],
+      },
+    },
     handler: async ({ filter, user, sort = "cpu", limit = 20 }) => {
       const sortField = { cpu: "-%cpu", mem: "-%mem", pid: "pid", time: "-time" }[sort as string] ||
         "-%cpu";

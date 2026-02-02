@@ -29,6 +29,13 @@ export const networkTools: MiniTool[] = [
       },
       required: ["url"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy", "expand"],
+        accepts: [],
+      },
+    },
     handler: async (
       {
         url,
@@ -93,6 +100,13 @@ export const networkTools: MiniTool[] = [
       },
       required: ["domain"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "copy"],
+        accepts: ["highlight"],
+      },
+    },
     handler: async ({ domain, type = "A", server, short = true }) => {
       const args = [];
       if (server) args.push(`@${server}`);
@@ -124,6 +138,13 @@ export const networkTools: MiniTool[] = [
         timeout: { type: "number", description: "Timeout per ping in seconds (default: 5)" },
       },
       required: ["host"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: async ({ host, count = 4, timeout = 5 }) => {
       const args = ["-c", String(count), "-W", String(timeout), host as string];
@@ -217,6 +238,13 @@ export const networkTools: MiniTool[] = [
       },
       required: ["host"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select"],
+        accepts: [],
+      },
+    },
     handler: async ({ host, maxHops = 30 }) => {
       const args = ["-m", String(maxHops), host as string];
 
@@ -299,6 +327,13 @@ export const networkTools: MiniTool[] = [
       type: "object",
       properties: {
         interface: { type: "string", description: "Specific interface" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select"],
+        accepts: [],
       },
     },
     handler: async ({ interface: iface }) => {

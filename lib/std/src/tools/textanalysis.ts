@@ -75,6 +75,13 @@ export const textanalysisTools: MiniTool[] = [
       },
       required: ["text"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/gauge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: ({ text }) => {
       const txt = text as string;
       const sentences = getSentences(txt);
@@ -161,6 +168,13 @@ export const textanalysisTools: MiniTool[] = [
       },
       required: ["text"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/metrics-panel",
+        emits: ["selectMetric"],
+        accepts: [],
+      },
+    },
     handler: ({ text, wordsPerMinute = 200 }) => {
       const txt = text as string;
       const words = getWords(txt);
@@ -235,6 +249,13 @@ export const textanalysisTools: MiniTool[] = [
       },
       required: ["text"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/chart-viewer",
+        emits: ["barClick", "hover"],
+        accepts: ["highlight"],
+      },
+    },
     handler: ({ text, limit = 20, minLength = 1, excludeStopwords = true, ngram = 1 }) => {
       const words = getWords(text as string);
 
@@ -306,6 +327,13 @@ export const textanalysisTools: MiniTool[] = [
         text: { type: "string", description: "Text to analyze" },
       },
       required: ["text"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/gauge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: ({ text }) => {
       const words = getWords(text as string);

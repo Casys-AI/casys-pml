@@ -19,6 +19,13 @@ export const dockerTools: MiniTool[] = [
         format: { type: "string", description: "Output format (json, table)" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "filter"],
+        accepts: ["highlight"],
+      },
+    },
     handler: async ({ all = false, format = "json" }) => {
       const args = ["ps"];
       if (all) args.push("-a");
@@ -47,6 +54,13 @@ export const dockerTools: MiniTool[] = [
       properties: {
         all: { type: "boolean", description: "Show all images including intermediates" },
         format: { type: "string", description: "Output format (json, table)" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "delete"],
+        accepts: ["filter", "sort"],
       },
     },
     handler: async ({ all = false, format = "json" }) => {
@@ -80,6 +94,13 @@ export const dockerTools: MiniTool[] = [
         since: { type: "string", description: "Show logs since timestamp (e.g., '10m', '1h')" },
       },
       required: ["container"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["filterLevel", "filterText", "selectLine"],
+        accepts: ["setFilter", "scrollTo"],
+      },
     },
     handler: async ({ container, tail = 100, since }) => {
       const args = ["logs", "--tail", String(tail)];
@@ -135,6 +156,13 @@ export const dockerTools: MiniTool[] = [
           type: "string",
           description: "Container ID or name (optional, all if omitted)",
         },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "sort"],
+        accepts: ["highlight"],
       },
     },
     handler: async ({ container }) => {
@@ -428,6 +456,13 @@ export const dockerTools: MiniTool[] = [
         format: { type: "string", description: "Output format (json, table)" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select"],
+        accepts: ["filter"],
+      },
+    },
     handler: async ({ format = "json" }) => {
       const args = ["network", "ls"];
       if (format === "json") args.push("--format", "{{json .}}");
@@ -454,6 +489,13 @@ export const dockerTools: MiniTool[] = [
       type: "object",
       properties: {
         format: { type: "string", description: "Output format (json, table)" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "delete"],
+        accepts: ["filter"],
       },
     },
     handler: async ({ format = "json" }) => {
