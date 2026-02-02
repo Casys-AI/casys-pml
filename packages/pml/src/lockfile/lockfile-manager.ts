@@ -186,12 +186,14 @@ export class LockfileManager {
    * @param fqdn - Full 5-part FQDN
    * @param serverIntegrity - Integrity hash from server
    * @param type - MCP type
+   * @param existingWorkflowId - Optional: reuse existing workflowId (from execute_locally flow)
    * @returns Validation result or approval required
    */
   async validateIntegrity(
     fqdn: string,
     serverIntegrity: string,
     type: "deno" | "stdio",
+    existingWorkflowId?: string,
   ): Promise<IntegrityValidationResult | IntegrityApprovalRequired> {
     const base = fqdnBase(fqdn);
     const entry = await this.getEntry(base);
@@ -224,6 +226,7 @@ export class LockfileManager {
     }
 
     // AC14: Hash mismatch - need user approval
+    // Reuse existingWorkflowId if provided (from execute_locally flow) to preserve LearningContext correlation
     return {
       approvalRequired: true,
       approvalType: "integrity",
@@ -232,7 +235,7 @@ export class LockfileManager {
       newHash: shortHash(serverIntegrity),
       oldFetchedAt: entry.fetchedAt,
       description: `MCP ${base} has changed since last fetch (${entry.fetchedAt}). Old hash: ${shortHash(entry.integrity)}, new hash: ${shortHash(serverIntegrity)}. Approve update?`,
-      workflowId: crypto.randomUUID(),
+      workflowId: existingWorkflowId ?? crypto.randomUUID(),
     };
   }
 

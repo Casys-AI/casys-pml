@@ -581,6 +581,7 @@ export class CapabilityLoader {
    * @param args - Tool arguments
    * @param continueWorkflow - Optional: approval from previous call
    * @param parentTraceId - Optional: trace ID of parent execution (ADR-041)
+   * @param serverWorkflowId - Optional: workflowId from execute_locally flow for LearningContext correlation
    * @returns Tool result or ApprovalRequiredResult
    */
   async callWithFqdn(
@@ -588,6 +589,7 @@ export class CapabilityLoader {
     args: unknown,
     continueWorkflow?: ContinueWorkflowParams,
     parentTraceId?: string,
+    serverWorkflowId?: string,
   ): Promise<unknown | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Extract action from FQDN: org.project.namespace.action[.hash]
     const parts = fqdn.split(".");
@@ -601,7 +603,7 @@ export class CapabilityLoader {
     const action = parts[3]; // 4th segment is the action
 
     // Load capability by FQDN
-    const loadResult = await this.loadByFqdn(fqdn, continueWorkflow);
+    const loadResult = await this.loadByFqdn(fqdn, continueWorkflow, serverWorkflowId);
 
     if (CapabilityLoader.isApprovalRequired(loadResult)) {
       return loadResult;
@@ -631,11 +633,13 @@ export class CapabilityLoader {
    *
    * @param fqdn - Full FQDN (e.g., "alice.default.fs.listDirectory")
    * @param continueWorkflow - Optional: approval from previous call
+   * @param serverWorkflowId - Optional: workflowId from execute_locally flow for LearningContext correlation
    * @returns Loaded capability or approval required result
    */
   private async loadByFqdn(
     fqdn: string,
     continueWorkflow?: ContinueWorkflowParams,
+    serverWorkflowId?: string,
   ): Promise<LoadedCapability | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Check cache (using FQDN as key)
     const cached = this.loadedCapabilities.get(fqdn);
@@ -647,6 +651,7 @@ export class CapabilityLoader {
       const fetchResult = await this.registryClient.fetchWithIntegrity(
         fqdn,
         this.lockfileManager,
+        serverWorkflowId,
       );
 
       // If hash changed, need re-approval even for cached capability
@@ -679,6 +684,7 @@ export class CapabilityLoader {
       const fetchResult = await this.registryClient.fetchWithIntegrity(
         fqdn,
         this.lockfileManager,
+        serverWorkflowId,
       );
 
       // Check if integrity approval is required (hash changed)
