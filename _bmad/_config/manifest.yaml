@@ -1,26 +1,26 @@
 installation:
-  version: 6.0.0-Beta.1
+  version: 6.0.0-Beta.5
   installDate: 2026-01-26T08:44:45.075Z
-  lastUpdated: 2026-01-26T09:03:09.562Z
+  lastUpdated: 2026-02-02T01:36:12.515Z
 modules:
   - name: core
-    version: 6.0.0-Beta.1
+    version: 6.0.0-Beta.5
     installDate: 2026-01-26T08:44:44.634Z
-    lastUpdated: 2026-01-26T09:03:09.310Z
+    lastUpdated: 2026-02-02T01:36:12.223Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: bmm
-    version: 6.0.0-Beta.1
+    version: 6.0.0-Beta.5
     installDate: 2026-01-26T08:44:36.699Z
-    lastUpdated: 2026-01-26T09:03:09.310Z
+    lastUpdated: 2026-02-02T01:36:12.223Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: cis
-    version: 0.1.2
+    version: 0.1.4
     installDate: 2026-01-26T08:44:44.580Z
-    lastUpdated: 2026-01-26T09:03:09.562Z
+    lastUpdated: 2026-02-02T01:36:12.515Z
     source: external
     npmPackage: bmad-creative-intelligence-suite
     repoUrl: https://github.com/bmad-code-org/bmad-module-creative-intelligence-suite
