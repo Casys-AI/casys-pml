@@ -338,7 +338,7 @@ development_status:
   16-1-types-schema-ui-orchestration: done # Types & Schema - Code Review APPROVED 2026-01-28, 7 issues fixed
   16-2-mcp-server-resources-handlers: done # resources/list, resources/read - implemented in packages/pml (stdio + serve)
   16-3-ui-collection-sandbox-executor: done # Code Review APPROVED 2026-01-29, 20 tests, lint fixes applied
-  16-4-composite-ui-generator: backlog # Build composite HTML with event bus
+  16-4-composite-ui-generator: done # Code Review PASSED 2026-02-02: All 9 issues fixed (2 HIGH, 4 MEDIUM, 3 LOW), 31 tests passing
   16-5-message-transport-abstraction: backlog # MessageTransport interface for Workers & iframes
   16-6-dev-frontend-preview-mode: backlog # Optional - Storybook-like preview
   16-7-migrate-gateway-concurrent-server: backlog # Tech debt: reuse lib/server ConcurrentMCPServer
