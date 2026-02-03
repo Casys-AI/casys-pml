@@ -74,7 +74,32 @@ const capabilities: Array<{
   toolsUsed: string[];
   successRate: number;
   description?: string;
+  parents?: string[];
+  children?: string[];
 }> = [];
+
+// Load hierarchy from capability_dependency
+console.log("   Loading hierarchy from capability_dependency...");
+const hierarchyRows = await db.query(
+  `SELECT from_capability_id, to_capability_id
+   FROM capability_dependency
+   WHERE edge_type = 'contains'`,
+);
+const childrenMap = new Map<string, string[]>();
+const parentsMap = new Map<string, string[]>();
+for (const row of hierarchyRows) {
+  const fromId = row.from_capability_id as string;
+  const toId = row.to_capability_id as string;
+  // from contains to → from is parent, to is child
+  const children = childrenMap.get(fromId) || [];
+  children.push(toId);
+  childrenMap.set(fromId, children);
+
+  const parents = parentsMap.get(toId) || [];
+  parents.push(fromId);
+  parentsMap.set(toId, parents);
+}
+console.log(`   Found ${hierarchyRows.length} hierarchy edges`);
 
 for (const capId of capabilityIds) {
   const capResult = await db.query(
@@ -115,12 +140,15 @@ for (const capId of capabilityIds) {
         embedding = cleaned.split(",").map(Number);
       }
     }
+    const capId = row.pattern_id as string;
     capabilities.push({
-      id: row.pattern_id as string,
+      id: capId,
       embedding,
       toolsUsed,
       successRate: (row.success_rate as number) || 0.5,
       description: row.description as string | undefined,
+      parents: parentsMap.get(capId),
+      children: childrenMap.get(capId),
     });
   }
 }
@@ -236,13 +264,19 @@ const output = {
     },
   },
   nodes: {
-    capabilities: capabilities.map((c) => ({
-      id: c.id,
-      embedding: c.embedding,
-      toolsUsed: c.toolsUsed,
-      successRate: c.successRate,
-      description: c.description,
-    })),
+    // Filter parents/children to only include capabilities that exist in our export
+    capabilities: (() => {
+      const exportedCapIds = new Set(capabilities.map(c => c.id));
+      return capabilities.map((c) => ({
+        id: c.id,
+        embedding: c.embedding,
+        toolsUsed: c.toolsUsed,
+        successRate: c.successRate,
+        description: c.description,
+        parents: c.parents?.filter(p => exportedCapIds.has(p)),
+        children: c.children?.filter(ch => exportedCapIds.has(ch)),
+      }));
+    })(),
     // Include ALL tools from DB (not just used ones) for better SHGAT context
     tools: Array.from(toolEmbeddings.entries()).map(([id, embedding]) => ({
       id,

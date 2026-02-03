@@ -150,3 +150,10 @@ exports/
 # MCP backup
 .mcp.json.backup
 tests/unit/mcp/algorithm-init/
+
+## Panda
+styled-system
+styled-system-studio
+
+## garage
+data/

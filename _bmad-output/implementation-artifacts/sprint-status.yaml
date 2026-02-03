@@ -340,6 +340,6 @@ development_status:
   16-3-ui-collection-sandbox-executor: done # Code Review APPROVED 2026-01-29, 20 tests, lint fixes applied
   16-4-composite-ui-generator: done # Code Review PASSED 2026-02-02: All 9 issues fixed (2 HIGH, 4 MEDIUM, 3 LOW), 31 tests passing
   16-5-message-transport-abstraction: done # Code Review 2026-02-02: All 10 issues fixed (4 HIGH, 3 MEDIUM, 3 LOW), 547 tests passing
-  16-6-dev-frontend-preview-mode: backlog # Optional - Storybook-like preview
+  16-6-dev-frontend-preview-mode: in-progress # Code Review 2026-02-03: 2 MEDIUM (tests, placeholder HTML), 1 LOW - UI read-only by design
   16-7-migrate-gateway-concurrent-server: backlog # Tech debt: reuse lib/server ConcurrentMCPServer
   epic-16-retrospective: optional
