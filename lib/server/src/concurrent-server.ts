@@ -50,6 +50,25 @@ interface RegisteredResourceInfo {
 }
 
 /**
+ * SSE client connection for Streamable HTTP
+ */
+interface SSEClient {
+  sessionId: string;
+  controller: ReadableStreamDefaultController<Uint8Array>;
+  createdAt: number;
+  lastEventId: number;
+}
+
+/**
+ * Generate a cryptographically secure session ID
+ */
+function generateSessionId(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
  * ConcurrentMCPServer provides a high-performance MCP server
  *
  * Features:
@@ -83,6 +102,10 @@ export class ConcurrentMCPServer {
   private resources = new Map<string, RegisteredResourceInfo>();
   private options: ConcurrentServerOptions;
   private started = false;
+
+  // Streamable HTTP session management
+  private sessions = new Map<string, { createdAt: number; lastActivity: number }>();
+  private sseClients = new Map<string, SSEClient[]>(); // sessionId -> clients
 
   constructor(options: ConcurrentServerOptions) {
     this.options = options;
@@ -190,7 +213,8 @@ export class ConcurrentMCPServer {
         const result = await tool.handler(args);
 
         // Format response according to MCP protocol
-        return {
+        // Include _meta from tool definition for MCP Apps UI support
+        const response: { content: Array<{ type: "text"; text: string }>; _meta?: Record<string, unknown> } = {
           content: [
             {
               type: "text",
@@ -200,6 +224,10 @@ export class ConcurrentMCPServer {
             },
           ],
         };
+        if (tool._meta) {
+          response._meta = tool._meta as Record<string, unknown>;
+        }
+        return response;
       } catch (error) {
         // Log error and re-throw for MCP error response
         this.log(
@@ -502,9 +530,76 @@ export class ConcurrentMCPServer {
     // Health check endpoint
     app.get("/health", (c) => c.json({ status: "ok", server: this.options.name, version: this.options.version }));
 
-    // MCP endpoint - GET returns 405 (Streamable HTTP spec)
-    app.get("/mcp", (c) => c.text("Method Not Allowed", 405));
-    app.get("/", (c) => c.text("Method Not Allowed", 405));
+    // MCP endpoint - GET opens SSE stream for server→client messages (Streamable HTTP spec)
+    // deno-lint-ignore no-explicit-any
+    const handleMcpGet = (c: any) => {
+      const accept = c.req.header("Accept") ?? c.req.header("accept") ?? "";
+      const sessionId = c.req.header("Mcp-Session-Id") ?? c.req.header("mcp-session-id");
+      const lastEventId = c.req.header("Last-Event-Id") ?? c.req.header("last-event-id");
+
+      // Check if client accepts SSE
+      if (!accept.includes("text/event-stream")) {
+        return c.text("Method Not Allowed", 405);
+      }
+
+      // Validate session if provided
+      if (sessionId && !this.sessions.has(sessionId)) {
+        return c.text("Session not found", 404);
+      }
+
+      // Create SSE stream
+      const encoder = new TextEncoder();
+      let sseClient: SSEClient | null = null;
+
+      const stream = new ReadableStream<Uint8Array>({
+        start: (controller) => {
+          const clientSessionId = sessionId ?? "anonymous";
+          sseClient = {
+            sessionId: clientSessionId,
+            controller,
+            createdAt: Date.now(),
+            lastEventId: lastEventId ? parseInt(lastEventId, 10) : 0,
+          };
+
+          // Register client
+          if (!this.sseClients.has(clientSessionId)) {
+            this.sseClients.set(clientSessionId, []);
+          }
+          this.sseClients.get(clientSessionId)!.push(sseClient);
+
+          this.log(`SSE client connected (session: ${clientSessionId})`);
+
+          // Send initial comment to establish connection
+          controller.enqueue(encoder.encode(": connected\n\n"));
+        },
+        cancel: () => {
+          // Remove client on disconnect
+          if (sseClient) {
+            const clients = this.sseClients.get(sseClient.sessionId);
+            if (clients) {
+              const idx = clients.indexOf(sseClient);
+              if (idx !== -1) clients.splice(idx, 1);
+              if (clients.length === 0) this.sseClients.delete(sseClient.sessionId);
+            }
+            this.log(`SSE client disconnected (session: ${sseClient.sessionId})`);
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          ...(sessionId ? { "Mcp-Session-Id": sessionId } : {}),
+        },
+      });
+    };
+
+    // deno-lint-ignore no-explicit-any
+    app.get("/mcp", handleMcpGet as any);
+    // deno-lint-ignore no-explicit-any
+    app.get("/", handleMcpGet as any);
 
     // MCP endpoint - POST handles JSON-RPC
     const handleMcpPost = async (c: { req: { json: () => Promise<unknown> }; json: (data: unknown, status?: number) => Response }) => {
@@ -512,13 +607,19 @@ export class ConcurrentMCPServer {
         const body = await c.req.json() as { id?: string | number; method?: string; params?: Record<string, unknown> };
         const { id, method, params } = body;
 
-        // Initialize
+        // Initialize - create session and return session ID
         if (method === "initialize") {
-          return c.json({
+          const sessionId = generateSessionId();
+          const now = Date.now();
+          this.sessions.set(sessionId, { createdAt: now, lastActivity: now });
+
+          this.log(`New session created: ${sessionId}`);
+
+          return new Response(JSON.stringify({
             jsonrpc: "2.0",
             id,
             result: {
-              protocolVersion: "2024-11-05",
+              protocolVersion: "2025-03-26",
               capabilities: {
                 tools: {},
                 resources: this.resources.size > 0 ? {} : undefined,
@@ -527,6 +628,11 @@ export class ConcurrentMCPServer {
                 name: this.options.name,
                 version: this.options.version,
               },
+            },
+          }), {
+            headers: {
+              "Content-Type": "application/json",
+              "Mcp-Session-Id": sessionId,
             },
           });
         }
@@ -606,6 +712,7 @@ export class ConcurrentMCPServer {
                   type: "text",
                   text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
                 }],
+                ...(tool._meta && { _meta: tool._meta }),
               },
             });
           } catch (error) {
@@ -666,6 +773,12 @@ export class ConcurrentMCPServer {
           }
         }
 
+        // Handle notifications (no id, no response expected)
+        // Per Streamable HTTP spec: notifications return 202 Accepted with no body
+        if (method?.startsWith("notifications/") || !id) {
+          return new Response(null, { status: 202 });
+        }
+
         // Method not found
         return c.json({
           jsonrpc: "2.0",
@@ -719,6 +832,63 @@ export class ConcurrentMCPServer {
       },
       addr: { hostname, port: options.port },
     };
+  }
+
+  /**
+   * Send a JSON-RPC message to all SSE clients in a session
+   * Used for server-initiated notifications and requests
+   *
+   * @param sessionId - Session ID (or "anonymous" for clients without session)
+   * @param message - JSON-RPC message to send
+   */
+  sendToSession(sessionId: string, message: Record<string, unknown>): void {
+    const clients = this.sseClients.get(sessionId);
+    if (!clients || clients.length === 0) {
+      this.log(`No SSE clients for session: ${sessionId}`);
+      return;
+    }
+
+    const encoder = new TextEncoder();
+    const eventId = Date.now();
+    const data = `id: ${eventId}\ndata: ${JSON.stringify(message)}\n\n`;
+
+    for (const client of clients) {
+      try {
+        client.controller.enqueue(encoder.encode(data));
+        client.lastEventId = eventId;
+      } catch {
+        this.log(`Failed to send to SSE client in session: ${sessionId}`);
+      }
+    }
+  }
+
+  /**
+   * Send a notification to all connected SSE clients
+   *
+   * @param method - Notification method name
+   * @param params - Notification parameters
+   */
+  broadcastNotification(method: string, params?: Record<string, unknown>): void {
+    const message = {
+      jsonrpc: "2.0",
+      method,
+      params,
+    };
+
+    for (const sessionId of this.sseClients.keys()) {
+      this.sendToSession(sessionId, message);
+    }
+  }
+
+  /**
+   * Get number of active SSE connections
+   */
+  getSSEClientCount(): number {
+    let count = 0;
+    for (const clients of this.sseClients.values()) {
+      count += clients.length;
+    }
+    return count;
   }
 
   /**
