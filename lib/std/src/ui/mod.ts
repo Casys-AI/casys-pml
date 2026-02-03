@@ -25,16 +25,43 @@ export interface UIResourceMeta {
 }
 
 /**
- * Registry of available UI resources
- * Maps uri -> metadata
+ * Auto-discover UI resources from dist/ folder
  */
-export const UI_RESOURCES: Record<string, UIResourceMeta> = {
-  "ui://mcp-std/table-viewer": {
-    name: "Interactive Table Viewer",
-    description: "Display data in a sortable, filterable table with row selection",
-    tools: ["psql_query", "pglite_query", "collections_table"],
-  },
-};
+function discoverUiResources(): Record<string, UIResourceMeta> {
+  const resources: Record<string, UIResourceMeta> = {};
+  const distPath = new URL("./dist", import.meta.url).pathname;
+
+  try {
+    for (const entry of Deno.readDirSync(distPath)) {
+      if (entry.isDirectory) {
+        const uiName = entry.name;
+        const uri = `ui://mcp-std/${uiName}`;
+
+        // Check if index.html exists
+        try {
+          Deno.statSync(`${distPath}/${uiName}/index.html`);
+          resources[uri] = {
+            name: uiName.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+            description: `MCP Apps UI: ${uiName}`,
+            tools: [],
+          };
+        } catch {
+          // No index.html, skip
+        }
+      }
+    }
+  } catch (e) {
+    console.error(`[mcp-std/ui] Failed to discover UIs from ${distPath}:`, e);
+  }
+
+  return resources;
+}
+
+/**
+ * Registry of available UI resources
+ * Auto-discovered from dist/ folder
+ */
+export const UI_RESOURCES: Record<string, UIResourceMeta> = discoverUiResources();
 
 /**
  * Embedded UI HTML bundles

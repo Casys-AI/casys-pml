@@ -1,12 +1,13 @@
 /**
- * Log Viewer UI - Filterable log display
+ * Log Viewer UI - Advanced filterable log display
  *
- * Displays log entries with:
- * - Level filtering (debug, info, warn, error)
- * - Text search
+ * Features:
+ * - Level filtering with counters (debug, info, warn, error)
+ * - Real-time text search with highlighting
  * - Timestamp display
- * - Auto-scroll to bottom
- * - Line highlighting
+ * - Auto-scroll toggle
+ * - Export/copy filtered logs
+ * - Keyboard shortcuts
  *
  * @module lib/std/src/ui/log-viewer
  */
@@ -35,6 +36,13 @@ interface LogData {
 }
 
 type LogLevel = "debug" | "info" | "warn" | "error";
+
+interface LevelCounts {
+  debug: number;
+  info: number;
+  warn: number;
+  error: number;
+}
 
 // ============================================================================
 // MCP App Connection
@@ -89,11 +97,49 @@ function parseLogLine(line: string | LogEntry): LogEntry {
   return { message: line, level };
 }
 
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // ============================================================================
 // Components
 // ============================================================================
 
-function LogLine({ entry, index, highlight }: { entry: LogEntry; index: number; highlight: boolean }) {
+/** Highlights search matches in text */
+function HighlightedText({ text, search }: { text: string; search: string }) {
+  if (!search) {
+    return <>{text}</>;
+  }
+
+  const regex = new RegExp(`(${escapeRegExp(search)})`, "gi");
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} class={styles.searchMatch}>
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
+function LogLine({
+  entry,
+  index,
+  searchTerm,
+  originalIndex,
+}: {
+  entry: LogEntry;
+  index: number;
+  searchTerm: string;
+  originalIndex: number;
+}) {
   const levelColors: Record<LogLevel, string> = {
     debug: "gray",
     info: "blue",
@@ -103,25 +149,26 @@ function LogLine({ entry, index, highlight }: { entry: LogEntry; index: number; 
 
   const level = entry.level || "info";
   const color = levelColors[level];
+  const hasMatch = searchTerm && entry.message.toLowerCase().includes(searchTerm.toLowerCase());
 
   return (
     <div
       class={css(
         styles.logLine,
-        highlight && styles.logLineHighlight,
+        hasMatch && styles.logLineHighlight,
         level === "error" && styles.logLineError,
         level === "warn" && styles.logLineWarn
       )}
-      onClick={() => notifyModel("selectLine", { index, entry })}
+      onClick={() => notifyModel("selectLine", { index: originalIndex, entry })}
     >
-      <span class={styles.lineNumber}>{index + 1}</span>
-      {entry.timestamp && (
-        <span class={styles.timestamp}>{entry.timestamp}</span>
-      )}
+      <span class={styles.lineNumber}>{originalIndex + 1}</span>
+      {entry.timestamp && <span class={styles.timestamp}>{entry.timestamp}</span>}
       <span class={css(styles.level, styles[`level_${color}`] || styles.level_blue)}>
         {level.toUpperCase().padEnd(5)}
       </span>
-      <span class={styles.message}>{entry.message}</span>
+      <span class={styles.message}>
+        <HighlightedText text={entry.message} search={searchTerm} />
+      </span>
     </div>
   );
 }
@@ -133,15 +180,22 @@ function LogLine({ entry, index, highlight }: { entry: LogEntry; index: number; 
 function LogViewer() {
   const [data, setData] = useState<LogData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
-  const [levelFilter, setLevelFilter] = useState<Set<LogLevel>>(new Set(["debug", "info", "warn", "error"]));
+  const [searchTerm, setSearchTerm] = useState("");
+  const [levelFilter, setLevelFilter] = useState<Set<LogLevel>>(
+    new Set(["debug", "info", "warn", "error"])
+  );
   const [autoScroll, setAutoScroll] = useState(true);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    app.connect().then(() => {
-      appConnected = true;
-    }).catch(() => {});
+    app
+      .connect()
+      .then(() => {
+        appConnected = true;
+      })
+      .catch(() => {});
 
     app.ontoolresult = (result: { content?: Array<{ type: string; text?: string }> }) => {
       setLoading(false);
@@ -158,7 +212,7 @@ function LogViewer() {
             setData(parsed);
           }
         }
-      } catch (e) {
+      } catch {
         // Treat as raw text
         const textContent = result.content?.find((c) => c.type === "text");
         if (textContent?.text) {
@@ -168,6 +222,24 @@ function LogViewer() {
     };
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + F to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      // Escape to clear search
+      if (e.key === "Escape" && searchTerm) {
+        setSearchTerm("");
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [searchTerm]);
+
   // Auto-scroll effect
   useEffect(() => {
     if (autoScroll && containerRef.current) {
@@ -175,20 +247,43 @@ function LogViewer() {
     }
   }, [data, autoScroll]);
 
+  // Parse logs
   const parsedLogs = useMemo(() => {
     if (!data?.logs) return [];
     return data.logs.map(parseLogLine);
   }, [data]);
 
+  // Count logs by level
+  const levelCounts = useMemo((): LevelCounts => {
+    const counts: LevelCounts = { debug: 0, info: 0, warn: 0, error: 0 };
+    for (const log of parsedLogs) {
+      const level = log.level || "info";
+      counts[level]++;
+    }
+    return counts;
+  }, [parsedLogs]);
+
+  // Filter logs with original indices
   const filteredLogs = useMemo(() => {
-    return parsedLogs.filter((log) => {
+    const result: Array<{ entry: LogEntry; originalIndex: number }> = [];
+    const searchLower = searchTerm.toLowerCase();
+
+    for (let i = 0; i < parsedLogs.length; i++) {
+      const log = parsedLogs[i];
       // Level filter
-      if (!levelFilter.has(log.level || "info")) return false;
+      if (!levelFilter.has(log.level || "info")) continue;
       // Text filter
-      if (filter && !log.message.toLowerCase().includes(filter.toLowerCase())) return false;
-      return true;
-    });
-  }, [parsedLogs, filter, levelFilter]);
+      if (searchTerm && !log.message.toLowerCase().includes(searchLower)) continue;
+      result.push({ entry: log, originalIndex: i });
+    }
+    return result;
+  }, [parsedLogs, searchTerm, levelFilter]);
+
+  // Count matches in filtered logs
+  const matchCount = useMemo(() => {
+    if (!searchTerm) return 0;
+    return filteredLogs.length;
+  }, [filteredLogs, searchTerm]);
 
   const toggleLevel = useCallback((level: LogLevel) => {
     setLevelFilter((prev) => {
@@ -203,18 +298,81 @@ function LogViewer() {
     });
   }, []);
 
-  const handleFilterChange = useCallback((e: Event) => {
+  const handleSearchChange = useCallback((e: Event) => {
     const value = (e.target as HTMLInputElement).value;
-    setFilter(value);
+    setSearchTerm(value);
     notifyModel("filterText", { text: value });
   }, []);
 
+  const clearSearch = useCallback(() => {
+    setSearchTerm("");
+    searchInputRef.current?.focus();
+  }, []);
+
+  const handleExport = useCallback(async () => {
+    const exportText = filteredLogs
+      .map(({ entry }) => {
+        const parts: string[] = [];
+        if (entry.timestamp) parts.push(`[${entry.timestamp}]`);
+        parts.push(`[${(entry.level || "info").toUpperCase()}]`);
+        parts.push(entry.message);
+        return parts.join(" ");
+      })
+      .join("\n");
+
+    try {
+      await navigator.clipboard.writeText(exportText);
+      setCopyStatus("copied");
+      notifyModel("exportLogs", { count: filteredLogs.length });
+      setTimeout(() => setCopyStatus("idle"), 2000);
+    } catch {
+      // Fallback for browsers without clipboard API
+      const textarea = document.createElement("textarea");
+      textarea.value = exportText;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopyStatus("copied");
+      setTimeout(() => setCopyStatus("idle"), 2000);
+    }
+  }, [filteredLogs]);
+
+  const toggleAutoScroll = useCallback(() => {
+    setAutoScroll((prev) => {
+      const next = !prev;
+      notifyModel("toggleAutoScroll", { enabled: next });
+      if (next && containerRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      }
+      return next;
+    });
+  }, []);
+
+  const showAllLevels = useCallback(() => {
+    setLevelFilter(new Set(["debug", "info", "warn", "error"]));
+    notifyModel("filterLevel", { levels: ["debug", "info", "warn", "error"] });
+  }, []);
+
+  const showOnlyLevel = useCallback((level: LogLevel) => {
+    setLevelFilter(new Set([level]));
+    notifyModel("filterLevel", { levels: [level] });
+  }, []);
+
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading logs...</div></div>;
+    return (
+      <div class={styles.container}>
+        <div class={styles.loading}>Loading logs...</div>
+      </div>
+    );
   }
 
   if (!data?.logs?.length) {
-    return <div class={styles.container}><div class={styles.empty}>No logs</div></div>;
+    return (
+      <div class={styles.container}>
+        <div class={styles.empty}>No logs</div>
+      </div>
+    );
   }
 
   const levels: LogLevel[] = ["error", "warn", "info", "debug"];
@@ -223,62 +381,106 @@ function LogViewer() {
     <div class={styles.container}>
       {/* Header */}
       <div class={styles.header}>
-        {data.title && <h3 class={styles.title}>{data.title}</h3>}
+        <div class={styles.headerLeft}>
+          {data.title && <h3 class={styles.title}>{data.title}</h3>}
+        </div>
 
         <div class={styles.controls}>
-          {/* Level filters */}
-          <div class={styles.levelFilters}>
-            {levels.map((level) => (
-              <button
-                key={level}
-                class={css(
-                  styles.levelBtn,
-                  levelFilter.has(level) && styles.levelBtnActive,
-                  styles[`levelBtn_${level}`]
-                )}
-                onClick={() => toggleLevel(level)}
-              >
-                {level}
+          {/* Search input with clear button */}
+          <div class={styles.searchContainer}>
+            <span class={styles.searchIcon}>&#128269;</span>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search... (Ctrl+F)"
+              value={searchTerm}
+              onInput={handleSearchChange}
+              class={styles.searchInput}
+            />
+            {searchTerm && (
+              <button class={styles.clearBtn} onClick={clearSearch} title="Clear search (Esc)">
+                x
               </button>
-            ))}
+            )}
           </div>
-
-          {/* Text filter */}
-          <input
-            type="text"
-            placeholder="Filter..."
-            value={filter}
-            onInput={handleFilterChange}
-            class={styles.filterInput}
-          />
 
           {/* Auto-scroll toggle */}
           <button
-            class={css(styles.autoScrollBtn, autoScroll && styles.autoScrollActive)}
-            onClick={() => setAutoScroll(!autoScroll)}
-            title="Auto-scroll"
+            class={css(styles.iconBtn, autoScroll && styles.iconBtnActive)}
+            onClick={toggleAutoScroll}
+            title={autoScroll ? "Auto-scroll ON" : "Auto-scroll OFF"}
           >
-            ↓
+            <span class={styles.iconBtnSymbol}>{autoScroll ? "\u2193" : "\u2016"}</span>
+          </button>
+
+          {/* Export button */}
+          <button
+            class={css(styles.iconBtn, copyStatus === "copied" && styles.iconBtnSuccess)}
+            onClick={handleExport}
+            title="Copy filtered logs to clipboard"
+          >
+            <span class={styles.iconBtnSymbol}>{copyStatus === "copied" ? "\u2713" : "\u2398"}</span>
           </button>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Level filters with counts */}
+      <div class={styles.levelFilterBar}>
+        <button class={styles.showAllBtn} onClick={showAllLevels} title="Show all levels">
+          All
+        </button>
+        {levels.map((level) => (
+          <button
+            key={level}
+            class={css(
+              styles.levelBtn,
+              levelFilter.has(level) && styles.levelBtnActive,
+              styles[`levelBtn_${level}`]
+            )}
+            onClick={() => toggleLevel(level)}
+            onDoubleClick={() => showOnlyLevel(level)}
+            title={`Toggle ${level} (double-click to show only)`}
+          >
+            <span class={styles.levelLabel}>{level.toUpperCase()}</span>
+            <span class={styles.levelCount}>{levelCounts[level]}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Stats bar */}
       <div class={styles.stats}>
-        {filteredLogs.length} / {parsedLogs.length} lines
-        {filter && ` matching "${filter}"`}
+        <span>
+          {filteredLogs.length} / {parsedLogs.length} lines
+        </span>
+        {searchTerm && (
+          <span class={styles.matchInfo}>
+            {matchCount} match{matchCount !== 1 ? "es" : ""} for "{searchTerm}"
+          </span>
+        )}
       </div>
 
       {/* Log content */}
       <div class={styles.logContainer} ref={containerRef}>
-        {filteredLogs.map((entry, i) => (
-          <LogLine
-            key={i}
-            entry={entry}
-            index={i}
-            highlight={filter ? entry.message.toLowerCase().includes(filter.toLowerCase()) : false}
-          />
-        ))}
+        {filteredLogs.length === 0 ? (
+          <div class={styles.noResults}>
+            No logs match the current filters
+            {searchTerm && (
+              <button class={styles.clearFiltersBtn} onClick={clearSearch}>
+                Clear search
+              </button>
+            )}
+          </div>
+        ) : (
+          filteredLogs.map(({ entry, originalIndex }, i) => (
+            <LogLine
+              key={originalIndex}
+              entry={entry}
+              index={i}
+              originalIndex={originalIndex}
+              searchTerm={searchTerm}
+            />
+          ))
+        )}
       </div>
     </div>
   );
@@ -288,7 +490,7 @@ function LogViewer() {
 // Styles
 // ============================================================================
 
-const styles = {
+const styles: Record<string, string> = {
   container: css({
     fontFamily: "mono",
     fontSize: "xs",
@@ -313,6 +515,11 @@ const styles = {
     flexWrap: "wrap",
     gap: "2",
   }),
+  headerLeft: css({
+    display: "flex",
+    alignItems: "center",
+    gap: "2",
+  }),
   title: css({
     fontSize: "sm",
     fontWeight: "semibold",
@@ -324,61 +531,158 @@ const styles = {
     gap: "2",
     alignItems: "center",
   }),
-  levelFilters: css({
+
+  // Search
+  searchContainer: css({
+    display: "flex",
+    alignItems: "center",
+    bg: "bg.canvas",
+    border: "1px solid",
+    borderColor: "border.default",
+    rounded: "md",
+    px: "2",
+    gap: "1",
+    _focusWithin: { borderColor: "blue.500", ring: "2px", ringColor: "blue.200" },
+  }),
+  searchIcon: css({
+    color: "fg.muted",
+    fontSize: "sm",
+    flexShrink: 0,
+  }),
+  searchInput: css({
+    border: "none",
+    bg: "transparent",
+    py: "1",
+    fontSize: "xs",
+    w: "140px",
+    _focus: { outline: "none" },
+    _placeholder: { color: "fg.muted" },
+  }),
+  clearBtn: css({
+    bg: "transparent",
+    border: "none",
+    color: "fg.muted",
+    cursor: "pointer",
+    fontSize: "sm",
+    lineHeight: 1,
+    p: "0.5",
+    rounded: "sm",
+    _hover: { bg: "bg.subtle", color: "fg.default" },
+  }),
+
+  // Icon buttons
+  iconBtn: css({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    w: "7",
+    h: "7",
+    border: "1px solid",
+    borderColor: "border.default",
+    rounded: "md",
+    bg: "bg.canvas",
+    cursor: "pointer",
+    color: "fg.muted",
+    _hover: { bg: "bg.subtle", color: "fg.default" },
+  }),
+  iconBtnActive: css({
+    bg: "blue.100",
+    borderColor: "blue.400",
+    color: "blue.700",
+    _dark: { bg: "blue.900", borderColor: "blue.600", color: "blue.300" },
+  }),
+  iconBtnSuccess: css({
+    bg: "green.100",
+    borderColor: "green.400",
+    color: "green.700",
+    _dark: { bg: "green.900", borderColor: "green.600", color: "green.300" },
+  }),
+  iconBtnSymbol: css({
+    fontSize: "sm",
+  }),
+
+  // Level filter bar
+  levelFilterBar: css({
     display: "flex",
     gap: "1",
+    px: "2",
+    py: "1.5",
+    bg: "bg.canvas",
+    borderBottom: "1px solid",
+    borderColor: "border.subtle",
+    flexWrap: "wrap",
   }),
-  levelBtn: css({
+  showAllBtn: css({
     px: "2",
     py: "0.5",
     fontSize: "xs",
     border: "1px solid",
     borderColor: "border.default",
-    rounded: "sm",
+    rounded: "md",
+    bg: "bg.subtle",
+    cursor: "pointer",
+    color: "fg.muted",
+    _hover: { bg: "bg.muted" },
+  }),
+  levelBtn: css({
+    display: "flex",
+    alignItems: "center",
+    gap: "1.5",
+    px: "2",
+    py: "0.5",
+    fontSize: "xs",
+    border: "1px solid",
+    borderColor: "border.default",
+    rounded: "md",
     bg: "bg.canvas",
     cursor: "pointer",
     opacity: 0.5,
-    textTransform: "uppercase",
+    transition: "all 0.15s",
     _hover: { opacity: 0.8 },
   }),
   levelBtnActive: css({
     opacity: 1,
     fontWeight: "medium",
   }),
-  levelBtn_error: css({ color: "red.600", _dark: { color: "red.400" } }),
-  levelBtn_warn: css({ color: "yellow.600", _dark: { color: "yellow.400" } }),
-  levelBtn_info: css({ color: "blue.600", _dark: { color: "blue.400" } }),
-  levelBtn_debug: css({ color: "gray.600", _dark: { color: "gray.400" } }),
-  filterInput: css({
-    px: "2",
-    py: "1",
-    fontSize: "xs",
-    border: "1px solid",
-    borderColor: "border.default",
+  levelBtn_error: css({
+    color: "red.600",
+    _dark: { color: "red.400" },
+    _hover: { bg: "red.50", _dark: { bg: "red.950/50" } },
+  }),
+  levelBtn_warn: css({
+    color: "yellow.600",
+    _dark: { color: "yellow.400" },
+    _hover: { bg: "yellow.50", _dark: { bg: "yellow.950/50" } },
+  }),
+  levelBtn_info: css({
+    color: "blue.600",
+    _dark: { color: "blue.400" },
+    _hover: { bg: "blue.50", _dark: { bg: "blue.950/50" } },
+  }),
+  levelBtn_debug: css({
+    color: "gray.600",
+    _dark: { color: "gray.400" },
+    _hover: { bg: "gray.50", _dark: { bg: "gray.950/50" } },
+  }),
+  levelLabel: css({
+    textTransform: "uppercase",
+    letterSpacing: "0.02em",
+  }),
+  levelCount: css({
+    bg: "bg.subtle",
+    px: "1",
+    py: "0",
     rounded: "sm",
-    bg: "bg.canvas",
-    w: "120px",
-    _focus: { outline: "none", borderColor: "blue.500" },
+    fontSize: "2xs",
+    minW: "4",
+    textAlign: "center",
   }),
-  autoScrollBtn: css({
-    px: "2",
-    py: "1",
-    fontSize: "xs",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "sm",
-    bg: "bg.canvas",
-    cursor: "pointer",
-    opacity: 0.5,
-    _hover: { opacity: 0.8 },
-  }),
-  autoScrollActive: css({
-    opacity: 1,
-    bg: "blue.100",
-    borderColor: "blue.300",
-    _dark: { bg: "blue.900", borderColor: "blue.700" },
-  }),
+
+  // Stats bar
   stats: css({
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     px: "2",
     py: "1",
     fontSize: "xs",
@@ -387,11 +691,41 @@ const styles = {
     borderBottom: "1px solid",
     borderColor: "border.subtle",
   }),
+  matchInfo: css({
+    color: "yellow.700",
+    fontWeight: "medium",
+    _dark: { color: "yellow.400" },
+  }),
+
+  // Log container
   logContainer: css({
     flex: 1,
     overflowY: "auto",
     overflowX: "auto",
   }),
+  noResults: css({
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "2",
+    p: "4",
+    color: "fg.muted",
+    textAlign: "center",
+  }),
+  clearFiltersBtn: css({
+    px: "2",
+    py: "1",
+    fontSize: "xs",
+    bg: "blue.100",
+    color: "blue.700",
+    border: "none",
+    rounded: "md",
+    cursor: "pointer",
+    _hover: { bg: "blue.200" },
+    _dark: { bg: "blue.900", color: "blue.300", _hover: { bg: "blue.800" } },
+  }),
+
+  // Log line
   logLine: css({
     display: "flex",
     alignItems: "flex-start",
@@ -404,7 +738,7 @@ const styles = {
   }),
   logLineHighlight: css({
     bg: "yellow.50",
-    _dark: { bg: "yellow.950" },
+    _dark: { bg: "yellow.950/50" },
   }),
   logLineError: css({
     bg: "red.50/50",
@@ -441,6 +775,17 @@ const styles = {
     whiteSpace: "pre-wrap",
     wordBreak: "break-all",
   }),
+
+  // Search match highlight
+  searchMatch: css({
+    bg: "yellow.300",
+    color: "yellow.900",
+    px: "0.5",
+    rounded: "sm",
+    fontWeight: "medium",
+    _dark: { bg: "yellow.700", color: "yellow.100" },
+  }),
+
   loading: css({ p: "4", textAlign: "center", color: "fg.muted" }),
   empty: css({ p: "4", textAlign: "center", color: "fg.muted" }),
 };

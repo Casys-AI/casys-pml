@@ -141,6 +141,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["hex"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ hex }) => {
       const rgb = hexToRgb(hex as string);
       if (!rgb) throw new Error(`Invalid hex color: ${hex}`);
@@ -161,6 +168,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["r", "g", "b"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ r, g, b }) => {
       const hex = rgbToHex(r as number, g as number, b as number);
       return { hex, hexUpper: hex.toUpperCase() };
@@ -180,6 +194,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["r", "g", "b"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ r, g, b }) => {
       const hsl = rgbToHsl(r as number, g as number, b as number);
       return { ...hsl, css: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)` };
@@ -198,6 +219,13 @@ export const colorTools: MiniTool[] = [
         l: { type: "number", description: "Lightness (0-100)" },
       },
       required: ["h", "s", "l"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ h, s, l }) => {
       const rgb = hslToRgb(h as number, s as number, l as number);
@@ -221,6 +249,13 @@ export const colorTools: MiniTool[] = [
         b: { type: "number", description: "Blue (0-255)" },
       },
       required: ["r", "g", "b"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ r, g, b }) => {
       const rNorm = (r as number) / 255;
@@ -255,6 +290,13 @@ export const colorTools: MiniTool[] = [
         v: { type: "number", description: "Value/Brightness (0-100)" },
       },
       required: ["h", "s", "v"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ h, s, v }) => {
       const hNorm = (h as number) / 360;
@@ -319,6 +361,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["r", "g", "b"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ r, g, b }) => {
       const rNorm = (r as number) / 255;
       const gNorm = (g as number) / 255;
@@ -349,6 +398,13 @@ export const colorTools: MiniTool[] = [
         k: { type: "number", description: "Key/Black (0-100)" },
       },
       required: ["c", "m", "y", "k"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ c, m, y, k }) => {
       const cNorm = (c as number) / 100;
@@ -433,6 +489,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color, amount = 10 }) => {
       const c = (color as string).trim().toLowerCase();
       const hex = c.startsWith("#") ? c : namedColors[c] || `#${c}`;
@@ -458,6 +521,13 @@ export const colorTools: MiniTool[] = [
         amount: { type: "number", description: "Percentage to darken (0-100, default: 10)" },
       },
       required: ["color"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ color, amount = 10 }) => {
       const c = (color as string).trim().toLowerCase();
@@ -485,6 +555,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color, amount = 10 }) => {
       const c = (color as string).trim().toLowerCase();
       const hex = c.startsWith("#") ? c : namedColors[c] || `#${c}`;
@@ -511,6 +588,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color, amount = 10 }) => {
       const c = (color as string).trim().toLowerCase();
       const hex = c.startsWith("#") ? c : namedColors[c] || `#${c}`;
@@ -536,6 +620,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color }) => {
       const c = (color as string).trim().toLowerCase();
       const hex = c.startsWith("#") ? c : namedColors[c] || `#${c}`;
@@ -557,6 +648,13 @@ export const colorTools: MiniTool[] = [
         color: { type: "string", description: "Color to convert" },
       },
       required: ["color"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ color }) => {
       const c = (color as string).trim().toLowerCase();
@@ -679,6 +777,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color1", "color2"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color1, color2, ratio = 0.5, steps }) => {
       const c1 = hexToRgb(
         (color1 as string).replace(/^#/, "").length === 6 ? (color1 as string) : `#${color1}`,
@@ -785,6 +890,13 @@ export const colorTools: MiniTool[] = [
         },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ count = 1, saturation, lightness }) => {
       const sRange = (saturation as number[]) || [50, 80];
       const lRange = (lightness as number[]) || [40, 60];
@@ -803,6 +915,239 @@ export const colorTools: MiniTool[] = [
       }
 
       return (count as number) === 1 ? colors[0] : colors;
+    },
+  },
+  {
+    name: "color_accessibility",
+    description:
+      "Check WCAG color contrast accessibility between foreground and background colors. Verify text readability compliance for AA and AAA levels at normal and large text sizes. Suggests alternative colors when contrast fails. Use for accessibility audits, design validation, or a11y compliance. Keywords: WCAG, accessibility, a11y, contrast check, color accessibility, AA, AAA, text contrast, readability.",
+    category: "color",
+    inputSchema: {
+      type: "object",
+      properties: {
+        foreground: {
+          type: "string",
+          description: "Text color (hex, rgb, or named color like 'red', 'blue')",
+        },
+        background: {
+          type: "string",
+          description: "Background color (hex, rgb, or named color)",
+        },
+        fontSize: {
+          type: "number",
+          description: "Font size in pixels (default: 16)",
+        },
+        fontWeight: {
+          type: "string",
+          enum: ["normal", "bold"],
+          description: "Font weight - 'normal' or 'bold' (default: 'normal')",
+        },
+      },
+      required: ["foreground", "background"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/contrast-checker",
+        emits: ["copy", "selectSuggestion", "swapColors"],
+        accepts: ["setForeground", "setBackground"],
+      },
+    },
+    handler: ({ foreground, background, fontSize = 16, fontWeight = "normal" }) => {
+      // Parse colors to hex
+      const parseColor = (color: string): string | null => {
+        const c = color.trim().toLowerCase();
+
+        // Named color
+        if (namedColors[c]) {
+          return namedColors[c];
+        }
+
+        // Hex
+        if (c.startsWith("#") || /^[0-9a-f]{3,6}$/i.test(c)) {
+          const hex = c.startsWith("#") ? c : `#${c}`;
+          const rgb = hexToRgb(hex);
+          if (rgb) return rgbToHex(rgb.r, rgb.g, rgb.b);
+        }
+
+        // RGB
+        const rgbMatch = c.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (rgbMatch) {
+          const r = parseInt(rgbMatch[1], 10);
+          const g = parseInt(rgbMatch[2], 10);
+          const b = parseInt(rgbMatch[3], 10);
+          return rgbToHex(r, g, b);
+        }
+
+        // HSL
+        const hslMatch = c.match(/hsla?\s*\(\s*(\d+)\s*,\s*(\d+)%?\s*,\s*(\d+)%?/);
+        if (hslMatch) {
+          const h = parseInt(hslMatch[1], 10);
+          const s = parseInt(hslMatch[2], 10);
+          const l = parseInt(hslMatch[3], 10);
+          const rgb = hslToRgb(h, s, l);
+          return rgbToHex(rgb.r, rgb.g, rgb.b);
+        }
+
+        return null;
+      };
+
+      // Calculate relative luminance
+      const getLuminance = (rgb: RGB): number => {
+        const adjust = (v: number) => {
+          const s = v / 255;
+          return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * adjust(rgb.r) + 0.7152 * adjust(rgb.g) + 0.0722 * adjust(rgb.b);
+      };
+
+      // Calculate contrast ratio
+      const getContrastRatio = (l1: number, l2: number): number => {
+        const lighter = Math.max(l1, l2);
+        const darker = Math.min(l1, l2);
+        return (lighter + 0.05) / (darker + 0.05);
+      };
+
+      const fgHex = parseColor(foreground as string);
+      const bgHex = parseColor(background as string);
+
+      if (!fgHex) {
+        throw new Error(`Unable to parse foreground color: ${foreground}`);
+      }
+      if (!bgHex) {
+        throw new Error(`Unable to parse background color: ${background}`);
+      }
+
+      const fgRgb = hexToRgb(fgHex)!;
+      const bgRgb = hexToRgb(bgHex)!;
+      const fgLum = getLuminance(fgRgb);
+      const bgLum = getLuminance(bgRgb);
+      const contrastRatio = getContrastRatio(fgLum, bgLum);
+
+      // WCAG thresholds
+      // Large text: >= 18pt (24px) or >= 14pt (18.66px) bold
+      const isLargeText = (fontSize as number) >= 24 ||
+        ((fontSize as number) >= 18.66 && fontWeight === "bold");
+
+      const wcag = {
+        aa: {
+          normal: contrastRatio >= 4.5,
+          large: contrastRatio >= 3,
+        },
+        aaa: {
+          normal: contrastRatio >= 7,
+          large: contrastRatio >= 4.5,
+        },
+      };
+
+      // Determine rating based on text size
+      let rating: "Fail" | "AA Large" | "AA" | "AAA";
+      if (isLargeText) {
+        if (wcag.aaa.large) rating = "AAA";
+        else if (wcag.aa.large) rating = "AA";
+        else rating = "Fail";
+      } else {
+        if (wcag.aaa.normal) rating = "AAA";
+        else if (wcag.aa.normal) rating = "AA";
+        else if (wcag.aa.large) rating = "AA Large";
+        else rating = "Fail";
+      }
+
+      // Generate suggestions if contrast fails
+      let suggestions: Array<{ color: string; contrastRatio: number; rating: string }> | undefined;
+
+      if (rating === "Fail" || rating === "AA Large") {
+        suggestions = [];
+
+        // Determine if we should lighten or darken the foreground
+        const fgHsl = rgbToHsl(fgRgb.r, fgRgb.g, fgRgb.b);
+        const bgIsLight = bgLum > 0.5;
+
+        // Try adjusting lightness of foreground
+        const adjustments = bgIsLight
+          ? [0, -10, -20, -30, -40, -50, -60] // Darken for light backgrounds
+          : [0, 10, 20, 30, 40, 50, 60]; // Lighten for dark backgrounds
+
+        for (const adj of adjustments) {
+          const newL = Math.max(0, Math.min(100, fgHsl.l + adj));
+          const newRgb = hslToRgb(fgHsl.h, fgHsl.s, newL);
+          const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+          const newLum = getLuminance(newRgb);
+          const newRatio = getContrastRatio(newLum, bgLum);
+
+          let newRating: string;
+          if (newRatio >= 7) newRating = "AAA";
+          else if (newRatio >= 4.5) newRating = "AA";
+          else if (newRatio >= 3) newRating = "AA Large";
+          else continue; // Skip if still failing
+
+          // Avoid duplicate suggestions
+          if (!suggestions.some((s) => s.color === newHex)) {
+            suggestions.push({
+              color: newHex,
+              contrastRatio: Math.round(newRatio * 100) / 100,
+              rating: newRating,
+            });
+          }
+
+          // Stop after finding enough good options
+          if (suggestions.length >= 4) break;
+        }
+
+        // Also suggest pure black or white if not already suggested
+        const pureColors = bgIsLight
+          ? ["#000000", "#111111", "#222222"]
+          : ["#ffffff", "#eeeeee", "#dddddd"];
+
+        for (const pureHex of pureColors) {
+          const pureRgb = hexToRgb(pureHex)!;
+          const pureLum = getLuminance(pureRgb);
+          const pureRatio = getContrastRatio(pureLum, bgLum);
+
+          let pureRating: string;
+          if (pureRatio >= 7) pureRating = "AAA";
+          else if (pureRatio >= 4.5) pureRating = "AA";
+          else if (pureRatio >= 3) pureRating = "AA Large";
+          else continue;
+
+          if (!suggestions.some((s) => s.color === pureHex) && suggestions.length < 6) {
+            suggestions.push({
+              color: pureHex,
+              contrastRatio: Math.round(pureRatio * 100) / 100,
+              rating: pureRating,
+            });
+          }
+        }
+
+        // Sort by contrast ratio (best first)
+        suggestions.sort((a, b) => b.contrastRatio - a.contrastRatio);
+      }
+
+      const result: {
+        foreground: string;
+        background: string;
+        contrastRatio: number;
+        wcag: typeof wcag;
+        rating: string;
+        isLargeText: boolean;
+        fontSize: number;
+        fontWeight: string;
+        suggestions?: typeof suggestions;
+      } = {
+        foreground: fgHex,
+        background: bgHex,
+        contrastRatio: Math.round(contrastRatio * 100) / 100,
+        wcag,
+        rating,
+        isLargeText,
+        fontSize: fontSize as number,
+        fontWeight: fontWeight as string,
+      };
+
+      if (suggestions && suggestions.length > 0) {
+        result.suggestions = suggestions;
+      }
+
+      return result;
     },
   },
 ];

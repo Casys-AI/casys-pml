@@ -6,6 +6,104 @@
 
 import { type MiniTool, runCommand } from "./common.ts";
 
+/**
+ * Parse a size string (e.g., "100MiB", "1.5GiB", "500kB") to bytes
+ */
+function parseSizeToBytes(sizeStr: string): number {
+  const match = sizeStr.trim().match(/^([\d.]+)\s*([a-zA-Z]+)$/);
+  if (!match) return 0;
+
+  const value = parseFloat(match[1]);
+  const unit = match[2].toLowerCase();
+
+  const multipliers: Record<string, number> = {
+    "b": 1,
+    "kb": 1000,
+    "kib": 1024,
+    "mb": 1000 * 1000,
+    "mib": 1024 * 1024,
+    "gb": 1000 * 1000 * 1000,
+    "gib": 1024 * 1024 * 1024,
+    "tb": 1000 * 1000 * 1000 * 1000,
+    "tib": 1024 * 1024 * 1024 * 1024,
+  };
+
+  return Math.round(value * (multipliers[unit] || 1));
+}
+
+/**
+ * Parse percentage string (e.g., "0.50%", "10.00%") to number
+ */
+function parsePercent(percentStr: string): number {
+  const match = percentStr.trim().match(/^([\d.]+)%$/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+/**
+ * Parse docker stats JSON output into structured format
+ *
+ * Docker stats JSON format:
+ * {
+ *   "Container": "abc123",
+ *   "Name": "my-container",
+ *   "CPUPerc": "0.50%",
+ *   "MemUsage": "100MiB / 1GiB",
+ *   "MemPerc": "10.00%",
+ *   "NetIO": "1.5kB / 2.3kB",
+ *   "BlockIO": "0B / 0B"
+ * }
+ */
+function parseDockerStats(raw: {
+  Container?: string;
+  Name?: string;
+  CPUPerc?: string;
+  MemUsage?: string;
+  MemPerc?: string;
+  NetIO?: string;
+  BlockIO?: string;
+}): {
+  name: string;
+  cpu: { percent: number };
+  memory: { used: number; limit: number; percent: number };
+  network: { rxBytes: number; txBytes: number };
+  blockIO: { read: number; write: number };
+} {
+  // Parse memory usage: "100MiB / 1GiB"
+  const memParts = (raw.MemUsage || "0B / 0B").split("/").map((s) => s.trim());
+  const memUsed = parseSizeToBytes(memParts[0] || "0B");
+  const memLimit = parseSizeToBytes(memParts[1] || "0B");
+
+  // Parse network I/O: "1.5kB / 2.3kB" (rx / tx)
+  const netParts = (raw.NetIO || "0B / 0B").split("/").map((s) => s.trim());
+  const rxBytes = parseSizeToBytes(netParts[0] || "0B");
+  const txBytes = parseSizeToBytes(netParts[1] || "0B");
+
+  // Parse block I/O: "0B / 0B" (read / write)
+  const blockParts = (raw.BlockIO || "0B / 0B").split("/").map((s) => s.trim());
+  const blockRead = parseSizeToBytes(blockParts[0] || "0B");
+  const blockWrite = parseSizeToBytes(blockParts[1] || "0B");
+
+  return {
+    name: raw.Name || raw.Container || "unknown",
+    cpu: {
+      percent: parsePercent(raw.CPUPerc || "0%"),
+    },
+    memory: {
+      used: memUsed,
+      limit: memLimit,
+      percent: parsePercent(raw.MemPerc || "0%"),
+    },
+    network: {
+      rxBytes,
+      txBytes,
+    },
+    blockIO: {
+      read: blockRead,
+      write: blockWrite,
+    },
+  };
+}
+
 export const dockerTools: MiniTool[] = [
   {
     name: "docker_ps",
@@ -117,29 +215,84 @@ export const dockerTools: MiniTool[] = [
   {
     name: "docker_compose_ps",
     description:
-      "List services defined in Docker Compose stack. Shows service status, ports, and health for multi-container applications. Use to monitor docker-compose deployments, check which services are running, verify orchestrated application state. Keywords: compose services, multi-container, stack status, docker-compose.",
+      "List docker-compose services and their status. Shows service name, status, ports, and health for multi-container applications. Use to monitor docker-compose deployments, check which services are running, verify orchestrated application state. Keywords: compose services, multi-container, stack status, docker-compose ps.",
     category: "system",
     inputSchema: {
       type: "object",
       properties: {
-        file: { type: "string", description: "Compose file path (default: docker-compose.yml)" },
-        cwd: { type: "string", description: "Working directory" },
+        path: {
+          type: "string",
+          description: "Path to docker-compose.yml directory (default: '.')",
+        },
+        project: {
+          type: "string",
+          description: "Project name",
+        },
       },
     },
-    handler: async ({ file, cwd }) => {
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "start", "stop", "restart"],
+        accepts: ["highlight"],
+      },
+    },
+    handler: async ({ path = ".", project }) => {
       const args = ["compose"];
-      if (file) args.push("-f", file as string);
+      if (project) args.push("-p", project as string);
       args.push("ps", "--format", "json");
 
-      const result = await runCommand("docker", args, { cwd: cwd as string });
+      const result = await runCommand("docker", args, { cwd: path as string });
       if (result.code !== 0) {
         throw new Error(`docker compose ps failed: ${result.stderr}`);
       }
 
       try {
-        const services = JSON.parse(result.stdout);
+        // Docker compose ps --format json returns either a JSON array or newline-delimited JSON objects
+        const stdout = result.stdout.trim();
+        let rawServices: Array<{
+          Name?: string;
+          Service?: string;
+          State?: string;
+          Status?: string;
+          Health?: string;
+          Publishers?: Array<{
+            URL?: string;
+            TargetPort?: number;
+            PublishedPort?: number;
+            Protocol?: string;
+          }>;
+          Ports?: string;
+        }>;
+
+        if (stdout.startsWith("[")) {
+          // JSON array format
+          rawServices = JSON.parse(stdout);
+        } else {
+          // Newline-delimited JSON format
+          rawServices = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line));
+        }
+
+        // Normalize output to consistent structure
+        const services = rawServices.map((svc) => ({
+          name: svc.Name || svc.Service || "unknown",
+          service: svc.Service || svc.Name || "unknown",
+          status: svc.State || svc.Status || "unknown",
+          health: svc.Health || null,
+          ports: svc.Publishers
+            ? svc.Publishers.map((p) =>
+              p.PublishedPort
+                ? `${p.URL || "0.0.0.0"}:${p.PublishedPort}->${p.TargetPort}/${p.Protocol || "tcp"}`
+                : null
+            ).filter(Boolean)
+            : svc.Ports
+            ? svc.Ports.split(",").map((p) => p.trim()).filter(Boolean)
+            : [],
+        }));
+
         return { services, count: services.length };
       } catch {
+        // Fallback: return raw output if JSON parsing fails
         return { output: result.stdout };
       }
     },
@@ -147,26 +300,31 @@ export const dockerTools: MiniTool[] = [
   {
     name: "docker_stats",
     description:
-      "Get real-time resource usage statistics for Docker containers. Shows CPU percentage, memory usage/limit, network I/O, and block I/O. Use for performance monitoring, identifying resource-hungry containers, capacity planning, and detecting memory leaks. Keywords: container metrics, CPU memory, resource usage, performance stats.",
+      "Get real-time resource usage statistics for Docker containers. Shows CPU percentage, memory usage/limit, network I/O, and block I/O. Use for performance monitoring, identifying resource-hungry containers, capacity planning, and detecting memory leaks. Keywords: container metrics, CPU memory, resource usage, performance stats, resource monitor.",
     category: "system",
     inputSchema: {
       type: "object",
       properties: {
         container: {
           type: "string",
-          description: "Container ID or name (optional, all if omitted)",
+          description: "Container name or ID (default: all containers)",
+        },
+        noStream: {
+          type: "boolean",
+          description: "Return a single snapshot instead of streaming (default: true)",
         },
       },
     },
     _meta: {
       ui: {
-        resourceUri: "ui://mcp-std/table-viewer",
-        emits: ["select", "sort"],
-        accepts: ["highlight"],
+        resourceUri: "ui://mcp-std/resource-monitor",
+        emits: ["select", "refresh", "alert"],
+        accepts: ["highlight", "setThreshold"],
       },
     },
-    handler: async ({ container }) => {
-      const args = ["stats", "--no-stream", "--format", "{{json .}}"];
+    handler: async ({ container, noStream = true }) => {
+      const args = ["stats", "--format", "{{json .}}"];
+      if (noStream) args.push("--no-stream");
       if (container) args.push(container as string);
 
       const result = await runCommand("docker", args);
@@ -175,8 +333,12 @@ export const dockerTools: MiniTool[] = [
       }
 
       const lines = result.stdout.trim().split("\n").filter(Boolean);
-      const stats = lines.map((line) => JSON.parse(line));
-      return { stats, count: stats.length };
+      const containers = lines.map((line) => {
+        const raw = JSON.parse(line);
+        return parseDockerStats(raw);
+      });
+
+      return { containers };
     },
   },
   {
@@ -206,6 +368,13 @@ export const dockerTools: MiniTool[] = [
         command: { type: "string", description: "Command to run in container" },
       },
       required: ["image"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: async (
       { image, name, ports, volumes, env, detach = true, rm = false, network, command },
@@ -258,6 +427,13 @@ export const dockerTools: MiniTool[] = [
       },
       required: ["container", "command"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["filterText", "selectLine"],
+        accepts: ["setFilter", "scrollTo"],
+      },
+    },
     handler: async ({ container, command, workdir, user, env }) => {
       const args = ["exec"];
       if (workdir) args.push("-w", workdir as string);
@@ -294,6 +470,13 @@ export const dockerTools: MiniTool[] = [
       },
       required: ["containers"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: async ({ containers, timeout = 10 }) => {
       const args = ["stop", "-t", String(timeout), ...(containers as string[])];
 
@@ -322,6 +505,13 @@ export const dockerTools: MiniTool[] = [
       },
       required: ["containers"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: async ({ containers, force = false, volumes = false }) => {
       const args = ["rm"];
       if (force) args.push("-f");
@@ -349,6 +539,13 @@ export const dockerTools: MiniTool[] = [
         buildArgs: { type: "object", description: "Build arguments" },
         target: { type: "string", description: "Target build stage" },
         noCache: { type: "boolean", description: "Build without cache" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["filterText", "selectLine"],
+        accepts: ["setFilter", "scrollTo"],
       },
     },
     handler: async ({ path = ".", dockerfile, tag, buildArgs, target, noCache = false }) => {
@@ -384,6 +581,13 @@ export const dockerTools: MiniTool[] = [
       },
       required: ["image"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["filterText"],
+        accepts: ["scrollTo"],
+      },
+    },
     handler: async ({ image, platform }) => {
       const args = ["pull"];
       if (platform) args.push("--platform", platform as string);
@@ -407,6 +611,13 @@ export const dockerTools: MiniTool[] = [
         image: { type: "string", description: "Image name and tag" },
       },
       required: ["image"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: async ({ image }) => {
       const result = await runCommand("docker", ["push", image as string]);
@@ -432,6 +643,13 @@ export const dockerTools: MiniTool[] = [
         },
       },
       required: ["target"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "expand", "copy"],
+        accepts: ["expandPath", "highlight"],
+      },
     },
     handler: async ({ target, type }) => {
       const args = ["inspect"];
@@ -535,6 +753,13 @@ export const dockerTools: MiniTool[] = [
         cwd: { type: "string", description: "Working directory" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["filterText", "selectLine"],
+        accepts: ["setFilter", "scrollTo"],
+      },
+    },
     handler: async (
       { file, services, detach = true, build = false, forceRecreate = false, cwd },
     ) => {
@@ -567,6 +792,13 @@ export const dockerTools: MiniTool[] = [
         cwd: { type: "string", description: "Working directory" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: async ({ file, volumes = false, removeOrphans = false, cwd }) => {
       const args = ["compose"];
       if (file) args.push("-f", file as string);
@@ -594,6 +826,13 @@ export const dockerTools: MiniTool[] = [
         tail: { type: "number", description: "Number of lines (default: 100)" },
         since: { type: "string", description: "Show logs since timestamp" },
         cwd: { type: "string", description: "Working directory" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["filterLevel", "filterText", "selectLine"],
+        accepts: ["setFilter", "scrollTo"],
       },
     },
     handler: async ({ file, services, tail = 100, since, cwd }) => {
@@ -627,6 +866,13 @@ export const dockerTools: MiniTool[] = [
         all: { type: "boolean", description: "Remove all unused images, not just dangling" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: async ({ type = "all", force = true, all = false }) => {
       let args: string[];
 
@@ -645,6 +891,53 @@ export const dockerTools: MiniTool[] = [
         throw new Error(`docker prune failed: ${result.stderr}`);
       }
       return { output: result.stdout };
+    },
+  },
+  {
+    name: "docker_diff",
+    description:
+      "Show filesystem changes in a Docker container. Lists files that were added (A), changed (C), or deleted (D) compared to the image. Use for debugging container modifications, auditing changes, inspecting state drift, or understanding what a container has modified. Keywords: docker diff, filesystem changes, container changes, file modifications, container audit.",
+    category: "system",
+    inputSchema: {
+      type: "object",
+      properties: {
+        container: { type: "string", description: "Container ID or name" },
+      },
+      required: ["container"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/diff-viewer",
+        emits: ["select"],
+        accepts: [],
+      },
+    },
+    handler: async ({ container }) => {
+      const result = await runCommand("docker", ["diff", container as string]);
+      if (result.code !== 0) {
+        throw new Error(`docker diff failed: ${result.stderr}`);
+      }
+
+      const lines = result.stdout.trim().split("\n").filter(Boolean);
+      const changes = lines.map((line) => {
+        const type = line.charAt(0) as "A" | "C" | "D";
+        const path = line.substring(2);
+        return {
+          type,
+          typeLabel: type === "A" ? "added" : type === "C" ? "changed" : "deleted",
+          path,
+        };
+      });
+
+      return {
+        changes,
+        summary: {
+          added: changes.filter((c) => c.type === "A").length,
+          changed: changes.filter((c) => c.type === "C").length,
+          deleted: changes.filter((c) => c.type === "D").length,
+          total: changes.length,
+        },
+      };
     },
   },
 ];

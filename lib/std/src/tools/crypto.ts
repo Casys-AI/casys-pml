@@ -426,6 +426,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate cryptographic hash of text using SHA algorithms. Support SHA-256 (default), SHA-1, SHA-384, SHA-512. Use for checksums, data integrity, or content addressing. Keywords: SHA hash, SHA-256, hash text, cryptographic digest, checksum, content hash.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -451,6 +458,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate cryptographically random UUID v4 identifiers. Create unique IDs for records, sessions, or tracking. Generate multiple UUIDs at once. Keywords: UUID, unique ID, GUID, random identifier, generate UUID, v4 UUID.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -468,6 +482,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Encode text to Base64 or decode Base64 back to text. Use for data URLs, embedding binary in JSON, or API payload encoding. Keywords: base64 encode, base64 decode, btoa atob, binary to text, data URI encoding.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -488,6 +509,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Convert text to hexadecimal representation or decode hex back to text. Useful for viewing raw bytes, encoding binary data, or protocol debugging. Keywords: hex encode, hex decode, hexadecimal, text to hex, bytes to hex.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -515,6 +543,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate cryptographically secure random bytes as hex string. Use for tokens, keys, nonces, or salts. Specify number of bytes needed. Keywords: random bytes, secure random, crypto random, generate nonce, random hex.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -534,6 +569,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "URL encode or decode text (percent encoding). Handle special characters for URLs safely. Use component mode for query params or full URI mode. Keywords: URL encode, URL decode, percent encoding, encodeURIComponent, query string escape.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -558,6 +600,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Encode or decode HTML entities for XSS prevention and safe display. Convert < > & \" ' to HTML entities. Essential for sanitizing user input in HTML. Keywords: HTML encode, HTML entities, escape HTML, XSS prevention, sanitize HTML.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -597,6 +646,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate strong random passwords with customizable options. Include/exclude uppercase, lowercase, numbers, symbols. Option to exclude similar characters (0O, 1lI). Keywords: password generator, random password, strong password, secure password, generate credentials.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -651,15 +707,24 @@ export const cryptoTools: MiniTool[] = [
     },
     _meta: {
       ui: {
-        resourceUri: "ui://mcp-std/json-viewer",
-        emits: ["copy", "select"],
-        accepts: ["expandPath"],
+        resourceUri: "ui://mcp-std/jwt-viewer",
+        emits: ["copyHeader", "copyPayload", "copySignature"],
+        accepts: [],
       },
     },
     handler: ({ token }) => {
-      const parts = (token as string).split(".");
+      const tokenStr = (token as string).trim();
+      const parts = tokenStr.split(".");
+
       if (parts.length !== 3) {
-        throw new Error("Invalid JWT format: expected 3 parts separated by dots");
+        return {
+          valid: false,
+          header: {},
+          payload: {},
+          signature: "",
+          isExpired: false,
+          error: "Invalid JWT format: expected 3 parts separated by dots",
+        };
       }
 
       const decodeBase64Url = (str: string) => {
@@ -675,23 +740,37 @@ export const cryptoTools: MiniTool[] = [
         const payload = decodeBase64Url(parts[1]);
 
         // Check expiration
-        let expired = false;
-        let expiresAt = null;
+        let isExpired = false;
+        let expiresAt: string | undefined;
+        let issuedAt: string | undefined;
+
         if (payload.exp) {
           expiresAt = new Date(payload.exp * 1000).toISOString();
-          expired = Date.now() > payload.exp * 1000;
+          isExpired = Date.now() > payload.exp * 1000;
+        }
+
+        if (payload.iat) {
+          issuedAt = new Date(payload.iat * 1000).toISOString();
         }
 
         return {
+          valid: true,
           header,
           payload,
           signature: parts[2],
-          expired,
-          expiresAt,
-          issuedAt: payload.iat ? new Date(payload.iat * 1000).toISOString() : null,
+          isExpired,
+          ...(expiresAt && { expiresAt }),
+          ...(issuedAt && { issuedAt }),
         };
       } catch (e) {
-        throw new Error(`Failed to decode JWT: ${(e as Error).message}`);
+        return {
+          valid: false,
+          header: {},
+          payload: {},
+          signature: parts[2] || "",
+          isExpired: false,
+          error: `Failed to decode JWT: ${(e as Error).message}`,
+        };
       }
     },
   },
@@ -700,6 +779,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate ULIDs - time-sortable unique identifiers. Better than UUID for databases as they sort chronologically. Combines timestamp with randomness. Keywords: ULID, sortable ID, time-based ID, lexicographic sort, unique identifier.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -744,6 +830,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate HMAC for message authentication. Combine message with secret key for tamper-proof signatures. Use for webhooks, API signing, or data integrity. Keywords: HMAC, message authentication, webhook signature, API signing, keyed hash.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -780,6 +873,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate TOTP codes for two-factor authentication. Compatible with Google Authenticator, Authy. Returns current code and time remaining. Keywords: TOTP, 2FA code, authenticator code, two-factor, OTP generator, Google Authenticator.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -868,6 +968,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Convert text to binary (0s and 1s) representation. Each character becomes 8-bit binary code. Use for visualizing data or educational purposes. Keywords: text to binary, binary conversion, bits representation, ASCII binary.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -888,6 +995,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Convert binary (0s and 1s) string back to text. Decode binary representation to readable characters. Handles space-separated or continuous binary. Keywords: binary to text, decode binary, binary string, bits to text.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -912,6 +1026,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Convert text to Unicode code points. Show U+XXXX format, decimal values, or escaped sequences. Useful for debugging unicode, emoji analysis, or character inspection. Keywords: unicode code points, text to unicode, U+ format, character codes, emoji codes.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -946,6 +1067,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate secure random tokens in hex, base64, or base64url format. Use for API keys, session tokens, or security tokens. Specify length in bytes. Keywords: generate token, API key, session token, secure token, random token, bearer token.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -981,6 +1109,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate or decode HTTP Basic Authentication headers. Encode username:password to 'Basic xxx' header or decode to extract credentials. Keywords: basic auth, HTTP authentication, authorization header, decode basic, encode credentials.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -1024,6 +1159,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Hash passwords with bcrypt or verify hashed passwords. Industry-standard password hashing with configurable cost factor. Never store plain passwords! Keywords: bcrypt, password hash, verify password, secure password, hash compare.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -1061,6 +1203,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate BIP39 mnemonic seed phrases for cryptocurrency wallets. Create 12, 15, 18, 21, or 24 word recovery phrases. For wallet backups and key derivation. Keywords: BIP39, mnemonic phrase, seed phrase, wallet recovery, crypto wallet, word list.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -1115,6 +1264,13 @@ export const cryptoTools: MiniTool[] = [
     description:
       "Generate MD5 hash of text. Legacy algorithm - NOT secure for passwords or cryptographic use. Still useful for checksums, cache keys, or non-security hashing. Keywords: MD5, md5 hash, legacy hash, checksum, non-secure hash.",
     category: "crypto",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -1264,6 +1420,265 @@ export const cryptoTools: MiniTool[] = [
       };
 
       return md5(data);
+    },
+  },
+  {
+    name: "crypto_analyze",
+    description:
+      "Analyze and detect encoding type of a string. Automatically identifies base64, hex, JWT, URL-encoded, HTML entities, binary, and more. Returns the detected type and decoded content when possible. Use for decoding unknown strings, inspecting encoded data, or reverse-engineering payloads. Keywords: detect encoding, analyze string, decode unknown, encoding detection, base64 detect, hex detect, JWT detect.",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        input: { type: "string", description: "String to analyze and detect encoding" },
+      },
+      required: ["input"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy", "expand"],
+        accepts: [],
+      },
+    },
+    handler: ({ input }) => {
+      const inputStr = input as string;
+      const results: Array<{
+        type: string;
+        confidence: "high" | "medium" | "low";
+        decoded?: string;
+        details?: Record<string, unknown>;
+      }> = [];
+
+      // Check for JWT (three base64url parts separated by dots)
+      const jwtRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+      if (jwtRegex.test(inputStr)) {
+        try {
+          const parts = inputStr.split(".");
+          const decodeBase64Url = (str: string) => {
+            let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+            while (base64.length % 4) base64 += "=";
+            return JSON.parse(atob(base64));
+          };
+          const header = decodeBase64Url(parts[0]);
+          const payload = decodeBase64Url(parts[1]);
+          results.push({
+            type: "jwt",
+            confidence: "high",
+            decoded: JSON.stringify({ header, payload }, null, 2),
+            details: {
+              header,
+              payload,
+              algorithm: header.alg,
+              expired: payload.exp ? Date.now() > payload.exp * 1000 : undefined,
+            },
+          });
+        } catch {
+          // Not a valid JWT
+        }
+      }
+
+      // Check for URL encoding (percent-encoded)
+      const urlEncodedRegex = /%[0-9A-Fa-f]{2}/;
+      if (urlEncodedRegex.test(inputStr)) {
+        try {
+          const decoded = decodeURIComponent(inputStr);
+          if (decoded !== inputStr) {
+            results.push({
+              type: "url-encoded",
+              confidence: "high",
+              decoded,
+            });
+          }
+        } catch {
+          // Partial URL encoding
+          results.push({
+            type: "url-encoded",
+            confidence: "low",
+            details: { error: "Partial or malformed URL encoding" },
+          });
+        }
+      }
+
+      // Check for HTML entities
+      const htmlEntityRegex = /&(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);/;
+      if (htmlEntityRegex.test(inputStr)) {
+        const decoded = inputStr
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&amp;/g, "&")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&#x2F;/g, "/")
+          .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+          .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)));
+
+        if (decoded !== inputStr) {
+          results.push({
+            type: "html-entities",
+            confidence: "high",
+            decoded,
+          });
+        }
+      }
+
+      // Check for pure hexadecimal
+      const hexRegex = /^[0-9a-fA-F]+$/;
+      if (hexRegex.test(inputStr) && inputStr.length >= 2 && inputStr.length % 2 === 0) {
+        try {
+          const bytes = new Uint8Array(inputStr.length / 2);
+          for (let i = 0; i < inputStr.length; i += 2) {
+            bytes[i / 2] = parseInt(inputStr.slice(i, i + 2), 16);
+          }
+          const decoded = new TextDecoder().decode(bytes);
+          // Check if decoded is printable
+          const isPrintable = /^[\x20-\x7E\n\r\t]+$/.test(decoded);
+          results.push({
+            type: "hex",
+            confidence: isPrintable ? "high" : "medium",
+            decoded: isPrintable ? decoded : undefined,
+            details: {
+              byteLength: bytes.length,
+              isPrintable,
+              bytesPreview: Array.from(bytes.slice(0, 16)).map((b) => b.toString(16).padStart(2, "0")).join(" "),
+            },
+          });
+        } catch {
+          results.push({
+            type: "hex",
+            confidence: "low",
+            details: { error: "Valid hex but could not decode" },
+          });
+        }
+      }
+
+      // Check for Base64 (standard)
+      const base64Regex = /^[A-Za-z0-9+/]+=*$/;
+      const base64UrlRegex = /^[A-Za-z0-9_-]+$/;
+      const isBase64 = base64Regex.test(inputStr) && inputStr.length >= 4 && inputStr.length % 4 <= 2;
+      const isBase64Url = base64UrlRegex.test(inputStr) && inputStr.length >= 4;
+
+      if (isBase64 || isBase64Url) {
+        try {
+          let base64 = inputStr;
+          if (isBase64Url && !isBase64) {
+            base64 = inputStr.replace(/-/g, "+").replace(/_/g, "/");
+            while (base64.length % 4) base64 += "=";
+          }
+          const decoded = atob(base64);
+          // Check if decoded is printable text
+          const isPrintable = /^[\x20-\x7E\n\r\t]+$/.test(decoded);
+
+          // Don't report base64 if we already detected JWT
+          if (!results.some((r) => r.type === "jwt")) {
+            results.push({
+              type: isBase64Url && !isBase64 ? "base64url" : "base64",
+              confidence: isPrintable ? "high" : "medium",
+              decoded: isPrintable ? decoded : undefined,
+              details: {
+                isPrintable,
+                decodedLength: decoded.length,
+              },
+            });
+          }
+        } catch {
+          // Not valid base64
+        }
+      }
+
+      // Check for binary (only 0s and 1s)
+      const binaryRegex = /^[01\s]+$/;
+      if (binaryRegex.test(inputStr)) {
+        const cleaned = inputStr.replace(/\s/g, "");
+        if (cleaned.length >= 8 && cleaned.length % 8 === 0) {
+          try {
+            const bytes = new Uint8Array(cleaned.length / 8);
+            for (let i = 0; i < cleaned.length; i += 8) {
+              bytes[i / 8] = parseInt(cleaned.slice(i, i + 8), 2);
+            }
+            const decoded = new TextDecoder().decode(bytes);
+            const isPrintable = /^[\x20-\x7E\n\r\t]+$/.test(decoded);
+            results.push({
+              type: "binary",
+              confidence: isPrintable ? "high" : "medium",
+              decoded: isPrintable ? decoded : undefined,
+              details: {
+                bits: cleaned.length,
+                bytes: cleaned.length / 8,
+              },
+            });
+          } catch {
+            // Binary but not decodable
+          }
+        }
+      }
+
+      // Check for Unicode escape sequences
+      const unicodeEscapeRegex = /\\u[0-9a-fA-F]{4}/;
+      if (unicodeEscapeRegex.test(inputStr)) {
+        try {
+          const decoded = inputStr.replace(/\\u([0-9a-fA-F]{4})/g, (_, code) =>
+            String.fromCharCode(parseInt(code, 16))
+          );
+          if (decoded !== inputStr) {
+            results.push({
+              type: "unicode-escape",
+              confidence: "high",
+              decoded,
+            });
+          }
+        } catch {
+          // Invalid unicode escapes
+        }
+      }
+
+      // Check for octal escape sequences
+      const octalEscapeRegex = /\\[0-7]{3}/;
+      if (octalEscapeRegex.test(inputStr)) {
+        try {
+          const decoded = inputStr.replace(/\\([0-7]{3})/g, (_, code) =>
+            String.fromCharCode(parseInt(code, 8))
+          );
+          if (decoded !== inputStr) {
+            results.push({
+              type: "octal-escape",
+              confidence: "high",
+              decoded,
+            });
+          }
+        } catch {
+          // Invalid octal escapes
+        }
+      }
+
+      // Analyze character composition
+      const charAnalysis = {
+        length: inputStr.length,
+        hasUppercase: /[A-Z]/.test(inputStr),
+        hasLowercase: /[a-z]/.test(inputStr),
+        hasDigits: /[0-9]/.test(inputStr),
+        hasSpecial: /[^A-Za-z0-9]/.test(inputStr),
+        hasWhitespace: /\s/.test(inputStr),
+        hasNonAscii: /[^\x00-\x7F]/.test(inputStr),
+        isPrintableAscii: /^[\x20-\x7E\n\r\t]*$/.test(inputStr),
+      };
+
+      // Determine primary detected type
+      const primaryType = results.length > 0
+        ? results.reduce((best, current) => {
+            const confidenceOrder = { high: 3, medium: 2, low: 1 };
+            return confidenceOrder[current.confidence] > confidenceOrder[best.confidence] ? current : best;
+          })
+        : null;
+
+      return {
+        input: inputStr.length > 100 ? inputStr.substring(0, 100) + "..." : inputStr,
+        inputLength: inputStr.length,
+        detectedType: primaryType?.type || "unknown",
+        primaryResult: primaryType,
+        allDetections: results,
+        charAnalysis,
+      };
     },
   },
 ];

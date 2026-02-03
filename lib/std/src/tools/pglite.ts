@@ -305,6 +305,13 @@ export const pgliteTools: MiniTool[] = [
       },
       required: ["sql"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["select"],
+        accepts: [],
+      },
+    },
     handler: async ({ sql, params, dbPath: customPath }) => {
       const pglite = await getDb(customPath as string | undefined);
 

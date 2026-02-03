@@ -177,7 +177,7 @@ function createMockCapability(overrides: Partial<MockCapRecord> = {}): MockCapRe
     action: "read_json",
     hash: "a7f3",
     workflowPatternId: "pattern-123",
-    userId: null,
+    userId: undefined,
     createdAt: new Date("2025-01-01"),
     version: 1,
     verified: false,

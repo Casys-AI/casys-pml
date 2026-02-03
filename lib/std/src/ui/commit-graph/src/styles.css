@@ -1,0 +1,19 @@
+/* Commit Graph base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Graph rail colors for different branches */
+.graph-rail-0 { --rail-color: #3b82f6; } /* blue */
+.graph-rail-1 { --rail-color: #10b981; } /* emerald */
+.graph-rail-2 { --rail-color: #f59e0b; } /* amber */
+.graph-rail-3 { --rail-color: #ef4444; } /* red */
+.graph-rail-4 { --rail-color: #8b5cf6; } /* violet */
+.graph-rail-5 { --rail-color: #ec4899; } /* pink */
+.graph-rail-6 { --rail-color: #06b6d4; } /* cyan */
+.graph-rail-7 { --rail-color: #84cc16; } /* lime */

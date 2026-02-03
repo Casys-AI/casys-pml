@@ -27,25 +27,96 @@ export const sysinfoTools: MiniTool[] = [
   {
     name: "env_list",
     description:
-      "List all environment variables or filter by prefix. View complete environment configuration, debug shell settings, or find specific variables. Use for auditing environment, debugging path issues, or configuration management. Keywords: list env, all environment variables, printenv, show environment, filter env vars.",
+      "List environment variables with optional filtering. View complete environment configuration, debug shell settings, or find specific variables. Supports filtering by prefix or pattern (glob/regex), optional value masking for sensitive data (PASSWORD, SECRET, KEY, TOKEN, CREDENTIAL), and grouping by common prefix. Use for auditing environment, debugging path issues, security review, or configuration management. Keywords: list env, all environment variables, printenv, show environment, filter env vars, mask secrets, env audit.",
     category: "system",
     inputSchema: {
       type: "object",
       properties: {
-        filter: { type: "string", description: "Filter by name prefix" },
+        filter: {
+          type: "string",
+          description: "Filter by prefix or pattern (supports * wildcards)",
+        },
+        showValues: {
+          type: "boolean",
+          description: "Whether to include values (default: true)",
+        },
+        maskSensitive: {
+          type: "boolean",
+          description: "Mask sensitive values like PASSWORD, SECRET, KEY, TOKEN, CREDENTIAL (default: true)",
+        },
       },
     },
-    handler: ({ filter }) => {
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/env-viewer",
+        emits: ["copy", "reveal"],
+        accepts: [],
+      },
+    },
+    handler: ({ filter, showValues = true, maskSensitive = true }) => {
       const env = Deno.env.toObject();
+      const sensitivePatterns = /PASSWORD|SECRET|KEY|TOKEN|CREDENTIAL/i;
+
+      // Convert filter to regex if it contains wildcards
+      let filterRegex: RegExp | null = null;
       if (filter) {
-        const prefix = filter as string;
-        const filtered: Record<string, string> = {};
-        for (const [k, v] of Object.entries(env)) {
-          if (k.startsWith(prefix)) filtered[k] = v;
+        const filterStr = filter as string;
+        if (filterStr.includes("*")) {
+          // Convert glob pattern to regex
+          const regexPattern = filterStr
+            .replace(/[.+^${}()|[\]\\]/g, "\\$&") // Escape special regex chars except *
+            .replace(/\*/g, ".*"); // Convert * to .*
+          filterRegex = new RegExp(`^${regexPattern}$`, "i");
+        } else {
+          // Treat as prefix match
+          filterRegex = new RegExp(`^${filter}`, "i");
         }
-        return { count: Object.keys(filtered).length, variables: filtered };
       }
-      return { count: Object.keys(env).length, variables: env };
+
+      // Filter and process variables
+      const variables: Array<{ key: string; value: string | undefined; masked: boolean }> = [];
+      const prefixCounts: Record<string, number> = {};
+
+      for (const [key, value] of Object.entries(env)) {
+        // Apply filter
+        if (filterRegex && !filterRegex.test(key)) {
+          continue;
+        }
+
+        // Determine if value should be masked
+        const isSensitive = sensitivePatterns.test(key);
+        const shouldMask = Boolean(maskSensitive) && isSensitive;
+
+        // Build variable entry
+        const entry: { key: string; value: string | undefined; masked: boolean } = {
+          key,
+          value: showValues ? (shouldMask ? "********" : value) : undefined,
+          masked: shouldMask,
+        };
+        variables.push(entry);
+
+        // Track prefix for grouping (first part before _ or entire key if no _)
+        const prefixMatch = key.match(/^([A-Z]+)_/i);
+        const prefix = prefixMatch ? prefixMatch[1] : key;
+        prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
+      }
+
+      // Sort variables by key
+      variables.sort((a, b) => a.key.localeCompare(b.key));
+
+      // Build groups from prefix counts (only include prefixes with 2+ variables)
+      const groups: Record<string, number> = {};
+      for (const [prefix, count] of Object.entries(prefixCounts)) {
+        if (count >= 2) {
+          groups[prefix] = count;
+        }
+      }
+
+      return {
+        variables,
+        count: variables.length,
+        groups,
+      };
     },
   },
   {
@@ -163,9 +234,9 @@ export const sysinfoTools: MiniTool[] = [
     },
     _meta: {
       ui: {
-        resourceUri: "ui://mcp-std/table-viewer",
-        emits: ["select", "sort"],
-        accepts: ["highlight"],
+        resourceUri: "ui://mcp-std/disk-usage-viewer",
+        emits: ["select", "drilldown"],
+        accepts: ["highlight", "expand"],
       },
     },
     handler: async ({ path, depth, human = true, summarize }) => {
@@ -360,4 +431,131 @@ export const sysinfoTools: MiniTool[] = [
       };
     },
   },
-  ];
+  {
+    name: "memory_info",
+    description:
+      "Get detailed system memory information. Returns total, available, free, cached, and buffer memory stats with both raw values and percentages. On Linux reads from /proc/meminfo, providing comprehensive memory metrics. Use for memory monitoring, capacity planning, or diagnosing memory pressure. Keywords: memory info, RAM stats, meminfo, system memory, available memory, cached memory, memory metrics, memory monitoring.",
+    category: "system",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/metrics-panel",
+        emits: ["selectMetric", "click"],
+        accepts: ["refresh"],
+      },
+    },
+    handler: async () => {
+      // Try reading /proc/meminfo on Linux
+      try {
+        const content = await Deno.readTextFile("/proc/meminfo");
+        const lines = content.trim().split("\n");
+        const memInfo: Record<string, number> = {};
+
+        for (const line of lines) {
+          const match = line.match(/^(\S+):\s+(\d+)\s*kB?$/);
+          if (match) {
+            // Store values in bytes (convert from kB)
+            memInfo[match[1]] = parseInt(match[2], 10) * 1024;
+          }
+        }
+
+        const total = memInfo["MemTotal"] || 0;
+        const free = memInfo["MemFree"] || 0;
+        const available = memInfo["MemAvailable"] || 0;
+        const buffers = memInfo["Buffers"] || 0;
+        const cached = memInfo["Cached"] || 0;
+        const swapTotal = memInfo["SwapTotal"] || 0;
+        const swapFree = memInfo["SwapFree"] || 0;
+        const swapUsed = swapTotal - swapFree;
+        const used = total - free - buffers - cached;
+
+        const formatBytes = (bytes: number): string => {
+          if (bytes >= 1024 * 1024 * 1024) {
+            return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+          } else if (bytes >= 1024 * 1024) {
+            return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+          } else if (bytes >= 1024) {
+            return `${(bytes / 1024).toFixed(2)} KB`;
+          }
+          return `${bytes} B`;
+        };
+
+        const calcPercent = (value: number, total: number): number => {
+          return total > 0 ? Math.round((value / total) * 10000) / 100 : 0;
+        };
+
+        return {
+          memory: {
+            total: { bytes: total, human: formatBytes(total) },
+            used: { bytes: used, human: formatBytes(used), percent: calcPercent(used, total) },
+            free: { bytes: free, human: formatBytes(free), percent: calcPercent(free, total) },
+            available: { bytes: available, human: formatBytes(available), percent: calcPercent(available, total) },
+            buffers: { bytes: buffers, human: formatBytes(buffers), percent: calcPercent(buffers, total) },
+            cached: { bytes: cached, human: formatBytes(cached), percent: calcPercent(cached, total) },
+          },
+          swap: {
+            total: { bytes: swapTotal, human: formatBytes(swapTotal) },
+            used: { bytes: swapUsed, human: formatBytes(swapUsed), percent: calcPercent(swapUsed, swapTotal) },
+            free: { bytes: swapFree, human: formatBytes(swapFree), percent: calcPercent(swapFree, swapTotal) },
+          },
+        };
+      } catch {
+        // Fallback to 'free' command for non-Linux or permission issues
+        const result = await runCommand("free", ["-b"]);
+        if (result.code !== 0) {
+          throw new Error(`Failed to get memory info: ${result.stderr}`);
+        }
+
+        const lines = result.stdout.trim().split("\n");
+        const memLine = lines.find((l) => l.startsWith("Mem:"));
+        const swapLine = lines.find((l) => l.startsWith("Swap:"));
+
+        const parseMemLine = (line: string | undefined) => {
+          if (!line) return null;
+          const parts = line.split(/\s+/);
+          return {
+            total: parseInt(parts[1], 10),
+            used: parseInt(parts[2], 10),
+            free: parseInt(parts[3], 10),
+            shared: parseInt(parts[4], 10),
+            buffCache: parseInt(parts[5], 10),
+            available: parseInt(parts[6], 10),
+          };
+        };
+
+        const mem = parseMemLine(memLine);
+        const swap = parseMemLine(swapLine);
+
+        const formatBytes = (bytes: number): string => {
+          if (bytes >= 1024 * 1024 * 1024) {
+            return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+          } else if (bytes >= 1024 * 1024) {
+            return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+          }
+          return `${(bytes / 1024).toFixed(2)} KB`;
+        };
+
+        return {
+          memory: mem
+            ? {
+              total: { bytes: mem.total, human: formatBytes(mem.total) },
+              used: { bytes: mem.used, human: formatBytes(mem.used) },
+              free: { bytes: mem.free, human: formatBytes(mem.free) },
+              available: { bytes: mem.available, human: formatBytes(mem.available) },
+            }
+            : null,
+          swap: swap
+            ? {
+              total: { bytes: swap.total, human: formatBytes(swap.total) },
+              used: { bytes: swap.used, human: formatBytes(swap.used) },
+              free: { bytes: swap.free, human: formatBytes(swap.free) },
+            }
+            : null,
+        };
+      }
+    },
+  },
+];

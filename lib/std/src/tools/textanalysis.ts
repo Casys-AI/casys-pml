@@ -158,13 +158,14 @@ export const textanalysisTools: MiniTool[] = [
   {
     name: "text_statistics",
     description:
-      "Get detailed statistics about text. Character counts, word counts, sentence counts, paragraph counts, reading time, and more. Keywords: text stats, word count, character count, reading time, text analysis.",
+      "Get detailed statistics about text. Character counts, word counts, sentence counts, paragraph counts, reading time, readability scores (Flesch-Kincaid, Flesch Reading Ease), word frequency for word clouds, and sentence analysis. Keywords: text stats, word count, character count, reading time, text analysis, readability, word cloud, Flesch-Kincaid.",
     category: "textanalysis",
     inputSchema: {
       type: "object",
       properties: {
         text: { type: "string", description: "Text to analyze" },
         wordsPerMinute: { type: "number", description: "Reading speed (default: 200)" },
+        wordFrequencyLimit: { type: "number", description: "Number of top words for frequency analysis (default: 10)" },
       },
       required: ["text"],
     },
@@ -175,7 +176,7 @@ export const textanalysisTools: MiniTool[] = [
         accepts: [],
       },
     },
-    handler: ({ text, wordsPerMinute = 200 }) => {
+    handler: ({ text, wordsPerMinute = 200, wordFrequencyLimit = 10 }) => {
       const txt = text as string;
       const words = getWords(txt);
       const sentences = getSentences(txt);
@@ -202,6 +203,92 @@ export const textanalysisTools: MiniTool[] = [
       const readingTimeSeconds = (words.length / wpm) * 60;
       const speakingTimeSeconds = (words.length / 150) * 60; // ~150 wpm speaking
 
+      // === NEW: Reading Level Indicators ===
+      const sentenceCount = sentences.length || 1;
+      const wordCount = words.length || 1;
+      const syllables = words.reduce((sum, w) => sum + countSyllables(w), 0);
+
+      // Words per sentence and syllables per word
+      const wordsPerSentence = wordCount / sentenceCount;
+      const syllablesPerWord = syllables / wordCount;
+
+      // Flesch Reading Ease (0-100, higher = easier)
+      const fleschReadingEase = 206.835 - 1.015 * wordsPerSentence - 84.6 * syllablesPerWord;
+
+      // Flesch-Kincaid Grade Level
+      const fleschKincaidGrade = 0.39 * wordsPerSentence + 11.8 * syllablesPerWord - 15.59;
+
+      // Interpret reading level
+      let readingLevelInterpretation: string;
+      if (fleschReadingEase >= 90) readingLevelInterpretation = "Very Easy (5th grade)";
+      else if (fleschReadingEase >= 80) readingLevelInterpretation = "Easy (6th grade)";
+      else if (fleschReadingEase >= 70) readingLevelInterpretation = "Fairly Easy (7th grade)";
+      else if (fleschReadingEase >= 60) readingLevelInterpretation = "Standard (8th-9th grade)";
+      else if (fleschReadingEase >= 50) readingLevelInterpretation = "Fairly Difficult (10th-12th grade)";
+      else if (fleschReadingEase >= 30) readingLevelInterpretation = "Difficult (College)";
+      else readingLevelInterpretation = "Very Difficult (College graduate)";
+
+      // === NEW: Word Frequency (Top N for word cloud) ===
+      const stopwords = new Set([
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+        "of", "with", "by", "from", "as", "is", "was", "are", "were", "been",
+        "be", "have", "has", "had", "do", "does", "did", "will", "would",
+        "could", "should", "may", "might", "must", "shall", "can", "need",
+        "it", "its", "this", "that", "these", "those", "i", "you", "he", "she",
+        "we", "they", "me", "him", "her", "us", "them", "my", "your", "his",
+        "her", "our", "their", "what", "which", "who", "whom", "when", "where",
+        "why", "how", "all", "each", "every", "both", "few", "more", "most",
+        "other", "some", "such", "no", "not", "only", "same", "so", "than",
+        "too", "very", "just", "also", "now", "here", "there", "then",
+      ]);
+
+      const filteredWords = words.filter((w) => w.length >= 2 && !stopwords.has(w));
+      const wordFreqMap = new Map<string, number>();
+      for (const word of filteredWords) {
+        wordFreqMap.set(word, (wordFreqMap.get(word) || 0) + 1);
+      }
+
+      const topWords = Array.from(wordFreqMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, wordFrequencyLimit as number)
+        .map(([word, count]) => ({
+          word,
+          count,
+          percentage: Math.round((count / filteredWords.length) * 10000) / 100,
+        }));
+
+      // === NEW: Sentence Analysis ===
+      const sentenceLengths = sentences.map((s) => getWords(s).length);
+      const avgSentenceLength = sentenceLengths.length > 0
+        ? sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length
+        : 0;
+
+      // Find longest sentences (top 3)
+      const sentencesWithLength = sentences.map((s, idx) => ({
+        text: s,
+        wordCount: getWords(s).length,
+        index: idx,
+      }));
+      const longestSentences = [...sentencesWithLength]
+        .sort((a, b) => b.wordCount - a.wordCount)
+        .slice(0, 3)
+        .map((s) => ({
+          text: s.text.length > 100 ? s.text.substring(0, 100) + "..." : s.text,
+          wordCount: s.wordCount,
+          position: s.index + 1,
+        }));
+
+      // Find shortest sentences (top 3, min 2 words)
+      const shortestSentences = [...sentencesWithLength]
+        .filter((s) => s.wordCount >= 2)
+        .sort((a, b) => a.wordCount - b.wordCount)
+        .slice(0, 3)
+        .map((s) => ({
+          text: s.text,
+          wordCount: s.wordCount,
+          position: s.index + 1,
+        }));
+
       return {
         characters: {
           total: chars,
@@ -217,7 +304,12 @@ export const textanalysisTools: MiniTool[] = [
           longest: longestWord,
           shortest: shortestWord,
         },
-        sentences: sentences.length,
+        sentences: {
+          total: sentences.length,
+          avgLength: Math.round(avgSentenceLength * 10) / 10,
+          longest: longestSentences,
+          shortest: shortestSentences,
+        },
         paragraphs: paragraphs.length,
         lines: lines.length,
         readingTime: {
@@ -229,6 +321,19 @@ export const textanalysisTools: MiniTool[] = [
           seconds: Math.round(speakingTimeSeconds),
           minutes: Math.round(speakingTimeSeconds / 60 * 10) / 10,
           formatted: formatDuration(speakingTimeSeconds),
+        },
+        readability: {
+          fleschReadingEase: Math.round(fleschReadingEase * 10) / 10,
+          fleschKincaidGrade: Math.round(fleschKincaidGrade * 10) / 10,
+          interpretation: readingLevelInterpretation,
+          syllables,
+          avgSyllablesPerWord: Math.round(syllablesPerWord * 100) / 100,
+          avgWordsPerSentence: Math.round(wordsPerSentence * 10) / 10,
+        },
+        wordFrequency: {
+          topWords,
+          totalAnalyzed: filteredWords.length,
+          uniqueAnalyzed: wordFreqMap.size,
         },
       };
     },

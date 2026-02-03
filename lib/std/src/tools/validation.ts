@@ -26,7 +26,7 @@ export const validationTools: MiniTool[] = [
     _meta: {
       ui: {
         resourceUri: "ui://mcp-std/status-badge",
-        emits: ["click"],
+        emits: [],
         accepts: [],
       },
     },
@@ -56,7 +56,7 @@ export const validationTools: MiniTool[] = [
     _meta: {
       ui: {
         resourceUri: "ui://mcp-std/status-badge",
-        emits: ["click"],
+        emits: [],
         accepts: [],
       },
     },
@@ -80,6 +80,13 @@ export const validationTools: MiniTool[] = [
       },
       required: ["uuid"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: [],
+        accepts: [],
+      },
+    },
     handler: ({ uuid, version }) => ({
       valid: validator.isUUID(uuid as string, version as 1 | 2 | 3 | 4 | 5 | undefined),
     }),
@@ -95,6 +102,13 @@ export const validationTools: MiniTool[] = [
         number: { type: "string", description: "Credit card number" },
       },
       required: ["number"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: [],
+        accepts: [],
+      },
     },
     handler: ({ number }) => ({
       valid: validator.isCreditCard(number as string),
@@ -116,7 +130,7 @@ export const validationTools: MiniTool[] = [
     _meta: {
       ui: {
         resourceUri: "ui://mcp-std/status-badge",
-        emits: ["click"],
+        emits: [],
         accepts: [],
       },
     },
@@ -137,6 +151,13 @@ export const validationTools: MiniTool[] = [
         json: { type: "string", description: "JSON string to validate" },
       },
       required: ["json"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: [],
+        accepts: [],
+      },
     },
     handler: ({ json }) => {
       try {
@@ -163,6 +184,13 @@ export const validationTools: MiniTool[] = [
         },
       },
       required: ["data", "schema"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/validation-result",
+        emits: ["showDetails"],
+        accepts: [],
+      },
     },
     handler: ({ data, schema }) => {
       // Convert simple schema definition to Zod schema
@@ -243,6 +271,13 @@ export const validationTools: MiniTool[] = [
       },
       required: ["phone"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: [],
+        accepts: [],
+      },
+    },
     handler: ({ phone, locale }) => ({
       valid: validator.isMobilePhone(
         phone as string,
@@ -263,6 +298,13 @@ export const validationTools: MiniTool[] = [
       },
       required: ["date"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: [],
+        accepts: [],
+      },
+    },
     handler: ({ date, format }) => {
       if (format === "ISO8601" || !format) {
         return { valid: validator.isISO8601(date as string) };
@@ -282,6 +324,13 @@ export const validationTools: MiniTool[] = [
         iban: { type: "string", description: "IBAN to validate" },
       },
       required: ["iban"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: [],
+        accepts: [],
+      },
     },
     handler: ({ iban }) => {
       // Remove spaces and convert to uppercase
@@ -431,6 +480,13 @@ export const validationTools: MiniTool[] = [
         number: { type: "string", description: "Credit card number" },
       },
       required: ["number"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: [],
+        accepts: [],
+      },
     },
     handler: ({ number }) => {
       const cleaned = (number as string).replace(/[\s-]/g, "");

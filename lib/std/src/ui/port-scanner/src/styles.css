@@ -1,0 +1,56 @@
+/* Base reset for cyberpunk theme */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  font-family: 'JetBrains Mono', 'Source Code Pro', monospace;
+  background: #0a0a0f;
+  color: #c0c0d0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Remove default button styles */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid #00fff2;
+  outline-offset: 2px;
+}
+
+/* Table reset */
+table {
+  border-spacing: 0;
+}
+
+/* Selection styling */
+::selection {
+  background: #00fff2;
+  color: #0a0a0f;
+}
+
+/* Scrollbar styling for cyberpunk theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1a1a2e;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00fff2;
+}

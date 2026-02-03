@@ -27,6 +27,13 @@ export const geoTools: MiniTool[] = [
     description:
       "Calculate distance between two coordinates using Haversine formula. Get great-circle distance between latitude/longitude points. Supports km, miles, meters, nautical miles. Use for delivery routes, proximity search, or travel distance. Keywords: haversine, distance, coordinates, lat long, GPS distance, great circle.",
     category: "geo",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/map-viewer",
+        emits: ["select", "zoom"],
+        accepts: ["highlight", "center"],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -68,6 +75,13 @@ export const geoTools: MiniTool[] = [
     description:
       "Calculate initial bearing/heading between two coordinates. Get compass direction from point A to point B in degrees (0-360). Use for navigation, direction indicators, or route planning. Keywords: bearing, heading, compass, direction, azimuth, navigation.",
     category: "geo",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/map-viewer",
+        emits: ["select", "zoom"],
+        accepts: ["highlight", "center"],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -106,6 +120,13 @@ export const geoTools: MiniTool[] = [
     description:
       "Calculate geographic midpoint between two coordinates. Find the halfway point along the great circle path. Use for meeting point calculation, route waypoints, or center finding. Keywords: midpoint, center point, halfway, middle, geographic center, waypoint.",
     category: "geo",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/map-viewer",
+        emits: ["select", "zoom"],
+        accepts: ["highlight", "center"],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -144,6 +165,13 @@ export const geoTools: MiniTool[] = [
     description:
       "Calculate destination point given start, bearing, and distance. Find where you end up traveling a given direction and distance. Use for route planning, radar circles, or coverage areas. Keywords: destination point, travel to, bearing distance, endpoint, project point.",
     category: "geo",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/map-viewer",
+        emits: ["select", "zoom"],
+        accepts: ["highlight", "center"],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -191,6 +219,13 @@ export const geoTools: MiniTool[] = [
     description:
       "Calculate bounding box containing all given points. Get min/max lat/lon rectangle enclosing a set of coordinates. Use for map viewport, search bounds, or area calculation. Keywords: bounding box, bounds, extent, envelope, min max, viewport.",
     category: "geo",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/map-viewer",
+        emits: ["select", "zoom"],
+        accepts: ["highlight", "center"],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -274,9 +309,9 @@ export const geoTools: MiniTool[] = [
     },
     _meta: {
       ui: {
-        resourceUri: "ui://mcp-std/status-badge",
-        emits: ["click"],
-        accepts: [],
+        resourceUri: "ui://mcp-std/map-viewer",
+        emits: ["select", "zoom"],
+        accepts: ["highlight", "center"],
       },
     },
     handler: ({ point, polygon }) => {
@@ -316,6 +351,13 @@ export const geoTools: MiniTool[] = [
     description:
       "Convert DMS (degrees, minutes, seconds) to decimal degrees. Transform traditional coordinate format to decimal for GPS and mapping. Use for data import, coordinate conversion, or legacy data. Keywords: DMS to decimal, degrees minutes seconds, coordinate convert, GPS format, traditional coords.",
     category: "geo",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -349,6 +391,13 @@ export const geoTools: MiniTool[] = [
     description:
       "Convert decimal degrees to DMS (degrees, minutes, seconds). Transform GPS coordinates to traditional format for display or printing. Use for coordinate formatting, map labels, or human-readable output. Keywords: decimal to DMS, degrees minutes seconds, format coordinate, GPS to DMS, readable coords.",
     category: "geo",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -427,6 +476,13 @@ export const geoTools: MiniTool[] = [
     description:
       "Calculate area of a polygon in square kilometers or miles. Compute surface area of closed geographic region using spherical excess formula. Use for land area, coverage zones, or territory sizing. Keywords: polygon area, surface area, land size, zone area, territory, square km.",
     category: "geo",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/map-viewer",
+        emits: ["select", "zoom"],
+        accepts: ["highlight", "center"],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -527,9 +583,9 @@ export const geoTools: MiniTool[] = [
     },
     _meta: {
       ui: {
-        resourceUri: "ui://mcp-std/table-viewer",
-        emits: ["select", "mapPin"],
-        accepts: ["highlight", "sort"],
+        resourceUri: "ui://mcp-std/map-viewer",
+        emits: ["select", "zoom"],
+        accepts: ["highlight", "center"],
       },
     },
     handler: ({ reference, points, limit = 1, maxDistance }) => {
@@ -575,6 +631,13 @@ export const geoTools: MiniTool[] = [
     description:
       "Calculate geographic center (centroid) of multiple points. Find the average location of a set of coordinates. Use for cluster center, meeting point, or average location. Keywords: centroid, center point, average location, geographic mean, cluster center.",
     category: "geo",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/map-viewer",
+        emits: ["select", "zoom"],
+        accepts: ["highlight", "center"],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
