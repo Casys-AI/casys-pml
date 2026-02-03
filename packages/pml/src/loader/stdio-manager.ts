@@ -37,6 +37,7 @@ function logDebug(message: string): void {
 
 /**
  * Check if dependency is mcp-std (uses jsr:@casys/mcp-std).
+ * Only returns true if explicitly using jsr:@casys/mcp-std, not just named "std".
  */
 function isMcpStd(dep: McpDependency): boolean {
   // Check args for jsr:@casys/mcp-std
@@ -47,10 +48,7 @@ function isMcpStd(dep: McpDependency): boolean {
   if (dep.install?.includes("@casys/mcp-std")) {
     return true;
   }
-  // Check by name
-  if (dep.name === "std" || dep.name === "mcp-std") {
-    return true;
-  }
+  // Don't match by name alone - user may have custom std server
   return false;
 }
 

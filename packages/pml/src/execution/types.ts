@@ -3,11 +3,23 @@
  *
  * Types for the SandboxExecutor module.
  *
+ * ## UI Collection Architecture (Story 16.6)
+ *
+ * The sandbox executor does NOT collect UI metadata. Per MCP Apps spec (SEP-1865),
+ * `_meta.ui.resourceUri` is defined in `tools/list` (during discovery), not in
+ * `tools/call` responses.
+ *
+ * UI collection happens **server-side** after execution:
+ * 1. Sandbox returns `toolsCalled[]` (list of tool IDs that were invoked)
+ * 2. Server looks up `tool_schema.ui_meta` for each called tool
+ * 3. Server builds `CollectedUiResource[]` for tools that have UI
+ *
+ * See `src/services/ui-collector.ts` for the server-side implementation.
+ *
  * @module execution/types
  */
 
 import type { SandboxError } from "../sandbox/mod.ts";
-import type { CollectedUiResource, UiOrchestration } from "../types/mod.ts";
 
 /**
  * Record of a single tool call during execution.
@@ -27,6 +39,9 @@ export interface ToolCallRecord {
 
 /**
  * Result from sandbox code execution.
+ *
+ * Note: UI collection is NOT included here. It's done server-side based on
+ * `toolsCalled` + `tool_schema.ui_meta`. See module docs for details.
  */
 export interface SandboxExecutionResult {
   /** Whether execution succeeded */
@@ -37,18 +52,15 @@ export interface SandboxExecutionResult {
   error?: SandboxError;
   /** Execution duration in milliseconds */
   durationMs: number;
-  /** Tools called during execution (for tracing) */
+  /**
+   * Tools called during execution (for tracing and UI collection).
+   * Used by server-side UI collector to look up which tools have UIs.
+   */
   toolsCalled?: string[];
   /** Detailed records of each tool call */
   toolCallRecords?: ToolCallRecord[];
   /** Trace ID for this execution (for parent-child linking) */
   traceId: string;
-  /**
-   * UI resources collected from MCP tool responses containing `_meta.ui`.
-   * Only present when at least one tool returned UI metadata.
-   * @see CollectedUiResource
-   */
-  collectedUi?: CollectedUiResource[];
 }
 
 /**
@@ -99,10 +111,4 @@ export interface SandboxExecuteOptions {
    * Example: "filesystem:read_file" → "pml.mcp.filesystem.read_file.4ff0"
    */
   fqdnMap?: Map<string, string>;
-  /**
-   * UI orchestration config from capability definition.
-   * Specifies layout and sync rules for composing collected UIs.
-   * @see UiOrchestration
-   */
-  uiOrchestration?: UiOrchestration;
 }

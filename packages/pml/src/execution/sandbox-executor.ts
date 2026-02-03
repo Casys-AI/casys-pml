@@ -8,6 +8,19 @@
  * - Package-side execution when server returns `execute_locally`
  * - CapabilityLoader for sandboxed capability execution
  *
+ * ## UI Collection Architecture (Story 16.6)
+ *
+ * UI collection is NOT done in the sandbox executor. According to MCP Apps spec (SEP-1865),
+ * `_meta.ui.resourceUri` is defined in `tools/list` (tool definition), not in `tools/call`
+ * (tool response). Therefore:
+ *
+ * 1. **Sandbox executor** - Pure execution, returns `toolsCalled` and `toolCallRecords`
+ * 2. **Server-side collector** - Looks up `tool_schema.ui_meta` (from discovery) to build
+ *    `CollectedUiResource[]` based on which tools were called
+ *
+ * This separation keeps the sandbox simple and avoids coupling with the database layer.
+ * See `src/services/ui-collector.ts` for the server-side collection logic.
+ *
  * @module execution/sandbox-executor
  */
 
@@ -23,8 +36,6 @@ import type {
   ToolCallHandler,
   ToolCallRecord,
 } from "./types.ts";
-import type { CollectedUiResource } from "../types/mod.ts";
-import { extractUiMeta } from "./ui-utils.ts";
 
 /**
  * Log debug message for sandbox operations.
@@ -43,8 +54,6 @@ interface RpcCallContext {
   fqdnMap: Map<string, string> | undefined;
   toolsCalled: string[];
   toolCallRecords: ToolCallRecord[];
-  collectedUiResources: CollectedUiResource[];
-  getNextSlot: () => number;
 }
 
 /**
@@ -104,8 +113,6 @@ export class SandboxExecutor {
 
     const toolsCalled: string[] = [];
     const toolCallRecords: ToolCallRecord[] = [];
-    const collectedUiResources: CollectedUiResource[] = [];
-    let uiSlotCounter = 0;
     const startTime = Date.now();
 
     // Create sandbox with hybrid RPC handler
@@ -117,8 +124,6 @@ export class SandboxExecutor {
           fqdnMap,
           toolsCalled,
           toolCallRecords,
-          collectedUiResources,
-          getNextSlot: () => uiSlotCounter++,
         });
       },
       executionTimeoutMs: this.executionTimeoutMs,
@@ -143,6 +148,8 @@ export class SandboxExecutor {
       }
 
       logDebug(`Sandbox execution completed in ${durationMs}ms`);
+      // Note: UI collection is done server-side based on toolsCalled + tool_schema.ui_meta
+      // See Story 16.6 architecture comment at top of file
       return {
         success: true,
         value: result.value,
@@ -150,8 +157,6 @@ export class SandboxExecutor {
         toolsCalled,
         toolCallRecords,
         traceId,
-        // Only include collectedUi if non-empty (Story 16.3)
-        ...(collectedUiResources.length > 0 && { collectedUi: collectedUiResources }),
       };
     } finally {
       sandbox.shutdown();
@@ -160,7 +165,11 @@ export class SandboxExecutor {
 
   /**
    * Handle an RPC call from the sandbox worker.
-   * Routes the tool call, collects UI metadata, and records execution metrics.
+   * Routes the tool call and records execution metrics.
+   *
+   * Note: UI collection is NOT done here. Per MCP Apps spec (SEP-1865), `_meta.ui`
+   * is in `tools/list` not `tools/call`. UI collection happens server-side by
+   * looking up `tool_schema.ui_meta` based on `toolsCalled`.
    */
   private async handleRpcCall(
     method: string,
@@ -174,7 +183,6 @@ export class SandboxExecutor {
 
     try {
       result = await this.routeToolCall(method, args, ctx.clientToolHandler, ctx.traceId);
-      this.collectUiMetadata(result, method, args, ctx);
     } catch (error) {
       success = false;
       result = error instanceof Error ? error.message : String(error);
@@ -191,29 +199,6 @@ export class SandboxExecutor {
     }
 
     return result;
-  }
-
-  /**
-   * Collect UI metadata from tool result if present.
-   */
-  private collectUiMetadata(
-    result: unknown,
-    method: string,
-    args: unknown,
-    ctx: RpcCallContext,
-  ): void {
-    const uiMeta = extractUiMeta(result);
-    if (!uiMeta) {
-      return;
-    }
-
-    ctx.collectedUiResources.push({
-      source: method,
-      resourceUri: uiMeta.resourceUri,
-      context: { ...uiMeta.context, _args: args },
-      slot: ctx.getNextSlot(),
-    });
-    logDebug(`Collected UI from ${method}: ${uiMeta.resourceUri}`);
   }
 
   /**

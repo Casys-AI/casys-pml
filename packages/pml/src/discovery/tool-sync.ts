@@ -64,8 +64,11 @@ export async function syncDiscoveredTools(
             name: t.name,
             description: t.description,
             inputSchema: t.inputSchema,
+            uiMeta: t.uiMeta,
           })),
           error: r.error,
+          // Story 16.6: Include fetched UI HTML
+          uiHtml: r.uiHtml,
         })),
         observedArgs,
       }),

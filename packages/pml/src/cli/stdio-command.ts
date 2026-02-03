@@ -774,7 +774,8 @@ export function createStdioCommand(): Command<any> {
 
             stdioLog.debug(
               `MCP Discovery: ${summary.successfulServers}/${summary.totalServers} servers, ` +
-              `${summary.totalTools} tools found`
+              `${summary.totalTools} tools found` +
+              (summary.uiTools > 0 ? `, ${summary.uiTools} with UI` : "")
             );
 
             // F11 Fix: Send MCP notification for failures (visible to user in Claude Code)
