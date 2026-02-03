@@ -245,9 +245,9 @@ export interface SHGATConfig {
   v2vResidual?: number;
 
   /**
-   * Residual weight for downward message passing phase.
-   * output = (1-r)*propagated + r*original
-   * @default 0 (no residual in downward)
+   * @deprecated This parameter is no longer used.
+   * Downward pass now uses additive residual (E = E_pre + propagated)
+   * instead of interpolation, matching prod SHGAT behavior.
    */
   downwardResidual?: number;
 
@@ -293,7 +293,7 @@ export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
 
   // Multi-location residuals (default: disabled)
   v2vResidual: 0,       // No residual in V2V phase
-  downwardResidual: 0,  // No residual in downward phase
+  downwardResidual: 0,  // @deprecated - not used, kept for backward compatibility
 
   // Gradient scaling for MP (compensate vanishing gradients)
   mpLearningRateScale: 1, // Default 1 for backward compatibility, set to 50-100 to enable MP learning

@@ -495,41 +495,52 @@ export function infoNCELoss(
 
 /**
  * Batch contrastive loss with in-batch negatives
+ *
+ * Note: This function is NOT used in the main sparse training path.
+ * It's kept for potential future use or legacy dense training.
  */
 export function batchContrastiveLoss(
   intentEmbs: tf.Tensor2D,   // [batchSize, embDim]
   positiveEmbs: tf.Tensor2D, // [batchSize, embDim]
   params: TFParams,
-  _config: SHGATConfig,      // Reserved for future K-head projection
+  config: SHGATConfig,
   temperature: number,
 ): tf.Scalar {
-  const batchSize = intentEmbs.shape[0];
+  return tidy(() => {
+    const batchSize = intentEmbs.shape[0];
+    const numHeads = config.numHeads;
 
-  // Project intents [batchSize, hiddenDim]
-  const intentProj = tf.matMul(intentEmbs, params.W_intent);
+    // Project intents [batchSize, hiddenDim]
+    const intentProj = tf.matMul(intentEmbs, params.W_intent);
 
-  // Project positives using first K-head W_k (simplified)
-  // In full version, would use message-passed embeddings
-  const positiveProj = tf.matMul(positiveEmbs, params.W_k[0]);
+    // Project positives using ALL K-heads and average (multi-head fusion)
+    const headProjections: tf.Tensor2D[] = [];
+    for (let h = 0; h < numHeads; h++) {
+      headProjections.push(tf.matMul(positiveEmbs, params.W_k[h]) as tf.Tensor2D);
+    }
+    // Mean pooling across heads: [batchSize, headDim]
+    const stacked = tf.stack(headProjections);
+    const positiveProj = tf.mean(stacked, 0) as tf.Tensor2D;
 
-  // Normalize
-  const intentNorm = ops.l2Normalize(intentProj, 1) as tf.Tensor2D;
-  const positiveNorm = ops.l2Normalize(positiveProj, 1) as tf.Tensor2D;
+    // Normalize
+    const intentNorm = ops.l2Normalize(intentProj, 1) as tf.Tensor2D;
+    const positiveNorm = ops.l2Normalize(positiveProj, 1) as tf.Tensor2D;
 
-  // Similarity matrix [batchSize, batchSize]
-  const similarity = tf.div(
-    ops.matmulTranspose(intentNorm, positiveNorm),
-    temperature
-  );
+    // Similarity matrix [batchSize, batchSize]
+    const similarity = tf.div(
+      ops.matmulTranspose(intentNorm, positiveNorm),
+      temperature
+    );
 
-  // Labels: diagonal (i matches i)
-  const labels = tf.eye(batchSize);
+    // Labels: diagonal (i matches i)
+    const labels = tf.eye(batchSize);
 
-  // Symmetric cross-entropy
-  const loss1 = tf.losses.softmaxCrossEntropy(labels, similarity);
-  const loss2 = tf.losses.softmaxCrossEntropy(labels, tf.transpose(similarity));
+    // Symmetric cross-entropy
+    const loss1 = tf.losses.softmaxCrossEntropy(labels, similarity);
+    const loss2 = tf.losses.softmaxCrossEntropy(labels, tf.transpose(similarity));
 
-  return tf.div(tf.add(loss1, loss2), 2) as tf.Scalar;
+    return tf.div(tf.add(loss1, loss2), 2) as tf.Scalar;
+  });
 }
 
 // ============================================================================
@@ -861,7 +872,8 @@ export function buildGraphStructure(
   toolIds: string[],
 ): GraphStructure {
   // Group capabilities by hierarchy level
-  // Level 0 = no parents, Level 1 = has parents at level 0, etc.
+  // Level 0 = leaves (no children), Level 1+ = parents with children
+  // This gives deeper hierarchy (maxLevel=2 instead of 1)
   const capIdToLevel = new Map<string, number>();
   const capIdToInfo = new Map<string, CapabilityInfo>();
 
@@ -869,34 +881,32 @@ export function buildGraphStructure(
     capIdToInfo.set(cap.id, cap);
   }
 
-  // BFS to compute levels
-  const queue: string[] = [];
-  for (const cap of capabilities) {
-    if (!cap.parents || cap.parents.length === 0) {
-      capIdToLevel.set(cap.id, 0);
-      queue.push(cap.id);
-    }
-  }
+  // Recursive level computation: level = 0 if leaf, else 1 + max(children levels)
+  const computeLevel = (capId: string): number => {
+    const cached = capIdToLevel.get(capId);
+    if (cached !== undefined) return cached;
 
-  while (queue.length > 0) {
-    const capId = queue.shift()!;
-    const level = capIdToLevel.get(capId)!;
     const cap = capIdToInfo.get(capId);
-    if (cap?.children) {
-      for (const childId of cap.children) {
-        if (!capIdToLevel.has(childId)) {
-          capIdToLevel.set(childId, level + 1);
-          queue.push(childId);
-        }
-      }
+    if (!cap) {
+      capIdToLevel.set(capId, 0);
+      return 0;
     }
-  }
 
-  // Handle orphans (caps without parents but not in BFS)
-  for (const cap of capabilities) {
-    if (!capIdToLevel.has(cap.id)) {
-      capIdToLevel.set(cap.id, 0);
+    const validChildren = (cap.children || []).filter(id => capIdToInfo.has(id));
+    let level: number;
+    if (validChildren.length === 0) {
+      level = 0;  // Leaf
+    } else {
+      const childLevels = validChildren.map(childId => computeLevel(childId));
+      level = 1 + Math.max(...childLevels);
     }
+
+    capIdToLevel.set(capId, level);
+    return level;
+  };
+
+  for (const cap of capabilities) {
+    computeLevel(cap.id);
   }
 
   // Group by level
@@ -925,10 +935,12 @@ export function buildGraphStructure(
   const toolToCapMatrix = tf.tensor2d(toolToCapData);
 
   // Build cap→cap matrices per level
+  // With leaf=0 convention: level L parents connect to level L-1 children
+  // Matrix[level] is [numParentsAtLevel, numChildrenAtLevelMinus1]
   const capToCapMatrices = new Map<number, tf.Tensor2D>();
   for (let level = 1; level <= maxLevel; level++) {
-    const parentCaps = capIdsByLevel.get(level - 1) || [];
-    const childCaps = capIdsByLevel.get(level) || [];
+    const parentCaps = capIdsByLevel.get(level) || [];      // Parents at higher level
+    const childCaps = capIdsByLevel.get(level - 1) || [];   // Children at lower level
 
     const matrixData: number[][] = [];
     for (const parentId of parentCaps) {
@@ -1096,12 +1108,11 @@ function trainStepSparse(
       // dLogit[i] = softmax[i] - (1 if i==0 else 0)
       const dLogits = softmaxProbs.map((p, i) => (i === 0 ? p - 1 : p) / trainerConfig.temperature);
 
-      // Propagate to embeddings (simplified: dEmb ≈ dLogit * scale)
-      // This is an approximation - full backward through K-head would be more complex
-      const dScale = 0.01; // Small scale to avoid exploding gradients
+      // Propagate to embeddings
+      // Use full gradient magnitude - gradient clipping handles explosion prevention
       for (let idx = 0; idx < nodeIds.length; idx++) {
         const nodeId = nodeIds[idx];
-        const dLogit = dLogits[idx] * dScale;
+        const dLogit = dLogits[idx];
 
         // Find where this node lives (tool or cap at which level)
         const toolIdx = mpContext.graph.toolIds.indexOf(nodeId);

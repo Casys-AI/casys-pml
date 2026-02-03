@@ -1,8 +1,9 @@
 /**
- * lib/shgat vs prod SHGAT Divergence Benchmark
+ * lib/shgat vs prod SHGAT vs shgat-tf Divergence Benchmark
  *
  * Validates that the standalone lib/shgat package produces identical results
  * to the production SHGAT in src/graphrag/algorithms/shgat.ts.
+ * Also benchmarks shgat-tf (TensorFlow.js version) for comparison.
  *
  * Uses REAL production configs:
  * - batchSize: 32
@@ -31,7 +32,22 @@ import {
   type TrainingExample as ProdTrainingExample,
 } from "../../../src/graphrag/algorithms/shgat.ts";
 
+// Import shgat-tf (AutogradTrainer with message passing)
+import {
+  DEFAULT_SHGAT_CONFIG as TF_CONFIG,
+  seedRng as tfSeedRng,
+  AutogradTrainer,
+  buildGraphStructure,
+  initLayersTrainer,
+  type TrainingExample as TfTrainingExample,
+  type GraphStructure,
+} from "../../../lib/shgat-tf/mod.ts";
+
 import { loadScenario } from "../fixtures/scenario-loader.ts";
+
+// Initialize LayersTrainer (WASM backend + FFI custom kernel for UnsortedSegmentSum)
+const tfBackend = await initLayersTrainer();
+console.log(`[TF] Backend: ${tfBackend}`);
 
 // ============================================================================
 // REAL Production Config Values
@@ -40,10 +56,10 @@ import { loadScenario } from "../fixtures/scenario-loader.ts";
 const BATCH_SIZE = PROD_CONFIG.batchSize; // 32
 const TEMPERATURE = 0.07; // CLIP-style InfoNCE
 const LEARNING_RATE = PROD_CONFIG.learningRate; // 0.05
-const EPOCHS = 10; // Enough to see convergence
+const EPOCHS = 3; // Reduced for faster benchmark (was 10)
 
 console.log("=".repeat(70));
-console.log("lib/shgat vs prod SHGAT - REAL PRODUCTION CONFIG");
+console.log("lib/shgat vs prod SHGAT vs shgat-tf - REAL PRODUCTION CONFIG");
 console.log("=".repeat(70));
 console.log(`batchSize: ${BATCH_SIZE}`);
 console.log(`temperature: ${TEMPERATURE}`);
@@ -51,6 +67,7 @@ console.log(`learningRate: ${LEARNING_RATE}`);
 console.log(`epochs: ${EPOCHS}`);
 console.log(`lib numHeads: ${LIB_CONFIG.numHeads}, hiddenDim: ${LIB_CONFIG.hiddenDim}`);
 console.log(`prod numHeads: ${PROD_CONFIG.numHeads}, hiddenDim: ${PROD_CONFIG.hiddenDim}`);
+console.log(`tf numHeads: ${TF_CONFIG.numHeads}, hiddenDim: ${TF_CONFIG.hiddenDim}`);
 console.log("=".repeat(70));
 
 // ============================================================================
@@ -146,7 +163,40 @@ const libSHGAT = createLibSHGAT(capabilities, toolEmbeddings);
 prodSeedRng(SEED);
 const prodSHGAT = createProdSHGAT(capabilities, toolEmbeddings);
 
-console.log("✅ Both models initialized");
+tfSeedRng(SEED);
+// NOTE: We use AutogradTrainer with FULL MESSAGE PASSING
+// - Upward pass: V → E^0 → E^1 → ... → E^L
+// - Downward pass: E^L → ... → E^0 → V
+// - Sparse MP for WASM compatibility (~10x faster)
+const nodeEmbeddings = new Map<string, number[]>();
+for (const cap of capabilities) {
+  nodeEmbeddings.set(cap.id, cap.embedding);
+}
+for (const [toolId, emb] of toolEmbeddings) {
+  nodeEmbeddings.set(toolId, emb);
+}
+
+// Build graph structure for message passing
+const toolIds = Array.from(toolEmbeddings.keys());
+const graphStructure: GraphStructure = buildGraphStructure(capabilities, toolIds);
+
+// Create trainer with message passing enabled
+const tfTrainer = new AutogradTrainer(
+  TF_CONFIG,
+  { temperature: TEMPERATURE, learningRate: LEARNING_RATE },
+  graphStructure.maxLevel
+);
+tfTrainer.setNodeEmbeddings(nodeEmbeddings);
+tfTrainer.setGraph(graphStructure);
+
+// Pre-compute capability IDs for tfTrainer.score() calls
+const capIds = capabilities.map(c => c.id);
+
+console.log("✅ All three models initialized (lib/shgat, prod SHGAT, shgat-tf AutogradTrainer)");
+console.log(`   shgat-tf uses AutogradTrainer with FULL MESSAGE PASSING`);
+console.log(`   Upward: V → E^0 → ... → E^${graphStructure.maxLevel}`);
+console.log(`   Downward: E^${graphStructure.maxLevel} → ... → E^0 → V`);
+console.log(`   Graph: ${toolIds.length} tools, ${capIds.length} caps, maxLevel=${graphStructure.maxLevel}`);
 
 // ============================================================================
 // Divergence Metrics
@@ -297,6 +347,28 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
   }
 }
 
+// Train shgat-tf (AutogradTrainer with message passing)
+console.log("\nTraining shgat-tf (AutogradTrainer + Message Passing)...");
+let tfFinalLoss = 0, tfFinalAcc = 0;
+for (let epoch = 0; epoch < EPOCHS; epoch++) {
+  let epochLoss = 0, epochAcc = 0, batchCount = 0;
+  for (let b = 0; b < numBatches; b++) {
+    const start = b * BATCH_SIZE;
+    const batch = trainingExamples.slice(start, start + BATCH_SIZE) as TfTrainingExample[];
+    if (batch.length === 0) continue;
+
+    const result = tfTrainer.trainBatch(batch);
+    epochLoss += result.loss;
+    epochAcc += result.accuracy;
+    batchCount++;
+  }
+  tfFinalLoss = epochLoss / batchCount;
+  tfFinalAcc = epochAcc / batchCount;
+  if (epoch === 0 || epoch === EPOCHS - 1) {
+    console.log(`   Epoch ${epoch + 1}: loss=${tfFinalLoss.toFixed(4)}, acc=${(tfFinalAcc * 100).toFixed(1)}%`);
+  }
+}
+
 // ============================================================================
 // Post-Training Divergence Test
 // ============================================================================
@@ -318,6 +390,7 @@ console.log(`Top-5 rank agreement:  ${(postDivergence.rankAgreement * 100).toFix
 console.log(`\nTraining convergence comparison:`);
 console.log(`   lib/shgat:  loss=${libFinalLoss.toFixed(4)}, acc=${(libFinalAcc * 100).toFixed(1)}%`);
 console.log(`   prod SHGAT: loss=${prodFinalLoss.toFixed(4)}, acc=${(prodFinalAcc * 100).toFixed(1)}%`);
+console.log(`   shgat-tf:   loss=${tfFinalLoss.toFixed(4)}, acc=${(tfFinalAcc * 100).toFixed(1)}%`);
 
 const postTrainPassed = postDivergence.correlationCoeff > 0.95 && postDivergence.rankAgreement >= 0.6;
 console.log(`\nPost-training test: ${postTrainPassed ? "✅ PASS" : "❌ FAIL (divergence too high)"}`);
@@ -331,29 +404,45 @@ console.log("ACCURACY ON TEST QUERIES (MRR, Hit@1, Hit@3)");
 console.log("=".repeat(70));
 
 let libHit1 = 0, libHit3 = 0, prodHit1 = 0, prodHit3 = 0;
-let libMRR = 0, prodMRR = 0;
+let tfHit1 = 0, tfHit3 = 0;
+let libMRR = 0, prodMRR = 0, tfMRR = 0;
 
 for (const query of rawQueries) {
-  const libResults = libSHGAT.scoreAllCapabilities(query.intentEmbedding);
+  // lib/shgat uses unified scoreNodes() API
+  // prod SHGAT uses legacy scoreAllCapabilities()
+  // shgat-tf uses AutogradTrainer.score() which returns scores in the order of provided nodeIds
+  const libResults = libSHGAT.scoreNodes(query.intentEmbedding, 1); // level 1 = capabilities
   const prodResults = prodSHGAT.scoreAllCapabilities(query.intentEmbedding);
 
-  const libRank = libResults.findIndex((r) => r.capabilityId === query.expectedCapability) + 1;
+  // shgat-tf: Use the TRAINED AutogradTrainer for scoring (with message passing)
+  const tfScores = tfTrainer.score(query.intentEmbedding, capIds);
+  const tfResults = capIds.map((id, i) => ({ nodeId: id, score: tfScores[i] }))
+    .sort((a, b) => b.score - a.score);
+
+  const libRank = libResults.findIndex((r) => r.nodeId === query.expectedCapability) + 1;
   const prodRank = prodResults.findIndex((r) => r.capabilityId === query.expectedCapability) + 1;
+  const tfRank = tfResults.findIndex((r) => r.nodeId === query.expectedCapability) + 1;
 
   if (libRank === 1) libHit1++;
   if (libRank <= 3) libHit3++;
   if (prodRank === 1) prodHit1++;
   if (prodRank <= 3) prodHit3++;
+  if (tfRank === 1) tfHit1++;
+  if (tfRank <= 3) tfHit3++;
   if (libRank > 0) libMRR += 1 / libRank;
   if (prodRank > 0) prodMRR += 1 / prodRank;
+  if (tfRank > 0) tfMRR += 1 / tfRank;
 }
 
 const n = rawQueries.length || 1;
-console.log(`lib/shgat:  MRR=${(libMRR / n).toFixed(3)}, Hit@1=${(libHit1 / n * 100).toFixed(1)}%, Hit@3=${(libHit3 / n * 100).toFixed(1)}%`);
-console.log(`prod SHGAT: MRR=${(prodMRR / n).toFixed(3)}, Hit@1=${(prodHit1 / n * 100).toFixed(1)}%, Hit@3=${(prodHit3 / n * 100).toFixed(1)}%`);
+console.log(`lib/shgat:    MRR=${(libMRR / n).toFixed(3)}, Hit@1=${(libHit1 / n * 100).toFixed(1)}%, Hit@3=${(libHit3 / n * 100).toFixed(1)}%`);
+console.log(`prod SHGAT:   MRR=${(prodMRR / n).toFixed(3)}, Hit@1=${(prodHit1 / n * 100).toFixed(1)}%, Hit@3=${(prodHit3 / n * 100).toFixed(1)}%`);
+console.log(`shgat-tf:     MRR=${(tfMRR / n).toFixed(3)}, Hit@1=${(tfHit1 / n * 100).toFixed(1)}%, Hit@3=${(tfHit3 / n * 100).toFixed(1)}%`);
 
 const mrrDiff = Math.abs((libMRR / n) - (prodMRR / n));
-console.log(`\nMRR difference: ${mrrDiff.toFixed(4)} ${mrrDiff < 0.05 ? "✅" : "⚠️ DIVERGENCE"}`);
+const tfMrrDiff = Math.abs((libMRR / n) - (tfMRR / n));
+console.log(`\nMRR lib vs prod: ${mrrDiff.toFixed(4)} ${mrrDiff < 0.05 ? "✅" : "⚠️ DIVERGENCE"}`);
+console.log(`MRR lib vs shgat-tf: ${tfMrrDiff.toFixed(4)} ${tfMrrDiff < 0.05 ? "✅" : "⚠️ DIVERGENCE"}`);
 
 // ============================================================================
 // Summary
@@ -379,11 +468,11 @@ console.log("=".repeat(70) + "\n");
 // ============================================================================
 
 Deno.bench({
-  name: "lib/shgat: scoreAllCapabilities",
+  name: "lib/shgat: scoreNodes",
   group: "lib-vs-prod-latency",
   baseline: true,
   fn: () => {
-    libSHGAT.scoreAllCapabilities(testIntent);
+    libSHGAT.scoreNodes(testIntent, 1); // level 1 = capabilities
   },
 });
 
@@ -419,5 +508,30 @@ Deno.bench({
       true, // evaluateOnly
       TEMPERATURE,
     );
+  },
+});
+
+// ============================================================================
+// shgat-tf (TensorFlow.js) Benchmarks
+// ============================================================================
+
+// NOTE: We benchmark AutogradTrainer with FULL MESSAGE PASSING
+// - Upward: V → E^0 → ... → E^L
+// - Downward: E^L → ... → E^0 → V
+// - Sparse MP for WASM compatibility (~10x faster than dense)
+
+Deno.bench({
+  name: "shgat-tf AutogradTrainer: score (with message passing)",
+  group: "lib-vs-prod-latency",
+  fn: () => {
+    tfTrainer.score(testIntent, capIds);
+  },
+});
+
+Deno.bench({
+  name: "shgat-tf AutogradTrainer: trainBatch (32 examples, with MP)",
+  group: "lib-vs-prod-training",
+  fn: () => {
+    tfTrainer.trainBatch(trainingExamples.slice(0, BATCH_SIZE) as TfTrainingExample[]);
   },
 });

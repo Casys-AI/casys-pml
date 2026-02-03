@@ -121,9 +121,9 @@ export interface OrchestratorConfig {
   dropout: number;
   leakyReluSlope: number;
   /**
-   * Residual weight for downward message passing.
-   * output = (1-α)*propagated + α*original
-   * @default 0 (pure propagation, no residual)
+   * @deprecated This parameter is no longer used.
+   * Downward pass now uses additive residual (E = E_pre + propagated)
+   * instead of interpolation, matching prod SHGAT behavior.
    */
   downwardResidual?: number;
 }
@@ -483,14 +483,11 @@ export class MultiLevelOrchestrator {
       if (headsE.length > 0) {
         const E_concat = math.concatHeads(headsE);
 
-        // Apply residual connection with configurable weight
-        // E_new = (1-α)*propagated + α*original, where α = downwardResidual
-        const alpha = config.downwardResidual ?? 0;
+        // THEN apply residual connection: E^k ← E^k_pre + E_concat
+        // Both have same dimension [numCaps][numHeads * headDim]
+        // This adds a light feedback from parent level rather than overwriting upward info
         const E_new = capsAtLevelPreDownward.map((row, i) =>
-          row.map((val, j) => {
-            const propagated = E_concat[i]?.[j] ?? 0;
-            return (1 - alpha) * propagated + alpha * val;
-          })
+          row.map((val, j) => val + (E_concat[i]?.[j] ?? 0))
         );
 
         E.set(level, E_new);
@@ -538,19 +535,39 @@ export class MultiLevelOrchestrator {
         if (headsH.length > 0) {
           const H_concat = math.concatHeads(headsH);
 
-          // Apply residual connection with configurable weight
-          // H = (1-α)*propagated + α*original, where α = downwardResidual
-          const alpha = config.downwardResidual ?? 0;
-          H = H_preDownward.map((row, i) =>
-            row.map((val, j) => {
-              const propagated = H_concat[i]?.[j] ?? 0;
-              return (1 - alpha) * propagated + alpha * val;
-            })
-          );
+          // THEN apply residual connection: H ← H_pre + H_concat
+          // Both have same dimension [numTools][numHeads * headDim]
+          // This adds a light feedback from capabilities rather than overwriting upward info
+          H = H_preDownward.map((row, i) => row.map((val, j) => val + (H_concat[i]?.[j] ?? 0)));
         }
 
         attentionDownward.set(-1, levelAttention);
         cache.attentionDownward.set(-1, levelAttention);
+      }
+    }
+
+    // ========================================================================
+    // GCNII-STYLE INITIAL RESIDUAL: Preserve semantic information from initial embeddings
+    // Reference: Chen et al. "Simple and Deep Graph Convolutional Networks" (ICML 2020)
+    // H_final = (1-α) * H_enriched + α * H_init
+    // ========================================================================
+    const alpha = 0.3;
+
+    // Residual for H (tools) - blend enriched with initial
+    H = H.map((row, i) =>
+      row.map((val, j) => (1 - alpha) * val + alpha * cache.H_init[i][j])
+    );
+
+    // Residual for E (capabilities) at each level
+    for (const [level, E_tensor] of E) {
+      const E_initLevel = cache.E_init.get(level);
+      if (E_initLevel) {
+        E.set(
+          level,
+          E_tensor.map((row, i) =>
+            row.map((val, j) => (1 - alpha) * val + alpha * (E_initLevel[i]?.[j] ?? val))
+          )
+        );
       }
     }
 
@@ -826,6 +843,31 @@ export class MultiLevelOrchestrator {
           H = H_preDownward.map((row, i) => row.map((val, j) => val + (H_concat[i]?.[j] ?? 0)));
         }
         attentionDownward.set(-1, levelAttention);
+      }
+    }
+
+    // ========================================================================
+    // GCNII-STYLE INITIAL RESIDUAL: Preserve semantic information from initial embeddings
+    // Reference: Chen et al. "Simple and Deep Graph Convolutional Networks" (ICML 2020)
+    // H_final = (1-α) * H_enriched + α * H_init
+    // ========================================================================
+    const alpha = 0.3;
+
+    // Residual for H (tools) - blend enriched with initial
+    H = H.map((row, i) =>
+      row.map((val, j) => (1 - alpha) * val + alpha * H_init[i][j])
+    );
+
+    // Residual for E (capabilities) at each level
+    for (const [level, E_tensor] of E) {
+      const E_initLevel = E_levels_init.get(level);
+      if (E_initLevel) {
+        E.set(
+          level,
+          E_tensor.map((row, i) =>
+            row.map((val, j) => (1 - alpha) * val + alpha * (E_initLevel[i]?.[j] ?? val))
+          )
+        );
       }
     }
 
