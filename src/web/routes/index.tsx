@@ -98,92 +98,23 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
         <style>{`html,body{background:#0a0908;margin:0}`}</style>
       </Head>
 
-      <div class="landing-page">
-        {/* Header */}
+      <div class="min-h-screen bg-[#08080a] text-stone-100 font-sans relative overflow-x-hidden selection:bg-amber-400 selection:text-stone-950">
         <VitrineHeader activePage="home" user={user} isCloudMode={isCloudMode} />
 
-        {/* Main Content */}
         <main>
-          {/* Hero */}
           <HeroSection />
-
-          {/* Intelligence - right after Hero */}
           <IntelligenceSection />
-
-          {/* Architecture */}
           <ArchitectureSection />
-
-          {/* Isolation - Security & Checkpoints */}
           <IsolationSection />
-
-          {/* Catalog Preview - Existing workflow carousel */}
           <CatalogPreviewSection />
-
-          {/* Code to UI Showcase - "Write → Get" demo (WIP/Preview) */}
           <CodeToUiShowcase />
-
-          {/* Quick Start */}
           <QuickStartSection />
-
-          {/* Blog */}
           <BlogSection posts={latestPosts} formatDate={formatDate} />
-
-          {/* Beta Signup */}
           <BetaSignupSection />
-
-          {/* CTA */}
           <CTASection />
         </main>
 
-        {/* Footer */}
         <Footer isCloudMode={isCloudMode} />
-
-        <style>
-          {`
-          .landing-page {
-            min-height: 100vh;
-            background: #08080a;
-            color: #f0ede8;
-            font-family: 'Geist', -apple-system, system-ui, sans-serif;
-            position: relative;
-            overflow-x: hidden;
-          }
-
-          ::selection {
-            background: #FFB86F;
-            color: #08080a;
-          }
-
-          html {
-            scroll-behavior: smooth;
-            scroll-padding-top: 80px;
-          }
-
-          /* Custom scrollbar */
-          html, body {
-            scrollbar-width: thin;
-            scrollbar-color: #2a2a2e #0a0908;
-          }
-
-          ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-          }
-
-          ::-webkit-scrollbar-track {
-            background: #0a0908;
-          }
-
-          ::-webkit-scrollbar-thumb {
-            background: #2a2a2e;
-            border-radius: 4px;
-          }
-
-          ::-webkit-scrollbar-thumb:hover {
-            background: #4a4a4e;
-          }
-          `}
-        </style>
       </div>
     </>
   );
@@ -199,89 +130,31 @@ interface FooterProps {
 
 function Footer({ isCloudMode }: FooterProps) {
   return (
-    <footer class="landing-footer">
-      <div class="landing-footer__inner">
-        <div class="landing-footer__brand">
-          <span class="landing-footer__logo">{footer.brand.name}</span>
-          <span class="landing-footer__tagline">{footer.brand.tagline}</span>
+    <footer class="relative z-10 p-8 bg-[#08080a] border-t border-amber-400/[0.08]">
+      <div class="max-w-[1200px] mx-auto flex justify-between items-center max-md:flex-col max-md:gap-6 max-md:text-center">
+        <div class="flex items-center gap-4">
+          <span class="font-serif text-[1.375rem] text-amber-400">{footer.brand.name}</span>
+          <span class="text-xs text-stone-600 uppercase tracking-widest">{footer.brand.tagline}</span>
         </div>
-        <div class="landing-footer__links">
+        <div class="flex gap-8">
           {footer.links.map((link) => (
             <a
               key={link.href}
               href={link.href}
               target={link.external ? "_blank" : undefined}
               rel={link.external ? "noopener" : undefined}
+              class="text-stone-400 no-underline text-sm transition-colors duration-200 hover:text-amber-400"
             >
               {link.label}
             </a>
           ))}
-          {!isCloudMode && <a href="/dashboard">Dashboard</a>}
+          {!isCloudMode && (
+            <a href="/dashboard" class="text-stone-400 no-underline text-sm transition-colors duration-200 hover:text-amber-400">
+              Dashboard
+            </a>
+          )}
         </div>
       </div>
-
-      <style>
-        {`
-        .landing-footer {
-          position: relative;
-          z-index: 10;
-          padding: 2rem;
-          background: #08080a;
-          border-top: 1px solid rgba(255, 184, 111, 0.08);
-        }
-
-        .landing-footer__inner {
-          max-width: 1200px;
-          margin: 0 auto;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .landing-footer__brand {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .landing-footer__logo {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 1.375rem;
-          color: #FFB86F;
-        }
-
-        .landing-footer__tagline {
-          font-size: 0.75rem;
-          color: #6b6560;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-        }
-
-        .landing-footer__links {
-          display: flex;
-          gap: 2rem;
-        }
-
-        .landing-footer__links a {
-          color: #a8a29e;
-          text-decoration: none;
-          font-size: 0.875rem;
-          transition: color 0.2s;
-        }
-
-        .landing-footer__links a:hover {
-          color: #FFB86F;
-        }
-
-        @media (max-width: 768px) {
-          .landing-footer__inner {
-            flex-direction: column;
-            gap: 1.5rem;
-            text-align: center;
-          }
-        }
-        `}
-      </style>
     </footer>
   );
 }

@@ -44,6 +44,36 @@
   --animate-fade-slide: fadeSlideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Global scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 184, 111, 0.1) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 184, 111, 0.1);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 184, 111, 0.2);
+}
+
+/* Smooth scroll with header offset */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
 /* CSS Custom Properties for backward compatibility with existing components */
 :root {
   --bg: #0a0908;
