@@ -1,22 +1,21 @@
 /**
  * Table Viewer UI for MCP Apps
  *
- * Interactive table using React + Park UI (Panda CSS).
+ * Interactive table using Preact + Tailwind CSS.
  * Displays query results with sorting, filtering, pagination, and row selection.
+ *
+ * Stack: Preact + Tailwind CSS
  *
  * @module lib/std/src/ui/table-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css, cx } from "../../styled-system/css";
-import { Box, Flex, Center } from "../../styled-system/jsx";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Alert } from "../../components/ui/alert";
 import { Tooltip } from "../../components/ui/tooltip";
-import * as Table from "../../components/ui/table";
-import * as Alert from "../../components/ui/alert";
+import { cx, formatValue as fmtVal } from "../../components/utils";
 import {
   TableSkeleton,
   interactive,
@@ -58,35 +57,6 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 }
 
 // ============================================================================
-// Styles
-// ============================================================================
-
-const headerCellStyle = css({
-  cursor: "pointer",
-  userSelect: "none",
-  whiteSpace: "nowrap",
-  transition: "background-color 0.15s ease",
-  _hover: { bg: "bg.muted" },
-});
-
-const headerCellActiveStyle = css({
-  bg: "bg.muted",
-});
-
-const cellStyle = css({
-  maxW: "300px",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-});
-
-const rowSelectedStyle = css({
-  bg: "blue.50",
-  _hover: { bg: "blue.100" },
-  _dark: { bg: "blue.950", _hover: { bg: "blue.900" } },
-});
-
-// ============================================================================
 // Table Component
 // ============================================================================
 
@@ -104,15 +74,11 @@ function TableViewer() {
 
   // Connect to MCP host
   useEffect(() => {
-    app
-      .connect()
+    app.connect()
       .then(() => {
         appConnected = true;
-        console.log("[table-viewer] Connected to MCP host");
       })
-      .catch(() => {
-        console.log("[table-viewer] No MCP host (standalone mode)");
-      });
+      .catch(() => {});
 
     app.ontoolresult = (result: { content?: ContentItem[]; isError?: boolean }) => {
       setLoading(false);
@@ -232,82 +198,81 @@ function TableViewer() {
   // Error state with Alert
   if (error) {
     return (
-      <Box className={containers.root} maxW="100%" overflow="hidden">
-        <Alert.Root status="error">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Error</Alert.Title>
-            <Alert.Description>{error}</Alert.Description>
-          </Alert.Content>
-        </Alert.Root>
-      </Box>
+      <div className={cx(containers.root, "max-w-full overflow-hidden")}>
+        <Alert status="error" title="Error">{error}</Alert>
+      </div>
     );
   }
 
   // Empty state
   if (!data || data.rows.length === 0) {
     return (
-      <Box className={containers.root} maxW="100%" overflow="hidden">
-        <Center p="10" color="fg.muted">
-          No data to display
-        </Center>
-      </Box>
+      <div className={cx(containers.root, "max-w-full overflow-hidden")}>
+        <div className={containers.centered}>No data to display</div>
+      </div>
     );
   }
 
   return (
-    <Box className={containers.root} maxW="100%" overflow="hidden">
+    <div className={cx(containers.root, "max-w-full overflow-hidden")}>
       {/* Header */}
-      <Flex gap="3" mb="3" align="center" flexWrap="wrap">
-        <Input
+      <div className="flex gap-3 mb-3 items-center flex-wrap">
+        <input
           type="text"
           placeholder="Filter rows..."
           value={filterText}
-          onChange={handleFilter}
-          size="sm"
-          className={cx(css({ flex: 1, minW: "200px" }), interactive.focusRing)}
+          onInput={handleFilter}
+          className={cx(
+            "flex-1 min-w-[200px] px-3 py-1.5 text-sm border border-border-default rounded-md bg-bg-canvas",
+            interactive.focusRing
+          )}
         />
-        <Box className={typography.muted} whiteSpace="nowrap">
+        <div className={cx(typography.muted, "whitespace-nowrap")}>
           Showing {startIdx + 1}-{Math.min(startIdx + pageSize, sortedRows.length)} of{" "}
           {sortedRows.length}
           {filterText && ` (filtered from ${data.rows.length})`}
-        </Box>
-      </Flex>
+        </div>
+      </div>
 
       {/* Table */}
-      <Box overflowX="auto" rounded="lg">
-        <Table.Root size="sm" variant="outline">
-          <Table.Head>
-            <Table.Row>
+      <div className="overflow-x-auto rounded-lg">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-border-default">
               {data.columns.map((col, i) => (
-                <Table.Header
+                <th
                   key={i}
                   onClick={() => handleSort(i)}
-                  className={cx(
-                    headerCellStyle,
-                    interactive.focusRing,
-                    sortColumn === i && headerCellActiveStyle
-                  )}
-                  tabIndex={0}
                   onKeyDown={(e) => e.key === "Enter" && handleSort(i)}
+                  tabIndex={0}
+                  className={cx(
+                    "px-3 py-2 text-left font-medium cursor-pointer select-none whitespace-nowrap",
+                    "transition-colors duration-150 hover:bg-bg-muted",
+                    interactive.focusRing,
+                    sortColumn === i && "bg-bg-muted"
+                  )}
                 >
                   {col}
-                  <Box as="span" ml="1" opacity={0.5}>
-                    {sortColumn === i ? (sortDirection === "asc" ? "▲" : "▼") : "⇅"}
-                  </Box>
-                </Table.Header>
+                  <span className="ml-1 opacity-50">
+                    {sortColumn === i ? (sortDirection === "asc" ? "\u25B2" : "\u25BC") : "\u21C5"}
+                  </span>
+                </th>
               ))}
-            </Table.Row>
-          </Table.Head>
-          <Table.Body>
+            </tr>
+          </thead>
+          <tbody>
             {pageRows.map((row, rowIdx) => {
               const absoluteIdx = startIdx + rowIdx;
               const isSelected = selectedRow === absoluteIdx;
               return (
-                <Table.Row
+                <tr
                   key={absoluteIdx}
                   onClick={() => handleRowClick(rowIdx)}
-                  className={cx(interactive.rowHover, isSelected && rowSelectedStyle)}
+                  className={cx(
+                    "border-b border-border-subtle",
+                    interactive.rowHover,
+                    isSelected && "bg-blue-50 hover:bg-blue-100 dark:bg-blue-950 dark:hover:bg-blue-900"
+                  )}
                 >
                   {row.map((cell, cellIdx) => {
                     const isNull = cell == null;
@@ -316,26 +281,21 @@ function TableViewer() {
                     const shouldTruncate = displayValue.length > 40;
 
                     const cellContent = (
-                      <Table.Cell
+                      <td
                         key={cellIdx}
                         className={cx(
-                          cellStyle,
-                          css({
-                            color: isNull ? "fg.muted" : "inherit",
-                            fontStyle: isNull ? "italic" : "normal",
-                            fontFamily: isNumber ? "mono" : "inherit",
-                            textAlign: isNumber ? "right" : "left",
-                          })
+                          "px-3 py-2 max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap",
+                          isNull && "text-fg-muted italic",
+                          isNumber && "font-mono text-right"
                         )}
                       >
                         {displayValue}
-                      </Table.Cell>
+                      </td>
                     );
 
-                    // Wrap truncated cells with Tooltip
                     if (shouldTruncate) {
                       return (
-                        <Tooltip key={cellIdx} content={displayValue} portalled={false}>
+                        <Tooltip key={cellIdx} content={displayValue}>
                           {cellContent}
                         </Tooltip>
                       );
@@ -343,20 +303,20 @@ function TableViewer() {
 
                     return cellContent;
                   })}
-                </Table.Row>
+                </tr>
               );
             })}
-          </Table.Body>
-        </Table.Root>
-      </Box>
+          </tbody>
+        </table>
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Flex justify="space-between" align="center" mt="3" gap="3">
-          <Box className={typography.muted}>
+        <div className="flex justify-between items-center mt-3 gap-3">
+          <div className={typography.muted}>
             Page {currentPage + 1} of {totalPages}
-          </Box>
-          <Flex gap="1">
+          </div>
+          <div className="flex gap-1">
             <Button
               variant="outline"
               size="xs"
@@ -393,10 +353,10 @@ function TableViewer() {
             >
               Last
             </Button>
-          </Flex>
-        </Flex>
+          </div>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -405,14 +365,13 @@ function TableViewer() {
 // ============================================================================
 
 function normalizeData(parsed: unknown): QueryResult | null {
-  // Handle MCP content format: {content: [{type: "text", text: "..."}]}
   if (parsed && typeof parsed === "object" && "content" in parsed) {
     const content = (parsed as { content: ContentItem[] }).content;
     const textItem = content?.find((c) => c.type === "text");
     if (textItem?.text) {
       try {
         const innerParsed = JSON.parse(textItem.text);
-        return normalizeData(innerParsed); // Recurse with extracted data
+        return normalizeData(innerParsed);
       } catch {
         // Not JSON, treat as raw text
       }
@@ -429,13 +388,10 @@ function normalizeData(parsed: unknown): QueryResult | null {
   }
 
   if (parsed && typeof parsed === "object") {
-    // Format 1: Already has columns/rows structure (mock data, SQL results)
     if ("columns" in parsed && "rows" in parsed) {
       return parsed as QueryResult;
     }
 
-    // Format 2: Object with an array of objects property (e.g., { containers: [...], count: 8 })
-    // Find the first property that is an array of objects and use it as the main data
     const entries = Object.entries(parsed);
     const arrayEntry = entries.find(
       ([, v]) => Array.isArray(v) && v.length > 0 && typeof v[0] === "object" && v[0] !== null
@@ -448,7 +404,6 @@ function normalizeData(parsed: unknown): QueryResult | null {
       return { columns, rows, totalCount: rows.length };
     }
 
-    // Format 3: Simple key-value object (fallback)
     return {
       columns: ["key", "value"],
       rows: entries.map(([k, v]) => [k, formatValue(v)]),
@@ -469,4 +424,4 @@ function formatValue(value: unknown): string {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<TableViewer />);
+render(<TableViewer />, document.getElementById("app")!);

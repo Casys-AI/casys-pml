@@ -7,16 +7,16 @@
  * - Optional label and unit
  * - Smooth animations and loading states
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/gauge
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { Box, Flex, VStack, HStack, Center } from "../../styled-system/jsx";
-import { css, cx } from "../../styled-system/css";
-import * as Progress from "../../components/ui/progress";
 import { Tooltip } from "../../components/ui/tooltip";
+import { cx } from "../../components/utils";
 import {
   GaugeSkeleton,
   StatusBadge,
@@ -51,16 +51,15 @@ type ThresholdStatus = "normal" | "warning" | "critical";
 // ============================================================================
 
 const app = new App({ name: "Gauge", version: "1.0.0" });
-let appConnected = false;
 
 // ============================================================================
 // Styles
 // ============================================================================
 
 const colorMap: Record<ThresholdStatus, string> = {
-  normal: "var(--colors-green-500)",
-  warning: "var(--colors-yellow-500)",
-  critical: "var(--colors-red-500)",
+  normal: "#22c55e",
+  warning: "#eab308",
+  critical: "#ef4444",
 };
 
 const statusMap: Record<ThresholdStatus, "success" | "warning" | "error"> = {
@@ -92,10 +91,10 @@ function CircularGauge({ value, min, max, status, label, unit, displayValue }: G
 
   return (
     <Tooltip content={`${displayValue}${unit ? ` ${unit}` : ""} (${percentage.toFixed(0)}%)`}>
-      <VStack gap="0" alignItems="center" position="relative" w="120px">
+      <div className="flex flex-col gap-0 items-center relative w-[120px]">
         <svg
           viewBox="0 0 120 120"
-          className={cx(css({ w: "100%", h: "auto" }), interactive.scaleOnHover)}
+          className={cx("w-full h-auto", interactive.scaleOnHover)}
         >
           {/* Background arc */}
           <circle
@@ -103,7 +102,7 @@ function CircularGauge({ value, min, max, status, label, unit, displayValue }: G
             cy="60"
             r={radius}
             fill="none"
-            stroke="var(--colors-border-default)"
+            stroke="var(--border-default, #e5e7eb)"
             strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={`${circumference} ${circumference}`}
@@ -124,18 +123,18 @@ function CircularGauge({ value, min, max, status, label, unit, displayValue }: G
             className={valueTransition}
           />
         </svg>
-        <Center position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)">
-          <VStack gap="0" alignItems="center">
-            <Box className={cx(typography.value, valueTransition)}>{displayValue}</Box>
-            {unit && <Box className={typography.muted}>{unit}</Box>}
-          </VStack>
-        </Center>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+          <div className="flex flex-col gap-0 items-center">
+            <div className={cx(typography.value, valueTransition)}>{displayValue}</div>
+            {unit && <div className={typography.muted}>{unit}</div>}
+          </div>
+        </div>
         {label && (
-          <Box className={typography.muted} mt="1" textAlign="center">
+          <div className={cx(typography.muted, "mt-1 text-center")}>
             {label}
-          </Box>
+          </div>
         )}
-      </VStack>
+      </div>
     </Tooltip>
   );
 }
@@ -145,45 +144,30 @@ function LinearGauge({ value, min, max, status, label, unit, displayValue }: Gau
   const color = colorMap[status];
 
   return (
-    <Box w="200px">
-      <Flex justify="space-between" align="baseline" mb="1">
-        {label && <Box className={typography.label}>{label}</Box>}
+    <div className="w-[200px]">
+      <div className="flex justify-between items-baseline mb-1">
+        {label && <div className={typography.label}>{label}</div>}
         <Tooltip content={`${percentage.toFixed(1)}% of max`}>
-          <HStack gap="0.5" className={interactive.scaleOnHover}>
-            <Box className={cx(typography.valueSmall, valueTransition)}>{displayValue}</Box>
-            {unit && <Box className={typography.muted}>{unit}</Box>}
-          </HStack>
+          <div className={cx("flex gap-0.5 items-center", interactive.scaleOnHover)}>
+            <div className={cx(typography.valueSmall, valueTransition)}>{displayValue}</div>
+            {unit && <div className={typography.muted}>{unit}</div>}
+          </div>
         </Tooltip>
-      </Flex>
+      </div>
 
-      {/* Progress bar using Park UI */}
-      <Progress.Root value={percentage} className={css({ "--progress-color": color })}>
-        <Progress.Track
-          className={css({
-            h: "8px",
-            bg: "bg.subtle",
-            rounded: "full",
-            overflow: "hidden",
-          })}
-        >
-          <Progress.Range
-            className={cx(
-              css({
-                h: "100%",
-                rounded: "full",
-                bg: "var(--progress-color)",
-              }),
-              valueTransition
-            )}
-          />
-        </Progress.Track>
-      </Progress.Root>
+      {/* Progress bar */}
+      <div className="h-2 bg-bg-subtle rounded-full overflow-hidden">
+        <div
+          className={cx("h-full rounded-full", valueTransition)}
+          style={{ width: `${percentage}%`, backgroundColor: color }}
+        />
+      </div>
 
-      <Flex justify="space-between" mt="1">
-        <Box className={typography.muted}>{min}</Box>
-        <Box className={typography.muted}>{max}</Box>
-      </Flex>
-    </Box>
+      <div className="flex justify-between mt-1">
+        <div className={typography.muted}>{min}</div>
+        <div className={typography.muted}>{max}</div>
+      </div>
+    </div>
   );
 }
 
@@ -191,26 +175,22 @@ function CompactGauge({ status, label, unit, displayValue }: GaugeProps) {
   const color = colorMap[status];
 
   return (
-    <HStack gap="2" alignItems="center" className={interactive.scaleOnHover}>
-      <Box
-        w="12px"
-        h="12px"
-        rounded="full"
-        flexShrink={0}
-        className={valueTransition}
+    <div className={cx("flex gap-2 items-center", interactive.scaleOnHover)}>
+      <div
+        className={cx("w-3 h-3 rounded-full flex-shrink-0", valueTransition)}
         style={{ backgroundColor: color }}
       />
-      <VStack gap="0" alignItems="flex-start">
-        {label && <Box className={typography.muted}>{label}</Box>}
-        <HStack gap="0.5">
-          <Box className={cx(typography.valueSmall, valueTransition)}>{displayValue}</Box>
-          {unit && <Box className={typography.muted}>{unit}</Box>}
-        </HStack>
-      </VStack>
-      <StatusBadge status={statusMap[status]} size="sm">
+      <div className="flex flex-col gap-0 items-start">
+        {label && <div className={typography.muted}>{label}</div>}
+        <div className="flex gap-0.5 items-center">
+          <div className={cx(typography.valueSmall, valueTransition)}>{displayValue}</div>
+          {unit && <div className={typography.muted}>{unit}</div>}
+        </div>
+      </div>
+      <StatusBadge status={statusMap[status]}>
         {status === "normal" ? "OK" : status === "warning" ? "Warn" : "Crit"}
       </StatusBadge>
-    </HStack>
+    </div>
   );
 }
 
@@ -223,12 +203,7 @@ function Gauge() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    app
-      .connect()
-      .then(() => {
-        appConnected = true;
-      })
-      .catch(() => {});
+    app.connect().catch(() => {});
 
     app.ontoolresult = (result: { content?: Array<{ type: string; text?: string }> }) => {
       setLoading(false);
@@ -272,9 +247,9 @@ function Gauge() {
   // No data state
   if (!data) {
     return (
-      <Box className={containers.root} display="inline-flex">
-        <Box className={containers.centered}>No data</Box>
-      </Box>
+      <div className={cx(containers.root, "inline-flex")}>
+        <div className={containers.centered}>No data</div>
+      </div>
     );
   }
 
@@ -282,11 +257,11 @@ function Gauge() {
   const props: GaugeProps = { value, min, max, status, label, unit, displayValue };
 
   return (
-    <Box p="3" fontFamily="sans" color="fg.default" bg="bg.canvas" display="inline-flex">
+    <div className="p-3 font-sans text-fg-default bg-bg-canvas inline-flex">
       {format === "circular" && <CircularGauge {...props} />}
       {format === "linear" && <LinearGauge {...props} />}
       {format === "compact" && <CompactGauge {...props} />}
-    </Box>
+    </div>
   );
 }
 
@@ -294,4 +269,4 @@ function Gauge() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<Gauge />);
+render(<Gauge />, document.getElementById("app")!);

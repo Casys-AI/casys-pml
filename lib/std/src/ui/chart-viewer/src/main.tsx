@@ -6,17 +6,18 @@
  * - Line chart
  * - Pie chart
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/chart-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect } from "react";
+import { render } from "preact";
+import { useState, useEffect } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css, cx } from "../../styled-system/css";
-import { Box, Flex, HStack } from "../../styled-system/jsx";
 import { Button } from "../../components/ui/button";
+import { Alert } from "../../components/ui/alert";
 import { Tooltip } from "../../components/ui/tooltip";
-import * as Alert from "../../components/ui/alert";
+import { cx } from "../../components/utils";
 import {
   ChartSkeleton,
   StatusBadge,
@@ -77,17 +78,6 @@ const COLORS = [
   "#84cc16",
 ];
 
-const dataPointStyle = css({
-  cursor: "pointer",
-  transition: "opacity 0.15s ease, transform 0.15s ease",
-  _hover: { opacity: 0.8 },
-});
-
-const dataPointScaleStyle = css({
-  cursor: "pointer",
-  transition: "r 0.15s ease, transform 0.15s ease",
-});
-
 // ============================================================================
 // Chart Components
 // ============================================================================
@@ -104,7 +94,7 @@ function BarChart({ data, width, height }: { data: ChartData; width: number; hei
   const gap = barGroupWidth * 0.1;
 
   return (
-    <svg width={width} height={height} className={css({ bg: "bg.default", rounded: "lg" })}>
+    <svg width={width} height={height} className="bg-bg-canvas rounded-lg">
       {/* Y axis */}
       <line
         x1={padding.left}
@@ -163,7 +153,7 @@ function BarChart({ data, width, height }: { data: ChartData; width: number; hei
           const tooltipContent = `${data.labels[i]}: ${value}${dataset.label ? ` (${dataset.label})` : ""}`;
 
           return (
-            <Tooltip key={`${di}-${i}`} content={tooltipContent} portalled={false}>
+            <Tooltip key={`${di}-${i}`} content={tooltipContent}>
               <rect
                 x={x}
                 y={y}
@@ -171,7 +161,10 @@ function BarChart({ data, width, height }: { data: ChartData; width: number; hei
                 height={barHeight}
                 fill={color}
                 rx={2}
-                className={cx(dataPointStyle, valueTransition)}
+                className={cx(
+                  "cursor-pointer transition-opacity duration-150 hover:opacity-80",
+                  valueTransition
+                )}
                 onClick={() =>
                   notifyModel("click", { label: data.labels[i], value, dataset: dataset.label })
                 }
@@ -192,7 +185,7 @@ function BarChart({ data, width, height }: { data: ChartData; width: number; hei
           fill="currentColor"
           fillOpacity={0.7}
         >
-          {label.length > 10 ? label.slice(0, 10) + "…" : label}
+          {label.length > 10 ? label.slice(0, 10) + "\u2026" : label}
         </text>
       ))}
     </svg>
@@ -209,7 +202,7 @@ function LineChart({ data, width, height }: { data: ChartData; width: number; he
   const stepX = chartWidth / (data.labels.length - 1 || 1);
 
   return (
-    <svg width={width} height={height} className={css({ bg: "bg.default", rounded: "lg" })}>
+    <svg width={width} height={height} className="bg-bg-canvas rounded-lg">
       {/* Axes and grid */}
       <line
         x1={padding.left}
@@ -282,15 +275,15 @@ function LineChart({ data, width, height }: { data: ChartData; width: number; he
               const tooltipContent = `${data.labels[i]}: ${value}${dataset.label ? ` (${dataset.label})` : ""}`;
 
               return (
-                <Tooltip key={i} content={tooltipContent} portalled={false}>
+                <Tooltip key={i} content={tooltipContent}>
                   <circle
                     cx={x}
                     cy={y}
                     r={4}
                     fill={color}
-                    className={dataPointScaleStyle}
-                    onMouseEnter={(e) => e.currentTarget.setAttribute("r", "6")}
-                    onMouseLeave={(e) => e.currentTarget.setAttribute("r", "4")}
+                    className="cursor-pointer transition-all duration-150 hover:r-6"
+                    onMouseEnter={(e) => (e.currentTarget as SVGCircleElement).setAttribute("r", "6")}
+                    onMouseLeave={(e) => (e.currentTarget as SVGCircleElement).setAttribute("r", "4")}
                     onClick={() =>
                       notifyModel("click", { label: data.labels[i], value, dataset: dataset.label })
                     }
@@ -313,7 +306,7 @@ function LineChart({ data, width, height }: { data: ChartData; width: number; he
           fill="currentColor"
           fillOpacity={0.7}
         >
-          {label.length > 8 ? label.slice(0, 8) + "…" : label}
+          {label.length > 8 ? label.slice(0, 8) + "\u2026" : label}
         </text>
       ))}
     </svg>
@@ -355,15 +348,15 @@ function PieChart({ data, width, height }: { data: ChartData; width: number; hei
   });
 
   return (
-    <svg width={width} height={height} className={css({ bg: "bg.default", rounded: "lg" })}>
+    <svg width={width} height={height} className="bg-bg-canvas rounded-lg">
       {slices.map((slice, i) => {
         const tooltipContent = `${slice.label}: ${slice.value} (${slice.percent}%)`;
         return (
-          <Tooltip key={i} content={tooltipContent} portalled={false}>
+          <Tooltip key={i} content={tooltipContent}>
             <path
               d={slice.path}
               fill={slice.color}
-              className={dataPointStyle}
+              className="cursor-pointer transition-opacity duration-150 hover:opacity-80"
               onClick={() =>
                 notifyModel("click", {
                   label: slice.label,
@@ -401,15 +394,11 @@ function ChartViewer() {
 
   // Connect to MCP host
   useEffect(() => {
-    app
-      .connect()
+    app.connect()
       .then(() => {
         appConnected = true;
-        console.log("[chart-viewer] Connected to MCP host");
       })
-      .catch(() => {
-        console.log("[chart-viewer] No MCP host (standalone mode)");
-      });
+      .catch(() => {});
 
     app.ontoolresult = (result: { content?: ContentItem[] }) => {
       setLoading(false);
@@ -446,33 +435,27 @@ function ChartViewer() {
   // Error state
   if (error) {
     return (
-      <Box className={containers.root}>
-        <Alert.Root status="error">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Error</Alert.Title>
-            <Alert.Description>{error}</Alert.Description>
-          </Alert.Content>
-        </Alert.Root>
-      </Box>
+      <div className={containers.root}>
+        <Alert status="error" title="Error">{error}</Alert>
+      </div>
     );
   }
 
   // Empty state
   if (!chartData) {
     return (
-      <Box className={containers.root}>
-        <Box className={containers.centered}>No chart data</Box>
-      </Box>
+      <div className={containers.root}>
+        <div className={containers.centered}>No chart data</div>
+      </div>
     );
   }
 
   return (
-    <Box className={containers.root}>
+    <div className={containers.root}>
       {/* Header */}
-      <Flex justify="space-between" alignItems="center" mb="4" flexWrap="wrap" gap="2">
-        {chartData.title && <Box className={typography.sectionTitle}>{chartData.title}</Box>}
-        <HStack gap="1">
+      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+        {chartData.title && <div className={typography.sectionTitle}>{chartData.title}</div>}
+        <div className="flex gap-1">
           {(["bar", "line", "pie"] as const).map((type) => (
             <Button
               key={type}
@@ -484,28 +467,26 @@ function ChartViewer() {
               {type.charAt(0).toUpperCase() + type.slice(1)}
             </Button>
           ))}
-        </HStack>
-      </Flex>
+        </div>
+      </div>
 
       {/* Chart */}
-      <Flex justify="center" borderWidth="1px" borderColor="border.default" rounded="lg" p="2">
+      <div className="flex justify-center border border-border-default rounded-lg p-2">
         {chartType === "bar" && <BarChart data={chartData} width={width} height={height} />}
         {chartType === "line" && <LineChart data={chartData} width={width} height={height} />}
         {chartType === "pie" && <PieChart data={chartData} width={width} height={height} />}
-      </Flex>
+      </div>
 
       {/* Legend for multi-dataset */}
       {chartData.datasets.length > 1 && chartType !== "pie" && (
-        <Flex gap="3" mt="3" justify="center" flexWrap="wrap">
+        <div className="flex gap-3 mt-3 justify-center flex-wrap">
           {chartData.datasets.map((ds, i) => (
             <StatusBadge
               key={i}
               status="neutral"
               icon={
-                <Box
-                  w="10px"
-                  h="10px"
-                  rounded="sm"
+                <span
+                  className="w-2.5 h-2.5 rounded-sm inline-block"
                   style={{ backgroundColor: ds.color || COLORS[i % COLORS.length] }}
                 />
               }
@@ -513,9 +494,9 @@ function ChartViewer() {
               {ds.label || `Dataset ${i + 1}`}
             </StatusBadge>
           ))}
-        </Flex>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -523,4 +504,4 @@ function ChartViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<ChartViewer />);
+render(<ChartViewer />, document.getElementById("app")!);

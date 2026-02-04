@@ -1,37 +1,52 @@
-import { ark } from '@ark-ui/react/factory'
-import { type ComponentProps, forwardRef } from 'react'
-import { Stack, type StackProps, styled } from 'styled-system/jsx'
-import { skeleton } from 'styled-system/recipes'
+import { cx } from "../utils";
 
-export type SkeletonProps = ComponentProps<typeof Skeleton>
-export const Skeleton = styled(ark.div, skeleton)
-
-export type SkeletonCircleProps = ComponentProps<typeof SkeletonCircle>
-export const SkeletonCircle = styled(ark.div, skeleton, { defaultProps: { circle: true } })
-
-export interface SkeletonTextProps extends SkeletonProps {
-  /**
-   * Number of lines to display
-   * @default 3
-   */
-  noOfLines?: number | undefined
-  rootProps?: StackProps | undefined
+export interface SkeletonProps {
+  className?: string;
+  width?: string;
+  height?: string;
+  circle?: boolean;
 }
 
-export const SkeletonText = forwardRef<HTMLDivElement, SkeletonTextProps>(
-  function SkeletonText(props, ref) {
-    const { noOfLines = 3, gap, rootProps, ...skeletonProps } = props
-    return (
-      <Stack ref={ref} gap={gap} width="full" {...rootProps}>
-        {[...Array(noOfLines).keys()].map((index) => (
-          <Skeleton
-            key={index}
-            height="4"
-            _last={{ maxW: noOfLines === 1 ? '100%' : '80%' }}
-            {...skeletonProps}
-          />
-        ))}
-      </Stack>
-    )
-  },
-)
+export function Skeleton({ className, width, height, circle }: SkeletonProps) {
+  return (
+    <div
+      className={cx(
+        "animate-pulse bg-gray-200 dark:bg-gray-700",
+        circle ? "rounded-full" : "rounded",
+        className
+      )}
+      style={{ width, height }}
+    />
+  );
+}
+
+export interface SkeletonTextProps {
+  lines?: number;
+  className?: string;
+  gap?: string;
+}
+
+export function SkeletonText({ lines = 3, className, gap = "8px" }: SkeletonTextProps) {
+  return (
+    <div className={cx("flex flex-col w-full", className)} style={{ gap }}>
+      {Array.from({ length: lines }).map((_, i) => (
+        <Skeleton
+          key={i}
+          height="16px"
+          width={i === lines - 1 ? "60%" : "100%"}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function SkeletonCircle({ size = "40px", className }: { size?: string; className?: string }) {
+  return (
+    <Skeleton
+      circle
+      width={size}
+      height={size}
+      className={className}
+    />
+  );
+}

@@ -1,193 +1,87 @@
 /**
- * Shared micro-interactions for MCP Apps UIs
+ * Shared micro-interactions for MCP Apps UIs - Tailwind CSS version
  *
  * Provides consistent hover, focus, and transition effects
- * across all components following the budget-allocator design patterns.
+ * across all components following the design patterns.
  *
  * @module lib/std/src/ui/shared/interactions
  */
 
-import { css } from "../styled-system/css";
-
 /**
- * Micro-interactions for interactive elements
+ * Micro-interactions for interactive elements (Tailwind classes)
  */
 export const interactive = {
   /** Subtle scale effect for buttons, badges, chips */
-  scaleOnHover: css({
-    transition: "transform 0.15s ease, box-shadow 0.15s ease",
-    cursor: "pointer",
-    _hover: { transform: "scale(1.02)" },
-    _active: { transform: "scale(0.98)" },
-  }),
+  scaleOnHover: "transition-transform duration-150 ease-out cursor-pointer hover:scale-[1.02] active:scale-[0.98]",
 
   /** Larger scale effect for small elements (thumbs, dots, icons) */
-  scaleOnHoverLarge: css({
-    transition: "transform 0.1s ease",
-    cursor: "pointer",
-    _hover: { transform: "scale(1.15)" },
-  }),
+  scaleOnHoverLarge: "transition-transform duration-100 ease-out cursor-pointer hover:scale-[1.15]",
 
   /** Focus ring for keyboard navigation */
-  focusRing: css({
-    _focus: {
-      outline: "none",
-      boxShadow: "0 0 0 3px token(colors.blue.500/30)",
-    },
-    _focusVisible: {
-      outline: "none",
-      boxShadow: "0 0 0 3px token(colors.blue.500/30)",
-    },
-  }),
+  focusRing: "focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30",
 
   /** Row hover for tables and lists */
-  rowHover: css({
-    transition: "background-color 0.15s ease",
-    cursor: "pointer",
-    _hover: { bg: "bg.subtle" },
-  }),
+  rowHover: "transition-colors duration-150 cursor-pointer hover:bg-bg-subtle",
 
   /** Selected row state */
-  rowSelected: css({
-    bg: "blue.50",
-    _hover: { bg: "blue.100" },
-    _dark: { bg: "blue.950", _hover: { bg: "blue.900" } },
-  }),
+  rowSelected: "bg-blue-50 hover:bg-blue-100 dark:bg-blue-950 dark:hover:bg-blue-900",
 
   /** Card with shadow on hover */
-  cardHover: css({
-    transition: "box-shadow 0.2s ease, transform 0.2s ease",
-    _hover: {
-      boxShadow: "0 4px 12px token(colors.gray.900/10)",
-      transform: "translateY(-1px)",
-    },
-  }),
+  cardHover: "transition-all duration-200 hover:shadow-lg hover:-translate-y-px",
 
   /** Clickable element base */
-  clickable: css({
-    cursor: "pointer",
-    userSelect: "none",
-    transition: "opacity 0.15s ease",
-    _hover: { opacity: 0.8 },
-    _active: { opacity: 0.6 },
-  }),
+  clickable: "cursor-pointer select-none transition-opacity duration-150 hover:opacity-80 active:opacity-60",
 };
 
 /**
- * Status badge styles with semi-transparent backgrounds
- * Use with Badge component: <Badge className={statusStyles.success}>
+ * Status badge styles with semi-transparent backgrounds (Tailwind classes)
  */
 export const statusStyles = {
-  success: css({
-    color: "green.600",
-    bg: "green.500/15",
-    _dark: { color: "green.400", bg: "green.500/20" },
-  }),
-  warning: css({
-    color: "yellow.600",
-    bg: "yellow.500/15",
-    _dark: { color: "yellow.400", bg: "yellow.500/20" },
-  }),
-  error: css({
-    color: "red.600",
-    bg: "red.500/15",
-    _dark: { color: "red.400", bg: "red.500/20" },
-  }),
-  info: css({
-    color: "blue.600",
-    bg: "blue.500/15",
-    _dark: { color: "blue.400", bg: "blue.500/20" },
-  }),
-  neutral: css({
-    color: "gray.600",
-    bg: "gray.500/10",
-    _dark: { color: "gray.400", bg: "gray.500/15" },
-  }),
+  success: "text-green-600 bg-green-500/15 dark:text-green-400 dark:bg-green-500/20",
+  warning: "text-yellow-600 bg-yellow-500/15 dark:text-yellow-400 dark:bg-yellow-500/20",
+  error: "text-red-600 bg-red-500/15 dark:text-red-400 dark:bg-red-500/20",
+  info: "text-blue-600 bg-blue-500/15 dark:text-blue-400 dark:bg-blue-500/20",
+  neutral: "text-gray-600 bg-gray-500/10 dark:text-gray-400 dark:bg-gray-500/15",
 };
 
 /**
  * Value transitions for animated numbers (gauges, progress)
  */
-export const valueTransition = css({
-  transition: "all 0.5s ease-out",
-});
+export const valueTransition = "transition-all duration-500 ease-out";
 
 /**
- * Typography scale for visual hierarchy
+ * Typography scale for visual hierarchy (Tailwind classes)
  */
 export const typography = {
   /** Section titles */
-  sectionTitle: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-    color: "fg.default",
-  }),
+  sectionTitle: "text-lg font-semibold text-fg-default",
 
   /** Primary labels */
-  label: css({
-    fontSize: "sm",
-    fontWeight: "medium",
-    color: "fg.default",
-  }),
+  label: "text-sm font-medium text-fg-default",
 
   /** Large metric values */
-  value: css({
-    fontSize: "2xl",
-    fontWeight: "bold",
-    fontFamily: "mono",
-    fontVariantNumeric: "tabular-nums",
-  }),
+  value: "text-2xl font-bold font-mono tabular-nums",
 
   /** Small metric values */
-  valueSmall: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-    fontFamily: "mono",
-    fontVariantNumeric: "tabular-nums",
-  }),
+  valueSmall: "text-lg font-semibold font-mono tabular-nums",
 
   /** Secondary/muted text */
-  muted: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
+  muted: "text-xs text-fg-muted",
 
   /** Amounts and currencies */
-  amount: css({
-    fontSize: "sm",
-    fontFamily: "mono",
-    fontVariantNumeric: "tabular-nums",
-  }),
+  amount: "text-sm font-mono tabular-nums",
 };
 
 /**
- * Common container styles
+ * Common container styles (Tailwind classes)
  */
 export const containers = {
   /** Base container for UI components */
-  root: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-  }),
+  root: "p-4 font-sans text-sm text-fg-default bg-bg-canvas",
 
   /** Card-like container with subtle background */
-  card: css({
-    p: "4",
-    bg: "bg.subtle",
-    borderRadius: "lg",
-    borderWidth: "1px",
-    borderColor: "border.default",
-  }),
+  card: "p-4 bg-bg-subtle rounded-lg border border-border-default",
 
   /** Centered content container */
-  centered: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    p: "10",
-    color: "fg.muted",
-  }),
+  centered: "flex items-center justify-center p-10 text-fg-muted",
 };

@@ -8,16 +8,16 @@
  * - Auto-refresh indicator
  * - Responsive grid layout
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/metrics-panel
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect } from "react";
+import { render } from "preact";
+import { useState, useEffect } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css, cx } from "../../styled-system/css";
-import { Box, Flex, Grid, VStack, HStack, Center } from "../../styled-system/jsx";
 import { Tooltip } from "../../components/ui/tooltip";
-import * as Card from "../../components/ui/card";
+import { cx, formatNumber } from "../../components/utils";
 import {
   MetricsSkeleton,
   StatusBadge,
@@ -76,26 +76,10 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 // ============================================================================
 
 function getColor(value: number, thresholds?: { warning?: number; critical?: number }): string {
-  if (!thresholds) return "var(--colors-blue-500)";
-  if (thresholds.critical !== undefined && value >= thresholds.critical) return "var(--colors-red-500)";
-  if (thresholds.warning !== undefined && value >= thresholds.warning) return "var(--colors-yellow-500)";
-  return "var(--colors-green-500)";
-}
-
-function formatValue(value: number, unit?: string): string {
-  let formatted: string;
-  if (value >= 1000000000) {
-    formatted = (value / 1000000000).toFixed(1) + "G";
-  } else if (value >= 1000000) {
-    formatted = (value / 1000000).toFixed(1) + "M";
-  } else if (value >= 1000) {
-    formatted = (value / 1000).toFixed(1) + "K";
-  } else if (Number.isInteger(value)) {
-    formatted = String(value);
-  } else {
-    formatted = value.toFixed(1);
-  }
-  return unit ? `${formatted}${unit}` : formatted;
+  if (!thresholds) return "#3b82f6";
+  if (thresholds.critical !== undefined && value >= thresholds.critical) return "#ef4444";
+  if (thresholds.warning !== undefined && value >= thresholds.warning) return "#eab308";
+  return "#22c55e";
 }
 
 // ============================================================================
@@ -112,12 +96,12 @@ function GaugeMetric({ metric }: { metric: MetricData }) {
   const offset = circumference - (circumference * percentage) / 100;
 
   const gauge = (
-    <VStack gap="0" align="center" position="relative">
-      <svg viewBox="0 0 100 100" className={css({ w: "80px", h: "80px" })}>
+    <div className="flex flex-col gap-0 items-center relative">
+      <svg viewBox="0 0 100 100" className="w-20 h-20">
         <circle
           cx="50" cy="50" r={radius}
           fill="none"
-          stroke="var(--colors-border-default)"
+          stroke="var(--border-default, #e5e7eb)"
           strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={`${circumference} ${circumference}`}
@@ -135,17 +119,17 @@ function GaugeMetric({ metric }: { metric: MetricData }) {
           className={valueTransition}
         />
       </svg>
-      <Box position="absolute" top="50%" left="50%" transform="translate(-50%, -40%)" textAlign="center">
-        <Box className={cx(typography.value, valueTransition)}>
-          {formatValue(value, unit)}
-        </Box>
-      </Box>
-      <Box className={typography.label}>{label}</Box>
-    </VStack>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[40%] text-center">
+        <div className={cx(typography.value, valueTransition)}>
+          {formatNumber(value, unit)}
+        </div>
+      </div>
+      <div className={typography.label}>{label}</div>
+    </div>
   );
 
   return description ? (
-    <Tooltip content={description} portalled={false}>{gauge}</Tooltip>
+    <Tooltip content={description}>{gauge}</Tooltip>
   ) : gauge;
 }
 
@@ -171,23 +155,23 @@ function SparklineMetric({ metric }: { metric: MetricData }) {
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${padding} ${height - padding} Z`;
 
   const sparkline = (
-    <VStack gap="1" align="stretch">
-      <Flex justify="space-between" align="baseline">
-        <Box className={typography.label}>{label}</Box>
-        <Box className={cx(typography.value, valueTransition)} style={{ color }}>
-          {formatValue(value, unit)}
-        </Box>
-      </Flex>
-      <svg width={width} height={height} className={css({ display: "block", w: "100%" })}>
+    <div className="flex flex-col gap-1">
+      <div className="flex justify-between items-baseline">
+        <div className={typography.label}>{label}</div>
+        <div className={cx(typography.value, valueTransition)} style={{ color }}>
+          {formatNumber(value, unit)}
+        </div>
+      </div>
+      <svg width={width} height={height} className="block w-full">
         <path d={areaPath} fill={color} opacity={0.15} className={valueTransition} />
         <path d={linePath} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" className={valueTransition} />
         <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={3} fill={color} className={valueTransition} />
       </svg>
-    </VStack>
+    </div>
   );
 
   return description ? (
-    <Tooltip content={description} portalled={false}>{sparkline}</Tooltip>
+    <Tooltip content={description}>{sparkline}</Tooltip>
   ) : sparkline;
 }
 
@@ -196,16 +180,16 @@ function StatMetric({ metric }: { metric: MetricData }) {
   const color = getColor(value, thresholds);
 
   const stat = (
-    <VStack gap="0" textAlign="center">
-      <Box className={typography.label}>{label}</Box>
-      <Box className={cx(typography.value, valueTransition)} fontSize="2xl" my="1" style={{ color }}>
-        {formatValue(value, unit)}
-      </Box>
-    </VStack>
+    <div className="flex flex-col gap-0 text-center">
+      <div className={typography.label}>{label}</div>
+      <div className={cx(typography.value, valueTransition, "text-2xl my-1")} style={{ color }}>
+        {formatNumber(value, unit)}
+      </div>
+    </div>
   );
 
   return description ? (
-    <Tooltip content={description} portalled={false}>{stat}</Tooltip>
+    <Tooltip content={description}>{stat}</Tooltip>
   ) : stat;
 }
 
@@ -215,46 +199,36 @@ function BarMetric({ metric }: { metric: MetricData }) {
   const color = getColor(value, thresholds);
 
   const bar = (
-    <VStack gap="1" align="stretch">
-      <Flex justify="space-between" align="baseline">
-        <Box className={typography.label}>{label}</Box>
-        <Box className={cx(typography.valueSmall, valueTransition)}>
-          {formatValue(value, unit)}
-        </Box>
-      </Flex>
-      <Box position="relative" h="8px" bg="bg.muted" rounded="full" overflow="hidden">
-        <Box
-          h="100%"
-          rounded="full"
+    <div className="flex flex-col gap-1">
+      <div className="flex justify-between items-baseline">
+        <div className={typography.label}>{label}</div>
+        <div className={cx(typography.valueSmall, valueTransition)}>
+          {formatNumber(value, unit)}
+        </div>
+      </div>
+      <div className="relative h-2 bg-bg-muted rounded-full overflow-hidden">
+        <div
+          className={cx("h-full rounded-full", valueTransition)}
           style={{ width: `${percentage}%`, backgroundColor: color }}
-          className={valueTransition}
         />
         {thresholds?.warning && (
-          <Box
-            position="absolute"
-            top="0"
-            bottom="0"
-            w="2px"
-            bg="yellow.500"
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-yellow-500"
             style={{ left: `${((thresholds.warning - min) / (max - min)) * 100}%` }}
           />
         )}
         {thresholds?.critical && (
-          <Box
-            position="absolute"
-            top="0"
-            bottom="0"
-            w="2px"
-            bg="red.500"
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500"
             style={{ left: `${((thresholds.critical - min) / (max - min)) * 100}%` }}
           />
         )}
-      </Box>
-    </VStack>
+      </div>
+    </div>
   );
 
   return description ? (
-    <Tooltip content={description} portalled={false}>{bar}</Tooltip>
+    <Tooltip content={description}>{bar}</Tooltip>
   ) : bar;
 }
 
@@ -262,20 +236,25 @@ function MetricCard({ metric }: { metric: MetricData }) {
   const type = metric.type || (metric.history?.length ? "sparkline" : "stat");
 
   return (
-    <Card.Root
-      cursor="pointer"
-      className={cx(interactive.cardHover, interactive.focusRing)}
+    <div
+      className={cx(
+        "p-3 bg-bg-subtle rounded-lg border border-border-default cursor-pointer",
+        interactive.cardHover,
+        interactive.focusRing
+      )}
       tabIndex={0}
       onClick={() => notifyModel("selectMetric", { id: metric.id, metric })}
-      onKeyDown={(e) => e.key === "Enter" && notifyModel("selectMetric", { id: metric.id, metric })}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          notifyModel("selectMetric", { id: metric.id, metric });
+        }
+      }}
     >
-      <Card.Body p="3">
-        {type === "gauge" && <GaugeMetric metric={metric} />}
-        {type === "sparkline" && <SparklineMetric metric={metric} />}
-        {type === "stat" && <StatMetric metric={metric} />}
-        {type === "bar" && <BarMetric metric={metric} />}
-      </Card.Body>
-    </Card.Root>
+      {type === "gauge" && <GaugeMetric metric={metric} />}
+      {type === "sparkline" && <SparklineMetric metric={metric} />}
+      {type === "stat" && <StatMetric metric={metric} />}
+      {type === "bar" && <BarMetric metric={metric} />}
+    </div>
   );
 }
 
@@ -298,13 +277,11 @@ function MetricsPanel() {
         const textContent = result.content?.find((c) => c.type === "text");
         if (textContent?.text) {
           const parsed = JSON.parse(textContent.text);
-          // Handle array of metrics or full panel data
           if (Array.isArray(parsed)) {
             setData({ metrics: parsed });
           } else if (parsed.metrics) {
             setData(parsed);
           } else {
-            // Single metric object - convert to array
             setData({ metrics: [{ id: "metric", label: "Value", ...parsed }] });
           }
         }
@@ -320,40 +297,43 @@ function MetricsPanel() {
 
   if (!data?.metrics?.length) {
     return (
-      <Box className={containers.root}>
-        <Box className={containers.centered}>No metrics</Box>
-      </Box>
+      <div className={containers.root}>
+        <div className={containers.centered}>No metrics</div>
+      </div>
     );
   }
 
   const columns = data.columns || Math.min(4, Math.max(2, data.metrics.length));
 
   return (
-    <Box className={containers.root}>
+    <div className={containers.root}>
       {/* Header */}
       {(data.title || data.timestamp) && (
-        <Flex justify="space-between" align="center" mb="3" pb="2" borderBottom="1px solid" borderColor="border.subtle">
+        <div className="flex justify-between items-center mb-3 pb-2 border-b border-border-subtle">
           {data.title && (
-            <Box className={typography.sectionTitle}>{data.title}</Box>
+            <div className={typography.sectionTitle}>{data.title}</div>
           )}
-          <HStack gap="3">
+          <div className="flex gap-3 items-center">
             {data.refreshInterval && (
-              <StatusBadge status="neutral" size="sm">↻ {data.refreshInterval}s</StatusBadge>
+              <StatusBadge status="neutral">\u21BB {data.refreshInterval}s</StatusBadge>
             )}
             {data.timestamp && (
-              <Box className={typography.muted}>{data.timestamp}</Box>
+              <div className={typography.muted}>{data.timestamp}</div>
             )}
-          </HStack>
-        </Flex>
+          </div>
+        </div>
       )}
 
       {/* Metrics Grid */}
-      <Grid gap="3" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+      <div
+        className="grid gap-3"
+        style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+      >
         {data.metrics.map((metric) => (
           <MetricCard key={metric.id} metric={metric} />
         ))}
-      </Grid>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -361,4 +341,4 @@ function MetricsPanel() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<MetricsPanel />);
+render(<MetricsPanel />, document.getElementById("app")!);

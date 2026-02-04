@@ -8,20 +8,20 @@
  * - Filtering by error type/keyword
  * - Correction suggestions when possible
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/validation-result
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css, cx } from "../../styled-system/css";
-import { Box, Flex, Stack } from "../../styled-system/jsx";
 import { Button } from "../../components/ui/button";
+import { Alert } from "../../components/ui/alert";
 import { Tooltip } from "../../components/ui/tooltip";
-import * as Alert from "../../components/ui/alert";
+import { cx, formatValue as fmtVal } from "../../components/utils";
 import {
   ContentSkeleton,
-  StatusBadge,
   typography,
   containers,
   interactive,
@@ -118,19 +118,12 @@ function getUniqueKeywords(errors: ValidationError[]): string[] {
 
 function GlobalStatus({ valid, errorCount }: { valid: boolean; errorCount: number }) {
   return (
-    <Alert.Root status={valid ? "success" : "error"} variant="surface" mb="4">
-      <Alert.Indicator />
-      <Alert.Content>
-        <Alert.Title>
-          {valid ? "VALID" : "INVALID"}
-        </Alert.Title>
-        {!valid && errorCount > 0 && (
-          <Alert.Description>
-            {errorCount} error{errorCount !== 1 ? "s" : ""} found
-          </Alert.Description>
-        )}
-      </Alert.Content>
-    </Alert.Root>
+    <Alert status={valid ? "success" : "error"} className="mb-4">
+      <div className="font-semibold">{valid ? "VALID" : "INVALID"}</div>
+      {!valid && errorCount > 0 && (
+        <div className="text-sm">{errorCount} error{errorCount !== 1 ? "s" : ""} found</div>
+      )}
+    </Alert>
   );
 }
 
@@ -139,16 +132,14 @@ function ErrorItem({ error, onCopy }: { error: ValidationError; onCopy: (text: s
   const hasExpectedActual = error.expected !== undefined || error.actual !== undefined;
 
   return (
-    <Box
-      bg="bg.subtle"
-      rounded="md"
-      overflow="hidden"
-      cursor="pointer"
-      border="1px solid"
-      borderColor="transparent"
-      className={cx(interactive.rowHover, interactive.focusRing)}
+    <div
+      className={cx(
+        "bg-bg-subtle rounded-md overflow-hidden cursor-pointer border border-transparent",
+        interactive.rowHover,
+        interactive.focusRing,
+        "hover:border-red-300 dark:hover:border-red-700"
+      )}
       tabIndex={0}
-      _hover={{ borderColor: "red.300", _dark: { borderColor: "red.700" } }}
       onClick={() => {
         notifyModel("select-error", { path: error.path, keyword: error.keyword });
         onCopy(error.path);
@@ -161,102 +152,71 @@ function ErrorItem({ error, onCopy }: { error: ValidationError; onCopy: (text: s
       }}
     >
       {/* Path header */}
-      <Flex
-        align="center"
-        gap="2"
-        px="3"
-        py="2"
-        bg="red.50"
-        borderBottom="1px solid"
-        borderColor="red.100"
-        _dark={{ bg: "red.900/20", borderColor: "red.900/40" }}
-      >
-        <Flex align="center" color="red.500" flexShrink={0}>
+      <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border-b border-red-100 dark:bg-red-900/20 dark:border-red-900/40">
+        <div className="text-red-500 flex-shrink-0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
           </svg>
-        </Flex>
-        <code className={css({ fontFamily: "mono", fontSize: "xs", fontWeight: "semibold", color: "red.700", _dark: { color: "red.400" } })}>
+        </div>
+        <code className="font-mono text-xs font-semibold text-red-700 dark:text-red-400">
           {error.path}
         </code>
-      </Flex>
+      </div>
 
       {/* Error message */}
-      <Flex gap="3" p="3">
-        <Flex
-          align="center"
-          justify="center"
-          w="24px"
-          h="24px"
-          rounded="md"
-          bg="gray.200"
-          color="gray.700"
-          fontFamily="mono"
-          fontSize="xs"
-          fontWeight="bold"
-          flexShrink={0}
-          _dark={{ bg: "gray.700", color: "gray.300" }}
+      <div className="flex gap-3 p-3">
+        <div
+          className="flex items-center justify-center w-6 h-6 rounded-md bg-gray-200 text-gray-700 font-mono text-xs font-bold flex-shrink-0 dark:bg-gray-700 dark:text-gray-300"
           title={keywordInfo.label}
         >
           {keywordInfo.icon}
-        </Flex>
-        <Box flex="1" minW="0">
-          <Flex align="baseline" gap="2" flexWrap="wrap" lineHeight="1.5">
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap leading-relaxed">
             {error.keyword && (
-              <span className={css({ fontFamily: "mono", fontSize: "xs", color: "fg.muted", bg: "bg.muted", px: "1.5", py: "0.5", rounded: "sm" })}>
+              <span className="font-mono text-xs text-fg-muted bg-bg-muted px-1.5 py-0.5 rounded-sm">
                 "{error.keyword}"
               </span>
             )}
             <span>{error.message}</span>
-          </Flex>
+          </div>
 
           {/* Expected vs Actual */}
           {hasExpectedActual && (
-            <Stack mt="2" gap="1" pl="2" borderLeft="2px solid" borderColor="border.default">
+            <div className="mt-2 pl-2 border-l-2 border-border-default flex flex-col gap-1">
               {error.expected !== undefined && (
-                <Flex align="baseline" gap="2">
-                  <span className={css({ fontSize: "xs", color: "fg.muted", fontWeight: "medium", minW: "60px" })}>Expected:</span>
-                  <code className={css({ fontFamily: "mono", fontSize: "xs", color: "green.700", _dark: { color: "green.400" } })}>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs text-fg-muted font-medium min-w-[60px]">Expected:</span>
+                  <code className="font-mono text-xs text-green-700 dark:text-green-400">
                     {formatValue(error.expected)}
                   </code>
-                </Flex>
+                </div>
               )}
               {error.actual !== undefined && (
-                <Flex align="baseline" gap="2">
-                  <span className={css({ fontSize: "xs", color: "fg.muted", fontWeight: "medium", minW: "60px" })}>Got:</span>
-                  <code className={css({ fontFamily: "mono", fontSize: "xs", color: "red.600", _dark: { color: "red.400" } })}>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs text-fg-muted font-medium min-w-[60px]">Got:</span>
+                  <code className="font-mono text-xs text-red-600 dark:text-red-400">
                     {formatValue(error.actual)}
                   </code>
-                </Flex>
+                </div>
               )}
-            </Stack>
+            </div>
           )}
 
           {/* Suggestion */}
           {keywordInfo.suggestion && (
-            <Flex
-              align="flex-start"
-              gap="1.5"
-              mt="2"
-              fontSize="xs"
-              color="blue.700"
-              bg="blue.50"
-              px="2"
-              py="1.5"
-              rounded="sm"
-              _dark={{ color: "blue.300", bg: "blue.900/30" }}
-            >
-              <Flex align="center" flexShrink={0} mt="1px">
+            <div className="flex items-start gap-1.5 mt-2 text-xs text-blue-700 bg-blue-50 px-2 py-1.5 rounded-sm dark:text-blue-300 dark:bg-blue-900/30">
+              <div className="flex items-center flex-shrink-0 mt-px">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.997 4.997 0 017 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z" />
                 </svg>
-              </Flex>
+              </div>
               <span>{keywordInfo.suggestion}</span>
-            </Flex>
+            </div>
           )}
-        </Box>
-      </Flex>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -272,8 +232,8 @@ function FilterBar({
   if (keywords.length <= 1) return null;
 
   return (
-    <Flex align="center" gap="2" mb="3" flexWrap="wrap">
-      <Box className={typography.label}>Filter:</Box>
+    <div className="flex items-center gap-2 mb-3 flex-wrap">
+      <div className={typography.label}>Filter:</div>
       <Button
         variant={!selectedKeyword ? "solid" : "outline"}
         size="xs"
@@ -285,20 +245,20 @@ function FilterBar({
       {keywords.map((kw) => {
         const info = getKeywordInfo(kw);
         return (
-          <Tooltip key={kw} content={info.suggestion || info.label} portalled={false}>
+          <Tooltip key={kw} content={info.suggestion || info.label}>
             <Button
               variant={selectedKeyword === kw ? "solid" : "outline"}
               size="xs"
               onClick={() => onSelect(kw)}
               className={interactive.scaleOnHover}
             >
-              <span className={css({ fontFamily: "mono", fontSize: "10px", fontWeight: "bold" })}>{info.icon}</span>
+              <span className="font-mono text-[10px] font-bold mr-1">{info.icon}</span>
               {info.label}
             </Button>
           </Tooltip>
         );
       })}
-    </Flex>
+    </div>
   );
 }
 
@@ -354,17 +314,17 @@ function ValidationResultViewer() {
 
   if (!data) {
     return (
-      <Box className={containers.root}>
-        <Box className={containers.centered}>No validation result</Box>
-      </Box>
+      <div className={containers.root}>
+        <div className={containers.centered}>No validation result</div>
+      </div>
     );
   }
 
   return (
-    <Box className={containers.root}>
+    <div className={containers.root}>
       {/* Schema name if provided */}
       {data.schema && (
-        <Box className={typography.muted} mb="2" fontFamily="mono">{data.schema}</Box>
+        <div className={cx(typography.muted, "mb-2 font-mono")}>{data.schema}</div>
       )}
 
       {/* Global status */}
@@ -381,7 +341,7 @@ function ValidationResultViewer() {
 
       {/* Error list */}
       {!data.valid && filteredErrors.length > 0 && (
-        <Stack gap="3">
+        <div className="flex flex-col gap-3">
           {filteredErrors.map((error, i) => (
             <ErrorItem
               key={`${error.path}-${i}`}
@@ -389,31 +349,16 @@ function ValidationResultViewer() {
               onCopy={handleCopyPath}
             />
           ))}
-        </Stack>
+        </div>
       )}
 
       {/* Copy feedback */}
       {copiedPath && (
-        <Box
-          position="fixed"
-          bottom="4"
-          left="50%"
-          transform="translateX(-50%)"
-          bg="gray.800"
-          color="white"
-          px="3"
-          py="2"
-          rounded="md"
-          fontSize="xs"
-          fontFamily="mono"
-          boxShadow="lg"
-          zIndex={100}
-          _dark={{ bg: "gray.200", color: "gray.900" }}
-        >
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-3 py-2 rounded-md text-xs font-mono shadow-lg z-[100] dark:bg-gray-200 dark:text-gray-900">
           Copied: {copiedPath}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -421,4 +366,4 @@ function ValidationResultViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<ValidationResultViewer />);
+render(<ValidationResultViewer />, document.getElementById("app")!);

@@ -1,64 +1,60 @@
-'use client'
-import { Portal } from '@ark-ui/react/portal'
-import { Tooltip as ArkTooltip } from '@ark-ui/react/tooltip'
-import { type ComponentProps, forwardRef } from 'react'
-import { createStyleContext } from 'styled-system/jsx'
-import { tooltip } from 'styled-system/recipes'
+import { ComponentChildren } from "preact";
+import { useState, useRef } from "preact/hooks";
+import { cx } from "../utils";
 
-const { withRootProvider, withContext } = createStyleContext(tooltip)
-
-type RootProps = ComponentProps<typeof Root>
-type ContentProps = ComponentProps<typeof Content>
-const Root = withRootProvider(ArkTooltip.Root, {
-  defaultProps: { unmountOnExit: true, lazyMount: true },
-})
-const Arrow = withContext(ArkTooltip.Arrow, 'arrow')
-const ArrowTip = withContext(ArkTooltip.ArrowTip, 'arrowTip')
-const Content = withContext(ArkTooltip.Content, 'content')
-const Positioner = withContext(ArkTooltip.Positioner, 'positioner')
-const Trigger = withContext(ArkTooltip.Trigger, 'trigger')
-
-export { TooltipContext as Context } from '@ark-ui/react/tooltip'
-
-export interface TooltipProps extends Omit<RootProps, 'content'> {
-  showArrow?: boolean
-  portalled?: boolean
-  portalRef?: React.RefObject<HTMLElement | null>
-  children: React.ReactNode | undefined
-  content: React.ReactNode | string
-  contentProps?: ContentProps
-  disabled?: boolean
+export interface TooltipProps {
+  content: string | ComponentChildren;
+  children: ComponentChildren;
+  position?: "top" | "bottom" | "left" | "right";
+  disabled?: boolean;
+  className?: string;
 }
 
-export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(function Tooltip(props, ref) {
-  const {
-    showArrow,
-    children,
-    disabled,
-    portalled = true,
-    content,
-    contentProps,
-    portalRef,
-    ...rootProps
-  } = props
+const positionClasses = {
+  top: "bottom-full left-1/2 -translate-x-1/2 mb-2",
+  bottom: "top-full left-1/2 -translate-x-1/2 mt-2",
+  left: "right-full top-1/2 -translate-y-1/2 mr-2",
+  right: "left-full top-1/2 -translate-y-1/2 ml-2",
+};
 
-  if (disabled) return children
+export function Tooltip({
+  content,
+  children,
+  position = "top",
+  disabled,
+  className,
+}: TooltipProps) {
+  const [show, setShow] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  if (disabled) {
+    return <>{children}</>;
+  }
 
   return (
-    <Root {...rootProps}>
-      <Trigger asChild>{children}</Trigger>
-      <Portal disabled={!portalled} container={portalRef}>
-        <Positioner>
-          <Content ref={ref} {...contentProps}>
-            {showArrow && (
-              <Arrow>
-                <ArrowTip />
-              </Arrow>
-            )}
-            {content}
-          </Content>
-        </Positioner>
-      </Portal>
-    </Root>
-  )
-})
+    <div
+      ref={ref}
+      className={cx("relative inline-block", className)}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onFocus={() => setShow(true)}
+      onBlur={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div
+          role="tooltip"
+          className={cx(
+            "absolute z-50 px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded shadow-lg",
+            "dark:bg-gray-100 dark:text-gray-900",
+            "whitespace-nowrap pointer-events-none",
+            "animate-in fade-in-0 zoom-in-95",
+            positionClasses[position]
+          )}
+        >
+          {content}
+        </div>
+      )}
+    </div>
+  );
+}

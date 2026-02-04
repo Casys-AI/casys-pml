@@ -29,5 +29,7 @@ export {
   ContentSkeleton,
   Skeleton,
   SkeletonText,
-  type LoadingSkeletonProps,
 } from "./LoadingSkeleton";
+
+// Re-export utilities from components
+export { cx, formatValue, formatNumber, formatPercent, clamp } from "../components/utils";
