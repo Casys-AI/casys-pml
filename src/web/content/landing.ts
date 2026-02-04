@@ -300,6 +300,7 @@ export const footer = {
   links: [
     { href: "https://casys.ai", label: "Casys.ai", external: true },
     { href: "https://github.com/Casys-AI/casys-pml", label: "GitHub", external: true },
+    { href: "https://discord.gg/fuPg8drR", label: "Discord", external: true },
     { href: "/docs", label: "Docs" },
     { href: "/catalog", label: "Catalog" },
   ],

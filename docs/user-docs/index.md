@@ -117,4 +117,4 @@ The more you use it, the smarter it gets.
 
 ---
 
-_Need help? Join our [Discord](https://discord.gg/pml) or check [GitHub](https://github.com/Casys-AI/casys-pml)_
+_Need help? Join our [Discord](https://discord.gg/fuPg8drR) or check [GitHub](https://github.com/Casys-AI/casys-pml)_

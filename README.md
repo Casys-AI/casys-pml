@@ -133,4 +133,6 @@ deno task lint && deno task fmt  # Code quality
 ---
 
 [Report Bug](https://github.com/casys-ai/casys-pml/issues) |
-[Request Feature](https://github.com/casys-ai/casys-pml/issues) | [Documentation](docs/)
+[Request Feature](https://github.com/casys-ai/casys-pml/issues) |
+[Discord](https://discord.gg/fuPg8drR) |
+[Documentation](docs/)
