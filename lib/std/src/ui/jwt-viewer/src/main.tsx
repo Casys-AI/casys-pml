@@ -11,14 +11,12 @@
  * @module lib/std/src/ui/jwt-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback } from "preact/hooks";
+import type { ComponentChildren } from "preact";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { Box, Flex, VStack, HStack, Center } from "../../styled-system/jsx";
-import { css } from "../../styled-system/css";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
-import { Code } from "../../components/ui/code";
 import "../../global.css";
 
 // ============================================================================
@@ -188,13 +186,13 @@ function Icon({ name, className }: { name: string; className?: string }) {
 
   return (
     <svg
-      className={className || css({ w: "4", h: "4", flexShrink: 0 })}
+      className={className || "w-4 h-4 shrink-0"}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     >
       <path d={path} />
     </svg>
@@ -223,15 +221,15 @@ function LiveCountdown({ exp }: { exp: number }) {
   const { text, status } = timeRemaining;
 
   const statusColors = {
-    valid: css({ color: "green.600", _dark: { color: "green.400" } }),
-    expiring: css({ color: "orange.600", _dark: { color: "orange.400" } }),
-    expired: css({ color: "red.600", _dark: { color: "red.400" } }),
+    valid: "text-green-600 dark:text-green-400",
+    expiring: "text-orange-600 dark:text-orange-400",
+    expired: "text-red-600 dark:text-red-400",
   };
 
   return (
-    <Box fontFamily="mono" fontSize="sm" fontWeight="medium" className={statusColors[status]}>
+    <span className={cx("font-mono text-sm font-medium", statusColors[status])}>
       {text}
-    </Box>
+    </span>
   );
 }
 
@@ -239,7 +237,7 @@ function LiveCountdown({ exp }: { exp: number }) {
 // Expiration Badge Component
 // ============================================================================
 
-function ExpirationBadge({ exp }: { exp: number; expiresAt?: string }) {
+function ExpirationBadge({ exp }: { exp: number }) {
   const [timeRemaining, setTimeRemaining] = useState<TimeRemaining>(getTimeRemaining(exp));
 
   useEffect(() => {
@@ -253,24 +251,9 @@ function ExpirationBadge({ exp }: { exp: number; expiresAt?: string }) {
   const { status } = timeRemaining;
 
   const statusStyles = {
-    valid: css({
-      bg: "green.100",
-      color: "green.800",
-      borderColor: "green.300",
-      _dark: { bg: "green.900/30", color: "green.300", borderColor: "green.700" },
-    }),
-    expiring: css({
-      bg: "orange.100",
-      color: "orange.800",
-      borderColor: "orange.300",
-      _dark: { bg: "orange.900/30", color: "orange.300", borderColor: "orange.700" },
-    }),
-    expired: css({
-      bg: "red.100",
-      color: "red.800",
-      borderColor: "red.300",
-      _dark: { bg: "red.900/30", color: "red.300", borderColor: "red.700" },
-    }),
+    valid: "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
+    expiring: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700",
+    expired: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
   };
 
   const icons = {
@@ -286,20 +269,13 @@ function ExpirationBadge({ exp }: { exp: number; expiresAt?: string }) {
   };
 
   return (
-    <Badge
-      size="sm"
-      className={`${css({
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "1.5",
-        fontWeight: "bold",
-        textTransform: "uppercase",
-        border: "1px solid",
-      })} ${statusStyles[status]}`}
-    >
-      <Icon name={icons[status]} className={css({ w: "3.5", h: "3.5" })} />
+    <span className={cx(
+      "inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold uppercase border rounded-md",
+      statusStyles[status]
+    )}>
+      <Icon name={icons[status]} className="w-3.5 h-3.5" />
       {labels[status]}
-    </Badge>
+    </span>
   );
 }
 
@@ -318,8 +294,8 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   }, [text, label]);
 
   return (
-    <Button variant="outline" size="xs" onClick={handleCopy} className={css({ gap: "1" })}>
-      <Icon name={copied ? "check" : "copy"} />
+    <Button variant="outline" size="xs" onClick={handleCopy} className="gap-1">
+      <Icon name={copied ? "check" : "copy"} className="w-4 h-4" />
       {copied ? "Copied!" : `Copy`}
     </Button>
   );
@@ -339,50 +315,50 @@ function ClaimRow({
   isLast: boolean;
 }) {
   const standardClaim = STANDARD_CLAIMS[claimKey];
-  const formattedValue = formatJsonValue(claimKey, value);
+  const formattedValue = formatJsonValue(value);
 
   const claimColorStyles: Record<string, string> = {
-    blue: css({ color: "blue.600", _dark: { color: "blue.400" } }),
-    cyan: css({ color: "cyan.600", _dark: { color: "cyan.400" } }),
-    violet: css({ color: "violet.600", _dark: { color: "violet.400" } }),
-    red: css({ color: "red.600", _dark: { color: "red.400" } }),
-    green: css({ color: "green.600", _dark: { color: "green.400" } }),
-    orange: css({ color: "orange.600", _dark: { color: "orange.400" } }),
-    purple: css({ color: "purple.600", _dark: { color: "purple.400" } }),
+    blue: "text-blue-600 dark:text-blue-400",
+    cyan: "text-cyan-600 dark:text-cyan-400",
+    violet: "text-violet-600 dark:text-violet-400",
+    red: "text-red-600 dark:text-red-400",
+    green: "text-green-600 dark:text-green-400",
+    orange: "text-orange-600 dark:text-orange-400",
+    purple: "text-purple-600 dark:text-purple-400",
   };
 
   const keyStyle = standardClaim
     ? claimColorStyles[standardClaim.color]
-    : css({ color: "fg.default" });
+    : "text-fg-default";
 
   return (
-    <Flex alignItems="flex-start" gap="2" py="1">
+    <div className="flex items-start gap-2 py-1">
       {standardClaim && (
-        <Box mt="0.5" flexShrink={0} className={keyStyle}>
-          <Icon name={standardClaim.icon} />
-        </Box>
+        <span className={cx("mt-0.5 shrink-0", keyStyle)}>
+          <Icon name={standardClaim.icon} className="w-4 h-4" />
+        </span>
       )}
-      <Box flex="1" minW="0">
-        <Flex alignItems="baseline" flexWrap="wrap" gap="1">
-          <Box fontWeight={standardClaim ? "bold" : "medium"} className={keyStyle}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline flex-wrap gap-1">
+          <span className={cx(standardClaim ? "font-bold" : "font-medium", keyStyle)}>
             "{claimKey}"
-          </Box>
-          <Box color="fg.muted">:</Box>
-          <Box color={getValueColor(value)} wordBreak="break-word">
+          </span>
+          <span className="text-fg-muted">:</span>
+          <span className={getValueColorClass(value)} style={{ wordBreak: "break-word" }}>
             {formattedValue}
-          </Box>
-          {!isLast && <Box color="fg.muted">,</Box>}
-        </Flex>
+          </span>
+          {!isLast && <span className="text-fg-muted">,</span>}
+        </div>
         {standardClaim && (
-          <Box fontSize="xs" color="fg.muted" fontStyle="italic">
+          <div className="text-xs text-fg-muted italic">
             {standardClaim.label}
             {["exp", "iat", "nbf"].includes(claimKey) && typeof value === "number" && (
               <> - {formatDate(value)}</>
             )}
-          </Box>
+          </div>
         )}
-      </Box>
-    </Flex>
+      </div>
+    </div>
   );
 }
 
@@ -394,9 +370,9 @@ function JsonDisplay({ data }: { data: Record<string, unknown> }) {
   const entries = Object.entries(data);
 
   return (
-    <Box fontFamily="mono" fontSize="sm" lineHeight="relaxed">
-      <Box color="fg.muted">{"{"}</Box>
-      <Box pl="4">
+    <div className="font-mono text-sm leading-relaxed">
+      <div className="text-fg-muted">{"{"}</div>
+      <div className="pl-4">
         {entries.map(([key, value], index) => (
           <ClaimRow
             key={key}
@@ -405,13 +381,13 @@ function JsonDisplay({ data }: { data: Record<string, unknown> }) {
             isLast={index === entries.length - 1}
           />
         ))}
-      </Box>
-      <Box color="fg.muted">{"}"}</Box>
-    </Box>
+      </div>
+      <div className="text-fg-muted">{"}"}</div>
+    </div>
   );
 }
 
-function formatJsonValue(key: string, value: unknown): string {
+function formatJsonValue(value: unknown): string {
   if (typeof value === "string") {
     return `"${value}"`;
   }
@@ -433,12 +409,12 @@ function formatJsonValue(key: string, value: unknown): string {
   return String(value);
 }
 
-function getValueColor(value: unknown): string {
-  if (typeof value === "string") return "green.600";
-  if (typeof value === "number") return "blue.600";
-  if (typeof value === "boolean") return "purple.600";
-  if (value === null) return "gray.500";
-  return "fg.default";
+function getValueColorClass(value: unknown): string {
+  if (typeof value === "string") return "text-green-600 dark:text-green-400";
+  if (typeof value === "number") return "text-blue-600 dark:text-blue-400";
+  if (typeof value === "boolean") return "text-purple-600 dark:text-purple-400";
+  if (value === null) return "text-gray-500";
+  return "text-fg-default";
 }
 
 // ============================================================================
@@ -458,79 +434,64 @@ function SectionCard({
   title: string;
   color: "blue" | "violet" | "gray";
   icon: string;
-  children: preact.ComponentChildren;
+  children: ComponentChildren;
   copyText: string;
   copyLabel: string;
-  badge?: preact.ComponentChildren;
-  countdown?: preact.ComponentChildren;
+  badge?: ComponentChildren;
+  countdown?: ComponentChildren;
 }) {
   const colorStyles = {
     blue: {
-      border: css({ borderColor: "blue.200", _dark: { borderColor: "blue.800" } }),
-      header: css({ bg: "blue.50", _dark: { bg: "blue.950/50" } }),
-      title: css({ color: "blue.700", _dark: { color: "blue.300" } }),
+      border: "border-blue-200 dark:border-blue-800",
+      header: "bg-blue-50 dark:bg-blue-950/50",
+      title: "text-blue-700 dark:text-blue-300",
     },
     violet: {
-      border: css({ borderColor: "purple.200", _dark: { borderColor: "purple.800" } }),
-      header: css({ bg: "purple.50", _dark: { bg: "purple.950/50" } }),
-      title: css({ color: "purple.700", _dark: { color: "purple.300" } }),
+      border: "border-purple-200 dark:border-purple-800",
+      header: "bg-purple-50 dark:bg-purple-950/50",
+      title: "text-purple-700 dark:text-purple-300",
     },
     gray: {
-      border: css({ borderColor: "gray.200", _dark: { borderColor: "gray.700" } }),
-      header: css({ bg: "gray.50", _dark: { bg: "gray.900/50" } }),
-      title: css({ color: "gray.700", _dark: { color: "gray.300" } }),
+      border: "border-gray-200 dark:border-gray-700",
+      header: "bg-gray-50 dark:bg-gray-900/50",
+      title: "text-gray-700 dark:text-gray-300",
     },
   };
 
   const style = colorStyles[color];
 
   return (
-    <Box border="1px solid" rounded="lg" overflow="hidden" bg="bg.default" className={style.border}>
+    <div className={cx("border rounded-lg overflow-hidden bg-bg-canvas", style.border)}>
       {/* Header */}
-      <Flex
-        alignItems="center"
-        justifyContent="space-between"
-        flexWrap="wrap"
-        gap="2"
-        px="4"
-        py="3"
-        borderBottom="1px solid"
-        borderColor="inherit"
-        className={style.header}
-      >
-        <HStack gap="2" flexWrap="wrap" alignItems="center">
-          <Box className={style.title}>
-            <Icon name={icon} />
-          </Box>
-          <Box fontSize="sm" fontWeight="semibold" className={style.title}>
+      <div className={cx(
+        "flex items-center justify-between flex-wrap gap-2 px-4 py-3 border-b border-inherit",
+        style.header
+      )}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={style.title}>
+            <Icon name={icon} className="w-4 h-4" />
+          </span>
+          <span className={cx("text-sm font-semibold", style.title)}>
             {title}
-          </Box>
+          </span>
           {badge}
-        </HStack>
+        </div>
         <CopyButton text={copyText} label={copyLabel} />
-      </Flex>
+      </div>
 
       {/* Countdown bar (for payload with exp) */}
       {countdown && (
-        <HStack
-          gap="2"
-          px="4"
-          py="2"
-          bg="bg.subtle"
-          borderBottom="1px solid"
-          borderColor="inherit"
-          alignItems="center"
-        >
-          <Icon name="clock" className={css({ w: "4", h: "4", color: "fg.muted" })} />
+        <div className="flex items-center gap-2 px-4 py-2 bg-bg-subtle border-b border-inherit">
+          <Icon name="clock" className="w-4 h-4 text-fg-muted" />
           {countdown}
-        </HStack>
+        </div>
       )}
 
       {/* Content */}
-      <Box p="4" overflowX="auto">
+      <div className="p-4 overflow-x-auto">
         {children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -540,22 +501,13 @@ function SectionCard({
 
 function ErrorDisplay({ error }: { error: string }) {
   return (
-    <Flex
-      alignItems="flex-start"
-      gap="3"
-      p="4"
-      bg={{ base: "red.50", _dark: "red.950/30" }}
-      border="1px solid"
-      borderColor={{ base: "red.200", _dark: "red.800" }}
-      rounded="lg"
-      color={{ base: "red.800", _dark: "red.300" }}
-    >
-      <Icon name="x-circle" className={css({ w: "5", h: "5", flexShrink: 0, mt: "0.5" })} />
-      <Box>
-        <Box fontWeight="semibold" mb="1">Invalid JWT Token</Box>
-        <Box fontSize="sm">{error}</Box>
-      </Box>
-    </Flex>
+    <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-300">
+      <Icon name="x-circle" className="w-5 h-5 shrink-0 mt-0.5" />
+      <div>
+        <div className="font-semibold mb-1">Invalid JWT Token</div>
+        <div className="text-sm">{error}</div>
+      </div>
+    </div>
   );
 }
 
@@ -600,47 +552,39 @@ function JwtViewer() {
   // Render states
   if (loading) {
     return (
-      <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Center p="10" color="fg.muted">
-          <HStack gap="2" alignItems="center">
-            <Box
-              w="4"
-              h="4"
-              border="2px solid"
-              borderColor="border.default"
-              borderTopColor="blue.500"
-              rounded="full"
-              animation="spin 1s linear infinite"
-            />
+      <div className="flex flex-col gap-4 p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="flex items-center justify-center p-10 text-fg-muted">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-border-default border-t-blue-500 rounded-full animate-spin" />
             Loading JWT...
-          </HStack>
-        </Center>
-      </VStack>
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (parseError) {
     return (
-      <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+      <div className="flex flex-col gap-4 p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
         <ErrorDisplay error={parseError} />
-      </VStack>
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">No JWT data received</Box>
-      </VStack>
+      <div className="flex flex-col gap-4 p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">No JWT data received</div>
+      </div>
     );
   }
 
   // Handle invalid JWT from the tool
   if (!data.valid && data.error) {
     return (
-      <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+      <div className="flex flex-col gap-4 p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
         <ErrorDisplay error={data.error} />
-      </VStack>
+      </div>
     );
   }
 
@@ -648,7 +592,7 @@ function JwtViewer() {
   const expTimestamp = data.payload?.exp as number;
 
   return (
-    <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+    <div className="flex flex-col gap-4 p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
       {/* Header Section */}
       <SectionCard
         title="Header"
@@ -667,36 +611,27 @@ function JwtViewer() {
         icon="shield"
         copyText={JSON.stringify(data.payload, null, 2)}
         copyLabel="Payload"
-        badge={hasExp ? <ExpirationBadge exp={expTimestamp} expiresAt={data.expiresAt} /> : undefined}
+        badge={hasExp ? <ExpirationBadge exp={expTimestamp} /> : undefined}
         countdown={hasExp ? <LiveCountdown exp={expTimestamp} /> : undefined}
       >
         <JsonDisplay data={data.payload} />
 
         {/* Time details */}
         {(data.expiresAt || data.issuedAt) && (
-          <VStack
-            gap="2"
-            mt="4"
-            pt="4"
-            borderTop="1px solid"
-            borderColor="border.subtle"
-            fontSize="xs"
-            color="fg.muted"
-            alignItems="flex-start"
-          >
+          <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-border-subtle text-xs text-fg-muted">
             {data.issuedAt && (
-              <HStack gap="2" alignItems="center">
-                <Icon name="calendar" />
+              <div className="flex items-center gap-2">
+                <Icon name="calendar" className="w-4 h-4" />
                 <span>Issued: {formatFullDate(data.issuedAt)}</span>
-              </HStack>
+              </div>
             )}
             {data.expiresAt && (
-              <HStack gap="2" alignItems="center">
-                <Icon name="clock" />
+              <div className="flex items-center gap-2">
+                <Icon name="clock" className="w-4 h-4" />
                 <span>Expires: {formatFullDate(data.expiresAt)}</span>
-              </HStack>
+              </div>
             )}
-          </VStack>
+          </div>
         )}
       </SectionCard>
 
@@ -708,37 +643,17 @@ function JwtViewer() {
         copyText={data.signature}
         copyLabel="Signature"
       >
-        <Box fontFamily="mono" fontSize="sm">
-          <Code
-            wordBreak="break-all"
-            color="fg.muted"
-            mb="3"
-            p="3"
-            bg="bg.subtle"
-            rounded="md"
-            border="1px solid"
-            borderColor="border.subtle"
-            display="block"
-          >
+        <div className="font-mono text-sm">
+          <code className="block break-all text-fg-muted mb-3 p-3 bg-bg-subtle rounded-md border border-border-subtle">
             {data.signature}
-          </Code>
-          <Flex
-            alignItems="center"
-            gap="2"
-            p="3"
-            bg={{ base: "yellow.50", _dark: "yellow.950/30" }}
-            border="1px solid"
-            borderColor={{ base: "yellow.200", _dark: "yellow.800" }}
-            rounded="md"
-            fontSize="xs"
-            color={{ base: "yellow.800", _dark: "yellow.300" }}
-          >
-            <Icon name="alert-triangle" className={css({ w: "4", h: "4", flexShrink: 0 })} />
+          </code>
+          <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-md text-xs text-yellow-800 dark:text-yellow-300">
+            <Icon name="alert-triangle" className="w-4 h-4 shrink-0" />
             <span>Signature verification requires the secret key. This view is for inspection only.</span>
-          </Flex>
-        </Box>
+          </div>
+        </div>
       </SectionCard>
-    </VStack>
+    </div>
   );
 }
 
@@ -746,4 +661,4 @@ function JwtViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<JwtViewer />);
+render(<JwtViewer />, document.getElementById("app")!);

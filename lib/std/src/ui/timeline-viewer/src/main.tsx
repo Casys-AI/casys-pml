@@ -12,11 +12,10 @@
  * @module lib/std/src/ui/timeline-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useRef, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, VStack, HStack, Circle } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { IconButton } from "../../components/ui/icon-button";
@@ -150,17 +149,17 @@ function normalizeEventType(type: string): EventType {
 // ============================================================================
 
 const dotColors: Record<EventType, string> = {
-  info: "blue.500",
-  warning: "orange.500",
-  error: "red.500",
-  success: "green.500",
+  info: "bg-blue-500",
+  warning: "bg-orange-500",
+  error: "bg-red-500",
+  success: "bg-green-500",
 };
 
-const typeBtnColors: Record<EventType, { color: string; darkColor: string }> = {
-  error: { color: "red.600", darkColor: "red.400" },
-  warning: { color: "orange.600", darkColor: "orange.400" },
-  info: { color: "blue.600", darkColor: "blue.400" },
-  success: { color: "green.600", darkColor: "green.400" },
+const typeBtnColors: Record<EventType, { light: string; dark: string }> = {
+  error: { light: "text-red-600", dark: "dark:text-red-400" },
+  warning: { light: "text-orange-600", dark: "dark:text-orange-400" },
+  info: { light: "text-blue-600", dark: "dark:text-blue-400" },
+  success: { light: "text-green-600", dark: "dark:text-green-400" },
 };
 
 // ============================================================================
@@ -188,16 +187,11 @@ function EventNode({ event, expanded, onToggle, highlight }: {
   const config = typeConfig[type];
 
   return (
-    <Flex
-      align="flex-start"
-      gap="3"
-      p="2"
-      rounded="md"
-      cursor="pointer"
-      transition="background 0.15s"
-      bg={highlight ? "yellow.50" : "transparent"}
-      _hover={{ bg: highlight ? "yellow.100" : "bg.subtle" }}
-      _dark={highlight ? { bg: "yellow.950/50", _hover: { bg: "yellow.950/70" } } : {}}
+    <div
+      class={cx(
+        "flex items-start gap-3 p-2 rounded-md cursor-pointer transition-colors duration-150",
+        highlight ? "bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/50 dark:hover:bg-yellow-950/70" : "hover:bg-bg-subtle"
+      )}
       onClick={() => {
         if (hasDescription || hasMetadata) {
           onToggle();
@@ -206,43 +200,32 @@ function EventNode({ event, expanded, onToggle, highlight }: {
       }}
     >
       {/* Timeline connector */}
-      <Flex direction="column" align="center" pt="1" w="16px" flexShrink={0}>
-        <Box
-          w="2px"
-          h="100%"
-          minH="20px"
-          bg="border.default"
-          position="absolute"
-          top="0"
-          bottom="0"
+      <div class="flex flex-col items-center pt-1 w-4 shrink-0 relative">
+        <div class="w-0.5 h-full min-h-5 bg-border-default absolute top-0 bottom-0" />
+        <div
+          class={cx(
+            "w-3 h-3 rounded-full border-2 border-bg-canvas shadow-sm relative z-10",
+            dotColors[type]
+          )}
         />
-        <Circle
-          size="12px"
-          border="2px solid"
-          borderColor="bg.canvas"
-          boxShadow="sm"
-          position="relative"
-          zIndex={1}
-          bg={dotColors[type]}
-        />
-      </Flex>
+      </div>
 
       {/* Time */}
-      <Box fontSize="xs" fontFamily="mono" color="fg.muted" w="70px" flexShrink={0} pt="0.5">
+      <div class="text-xs font-mono text-fg-muted w-[70px] shrink-0 pt-0.5">
         {formatTime(date)}
-      </Box>
+      </div>
 
       {/* Content */}
-      <Flex flex="1" flexWrap="wrap" align="flex-start" gap="2">
+      <div class="flex-1 flex flex-wrap items-start gap-2">
         {/* Type badge */}
         <Badge size="sm" variant="subtle" colorPalette={config.colorPalette}>
           {type}
         </Badge>
 
         {/* Title */}
-        <Box fontWeight="medium" flex="1" minW="150px">
+        <div class="font-medium flex-1 min-w-[150px]">
           {event.title}
-        </Box>
+        </div>
 
         {/* Source */}
         {event.source && (
@@ -253,49 +236,36 @@ function EventNode({ event, expanded, onToggle, highlight }: {
 
         {/* Expand indicator */}
         {(hasDescription || hasMetadata) && (
-          <Box
-            fontSize="xs"
-            color="fg.muted"
-            cursor="pointer"
-            transition="transform 0.15s"
+          <div
+            class="text-xs text-fg-muted cursor-pointer transition-transform duration-150"
             style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
           >
             {"\u25B6"}
-          </Box>
+          </div>
         )}
 
         {/* Description (collapsible) */}
         {expanded && hasDescription && (
-          <Box
-            w="100%"
-            mt="2"
-            p="2"
-            bg="bg.subtle"
-            rounded="md"
-            fontSize="sm"
-            color="fg.muted"
-            whiteSpace="pre-wrap"
-            lineHeight="relaxed"
-          >
+          <div class="w-full mt-2 p-2 bg-bg-subtle rounded-md text-sm text-fg-muted whitespace-pre-wrap leading-relaxed">
             {event.description}
-          </Box>
+          </div>
         )}
 
         {/* Metadata (collapsible) */}
         {expanded && hasMetadata && (
-          <Box w="100%" mt="2" p="2" bg="bg.subtle" rounded="md" fontSize="xs" fontFamily="mono">
+          <div class="w-full mt-2 p-2 bg-bg-subtle rounded-md text-xs font-mono">
             {Object.entries(event.metadata!).map(([key, value]) => (
-              <Flex key={key} gap="2" py="0.5">
-                <Box color="fg.muted" fontWeight="medium">{key}:</Box>
-                <Box color="fg.default" wordBreak="break-all">
+              <div key={key} class="flex gap-2 py-0.5">
+                <div class="text-fg-muted font-medium">{key}:</div>
+                <div class="text-fg-default break-all">
                   {typeof value === "object" ? JSON.stringify(value) : String(value)}
-                </Box>
-              </Flex>
+                </div>
+              </div>
             ))}
-          </Box>
+          </div>
         )}
-      </Flex>
-    </Flex>
+      </div>
+    </div>
   );
 }
 
@@ -306,22 +276,15 @@ function DateGroup({ group, expandedIds, toggleExpand, searchFilter }: {
   searchFilter: string;
 }) {
   return (
-    <Box mb="4">
-      <Flex align="center" gap="2" mb="3">
-        <Box flex="1" h="1px" bg="border.default" />
-        <Box
-          fontSize="xs"
-          fontWeight="semibold"
-          color="fg.muted"
-          textTransform="uppercase"
-          letterSpacing="wide"
-          px="2"
-        >
+    <div class="mb-4">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="flex-1 h-px bg-border-default" />
+        <div class="text-xs font-semibold text-fg-muted uppercase tracking-wide px-2">
           {group.label}
-        </Box>
-        <Box flex="1" h="1px" bg="border.default" />
-      </Flex>
-      <VStack gap="1">
+        </div>
+        <div class="flex-1 h-px bg-border-default" />
+      </div>
+      <div class="flex flex-col gap-1">
         {group.events.map((event, idx) => {
           const eventId = `${group.date.toISOString()}-${idx}`;
           const isHighlighted = searchFilter && (
@@ -338,8 +301,8 @@ function DateGroup({ group, expandedIds, toggleExpand, searchFilter }: {
             />
           );
         })}
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -456,88 +419,43 @@ function TimelineViewer() {
     setExpandedIds(new Set());
   }, []);
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const handleSearchChange = useCallback((e: Event) => {
+    const value = (e.target as HTMLInputElement).value;
     setSearchFilter(value);
     notifyModel("search", { text: value });
   }, []);
 
   if (loading) {
     return (
-      <Box
-        fontFamily="sans"
-        fontSize="sm"
-        color="fg.default"
-        bg="bg.canvas"
-        display="flex"
-        flexDirection="column"
-        maxH="500px"
-        border="1px solid"
-        borderColor="border.default"
-        rounded="lg"
-        overflow="hidden"
-      >
-        <Box p="4" textAlign="center" color="fg.muted">Loading timeline...</Box>
-      </Box>
+      <div class="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[500px] border border-border-default rounded-lg overflow-hidden">
+        <div class="p-4 text-center text-fg-muted">Loading timeline...</div>
+      </div>
     );
   }
 
   if (!data?.events?.length) {
     return (
-      <Box
-        fontFamily="sans"
-        fontSize="sm"
-        color="fg.default"
-        bg="bg.canvas"
-        display="flex"
-        flexDirection="column"
-        maxH="500px"
-        border="1px solid"
-        borderColor="border.default"
-        rounded="lg"
-        overflow="hidden"
-      >
-        <Box p="4" textAlign="center" color="fg.muted">No events</Box>
-      </Box>
+      <div class="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[500px] border border-border-default rounded-lg overflow-hidden">
+        <div class="p-4 text-center text-fg-muted">No events</div>
+      </div>
     );
   }
 
   const eventTypes: EventType[] = ["error", "warning", "info", "success"];
 
   return (
-    <Box
-      fontFamily="sans"
-      fontSize="sm"
-      color="fg.default"
-      bg="bg.canvas"
-      display="flex"
-      flexDirection="column"
-      maxH="500px"
-      border="1px solid"
-      borderColor="border.default"
-      rounded="lg"
-      overflow="hidden"
-    >
+    <div class="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[500px] border border-border-default rounded-lg overflow-hidden">
       {/* Header */}
-      <Flex
-        justify="space-between"
-        align="center"
-        p="3"
-        bg="bg.subtle"
-        borderBottom="1px solid"
-        borderColor="border.default"
-        flexWrap="wrap"
-        gap="2"
-      >
+      <div class="flex justify-between items-center p-3 bg-bg-subtle border-b border-border-default flex-wrap gap-2">
         {data.title && (
-          <Box as="h3" fontSize="md" fontWeight="semibold" m="0">
+          <h3 class="text-base font-semibold m-0">
             {data.title}
-          </Box>
+          </h3>
         )}
 
-        <Flex gap="2" align="center" flexWrap="wrap">
+        <div class="flex gap-2 items-center flex-wrap">
           {/* Type filters */}
-          <HStack gap="1">
+          <div class="flex gap-1">
             {eventTypes.map((type) => {
               const colors = typeBtnColors[type];
               return (
@@ -546,30 +464,27 @@ function TimelineViewer() {
                   variant={typeFilter.has(type) ? "outline" : "ghost"}
                   size="xs"
                   onClick={() => toggleType(type)}
-                  className={css({
-                    opacity: typeFilter.has(type) ? 1 : 0.5,
-                    textTransform: "capitalize",
-                    fontWeight: typeFilter.has(type) ? "medium" : "normal",
-                    color: colors.color,
-                    _dark: { color: colors.darkColor },
-                    _hover: { opacity: 0.8 },
-                    transition: "all 0.15s",
-                  })}
+                  class={cx(
+                    typeFilter.has(type) ? "opacity-100 font-medium" : "opacity-50 font-normal",
+                    "capitalize transition-all duration-150 hover:opacity-80",
+                    colors.light,
+                    colors.dark
+                  )}
                 >
                   {type}
                 </Button>
               );
             })}
-          </HStack>
+          </div>
 
           {/* Search filter */}
           <Input
             type="text"
             placeholder="Search..."
             value={searchFilter}
-            onChange={handleSearchChange}
+            onInput={handleSearchChange}
             size="sm"
-            className={css({ w: "150px" })}
+            class="w-[150px]"
           />
 
           {/* Expand/Collapse buttons */}
@@ -599,17 +514,17 @@ function TimelineViewer() {
           >
             {"\u2191"}
           </IconButton>
-        </Flex>
-      </Flex>
+        </div>
+      </div>
 
       {/* Stats */}
-      <Box px="3" py="1.5" fontSize="xs" color="fg.muted" bg="bg.subtle" borderBottom="1px solid" borderColor="border.subtle">
+      <div class="px-3 py-1.5 text-xs text-fg-muted bg-bg-subtle border-b border-border-subtle">
         {filteredEvents.length} / {data.events.length} events
         {searchFilter && ` matching "${searchFilter}"`}
-      </Box>
+      </div>
 
       {/* Timeline content */}
-      <Box flex="1" overflowY="auto" p="3" ref={containerRef}>
+      <div class="flex-1 overflow-y-auto p-3" ref={containerRef}>
         {groupedEvents.map((group) => (
           <DateGroup
             key={group.date.toISOString()}
@@ -619,8 +534,8 @@ function TimelineViewer() {
             searchFilter={searchFilter}
           />
         ))}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -628,4 +543,4 @@ function TimelineViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<TimelineViewer />);
+render(<TimelineViewer />, document.getElementById("app")!);

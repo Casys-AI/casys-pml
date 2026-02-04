@@ -12,11 +12,10 @@
  * @module lib/std/src/ui/regex-tester
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Stack, Grid } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import "../../global.css";
@@ -174,20 +173,19 @@ function ValidityIndicator({ isValid, error }: { isValid: boolean; error: string
   return (
     <Badge
       size="sm"
-      className={css({
-        display: "flex",
-        alignItems: "center",
-        gap: "2",
-        bg: isValid ? { base: "green.100", _dark: "green.900/50" } : { base: "red.100", _dark: "red.900/50" },
-        color: isValid ? { base: "green.700", _dark: "green.300" } : { base: "red.700", _dark: "red.300" },
-      })}
+      className={cx(
+        "flex items-center gap-2",
+        isValid
+          ? "bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300"
+          : "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300"
+      )}
     >
-      <Box as="span" fontSize="sm">
+      <span className="text-sm">
         {isValid ? "\u2713" : "\u2717"}
-      </Box>
-      <Box as="span" maxW="200px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+      </span>
+      <span className="max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
         {isValid ? "Valid regex" : error || "Invalid regex"}
-      </Box>
+      </span>
     </Badge>
   );
 }
@@ -244,17 +242,16 @@ function HighlightedText({
   return (
     <>
       {segments.map((segment, i) => (
-        <Box
-          as="span"
+        <span
           key={i}
-          bg={segment.highlighted ? { base: "yellow.200", _dark: "yellow.700" } : undefined}
-          color={segment.highlighted ? { base: "yellow.900", _dark: "yellow.100" } : undefined}
-          px={segment.highlighted ? "0.5" : undefined}
-          rounded={segment.highlighted ? "sm" : undefined}
+          className={segment.highlighted
+            ? "bg-yellow-200 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-100 px-0.5 rounded-sm"
+            : undefined
+          }
           title={segment.highlighted ? `Match ${segment.matchIndex + 1}` : undefined}
         >
           {segment.text}
-        </Box>
+        </span>
       ))}
     </>
   );
@@ -262,47 +259,47 @@ function HighlightedText({
 
 function MatchesList({ matches }: { matches: MatchResult[] }) {
   if (matches.length === 0) {
-    return <Box color="fg.muted" fontStyle="italic" textAlign="center" py="4">No matches found</Box>;
+    return <div className="text-fg-muted italic text-center py-4">No matches found</div>;
   }
 
   return (
-    <Stack gap="2">
+    <div className="flex flex-col gap-2">
       {matches.map((match, i) => (
-        <Box key={i} p="2" bg="bg.subtle" rounded="md" border="1px solid" borderColor="border.subtle">
-          <Flex justify="space-between" align="center" mb="1">
-            <Box fontWeight="semibold" fontSize="xs" color={{ base: "blue.600", _dark: "blue.400" }}>
+        <div key={i} className="p-2 bg-bg-subtle rounded-md border border-border-subtle">
+          <div className="flex justify-between items-center mb-1">
+            <div className="font-semibold text-xs text-blue-600 dark:text-blue-400">
               Match {i + 1}
-            </Box>
-            <Box fontSize="xs" color="fg.muted">at index {match.index}</Box>
-          </Flex>
-          <Box fontFamily="mono" fontSize="sm" bg="bg.muted" px="2" py="1" rounded="sm" overflowX="auto">
+            </div>
+            <div className="text-xs text-fg-muted">at index {match.index}</div>
+          </div>
+          <div className="font-mono text-sm bg-bg-muted px-2 py-1 rounded-sm overflow-x-auto">
             <code>{match.fullMatch}</code>
-          </Box>
+          </div>
           {match.groups.length > 0 && (
-            <Box mt="2" pt="2" borderTop="1px solid" borderColor="border.subtle">
-              <Box fontSize="xs" fontWeight="medium" color="fg.muted" mb="1">Captured Groups:</Box>
+            <div className="mt-2 pt-2 border-t border-border-subtle">
+              <div className="text-xs font-medium text-fg-muted mb-1">Captured Groups:</div>
               {match.groups.map((group, gi) => (
-                <Flex key={gi} align="center" gap="2" fontSize="xs" py="0.5">
-                  <Box color="fg.muted" fontWeight="medium">Group {gi + 1}:</Box>
-                  <Box as="code" fontFamily="mono" bg="bg.muted" px="1" rounded="sm">{group ?? "(undefined)"}</Box>
-                </Flex>
+                <div key={gi} className="flex items-center gap-2 text-xs py-0.5">
+                  <div className="text-fg-muted font-medium">Group {gi + 1}:</div>
+                  <code className="font-mono bg-bg-muted px-1 rounded-sm">{group ?? "(undefined)"}</code>
+                </div>
               ))}
-            </Box>
+            </div>
           )}
           {match.namedGroups && Object.keys(match.namedGroups).length > 0 && (
-            <Box mt="2" pt="2" borderTop="1px solid" borderColor="border.subtle">
-              <Box fontSize="xs" fontWeight="medium" color="fg.muted" mb="1">Named Groups:</Box>
+            <div className="mt-2 pt-2 border-t border-border-subtle">
+              <div className="text-xs font-medium text-fg-muted mb-1">Named Groups:</div>
               {Object.entries(match.namedGroups).map(([name, value]) => (
-                <Flex key={name} align="center" gap="2" fontSize="xs" py="0.5">
-                  <Box color="fg.muted" fontWeight="medium">{name}:</Box>
-                  <Box as="code" fontFamily="mono" bg="bg.muted" px="1" rounded="sm">{value ?? "(undefined)"}</Box>
-                </Flex>
+                <div key={name} className="flex items-center gap-2 text-xs py-0.5">
+                  <div className="text-fg-muted font-medium">{name}:</div>
+                  <code className="font-mono bg-bg-muted px-1 rounded-sm">{value ?? "(undefined)"}</code>
+                </div>
               ))}
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       ))}
-    </Stack>
+    </div>
   );
 }
 
@@ -319,58 +316,45 @@ function ExplanationPanel({ pattern, flags }: { pattern: string; flags: string }
   const flagsExplanation = useMemo(() => explainFlags(flags), [flags]);
 
   if (!pattern && !flags) {
-    return <Box color="fg.muted" fontStyle="italic">Enter a pattern to see explanation</Box>;
+    return <div className="text-fg-muted italic">Enter a pattern to see explanation</div>;
   }
 
   return (
-    <Box p="3" borderTop="1px solid" borderColor="border.default">
+    <div className="p-3 border-t border-border-default">
       {flagsExplanation.length > 0 && (
-        <Box mb="3">
-          <Box fontSize="xs" fontWeight="medium" color="fg.muted" mb="1" textTransform="uppercase" letterSpacing="wide">
+        <div className="mb-3">
+          <div className="text-xs font-medium text-fg-muted mb-1 uppercase tracking-wide">
             Flags:
-          </Box>
+          </div>
           {flagsExplanation.map((exp, i) => (
-            <Box key={i} fontSize="xs" color="fg.default" py="0.5" fontFamily="mono">{exp}</Box>
+            <div key={i} className="text-xs text-fg-default py-0.5 font-mono">{exp}</div>
           ))}
-        </Box>
+        </div>
       )}
       {patternExplanation.length > 0 && (
-        <Box>
-          <Box fontSize="xs" fontWeight="medium" color="fg.muted" mb="1" textTransform="uppercase" letterSpacing="wide">
+        <div>
+          <div className="text-xs font-medium text-fg-muted mb-1 uppercase tracking-wide">
             Pattern breakdown:
-          </Box>
-          <Stack gap="1">
+          </div>
+          <div className="flex flex-col gap-1">
             {patternExplanation.map((part, i) => (
-              <Flex
+              <div
                 key={i}
-                align="center"
-                gap="2"
-                py="1"
-                borderBottom="1px solid"
-                borderColor="border.subtle"
-                _last={{ borderBottom: "none" }}
+                className={cx(
+                  "flex items-center gap-2 py-1 border-b border-border-subtle",
+                  i === patternExplanation.length - 1 && "border-b-0"
+                )}
               >
-                <Box
-                  as="code"
-                  fontFamily="mono"
-                  fontSize="sm"
-                  bg="bg.muted"
-                  px="2"
-                  py="0.5"
-                  rounded="sm"
-                  minW="10"
-                  textAlign="center"
-                  color={{ base: "purple.600", _dark: "purple.400" }}
-                >
+                <code className="font-mono text-sm bg-bg-muted px-2 py-0.5 rounded-sm min-w-10 text-center text-purple-600 dark:text-purple-400">
                   {part.pattern}
-                </Box>
-                <Box fontSize="xs" color="fg.muted">{part.description}</Box>
-              </Flex>
+                </code>
+                <div className="text-xs text-fg-muted">{part.description}</div>
+              </div>
             ))}
-          </Stack>
-        </Box>
+          </div>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -506,82 +490,53 @@ function RegexTester() {
 
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="4xl" mx="auto">
-        <Box p="10" textAlign="center" color="fg.muted">Loading...</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas max-w-4xl mx-auto">
+        <div className="p-10 text-center text-fg-muted">Loading...</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="4xl" mx="auto">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas max-w-4xl mx-auto">
       {/* Header */}
-      <Flex justify="space-between" align="center" mb="4" pb="3" borderBottom="1px solid" borderColor="border.default">
-        <Box as="h1" fontSize="xl" fontWeight="semibold" m="0">Regex Tester</Box>
+      <div className="flex justify-between items-center mb-4 pb-3 border-b border-border-default">
+        <h1 className="text-xl font-semibold m-0">Regex Tester</h1>
         <ValidityIndicator isValid={isValid} error={error} />
-      </Flex>
+      </div>
 
       {/* Pattern Input */}
-      <Box mb="4">
-        <Box as="label" display="block" mb="1" fontWeight="medium" color="fg.muted" fontSize="xs" textTransform="uppercase" letterSpacing="wide">
+      <div className="mb-4">
+        <label className="block mb-1 font-medium text-fg-muted text-xs uppercase tracking-wide">
           Pattern
-        </Box>
-        <Flex
-          align="center"
-          bg="bg.subtle"
-          border="1px solid"
-          borderColor="border.default"
-          rounded="md"
-          overflow="hidden"
-          _focusWithin={{ borderColor: "blue.500", ring: "2", ringColor: "blue.500/20" }}
-        >
-          <Box px="2" color="fg.muted" fontFamily="mono" fontSize="md" fontWeight="bold">/</Box>
-          <Box
-            as="input"
+        </label>
+        <div className="flex items-center bg-bg-subtle border border-border-default rounded-md overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+          <div className="px-2 text-fg-muted font-mono text-base font-bold">/</div>
+          <input
             type="text"
-            flex="1"
-            px="2"
-            py="2"
-            bg="transparent"
-            border="none"
-            outline="none"
-            fontFamily="mono"
-            fontSize="sm"
-            color="fg.default"
+            className="flex-1 px-2 py-2 bg-transparent border-none outline-none font-mono text-sm text-fg-default"
             value={pattern}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePatternChange(e.target.value)}
+            onChange={(e) => handlePatternChange((e.target as HTMLInputElement).value)}
             placeholder="Enter regex pattern..."
             spellcheck={false}
           />
-          <Box px="2" color="fg.muted" fontFamily="mono" fontSize="md" fontWeight="bold">/</Box>
-          <Box
-            as="input"
+          <div className="px-2 text-fg-muted font-mono text-base font-bold">/</div>
+          <input
             type="text"
-            w="16"
-            px="2"
-            py="2"
-            bg="bg.muted"
-            border="none"
-            borderLeft="1px solid"
-            borderColor="border.default"
-            outline="none"
-            fontFamily="mono"
-            fontSize="sm"
-            color="fg.default"
-            textAlign="center"
+            className="w-16 px-2 py-2 bg-bg-muted border-none border-l border-border-default outline-none font-mono text-sm text-fg-default text-center"
             value={flags}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFlagsChange(e.target.value)}
+            onChange={(e) => handleFlagsChange((e.target as HTMLInputElement).value)}
             placeholder="flags"
             maxLength={6}
           />
-        </Flex>
-      </Box>
+        </div>
+      </div>
 
       {/* Flag Toggles */}
-      <Box mb="4">
-        <Box as="label" display="block" mb="1" fontWeight="medium" color="fg.muted" fontSize="xs" textTransform="uppercase" letterSpacing="wide">
+      <div className="mb-4">
+        <label className="block mb-1 font-medium text-fg-muted text-xs uppercase tracking-wide">
           Flags
-        </Box>
-        <Flex flexWrap="wrap" gap="2">
+        </label>
+        <div className="flex flex-wrap gap-2">
           {[
             { flag: "g", label: "Global", desc: "Find all matches" },
             { flag: "i", label: "Case-insensitive", desc: "Ignore case" },
@@ -596,101 +551,77 @@ function RegexTester() {
               onClick={() => toggleFlag(flag)}
               title={desc}
             >
-              <Box as="span" fontFamily="mono" fontWeight="bold">{flag}</Box>
-              <Box as="span" fontSize="xs" color="fg.muted">{label}</Box>
+              <span className="font-mono font-bold">{flag}</span>
+              <span className="text-xs text-fg-muted">{label}</span>
             </Button>
           ))}
-        </Flex>
-      </Box>
+        </div>
+      </div>
 
       {/* Test String */}
-      <Box mb="4">
-        <Box as="label" display="block" mb="1" fontWeight="medium" color="fg.muted" fontSize="xs" textTransform="uppercase" letterSpacing="wide">
+      <div className="mb-4">
+        <label className="block mb-1 font-medium text-fg-muted text-xs uppercase tracking-wide">
           Test String
-        </Box>
-        <Box
-          as="textarea"
-          w="full"
-          px="3"
-          py="2"
-          bg="bg.subtle"
-          border="1px solid"
-          borderColor="border.default"
-          rounded="md"
-          fontFamily="mono"
-          fontSize="sm"
-          color="fg.default"
-          resize="vertical"
-          minH="120px"
+        </label>
+        <textarea
+          className="w-full px-3 py-2 bg-bg-subtle border border-border-default rounded-md font-mono text-sm text-fg-default resize-y min-h-[120px] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
           value={testString}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleTestStringChange(e.target.value)}
+          onChange={(e) => handleTestStringChange((e.target as HTMLTextAreaElement).value)}
           placeholder="Enter text to test against the regex..."
           spellcheck={false}
-          className={css({ _focus: { outline: "none", borderColor: "blue.500", ring: "2", ringColor: "blue.500/20" } })}
         />
-      </Box>
+      </div>
 
       {/* Results Section */}
-      <Grid gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4" mb="4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         {/* Highlighted Preview */}
-        <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
-          <Flex justify="space-between" align="center" px="3" py="2" bg="bg.subtle" borderBottom="1px solid" borderColor="border.default" fontWeight="medium" fontSize="sm">
-            <Box>Highlighted Matches</Box>
-            <Box fontSize="xs" color="fg.muted" bg="bg.muted" px="2" py="0.5" rounded="full">
+        <div className="border border-border-default rounded-lg overflow-hidden">
+          <div className="flex justify-between items-center px-3 py-2 bg-bg-subtle border-b border-border-default font-medium text-sm">
+            <div>Highlighted Matches</div>
+            <div className="text-xs text-fg-muted bg-bg-muted px-2 py-0.5 rounded-full">
               {matches.length} match{matches.length !== 1 ? "es" : ""}
-            </Box>
-          </Flex>
-          <Box p="3" maxH="300px" overflowY="auto">
+            </div>
+          </div>
+          <div className="p-3 max-h-[300px] overflow-y-auto">
             {testString ? (
-              <Box as="pre" m="0" fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap" wordBreak="break-all" lineHeight="1.6">
+              <pre className="m-0 font-mono text-sm whitespace-pre-wrap break-all leading-relaxed">
                 <HighlightedText text={testString} matches={matches} />
-              </Box>
+              </pre>
             ) : (
-              <Box color="fg.muted" fontStyle="italic">Enter a test string to see matches</Box>
+              <div className="text-fg-muted italic">Enter a test string to see matches</div>
             )}
-          </Box>
-        </Box>
+          </div>
+        </div>
 
         {/* Matches List */}
-        <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
-          <Flex justify="space-between" align="center" px="3" py="2" bg="bg.subtle" borderBottom="1px solid" borderColor="border.default" fontWeight="medium" fontSize="sm">
-            <Box>Match Details</Box>
-          </Flex>
-          <Box p="3" maxH="300px" overflowY="auto">
+        <div className="border border-border-default rounded-lg overflow-hidden">
+          <div className="flex justify-between items-center px-3 py-2 bg-bg-subtle border-b border-border-default font-medium text-sm">
+            <div>Match Details</div>
+          </div>
+          <div className="p-3 max-h-[300px] overflow-y-auto">
             <MatchesList matches={matches} />
-          </Box>
-        </Box>
-      </Grid>
+          </div>
+        </div>
+      </div>
 
       {/* Explanation Panel */}
-      <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
+      <div className="border border-border-default rounded-lg overflow-hidden">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setShowExplanation(!showExplanation)}
-          className={css({
-            display: "flex",
-            alignItems: "center",
-            gap: "2",
-            w: "full",
-            bg: "bg.subtle",
-            fontWeight: "medium",
-            textAlign: "left",
-            justifyContent: "flex-start",
-            rounded: "0",
-            _hover: { bg: "bg.muted" },
-          })}
+          className="flex items-center gap-2 w-full bg-bg-subtle font-medium text-left justify-start rounded-none hover:bg-bg-muted"
         >
-          <Box as="span" fontSize="xs" color="fg.muted">
+          <span className="text-xs text-fg-muted">
             {showExplanation ? "\u25BC" : "\u25B6"}
-          </Box>
+          </span>
           Regex Explanation
         </Button>
         {showExplanation && (
           <ExplanationPanel pattern={pattern} flags={flags} />
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -698,4 +629,4 @@ function RegexTester() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<RegexTester />);
+render(<RegexTester />, document.getElementById("app")!);

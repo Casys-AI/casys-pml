@@ -1,24 +1,17 @@
 /**
  * Headers Viewer UI for MCP Apps
  *
- * Interactive HTTP headers viewer using React + Park UI (Panda CSS).
+ * Interactive HTTP headers viewer using Preact + Tailwind CSS.
  * Displays headers grouped by category with explanations and tooltips.
  *
  * @module lib/std/src/ui/headers-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { Box, Flex, VStack, HStack } from "../../styled-system/jsx";
-import { css } from "../../styled-system/css";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { IconButton } from "../../components/ui/icon-button";
-import { Input } from "../../components/ui/input";
-import { Badge } from "../../components/ui/badge";
-import { Tooltip } from "../../components/ui/tooltip";
-import { Code } from "../../components/ui/code";
-import * as Table from "../../components/ui/table";
 import "../../global.css";
 
 // ============================================================================
@@ -313,7 +306,7 @@ function Icon({ name, size = 16 }: { name: string; size?: number }) {
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+  const handleCopy = useCallback(async (e: MouseEvent) => {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(text);
@@ -334,61 +327,58 @@ function CopyButton({ text }: { text: string }) {
   }, [text]);
 
   return (
-    <IconButton
-      variant="ghost"
-      size="xs"
+    <button
+      type="button"
       onClick={handleCopy}
       title={copied ? "Copied!" : "Copy to clipboard"}
       aria-label={copied ? "Copied to clipboard" : "Copy to clipboard"}
-      className={css({ opacity: 0.5, _hover: { opacity: 1 } })}
+      className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 opacity-50 hover:opacity-100 transition-opacity"
     >
       <Icon name={copied ? "check" : "copy"} size={14} />
-    </IconButton>
+    </button>
   );
 }
 
 function HeaderBadge({ text, color }: { text: string; color: BadgeColor }) {
-  const colorVariant: Record<BadgeColor, string> = {
-    green: css({ bg: "green.100", color: "green.800", _dark: { bg: "green.900", color: "green.200" } }),
-    orange: css({ bg: "orange.100", color: "orange.800", _dark: { bg: "orange.900", color: "orange.200" } }),
-    red: css({ bg: "red.100", color: "red.800", _dark: { bg: "red.900", color: "red.200" } }),
-    blue: css({ bg: "blue.100", color: "blue.800", _dark: { bg: "blue.900", color: "blue.200" } }),
-    gray: css({ bg: "gray.100", color: "gray.700", _dark: { bg: "gray.800", color: "gray.300" } }),
+  const colorClasses: Record<BadgeColor, string> = {
+    green: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    orange: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+    red: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    blue: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    gray: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   };
   return (
-    <Badge size="sm" className={colorVariant[color]}>
+    <span className={cx("px-2 py-0.5 text-xs font-medium rounded-full", colorClasses[color])}>
       {text}
-    </Badge>
+    </span>
   );
 }
 
 function HeaderRow({ entry }: { entry: HeaderEntry }) {
   return (
-    <Table.Row className={css({ _hover: { bg: "bg.subtle" } })}>
-      <Table.Cell p="3" verticalAlign="top" w="35%" minW="150px">
-        <HStack gap="1.5" alignItems="center">
-          <Code fontSize="sm" fontWeight="medium" color="fg.default" wordBreak="break-all">
+    <tr className="hover:bg-bg-subtle border-t border-border-default">
+      <td className="p-3 align-top w-[35%] min-w-[150px]">
+        <div className="flex items-center gap-1.5">
+          <code className="font-mono text-sm font-medium text-fg-default break-all">
             {entry.name}
-          </Code>
+          </code>
           {entry.info && (
-            <Tooltip content={entry.info} showArrow>
-              <Box color="fg.muted" cursor="help" flexShrink={0} _hover={{ color: "fg.default" }}>
-                <Icon name="info" size={14} />
-              </Box>
-            </Tooltip>
+            <span className="text-fg-muted cursor-help shrink-0 hover:text-fg-default" title={entry.info}>
+              <Icon name="info" size={14} />
+            </span>
           )}
-        </HStack>
-      </Table.Cell>
-      <Table.Cell p="3" verticalAlign="top">
-        <Flex gap="2" alignItems="flex-start">
-          <Code flex="1" fontSize="sm" color="fg.muted" wordBreak="break-all" whiteSpace="pre-wrap" title={entry.value}>
+        </div>
+      </td>
+      <td className="p-3 align-top">
+        <div className="flex gap-2 items-start">
+          <code className="flex-1 font-mono text-sm text-fg-muted break-all whitespace-pre-wrap" title={entry.value}>
             {entry.value}
-          </Code>
+          </code>
           {entry.badge && <HeaderBadge text={entry.badge.text} color={entry.badge.color} />}
           <CopyButton text={`${entry.name}: ${entry.value}`} />
-        </Flex>
-      </Table.Cell>
-    </Table.Row>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -406,75 +396,43 @@ function CategorySection({
   const meta = CATEGORY_META[category];
 
   return (
-    <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
-      <Button
-        variant="ghost"
-        className={css({
-          display: "flex",
-          alignItems: "center",
-          gap: "2",
-          w: "full",
-          p: "3",
-          bg: "bg.subtle",
-          textAlign: "left",
-          color: "fg.default",
-          fontSize: "sm",
-          fontWeight: "medium",
-          rounded: "0",
-          justifyContent: "flex-start",
-          _hover: { bg: "bg.muted" },
-        })}
+    <div className="border border-border-default rounded-lg overflow-hidden">
+      <button
+        type="button"
+        className="flex items-center gap-2 w-full p-3 bg-bg-subtle text-left text-fg-default text-sm font-medium hover:bg-bg-muted"
         onClick={onToggle}
         aria-expanded={isExpanded}
         aria-controls={`section-${category}`}
       >
-        <Box color="fg.muted" flexShrink={0}>
+        <span className="text-fg-muted shrink-0">
           <Icon name={meta.icon} size={16} />
-        </Box>
-        <Box flex="1">{meta.label}</Box>
-        <Box
-          px="2"
-          py="0.5"
-          bg={{ base: "gray.200", _dark: "gray.700" }}
-          color={{ base: "gray.700", _dark: "gray.300" }}
-          rounded="full"
-          fontSize="xs"
-          fontWeight="medium"
-        >
+        </span>
+        <span className="flex-1">{meta.label}</span>
+        <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">
           {entries.length}
-        </Box>
-        <Box color="fg.muted" flexShrink={0}>
+        </span>
+        <span className="text-fg-muted shrink-0">
           <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={16} />
-        </Box>
-      </Button>
+        </span>
+      </button>
       {isExpanded && (
-        <Box id={`section-${category}`}>
-          <Table.Root w="full" variant="outline">
-            <Table.Head className={css({
-              position: "absolute",
-              w: "1px",
-              h: "1px",
-              p: "0",
-              m: "-1px",
-              overflow: "hidden",
-              clip: "rect(0,0,0,0)",
-              whiteSpace: "nowrap",
-              border: "0",
-            })}>
-              <Table.Row>
-                <Table.Header>Header Name</Table.Header>
-                <Table.Header>Header Value</Table.Header>
-              </Table.Row>
-            </Table.Head>
-            <Table.Body>
+        <div id={`section-${category}`}>
+          <table className="w-full">
+            <thead className="sr-only">
+              <tr>
+                <th>Header Name</th>
+                <th>Header Value</th>
+              </tr>
+            </thead>
+            <tbody>
               {entries.map((entry) => (
                 <HeaderRow key={entry.name} entry={entry} />
               ))}
-            </Table.Body>
-          </Table.Root>
-        </Box>
+            </tbody>
+          </table>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -618,112 +576,84 @@ function HeadersViewer() {
   // Render states
   if (loading) {
     return (
-      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Flex alignItems="center" justifyContent="center" p="10" color="fg.muted">
+      <div className="p-4 max-w-full overflow-hidden font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="flex items-center justify-center p-10 text-fg-muted">
           Loading headers...
-        </Flex>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">
+      <div className="p-4 max-w-full overflow-hidden font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
           {error}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!data || Object.keys(data.headers).length === 0) {
     return (
-      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Box textAlign="center" p="10" color="fg.muted">
+      <div className="p-4 max-w-full overflow-hidden font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="text-center p-10 text-fg-muted">
           No headers to display
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+    <div className="p-4 max-w-full overflow-hidden font-sans text-sm text-fg-default bg-bg-canvas">
       {/* Meta info */}
       {(data.url || data.status !== undefined) && (
-        <Flex
-          alignItems="center"
-          gap="2"
-          mb="3"
-          p="3"
-          bg="bg.subtle"
-          rounded="lg"
-          border="1px solid"
-          borderColor="border.default"
-          overflow="hidden"
-        >
+        <div className="flex items-center gap-2 mb-3 p-3 bg-bg-subtle rounded-lg border border-border-default overflow-hidden">
           {data.type && (
-            <Box
-              px="2"
-              py="0.5"
-              bg={{ base: "gray.100", _dark: "gray.800" }}
-              color={{ base: "gray.700", _dark: "gray.300" }}
-              rounded="sm"
-              fontSize="xs"
-              fontWeight="medium"
-              textTransform="uppercase"
-            >
+            <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-sm text-xs font-medium uppercase">
               {data.type === "request" ? "Request" : "Response"}
-            </Box>
+            </span>
           )}
           {data.status !== undefined && <StatusBadge status={data.status} />}
           {data.url && (
-            <Code
-              flex="1"
-              overflow="hidden"
-              textOverflow="ellipsis"
-              whiteSpace="nowrap"
-              color="fg.muted"
-              fontSize="xs"
-              title={data.url}
-            >
+            <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-fg-muted text-xs font-mono" title={data.url}>
               {data.url}
-            </Code>
+            </code>
           )}
-        </Flex>
+        </div>
       )}
 
       {/* Toolbar */}
-      <Flex gap="3" mb="3" alignItems="center" flexWrap="wrap">
-        <Box flex="1" minW="200px" position="relative">
-          <Box position="absolute" left="3" top="50%" transform="translateY(-50%)" color="fg.muted" pointerEvents="none" zIndex={1}>
+      <div className="flex gap-3 mb-3 items-center flex-wrap">
+        <div className="flex-1 min-w-[200px] relative">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted pointer-events-none z-10">
             <Icon name="search" size={16} />
-          </Box>
-          <Input
+          </div>
+          <input
             type="text"
             placeholder="Filter headers..."
             value={filterText}
             onChange={handleFilter}
-            size="sm"
-            className={css({ pl: "10" })}
             aria-label="Filter headers"
+            className="w-full pl-10 pr-3 py-2 text-sm border border-border-default rounded-md bg-bg-canvas text-fg-default placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-        </Box>
-        <HStack gap="1">
+        </div>
+        <div className="flex gap-1">
           <Button variant="outline" size="xs" onClick={expandAll} title="Expand all sections">
             Expand All
           </Button>
           <Button variant="outline" size="xs" onClick={collapseAll} title="Collapse all sections">
             Collapse All
           </Button>
-        </HStack>
-        <Box color="fg.muted" fontSize="xs" whiteSpace="nowrap">
+        </div>
+        <span className="text-fg-muted text-xs whitespace-nowrap">
           {totalHeaders} header{totalHeaders !== 1 ? "s" : ""}
           {filterText && ` (filtered from ${Object.keys(data.headers).length})`}
-        </Box>
-      </Flex>
+        </span>
+      </div>
 
       {/* Sections */}
-      <VStack gap="2">
+      <div className="flex flex-col gap-2">
         {Array.from(categorizedHeaders.entries()).map(([category, entries]) => (
           <CategorySection
             key={category}
@@ -733,8 +663,8 @@ function HeadersViewer() {
             onToggle={() => toggleSection(category)}
           />
         ))}
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -777,4 +707,4 @@ function normalizeData(parsed: unknown): HeadersData | null {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<HeadersViewer />);
+render(<HeadersViewer />, document.getElementById("app")!);

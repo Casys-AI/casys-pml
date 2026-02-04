@@ -11,11 +11,10 @@
  * @module lib/std/src/ui/plan-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Stack, Grid } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { IconButton } from "../../components/ui/icon-button";
@@ -207,12 +206,12 @@ function getNodeColorClass(nodeType: string): string {
   return "default";
 }
 
-const nodeBadgeColors: Record<string, { bg: string; color: string; _dark: { bg: string; color: string } }> = {
-  scan: { bg: "blue.100", color: "blue.800", _dark: { bg: "blue.900", color: "blue.200" } },
-  join: { bg: "purple.100", color: "purple.800", _dark: { bg: "purple.900", color: "purple.200" } },
-  sort: { bg: "orange.100", color: "orange.800", _dark: { bg: "orange.900", color: "orange.200" } },
-  hash: { bg: "green.100", color: "green.800", _dark: { bg: "green.900", color: "green.200" } },
-  default: { bg: "gray.100", color: "gray.800", _dark: { bg: "gray.800", color: "gray.200" } },
+const nodeBadgeColors: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
+  scan: { bg: "bg-blue-100", text: "text-blue-800", darkBg: "dark:bg-blue-900", darkText: "dark:text-blue-200" },
+  join: { bg: "bg-purple-100", text: "text-purple-800", darkBg: "dark:bg-purple-900", darkText: "dark:text-purple-200" },
+  sort: { bg: "bg-orange-100", text: "text-orange-800", darkBg: "dark:bg-orange-900", darkText: "dark:text-orange-200" },
+  hash: { bg: "bg-green-100", text: "text-green-800", darkBg: "dark:bg-green-900", darkText: "dark:text-green-200" },
+  default: { bg: "bg-gray-100", text: "text-gray-800", darkBg: "dark:bg-gray-800", darkText: "dark:text-gray-200" },
 };
 
 // ============================================================================
@@ -234,105 +233,91 @@ function PlanNodeRow({ flatNode, isExpanded, isSelected, onToggle, onSelect }: P
   const badgeStyle = nodeBadgeColors[nodeColor];
 
   return (
-    <Flex
-      align="center"
-      p="2"
-      borderBottom="1px solid"
-      borderColor="border.subtle"
-      cursor="pointer"
-      transition="background 0.1s"
-      _hover={{ bg: "bg.subtle" }}
+    <div
+      class={cx(
+        "flex items-center p-2 border-b border-border-subtle cursor-pointer transition-colors duration-100 hover:bg-bg-subtle",
+        isSelected && "bg-blue-50 dark:bg-blue-950",
+        isSlow && "border-l-[3px] border-l-red-500"
+      )}
       onClick={onSelect}
-      bg={isSelected ? { base: "blue.50", _dark: "blue.950" } : undefined}
-      borderLeft={isSlow ? "3px solid" : undefined}
-      borderLeftColor={isSlow ? "red.500" : undefined}
     >
       {/* Indentation and expand toggle */}
-      <Flex align="center" style={{ paddingLeft: `${depth * 20}px` }}>
+      <div class="flex items-center" style={{ paddingLeft: `${depth * 20}px` }}>
         {hasChildren ? (
           <IconButton
             variant="outline"
             size="xs"
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
-            className={css({ w: "18px", h: "18px", mr: "2", minW: "18px" })}
+            class="w-[18px] h-[18px] mr-2 min-w-[18px]"
           >
             {isExpanded ? "-" : "+"}
           </IconButton>
         ) : (
-          <Box w="18px" mr="2" />
+          <div class="w-[18px] mr-2" />
         )}
-      </Flex>
+      </div>
 
       {/* Node type badge */}
-      <Box
-        w="28px"
-        h="20px"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        rounded="sm"
-        fontSize="xs"
-        fontWeight="bold"
-        mr="2"
-        flexShrink={0}
-        bg={badgeStyle.bg}
-        color={badgeStyle.color}
-        _dark={badgeStyle._dark}
+      <div
+        class={cx(
+          "w-7 h-5 flex items-center justify-center rounded-sm text-xs font-bold mr-2 shrink-0",
+          badgeStyle.bg,
+          badgeStyle.text,
+          badgeStyle.darkBg,
+          badgeStyle.darkText
+        )}
       >
         {getNodeIcon(node["Node Type"])}
-      </Box>
+      </div>
 
       {/* Node info */}
-      <Box flex="1" minW="0" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
-        <Box as="span" fontWeight="medium" color="fg.default">{node["Node Type"]}</Box>
+      <div class="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+        <span class="font-medium text-fg-default">{node["Node Type"]}</span>
         {node["Relation Name"] && (
-          <Box as="span" color={{ base: "blue.600", _dark: "blue.400" }}> on {node["Relation Name"]}</Box>
+          <span class="text-blue-600 dark:text-blue-400"> on {node["Relation Name"]}</span>
         )}
         {node["Index Name"] && (
-          <Box as="span" color={{ base: "green.600", _dark: "green.400" }} fontSize="xs"> using {node["Index Name"]}</Box>
+          <span class="text-green-600 dark:text-green-400 text-xs"> using {node["Index Name"]}</span>
         )}
         {node["Alias"] && node["Alias"] !== node["Relation Name"] && (
-          <Box as="span" color="fg.muted" fontSize="xs"> ({node["Alias"]})</Box>
+          <span class="text-fg-muted text-xs"> ({node["Alias"]})</span>
         )}
-      </Box>
+      </div>
 
       {/* Stats */}
-      <Flex gap="3" w="200px" flexShrink={0}>
-        <Stack gap="0" align="flex-end">
-          <Box fontSize="xs" color="fg.muted">Time</Box>
-          <Box
-            fontFamily="mono"
-            fontSize="xs"
-            color={isSlow ? { base: "red.600", _dark: "red.400" } : "fg.default"}
-            fontWeight={isSlow ? "bold" : "normal"}
+      <div class="flex gap-3 w-[200px] shrink-0">
+        <div class="flex flex-col items-end gap-0">
+          <div class="text-xs text-fg-muted">Time</div>
+          <div
+            class={cx(
+              "font-mono text-xs",
+              isSlow ? "text-red-600 dark:text-red-400 font-bold" : "text-fg-default"
+            )}
           >
             {formatTime(node["Actual Total Time"])}
-          </Box>
-        </Stack>
-        <Stack gap="0" align="flex-end">
-          <Box fontSize="xs" color="fg.muted">Rows</Box>
-          <Box fontFamily="mono" fontSize="xs" color="fg.default">{formatRows(node["Actual Rows"])}</Box>
-        </Stack>
-        <Stack gap="0" align="flex-end">
-          <Box fontSize="xs" color="fg.muted">Loops</Box>
-          <Box fontFamily="mono" fontSize="xs" color="fg.default">{node["Actual Loops"] ?? "-"}</Box>
-        </Stack>
-      </Flex>
+          </div>
+        </div>
+        <div class="flex flex-col items-end gap-0">
+          <div class="text-xs text-fg-muted">Rows</div>
+          <div class="font-mono text-xs text-fg-default">{formatRows(node["Actual Rows"])}</div>
+        </div>
+        <div class="flex flex-col items-end gap-0">
+          <div class="text-xs text-fg-muted">Loops</div>
+          <div class="font-mono text-xs text-fg-default">{node["Actual Loops"] ?? "-"}</div>
+        </div>
+      </div>
 
       {/* Cost bar */}
-      <Flex w="120px" align="center" gap="2" flexShrink={0}>
-        <Box
-          h="8px"
-          bg={isSlow ? "red.500" : "blue.400"}
-          rounded="full"
-          transition="width 0.2s"
+      <div class="flex w-[120px] items-center gap-2 shrink-0">
+        <div
+          class={cx("h-2 rounded-full transition-all duration-200", isSlow ? "bg-red-500" : "bg-blue-400")}
           style={{ width: `${Math.min(percentOfTotal, 100)}%` }}
         />
-        <Box fontSize="xs" fontFamily="mono" color="fg.muted" minW="45px" textAlign="right">
+        <div class="text-xs font-mono text-fg-muted min-w-[45px] text-right">
           {percentOfTotal.toFixed(1)}%
-        </Box>
-      </Flex>
-    </Flex>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -403,23 +388,23 @@ function NodeDetails({ node }: NodeDetailsProps) {
   }
 
   if (details.length === 0) {
-    return <Box p="3" color="fg.muted" fontStyle="italic">No additional details</Box>;
+    return <div class="p-3 text-fg-muted italic">No additional details</div>;
   }
 
   return (
-    <Box p="3" bg="bg.subtle" rounded="lg" border="1px solid" borderColor="border.default" mb="4">
-      <Box as="h4" fontSize="sm" fontWeight="semibold" color="fg.default" mb="2">
+    <div class="p-3 bg-bg-subtle rounded-lg border border-border-default mb-4">
+      <h4 class="text-sm font-semibold text-fg-default mb-2">
         Details: {node["Node Type"]}
-      </Box>
-      <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap="2">
+      </h4>
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
         {details.map(({ label, value }) => (
-          <Stack key={label} gap="0">
-            <Box fontSize="xs" color="fg.muted">{label}</Box>
-            <Box fontFamily="mono" fontSize="sm" color="fg.default" wordBreak="break-all">{value}</Box>
-          </Stack>
+          <div key={label} class="flex flex-col gap-0">
+            <div class="text-xs text-fg-muted">{label}</div>
+            <div class="font-mono text-sm text-fg-default break-all">{value}</div>
+          </div>
         ))}
-      </Grid>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -536,87 +521,95 @@ function PlanViewer() {
 
   // Render states
   if (loading) {
-    return <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
-      <Box p="10" textAlign="center" color="fg.muted">Loading query plan...</Box>
-    </Box>;
+    return (
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div class="p-10 text-center text-fg-muted">Loading query plan...</div>
+      </div>
+    );
   }
 
   if (error) {
-    return <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
-      <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">{error}</Box>
-    </Box>;
+    return (
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div class="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">{error}</div>
+      </div>
+    );
   }
 
   if (!data) {
-    return <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
-      <Box p="10" textAlign="center" color="fg.muted">No plan data</Box>
-    </Box>;
+    return (
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div class="p-10 text-center text-fg-muted">No plan data</div>
+      </div>
+    );
   }
 
   // Handle text format (non-JSON)
   if (typeof data.plan === "string") {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
-        <Flex justify="space-between" align="center" mb="3">
-          <Box fontWeight="bold" fontSize="lg" color="fg.default">Query Plan (Text)</Box>
-        </Flex>
-        <Box as="pre" fontFamily="mono" fontSize="xs" p="3" bg="bg.subtle" rounded="md" border="1px solid" borderColor="border.default" overflow="auto" whiteSpace="pre">
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div class="flex justify-between items-center mb-3">
+          <div class="font-bold text-lg text-fg-default">Query Plan (Text)</div>
+        </div>
+        <pre class="font-mono text-xs p-3 bg-bg-subtle rounded-md border border-border-default overflow-auto whitespace-pre">
           {data.plan}
-        </Box>
-      </Box>
+        </pre>
+      </div>
     );
   }
 
   if (!planResult) {
-    return <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
-      <Box p="10" textAlign="center" color="fg.muted">Invalid plan format</Box>
-    </Box>;
+    return (
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div class="p-10 text-center text-fg-muted">Invalid plan format</div>
+      </div>
+    );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
+    <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
       {/* Header */}
-      <Flex justify="space-between" align="center" mb="3">
-        <Flex align="center" gap="2">
-          <Box fontWeight="bold" fontSize="lg" color="fg.default">Query Execution Plan</Box>
+      <div class="flex justify-between items-center mb-3">
+        <div class="flex items-center gap-2">
+          <div class="font-bold text-lg text-fg-default">Query Execution Plan</div>
           {data.analyzed && (
-            <Badge variant="solid" className={css({ bg: "green.100", color: "green.800", _dark: { bg: "green.900", color: "green.200" } })}>ANALYZED</Badge>
+            <Badge variant="solid" class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">ANALYZED</Badge>
           )}
-        </Flex>
-        <Flex gap="2">
+        </div>
+        <div class="flex gap-2">
           <Button variant="outline" size="xs" onClick={handleExpandAll}>Expand All</Button>
           <Button variant="outline" size="xs" onClick={handleCollapseAll}>Collapse All</Button>
-        </Flex>
-      </Flex>
+        </div>
+      </div>
 
       {/* Summary stats */}
-      <Flex gap="4" mb="4" p="3" bg="bg.subtle" rounded="lg" border="1px solid" borderColor="border.default">
+      <div class="flex gap-4 mb-4 p-3 bg-bg-subtle rounded-lg border border-border-default">
         {planResult["Planning Time"] !== undefined && (
-          <Stack gap="0.5">
-            <Box fontSize="xs" color="fg.muted" textTransform="uppercase">Planning Time</Box>
-            <Box fontSize="lg" fontWeight="semibold" color="fg.default">{formatTime(planResult["Planning Time"])}</Box>
-          </Stack>
+          <div class="flex flex-col gap-0.5">
+            <div class="text-xs text-fg-muted uppercase">Planning Time</div>
+            <div class="text-lg font-semibold text-fg-default">{formatTime(planResult["Planning Time"])}</div>
+          </div>
         )}
         {planResult["Execution Time"] !== undefined && (
-          <Stack gap="0.5">
-            <Box fontSize="xs" color="fg.muted" textTransform="uppercase">Execution Time</Box>
-            <Box fontSize="lg" fontWeight="semibold" color="fg.default">{formatTime(planResult["Execution Time"])}</Box>
-          </Stack>
+          <div class="flex flex-col gap-0.5">
+            <div class="text-xs text-fg-muted uppercase">Execution Time</div>
+            <div class="text-lg font-semibold text-fg-default">{formatTime(planResult["Execution Time"])}</div>
+          </div>
         )}
-        <Stack gap="0.5">
-          <Box fontSize="xs" color="fg.muted" textTransform="uppercase">Total Nodes</Box>
-          <Box fontSize="lg" fontWeight="semibold" color="fg.default">{flatNodes.length}</Box>
-        </Stack>
-      </Flex>
+        <div class="flex flex-col gap-0.5">
+          <div class="text-xs text-fg-muted uppercase">Total Nodes</div>
+          <div class="text-lg font-semibold text-fg-default">{flatNodes.length}</div>
+        </div>
+      </div>
 
       {/* Plan tree */}
-      <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden" mb="4">
-        <Flex align="center" p="2" bg="bg.subtle" borderBottom="1px solid" borderColor="border.default">
-          <Box flex="1" fontSize="xs" fontWeight="semibold" color="fg.muted" textTransform="uppercase">Operation</Box>
-          <Box w="200px" fontSize="xs" fontWeight="semibold" color="fg.muted" textTransform="uppercase">Stats</Box>
-          <Box w="120px" fontSize="xs" fontWeight="semibold" color="fg.muted" textTransform="uppercase">Cost %</Box>
-        </Flex>
-        <Box maxH="400px" overflowY="auto">
+      <div class="border border-border-default rounded-lg overflow-hidden mb-4">
+        <div class="flex items-center p-2 bg-bg-subtle border-b border-border-default">
+          <div class="flex-1 text-xs font-semibold text-fg-muted uppercase">Operation</div>
+          <div class="w-[200px] text-xs font-semibold text-fg-muted uppercase">Stats</div>
+          <div class="w-[120px] text-xs font-semibold text-fg-muted uppercase">Cost %</div>
+        </div>
+        <div class="max-h-[400px] overflow-y-auto">
           {visibleNodes.map((flatNode) => (
             <PlanNodeRow
               key={flatNode.id}
@@ -627,20 +620,20 @@ function PlanViewer() {
               onSelect={() => handleSelectNode(flatNode.id)}
             />
           ))}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* Selected node details */}
       {selectedNode && <NodeDetails node={selectedNode} />}
 
       {/* Query display */}
-      <Box mt="4">
-        <Box as="h4" fontSize="sm" fontWeight="semibold" color="fg.muted" mb="2">Query</Box>
-        <Box as="pre" fontFamily="mono" fontSize="xs" p="3" bg="bg.subtle" rounded="md" border="1px solid" borderColor="border.default" overflow="auto" whiteSpace="pre-wrap" wordBreak="break-word">
+      <div class="mt-4">
+        <h4 class="text-sm font-semibold text-fg-muted mb-2">Query</h4>
+        <pre class="font-mono text-xs p-3 bg-bg-subtle rounded-md border border-border-default overflow-auto whitespace-pre-wrap break-all">
           {data.query}
-        </Box>
-      </Box>
-    </Box>
+        </pre>
+      </div>
+    </div>
   );
 }
 
@@ -648,4 +641,4 @@ function PlanViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<PlanViewer />);
+render(<PlanViewer />, document.getElementById("app")!);

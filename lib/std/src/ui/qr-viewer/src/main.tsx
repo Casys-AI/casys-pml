@@ -11,15 +11,16 @@
  * - Copy data
  * - Size adjustment
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/qr-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Stack, Center } from "../../styled-system/jsx";
 import { Button } from "../../components/ui/button";
+import { cx } from "../../components/utils";
 import "../../global.css";
 
 // ============================================================================
@@ -121,30 +122,29 @@ function QRViewer() {
 
   if (loading) {
     return (
-      <Center p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" flexDirection="column" gap="3">
-        <Box p="6" color="fg.muted">Loading QR...</Box>
-      </Center>
+      <div className="flex flex-col gap-3 items-center justify-center p-4 font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="p-6 text-fg-muted">Loading QR...</div>
+      </div>
     );
   }
 
   if (!qrData) {
     return (
-      <Center p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" flexDirection="column" gap="3">
-        <Box p="6" color="fg.muted">No QR code</Box>
-      </Center>
+      <div className="flex flex-col gap-3 items-center justify-center p-4 font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="p-6 text-fg-muted">No QR code</div>
+      </div>
     );
   }
 
   return (
-    <Flex p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" direction="column" align="center" gap="3">
+    <div className="flex flex-col items-center gap-3 p-4 font-sans text-sm text-fg-default bg-bg-canvas">
       {/* QR Display */}
-      <Box p="4" bg="white" rounded="lg" shadow="sm" border="1px solid" borderColor="border.default">
+      <div className="p-4 bg-white rounded-lg shadow-sm border border-border-default">
         {qrData.svg && (
-          <Box
-            display="block"
+          <div
+            className="block [&_svg]:w-full [&_svg]:h-full"
             style={{ width: displaySize, height: displaySize }}
             dangerouslySetInnerHTML={{ __html: qrData.svg }}
-            className={css({ "& svg": { width: "100%", height: "100%" } })}
           />
         )}
 
@@ -157,70 +157,53 @@ function QRViewer() {
         )}
 
         {qrData.ascii && (
-          <Box
-            as="pre"
-            fontFamily="mono"
-            fontSize="4px"
-            lineHeight="4px"
-            letterSpacing="-1px"
-            whiteSpace="pre"
-            color="black"
+          <pre
+            className="font-mono whitespace-pre text-black"
+            style={{ fontSize: "4px", lineHeight: "4px", letterSpacing: "-1px" }}
           >
             {qrData.ascii}
-          </Box>
+          </pre>
         )}
 
         {!qrData.svg && !qrData.dataUrl && !qrData.ascii && qrData.data && (
-          <Stack align="center" gap="2" p="8" color="fg.muted">
-            <Box fontSize="4xl">{"\u2B1C"}</Box>
-            <Box>QR for: {qrData.data.slice(0, 30)}{qrData.data.length > 30 ? "..." : ""}</Box>
-          </Stack>
+          <div className="flex flex-col items-center gap-2 p-8 text-fg-muted">
+            <div className="text-4xl">{"\u2B1C"}</div>
+            <div>QR for: {qrData.data.slice(0, 30)}{qrData.data.length > 30 ? "..." : ""}</div>
+          </div>
         )}
-      </Box>
+      </div>
 
       {/* Data display */}
       {qrData.data && (
-        <Box w="100%" maxW="300px">
-          <Box fontSize="xs" color="fg.muted" mb="1">Encoded data:</Box>
-          <Box p="2" bg="bg.subtle" rounded="md" fontFamily="mono" fontSize="xs" wordBreak="break-all">
+        <div className="w-full max-w-[300px]">
+          <div className="text-xs text-fg-muted mb-1">Encoded data:</div>
+          <div className="p-2 bg-bg-subtle rounded-md font-mono text-xs break-all">
             {qrData.data.length > 100 ? qrData.data.slice(0, 100) + "..." : qrData.data}
-          </Box>
-        </Box>
+          </div>
+        </div>
       )}
 
       {/* Controls */}
-      <Stack gap="2" w="100%" maxW="300px">
+      <div className="flex flex-col gap-2 w-full max-w-[300px]">
         {/* Size slider */}
-        <Flex align="center" gap="2">
-          <Box as="label" fontSize="xs" color="fg.muted" minW="70px">Size: {displaySize}px</Box>
-          <Box
-            as="input"
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-fg-muted min-w-[70px]">Size: {displaySize}px</label>
+          <input
             type="range"
             min="100"
             max="400"
             value={displaySize}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDisplaySize(parseInt(e.target.value, 10))}
-            flex="1"
-            h="4px"
-            bg="bg.muted"
-            rounded="full"
-            cursor="pointer"
-            className={css({
-              appearance: "none",
-              "&::-webkit-slider-thumb": {
-                appearance: "none",
-                w: "14px",
-                h: "14px",
-                bg: "blue.500",
-                rounded: "full",
-                cursor: "pointer",
-              },
-            })}
+            onChange={(e) => setDisplaySize(parseInt((e.target as HTMLInputElement).value, 10))}
+            className={cx(
+              "flex-1 h-1 bg-bg-muted rounded-full cursor-pointer appearance-none",
+              "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5",
+              "[&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
+            )}
           />
-        </Flex>
+        </div>
 
         {/* Buttons */}
-        <Flex gap="2" justify="center">
+        <div className="flex gap-2 justify-center">
           {qrData.data && (
             <Button variant="outline" size="sm" onClick={copyData}>
               {copied ? "Copied" : "Copy data"}
@@ -231,17 +214,17 @@ function QRViewer() {
               Download SVG
             </Button>
           )}
-        </Flex>
-      </Stack>
+        </div>
+      </div>
 
       {/* Metadata */}
       {(qrData.errorCorrection || qrData.size) && (
-        <Flex gap="3" fontSize="xs" color="fg.muted">
-          {qrData.errorCorrection && <Box>EC: {qrData.errorCorrection}</Box>}
-          {qrData.size && <Box>Size: {qrData.size}x{qrData.size}</Box>}
-        </Flex>
+        <div className="flex gap-3 text-xs text-fg-muted">
+          {qrData.errorCorrection && <div>EC: {qrData.errorCorrection}</div>}
+          {qrData.size && <div>Size: {qrData.size}x{qrData.size}</div>}
+        </div>
       )}
-    </Flex>
+    </div>
   );
 }
 
@@ -249,4 +232,4 @@ function QRViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<QRViewer />);
+render(<QRViewer />, document.getElementById("app")!);

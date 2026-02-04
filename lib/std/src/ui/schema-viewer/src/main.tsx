@@ -10,14 +10,11 @@
  * @module lib/std/src/ui/schema-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Stack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import * as Table from "../../components/ui/table";
 import "../../global.css";
 
 // ============================================================================
@@ -137,124 +134,119 @@ function SchemaViewer() {
   // Render
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">Loading schema...</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">Loading schema...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
           {error}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!data || data.columns.length === 0) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">No schema data</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">No schema data</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
       {/* Header */}
-      <Flex justify="space-between" align="center" mb="3">
-        <Flex align="center" gap="2">
-          <Box fontSize="lg" fontWeight="bold" color="fg.muted">T</Box>
-          <Box fontWeight="bold" fontSize="lg" color="fg.default">{data.table}</Box>
-          <Box color="fg.muted" fontSize="sm">{data.columns.length} columns</Box>
-        </Flex>
+      <div className="flex justify-between items-center mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-bold text-fg-muted">T</span>
+          <span className="font-bold text-lg text-fg-default">{data.table}</span>
+          <span className="text-fg-muted text-sm">{data.columns.length} columns</span>
+        </div>
         <Button variant="outline" size="sm" onClick={handleCopyDDL}>Copy DDL</Button>
-      </Flex>
+      </div>
 
       {/* Filter */}
-      <Input
+      <input
         type="text"
         placeholder="Filter columns..."
         value={filterText}
         onChange={(e) => setFilterText((e.target as HTMLInputElement).value)}
-        className={css({ w: "full", mb: "3" })}
+        className="w-full mb-3 px-3 py-2 text-sm border border-border-default rounded-md bg-bg-canvas text-fg-default placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
 
       {/* Schema Table */}
-      <Box rounded="lg" overflow="hidden">
-        <Table.Root variant="outline">
-          <Table.Head>
-            <Table.Row>
-              <Table.Header>Column</Table.Header>
-              <Table.Header>Type</Table.Header>
-              <Table.Header>Nullable</Table.Header>
-              <Table.Header>Default</Table.Header>
-            </Table.Row>
-          </Table.Head>
-          <Table.Body>
+      <div className="rounded-lg overflow-hidden border border-border-default">
+        <table className="w-full text-sm">
+          <thead className="bg-bg-subtle">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-fg-default">Column</th>
+              <th className="px-4 py-3 text-left font-medium text-fg-default">Type</th>
+              <th className="px-4 py-3 text-left font-medium text-fg-default">Nullable</th>
+              <th className="px-4 py-3 text-left font-medium text-fg-default">Default</th>
+            </tr>
+          </thead>
+          <tbody>
             {filteredColumns.map((col) => (
-              <Table.Row
+              <tr
                 key={col.name}
                 onClick={() => handleSelectColumn(col.name)}
-                className={css({
-                  cursor: "pointer",
-                  _hover: { bg: "bg.subtle" },
-                  bg: selectedColumn === col.name ? { base: "blue.50", _dark: "blue.950" } : undefined,
-                })}
+                className={cx(
+                  "cursor-pointer hover:bg-bg-subtle border-t border-border-default",
+                  selectedColumn === col.name && "bg-blue-50 dark:bg-blue-950"
+                )}
               >
-                <Table.Cell>
-                  <Flex align="center" gap="2">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
                     {col.isPrimaryKey && (
-                      <Box
-                        px="1.5"
-                        py="0.5"
-                        fontSize="xs"
-                        fontWeight="bold"
-                        bg={{ base: "yellow.100", _dark: "yellow.900" }}
-                        color={{ base: "yellow.800", _dark: "yellow.200" }}
-                        rounded="sm"
-                      >
+                      <span className="px-1.5 py-0.5 text-xs font-bold bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-sm">
                         PK
-                      </Box>
+                      </span>
                     )}
-                    <Box fontWeight={col.isPrimaryKey ? "bold" : "normal"}>
+                    <span className={col.isPrimaryKey ? "font-bold" : "font-normal"}>
                       {col.name}
-                    </Box>
-                  </Flex>
-                </Table.Cell>
-                <Table.Cell>
-                  <Box as="code" fontFamily="mono" fontSize="sm" color={{ base: "blue.600", _dark: "blue.400" }}>
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <code className="font-mono text-sm text-blue-600 dark:text-blue-400">
                     {col.type}
                     {col.maxLength && `(${col.maxLength})`}
-                  </Box>
-                </Table.Cell>
-                <Table.Cell>
-                  <Box color={col.nullable ? { base: "green.600", _dark: "green.400" } : { base: "red.600", _dark: "red.400" }} fontWeight={col.nullable ? "normal" : "medium"}>
+                  </code>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={cx(
+                    col.nullable
+                      ? "text-green-600 dark:text-green-400 font-normal"
+                      : "text-red-600 dark:text-red-400 font-medium"
+                  )}>
                     {col.nullable ? "YES" : "NO"}
-                  </Box>
-                </Table.Cell>
-                <Table.Cell>
-                  <Box as="code" fontFamily="mono" fontSize="sm" color="fg.muted">
-                    {col.default ?? <Box as="span" fontStyle="italic">NULL</Box>}
-                  </Box>
-                </Table.Cell>
-              </Table.Row>
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <code className="font-mono text-sm text-fg-muted">
+                    {col.default ?? <span className="italic">NULL</span>}
+                  </code>
+                </td>
+              </tr>
             ))}
-          </Table.Body>
-        </Table.Root>
-      </Box>
+          </tbody>
+        </table>
+      </div>
 
       {/* Selected Column Details */}
       {selectedColumn && (
-        <Box mt="4" p="3" bg="bg.subtle" rounded="lg" border="1px solid" borderColor="border.default">
-          <Box as="h4" mb="2">Column Details: {selectedColumn}</Box>
+        <div className="mt-4 p-3 bg-bg-subtle rounded-lg border border-border-default">
+          <h4 className="mb-2 font-medium">Column Details: {selectedColumn}</h4>
           {(() => {
             const col = data.columns.find((c) => c.name === selectedColumn);
             if (!col) return null;
             return (
-              <Box as="pre" fontFamily="mono" fontSize="xs" p="2" bg="bg.default" rounded="md" overflow="auto">
+              <pre className="font-mono text-xs p-2 bg-bg-canvas rounded-md overflow-auto">
 {`{
   "name": "${col.name}",
   "type": "${col.type}${col.maxLength ? `(${col.maxLength})` : ""}",
@@ -262,12 +254,12 @@ function SchemaViewer() {
   "default": ${col.default ? `"${col.default}"` : "null"},
   "isPrimaryKey": ${col.isPrimaryKey ?? false}
 }`}
-              </Box>
+              </pre>
             );
           })()}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -275,4 +267,4 @@ function SchemaViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<SchemaViewer />);
+render(<SchemaViewer />, document.getElementById("app")!);

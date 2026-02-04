@@ -11,11 +11,10 @@
  * @module lib/std/src/ui/commit-graph
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Stack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import "../../global.css";
@@ -251,47 +250,38 @@ function CommitPopup({ node, position }: CommitPopupProps) {
   const { commit } = node;
 
   return (
-    <Box
-      position="fixed"
-      zIndex={100}
-      w="320px"
-      p="3"
-      bg="bg.default"
-      border="1px solid"
-      borderColor="border.default"
-      rounded="lg"
-      shadow="lg"
-      pointerEvents="none"
+    <div
+      className="fixed z-[100] w-[320px] p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg pointer-events-none"
       style={{
         top: `${position.y + 15}px`,
         left: `${Math.min(position.x, window.innerWidth - 350)}px`,
       }}
     >
-      <Flex justify="space-between" align="center" mb="2" pb="2" borderBottom="1px solid" borderColor="border.subtle">
-        <span className={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600", _dark: { color: "blue.400" } })}>
+      <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100 dark:border-gray-800">
+        <span className="font-mono text-xs text-blue-600 dark:text-blue-400">
           {commit.hash.slice(0, 10)}
         </span>
-        <span className={css({ fontSize: "xs", color: "fg.muted" })}>{formatFullDate(commit.timestamp)}</span>
-      </Flex>
-      <Box fontSize="sm" mb="2">
+        <span className="text-xs text-gray-500 dark:text-gray-400">{formatFullDate(commit.timestamp)}</span>
+      </div>
+      <div className="text-sm mb-2">
         <strong>{commit.author}</strong>
-      </Box>
-      <Box fontSize="sm" color="fg.default" lineHeight="1.4" wordBreak="break-word" mb="2">
+      </div>
+      <div className="text-sm text-gray-900 dark:text-gray-100 leading-[1.4] break-words mb-2">
         {commit.message}
-      </Box>
+      </div>
       {commit.refs.length > 0 && (
-        <Flex flexWrap="wrap" gap="1" mb="2">
+        <div className="flex flex-wrap gap-1 mb-2">
           {commit.refs.map((ref) => (
             <RefBadge key={ref} refName={ref} />
           ))}
-        </Flex>
+        </div>
       )}
       {commit.parents.length > 0 && (
-        <Box fontSize="xs" color="fg.muted" fontFamily="mono">
+        <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
           Parents: {commit.parents.map((p) => p.slice(0, 7)).join(", ")}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -401,60 +391,50 @@ function CommitGraph() {
   // Render states
   if (loading) {
     return (
-      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
-        <Box p="10" textAlign="center" color="fg.muted">Loading commit graph...</Box>
-      </Box>
+      <div className="font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen relative">
+        <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading commit graph...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
-        <Box p="4" bg="red.50" color="red.700" rounded="md" m="4" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
-      </Box>
+      <div className="font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen relative">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md m-4">{error}</div>
+      </div>
     );
   }
 
   if (!data || data.commits.length === 0) {
     return (
-      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
-        <Box p="10" textAlign="center" color="fg.muted">No commits to display</Box>
-      </Box>
+      <div className="font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen relative">
+        <div className="p-10 text-center text-gray-500 dark:text-gray-400">No commits to display</div>
+      </div>
     );
   }
 
   return (
-    <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative" ref={containerRef}>
+    <div className="font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen relative" ref={containerRef}>
       {/* Header */}
-      <Flex
-        position="sticky"
-        top="0"
-        zIndex={10}
-        justify="space-between"
-        align="center"
-        p="3"
-        bg="bg.subtle"
-        borderBottom="1px solid"
-        borderColor="border.default"
-      >
-        <Flex align="center" gap="3">
-          <span className={css({ fontWeight: "semibold", fontSize: "lg" })}>Commit Graph</span>
-          <span className={css({ fontSize: "sm", color: "fg.muted" })}>
+      <div className="sticky top-0 z-10 flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-3">
+          <span className="font-semibold text-lg">Commit Graph</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
             {data.totalCommits} commits | {data.branches.length} branches
           </span>
-        </Flex>
-        <Flex align="center" gap="2">
+        </div>
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleZoomOut}>-</Button>
-          <span className={css({ minW: "50px", textAlign: "center", fontSize: "sm", color: "fg.muted" })}>
+          <span className="min-w-[50px] text-center text-sm text-gray-500 dark:text-gray-400">
             {Math.round(zoom * 100)}%
           </span>
           <Button variant="outline" size="sm" onClick={handleZoomIn}>+</Button>
-        </Flex>
-      </Flex>
+        </div>
+      </div>
 
       {/* Graph content */}
-      <Box overflow="auto" position="relative">
-        <Flex position="relative" minW="fit-content" style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}>
+      <div className="overflow-auto relative">
+        <div className="flex relative min-w-fit" style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}>
           {/* SVG for graph lines */}
           <svg
             width={svgDimensions.width}
@@ -545,24 +525,17 @@ function CommitGraph() {
           </svg>
 
           {/* Commit rows with info */}
-          <Stack gap="0" minW="400px" style={{ marginLeft: `${svgDimensions.width + 10}px` }}>
+          <div className="flex flex-col gap-0 min-w-[400px]" style={{ marginLeft: `${svgDimensions.width + 10}px` }}>
             {graphNodes.map((node) => {
               const isSelected = selectedHash === node.commit.hash;
-              const isHovered = hoveredNode?.commit.hash === node.commit.hash;
 
               return (
-                <Flex
+                <div
                   key={node.commit.hash}
-                  align="center"
-                  gap="2"
-                  px="2"
-                  cursor="pointer"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                  transition="background 0.1s"
-                  _hover={{ bg: "bg.muted" }}
-                  bg={isSelected ? "blue.50" : "transparent"}
-                  _dark={isSelected ? { bg: "blue.950" } : {}}
+                  className={cx(
+                    "flex items-center gap-2 px-2 cursor-pointer border-b border-gray-100 dark:border-gray-800 transition-colors duration-100 hover:bg-gray-100 dark:hover:bg-gray-800",
+                    isSelected && "bg-blue-50 dark:bg-blue-950"
+                  )}
                   style={{ height: `${ROW_HEIGHT}px` }}
                   onMouseEnter={() => setHoveredNode(node)}
                   onMouseLeave={() => setHoveredNode(null)}
@@ -570,42 +543,42 @@ function CommitGraph() {
                 >
                   {/* Refs */}
                   {node.commit.refs.length > 0 && (
-                    <Flex gap="1" flexShrink={0}>
+                    <div className="flex gap-1 shrink-0">
                       {node.commit.refs.map((ref) => (
                         <RefBadge key={ref} refName={ref} />
                       ))}
-                    </Flex>
+                    </div>
                   )}
 
                   {/* Hash */}
-                  <span className={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600", _dark: { color: "blue.400" }, minW: "60px", flexShrink: 0 })}>
+                  <span className="font-mono text-xs text-blue-600 dark:text-blue-400 min-w-[60px] shrink-0">
                     {node.commit.shortHash}
                   </span>
 
                   {/* Message */}
-                  <span className={css({ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "fg.default" })}>
+                  <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-gray-900 dark:text-gray-100">
                     {node.commit.message}
                   </span>
 
                   {/* Author and time */}
-                  <Flex align="center" gap="2" flexShrink={0} fontSize="xs" color="fg.muted">
-                    <span className={css({ maxW: "100px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" })}>
+                  <div className="flex items-center gap-2 shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                    <span className="max-w-[100px] overflow-hidden text-ellipsis whitespace-nowrap">
                       {node.commit.author}
                     </span>
-                    <span className={css({ minW: "60px", textAlign: "right" })}>
+                    <span className="min-w-[60px] text-right">
                       {formatRelativeTime(node.commit.timestamp)}
                     </span>
-                  </Flex>
-                </Flex>
+                  </div>
+                </div>
               );
             })}
-          </Stack>
-        </Flex>
-      </Box>
+          </div>
+        </div>
+      </div>
 
       {/* Hover popup */}
       {hoveredNode && <CommitPopup node={hoveredNode} position={popupPosition} />}
-    </Box>
+    </div>
   );
 }
 
@@ -613,4 +586,4 @@ function CommitGraph() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<CommitGraph />);
+render(<CommitGraph />, document.getElementById("app")!);

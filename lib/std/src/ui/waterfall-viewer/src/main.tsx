@@ -11,11 +11,10 @@
  * @module lib/std/src/ui/waterfall-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useRef } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Stack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import "../../global.css";
 
 // ============================================================================
@@ -110,7 +109,7 @@ function TimeScale({ maxTime, width }: { maxTime: number; width: number }) {
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) => (maxTime / tickCount) * i);
 
   return (
-    <Box w="100%">
+    <div class="w-full">
       <svg width={width} height={20} style={{ display: "block" }}>
         {ticks.map((tick, i) => {
           const x = (tick / maxTime) * width;
@@ -131,7 +130,7 @@ function TimeScale({ maxTime, width }: { maxTime: number; width: number }) {
         })}
         <line x1={0} y1={20} x2={width} y2={20} stroke="var(--colors-border-default)" strokeWidth="1" />
       </svg>
-    </Box>
+    </div>
   );
 }
 
@@ -174,7 +173,7 @@ function WaterfallBar({
   };
 
   return (
-    <Box position="relative">
+    <div class="relative">
       <svg width={width} height={barHeight + 4} style={{ display: "block", width: "100%" }}>
         {/* Background track */}
         <rect x={0} y={2} width={width} height={barHeight} fill="var(--colors-bg-subtle)" rx={2} />
@@ -188,27 +187,15 @@ function WaterfallBar({
             height={barHeight}
             fill={config.color}
             rx={x === 0 ? 2 : 0}
-            className={css({ cursor: "pointer", transition: "opacity 0.15s ease", _hover: { opacity: 0.8 } })}
+            class="cursor-pointer transition-opacity duration-150 hover:opacity-80"
             onMouseEnter={(e) => handleMouseEnter(key, e as unknown as MouseEvent)}
             onMouseLeave={handleMouseLeave}
           />
         ))}
       </svg>
       {hoveredPhase && (
-        <Box
-          position="fixed"
-          bg="bg.default"
-          border="1px solid"
-          borderColor="border.default"
-          rounded="md"
-          px="2"
-          py="1"
-          fontSize="xs"
-          color="fg.default"
-          boxShadow="lg"
-          zIndex={1000}
-          pointerEvents="none"
-          whiteSpace="nowrap"
+        <div
+          class="fixed bg-bg-default border border-border-default rounded-md px-2 py-1 text-xs text-fg-default shadow-lg z-[1000] pointer-events-none whitespace-nowrap"
           style={{
             top: `${tooltipPos.y - 40}px`,
             left: `${Math.min(tooltipPos.x, window.innerWidth - 320)}px`,
@@ -218,9 +205,9 @@ function WaterfallBar({
           <strong>{PHASE_CONFIG[hoveredPhase].description}</strong>
           <br />
           {formatTime(phases[hoveredPhase]!)}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -238,38 +225,33 @@ function RequestRow({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <Flex
-      flexWrap="wrap"
-      align="center"
-      py="2"
-      borderBottom="1px solid"
-      borderColor="border.subtle"
-      _hover={{ bg: "bg.subtle" }}
+    <div
+      class="flex flex-wrap items-center py-2 border-b border-border-subtle hover:bg-bg-subtle"
       data-index={index}
     >
-      <Flex w="200px" flexShrink={0} align="center" gap="2" cursor="pointer" pr="2" onClick={() => setExpanded(!expanded)}>
-        <span className={css({ fontSize: "xs", fontWeight: "bold", fontFamily: "mono", flexShrink: 0 })} style={{ color: getMethodColor(request.method) }}>
+      <div class="w-[200px] shrink-0 flex items-center gap-2 cursor-pointer pr-2" onClick={() => setExpanded(!expanded)}>
+        <span class="text-xs font-bold font-mono shrink-0" style={{ color: getMethodColor(request.method) }}>
           {request.method}
         </span>
-        <span className={css({ fontSize: "xs", fontFamily: "mono", flexShrink: 0 })} style={{ color: getStatusColor(request.status) }}>
+        <span class="text-xs font-mono shrink-0" style={{ color: getStatusColor(request.status) }}>
           {request.status}
         </span>
-        <span className={css({ fontSize: "sm", color: "fg.default", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" })} title={request.url}>
+        <span class="text-sm text-fg-default overflow-hidden text-ellipsis whitespace-nowrap" title={request.url}>
           {truncateUrl(request.url)}
         </span>
-      </Flex>
-      <Box flex="1" minW="200px" position="relative">
+      </div>
+      <div class="flex-1 min-w-[200px] relative">
         <WaterfallBar phases={request.phases} totalTime={request.totalTime} maxTime={maxTime} width={barWidth} />
-      </Box>
-      <Box w="80px" flexShrink={0} textAlign="right" fontSize="sm" fontFamily="mono" color="fg.muted">
+      </div>
+      <div class="w-20 shrink-0 text-right text-sm font-mono text-fg-muted">
         {formatTime(request.totalTime)}
-      </Box>
+      </div>
       {expanded && (
-        <Box w="100%" mt="2" pl="4" pr="4">
+        <div class="w-full mt-2 pl-4 pr-4">
           <PhaseDetails phases={request.phases} totalTime={request.totalTime} />
-        </Box>
+        </div>
       )}
-    </Flex>
+    </div>
   );
 }
 
@@ -277,36 +259,36 @@ function PhaseDetails({ phases, totalTime }: { phases: TimingPhases; totalTime: 
   const phaseOrder: PhaseKey[] = ["dns", "connect", "tls", "ttfb", "download"];
 
   return (
-    <Stack gap="1" bg="bg.subtle" rounded="md" p="3">
+    <div class="flex flex-col gap-1 bg-bg-subtle rounded-md p-3">
       {phaseOrder.map((key) => {
         const duration = phases[key];
         if (duration === undefined || duration <= 0) return null;
         const config = PHASE_CONFIG[key];
         const percentage = ((duration / totalTime) * 100).toFixed(1);
         return (
-          <Flex align="center" gap="2" key={key}>
-            <Box w="8px" h="8px" rounded="sm" flexShrink={0} style={{ backgroundColor: config.color }} />
-            <Box flex="1" fontSize="sm" color="fg.default">{config.description}</Box>
-            <Box fontSize="sm" fontFamily="mono" color="fg.default" fontWeight="medium">{formatTime(duration)}</Box>
-            <Box fontSize="xs" color="fg.muted" w="50px" textAlign="right">({percentage}%)</Box>
-          </Flex>
+          <div class="flex items-center gap-2" key={key}>
+            <div class="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: config.color }} />
+            <div class="flex-1 text-sm text-fg-default">{config.description}</div>
+            <div class="text-sm font-mono text-fg-default font-medium">{formatTime(duration)}</div>
+            <div class="text-xs text-fg-muted w-[50px] text-right">({percentage}%)</div>
+          </div>
         );
       })}
-    </Stack>
+    </div>
   );
 }
 
 function Legend() {
   const phases: PhaseKey[] = ["dns", "connect", "tls", "ttfb", "download"];
   return (
-    <Flex flexWrap="wrap" gap="3" mb="3" pb="3" borderBottom="1px solid" borderColor="border.default">
+    <div class="flex flex-wrap gap-3 mb-3 pb-3 border-b border-border-default">
       {phases.map((key) => (
-        <Flex align="center" gap="1.5" key={key}>
-          <Box w="12px" h="12px" rounded="sm" flexShrink={0} style={{ backgroundColor: PHASE_CONFIG[key].color }} />
-          <Box fontSize="xs" color="fg.muted">{PHASE_CONFIG[key].label}</Box>
-        </Flex>
+        <div class="flex items-center gap-1.5" key={key}>
+          <div class="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: PHASE_CONFIG[key].color }} />
+          <div class="text-xs text-fg-muted">{PHASE_CONFIG[key].label}</div>
+        </div>
       ))}
-    </Flex>
+    </div>
   );
 }
 
@@ -369,49 +351,49 @@ function WaterfallViewer() {
 
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" color="fg.default" bg="bg.canvas" minW="500px" maxW="100%" ref={containerRef}>
-        <Box p="4" color="fg.muted" textAlign="center">Loading...</Box>
-      </Box>
+      <div class="p-4 font-sans text-fg-default bg-bg-canvas min-w-[500px] max-w-full" ref={containerRef}>
+        <div class="p-4 text-fg-muted text-center">Loading...</div>
+      </div>
     );
   }
 
   if (!data || data.requests.length === 0) {
     return (
-      <Box p="4" fontFamily="sans" color="fg.default" bg="bg.canvas" minW="500px" maxW="100%" ref={containerRef}>
-        <Box p="4" color="fg.muted" textAlign="center">No timing data available</Box>
-      </Box>
+      <div class="p-4 font-sans text-fg-default bg-bg-canvas min-w-[500px] max-w-full" ref={containerRef}>
+        <div class="p-4 text-fg-muted text-center">No timing data available</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" color="fg.default" bg="bg.canvas" minW="500px" maxW="100%" ref={containerRef}>
-      {data.title && <Box as="h2" fontSize="lg" fontWeight="semibold" mb="3" color="fg.default">{data.title}</Box>}
+    <div class="p-4 font-sans text-fg-default bg-bg-canvas min-w-[500px] max-w-full" ref={containerRef}>
+      {data.title && <h2 class="text-lg font-semibold mb-3 text-fg-default">{data.title}</h2>}
       <Legend />
-      <Flex align="flex-end" borderBottom="1px solid" borderColor="border.default" pb="1" mb="1">
-        <Box w="200px" flexShrink={0} fontSize="xs" fontWeight="medium" color="fg.muted" textTransform="uppercase" letterSpacing="wider">
+      <div class="flex items-end border-b border-border-default pb-1 mb-1">
+        <div class="w-[200px] shrink-0 text-xs font-medium text-fg-muted uppercase tracking-wider">
           Request
-        </Box>
-        <Box flex="1" minW="200px">
+        </div>
+        <div class="flex-1 min-w-[200px]">
           <TimeScale maxTime={maxTime} width={barWidth} />
-        </Box>
-        <Box w="80px" flexShrink={0} textAlign="right" fontSize="xs" fontWeight="medium" color="fg.muted" textTransform="uppercase" letterSpacing="wider">
+        </div>
+        <div class="w-20 shrink-0 text-right text-xs font-medium text-fg-muted uppercase tracking-wider">
           Time
-        </Box>
-      </Flex>
-      <Stack gap="0">
+        </div>
+      </div>
+      <div class="flex flex-col gap-0">
         {data.requests.map((request, index) => (
           <RequestRow key={index} request={request} maxTime={maxTime} barWidth={barWidth} index={index} />
         ))}
-      </Stack>
-      <Flex gap="4" mt="3" pt="3" borderTop="1px solid" borderColor="border.default">
-        <Box fontSize="sm" color="fg.muted">
+      </div>
+      <div class="flex gap-4 mt-3 pt-3 border-t border-border-default">
+        <div class="text-sm text-fg-muted">
           <strong>{data.requests.length}</strong> request{data.requests.length !== 1 ? "s" : ""}
-        </Box>
-        <Box fontSize="sm" color="fg.muted">
+        </div>
+        <div class="text-sm text-fg-muted">
           Total: <strong>{formatTime(data.requests.reduce((sum, r) => sum + r.totalTime, 0))}</strong>
-        </Box>
-      </Flex>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -419,4 +401,4 @@ function WaterfallViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<WaterfallViewer />);
+render(<WaterfallViewer />, document.getElementById("app")!);

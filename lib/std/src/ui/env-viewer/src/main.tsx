@@ -1,7 +1,7 @@
 /**
  * Environment Variables Viewer UI for MCP Apps
  *
- * Interactive environment variables viewer using React + Park UI (Panda CSS).
+ * Interactive environment variables viewer using Preact + Tailwind CSS.
  * Features:
  * - Sortable table display
  * - Sensitive value masking with reveal toggle
@@ -12,18 +12,11 @@
  * @module lib/std/src/ui/env-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, VStack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { IconButton } from "../../components/ui/icon-button";
-import { Input } from "../../components/ui/input";
-import * as Checkbox from "../../components/ui/checkbox";
-import * as Table from "../../components/ui/table";
-import { Badge } from "../../components/ui/badge";
-import { Code } from "../../components/ui/code";
 import "../../global.css";
 
 // ============================================================================
@@ -138,7 +131,7 @@ function Icon({ name, size = 16 }: { name: string; size?: number }) {
 function CopyButton({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+  const handleCopy = useCallback(async (e: MouseEvent) => {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(text);
@@ -158,91 +151,84 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
   }, [text, label]);
 
   return (
-    <IconButton
-      variant="ghost"
-      size="xs"
+    <button
+      type="button"
       onClick={handleCopy}
       title={copied ? "Copied!" : "Copy to clipboard"}
       aria-label={copied ? "Copied to clipboard" : "Copy to clipboard"}
-      className={css({ opacity: 0.5, _hover: { opacity: 1 } })}
+      className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 opacity-50 hover:opacity-100 transition-opacity"
     >
       <Icon name={copied ? "check" : "copy"} size={14} />
-    </IconButton>
+    </button>
   );
 }
 
 function RevealButton({ revealed, onToggle }: { revealed: boolean; onToggle: () => void }) {
   return (
-    <IconButton
-      variant="ghost"
-      size="xs"
+    <button
+      type="button"
       onClick={(e) => { e.stopPropagation(); onToggle(); }}
       title={revealed ? "Hide value" : "Reveal value"}
       aria-label={revealed ? "Hide value" : "Reveal value"}
-      className={css({
-        color: "orange.600",
-        opacity: 0.7,
-        _hover: { opacity: 1, bg: "orange.50" },
-        _dark: { color: "orange.400", _hover: { bg: "orange.950" } },
-      })}
+      className="p-1 rounded text-orange-600 dark:text-orange-400 opacity-70 hover:opacity-100 hover:bg-orange-50 dark:hover:bg-orange-950 transition-opacity"
     >
       <Icon name={revealed ? "eye" : "eye-off"} size={14} />
-    </IconButton>
+    </button>
   );
 }
 
 function MaskedValue({ value, revealed }: { value: string; revealed: boolean }) {
   if (revealed) {
-    return <Code fontSize="sm" title={value} className={css({ wordBreak: "break-all" })}>{value}</Code>;
+    return <code className="font-mono text-sm break-all" title={value}>{value}</code>;
   }
   const maskedLength = Math.min(value.length, 20);
   const masked = "*".repeat(maskedLength);
 
   return (
-    <Code fontSize="sm" title="Value hidden" className={css({ fontStyle: "italic", letterSpacing: "0.1em", color: "fg.muted" })}>
+    <code className="font-mono text-sm italic tracking-wider text-fg-muted" title="Value hidden">
       {masked}
-      {value.length > 20 && <Box as="span" ml="1" color="fg.subtle" fontSize="xs" fontStyle="normal" letterSpacing="normal">({value.length} chars)</Box>}
-    </Code>
+      {value.length > 20 && <span className="ml-1 text-xs not-italic tracking-normal text-fg-muted">({value.length} chars)</span>}
+    </code>
   );
 }
 
 function SortIndicator({ column, sortColumn, sortDirection }: { column: SortColumn; sortColumn: SortColumn; sortDirection: SortDirection }) {
   if (column !== sortColumn) {
-    return <Box as="span" ml="1" opacity={0.3} fontSize="xs">&#8645;</Box>;
+    return <span className="ml-1 opacity-30 text-xs">&#8645;</span>;
   }
-  return <Box as="span" ml="1" fontSize="xs">{sortDirection === "asc" ? "\u25B2" : "\u25BC"}</Box>;
+  return <span className="ml-1 text-xs">{sortDirection === "asc" ? "\u25B2" : "\u25BC"}</span>;
 }
 
 function EnvRow({ entry, revealed, onToggleReveal }: { entry: EnvEntry; revealed: boolean; onToggleReveal: () => void }) {
   return (
-    <Table.Row className={css({ _hover: { bg: "bg.subtle" } })}>
-      <Table.Cell p="3" verticalAlign="top" w="35%" minW="180px">
-        <Flex alignItems="center" gap="1.5">
-          <Code fontSize="sm" fontWeight="medium" className={css({ wordBreak: "break-all" })}>{entry.key}</Code>
+    <tr className="hover:bg-bg-subtle border-t border-border-default">
+      <td className="p-3 align-top w-[35%] min-w-[180px]">
+        <div className="flex items-center gap-1.5">
+          <code className="font-mono text-sm font-medium break-all">{entry.key}</code>
           {entry.isSensitive && (
-            <Box color={{ base: "orange.600", _dark: "orange.400" }} flexShrink={0} title="Sensitive value">
+            <span className="text-orange-600 dark:text-orange-400 shrink-0" title="Sensitive value">
               <Icon name="lock" size={12} />
-            </Box>
+            </span>
           )}
           <CopyButton text={entry.key} label={entry.key} />
-        </Flex>
-      </Table.Cell>
-      <Table.Cell p="3" verticalAlign="top">
-        <Flex alignItems="flex-start" gap="2">
+        </div>
+      </td>
+      <td className="p-3 align-top">
+        <div className="flex items-start gap-2">
           {entry.isSensitive ? (
             <>
               <MaskedValue value={entry.value} revealed={revealed} />
               <RevealButton revealed={revealed} onToggle={onToggleReveal} />
             </>
           ) : (
-            <Code fontSize="sm" className={css({ wordBreak: "break-all", maxW: "400px" })} title={entry.value}>
+            <code className="font-mono text-sm break-all max-w-[400px]" title={entry.value}>
               {entry.value}
-            </Code>
+            </code>
           )}
           <CopyButton text={entry.value} label={`${entry.key} value`} />
-        </Flex>
-      </Table.Cell>
-    </Table.Row>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -259,43 +245,40 @@ function GroupSection({
   const sensitiveCount = entries.filter((e) => e.isSensitive).length;
 
   return (
-    <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
-      <Button
-        variant="ghost"
-        className={css({
-          display: "flex", alignItems: "center", gap: "2", w: "full", p: "3",
-          bg: "bg.subtle", textAlign: "left", color: "fg.default", fontSize: "sm",
-          fontWeight: "medium", rounded: "0", justifyContent: "flex-start",
-          _hover: { bg: "bg.muted" },
-        })}
+    <div className="border border-border-default rounded-lg overflow-hidden">
+      <button
+        type="button"
+        className="flex items-center gap-2 w-full p-3 bg-bg-subtle text-left text-fg-default text-sm font-medium hover:bg-bg-muted"
         onClick={onToggle}
         aria-expanded={isExpanded}
         aria-controls={`group-${prefix}`}
       >
-        <Box color="fg.muted" flexShrink={0}>
+        <span className="text-fg-muted shrink-0">
           <Icon name={isExpanded ? "folder-open" : "folder"} size={16} />
-        </Box>
-        <Box flex={1} fontFamily="mono">{prefix}</Box>
-        <Badge variant="subtle">{entries.length}</Badge>
+        </span>
+        <span className="flex-1 font-mono">{prefix}</span>
+        <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">
+          {entries.length}
+        </span>
         {sensitiveCount > 0 && (
-          <Badge colorPalette="orange" variant="subtle" title={`${sensitiveCount} sensitive`}>
+          <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-full text-xs font-medium" title={`${sensitiveCount} sensitive`}>
             <Icon name="shield" size={12} /> {sensitiveCount}
-          </Badge>
+          </span>
         )}
-        <Box color="fg.muted" flexShrink={0}>
+        <span className="text-fg-muted shrink-0">
           <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={16} />
-        </Box>
-      </Button>
+        </span>
+      </button>
       {isExpanded && (
-        <Box id={`group-${prefix}`}>
-          <Table.Root size="sm" variant="outline">
-            <Table.Head className={css({ srOnly: true })}>
-              <Table.Row>
-                <Table.Header>Variable Name</Table.Header>
-                <Table.Header>Value</Table.Header>
-              </Table.Row>
-            </Table.Head>
-            <Table.Body>
+        <div id={`group-${prefix}`}>
+          <table className="w-full text-sm">
+            <thead className="sr-only">
+              <tr>
+                <th>Variable Name</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
               {entries.map((entry) => (
                 <EnvRow
                   key={entry.key}
@@ -304,11 +287,11 @@ function GroupSection({
                   onToggleReveal={() => onToggleReveal(entry.key)}
                 />
               ))}
-            </Table.Body>
-          </Table.Root>
-        </Box>
+            </tbody>
+          </table>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -454,60 +437,55 @@ function EnvViewer() {
 
   if (loading) {
     return (
-      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Flex alignItems="center" justifyContent="center" p="10" color="fg.muted">Loading environment variables...</Flex>
-      </Box>
+      <div className="p-4 max-w-full overflow-hidden font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="flex items-center justify-center p-10 text-fg-muted">Loading environment variables...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">{error}</Box>
-      </Box>
+      <div className="p-4 max-w-full overflow-hidden font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">{error}</div>
+      </div>
     );
   }
 
   if (!data || Object.keys(data.env).length === 0) {
     return (
-      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Box textAlign="center" p="10" color="fg.muted">No environment variables to display</Box>
-      </Box>
+      <div className="p-4 max-w-full overflow-hidden font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="text-center p-10 text-fg-muted">No environment variables to display</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+    <div className="p-4 max-w-full overflow-hidden font-sans text-sm text-fg-default bg-bg-canvas">
       {/* Toolbar */}
-      <Flex gap="3" mb="3" alignItems="center" flexWrap="wrap">
-        <Box flex={1} minW="200px" position="relative">
-          <Box position="absolute" left="3" top="50%" transform="translateY(-50%)" color="fg.muted" pointerEvents="none" zIndex={1}>
+      <div className="flex gap-3 mb-3 items-center flex-wrap">
+        <div className="flex-1 min-w-[200px] relative">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted pointer-events-none z-10">
             <Icon name="search" size={16} />
-          </Box>
-          <Input
+          </div>
+          <input
             type="text"
             placeholder="Filter variables..."
             value={filterText}
             onChange={handleFilter}
             aria-label="Filter environment variables"
-            size="sm"
-            className={css({ pl: "10" })}
+            className="w-full pl-10 pr-3 py-2 text-sm border border-border-default rounded-md bg-bg-canvas text-fg-default placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-        </Box>
-        <Flex gap="2" alignItems="center" flexWrap="wrap">
-          <Checkbox.Root
-            checked={groupByPrefix}
-            onCheckedChange={(e) => setGroupByPrefix(!!e.checked)}
-            className={css({ display: "flex", alignItems: "center", gap: "1.5", cursor: "pointer" })}
-          >
-            <Checkbox.Control className={css({ w: "4", h: "4" })}>
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-            <Checkbox.Label className={css({ fontSize: "xs", color: "fg.default", userSelect: "none" })}>
-              Group by prefix
-            </Checkbox.Label>
-            <Checkbox.HiddenInput />
-          </Checkbox.Root>
+        </div>
+        <div className="flex gap-2 items-center flex-wrap">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={groupByPrefix}
+              onChange={(e) => setGroupByPrefix((e.target as HTMLInputElement).checked)}
+              className="w-4 h-4 rounded border-gray-300"
+            />
+            <span className="text-xs text-fg-default select-none">Group by prefix</span>
+          </label>
           {groupByPrefix && (
             <>
               <Button variant="outline" size="xs" onClick={expandAllGroups} title="Expand all groups">Expand</Button>
@@ -516,25 +494,25 @@ function EnvViewer() {
           )}
           <Button variant="outline" size="xs" onClick={revealAll} title="Reveal all sensitive values">Reveal All</Button>
           <Button variant="outline" size="xs" onClick={hideAll} title="Hide all sensitive values">Hide All</Button>
-        </Flex>
-      </Flex>
+        </div>
+      </div>
 
       {/* Stats */}
-      <Flex gap="3" mb="3" alignItems="center" fontSize="xs" color="fg.muted">
-        <Box whiteSpace="nowrap">
+      <div className="flex gap-3 mb-3 items-center text-xs text-fg-muted">
+        <span className="whitespace-nowrap">
           {stats.filtered} variable{stats.filtered !== 1 ? "s" : ""}
           {filterText && ` (filtered from ${stats.total})`}
-        </Box>
+        </span>
         {stats.sensitive > 0 && (
-          <Badge colorPalette="orange" variant="subtle">
+          <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-full text-xs font-medium">
             <Icon name="shield" size={12} /> {stats.sensitive} sensitive
-          </Badge>
+          </span>
         )}
-      </Flex>
+      </div>
 
       {/* Content */}
       {groupByPrefix && groupedEntries ? (
-        <VStack gap="2" alignItems="stretch">
+        <div className="flex flex-col gap-2">
           {Array.from(groupedEntries.entries()).map(([prefix, groupEntries]) => (
             <GroupSection
               key={prefix}
@@ -546,35 +524,29 @@ function EnvViewer() {
               onToggleReveal={toggleReveal}
             />
           ))}
-        </VStack>
+        </div>
       ) : (
-        <Box overflowX="auto" rounded="lg">
-          <Table.Root size="sm" variant="outline">
-            <Table.Head>
-              <Table.Row>
-                <Table.Header
-                  p="3"
-                  cursor="pointer"
-                  userSelect="none"
+        <div className="overflow-x-auto rounded-lg border border-border-default">
+          <table className="w-full text-sm">
+            <thead className="bg-bg-subtle">
+              <tr>
+                <th
+                  className="p-3 text-left cursor-pointer select-none hover:bg-bg-muted"
                   onClick={() => handleSort("key")}
-                  className={css({ _hover: { bg: "bg.muted" } })}
                 >
                   Variable
                   <SortIndicator column="key" sortColumn={sortColumn} sortDirection={sortDirection} />
-                </Table.Header>
-                <Table.Header
-                  p="3"
-                  cursor="pointer"
-                  userSelect="none"
+                </th>
+                <th
+                  className="p-3 text-left cursor-pointer select-none hover:bg-bg-muted"
                   onClick={() => handleSort("value")}
-                  className={css({ _hover: { bg: "bg.muted" } })}
                 >
                   Value
                   <SortIndicator column="value" sortColumn={sortColumn} sortDirection={sortDirection} />
-                </Table.Header>
-              </Table.Row>
-            </Table.Head>
-            <Table.Body>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               {sortedEntries.map((entry) => (
                 <EnvRow
                   key={entry.key}
@@ -583,11 +555,11 @@ function EnvViewer() {
                   onToggleReveal={() => toggleReveal(entry.key)}
                 />
               ))}
-            </Table.Body>
-          </Table.Root>
-        </Box>
+            </tbody>
+          </table>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -628,4 +600,4 @@ function processEntries(data: EnvData, sensitivePatterns: string[] = DEFAULT_SEN
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<EnvViewer />);
+render(<EnvViewer />, document.getElementById("app")!);

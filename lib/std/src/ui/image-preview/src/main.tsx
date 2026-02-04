@@ -7,16 +7,17 @@
  * - Zoom in/out controls
  * - Download button
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/image-preview
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { Box, Flex, VStack, HStack, Center } from "../../styled-system/jsx";
-import { css } from "../../styled-system/css";
 import { Button } from "../../components/ui/button";
 import { IconButton } from "../../components/ui/icon-button";
+import { cx } from "../../components/utils";
 import "../../global.css";
 
 // ============================================================================
@@ -153,142 +154,98 @@ function ImagePreview() {
   // Render states
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Center p="10" color="fg.muted">Loading image...</Center>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="flex items-center justify-center p-10 text-fg-muted">Loading image...</div>
+      </div>
     );
   }
 
   if (!imageData) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Center p="10" color="fg.muted">No image data</Center>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="flex items-center justify-center p-10 text-fg-muted">No image data</div>
+      </div>
     );
   }
 
   if (!imageData.valid || imageData.error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <VStack
-          gap="2"
-          p="6"
-          bg={{ base: "red.50", _dark: "red.950" }}
-          rounded="lg"
-          textAlign="center"
-          alignItems="center"
-        >
-          <Center
-            w="40px"
-            h="40px"
-            fontSize="xl"
-            fontWeight="bold"
-            color={{ base: "red.500", _dark: "red.300" }}
-            bg={{ base: "red.100", _dark: "red.900" }}
-            rounded="full"
-          >
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="flex flex-col gap-2 items-center p-6 bg-red-50 dark:bg-red-950 rounded-lg text-center">
+          <div className="flex items-center justify-center w-10 h-10 text-xl font-bold text-red-500 dark:text-red-300 bg-red-100 dark:bg-red-900 rounded-full">
             X
-          </Center>
-          <Box fontSize="md" fontWeight="semibold" color={{ base: "red.700", _dark: "red.300" }}>
+          </div>
+          <div className="text-base font-semibold text-red-700 dark:text-red-300">
             Invalid Image
-          </Box>
-          <Box fontSize="sm" color={{ base: "red.600", _dark: "red.400" }}>
+          </div>
+          <div className="text-sm text-red-600 dark:text-red-400">
             {imageData.error || "Unknown error"}
-          </Box>
-        </VStack>
-      </Box>
+          </div>
+        </div>
+      </div>
     );
   }
 
   return (
-    <VStack gap="3" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+    <div className="flex flex-col gap-3 p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
       {/* Toolbar */}
-      <Flex justify="space-between" align="center" gap="2" flexWrap="wrap" w="full">
-        <HStack gap="1" alignItems="center">
+      <div className="flex justify-between items-center gap-2 flex-wrap w-full">
+        <div className="flex gap-1 items-center">
           <IconButton variant="outline" size="sm" onClick={handleZoomOut} title="Zoom out">
             -
           </IconButton>
-          <Box minW="50px" textAlign="center" fontSize="xs" color="fg.muted">{zoom}%</Box>
+          <div className="min-w-[50px] text-center text-xs text-fg-muted">{zoom}%</div>
           <IconButton variant="outline" size="sm" onClick={handleZoomIn} title="Zoom in">
             +
           </IconButton>
           <Button variant="outline" size="sm" onClick={handleZoomReset} title="Reset zoom">
             Reset
           </Button>
-        </HStack>
+        </div>
         <Button variant="solid" size="sm" onClick={handleDownload} title="Download image">
           Download
         </Button>
-      </Flex>
+      </div>
 
       {/* Image container */}
-      <Center
-        flex="1"
-        overflow="auto"
-        border="1px solid"
-        borderColor="border.default"
-        rounded="lg"
-        bg="bg.subtle"
-        minH="150px"
-        p="2"
-        w="full"
-        className={css({
+      <div
+        className={cx(
+          "flex-1 flex items-center justify-center overflow-auto border border-border-default rounded-lg bg-bg-subtle min-h-[150px] p-2 w-full",
           // Checkerboard pattern for transparency
-          backgroundImage: `
-            linear-gradient(45deg, token(colors.gray.200) 25%, transparent 25%),
-            linear-gradient(-45deg, token(colors.gray.200) 25%, transparent 25%),
-            linear-gradient(45deg, transparent 75%, token(colors.gray.200) 75%),
-            linear-gradient(-45deg, transparent 75%, token(colors.gray.200) 75%)
-          `,
-          backgroundSize: "16px 16px",
-          backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px",
-          _dark: {
-            backgroundImage: `
-              linear-gradient(45deg, token(colors.gray.800) 25%, transparent 25%),
-              linear-gradient(-45deg, token(colors.gray.800) 25%, transparent 25%),
-              linear-gradient(45deg, transparent 75%, token(colors.gray.800) 75%),
-              linear-gradient(-45deg, transparent 75%, token(colors.gray.800) 75%)
-            `,
-          },
-        })}
+          "bg-[length:16px_16px]",
+          "[background-image:linear-gradient(45deg,#e5e7eb_25%,transparent_25%),linear-gradient(-45deg,#e5e7eb_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e5e7eb_75%),linear-gradient(-45deg,transparent_75%,#e5e7eb_75%)]",
+          "[background-position:0_0,0_8px,8px_-8px,-8px_0px]",
+          "dark:[background-image:linear-gradient(45deg,#374151_25%,transparent_25%),linear-gradient(-45deg,#374151_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#374151_75%),linear-gradient(-45deg,transparent_75%,#374151_75%)]"
+        )}
       >
-        <Box style={{ transform: `scale(${zoom / 100})`, transition: "transform 0.2s ease", transformOrigin: "center center" }}>
+        <div style={{ transform: `scale(${zoom / 100})`, transition: "transform 0.2s ease", transformOrigin: "center center" }}>
           <img
             ref={imageRef}
             src={imageData.dataUri}
             alt="Preview"
-            className={css({ display: "block", maxW: "100%", maxH: "400px", objectFit: "contain" })}
+            className="block max-w-full max-h-[400px] object-contain"
           />
-        </Box>
-      </Center>
+        </div>
+      </div>
 
       {/* Metadata */}
-      <Flex
-        gap="4"
-        flexWrap="wrap"
-        p="3"
-        bg="bg.subtle"
-        rounded="lg"
-        border="1px solid"
-        borderColor="border.default"
-        w="full"
-      >
-        <VStack gap="0.5" alignItems="flex-start">
-          <Box fontSize="xs" color="fg.muted" textTransform="uppercase" letterSpacing="wide">Type</Box>
-          <Box fontSize="sm" fontWeight="medium" fontFamily="mono">{getMimeTypeLabel(imageData.mimeType)}</Box>
-        </VStack>
+      <div className="flex gap-4 flex-wrap p-3 bg-bg-subtle rounded-lg border border-border-default w-full">
+        <div className="flex flex-col gap-0.5 items-start">
+          <div className="text-xs text-fg-muted uppercase tracking-wide">Type</div>
+          <div className="text-sm font-medium font-mono">{getMimeTypeLabel(imageData.mimeType)}</div>
+        </div>
         {imageData.width && imageData.height && (
-          <VStack gap="0.5" alignItems="flex-start">
-            <Box fontSize="xs" color="fg.muted" textTransform="uppercase" letterSpacing="wide">Dimensions</Box>
-            <Box fontSize="sm" fontWeight="medium" fontFamily="mono">{imageData.width} x {imageData.height}</Box>
-          </VStack>
+          <div className="flex flex-col gap-0.5 items-start">
+            <div className="text-xs text-fg-muted uppercase tracking-wide">Dimensions</div>
+            <div className="text-sm font-medium font-mono">{imageData.width} x {imageData.height}</div>
+          </div>
         )}
-        <VStack gap="0.5" alignItems="flex-start">
-          <Box fontSize="xs" color="fg.muted" textTransform="uppercase" letterSpacing="wide">Size</Box>
-          <Box fontSize="sm" fontWeight="medium" fontFamily="mono">{formatBytes(imageData.size)}</Box>
-        </VStack>
-      </Flex>
-    </VStack>
+        <div className="flex flex-col gap-0.5 items-start">
+          <div className="text-xs text-fg-muted uppercase tracking-wide">Size</div>
+          <div className="text-sm font-medium font-mono">{formatBytes(imageData.size)}</div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -296,4 +253,4 @@ function ImagePreview() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<ImagePreview />);
+render(<ImagePreview />, document.getElementById("app")!);

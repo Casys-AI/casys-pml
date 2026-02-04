@@ -12,16 +12,14 @@
  * @module lib/std/src/ui/palette-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, VStack, HStack, Center } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Code } from "../../components/ui/code";
 import { Spinner } from "../../components/ui/spinner";
-import * as Card from "../../components/ui/card";
 import "../../global.css";
 
 // ============================================================================
@@ -142,69 +140,52 @@ function ColorSwatch({
   }, [color, index, onClick]);
 
   return (
-    <VStack
-      gap="0"
-      position="relative"
-      cursor="pointer"
-      transition="transform 0.15s ease"
-      _hover={{ transform: "translateY(-4px)" }}
+    <div
+      className="relative flex flex-col gap-0 cursor-pointer transition-transform duration-150 hover:-translate-y-1"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Swatch */}
-      <Center
-        w="20"
-        h="20"
-        rounded="lg"
-        border="3px solid"
-        borderColor={isSelected ? "blue.500" : "transparent"}
-        shadow={isSelected ? "lg" : "md"}
-        transition="all 0.15s ease"
+      <div
+        className={cx(
+          "w-20 h-20 rounded-lg flex items-center justify-center transition-all duration-150",
+          isSelected ? "border-3 border-blue-500 shadow-lg" : "border-3 border-transparent shadow-md"
+        )}
         style={{ backgroundColor: color.hex }}
         onClick={handleClick}
       >
         {copied && (
-          <Box fontSize="xs" fontWeight="bold" style={{ color: textColor }}>
+          <div className="text-xs font-bold" style={{ color: textColor }}>
             Copied!
-          </Box>
+          </div>
         )}
-      </Center>
+      </div>
 
       {/* Label */}
-      <VStack gap="0.5" mt="2" textAlign="center">
+      <div className="flex flex-col gap-0.5 mt-2 text-center">
         <Code size="sm">{color.hex.toUpperCase()}</Code>
         {color.name && (
-          <Box fontSize="xs" color="fg.muted">
+          <div className="text-xs text-fg-muted">
             {color.name}
-          </Box>
+          </div>
         )}
-      </VStack>
+      </div>
 
       {/* Hover Tooltip */}
       {isHovered && (
-        <Card.Root
-          position="absolute"
-          bottom="100%"
-          left="50%"
-          transform="translateX(-50%)"
-          mb="2"
-          zIndex={10}
-          css={{ whiteSpace: "nowrap" }}
-        >
-          <Card.Body p="2">
-            <Box fontWeight="semibold" mb="1" fontSize="xs">
-              {color.hex.toUpperCase()}
-            </Box>
-            <Box color="fg.muted" fontSize="xs">
-              RGB({rgb.r}, {rgb.g}, {rgb.b})
-            </Box>
-            <Box mt="1" color="fg.subtle" fontSize="2xs">
-              Click to copy
-            </Box>
-          </Card.Body>
-        </Card.Root>
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 bg-bg-canvas border border-border-default rounded-lg shadow-lg p-2 whitespace-nowrap">
+          <div className="font-semibold mb-1 text-xs">
+            {color.hex.toUpperCase()}
+          </div>
+          <div className="text-fg-muted text-xs">
+            RGB({rgb.r}, {rgb.g}, {rgb.b})
+          </div>
+          <div className="mt-1 text-fg-muted text-[10px]">
+            Click to copy
+          </div>
+        </div>
       )}
-    </VStack>
+    </div>
   );
 }
 
@@ -214,25 +195,23 @@ function ContrastIndicator({ color1, color2 }: { color1: string; color2: string 
   const passAALarge = contrast >= 3;
 
   return (
-    <VStack gap="0" px="2" py="1" align="center" justify="center">
-      <Box
-        fontSize="2xs"
-        fontFamily="mono"
-        fontWeight="medium"
-        color={
+    <div className="flex flex-col gap-0 px-2 py-1 items-center justify-center">
+      <div
+        className={cx(
+          "text-[10px] font-mono font-medium",
           passAA
-            ? { base: "green.600", _dark: "green.400" }
+            ? "text-green-600 dark:text-green-400"
             : passAALarge
-              ? { base: "yellow.600", _dark: "yellow.400" }
-              : { base: "red.600", _dark: "red.400" }
-        }
+              ? "text-yellow-600 dark:text-yellow-400"
+              : "text-red-600 dark:text-red-400"
+        )}
       >
         {contrast.toFixed(1)}:1
-      </Box>
-      <Box fontSize="3xs" color="fg.subtle">
+      </div>
+      <div className="text-[8px] text-fg-muted">
         {passAA ? "AA" : passAALarge ? "AA Large" : "Fail"}
-      </Box>
-    </VStack>
+      </div>
+    </div>
   );
 }
 
@@ -246,30 +225,26 @@ function PaletteHeader({
   colorCount: number;
 }) {
   return (
-    <Box mb="4">
-      <HStack gap="3" mb="2">
-        <Box as="h2" fontSize="lg" fontWeight="semibold" color="fg.default">
+    <div className="mb-4">
+      <div className="flex gap-3 mb-2 items-center">
+        <h2 className="text-lg font-semibold text-fg-default m-0">
           {getPaletteTypeLabel(type)} Palette
-        </Box>
+        </h2>
         <Badge variant="outline" size="sm">
           {colorCount} colors
         </Badge>
-      </HStack>
+      </div>
       {baseColor && (
-        <HStack gap="2">
-          <Box fontSize="sm" color="fg.muted">Base color:</Box>
-          <Box
-            w="4"
-            h="4"
-            rounded="sm"
-            border="1px solid"
-            borderColor="border.default"
+        <div className="flex gap-2 items-center">
+          <div className="text-sm text-fg-muted">Base color:</div>
+          <div
+            className="w-4 h-4 rounded-sm border border-border-default"
             style={{ backgroundColor: baseColor }}
           />
           <Code size="sm">{baseColor.toUpperCase()}</Code>
-        </HStack>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -295,44 +270,24 @@ function CssExport({ colors }: { colors: ColorItem[] }) {
   }, [fullCss]);
 
   return (
-    <Box mt="6">
-      <Box
-        as="h3"
-        fontSize="sm"
-        fontWeight="semibold"
-        color="fg.muted"
-        mb="2"
-        textTransform="uppercase"
-        letterSpacing="wide"
-      >
+    <div className="mt-6">
+      <h3 className="text-sm font-semibold text-fg-muted mb-2 uppercase tracking-wide">
         CSS Variables
-      </Box>
-      <Card.Root position="relative">
-        <Card.Body p="0">
-          <Box
-            as="pre"
-            p="3"
-            fontSize="xs"
-            fontFamily="mono"
-            color="fg.default"
-            overflowX="auto"
-            m="0"
-          >
-            {fullCss}
-          </Box>
-          <Button
-            onClick={handleCopy}
-            variant="solid"
-            size="sm"
-            position="absolute"
-            top="2"
-            right="2"
-          >
-            {copied ? "Copied!" : "Copy CSS"}
-          </Button>
-        </Card.Body>
-      </Card.Root>
-    </Box>
+      </h3>
+      <div className="relative bg-bg-canvas border border-border-default rounded-lg overflow-hidden">
+        <pre className="p-3 text-xs font-mono text-fg-default overflow-x-auto m-0">
+          {fullCss}
+        </pre>
+        <Button
+          onClick={handleCopy}
+          variant="solid"
+          size="sm"
+          className="absolute top-2 right-2"
+        >
+          {copied ? "Copied!" : "Copy CSS"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -340,40 +295,28 @@ function ContrastMatrix({ colors }: { colors: ColorItem[] }) {
   if (colors.length < 2 || colors.length > 8) return null;
 
   return (
-    <Box mt="6">
-      <Box
-        as="h3"
-        fontSize="sm"
-        fontWeight="semibold"
-        color="fg.muted"
-        mb="2"
-        textTransform="uppercase"
-        letterSpacing="wide"
-      >
+    <div className="mt-6">
+      <h3 className="text-sm font-semibold text-fg-muted mb-2 uppercase tracking-wide">
         Adjacent Contrast
-      </Box>
-      <Flex align="center" gap="1" flexWrap="wrap">
+      </h3>
+      <div className="flex items-center gap-1 flex-wrap">
         {colors.slice(0, -1).map((color, i) => (
-          <HStack key={i} gap="0">
-            <Box
-              w="6"
-              h="6"
-              rounded="sm"
+          <div key={i} className="flex gap-0 items-center">
+            <div
+              className="w-6 h-6 rounded-sm"
               style={{ backgroundColor: color.hex }}
             />
             <ContrastIndicator color1={color.hex} color2={colors[i + 1].hex} />
             {i === colors.length - 2 && (
-              <Box
-                w="6"
-                h="6"
-                rounded="sm"
+              <div
+                className="w-6 h-6 rounded-sm"
                 style={{ backgroundColor: colors[i + 1].hex }}
               />
             )}
-          </HStack>
+          </div>
         ))}
-      </Flex>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -434,40 +377,35 @@ function PaletteViewer() {
   // Render states
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="full">
-        <Center p="10" flexDirection="column" gap="2">
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-full">
+        <div className="p-10 flex flex-col gap-2 items-center justify-center">
           <Spinner size="md" />
-          <Box color="fg.muted">Loading palette...</Box>
-        </Center>
-      </Box>
+          <div className="text-fg-muted">Loading palette...</div>
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="full">
-        <Box
-          p="4"
-          bg={{ base: "red.50", _dark: "red.950" }}
-          color={{ base: "red.700", _dark: "red.300" }}
-          rounded="md"
-        >
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-full">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
           {error}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!paletteData || paletteData.colors.length === 0) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="full">
-        <Center p="10" color="fg.muted">No palette data</Center>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-full">
+        <div className="p-10 flex items-center justify-center text-fg-muted">No palette data</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="full">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-full">
       {/* Header */}
       <PaletteHeader
         type={paletteData.type}
@@ -476,7 +414,7 @@ function PaletteViewer() {
       />
 
       {/* Color Swatches */}
-      <Flex flexWrap="wrap" gap="4" justify="center">
+      <div className="flex flex-wrap gap-4 justify-center">
         {paletteData.colors.map((color, i) => (
           <ColorSwatch
             key={i}
@@ -486,14 +424,14 @@ function PaletteViewer() {
             onClick={() => setSelectedIndex(i)}
           />
         ))}
-      </Flex>
+      </div>
 
       {/* Contrast Matrix */}
       <ContrastMatrix colors={paletteData.colors} />
 
       {/* CSS Export */}
       <CssExport colors={paletteData.colors} />
-    </Box>
+    </div>
   );
 }
 
@@ -501,4 +439,4 @@ function PaletteViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<PaletteViewer />);
+render(<PaletteViewer />, document.getElementById("app")!);

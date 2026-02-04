@@ -6,14 +6,15 @@
  * - Current value highlight
  * - Optional label
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/sparkline
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { HStack, Box } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import "../../global.css";
 
 // ============================================================================
@@ -83,17 +84,17 @@ function Sparkline() {
 
   if (loading) {
     return (
-      <HStack gap="2" p="2" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+      <div className="inline-flex gap-2 p-2 font-sans text-sm text-fg-default bg-bg-canvas">
         ...
-      </HStack>
+      </div>
     );
   }
 
   if (!data?.values?.length || !computed) {
     return (
-      <HStack gap="2" p="2" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+      <div className="inline-flex gap-2 p-2 font-sans text-sm text-fg-default bg-bg-canvas">
         No data
-      </HStack>
+      </div>
     );
   }
 
@@ -122,26 +123,18 @@ function Sparkline() {
   const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${padding} ${height - padding} Z`;
 
-  const trendColor = trend === "up" ? "green.500" : trend === "down" ? "red.500" : "fg.muted";
+  const trendColorClass = trend === "up" ? "text-green-500" : trend === "down" ? "text-red-500" : "text-fg-muted";
   const trendArrow = trend === "up" ? "\u2191" : trend === "down" ? "\u2193" : "\u2192";
 
   return (
-    <HStack
-      gap="2"
-      p="2"
-      fontFamily="sans"
-      fontSize="sm"
-      color="fg.default"
-      bg="bg.canvas"
-      display="inline-flex"
-    >
+    <div className="inline-flex gap-2 p-2 font-sans text-sm text-fg-default bg-bg-canvas items-center">
       {label && (
-        <Box color="fg.muted" fontSize="xs" minW="40px">
+        <div className="text-fg-muted text-xs min-w-[40px]">
           {label}
-        </Box>
+        </div>
       )}
 
-      <Box position="relative">
+      <div className="relative">
         <svg width={width} height={height} style={{ display: "block" }}>
           {type === "area" && (
             <path d={areaPath} fill={color} opacity={0.2} />
@@ -188,26 +181,26 @@ function Sparkline() {
             />
           )}
         </svg>
-      </Box>
+      </div>
 
       {showCurrent && (
-        <HStack gap="1" fontFamily="mono" fontWeight="semibold">
-          <Box fontSize="xs" color={trendColor}>
+        <div className="flex gap-1 items-center font-mono font-semibold">
+          <div className={cx("text-xs", trendColorClass)}>
             {trendArrow}
-          </Box>
-          <Box fontSize="sm">
+          </div>
+          <div className="text-sm">
             {Number.isInteger(current) ? current : current.toFixed(1)}
-          </Box>
-        </HStack>
+          </div>
+        </div>
       )}
 
       {showMinMax && (
-        <Box display="flex" flexDirection="column" fontSize="xs" color="fg.muted" lineHeight="1">
+        <div className="flex flex-col text-xs text-fg-muted leading-none">
           <span>{min.toFixed(0)}</span>
           <span>{max.toFixed(0)}</span>
-        </Box>
+        </div>
       )}
-    </HStack>
+    </div>
   );
 }
 
@@ -215,4 +208,4 @@ function Sparkline() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<Sparkline />);
+render(<Sparkline />, document.getElementById("app")!);

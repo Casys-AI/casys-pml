@@ -10,11 +10,10 @@
  * @module lib/std/src/ui/erd-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback, useRef, useMemo } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, VStack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import "../../global.css";
 
@@ -240,53 +239,50 @@ function ERDViewer() {
 
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px" display="flex" flexDirection="column">
-        <Box p="10" textAlign="center" color="fg.muted">Loading ERD...</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-[400px] flex flex-col">
+        <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading ERD...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px" display="flex" flexDirection="column">
-        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">{error}</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-[400px] flex flex-col">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">{error}</div>
+      </div>
     );
   }
 
   if (!data || data.tables.length === 0) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px" display="flex" flexDirection="column">
-        <Box p="10" textAlign="center" color="fg.muted">No tables to display</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-[400px] flex flex-col">
+        <div className="p-10 text-center text-gray-500 dark:text-gray-400">No tables to display</div>
+      </div>
     );
   }
 
   return (
-    <VStack p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px" alignItems="stretch" gap="3">
+    <div className="flex flex-col p-4 font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-[400px] items-stretch gap-3">
       {/* Toolbar */}
-      <Flex justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="2">
-        <Flex alignItems="center" gap="3">
-          <Box fontWeight="bold" fontSize="lg">Schema: {data.schema}</Box>
-          <Box color="fg.muted" fontSize="sm">{data.tableCount} tables, {data.relationshipCount} relationships</Box>
-        </Flex>
-        <Flex alignItems="center" gap="2">
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div className="font-bold text-lg">Schema: {data.schema}</div>
+          <div className="text-gray-500 dark:text-gray-400 text-sm">{data.tableCount} tables, {data.relationshipCount} relationships</div>
+        </div>
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleZoomOut}>-</Button>
-          <Box minW="50px" textAlign="center" fontSize="sm" color="fg.muted">{Math.round(zoom * 100)}%</Box>
+          <div className="min-w-[50px] text-center text-sm text-gray-500 dark:text-gray-400">{Math.round(zoom * 100)}%</div>
           <Button variant="outline" size="sm" onClick={handleZoomIn}>+</Button>
-        </Flex>
-      </Flex>
+        </div>
+      </div>
 
       {/* SVG Canvas */}
-      <Box
+      <div
         ref={containerRef}
-        flex={1}
-        border="1px solid"
-        borderColor="border.default"
-        rounded="lg"
-        overflow="hidden"
-        bg="bg.subtle"
-        minH="350px"
+        className={cx(
+          "flex-1 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 min-h-[350px]",
+          isPanning ? "cursor-grabbing" : "cursor-grab"
+        )}
         onMouseDown={handleMouseDown as any}
         onMouseMove={handleMouseMove as any}
         onMouseUp={handleMouseUp}
@@ -299,7 +295,6 @@ function ERDViewer() {
           style={{
             transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
             transformOrigin: "0 0",
-            cursor: isPanning ? "grabbing" : "grab",
           }}
         >
           {/* Relationship lines */}
@@ -369,34 +364,34 @@ function ERDViewer() {
             })}
           </g>
         </svg>
-      </Box>
+      </div>
 
       {/* Selected Info Panel */}
       {(selectedTable || selectedRelation) && (
-        <Box p="3" bg="bg.subtle" rounded="lg" border="1px solid" borderColor="border.default">
+        <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           {selectedTable && (
-            <Box>
-              <Box as="h4" fontWeight="semibold" m="0">Table: {selectedTable}</Box>
-              <Box color="fg.muted">{data.tables.find((t) => t.name === selectedTable)?.columns.length} columns</Box>
-            </Box>
+            <div>
+              <h4 className="font-semibold m-0">Table: {selectedTable}</h4>
+              <div className="text-gray-500 dark:text-gray-400">{data.tables.find((t) => t.name === selectedTable)?.columns.length} columns</div>
+            </div>
           )}
           {selectedRelation && (
-            <Box>
+            <div>
               {(() => {
                 const rel = data.relationships.find((r) => r.name === selectedRelation);
                 if (!rel) return null;
                 return (
                   <>
-                    <Box as="h4" fontWeight="semibold" m="0">Relationship: {rel.name}</Box>
-                    <Box color="fg.muted">{rel.fromTable}.{rel.fromColumn} - {rel.toTable}.{rel.toColumn}</Box>
+                    <h4 className="font-semibold m-0">Relationship: {rel.name}</h4>
+                    <div className="text-gray-500 dark:text-gray-400">{rel.fromTable}.{rel.fromColumn} - {rel.toTable}.{rel.toColumn}</div>
                   </>
                 );
               })()}
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       )}
-    </VStack>
+    </div>
   );
 }
 
@@ -404,4 +399,4 @@ function ERDViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<ERDViewer />);
+render(<ERDViewer />, document.getElementById("app")!);

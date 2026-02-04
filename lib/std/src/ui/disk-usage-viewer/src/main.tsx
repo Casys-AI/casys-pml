@@ -10,11 +10,10 @@
  * @module lib/std/src/ui/disk-usage-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, HStack, VStack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import "../../global.css";
 
@@ -309,7 +308,7 @@ interface BreadcrumbProps {
 
 function Breadcrumb({ pathStack, rootPath, onNavigateToIndex }: BreadcrumbProps) {
   return (
-    <Flex alignItems="center" flexWrap="wrap" mb="3" p="2" bg="bg.subtle" rounded="md" fontSize="sm">
+    <div class="flex items-center flex-wrap mb-3 p-2 bg-bg-subtle rounded-md text-sm">
       <Button
         variant="ghost"
         size="xs"
@@ -319,8 +318,8 @@ function Breadcrumb({ pathStack, rootPath, onNavigateToIndex }: BreadcrumbProps)
         {rootPath || "root"}
       </Button>
       {pathStack.slice(1).map((node, i) => (
-        <HStack key={i} gap="0">
-          <Box mx="1" color="fg.subtle">/</Box>
+        <div key={i} class="flex items-center gap-0">
+          <div class="mx-1 text-fg-subtle">/</div>
           <Button
             variant="ghost"
             size="xs"
@@ -329,9 +328,9 @@ function Breadcrumb({ pathStack, rootPath, onNavigateToIndex }: BreadcrumbProps)
           >
             {node.name}
           </Button>
-        </HStack>
+        </div>
       ))}
-    </Flex>
+    </div>
   );
 }
 
@@ -346,29 +345,17 @@ function Tooltip({ path, node, totalSize }: TooltipProps) {
   const percentage = ((node.size / totalSize) * 100).toFixed(1);
 
   return (
-    <Box
-      position="absolute"
-      top="2"
-      right="2"
-      p="3"
-      bg="bg.default"
-      border="1px solid"
-      borderColor="border.default"
-      rounded="md"
-      shadow="md"
-      minW="200px"
-      zIndex={10}
-    >
-      <Box fontWeight="medium" mb="1" wordBreak="break-all" fontSize="xs" color="fg.default">
+    <div class="absolute top-2 right-2 p-3 bg-bg-default border border-border-default rounded-md shadow-md min-w-[200px] z-10">
+      <div class="font-medium mb-1 break-all text-xs text-fg-default">
         {path}
-      </Box>
-      <Box fontSize="sm" color="fg.muted" mb="0.5">
+      </div>
+      <div class="text-sm text-fg-muted mb-0.5">
         {formatSize(node.size)} ({percentage}%)
-      </Box>
-      <Box fontSize="xs" color="fg.subtle">
+      </div>
+      <div class="text-xs text-fg-subtle">
         {node.type === "directory" ? "Directory" : `File (${getExtension(node.name) || "no ext"})`}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -446,65 +433,65 @@ function DiskUsageViewer() {
 
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh">
-        <Box p="10" textAlign="center" color="fg.muted">Loading disk usage data...</Box>
-      </Box>
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-screen">
+        <div class="p-10 text-center text-fg-muted">Loading disk usage data...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh">
-        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-screen">
+        <div class="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
           {error}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!data || !currentNode) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh">
-        <Box p="10" textAlign="center" color="fg.muted">No disk usage data</Box>
-      </Box>
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-screen">
+        <div class="p-10 text-center text-fg-muted">No disk usage data</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh">
+    <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-screen">
       {/* Header */}
-      <Flex justifyContent="space-between" alignItems="center" mb="3" flexWrap="wrap" gap="2">
-        <Flex alignItems="baseline" gap="3">
-          <Box as="h2" fontSize="xl" fontWeight="semibold" m="0">Disk Usage</Box>
-          <Box fontSize="sm" color="fg.muted">{formatSize(data.totalSize)} total</Box>
-        </Flex>
-        <Flex gap="2">
+      <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+        <div class="flex items-baseline gap-3">
+          <h2 class="text-xl font-semibold m-0">Disk Usage</h2>
+          <div class="text-sm text-fg-muted">{formatSize(data.totalSize)} total</div>
+        </div>
+        <div class="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleBack} disabled={pathStack.length <= 1}>
             Back
           </Button>
-        </Flex>
-      </Flex>
+        </div>
+      </div>
 
       {/* Breadcrumb */}
       <Breadcrumb pathStack={pathStack} rootPath={data.path} onNavigateToIndex={handleNavigateToIndex} />
 
       {/* Current directory info */}
-      <Flex alignItems="center" gap="3" mb="3" p="2" bg="bg.muted" rounded="md">
-        <Box fontWeight="medium">
+      <div class="flex items-center gap-3 mb-3 p-2 bg-bg-muted rounded-md">
+        <div class="font-medium">
           {currentNode.type === "directory" ? "D" : "F"} {currentNode.name}
-        </Box>
-        <Box color="fg.muted" fontSize="sm">{formatSize(currentNode.size)}</Box>
+        </div>
+        <div class="text-fg-muted text-sm">{formatSize(currentNode.size)}</div>
         {currentNode.children && (
-          <Box color="fg.subtle" fontSize="xs">{currentNode.children.length} items</Box>
+          <div class="text-fg-subtle text-xs">{currentNode.children.length} items</div>
         )}
-      </Flex>
+      </div>
 
       {/* Treemap */}
-      <Box position="relative" display="flex" justifyContent="center" mb="4">
+      <div class="relative flex justify-center mb-4">
         <svg
           width={width}
           height={height}
-          className={css({ bg: "bg.subtle", rounded: "lg", border: "1px solid", borderColor: "border.default" })}
+          class="bg-bg-subtle rounded-lg border border-border-default"
         >
           {treemapRects.map((rect, i) => (
             <TreemapRectangle
@@ -518,12 +505,12 @@ function DiskUsageViewer() {
           ))}
         </svg>
         <Tooltip path={hoveredPath} node={hoveredNode} totalSize={currentNode.size} />
-      </Box>
+      </div>
 
       {/* Legend */}
-      <Box p="3" bg="bg.subtle" rounded="md">
-        <Box fontSize="xs" fontWeight="medium" color="fg.muted" mb="2">Legend:</Box>
-        <Flex gap="4" flexWrap="wrap">
+      <div class="p-3 bg-bg-subtle rounded-md">
+        <div class="text-xs font-medium text-fg-muted mb-2">Legend:</div>
+        <div class="flex gap-4 flex-wrap">
           {[
             { color: "#6b7280", label: "Directories" },
             { color: "#eab308", label: "JS/TS" },
@@ -533,14 +520,14 @@ function DiskUsageViewer() {
             { color: "#ec4899", label: "Styles" },
             { color: "#94a3b8", label: "Other" },
           ].map(({ color, label }) => (
-            <Flex key={label} alignItems="center" gap="1.5" fontSize="xs" color="fg.muted">
-              <Box w="3" h="3" rounded="sm" style={{ backgroundColor: color }} />
+            <div key={label} class="flex items-center gap-1.5 text-xs text-fg-muted">
+              <div class="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
               <span>{label}</span>
-            </Flex>
+            </div>
           ))}
-        </Flex>
-      </Box>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -548,4 +535,4 @@ function DiskUsageViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<DiskUsageViewer />);
+render(<DiskUsageViewer />, document.getElementById("app")!);

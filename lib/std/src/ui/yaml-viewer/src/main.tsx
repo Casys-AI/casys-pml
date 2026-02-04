@@ -11,13 +11,11 @@
  * @module lib/std/src/ui/yaml-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import "../../global.css";
 
 // ============================================================================
@@ -198,12 +196,12 @@ function parseValue(str: string): unknown {
 // ============================================================================
 
 const valueStyles: Record<YamlNode["type"], string> = {
-  string: css({ color: "green.600", fontFamily: "mono", _dark: { color: "green.400" } }),
-  number: css({ color: "orange.600", fontFamily: "mono", _dark: { color: "orange.400" } }),
-  boolean: css({ color: "purple.600", fontFamily: "mono", _dark: { color: "purple.400" } }),
-  null: css({ color: "gray.500", fontStyle: "italic", fontFamily: "mono" }),
-  object: css({ color: "fg.default", fontFamily: "mono" }),
-  array: css({ color: "fg.default", fontFamily: "mono" }),
+  string: "text-green-600 dark:text-green-400 font-mono",
+  number: "text-orange-600 dark:text-orange-400 font-mono",
+  boolean: "text-purple-600 dark:text-purple-400 font-mono",
+  null: "text-gray-500 italic font-mono",
+  object: "text-fg-default font-mono",
+  array: "text-fg-default font-mono",
 };
 
 // ============================================================================
@@ -233,31 +231,22 @@ function YamlTreeNode({
       String(node.value).toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <Box position="relative">
+    <div className="relative">
       {/* Indent guide line */}
       {depth > 0 && (
-        <Box
-          position="absolute"
-          left={`${(depth - 1) * 20 + 8}px`}
-          top="0"
-          bottom="0"
-          width="1px"
-          bg="border.default"
-          opacity="0.3"
+        <div
+          className="absolute top-0 bottom-0 w-px bg-border-default opacity-30"
+          style={{ left: `${(depth - 1) * 20 + 8}px` }}
         />
       )}
 
-      <Flex
-        align="flex-start"
-        gap="1"
-        py="1"
-        pl={`${depth * 20}px`}
-        pr="2"
-        rounded="sm"
-        cursor={hasChildren ? "pointer" : "default"}
-        bg={matchesSearch ? "yellow.100" : "transparent"}
-        _hover={{ bg: "bg.subtle" }}
-        _dark={matchesSearch ? { bg: "yellow.900/30" } : {}}
+      <div
+        className={cx(
+          "flex items-start gap-1 py-1 pr-2 rounded-sm",
+          hasChildren ? "cursor-pointer" : "cursor-default",
+          matchesSearch ? "bg-yellow-100 dark:bg-yellow-900/30" : "hover:bg-bg-subtle"
+        )}
+        style={{ paddingLeft: `${depth * 20}px` }}
         onClick={() => {
           if (hasChildren) onToggle(node.path);
           else onSelect(node.path, node.value);
@@ -265,41 +254,41 @@ function YamlTreeNode({
       >
         {/* Array item marker */}
         {node.isArrayItem && (
-          <span className={css({ color: "fg.muted", fontFamily: "mono", mr: "1" })}>-</span>
+          <span className="text-fg-muted font-mono mr-1">-</span>
         )}
 
         {/* Expand/collapse icon for objects/arrays */}
         {hasChildren ? (
-          <span className={css({ w: "4", color: "fg.muted", fontSize: "xs", flexShrink: "0", userSelect: "none" })}>
+          <span className="w-4 text-fg-muted text-xs shrink-0 select-none">
             {isExpanded ? "v" : ">"}
           </span>
         ) : (
-          <span className={css({ w: "4", flexShrink: "0" })} />
+          <span className="w-4 shrink-0" />
         )}
 
         {/* Key */}
         {!node.isArrayItem && node.key !== "$" && (
           <>
-            <span className={css({ color: "blue.600", fontWeight: "medium", fontFamily: "mono", _dark: { color: "blue.400" } })}>
+            <span className="text-blue-600 dark:text-blue-400 font-medium font-mono">
               {node.key}
             </span>
-            <span className={css({ color: "fg.muted" })}>:</span>
+            <span className="text-fg-muted">:</span>
           </>
         )}
 
         {/* Value */}
         {hasChildren ? (
-          <span className={css({ color: "fg.muted", fontSize: "xs", ml: "1" })}>
+          <span className="text-fg-muted text-xs ml-1">
             {node.type === "array" ? `(${node.children!.length} items)` : `(${node.children!.length} keys)`}
           </span>
         ) : (
           <span className={valueStyles[node.type]}>{formatValue(node.value, node.type)}</span>
         )}
-      </Flex>
+      </div>
 
       {/* Children */}
       {hasChildren && isExpanded && (
-        <Box>
+        <div>
           {node.children!.map((child) => (
             <YamlTreeNode
               key={child.path}
@@ -311,9 +300,9 @@ function YamlTreeNode({
               searchTerm={searchTerm}
             />
           ))}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -452,39 +441,38 @@ data:
   // Render
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">Loading YAML...</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">Loading YAML...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="4" bg="red.50" color="red.700" rounded="md" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">{error}</div>
+      </div>
     );
   }
 
   if (!tree) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">No YAML data</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">No YAML data</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
       {/* Toolbar */}
-      <Flex gap="2" mb="3" flexWrap="wrap" align="center">
-        <Input
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        <input
           type="text"
           placeholder="Search keys or values..."
           value={searchTerm}
           onChange={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
-          size="sm"
-          className={css({ flex: 1, minW: "150px" })}
+          className="flex-1 min-w-[150px] px-3 py-2 text-sm border border-border-default rounded-md bg-bg-canvas text-fg-default placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <Button variant="outline" size="sm" onClick={handleExpandAll}>
           Expand All
@@ -495,20 +483,20 @@ data:
         <Button variant="outline" size="sm" onClick={handleCopyToClipboard}>
           {copyStatus || "Copy"}
         </Button>
-      </Flex>
+      </div>
 
       {/* Selected path */}
       {selectedPath && (
-        <Flex gap="2" align="center" mb="2" p="2" bg="bg.subtle" rounded="md">
-          <span className={css({ color: "fg.muted", fontSize: "xs" })}>Path:</span>
-          <code className={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600" })}>
+        <div className="flex gap-2 items-center mb-2 p-2 bg-bg-subtle rounded-md">
+          <span className="text-fg-muted text-xs">Path:</span>
+          <code className="font-mono text-xs text-blue-600 dark:text-blue-400">
             {selectedPath}
           </code>
-        </Flex>
+        </div>
       )}
 
       {/* Tree */}
-      <Box border="1px solid" borderColor="border.default" rounded="lg" p="3" bg="bg.default" overflowX="auto" fontFamily="mono" fontSize="sm">
+      <div className="border border-border-default rounded-lg p-3 bg-bg-canvas overflow-x-auto font-mono text-sm">
         {tree.children ? (
           tree.children.map((child) => (
             <YamlTreeNode
@@ -531,8 +519,8 @@ data:
             searchTerm={searchTerm}
           />
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -639,4 +627,4 @@ function toYamlString(data: unknown, indent: number): string {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<YamlViewer />);
+render(<YamlViewer />, document.getElementById("app")!);

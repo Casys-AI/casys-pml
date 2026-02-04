@@ -9,11 +9,10 @@
  * @module lib/std/src/ui/dependency-graph
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect } from "react";
+import { render } from "preact";
+import { useState, useEffect } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Grid, VStack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import "../../global.css";
@@ -56,26 +55,6 @@ function notifyModel(event: string, data: Record<string, unknown>) {
     structuredContent: { event, ...data },
   });
 }
-
-// ============================================================================
-// Styles (minimal)
-// ============================================================================
-
-const depCardBase = css({
-  p: "2.5",
-  bg: "bg.subtle",
-  rounded: "md",
-  borderLeft: "3px solid",
-  cursor: "pointer",
-  transition: "all 0.15s",
-  _hover: { bg: "bg.muted" },
-});
-
-const borderColors = {
-  prod: css({ borderLeftColor: "blue.500" }),
-  dev: css({ borderLeftColor: "purple.500" }),
-  peer: css({ borderLeftColor: "yellow.500" }),
-};
 
 // ============================================================================
 // Component
@@ -141,17 +120,17 @@ function DependencyGraph() {
 
   if (loading && !data) {
     return (
-      <Box p="4" maxW="900px" mx="auto" color="fg.default" bg="bg.canvas" minH="100vh" fontFamily="sans">
-        <Box textAlign="center" p="10" color="fg.muted">Loading dependencies...</Box>
-      </Box>
+      <div className="p-4 max-w-[900px] mx-auto text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen font-sans">
+        <div className="text-center p-10 text-gray-500 dark:text-gray-400">Loading dependencies...</div>
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <Box p="4" maxW="900px" mx="auto" color="fg.default" bg="bg.canvas" minH="100vh" fontFamily="sans">
-        <Box textAlign="center" p="10" color="fg.muted">No data received</Box>
-      </Box>
+      <div className="p-4 max-w-[900px] mx-auto text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen font-sans">
+        <div className="text-center p-10 text-gray-500 dark:text-gray-400">No data received</div>
+      </div>
     );
   }
 
@@ -169,145 +148,127 @@ function DependencyGraph() {
   const peerDeps = filteredDeps.filter(d => d.type === "peer");
 
   return (
-    <Box p="4" maxW="900px" mx="auto" color="fg.default" bg="bg.canvas" minH="100vh" fontFamily="sans">
+    <div className="p-4 max-w-[900px] mx-auto text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen font-sans">
       {/* Header */}
-      <Box mb="5">
-        <Box fontSize="lg" fontWeight="semibold" mb="1" color="fg.default">
+      <div className="mb-5">
+        <div className="text-lg font-semibold mb-1 text-gray-900 dark:text-gray-100">
           {data.name}
-        </Box>
-        <Box color="fg.muted" fontSize="sm">v{data.version}</Box>
-      </Box>
+        </div>
+        <div className="text-gray-500 dark:text-gray-400 text-sm">v{data.version}</div>
+      </div>
 
       {/* Stats */}
-      <Flex gap="4" mb="5" flexWrap="wrap">
-        <Box p="3" bg="bg.subtle" rounded="lg" textAlign="center" border="1px solid" borderColor="border.default">
-          <Box fontSize="2xl" fontWeight="bold" color={{ base: "blue.600", _dark: "blue.400" }}>
+      <div className="flex gap-4 mb-5 flex-wrap">
+        <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-center border border-gray-200 dark:border-gray-700">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {data.dependencies?.length || 0}
-          </Box>
-          <Box fontSize="xs" color="fg.muted" mt="1">Production</Box>
-        </Box>
-        <Box p="3" bg="bg.subtle" rounded="lg" textAlign="center" border="1px solid" borderColor="border.default">
-          <Box fontSize="2xl" fontWeight="bold" color={{ base: "blue.600", _dark: "blue.400" }}>
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Production</div>
+        </div>
+        <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-center border border-gray-200 dark:border-gray-700">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {data.devDependencies?.length || 0}
-          </Box>
-          <Box fontSize="xs" color="fg.muted" mt="1">Development</Box>
-        </Box>
-        <Box p="3" bg="bg.subtle" rounded="lg" textAlign="center" border="1px solid" borderColor="border.default">
-          <Box fontSize="2xl" fontWeight="bold" color={{ base: "blue.600", _dark: "blue.400" }}>
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Development</div>
+        </div>
+        <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-center border border-gray-200 dark:border-gray-700">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {data.totalCount || allDeps.length}
-          </Box>
-          <Box fontSize="xs" color="fg.muted" mt="1">Total</Box>
-        </Box>
-      </Flex>
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total</div>
+        </div>
+      </div>
 
       {/* Search */}
-      <Box mb="4">
+      <div className="mb-4">
         <Input
           type="text"
           placeholder="Search dependencies..."
           value={search}
           onChange={(e) => setSearch((e.target as HTMLInputElement).value)}
         />
-      </Box>
+      </div>
 
       {/* Production Dependencies */}
       {prodDeps.length > 0 && (
-        <VStack gap="3" mb="6" alignItems="stretch">
-          <Box
-            fontSize="sm"
-            fontWeight="semibold"
-            color="fg.muted"
-            textTransform="uppercase"
-            letterSpacing="wider"
-          >
+        <div className="flex flex-col gap-3 mb-6 items-stretch">
+          <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             Production Dependencies
-          </Box>
-          <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap="2">
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
             {prodDeps.map((dep) => (
-              <Box
+              <div
                 key={dep.name}
-                className={`${depCardBase} ${borderColors.prod}`}
+                className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-md border-l-[3px] border-l-blue-500 cursor-pointer transition-all duration-150 hover:bg-gray-200 dark:hover:bg-gray-700"
                 onClick={() => handleSelect(dep)}
               >
-                <Box fontWeight="medium" fontSize="sm" mb="0.5" color="fg.default">
+                <div className="font-medium text-sm mb-0.5 text-gray-900 dark:text-gray-100">
                   {dep.name}
-                </Box>
-                <Box fontSize="xs" color="fg.muted" fontFamily="mono">
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
                   {dep.version}
-                </Box>
-              </Box>
+                </div>
+              </div>
             ))}
-          </Grid>
-        </VStack>
+          </div>
+        </div>
       )}
 
       {/* Dev Dependencies */}
       {devDeps.length > 0 && (
-        <VStack gap="3" mb="6" alignItems="stretch">
-          <Box
-            fontSize="sm"
-            fontWeight="semibold"
-            color="fg.muted"
-            textTransform="uppercase"
-            letterSpacing="wider"
-          >
+        <div className="flex flex-col gap-3 mb-6 items-stretch">
+          <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             Dev Dependencies
-          </Box>
-          <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap="2">
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
             {devDeps.map((dep) => (
-              <Box
+              <div
                 key={dep.name}
-                className={`${depCardBase} ${borderColors.dev}`}
+                className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-md border-l-[3px] border-l-purple-500 cursor-pointer transition-all duration-150 hover:bg-gray-200 dark:hover:bg-gray-700"
                 onClick={() => handleSelect(dep)}
               >
-                <Box fontWeight="medium" fontSize="sm" mb="0.5" color="fg.default">
+                <div className="font-medium text-sm mb-0.5 text-gray-900 dark:text-gray-100">
                   {dep.name}
-                </Box>
-                <Box fontSize="xs" color="fg.muted" fontFamily="mono">
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
                   {dep.version}
-                </Box>
-              </Box>
+                </div>
+              </div>
             ))}
-          </Grid>
-        </VStack>
+          </div>
+        </div>
       )}
 
       {/* Peer Dependencies */}
       {peerDeps.length > 0 && (
-        <VStack gap="3" mb="6" alignItems="stretch">
-          <Box
-            fontSize="sm"
-            fontWeight="semibold"
-            color="fg.muted"
-            textTransform="uppercase"
-            letterSpacing="wider"
-          >
+        <div className="flex flex-col gap-3 mb-6 items-stretch">
+          <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             Peer Dependencies
-          </Box>
-          <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap="2">
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
             {peerDeps.map((dep) => (
-              <Box
+              <div
                 key={dep.name}
-                className={`${depCardBase} ${borderColors.peer}`}
+                className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-md border-l-[3px] border-l-yellow-500 cursor-pointer transition-all duration-150 hover:bg-gray-200 dark:hover:bg-gray-700"
                 onClick={() => handleSelect(dep)}
               >
-                <Box fontWeight="medium" fontSize="sm" mb="0.5" color="fg.default">
+                <div className="font-medium text-sm mb-0.5 text-gray-900 dark:text-gray-100">
                   {dep.name}
-                </Box>
-                <Box fontSize="xs" color="fg.muted" fontFamily="mono">
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
                   {dep.version}
-                </Box>
-              </Box>
+                </div>
+              </div>
             ))}
-          </Grid>
-        </VStack>
+          </div>
+        </div>
       )}
 
       {filteredDeps.length === 0 && (
-        <Box textAlign="center" p="10" color="fg.muted">No dependencies found</Box>
+        <div className="text-center p-10 text-gray-500 dark:text-gray-400">No dependencies found</div>
       )}
-    </Box>
+    </div>
   );
 }
 
-createRoot(document.getElementById("app")!).render(<DependencyGraph />);
+render(<DependencyGraph />, document.getElementById("app")!);

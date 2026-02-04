@@ -12,13 +12,11 @@
  * @module lib/std/src/ui/xml-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import "../../global.css";
 
 // ============================================================================
@@ -130,17 +128,6 @@ function domNodeToXmlNode(node: Node, path: string): XmlNode | null {
 }
 
 // ============================================================================
-// Syntax highlighting styles
-// ============================================================================
-
-const syntaxStyles = {
-  bracket: css({ color: "fg.muted" }),
-  tagName: css({ color: "blue.600", fontWeight: "medium", _dark: { color: "blue.400" } }),
-  attrName: css({ color: "purple.600", _dark: { color: "purple.400" } }),
-  attrValue: css({ color: "green.600", _dark: { color: "green.400" } }),
-};
-
-// ============================================================================
 // XML Tree Node Component
 // ============================================================================
 
@@ -181,58 +168,54 @@ function XmlTreeNode({
   // Render different node types
   if (node.type === "text") {
     return (
-      <Box
-        pl={`${depth * 20}px`}
-        py="1"
-        fontFamily="mono"
-        fontSize="sm"
-        color="fg.default"
-        bg={matchesSearch ? "yellow.100" : "transparent"}
-        _dark={matchesSearch ? { bg: "yellow.900/30" } : {}}
+      <div
+        className={cx(
+          "py-1 font-mono text-sm text-fg-default",
+          matchesSearch && "bg-yellow-100 dark:bg-yellow-900/30"
+        )}
+        style={{ paddingLeft: `${depth * 20}px` }}
       >
         {node.value}
-      </Box>
+      </div>
     );
   }
 
   if (node.type === "comment") {
     return (
-      <Box
-        pl={`${depth * 20}px`}
-        py="1"
-        fontFamily="mono"
-        fontSize="sm"
-        color="gray.500"
-        fontStyle="italic"
-        bg={matchesSearch ? "yellow.100" : "transparent"}
-        _dark={matchesSearch ? { bg: "yellow.900/30" } : {}}
+      <div
+        className={cx(
+          "py-1 font-mono text-sm text-gray-500 italic",
+          matchesSearch && "bg-yellow-100 dark:bg-yellow-900/30"
+        )}
+        style={{ paddingLeft: `${depth * 20}px` }}
       >
         {"<!-- "}{node.value}{" -->"}
-      </Box>
+      </div>
     );
   }
 
   if (node.type === "cdata") {
     return (
-      <Box
-        pl={`${depth * 20}px`}
-        py="1"
-        fontFamily="mono"
-        fontSize="sm"
-        color="gray.600"
-        bg={matchesSearch ? "yellow.100" : "transparent"}
-        _dark={{ color: "gray.400" }}
+      <div
+        className={cx(
+          "py-1 font-mono text-sm text-gray-600 dark:text-gray-400",
+          matchesSearch && "bg-yellow-100 dark:bg-yellow-900/30"
+        )}
+        style={{ paddingLeft: `${depth * 20}px` }}
       >
         {"<![CDATA["}{node.value}{"]]>"}
-      </Box>
+      </div>
     );
   }
 
   if (node.type === "processing-instruction") {
     return (
-      <Box pl={`${depth * 20}px`} py="1" fontFamily="mono" fontSize="sm" color="gray.500">
+      <div
+        className="py-1 font-mono text-sm text-gray-500"
+        style={{ paddingLeft: `${depth * 20}px` }}
+      >
         {"<?"}{node.name} {node.value}{"?>"}
-      </Box>
+      </div>
     );
   }
 
@@ -241,33 +224,22 @@ function XmlTreeNode({
   const isEmpty = !node.children || node.children.length === 0;
 
   return (
-    <Box position="relative">
+    <div className="relative">
       {/* Indent guide line */}
       {depth > 0 && (
-        <Box
-          position="absolute"
-          left={`${(depth - 1) * 20 + 8}px`}
-          top="0"
-          bottom="0"
-          width="1px"
-          bg="border.default"
-          opacity="0.3"
+        <div
+          className="absolute top-0 bottom-0 w-px bg-border-default opacity-30"
+          style={{ left: `${(depth - 1) * 20 + 8}px` }}
         />
       )}
 
-      <Flex
-        align="flex-start"
-        gap="0"
-        py="1"
-        pl={`${depth * 20}px`}
-        pr="2"
-        rounded="sm"
-        cursor={hasChildren && !hasOnlyTextChild ? "pointer" : "default"}
-        bg={matchesSearch ? "yellow.100" : "transparent"}
-        _hover={{ bg: "bg.subtle" }}
-        _dark={matchesSearch ? { bg: "yellow.900/30" } : {}}
-        fontFamily="mono"
-        fontSize="sm"
+      <div
+        className={cx(
+          "flex items-start gap-0 py-1 pr-2 rounded-sm font-mono text-sm",
+          hasChildren && !hasOnlyTextChild ? "cursor-pointer" : "cursor-default",
+          matchesSearch ? "bg-yellow-100 dark:bg-yellow-900/30" : "hover:bg-bg-subtle"
+        )}
+        style={{ paddingLeft: `${depth * 20}px` }}
         onClick={() => {
           if (hasChildren && !hasOnlyTextChild) {
             onToggle(node.path);
@@ -278,26 +250,26 @@ function XmlTreeNode({
       >
         {/* Expand/collapse icon */}
         {hasChildren && !hasOnlyTextChild ? (
-          <span className={css({ w: "4", color: "fg.muted", fontSize: "xs", flexShrink: "0", userSelect: "none", mr: "1" })}>
+          <span className="w-4 text-fg-muted text-xs shrink-0 select-none mr-1">
             {isExpanded ? "v" : ">"}
           </span>
         ) : (
-          <span className={css({ w: "4", flexShrink: "0", mr: "1" })} />
+          <span className="w-4 shrink-0 mr-1" />
         )}
 
         {/* Opening tag */}
-        <span className={syntaxStyles.bracket}>{"<"}</span>
-        <span className={syntaxStyles.tagName}>{node.name}</span>
+        <span className="text-fg-muted">{"<"}</span>
+        <span className="text-blue-600 dark:text-blue-400 font-medium">{node.name}</span>
 
         {/* Attributes */}
         {node.attributes && Object.keys(node.attributes).length > 0 && (
           <>
             {Object.entries(node.attributes).map(([key, value]) => (
               <span key={key}>
-                <span className={css({ color: "fg.default" })}> </span>
-                <span className={syntaxStyles.attrName}>{key}</span>
-                <span className={syntaxStyles.bracket}>=</span>
-                <span className={syntaxStyles.attrValue}>"{value}"</span>
+                <span className="text-fg-default"> </span>
+                <span className="text-purple-600 dark:text-purple-400">{key}</span>
+                <span className="text-fg-muted">=</span>
+                <span className="text-green-600 dark:text-green-400">"{value}"</span>
               </span>
             ))}
           </>
@@ -305,26 +277,26 @@ function XmlTreeNode({
 
         {/* Self-closing or with inline text */}
         {isEmpty ? (
-          <span className={syntaxStyles.bracket}>{" />"}</span>
+          <span className="text-fg-muted">{" />"}</span>
         ) : hasOnlyTextChild ? (
           <>
-            <span className={syntaxStyles.bracket}>{">"}</span>
-            <span className={css({ color: "fg.default" })}>{node.children![0].value}</span>
-            <span className={syntaxStyles.bracket}>{"</"}</span>
-            <span className={syntaxStyles.tagName}>{node.name}</span>
-            <span className={syntaxStyles.bracket}>{">"}</span>
+            <span className="text-fg-muted">{">"}</span>
+            <span className="text-fg-default">{node.children![0].value}</span>
+            <span className="text-fg-muted">{"</"}</span>
+            <span className="text-blue-600 dark:text-blue-400 font-medium">{node.name}</span>
+            <span className="text-fg-muted">{">"}</span>
           </>
         ) : (
           <>
-            <span className={syntaxStyles.bracket}>{">"}</span>
+            <span className="text-fg-muted">{">"}</span>
             {!isExpanded && (
-              <span className={css({ color: "fg.muted", fontSize: "xs", ml: "1" })}>
+              <span className="text-fg-muted text-xs ml-1">
                 ({node.children!.length} children)
               </span>
             )}
           </>
         )}
-      </Flex>
+      </div>
 
       {/* Children */}
       {hasChildren && !hasOnlyTextChild && isExpanded && (
@@ -342,14 +314,17 @@ function XmlTreeNode({
           ))}
 
           {/* Closing tag */}
-          <Box pl={`${depth * 20 + 20}px`} py="1" fontFamily="mono" fontSize="sm">
-            <span className={syntaxStyles.bracket}>{"</"}</span>
-            <span className={syntaxStyles.tagName}>{node.name}</span>
-            <span className={syntaxStyles.bracket}>{">"}</span>
-          </Box>
+          <div
+            className="py-1 font-mono text-sm"
+            style={{ paddingLeft: `${depth * 20 + 20}px` }}
+          >
+            <span className="text-fg-muted">{"</"}</span>
+            <span className="text-blue-600 dark:text-blue-400 font-medium">{node.name}</span>
+            <span className="text-fg-muted">{">"}</span>
+          </div>
         </>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -483,39 +458,38 @@ function XmlViewer() {
   // Render
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">Loading XML...</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">Loading XML...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="4" bg="red.50" color="red.700" rounded="md" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">{error}</div>
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">No XML data</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">No XML data</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
       {/* Toolbar */}
-      <Flex gap="2" mb="3" flexWrap="wrap" align="center">
-        <Input
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        <input
           type="text"
           placeholder="Search tags, attributes, or values..."
           value={searchTerm}
           onChange={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
-          size="sm"
-          className={css({ flex: 1, minW: "150px" })}
+          className="flex-1 min-w-[150px] px-3 py-2 text-sm border border-border-default rounded-md bg-bg-canvas text-fg-default placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <Button variant="outline" size="sm" onClick={handleExpandAll}>
           Expand All
@@ -526,20 +500,20 @@ function XmlViewer() {
         <Button variant="outline" size="sm" onClick={handleCopyToClipboard}>
           {copyStatus || "Copy"}
         </Button>
-      </Flex>
+      </div>
 
       {/* Selected path */}
       {selectedPath && (
-        <Flex gap="2" align="center" mb="2" p="2" bg="bg.subtle" rounded="md">
-          <span className={css({ color: "fg.muted", fontSize: "xs" })}>Path:</span>
-          <code className={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600" })}>
+        <div className="flex gap-2 items-center mb-2 p-2 bg-bg-subtle rounded-md">
+          <span className="text-fg-muted text-xs">Path:</span>
+          <code className="font-mono text-xs text-blue-600 dark:text-blue-400">
             {selectedPath}
           </code>
-        </Flex>
+        </div>
       )}
 
       {/* Tree */}
-      <Box border="1px solid" borderColor="border.default" rounded="lg" p="3" bg="bg.default" overflowX="auto" fontFamily="mono" fontSize="sm">
+      <div className="border border-border-default rounded-lg p-3 bg-bg-canvas overflow-x-auto font-mono text-sm">
         <XmlTreeNode
           node={data}
           depth={0}
@@ -548,8 +522,8 @@ function XmlViewer() {
           onSelect={handleSelect}
           searchTerm={searchTerm}
         />
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -569,4 +543,4 @@ function collectPaths(node: XmlNode): string[] {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<XmlViewer />);
+render(<XmlViewer />, document.getElementById("app")!);

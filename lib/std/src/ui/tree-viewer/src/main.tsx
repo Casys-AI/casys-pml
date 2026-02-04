@@ -18,13 +18,11 @@
  * @module lib/std/src/ui/tree-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback, useRef } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import "../../global.css";
 
 // ============================================================================
@@ -94,7 +92,7 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 
 function GuideLines({ guides }: { guides: boolean[] }) {
   return (
-    <span className={css({ fontFamily: "mono", color: "fg.subtle", whiteSpace: "pre", userSelect: "none" })}>
+    <span className="font-mono text-gray-400 dark:text-gray-500 whitespace-pre select-none">
       {guides.map((hasLine, i) => (
         <span key={i}>
           {hasLine ? GUIDE_CHARS.vertical : GUIDE_CHARS.space}
@@ -162,19 +160,17 @@ function TreeNodeItem({
   }, [node.meta, showMeta]);
 
   return (
-    <Box>
-      <Flex
-        align="center"
-        py="0.5"
-        px="1"
-        rounded="sm"
-        cursor="pointer"
-        bg={isSelected ? "blue.100" : matchesSearch ? "yellow.100" : "transparent"}
-        _hover={{ bg: isSelected ? "blue.100" : "bg.subtle" }}
-        _dark={{
-          bg: isSelected ? "blue.900/40" : matchesSearch ? "yellow.900/30" : "transparent",
-          _hover: { bg: isSelected ? "blue.900/40" : "bg.subtle" },
-        }}
+    <div>
+      <div
+        className={cx(
+          "flex items-center py-0.5 px-1 rounded cursor-pointer",
+          isSelected
+            ? "bg-blue-100 dark:bg-blue-900/40"
+            : matchesSearch
+              ? "bg-yellow-100 dark:bg-yellow-900/30"
+              : "bg-transparent",
+          !isSelected && "hover:bg-bg-subtle"
+        )}
         onClick={(e) => {
           e.stopPropagation();
           if (hasChildren) {
@@ -188,48 +184,48 @@ function TreeNodeItem({
 
         {/* Branch connector */}
         {depth > 0 && (
-          <span className={css({ fontFamily: "mono", color: "fg.subtle", whiteSpace: "pre", userSelect: "none" })}>
+          <span className="font-mono text-gray-400 dark:text-gray-500 whitespace-pre select-none">
             {branchChar}{GUIDE_CHARS.horizontal}{GUIDE_CHARS.horizontal}{GUIDE_CHARS.space}
           </span>
         )}
 
         {/* Expand/collapse indicator */}
         {hasChildren ? (
-          <span className={css({ w: "4", h: "4", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "fg.muted", flexShrink: 0 })}>
+          <span className="w-4 h-4 inline-flex items-center justify-center text-[10px] text-fg-muted shrink-0">
             {isExpanded ? "v" : ">"}
           </span>
         ) : (
-          <span className={css({ w: "4", flexShrink: 0 })} />
+          <span className="w-4 shrink-0" />
         )}
 
         {/* Icon */}
-        <span className={css({ mr: "1.5", fontSize: "sm", flexShrink: 0, fontFamily: "mono", color: "fg.muted" })}>
+        <span className="mr-1.5 text-sm shrink-0 font-mono text-fg-muted">
           [{icon}]
         </span>
 
         {/* Label */}
-        <span className={css({ fontWeight: "medium", color: "fg.default" })}>
+        <span className="font-medium text-fg-default">
           {node.label}
         </span>
 
         {/* Children count badge */}
         {hasChildren && (
-          <span className={css({ ml: "2", px: "1.5", py: "0.5", fontSize: "10px", fontWeight: "medium", bg: "bg.subtle", color: "fg.muted", rounded: "full" })}>
+          <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-bg-subtle text-fg-muted rounded-full">
             {node.children!.length}
           </span>
         )}
 
         {/* Inline metadata */}
         {metaString && (
-          <span className={css({ ml: "3", fontSize: "xs", fontFamily: "mono", color: "fg.subtle", opacity: 0.8 })}>
+          <span className="ml-3 text-xs font-mono text-gray-400 dark:text-gray-500 opacity-80">
             {metaString}
           </span>
         )}
-      </Flex>
+      </div>
 
       {/* Children */}
       {hasChildren && isExpanded && (
-        <Box>
+        <div>
           {node.children!.map((child, index) => {
             const childIsLast = index === node.children!.length - 1;
             const childGuides = depth > 0 ? [...guides, !isLast] : [];
@@ -251,9 +247,9 @@ function TreeNodeItem({
               />
             );
           })}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -381,39 +377,39 @@ function TreeViewer() {
   // Render
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">Loading tree...</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">Loading tree...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="4" bg="red.50" color="red.700" rounded="md" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">{error}</div>
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">No tree data</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">No tree data</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
       {/* Toolbar */}
-      <Flex gap="2" mb="3" flexWrap="wrap" align="center">
-        <Input
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        <input
           ref={searchInputRef}
           type="text"
           placeholder="Search nodes... (Ctrl+F)"
           value={searchTerm}
           onChange={(e) => handleSearch((e.target as HTMLInputElement).value)}
-          className={css({ flex: 1, minW: "150px" })}
+          className="flex-1 min-w-[150px] px-3 py-1.5 text-sm border border-border-default rounded-md bg-bg-canvas text-fg-default placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <Button variant="outline" size="sm" onClick={handleExpandAll}>
           Expand All
@@ -421,29 +417,29 @@ function TreeViewer() {
         <Button variant="outline" size="sm" onClick={handleCollapseAll}>
           Collapse All
         </Button>
-      </Flex>
+      </div>
 
       {/* Selected node info */}
       {selectedNode && selectedNode.meta && Object.keys(selectedNode.meta).length > 0 && (
-        <Box mb="3" p="3" bg="bg.subtle" rounded="md" border="1px solid" borderColor="border.default">
-          <Box fontSize="xs" fontWeight="semibold" color="fg.muted" mb="1">
+        <div className="mb-3 p-3 bg-bg-subtle rounded-md border border-border-default">
+          <div className="text-xs font-semibold text-fg-muted mb-1">
             Node Details: {selectedNode.label}
-          </Box>
-          <Flex flexWrap="wrap" gap="3">
+          </div>
+          <div className="flex flex-wrap gap-3">
             {Object.entries(selectedNode.meta).map(([key, value]) => (
-              <Box key={key} fontSize="xs">
-                <span className={css({ color: "fg.muted" })}>{key}:</span>{" "}
-                <span className={css({ fontFamily: "mono", color: "fg.default" })}>
+              <div key={key} className="text-xs">
+                <span className="text-fg-muted">{key}:</span>{" "}
+                <span className="font-mono text-fg-default">
                   {formatMetaValue(value)}
                 </span>
-              </Box>
+              </div>
             ))}
-          </Flex>
-        </Box>
+          </div>
+        </div>
       )}
 
       {/* Tree */}
-      <Box border="1px solid" borderColor="border.default" rounded="lg" p="3" bg="bg.default" overflowX="auto" fontFamily="mono" fontSize="sm">
+      <div className="border border-border-default rounded-lg p-3 bg-white dark:bg-gray-900 overflow-x-auto font-mono text-sm">
         <TreeNodeItem
           node={data}
           depth={0}
@@ -457,16 +453,16 @@ function TreeViewer() {
           onToggle={handleToggle}
           onSelect={handleSelect}
         />
-      </Box>
+      </div>
 
       {/* Stats */}
-      <Flex mt="2" justify="flex-end">
-        <span className={css({ color: "fg.muted", fontSize: "xs" })}>
+      <div className="mt-2 flex justify-end">
+        <span className="text-fg-muted text-xs">
           {countNodes(data)} nodes
           {searchTerm && ` | ${countMatchingNodes(data, searchTerm)} matches`}
         </span>
-      </Flex>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -561,4 +557,4 @@ function countMatchingNodes(node: TreeNode, term: string): number {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<TreeViewer />);
+render(<TreeViewer />, document.getElementById("app")!);

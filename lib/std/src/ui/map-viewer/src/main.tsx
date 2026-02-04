@@ -9,18 +9,19 @@
  * - DMS/Decimal coordinate formatting
  * - Copy to clipboard functionality
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/map-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, VStack, HStack } from "../../styled-system/jsx";
 import { Button } from "../../components/ui/button";
 import { Spinner } from "../../components/ui/spinner";
 import * as Card from "../../components/ui/card";
 import { Code } from "../../components/ui/code";
+import { cx } from "../../components/utils";
 import "../../global.css";
 
 // ============================================================================
@@ -337,9 +338,9 @@ function SvgMap({
 
   if (allLats.length === 0) {
     return (
-      <Flex align="center" justify="center" h="200px" color="fg.muted">
+      <div className="flex items-center justify-center h-[200px] text-fg-muted">
         <span>No geographic data to display</span>
-      </Flex>
+      </div>
     );
   }
 
@@ -370,7 +371,7 @@ function SvgMap({
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className={css({ display: "block", w: "100%", h: "auto", minH: "200px" })}
+      className="block w-full h-auto min-h-[200px]"
       preserveAspectRatio="xMidYMid meet"
     >
       {/* Background grid */}
@@ -474,11 +475,7 @@ function SvgMap({
         return (
           <g
             key={`point-${i}`}
-            className={css({
-              cursor: "pointer",
-              transition: "transform 0.15s ease",
-              _hover: { transform: "scale(1.1)" },
-            })}
+            className="cursor-pointer transition-transform duration-150 hover:scale-110"
             onClick={() => onSelectPoint(isSelected ? null : point)}
           >
             {/* Pin shadow */}
@@ -561,35 +558,32 @@ function PointDetails({ point, coordFormat, onCopy }: PointDetailsProps) {
       : `${latStr}, ${lngStr}`;
 
   return (
-    <Card.Root mb="3">
-      <Card.Body p="3">
-        <HStack gap="2" mb="2">
-          <Box
-            w="12px"
-            h="12px"
-            rounded="full"
-            flexShrink={0}
+    <Card.Root className="mb-3">
+      <Card.Body className="p-3">
+        <div className="flex gap-2 items-center mb-2">
+          <div
+            className="w-3 h-3 rounded-full flex-shrink-0"
             style={{ backgroundColor: point.color || DEFAULT_COLORS[0] }}
           />
-          <Box fontWeight="semibold" fontSize="md">
+          <div className="font-semibold text-base">
             {point.label || "Point"}
-          </Box>
-        </HStack>
-        <VStack gap="1" align="stretch">
-          <HStack gap="2">
-            <Box w="30px" color="fg.muted" fontSize="xs" fontWeight="medium">
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-2 items-center">
+            <div className="w-[30px] text-fg-muted text-xs font-medium">
               Lat:
-            </Box>
+            </div>
             <Code size="sm">{latStr}</Code>
-          </HStack>
-          <HStack gap="2">
-            <Box w="30px" color="fg.muted" fontSize="xs" fontWeight="medium">
+          </div>
+          <div className="flex gap-2 items-center">
+            <div className="w-[30px] text-fg-muted text-xs font-medium">
               Lng:
-            </Box>
+            </div>
             <Code size="sm">{lngStr}</Code>
-          </HStack>
-        </VStack>
-        <Button variant="outline" size="xs" onClick={() => onCopy(copyText)} mt="2">
+          </div>
+        </div>
+        <Button variant="outline" size="xs" onClick={() => onCopy(copyText)} className="mt-2">
           Copy Coordinates
         </Button>
       </Card.Body>
@@ -621,49 +615,32 @@ function PointsList({
   }
 
   return (
-    <Box borderTop="1px solid" borderColor="border.subtle" pt="3">
-      <Box
-        as="h3"
-        fontSize="sm"
-        fontWeight="semibold"
-        color="fg.muted"
-        textTransform="uppercase"
-        letterSpacing="wide"
-        mb="2"
-        m="0"
-      >
+    <div className="border-t border-border-subtle pt-3">
+      <h3 className="text-sm font-semibold text-fg-muted uppercase tracking-wide mb-2 m-0">
         Locations
-      </Box>
+      </h3>
       {points.map((point, i) => {
         const latStr = formatCoordinate(point.lat, "lat", coordFormat);
         const lngStr = formatCoordinate(point.lng, "lng", coordFormat);
 
         return (
-          <Flex
+          <div
             key={i}
-            align="center"
-            gap="2"
-            p="2"
-            rounded="md"
-            cursor="pointer"
-            _hover={{ bg: "bg.subtle" }}
+            className="flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-bg-subtle"
             onClick={() => onSelectPoint(point)}
           >
-            <Box
-              w="12px"
-              h="12px"
-              rounded="full"
-              flexShrink={0}
+            <div
+              className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: point.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length] }}
             />
-            <Box flex="1" minW="0">
-              <Box fontWeight="medium" fontSize="sm" truncate>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm truncate">
                 {point.label || `Point ${i + 1}`}
-              </Box>
-              <Code size="sm" color="fg.muted">
+              </div>
+              <Code size="sm" className="text-fg-muted">
                 {latStr}, {lngStr}
               </Code>
-            </Box>
+            </div>
             <Button
               variant="ghost"
               size="xs"
@@ -675,25 +652,16 @@ function PointsList({
             >
               Copy
             </Button>
-          </Flex>
+          </div>
         );
       })}
 
       {/* Distance summary for lines */}
       {lines.length > 0 && (
-        <Box mt="3" pt="3" borderTop="1px solid" borderColor="border.subtle">
-          <Box
-            as="h4"
-            fontSize="xs"
-            fontWeight="semibold"
-            color="fg.muted"
-            textTransform="uppercase"
-            letterSpacing="wide"
-            mb="2"
-            m="0"
-          >
+        <div className="mt-3 pt-3 border-t border-border-subtle">
+          <h4 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2 m-0">
             Distances
-          </Box>
+          </h4>
           {lines.map((line, i) => {
             const dist =
               line.distance ??
@@ -711,27 +679,22 @@ function PointsList({
             );
 
             return (
-              <Flex key={i} align="center" gap="3" py="1">
-                <Box flex="1" fontSize="sm" color="fg.default">
+              <div key={i} className="flex items-center gap-3 py-1">
+                <div className="flex-1 text-sm text-fg-default">
                   {line.label || `Route ${i + 1}`}
-                </Box>
-                <Box
-                  fontFamily="mono"
-                  fontSize="sm"
-                  fontWeight="semibold"
-                  color={{ base: "blue.600", _dark: "blue.400" }}
-                >
+                </div>
+                <div className="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400">
                   {formatDistance(dist, line.unit)}
-                </Box>
-                <Box fontFamily="mono" fontSize="xs" color="fg.muted">
+                </div>
+                <div className="font-mono text-xs text-fg-muted">
                   {bearing.degrees}deg ({bearing.cardinal})
-                </Box>
-              </Flex>
+                </div>
+              </div>
             );
           })}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -816,48 +779,43 @@ function MapViewer() {
   // Render states
   if (loading) {
     return (
-      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="4" minH="300px">
-        <Flex p="10" justify="center" align="center" direction="column" gap="2">
+      <div className="font-sans text-sm text-fg-default bg-bg-canvas p-4 min-h-[300px]">
+        <div className="flex flex-col gap-2 items-center justify-center p-10">
           <Spinner size="md" />
-          <Box color="fg.muted">Loading map data...</Box>
-        </Flex>
-      </Box>
+          <div className="text-fg-muted">Loading map data...</div>
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="4" minH="300px">
-        <Box
-          p="4"
-          bg={{ base: "red.50", _dark: "red.950" }}
-          color={{ base: "red.700", _dark: "red.300" }}
-          rounded="md"
-        >
+      <div className="font-sans text-sm text-fg-default bg-bg-canvas p-4 min-h-[300px]">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
           {error}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!data || (points.length === 0 && lines.length === 0 && polygons.length === 0)) {
     return (
-      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="4" minH="300px">
-        <Box p="10" textAlign="center" color="fg.muted">
+      <div className="font-sans text-sm text-fg-default bg-bg-canvas p-4 min-h-[300px]">
+        <div className="p-10 text-center text-fg-muted">
           No geographic data to display
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="4" minH="300px">
+    <div className="font-sans text-sm text-fg-default bg-bg-canvas p-4 min-h-[300px]">
       {/* Header */}
-      <Flex justify="space-between" align="center" mb="3" pb="2" borderBottom="1px solid" borderColor="border.subtle">
-        <Box as="h2" fontSize="lg" fontWeight="semibold" m="0">
+      <div className="flex justify-between items-center mb-3 pb-2 border-b border-border-subtle">
+        <h2 className="text-lg font-semibold m-0">
           {data.title || "Map Viewer"}
-        </Box>
-        <HStack gap="1">
+        </h2>
+        <div className="flex gap-1">
           <Button
             variant={coordFormat === "decimal" ? "solid" : "outline"}
             size="xs"
@@ -872,37 +830,18 @@ function MapViewer() {
           >
             DMS
           </Button>
-        </HStack>
-      </Flex>
+        </div>
+      </div>
 
       {/* Copy feedback */}
       {copyFeedback && (
-        <Box
-          position="fixed"
-          top="4"
-          right="4"
-          px="3"
-          py="2"
-          bg="green.600"
-          color="white"
-          rounded="md"
-          fontSize="sm"
-          fontWeight="medium"
-          zIndex={1000}
-        >
+        <div className="fixed top-4 right-4 px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium z-[1000]">
           {copyFeedback}
-        </Box>
+        </div>
       )}
 
       {/* Map */}
-      <Box
-        border="1px solid"
-        borderColor="border.default"
-        rounded="lg"
-        overflow="hidden"
-        bg="bg.subtle"
-        mb="3"
-      >
+      <div className="border border-border-default rounded-lg overflow-hidden bg-bg-subtle mb-3">
         <SvgMap
           points={points}
           lines={lines}
@@ -910,7 +849,7 @@ function MapViewer() {
           selectedPoint={selectedPoint}
           onSelectPoint={handleSelectPoint}
         />
-      </Box>
+      </div>
 
       {/* Selected point details */}
       {selectedPoint && (
@@ -929,7 +868,7 @@ function MapViewer() {
         onSelectPoint={handleSelectPoint}
         onCopy={handleCopy}
       />
-    </Box>
+    </div>
   );
 }
 
@@ -937,4 +876,4 @@ function MapViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<MapViewer />);
+render(<MapViewer />, document.getElementById("app")!);

@@ -17,15 +17,11 @@
  * @module lib/std/src/ui/markdown-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, VStack, Container, Divider } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { Code } from "../../components/ui/code";
-import { Spinner } from "../../components/ui/spinner";
-import * as Card from "../../components/ui/card";
 import "../../global.css";
 
 // ============================================================================
@@ -577,15 +573,15 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 // Syntax Highlighting Styles
 // ============================================================================
 
-const syntaxColors: Record<SyntaxToken["type"], { base: string; dark: string }> = {
-  keyword: { base: "purple.600", dark: "purple.400" },
-  string: { base: "green.700", dark: "green.400" },
-  comment: { base: "gray.500", dark: "gray.400" },
-  number: { base: "orange.600", dark: "orange.400" },
-  operator: { base: "fg.default", dark: "fg.default" },
-  function: { base: "blue.600", dark: "blue.400" },
-  type: { base: "cyan.700", dark: "cyan.400" },
-  plain: { base: "inherit", dark: "inherit" },
+const syntaxColors: Record<SyntaxToken["type"], string> = {
+  keyword: "text-purple-600 dark:text-purple-400 font-medium",
+  string: "text-green-700 dark:text-green-400",
+  comment: "text-gray-500 dark:text-gray-400 italic",
+  number: "text-orange-600 dark:text-orange-400",
+  operator: "text-fg-default",
+  function: "text-blue-600 dark:text-blue-400",
+  type: "text-cyan-700 dark:text-cyan-400",
+  plain: "text-inherit",
 };
 
 // ============================================================================
@@ -598,15 +594,12 @@ function HighlightedCode({ content, language }: { content: string; language: Sup
   return (
     <>
       {tokens.map((token, i) => (
-        <Box
-          as="span"
+        <span
           key={i}
-          color={{ base: syntaxColors[token.type].base, _dark: syntaxColors[token.type].dark }}
-          fontStyle={token.type === "comment" ? "italic" : undefined}
-          fontWeight={token.type === "keyword" ? "medium" : undefined}
+          className={syntaxColors[token.type]}
         >
           {token.value}
-        </Box>
+        </span>
       ))}
     </>
   );
@@ -621,55 +614,48 @@ function InlineContent({ tokens }: { tokens: InlineToken[] }) {
             return <span key={i}>{token.content}</span>;
           case "bold":
             return (
-              <Box as="strong" key={i} fontWeight="bold">
+              <strong key={i} className="font-bold">
                 {token.content}
-              </Box>
+              </strong>
             );
           case "italic":
             return (
-              <Box as="em" key={i} fontStyle="italic">
+              <em key={i} className="italic">
                 {token.content}
-              </Box>
+              </em>
             );
           case "strikethrough":
             return (
-              <Box as="del" key={i} textDecoration="line-through" opacity={0.7}>
+              <del key={i} className="line-through opacity-70">
                 {token.content}
-              </Box>
+              </del>
             );
           case "code":
             return (
-              <Code key={i} size="sm">
+              <code key={i} className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
                 {token.content}
-              </Code>
+              </code>
             );
           case "link":
             return (
-              <Box
-                as="a"
+              <a
                 key={i}
                 href={token.href}
-                color={{ base: "blue.600", _dark: "blue.400" }}
-                textDecoration="underline"
-                _hover={{ color: { base: "blue.800", _dark: "blue.300" } }}
+                className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => notifyModel("linkClick", { href: token.href })}
               >
                 {token.content}
-              </Box>
+              </a>
             );
           case "image":
             return (
-              <Box
-                as="img"
+              <img
                 key={i}
                 src={token.href}
                 alt={token.alt || ""}
-                maxW="full"
-                h="auto"
-                rounded="md"
-                my="4"
+                className="max-w-full h-auto rounded-md my-4"
               />
             );
           default:
@@ -693,21 +679,21 @@ function CodeBlock({ content, language }: { content: string; language: string })
   }, [content, language]);
 
   return (
-    <Box my="4" rounded="lg" overflow="hidden" border="1px solid" borderColor="border.default" bg={{ base: "gray.50", _dark: "gray.900" }}>
-      <Flex justify="space-between" align="center" px="3" py="2" bg={{ base: "gray.100", _dark: "gray.800" }} borderBottom="1px solid" borderColor="border.default">
-        <Box fontSize="xs" fontWeight="medium" color="fg.muted" textTransform="uppercase">
+    <div className="my-4 rounded-lg overflow-hidden border border-border-default bg-gray-50 dark:bg-gray-900">
+      <div className="flex justify-between items-center px-3 py-2 bg-gray-100 dark:bg-gray-800 border-b border-border-default">
+        <span className="text-xs font-medium text-fg-muted uppercase">
           {language || "plain"}
-        </Box>
+        </span>
         <Button variant="outline" size="xs" onClick={handleCopy} title="Copy code">
           {copied ? "Copied!" : "Copy"}
         </Button>
-      </Flex>
-      <Box as="pre" p="4" overflowX="auto" fontSize="sm" lineHeight="relaxed">
-        <Box as="code" fontFamily="mono">
+      </div>
+      <pre className="p-4 overflow-x-auto text-sm leading-relaxed">
+        <code className="font-mono">
           <HighlightedCode content={content} language={normalizedLang} />
-        </Box>
-      </Box>
-    </Box>
+        </code>
+      </pre>
+    </div>
   );
 }
 
@@ -715,34 +701,30 @@ function TableOfContents({ items, onNavigate }: { items: TocItem[]; onNavigate: 
   if (items.length === 0) return null;
 
   return (
-    <Card.Root mb="6">
-      <Card.Body p="4">
-        <Box fontSize="sm" fontWeight="semibold" mb="3" color="fg.default" textTransform="uppercase" letterSpacing="wide">
+    <div className="mb-6 border border-border-default rounded-lg bg-white dark:bg-gray-900">
+      <div className="p-4">
+        <div className="text-sm font-semibold mb-3 text-fg-default uppercase tracking-wide">
           Table of Contents
-        </Box>
-        <VStack as="ul" listStyle="none" p="0" m="0" align="stretch" gap="1">
+        </div>
+        <ul className="list-none p-0 m-0 flex flex-col gap-1">
           {items.map((item, i) => (
-            <Box as="li" key={i} style={{ paddingLeft: `${(item.level - 1) * 12}px` }}>
-              <Box
-                as="a"
+            <li key={i} style={{ paddingLeft: `${(item.level - 1) * 12}px` }}>
+              <a
                 href={`#${item.id}`}
-                fontSize="sm"
-                color="fg.muted"
-                textDecoration="none"
-                _hover={{ color: { base: "blue.600", _dark: "blue.400" }, textDecoration: "underline" }}
-                onClick={(e: React.MouseEvent) => {
+                className="text-sm text-fg-muted no-underline hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                onClick={(e) => {
                   e.preventDefault();
                   onNavigate(item.id);
                   notifyModel("tocClick", { id: item.id, text: item.text });
                 }}
               >
                 {item.text}
-              </Box>
-            </Box>
+              </a>
+            </li>
           ))}
-        </VStack>
-      </Card.Body>
-    </Card.Root>
+        </ul>
+      </div>
+    </div>
   );
 }
 
@@ -750,38 +732,39 @@ function MarkdownBlock({ block }: { block: ParsedBlock }) {
   switch (block.type) {
     case "heading": {
       const headingSizes: Record<number, string> = {
-        1: "3xl",
-        2: "2xl",
-        3: "xl",
-        4: "lg",
-        5: "base",
-        6: "sm",
+        1: "text-3xl",
+        2: "text-2xl",
+        3: "text-xl",
+        4: "text-lg",
+        5: "text-base",
+        6: "text-sm",
       };
       const level = block.level || 1;
+      const HeadingTag = `h${level}` as keyof JSX.IntrinsicElements;
       return (
-        <Box
-          as={`h${level}` as any}
+        <HeadingTag
           id={block.id}
-          fontSize={headingSizes[level]}
-          fontWeight={level <= 2 ? "bold" : "semibold"}
-          mb={level <= 2 ? "4" : level <= 4 ? "3" : "2"}
-          mt={level === 1 ? "6" : level === 2 ? "5" : level <= 4 ? "4" : "3"}
-          pb={level <= 2 ? "2" : undefined}
-          borderBottom={level <= 2 ? "1px solid" : undefined}
-          borderColor={level === 1 ? "border.default" : "border.subtle"}
-          color={level === 6 ? "fg.muted" : "fg.default"}
-          scrollMarginTop="4"
+          className={cx(
+            headingSizes[level],
+            level <= 2 ? "font-bold" : "font-semibold",
+            level <= 2 ? "mb-4" : level <= 4 ? "mb-3" : "mb-2",
+            level === 1 ? "mt-6" : level === 2 ? "mt-5" : level <= 4 ? "mt-4" : "mt-3",
+            level <= 2 ? "pb-2 border-b" : "",
+            level === 1 ? "border-border-default" : "border-border-subtle",
+            level === 6 ? "text-fg-muted" : "text-fg-default",
+            "scroll-mt-4"
+          )}
         >
           <InlineContent tokens={parseInline(block.content)} />
-        </Box>
+        </HeadingTag>
       );
     }
 
     case "paragraph":
       return (
-        <Box as="p" mb="4" lineHeight="relaxed">
+        <p className="mb-4 leading-relaxed">
           <InlineContent tokens={parseInline(block.content)} />
-        </Box>
+        </p>
       );
 
     case "code":
@@ -789,62 +772,46 @@ function MarkdownBlock({ block }: { block: ParsedBlock }) {
 
     case "blockquote":
       return (
-        <Box
-          as="blockquote"
-          pl="4"
-          py="2"
-          my="4"
-          borderLeft="4px solid"
-          borderColor={{ base: "gray.300", _dark: "gray.600" }}
-          color="fg.muted"
-          fontStyle="italic"
-        >
+        <blockquote className="pl-4 py-2 my-4 border-l-4 border-gray-300 dark:border-gray-600 text-fg-muted italic">
           <InlineContent tokens={parseInline(block.content)} />
-        </Box>
+        </blockquote>
       );
 
     case "list":
       if (block.ordered) {
         return (
-          <Box as="ol" pl="6" mb="4" listStyleType="decimal">
+          <ol className="pl-6 mb-4 list-decimal">
             {block.items?.map((item, i) => (
-              <Box as="li" key={i} mb="1" lineHeight="relaxed">
+              <li key={i} className="mb-1 leading-relaxed">
                 <InlineContent tokens={parseInline(item)} />
-              </Box>
+              </li>
             ))}
-          </Box>
+          </ol>
         );
       }
       return (
-        <Box as="ul" pl="6" mb="4" listStyleType="disc">
+        <ul className="pl-6 mb-4 list-disc">
           {block.items?.map((item, i) => (
-            <Box as="li" key={i} mb="1" lineHeight="relaxed">
+            <li key={i} className="mb-1 leading-relaxed">
               <InlineContent tokens={parseInline(item)} />
-            </Box>
+            </li>
           ))}
-        </Box>
+        </ul>
       );
 
     case "table":
       return (
-        <Box overflowX="auto" my="4">
-          <Box as="table" w="full" css={{ borderCollapse: "collapse" }} fontSize="sm">
+        <div className="overflow-x-auto my-4">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
                 {block.headers?.map((header, i) => (
-                  <Box
-                    as="th"
+                  <th
                     key={i}
-                    px="3"
-                    py="2"
-                    textAlign="left"
-                    fontWeight="semibold"
-                    bg={{ base: "gray.100", _dark: "gray.800" }}
-                    borderBottom="2px solid"
-                    borderColor="border.default"
+                    className="px-3 py-2 text-left font-semibold bg-gray-100 dark:bg-gray-800 border-b-2 border-border-default"
                   >
                     <InlineContent tokens={parseInline(header)} />
-                  </Box>
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -852,23 +819,47 @@ function MarkdownBlock({ block }: { block: ParsedBlock }) {
               {block.rows?.map((row, ri) => (
                 <tr key={ri}>
                   {row.map((cell, ci) => (
-                    <Box as="td" key={ci} px="3" py="2" borderBottom="1px solid" borderColor="border.subtle">
+                    <td key={ci} className="px-3 py-2 border-b border-border-subtle">
                       <InlineContent tokens={parseInline(cell)} />
-                    </Box>
+                    </td>
                   ))}
                 </tr>
               ))}
             </tbody>
-          </Box>
-        </Box>
+          </table>
+        </div>
       );
 
     case "hr":
-      return <Divider my="6" />;
+      return <hr className="my-6 border-t border-border-default" />;
 
     default:
       return null;
   }
+}
+
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={cx("animate-spin h-5 w-5", className)}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
 }
 
 // ============================================================================
@@ -944,46 +935,46 @@ function MarkdownViewer() {
   // Render
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="base" color="fg.default" bg="bg.canvas" lineHeight="relaxed">
-        <Flex p="10" justify="center" align="center" direction="column" gap="2">
-          <Spinner size="md" />
-          <Box color="fg.muted">Loading markdown...</Box>
-        </Flex>
-      </Box>
+      <div className="p-4 font-sans text-base text-fg-default bg-bg-canvas leading-relaxed">
+        <div className="p-10 flex justify-center items-center flex-col gap-2">
+          <Spinner />
+          <span className="text-fg-muted">Loading markdown...</span>
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="base" color="fg.default" bg="bg.canvas" lineHeight="relaxed">
-        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">
+      <div className="p-4 font-sans text-base text-fg-default bg-bg-canvas leading-relaxed">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
           {error}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!data?.content) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="base" color="fg.default" bg="bg.canvas" lineHeight="relaxed">
-        <Box p="10" textAlign="center" color="fg.muted">
+      <div className="p-4 font-sans text-base text-fg-default bg-bg-canvas leading-relaxed">
+        <div className="p-10 text-center text-fg-muted">
           No content to display
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="base" color="fg.default" bg="bg.canvas" lineHeight="relaxed">
+    <div className="p-4 font-sans text-base text-fg-default bg-bg-canvas leading-relaxed">
       {data.showToc && toc.length > 0 && (
         <TableOfContents items={toc} onNavigate={handleTocNavigate} />
       )}
-      <Container maxW="prose" mx="auto">
+      <div className="max-w-prose mx-auto">
         {blocks.map((block, i) => (
           <MarkdownBlock key={i} block={block} />
         ))}
-      </Container>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -991,4 +982,4 @@ function MarkdownViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<MarkdownViewer />);
+render(<MarkdownViewer />, document.getElementById("app")!);

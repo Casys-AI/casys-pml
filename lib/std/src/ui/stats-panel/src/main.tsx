@@ -10,16 +10,17 @@
  * Design: DM Sans for labels, Space Mono for numbers
  * Colors: Dark gradient with blue-violet-pink accent palette
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/stats-panel
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useRef } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Grid, VStack, HStack, Center } from "../../styled-system/jsx";
 import * as Switch from "~/components/ui/switch";
 import { Spinner } from "../../components/ui/spinner";
+import { cx } from "../../components/utils";
 import "../../global.css";
 
 // ============================================================================
@@ -406,8 +407,8 @@ function Histogram({ data, stats, bins, width, height, showCurve }: ChartProps) 
                 cursor: "pointer",
                 transition: "fill-opacity 0.2s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.fillOpacity = "0.15")}
-              onMouseLeave={(e) => (e.currentTarget.style.fillOpacity = "0")}
+              onMouseEnter={(e) => ((e.currentTarget as SVGRectElement).style.fillOpacity = "0.15")}
+              onMouseLeave={(e) => ((e.currentTarget as SVGRectElement).style.fillOpacity = "0")}
             />
           </g>
         );
@@ -651,12 +652,12 @@ function BoxPlot({ stats, width, height }: { stats: Stats; width: number; height
             }}
             onClick={() => notifyModel("outlier-click", { value: outlier })}
             onMouseEnter={(e) => {
-              e.currentTarget.setAttribute("r", "6");
-              e.currentTarget.setAttribute("stroke-width", "2.5");
+              (e.currentTarget as SVGCircleElement).setAttribute("r", "6");
+              (e.currentTarget as SVGCircleElement).setAttribute("stroke-width", "2.5");
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.setAttribute("r", "4");
-              e.currentTarget.setAttribute("stroke-width", "2");
+              (e.currentTarget as SVGCircleElement).setAttribute("r", "4");
+              (e.currentTarget as SVGCircleElement).setAttribute("stroke-width", "2");
             }}
           >
             <title>Outlier: {outlier.toFixed(2)}</title>
@@ -783,14 +784,11 @@ function StatCard({ label, value, decimals = 4, delay = 0 }: { label: string; va
   const [hovered, setHovered] = useState(false);
 
   return (
-    <VStack
-      gap="1.5"
-      p="3.5"
-      bg="rgba(255, 255, 255, 0.03)"
-      backdropFilter="blur(12px)"
-      border="1px solid rgba(255, 255, 255, 0.06)"
-      borderRadius="xl"
-      cursor="default"
+    <div
+      className={cx(
+        "flex flex-col gap-1.5 p-3.5 rounded-xl cursor-default",
+        "bg-white/[0.03] backdrop-blur-[12px] border border-white/[0.06]"
+      )}
       style={{
         opacity: mounted ? 1 : 0,
         transform: mounted ? "translateY(0)" : "translateY(8px)",
@@ -800,12 +798,8 @@ function StatCard({ label, value, decimals = 4, delay = 0 }: { label: string; va
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <Box
-        fontSize="10px"
-        fontFamily="'DM Sans', sans-serif"
-        fontWeight="500"
-        textTransform="uppercase"
-        letterSpacing="0.08em"
+      <div
+        className="text-[10px] font-['DM_Sans',sans-serif] font-medium uppercase tracking-[0.08em]"
         style={{
           color: "rgba(255, 255, 255, 0.45)",
           opacity: hovered ? 0.8 : 0.45,
@@ -813,17 +807,11 @@ function StatCard({ label, value, decimals = 4, delay = 0 }: { label: string; va
         }}
       >
         {label}
-      </Box>
-      <Box
-        fontSize="15px"
-        fontFamily="'Space Mono', monospace"
-        fontWeight="500"
-        letterSpacing="-0.02em"
-        color="rgba(255, 255, 255, 0.9)"
-      >
+      </div>
+      <div className="text-[15px] font-['Space_Mono',monospace] font-medium tracking-[-0.02em] text-white/90">
         {displayValue}
-      </Box>
-    </VStack>
+      </div>
+    </div>
   );
 }
 
@@ -844,11 +832,7 @@ function SummaryStats({ stats }: { stats: Stats }) {
   ];
 
   return (
-    <Grid
-      gridTemplateColumns="repeat(auto-fill, minmax(110px, 1fr))"
-      gap="2.5"
-      mb="6"
-    >
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-2.5 mb-6">
       {items.map((item, i) => (
         <StatCard
           key={item.label}
@@ -858,7 +842,7 @@ function SummaryStats({ stats }: { stats: Stats }) {
           delay={50 + i * 40}
         />
       ))}
-    </Grid>
+    </div>
   );
 }
 
@@ -872,10 +856,10 @@ function ToggleSwitch({ checked, onChange, label }: { checked: boolean; onChange
       checked={checked}
       onCheckedChange={(e) => onChange(e.checked)}
       size="sm"
-      className={css({ px: "2", py: "1" })}
+      className="px-2 py-1"
     >
       <Switch.Control />
-      <Switch.Label className={css({ fontSize: "xs", fontWeight: "medium" })}>{label}</Switch.Label>
+      <Switch.Label className="text-xs font-medium">{label}</Switch.Label>
       <Switch.HiddenInput />
     </Switch.Root>
   );
@@ -940,102 +924,74 @@ function StatsPanel() {
   const histogramHeight = 260;
   const boxPlotHeight = 140;
 
+  const containerStyle = {
+    background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
+    backgroundImage: `
+      linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 40px,
+        rgba(255, 255, 255, 0.015) 40px,
+        rgba(255, 255, 255, 0.015) 41px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 40px,
+        rgba(255, 255, 255, 0.015) 40px,
+        rgba(255, 255, 255, 0.015) 41px
+      )
+    `,
+  };
+
   if (loading) {
     return (
-      <Box
-        p="7"
-        fontFamily="'DM Sans', sans-serif"
-        fontSize="sm"
-        color="rgba(255, 255, 255, 0.9)"
-        maxW="580px"
-        minH="100vh"
-        style={{
-          background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
-        }}
+      <div
+        className="p-7 font-['DM_Sans',sans-serif] text-sm text-white/90 max-w-[580px] min-h-screen"
+        style={containerStyle}
       >
-        <Center p="15" flexDirection="column" color="rgba(255, 255, 255, 0.4)">
+        <div className="flex flex-col items-center justify-center p-[60px] text-white/40">
           <Spinner size="lg" colorPalette="purple" />
-          <Box mt="4">Loading statistics...</Box>
-        </Center>
-      </Box>
+          <div className="mt-4">Loading statistics...</div>
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box
-        p="7"
-        fontFamily="'DM Sans', sans-serif"
-        fontSize="sm"
-        color="rgba(255, 255, 255, 0.9)"
-        maxW="580px"
-        minH="100vh"
-        style={{
-          background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
-        }}
+      <div
+        className="p-7 font-['DM_Sans',sans-serif] text-sm text-white/90 max-w-[580px] min-h-screen"
+        style={containerStyle}
       >
-        <Center p="15" color="#f87171">{error}</Center>
-      </Box>
+        <div className="flex items-center justify-center p-[60px] text-red-400">{error}</div>
+      </div>
     );
   }
 
   if (!statsData || !stats) {
     return (
-      <Box
-        p="7"
-        fontFamily="'DM Sans', sans-serif"
-        fontSize="sm"
-        color="rgba(255, 255, 255, 0.9)"
-        maxW="580px"
-        minH="100vh"
-        style={{
-          background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
-        }}
+      <div
+        className="p-7 font-['DM_Sans',sans-serif] text-sm text-white/90 max-w-[580px] min-h-screen"
+        style={containerStyle}
       >
-        <Center p="15" color="rgba(255, 255, 255, 0.4)">No data provided</Center>
-      </Box>
+        <div className="flex items-center justify-center p-[60px] text-white/40">No data provided</div>
+      </div>
     );
   }
 
   return (
-    <Box
-      p="7"
-      fontFamily="'DM Sans', sans-serif"
-      fontSize="sm"
-      color="rgba(255, 255, 255, 0.9)"
-      maxW="580px"
-      minH="100vh"
-      style={{
-        background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
-        backgroundImage: `
-          linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%),
-          repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 40px,
-            rgba(255, 255, 255, 0.015) 40px,
-            rgba(255, 255, 255, 0.015) 41px
-          ),
-          repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 40px,
-            rgba(255, 255, 255, 0.015) 40px,
-            rgba(255, 255, 255, 0.015) 41px
-          )
-        `,
-      }}
+    <div
+      className="p-7 font-['DM_Sans',sans-serif] text-sm text-white/90 max-w-[580px] min-h-screen"
+      style={containerStyle}
     >
       {/* Header */}
-      <Flex justify="space-between" align="flex-start" mb="7" flexWrap="wrap" gap="4">
-        <Box>
+      <div className="flex justify-between items-start mb-7 flex-wrap gap-4">
+        <div>
           {statsData.title && (
-            <Box
-              as="h2"
-              fontSize="22px"
-              fontWeight="600"
-              m="0"
-              letterSpacing="-0.02em"
+            <h2
+              className="text-[22px] font-semibold m-0 tracking-[-0.02em]"
               style={{
                 background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%)",
                 WebkitBackgroundClip: "text",
@@ -1044,55 +1000,29 @@ function StatsPanel() {
               }}
             >
               {statsData.title}
-            </Box>
+            </h2>
           )}
-          <Box
-            fontSize="12px"
-            fontFamily="'Space Mono', monospace"
-            color="rgba(255, 255, 255, 0.4)"
-            mt="1.5"
-          >
+          <div className="text-xs font-['Space_Mono',monospace] text-white/40 mt-1.5">
             {stats.count.toLocaleString()} data points analyzed
-          </Box>
-        </Box>
-        <Flex
-          gap="1"
-          flexWrap="wrap"
-          bg="rgba(255, 255, 255, 0.02)"
-          borderRadius="xl"
-          p="1"
-          border="1px solid rgba(255, 255, 255, 0.04)"
-        >
+          </div>
+        </div>
+        <div className="flex gap-1 flex-wrap bg-white/[0.02] rounded-xl p-1 border border-white/[0.04]">
           <ToggleSwitch checked={showHistogram} onChange={setShowHistogram} label="Histogram" />
           <ToggleSwitch checked={showBoxPlot} onChange={setShowBoxPlot} label="Box Plot" />
           <ToggleSwitch checked={showCurve} onChange={setShowCurve} label="Normal Curve" />
-        </Flex>
-      </Flex>
+        </div>
+      </div>
 
       {/* Summary Statistics */}
       <SummaryStats stats={stats} />
 
       {/* Charts */}
-      <VStack gap="5">
+      <div className="flex flex-col gap-5">
         {showHistogram && (
-          <Box
-            bg="rgba(255, 255, 255, 0.02)"
-            backdropFilter="blur(12px)"
-            border="1px solid rgba(255, 255, 255, 0.06)"
-            borderRadius="2xl"
-            p="5"
-            boxShadow="0 4px 24px rgba(0, 0, 0, 0.2)"
-          >
-            <Box
-              fontSize="11px"
-              fontWeight="600"
-              color="rgba(255, 255, 255, 0.5)"
-              mb="4"
-              textTransform="uppercase"
-              letterSpacing="0.1em"
-            >
+          <div className="bg-white/[0.02] backdrop-blur-[12px] border border-white/[0.06] rounded-2xl p-5 shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+            <div className="text-[11px] font-semibold text-white/50 mb-4 uppercase tracking-[0.1em]">
               Distribution Histogram
-            </Box>
+            </div>
             <Histogram
               data={statsData.data}
               stats={stats}
@@ -1101,33 +1031,19 @@ function StatsPanel() {
               height={histogramHeight}
               showCurve={showCurve}
             />
-          </Box>
+          </div>
         )}
 
         {showBoxPlot && (
-          <Box
-            bg="rgba(255, 255, 255, 0.02)"
-            backdropFilter="blur(12px)"
-            border="1px solid rgba(255, 255, 255, 0.06)"
-            borderRadius="2xl"
-            p="5"
-            boxShadow="0 4px 24px rgba(0, 0, 0, 0.2)"
-          >
-            <Box
-              fontSize="11px"
-              fontWeight="600"
-              color="rgba(255, 255, 255, 0.5)"
-              mb="4"
-              textTransform="uppercase"
-              letterSpacing="0.1em"
-            >
+          <div className="bg-white/[0.02] backdrop-blur-[12px] border border-white/[0.06] rounded-2xl p-5 shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
+            <div className="text-[11px] font-semibold text-white/50 mb-4 uppercase tracking-[0.1em]">
               Box Plot Analysis
-            </Box>
+            </div>
             <BoxPlot stats={stats} width={width} height={boxPlotHeight} />
-          </Box>
+          </div>
         )}
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -1135,4 +1051,4 @@ function StatsPanel() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<StatsPanel />);
+render(<StatsPanel />, document.getElementById("app")!);

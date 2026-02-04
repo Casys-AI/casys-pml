@@ -11,11 +11,10 @@
  * @module lib/std/src/ui/port-scanner
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Grid, Center } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import * as Table from "../../components/ui/table";
@@ -148,53 +147,53 @@ function PortScanner() {
   // Render states
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Center p="10" color="fg.muted">Scanning ports...</Center>
-      </Box>
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div class="flex items-center justify-center p-10 text-fg-muted">Scanning ports...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div class="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
           {error}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!data || data.ports.length === 0) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Center p="10" color="fg.muted">No scan results</Center>
-      </Box>
+      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div class="flex items-center justify-center p-10 text-fg-muted">No scan results</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+    <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
       {/* Header */}
-      <Box mb="4">
-        <Box fontSize="lg" fontWeight="semibold" mb="1">{data.host}</Box>
+      <div class="mb-4">
+        <div class="text-lg font-semibold mb-1">{data.host}</div>
         {data.timestamp && (
-          <Box fontSize="xs" color="fg.muted">
+          <div class="text-xs text-fg-muted">
             Scanned: {new Date(data.timestamp).toLocaleString()}
             {data.scanTime && ` (${data.scanTime}ms)`}
-          </Box>
+          </div>
         )}
-      </Box>
+      </div>
 
       {/* Statistics */}
-      <Grid columns={{ base: 2, sm: 4 }} gap="3" mb="4">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <StatCard label="Total" value={stats.total} color="blue" />
         <StatCard label="Open" value={stats.open} color="green" />
         <StatCard label="Closed" value={stats.closed} color="red" />
         <StatCard label="Filtered" value={stats.filtered} color="orange" />
-      </Grid>
+      </div>
 
       {/* Filter buttons */}
-      <Flex gap="2" mb="3" flexWrap="wrap">
+      <div class="flex gap-2 mb-3 flex-wrap">
         {(["all", "open", "closed", "filtered"] as FilterStatus[]).map((f) => (
           <Button
             key={f}
@@ -206,15 +205,15 @@ function PortScanner() {
             {f !== "all" && ` (${stats[f as keyof typeof stats]})`}
           </Button>
         ))}
-      </Flex>
+      </div>
 
       {/* Results table */}
-      <Box overflowX="auto" rounded="lg">
+      <div class="overflow-x-auto rounded-lg">
         <Table.Root size="sm" variant="outline">
           <Table.Head>
             <Table.Row>
-              <Table.Header className={css({ w: "80px" })}>Port</Table.Header>
-              <Table.Header className={css({ w: "100px" })}>Status</Table.Header>
+              <Table.Header class="w-20">Port</Table.Header>
+              <Table.Header class="w-[100px]">Status</Table.Header>
               <Table.Header>Service</Table.Header>
               <Table.Header>Banner</Table.Header>
             </Table.Row>
@@ -224,29 +223,19 @@ function PortScanner() {
               <Table.Row
                 key={port.port}
                 onClick={() => handlePortClick(port)}
-                className={css({
-                  cursor: "pointer",
-                  _hover: { bg: "bg.subtle" },
-                })}
+                class="cursor-pointer hover:bg-bg-subtle"
               >
-                <Table.Cell fontFamily="mono" fontWeight="medium">
+                <Table.Cell class="font-mono font-medium">
                   {port.port}
                 </Table.Cell>
                 <Table.Cell>
                   <PortStatusBadge status={port.status} />
                 </Table.Cell>
-                <Table.Cell color={port.service ? "fg.default" : "fg.muted"}>
+                <Table.Cell class={port.service ? "text-fg-default" : "text-fg-muted"}>
                   {port.service || "-"}
                 </Table.Cell>
                 <Table.Cell
-                  color="fg.muted"
-                  fontSize="xs"
-                  className={css({
-                    maxW: "200px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  })}
+                  class="text-fg-muted text-xs max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap"
                   title={port.banner}
                 >
                   {port.banner || "-"}
@@ -255,13 +244,13 @@ function PortScanner() {
             ))}
           </Table.Body>
         </Table.Root>
-      </Box>
+      </div>
 
       {/* Summary for open ports */}
       {stats.open > 0 && filter === "all" && (
-        <Box mt="3" p="3" bg="bg.subtle" rounded="md">
-          <Box fontSize="xs" color="fg.muted" mb="1">Open ports:</Box>
-          <Flex gap="2" flexWrap="wrap">
+        <div class="mt-3 p-3 bg-bg-subtle rounded-md">
+          <div class="text-xs text-fg-muted mb-1">Open ports:</div>
+          <div class="flex gap-2 flex-wrap">
             {data.ports
               .filter((p) => p.status === "open")
               .map((p) => (
@@ -269,10 +258,10 @@ function PortScanner() {
                   {p.port}{p.service ? ` (${p.service})` : ""}
                 </Badge>
               ))}
-          </Flex>
-        </Box>
+          </div>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -281,25 +270,25 @@ function PortScanner() {
 // ============================================================================
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  const bgColor = {
-    blue: { base: "blue.50", _dark: "blue.950" },
-    green: { base: "green.50", _dark: "green.950" },
-    red: { base: "red.50", _dark: "red.950" },
-    orange: { base: "orange.50", _dark: "orange.950" },
-  }[color] || { base: "gray.50", _dark: "gray.900" };
+  const bgColorMap: Record<string, string> = {
+    blue: "bg-blue-50 dark:bg-blue-950",
+    green: "bg-green-50 dark:bg-green-950",
+    red: "bg-red-50 dark:bg-red-950",
+    orange: "bg-orange-50 dark:bg-orange-950",
+  };
 
-  const textColor = {
-    blue: { base: "blue.700", _dark: "blue.300" },
-    green: { base: "green.700", _dark: "green.300" },
-    red: { base: "red.700", _dark: "red.300" },
-    orange: { base: "orange.700", _dark: "orange.300" },
-  }[color] || { base: "gray.700", _dark: "gray.300" };
+  const textColorMap: Record<string, string> = {
+    blue: "text-blue-700 dark:text-blue-300",
+    green: "text-green-700 dark:text-green-300",
+    red: "text-red-700 dark:text-red-300",
+    orange: "text-orange-700 dark:text-orange-300",
+  };
 
   return (
-    <Box p="3" rounded="md" bg={bgColor} textAlign="center">
-      <Box fontSize="2xl" fontWeight="bold" color={textColor}>{value}</Box>
-      <Box fontSize="xs" color="fg.muted">{label}</Box>
-    </Box>
+    <div class={cx("p-3 rounded-md text-center", bgColorMap[color] || "bg-gray-50 dark:bg-gray-900")}>
+      <div class={cx("text-2xl font-bold", textColorMap[color] || "text-gray-700 dark:text-gray-300")}>{value}</div>
+      <div class="text-xs text-fg-muted">{label}</div>
+    </div>
   );
 }
 
@@ -390,4 +379,4 @@ const WELL_KNOWN_PORTS: Record<number, string> = {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<PortScanner />);
+render(<PortScanner />, document.getElementById("app")!);

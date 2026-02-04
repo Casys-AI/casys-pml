@@ -1,6 +1,6 @@
 # MCP Apps UI Components
 
-This directory contains 30 interactive UI components for MiniTools, built with **Preact** and **Panda CSS**. Each component is compiled into a single self-contained HTML file for use with the MCP Apps extension (SEP-1865).
+This directory contains 40+ interactive UI components for MiniTools, built with **Preact** and **Tailwind CSS v4**. Each component is compiled into a single self-contained HTML file for use with the MCP Apps extension (SEP-1865).
 
 ## Architecture
 
@@ -9,14 +9,25 @@ src/ui/
 ├── mod.ts                  # Module exports and loadUiHtml helper
 ├── build-all.mjs           # Build script for all components
 ├── vite.single.config.mjs  # Vite config for single-file builds
-├── panda.config.ts         # Panda CSS configuration
-├── styled-system/          # Generated Panda CSS utilities
+├── global.css              # Tailwind CSS v4 configuration with @theme
+├── tailwind.config.js      # (removed - config now in global.css)
 ├── dist/                   # Built single-file HTML bundles (gitignored)
+├── components/
+│   ├── ui/                 # Reusable UI components (Button, Alert, etc.)
+│   └── utils.ts            # Utility functions (cx, formatValue, etc.)
+├── shared/                 # Shared utilities (skeletons, interactions, etc.)
 └── <component-name>/       # Component source folders
     ├── index.html          # Entry point
     └── src/
         └── main.tsx        # Component implementation
 ```
+
+## Stack
+
+- **Preact 10.28.2** - Fast 3kB React alternative
+- **Tailwind CSS 4.1.18** - Utility-first CSS framework
+- **@tailwindcss/vite** - Vite plugin for Tailwind v4
+- **vite-plugin-singlefile** - Bundles everything into a single HTML file
 
 ## Components Reference
 
@@ -80,172 +91,6 @@ src/ui/
 | **map-viewer** | Geographic data viewer | `{ points?: [{ lat, lng, label?, color? }], lines?: [{ from, to, distance? }], polygons?, title? }` |
 | **status-badge** | Status indicator | `{ status: "success"|"warning"|"error"|"info"|"pending", label?, message? }` |
 
-## Usage Examples
-
-### table-viewer
-
-Displays tabular data with sorting, filtering, and pagination.
-
-```typescript
-// Tool output format (array of objects)
-[
-  { id: 1, name: "Alice", email: "alice@example.com" },
-  { id: 2, name: "Bob", email: "bob@example.com" }
-]
-
-// Alternative format (columns + rows)
-{
-  "columns": ["id", "name", "email"],
-  "rows": [[1, "Alice", "alice@example.com"], [2, "Bob", "bob@example.com"]],
-  "totalCount": 2
-}
-```
-
-**Events emitted:** `select`, `filter`, `sort`, `paginate`
-
-### json-viewer
-
-Interactive JSON tree with collapsible nodes and path copying.
-
-```typescript
-// Any JSON structure
-{
-  "user": {
-    "name": "Alice",
-    "roles": ["admin", "developer"],
-    "settings": { "theme": "dark" }
-  }
-}
-```
-
-**Events emitted:** `select`, `copy`, `expand`, `collapse`
-
-### chart-viewer
-
-SVG-based charts with bar, line, and pie types.
-
-```typescript
-{
-  "type": "bar",
-  "title": "Monthly Sales",
-  "labels": ["Jan", "Feb", "Mar", "Apr"],
-  "datasets": [
-    { "label": "2024", "data": [100, 150, 120, 180], "color": "#3b82f6" },
-    { "label": "2023", "data": [80, 120, 100, 150], "color": "#10b981" }
-  ]
-}
-```
-
-**Events emitted:** `click` (with label, value, dataset)
-
-### gauge
-
-Displays a value with optional thresholds for status coloring.
-
-```typescript
-{
-  "value": 75,
-  "min": 0,
-  "max": 100,
-  "label": "CPU Usage",
-  "unit": "%",
-  "thresholds": { "warning": 70, "critical": 90 },
-  "format": "circular"  // "circular" | "linear" | "compact"
-}
-```
-
-### diff-viewer
-
-Shows code differences with syntax highlighting.
-
-```typescript
-{
-  "filename": "src/main.ts",
-  "unified": "@@ -1,3 +1,4 @@\n function hello() {\n-  console.log('Hello');\n+  console.log('Hello, World!');\n+  return true;\n }"
-}
-```
-
-**Events emitted:** `navigate`, `click`
-
-### jwt-viewer
-
-Decodes and displays JWT tokens with expiration status.
-
-```typescript
-{
-  "header": { "alg": "RS256", "typ": "JWT" },
-  "payload": {
-    "sub": "1234567890",
-    "name": "John Doe",
-    "iat": 1516239022,
-    "exp": 1716239022
-  },
-  "signature": "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-}
-```
-
-**Events emitted:** `copyHeader`, `copyPayload`, `copySignature`
-
-### log-viewer
-
-Displays logs with level filtering and text search.
-
-```typescript
-{
-  "title": "Application Logs",
-  "logs": [
-    { "timestamp": "2024-01-15T10:30:00Z", "level": "info", "message": "Server started" },
-    { "timestamp": "2024-01-15T10:30:05Z", "level": "error", "message": "Connection failed" }
-  ]
-}
-
-// Also accepts raw log strings
-["2024-01-15 10:30:00 INFO Server started", "2024-01-15 10:30:05 ERROR Connection failed"]
-```
-
-**Events emitted:** `filterLevel`, `filterText`, `selectLine`
-
-### map-viewer
-
-Displays geographic points, lines, and polygons.
-
-```typescript
-{
-  "title": "Office Locations",
-  "points": [
-    { "lat": 48.8566, "lng": 2.3522, "label": "Paris HQ", "color": "#3b82f6" },
-    { "lat": 40.7128, "lng": -74.0060, "label": "NYC Office", "color": "#ef4444" }
-  ],
-  "lines": [
-    { "from": { "lat": 48.8566, "lng": 2.3522 }, "to": { "lat": 40.7128, "lng": -74.0060 } }
-  ]
-}
-```
-
-**Events emitted:** `selectPoint`, `copy`
-
-### form-viewer
-
-Generates forms from JSON Schema with validation.
-
-```typescript
-{
-  "title": "User Registration",
-  "submitLabel": "Register",
-  "schema": {
-    "type": "object",
-    "required": ["email", "password"],
-    "properties": {
-      "email": { "type": "string", "format": "email", "title": "Email Address" },
-      "password": { "type": "string", "title": "Password", "minLength": 8 },
-      "newsletter": { "type": "boolean", "title": "Subscribe to newsletter", "default": false }
-    }
-  }
-}
-```
-
-**Events emitted:** `change`, `submit`
-
 ## Adding a New Component
 
 ### 1. Create the component folder
@@ -276,8 +121,9 @@ mkdir -p src/ui/my-component/src
 import { render } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import "./styles.css";
+import { cx } from "../../components/utils";
+import { containers, typography } from "../../shared";
+import "../../global.css";
 
 // Types
 interface MyData {
@@ -321,42 +167,26 @@ function MyComponent() {
   }, []);
 
   if (loading) {
-    return <div class={styles.container}>Loading...</div>;
+    return <div className={containers.centered}>Loading...</div>;
   }
 
   if (!data) {
-    return <div class={styles.container}>No data</div>;
+    return <div className={containers.centered}>No data</div>;
   }
 
   return (
-    <div class={styles.container}>
+    <div className={containers.root}>
+      <h2 className={typography.sectionTitle}>My Component</h2>
       {/* Your component UI */}
     </div>
   );
 }
 
-// Styles
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-  }),
-};
-
 // Mount
 render(<MyComponent />, document.getElementById("app")!);
 ```
 
-### 4. Create src/styles.css (optional)
-
-```css
-/* Additional styles if needed */
-```
-
-### 5. Build the component
+### 4. Build the component
 
 ```bash
 cd lib/std/src/ui
@@ -381,8 +211,61 @@ node build-all.mjs
 Each component is compiled into a single self-contained HTML file in `dist/<component>/index.html`. The build uses:
 
 - **Vite** with `vite-plugin-singlefile` for bundling
-- **Preact** for reactive UI
-- **Panda CSS** for styling with dark mode support
+- **Preact** for reactive UI (~4kB gzip)
+- **Tailwind CSS v4** for styling with dark mode support (~10kB gzip purged)
+
+Total bundle size: ~70kB gzip (down from ~205kB with React + Panda CSS)
+
+## Styling Guidelines
+
+### Tailwind v4 Theme Tokens
+
+The theme is configured in `global.css` using `@theme`:
+
+```css
+@theme {
+  --color-fg-default: var(--fg-default, #1a1a1a);
+  --color-fg-muted: var(--fg-muted, #6b7280);
+  --color-bg-canvas: var(--bg-canvas, #ffffff);
+  --color-bg-subtle: var(--bg-subtle, #f9fafb);
+  --color-border-default: var(--border-default, #e5e7eb);
+}
+```
+
+### Using Theme Colors
+
+```tsx
+// Use semantic colors from the theme
+<div className="text-fg-default bg-bg-canvas border border-border-default">
+  <span className="text-fg-muted">Muted text</span>
+</div>
+```
+
+### Dark Mode
+
+Dark mode is automatic via CSS variables. The `.dark` class on `<html>` switches the variable values:
+
+```css
+.dark {
+  --fg-default: #f9fafb;
+  --bg-canvas: #111827;
+  /* ... */
+}
+```
+
+### Shared Utilities
+
+Import from `../../shared` for consistent styling:
+
+```tsx
+import { containers, typography, interactive, valueTransition } from "../../shared";
+
+// containers.root = "p-4 font-sans text-sm text-fg-default bg-bg-canvas"
+// containers.centered = "flex items-center justify-center p-8 text-fg-muted"
+// typography.sectionTitle = "text-lg font-semibold"
+// typography.muted = "text-sm text-fg-muted"
+// interactive.scaleOnHover = "transition-transform duration-150 hover:scale-[1.02]"
+```
 
 ## MCP Apps Integration
 
@@ -399,65 +282,13 @@ Reference a UI in your tool definition:
   _meta: {
     ui: {
       resourceUri: "ui://mcp-std/my-component",
-      emits: ["select", "filter"],      // Events the UI sends to the model
-      accepts: ["setData", "highlight"] // Events the UI can receive
+      emits: ["select", "filter"],
+      accepts: ["setData", "highlight"]
     }
   },
   handler: async (args) => { /* ... */ }
 }
 ```
-
-### Event Communication
-
-**UI to Model (emits):**
-- `select` - User selected an item
-- `filter` - User applied a filter
-- `sort` - User sorted data
-- `copy` - User copied content
-- `submit` - User submitted a form
-
-**Model to UI (accepts):**
-- `setData` - Replace displayed data
-- `highlight` - Highlight specific items
-- `scrollTo` - Scroll to specific position
-- `refresh` - Reload data from server
-
-## Events Reference
-
-Components communicate with the MCP host via `notifyModel()`. Each event sends a `structuredContent` object with the event name and relevant data.
-
-### Emits (Component -> Host)
-
-| Component | Event | Payload | Description |
-|-----------|-------|---------|-------------|
-| **table-viewer** | `select` | `{ rowIndex, row }` | Row clicked |
-| **table-viewer** | `sort` | `{ column, direction }` | Column sorted (asc/desc) |
-| **table-viewer** | `filter` | `{ text }` | Filter text changed |
-| **json-viewer** | `select` | `{ path, value }` | Node selected |
-| **json-viewer** | `copy` | `{ path }` | Path copied to clipboard |
-| **chart-viewer** | `click` | `{ label, value, dataset }` | Data point clicked |
-| **map-viewer** | `selectPoint` | `{ point }` | Marker selected |
-| **map-viewer** | `copy` | `{ text }` | Coordinates copied |
-| **diff-viewer** | `viewModeChange` | `{ mode }` | Toggle inline/side-by-side |
-| **diff-viewer** | `navigate` | `{ hunk, direction }` | Navigate between hunks |
-| **diff-viewer** | `click` | `{ hunk, line, type }` | Line clicked |
-
-### Accepts (Host -> Component)
-
-Components receive data via `app.ontoolresult`. The host can update displayed data by sending new tool results.
-
-| Component | Method | Description |
-|-----------|--------|-------------|
-| All | `ontoolresult` | Replace displayed data with new content |
-| All | `ontoolinputpartial` | Show loading state |
-
-## Styling Guidelines
-
-- Use Panda CSS tokens for theming: `color: "fg.default"`, `bg: "bg.canvas"`
-- Support both light and dark modes via `_dark` variants
-- Use responsive layouts with `flexWrap`, `gap`, etc.
-- Keep components minimal - hosts may override styles
-- Avoid fixed dimensions where possible
 
 ## Testing
 
@@ -469,14 +300,4 @@ cd lib/std/src/ui
 npx vite --config vite.single.config.mjs
 
 # Open test-host.html in browser with your component
-```
-
-Or test with the full MCP server:
-
-```bash
-# Start MCP server
-deno run -A server.ts
-
-# Use ext-apps basic-host example
-SERVERS='["stdio:deno run -A /path/to/lib/std/server.ts"]' npm start
 ```

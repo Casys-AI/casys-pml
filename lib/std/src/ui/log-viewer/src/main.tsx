@@ -12,16 +12,11 @@
  * @module lib/std/src/ui/log-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useRef, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, VStack, HStack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { IconButton } from "../../components/ui/icon-button";
-import { Badge } from "../../components/ui/badge";
-import { Spinner } from "../../components/ui/spinner";
 import "../../global.css";
 
 // ============================================================================
@@ -124,17 +119,12 @@ function HighlightedText({ text, search }: { text: string; search: string }) {
     <>
       {parts.map((part, i) =>
         regex.test(part) ? (
-          <Box
-            as="mark"
+          <mark
             key={i}
-            bg={{ base: "yellow.300", _dark: "yellow.700" }}
-            color={{ base: "yellow.900", _dark: "yellow.100" }}
-            px="0.5"
-            rounded="sm"
-            fontWeight="medium"
+            className="bg-yellow-300 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-100 px-0.5 rounded-sm font-medium"
           >
             {part}
-          </Box>
+          </mark>
         ) : (
           part
         )
@@ -143,11 +133,11 @@ function HighlightedText({ text, search }: { text: string; search: string }) {
   );
 }
 
-const levelColors: Record<LogLevel, { color: string; darkColor: string; bg: string; darkBg: string }> = {
-  debug: { color: "gray.600", darkColor: "gray.400", bg: "gray.50", darkBg: "gray.950/50" },
-  info: { color: "blue.600", darkColor: "blue.400", bg: "blue.50", darkBg: "blue.950/50" },
-  warn: { color: "yellow.600", darkColor: "yellow.400", bg: "yellow.50/50", darkBg: "yellow.950/30" },
-  error: { color: "red.600", darkColor: "red.400", bg: "red.50/50", darkBg: "red.950/30" },
+const levelColors: Record<LogLevel, { text: string; bg: string }> = {
+  debug: { text: "text-gray-600 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-950/50" },
+  info: { text: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/50" },
+  warn: { text: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-50/50 dark:bg-yellow-950/30" },
+  error: { text: "text-red-600 dark:text-red-400", bg: "bg-red-50/50 dark:bg-red-950/30" },
 };
 
 function LogLine({
@@ -166,53 +156,57 @@ function LogLine({
   const hasMatch = searchTerm && entry.message.toLowerCase().includes(searchTerm.toLowerCase());
 
   return (
-    <Flex
-      alignItems="flex-start"
-      py="0.5"
-      px="2"
-      borderBottom="1px solid"
-      borderColor="border.subtle"
-      _hover={{ bg: "bg.subtle" }}
-      cursor="pointer"
-      bg={
+    <div
+      className={cx(
+        "flex items-start py-0.5 px-2 border-b border-border-subtle cursor-pointer",
+        "hover:bg-bg-subtle",
         hasMatch
-          ? { base: "yellow.50", _dark: "yellow.950/50" }
-          : level === "error"
-            ? { base: levelStyle.bg, _dark: levelStyle.darkBg }
-            : level === "warn"
-              ? { base: levelStyle.bg, _dark: levelStyle.darkBg }
-              : undefined
-      }
+          ? "bg-yellow-50 dark:bg-yellow-950/50"
+          : level === "error" || level === "warn"
+            ? levelStyle.bg
+            : ""
+      )}
       onClick={() => notifyModel("selectLine", { index: originalIndex, entry })}
     >
-      <Box
-        w="8"
-        color="fg.muted"
-        textAlign="right"
-        pr="2"
-        userSelect="none"
-        flexShrink={0}
-      >
+      <span className="w-8 text-fg-muted text-right pr-2 select-none shrink-0">
         {originalIndex + 1}
-      </Box>
+      </span>
       {entry.timestamp && (
-        <Box color="fg.muted" mr="2" flexShrink={0}>
+        <span className="text-fg-muted mr-2 shrink-0">
           {entry.timestamp}
-        </Box>
+        </span>
       )}
-      <Box
-        mr="2"
-        fontWeight="medium"
-        flexShrink={0}
-        w="12"
-        color={{ base: levelStyle.color, _dark: levelStyle.darkColor }}
-      >
+      <span className={cx("mr-2 font-medium shrink-0 w-12", levelStyle.text)}>
         {level.toUpperCase().padEnd(5)}
-      </Box>
-      <Box whiteSpace="pre-wrap" css={{ wordBreak: "break-all" }}>
+      </span>
+      <span className="whitespace-pre-wrap break-all">
         <HighlightedText text={entry.message} search={searchTerm} />
-      </Box>
-    </Flex>
+      </span>
+    </div>
+  );
+}
+
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={cx("animate-spin h-5 w-5", className)}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
   );
 }
 
@@ -341,8 +335,8 @@ function LogViewer() {
     });
   }, []);
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const handleSearchChange = useCallback((e: Event) => {
+    const value = (e.target as HTMLInputElement).value;
     setSearchTerm(value);
     notifyModel("filterText", { text: value });
   }, []);
@@ -404,228 +398,142 @@ function LogViewer() {
 
   if (loading) {
     return (
-      <Flex
-        fontFamily="mono"
-        fontSize="xs"
-        color="fg.default"
-        bg="bg.canvas"
-        flexDirection="column"
-        maxH="400px"
-        border="1px solid"
-        borderColor="border.default"
-        rounded="lg"
-        overflow="hidden"
-        p="4"
-        justify="center"
-        align="center"
-      >
-        <Spinner size="md" />
-        <Box mt="2" color="fg.muted">Loading logs...</Box>
-      </Flex>
+      <div className="font-mono text-xs text-fg-default bg-bg-canvas flex flex-col max-h-[400px] border border-border-default rounded-lg overflow-hidden p-4 justify-center items-center">
+        <Spinner />
+        <div className="mt-2 text-fg-muted">Loading logs...</div>
+      </div>
     );
   }
 
   if (!data?.logs?.length) {
     return (
-      <Flex
-        fontFamily="mono"
-        fontSize="xs"
-        color="fg.default"
-        bg="bg.canvas"
-        flexDirection="column"
-        maxH="400px"
-        border="1px solid"
-        borderColor="border.default"
-        rounded="lg"
-        overflow="hidden"
-        p="4"
-        justify="center"
-        align="center"
-      >
-        <Box color="fg.muted">No logs</Box>
-      </Flex>
+      <div className="font-mono text-xs text-fg-default bg-bg-canvas flex flex-col max-h-[400px] border border-border-default rounded-lg overflow-hidden p-4 justify-center items-center">
+        <div className="text-fg-muted">No logs</div>
+      </div>
     );
   }
 
   const levels: LogLevel[] = ["error", "warn", "info", "debug"];
 
   return (
-    <VStack
-      fontFamily="mono"
-      fontSize="xs"
-      color="fg.default"
-      bg="bg.canvas"
-      maxH="400px"
-      border="1px solid"
-      borderColor="border.default"
-      rounded="lg"
-      overflow="hidden"
-      gap="0"
-    >
+    <div className="font-mono text-xs text-fg-default bg-bg-canvas flex flex-col max-h-[400px] border border-border-default rounded-lg overflow-hidden">
       {/* Header */}
-      <Flex
-        justify="space-between"
-        align="center"
-        p="2"
-        bg="bg.subtle"
-        borderBottom="1px solid"
-        borderColor="border.default"
-        w="full"
-        flexWrap="wrap"
-        gap="2"
-      >
-        <Flex align="center" gap="2">
+      <div className="flex justify-between items-center p-2 bg-bg-subtle border-b border-border-default w-full flex-wrap gap-2">
+        <div className="flex items-center gap-2">
           {data.title && (
-            <Box as="h3" fontSize="sm" fontWeight="semibold" fontFamily="sans" m="0">
+            <h3 className="text-sm font-semibold font-sans m-0">
               {data.title}
-            </Box>
+            </h3>
           )}
-        </Flex>
+        </div>
 
-        <HStack gap="2">
+        <div className="flex items-center gap-2">
           {/* Search input with clear button */}
-          <Flex
-            align="center"
-            bg="bg.canvas"
-            border="1px solid"
-            borderColor="border.default"
-            rounded="md"
-            px="2"
-            gap="1"
-            _focusWithin={{ borderColor: "blue.500", ring: "2px", ringColor: "blue.200" }}
-          >
-            <Box color="fg.muted" fontSize="sm" flexShrink={0}>&#128269;</Box>
-            <Input
+          <div className="flex items-center bg-bg-canvas border border-border-default rounded-md px-2 gap-1 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200">
+            <span className="text-fg-muted text-sm shrink-0">&#128269;</span>
+            <input
               ref={searchInputRef}
               type="text"
               placeholder="Search... (Ctrl+F)"
               value={searchTerm}
               onChange={handleSearchChange}
-              size="sm"
-              className={css({
-                border: "none",
-                bg: "transparent",
-                py: "1",
-                fontSize: "xs",
-                w: "140px",
-                _focus: { outline: "none", boxShadow: "none" },
-                _placeholder: { color: "fg.muted" },
-              })}
+              className="border-none bg-transparent py-1 text-xs w-[140px] focus:outline-none placeholder:text-fg-muted"
             />
             {searchTerm && (
-              <IconButton
-                variant="ghost"
-                size="xs"
+              <button
                 onClick={clearSearch}
                 title="Clear search (Esc)"
+                className="p-0.5 text-fg-muted hover:text-fg-default"
               >
                 x
-              </IconButton>
+              </button>
             )}
-          </Flex>
+          </div>
 
           {/* Auto-scroll toggle */}
-          <IconButton
-            variant={autoScroll ? "solid" : "outline"}
-            size="sm"
+          <button
             onClick={toggleAutoScroll}
             title={autoScroll ? "Auto-scroll ON" : "Auto-scroll OFF"}
+            className={cx(
+              "p-1.5 rounded border text-sm",
+              autoScroll
+                ? "bg-blue-600 text-white border-blue-600"
+                : "bg-transparent text-fg-default border-border-default hover:bg-bg-subtle"
+            )}
           >
             {autoScroll ? "\u2193" : "\u2016"}
-          </IconButton>
+          </button>
 
           {/* Export button */}
-          <IconButton
-            variant={copyStatus === "copied" ? "solid" : "outline"}
-            size="sm"
+          <button
             onClick={handleExport}
             title="Copy filtered logs to clipboard"
-            className={
+            className={cx(
+              "p-1.5 rounded border text-sm",
               copyStatus === "copied"
-                ? css({
-                    bg: { base: "green.100", _dark: "green.900" },
-                    borderColor: { base: "green.400", _dark: "green.600" },
-                    color: { base: "green.700", _dark: "green.300" },
-                  })
-                : undefined
-            }
+                ? "bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-600 text-green-700 dark:text-green-300"
+                : "bg-transparent text-fg-default border-border-default hover:bg-bg-subtle"
+            )}
           >
             {copyStatus === "copied" ? "\u2713" : "\u2398"}
-          </IconButton>
-        </HStack>
-      </Flex>
+          </button>
+        </div>
+      </div>
 
       {/* Level filters with counts */}
-      <Flex gap="1" px="2" py="1.5" bg="bg.canvas" borderBottom="1px solid" borderColor="border.subtle" flexWrap="wrap" w="full">
+      <div className="flex gap-1 px-2 py-1.5 bg-bg-canvas border-b border-border-subtle flex-wrap w-full">
         <Button variant="ghost" size="xs" onClick={showAllLevels} title="Show all levels">
           All
         </Button>
         {levels.map((level) => {
           const levelStyle = levelColors[level];
           return (
-            <Button
+            <button
               key={level}
-              variant={levelFilter.has(level) ? "outline" : "ghost"}
-              size="xs"
-              className={css({
-                display: "flex",
-                alignItems: "center",
-                gap: "1.5",
-                opacity: levelFilter.has(level) ? 1 : 0.5,
-                fontWeight: levelFilter.has(level) ? "medium" : "normal",
-                transition: "all 0.15s",
-                _hover: { opacity: 0.8 },
-                color: { base: levelStyle.color, _dark: levelStyle.darkColor },
-              })}
               onClick={() => toggleLevel(level)}
               onDoubleClick={() => showOnlyLevel(level)}
               title={`Toggle ${level} (double-click to show only)`}
+              className={cx(
+                "flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all",
+                levelFilter.has(level) ? "opacity-100 font-medium" : "opacity-50 font-normal",
+                "hover:opacity-80",
+                levelStyle.text
+              )}
             >
-              <Box textTransform="uppercase" letterSpacing="0.02em">
+              <span className="uppercase tracking-wide">
                 {level.toUpperCase()}
-              </Box>
-              <Badge variant="outline" size="sm">
+              </span>
+              <span className="px-1.5 py-0.5 text-[10px] bg-bg-subtle text-fg-muted rounded-full border border-border-subtle">
                 {levelCounts[level]}
-              </Badge>
-            </Button>
+              </span>
+            </button>
           );
         })}
-      </Flex>
+      </div>
 
       {/* Stats bar */}
-      <Flex
-        justify="space-between"
-        align="center"
-        px="2"
-        py="1"
-        fontSize="xs"
-        color="fg.muted"
-        bg="bg.subtle"
-        borderBottom="1px solid"
-        borderColor="border.subtle"
-        w="full"
-      >
+      <div className="flex justify-between items-center px-2 py-1 text-xs text-fg-muted bg-bg-subtle border-b border-border-subtle w-full">
         <span>
           {filteredLogs.length} / {parsedLogs.length} lines
         </span>
         {searchTerm && (
-          <Box color={{ base: "yellow.700", _dark: "yellow.400" }} fontWeight="medium">
+          <span className="text-yellow-700 dark:text-yellow-400 font-medium">
             {matchCount} match{matchCount !== 1 ? "es" : ""} for "{searchTerm}"
-          </Box>
+          </span>
         )}
-      </Flex>
+      </div>
 
       {/* Log content */}
-      <Box flex="1" overflowY="auto" overflowX="auto" w="full" ref={containerRef}>
+      <div className="flex-1 overflow-y-auto overflow-x-auto w-full" ref={containerRef}>
         {filteredLogs.length === 0 ? (
-          <VStack gap="2" p="4" color="fg.muted" textAlign="center">
+          <div className="flex flex-col gap-2 p-4 text-fg-muted text-center items-center">
             <span>No logs match the current filters</span>
             {searchTerm && (
-              <Button variant="subtle" size="sm" onClick={clearSearch}>
+              <Button variant="ghost" size="sm" onClick={clearSearch}>
                 Clear search
               </Button>
             )}
-          </VStack>
+          </div>
         ) : (
           filteredLogs.map(({ entry, originalIndex }, i) => (
             <LogLine
@@ -637,8 +545,8 @@ function LogViewer() {
             />
           ))
         )}
-      </Box>
-    </VStack>
+      </div>
+    </div>
   );
 }
 
@@ -646,4 +554,4 @@ function LogViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<LogViewer />);
+render(<LogViewer />, document.getElementById("app")!);

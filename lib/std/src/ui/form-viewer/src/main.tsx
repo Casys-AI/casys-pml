@@ -9,11 +9,10 @@
  * @module lib/std/src/ui/form-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, VStack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import * as Checkbox from "../../components/ui/checkbox";
@@ -67,39 +66,20 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 }
 
 // ============================================================================
-// Styles (minimal)
+// Styles
 // ============================================================================
 
-const inputErrorStyle = css({
-  borderColor: "red.500!",
-  _focus: { borderColor: "red.500!", shadow: "0 0 0 3px token(colors.red.500/20)!" },
-});
+const inputErrorClass = "border-red-500 focus:border-red-500 focus:ring-red-500/20";
 
-const textareaStyle = css({
-  p: "2",
-  border: "1px solid",
-  borderColor: "border.default",
-  rounded: "md",
-  bg: "bg.default",
-  color: "fg.default",
-  fontSize: "sm",
-  outline: "none",
-  resize: "vertical",
-  _focus: { borderColor: "border.accent", shadow: "0 0 0 3px token(colors.blue.500/20)" },
-});
+const textareaClass = cx(
+  "p-2 border border-border-default rounded-md bg-bg-canvas text-fg-default text-sm",
+  "outline-none resize-y focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+);
 
-const selectStyle = css({
-  p: "2",
-  border: "1px solid",
-  borderColor: "border.default",
-  rounded: "md",
-  bg: "bg.default",
-  color: "fg.default",
-  fontSize: "sm",
-  outline: "none",
-  cursor: "pointer",
-  _focus: { borderColor: "border.accent", shadow: "0 0 0 3px token(colors.blue.500/20)" },
-});
+const selectClass = cx(
+  "p-2 border border-border-default rounded-md bg-bg-canvas text-fg-default text-sm",
+  "outline-none cursor-pointer focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+);
 
 // ============================================================================
 // Field Components
@@ -121,16 +101,16 @@ function TextField({
   const isTextarea = schema.maxLength && schema.maxLength > 100;
 
   return (
-    <VStack gap="1" alignItems="stretch">
-      <Box as="label" fontWeight="medium" color="fg.default" display="flex" flexDirection="column" gap="0.5">
+    <div className="flex flex-col gap-1">
+      <label className="font-medium text-fg-default flex flex-col gap-0.5">
         {schema.title || name}
         {schema.description && (
-          <Box as="span" fontSize="xs" color="fg.muted" fontWeight="normal">{schema.description}</Box>
+          <span className="text-xs text-fg-muted font-normal">{schema.description}</span>
         )}
-      </Box>
+      </label>
       {isTextarea ? (
         <textarea
-          className={`${textareaStyle} ${error ? inputErrorStyle : ""}`}
+          className={cx(textareaClass, error && inputErrorClass)}
           value={value}
           onChange={(e) => onChange((e.target as HTMLTextAreaElement).value)}
           placeholder={schema.default as string || ""}
@@ -145,11 +125,11 @@ function TextField({
           minLength={schema.minLength}
           maxLength={schema.maxLength}
           pattern={schema.pattern}
-          className={error ? inputErrorStyle : undefined}
+          className={error ? inputErrorClass : undefined}
         />
       )}
-      {error && <Box fontSize="xs" color={{ base: "red.600", _dark: "red.400" }}>{error}</Box>}
-    </VStack>
+      {error && <div className="text-xs text-red-600 dark:text-red-400">{error}</div>}
+    </div>
   );
 }
 
@@ -167,11 +147,11 @@ function NumberField({
   error?: string;
 }) {
   return (
-    <VStack gap="1" alignItems="stretch">
-      <Box as="label" fontWeight="medium" color="fg.default" display="flex" flexDirection="column" gap="0.5">
+    <div className="flex flex-col gap-1">
+      <label className="font-medium text-fg-default flex flex-col gap-0.5">
         {schema.title || name}
-        {schema.description && <Box as="span" fontSize="xs" color="fg.muted" fontWeight="normal">{schema.description}</Box>}
-      </Box>
+        {schema.description && <span className="text-xs text-fg-muted font-normal">{schema.description}</span>}
+      </label>
       <Input
         type="number"
         value={value}
@@ -182,10 +162,10 @@ function NumberField({
         min={schema.minimum}
         max={schema.maximum}
         placeholder={schema.default !== undefined ? String(schema.default) : ""}
-        className={error ? inputErrorStyle : undefined}
+        className={error ? inputErrorClass : undefined}
       />
-      {error && <Box fontSize="xs" color={{ base: "red.600", _dark: "red.400" }}>{error}</Box>}
-    </VStack>
+      {error && <div className="text-xs text-red-600 dark:text-red-400">{error}</div>}
+    </div>
   );
 }
 
@@ -201,7 +181,7 @@ function BooleanField({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <VStack gap="1" alignItems="stretch">
+    <div className="flex flex-col gap-1">
       <Checkbox.Root
         checked={value}
         onCheckedChange={(details) => onChange(details.checked === true)}
@@ -212,8 +192,8 @@ function BooleanField({
         <Checkbox.Label>{schema.title || name}</Checkbox.Label>
         <Checkbox.HiddenInput />
       </Checkbox.Root>
-      {schema.description && <Box fontSize="xs" color="fg.muted">{schema.description}</Box>}
-    </VStack>
+      {schema.description && <div className="text-xs text-fg-muted">{schema.description}</div>}
+    </div>
   );
 }
 
@@ -231,13 +211,13 @@ function SelectField({
   error?: string;
 }) {
   return (
-    <VStack gap="1" alignItems="stretch">
-      <Box as="label" fontWeight="medium" color="fg.default" display="flex" flexDirection="column" gap="0.5">
+    <div className="flex flex-col gap-1">
+      <label className="font-medium text-fg-default flex flex-col gap-0.5">
         {schema.title || name}
-        {schema.description && <Box as="span" fontSize="xs" color="fg.muted" fontWeight="normal">{schema.description}</Box>}
-      </Box>
+        {schema.description && <span className="text-xs text-fg-muted font-normal">{schema.description}</span>}
+      </label>
       <select
-        className={`${selectStyle} ${error ? inputErrorStyle : ""}`}
+        className={cx(selectClass, error && inputErrorClass)}
         value={String(value)}
         onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
       >
@@ -248,8 +228,8 @@ function SelectField({
           </option>
         ))}
       </select>
-      {error && <Box fontSize="xs" color={{ base: "red.600", _dark: "red.400" }}>{error}</Box>}
-    </VStack>
+      {error && <div className="text-xs text-red-600 dark:text-red-400">{error}</div>}
+    </div>
   );
 }
 
@@ -326,35 +306,28 @@ function FormViewer() {
 
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="500px">
-        <Box p="10" textAlign="center" color="fg.muted">Loading form...</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas max-w-[500px]">
+        <div className="p-10 text-center text-fg-muted">Loading form...</div>
+      </div>
     );
   }
 
   if (!formData?.schema.properties) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="500px">
-        <Box p="10" textAlign="center" color="fg.muted">No form schema provided</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas max-w-[500px]">
+        <div className="p-10 text-center text-fg-muted">No form schema provided</div>
+      </div>
     );
   }
 
   if (submitted) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="500px">
-        <Flex
-          alignItems="center"
-          gap="2"
-          p="4"
-          bg={{ base: "green.50", _dark: "green.950" }}
-          color={{ base: "green.700", _dark: "green.300" }}
-          rounded="md"
-        >
-          <Box fontSize="sm" fontWeight="bold">OK</Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas max-w-[500px]">
+        <div className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 rounded-md">
+          <div className="text-sm font-bold">OK</div>
           Form submitted successfully
-        </Flex>
-      </Box>
+        </div>
+      </div>
     );
   }
 
@@ -362,14 +335,14 @@ function FormViewer() {
   const required = formData.schema.required || [];
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="500px">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas max-w-[500px]">
       {formData.title && (
-        <Box as="h2" fontSize="lg" fontWeight="semibold" mb="4" color="fg.default">
+        <h2 className="text-lg font-semibold mb-4 text-fg-default">
           {formData.title}
-        </Box>
+        </h2>
       )}
 
-      <VStack as="form" onSubmit={handleSubmit} gap="4" alignItems="stretch">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {Object.entries(properties).map(([name, schema]) => {
           const isRequired = required.includes(name);
           const value = values[name];
@@ -425,11 +398,11 @@ function FormViewer() {
           }
         })}
 
-        <Button type="submit" mt="2">
+        <Button type="submit" className="mt-2">
           {formData.submitLabel || "Submit"}
         </Button>
-      </VStack>
-    </Box>
+      </form>
+    </div>
   );
 }
 
@@ -455,4 +428,4 @@ function getDefaultValues(schema: JsonSchema): Record<string, unknown> {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<FormViewer />);
+render(<FormViewer />, document.getElementById("app")!);

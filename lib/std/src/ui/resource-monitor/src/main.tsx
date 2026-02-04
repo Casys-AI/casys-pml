@@ -12,11 +12,10 @@
  * @module lib/std/src/ui/resource-monitor
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect } from "react";
+import { render } from "preact";
+import { useState, useEffect } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Stack, Grid } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Badge } from "../../components/ui/badge";
 import "../../global.css";
 
@@ -107,7 +106,7 @@ function CircularGauge({ percent, label, size = 80 }: { percent: number; label: 
   const offset = circumference - (circumference * Math.min(100, percent)) / 100;
 
   return (
-    <Stack align="center" gap="1" position="relative">
+    <div class="flex flex-col items-center gap-1 relative">
       <svg viewBox={`0 0 ${size} ${size}`} style={{ width: size, height: size, display: "block" }}>
         {/* Background arc */}
         <circle
@@ -133,24 +132,18 @@ function CircularGauge({ percent, label, size = 80 }: { percent: number; label: 
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={offset}
           transform={`rotate(135 ${size / 2} ${size / 2})`}
-          className={css({ transition: "stroke-dashoffset 0.5s ease" })}
+          class="transition-all duration-500 ease-out"
         />
       </svg>
-      <Box
-        position="absolute"
-        top="50%"
-        left="50%"
-        transform="translate(-50%, -50%)"
-        textAlign="center"
-      >
-        <Box fontSize="lg" fontWeight="bold" fontFamily="mono" style={{ color }}>
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+        <div class="text-lg font-bold font-mono" style={{ color }}>
           {formatPercent(percent)}
-        </Box>
-      </Box>
-      <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide" mt="1">
+        </div>
+      </div>
+      <div class="text-xs text-fg-muted font-medium uppercase tracking-wide mt-1">
         {label}
-      </Box>
-    </Stack>
+      </div>
+    </div>
   );
 }
 
@@ -163,30 +156,28 @@ function ProgressBar({ percent, label, sublabel }: { percent: number; label: str
   const clampedPercent = Math.min(100, Math.max(0, percent));
 
   return (
-    <Box w="100%" minWidth="120px">
-      <Flex justify="space-between" align="baseline" mb="1">
-        <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
+    <div class="w-full min-w-[120px]">
+      <div class="flex justify-between items-baseline mb-1">
+        <div class="text-xs text-fg-muted font-medium uppercase tracking-wide">
           {label}
-        </Box>
-        <Box fontSize="sm" fontWeight="bold" fontFamily="mono" style={{ color }}>
+        </div>
+        <div class="text-sm font-bold font-mono" style={{ color }}>
           {formatPercent(percent)}
-        </Box>
-      </Flex>
-      <Box position="relative" h="8px" bg="bg.muted" rounded="full" overflow="hidden">
-        <Box
-          h="100%"
-          rounded="full"
-          transition="width 0.5s ease"
+        </div>
+      </div>
+      <div class="relative h-2 bg-bg-muted rounded-full overflow-hidden">
+        <div
+          class="h-full rounded-full transition-all duration-500 ease-out"
           style={{ width: `${clampedPercent}%`, backgroundColor: color }}
         />
         {/* Threshold markers */}
-        <Box position="absolute" top="0" bottom="0" left="70%" w="1px" bg="yellow.500" opacity="0.5" />
-        <Box position="absolute" top="0" bottom="0" left="90%" w="1px" bg="red.500" opacity="0.5" />
-      </Box>
+        <div class="absolute top-0 bottom-0 left-[70%] w-px bg-yellow-500 opacity-50" />
+        <div class="absolute top-0 bottom-0 left-[90%] w-px bg-red-500 opacity-50" />
+      </div>
       {sublabel && (
-        <Box fontSize="xs" color="fg.muted" mt="1" textAlign="center">{sublabel}</Box>
+        <div class="text-xs text-fg-muted mt-1 text-center">{sublabel}</div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -196,25 +187,25 @@ function ProgressBar({ percent, label, sublabel }: { percent: number; label: str
 
 function NetworkIO({ network }: { network: NonNullable<ResourceData["network"]> }) {
   return (
-    <Box p="2" bg="bg.muted" rounded="md" minWidth="100px">
-      <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide" mb="1">
+    <div class="p-2 bg-bg-muted rounded-md min-w-[100px]">
+      <div class="text-xs text-fg-muted font-medium uppercase tracking-wide mb-1">
         Network
-      </Box>
-      <Flex align="center" gap="2">
-        <Box fontSize="sm" color="fg.muted" fontWeight="bold">{"\u2193"}</Box>
-        <Box fontSize="xs" color="fg.muted" w="28px">RX</Box>
-        <Box fontSize="sm" fontWeight="semibold" fontFamily="mono" color="fg.default">
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="text-sm text-fg-muted font-bold">{"\u2193"}</div>
+        <div class="text-xs text-fg-muted w-7">RX</div>
+        <div class="text-sm font-semibold font-mono text-fg-default">
           {network.rxRate !== undefined ? formatRate(network.rxRate) : formatBytes(network.rxBytes)}
-        </Box>
-      </Flex>
-      <Flex align="center" gap="2">
-        <Box fontSize="sm" color="fg.muted" fontWeight="bold">{"\u2191"}</Box>
-        <Box fontSize="xs" color="fg.muted" w="28px">TX</Box>
-        <Box fontSize="sm" fontWeight="semibold" fontFamily="mono" color="fg.default">
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="text-sm text-fg-muted font-bold">{"\u2191"}</div>
+        <div class="text-xs text-fg-muted w-7">TX</div>
+        <div class="text-sm font-semibold font-mono text-fg-default">
           {network.txRate !== undefined ? formatRate(network.txRate) : formatBytes(network.txBytes)}
-        </Box>
-      </Flex>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -224,23 +215,23 @@ function NetworkIO({ network }: { network: NonNullable<ResourceData["network"]> 
 
 function BlockIO({ blockIO }: { blockIO: NonNullable<ResourceData["blockIO"]> }) {
   return (
-    <Box p="2" bg="bg.muted" rounded="md" minWidth="100px">
-      <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide" mb="1">
+    <div class="p-2 bg-bg-muted rounded-md min-w-[100px]">
+      <div class="text-xs text-fg-muted font-medium uppercase tracking-wide mb-1">
         Block I/O
-      </Box>
-      <Flex align="center" gap="2">
-        <Box fontSize="xs" color="fg.muted" w="28px">Read</Box>
-        <Box fontSize="sm" fontWeight="semibold" fontFamily="mono" color="fg.default">
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="text-xs text-fg-muted w-7">Read</div>
+        <div class="text-sm font-semibold font-mono text-fg-default">
           {formatBytes(blockIO.read)}
-        </Box>
-      </Flex>
-      <Flex align="center" gap="2">
-        <Box fontSize="xs" color="fg.muted" w="28px">Write</Box>
-        <Box fontSize="sm" fontWeight="semibold" fontFamily="mono" color="fg.default">
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="text-xs text-fg-muted w-7">Write</div>
+        <div class="text-sm font-semibold font-mono text-fg-default">
           {formatBytes(blockIO.write)}
-        </Box>
-      </Flex>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -284,37 +275,30 @@ function ResourceCard({ resource, history }: { resource: ResourceData; history?:
   const memorySublabel = `${memoryUsed} / ${memoryLimit}`;
 
   return (
-    <Box
-      p="3"
-      bg="bg.subtle"
-      border="1px solid"
-      borderColor="border.default"
-      rounded="lg"
-      cursor="pointer"
-      transition="all 0.15s"
-      _hover={{ borderColor: "border.emphasized", shadow: "sm" }}
+    <div
+      class="p-3 bg-bg-subtle border border-border-default rounded-lg cursor-pointer transition-all duration-150 hover:border-border-emphasized hover:shadow-sm"
       onClick={() => notifyModel("selectResource", { name: resource.name, resource })}
     >
       {/* Header */}
-      <Flex justify="space-between" align="center" mb="3" pb="2" borderBottom="1px solid" borderColor="border.subtle">
-        <Box fontSize="md" fontWeight="semibold" fontFamily="mono">{resource.name}</Box>
+      <div class="flex justify-between items-center mb-3 pb-2 border-b border-border-subtle">
+        <div class="text-base font-semibold font-mono">{resource.name}</div>
         {resource.cpu.cores && (
           <Badge size="sm" variant="outline">{resource.cpu.cores} cores</Badge>
         )}
-      </Flex>
+      </div>
 
       {/* Metrics Grid */}
-      <Grid gridTemplateColumns="repeat(auto-fit, minmax(120px, 1fr))" gap="4">
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-4">
         {/* CPU Section */}
-        <Stack align="center" gap="2">
+        <div class="flex flex-col items-center gap-2">
           <CircularGauge percent={resource.cpu.percent} label="CPU" />
           {history?.cpu && history.cpu.length > 1 && (
             <Sparkline data={history.cpu} color={getThresholdColor(resource.cpu.percent)} />
           )}
-        </Stack>
+        </div>
 
         {/* Memory Section */}
-        <Stack align="center" gap="2">
+        <div class="flex flex-col items-center gap-2">
           <ProgressBar
             percent={resource.memory.percent}
             label="Memory"
@@ -323,30 +307,30 @@ function ResourceCard({ resource, history }: { resource: ResourceData; history?:
           {history?.memory && history.memory.length > 1 && (
             <Sparkline data={history.memory} color={getThresholdColor(resource.memory.percent)} />
           )}
-        </Stack>
+        </div>
 
         {/* Network Section */}
         {resource.network && (
-          <Stack align="center" gap="2">
+          <div class="flex flex-col items-center gap-2">
             <NetworkIO network={resource.network} />
-          </Stack>
+          </div>
         )}
 
         {/* Block I/O Section */}
         {resource.blockIO && (
-          <Stack align="center" gap="2">
+          <div class="flex flex-col items-center gap-2">
             <BlockIO blockIO={resource.blockIO} />
-          </Stack>
+          </div>
         )}
-      </Grid>
+      </div>
 
       {/* Timestamp */}
       {resource.timestamp && (
-        <Box mt="2" pt="2" borderTop="1px solid" borderColor="border.subtle" fontSize="xs" color="fg.muted" textAlign="right">
+        <div class="mt-2 pt-2 border-t border-border-subtle text-xs text-fg-muted text-right">
           {new Date(resource.timestamp).toLocaleTimeString()}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -409,41 +393,41 @@ function ResourceMonitor() {
 
   if (loading) {
     return (
-      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="3" minWidth="320px">
-        <Box p="6" textAlign="center" color="fg.muted">Loading resources...</Box>
-      </Box>
+      <div class="font-sans text-sm text-fg-default bg-bg-canvas p-3 min-w-[320px]">
+        <div class="p-6 text-center text-fg-muted">Loading resources...</div>
+      </div>
     );
   }
 
   if (!data?.resources?.length) {
     return (
-      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="3" minWidth="320px">
-        <Box p="6" textAlign="center" color="fg.muted">No resources to monitor</Box>
-      </Box>
+      <div class="font-sans text-sm text-fg-default bg-bg-canvas p-3 min-w-[320px]">
+        <div class="p-6 text-center text-fg-muted">No resources to monitor</div>
+      </div>
     );
   }
 
   return (
-    <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="3" minWidth="320px">
+    <div class="font-sans text-sm text-fg-default bg-bg-canvas p-3 min-w-[320px]">
       {/* Header */}
       {(data.title || data.refreshInterval || data.timestamp) && (
-        <Flex justify="space-between" align="center" mb="3" pb="2" borderBottom="1px solid" borderColor="border.subtle">
-          {data.title && <Box as="h2" fontSize="lg" fontWeight="semibold" m="0">{data.title}</Box>}
-          <Flex align="center" gap="3">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b border-border-subtle">
+          {data.title && <h2 class="text-lg font-semibold m-0">{data.title}</h2>}
+          <div class="flex items-center gap-3">
             {data.refreshInterval && (
               <Badge size="sm" variant="outline">
                 {"\u21BB"} {data.refreshInterval}s
               </Badge>
             )}
             {data.timestamp && (
-              <Box fontSize="xs" color="fg.muted">{data.timestamp}</Box>
+              <div class="text-xs text-fg-muted">{data.timestamp}</div>
             )}
-          </Flex>
-        </Flex>
+          </div>
+        </div>
       )}
 
       {/* Resources List */}
-      <Stack gap="3">
+      <div class="flex flex-col gap-3">
         {data.resources.map((resource) => (
           <ResourceCard
             key={resource.name}
@@ -451,8 +435,8 @@ function ResourceMonitor() {
             history={historyMap.get(resource.name)}
           />
         ))}
-      </Stack>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -460,4 +444,4 @@ function ResourceMonitor() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<ResourceMonitor />);
+render(<ResourceMonitor />, document.getElementById("app")!);

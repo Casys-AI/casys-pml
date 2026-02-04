@@ -7,15 +7,16 @@
  * - Optional details/message
  * - Multiple statuses support
  *
+ * Stack: Preact + Tailwind CSS
+ *
  * @module lib/std/src/ui/status-badge
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect } from "react";
+import { render } from "preact";
+import { useState, useEffect } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, VStack, HStack, Circle } from "../../styled-system/jsx";
 import { Badge } from "../../components/ui/badge";
+import { cx } from "../../components/utils";
 import "../../global.css";
 
 // ============================================================================
@@ -81,35 +82,19 @@ const statusConfig: Record<StatusType, { icon: string; colorPalette: string }> =
 };
 
 const statusBgColors: Record<StatusType, string> = {
-  valid: "green.100",
-  invalid: "red.100",
-  warning: "yellow.100",
-  info: "blue.100",
-  pending: "gray.100",
-};
-
-const statusBgColorsDark: Record<StatusType, string> = {
-  valid: "green.900/50",
-  invalid: "red.900/50",
-  warning: "yellow.900/50",
-  info: "blue.900/50",
-  pending: "gray.800",
+  valid: "bg-green-100 dark:bg-green-900/50",
+  invalid: "bg-red-100 dark:bg-red-900/50",
+  warning: "bg-yellow-100 dark:bg-yellow-900/50",
+  info: "bg-blue-100 dark:bg-blue-900/50",
+  pending: "bg-gray-100 dark:bg-gray-800",
 };
 
 const statusTextColors: Record<StatusType, string> = {
-  valid: "green.700",
-  invalid: "red.700",
-  warning: "yellow.700",
-  info: "blue.700",
-  pending: "gray.600",
-};
-
-const statusTextColorsDark: Record<StatusType, string> = {
-  valid: "green.400",
-  invalid: "red.400",
-  warning: "yellow.400",
-  info: "blue.400",
-  pending: "gray.400",
+  valid: "text-green-700 dark:text-green-400",
+  invalid: "text-red-700 dark:text-red-400",
+  warning: "text-yellow-700 dark:text-yellow-400",
+  info: "text-blue-700 dark:text-blue-400",
+  pending: "text-gray-600 dark:text-gray-400",
 };
 
 // ============================================================================
@@ -129,55 +114,39 @@ function StatusItemCard({ item }: { item: StatusItem }) {
   };
 
   return (
-    <Flex
-      align="flex-start"
-      gap="2"
-      p="2"
-      bg="bg.subtle"
-      rounded="md"
-      cursor="pointer"
-      transition="background 0.15s"
-      _hover={{ bg: "bg.muted" }}
+    <div
+      className="flex items-start gap-2 p-2 bg-bg-subtle rounded-md cursor-pointer transition-colors duration-150 hover:bg-bg-muted"
       onClick={() => notifyModel("click", { status, label: item.label, value: item.value })}
     >
-      <Circle
-        size="24px"
-        flexShrink={0}
-        className={css({
-          bg: statusBgColors[status],
-          _dark: { bg: statusBgColorsDark[status] },
-        })}
+      <div
+        className={cx(
+          "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
+          statusBgColors[status]
+        )}
       >
-        <Box
-          fontSize="xs"
-          fontWeight="bold"
-          className={css({
-            color: statusTextColors[status],
-            _dark: { color: statusTextColorsDark[status] },
-          })}
-        >
+        <div className={cx("text-xs font-bold", statusTextColors[status])}>
           {config.icon}
-        </Box>
-      </Circle>
-      <Box flex="1" minW="0">
-        <HStack gap="2">
-          {item.label && <Box fontWeight="medium">{item.label}</Box>}
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex gap-2 items-center">
+          {item.label && <div className="font-medium">{item.label}</div>}
           <Badge size="sm" variant={variantMap[status]}>
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </Badge>
-        </HStack>
+        </div>
         {item.value !== undefined && (
-          <Box fontFamily="mono" fontSize="xs" color="fg.muted" mt="0.5" overflow="hidden" textOverflow="ellipsis">
+          <div className="font-mono text-xs text-fg-muted mt-0.5 overflow-hidden text-ellipsis">
             {String(item.value)}
-          </Box>
+          </div>
         )}
         {item.message && (
-          <Box fontSize="xs" color="fg.muted" mt="0.5">
+          <div className="text-xs text-fg-muted mt-0.5">
             {item.message}
-          </Box>
+          </div>
         )}
-      </Box>
-    </Flex>
+      </div>
+    </div>
   );
 }
 
@@ -224,17 +193,17 @@ function StatusBadge() {
 
   if (loading) {
     return (
-      <Box p="3" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Box color="fg.muted">...</Box>
-      </Box>
+      <div className="p-3 font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="text-fg-muted">...</div>
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <Box p="3" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Box color="fg.muted">No status</Box>
-      </Box>
+      <div className="p-3 font-sans text-sm text-fg-default bg-bg-canvas">
+        <div className="text-fg-muted">No status</div>
+      </div>
     );
   }
 
@@ -252,30 +221,30 @@ function StatusBadge() {
   const warningCount = items.filter(i => normalizeStatus(i.status) === "warning").length;
 
   return (
-    <Box p="3" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+    <div className="p-3 font-sans text-sm text-fg-default bg-bg-canvas">
       {/* Title */}
       {data.title && (
-        <Box fontSize="sm" fontWeight="semibold" mb="2">
+        <div className="text-sm font-semibold mb-2">
           {data.title}
-        </Box>
+        </div>
       )}
 
       {/* Summary for multiple items */}
       {items.length > 1 && (
-        <HStack gap="3" mb="2" fontSize="xs" fontWeight="medium">
-          {validCount > 0 && <Box color="green.600">{"\u2713"} {validCount}</Box>}
-          {invalidCount > 0 && <Box color="red.600">{"\u2717"} {invalidCount}</Box>}
-          {warningCount > 0 && <Box color="yellow.600">! {warningCount}</Box>}
-        </HStack>
+        <div className="flex gap-3 mb-2 text-xs font-medium">
+          {validCount > 0 && <div className="text-green-600">{"\u2713"} {validCount}</div>}
+          {invalidCount > 0 && <div className="text-red-600">{"\u2717"} {invalidCount}</div>}
+          {warningCount > 0 && <div className="text-yellow-600">! {warningCount}</div>}
+        </div>
       )}
 
       {/* Badges */}
-      <VStack gap="2">
+      <div className="flex flex-col gap-2">
         {items.map((item, i) => (
           <StatusItemCard key={i} item={item} />
         ))}
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -283,4 +252,4 @@ function StatusBadge() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<StatusBadge />);
+render(<StatusBadge />, document.getElementById("app")!);

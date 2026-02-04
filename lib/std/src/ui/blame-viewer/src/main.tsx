@@ -10,11 +10,10 @@
  * @module lib/std/src/ui/blame-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useRef } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import "../../global.css";
 
 // ============================================================================
@@ -120,44 +119,31 @@ function BlameAnnotation({ line, showFull, prevHash, onHover, onClick }: BlameAn
   const shortHash = line.commitHash.slice(0, 7);
 
   return (
-    <Flex
-      align="center"
-      gap="2"
-      w="220px"
-      minW="220px"
-      px="2"
-      py="0.5"
-      fontFamily="sans-serif"
-      fontSize="xs"
-      color="fg.muted"
-      bg="bg.subtle/50"
-      borderRight="1px solid"
-      borderColor="border.default"
-      cursor="pointer"
-      _hover={{ bg: "bg.muted" }}
+    <div
+      className="flex items-center gap-2 w-[220px] min-w-[220px] px-2 py-0.5 font-sans text-xs text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/50 border-r border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
       onMouseEnter={() => onHover(line)}
       onMouseLeave={() => onHover(null)}
       onClick={() => onClick(line)}
     >
       {isNewCommit || showFull ? (
         <>
-          <span className={css({ fontFamily: "mono", fontSize: "10px", color: "blue.600", _dark: { color: "blue.400" }, minW: "60px" })}>
+          <span className="font-mono text-[10px] text-blue-600 dark:text-blue-400 min-w-[60px]">
             {shortHash}
           </span>
           <span
-            className={css({ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minW: "70px", maxW: "90px" })}
+            className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap min-w-[70px] max-w-[90px]"
             title={line.author}
           >
             {line.author.split(" ")[0].slice(0, 10)}
           </span>
-          <span className={css({ color: "fg.subtle", fontSize: "10px", minW: "50px", textAlign: "right" })}>
+          <span className="text-gray-400 dark:text-gray-500 text-[10px] min-w-[50px] text-right">
             {formatRelativeTime(line.timestamp)}
           </span>
         </>
       ) : (
-        <span className={css({ h: "100%" })} />
+        <span className="h-full" />
       )}
-    </Flex>
+    </div>
   );
 }
 
@@ -168,38 +154,29 @@ interface CommitPopupProps {
 
 function CommitPopup({ line, position }: CommitPopupProps) {
   return (
-    <Box
-      position="fixed"
-      zIndex={100}
-      w="300px"
-      p="3"
-      bg="bg.default"
-      border="1px solid"
-      borderColor="border.default"
-      rounded="lg"
-      shadow="lg"
-      pointerEvents="none"
+    <div
+      className="fixed z-[100] w-[300px] p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg pointer-events-none"
       style={{
         top: `${position.y + 10}px`,
         left: `${Math.min(position.x, window.innerWidth - 320)}px`,
       }}
     >
-      <Flex justify="space-between" align="center" mb="2" pb="2" borderBottom="1px solid" borderColor="border.subtle">
-        <span className={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600", _dark: { color: "blue.400" } })}>
+      <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100 dark:border-gray-800">
+        <span className="font-mono text-xs text-blue-600 dark:text-blue-400">
           {line.commitHash.slice(0, 10)}
         </span>
-        <span className={css({ fontSize: "xs", color: "fg.muted" })}>{formatFullDate(line.timestamp)}</span>
-      </Flex>
-      <Box fontSize="sm" mb="2">
+        <span className="text-xs text-gray-500 dark:text-gray-400">{formatFullDate(line.timestamp)}</span>
+      </div>
+      <div className="text-sm mb-2">
         <strong>{line.author}</strong>
         {line.authorEmail && (
-          <span className={css({ ml: "1", fontSize: "xs", color: "fg.muted" })}>&lt;{line.authorEmail}&gt;</span>
+          <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">&lt;{line.authorEmail}&gt;</span>
         )}
-      </Box>
-      <Box fontSize="sm" color="fg.default" lineHeight="1.4" wordBreak="break-word">
+      </div>
+      <div className="text-sm text-gray-900 dark:text-gray-100 leading-[1.4] break-words">
         {line.summary}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -289,73 +266,57 @@ function BlameViewer() {
   // Render states
   if (loading) {
     return (
-      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
-        <Box p="10" textAlign="center" color="fg.muted">Loading blame data...</Box>
-      </Box>
+      <div className="font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen relative">
+        <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading blame data...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
-        <Box p="4" bg="red.50" color="red.700" rounded="md" m="4" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
-      </Box>
+      <div className="font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen relative">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md m-4">{error}</div>
+      </div>
     );
   }
 
   if (!blameData?.lines || blameData.lines.length === 0) {
     return (
-      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
-        <Box p="10" textAlign="center" color="fg.muted">No blame data to display</Box>
-      </Box>
+      <div className="font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen relative">
+        <div className="p-10 text-center text-gray-500 dark:text-gray-400">No blame data to display</div>
+      </div>
     );
   }
 
   return (
-    <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative" ref={containerRef}>
+    <div className="font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-screen relative" ref={containerRef}>
       {/* Header */}
-      <Flex
-        position="sticky"
-        top="0"
-        zIndex={10}
-        justify="space-between"
-        align="center"
-        p="3"
-        bg="bg.subtle"
-        borderBottom="1px solid"
-        borderColor="border.default"
-      >
-        <Flex align="center" gap="3">
-          <span className={css({ fontWeight: "semibold", fontFamily: "mono", color: "fg.default" })}>{blameData.file}</span>
-          <span className={css({ fontSize: "xs", color: "fg.muted" })}>
+      <div className="sticky top-0 z-10 flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-3">
+          <span className="font-semibold font-mono text-gray-900 dark:text-gray-100">{blameData.file}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {blameData.totalLines} lines | {stats.commits} commits | {stats.authors.size} authors
           </span>
-        </Flex>
-      </Flex>
+        </div>
+      </div>
 
       {/* Blame content */}
-      <Box overflow="auto">
-        <Box minW="fit-content">
+      <div className="overflow-auto">
+        <div className="min-w-fit">
           {blameData.lines.map((line, idx) => {
             const prevHash = idx > 0 ? blameData.lines[idx - 1].commitHash : null;
             const isSelected = selectedLine === line.lineNumber;
+            const isDark = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
             return (
-              <Flex
+              <div
                 key={line.lineNumber}
-                minH="22px"
-                borderBottom="1px solid"
-                borderColor="border.subtle"
-                _hover={{ filter: "brightness(0.97)", _dark: { filter: "brightness(1.1)" } }}
-                className={css(isSelected && { outline: "2px solid", outlineColor: "blue.500", outlineOffset: "-2px" })}
+                className={cx(
+                  "flex min-h-[22px] border-b border-gray-100 dark:border-gray-800 hover:brightness-[0.97] dark:hover:brightness-110",
+                  isSelected && "outline outline-2 outline-blue-500 outline-offset-[-2px]"
+                )}
                 style={{
-                  background: `var(--commit-color)`,
-                  // @ts-expect-error CSS custom properties
-                  "--commit-color": hashToColor(line.commitHash),
-                }}
-                _dark={{
-                  // @ts-expect-error CSS custom properties
-                  "--commit-color": hashToColorDark(line.commitHash),
+                  background: isDark ? hashToColorDark(line.commitHash) : hashToColor(line.commitHash),
                 }}
               >
                 {/* Annotation column */}
@@ -368,46 +329,26 @@ function BlameViewer() {
                 />
 
                 {/* Line number */}
-                <Box
-                  w="50px"
-                  minW="50px"
-                  px="2"
-                  py="0.5"
-                  textAlign="right"
-                  fontFamily="mono"
-                  fontSize="xs"
-                  color="fg.muted"
-                  bg="bg.subtle/30"
-                  borderRight="1px solid"
-                  borderColor="border.subtle"
-                  userSelect="none"
-                >
+                <div className="w-[50px] min-w-[50px] px-2 py-0.5 text-right font-mono text-xs text-gray-500 dark:text-gray-400 bg-gray-100/30 dark:bg-gray-800/30 border-r border-gray-100 dark:border-gray-800 select-none">
                   {line.lineNumber}
-                </Box>
+                </div>
 
                 {/* Code content */}
-                <Box
-                  flex="1"
-                  px="3"
-                  py="0.5"
-                  fontFamily="mono"
-                  fontSize="13px"
-                  whiteSpace="pre"
-                  cursor="text"
-                  userSelect="text"
+                <div
+                  className="flex-1 px-3 py-0.5 font-mono text-[13px] whitespace-pre cursor-text select-text"
                   onClick={() => handleLineClick(line)}
                 >
                   {line.content || " "}
-                </Box>
-              </Flex>
+                </div>
+              </div>
             );
           })}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* Commit popup on hover */}
       {hoveredLine && <CommitPopup line={hoveredLine} position={popupPosition} />}
-    </Box>
+    </div>
   );
 }
 
@@ -415,4 +356,4 @@ function BlameViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<BlameViewer />);
+render(<BlameViewer />, document.getElementById("app")!);

@@ -11,11 +11,10 @@
  * @module lib/std/src/ui/word-cloud
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useRef } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import "../../global.css";
 
@@ -228,7 +227,7 @@ function WordCloudSVG({
   }, [words, dimensions.width, dimensions.height, colorScheme, maxWords]);
 
   return (
-    <Box ref={containerRef} w="full" h="400px">
+    <div ref={containerRef} className="w-full h-[400px]">
       <svg width={dimensions.width} height={dimensions.height} style={{ display: "block" }}>
         {placedWords.map((pw, i) => (
           <g key={i}>
@@ -240,7 +239,7 @@ function WordCloudSVG({
               fontWeight={selectedWord === pw.word ? "bold" : "normal"}
               fill={pw.color}
               opacity={selectedWord && selectedWord !== pw.word ? 0.4 : 1}
-              className={css({ cursor: "pointer", transition: "opacity 0.2s ease", userSelect: "none", _hover: { opacity: "0.7 !important" } })}
+              className="cursor-pointer transition-opacity duration-200 select-none hover:opacity-70"
               onClick={() => {
                 onWordClick(pw.word);
                 notifyModel("select", { word: pw.word, count: pw.count, percentage: pw.percentage });
@@ -255,7 +254,7 @@ function WordCloudSVG({
           </g>
         ))}
       </svg>
-    </Box>
+    </div>
   );
 }
 
@@ -305,25 +304,25 @@ function WordCloud() {
 
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px">
-        <Box p="10" textAlign="center" color="fg.muted">Loading word cloud...</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-[400px]">
+        <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading word cloud...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px">
-        <Box p="4" bg="red.50" color="red.700" rounded="md" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-[400px]">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">{error}</div>
+      </div>
     );
   }
 
   if (!data || !data.words || data.words.length === 0) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px">
-        <Box p="10" textAlign="center" color="fg.muted">No words to display</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-[400px]">
+        <div className="p-10 text-center text-gray-500 dark:text-gray-400">No words to display</div>
+      </div>
     );
   }
 
@@ -335,16 +334,16 @@ function WordCloud() {
     : null;
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px">
+    <div className="p-4 font-sans text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 min-h-[400px]">
       {/* Header */}
       {title && (
-        <Box mb="4">
-          <Box as="h2" fontSize="lg" fontWeight="semibold" m="0">{title}</Box>
-        </Box>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold m-0">{title}</h2>
+        </div>
       )}
 
       {/* Word Cloud */}
-      <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden" bg="bg.default" minH="300px">
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900 min-h-[300px]">
         <WordCloudSVG
           words={words}
           colorScheme={colorScheme}
@@ -352,30 +351,30 @@ function WordCloud() {
           selectedWord={selectedWord}
           onWordClick={handleWordClick}
         />
-      </Box>
+      </div>
 
       {/* Selected Word Info */}
       {selectedWordInfo && (
-        <Flex mt="4" p="3" bg="bg.subtle" rounded="lg" align="center" gap="3" flexWrap="wrap">
-          <Box fontWeight="bold" fontSize="md">{selectedWordInfo.word}</Box>
-          <Box color="fg.muted" fontFamily="mono">Count: {selectedWordInfo.count}</Box>
+        <div className="flex mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg items-center gap-3 flex-wrap">
+          <div className="font-bold text-base">{selectedWordInfo.word}</div>
+          <div className="text-gray-500 dark:text-gray-400 font-mono">Count: {selectedWordInfo.count}</div>
           {selectedWordInfo.percentage !== undefined && (
-            <Box color="fg.muted">({selectedWordInfo.percentage.toFixed(1)}%)</Box>
+            <div className="text-gray-500 dark:text-gray-400">({selectedWordInfo.percentage.toFixed(1)}%)</div>
           )}
-          <Button variant="outline" size="xs" onClick={() => setSelectedWord(null)} className={css({ ml: "auto" })}>
+          <Button variant="outline" size="xs" onClick={() => setSelectedWord(null)} className="ml-auto">
             Clear
           </Button>
-        </Flex>
+        </div>
       )}
 
       {/* Stats */}
-      <Box mt="3" fontSize="xs" color="fg.muted" textAlign="center">
+      <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 text-center">
         <span>{Math.min(words.length, maxWords)} words displayed</span>
         {words.length > maxWords && (
-          <span className={css({ ml: "1", fontStyle: "italic" })}>(truncated from {words.length})</span>
+          <span className="ml-1 italic">(truncated from {words.length})</span>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -383,4 +382,4 @@ function WordCloud() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<WordCloud />);
+render(<WordCloud />, document.getElementById("app")!);

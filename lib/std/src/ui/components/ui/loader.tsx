@@ -1,69 +1,73 @@
-'use client'
-import { forwardRef } from 'react'
-import type { HTMLStyledProps } from 'styled-system/jsx'
-import { AbsoluteCenter } from './absolute-center'
-import { Span } from './span'
-import { Spinner } from './spinner'
+import { ComponentChildren, JSX } from "preact";
+import { cx } from "../utils";
+import { Spinner } from "./spinner";
 
-export interface LoaderProps extends HTMLStyledProps<'span'> {
+export interface LoaderProps extends JSX.HTMLAttributes<HTMLSpanElement> {
   /**
    * Whether the loader is visible
    * @default true
    */
-  visible?: boolean | undefined
+  visible?: boolean;
   /**
    * The spinner to display when loading
    */
-  spinner?: React.ReactNode | undefined
+  spinner?: ComponentChildren;
   /**
    * The placement of the spinner
    * @default "start"
    */
-  spinnerPlacement?: 'start' | 'end' | undefined
+  spinnerPlacement?: "start" | "end";
   /**
    * The text to display when loading
    */
-  text?: React.ReactNode | undefined
-
-  children?: React.ReactNode
+  text?: ComponentChildren;
+  /**
+   * Children to wrap/replace when loading
+   */
+  children?: ComponentChildren;
 }
 
-export const Loader = forwardRef<HTMLSpanElement, LoaderProps>(function Loader(props, ref) {
-  const {
-    spinner = <Spinner size="inherit" borderWidth="0.125em" color="inherit" />,
-    spinnerPlacement = 'start',
-    children,
-    text,
-    visible = true,
-    ...rest
-  } = props
-
-  if (!visible) return children
+export function Loader({
+  spinner = <Spinner size="inherit" borderWidth="0.125em" />,
+  spinnerPlacement = "start",
+  children,
+  text,
+  visible = true,
+  className,
+  ...rest
+}: LoaderProps) {
+  if (!visible) {
+    return <>{children}</>;
+  }
 
   if (text) {
     return (
-      <Span ref={ref} display="contents" {...rest}>
-        {spinnerPlacement === 'start' && spinner}
+      <span className={cx("contents", className)} {...rest}>
+        {spinnerPlacement === "start" && spinner}
         {text}
-        {spinnerPlacement === 'end' && spinner}
-      </Span>
-    )
+        {spinnerPlacement === "end" && spinner}
+      </span>
+    );
   }
 
   if (spinner) {
     return (
-      <Span ref={ref} display="contents" {...rest}>
-        <AbsoluteCenter display="inline-flex">{spinner}</AbsoluteCenter>
-        <Span visibility="hidden" display="contents">
+      <span className={cx("relative inline-flex items-center justify-center", className)} {...rest}>
+        <span className="absolute inset-0 flex items-center justify-center">
+          {spinner}
+        </span>
+        <span className="invisible contents">
           {children}
-        </Span>
-      </Span>
-    )
+        </span>
+      </span>
+    );
   }
 
   return (
-    <Span ref={ref} display="contents" {...rest}>
+    <span className={cx("contents", className)} {...rest}>
       {children}
-    </Span>
-  )
-})
+    </span>
+  );
+}
+
+export type LoaderProps_Alias = LoaderProps;

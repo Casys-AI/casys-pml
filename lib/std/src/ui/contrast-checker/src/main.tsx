@@ -1,7 +1,7 @@
 /**
  * Contrast Checker UI - WCAG Color Accessibility Checker
  *
- * Luxury/Editorial Magazine Design with styled-system
+ * Luxury/Editorial Magazine Design with Tailwind CSS
  *
  * Features:
  * - Playfair Display serif for headings, Inter for body
@@ -15,11 +15,10 @@
  * @module lib/std/src/ui/contrast-checker
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { render } from "preact";
+import { useState, useEffect, useCallback, useRef } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Grid, Stack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import "../../global.css";
 
 // ============================================================================
@@ -219,18 +218,8 @@ function ThemeToggle({
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <Flex
-      as="button"
-      position="absolute"
-      top="6"
-      right="6"
-      w="10"
-      h="10"
-      rounded="full"
-      alignItems="center"
-      justifyContent="center"
-      cursor="pointer"
-      transition="all 0.3s ease"
+    <button
+      className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300"
       onClick={onToggle}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -245,7 +234,7 @@ function ThemeToggle({
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       {isDark ? <SunIcon /> : <MoonIcon />}
-    </Flex>
+    </button>
   );
 }
 
@@ -263,27 +252,18 @@ function ColorSwatch({
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <Box flex="1">
-      <Box
-        fontSize="2xs"
-        fontWeight="medium"
-        letterSpacing="widest"
-        textTransform="uppercase"
-        mb="3"
+    <div className="flex-1">
+      <div
+        className="text-[10px] font-medium tracking-widest uppercase mb-3"
         style={{ color: colors.textMuted }}
       >
         {label}
-      </Box>
-      <Flex
-        w="full"
-        aspectRatio="3/2"
-        rounded="sm"
-        direction="column"
-        alignItems="center"
-        justifyContent="center"
-        gap="2"
-        overflow="hidden"
-        transition="all 0.3s ease"
+      </div>
+      <div
+        className={cx(
+          "w-full aspect-[3/2] rounded-sm flex flex-col items-center justify-center gap-2 overflow-hidden transition-all duration-300",
+          onCopy && "cursor-pointer"
+        )}
         onClick={onCopy}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -294,21 +274,17 @@ function ColorSwatch({
           backgroundColor: color,
           transform: isHovered ? "scale(1.02)" : "scale(1)",
           boxShadow: isHovered ? colors.shadowHover : colors.shadow,
-          cursor: onCopy ? "pointer" : "default",
         }}
         title={onCopy ? "Click to copy" : undefined}
       >
-        <Box
-          fontSize="sm"
-          fontWeight="medium"
-          letterSpacing="wider"
-          opacity="0.9"
+        <div
+          className="text-sm font-medium tracking-wider opacity-90"
           style={{ color: getTextColor(color) }}
         >
           {color.toUpperCase()}
-        </Box>
-      </Flex>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -322,46 +298,35 @@ function ContrastRatioDisplay({
   const animatedRatio = useAnimatedNumber(ratio);
 
   return (
-    <Flex direction="column" alignItems="center" gap="1" py="8">
-      <Box
-        fontSize="2xs"
-        fontWeight="medium"
-        letterSpacing="widest"
-        textTransform="uppercase"
+    <div className="flex flex-col items-center gap-1 py-8">
+      <div
+        className="text-[10px] font-medium tracking-widest uppercase"
         style={{ color: colors.textMuted }}
       >
         Contrast Ratio
-      </Box>
-      <Flex alignItems="baseline" gap="0.5">
-        <Box
-          fontFamily="serif"
-          fontSize="6xl"
-          fontWeight="semibold"
-          lineHeight="none"
-          letterSpacing="tight"
+      </div>
+      <div className="flex items-baseline gap-0.5">
+        <div
+          className="font-serif text-6xl font-semibold leading-none tracking-tight"
           style={{ color: colors.text }}
         >
           {animatedRatio.toFixed(2)}
-        </Box>
-        <Box
-          fontFamily="serif"
-          fontSize="2xl"
-          fontWeight="normal"
-          ml="1"
+        </div>
+        <div
+          className="font-serif text-2xl font-normal ml-1"
           style={{ color: colors.textMuted }}
         >
           :1
-        </Box>
-      </Flex>
-    </Flex>
+        </div>
+      </div>
+    </div>
   );
 }
 
 function Separator({ colors }: { colors: typeof theme.light }) {
   return (
-    <Box
-      h="1px"
-      my="6"
+    <div
+      className="h-px my-6"
       style={{
         background: `linear-gradient(to right, transparent, ${colors.border}, transparent)`,
       }}
@@ -380,16 +345,8 @@ function RatingBadge({
   const badgeColors = isPass ? colors.passOlive : colors.failBordeaux;
 
   return (
-    <Flex
-      display="inline-flex"
-      alignItems="center"
-      gap="2"
-      px="5"
-      py="2.5"
-      rounded="full"
-      fontSize="xs"
-      fontWeight="semibold"
-      letterSpacing="wider"
+    <div
+      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold tracking-wider"
       style={{
         borderWidth: "0.5px",
         borderStyle: "solid",
@@ -400,7 +357,7 @@ function RatingBadge({
     >
       {isPass ? <CheckIcon /> : <XIcon />}
       {rating}
-    </Flex>
+    </div>
   );
 }
 
@@ -418,15 +375,8 @@ function WCAGBadge({
   const badgeColors = pass ? colors.passOlive : colors.failBordeaux;
 
   return (
-    <Flex
-      alignItems="center"
-      justifyContent="space-between"
-      px="4"
-      py="3"
-      rounded="sm"
-      fontSize="2xs"
-      fontWeight="medium"
-      transition="all 0.3s ease"
+    <div
+      className="flex items-center justify-between px-4 py-3 rounded-sm text-[10px] font-medium transition-all duration-300"
       style={{
         borderWidth: "0.5px",
         borderStyle: "solid",
@@ -434,18 +384,18 @@ function WCAGBadge({
         borderColor: badgeColors.border,
       }}
     >
-      <Flex alignItems="center" gap="2">
-        <Box fontWeight="bold" letterSpacing="wider" style={{ color: badgeColors.text }}>
+      <div className="flex items-center gap-2">
+        <span className="font-bold tracking-wider" style={{ color: badgeColors.text }}>
           {level}
-        </Box>
-        <Box opacity="0.7" letterSpacing="wide" style={{ color: badgeColors.text }}>
+        </span>
+        <span className="opacity-70 tracking-wide" style={{ color: badgeColors.text }}>
           {size === "large" ? "Large Text" : "Normal Text"}
-        </Box>
-      </Flex>
-      <Box style={{ color: badgeColors.text }}>
+        </span>
+      </div>
+      <span style={{ color: badgeColors.text }}>
         {pass ? <CheckIcon /> : <XIcon />}
-      </Box>
-    </Flex>
+      </span>
+    </div>
   );
 }
 
@@ -463,9 +413,8 @@ function TextPreview({
   colors: typeof theme.light;
 }) {
   return (
-    <Box
-      rounded="sm"
-      overflow="hidden"
+    <div
+      className="rounded-sm overflow-hidden"
       style={{
         borderWidth: "0.5px",
         borderStyle: "solid",
@@ -473,34 +422,25 @@ function TextPreview({
         boxShadow: colors.shadow,
       }}
     >
-      <Box
-        p="8"
-        textAlign="center"
+      <div
+        className="p-8 text-center"
         style={{ backgroundColor: background, color: foreground }}
       >
-        <Box
-          fontFamily="serif"
-          mb="3"
-          lineHeight="tight"
+        <div
+          className="font-serif mb-3 leading-tight"
           style={{
             fontSize: `${fontSize}px`,
             fontWeight: fontWeight === "bold" ? 700 : 400,
           }}
         >
           Sample Text
-        </Box>
-        <Box fontSize="sm" lineHeight="relaxed" opacity="0.9">
+        </div>
+        <div className="text-sm leading-relaxed opacity-90">
           The quick brown fox jumps over the lazy dog
-        </Box>
-      </Box>
-      <Flex
-        px="4"
-        py="2.5"
-        fontSize="2xs"
-        fontWeight="medium"
-        letterSpacing="wide"
-        textTransform="uppercase"
-        justifyContent="center"
+        </div>
+      </div>
+      <div
+        className="px-4 py-2.5 text-[10px] font-medium tracking-wide uppercase flex justify-center"
         style={{
           borderTopWidth: "0.5px",
           borderTopStyle: "solid",
@@ -510,8 +450,8 @@ function TextPreview({
         }}
       >
         {fontSize}px {fontWeight}
-      </Flex>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -530,13 +470,8 @@ function SuggestionCard({
   const isAAA = suggestion.rating === "AAA";
 
   return (
-    <Flex
-      alignItems="center"
-      gap="4"
-      p="4"
-      rounded="sm"
-      cursor="pointer"
-      transition="all 0.3s ease"
+    <div
+      className="flex items-center gap-4 p-4 rounded-sm cursor-pointer transition-all duration-300"
       onClick={() => onSelect(suggestion.color)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -547,16 +482,8 @@ function SuggestionCard({
         borderColor: isHovered ? colors.border : "transparent",
       }}
     >
-      <Flex
-        w="16"
-        h="10"
-        rounded="xs"
-        alignItems="center"
-        justifyContent="center"
-        fontSize="sm"
-        fontFamily="serif"
-        fontWeight="semibold"
-        transition="transform 0.3s ease"
+      <div
+        className="w-16 h-10 rounded-xs flex items-center justify-center text-sm font-serif font-semibold transition-transform duration-300"
         style={{
           borderWidth: "0.5px",
           borderStyle: "solid",
@@ -568,24 +495,19 @@ function SuggestionCard({
         }}
       >
         Aa
-      </Flex>
+      </div>
 
-      <Box flex="1">
-        <Box fontSize="sm" fontWeight="medium" letterSpacing="wider" style={{ color: colors.text }}>
+      <div className="flex-1">
+        <div className="text-sm font-medium tracking-wider" style={{ color: colors.text }}>
           {suggestion.color.toUpperCase()}
-        </Box>
-        <Box fontSize="2xs" mt="0.5" style={{ color: colors.textMuted }}>
+        </div>
+        <div className="text-[10px] mt-0.5" style={{ color: colors.textMuted }}>
           {suggestion.contrastRatio}:1
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <Box
-        px="2.5"
-        py="1"
-        rounded="full"
-        fontSize="2xs"
-        fontWeight="semibold"
-        letterSpacing="wider"
+      <div
+        className="px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider"
         style={{
           borderWidth: "0.5px",
           borderStyle: "solid",
@@ -595,8 +517,8 @@ function SuggestionCard({
         }}
       >
         {suggestion.rating}
-      </Box>
-    </Flex>
+      </div>
+    </div>
   );
 }
 
@@ -691,28 +613,21 @@ function ContrastChecker() {
   // Loading state
   if (loading) {
     return (
-      <Flex
-        p="12"
-        minH="100vh"
-        alignItems="center"
-        justifyContent="center"
-        fontSize="sm"
-        letterSpacing="wide"
-        textTransform="uppercase"
+      <div
+        className="p-12 min-h-screen flex items-center justify-center text-sm tracking-wide uppercase"
         style={{ color: colors.textMuted, background: colors.bg }}
       >
         Checking contrast...
-      </Flex>
+      </div>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <Box p="12" fontFamily="sans" fontSize="sm" minH="100vh" style={{ background: colors.bg }}>
-        <Box
-          p="5"
-          rounded="sm"
+      <div className="p-12 font-sans text-sm min-h-screen" style={{ background: colors.bg }}>
+        <div
+          className="p-5 rounded-sm"
           style={{
             borderWidth: "0.5px",
             borderStyle: "solid",
@@ -722,39 +637,28 @@ function ContrastChecker() {
           }}
         >
           {error}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   // Empty state
   if (!data) {
     return (
-      <Flex
-        p="12"
-        minH="100vh"
-        alignItems="center"
-        justifyContent="center"
-        fontSize="sm"
-        letterSpacing="wide"
-        textTransform="uppercase"
+      <div
+        className="p-12 min-h-screen flex items-center justify-center text-sm tracking-wide uppercase"
         style={{ color: colors.textMuted, background: colors.bg }}
       >
         No contrast data
-      </Flex>
+      </div>
     );
   }
 
   const hasSuggestions = data.suggestions && data.suggestions.length > 0;
 
   return (
-    <Box
-      p="12"
-      fontFamily="sans"
-      fontSize="sm"
-      minH="100vh"
-      position="relative"
-      transition="all 0.3s ease"
+    <div
+      className="p-12 font-sans text-sm min-h-screen relative transition-all duration-300"
       style={{
         color: colors.text,
         background: colors.bg,
@@ -766,30 +670,23 @@ function ContrastChecker() {
       <ThemeToggle isDark={isDark} onToggle={toggleTheme} colors={colors} />
 
       {/* Header */}
-      <Box as="header" mb="10" maxW="400px">
-        <Box
-          as="h1"
-          fontFamily="serif"
-          fontSize="3xl"
-          fontWeight="semibold"
-          mb="2"
-          letterSpacing="tight"
+      <header className="mb-10 max-w-[400px]">
+        <h1
+          className="font-serif text-3xl font-semibold mb-2 tracking-tight"
           style={{ color: colors.text }}
         >
           Contrast Checker
-        </Box>
-        <Box
-          fontSize="xs"
-          letterSpacing="wide"
-          lineHeight="relaxed"
+        </h1>
+        <div
+          className="text-xs tracking-wide leading-relaxed"
           style={{ color: colors.textMuted }}
         >
           WCAG 2.1 Color Accessibility Analysis
-        </Box>
-      </Box>
+        </div>
+      </header>
 
       {/* Color swatches - asymmetric layout */}
-      <Flex gap="6" mb="2">
+      <div className="flex gap-6 mb-2">
         <ColorSwatch
           color={data.foreground}
           label="Foreground"
@@ -802,30 +699,26 @@ function ContrastChecker() {
           onCopy={() => handleCopy(data.background, "background")}
           colors={colors}
         />
-      </Flex>
+      </div>
 
       <Separator colors={colors} />
 
       {/* Contrast ratio - large editorial typography */}
-      <Box textAlign="center">
+      <div className="text-center">
         <ContrastRatioDisplay ratio={data.contrastRatio} colors={colors} />
         <RatingBadge rating={data.rating} colors={colors} />
-      </Box>
+      </div>
 
       <Separator colors={colors} />
 
       {/* Text preview */}
-      <Box mb="8">
-        <Box
-          fontSize="2xs"
-          fontWeight="medium"
-          letterSpacing="widest"
-          textTransform="uppercase"
-          mb="4"
+      <div className="mb-8">
+        <div
+          className="text-[10px] font-medium tracking-widest uppercase mb-4"
           style={{ color: colors.textMuted }}
         >
           Preview
-        </Box>
+        </div>
         <TextPreview
           foreground={data.foreground}
           background={data.background}
@@ -833,43 +726,35 @@ function ContrastChecker() {
           fontWeight={data.fontWeight}
           colors={colors}
         />
-      </Box>
+      </div>
 
       {/* WCAG compliance badges */}
-      <Box mb="8">
-        <Box
-          fontSize="2xs"
-          fontWeight="medium"
-          letterSpacing="widest"
-          textTransform="uppercase"
-          mb="4"
+      <div className="mb-8">
+        <div
+          className="text-[10px] font-medium tracking-widest uppercase mb-4"
           style={{ color: colors.textMuted }}
         >
           WCAG Compliance
-        </Box>
-        <Grid columns={2} gap="2">
+        </div>
+        <div className="grid grid-cols-2 gap-2">
           <WCAGBadge level="AA" size="normal" pass={data.wcag.aa.normal} colors={colors} />
           <WCAGBadge level="AA" size="large" pass={data.wcag.aa.large} colors={colors} />
           <WCAGBadge level="AAA" size="normal" pass={data.wcag.aaa.normal} colors={colors} />
           <WCAGBadge level="AAA" size="large" pass={data.wcag.aaa.large} colors={colors} />
-        </Grid>
-      </Box>
+        </div>
+      </div>
 
       {/* Suggestions section */}
       {hasSuggestions && (
-        <Box>
+        <div>
           <Separator colors={colors} />
-          <Box
-            fontSize="2xs"
-            fontWeight="medium"
-            letterSpacing="widest"
-            textTransform="uppercase"
-            mb="4"
+          <div
+            className="text-[10px] font-medium tracking-widest uppercase mb-4"
             style={{ color: colors.textMuted }}
           >
             Suggested Alternatives
-          </Box>
-          <Stack gap="1">
+          </div>
+          <div className="flex flex-col gap-1">
             {data.suggestions!.map((suggestion, i) => (
               <SuggestionCard
                 key={i}
@@ -879,25 +764,14 @@ function ContrastChecker() {
                 colors={colors}
               />
             ))}
-          </Stack>
-        </Box>
+          </div>
+        </div>
       )}
 
       {/* Copy feedback toast */}
       {copied && (
-        <Flex
-          position="fixed"
-          bottom="8"
-          left="50%"
-          transform="translateX(-50%)"
-          px="6"
-          py="3"
-          rounded="full"
-          fontSize="2xs"
-          fontWeight="medium"
-          letterSpacing="wider"
-          zIndex="100"
-          animation="fade-in"
+        <div
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-[10px] font-medium tracking-wider z-50 animate-pulse"
           style={{
             background: colors.text,
             color: colors.bg,
@@ -905,9 +779,9 @@ function ContrastChecker() {
           }}
         >
           Copied {copied}
-        </Flex>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -915,4 +789,4 @@ function ContrastChecker() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<ContrastChecker />);
+render(<ContrastChecker />, document.getElementById("app")!);

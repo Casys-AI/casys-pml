@@ -10,11 +10,10 @@
  * @module lib/std/src/ui/cron-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
-import { Box, Flex, Grid, Stack } from "../../styled-system/jsx";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { IconButton } from "../../components/ui/icon-button";
@@ -424,43 +423,26 @@ function MiniCalendar({
   });
 
   return (
-    <Box
-      bg="bg.canvas"
-      borderWidth="1px"
-      borderColor="border.default"
-      rounded="lg"
-      overflow="hidden"
-    >
-      <Flex
-        justify="space-between"
-        alignItems="center"
-        p="2"
-        bg="bg.subtle"
-        borderBottomWidth="1px"
-        borderColor="border.default"
-      >
+    <div className="bg-bg-canvas border border-border-default rounded-lg overflow-hidden">
+      <div className="flex justify-between items-center p-2 bg-bg-subtle border-b border-border-default">
         <IconButton variant="ghost" size="sm" onClick={prevMonth} aria-label="Previous month">
           {"<"}
         </IconButton>
-        <Box fontSize="sm" fontWeight="semibold">{monthLabel}</Box>
+        <div className="text-sm font-semibold">{monthLabel}</div>
         <IconButton variant="ghost" size="sm" onClick={nextMonth} aria-label="Next month">
           {">"}
         </IconButton>
-      </Flex>
+      </div>
 
-      <Grid columns={7} gap="1px" p="2">
+      <div className="grid grid-cols-7 gap-px p-2">
         {/* Day headers */}
         {DAY_NAMES_SHORT.map((day) => (
-          <Box
+          <div
             key={day}
-            textAlign="center"
-            fontSize="xs"
-            fontWeight="semibold"
-            color="fg.muted"
-            py="1"
+            className="text-center text-xs font-semibold text-fg-muted py-1"
           >
             {day}
-          </Box>
+          </div>
         ))}
 
         {/* Calendar days */}
@@ -469,58 +451,33 @@ function MiniCalendar({
           const isToday = isCurrentMonth && day === today.getDate();
 
           return (
-            <Box
+            <div
               key={idx}
-              textAlign="center"
-              fontSize="sm"
-              py="1.5"
-              rounded="sm"
-              cursor="default"
-              visibility={day === null ? "hidden" : "visible"}
-              bg={isActive ? { base: "blue.100", _dark: "blue.900/50" } : undefined}
-              color={isActive ? { base: "blue.700", _dark: "blue.300" } : undefined}
-              fontWeight={isActive || isToday ? "medium" : undefined}
-              borderWidth={isToday ? "2px" : undefined}
-              borderColor={isToday ? "green.500" : undefined}
+              className={cx(
+                "text-center text-sm py-1.5 rounded-sm cursor-default",
+                day === null && "invisible",
+                isActive && "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300",
+                (isActive || isToday) && "font-medium",
+                isToday && "border-2 border-green-500"
+              )}
             >
               {day}
-            </Box>
+            </div>
           );
         })}
-      </Grid>
+      </div>
 
-      <Flex
-        gap="4"
-        p="2"
-        borderTopWidth="1px"
-        borderColor="border.default"
-        fontSize="xs"
-        color="fg.muted"
-      >
-        <Flex alignItems="center" gap="1">
-          <Box
-            w="10px"
-            h="10px"
-            rounded="sm"
-            bg={{ base: "blue.100", _dark: "blue.900/50" }}
-            borderWidth="1px"
-            borderColor={{ base: "blue.300", _dark: "blue.700" }}
-          />
+      <div className="flex gap-4 p-2 border-t border-border-default text-xs text-fg-muted">
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded-sm bg-blue-100 dark:bg-blue-900/50 border border-blue-300 dark:border-blue-700" />
           Scheduled
-        </Flex>
-        <Flex alignItems="center" gap="1">
-          <Box
-            w="10px"
-            h="10px"
-            rounded="sm"
-            bg="transparent"
-            borderWidth="2px"
-            borderColor="green.500"
-          />
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded-sm bg-transparent border-2 border-green-500" />
           Today
-        </Flex>
-      </Flex>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -564,30 +521,16 @@ function CronEditor({
   };
 
   return (
-    <Box
-      p="4"
-      bg={{ base: "orange.50", _dark: "orange.950/30" }}
-      borderBottomWidth="1px"
-      borderColor={{ base: "orange.200", _dark: "orange.800" }}
-    >
-      <Box
-        fontSize="sm"
-        fontWeight="semibold"
-        mb="3"
-        color={{ base: "orange.800", _dark: "orange.300" }}
-      >
+    <div className="p-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-200 dark:border-orange-800">
+      <div className="text-sm font-semibold mb-3 text-orange-800 dark:text-orange-300">
         Edit Expression
-      </Box>
-      <Grid
-        columns={{ base: 1, sm: 2, md: 5 }}
-        gap="3"
-        mb="3"
-      >
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mb-3">
         {(Object.keys(fieldLabels) as (keyof CronParts)[]).map((field) => (
-          <Stack key={field} gap="1">
-            <Box as="label" fontSize="xs" fontWeight="medium" color="fg.muted">
+          <div key={field} className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-fg-muted">
               {fieldLabels[field]}
-            </Box>
+            </label>
             <Input
               type="text"
               size="sm"
@@ -596,18 +539,18 @@ function CronEditor({
               onChange={(e) =>
                 handleFieldChange(field, (e.target as HTMLInputElement).value)
               }
-              fontFamily="mono"
+              className="font-mono"
             />
-          </Stack>
+          </div>
         ))}
-      </Grid>
-      <Box fontSize="sm" color="fg.muted">
+      </div>
+      <div className="text-sm text-fg-muted">
         Expression:{" "}
-        <Code fontWeight="bold" color={{ base: "orange.700", _dark: "orange.400" }}>
+        <Code className="font-bold text-orange-700 dark:text-orange-400">
           {Object.values(editValues).join(" ")}
         </Code>
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -682,35 +625,19 @@ function CronViewer() {
 
   if (loading) {
     return (
-      <Box
-        fontFamily="sans"
-        fontSize="sm"
-        color="fg.default"
-        bg="bg.canvas"
-        borderWidth="1px"
-        borderColor="border.default"
-        rounded="lg"
-      >
-        <Box p="4" textAlign="center" color="fg.muted">Loading cron viewer...</Box>
-      </Box>
+      <div className="font-sans text-sm text-fg-default bg-bg-canvas border border-border-default rounded-lg">
+        <div className="p-4 text-center text-fg-muted">Loading cron viewer...</div>
+      </div>
     );
   }
 
   if (!props || !parts) {
     return (
-      <Box
-        fontFamily="sans"
-        fontSize="sm"
-        color="fg.default"
-        bg="bg.canvas"
-        borderWidth="1px"
-        borderColor="border.default"
-        rounded="lg"
-      >
-        <Box p="4" textAlign="center" color={{ base: "red.600", _dark: "red.400" }}>
+      <div className="font-sans text-sm text-fg-default bg-bg-canvas border border-border-default rounded-lg">
+        <div className="p-4 text-center text-red-600 dark:text-red-400">
           Invalid cron expression
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
@@ -719,164 +646,78 @@ function CronViewer() {
     : props.expression;
 
   return (
-    <Box
-      fontFamily="sans"
-      fontSize="sm"
-      color="fg.default"
-      bg="bg.canvas"
-      display="flex"
-      flexDirection="column"
-      maxH="600px"
-      borderWidth="1px"
-      borderColor="border.default"
-      rounded="lg"
-      overflow="hidden"
-    >
+    <div className="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[600px] border border-border-default rounded-lg overflow-hidden">
       {/* Header */}
-      <Flex
-        justify="space-between"
-        alignItems="center"
-        p="3"
-        bg="bg.subtle"
-        borderBottomWidth="1px"
-        borderColor="border.default"
-        flexWrap="wrap"
-        gap="2"
-      >
-        <Flex alignItems="center" gap="3">
-          <Code
-            fontSize="lg"
-            fontWeight="bold"
-            color={{ base: "blue.600", _dark: "blue.400" }}
-            bg="bg.canvas"
-            px="3"
-            py="1.5"
-            rounded="md"
-            borderWidth="1px"
-            borderColor="border.default"
-          >
+      <div className="flex justify-between items-center p-3 bg-bg-subtle border-b border-border-default flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <Code className="text-lg font-bold text-blue-600 dark:text-blue-400 bg-bg-canvas px-3 py-1.5 rounded-md border border-border-default">
             {currentExpression}
           </Code>
           <Button variant="outline" size="sm" onClick={toggleEditor}>
             {showEditor ? "Hide Editor" : "Edit"}
           </Button>
-        </Flex>
+        </div>
         {props.timezone && (
-          <Box
-            fontSize="xs"
-            color="fg.muted"
-            bg="bg.canvas"
-            px="2"
-            py="1"
-            rounded="sm"
-            fontFamily="mono"
-          >
+          <div className="text-xs text-fg-muted bg-bg-canvas px-2 py-1 rounded-sm font-mono">
             Timezone: {props.timezone}
-          </Box>
+          </div>
         )}
-      </Flex>
+      </div>
 
       {/* Description */}
-      <Box
-        p="4"
-        fontSize="md"
-        fontWeight="medium"
-        bg={{ base: "blue.50", _dark: "blue.950/30" }}
-        color={{ base: "blue.800", _dark: "blue.200" }}
-        borderBottomWidth="1px"
-        borderColor="border.default"
-      >
+      <div className="p-4 text-base font-medium bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-200 border-b border-border-default">
         {description}
-      </Box>
+      </div>
 
       {/* Editor */}
       {showEditor && <CronEditor parts={parts} onChange={handleEditorChange} />}
 
       {/* Content */}
-      <Flex flexWrap="wrap" flex="1" overflowY="auto">
+      <div className="flex flex-wrap flex-1 overflow-y-auto">
         {/* Next Runs */}
         {(props.showNextRuns ?? 5) > 0 && (
-          <Box
-            flex="1 1 300px"
-            p="4"
-            borderRightWidth="1px"
-            borderColor="border.default"
-            css={{ "&:last-child": { borderRightWidth: 0 } }}
-          >
-            <Box
-              fontSize="xs"
-              fontWeight="semibold"
-              color="fg.muted"
-              textTransform="uppercase"
-              letterSpacing="wide"
-              mb="3"
-            >
+          <div className="flex-1 min-w-[300px] p-4 border-r border-border-default last:border-r-0">
+            <div className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-3">
               Next {props.showNextRuns ?? 5} Executions
-            </Box>
-            <Stack gap="2">
+            </div>
+            <div className="flex flex-col gap-2">
               {nextRuns.map((run, idx) => (
-                <Flex
+                <div
                   key={idx}
-                  alignItems="center"
-                  gap="2"
-                  p="2"
-                  rounded="md"
-                  bg="bg.subtle"
+                  className="flex items-center gap-2 p-2 rounded-md bg-bg-subtle"
                 >
-                  <Box fontSize="xs" fontWeight="bold" color="fg.muted" w="20px">
+                  <div className="text-xs font-bold text-fg-muted w-5">
                     {idx + 1}.
-                  </Box>
-                  <Box flex="1" fontFamily="mono" fontSize="sm">
+                  </div>
+                  <div className="flex-1 font-mono text-sm">
                     {formatDateTime(run, props.timezone)}
-                  </Box>
-                  <Box fontSize="xs" color="fg.muted" fontStyle="italic">
+                  </div>
+                  <div className="text-xs text-fg-muted italic">
                     {formatRelative(run)}
-                  </Box>
-                </Flex>
+                  </div>
+                </div>
               ))}
-            </Stack>
-          </Box>
+            </div>
+          </div>
         )}
 
         {/* Calendar */}
         {props.showCalendar !== false && (
-          <Box flex="1 1 280px" p="4">
-            <Box
-              fontSize="xs"
-              fontWeight="semibold"
-              color="fg.muted"
-              textTransform="uppercase"
-              letterSpacing="wide"
-              mb="3"
-            >
+          <div className="flex-1 min-w-[280px] p-4">
+            <div className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-3">
               Calendar View
-            </Box>
+            </div>
             <MiniCalendar parts={parts} timezone={props.timezone} />
-          </Box>
+          </div>
         )}
-      </Flex>
+      </div>
 
       {/* Field breakdown */}
-      <Box
-        p="4"
-        borderTopWidth="1px"
-        borderColor="border.default"
-        bg="bg.subtle"
-      >
-        <Box
-          fontSize="xs"
-          fontWeight="semibold"
-          color="fg.muted"
-          textTransform="uppercase"
-          letterSpacing="wide"
-          mb="3"
-        >
+      <div className="p-4 border-t border-border-default bg-bg-subtle">
+        <div className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-3">
           Field Breakdown
-        </Box>
-        <Grid
-          columns={{ base: 2, sm: 3, md: 5 }}
-          gap="3"
-        >
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {(Object.keys(parts) as (keyof CronParts)[]).map((field) => {
             const labels: Record<keyof CronParts, string> = {
               minute: "Minute",
@@ -886,34 +727,25 @@ function CronViewer() {
               dayOfWeek: "Day (week)",
             };
             return (
-              <Stack
+              <div
                 key={field}
-                gap="1"
-                p="2"
-                bg="bg.canvas"
-                rounded="md"
-                borderWidth="1px"
-                borderColor="border.default"
+                className="flex flex-col gap-1 p-2 bg-bg-canvas rounded-md border border-border-default"
               >
-                <Box fontSize="xs" fontWeight="semibold" color="fg.muted">
+                <div className="text-xs font-semibold text-fg-muted">
                   {labels[field]}
-                </Box>
-                <Code
-                  fontSize="md"
-                  fontWeight="bold"
-                  color={{ base: "blue.600", _dark: "blue.400" }}
-                >
+                </div>
+                <Code className="text-base font-bold text-blue-600 dark:text-blue-400">
                   {parts[field]}
                 </Code>
-                <Box fontSize="xs" color="fg.muted">
+                <div className="text-xs text-fg-muted">
                   {describeField(field, field, FIELD_RANGES[field])}
-                </Box>
-              </Stack>
+                </div>
+              </div>
             );
           })}
-        </Grid>
-      </Box>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -921,4 +753,4 @@ function CronViewer() {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<CronViewer />);
+render(<CronViewer />, document.getElementById("app")!);

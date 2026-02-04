@@ -10,14 +10,11 @@
  * @module lib/std/src/ui/json-viewer
  */
 
-import { createRoot } from "react-dom/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { render } from "preact";
+import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { Box, Flex, HStack } from "../../styled-system/jsx";
-import { css } from "../../styled-system/css";
+import { cx } from "../../components/utils";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Code } from "../../components/ui/code";
 import "../../global.css";
 
 // ============================================================================
@@ -77,26 +74,23 @@ function JsonTreeNode({
     (node.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
      String(node.value).toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const typeColor: Record<string, string> = {
-    string: "green.600",
-    number: "blue.600",
-    boolean: "purple.600",
-    null: "gray.500",
-    object: "fg.default",
-    array: "fg.default",
+  const typeColorClass: Record<string, string> = {
+    string: "text-green-600 dark:text-green-400",
+    number: "text-blue-600 dark:text-blue-400",
+    boolean: "text-purple-600 dark:text-purple-400",
+    null: "text-gray-500 dark:text-gray-400",
+    object: "text-fg-default",
+    array: "text-fg-default",
   };
 
   return (
-    <Box pl={depth > 0 ? "4" : "0"}>
-      <Flex
-        alignItems="center"
-        gap="1"
-        py="0.5"
-        px="1"
-        rounded="sm"
-        cursor="pointer"
-        bg={matchesSearch ? { base: "yellow.100", _dark: "yellow.900/30" } : "transparent"}
-        _hover={{ bg: "bg.subtle" }}
+    <div className={depth > 0 ? "pl-4" : ""}>
+      <div
+        className={cx(
+          "flex items-center gap-1 py-0.5 px-1 rounded cursor-pointer",
+          matchesSearch ? "bg-yellow-100 dark:bg-yellow-900/30" : "bg-transparent",
+          "hover:bg-bg-subtle"
+        )}
         onClick={() => {
           if (hasChildren) onToggle(node.path);
           else onSelect(node.path, node.value);
@@ -104,37 +98,37 @@ function JsonTreeNode({
       >
         {/* Expand/collapse icon */}
         {hasChildren ? (
-          <Box w="4" color="fg.muted" fontSize="xs">
+          <span className="w-4 text-fg-muted text-xs">
             {isExpanded ? "▼" : "▶"}
-          </Box>
+          </span>
         ) : (
-          <Box w="4" />
+          <span className="w-4" />
         )}
 
         {/* Key */}
-        <Box color="fg.default" fontWeight="medium">
+        <span className="text-fg-default font-medium">
           {node.key}
-        </Box>
+        </span>
 
-        <Box color="fg.muted">:</Box>
+        <span className="text-fg-muted">:</span>
 
         {/* Value preview */}
         {hasChildren ? (
-          <Box color="fg.muted" fontSize="xs">
+          <span className="text-fg-muted text-xs">
             {node.type === "array"
               ? `[${node.children!.length}]`
               : `{${node.children!.length}}`}
-          </Box>
+          </span>
         ) : (
-          <Box color={typeColor[node.type]} fontFamily="mono" fontSize="sm">
+          <span className={cx("font-mono text-sm", typeColorClass[node.type])}>
             {formatValue(node.value, node.type)}
-          </Box>
+          </span>
         )}
-      </Flex>
+      </div>
 
       {/* Children */}
       {hasChildren && isExpanded && (
-        <Box>
+        <div>
           {node.children!.map((child) => (
             <JsonTreeNode
               key={child.path}
@@ -146,9 +140,9 @@ function JsonTreeNode({
               searchTerm={searchTerm}
             />
           ))}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -234,69 +228,61 @@ function JsonViewer() {
   // Render
   if (loading) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">Loading JSON...</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">Loading JSON...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
           {error}
-        </Box>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   if (!tree) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
-        <Box p="10" textAlign="center" color="fg.muted">No JSON data</Box>
-      </Box>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-10 text-center text-fg-muted">No JSON data</div>
+      </div>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
       {/* Toolbar */}
-      <Flex gap="2" mb="3" flexWrap="wrap" alignItems="center">
-        <Input
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        <input
           type="text"
           placeholder="Search keys or values..."
           value={searchTerm}
           onChange={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
-          size="sm"
-          className={css({ flex: 1, minW: "150px" })}
+          className="flex-1 min-w-[150px] px-3 py-1.5 text-sm border border-border-default rounded-md bg-bg-canvas text-fg-default placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <Button variant="outline" size="sm" onClick={handleExpandAll}>Expand All</Button>
         <Button variant="outline" size="sm" onClick={handleCollapseAll}>Collapse</Button>
         {selectedPath && (
           <Button variant="outline" size="sm" onClick={handleCopyPath}>Copy Path</Button>
         )}
-      </Flex>
+      </div>
 
       {/* Selected path */}
       {selectedPath && (
-        <Flex gap="2" alignItems="center" mb="2" p="2" bg="bg.subtle" rounded="md">
-          <Box color="fg.muted" fontSize="xs">Path:</Box>
-          <Code fontSize="xs" color="blue.600">
+        <div className="flex gap-2 items-center mb-2 p-2 bg-bg-subtle rounded-md">
+          <span className="text-fg-muted text-xs">Path:</span>
+          <code className="text-xs text-blue-600 dark:text-blue-400 font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
             {selectedPath}
-          </Code>
-        </Flex>
+          </code>
+        </div>
       )}
 
       {/* Tree */}
-      <Box
-        border="1px solid"
-        borderColor="border.default"
-        rounded="lg"
-        p="3"
-        bg="bg.default"
-        overflowX="auto"
-        fontFamily="mono"
-        fontSize="sm"
+      <div
+        className="border border-border-default rounded-lg p-3 bg-white dark:bg-gray-900 overflow-x-auto font-mono text-sm"
       >
         <JsonTreeNode
           node={tree}
@@ -306,8 +292,8 @@ function JsonViewer() {
           onSelect={handleSelect}
           searchTerm={searchTerm}
         />
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -356,4 +342,4 @@ function collectPaths(node: JsonNode): string[] {
 // Mount
 // ============================================================================
 
-createRoot(document.getElementById("app")!).render(<JsonViewer />);
+render(<JsonViewer />, document.getElementById("app")!);
