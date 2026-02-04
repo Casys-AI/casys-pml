@@ -119,7 +119,7 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
                             <span class="font-[var(--font-mono)] text-xs text-pml-text-dim" key={tag}>#{tag}</span>
                           ))}
                         </div>
-                        <span class="text-sm text-pml-accent font-medium opacity-70 transition-all duration-200">
+                        <span class="read-arrow text-sm text-pml-accent font-medium opacity-70 transition-all duration-200">
                           Read →
                         </span>
                       </div>
@@ -153,33 +153,6 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
           </div>
         </footer>
 
-        <style>
-          {`
-          @keyframes fadeInUp {
-            from {
-              opacity: 0;
-              transform: translateY(30px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-
-          .post-card:hover .post-card-glow {
-            opacity: 1;
-          }
-
-          .post-card:hover h2 {
-            color: var(--pml-accent, #ffb86f);
-          }
-
-          .post-card:hover .text-pml-accent.font-medium {
-            opacity: 1;
-            transform: translateX(4px);
-          }
-        `}
-        </style>
       </div>
     </>
   );
