@@ -12,11 +12,17 @@
  * @module lib/std/src/ui/palette-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css, cx } from "../../styled-system/css";
-import "./styles.css";
+import { css } from "../../styled-system/css";
+import { Box, Flex, VStack, HStack, Center } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Code } from "../../components/ui/code";
+import { Spinner } from "../../components/ui/spinner";
+import * as Card from "../../components/ui/card";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -68,11 +74,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
         b: parseInt(result[3], 16),
       }
     : { r: 0, g: 0, b: 0 };
-}
-
-function rgbToHex(rgb: { r: number; g: number; b: number }): string {
-  const toHex = (n: number) => Math.round(n).toString(16).padStart(2, "0");
-  return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`;
 }
 
 function getLuminance(rgb: { r: number; g: number; b: number }): number {
@@ -141,87 +142,69 @@ function ColorSwatch({
   }, [color, index, onClick]);
 
   return (
-    <div
-      class={css({
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        cursor: "pointer",
-        transition: "transform 0.15s ease",
-        _hover: { transform: "translateY(-4px)" },
-      })}
+    <VStack
+      gap="0"
+      position="relative"
+      cursor="pointer"
+      transition="transform 0.15s ease"
+      _hover={{ transform: "translateY(-4px)" }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Swatch */}
-      <div
-        class={cx(
-          css({
-            w: "20",
-            h: "20",
-            rounded: "lg",
-            border: "3px solid",
-            borderColor: isSelected ? "blue.500" : "transparent",
-            shadow: isSelected ? "lg" : "md",
-            transition: "all 0.15s ease",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          })
-        )}
+      <Center
+        w="20"
+        h="20"
+        rounded="lg"
+        border="3px solid"
+        borderColor={isSelected ? "blue.500" : "transparent"}
+        shadow={isSelected ? "lg" : "md"}
+        transition="all 0.15s ease"
         style={{ backgroundColor: color.hex }}
         onClick={handleClick}
       >
         {copied && (
-          <span style={{ color: textColor }} class={css({ fontSize: "xs", fontWeight: "bold" })}>
+          <Box fontSize="xs" fontWeight="bold" style={{ color: textColor }}>
             Copied!
-          </span>
+          </Box>
         )}
-      </div>
+      </Center>
 
       {/* Label */}
-      <div class={css({ mt: "2", textAlign: "center" })}>
-        <code class={css({ fontSize: "xs", fontFamily: "mono", color: "fg.default" })}>
-          {color.hex.toUpperCase()}
-        </code>
+      <VStack gap="0.5" mt="2" textAlign="center">
+        <Code size="sm">{color.hex.toUpperCase()}</Code>
         {color.name && (
-          <p class={css({ fontSize: "xs", color: "fg.muted", mt: "0.5" })}>
+          <Box fontSize="xs" color="fg.muted">
             {color.name}
-          </p>
+          </Box>
         )}
-      </div>
+      </VStack>
 
       {/* Hover Tooltip */}
       {isHovered && (
-        <div
-          class={css({
-            position: "absolute",
-            bottom: "100%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            mb: "2",
-            p: "2",
-            bg: "bg.canvas",
-            border: "1px solid",
-            borderColor: "border.default",
-            rounded: "md",
-            shadow: "lg",
-            zIndex: 10,
-            whiteSpace: "nowrap",
-            fontSize: "xs",
-          })}
+        <Card.Root
+          position="absolute"
+          bottom="100%"
+          left="50%"
+          transform="translateX(-50%)"
+          mb="2"
+          zIndex={10}
+          css={{ whiteSpace: "nowrap" }}
         >
-          <div class={css({ fontWeight: "semibold", mb: "1" })}>{color.hex.toUpperCase()}</div>
-          <div class={css({ color: "fg.muted" })}>
-            RGB({rgb.r}, {rgb.g}, {rgb.b})
-          </div>
-          <div class={css({ mt: "1", color: "fg.subtle", fontSize: "2xs" })}>
-            Click to copy
-          </div>
-        </div>
+          <Card.Body p="2">
+            <Box fontWeight="semibold" mb="1" fontSize="xs">
+              {color.hex.toUpperCase()}
+            </Box>
+            <Box color="fg.muted" fontSize="xs">
+              RGB({rgb.r}, {rgb.g}, {rgb.b})
+            </Box>
+            <Box mt="1" color="fg.subtle" fontSize="2xs">
+              Click to copy
+            </Box>
+          </Card.Body>
+        </Card.Root>
       )}
-    </div>
+    </VStack>
   );
 }
 
@@ -231,38 +214,25 @@ function ContrastIndicator({ color1, color2 }: { color1: string; color2: string 
   const passAALarge = contrast >= 3;
 
   return (
-    <div
-      class={css({
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        px: "2",
-        py: "1",
-      })}
-    >
-      <span
-        class={css({
-          fontSize: "2xs",
-          fontFamily: "mono",
-          fontWeight: "medium",
-          color: passAA ? "green.600" : passAALarge ? "yellow.600" : "red.600",
-          _dark: {
-            color: passAA ? "green.400" : passAALarge ? "yellow.400" : "red.400",
-          },
-        })}
+    <VStack gap="0" px="2" py="1" align="center" justify="center">
+      <Box
+        fontSize="2xs"
+        fontFamily="mono"
+        fontWeight="medium"
+        color={
+          passAA
+            ? { base: "green.600", _dark: "green.400" }
+            : passAALarge
+              ? { base: "yellow.600", _dark: "yellow.400" }
+              : { base: "red.600", _dark: "red.400" }
+        }
       >
         {contrast.toFixed(1)}:1
-      </span>
-      <span
-        class={css({
-          fontSize: "3xs",
-          color: "fg.subtle",
-        })}
-      >
+      </Box>
+      <Box fontSize="3xs" color="fg.subtle">
         {passAA ? "AA" : passAALarge ? "AA Large" : "Fail"}
-      </span>
-    </div>
+      </Box>
+    </VStack>
   );
 }
 
@@ -276,43 +246,30 @@ function PaletteHeader({
   colorCount: number;
 }) {
   return (
-    <div class={css({ mb: "4" })}>
-      <div class={css({ display: "flex", alignItems: "center", gap: "3", mb: "2" })}>
-        <h2 class={css({ fontSize: "lg", fontWeight: "semibold", color: "fg.default" })}>
+    <Box mb="4">
+      <HStack gap="3" mb="2">
+        <Box as="h2" fontSize="lg" fontWeight="semibold" color="fg.default">
           {getPaletteTypeLabel(type)} Palette
-        </h2>
-        <span
-          class={css({
-            px: "2",
-            py: "0.5",
-            bg: "bg.subtle",
-            rounded: "full",
-            fontSize: "xs",
-            color: "fg.muted",
-          })}
-        >
+        </Box>
+        <Badge variant="outline" size="sm">
           {colorCount} colors
-        </span>
-      </div>
+        </Badge>
+      </HStack>
       {baseColor && (
-        <div class={css({ display: "flex", alignItems: "center", gap: "2" })}>
-          <span class={css({ fontSize: "sm", color: "fg.muted" })}>Base color:</span>
-          <div
-            class={css({
-              w: "4",
-              h: "4",
-              rounded: "sm",
-              border: "1px solid",
-              borderColor: "border.default",
-            })}
+        <HStack gap="2">
+          <Box fontSize="sm" color="fg.muted">Base color:</Box>
+          <Box
+            w="4"
+            h="4"
+            rounded="sm"
+            border="1px solid"
+            borderColor="border.default"
             style={{ backgroundColor: baseColor }}
           />
-          <code class={css({ fontSize: "sm", fontFamily: "mono", color: "fg.default" })}>
-            {baseColor.toUpperCase()}
-          </code>
-        </div>
+          <Code size="sm">{baseColor.toUpperCase()}</Code>
+        </HStack>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -338,55 +295,44 @@ function CssExport({ colors }: { colors: ColorItem[] }) {
   }, [fullCss]);
 
   return (
-    <div class={css({ mt: "6" })}>
-      <h3 class={css({ fontSize: "sm", fontWeight: "semibold", color: "fg.muted", mb: "2", textTransform: "uppercase", letterSpacing: "wide" })}>
-        CSS Variables
-      </h3>
-      <div
-        class={css({
-          position: "relative",
-          bg: "bg.subtle",
-          rounded: "lg",
-          border: "1px solid",
-          borderColor: "border.default",
-          overflow: "hidden",
-        })}
+    <Box mt="6">
+      <Box
+        as="h3"
+        fontSize="sm"
+        fontWeight="semibold"
+        color="fg.muted"
+        mb="2"
+        textTransform="uppercase"
+        letterSpacing="wide"
       >
-        <pre
-          class={css({
-            p: "3",
-            fontSize: "xs",
-            fontFamily: "mono",
-            color: "fg.default",
-            overflowX: "auto",
-            m: 0,
-          })}
-        >
-          {fullCss}
-        </pre>
-        <button
-          onClick={handleCopy}
-          class={css({
-            position: "absolute",
-            top: "2",
-            right: "2",
-            px: "3",
-            py: "1.5",
-            bg: copied ? "green.500" : "blue.500",
-            color: "white",
-            rounded: "md",
-            fontSize: "xs",
-            fontWeight: "medium",
-            cursor: "pointer",
-            border: "none",
-            transition: "background 0.15s ease",
-            _hover: { bg: copied ? "green.600" : "blue.600" },
-          })}
-        >
-          {copied ? "Copied!" : "Copy CSS"}
-        </button>
-      </div>
-    </div>
+        CSS Variables
+      </Box>
+      <Card.Root position="relative">
+        <Card.Body p="0">
+          <Box
+            as="pre"
+            p="3"
+            fontSize="xs"
+            fontFamily="mono"
+            color="fg.default"
+            overflowX="auto"
+            m="0"
+          >
+            {fullCss}
+          </Box>
+          <Button
+            onClick={handleCopy}
+            variant="solid"
+            size="sm"
+            position="absolute"
+            top="2"
+            right="2"
+          >
+            {copied ? "Copied!" : "Copy CSS"}
+          </Button>
+        </Card.Body>
+      </Card.Root>
+    </Box>
   );
 }
 
@@ -394,28 +340,40 @@ function ContrastMatrix({ colors }: { colors: ColorItem[] }) {
   if (colors.length < 2 || colors.length > 8) return null;
 
   return (
-    <div class={css({ mt: "6" })}>
-      <h3 class={css({ fontSize: "sm", fontWeight: "semibold", color: "fg.muted", mb: "2", textTransform: "uppercase", letterSpacing: "wide" })}>
+    <Box mt="6">
+      <Box
+        as="h3"
+        fontSize="sm"
+        fontWeight="semibold"
+        color="fg.muted"
+        mb="2"
+        textTransform="uppercase"
+        letterSpacing="wide"
+      >
         Adjacent Contrast
-      </h3>
-      <div class={css({ display: "flex", alignItems: "center", gap: "1", flexWrap: "wrap" })}>
+      </Box>
+      <Flex align="center" gap="1" flexWrap="wrap">
         {colors.slice(0, -1).map((color, i) => (
-          <div key={i} class={css({ display: "flex", alignItems: "center" })}>
-            <div
-              class={css({ w: "6", h: "6", rounded: "sm" })}
+          <HStack key={i} gap="0">
+            <Box
+              w="6"
+              h="6"
+              rounded="sm"
               style={{ backgroundColor: color.hex }}
             />
             <ContrastIndicator color1={color.hex} color2={colors[i + 1].hex} />
             {i === colors.length - 2 && (
-              <div
-                class={css({ w: "6", h: "6", rounded: "sm" })}
+              <Box
+                w="6"
+                h="6"
+                rounded="sm"
                 style={{ backgroundColor: colors[i + 1].hex }}
               />
             )}
-          </div>
+          </HStack>
         ))}
-      </div>
-    </div>
+      </Flex>
+    </Box>
   );
 }
 
@@ -476,30 +434,40 @@ function PaletteViewer() {
   // Render states
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading palette...</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="full">
+        <Center p="10" flexDirection="column" gap="2">
+          <Spinner size="md" />
+          <Box color="fg.muted">Loading palette...</Box>
+        </Center>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>{error}</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="full">
+        <Box
+          p="4"
+          bg={{ base: "red.50", _dark: "red.950" }}
+          color={{ base: "red.700", _dark: "red.300" }}
+          rounded="md"
+        >
+          {error}
+        </Box>
+      </Box>
     );
   }
 
   if (!paletteData || paletteData.colors.length === 0) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No palette data</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="full">
+        <Center p="10" color="fg.muted">No palette data</Center>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="full">
       {/* Header */}
       <PaletteHeader
         type={paletteData.type}
@@ -508,7 +476,7 @@ function PaletteViewer() {
       />
 
       {/* Color Swatches */}
-      <div class={css({ display: "flex", flexWrap: "wrap", gap: "4", justifyContent: "center" })}>
+      <Flex flexWrap="wrap" gap="4" justify="center">
         {paletteData.colors.map((color, i) => (
           <ColorSwatch
             key={i}
@@ -518,51 +486,19 @@ function PaletteViewer() {
             onClick={() => setSelectedIndex(i)}
           />
         ))}
-      </div>
+      </Flex>
 
       {/* Contrast Matrix */}
       <ContrastMatrix colors={paletteData.colors} />
 
       {/* CSS Export */}
       <CssExport colors={paletteData.colors} />
-    </div>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minH: "full",
-  }),
-  loading: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  empty: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  error: css({
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    _dark: { bg: "red.950", color: "red.300" },
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<PaletteViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<PaletteViewer />);

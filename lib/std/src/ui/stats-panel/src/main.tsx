@@ -13,10 +13,14 @@
  * @module lib/std/src/ui/stats-panel
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useRef } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
-import "./styles.css";
+import { css } from "../../styled-system/css";
+import { Box, Flex, Grid, VStack, HStack, Center } from "../../styled-system/jsx";
+import * as Switch from "~/components/ui/switch";
+import { Spinner } from "../../components/ui/spinner";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -779,52 +783,47 @@ function StatCard({ label, value, decimals = 4, delay = 0 }: { label: string; va
   const [hovered, setHovered] = useState(false);
 
   return (
-    <div
+    <VStack
+      gap="1.5"
+      p="3.5"
+      bg="rgba(255, 255, 255, 0.03)"
+      backdropFilter="blur(12px)"
+      border="1px solid rgba(255, 255, 255, 0.06)"
+      borderRadius="xl"
+      cursor="default"
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "6px",
-        padding: "14px 16px",
-        background: "rgba(255, 255, 255, 0.03)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        border: "1px solid rgba(255, 255, 255, 0.06)",
-        borderRadius: "12px",
         opacity: mounted ? 1 : 0,
         transform: mounted ? "translateY(0)" : "translateY(8px)",
         transition: `all 0.4s ease ${delay}ms`,
-        cursor: "default",
         boxShadow: hovered ? "0 8px 32px rgba(139, 92, 246, 0.15)" : "none",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <span
+      <Box
+        fontSize="10px"
+        fontFamily="'DM Sans', sans-serif"
+        fontWeight="500"
+        textTransform="uppercase"
+        letterSpacing="0.08em"
         style={{
-          fontSize: "10px",
-          fontFamily: "'DM Sans', sans-serif",
-          fontWeight: 500,
           color: "rgba(255, 255, 255, 0.45)",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
           opacity: hovered ? 0.8 : 0.45,
           transition: "opacity 0.2s ease",
         }}
       >
         {label}
-      </span>
-      <span
-        style={{
-          fontSize: "15px",
-          fontFamily: "'Space Mono', monospace",
-          fontWeight: 500,
-          color: "rgba(255, 255, 255, 0.9)",
-          letterSpacing: "-0.02em",
-        }}
+      </Box>
+      <Box
+        fontSize="15px"
+        fontFamily="'Space Mono', monospace"
+        fontWeight="500"
+        letterSpacing="-0.02em"
+        color="rgba(255, 255, 255, 0.9)"
       >
         {displayValue}
-      </span>
-    </div>
+      </Box>
+    </VStack>
   );
 }
 
@@ -845,13 +844,10 @@ function SummaryStats({ stats }: { stats: Stats }) {
   ];
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
-        gap: "10px",
-        marginBottom: "24px",
-      }}
+    <Grid
+      gridTemplateColumns="repeat(auto-fill, minmax(110px, 1fr))"
+      gap="2.5"
+      mb="6"
     >
       {items.map((item, i) => (
         <StatCard
@@ -862,72 +858,26 @@ function SummaryStats({ stats }: { stats: Stats }) {
           delay={50 + i * 40}
         />
       ))}
-    </div>
+    </Grid>
   );
 }
 
 // ============================================================================
-// Toggle Switch Component
+// Toggle Switch Component (using Park UI Switch)
 // ============================================================================
 
 function ToggleSwitch({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
-  const [hovered, setHovered] = useState(false);
-
   return (
-    <label
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        cursor: "pointer",
-        padding: "6px 10px",
-        borderRadius: "8px",
-        background: hovered ? "rgba(255, 255, 255, 0.04)" : "transparent",
-        transition: "background 0.2s ease",
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <Switch.Root
+      checked={checked}
+      onCheckedChange={(e) => onChange(e.checked)}
+      size="sm"
+      className={css({ px: "2", py: "1" })}
     >
-      <div
-        style={{
-          position: "relative",
-          width: "36px",
-          height: "20px",
-          background: checked
-            ? "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)"
-            : "rgba(255, 255, 255, 0.1)",
-          borderRadius: "10px",
-          transition: "background 0.3s ease",
-          boxShadow: checked ? "0 0 12px rgba(139, 92, 246, 0.4)" : "none",
-        }}
-        onClick={() => onChange(!checked)}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: "2px",
-            left: checked ? "18px" : "2px",
-            width: "16px",
-            height: "16px",
-            background: "white",
-            borderRadius: "50%",
-            transition: "left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-          }}
-        />
-      </div>
-      <span
-        style={{
-          fontSize: "12px",
-          fontFamily: "'DM Sans', sans-serif",
-          fontWeight: 500,
-          color: checked ? "rgba(255, 255, 255, 0.8)" : "rgba(255, 255, 255, 0.45)",
-          transition: "color 0.2s ease",
-        }}
-      >
-        {label}
-      </span>
-    </label>
+      <Switch.Control />
+      <Switch.Label className={css({ fontSize: "xs", fontWeight: "medium" })}>{label}</Switch.Label>
+      <Switch.HiddenInput />
+    </Switch.Root>
   );
 }
 
@@ -992,58 +942,157 @@ function StatsPanel() {
 
   if (loading) {
     return (
-      <div style={containerStyle}>
-        <div style={messageStyle}>
-          <div style={spinnerStyle} />
-          <span style={{ marginTop: "16px" }}>Loading statistics...</span>
-        </div>
-      </div>
+      <Box
+        p="7"
+        fontFamily="'DM Sans', sans-serif"
+        fontSize="sm"
+        color="rgba(255, 255, 255, 0.9)"
+        maxW="580px"
+        minH="100vh"
+        style={{
+          background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
+        }}
+      >
+        <Center p="15" flexDirection="column" color="rgba(255, 255, 255, 0.4)">
+          <Spinner size="lg" colorPalette="purple" />
+          <Box mt="4">Loading statistics...</Box>
+        </Center>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div style={containerStyle}>
-        <div style={{ ...messageStyle, color: "#f87171" }}>{error}</div>
-      </div>
+      <Box
+        p="7"
+        fontFamily="'DM Sans', sans-serif"
+        fontSize="sm"
+        color="rgba(255, 255, 255, 0.9)"
+        maxW="580px"
+        minH="100vh"
+        style={{
+          background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
+        }}
+      >
+        <Center p="15" color="#f87171">{error}</Center>
+      </Box>
     );
   }
 
   if (!statsData || !stats) {
     return (
-      <div style={containerStyle}>
-        <div style={messageStyle}>No data provided</div>
-      </div>
+      <Box
+        p="7"
+        fontFamily="'DM Sans', sans-serif"
+        fontSize="sm"
+        color="rgba(255, 255, 255, 0.9)"
+        maxW="580px"
+        minH="100vh"
+        style={{
+          background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
+        }}
+      >
+        <Center p="15" color="rgba(255, 255, 255, 0.4)">No data provided</Center>
+      </Box>
     );
   }
 
   return (
-    <div style={containerStyle}>
+    <Box
+      p="7"
+      fontFamily="'DM Sans', sans-serif"
+      fontSize="sm"
+      color="rgba(255, 255, 255, 0.9)"
+      maxW="580px"
+      minH="100vh"
+      style={{
+        background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
+        backgroundImage: `
+          linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%),
+          repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 40px,
+            rgba(255, 255, 255, 0.015) 40px,
+            rgba(255, 255, 255, 0.015) 41px
+          ),
+          repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 40px,
+            rgba(255, 255, 255, 0.015) 40px,
+            rgba(255, 255, 255, 0.015) 41px
+          )
+        `,
+      }}
+    >
       {/* Header */}
-      <div style={headerStyle}>
-        <div>
+      <Flex justify="space-between" align="flex-start" mb="7" flexWrap="wrap" gap="4">
+        <Box>
           {statsData.title && (
-            <h2 style={titleStyle}>{statsData.title}</h2>
+            <Box
+              as="h2"
+              fontSize="22px"
+              fontWeight="600"
+              m="0"
+              letterSpacing="-0.02em"
+              style={{
+                background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              {statsData.title}
+            </Box>
           )}
-          <p style={subtitleStyle}>
+          <Box
+            fontSize="12px"
+            fontFamily="'Space Mono', monospace"
+            color="rgba(255, 255, 255, 0.4)"
+            mt="1.5"
+          >
             {stats.count.toLocaleString()} data points analyzed
-          </p>
-        </div>
-        <div style={togglesStyle}>
+          </Box>
+        </Box>
+        <Flex
+          gap="1"
+          flexWrap="wrap"
+          bg="rgba(255, 255, 255, 0.02)"
+          borderRadius="xl"
+          p="1"
+          border="1px solid rgba(255, 255, 255, 0.04)"
+        >
           <ToggleSwitch checked={showHistogram} onChange={setShowHistogram} label="Histogram" />
           <ToggleSwitch checked={showBoxPlot} onChange={setShowBoxPlot} label="Box Plot" />
           <ToggleSwitch checked={showCurve} onChange={setShowCurve} label="Normal Curve" />
-        </div>
-      </div>
+        </Flex>
+      </Flex>
 
       {/* Summary Statistics */}
       <SummaryStats stats={stats} />
 
       {/* Charts */}
-      <div style={chartsContainerStyle}>
+      <VStack gap="5">
         {showHistogram && (
-          <div style={chartWrapperStyle}>
-            <h3 style={chartTitleStyle}>Distribution Histogram</h3>
+          <Box
+            bg="rgba(255, 255, 255, 0.02)"
+            backdropFilter="blur(12px)"
+            border="1px solid rgba(255, 255, 255, 0.06)"
+            borderRadius="2xl"
+            p="5"
+            boxShadow="0 4px 24px rgba(0, 0, 0, 0.2)"
+          >
+            <Box
+              fontSize="11px"
+              fontWeight="600"
+              color="rgba(255, 255, 255, 0.5)"
+              mb="4"
+              textTransform="uppercase"
+              letterSpacing="0.1em"
+            >
+              Distribution Histogram
+            </Box>
             <Histogram
               data={statsData.data}
               stats={stats}
@@ -1052,135 +1101,38 @@ function StatsPanel() {
               height={histogramHeight}
               showCurve={showCurve}
             />
-          </div>
+          </Box>
         )}
 
         {showBoxPlot && (
-          <div style={chartWrapperStyle}>
-            <h3 style={chartTitleStyle}>Box Plot Analysis</h3>
+          <Box
+            bg="rgba(255, 255, 255, 0.02)"
+            backdropFilter="blur(12px)"
+            border="1px solid rgba(255, 255, 255, 0.06)"
+            borderRadius="2xl"
+            p="5"
+            boxShadow="0 4px 24px rgba(0, 0, 0, 0.2)"
+          >
+            <Box
+              fontSize="11px"
+              fontWeight="600"
+              color="rgba(255, 255, 255, 0.5)"
+              mb="4"
+              textTransform="uppercase"
+              letterSpacing="0.1em"
+            >
+              Box Plot Analysis
+            </Box>
             <BoxPlot stats={stats} width={width} height={boxPlotHeight} />
-          </div>
+          </Box>
         )}
-      </div>
-    </div>
+      </VStack>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const containerStyle: React.CSSProperties = {
-  padding: "28px",
-  fontFamily: "'DM Sans', sans-serif",
-  fontSize: "14px",
-  color: "rgba(255, 255, 255, 0.9)",
-  background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
-  backgroundImage: `
-    linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%),
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 40px,
-      rgba(255, 255, 255, 0.015) 40px,
-      rgba(255, 255, 255, 0.015) 41px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 40px,
-      rgba(255, 255, 255, 0.015) 40px,
-      rgba(255, 255, 255, 0.015) 41px
-    )
-  `,
-  maxWidth: "580px",
-  minHeight: "100vh",
-  boxSizing: "border-box",
-};
-
-const headerStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  marginBottom: "28px",
-  flexWrap: "wrap",
-  gap: "16px",
-};
-
-const titleStyle: React.CSSProperties = {
-  fontSize: "22px",
-  fontWeight: 600,
-  margin: 0,
-  letterSpacing: "-0.02em",
-  background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%)",
-  WebkitBackgroundClip: "text",
-  WebkitTextFillColor: "transparent",
-  backgroundClip: "text",
-};
-
-const subtitleStyle: React.CSSProperties = {
-  fontSize: "12px",
-  fontFamily: "'Space Mono', monospace",
-  color: "rgba(255, 255, 255, 0.4)",
-  marginTop: "6px",
-};
-
-const togglesStyle: React.CSSProperties = {
-  display: "flex",
-  gap: "4px",
-  flexWrap: "wrap",
-  background: "rgba(255, 255, 255, 0.02)",
-  borderRadius: "12px",
-  padding: "4px",
-  border: "1px solid rgba(255, 255, 255, 0.04)",
-};
-
-const chartsContainerStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "20px",
-};
-
-const chartWrapperStyle: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.02)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255, 255, 255, 0.06)",
-  borderRadius: "16px",
-  padding: "20px",
-  boxShadow: "0 4px 24px rgba(0, 0, 0, 0.2)",
-};
-
-const chartTitleStyle: React.CSSProperties = {
-  fontSize: "11px",
-  fontWeight: 600,
-  color: "rgba(255, 255, 255, 0.5)",
-  marginBottom: "16px",
-  textTransform: "uppercase",
-  letterSpacing: "0.1em",
-};
-
-const messageStyle: React.CSSProperties = {
-  padding: "60px 20px",
-  textAlign: "center",
-  color: "rgba(255, 255, 255, 0.4)",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-const spinnerStyle: React.CSSProperties = {
-  width: "32px",
-  height: "32px",
-  border: "3px solid rgba(139, 92, 246, 0.2)",
-  borderTopColor: "#8b5cf6",
-  borderRadius: "50%",
-  animation: "spin 1s linear infinite",
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<StatsPanel />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<StatsPanel />);

@@ -14,11 +14,13 @@
  * @module lib/std/src/ui/qr-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Stack, Center } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -82,7 +84,7 @@ function QRViewer() {
             const text = textContent.text;
             if (text.trim().startsWith("<svg") || text.trim().startsWith("<?xml")) {
               setQrData({ svg: text });
-            } else if (text.includes("█") || text.includes("▀") || text.includes("##")) {
+            } else if (text.includes("\u2588") || text.includes("\u2580") || text.includes("##")) {
               setQrData({ ascii: text });
             } else {
               setQrData({ data: text });
@@ -118,22 +120,31 @@ function QRViewer() {
   }, [qrData]);
 
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading QR...</div></div>;
+    return (
+      <Center p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" flexDirection="column" gap="3">
+        <Box p="6" color="fg.muted">Loading QR...</Box>
+      </Center>
+    );
   }
 
   if (!qrData) {
-    return <div class={styles.container}><div class={styles.empty}>No QR code</div></div>;
+    return (
+      <Center p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" flexDirection="column" gap="3">
+        <Box p="6" color="fg.muted">No QR code</Box>
+      </Center>
+    );
   }
 
   return (
-    <div class={styles.container}>
+    <Flex p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" direction="column" align="center" gap="3">
       {/* QR Display */}
-      <div class={styles.qrContainer}>
+      <Box p="4" bg="white" rounded="lg" shadow="sm" border="1px solid" borderColor="border.default">
         {qrData.svg && (
-          <div
-            class={styles.qrImage}
+          <Box
+            display="block"
             style={{ width: displaySize, height: displaySize }}
             dangerouslySetInnerHTML={{ __html: qrData.svg }}
+            className={css({ "& svg": { width: "100%", height: "100%" } })}
           />
         )}
 
@@ -141,202 +152,101 @@ function QRViewer() {
           <img
             src={qrData.dataUrl}
             alt="QR Code"
-            class={styles.qrImage}
-            style={{ width: displaySize, height: displaySize }}
+            style={{ width: displaySize, height: displaySize, display: "block" }}
           />
         )}
 
         {qrData.ascii && (
-          <pre class={styles.ascii}>{qrData.ascii}</pre>
+          <Box
+            as="pre"
+            fontFamily="mono"
+            fontSize="4px"
+            lineHeight="4px"
+            letterSpacing="-1px"
+            whiteSpace="pre"
+            color="black"
+          >
+            {qrData.ascii}
+          </Box>
         )}
 
         {!qrData.svg && !qrData.dataUrl && !qrData.ascii && qrData.data && (
-          <div class={styles.placeholder}>
-            <span class={styles.placeholderIcon}>⬜</span>
-            <span>QR for: {qrData.data.slice(0, 30)}{qrData.data.length > 30 ? "..." : ""}</span>
-          </div>
+          <Stack align="center" gap="2" p="8" color="fg.muted">
+            <Box fontSize="4xl">{"\u2B1C"}</Box>
+            <Box>QR for: {qrData.data.slice(0, 30)}{qrData.data.length > 30 ? "..." : ""}</Box>
+          </Stack>
         )}
-      </div>
+      </Box>
 
       {/* Data display */}
       {qrData.data && (
-        <div class={styles.dataSection}>
-          <div class={styles.dataLabel}>Encoded data:</div>
-          <div class={styles.dataValue}>
+        <Box w="100%" maxW="300px">
+          <Box fontSize="xs" color="fg.muted" mb="1">Encoded data:</Box>
+          <Box p="2" bg="bg.subtle" rounded="md" fontFamily="mono" fontSize="xs" wordBreak="break-all">
             {qrData.data.length > 100 ? qrData.data.slice(0, 100) + "..." : qrData.data}
-          </div>
-        </div>
+          </Box>
+        </Box>
       )}
 
       {/* Controls */}
-      <div class={styles.controls}>
+      <Stack gap="2" w="100%" maxW="300px">
         {/* Size slider */}
-        <div class={styles.sizeControl}>
-          <label class={styles.sizeLabel}>Size: {displaySize}px</label>
-          <input
+        <Flex align="center" gap="2">
+          <Box as="label" fontSize="xs" color="fg.muted" minW="70px">Size: {displaySize}px</Box>
+          <Box
+            as="input"
             type="range"
             min="100"
             max="400"
             value={displaySize}
-            onInput={(e) => setDisplaySize(parseInt((e.target as HTMLInputElement).value, 10))}
-            class={styles.slider}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDisplaySize(parseInt(e.target.value, 10))}
+            flex="1"
+            h="4px"
+            bg="bg.muted"
+            rounded="full"
+            cursor="pointer"
+            className={css({
+              appearance: "none",
+              "&::-webkit-slider-thumb": {
+                appearance: "none",
+                w: "14px",
+                h: "14px",
+                bg: "blue.500",
+                rounded: "full",
+                cursor: "pointer",
+              },
+            })}
           />
-        </div>
+        </Flex>
 
         {/* Buttons */}
-        <div class={styles.buttons}>
+        <Flex gap="2" justify="center">
           {qrData.data && (
-            <button class={styles.btn} onClick={copyData}>
-              {copied ? "✓ Copied" : "Copy data"}
-            </button>
+            <Button variant="outline" size="sm" onClick={copyData}>
+              {copied ? "Copied" : "Copy data"}
+            </Button>
           )}
           {qrData.svg && (
-            <button class={styles.btn} onClick={downloadSvg}>
-              ↓ Download SVG
-            </button>
+            <Button variant="outline" size="sm" onClick={downloadSvg}>
+              Download SVG
+            </Button>
           )}
-        </div>
-      </div>
+        </Flex>
+      </Stack>
 
       {/* Metadata */}
       {(qrData.errorCorrection || qrData.size) && (
-        <div class={styles.meta}>
-          {qrData.errorCorrection && <span>EC: {qrData.errorCorrection}</span>}
-          {qrData.size && <span>Size: {qrData.size}x{qrData.size}</span>}
-        </div>
+        <Flex gap="3" fontSize="xs" color="fg.muted">
+          {qrData.errorCorrection && <Box>EC: {qrData.errorCorrection}</Box>}
+          {qrData.size && <Box>Size: {qrData.size}x{qrData.size}</Box>}
+        </Flex>
       )}
-    </div>
+    </Flex>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "3",
-  }),
-  qrContainer: css({
-    p: "4",
-    bg: "white",
-    rounded: "lg",
-    shadow: "sm",
-    border: "1px solid",
-    borderColor: "border.default",
-  }),
-  qrImage: css({
-    display: "block",
-    "& svg": {
-      width: "100%",
-      height: "100%",
-    },
-  }),
-  ascii: css({
-    fontFamily: "mono",
-    fontSize: "4px",
-    lineHeight: "4px",
-    letterSpacing: "-1px",
-    whiteSpace: "pre",
-    color: "black",
-  }),
-  placeholder: css({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "2",
-    p: "8",
-    color: "fg.muted",
-  }),
-  placeholderIcon: css({
-    fontSize: "4xl",
-  }),
-  dataSection: css({
-    w: "100%",
-    maxW: "300px",
-  }),
-  dataLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    mb: "1",
-  }),
-  dataValue: css({
-    p: "2",
-    bg: "bg.subtle",
-    rounded: "md",
-    fontFamily: "mono",
-    fontSize: "xs",
-    wordBreak: "break-all",
-  }),
-  controls: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "2",
-    w: "100%",
-    maxW: "300px",
-  }),
-  sizeControl: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  sizeLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    minW: "70px",
-  }),
-  slider: css({
-    flex: 1,
-    h: "4px",
-    appearance: "none",
-    bg: "bg.muted",
-    rounded: "full",
-    cursor: "pointer",
-    "&::-webkit-slider-thumb": {
-      appearance: "none",
-      w: "14px",
-      h: "14px",
-      bg: "blue.500",
-      rounded: "full",
-      cursor: "pointer",
-    },
-  }),
-  buttons: css({
-    display: "flex",
-    gap: "2",
-    justifyContent: "center",
-  }),
-  btn: css({
-    px: "3",
-    py: "1.5",
-    fontSize: "xs",
-    bg: "bg.subtle",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  meta: css({
-    display: "flex",
-    gap: "3",
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  loading: css({ p: "6", color: "fg.muted" }),
-  empty: css({ p: "6", color: "fg.muted" }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<QRViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<QRViewer />);

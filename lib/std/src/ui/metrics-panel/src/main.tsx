@@ -11,11 +11,15 @@
  * @module lib/std/src/ui/metrics-panel
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Grid, VStack, HStack, Center } from "../../styled-system/jsx";
+import { Badge } from "../../components/ui/badge";
+import { Spinner } from "../../components/ui/spinner";
+import * as Card from "../../components/ui/card";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -101,34 +105,38 @@ function GaugeMetric({ metric }: { metric: MetricData }) {
   const offset = circumference - (circumference * percentage) / 100;
 
   return (
-    <div class={styles.gaugeContainer}>
-      <svg viewBox="0 0 100 100" class={styles.gaugeSvg}>
+    <VStack gap="0" align="center" position="relative">
+      <svg viewBox="0 0 100 100" className={css({ w: "80px", h: "80px" })}>
         <circle
           cx="50" cy="50" r={radius}
           fill="none"
           stroke="var(--colors-border-default)"
-          stroke-width="8"
-          stroke-linecap="round"
-          stroke-dasharray={`${circumference} ${circumference}`}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={`${circumference} ${circumference}`}
           transform="rotate(135 50 50)"
         />
         <circle
           cx="50" cy="50" r={radius}
           fill="none"
           stroke={color}
-          stroke-width="8"
-          stroke-linecap="round"
-          stroke-dasharray={`${circumference} ${circumference}`}
-          stroke-dashoffset={offset}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={offset}
           transform="rotate(135 50 50)"
-          class={styles.gaugeArc}
+          className={css({ transition: "stroke-dashoffset 0.5s ease" })}
         />
       </svg>
-      <div class={styles.gaugeValue}>
-        <span class={styles.bigValue}>{formatValue(value, unit)}</span>
-      </div>
-      <div class={styles.metricLabel}>{label}</div>
-    </div>
+      <Box position="absolute" top="50%" left="50%" transform="translate(-50%, -40%)" textAlign="center">
+        <Box fontSize="xl" fontWeight="bold" fontFamily="mono">
+          {formatValue(value, unit)}
+        </Box>
+      </Box>
+      <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
+        {label}
+      </Box>
+    </VStack>
   );
 }
 
@@ -154,19 +162,21 @@ function SparklineMetric({ metric }: { metric: MetricData }) {
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${padding} ${height - padding} Z`;
 
   return (
-    <div class={styles.sparklineContainer}>
-      <div class={styles.sparklineHeader}>
-        <span class={styles.metricLabel}>{label}</span>
-        <span class={styles.sparklineValue} style={{ color }}>
+    <VStack gap="1" align="stretch">
+      <Flex justify="space-between" align="baseline">
+        <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
+          {label}
+        </Box>
+        <Box fontSize="lg" fontWeight="bold" fontFamily="mono" style={{ color }}>
           {formatValue(value, unit)}
-        </span>
-      </div>
-      <svg width={width} height={height} class={styles.sparklineSvg}>
+        </Box>
+      </Flex>
+      <svg width={width} height={height} className={css({ display: "block", w: "100%" })}>
         <path d={areaPath} fill={color} opacity={0.15} />
-        <path d={linePath} fill="none" stroke={color} stroke-width={1.5} stroke-linecap="round" />
+        <path d={linePath} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
         <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={3} fill={color} />
       </svg>
-    </div>
+    </VStack>
   );
 }
 
@@ -175,13 +185,19 @@ function StatMetric({ metric }: { metric: MetricData }) {
   const color = getColor(value, thresholds);
 
   return (
-    <div class={styles.statContainer}>
-      <div class={styles.metricLabel}>{label}</div>
-      <div class={styles.statValue} style={{ color }}>
+    <VStack gap="0" textAlign="center">
+      <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
+        {label}
+      </Box>
+      <Box fontSize="2xl" fontWeight="bold" fontFamily="mono" my="1" style={{ color }}>
         {formatValue(value, unit)}
-      </div>
-      {description && <div class={styles.statDescription}>{description}</div>}
-    </div>
+      </Box>
+      {description && (
+        <Box fontSize="xs" color="fg.muted">
+          {description}
+        </Box>
+      )}
+    </VStack>
   );
 }
 
@@ -191,21 +207,44 @@ function BarMetric({ metric }: { metric: MetricData }) {
   const color = getColor(value, thresholds);
 
   return (
-    <div class={styles.barContainer}>
-      <div class={styles.barHeader}>
-        <span class={styles.metricLabel}>{label}</span>
-        <span class={styles.barValue}>{formatValue(value, unit)}</span>
-      </div>
-      <div class={styles.barTrack}>
-        <div class={styles.barFill} style={{ width: `${percentage}%`, backgroundColor: color }} />
+    <VStack gap="1" align="stretch">
+      <Flex justify="space-between" align="baseline">
+        <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
+          {label}
+        </Box>
+        <Box fontWeight="semibold" fontFamily="mono">
+          {formatValue(value, unit)}
+        </Box>
+      </Flex>
+      <Box position="relative" h="8px" bg="bg.muted" rounded="full" overflow="hidden">
+        <Box
+          h="100%"
+          rounded="full"
+          style={{ width: `${percentage}%`, backgroundColor: color }}
+          className={css({ transition: "width 0.5s ease" })}
+        />
         {thresholds?.warning && (
-          <div class={styles.barThreshold} style={{ left: `${((thresholds.warning - min) / (max - min)) * 100}%` }} />
+          <Box
+            position="absolute"
+            top="0"
+            bottom="0"
+            w="2px"
+            bg="yellow.500"
+            style={{ left: `${((thresholds.warning - min) / (max - min)) * 100}%` }}
+          />
         )}
         {thresholds?.critical && (
-          <div class={styles.barThresholdCritical} style={{ left: `${((thresholds.critical - min) / (max - min)) * 100}%` }} />
+          <Box
+            position="absolute"
+            top="0"
+            bottom="0"
+            w="2px"
+            bg="red.500"
+            style={{ left: `${((thresholds.critical - min) / (max - min)) * 100}%` }}
+          />
         )}
-      </div>
-    </div>
+      </Box>
+    </VStack>
   );
 }
 
@@ -213,12 +252,18 @@ function MetricCard({ metric }: { metric: MetricData }) {
   const type = metric.type || (metric.history?.length ? "sparkline" : "stat");
 
   return (
-    <div class={styles.card} onClick={() => notifyModel("selectMetric", { id: metric.id, metric })}>
-      {type === "gauge" && <GaugeMetric metric={metric} />}
-      {type === "sparkline" && <SparklineMetric metric={metric} />}
-      {type === "stat" && <StatMetric metric={metric} />}
-      {type === "bar" && <BarMetric metric={metric} />}
-    </div>
+    <Card.Root
+      cursor="pointer"
+      className={css({ transition: "all 0.15s", _hover: { borderColor: "border.emphasized", shadow: "sm" } })}
+      onClick={() => notifyModel("selectMetric", { id: metric.id, metric })}
+    >
+      <Card.Body p="3">
+        {type === "gauge" && <GaugeMetric metric={metric} />}
+        {type === "sparkline" && <SparklineMetric metric={metric} />}
+        {type === "stat" && <StatMetric metric={metric} />}
+        {type === "bar" && <BarMetric metric={metric} />}
+      </Card.Body>
+    </Card.Root>
   );
 }
 
@@ -258,219 +303,63 @@ function MetricsPanel() {
   }, []);
 
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading metrics...</div></div>;
+    return (
+      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="3">
+        <Center p="6" flexDirection="column" gap="2">
+          <Spinner size="md" />
+          <Box color="fg.muted">Loading metrics...</Box>
+        </Center>
+      </Box>
+    );
   }
 
   if (!data?.metrics?.length) {
-    return <div class={styles.container}><div class={styles.empty}>No metrics</div></div>;
+    return (
+      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="3">
+        <Center p="6" color="fg.muted">No metrics</Center>
+      </Box>
+    );
   }
 
   const columns = data.columns || Math.min(4, Math.max(2, data.metrics.length));
 
   return (
-    <div class={styles.container}>
+    <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="3">
       {/* Header */}
       {(data.title || data.timestamp) && (
-        <div class={styles.header}>
-          {data.title && <h2 class={styles.title}>{data.title}</h2>}
-          <div class={styles.headerRight}>
+        <Flex justify="space-between" align="center" mb="3" pb="2" borderBottom="1px solid" borderColor="border.subtle">
+          {data.title && (
+            <Box as="h2" fontSize="lg" fontWeight="semibold" m="0">
+              {data.title}
+            </Box>
+          )}
+          <HStack gap="3">
             {data.refreshInterval && (
-              <span class={styles.refreshBadge}>
+              <Badge variant="outline" size="sm">
                 ↻ {data.refreshInterval}s
-              </span>
+              </Badge>
             )}
             {data.timestamp && (
-              <span class={styles.timestamp}>{data.timestamp}</span>
+              <Box fontSize="xs" color="fg.muted">
+                {data.timestamp}
+              </Box>
             )}
-          </div>
-        </div>
+          </HStack>
+        </Flex>
       )}
 
       {/* Metrics Grid */}
-      <div
-        class={styles.grid}
-        style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
-      >
+      <Grid gap="3" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
         {data.metrics.map((metric) => (
           <MetricCard key={metric.id} metric={metric} />
         ))}
-      </div>
-    </div>
+      </Grid>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    p: "3",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "3",
-    pb: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  title: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-    m: 0,
-  }),
-  headerRight: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "3",
-  }),
-  refreshBadge: css({
-    px: "2",
-    py: "0.5",
-    bg: "blue.100",
-    color: "blue.700",
-    fontSize: "xs",
-    rounded: "full",
-    _dark: { bg: "blue.900", color: "blue.300" },
-  }),
-  timestamp: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  grid: css({
-    display: "grid",
-    gap: "3",
-  }),
-  card: css({
-    p: "3",
-    bg: "bg.subtle",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    cursor: "pointer",
-    transition: "all 0.15s",
-    _hover: { borderColor: "border.emphasized", shadow: "sm" },
-  }),
-  metricLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    fontWeight: "medium",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-  }),
-  // Gauge
-  gaugeContainer: css({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    position: "relative",
-  }),
-  gaugeSvg: css({
-    w: "80px",
-    h: "80px",
-  }),
-  gaugeArc: css({
-    transition: "stroke-dashoffset 0.5s ease",
-  }),
-  gaugeValue: css({
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -40%)",
-    textAlign: "center",
-  }),
-  bigValue: css({
-    fontSize: "xl",
-    fontWeight: "bold",
-    fontFamily: "mono",
-  }),
-  // Sparkline
-  sparklineContainer: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "1",
-  }),
-  sparklineHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-  }),
-  sparklineValue: css({
-    fontSize: "lg",
-    fontWeight: "bold",
-    fontFamily: "mono",
-  }),
-  sparklineSvg: css({
-    display: "block",
-    w: "100%",
-  }),
-  // Stat
-  statContainer: css({
-    textAlign: "center",
-  }),
-  statValue: css({
-    fontSize: "2xl",
-    fontWeight: "bold",
-    fontFamily: "mono",
-    my: "1",
-  }),
-  statDescription: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  // Bar
-  barContainer: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "1",
-  }),
-  barHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-  }),
-  barValue: css({
-    fontWeight: "semibold",
-    fontFamily: "mono",
-  }),
-  barTrack: css({
-    position: "relative",
-    h: "8px",
-    bg: "bg.muted",
-    rounded: "full",
-    overflow: "hidden",
-  }),
-  barFill: css({
-    h: "100%",
-    rounded: "full",
-    transition: "width 0.5s ease",
-  }),
-  barThreshold: css({
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    w: "2px",
-    bg: "yellow.500",
-  }),
-  barThresholdCritical: css({
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    w: "2px",
-    bg: "red.500",
-  }),
-  loading: css({ p: "6", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "6", textAlign: "center", color: "fg.muted" }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<MetricsPanel />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<MetricsPanel />);

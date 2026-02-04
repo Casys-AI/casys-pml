@@ -10,14 +10,18 @@
     "panda": "panda codegen"
   },
   "dependencies": {
-    "preact": "^10.25.4",
-    "@ark-ui/react": "^4.5.0",
-    "@modelcontextprotocol/ext-apps": "^1.0.1"
+    "@ark-ui/react": "^5.30.0",
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "lucide-react": "^0.563.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@pandacss/dev": "^1.8.1",
-    "@park-ui/panda-preset": "^0.42.0",
-    "@preact/preset-vite": "^2.9.4",
+    "@park-ui/panda-preset": "^0.43.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "vite": "^6.2.0",
     "vite-plugin-singlefile": "^2.0.3"
   }

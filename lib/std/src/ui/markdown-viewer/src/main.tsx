@@ -17,11 +17,16 @@
  * @module lib/std/src/ui/markdown-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, VStack, Container, Divider } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Code } from "../../components/ui/code";
+import { Spinner } from "../../components/ui/spinner";
+import * as Card from "../../components/ui/card";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -569,6 +574,21 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 }
 
 // ============================================================================
+// Syntax Highlighting Styles
+// ============================================================================
+
+const syntaxColors: Record<SyntaxToken["type"], { base: string; dark: string }> = {
+  keyword: { base: "purple.600", dark: "purple.400" },
+  string: { base: "green.700", dark: "green.400" },
+  comment: { base: "gray.500", dark: "gray.400" },
+  number: { base: "orange.600", dark: "orange.400" },
+  operator: { base: "fg.default", dark: "fg.default" },
+  function: { base: "blue.600", dark: "blue.400" },
+  type: { base: "cyan.700", dark: "cyan.400" },
+  plain: { base: "inherit", dark: "inherit" },
+};
+
+// ============================================================================
 // Components
 // ============================================================================
 
@@ -578,9 +598,15 @@ function HighlightedCode({ content, language }: { content: string; language: Sup
   return (
     <>
       {tokens.map((token, i) => (
-        <span key={i} class={syntaxStyles[token.type]}>
+        <Box
+          as="span"
+          key={i}
+          color={{ base: syntaxColors[token.type].base, _dark: syntaxColors[token.type].dark }}
+          fontStyle={token.type === "comment" ? "italic" : undefined}
+          fontWeight={token.type === "keyword" ? "medium" : undefined}
+        >
           {token.value}
-        </span>
+        </Box>
       ))}
     </>
   );
@@ -595,48 +621,55 @@ function InlineContent({ tokens }: { tokens: InlineToken[] }) {
             return <span key={i}>{token.content}</span>;
           case "bold":
             return (
-              <strong key={i} class={styles.bold}>
+              <Box as="strong" key={i} fontWeight="bold">
                 {token.content}
-              </strong>
+              </Box>
             );
           case "italic":
             return (
-              <em key={i} class={styles.italic}>
+              <Box as="em" key={i} fontStyle="italic">
                 {token.content}
-              </em>
+              </Box>
             );
           case "strikethrough":
             return (
-              <del key={i} class={styles.strikethrough}>
+              <Box as="del" key={i} textDecoration="line-through" opacity={0.7}>
                 {token.content}
-              </del>
+              </Box>
             );
           case "code":
             return (
-              <code key={i} class={styles.inlineCode}>
+              <Code key={i} size="sm">
                 {token.content}
-              </code>
+              </Code>
             );
           case "link":
             return (
-              <a
+              <Box
+                as="a"
                 key={i}
                 href={token.href}
-                class={styles.link}
+                color={{ base: "blue.600", _dark: "blue.400" }}
+                textDecoration="underline"
+                _hover={{ color: { base: "blue.800", _dark: "blue.300" } }}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => notifyModel("linkClick", { href: token.href })}
               >
                 {token.content}
-              </a>
+              </Box>
             );
           case "image":
             return (
-              <img
+              <Box
+                as="img"
                 key={i}
                 src={token.href}
                 alt={token.alt || ""}
-                class={styles.image}
+                maxW="full"
+                h="auto"
+                rounded="md"
+                my="4"
               />
             );
           default:
@@ -660,19 +693,21 @@ function CodeBlock({ content, language }: { content: string; language: string })
   }, [content, language]);
 
   return (
-    <div class={styles.codeBlock}>
-      <div class={styles.codeHeader}>
-        <span class={styles.codeLanguage}>{language || "plain"}</span>
-        <button class={styles.copyButton} onClick={handleCopy} title="Copy code">
+    <Box my="4" rounded="lg" overflow="hidden" border="1px solid" borderColor="border.default" bg={{ base: "gray.50", _dark: "gray.900" }}>
+      <Flex justify="space-between" align="center" px="3" py="2" bg={{ base: "gray.100", _dark: "gray.800" }} borderBottom="1px solid" borderColor="border.default">
+        <Box fontSize="xs" fontWeight="medium" color="fg.muted" textTransform="uppercase">
+          {language || "plain"}
+        </Box>
+        <Button variant="outline" size="xs" onClick={handleCopy} title="Copy code">
           {copied ? "Copied!" : "Copy"}
-        </button>
-      </div>
-      <pre class={styles.pre}>
-        <code class={styles.code}>
+        </Button>
+      </Flex>
+      <Box as="pre" p="4" overflowX="auto" fontSize="sm" lineHeight="relaxed">
+        <Box as="code" fontFamily="mono">
           <HighlightedCode content={content} language={normalizedLang} />
-        </code>
-      </pre>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
@@ -680,50 +715,73 @@ function TableOfContents({ items, onNavigate }: { items: TocItem[]; onNavigate: 
   if (items.length === 0) return null;
 
   return (
-    <nav class={styles.toc}>
-      <div class={styles.tocTitle}>Table of Contents</div>
-      <ul class={styles.tocList}>
-        {items.map((item, i) => (
-          <li
-            key={i}
-            class={styles.tocItem}
-            style={{ paddingLeft: `${(item.level - 1) * 12}px` }}
-          >
-            <a
-              href={`#${item.id}`}
-              class={styles.tocLink}
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate(item.id);
-                notifyModel("tocClick", { id: item.id, text: item.text });
-              }}
-            >
-              {item.text}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <Card.Root mb="6">
+      <Card.Body p="4">
+        <Box fontSize="sm" fontWeight="semibold" mb="3" color="fg.default" textTransform="uppercase" letterSpacing="wide">
+          Table of Contents
+        </Box>
+        <VStack as="ul" listStyle="none" p="0" m="0" align="stretch" gap="1">
+          {items.map((item, i) => (
+            <Box as="li" key={i} style={{ paddingLeft: `${(item.level - 1) * 12}px` }}>
+              <Box
+                as="a"
+                href={`#${item.id}`}
+                fontSize="sm"
+                color="fg.muted"
+                textDecoration="none"
+                _hover={{ color: { base: "blue.600", _dark: "blue.400" }, textDecoration: "underline" }}
+                onClick={(e: React.MouseEvent) => {
+                  e.preventDefault();
+                  onNavigate(item.id);
+                  notifyModel("tocClick", { id: item.id, text: item.text });
+                }}
+              >
+                {item.text}
+              </Box>
+            </Box>
+          ))}
+        </VStack>
+      </Card.Body>
+    </Card.Root>
   );
 }
 
 function MarkdownBlock({ block }: { block: ParsedBlock }) {
   switch (block.type) {
     case "heading": {
-      const Tag = `h${block.level}` as keyof JSX.IntrinsicElements;
-      const headingStyle = styles[`h${block.level}` as keyof typeof styles] || styles.h1;
+      const headingSizes: Record<number, string> = {
+        1: "3xl",
+        2: "2xl",
+        3: "xl",
+        4: "lg",
+        5: "base",
+        6: "sm",
+      };
+      const level = block.level || 1;
       return (
-        <Tag id={block.id} class={headingStyle}>
+        <Box
+          as={`h${level}` as any}
+          id={block.id}
+          fontSize={headingSizes[level]}
+          fontWeight={level <= 2 ? "bold" : "semibold"}
+          mb={level <= 2 ? "4" : level <= 4 ? "3" : "2"}
+          mt={level === 1 ? "6" : level === 2 ? "5" : level <= 4 ? "4" : "3"}
+          pb={level <= 2 ? "2" : undefined}
+          borderBottom={level <= 2 ? "1px solid" : undefined}
+          borderColor={level === 1 ? "border.default" : "border.subtle"}
+          color={level === 6 ? "fg.muted" : "fg.default"}
+          scrollMarginTop="4"
+        >
           <InlineContent tokens={parseInline(block.content)} />
-        </Tag>
+        </Box>
       );
     }
 
     case "paragraph":
       return (
-        <p class={styles.paragraph}>
+        <Box as="p" mb="4" lineHeight="relaxed">
           <InlineContent tokens={parseInline(block.content)} />
-        </p>
+        </Box>
       );
 
     case "code":
@@ -731,43 +789,62 @@ function MarkdownBlock({ block }: { block: ParsedBlock }) {
 
     case "blockquote":
       return (
-        <blockquote class={styles.blockquote}>
+        <Box
+          as="blockquote"
+          pl="4"
+          py="2"
+          my="4"
+          borderLeft="4px solid"
+          borderColor={{ base: "gray.300", _dark: "gray.600" }}
+          color="fg.muted"
+          fontStyle="italic"
+        >
           <InlineContent tokens={parseInline(block.content)} />
-        </blockquote>
+        </Box>
       );
 
     case "list":
       if (block.ordered) {
         return (
-          <ol class={styles.orderedList}>
+          <Box as="ol" pl="6" mb="4" listStyleType="decimal">
             {block.items?.map((item, i) => (
-              <li key={i} class={styles.listItem}>
+              <Box as="li" key={i} mb="1" lineHeight="relaxed">
                 <InlineContent tokens={parseInline(item)} />
-              </li>
+              </Box>
             ))}
-          </ol>
+          </Box>
         );
       }
       return (
-        <ul class={styles.unorderedList}>
+        <Box as="ul" pl="6" mb="4" listStyleType="disc">
           {block.items?.map((item, i) => (
-            <li key={i} class={styles.listItem}>
+            <Box as="li" key={i} mb="1" lineHeight="relaxed">
               <InlineContent tokens={parseInline(item)} />
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Box>
       );
 
     case "table":
       return (
-        <div class={styles.tableWrapper}>
-          <table class={styles.table}>
+        <Box overflowX="auto" my="4">
+          <Box as="table" w="full" css={{ borderCollapse: "collapse" }} fontSize="sm">
             <thead>
               <tr>
                 {block.headers?.map((header, i) => (
-                  <th key={i} class={styles.th}>
+                  <Box
+                    as="th"
+                    key={i}
+                    px="3"
+                    py="2"
+                    textAlign="left"
+                    fontWeight="semibold"
+                    bg={{ base: "gray.100", _dark: "gray.800" }}
+                    borderBottom="2px solid"
+                    borderColor="border.default"
+                  >
                     <InlineContent tokens={parseInline(header)} />
-                  </th>
+                  </Box>
                 ))}
               </tr>
             </thead>
@@ -775,19 +852,19 @@ function MarkdownBlock({ block }: { block: ParsedBlock }) {
               {block.rows?.map((row, ri) => (
                 <tr key={ri}>
                   {row.map((cell, ci) => (
-                    <td key={ci} class={styles.td}>
+                    <Box as="td" key={ci} px="3" py="2" borderBottom="1px solid" borderColor="border.subtle">
                       <InlineContent tokens={parseInline(cell)} />
-                    </td>
+                    </Box>
                   ))}
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </Box>
+        </Box>
       );
 
     case "hr":
-      return <hr class={styles.hr} />;
+      return <Divider my="6" />;
 
     default:
       return null;
@@ -866,332 +943,52 @@ function MarkdownViewer() {
 
   // Render
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading markdown...</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="base" color="fg.default" bg="bg.canvas" lineHeight="relaxed">
+        <Flex p="10" justify="center" align="center" direction="column" gap="2">
+          <Spinner size="md" />
+          <Box color="fg.muted">Loading markdown...</Box>
+        </Flex>
+      </Box>
+    );
   }
 
   if (error) {
-    return <div class={styles.container}><div class={styles.error}>{error}</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="base" color="fg.default" bg="bg.canvas" lineHeight="relaxed">
+        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">
+          {error}
+        </Box>
+      </Box>
+    );
   }
 
   if (!data?.content) {
-    return <div class={styles.container}><div class={styles.empty}>No content to display</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="base" color="fg.default" bg="bg.canvas" lineHeight="relaxed">
+        <Box p="10" textAlign="center" color="fg.muted">
+          No content to display
+        </Box>
+      </Box>
+    );
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="base" color="fg.default" bg="bg.canvas" lineHeight="relaxed">
       {data.showToc && toc.length > 0 && (
         <TableOfContents items={toc} onNavigate={handleTocNavigate} />
       )}
-      <article class={styles.article}>
+      <Container maxW="prose" mx="auto">
         {blocks.map((block, i) => (
           <MarkdownBlock key={i} block={block} />
         ))}
-      </article>
-    </div>
+      </Container>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "base",
-    color: "fg.default",
-    bg: "bg.canvas",
-    lineHeight: "relaxed",
-  }),
-  article: css({
-    maxWidth: "prose",
-    mx: "auto",
-  }),
-  // Headings
-  h1: css({
-    fontSize: "3xl",
-    fontWeight: "bold",
-    mb: "4",
-    mt: "6",
-    pb: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    color: "fg.default",
-    scrollMarginTop: "4",
-  }),
-  h2: css({
-    fontSize: "2xl",
-    fontWeight: "bold",
-    mb: "3",
-    mt: "5",
-    pb: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    color: "fg.default",
-    scrollMarginTop: "4",
-  }),
-  h3: css({
-    fontSize: "xl",
-    fontWeight: "semibold",
-    mb: "3",
-    mt: "4",
-    color: "fg.default",
-    scrollMarginTop: "4",
-  }),
-  h4: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-    mb: "2",
-    mt: "4",
-    color: "fg.default",
-    scrollMarginTop: "4",
-  }),
-  h5: css({
-    fontSize: "base",
-    fontWeight: "semibold",
-    mb: "2",
-    mt: "3",
-    color: "fg.default",
-    scrollMarginTop: "4",
-  }),
-  h6: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-    mb: "2",
-    mt: "3",
-    color: "fg.muted",
-    scrollMarginTop: "4",
-  }),
-  // Text elements
-  paragraph: css({
-    mb: "4",
-    lineHeight: "relaxed",
-  }),
-  bold: css({
-    fontWeight: "bold",
-  }),
-  italic: css({
-    fontStyle: "italic",
-  }),
-  strikethrough: css({
-    textDecoration: "line-through",
-    opacity: 0.7,
-  }),
-  link: css({
-    color: "blue.600",
-    textDecoration: "underline",
-    _hover: { color: "blue.800" },
-    _dark: { color: "blue.400", _hover: { color: "blue.300" } },
-  }),
-  image: css({
-    maxWidth: "full",
-    height: "auto",
-    rounded: "md",
-    my: "4",
-  }),
-  inlineCode: css({
-    fontFamily: "mono",
-    fontSize: "0.875em",
-    px: "1.5",
-    py: "0.5",
-    bg: "gray.100",
-    color: "red.600",
-    rounded: "sm",
-    _dark: { bg: "gray.800", color: "red.400" },
-  }),
-  // Code blocks
-  codeBlock: css({
-    my: "4",
-    rounded: "lg",
-    overflow: "hidden",
-    border: "1px solid",
-    borderColor: "border.default",
-    bg: "gray.50",
-    _dark: { bg: "gray.900" },
-  }),
-  codeHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    px: "3",
-    py: "2",
-    bg: "gray.100",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    _dark: { bg: "gray.800" },
-  }),
-  codeLanguage: css({
-    fontSize: "xs",
-    fontWeight: "medium",
-    color: "fg.muted",
-    textTransform: "uppercase",
-  }),
-  copyButton: css({
-    px: "2",
-    py: "1",
-    fontSize: "xs",
-    fontWeight: "medium",
-    color: "fg.muted",
-    bg: "transparent",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    cursor: "pointer",
-    transition: "colors",
-    _hover: { bg: "bg.subtle", color: "fg.default" },
-  }),
-  pre: css({
-    p: "4",
-    overflowX: "auto",
-    fontSize: "sm",
-    lineHeight: "relaxed",
-  }),
-  code: css({
-    fontFamily: "mono",
-  }),
-  // Blockquote
-  blockquote: css({
-    pl: "4",
-    py: "2",
-    my: "4",
-    borderLeft: "4px solid",
-    borderColor: "gray.300",
-    color: "fg.muted",
-    fontStyle: "italic",
-    _dark: { borderColor: "gray.600" },
-  }),
-  // Lists
-  unorderedList: css({
-    pl: "6",
-    mb: "4",
-    listStyleType: "disc",
-  }),
-  orderedList: css({
-    pl: "6",
-    mb: "4",
-    listStyleType: "decimal",
-  }),
-  listItem: css({
-    mb: "1",
-    lineHeight: "relaxed",
-  }),
-  // Table
-  tableWrapper: css({
-    overflowX: "auto",
-    my: "4",
-  }),
-  table: css({
-    width: "full",
-    borderCollapse: "collapse",
-    fontSize: "sm",
-  }),
-  th: css({
-    px: "3",
-    py: "2",
-    textAlign: "left",
-    fontWeight: "semibold",
-    bg: "gray.100",
-    borderBottom: "2px solid",
-    borderColor: "border.default",
-    _dark: { bg: "gray.800" },
-  }),
-  td: css({
-    px: "3",
-    py: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  // Horizontal rule
-  hr: css({
-    my: "6",
-    border: "none",
-    borderTop: "1px solid",
-    borderColor: "border.default",
-  }),
-  // Table of Contents
-  toc: css({
-    mb: "6",
-    p: "4",
-    bg: "gray.50",
-    rounded: "lg",
-    border: "1px solid",
-    borderColor: "border.default",
-    _dark: { bg: "gray.900" },
-  }),
-  tocTitle: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-    mb: "3",
-    color: "fg.default",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-  }),
-  tocList: css({
-    listStyle: "none",
-    p: "0",
-    m: "0",
-  }),
-  tocItem: css({
-    mb: "1",
-  }),
-  tocLink: css({
-    fontSize: "sm",
-    color: "fg.muted",
-    textDecoration: "none",
-    _hover: { color: "blue.600", textDecoration: "underline" },
-    _dark: { _hover: { color: "blue.400" } },
-  }),
-  // States
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  error: css({
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    _dark: { bg: "red.950", color: "red.300" },
-  }),
-};
-
-// Syntax highlighting styles
-const syntaxStyles: Record<SyntaxToken["type"], string> = {
-  keyword: css({
-    color: "purple.600",
-    fontWeight: "medium",
-    _dark: { color: "purple.400" },
-  }),
-  string: css({
-    color: "green.700",
-    _dark: { color: "green.400" },
-  }),
-  comment: css({
-    color: "gray.500",
-    fontStyle: "italic",
-    _dark: { color: "gray.400" },
-  }),
-  number: css({
-    color: "orange.600",
-    _dark: { color: "orange.400" },
-  }),
-  operator: css({
-    color: "fg.default",
-  }),
-  function: css({
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-  }),
-  type: css({
-    color: "cyan.700",
-    _dark: { color: "cyan.400" },
-  }),
-  plain: css({
-    color: "inherit",
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<MarkdownViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<MarkdownViewer />);

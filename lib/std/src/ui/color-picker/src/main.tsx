@@ -11,11 +11,13 @@
  * @module lib/std/src/ui/color-picker
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Stack } from "../../styled-system/jsx";
+import { Code } from "../../components/ui/code";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -79,41 +81,35 @@ function ColorSwatch({
   onClick?: () => void;
 }) {
   const sizes = {
-    sm: { w: "8", h: "8" },
-    md: { w: "16", h: "16" },
-    lg: { w: "24", h: "24" },
+    sm: { width: "32px", height: "32px" },
+    md: { width: "64px", height: "64px" },
+    lg: { width: "96px", height: "96px" },
   };
 
   return (
-    <div
-      class={css({
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "1",
-        cursor: onClick ? "pointer" : "default",
-      })}
+    <Flex
+      direction="column"
+      alignItems="center"
+      gap="1"
+      cursor={onClick ? "pointer" : "default"}
       onClick={onClick}
     >
-      <div
-        class={css({
-          ...sizes[size],
-          rounded: "lg",
-          border: "2px solid",
-          borderColor: "border.default",
-          shadow: "sm",
-          transition: "transform 0.15s",
-          _hover: onClick ? { transform: "scale(1.05)" } : {},
-        })}
-        style={{ backgroundColor: color }}
+      <Box
+        style={{ ...sizes[size], backgroundColor: color }}
+        rounded="lg"
+        borderWidth="2px"
+        borderColor="border.default"
+        shadow="sm"
+        transition="transform 0.15s"
+        _hover={onClick ? { transform: "scale(1.05)" } : {}}
         title={color}
       />
       {label && (
-        <span class={css({ fontSize: "xs", color: "fg.muted", textAlign: "center" })}>
+        <Box fontSize="xs" color="fg.muted" textAlign="center">
           {label}
-        </span>
+        </Box>
       )}
-    </div>
+    </Flex>
   );
 }
 
@@ -134,34 +130,31 @@ function ColorFormats({ hex, rgb, hsl }: { hex?: string; rgb?: ColorData["rgb"];
   ].filter((f) => f.value);
 
   return (
-    <div class={css({ display: "flex", flexDirection: "column", gap: "2" })}>
+    <Stack gap="2">
       {formats.map((format) => (
-        <div
+        <Flex
           key={format.name}
-          class={css({
-            display: "flex",
-            alignItems: "center",
-            gap: "2",
-            p: "2",
-            bg: "bg.subtle",
-            rounded: "md",
-            cursor: "pointer",
-            _hover: { bg: "bg.muted" },
-          })}
+          alignItems="center"
+          gap="2"
+          p="2"
+          bg="bg.subtle"
+          rounded="md"
+          cursor="pointer"
+          _hover={{ bg: "bg.muted" }}
           onClick={() => copyToClipboard(format.name, format.value)}
         >
-          <span class={css({ w: "10", fontSize: "xs", fontWeight: "medium", color: "fg.muted" })}>
+          <Box w="10" fontSize="xs" fontWeight="medium" color="fg.muted">
             {format.name}
-          </span>
-          <code class={css({ flex: 1, fontFamily: "mono", fontSize: "sm" })}>
+          </Box>
+          <Code flex="1" fontSize="sm">
             {format.value}
-          </code>
-          <span class={css({ fontSize: "xs", color: "fg.muted" })}>
-            {copied === format.name ? "✓ Copied" : "Click to copy"}
-          </span>
-        </div>
+          </Code>
+          <Box fontSize="xs" color="fg.muted">
+            {copied === format.name ? "Copied" : "Click to copy"}
+          </Box>
+        </Flex>
       ))}
-    </div>
+    </Stack>
   );
 }
 
@@ -183,60 +176,54 @@ function ContrastChecker({
   const passAAA = wcagAAA ?? ratio >= 7;
 
   return (
-    <div class={css({ border: "1px solid", borderColor: "border.default", rounded: "lg", overflow: "hidden" })}>
+    <Box borderWidth="1px" borderColor="border.default" rounded="lg" overflow="hidden">
       {/* Preview */}
-      <div
-        class={css({ p: "6", textAlign: "center" })}
+      <Box
+        p="6"
+        textAlign="center"
         style={{ backgroundColor: background, color: foreground }}
       >
-        <p class={css({ fontSize: "lg", fontWeight: "semibold" })}>Sample Text</p>
-        <p class={css({ fontSize: "sm" })}>The quick brown fox jumps over the lazy dog</p>
-      </div>
+        <Box fontSize="lg" fontWeight="semibold">Sample Text</Box>
+        <Box fontSize="sm">The quick brown fox jumps over the lazy dog</Box>
+      </Box>
 
       {/* Results */}
-      <div class={css({ p: "3", bg: "bg.subtle", display: "flex", justifyContent: "space-between", alignItems: "center" })}>
-        <div class={css({ display: "flex", alignItems: "center", gap: "2" })}>
-          <span class={css({ fontSize: "sm", color: "fg.muted" })}>Contrast:</span>
-          <span class={css({ fontWeight: "bold", fontFamily: "mono" })}>{ratio.toFixed(2)}:1</span>
-        </div>
-        <div class={css({ display: "flex", gap: "2" })}>
-          <span
-            class={css({
-              px: "2",
-              py: "0.5",
-              rounded: "full",
-              fontSize: "xs",
-              fontWeight: "medium",
-              bg: passAA ? "green.100" : "red.100",
-              color: passAA ? "green.700" : "red.700",
-              _dark: {
-                bg: passAA ? "green.900" : "red.900",
-                color: passAA ? "green.300" : "red.300",
-              },
-            })}
+      <Flex
+        p="3"
+        bg="bg.subtle"
+        justify="space-between"
+        alignItems="center"
+      >
+        <Flex alignItems="center" gap="2">
+          <Box fontSize="sm" color="fg.muted">Contrast:</Box>
+          <Box fontWeight="bold" fontFamily="mono">{ratio.toFixed(2)}:1</Box>
+        </Flex>
+        <Flex gap="2">
+          <Box
+            px="2"
+            py="0.5"
+            rounded="full"
+            fontSize="xs"
+            fontWeight="medium"
+            bg={{ base: passAA ? "green.100" : "red.100", _dark: passAA ? "green.900" : "red.900" }}
+            color={{ base: passAA ? "green.700" : "red.700", _dark: passAA ? "green.300" : "red.300" }}
           >
-            AA {passAA ? "✓" : "✗"}
-          </span>
-          <span
-            class={css({
-              px: "2",
-              py: "0.5",
-              rounded: "full",
-              fontSize: "xs",
-              fontWeight: "medium",
-              bg: passAAA ? "green.100" : "red.100",
-              color: passAAA ? "green.700" : "red.700",
-              _dark: {
-                bg: passAAA ? "green.900" : "red.900",
-                color: passAAA ? "green.300" : "red.300",
-              },
-            })}
+            AA {passAA ? "Pass" : "Fail"}
+          </Box>
+          <Box
+            px="2"
+            py="0.5"
+            rounded="full"
+            fontSize="xs"
+            fontWeight="medium"
+            bg={{ base: passAAA ? "green.100" : "red.100", _dark: passAAA ? "green.900" : "red.900" }}
+            color={{ base: passAAA ? "green.700" : "red.700", _dark: passAAA ? "green.300" : "red.300" }}
           >
-            AAA {passAAA ? "✓" : "✗"}
-          </span>
-        </div>
-      </div>
-    </div>
+            AAA {passAAA ? "Pass" : "Fail"}
+          </Box>
+        </Flex>
+      </Flex>
+    </Box>
   );
 }
 
@@ -247,7 +234,7 @@ function Palette({ colors }: { colors: Array<{ hex: string; name?: string }> }) 
   }, []);
 
   return (
-    <div class={css({ display: "flex", flexWrap: "wrap", gap: "3" })}>
+    <Flex flexWrap="wrap" gap="3">
       {colors.map((color, i) => (
         <ColorSwatch
           key={i}
@@ -257,7 +244,7 @@ function Palette({ colors }: { colors: Array<{ hex: string; name?: string }> }) 
           onClick={() => handleColorClick(color, i)}
         />
       ))}
-    </div>
+    </Flex>
   );
 }
 
@@ -308,15 +295,34 @@ function ColorPicker() {
 
   // Render
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading colors...</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box p="10" textAlign="center" color="fg.muted">Loading colors...</Box>
+      </Box>
+    );
   }
 
   if (error) {
-    return <div class={styles.container}><div class={styles.error}>{error}</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box
+          p="4"
+          bg={{ base: "red.50", _dark: "red.950" }}
+          color={{ base: "red.700", _dark: "red.300" }}
+          rounded="md"
+        >
+          {error}
+        </Box>
+      </Box>
+    );
   }
 
   if (!colorData) {
-    return <div class={styles.container}><div class={styles.empty}>No color data</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box p="10" textAlign="center" color="fg.muted">No color data</Box>
+      </Box>
+    );
   }
 
   const hasMainColor = colorData.hex || colorData.rgb;
@@ -324,12 +330,21 @@ function ColorPicker() {
   const hasContrast = colorData.foreground && colorData.background;
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
       {/* Main color display */}
       {hasMainColor && (
-        <div class={styles.section}>
-          <h3 class={styles.sectionTitle}>Color</h3>
-          <div class={css({ display: "flex", gap: "4", alignItems: "flex-start" })}>
+        <Box mb="6">
+          <Box
+            fontSize="sm"
+            fontWeight="semibold"
+            color="fg.muted"
+            mb="3"
+            textTransform="uppercase"
+            letterSpacing="wide"
+          >
+            Color
+          </Box>
+          <Flex gap="4" alignItems="flex-start">
             <ColorSwatch
               color={colorData.hex || rgbToHex(colorData.rgb!)}
               size="lg"
@@ -339,22 +354,40 @@ function ColorPicker() {
               rgb={colorData.rgb}
               hsl={colorData.hsl}
             />
-          </div>
-        </div>
+          </Flex>
+        </Box>
       )}
 
       {/* Palette */}
       {hasPalette && (
-        <div class={styles.section}>
-          <h3 class={styles.sectionTitle}>Palette ({colorData.colors!.length} colors)</h3>
+        <Box mb="6">
+          <Box
+            fontSize="sm"
+            fontWeight="semibold"
+            color="fg.muted"
+            mb="3"
+            textTransform="uppercase"
+            letterSpacing="wide"
+          >
+            Palette ({colorData.colors!.length} colors)
+          </Box>
           <Palette colors={colorData.colors!} />
-        </div>
+        </Box>
       )}
 
       {/* Contrast checker */}
       {hasContrast && (
-        <div class={styles.section}>
-          <h3 class={styles.sectionTitle}>Contrast Check</h3>
+        <Box>
+          <Box
+            fontSize="sm"
+            fontWeight="semibold"
+            color="fg.muted"
+            mb="3"
+            textTransform="uppercase"
+            letterSpacing="wide"
+          >
+            Contrast Check
+          </Box>
           <ContrastChecker
             foreground={colorData.foreground!}
             background={colorData.background!}
@@ -362,40 +395,11 @@ function ColorPicker() {
             wcagAA={colorData.wcagAA}
             wcagAAA={colorData.wcagAAA}
           />
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-  }),
-  section: css({
-    mb: "6",
-    _last: { mb: 0 },
-  }),
-  sectionTitle: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-    color: "fg.muted",
-    mb: "3",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-  }),
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  error: css({ p: "4", bg: "red.50", color: "red.700", rounded: "md", _dark: { bg: "red.950", color: "red.300" } }),
-};
 
 // ============================================================================
 // Helpers
@@ -439,4 +443,4 @@ function calculateContrast(fg: string, bg: string): number {
 // Mount
 // ============================================================================
 
-render(<ColorPicker />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<ColorPicker />);

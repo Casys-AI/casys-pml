@@ -12,11 +12,16 @@
  * @module lib/std/src/ui/timeline-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useRef, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, VStack, HStack, Circle } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { IconButton } from "../../components/ui/icon-button";
+import { Badge } from "../../components/ui/badge";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -141,6 +146,24 @@ function normalizeEventType(type: string): EventType {
 }
 
 // ============================================================================
+// Style mappings
+// ============================================================================
+
+const dotColors: Record<EventType, string> = {
+  info: "blue.500",
+  warning: "orange.500",
+  error: "red.500",
+  success: "green.500",
+};
+
+const typeBtnColors: Record<EventType, { color: string; darkColor: string }> = {
+  error: { color: "red.600", darkColor: "red.400" },
+  warning: { color: "orange.600", darkColor: "orange.400" },
+  info: { color: "blue.600", darkColor: "blue.400" },
+  success: { color: "green.600", darkColor: "green.400" },
+};
+
+// ============================================================================
 // Components
 // ============================================================================
 
@@ -155,34 +178,26 @@ function EventNode({ event, expanded, onToggle, highlight }: {
   const hasDescription = !!event.description;
   const hasMetadata = event.metadata && Object.keys(event.metadata).length > 0;
 
-  const typeColors: Record<EventType, { dot: string; bg: string; text: string }> = {
-    info: {
-      dot: styles.dotInfo,
-      bg: styles.bgInfo,
-      text: styles.textInfo,
-    },
-    warning: {
-      dot: styles.dotWarning,
-      bg: styles.bgWarning,
-      text: styles.textWarning,
-    },
-    error: {
-      dot: styles.dotError,
-      bg: styles.bgError,
-      text: styles.textError,
-    },
-    success: {
-      dot: styles.dotSuccess,
-      bg: styles.bgSuccess,
-      text: styles.textSuccess,
-    },
+  const typeConfig: Record<EventType, { colorPalette: string }> = {
+    info: { colorPalette: "blue" },
+    warning: { colorPalette: "orange" },
+    error: { colorPalette: "red" },
+    success: { colorPalette: "green" },
   };
 
-  const colors = typeColors[type];
+  const config = typeConfig[type];
 
   return (
-    <div
-      class={css(styles.eventNode, highlight && styles.eventHighlight)}
+    <Flex
+      align="flex-start"
+      gap="3"
+      p="2"
+      rounded="md"
+      cursor="pointer"
+      transition="background 0.15s"
+      bg={highlight ? "yellow.50" : "transparent"}
+      _hover={{ bg: highlight ? "yellow.100" : "bg.subtle" }}
+      _dark={highlight ? { bg: "yellow.950/50", _hover: { bg: "yellow.950/70" } } : {}}
       onClick={() => {
         if (hasDescription || hasMetadata) {
           onToggle();
@@ -191,56 +206,96 @@ function EventNode({ event, expanded, onToggle, highlight }: {
       }}
     >
       {/* Timeline connector */}
-      <div class={styles.timelineConnector}>
-        <div class={styles.timelineLine} />
-        <div class={css(styles.timelineDot, colors.dot)} />
-      </div>
+      <Flex direction="column" align="center" pt="1" w="16px" flexShrink={0}>
+        <Box
+          w="2px"
+          h="100%"
+          minH="20px"
+          bg="border.default"
+          position="absolute"
+          top="0"
+          bottom="0"
+        />
+        <Circle
+          size="12px"
+          border="2px solid"
+          borderColor="bg.canvas"
+          boxShadow="sm"
+          position="relative"
+          zIndex={1}
+          bg={dotColors[type]}
+        />
+      </Flex>
 
       {/* Time */}
-      <div class={styles.eventTime}>{formatTime(date)}</div>
+      <Box fontSize="xs" fontFamily="mono" color="fg.muted" w="70px" flexShrink={0} pt="0.5">
+        {formatTime(date)}
+      </Box>
 
       {/* Content */}
-      <div class={styles.eventContent}>
+      <Flex flex="1" flexWrap="wrap" align="flex-start" gap="2">
         {/* Type badge */}
-        <span class={css(styles.typeBadge, colors.bg, colors.text)}>
+        <Badge size="sm" variant="subtle" colorPalette={config.colorPalette}>
           {type}
-        </span>
+        </Badge>
 
         {/* Title */}
-        <span class={styles.eventTitle}>{event.title}</span>
+        <Box fontWeight="medium" flex="1" minW="150px">
+          {event.title}
+        </Box>
 
         {/* Source */}
         {event.source && (
-          <span class={styles.eventSource}>{event.source}</span>
+          <Badge size="sm" variant="outline" colorPalette="gray">
+            {event.source}
+          </Badge>
         )}
 
         {/* Expand indicator */}
         {(hasDescription || hasMetadata) && (
-          <span class={css(styles.expandIcon, expanded && styles.expandIconRotated)}>
+          <Box
+            fontSize="xs"
+            color="fg.muted"
+            cursor="pointer"
+            transition="transform 0.15s"
+            style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
+          >
             {"\u25B6"}
-          </span>
+          </Box>
         )}
 
         {/* Description (collapsible) */}
         {expanded && hasDescription && (
-          <div class={styles.eventDescription}>{event.description}</div>
+          <Box
+            w="100%"
+            mt="2"
+            p="2"
+            bg="bg.subtle"
+            rounded="md"
+            fontSize="sm"
+            color="fg.muted"
+            whiteSpace="pre-wrap"
+            lineHeight="relaxed"
+          >
+            {event.description}
+          </Box>
         )}
 
         {/* Metadata (collapsible) */}
         {expanded && hasMetadata && (
-          <div class={styles.eventMetadata}>
+          <Box w="100%" mt="2" p="2" bg="bg.subtle" rounded="md" fontSize="xs" fontFamily="mono">
             {Object.entries(event.metadata!).map(([key, value]) => (
-              <div key={key} class={styles.metadataRow}>
-                <span class={styles.metadataKey}>{key}:</span>
-                <span class={styles.metadataValue}>
+              <Flex key={key} gap="2" py="0.5">
+                <Box color="fg.muted" fontWeight="medium">{key}:</Box>
+                <Box color="fg.default" wordBreak="break-all">
                   {typeof value === "object" ? JSON.stringify(value) : String(value)}
-                </span>
-              </div>
+                </Box>
+              </Flex>
             ))}
-          </div>
+          </Box>
         )}
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 }
 
@@ -251,13 +306,22 @@ function DateGroup({ group, expandedIds, toggleExpand, searchFilter }: {
   searchFilter: string;
 }) {
   return (
-    <div class={styles.dateGroup}>
-      <div class={styles.dateHeader}>
-        <div class={styles.dateLine} />
-        <span class={styles.dateLabel}>{group.label}</span>
-        <div class={styles.dateLine} />
-      </div>
-      <div class={styles.eventsList}>
+    <Box mb="4">
+      <Flex align="center" gap="2" mb="3">
+        <Box flex="1" h="1px" bg="border.default" />
+        <Box
+          fontSize="xs"
+          fontWeight="semibold"
+          color="fg.muted"
+          textTransform="uppercase"
+          letterSpacing="wide"
+          px="2"
+        >
+          {group.label}
+        </Box>
+        <Box flex="1" h="1px" bg="border.default" />
+      </Flex>
+      <VStack gap="1">
         {group.events.map((event, idx) => {
           const eventId = `${group.date.toISOString()}-${idx}`;
           const isHighlighted = searchFilter && (
@@ -274,8 +338,8 @@ function DateGroup({ group, expandedIds, toggleExpand, searchFilter }: {
             />
           );
         })}
-      </div>
-    </div>
+      </VStack>
+    </Box>
   );
 }
 
@@ -392,98 +456,160 @@ function TimelineViewer() {
     setExpandedIds(new Set());
   }, []);
 
-  const handleSearchChange = useCallback((e: Event) => {
-    const value = (e.target as HTMLInputElement).value;
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
     setSearchFilter(value);
     notifyModel("search", { text: value });
   }, []);
 
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading timeline...</div>
-      </div>
+      <Box
+        fontFamily="sans"
+        fontSize="sm"
+        color="fg.default"
+        bg="bg.canvas"
+        display="flex"
+        flexDirection="column"
+        maxH="500px"
+        border="1px solid"
+        borderColor="border.default"
+        rounded="lg"
+        overflow="hidden"
+      >
+        <Box p="4" textAlign="center" color="fg.muted">Loading timeline...</Box>
+      </Box>
     );
   }
 
   if (!data?.events?.length) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No events</div>
-      </div>
+      <Box
+        fontFamily="sans"
+        fontSize="sm"
+        color="fg.default"
+        bg="bg.canvas"
+        display="flex"
+        flexDirection="column"
+        maxH="500px"
+        border="1px solid"
+        borderColor="border.default"
+        rounded="lg"
+        overflow="hidden"
+      >
+        <Box p="4" textAlign="center" color="fg.muted">No events</Box>
+      </Box>
     );
   }
 
   const eventTypes: EventType[] = ["error", "warning", "info", "success"];
 
   return (
-    <div class={styles.container}>
+    <Box
+      fontFamily="sans"
+      fontSize="sm"
+      color="fg.default"
+      bg="bg.canvas"
+      display="flex"
+      flexDirection="column"
+      maxH="500px"
+      border="1px solid"
+      borderColor="border.default"
+      rounded="lg"
+      overflow="hidden"
+    >
       {/* Header */}
-      <div class={styles.header}>
-        {data.title && <h3 class={styles.title}>{data.title}</h3>}
+      <Flex
+        justify="space-between"
+        align="center"
+        p="3"
+        bg="bg.subtle"
+        borderBottom="1px solid"
+        borderColor="border.default"
+        flexWrap="wrap"
+        gap="2"
+      >
+        {data.title && (
+          <Box as="h3" fontSize="md" fontWeight="semibold" m="0">
+            {data.title}
+          </Box>
+        )}
 
-        <div class={styles.controls}>
+        <Flex gap="2" align="center" flexWrap="wrap">
           {/* Type filters */}
-          <div class={styles.typeFilters}>
-            {eventTypes.map((type) => (
-              <button
-                key={type}
-                class={css(
-                  styles.typeBtn,
-                  typeFilter.has(type) && styles.typeBtnActive,
-                  styles[`typeBtn_${type}`]
-                )}
-                onClick={() => toggleType(type)}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
+          <HStack gap="1">
+            {eventTypes.map((type) => {
+              const colors = typeBtnColors[type];
+              return (
+                <Button
+                  key={type}
+                  variant={typeFilter.has(type) ? "outline" : "ghost"}
+                  size="xs"
+                  onClick={() => toggleType(type)}
+                  className={css({
+                    opacity: typeFilter.has(type) ? 1 : 0.5,
+                    textTransform: "capitalize",
+                    fontWeight: typeFilter.has(type) ? "medium" : "normal",
+                    color: colors.color,
+                    _dark: { color: colors.darkColor },
+                    _hover: { opacity: 0.8 },
+                    transition: "all 0.15s",
+                  })}
+                >
+                  {type}
+                </Button>
+              );
+            })}
+          </HStack>
 
           {/* Search filter */}
-          <input
+          <Input
             type="text"
             placeholder="Search..."
             value={searchFilter}
-            onInput={handleSearchChange}
-            class={styles.searchInput}
+            onChange={handleSearchChange}
+            size="sm"
+            className={css({ w: "150px" })}
           />
 
           {/* Expand/Collapse buttons */}
-          <button
-            class={styles.actionBtn}
+          <IconButton
+            variant="outline"
+            size="sm"
             onClick={expandAll}
             title="Expand all"
           >
             +
-          </button>
-          <button
-            class={styles.actionBtn}
+          </IconButton>
+          <IconButton
+            variant="outline"
+            size="sm"
             onClick={collapseAll}
             title="Collapse all"
           >
             -
-          </button>
+          </IconButton>
 
           {/* Auto-scroll toggle */}
-          <button
-            class={css(styles.actionBtn, autoScroll && styles.actionBtnActive)}
+          <IconButton
+            variant={autoScroll ? "solid" : "outline"}
+            size="sm"
             onClick={() => setAutoScroll(!autoScroll)}
             title="Auto-scroll to recent"
           >
             {"\u2191"}
-          </button>
-        </div>
-      </div>
+          </IconButton>
+        </Flex>
+      </Flex>
 
       {/* Stats */}
-      <div class={styles.stats}>
+      <Box px="3" py="1.5" fontSize="xs" color="fg.muted" bg="bg.subtle" borderBottom="1px solid" borderColor="border.subtle">
         {filteredEvents.length} / {data.events.length} events
         {searchFilter && ` matching "${searchFilter}"`}
-      </div>
+      </Box>
 
       {/* Timeline content */}
-      <div class={styles.timelineContainer} ref={containerRef}>
+      <Box flex="1" overflowY="auto" p="3" ref={containerRef}>
         {groupedEvents.map((group) => (
           <DateGroup
             key={group.date.toISOString()}
@@ -493,330 +619,13 @@ function TimelineViewer() {
             searchFilter={searchFilter}
           />
         ))}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    display: "flex",
-    flexDirection: "column",
-    maxH: "500px",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    p: "3",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    flexWrap: "wrap",
-    gap: "2",
-  }),
-  title: css({
-    fontSize: "md",
-    fontWeight: "semibold",
-    m: 0,
-  }),
-  controls: css({
-    display: "flex",
-    gap: "2",
-    alignItems: "center",
-    flexWrap: "wrap",
-  }),
-  typeFilters: css({
-    display: "flex",
-    gap: "1",
-  }),
-  typeBtn: css({
-    px: "2",
-    py: "1",
-    fontSize: "xs",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.canvas",
-    cursor: "pointer",
-    opacity: 0.5,
-    textTransform: "capitalize",
-    transition: "all 0.15s",
-    _hover: { opacity: 0.8 },
-  }),
-  typeBtnActive: css({
-    opacity: 1,
-    fontWeight: "medium",
-  }),
-  typeBtn_error: css({ color: "red.600", _dark: { color: "red.400" } }),
-  typeBtn_warning: css({ color: "orange.600", _dark: { color: "orange.400" } }),
-  typeBtn_info: css({ color: "blue.600", _dark: { color: "blue.400" } }),
-  typeBtn_success: css({ color: "green.600", _dark: { color: "green.400" } }),
-  searchInput: css({
-    px: "3",
-    py: "1.5",
-    fontSize: "sm",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.canvas",
-    w: "150px",
-    _focus: { outline: "none", borderColor: "blue.500" },
-  }),
-  actionBtn: css({
-    px: "2",
-    py: "1",
-    fontSize: "sm",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.canvas",
-    cursor: "pointer",
-    opacity: 0.6,
-    minW: "28px",
-    textAlign: "center",
-    transition: "all 0.15s",
-    _hover: { opacity: 1 },
-  }),
-  actionBtnActive: css({
-    opacity: 1,
-    bg: "blue.100",
-    borderColor: "blue.300",
-    color: "blue.700",
-    _dark: { bg: "blue.900", borderColor: "blue.700", color: "blue.300" },
-  }),
-  stats: css({
-    px: "3",
-    py: "1.5",
-    fontSize: "xs",
-    color: "fg.muted",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  timelineContainer: css({
-    flex: 1,
-    overflowY: "auto",
-    p: "3",
-  }),
-  dateGroup: css({
-    mb: "4",
-  }),
-  dateHeader: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    mb: "3",
-  }),
-  dateLine: css({
-    flex: 1,
-    h: "1px",
-    bg: "border.default",
-  }),
-  dateLabel: css({
-    fontSize: "xs",
-    fontWeight: "semibold",
-    color: "fg.muted",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-    px: "2",
-  }),
-  eventsList: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "1",
-  }),
-  eventNode: css({
-    display: "flex",
-    alignItems: "flex-start",
-    gap: "3",
-    p: "2",
-    rounded: "md",
-    cursor: "pointer",
-    transition: "background 0.15s",
-    _hover: { bg: "bg.subtle" },
-  }),
-  eventHighlight: css({
-    bg: "yellow.50",
-    _dark: { bg: "yellow.950/50" },
-    _hover: { bg: "yellow.100", _dark: { bg: "yellow.950/70" } },
-  }),
-  timelineConnector: css({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    pt: "1",
-    w: "16px",
-    flexShrink: 0,
-  }),
-  timelineLine: css({
-    w: "2px",
-    h: "100%",
-    minH: "20px",
-    bg: "border.default",
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-  }),
-  timelineDot: css({
-    w: "12px",
-    h: "12px",
-    rounded: "full",
-    border: "2px solid",
-    borderColor: "bg.canvas",
-    boxShadow: "sm",
-    position: "relative",
-    zIndex: 1,
-  }),
-  dotInfo: css({
-    bg: "blue.500",
-  }),
-  dotWarning: css({
-    bg: "orange.500",
-  }),
-  dotError: css({
-    bg: "red.500",
-  }),
-  dotSuccess: css({
-    bg: "green.500",
-  }),
-  eventTime: css({
-    fontSize: "xs",
-    fontFamily: "mono",
-    color: "fg.muted",
-    w: "70px",
-    flexShrink: 0,
-    pt: "0.5",
-  }),
-  eventContent: css({
-    flex: 1,
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "flex-start",
-    gap: "2",
-  }),
-  typeBadge: css({
-    fontSize: "xs",
-    px: "1.5",
-    py: "0.5",
-    rounded: "sm",
-    fontWeight: "medium",
-    textTransform: "lowercase",
-  }),
-  bgInfo: css({
-    bg: "blue.100",
-    _dark: { bg: "blue.900/50" },
-  }),
-  bgWarning: css({
-    bg: "orange.100",
-    _dark: { bg: "orange.900/50" },
-  }),
-  bgError: css({
-    bg: "red.100",
-    _dark: { bg: "red.900/50" },
-  }),
-  bgSuccess: css({
-    bg: "green.100",
-    _dark: { bg: "green.900/50" },
-  }),
-  textInfo: css({
-    color: "blue.700",
-    _dark: { color: "blue.300" },
-  }),
-  textWarning: css({
-    color: "orange.700",
-    _dark: { color: "orange.300" },
-  }),
-  textError: css({
-    color: "red.700",
-    _dark: { color: "red.300" },
-  }),
-  textSuccess: css({
-    color: "green.700",
-    _dark: { color: "green.300" },
-  }),
-  eventTitle: css({
-    fontWeight: "medium",
-    flex: 1,
-    minW: "150px",
-  }),
-  eventSource: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    bg: "bg.subtle",
-    px: "1.5",
-    py: "0.5",
-    rounded: "sm",
-    fontFamily: "mono",
-  }),
-  expandIcon: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    transition: "transform 0.15s",
-    cursor: "pointer",
-  }),
-  expandIconRotated: css({
-    transform: "rotate(90deg)",
-  }),
-  eventDescription: css({
-    w: "100%",
-    mt: "2",
-    p: "2",
-    bg: "bg.subtle",
-    rounded: "md",
-    fontSize: "sm",
-    color: "fg.muted",
-    whiteSpace: "pre-wrap",
-    lineHeight: "relaxed",
-  }),
-  eventMetadata: css({
-    w: "100%",
-    mt: "2",
-    p: "2",
-    bg: "bg.subtle",
-    rounded: "md",
-    fontSize: "xs",
-    fontFamily: "mono",
-  }),
-  metadataRow: css({
-    display: "flex",
-    gap: "2",
-    py: "0.5",
-  }),
-  metadataKey: css({
-    color: "fg.muted",
-    fontWeight: "medium",
-  }),
-  metadataValue: css({
-    color: "fg.default",
-    wordBreak: "break-all",
-  }),
-  loading: css({
-    p: "4",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  empty: css({
-    p: "4",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<TimelineViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<TimelineViewer />);

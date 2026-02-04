@@ -1,17 +1,25 @@
 /**
  * Headers Viewer UI for MCP Apps
  *
- * Interactive HTTP headers viewer using Preact + Park UI (Panda CSS).
+ * Interactive HTTP headers viewer using React + Park UI (Panda CSS).
  * Displays headers grouped by category with explanations and tooltips.
  *
  * @module lib/std/src/ui/headers-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
+import { Box, Flex, VStack, HStack } from "../../styled-system/jsx";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Button } from "../../components/ui/button";
+import { IconButton } from "../../components/ui/icon-button";
+import { Input } from "../../components/ui/input";
+import { Badge } from "../../components/ui/badge";
+import { Tooltip } from "../../components/ui/tooltip";
+import { Code } from "../../components/ui/code";
+import * as Table from "../../components/ui/table";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -305,7 +313,7 @@ function Icon({ name, size = 16 }: { name: string; size?: number }) {
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = useCallback(async (e: Event) => {
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(text);
@@ -326,59 +334,61 @@ function CopyButton({ text }: { text: string }) {
   }, [text]);
 
   return (
-    <button
-      class={styles.copyBtn}
+    <IconButton
+      variant="ghost"
+      size="xs"
       onClick={handleCopy}
       title={copied ? "Copied!" : "Copy to clipboard"}
       aria-label={copied ? "Copied to clipboard" : "Copy to clipboard"}
+      className={css({ opacity: 0.5, _hover: { opacity: 1 } })}
     >
       <Icon name={copied ? "check" : "copy"} size={14} />
-    </button>
+    </IconButton>
   );
 }
 
-function Badge({ text, color }: { text: string; color: BadgeColor }) {
+function HeaderBadge({ text, color }: { text: string; color: BadgeColor }) {
+  const colorVariant: Record<BadgeColor, string> = {
+    green: css({ bg: "green.100", color: "green.800", _dark: { bg: "green.900", color: "green.200" } }),
+    orange: css({ bg: "orange.100", color: "orange.800", _dark: { bg: "orange.900", color: "orange.200" } }),
+    red: css({ bg: "red.100", color: "red.800", _dark: { bg: "red.900", color: "red.200" } }),
+    blue: css({ bg: "blue.100", color: "blue.800", _dark: { bg: "blue.900", color: "blue.200" } }),
+    gray: css({ bg: "gray.100", color: "gray.700", _dark: { bg: "gray.800", color: "gray.300" } }),
+  };
   return (
-    <span class={css(styles.badge, styles[`badge_${color}`])}>
+    <Badge size="sm" className={colorVariant[color]}>
       {text}
-    </span>
-  );
-}
-
-function Tooltip({ text, children }: { text: string; children: preact.ComponentChildren }) {
-  return (
-    <span class={styles.tooltipWrapper}>
-      {children}
-      <span class={styles.tooltip} role="tooltip">{text}</span>
-    </span>
+    </Badge>
   );
 }
 
 function HeaderRow({ entry }: { entry: HeaderEntry }) {
   return (
-    <tr class={styles.row}>
-      <td class={styles.nameCell}>
-        <div class={styles.nameWrapper}>
-          <code class={styles.headerName}>{entry.name}</code>
+    <Table.Row className={css({ _hover: { bg: "bg.subtle" } })}>
+      <Table.Cell p="3" verticalAlign="top" w="35%" minW="150px">
+        <HStack gap="1.5" alignItems="center">
+          <Code fontSize="sm" fontWeight="medium" color="fg.default" wordBreak="break-all">
+            {entry.name}
+          </Code>
           {entry.info && (
-            <Tooltip text={entry.info}>
-              <span class={styles.infoIcon} aria-label="Header information">
+            <Tooltip content={entry.info} showArrow>
+              <Box color="fg.muted" cursor="help" flexShrink={0} _hover={{ color: "fg.default" }}>
                 <Icon name="info" size={14} />
-              </span>
+              </Box>
             </Tooltip>
           )}
-        </div>
-      </td>
-      <td class={styles.valueCell}>
-        <div class={styles.valueWrapper}>
-          <code class={styles.headerValue} title={entry.value}>
+        </HStack>
+      </Table.Cell>
+      <Table.Cell p="3" verticalAlign="top">
+        <Flex gap="2" alignItems="flex-start">
+          <Code flex="1" fontSize="sm" color="fg.muted" wordBreak="break-all" whiteSpace="pre-wrap" title={entry.value}>
             {entry.value}
-          </code>
-          {entry.badge && <Badge text={entry.badge.text} color={entry.badge.color} />}
+          </Code>
+          {entry.badge && <HeaderBadge text={entry.badge.text} color={entry.badge.color} />}
           <CopyButton text={`${entry.name}: ${entry.value}`} />
-        </div>
-      </td>
-    </tr>
+        </Flex>
+      </Table.Cell>
+    </Table.Row>
   );
 }
 
@@ -396,40 +406,75 @@ function CategorySection({
   const meta = CATEGORY_META[category];
 
   return (
-    <div class={styles.section}>
-      <button
-        class={styles.sectionHeader}
+    <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
+      <Button
+        variant="ghost"
+        className={css({
+          display: "flex",
+          alignItems: "center",
+          gap: "2",
+          w: "full",
+          p: "3",
+          bg: "bg.subtle",
+          textAlign: "left",
+          color: "fg.default",
+          fontSize: "sm",
+          fontWeight: "medium",
+          rounded: "0",
+          justifyContent: "flex-start",
+          _hover: { bg: "bg.muted" },
+        })}
         onClick={onToggle}
         aria-expanded={isExpanded}
         aria-controls={`section-${category}`}
       >
-        <span class={styles.sectionIcon}>
+        <Box color="fg.muted" flexShrink={0}>
           <Icon name={meta.icon} size={16} />
-        </span>
-        <span class={styles.sectionTitle}>{meta.label}</span>
-        <span class={styles.sectionCount}>{entries.length}</span>
-        <span class={styles.chevron}>
+        </Box>
+        <Box flex="1">{meta.label}</Box>
+        <Box
+          px="2"
+          py="0.5"
+          bg={{ base: "gray.200", _dark: "gray.700" }}
+          color={{ base: "gray.700", _dark: "gray.300" }}
+          rounded="full"
+          fontSize="xs"
+          fontWeight="medium"
+        >
+          {entries.length}
+        </Box>
+        <Box color="fg.muted" flexShrink={0}>
           <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={16} />
-        </span>
-      </button>
+        </Box>
+      </Button>
       {isExpanded && (
-        <div id={`section-${category}`} class={styles.sectionContent}>
-          <table class={styles.table}>
-            <thead class={styles.srOnly}>
-              <tr>
-                <th>Header Name</th>
-                <th>Header Value</th>
-              </tr>
-            </thead>
-            <tbody>
+        <Box id={`section-${category}`}>
+          <Table.Root w="full" variant="outline">
+            <Table.Head className={css({
+              position: "absolute",
+              w: "1px",
+              h: "1px",
+              p: "0",
+              m: "-1px",
+              overflow: "hidden",
+              clip: "rect(0,0,0,0)",
+              whiteSpace: "nowrap",
+              border: "0",
+            })}>
+              <Table.Row>
+                <Table.Header>Header Name</Table.Header>
+                <Table.Header>Header Value</Table.Header>
+              </Table.Row>
+            </Table.Head>
+            <Table.Body>
               {entries.map((entry) => (
                 <HeaderRow key={entry.name} entry={entry} />
               ))}
-            </tbody>
-          </table>
-        </div>
+            </Table.Body>
+          </Table.Root>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -440,7 +485,7 @@ function StatusBadge({ status }: { status: number }) {
   else if (status >= 400 && status < 500) color = "orange";
   else if (status >= 500) color = "red";
 
-  return <Badge text={String(status)} color={color} />;
+  return <HeaderBadge text={String(status)} color={color} />;
 }
 
 // ============================================================================
@@ -573,78 +618,112 @@ function HeadersViewer() {
   // Render states
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading headers...</div>
-      </div>
+      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Flex alignItems="center" justifyContent="center" p="10" color="fg.muted">
+          Loading headers...
+        </Flex>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>{error}</div>
-      </div>
+      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">
+          {error}
+        </Box>
+      </Box>
     );
   }
 
   if (!data || Object.keys(data.headers).length === 0) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No headers to display</div>
-      </div>
+      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box textAlign="center" p="10" color="fg.muted">
+          No headers to display
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
       {/* Meta info */}
       {(data.url || data.status !== undefined) && (
-        <div class={styles.metaBar}>
+        <Flex
+          alignItems="center"
+          gap="2"
+          mb="3"
+          p="3"
+          bg="bg.subtle"
+          rounded="lg"
+          border="1px solid"
+          borderColor="border.default"
+          overflow="hidden"
+        >
           {data.type && (
-            <span class={styles.typeLabel}>
+            <Box
+              px="2"
+              py="0.5"
+              bg={{ base: "gray.100", _dark: "gray.800" }}
+              color={{ base: "gray.700", _dark: "gray.300" }}
+              rounded="sm"
+              fontSize="xs"
+              fontWeight="medium"
+              textTransform="uppercase"
+            >
               {data.type === "request" ? "Request" : "Response"}
-            </span>
+            </Box>
           )}
           {data.status !== undefined && <StatusBadge status={data.status} />}
           {data.url && (
-            <code class={styles.urlText} title={data.url}>
+            <Code
+              flex="1"
+              overflow="hidden"
+              textOverflow="ellipsis"
+              whiteSpace="nowrap"
+              color="fg.muted"
+              fontSize="xs"
+              title={data.url}
+            >
               {data.url}
-            </code>
+            </Code>
           )}
-        </div>
+        </Flex>
       )}
 
       {/* Toolbar */}
-      <div class={styles.toolbar}>
-        <div class={styles.searchWrapper}>
-          <span class={styles.searchIcon}>
+      <Flex gap="3" mb="3" alignItems="center" flexWrap="wrap">
+        <Box flex="1" minW="200px" position="relative">
+          <Box position="absolute" left="3" top="50%" transform="translateY(-50%)" color="fg.muted" pointerEvents="none" zIndex={1}>
             <Icon name="search" size={16} />
-          </span>
-          <input
+          </Box>
+          <Input
             type="text"
             placeholder="Filter headers..."
             value={filterText}
-            onInput={handleFilter}
-            class={styles.searchInput}
+            onChange={handleFilter}
+            size="sm"
+            className={css({ pl: "10" })}
             aria-label="Filter headers"
           />
-        </div>
-        <div class={styles.toolbarActions}>
-          <button class={styles.toolbarBtn} onClick={expandAll} title="Expand all sections">
+        </Box>
+        <HStack gap="1">
+          <Button variant="outline" size="xs" onClick={expandAll} title="Expand all sections">
             Expand All
-          </button>
-          <button class={styles.toolbarBtn} onClick={collapseAll} title="Collapse all sections">
+          </Button>
+          <Button variant="outline" size="xs" onClick={collapseAll} title="Collapse all sections">
             Collapse All
-          </button>
-        </div>
-        <span class={styles.stats}>
+          </Button>
+        </HStack>
+        <Box color="fg.muted" fontSize="xs" whiteSpace="nowrap">
           {totalHeaders} header{totalHeaders !== 1 ? "s" : ""}
           {filterText && ` (filtered from ${Object.keys(data.headers).length})`}
-        </span>
-      </div>
+        </Box>
+      </Flex>
 
       {/* Sections */}
-      <div class={styles.sectionsContainer}>
+      <VStack gap="2">
         {Array.from(categorizedHeaders.entries()).map(([category, entries]) => (
           <CategorySection
             key={category}
@@ -654,338 +733,10 @@ function HeadersViewer() {
             onToggle={() => toggleSection(category)}
           />
         ))}
-      </div>
-    </div>
+      </VStack>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles (Panda CSS)
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    maxW: "100%",
-    overflow: "hidden",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-  }),
-  metaBar: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    mb: "3",
-    p: "3",
-    bg: "bg.subtle",
-    rounded: "lg",
-    border: "1px solid",
-    borderColor: "border.default",
-    overflow: "hidden",
-  }),
-  typeLabel: css({
-    px: "2",
-    py: "0.5",
-    bg: "gray.100",
-    color: "gray.700",
-    rounded: "sm",
-    fontSize: "xs",
-    fontWeight: "medium",
-    textTransform: "uppercase",
-    _dark: { bg: "gray.800", color: "gray.300" },
-  }),
-  urlText: css({
-    flex: 1,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    color: "fg.muted",
-    fontSize: "xs",
-    fontFamily: "mono",
-  }),
-  toolbar: css({
-    display: "flex",
-    gap: "3",
-    mb: "3",
-    alignItems: "center",
-    flexWrap: "wrap",
-  }),
-  searchWrapper: css({
-    flex: 1,
-    minW: "200px",
-    position: "relative",
-  }),
-  searchIcon: css({
-    position: "absolute",
-    left: "3",
-    top: "50%",
-    transform: "translateY(-50%)",
-    color: "fg.muted",
-    pointerEvents: "none",
-  }),
-  searchInput: css({
-    w: "full",
-    pl: "10",
-    pr: "3",
-    py: "2",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "sm",
-    outline: "none",
-    _focus: {
-      borderColor: "border.accent",
-      shadow: "0 0 0 3px token(colors.blue.500/20)",
-    },
-    _placeholder: { color: "fg.muted" },
-  }),
-  toolbarActions: css({
-    display: "flex",
-    gap: "1",
-  }),
-  toolbarBtn: css({
-    px: "3",
-    py: "1.5",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    cursor: "pointer",
-    fontSize: "xs",
-    fontWeight: "medium",
-    _hover: { bg: "bg.muted" },
-  }),
-  stats: css({
-    color: "fg.muted",
-    fontSize: "xs",
-    whiteSpace: "nowrap",
-  }),
-  sectionsContainer: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "2",
-  }),
-  section: css({
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-  }),
-  sectionHeader: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    w: "full",
-    p: "3",
-    bg: "bg.subtle",
-    border: "none",
-    cursor: "pointer",
-    textAlign: "left",
-    color: "fg.default",
-    fontSize: "sm",
-    fontWeight: "medium",
-    _hover: { bg: "bg.muted" },
-  }),
-  sectionIcon: css({
-    color: "fg.muted",
-    flexShrink: 0,
-  }),
-  sectionTitle: css({
-    flex: 1,
-  }),
-  sectionCount: css({
-    px: "2",
-    py: "0.5",
-    bg: "gray.200",
-    color: "gray.700",
-    rounded: "full",
-    fontSize: "xs",
-    fontWeight: "medium",
-    _dark: { bg: "gray.700", color: "gray.300" },
-  }),
-  chevron: css({
-    color: "fg.muted",
-    flexShrink: 0,
-  }),
-  sectionContent: css({
-    borderTop: "1px solid",
-    borderColor: "border.default",
-  }),
-  table: css({
-    w: "full",
-    borderCollapse: "collapse",
-  }),
-  srOnly: css({
-    position: "absolute",
-    w: "1px",
-    h: "1px",
-    p: "0",
-    m: "-1px",
-    overflow: "hidden",
-    clip: "rect(0,0,0,0)",
-    whiteSpace: "nowrap",
-    border: "0",
-  }),
-  row: css({
-    _hover: { bg: "bg.subtle" },
-    _notLast: {
-      borderBottom: "1px solid",
-      borderColor: "border.subtle",
-    },
-  }),
-  nameCell: css({
-    p: "3",
-    verticalAlign: "top",
-    w: "35%",
-    minW: "150px",
-  }),
-  nameWrapper: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "1.5",
-  }),
-  headerName: css({
-    fontFamily: "mono",
-    fontSize: "sm",
-    fontWeight: "medium",
-    color: "fg.default",
-    wordBreak: "break-all",
-  }),
-  infoIcon: css({
-    color: "fg.muted",
-    cursor: "help",
-    flexShrink: 0,
-    _hover: { color: "fg.default" },
-  }),
-  valueCell: css({
-    p: "3",
-    verticalAlign: "top",
-  }),
-  valueWrapper: css({
-    display: "flex",
-    alignItems: "flex-start",
-    gap: "2",
-  }),
-  headerValue: css({
-    flex: 1,
-    fontFamily: "mono",
-    fontSize: "sm",
-    color: "fg.muted",
-    wordBreak: "break-all",
-    whiteSpace: "pre-wrap",
-  }),
-  copyBtn: css({
-    flexShrink: 0,
-    p: "1.5",
-    border: "none",
-    bg: "transparent",
-    color: "fg.muted",
-    cursor: "pointer",
-    rounded: "sm",
-    opacity: 0.5,
-    transition: "opacity 0.15s",
-    _hover: { opacity: 1, bg: "bg.subtle" },
-  }),
-  badge: css({
-    flexShrink: 0,
-    px: "2",
-    py: "0.5",
-    rounded: "full",
-    fontSize: "xs",
-    fontWeight: "medium",
-    whiteSpace: "nowrap",
-  }),
-  badge_green: css({
-    bg: "green.100",
-    color: "green.800",
-    _dark: { bg: "green.900", color: "green.200" },
-  }),
-  badge_orange: css({
-    bg: "orange.100",
-    color: "orange.800",
-    _dark: { bg: "orange.900", color: "orange.200" },
-  }),
-  badge_red: css({
-    bg: "red.100",
-    color: "red.800",
-    _dark: { bg: "red.900", color: "red.200" },
-  }),
-  badge_blue: css({
-    bg: "blue.100",
-    color: "blue.800",
-    _dark: { bg: "blue.900", color: "blue.200" },
-  }),
-  badge_gray: css({
-    bg: "gray.100",
-    color: "gray.700",
-    _dark: { bg: "gray.800", color: "gray.300" },
-  }),
-  tooltipWrapper: css({
-    position: "relative",
-    display: "inline-flex",
-    alignItems: "center",
-  }),
-  tooltip: css({
-    position: "absolute",
-    left: "50%",
-    bottom: "calc(100% + 8px)",
-    transform: "translateX(-50%)",
-    px: "3",
-    py: "2",
-    bg: "gray.900",
-    color: "white",
-    fontSize: "xs",
-    rounded: "md",
-    whiteSpace: "normal",
-    minW: "200px",
-    maxW: "300px",
-    textAlign: "center",
-    zIndex: 50,
-    opacity: 0,
-    visibility: "hidden",
-    transition: "opacity 0.15s, visibility 0.15s",
-    pointerEvents: "none",
-    shadow: "lg",
-    _before: {
-      content: '""',
-      position: "absolute",
-      top: "100%",
-      left: "50%",
-      transform: "translateX(-50%)",
-      border: "6px solid transparent",
-      borderTopColor: "gray.900",
-    },
-    _dark: { bg: "gray.100", color: "gray.900", _before: { borderTopColor: "gray.100" } },
-    ".tooltipWrapper:hover &, .tooltipWrapper:focus-within &": {
-      opacity: 1,
-      visibility: "visible",
-    },
-  }),
-  loading: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    p: "10",
-    color: "fg.muted",
-  }),
-  empty: css({
-    textAlign: "center",
-    p: "10",
-    color: "fg.muted",
-  }),
-  error: css({
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    _dark: { bg: "red.950", color: "red.300" },
-  }),
-};
 
 // ============================================================================
 // Helpers
@@ -1026,4 +777,4 @@ function normalizeData(parsed: unknown): HeadersData | null {
 // Mount
 // ============================================================================
 
-render(<HeadersViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<HeadersViewer />);

@@ -9,11 +9,12 @@
  * @module lib/std/src/ui/gauge
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
+import { Box, Flex, VStack, HStack, Center } from "../../styled-system/jsx";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -53,14 +54,13 @@ function CircularGauge({ value, min, max, color, label, unit, displayValue }: {
   displayValue: string;
 }) {
   const percentage = ((value - min) / (max - min)) * 100;
-  const angle = (percentage / 100) * 270; // 270 degree arc
   const radius = 45;
   const circumference = 2 * Math.PI * radius * (270 / 360);
   const offset = circumference - (circumference * percentage) / 100;
 
   return (
-    <div class={styles.circularContainer}>
-      <svg viewBox="0 0 120 120" class={styles.svg}>
+    <VStack gap="0" alignItems="center" position="relative" w="120px">
+      <svg viewBox="0 0 120 120" className={css({ w: "100%", h: "auto" })}>
         {/* Background arc */}
         <circle
           cx="60"
@@ -85,15 +85,17 @@ function CircularGauge({ value, min, max, color, label, unit, displayValue }: {
           stroke-dasharray={`${circumference} ${circumference}`}
           stroke-dashoffset={offset}
           transform="rotate(135 60 60)"
-          class={styles.valueArc}
+          className={css({ transition: "stroke-dashoffset 0.5s ease" })}
         />
       </svg>
-      <div class={styles.circularValue}>
-        <span class={styles.valueText}>{displayValue}</span>
-        {unit && <span class={styles.unit}>{unit}</span>}
-      </div>
-      {label && <div class={styles.label}>{label}</div>}
-    </div>
+      <Center position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)">
+        <VStack gap="0" alignItems="center">
+          <Box fontSize="2xl" fontWeight="bold" fontFamily="mono">{displayValue}</Box>
+          {unit && <Box fontSize="xs" color="fg.muted">{unit}</Box>}
+        </VStack>
+      </Center>
+      {label && <Box fontSize="sm" color="fg.muted" mt="1" textAlign="center">{label}</Box>}
+    </VStack>
   );
 }
 
@@ -109,28 +111,30 @@ function LinearGauge({ value, min, max, color, label, unit, displayValue }: {
   const percentage = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
 
   return (
-    <div class={styles.linearContainer}>
-      <div class={styles.linearHeader}>
-        {label && <span class={styles.label}>{label}</span>}
-        <span class={styles.linearValue}>
-          {displayValue}{unit && <span class={styles.unit}>{unit}</span>}
-        </span>
-      </div>
-      <div class={styles.linearTrack}>
-        <div
-          class={styles.linearFill}
-          style={{ width: `${percentage}%`, backgroundColor: color }}
+    <Box w="200px">
+      <Flex justify="space-between" align="baseline" mb="1">
+        {label && <Box fontSize="sm" color="fg.muted">{label}</Box>}
+        <HStack gap="0.5">
+          <Box fontSize="lg" fontWeight="bold" fontFamily="mono">{displayValue}</Box>
+          {unit && <Box fontSize="xs" color="fg.muted">{unit}</Box>}
+        </HStack>
+      </Flex>
+      <Box h="8px" bg="bg.subtle" rounded="full" overflow="hidden">
+        <Box
+          h="100%"
+          rounded="full"
+          style={{ width: `${percentage}%`, backgroundColor: color, transition: "width 0.5s ease" }}
         />
-      </div>
-      <div class={styles.linearRange}>
+      </Box>
+      <Flex justify="space-between" fontSize="xs" color="fg.muted" mt="1">
         <span>{min}</span>
         <span>{max}</span>
-      </div>
-    </div>
+      </Flex>
+    </Box>
   );
 }
 
-function CompactGauge({ value, color, label, unit, displayValue }: {
+function CompactGauge({ color, label, unit, displayValue }: {
   value: number;
   color: string;
   label?: string;
@@ -138,15 +142,16 @@ function CompactGauge({ value, color, label, unit, displayValue }: {
   displayValue: string;
 }) {
   return (
-    <div class={styles.compactContainer}>
-      <div class={styles.compactDot} style={{ backgroundColor: color }} />
-      <div class={styles.compactContent}>
-        {label && <span class={styles.compactLabel}>{label}</span>}
-        <span class={styles.compactValue}>
-          {displayValue}{unit && <span class={styles.unit}>{unit}</span>}
-        </span>
-      </div>
-    </div>
+    <HStack gap="2" alignItems="center">
+      <Box w="12px" h="12px" rounded="full" flexShrink={0} style={{ backgroundColor: color }} />
+      <VStack gap="0" alignItems="flex-start">
+        {label && <Box fontSize="xs" color="fg.muted">{label}</Box>}
+        <HStack gap="0.5">
+          <Box fontSize="lg" fontWeight="bold" fontFamily="mono">{displayValue}</Box>
+          {unit && <Box fontSize="xs" color="fg.muted">{unit}</Box>}
+        </HStack>
+      </VStack>
+    </HStack>
   );
 }
 
@@ -178,7 +183,7 @@ function Gauge() {
   }, []);
 
   const { color, displayValue } = useMemo(() => {
-    if (!data) return { color: "var(--colors-fg-muted)", displayValue: "—" };
+    if (!data) return { color: "var(--colors-fg-muted)", displayValue: "-" };
 
     const { value, thresholds } = data;
     let color = "var(--colors-green-500)";
@@ -197,11 +202,19 @@ function Gauge() {
   }, [data]);
 
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading...</div></div>;
+    return (
+      <Box p="3" fontFamily="sans" color="fg.default" bg="bg.canvas" display="inline-flex">
+        <Box p="4" color="fg.muted">Loading...</Box>
+      </Box>
+    );
   }
 
   if (!data) {
-    return <div class={styles.container}><div class={styles.empty}>No data</div></div>;
+    return (
+      <Box p="3" fontFamily="sans" color="fg.default" bg="bg.canvas" display="inline-flex">
+        <Box p="4" color="fg.muted">No data</Box>
+      </Box>
+    );
   }
 
   const { value, min = 0, max = 100, label, unit, format = "circular" } = data;
@@ -209,128 +222,16 @@ function Gauge() {
   const props = { value, min, max, color, label, unit, displayValue };
 
   return (
-    <div class={styles.container}>
+    <Box p="3" fontFamily="sans" color="fg.default" bg="bg.canvas" display="inline-flex">
       {format === "circular" && <CircularGauge {...props} />}
       {format === "linear" && <LinearGauge {...props} />}
       {format === "compact" && <CompactGauge {...props} />}
-    </div>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "3",
-    fontFamily: "sans",
-    color: "fg.default",
-    bg: "bg.canvas",
-    display: "inline-flex",
-  }),
-  // Circular
-  circularContainer: css({
-    position: "relative",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    w: "120px",
-  }),
-  svg: css({
-    w: "100%",
-    h: "auto",
-  }),
-  valueArc: css({
-    transition: "stroke-dashoffset 0.5s ease",
-  }),
-  circularValue: css({
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    textAlign: "center",
-  }),
-  valueText: css({
-    fontSize: "2xl",
-    fontWeight: "bold",
-    fontFamily: "mono",
-  }),
-  unit: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    ml: "0.5",
-  }),
-  label: css({
-    fontSize: "sm",
-    color: "fg.muted",
-    mt: "1",
-    textAlign: "center",
-  }),
-  // Linear
-  linearContainer: css({
-    w: "200px",
-  }),
-  linearHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-    mb: "1",
-  }),
-  linearValue: css({
-    fontSize: "lg",
-    fontWeight: "bold",
-    fontFamily: "mono",
-  }),
-  linearTrack: css({
-    h: "8px",
-    bg: "bg.subtle",
-    rounded: "full",
-    overflow: "hidden",
-  }),
-  linearFill: css({
-    h: "100%",
-    rounded: "full",
-    transition: "width 0.5s ease",
-  }),
-  linearRange: css({
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "xs",
-    color: "fg.muted",
-    mt: "1",
-  }),
-  // Compact
-  compactContainer: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  compactDot: css({
-    w: "12px",
-    h: "12px",
-    rounded: "full",
-    flexShrink: 0,
-  }),
-  compactContent: css({
-    display: "flex",
-    flexDirection: "column",
-  }),
-  compactLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  compactValue: css({
-    fontSize: "lg",
-    fontWeight: "bold",
-    fontFamily: "mono",
-  }),
-  loading: css({ p: "4", color: "fg.muted" }),
-  empty: css({ p: "4", color: "fg.muted" }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<Gauge />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<Gauge />);

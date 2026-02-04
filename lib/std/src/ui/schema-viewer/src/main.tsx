@@ -10,11 +10,15 @@
  * @module lib/std/src/ui/schema-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Stack } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import * as Table from "../../components/ui/table";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -52,6 +56,22 @@ function notifyModel(event: string, data: Record<string, unknown>) {
     content: [{ type: "text", text: `User ${event}: ${JSON.stringify(data)}` }],
     structuredContent: { event, ...data },
   });
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function generateDDL(data: SchemaData): string {
+  const columns = data.columns.map((col) => {
+    let line = `  "${col.name}" ${col.type.toUpperCase()}`;
+    if (col.maxLength) line += `(${col.maxLength})`;
+    if (!col.nullable) line += " NOT NULL";
+    if (col.default) line += ` DEFAULT ${col.default}`;
+    if (col.isPrimaryKey) line += " PRIMARY KEY";
+    return line;
+  });
+  return `CREATE TABLE "${data.table}" (\n${columns.join(",\n")}\n);`;
 }
 
 // ============================================================================
@@ -116,95 +136,125 @@ function SchemaViewer() {
 
   // Render
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading schema...</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Box p="10" textAlign="center" color="fg.muted">Loading schema...</Box>
+      </Box>
+    );
   }
 
   if (error) {
-    return <div class={styles.container}><div class={styles.error}>{error}</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">
+          {error}
+        </Box>
+      </Box>
+    );
   }
 
   if (!data || data.columns.length === 0) {
-    return <div class={styles.container}><div class={styles.empty}>No schema data</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Box p="10" textAlign="center" color="fg.muted">No schema data</Box>
+      </Box>
+    );
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
       {/* Header */}
-      <div class={styles.header}>
-        <div class={styles.tableInfo}>
-          <span class={styles.tableIcon}>📋</span>
-          <span class={styles.tableName}>{data.table}</span>
-          <span class={styles.columnCount}>{data.columns.length} columns</span>
-        </div>
-        <button class={styles.btn} onClick={handleCopyDDL}>Copy DDL</button>
-      </div>
+      <Flex justify="space-between" align="center" mb="3">
+        <Flex align="center" gap="2">
+          <Box fontSize="lg" fontWeight="bold" color="fg.muted">T</Box>
+          <Box fontWeight="bold" fontSize="lg" color="fg.default">{data.table}</Box>
+          <Box color="fg.muted" fontSize="sm">{data.columns.length} columns</Box>
+        </Flex>
+        <Button variant="outline" size="sm" onClick={handleCopyDDL}>Copy DDL</Button>
+      </Flex>
 
       {/* Filter */}
-      <input
+      <Input
         type="text"
         placeholder="Filter columns..."
         value={filterText}
-        onInput={(e) => setFilterText((e.target as HTMLInputElement).value)}
-        class={styles.filterInput}
+        onChange={(e) => setFilterText((e.target as HTMLInputElement).value)}
+        className={css({ w: "full", mb: "3" })}
       />
 
       {/* Schema Table */}
-      <div class={styles.schemaContainer}>
-        <table class={styles.table}>
-          <thead>
-            <tr>
-              <th class={styles.th}>Column</th>
-              <th class={styles.th}>Type</th>
-              <th class={styles.th}>Nullable</th>
-              <th class={styles.th}>Default</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Box rounded="lg" overflow="hidden">
+        <Table.Root variant="outline">
+          <Table.Head>
+            <Table.Row>
+              <Table.Header>Column</Table.Header>
+              <Table.Header>Type</Table.Header>
+              <Table.Header>Nullable</Table.Header>
+              <Table.Header>Default</Table.Header>
+            </Table.Row>
+          </Table.Head>
+          <Table.Body>
             {filteredColumns.map((col) => (
-              <tr
+              <Table.Row
                 key={col.name}
-                class={css(styles.tr, selectedColumn === col.name && styles.trSelected)}
                 onClick={() => handleSelectColumn(col.name)}
+                className={css({
+                  cursor: "pointer",
+                  _hover: { bg: "bg.subtle" },
+                  bg: selectedColumn === col.name ? { base: "blue.50", _dark: "blue.950" } : undefined,
+                })}
               >
-                <td class={styles.td}>
-                  <div class={styles.columnName}>
-                    {col.isPrimaryKey && <span class={styles.pkBadge}>PK</span>}
-                    <span class={css({ fontWeight: col.isPrimaryKey ? "bold" : "normal" })}>
+                <Table.Cell>
+                  <Flex align="center" gap="2">
+                    {col.isPrimaryKey && (
+                      <Box
+                        px="1.5"
+                        py="0.5"
+                        fontSize="xs"
+                        fontWeight="bold"
+                        bg={{ base: "yellow.100", _dark: "yellow.900" }}
+                        color={{ base: "yellow.800", _dark: "yellow.200" }}
+                        rounded="sm"
+                      >
+                        PK
+                      </Box>
+                    )}
+                    <Box fontWeight={col.isPrimaryKey ? "bold" : "normal"}>
                       {col.name}
-                    </span>
-                  </div>
-                </td>
-                <td class={styles.td}>
-                  <code class={styles.typeCode}>
+                    </Box>
+                  </Flex>
+                </Table.Cell>
+                <Table.Cell>
+                  <Box as="code" fontFamily="mono" fontSize="sm" color={{ base: "blue.600", _dark: "blue.400" }}>
                     {col.type}
                     {col.maxLength && `(${col.maxLength})`}
-                  </code>
-                </td>
-                <td class={styles.td}>
-                  <span class={col.nullable ? styles.nullableYes : styles.nullableNo}>
+                  </Box>
+                </Table.Cell>
+                <Table.Cell>
+                  <Box color={col.nullable ? { base: "green.600", _dark: "green.400" } : { base: "red.600", _dark: "red.400" }} fontWeight={col.nullable ? "normal" : "medium"}>
                     {col.nullable ? "YES" : "NO"}
-                  </span>
-                </td>
-                <td class={styles.td}>
-                  <code class={styles.defaultCode}>
-                    {col.default ?? <span class={styles.nullText}>NULL</span>}
-                  </code>
-                </td>
-              </tr>
+                  </Box>
+                </Table.Cell>
+                <Table.Cell>
+                  <Box as="code" fontFamily="mono" fontSize="sm" color="fg.muted">
+                    {col.default ?? <Box as="span" fontStyle="italic">NULL</Box>}
+                  </Box>
+                </Table.Cell>
+              </Table.Row>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Table.Body>
+        </Table.Root>
+      </Box>
 
       {/* Selected Column Details */}
       {selectedColumn && (
-        <div class={styles.detailPanel}>
-          <h4>Column Details: {selectedColumn}</h4>
+        <Box mt="4" p="3" bg="bg.subtle" rounded="lg" border="1px solid" borderColor="border.default">
+          <Box as="h4" mb="2">Column Details: {selectedColumn}</Box>
           {(() => {
             const col = data.columns.find((c) => c.name === selectedColumn);
             if (!col) return null;
             return (
-              <pre class={styles.detailCode}>
+              <Box as="pre" fontFamily="mono" fontSize="xs" p="2" bg="bg.default" rounded="md" overflow="auto">
 {`{
   "name": "${col.name}",
   "type": "${col.type}${col.maxLength ? `(${col.maxLength})` : ""}",
@@ -212,189 +262,17 @@ function SchemaViewer() {
   "default": ${col.default ? `"${col.default}"` : "null"},
   "isPrimaryKey": ${col.isPrimaryKey ?? false}
 }`}
-              </pre>
+              </Box>
             );
           })()}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function generateDDL(data: SchemaData): string {
-  const columns = data.columns.map((col) => {
-    let line = `  "${col.name}" ${col.type.toUpperCase()}`;
-    if (col.maxLength) line += `(${col.maxLength})`;
-    if (!col.nullable) line += " NOT NULL";
-    if (col.default) line += ` DEFAULT ${col.default}`;
-    if (col.isPrimaryKey) line += " PRIMARY KEY";
-    return line;
-  });
-  return `CREATE TABLE "${data.table}" (\n${columns.join(",\n")}\n);`;
-}
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minH: "200px",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "3",
-  }),
-  tableInfo: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  tableIcon: css({
-    fontSize: "lg",
-  }),
-  tableName: css({
-    fontWeight: "bold",
-    fontSize: "lg",
-    color: "fg.default",
-  }),
-  columnCount: css({
-    color: "fg.muted",
-    fontSize: "sm",
-  }),
-  btn: css({
-    px: "3",
-    py: "1.5",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  filterInput: css({
-    w: "full",
-    p: "2",
-    mb: "3",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "sm",
-    outline: "none",
-    _focus: { borderColor: "border.accent" },
-  }),
-  schemaContainer: css({
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-  }),
-  table: css({
-    w: "full",
-    borderCollapse: "collapse",
-  }),
-  th: css({
-    p: "3",
-    textAlign: "left",
-    bg: "bg.subtle",
-    fontWeight: "semibold",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    fontSize: "xs",
-    textTransform: "uppercase",
-    color: "fg.muted",
-  }),
-  tr: css({
-    cursor: "pointer",
-    _hover: { bg: "bg.subtle" },
-  }),
-  trSelected: css({
-    bg: "blue.50",
-    _hover: { bg: "blue.100" },
-    _dark: { bg: "blue.950", _hover: { bg: "blue.900" } },
-  }),
-  td: css({
-    p: "3",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  columnName: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  pkBadge: css({
-    px: "1.5",
-    py: "0.5",
-    fontSize: "xs",
-    fontWeight: "bold",
-    bg: "yellow.100",
-    color: "yellow.800",
-    rounded: "sm",
-    _dark: { bg: "yellow.900", color: "yellow.200" },
-  }),
-  typeCode: css({
-    fontFamily: "mono",
-    fontSize: "sm",
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-  }),
-  nullableYes: css({
-    color: "green.600",
-    _dark: { color: "green.400" },
-  }),
-  nullableNo: css({
-    color: "red.600",
-    fontWeight: "medium",
-    _dark: { color: "red.400" },
-  }),
-  defaultCode: css({
-    fontFamily: "mono",
-    fontSize: "sm",
-    color: "fg.muted",
-  }),
-  nullText: css({
-    fontStyle: "italic",
-    color: "fg.muted",
-  }),
-  detailPanel: css({
-    mt: "4",
-    p: "3",
-    bg: "bg.subtle",
-    rounded: "lg",
-    border: "1px solid",
-    borderColor: "border.default",
-  }),
-  detailCode: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    p: "2",
-    bg: "bg.default",
-    rounded: "md",
-    overflow: "auto",
-  }),
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  error: css({ p: "4", bg: "red.50", color: "red.700", rounded: "md", _dark: { bg: "red.950", color: "red.300" } }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<SchemaViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<SchemaViewer />);

@@ -11,11 +11,13 @@
  * @module lib/std/src/ui/word-cloud
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useRef } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -226,8 +228,8 @@ function WordCloudSVG({
   }, [words, dimensions.width, dimensions.height, colorScheme, maxWords]);
 
   return (
-    <div ref={containerRef} class={styles.svgContainer}>
-      <svg width={dimensions.width} height={dimensions.height} class={styles.svg}>
+    <Box ref={containerRef} w="full" h="400px">
+      <svg width={dimensions.width} height={dimensions.height} style={{ display: "block" }}>
         {placedWords.map((pw, i) => (
           <g key={i}>
             <text
@@ -238,7 +240,7 @@ function WordCloudSVG({
               fontWeight={selectedWord === pw.word ? "bold" : "normal"}
               fill={pw.color}
               opacity={selectedWord && selectedWord !== pw.word ? 0.4 : 1}
-              class={styles.wordText}
+              className={css({ cursor: "pointer", transition: "opacity 0.2s ease", userSelect: "none", _hover: { opacity: "0.7 !important" } })}
               onClick={() => {
                 onWordClick(pw.word);
                 notifyModel("select", { word: pw.word, count: pw.count, percentage: pw.percentage });
@@ -253,7 +255,7 @@ function WordCloudSVG({
           </g>
         ))}
       </svg>
-    </div>
+    </Box>
   );
 }
 
@@ -302,15 +304,27 @@ function WordCloud() {
   };
 
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading word cloud...</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px">
+        <Box p="10" textAlign="center" color="fg.muted">Loading word cloud...</Box>
+      </Box>
+    );
   }
 
   if (error) {
-    return <div class={styles.container}><div class={styles.error}>{error}</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px">
+        <Box p="4" bg="red.50" color="red.700" rounded="md" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
+      </Box>
+    );
   }
 
   if (!data || !data.words || data.words.length === 0) {
-    return <div class={styles.container}><div class={styles.empty}>No words to display</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px">
+        <Box p="10" textAlign="center" color="fg.muted">No words to display</Box>
+      </Box>
+    );
   }
 
   const { words, title, maxWords = 50, colorScheme = "blue" } = data;
@@ -321,16 +335,16 @@ function WordCloud() {
     : null;
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px">
       {/* Header */}
       {title && (
-        <div class={styles.header}>
-          <h2 class={styles.title}>{title}</h2>
-        </div>
+        <Box mb="4">
+          <Box as="h2" fontSize="lg" fontWeight="semibold" m="0">{title}</Box>
+        </Box>
       )}
 
       {/* Word Cloud */}
-      <div class={styles.cloudWrapper}>
+      <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden" bg="bg.default" minH="300px">
         <WordCloudSVG
           words={words}
           colorScheme={colorScheme}
@@ -338,151 +352,35 @@ function WordCloud() {
           selectedWord={selectedWord}
           onWordClick={handleWordClick}
         />
-      </div>
+      </Box>
 
       {/* Selected Word Info */}
       {selectedWordInfo && (
-        <div class={styles.selectedInfo}>
-          <span class={styles.selectedWord}>{selectedWordInfo.word}</span>
-          <span class={styles.selectedCount}>Count: {selectedWordInfo.count}</span>
+        <Flex mt="4" p="3" bg="bg.subtle" rounded="lg" align="center" gap="3" flexWrap="wrap">
+          <Box fontWeight="bold" fontSize="md">{selectedWordInfo.word}</Box>
+          <Box color="fg.muted" fontFamily="mono">Count: {selectedWordInfo.count}</Box>
           {selectedWordInfo.percentage !== undefined && (
-            <span class={styles.selectedPercent}>
-              ({selectedWordInfo.percentage.toFixed(1)}%)
-            </span>
+            <Box color="fg.muted">({selectedWordInfo.percentage.toFixed(1)}%)</Box>
           )}
-          <button
-            class={styles.clearBtn}
-            onClick={() => setSelectedWord(null)}
-          >
+          <Button variant="outline" size="xs" onClick={() => setSelectedWord(null)} className={css({ ml: "auto" })}>
             Clear
-          </button>
-        </div>
+          </Button>
+        </Flex>
       )}
 
       {/* Stats */}
-      <div class={styles.stats}>
+      <Box mt="3" fontSize="xs" color="fg.muted" textAlign="center">
         <span>{Math.min(words.length, maxWords)} words displayed</span>
         {words.length > maxWords && (
-          <span class={styles.truncated}>(truncated from {words.length})</span>
+          <span className={css({ ml: "1", fontStyle: "italic" })}>(truncated from {words.length})</span>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minH: "400px",
-  }),
-  header: css({
-    mb: "4",
-  }),
-  title: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-    m: "0",
-  }),
-  cloudWrapper: css({
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-    bg: "bg.default",
-    minH: "300px",
-  }),
-  svgContainer: css({
-    w: "full",
-    h: "400px",
-  }),
-  svg: css({
-    display: "block",
-  }),
-  wordText: css({
-    cursor: "pointer",
-    transition: "opacity 0.2s ease",
-    userSelect: "none",
-    _hover: {
-      opacity: "0.7 !important",
-    },
-  }),
-  selectedInfo: css({
-    mt: "4",
-    p: "3",
-    bg: "bg.subtle",
-    rounded: "lg",
-    display: "flex",
-    alignItems: "center",
-    gap: "3",
-    flexWrap: "wrap",
-  }),
-  selectedWord: css({
-    fontWeight: "bold",
-    fontSize: "md",
-  }),
-  selectedCount: css({
-    color: "fg.muted",
-    fontFamily: "mono",
-  }),
-  selectedPercent: css({
-    color: "fg.muted",
-  }),
-  clearBtn: css({
-    ml: "auto",
-    px: "3",
-    py: "1",
-    bg: "bg.muted",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: {
-      bg: "bg.emphasized",
-    },
-  }),
-  stats: css({
-    mt: "3",
-    fontSize: "xs",
-    color: "fg.muted",
-    textAlign: "center",
-  }),
-  truncated: css({
-    ml: "1",
-    fontStyle: "italic",
-  }),
-  loading: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  empty: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  error: css({
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    _dark: {
-      bg: "red.950",
-      color: "red.300",
-    },
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<WordCloud />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<WordCloud />);

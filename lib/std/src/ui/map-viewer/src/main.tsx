@@ -12,11 +12,16 @@
  * @module lib/std/src/ui/map-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, VStack, HStack } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Spinner } from "../../components/ui/spinner";
+import * as Card from "../../components/ui/card";
+import { Code } from "../../components/ui/code";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -169,7 +174,7 @@ function formatCoordinate(
     direction = value >= 0 ? "E" : "W";
   }
 
-  return `${degrees}°${minutes}'${seconds}"${direction}`;
+  return `${degrees}deg${minutes}'${seconds}"${direction}`;
 }
 
 function formatDistance(km: number, targetUnit?: string): string {
@@ -332,9 +337,9 @@ function SvgMap({
 
   if (allLats.length === 0) {
     return (
-      <div class={styles.emptyMap}>
+      <Flex align="center" justify="center" h="200px" color="fg.muted">
         <span>No geographic data to display</span>
-      </div>
+      </Flex>
     );
   }
 
@@ -365,7 +370,7 @@ function SvgMap({
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      class={styles.svgMap}
+      className={css({ display: "block", w: "100%", h: "auto", minH: "200px" })}
       preserveAspectRatio="xMidYMid meet"
     >
       {/* Background grid */}
@@ -380,7 +385,7 @@ function SvgMap({
             d="M 40 0 L 0 0 0 40"
             fill="none"
             stroke="var(--colors-border-subtle)"
-            stroke-width="0.5"
+            strokeWidth="0.5"
           />
         </pattern>
       </defs>
@@ -397,17 +402,17 @@ function SvgMap({
             <path
               d={pathD}
               fill={poly.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]}
-              fill-opacity={poly.fillOpacity ?? 0.2}
+              fillOpacity={poly.fillOpacity ?? 0.2}
               stroke={poly.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]}
-              stroke-width="2"
+              strokeWidth="2"
             />
             {poly.label && (
               <text
                 x={pathPoints.reduce((sum, p) => sum + p.x, 0) / pathPoints.length}
                 y={pathPoints.reduce((sum, p) => sum + p.y, 0) / pathPoints.length}
-                text-anchor="middle"
+                textAnchor="middle"
                 fill="var(--colors-fg-default)"
-                font-size="10"
+                fontSize="10"
               >
                 {poly.label}
               </text>
@@ -434,8 +439,8 @@ function SvgMap({
               x2={to.x}
               y2={to.y}
               stroke={line.color || "#6b7280"}
-              stroke-width="2"
-              stroke-dasharray="6,3"
+              strokeWidth="2"
+              strokeDasharray="6,3"
             />
             <rect
               x={midX - 30}
@@ -449,10 +454,10 @@ function SvgMap({
             <text
               x={midX}
               y={midY + 4}
-              text-anchor="middle"
+              textAnchor="middle"
               fill="var(--colors-fg-default)"
-              font-size="10"
-              font-family="monospace"
+              fontSize="10"
+              fontFamily="monospace"
             >
               {formatDistance(dist, line.unit)}
             </text>
@@ -469,7 +474,11 @@ function SvgMap({
         return (
           <g
             key={`point-${i}`}
-            class={styles.pointGroup}
+            className={css({
+              cursor: "pointer",
+              transition: "transform 0.15s ease",
+              _hover: { transform: "scale(1.1)" },
+            })}
             onClick={() => onSelectPoint(isSelected ? null : point)}
           >
             {/* Pin shadow */}
@@ -487,7 +496,7 @@ function SvgMap({
                   C ${pos.x + 10} ${pos.y - 8}, ${pos.x + 10} ${pos.y - 20}, ${pos.x} ${pos.y - 20} Z`}
               fill={color}
               stroke={isSelected ? "var(--colors-fg-default)" : "white"}
-              stroke-width={isSelected ? 2 : 1}
+              strokeWidth={isSelected ? 2 : 1}
             />
             {/* Inner circle */}
             <circle cx={pos.x} cy={pos.y - 14} r="4" fill="white" />
@@ -502,15 +511,15 @@ function SvgMap({
                   rx="3"
                   fill="var(--colors-bg-default)"
                   stroke={color}
-                  stroke-width="1"
+                  strokeWidth="1"
                 />
                 <text
                   x={pos.x}
                   y={pos.y - 28}
-                  text-anchor="middle"
+                  textAnchor="middle"
                   fill="var(--colors-fg-default)"
-                  font-size="10"
-                  font-weight="500"
+                  fontSize="10"
+                  fontWeight="500"
                 >
                   {point.label.length > 12
                     ? point.label.slice(0, 12) + "..."
@@ -525,7 +534,7 @@ function SvgMap({
       {/* Compass */}
       <g transform="translate(370, 30)">
         <circle cx="0" cy="0" r="18" fill="var(--colors-bg-default)" stroke="var(--colors-border-default)" />
-        <text x="0" y="-6" text-anchor="middle" font-size="10" font-weight="bold" fill="var(--colors-fg-default)">N</text>
+        <text x="0" y="-6" textAnchor="middle" fontSize="10" fontWeight="bold" fill="var(--colors-fg-default)">N</text>
         <path d="M 0 -12 L 3 0 L 0 -4 L -3 0 Z" fill="#ef4444" />
         <path d="M 0 12 L 3 0 L 0 4 L -3 0 Z" fill="var(--colors-fg-muted)" />
       </g>
@@ -552,26 +561,39 @@ function PointDetails({ point, coordFormat, onCopy }: PointDetailsProps) {
       : `${latStr}, ${lngStr}`;
 
   return (
-    <div class={styles.pointDetails}>
-      <div class={styles.pointHeader}>
-        <span
-          class={styles.pointColorDot}
-          style={{ backgroundColor: point.color || DEFAULT_COLORS[0] }}
-        />
-        <span class={styles.pointLabel}>{point.label || "Point"}</span>
-      </div>
-      <div class={styles.coordRow}>
-        <span class={styles.coordLabel}>Lat:</span>
-        <code class={styles.coordValue}>{latStr}</code>
-      </div>
-      <div class={styles.coordRow}>
-        <span class={styles.coordLabel}>Lng:</span>
-        <code class={styles.coordValue}>{lngStr}</code>
-      </div>
-      <button class={styles.copyBtn} onClick={() => onCopy(copyText)}>
-        Copy Coordinates
-      </button>
-    </div>
+    <Card.Root mb="3">
+      <Card.Body p="3">
+        <HStack gap="2" mb="2">
+          <Box
+            w="12px"
+            h="12px"
+            rounded="full"
+            flexShrink={0}
+            style={{ backgroundColor: point.color || DEFAULT_COLORS[0] }}
+          />
+          <Box fontWeight="semibold" fontSize="md">
+            {point.label || "Point"}
+          </Box>
+        </HStack>
+        <VStack gap="1" align="stretch">
+          <HStack gap="2">
+            <Box w="30px" color="fg.muted" fontSize="xs" fontWeight="medium">
+              Lat:
+            </Box>
+            <Code size="sm">{latStr}</Code>
+          </HStack>
+          <HStack gap="2">
+            <Box w="30px" color="fg.muted" fontSize="xs" fontWeight="medium">
+              Lng:
+            </Box>
+            <Code size="sm">{lngStr}</Code>
+          </HStack>
+        </VStack>
+        <Button variant="outline" size="xs" onClick={() => onCopy(copyText)} mt="2">
+          Copy Coordinates
+        </Button>
+      </Card.Body>
+    </Card.Root>
   );
 }
 
@@ -599,32 +621,52 @@ function PointsList({
   }
 
   return (
-    <div class={styles.pointsList}>
-      <h3 class={styles.listTitle}>Locations</h3>
+    <Box borderTop="1px solid" borderColor="border.subtle" pt="3">
+      <Box
+        as="h3"
+        fontSize="sm"
+        fontWeight="semibold"
+        color="fg.muted"
+        textTransform="uppercase"
+        letterSpacing="wide"
+        mb="2"
+        m="0"
+      >
+        Locations
+      </Box>
       {points.map((point, i) => {
         const latStr = formatCoordinate(point.lat, "lat", coordFormat);
         const lngStr = formatCoordinate(point.lng, "lng", coordFormat);
 
         return (
-          <div
+          <Flex
             key={i}
-            class={styles.listItem}
+            align="center"
+            gap="2"
+            p="2"
+            rounded="md"
+            cursor="pointer"
+            _hover={{ bg: "bg.subtle" }}
             onClick={() => onSelectPoint(point)}
           >
-            <span
-              class={styles.pointColorDot}
+            <Box
+              w="12px"
+              h="12px"
+              rounded="full"
+              flexShrink={0}
               style={{ backgroundColor: point.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length] }}
             />
-            <div class={styles.listItemContent}>
-              <span class={styles.listItemLabel}>
+            <Box flex="1" minW="0">
+              <Box fontWeight="medium" fontSize="sm" truncate>
                 {point.label || `Point ${i + 1}`}
-              </span>
-              <code class={styles.listItemCoords}>
+              </Box>
+              <Code size="sm" color="fg.muted">
                 {latStr}, {lngStr}
-              </code>
-            </div>
-            <button
-              class={styles.listCopyBtn}
+              </Code>
+            </Box>
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={(e) => {
                 e.stopPropagation();
                 onCopy(`${point.lat}, ${point.lng}`);
@@ -632,15 +674,26 @@ function PointsList({
               title="Copy coordinates"
             >
               Copy
-            </button>
-          </div>
+            </Button>
+          </Flex>
         );
       })}
 
       {/* Distance summary for lines */}
       {lines.length > 0 && (
-        <div class={styles.distanceSummary}>
-          <h4 class={styles.summaryTitle}>Distances</h4>
+        <Box mt="3" pt="3" borderTop="1px solid" borderColor="border.subtle">
+          <Box
+            as="h4"
+            fontSize="xs"
+            fontWeight="semibold"
+            color="fg.muted"
+            textTransform="uppercase"
+            letterSpacing="wide"
+            mb="2"
+            m="0"
+          >
+            Distances
+          </Box>
           {lines.map((line, i) => {
             const dist =
               line.distance ??
@@ -658,22 +711,27 @@ function PointsList({
             );
 
             return (
-              <div key={i} class={styles.distanceRow}>
-                <span class={styles.distanceLabel}>
+              <Flex key={i} align="center" gap="3" py="1">
+                <Box flex="1" fontSize="sm" color="fg.default">
                   {line.label || `Route ${i + 1}`}
-                </span>
-                <span class={styles.distanceValue}>
+                </Box>
+                <Box
+                  fontFamily="mono"
+                  fontSize="sm"
+                  fontWeight="semibold"
+                  color={{ base: "blue.600", _dark: "blue.400" }}
+                >
                   {formatDistance(dist, line.unit)}
-                </span>
-                <span class={styles.bearingValue}>
+                </Box>
+                <Box fontFamily="mono" fontSize="xs" color="fg.muted">
                   {bearing.degrees}deg ({bearing.cardinal})
-                </span>
-              </div>
+                </Box>
+              </Flex>
             );
           })}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -758,54 +816,93 @@ function MapViewer() {
   // Render states
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading map data...</div>
-      </div>
+      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="4" minH="300px">
+        <Flex p="10" justify="center" align="center" direction="column" gap="2">
+          <Spinner size="md" />
+          <Box color="fg.muted">Loading map data...</Box>
+        </Flex>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>{error}</div>
-      </div>
+      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="4" minH="300px">
+        <Box
+          p="4"
+          bg={{ base: "red.50", _dark: "red.950" }}
+          color={{ base: "red.700", _dark: "red.300" }}
+          rounded="md"
+        >
+          {error}
+        </Box>
+      </Box>
     );
   }
 
   if (!data || (points.length === 0 && lines.length === 0 && polygons.length === 0)) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No geographic data to display</div>
-      </div>
+      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="4" minH="300px">
+        <Box p="10" textAlign="center" color="fg.muted">
+          No geographic data to display
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container}>
+    <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="4" minH="300px">
       {/* Header */}
-      <div class={styles.header}>
-        <h2 class={styles.title}>{data.title || "Map Viewer"}</h2>
-        <div class={styles.headerControls}>
-          <button
-            class={coordFormat === "decimal" ? styles.formatBtnActive : styles.formatBtn}
+      <Flex justify="space-between" align="center" mb="3" pb="2" borderBottom="1px solid" borderColor="border.subtle">
+        <Box as="h2" fontSize="lg" fontWeight="semibold" m="0">
+          {data.title || "Map Viewer"}
+        </Box>
+        <HStack gap="1">
+          <Button
+            variant={coordFormat === "decimal" ? "solid" : "outline"}
+            size="xs"
             onClick={() => setCoordFormat("decimal")}
           >
             Decimal
-          </button>
-          <button
-            class={coordFormat === "dms" ? styles.formatBtnActive : styles.formatBtn}
+          </Button>
+          <Button
+            variant={coordFormat === "dms" ? "solid" : "outline"}
+            size="xs"
             onClick={() => setCoordFormat("dms")}
           >
             DMS
-          </button>
-        </div>
-      </div>
+          </Button>
+        </HStack>
+      </Flex>
 
       {/* Copy feedback */}
-      {copyFeedback && <div class={styles.copyFeedback}>{copyFeedback}</div>}
+      {copyFeedback && (
+        <Box
+          position="fixed"
+          top="4"
+          right="4"
+          px="3"
+          py="2"
+          bg="green.600"
+          color="white"
+          rounded="md"
+          fontSize="sm"
+          fontWeight="medium"
+          zIndex={1000}
+        >
+          {copyFeedback}
+        </Box>
+      )}
 
       {/* Map */}
-      <div class={styles.mapContainer}>
+      <Box
+        border="1px solid"
+        borderColor="border.default"
+        rounded="lg"
+        overflow="hidden"
+        bg="bg.subtle"
+        mb="3"
+      >
         <SvgMap
           points={points}
           lines={lines}
@@ -813,7 +910,7 @@ function MapViewer() {
           selectedPoint={selectedPoint}
           onSelectPoint={handleSelectPoint}
         />
-      </div>
+      </Box>
 
       {/* Selected point details */}
       {selectedPoint && (
@@ -832,269 +929,12 @@ function MapViewer() {
         onSelectPoint={handleSelectPoint}
         onCopy={handleCopy}
       />
-    </div>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    p: "4",
-    minH: "300px",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "3",
-    pb: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  title: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-    m: 0,
-  }),
-  headerControls: css({
-    display: "flex",
-    gap: "1",
-  }),
-  formatBtn: css({
-    px: "2",
-    py: "1",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.muted",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  formatBtnActive: css({
-    px: "2",
-    py: "1",
-    border: "1px solid",
-    borderColor: "border.accent",
-    rounded: "md",
-    bg: "bg.accent",
-    color: "fg.default",
-    fontSize: "xs",
-    cursor: "pointer",
-    fontWeight: "medium",
-  }),
-  copyFeedback: css({
-    position: "fixed",
-    top: "4",
-    right: "4",
-    px: "3",
-    py: "2",
-    bg: "green.600",
-    color: "white",
-    rounded: "md",
-    fontSize: "sm",
-    fontWeight: "medium",
-    zIndex: 1000,
-    animation: "fadeIn 0.2s ease-out",
-  }),
-  mapContainer: css({
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-    bg: "bg.subtle",
-    mb: "3",
-  }),
-  svgMap: css({
-    display: "block",
-    w: "100%",
-    h: "auto",
-    minH: "200px",
-  }),
-  emptyMap: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    h: "200px",
-    color: "fg.muted",
-  }),
-  pointGroup: css({
-    cursor: "pointer",
-    transition: "transform 0.15s ease",
-    _hover: { transform: "scale(1.1)" },
-  }),
-  pointDetails: css({
-    p: "3",
-    mb: "3",
-    bg: "bg.subtle",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-  }),
-  pointHeader: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    mb: "2",
-  }),
-  pointColorDot: css({
-    w: "12px",
-    h: "12px",
-    rounded: "full",
-    flexShrink: 0,
-  }),
-  pointLabel: css({
-    fontWeight: "semibold",
-    fontSize: "md",
-  }),
-  coordRow: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    mb: "1",
-  }),
-  coordLabel: css({
-    w: "30px",
-    color: "fg.muted",
-    fontSize: "xs",
-    fontWeight: "medium",
-  }),
-  coordValue: css({
-    fontFamily: "mono",
-    fontSize: "sm",
-    color: "fg.default",
-  }),
-  copyBtn: css({
-    mt: "2",
-    px: "3",
-    py: "1.5",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.default",
-    color: "fg.default",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted", borderColor: "border.emphasized" },
-  }),
-  pointsList: css({
-    borderTop: "1px solid",
-    borderColor: "border.subtle",
-    pt: "3",
-  }),
-  listTitle: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-    color: "fg.muted",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-    mb: "2",
-    m: 0,
-  }),
-  listItem: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    p: "2",
-    rounded: "md",
-    cursor: "pointer",
-    _hover: { bg: "bg.subtle" },
-  }),
-  listItemContent: css({
-    flex: 1,
-    minW: 0,
-  }),
-  listItemLabel: css({
-    display: "block",
-    fontWeight: "medium",
-    fontSize: "sm",
-    truncate: true,
-  }),
-  listItemCoords: css({
-    display: "block",
-    fontFamily: "mono",
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  listCopyBtn: css({
-    px: "2",
-    py: "1",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "sm",
-    bg: "transparent",
-    color: "fg.muted",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted", color: "fg.default" },
-  }),
-  distanceSummary: css({
-    mt: "3",
-    pt: "3",
-    borderTop: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  summaryTitle: css({
-    fontSize: "xs",
-    fontWeight: "semibold",
-    color: "fg.muted",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-    mb: "2",
-    m: 0,
-  }),
-  distanceRow: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "3",
-    py: "1",
-  }),
-  distanceLabel: css({
-    flex: 1,
-    fontSize: "sm",
-    color: "fg.default",
-  }),
-  distanceValue: css({
-    fontFamily: "mono",
-    fontSize: "sm",
-    fontWeight: "semibold",
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-  }),
-  bearingValue: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  loading: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  empty: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  error: css({
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    _dark: { bg: "red.950", color: "red.300" },
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<MapViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<MapViewer />);

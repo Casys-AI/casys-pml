@@ -12,11 +12,14 @@
  * @module lib/std/src/ui/regex-tester
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Stack, Grid } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -169,14 +172,23 @@ function explainFlags(flags: string): string[] {
 
 function ValidityIndicator({ isValid, error }: { isValid: boolean; error: string | null }) {
   return (
-    <div class={css(styles.validity, isValid ? styles.validityValid : styles.validityInvalid)}>
-      <span class={styles.validityIcon}>
+    <Badge
+      size="sm"
+      className={css({
+        display: "flex",
+        alignItems: "center",
+        gap: "2",
+        bg: isValid ? { base: "green.100", _dark: "green.900/50" } : { base: "red.100", _dark: "red.900/50" },
+        color: isValid ? { base: "green.700", _dark: "green.300" } : { base: "red.700", _dark: "red.300" },
+      })}
+    >
+      <Box as="span" fontSize="sm">
         {isValid ? "\u2713" : "\u2717"}
-      </span>
-      <span class={styles.validityText}>
+      </Box>
+      <Box as="span" maxW="200px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
         {isValid ? "Valid regex" : error || "Invalid regex"}
-      </span>
-    </div>
+      </Box>
+    </Badge>
   );
 }
 
@@ -232,13 +244,17 @@ function HighlightedText({
   return (
     <>
       {segments.map((segment, i) => (
-        <span
+        <Box
+          as="span"
           key={i}
-          class={segment.highlighted ? styles.highlight : undefined}
+          bg={segment.highlighted ? { base: "yellow.200", _dark: "yellow.700" } : undefined}
+          color={segment.highlighted ? { base: "yellow.900", _dark: "yellow.100" } : undefined}
+          px={segment.highlighted ? "0.5" : undefined}
+          rounded={segment.highlighted ? "sm" : undefined}
           title={segment.highlighted ? `Match ${segment.matchIndex + 1}` : undefined}
         >
           {segment.text}
-        </span>
+        </Box>
       ))}
     </>
   );
@@ -246,45 +262,47 @@ function HighlightedText({
 
 function MatchesList({ matches }: { matches: MatchResult[] }) {
   if (matches.length === 0) {
-    return <div class={styles.noMatches}>No matches found</div>;
+    return <Box color="fg.muted" fontStyle="italic" textAlign="center" py="4">No matches found</Box>;
   }
 
   return (
-    <div class={styles.matchesList}>
+    <Stack gap="2">
       {matches.map((match, i) => (
-        <div key={i} class={styles.matchItem}>
-          <div class={styles.matchHeader}>
-            <span class={styles.matchNumber}>Match {i + 1}</span>
-            <span class={styles.matchIndex}>at index {match.index}</span>
-          </div>
-          <div class={styles.matchValue}>
+        <Box key={i} p="2" bg="bg.subtle" rounded="md" border="1px solid" borderColor="border.subtle">
+          <Flex justify="space-between" align="center" mb="1">
+            <Box fontWeight="semibold" fontSize="xs" color={{ base: "blue.600", _dark: "blue.400" }}>
+              Match {i + 1}
+            </Box>
+            <Box fontSize="xs" color="fg.muted">at index {match.index}</Box>
+          </Flex>
+          <Box fontFamily="mono" fontSize="sm" bg="bg.muted" px="2" py="1" rounded="sm" overflowX="auto">
             <code>{match.fullMatch}</code>
-          </div>
+          </Box>
           {match.groups.length > 0 && (
-            <div class={styles.groupsList}>
-              <div class={styles.groupsHeader}>Captured Groups:</div>
+            <Box mt="2" pt="2" borderTop="1px solid" borderColor="border.subtle">
+              <Box fontSize="xs" fontWeight="medium" color="fg.muted" mb="1">Captured Groups:</Box>
               {match.groups.map((group, gi) => (
-                <div key={gi} class={styles.groupItem}>
-                  <span class={styles.groupNumber}>Group {gi + 1}:</span>
-                  <code class={styles.groupValue}>{group ?? "(undefined)"}</code>
-                </div>
+                <Flex key={gi} align="center" gap="2" fontSize="xs" py="0.5">
+                  <Box color="fg.muted" fontWeight="medium">Group {gi + 1}:</Box>
+                  <Box as="code" fontFamily="mono" bg="bg.muted" px="1" rounded="sm">{group ?? "(undefined)"}</Box>
+                </Flex>
               ))}
-            </div>
+            </Box>
           )}
           {match.namedGroups && Object.keys(match.namedGroups).length > 0 && (
-            <div class={styles.groupsList}>
-              <div class={styles.groupsHeader}>Named Groups:</div>
+            <Box mt="2" pt="2" borderTop="1px solid" borderColor="border.subtle">
+              <Box fontSize="xs" fontWeight="medium" color="fg.muted" mb="1">Named Groups:</Box>
               {Object.entries(match.namedGroups).map(([name, value]) => (
-                <div key={name} class={styles.groupItem}>
-                  <span class={styles.groupNumber}>{name}:</span>
-                  <code class={styles.groupValue}>{value ?? "(undefined)"}</code>
-                </div>
+                <Flex key={name} align="center" gap="2" fontSize="xs" py="0.5">
+                  <Box color="fg.muted" fontWeight="medium">{name}:</Box>
+                  <Box as="code" fontFamily="mono" bg="bg.muted" px="1" rounded="sm">{value ?? "(undefined)"}</Box>
+                </Flex>
               ))}
-            </div>
+            </Box>
           )}
-        </div>
+        </Box>
       ))}
-    </div>
+    </Stack>
   );
 }
 
@@ -301,33 +319,58 @@ function ExplanationPanel({ pattern, flags }: { pattern: string; flags: string }
   const flagsExplanation = useMemo(() => explainFlags(flags), [flags]);
 
   if (!pattern && !flags) {
-    return <div class={styles.noExplanation}>Enter a pattern to see explanation</div>;
+    return <Box color="fg.muted" fontStyle="italic">Enter a pattern to see explanation</Box>;
   }
 
   return (
-    <div class={styles.explanation}>
+    <Box p="3" borderTop="1px solid" borderColor="border.default">
       {flagsExplanation.length > 0 && (
-        <div class={styles.flagsExplanation}>
-          <div class={styles.explanationHeader}>Flags:</div>
+        <Box mb="3">
+          <Box fontSize="xs" fontWeight="medium" color="fg.muted" mb="1" textTransform="uppercase" letterSpacing="wide">
+            Flags:
+          </Box>
           {flagsExplanation.map((exp, i) => (
-            <div key={i} class={styles.flagItem}>{exp}</div>
+            <Box key={i} fontSize="xs" color="fg.default" py="0.5" fontFamily="mono">{exp}</Box>
           ))}
-        </div>
+        </Box>
       )}
       {patternExplanation.length > 0 && (
-        <div class={styles.patternExplanation}>
-          <div class={styles.explanationHeader}>Pattern breakdown:</div>
-          <div class={styles.explanationList}>
+        <Box>
+          <Box fontSize="xs" fontWeight="medium" color="fg.muted" mb="1" textTransform="uppercase" letterSpacing="wide">
+            Pattern breakdown:
+          </Box>
+          <Stack gap="1">
             {patternExplanation.map((part, i) => (
-              <div key={i} class={styles.explanationItem}>
-                <code class={styles.explanationPattern}>{part.pattern}</code>
-                <span class={styles.explanationDesc}>{part.description}</span>
-              </div>
+              <Flex
+                key={i}
+                align="center"
+                gap="2"
+                py="1"
+                borderBottom="1px solid"
+                borderColor="border.subtle"
+                _last={{ borderBottom: "none" }}
+              >
+                <Box
+                  as="code"
+                  fontFamily="mono"
+                  fontSize="sm"
+                  bg="bg.muted"
+                  px="2"
+                  py="0.5"
+                  rounded="sm"
+                  minW="10"
+                  textAlign="center"
+                  color={{ base: "purple.600", _dark: "purple.400" }}
+                >
+                  {part.pattern}
+                </Box>
+                <Box fontSize="xs" color="fg.muted">{part.description}</Box>
+              </Flex>
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -463,49 +506,82 @@ function RegexTester() {
 
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading...</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="4xl" mx="auto">
+        <Box p="10" textAlign="center" color="fg.muted">Loading...</Box>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="4xl" mx="auto">
       {/* Header */}
-      <div class={styles.header}>
-        <h1 class={styles.title}>Regex Tester</h1>
+      <Flex justify="space-between" align="center" mb="4" pb="3" borderBottom="1px solid" borderColor="border.default">
+        <Box as="h1" fontSize="xl" fontWeight="semibold" m="0">Regex Tester</Box>
         <ValidityIndicator isValid={isValid} error={error} />
-      </div>
+      </Flex>
 
       {/* Pattern Input */}
-      <div class={styles.inputSection}>
-        <label class={styles.label}>Pattern</label>
-        <div class={styles.patternInputWrapper}>
-          <span class={styles.patternDelimiter}>/</span>
-          <input
+      <Box mb="4">
+        <Box as="label" display="block" mb="1" fontWeight="medium" color="fg.muted" fontSize="xs" textTransform="uppercase" letterSpacing="wide">
+          Pattern
+        </Box>
+        <Flex
+          align="center"
+          bg="bg.subtle"
+          border="1px solid"
+          borderColor="border.default"
+          rounded="md"
+          overflow="hidden"
+          _focusWithin={{ borderColor: "blue.500", ring: "2", ringColor: "blue.500/20" }}
+        >
+          <Box px="2" color="fg.muted" fontFamily="mono" fontSize="md" fontWeight="bold">/</Box>
+          <Box
+            as="input"
             type="text"
-            class={styles.patternInput}
+            flex="1"
+            px="2"
+            py="2"
+            bg="transparent"
+            border="none"
+            outline="none"
+            fontFamily="mono"
+            fontSize="sm"
+            color="fg.default"
             value={pattern}
-            onInput={(e) => handlePatternChange((e.target as HTMLInputElement).value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePatternChange(e.target.value)}
             placeholder="Enter regex pattern..."
             spellcheck={false}
           />
-          <span class={styles.patternDelimiter}>/</span>
-          <input
+          <Box px="2" color="fg.muted" fontFamily="mono" fontSize="md" fontWeight="bold">/</Box>
+          <Box
+            as="input"
             type="text"
-            class={styles.flagsInput}
+            w="16"
+            px="2"
+            py="2"
+            bg="bg.muted"
+            border="none"
+            borderLeft="1px solid"
+            borderColor="border.default"
+            outline="none"
+            fontFamily="mono"
+            fontSize="sm"
+            color="fg.default"
+            textAlign="center"
             value={flags}
-            onInput={(e) => handleFlagsChange((e.target as HTMLInputElement).value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFlagsChange(e.target.value)}
             placeholder="flags"
             maxLength={6}
           />
-        </div>
-      </div>
+        </Flex>
+      </Box>
 
       {/* Flag Toggles */}
-      <div class={styles.flagsSection}>
-        <label class={styles.label}>Flags</label>
-        <div class={styles.flagToggles}>
+      <Box mb="4">
+        <Box as="label" display="block" mb="1" fontWeight="medium" color="fg.muted" fontSize="xs" textTransform="uppercase" letterSpacing="wide">
+          Flags
+        </Box>
+        <Flex flexWrap="wrap" gap="2">
           {[
             { flag: "g", label: "Global", desc: "Find all matches" },
             { flag: "i", label: "Case-insensitive", desc: "Ignore case" },
@@ -513,474 +589,113 @@ function RegexTester() {
             { flag: "s", label: "Dotall", desc: ". matches newlines" },
             { flag: "u", label: "Unicode", desc: "Unicode mode" },
           ].map(({ flag, label, desc }) => (
-            <button
+            <Button
               key={flag}
-              class={css(styles.flagToggle, flags.includes(flag) && styles.flagToggleActive)}
+              variant={flags.includes(flag) ? "solid" : "outline"}
+              size="xs"
               onClick={() => toggleFlag(flag)}
               title={desc}
             >
-              <span class={styles.flagToggleKey}>{flag}</span>
-              <span class={styles.flagToggleLabel}>{label}</span>
-            </button>
+              <Box as="span" fontFamily="mono" fontWeight="bold">{flag}</Box>
+              <Box as="span" fontSize="xs" color="fg.muted">{label}</Box>
+            </Button>
           ))}
-        </div>
-      </div>
+        </Flex>
+      </Box>
 
       {/* Test String */}
-      <div class={styles.inputSection}>
-        <label class={styles.label}>Test String</label>
-        <textarea
-          class={styles.testStringInput}
+      <Box mb="4">
+        <Box as="label" display="block" mb="1" fontWeight="medium" color="fg.muted" fontSize="xs" textTransform="uppercase" letterSpacing="wide">
+          Test String
+        </Box>
+        <Box
+          as="textarea"
+          w="full"
+          px="3"
+          py="2"
+          bg="bg.subtle"
+          border="1px solid"
+          borderColor="border.default"
+          rounded="md"
+          fontFamily="mono"
+          fontSize="sm"
+          color="fg.default"
+          resize="vertical"
+          minH="120px"
           value={testString}
-          onInput={(e) => handleTestStringChange((e.target as HTMLTextAreaElement).value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleTestStringChange(e.target.value)}
           placeholder="Enter text to test against the regex..."
-          rows={6}
           spellcheck={false}
+          className={css({ _focus: { outline: "none", borderColor: "blue.500", ring: "2", ringColor: "blue.500/20" } })}
         />
-      </div>
+      </Box>
 
       {/* Results Section */}
-      <div class={styles.resultsSection}>
+      <Grid gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="4" mb="4">
         {/* Highlighted Preview */}
-        <div class={styles.resultPanel}>
-          <div class={styles.panelHeader}>
-            <span>Highlighted Matches</span>
-            <span class={styles.matchCount}>
+        <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
+          <Flex justify="space-between" align="center" px="3" py="2" bg="bg.subtle" borderBottom="1px solid" borderColor="border.default" fontWeight="medium" fontSize="sm">
+            <Box>Highlighted Matches</Box>
+            <Box fontSize="xs" color="fg.muted" bg="bg.muted" px="2" py="0.5" rounded="full">
               {matches.length} match{matches.length !== 1 ? "es" : ""}
-            </span>
-          </div>
-          <div class={styles.previewArea}>
+            </Box>
+          </Flex>
+          <Box p="3" maxH="300px" overflowY="auto">
             {testString ? (
-              <pre class={styles.previewText}>
+              <Box as="pre" m="0" fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap" wordBreak="break-all" lineHeight="1.6">
                 <HighlightedText text={testString} matches={matches} />
-              </pre>
+              </Box>
             ) : (
-              <div class={styles.placeholder}>Enter a test string to see matches</div>
+              <Box color="fg.muted" fontStyle="italic">Enter a test string to see matches</Box>
             )}
-          </div>
-        </div>
+          </Box>
+        </Box>
 
         {/* Matches List */}
-        <div class={styles.resultPanel}>
-          <div class={styles.panelHeader}>
-            <span>Match Details</span>
-          </div>
-          <div class={styles.matchesArea}>
+        <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
+          <Flex justify="space-between" align="center" px="3" py="2" bg="bg.subtle" borderBottom="1px solid" borderColor="border.default" fontWeight="medium" fontSize="sm">
+            <Box>Match Details</Box>
+          </Flex>
+          <Box p="3" maxH="300px" overflowY="auto">
             <MatchesList matches={matches} />
-          </div>
-        </div>
-      </div>
+          </Box>
+        </Box>
+      </Grid>
 
       {/* Explanation Panel */}
-      <div class={styles.explanationSection}>
-        <button
-          class={styles.explanationToggle}
+      <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setShowExplanation(!showExplanation)}
+          className={css({
+            display: "flex",
+            alignItems: "center",
+            gap: "2",
+            w: "full",
+            bg: "bg.subtle",
+            fontWeight: "medium",
+            textAlign: "left",
+            justifyContent: "flex-start",
+            rounded: "0",
+            _hover: { bg: "bg.muted" },
+          })}
         >
-          <span class={styles.explanationToggleIcon}>
+          <Box as="span" fontSize="xs" color="fg.muted">
             {showExplanation ? "\u25BC" : "\u25B6"}
-          </span>
+          </Box>
           Regex Explanation
-        </button>
+        </Button>
         {showExplanation && (
           <ExplanationPanel pattern={pattern} flags={flags} />
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    maxW: "4xl",
-    mx: "auto",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "4",
-    pb: "3",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-  }),
-  title: css({
-    fontSize: "xl",
-    fontWeight: "semibold",
-    m: "0",
-  }),
-  validity: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    px: "3",
-    py: "1",
-    rounded: "full",
-    fontSize: "xs",
-    fontWeight: "medium",
-  }),
-  validityValid: css({
-    bg: "green.100",
-    color: "green.700",
-    _dark: { bg: "green.900/50", color: "green.300" },
-  }),
-  validityInvalid: css({
-    bg: "red.100",
-    color: "red.700",
-    _dark: { bg: "red.900/50", color: "red.300" },
-  }),
-  validityIcon: css({
-    fontSize: "sm",
-  }),
-  validityText: css({
-    maxW: "200px",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  }),
-  inputSection: css({
-    mb: "4",
-  }),
-  label: css({
-    display: "block",
-    mb: "1",
-    fontWeight: "medium",
-    color: "fg.muted",
-    fontSize: "xs",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-  }),
-  patternInputWrapper: css({
-    display: "flex",
-    alignItems: "center",
-    bg: "bg.subtle",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    overflow: "hidden",
-    _focusWithin: { borderColor: "blue.500", ring: "2", ringColor: "blue.500/20" },
-  }),
-  patternDelimiter: css({
-    px: "2",
-    color: "fg.muted",
-    fontFamily: "mono",
-    fontSize: "md",
-    fontWeight: "bold",
-  }),
-  patternInput: css({
-    flex: 1,
-    px: "2",
-    py: "2",
-    bg: "transparent",
-    border: "none",
-    outline: "none",
-    fontFamily: "mono",
-    fontSize: "sm",
-    color: "fg.default",
-  }),
-  flagsInput: css({
-    w: "16",
-    px: "2",
-    py: "2",
-    bg: "bg.muted",
-    border: "none",
-    borderLeft: "1px solid",
-    borderColor: "border.default",
-    outline: "none",
-    fontFamily: "mono",
-    fontSize: "sm",
-    color: "fg.default",
-    textAlign: "center",
-  }),
-  flagsSection: css({
-    mb: "4",
-  }),
-  flagToggles: css({
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "2",
-  }),
-  flagToggle: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "1",
-    px: "3",
-    py: "1.5",
-    bg: "bg.subtle",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    cursor: "pointer",
-    transition: "all 0.15s",
-    _hover: { bg: "bg.muted" },
-  }),
-  flagToggleActive: css({
-    bg: "blue.100",
-    borderColor: "blue.300",
-    color: "blue.700",
-    _hover: { bg: "blue.200" },
-    _dark: { bg: "blue.900/50", borderColor: "blue.700", color: "blue.300" },
-  }),
-  flagToggleKey: css({
-    fontFamily: "mono",
-    fontWeight: "bold",
-  }),
-  flagToggleLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  testStringInput: css({
-    w: "full",
-    px: "3",
-    py: "2",
-    bg: "bg.subtle",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    fontFamily: "mono",
-    fontSize: "sm",
-    color: "fg.default",
-    resize: "vertical",
-    minH: "120px",
-    _focus: { outline: "none", borderColor: "blue.500", ring: "2", ringColor: "blue.500/20" },
-  }),
-  resultsSection: css({
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "4",
-    mb: "4",
-    "@media (max-width: 768px)": {
-      gridTemplateColumns: "1fr",
-    },
-  }),
-  resultPanel: css({
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-  }),
-  panelHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    px: "3",
-    py: "2",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    fontWeight: "medium",
-    fontSize: "sm",
-  }),
-  matchCount: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    bg: "bg.muted",
-    px: "2",
-    py: "0.5",
-    rounded: "full",
-  }),
-  previewArea: css({
-    p: "3",
-    maxH: "300px",
-    overflowY: "auto",
-  }),
-  previewText: css({
-    m: "0",
-    fontFamily: "mono",
-    fontSize: "sm",
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-all",
-    lineHeight: "1.6",
-  }),
-  highlight: css({
-    bg: "yellow.200",
-    color: "yellow.900",
-    px: "0.5",
-    rounded: "sm",
-    _dark: { bg: "yellow.700", color: "yellow.100" },
-  }),
-  placeholder: css({
-    color: "fg.muted",
-    fontStyle: "italic",
-  }),
-  matchesArea: css({
-    p: "3",
-    maxH: "300px",
-    overflowY: "auto",
-  }),
-  matchesList: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "2",
-  }),
-  matchItem: css({
-    p: "2",
-    bg: "bg.subtle",
-    rounded: "md",
-    border: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  matchHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "1",
-  }),
-  matchNumber: css({
-    fontWeight: "semibold",
-    fontSize: "xs",
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-  }),
-  matchIndex: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  matchValue: css({
-    fontFamily: "mono",
-    fontSize: "sm",
-    bg: "bg.muted",
-    px: "2",
-    py: "1",
-    rounded: "sm",
-    overflowX: "auto",
-  }),
-  groupsList: css({
-    mt: "2",
-    pt: "2",
-    borderTop: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  groupsHeader: css({
-    fontSize: "xs",
-    fontWeight: "medium",
-    color: "fg.muted",
-    mb: "1",
-  }),
-  groupItem: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    fontSize: "xs",
-    py: "0.5",
-  }),
-  groupNumber: css({
-    color: "fg.muted",
-    fontWeight: "medium",
-  }),
-  groupValue: css({
-    fontFamily: "mono",
-    bg: "bg.muted",
-    px: "1",
-    rounded: "sm",
-  }),
-  noMatches: css({
-    color: "fg.muted",
-    fontStyle: "italic",
-    textAlign: "center",
-    py: "4",
-  }),
-  explanationSection: css({
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-  }),
-  explanationToggle: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    w: "full",
-    px: "3",
-    py: "2",
-    bg: "bg.subtle",
-    border: "none",
-    cursor: "pointer",
-    fontWeight: "medium",
-    fontSize: "sm",
-    textAlign: "left",
-    color: "fg.default",
-    _hover: { bg: "bg.muted" },
-  }),
-  explanationToggleIcon: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  explanation: css({
-    p: "3",
-    borderTop: "1px solid",
-    borderColor: "border.default",
-  }),
-  noExplanation: css({
-    color: "fg.muted",
-    fontStyle: "italic",
-  }),
-  flagsExplanation: css({
-    mb: "3",
-  }),
-  explanationHeader: css({
-    fontSize: "xs",
-    fontWeight: "medium",
-    color: "fg.muted",
-    mb: "1",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-  }),
-  flagItem: css({
-    fontSize: "xs",
-    color: "fg.default",
-    py: "0.5",
-    fontFamily: "mono",
-  }),
-  patternExplanation: css({}),
-  explanationList: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "1",
-  }),
-  explanationItem: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    py: "1",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    _last: { borderBottom: "none" },
-  }),
-  explanationPattern: css({
-    fontFamily: "mono",
-    fontSize: "sm",
-    bg: "bg.muted",
-    px: "2",
-    py: "0.5",
-    rounded: "sm",
-    minW: "10",
-    textAlign: "center",
-    color: "purple.600",
-    _dark: { color: "purple.400" },
-  }),
-  explanationDesc: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  loading: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<RegexTester />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<RegexTester />);

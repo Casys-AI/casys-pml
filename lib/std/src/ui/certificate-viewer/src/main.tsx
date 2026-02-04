@@ -12,11 +12,16 @@
  * @module lib/std/src/ui/certificate-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Stack, Grid } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import * as Card from "../../components/ui/card";
+import * as Progress from "../../components/ui/progress";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -120,13 +125,15 @@ function Icon({ name, size = 4 }: { name: string; size?: number }) {
 
   return (
     <svg
-      class={css({ w: size.toString(), h: size.toString(), flexShrink: 0 })}
+      width={size * 4}
+      height={size * 4}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0 }}
     >
       <path d={path} />
     </svg>
@@ -140,20 +147,26 @@ function Icon({ name, size = 4 }: { name: string; size?: number }) {
 function StatusBadge({ status, daysRemaining }: { status: string; daysRemaining: number }) {
   const config = {
     valid: {
-      bg: css({ bg: "green.100", _dark: { bg: "green.900/30" } }),
-      text: css({ color: "green.800", _dark: { color: "green.300" } }),
+      bg: "green.100",
+      bgDark: "green.900/30",
+      color: "green.800",
+      colorDark: "green.300",
       icon: "shield-check",
       label: "VALID",
     },
     expiring: {
-      bg: css({ bg: "orange.100", _dark: { bg: "orange.900/30" } }),
-      text: css({ color: "orange.800", _dark: { color: "orange.300" } }),
+      bg: "orange.100",
+      bgDark: "orange.900/30",
+      color: "orange.800",
+      colorDark: "orange.300",
       icon: "shield-alert",
       label: "EXPIRING SOON",
     },
     expired: {
-      bg: css({ bg: "red.100", _dark: { bg: "red.900/30" } }),
-      text: css({ color: "red.800", _dark: { color: "red.300" } }),
+      bg: "red.100",
+      bgDark: "red.900/30",
+      color: "red.800",
+      colorDark: "red.300",
       icon: "lock-open",
       label: "EXPIRED",
     },
@@ -166,37 +179,32 @@ function StatusBadge({ status, daysRemaining }: { status: string; daysRemaining:
     : `${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) !== 1 ? "s" : ""} ago`;
 
   return (
-    <div
-      class={`${css({
-        display: "flex",
-        alignItems: "center",
-        gap: "4",
-        p: "4",
-        rounded: "xl",
-        mb: "4",
-      })} ${cfg.bg}`}
+    <Box
+      p="4"
+      rounded="xl"
+      mb="4"
+      bg={{ base: cfg.bg, _dark: cfg.bgDark }}
     >
-      <div class={css({ display: "flex", alignItems: "center", gap: "3" })}>
-        <div class={cfg.text}>
+      <Flex alignItems="center" gap="3">
+        <Box color={{ base: cfg.color, _dark: cfg.colorDark }}>
           <Icon name={cfg.icon} size={8} />
-        </div>
-        <div>
-          <div
-            class={`${css({
-              fontSize: "lg",
-              fontWeight: "bold",
-              textTransform: "uppercase",
-              letterSpacing: "wide",
-            })} ${cfg.text}`}
+        </Box>
+        <Box>
+          <Box
+            fontSize="lg"
+            fontWeight="bold"
+            textTransform="uppercase"
+            letterSpacing="wide"
+            color={{ base: cfg.color, _dark: cfg.colorDark }}
           >
             {cfg.label}
-          </div>
-          <div class={css({ fontSize: "2xl", fontWeight: "bold", color: "fg.default" })}>
+          </Box>
+          <Box fontSize="2xl" fontWeight="bold" color="fg.default">
             {daysText}
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Flex>
+    </Box>
   );
 }
 
@@ -214,36 +222,17 @@ function InfoCard({
   children: preact.ComponentChildren;
 }) {
   return (
-    <div
-      class={css({
-        border: "1px solid",
-        borderColor: "border.default",
-        rounded: "lg",
-        overflow: "hidden",
-        bg: "bg.default",
-      })}
-    >
-      <div
-        class={css({
-          display: "flex",
-          alignItems: "center",
-          gap: "2",
-          px: "4",
-          py: "3",
-          bg: "bg.subtle",
-          borderBottom: "1px solid",
-          borderColor: "border.default",
-        })}
-      >
-        <span class={css({ color: "fg.muted" })}>
-          <Icon name={icon} />
-        </span>
-        <h3 class={css({ fontSize: "sm", fontWeight: "semibold", color: "fg.default" })}>
-          {title}
-        </h3>
-      </div>
-      <div class={css({ p: "4" })}>{children}</div>
-    </div>
+    <Card.Root>
+      <Card.Header p="3" bg="bg.subtle">
+        <Flex alignItems="center" gap="2">
+          <Box color="fg.muted">
+            <Icon name={icon} />
+          </Box>
+          <Card.Title fontSize="sm">{title}</Card.Title>
+        </Flex>
+      </Card.Header>
+      <Card.Body p="4">{children}</Card.Body>
+    </Card.Root>
   );
 }
 
@@ -253,28 +242,18 @@ function InfoCard({
 
 function KeyValueRow({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      class={css({
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: "2",
-        py: "1",
-      })}
-    >
-      <span class={css({ color: "fg.muted", fontSize: "sm", flexShrink: 0 })}>{label}</span>
-      <span
-        class={css({
-          color: "fg.default",
-          fontSize: "sm",
-          fontWeight: "medium",
-          textAlign: "right",
-          wordBreak: "break-word",
-        })}
+    <Flex justify="space-between" alignItems="flex-start" gap="2" py="1">
+      <Box color="fg.muted" fontSize="sm" flexShrink={0}>{label}</Box>
+      <Box
+        color="fg.default"
+        fontSize="sm"
+        fontWeight="medium"
+        textAlign="right"
+        wordBreak="break-word"
       >
         {value || "-"}
-      </span>
-    </div>
+      </Box>
+    </Flex>
   );
 }
 
@@ -282,42 +261,26 @@ function KeyValueRow({ label, value }: { label: string; value: string }) {
 // Progress Bar Component
 // ============================================================================
 
-function ProgressBar({ progress, status }: { progress: number; status: string }) {
-  const barColor = {
-    valid: css({ bg: "green.500" }),
-    expiring: css({ bg: "orange.500" }),
-    expired: css({ bg: "red.500" }),
-  };
+function ValidityProgressBar({ progress, status }: { progress: number; status: string }) {
+  const colorMap = {
+    valid: "green",
+    expiring: "orange",
+    expired: "red",
+  } as const;
+
+  const colorPalette = colorMap[status as keyof typeof colorMap] || "green";
 
   return (
-    <div class={css({ mb: "2" })}>
-      <div
-        class={css({
-          h: "2",
-          bg: "bg.subtle",
-          rounded: "full",
-          overflow: "hidden",
-        })}
-      >
-        <div
-          class={`${css({
-            h: "full",
-            rounded: "full",
-            transition: "width 0.3s",
-          })} ${barColor[status as keyof typeof barColor] || barColor.valid}`}
-          style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-        />
-      </div>
-      <div
-        class={css({
-          display: "flex",
-          justifyContent: "flex-end",
-          mt: "1",
-        })}
-      >
-        <span class={css({ fontSize: "xs", color: "fg.muted" })}>{progress}% elapsed</span>
-      </div>
-    </div>
+    <Box mb="2">
+      <Progress.Root value={progress} colorPalette={colorPalette}>
+        <Progress.Track>
+          <Progress.Range />
+        </Progress.Track>
+      </Progress.Root>
+      <Flex justify="flex-end" mt="1">
+        <Box fontSize="xs" color="fg.muted">{progress}% elapsed</Box>
+      </Flex>
+    </Box>
   );
 }
 
@@ -327,31 +290,23 @@ function ProgressBar({ progress, status }: { progress: number; status: string })
 
 function SansList({ sans }: { sans: string[] }) {
   if (!sans || sans.length === 0) {
-    return <span class={css({ color: "fg.muted", fontStyle: "italic" })}>None</span>;
+    return <Box color="fg.muted" fontStyle="italic">None</Box>;
   }
 
   return (
-    <div class={css({ display: "flex", flexWrap: "wrap", gap: "2" })}>
+    <Flex flexWrap="wrap" gap="2">
       {sans.map((san) => (
-        <span
+        <Badge
           key={san}
-          class={css({
-            px: "2",
-            py: "0.5",
-            bg: "blue.50",
-            color: "blue.700",
-            fontSize: "xs",
-            fontFamily: "mono",
-            rounded: "md",
-            border: "1px solid",
-            borderColor: "blue.200",
-            _dark: { bg: "blue.950/30", color: "blue.300", borderColor: "blue.800" },
-          })}
+          size="sm"
+          variant="outline"
+          colorPalette="blue"
+          fontFamily="mono"
         >
           {san}
-        </span>
+        </Badge>
       ))}
-    </div>
+    </Flex>
   );
 }
 
@@ -372,93 +327,73 @@ function CertificateChain({
 
   return (
     <InfoCard title="Certificate Chain" icon="link">
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => {
           setExpanded(!expanded);
           notifyModel("toggleChain", { expanded: !expanded });
         }}
-        class={css({
-          display: "flex",
-          alignItems: "center",
-          gap: "2",
-          w: "full",
-          p: "2",
-          bg: "bg.subtle",
-          rounded: "md",
-          border: "1px solid",
-          borderColor: "border.default",
-          cursor: "pointer",
-          fontSize: "sm",
-          color: "fg.default",
-          _hover: { bg: "bg.muted" },
-        })}
+        w="full"
+        justifyContent="flex-start"
       >
         <Icon name={expanded ? "chevronUp" : "chevronDown"} />
         <span>
           {chain.length} certificate{chain.length !== 1 ? "s" : ""} in chain
         </span>
-      </button>
+      </Button>
 
       {expanded && (
-        <div class={css({ mt: "3", display: "flex", flexDirection: "column", gap: "2" })}>
+        <Stack gap="2" mt="3">
           {chain.map((cert, index) => (
-            <div
+            <Box
               key={index}
-              class={css({
-                p: "3",
-                bg: "bg.subtle",
-                rounded: "md",
-                border: "1px solid",
-                borderColor: "border.default",
-                position: "relative",
-              })}
+              p="3"
+              bg="bg.subtle"
+              rounded="md"
+              borderWidth="1px"
+              borderColor="border.default"
+              position="relative"
             >
-              <div
-                class={css({
-                  position: "absolute",
-                  left: "-8px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  w: "4",
-                  h: "4",
-                  bg: "blue.500",
-                  rounded: "full",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "white",
-                  fontSize: "xs",
-                  fontWeight: "bold",
-                })}
+              <Flex
+                position="absolute"
+                left="-8px"
+                top="50%"
+                transform="translateY(-50%)"
+                w="4"
+                h="4"
+                bg="blue.500"
+                rounded="full"
+                alignItems="center"
+                justifyContent="center"
+                color="white"
+                fontSize="xs"
+                fontWeight="bold"
               >
                 {index + 1}
-              </div>
-              <div class={css({ fontSize: "xs", color: "fg.muted", mb: "1" })}>Subject</div>
-              <div
-                class={css({
-                  fontSize: "sm",
-                  fontFamily: "mono",
-                  color: "fg.default",
-                  wordBreak: "break-all",
-                  mb: "2",
-                })}
+              </Flex>
+              <Box fontSize="xs" color="fg.muted" mb="1">Subject</Box>
+              <Box
+                fontSize="sm"
+                fontFamily="mono"
+                color="fg.default"
+                wordBreak="break-all"
+                mb="2"
               >
                 {cert.subject}
-              </div>
-              <div class={css({ fontSize: "xs", color: "fg.muted", mb: "1" })}>Issuer</div>
-              <div
-                class={css({
-                  fontSize: "sm",
-                  fontFamily: "mono",
-                  color: "fg.muted",
-                  wordBreak: "break-all",
-                })}
+              </Box>
+              <Box fontSize="xs" color="fg.muted" mb="1">Issuer</Box>
+              <Box
+                fontSize="sm"
+                fontFamily="mono"
+                color="fg.muted"
+                wordBreak="break-all"
               >
                 {cert.issuer}
-              </div>
-            </div>
+              </Box>
+            </Box>
           ))}
-        </div>
+        </Stack>
       )}
     </InfoCard>
   );
@@ -479,28 +414,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   }, [text, label]);
 
   return (
-    <button
-      onClick={handleCopy}
-      class={css({
-        display: "flex",
-        alignItems: "center",
-        gap: "1",
-        px: "2",
-        py: "1",
-        rounded: "md",
-        fontSize: "xs",
-        border: "1px solid",
-        borderColor: "border.default",
-        bg: "bg.subtle",
-        color: "fg.muted",
-        cursor: "pointer",
-        transition: "all 0.15s",
-        _hover: { bg: "bg.muted", color: "fg.default" },
-      })}
-    >
+    <Button variant="outline" size="xs" onClick={handleCopy}>
       <Icon name={copied ? "check" : "copy"} />
       {copied ? "Copied!" : label}
-    </button>
+    </Button>
   );
 }
 
@@ -552,28 +469,35 @@ function CertificateViewer() {
   // Render states
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading certificate...</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Box p="10" textAlign="center" color="fg.muted">Loading certificate...</Box>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Flex
+          alignItems="center"
+          gap="2"
+          p="4"
+          bg={{ base: "red.50", _dark: "red.950" }}
+          color={{ base: "red.700", _dark: "red.300" }}
+          rounded="md"
+        >
           <Icon name="alertTriangle" />
           {error}
-        </div>
-      </div>
+        </Flex>
+      </Box>
     );
   }
 
   if (!data) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No certificate data</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Box p="10" textAlign="center" color="fg.muted">No certificate data</Box>
+      </Box>
     );
   }
 
@@ -589,89 +513,75 @@ function CertificateViewer() {
   const issuerOrgDisplay = cert.issuer.O || "";
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
       {/* Header with host info */}
-      <div
-        class={css({
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: "4",
-        })}
-      >
-        <div class={css({ display: "flex", alignItems: "center", gap: "2" })}>
+      <Flex alignItems="center" justifyContent="space-between" mb="4">
+        <Flex alignItems="center" gap="2">
           <Icon name="lock" />
-          <span class={css({ fontFamily: "mono", fontWeight: "medium" })}>
+          <Box fontFamily="mono" fontWeight="medium">
             {data.host}:{data.port}
-          </span>
-        </div>
+          </Box>
+        </Flex>
         <CopyButton text={JSON.stringify(data, null, 2)} label="Copy All" />
-      </div>
+      </Flex>
 
       {/* Status Badge */}
       <StatusBadge status={data.status} daysRemaining={cert.daysRemaining} />
 
       {/* Main Grid */}
-      <div class={css({ display: "grid", gap: "4" })}>
+      <Grid gap="4">
         {/* Subject Section */}
         <InfoCard title="Subject" icon="shield">
-          <div class={css({ mb: "2" })}>
-            <div class={css({ fontSize: "lg", fontWeight: "semibold", color: "fg.default" })}>
+          <Box mb="2">
+            <Box fontSize="lg" fontWeight="semibold" color="fg.default">
               {subjectDisplay}
-            </div>
+            </Box>
             {orgDisplay && (
-              <div class={css({ fontSize: "sm", color: "fg.muted" })}>{orgDisplay}</div>
+              <Box fontSize="sm" color="fg.muted">{orgDisplay}</Box>
             )}
-          </div>
-          <div class={css({ borderTop: "1px solid", borderColor: "border.subtle", pt: "2" })}>
+          </Box>
+          <Box borderTopWidth="1px" borderColor="border.subtle" pt="2">
             {Object.entries(cert.subject).map(([key, value]) => (
               <KeyValueRow key={key} label={key} value={value} />
             ))}
-          </div>
+          </Box>
         </InfoCard>
 
         {/* Issuer Section */}
         <InfoCard title="Issuer" icon="building">
-          <div class={css({ mb: "2" })}>
-            <div class={css({ fontSize: "lg", fontWeight: "semibold", color: "fg.default" })}>
+          <Box mb="2">
+            <Box fontSize="lg" fontWeight="semibold" color="fg.default">
               {issuerDisplay}
-            </div>
+            </Box>
             {issuerOrgDisplay && issuerOrgDisplay !== issuerDisplay && (
-              <div class={css({ fontSize: "sm", color: "fg.muted" })}>{issuerOrgDisplay}</div>
+              <Box fontSize="sm" color="fg.muted">{issuerOrgDisplay}</Box>
             )}
-          </div>
-          <div class={css({ borderTop: "1px solid", borderColor: "border.subtle", pt: "2" })}>
+          </Box>
+          <Box borderTopWidth="1px" borderColor="border.subtle" pt="2">
             {Object.entries(cert.issuer).map(([key, value]) => (
               <KeyValueRow key={key} label={key} value={value} />
             ))}
-          </div>
+          </Box>
         </InfoCard>
 
         {/* Validity Section */}
         <InfoCard title="Validity Period" icon="calendar">
-          <div
-            class={css({
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mb: "3",
-            })}
-          >
-            <div>
-              <div class={css({ fontSize: "xs", color: "fg.muted" })}>From</div>
-              <div class={css({ fontSize: "sm", fontWeight: "medium" })}>
+          <Flex justifyContent="space-between" alignItems="center" mb="3">
+            <Box>
+              <Box fontSize="xs" color="fg.muted">From</Box>
+              <Box fontSize="sm" fontWeight="medium">
                 {formatDate(cert.validFrom)}
-              </div>
-            </div>
-            <div class={css({ color: "fg.muted" })}>→</div>
-            <div class={css({ textAlign: "right" })}>
-              <div class={css({ fontSize: "xs", color: "fg.muted" })}>To</div>
-              <div class={css({ fontSize: "sm", fontWeight: "medium" })}>
+              </Box>
+            </Box>
+            <Box color="fg.muted">-&gt;</Box>
+            <Box textAlign="right">
+              <Box fontSize="xs" color="fg.muted">To</Box>
+              <Box fontSize="sm" fontWeight="medium">
                 {formatDate(cert.validTo)}
-              </div>
-            </div>
-          </div>
-          <ProgressBar progress={progress} status={data.status} />
+              </Box>
+            </Box>
+          </Flex>
+          <ValidityProgressBar progress={progress} status={data.status} />
         </InfoCard>
 
         {/* SANs Section */}
@@ -687,40 +597,13 @@ function CertificateViewer() {
 
         {/* Certificate Chain */}
         {data.chain && <CertificateChain chain={data.chain} />}
-      </div>
-    </div>
+      </Grid>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minH: "200px",
-  }),
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  error: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    _dark: { bg: "red.950", color: "red.300" },
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<CertificateViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<CertificateViewer />);

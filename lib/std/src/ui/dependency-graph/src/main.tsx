@@ -9,11 +9,14 @@
  * @module lib/std/src/ui/dependency-graph
  */
 
-import { render } from "preact";
-import { useState, useEffect } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Grid, VStack } from "../../styled-system/jsx";
+import { Input } from "../../components/ui/input";
+import { Badge } from "../../components/ui/badge";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -55,115 +58,23 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 }
 
 // ============================================================================
-// Styles
+// Styles (minimal)
 // ============================================================================
 
-const styles = {
-  container: css({
-    fontFamily: "system-ui, -apple-system, sans-serif",
-    padding: "16px",
-    maxWidth: "900px",
-    margin: "0 auto",
-    color: "#e4e4e7",
-    backgroundColor: "#18181b",
-    minHeight: "100vh",
-  }),
-  header: css({
-    marginBottom: "20px",
-  }),
-  title: css({
-    fontSize: "18px",
-    fontWeight: "600",
-    marginBottom: "8px",
-  }),
-  subtitle: css({
-    color: "#a1a1aa",
-    fontSize: "14px",
-  }),
-  stats: css({
-    display: "flex",
-    gap: "16px",
-    marginBottom: "20px",
-    flexWrap: "wrap",
-  }),
-  stat: css({
-    padding: "12px 20px",
-    backgroundColor: "#27272a",
-    borderRadius: "8px",
-    textAlign: "center",
-  }),
-  statValue: css({
-    fontSize: "24px",
-    fontWeight: "700",
-    color: "#60a5fa",
-  }),
-  statLabel: css({
-    fontSize: "12px",
-    color: "#a1a1aa",
-    marginTop: "4px",
-  }),
-  section: css({
-    marginBottom: "24px",
-  }),
-  sectionTitle: css({
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#a1a1aa",
-    marginBottom: "12px",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-  }),
-  grid: css({
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-    gap: "8px",
-  }),
-  depCard: css({
-    padding: "10px 14px",
-    backgroundColor: "#27272a",
-    borderRadius: "6px",
-    borderLeft: "3px solid #3b82f6",
-    cursor: "pointer",
-    transition: "all 0.15s",
-    _hover: {
-      backgroundColor: "#3f3f46",
-    },
-  }),
-  devCard: css({
-    borderLeftColor: "#a855f7",
-  }),
-  peerCard: css({
-    borderLeftColor: "#f59e0b",
-  }),
-  depName: css({
-    fontWeight: "500",
-    fontSize: "14px",
-    marginBottom: "2px",
-  }),
-  depVersion: css({
-    fontSize: "12px",
-    color: "#71717a",
-    fontFamily: "monospace",
-  }),
-  searchBox: css({
-    width: "100%",
-    padding: "10px 14px",
-    backgroundColor: "#27272a",
-    border: "1px solid #3f3f46",
-    borderRadius: "6px",
-    color: "#e4e4e7",
-    fontSize: "14px",
-    marginBottom: "16px",
-    outline: "none",
-    _focus: {
-      borderColor: "#3b82f6",
-    },
-  }),
-  empty: css({
-    textAlign: "center",
-    padding: "40px",
-    color: "#71717a",
-  }),
+const depCardBase = css({
+  p: "2.5",
+  bg: "bg.subtle",
+  rounded: "md",
+  borderLeft: "3px solid",
+  cursor: "pointer",
+  transition: "all 0.15s",
+  _hover: { bg: "bg.muted" },
+});
+
+const borderColors = {
+  prod: css({ borderLeftColor: "blue.500" }),
+  dev: css({ borderLeftColor: "purple.500" }),
+  peer: css({ borderLeftColor: "yellow.500" }),
 };
 
 // ============================================================================
@@ -230,17 +141,17 @@ function DependencyGraph() {
 
   if (loading && !data) {
     return (
-      <div className={styles.container}>
-        <div className={styles.empty}>Loading dependencies...</div>
-      </div>
+      <Box p="4" maxW="900px" mx="auto" color="fg.default" bg="bg.canvas" minH="100vh" fontFamily="sans">
+        <Box textAlign="center" p="10" color="fg.muted">Loading dependencies...</Box>
+      </Box>
     );
   }
 
   if (!data) {
     return (
-      <div className={styles.container}>
-        <div className={styles.empty}>No data received</div>
-      </div>
+      <Box p="4" maxW="900px" mx="auto" color="fg.default" bg="bg.canvas" minH="100vh" fontFamily="sans">
+        <Box textAlign="center" p="10" color="fg.muted">No data received</Box>
+      </Box>
     );
   }
 
@@ -258,94 +169,145 @@ function DependencyGraph() {
   const peerDeps = filteredDeps.filter(d => d.type === "peer");
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.title}>{data.name}</div>
-        <div className={styles.subtitle}>v{data.version}</div>
-      </div>
+    <Box p="4" maxW="900px" mx="auto" color="fg.default" bg="bg.canvas" minH="100vh" fontFamily="sans">
+      {/* Header */}
+      <Box mb="5">
+        <Box fontSize="lg" fontWeight="semibold" mb="1" color="fg.default">
+          {data.name}
+        </Box>
+        <Box color="fg.muted" fontSize="sm">v{data.version}</Box>
+      </Box>
 
-      <div className={styles.stats}>
-        <div className={styles.stat}>
-          <div className={styles.statValue}>{data.dependencies?.length || 0}</div>
-          <div className={styles.statLabel}>Production</div>
-        </div>
-        <div className={styles.stat}>
-          <div className={styles.statValue}>{data.devDependencies?.length || 0}</div>
-          <div className={styles.statLabel}>Development</div>
-        </div>
-        <div className={styles.stat}>
-          <div className={styles.statValue}>{data.totalCount || allDeps.length}</div>
-          <div className={styles.statLabel}>Total</div>
-        </div>
-      </div>
+      {/* Stats */}
+      <Flex gap="4" mb="5" flexWrap="wrap">
+        <Box p="3" bg="bg.subtle" rounded="lg" textAlign="center" border="1px solid" borderColor="border.default">
+          <Box fontSize="2xl" fontWeight="bold" color={{ base: "blue.600", _dark: "blue.400" }}>
+            {data.dependencies?.length || 0}
+          </Box>
+          <Box fontSize="xs" color="fg.muted" mt="1">Production</Box>
+        </Box>
+        <Box p="3" bg="bg.subtle" rounded="lg" textAlign="center" border="1px solid" borderColor="border.default">
+          <Box fontSize="2xl" fontWeight="bold" color={{ base: "blue.600", _dark: "blue.400" }}>
+            {data.devDependencies?.length || 0}
+          </Box>
+          <Box fontSize="xs" color="fg.muted" mt="1">Development</Box>
+        </Box>
+        <Box p="3" bg="bg.subtle" rounded="lg" textAlign="center" border="1px solid" borderColor="border.default">
+          <Box fontSize="2xl" fontWeight="bold" color={{ base: "blue.600", _dark: "blue.400" }}>
+            {data.totalCount || allDeps.length}
+          </Box>
+          <Box fontSize="xs" color="fg.muted" mt="1">Total</Box>
+        </Box>
+      </Flex>
 
-      <input
-        type="text"
-        className={styles.searchBox}
-        placeholder="Search dependencies..."
-        value={search}
-        onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-      />
+      {/* Search */}
+      <Box mb="4">
+        <Input
+          type="text"
+          placeholder="Search dependencies..."
+          value={search}
+          onChange={(e) => setSearch((e.target as HTMLInputElement).value)}
+        />
+      </Box>
 
+      {/* Production Dependencies */}
       {prodDeps.length > 0 && (
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Production Dependencies</div>
-          <div className={styles.grid}>
+        <VStack gap="3" mb="6" alignItems="stretch">
+          <Box
+            fontSize="sm"
+            fontWeight="semibold"
+            color="fg.muted"
+            textTransform="uppercase"
+            letterSpacing="wider"
+          >
+            Production Dependencies
+          </Box>
+          <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap="2">
             {prodDeps.map((dep) => (
-              <div
+              <Box
                 key={dep.name}
-                className={styles.depCard}
+                className={`${depCardBase} ${borderColors.prod}`}
                 onClick={() => handleSelect(dep)}
               >
-                <div className={styles.depName}>{dep.name}</div>
-                <div className={styles.depVersion}>{dep.version}</div>
-              </div>
+                <Box fontWeight="medium" fontSize="sm" mb="0.5" color="fg.default">
+                  {dep.name}
+                </Box>
+                <Box fontSize="xs" color="fg.muted" fontFamily="mono">
+                  {dep.version}
+                </Box>
+              </Box>
             ))}
-          </div>
-        </div>
+          </Grid>
+        </VStack>
       )}
 
+      {/* Dev Dependencies */}
       {devDeps.length > 0 && (
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Dev Dependencies</div>
-          <div className={styles.grid}>
+        <VStack gap="3" mb="6" alignItems="stretch">
+          <Box
+            fontSize="sm"
+            fontWeight="semibold"
+            color="fg.muted"
+            textTransform="uppercase"
+            letterSpacing="wider"
+          >
+            Dev Dependencies
+          </Box>
+          <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap="2">
             {devDeps.map((dep) => (
-              <div
+              <Box
                 key={dep.name}
-                className={`${styles.depCard} ${styles.devCard}`}
+                className={`${depCardBase} ${borderColors.dev}`}
                 onClick={() => handleSelect(dep)}
               >
-                <div className={styles.depName}>{dep.name}</div>
-                <div className={styles.depVersion}>{dep.version}</div>
-              </div>
+                <Box fontWeight="medium" fontSize="sm" mb="0.5" color="fg.default">
+                  {dep.name}
+                </Box>
+                <Box fontSize="xs" color="fg.muted" fontFamily="mono">
+                  {dep.version}
+                </Box>
+              </Box>
             ))}
-          </div>
-        </div>
+          </Grid>
+        </VStack>
       )}
 
+      {/* Peer Dependencies */}
       {peerDeps.length > 0 && (
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Peer Dependencies</div>
-          <div className={styles.grid}>
+        <VStack gap="3" mb="6" alignItems="stretch">
+          <Box
+            fontSize="sm"
+            fontWeight="semibold"
+            color="fg.muted"
+            textTransform="uppercase"
+            letterSpacing="wider"
+          >
+            Peer Dependencies
+          </Box>
+          <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap="2">
             {peerDeps.map((dep) => (
-              <div
+              <Box
                 key={dep.name}
-                className={`${styles.depCard} ${styles.peerCard}`}
+                className={`${depCardBase} ${borderColors.peer}`}
                 onClick={() => handleSelect(dep)}
               >
-                <div className={styles.depName}>{dep.name}</div>
-                <div className={styles.depVersion}>{dep.version}</div>
-              </div>
+                <Box fontWeight="medium" fontSize="sm" mb="0.5" color="fg.default">
+                  {dep.name}
+                </Box>
+                <Box fontSize="xs" color="fg.muted" fontFamily="mono">
+                  {dep.version}
+                </Box>
+              </Box>
             ))}
-          </div>
-        </div>
+          </Grid>
+        </VStack>
       )}
 
       {filteredDeps.length === 0 && (
-        <div className={styles.empty}>No dependencies found</div>
+        <Box textAlign="center" p="10" color="fg.muted">No dependencies found</Box>
       )}
-    </div>
+    </Box>
   );
 }
 
-render(<DependencyGraph />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<DependencyGraph />);

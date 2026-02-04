@@ -12,11 +12,17 @@
  * @module lib/std/src/ui/log-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useRef, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, VStack, HStack } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { IconButton } from "../../components/ui/icon-button";
+import { Badge } from "../../components/ui/badge";
+import { Spinner } from "../../components/ui/spinner";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -118,9 +124,17 @@ function HighlightedText({ text, search }: { text: string; search: string }) {
     <>
       {parts.map((part, i) =>
         regex.test(part) ? (
-          <mark key={i} class={styles.searchMatch}>
+          <Box
+            as="mark"
+            key={i}
+            bg={{ base: "yellow.300", _dark: "yellow.700" }}
+            color={{ base: "yellow.900", _dark: "yellow.100" }}
+            px="0.5"
+            rounded="sm"
+            fontWeight="medium"
+          >
             {part}
-          </mark>
+          </Box>
         ) : (
           part
         )
@@ -128,6 +142,13 @@ function HighlightedText({ text, search }: { text: string; search: string }) {
     </>
   );
 }
+
+const levelColors: Record<LogLevel, { color: string; darkColor: string; bg: string; darkBg: string }> = {
+  debug: { color: "gray.600", darkColor: "gray.400", bg: "gray.50", darkBg: "gray.950/50" },
+  info: { color: "blue.600", darkColor: "blue.400", bg: "blue.50", darkBg: "blue.950/50" },
+  warn: { color: "yellow.600", darkColor: "yellow.400", bg: "yellow.50/50", darkBg: "yellow.950/30" },
+  error: { color: "red.600", darkColor: "red.400", bg: "red.50/50", darkBg: "red.950/30" },
+};
 
 function LogLine({
   entry,
@@ -140,36 +161,58 @@ function LogLine({
   searchTerm: string;
   originalIndex: number;
 }) {
-  const levelColors: Record<LogLevel, string> = {
-    debug: "gray",
-    info: "blue",
-    warn: "yellow",
-    error: "red",
-  };
-
   const level = entry.level || "info";
-  const color = levelColors[level];
+  const levelStyle = levelColors[level];
   const hasMatch = searchTerm && entry.message.toLowerCase().includes(searchTerm.toLowerCase());
 
   return (
-    <div
-      class={css(
-        styles.logLine,
-        hasMatch && styles.logLineHighlight,
-        level === "error" && styles.logLineError,
-        level === "warn" && styles.logLineWarn
-      )}
+    <Flex
+      alignItems="flex-start"
+      py="0.5"
+      px="2"
+      borderBottom="1px solid"
+      borderColor="border.subtle"
+      _hover={{ bg: "bg.subtle" }}
+      cursor="pointer"
+      bg={
+        hasMatch
+          ? { base: "yellow.50", _dark: "yellow.950/50" }
+          : level === "error"
+            ? { base: levelStyle.bg, _dark: levelStyle.darkBg }
+            : level === "warn"
+              ? { base: levelStyle.bg, _dark: levelStyle.darkBg }
+              : undefined
+      }
       onClick={() => notifyModel("selectLine", { index: originalIndex, entry })}
     >
-      <span class={styles.lineNumber}>{originalIndex + 1}</span>
-      {entry.timestamp && <span class={styles.timestamp}>{entry.timestamp}</span>}
-      <span class={css(styles.level, styles[`level_${color}`] || styles.level_blue)}>
+      <Box
+        w="8"
+        color="fg.muted"
+        textAlign="right"
+        pr="2"
+        userSelect="none"
+        flexShrink={0}
+      >
+        {originalIndex + 1}
+      </Box>
+      {entry.timestamp && (
+        <Box color="fg.muted" mr="2" flexShrink={0}>
+          {entry.timestamp}
+        </Box>
+      )}
+      <Box
+        mr="2"
+        fontWeight="medium"
+        flexShrink={0}
+        w="12"
+        color={{ base: levelStyle.color, _dark: levelStyle.darkColor }}
+      >
         {level.toUpperCase().padEnd(5)}
-      </span>
-      <span class={styles.message}>
+      </Box>
+      <Box whiteSpace="pre-wrap" css={{ wordBreak: "break-all" }}>
         <HighlightedText text={entry.message} search={searchTerm} />
-      </span>
-    </div>
+      </Box>
+    </Flex>
   );
 }
 
@@ -298,8 +341,8 @@ function LogViewer() {
     });
   }, []);
 
-  const handleSearchChange = useCallback((e: Event) => {
-    const value = (e.target as HTMLInputElement).value;
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
     setSearchTerm(value);
     notifyModel("filterText", { text: value });
   }, []);
@@ -361,115 +404,228 @@ function LogViewer() {
 
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading logs...</div>
-      </div>
+      <Flex
+        fontFamily="mono"
+        fontSize="xs"
+        color="fg.default"
+        bg="bg.canvas"
+        flexDirection="column"
+        maxH="400px"
+        border="1px solid"
+        borderColor="border.default"
+        rounded="lg"
+        overflow="hidden"
+        p="4"
+        justify="center"
+        align="center"
+      >
+        <Spinner size="md" />
+        <Box mt="2" color="fg.muted">Loading logs...</Box>
+      </Flex>
     );
   }
 
   if (!data?.logs?.length) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No logs</div>
-      </div>
+      <Flex
+        fontFamily="mono"
+        fontSize="xs"
+        color="fg.default"
+        bg="bg.canvas"
+        flexDirection="column"
+        maxH="400px"
+        border="1px solid"
+        borderColor="border.default"
+        rounded="lg"
+        overflow="hidden"
+        p="4"
+        justify="center"
+        align="center"
+      >
+        <Box color="fg.muted">No logs</Box>
+      </Flex>
     );
   }
 
   const levels: LogLevel[] = ["error", "warn", "info", "debug"];
 
   return (
-    <div class={styles.container}>
+    <VStack
+      fontFamily="mono"
+      fontSize="xs"
+      color="fg.default"
+      bg="bg.canvas"
+      maxH="400px"
+      border="1px solid"
+      borderColor="border.default"
+      rounded="lg"
+      overflow="hidden"
+      gap="0"
+    >
       {/* Header */}
-      <div class={styles.header}>
-        <div class={styles.headerLeft}>
-          {data.title && <h3 class={styles.title}>{data.title}</h3>}
-        </div>
+      <Flex
+        justify="space-between"
+        align="center"
+        p="2"
+        bg="bg.subtle"
+        borderBottom="1px solid"
+        borderColor="border.default"
+        w="full"
+        flexWrap="wrap"
+        gap="2"
+      >
+        <Flex align="center" gap="2">
+          {data.title && (
+            <Box as="h3" fontSize="sm" fontWeight="semibold" fontFamily="sans" m="0">
+              {data.title}
+            </Box>
+          )}
+        </Flex>
 
-        <div class={styles.controls}>
+        <HStack gap="2">
           {/* Search input with clear button */}
-          <div class={styles.searchContainer}>
-            <span class={styles.searchIcon}>&#128269;</span>
-            <input
+          <Flex
+            align="center"
+            bg="bg.canvas"
+            border="1px solid"
+            borderColor="border.default"
+            rounded="md"
+            px="2"
+            gap="1"
+            _focusWithin={{ borderColor: "blue.500", ring: "2px", ringColor: "blue.200" }}
+          >
+            <Box color="fg.muted" fontSize="sm" flexShrink={0}>&#128269;</Box>
+            <Input
               ref={searchInputRef}
               type="text"
               placeholder="Search... (Ctrl+F)"
               value={searchTerm}
-              onInput={handleSearchChange}
-              class={styles.searchInput}
+              onChange={handleSearchChange}
+              size="sm"
+              className={css({
+                border: "none",
+                bg: "transparent",
+                py: "1",
+                fontSize: "xs",
+                w: "140px",
+                _focus: { outline: "none", boxShadow: "none" },
+                _placeholder: { color: "fg.muted" },
+              })}
             />
             {searchTerm && (
-              <button class={styles.clearBtn} onClick={clearSearch} title="Clear search (Esc)">
+              <IconButton
+                variant="ghost"
+                size="xs"
+                onClick={clearSearch}
+                title="Clear search (Esc)"
+              >
                 x
-              </button>
+              </IconButton>
             )}
-          </div>
+          </Flex>
 
           {/* Auto-scroll toggle */}
-          <button
-            class={css(styles.iconBtn, autoScroll && styles.iconBtnActive)}
+          <IconButton
+            variant={autoScroll ? "solid" : "outline"}
+            size="sm"
             onClick={toggleAutoScroll}
             title={autoScroll ? "Auto-scroll ON" : "Auto-scroll OFF"}
           >
-            <span class={styles.iconBtnSymbol}>{autoScroll ? "\u2193" : "\u2016"}</span>
-          </button>
+            {autoScroll ? "\u2193" : "\u2016"}
+          </IconButton>
 
           {/* Export button */}
-          <button
-            class={css(styles.iconBtn, copyStatus === "copied" && styles.iconBtnSuccess)}
+          <IconButton
+            variant={copyStatus === "copied" ? "solid" : "outline"}
+            size="sm"
             onClick={handleExport}
             title="Copy filtered logs to clipboard"
+            className={
+              copyStatus === "copied"
+                ? css({
+                    bg: { base: "green.100", _dark: "green.900" },
+                    borderColor: { base: "green.400", _dark: "green.600" },
+                    color: { base: "green.700", _dark: "green.300" },
+                  })
+                : undefined
+            }
           >
-            <span class={styles.iconBtnSymbol}>{copyStatus === "copied" ? "\u2713" : "\u2398"}</span>
-          </button>
-        </div>
-      </div>
+            {copyStatus === "copied" ? "\u2713" : "\u2398"}
+          </IconButton>
+        </HStack>
+      </Flex>
 
       {/* Level filters with counts */}
-      <div class={styles.levelFilterBar}>
-        <button class={styles.showAllBtn} onClick={showAllLevels} title="Show all levels">
+      <Flex gap="1" px="2" py="1.5" bg="bg.canvas" borderBottom="1px solid" borderColor="border.subtle" flexWrap="wrap" w="full">
+        <Button variant="ghost" size="xs" onClick={showAllLevels} title="Show all levels">
           All
-        </button>
-        {levels.map((level) => (
-          <button
-            key={level}
-            class={css(
-              styles.levelBtn,
-              levelFilter.has(level) && styles.levelBtnActive,
-              styles[`levelBtn_${level}`]
-            )}
-            onClick={() => toggleLevel(level)}
-            onDoubleClick={() => showOnlyLevel(level)}
-            title={`Toggle ${level} (double-click to show only)`}
-          >
-            <span class={styles.levelLabel}>{level.toUpperCase()}</span>
-            <span class={styles.levelCount}>{levelCounts[level]}</span>
-          </button>
-        ))}
-      </div>
+        </Button>
+        {levels.map((level) => {
+          const levelStyle = levelColors[level];
+          return (
+            <Button
+              key={level}
+              variant={levelFilter.has(level) ? "outline" : "ghost"}
+              size="xs"
+              className={css({
+                display: "flex",
+                alignItems: "center",
+                gap: "1.5",
+                opacity: levelFilter.has(level) ? 1 : 0.5,
+                fontWeight: levelFilter.has(level) ? "medium" : "normal",
+                transition: "all 0.15s",
+                _hover: { opacity: 0.8 },
+                color: { base: levelStyle.color, _dark: levelStyle.darkColor },
+              })}
+              onClick={() => toggleLevel(level)}
+              onDoubleClick={() => showOnlyLevel(level)}
+              title={`Toggle ${level} (double-click to show only)`}
+            >
+              <Box textTransform="uppercase" letterSpacing="0.02em">
+                {level.toUpperCase()}
+              </Box>
+              <Badge variant="outline" size="sm">
+                {levelCounts[level]}
+              </Badge>
+            </Button>
+          );
+        })}
+      </Flex>
 
       {/* Stats bar */}
-      <div class={styles.stats}>
+      <Flex
+        justify="space-between"
+        align="center"
+        px="2"
+        py="1"
+        fontSize="xs"
+        color="fg.muted"
+        bg="bg.subtle"
+        borderBottom="1px solid"
+        borderColor="border.subtle"
+        w="full"
+      >
         <span>
           {filteredLogs.length} / {parsedLogs.length} lines
         </span>
         {searchTerm && (
-          <span class={styles.matchInfo}>
+          <Box color={{ base: "yellow.700", _dark: "yellow.400" }} fontWeight="medium">
             {matchCount} match{matchCount !== 1 ? "es" : ""} for "{searchTerm}"
-          </span>
+          </Box>
         )}
-      </div>
+      </Flex>
 
       {/* Log content */}
-      <div class={styles.logContainer} ref={containerRef}>
+      <Box flex="1" overflowY="auto" overflowX="auto" w="full" ref={containerRef}>
         {filteredLogs.length === 0 ? (
-          <div class={styles.noResults}>
-            No logs match the current filters
+          <VStack gap="2" p="4" color="fg.muted" textAlign="center">
+            <span>No logs match the current filters</span>
             {searchTerm && (
-              <button class={styles.clearFiltersBtn} onClick={clearSearch}>
+              <Button variant="subtle" size="sm" onClick={clearSearch}>
                 Clear search
-              </button>
+              </Button>
             )}
-          </div>
+          </VStack>
         ) : (
           filteredLogs.map(({ entry, originalIndex }, i) => (
             <LogLine
@@ -481,317 +637,13 @@ function LogViewer() {
             />
           ))
         )}
-      </div>
-    </div>
+      </Box>
+    </VStack>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles: Record<string, string> = {
-  container: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    color: "fg.default",
-    bg: "bg.canvas",
-    display: "flex",
-    flexDirection: "column",
-    maxH: "400px",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    p: "2",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    flexWrap: "wrap",
-    gap: "2",
-  }),
-  headerLeft: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  title: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-    fontFamily: "sans",
-    m: 0,
-  }),
-  controls: css({
-    display: "flex",
-    gap: "2",
-    alignItems: "center",
-  }),
-
-  // Search
-  searchContainer: css({
-    display: "flex",
-    alignItems: "center",
-    bg: "bg.canvas",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    px: "2",
-    gap: "1",
-    _focusWithin: { borderColor: "blue.500", ring: "2px", ringColor: "blue.200" },
-  }),
-  searchIcon: css({
-    color: "fg.muted",
-    fontSize: "sm",
-    flexShrink: 0,
-  }),
-  searchInput: css({
-    border: "none",
-    bg: "transparent",
-    py: "1",
-    fontSize: "xs",
-    w: "140px",
-    _focus: { outline: "none" },
-    _placeholder: { color: "fg.muted" },
-  }),
-  clearBtn: css({
-    bg: "transparent",
-    border: "none",
-    color: "fg.muted",
-    cursor: "pointer",
-    fontSize: "sm",
-    lineHeight: 1,
-    p: "0.5",
-    rounded: "sm",
-    _hover: { bg: "bg.subtle", color: "fg.default" },
-  }),
-
-  // Icon buttons
-  iconBtn: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    w: "7",
-    h: "7",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.canvas",
-    cursor: "pointer",
-    color: "fg.muted",
-    _hover: { bg: "bg.subtle", color: "fg.default" },
-  }),
-  iconBtnActive: css({
-    bg: "blue.100",
-    borderColor: "blue.400",
-    color: "blue.700",
-    _dark: { bg: "blue.900", borderColor: "blue.600", color: "blue.300" },
-  }),
-  iconBtnSuccess: css({
-    bg: "green.100",
-    borderColor: "green.400",
-    color: "green.700",
-    _dark: { bg: "green.900", borderColor: "green.600", color: "green.300" },
-  }),
-  iconBtnSymbol: css({
-    fontSize: "sm",
-  }),
-
-  // Level filter bar
-  levelFilterBar: css({
-    display: "flex",
-    gap: "1",
-    px: "2",
-    py: "1.5",
-    bg: "bg.canvas",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    flexWrap: "wrap",
-  }),
-  showAllBtn: css({
-    px: "2",
-    py: "0.5",
-    fontSize: "xs",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    cursor: "pointer",
-    color: "fg.muted",
-    _hover: { bg: "bg.muted" },
-  }),
-  levelBtn: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "1.5",
-    px: "2",
-    py: "0.5",
-    fontSize: "xs",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.canvas",
-    cursor: "pointer",
-    opacity: 0.5,
-    transition: "all 0.15s",
-    _hover: { opacity: 0.8 },
-  }),
-  levelBtnActive: css({
-    opacity: 1,
-    fontWeight: "medium",
-  }),
-  levelBtn_error: css({
-    color: "red.600",
-    _dark: { color: "red.400" },
-    _hover: { bg: "red.50", _dark: { bg: "red.950/50" } },
-  }),
-  levelBtn_warn: css({
-    color: "yellow.600",
-    _dark: { color: "yellow.400" },
-    _hover: { bg: "yellow.50", _dark: { bg: "yellow.950/50" } },
-  }),
-  levelBtn_info: css({
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-    _hover: { bg: "blue.50", _dark: { bg: "blue.950/50" } },
-  }),
-  levelBtn_debug: css({
-    color: "gray.600",
-    _dark: { color: "gray.400" },
-    _hover: { bg: "gray.50", _dark: { bg: "gray.950/50" } },
-  }),
-  levelLabel: css({
-    textTransform: "uppercase",
-    letterSpacing: "0.02em",
-  }),
-  levelCount: css({
-    bg: "bg.subtle",
-    px: "1",
-    py: "0",
-    rounded: "sm",
-    fontSize: "2xs",
-    minW: "4",
-    textAlign: "center",
-  }),
-
-  // Stats bar
-  stats: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    px: "2",
-    py: "1",
-    fontSize: "xs",
-    color: "fg.muted",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  matchInfo: css({
-    color: "yellow.700",
-    fontWeight: "medium",
-    _dark: { color: "yellow.400" },
-  }),
-
-  // Log container
-  logContainer: css({
-    flex: 1,
-    overflowY: "auto",
-    overflowX: "auto",
-  }),
-  noResults: css({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "2",
-    p: "4",
-    color: "fg.muted",
-    textAlign: "center",
-  }),
-  clearFiltersBtn: css({
-    px: "2",
-    py: "1",
-    fontSize: "xs",
-    bg: "blue.100",
-    color: "blue.700",
-    border: "none",
-    rounded: "md",
-    cursor: "pointer",
-    _hover: { bg: "blue.200" },
-    _dark: { bg: "blue.900", color: "blue.300", _hover: { bg: "blue.800" } },
-  }),
-
-  // Log line
-  logLine: css({
-    display: "flex",
-    alignItems: "flex-start",
-    py: "0.5",
-    px: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    _hover: { bg: "bg.subtle" },
-    cursor: "pointer",
-  }),
-  logLineHighlight: css({
-    bg: "yellow.50",
-    _dark: { bg: "yellow.950/50" },
-  }),
-  logLineError: css({
-    bg: "red.50/50",
-    _dark: { bg: "red.950/30" },
-  }),
-  logLineWarn: css({
-    bg: "yellow.50/50",
-    _dark: { bg: "yellow.950/30" },
-  }),
-  lineNumber: css({
-    w: "8",
-    color: "fg.muted",
-    textAlign: "right",
-    pr: "2",
-    userSelect: "none",
-    flexShrink: 0,
-  }),
-  timestamp: css({
-    color: "fg.muted",
-    mr: "2",
-    flexShrink: 0,
-  }),
-  level: css({
-    mr: "2",
-    fontWeight: "medium",
-    flexShrink: 0,
-    w: "12",
-  }),
-  level_red: css({ color: "red.600", _dark: { color: "red.400" } }),
-  level_yellow: css({ color: "yellow.600", _dark: { color: "yellow.400" } }),
-  level_blue: css({ color: "blue.600", _dark: { color: "blue.400" } }),
-  level_gray: css({ color: "gray.500" }),
-  message: css({
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-all",
-  }),
-
-  // Search match highlight
-  searchMatch: css({
-    bg: "yellow.300",
-    color: "yellow.900",
-    px: "0.5",
-    rounded: "sm",
-    fontWeight: "medium",
-    _dark: { bg: "yellow.700", color: "yellow.100" },
-  }),
-
-  loading: css({ p: "4", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "4", textAlign: "center", color: "fg.muted" }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<LogViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<LogViewer />);

@@ -9,11 +9,13 @@
  * @module lib/std/src/ui/chart-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, HStack } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -68,7 +70,7 @@ function BarChart({ data, width, height }: { data: ChartData; width: number; hei
   const gap = barGroupWidth * 0.1;
 
   return (
-    <svg width={width} height={height} class={css({ bg: "bg.default", rounded: "lg" })}>
+    <svg width={width} height={height} className={css({ bg: "bg.default", rounded: "lg" })}>
       {/* Y axis */}
       <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="currentColor" strokeOpacity={0.2} />
 
@@ -104,7 +106,7 @@ function BarChart({ data, width, height }: { data: ChartData; width: number; hei
               height={barHeight}
               fill={dataset.color || COLORS[di % COLORS.length]}
               rx={2}
-              class={css({ cursor: "pointer", _hover: { opacity: 0.8 } })}
+              className={css({ cursor: "pointer", _hover: { opacity: 0.8 } })}
               onClick={() => notifyModel("click", { label: data.labels[i], value, dataset: dataset.label })}
             >
               <title>{`${data.labels[i]}: ${value}`}</title>
@@ -124,7 +126,7 @@ function BarChart({ data, width, height }: { data: ChartData; width: number; hei
           fill="currentColor"
           fillOpacity={0.7}
         >
-          {label.length > 10 ? label.slice(0, 10) + "…" : label}
+          {label.length > 10 ? label.slice(0, 10) + "..." : label}
         </text>
       ))}
     </svg>
@@ -141,7 +143,7 @@ function LineChart({ data, width, height }: { data: ChartData; width: number; he
   const stepX = chartWidth / (data.labels.length - 1 || 1);
 
   return (
-    <svg width={width} height={height} class={css({ bg: "bg.default", rounded: "lg" })}>
+    <svg width={width} height={height} className={css({ bg: "bg.default", rounded: "lg" })}>
       {/* Axes and grid */}
       <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="currentColor" strokeOpacity={0.2} />
       <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} stroke="currentColor" strokeOpacity={0.2} />
@@ -181,7 +183,7 @@ function LineChart({ data, width, height }: { data: ChartData; width: number; he
                   cy={y}
                   r={4}
                   fill={color}
-                  class={css({ cursor: "pointer", _hover: { r: "6" } })}
+                  className={css({ cursor: "pointer", _hover: { r: "6" } })}
                   onClick={() => notifyModel("click", { label: data.labels[i], value, dataset: dataset.label })}
                 >
                   <title>{`${data.labels[i]}: ${value}`}</title>
@@ -203,7 +205,7 @@ function LineChart({ data, width, height }: { data: ChartData; width: number; he
           fill="currentColor"
           fillOpacity={0.7}
         >
-          {label.length > 8 ? label.slice(0, 8) + "…" : label}
+          {label.length > 8 ? label.slice(0, 8) + "..." : label}
         </text>
       ))}
     </svg>
@@ -239,13 +241,13 @@ function PieChart({ data, width, height }: { data: ChartData; width: number; hei
   });
 
   return (
-    <svg width={width} height={height} class={css({ bg: "bg.default", rounded: "lg" })}>
+    <svg width={width} height={height} className={css({ bg: "bg.default", rounded: "lg" })}>
       {slices.map((slice, i) => (
         <path
           key={i}
           d={slice.path}
           fill={slice.color}
-          class={css({ cursor: "pointer", _hover: { opacity: 0.8 } })}
+          className={css({ cursor: "pointer", _hover: { opacity: 0.8 } })}
           onClick={() => notifyModel("click", { label: slice.label, value: slice.value, percent: slice.percent })}
         >
           <title>{`${slice.label}: ${slice.value} (${slice.percent}%)`}</title>
@@ -310,132 +312,92 @@ function ChartViewer() {
   const height = 300;
 
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading chart...</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box p="10" textAlign="center" color="fg.muted">Loading chart...</Box>
+      </Box>
+    );
   }
 
   if (error) {
-    return <div class={styles.container}><div class={styles.error}>{error}</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box
+          p="4"
+          bg={{ base: "red.50", _dark: "red.950" }}
+          color={{ base: "red.700", _dark: "red.300" }}
+          rounded="md"
+        >
+          {error}
+        </Box>
+      </Box>
+    );
   }
 
   if (!chartData) {
-    return <div class={styles.container}><div class={styles.empty}>No chart data</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box p="10" textAlign="center" color="fg.muted">No chart data</Box>
+      </Box>
+    );
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
       {/* Header */}
-      <div class={styles.header}>
-        {chartData.title && <h2 class={styles.title}>{chartData.title}</h2>}
-        <div class={styles.typeSelector}>
+      <Flex justify="space-between" alignItems="center" mb="4" flexWrap="wrap" gap="2">
+        {chartData.title && (
+          <Box fontSize="lg" fontWeight="semibold">{chartData.title}</Box>
+        )}
+        <HStack gap="1">
           {(["bar", "line", "pie"] as const).map((type) => (
-            <button
+            <Button
               key={type}
-              class={css(styles.typeBtn, chartType === type && styles.typeBtnActive)}
+              variant={chartType === type ? "solid" : "outline"}
+              size="sm"
               onClick={() => setChartType(type)}
             >
               {type.charAt(0).toUpperCase() + type.slice(1)}
-            </button>
+            </Button>
           ))}
-        </div>
-      </div>
+        </HStack>
+      </Flex>
 
       {/* Chart */}
-      <div class={styles.chartContainer}>
+      <Flex
+        justify="center"
+        borderWidth="1px"
+        borderColor="border.default"
+        rounded="lg"
+        p="2"
+      >
         {chartType === "bar" && <BarChart data={chartData} width={width} height={height} />}
         {chartType === "line" && <LineChart data={chartData} width={width} height={height} />}
         {chartType === "pie" && <PieChart data={chartData} width={width} height={height} />}
-      </div>
+      </Flex>
 
       {/* Legend for multi-dataset */}
       {chartData.datasets.length > 1 && chartType !== "pie" && (
-        <div class={styles.legend}>
+        <Flex gap="4" mt="3" justify="center" flexWrap="wrap">
           {chartData.datasets.map((ds, i) => (
-            <div key={i} class={styles.legendItem}>
-              <span class={css({ w: "3", h: "3", rounded: "sm", bg: ds.color || COLORS[i % COLORS.length] })} />
+            <Flex key={i} alignItems="center" gap="1.5" fontSize="xs" color="fg.muted">
+              <Box
+                w="3"
+                h="3"
+                rounded="sm"
+                style={{ backgroundColor: ds.color || COLORS[i % COLORS.length] }}
+              />
               <span>{ds.label || `Dataset ${i + 1}`}</span>
-            </div>
+            </Flex>
           ))}
-        </div>
+        </Flex>
       )}
-    </div>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "4",
-    flexWrap: "wrap",
-    gap: "2",
-  }),
-  title: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-  }),
-  typeSelector: css({
-    display: "flex",
-    gap: "1",
-  }),
-  typeBtn: css({
-    px: "3",
-    py: "1",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  typeBtnActive: css({
-    bg: "blue.600",
-    color: "white",
-    borderColor: "blue.600",
-    _hover: { bg: "blue.700" },
-  }),
-  chartContainer: css({
-    display: "flex",
-    justifyContent: "center",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    p: "2",
-  }),
-  legend: css({
-    display: "flex",
-    gap: "4",
-    mt: "3",
-    justifyContent: "center",
-    flexWrap: "wrap",
-  }),
-  legendItem: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "1.5",
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  error: css({ p: "4", bg: "red.50", color: "red.700", rounded: "md", _dark: { bg: "red.950", color: "red.300" } }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<ChartViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<ChartViewer />);

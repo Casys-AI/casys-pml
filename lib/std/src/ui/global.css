@@ -1,0 +1,2 @@
+/* Panda CSS layers - shared by all UI components */
+@layer reset, base, tokens, recipes, utilities;

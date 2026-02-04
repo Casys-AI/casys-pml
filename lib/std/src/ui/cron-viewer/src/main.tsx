@@ -10,11 +10,16 @@
  * @module lib/std/src/ui/cron-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Grid, Stack } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { IconButton } from "../../components/ui/icon-button";
+import { Code } from "../../components/ui/code";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -33,12 +38,6 @@ interface CronParts {
   dayOfMonth: string;
   month: string;
   dayOfWeek: string;
-}
-
-interface ParsedField {
-  raw: string;
-  values: number[];
-  description: string;
 }
 
 // ============================================================================
@@ -425,52 +424,103 @@ function MiniCalendar({
   });
 
   return (
-    <div class={styles.calendar}>
-      <div class={styles.calendarHeader}>
-        <button class={styles.calendarNavBtn} onClick={prevMonth}>
+    <Box
+      bg="bg.canvas"
+      borderWidth="1px"
+      borderColor="border.default"
+      rounded="lg"
+      overflow="hidden"
+    >
+      <Flex
+        justify="space-between"
+        alignItems="center"
+        p="2"
+        bg="bg.subtle"
+        borderBottomWidth="1px"
+        borderColor="border.default"
+      >
+        <IconButton variant="ghost" size="sm" onClick={prevMonth} aria-label="Previous month">
           {"<"}
-        </button>
-        <span class={styles.calendarMonth}>{monthLabel}</span>
-        <button class={styles.calendarNavBtn} onClick={nextMonth}>
+        </IconButton>
+        <Box fontSize="sm" fontWeight="semibold">{monthLabel}</Box>
+        <IconButton variant="ghost" size="sm" onClick={nextMonth} aria-label="Next month">
           {">"}
-        </button>
-      </div>
+        </IconButton>
+      </Flex>
 
-      <div class={styles.calendarGrid}>
+      <Grid columns={7} gap="1px" p="2">
         {/* Day headers */}
         {DAY_NAMES_SHORT.map((day) => (
-          <div key={day} class={styles.calendarDayHeader}>
+          <Box
+            key={day}
+            textAlign="center"
+            fontSize="xs"
+            fontWeight="semibold"
+            color="fg.muted"
+            py="1"
+          >
             {day}
-          </div>
+          </Box>
         ))}
 
         {/* Calendar days */}
-        {calendarData.weeks.flat().map((day, idx) => (
-          <div
-            key={idx}
-            class={css(
-              styles.calendarDay,
-              day === null && styles.calendarDayEmpty,
-              day !== null && calendarData.runDays.has(day) && styles.calendarDayActive,
-              isCurrentMonth && day === today.getDate() && styles.calendarDayToday
-            )}
-          >
-            {day}
-          </div>
-        ))}
-      </div>
+        {calendarData.weeks.flat().map((day, idx) => {
+          const isActive = day !== null && calendarData.runDays.has(day);
+          const isToday = isCurrentMonth && day === today.getDate();
 
-      <div class={styles.calendarLegend}>
-        <span class={styles.legendItem}>
-          <span class={css(styles.legendDot, styles.legendDotActive)} />
+          return (
+            <Box
+              key={idx}
+              textAlign="center"
+              fontSize="sm"
+              py="1.5"
+              rounded="sm"
+              cursor="default"
+              visibility={day === null ? "hidden" : "visible"}
+              bg={isActive ? { base: "blue.100", _dark: "blue.900/50" } : undefined}
+              color={isActive ? { base: "blue.700", _dark: "blue.300" } : undefined}
+              fontWeight={isActive || isToday ? "medium" : undefined}
+              borderWidth={isToday ? "2px" : undefined}
+              borderColor={isToday ? "green.500" : undefined}
+            >
+              {day}
+            </Box>
+          );
+        })}
+      </Grid>
+
+      <Flex
+        gap="4"
+        p="2"
+        borderTopWidth="1px"
+        borderColor="border.default"
+        fontSize="xs"
+        color="fg.muted"
+      >
+        <Flex alignItems="center" gap="1">
+          <Box
+            w="10px"
+            h="10px"
+            rounded="sm"
+            bg={{ base: "blue.100", _dark: "blue.900/50" }}
+            borderWidth="1px"
+            borderColor={{ base: "blue.300", _dark: "blue.700" }}
+          />
           Scheduled
-        </span>
-        <span class={styles.legendItem}>
-          <span class={css(styles.legendDot, styles.legendDotToday)} />
+        </Flex>
+        <Flex alignItems="center" gap="1">
+          <Box
+            w="10px"
+            h="10px"
+            rounded="sm"
+            bg="transparent"
+            borderWidth="2px"
+            borderColor="green.500"
+          />
           Today
-        </span>
-      </div>
-    </div>
+        </Flex>
+      </Flex>
+    </Box>
   );
 }
 
@@ -514,31 +564,50 @@ function CronEditor({
   };
 
   return (
-    <div class={styles.editor}>
-      <div class={styles.editorTitle}>Edit Expression</div>
-      <div class={styles.editorFields}>
+    <Box
+      p="4"
+      bg={{ base: "orange.50", _dark: "orange.950/30" }}
+      borderBottomWidth="1px"
+      borderColor={{ base: "orange.200", _dark: "orange.800" }}
+    >
+      <Box
+        fontSize="sm"
+        fontWeight="semibold"
+        mb="3"
+        color={{ base: "orange.800", _dark: "orange.300" }}
+      >
+        Edit Expression
+      </Box>
+      <Grid
+        columns={{ base: 1, sm: 2, md: 5 }}
+        gap="3"
+        mb="3"
+      >
         {(Object.keys(fieldLabels) as (keyof CronParts)[]).map((field) => (
-          <div key={field} class={styles.editorField}>
-            <label class={styles.editorLabel}>{fieldLabels[field]}</label>
-            <input
+          <Stack key={field} gap="1">
+            <Box as="label" fontSize="xs" fontWeight="medium" color="fg.muted">
+              {fieldLabels[field]}
+            </Box>
+            <Input
               type="text"
-              class={styles.editorInput}
+              size="sm"
               value={editValues[field]}
               placeholder={fieldPlaceholders[field]}
-              onInput={(e) =>
+              onChange={(e) =>
                 handleFieldChange(field, (e.target as HTMLInputElement).value)
               }
+              fontFamily="mono"
             />
-          </div>
+          </Stack>
         ))}
-      </div>
-      <div class={styles.editorPreview}>
+      </Grid>
+      <Box fontSize="sm" color="fg.muted">
         Expression:{" "}
-        <code class={styles.editorCode}>
+        <Code fontWeight="bold" color={{ base: "orange.700", _dark: "orange.400" }}>
           {Object.values(editValues).join(" ")}
-        </code>
-      </div>
-    </div>
+        </Code>
+      </Box>
+    </Box>
   );
 }
 
@@ -613,17 +682,35 @@ function CronViewer() {
 
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading cron viewer...</div>
-      </div>
+      <Box
+        fontFamily="sans"
+        fontSize="sm"
+        color="fg.default"
+        bg="bg.canvas"
+        borderWidth="1px"
+        borderColor="border.default"
+        rounded="lg"
+      >
+        <Box p="4" textAlign="center" color="fg.muted">Loading cron viewer...</Box>
+      </Box>
     );
   }
 
   if (!props || !parts) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>Invalid cron expression</div>
-      </div>
+      <Box
+        fontFamily="sans"
+        fontSize="sm"
+        color="fg.default"
+        bg="bg.canvas"
+        borderWidth="1px"
+        borderColor="border.default"
+        rounded="lg"
+      >
+        <Box p="4" textAlign="center" color={{ base: "red.600", _dark: "red.400" }}>
+          Invalid cron expression
+        </Box>
+      </Box>
     );
   }
 
@@ -632,61 +719,164 @@ function CronViewer() {
     : props.expression;
 
   return (
-    <div class={styles.container}>
+    <Box
+      fontFamily="sans"
+      fontSize="sm"
+      color="fg.default"
+      bg="bg.canvas"
+      display="flex"
+      flexDirection="column"
+      maxH="600px"
+      borderWidth="1px"
+      borderColor="border.default"
+      rounded="lg"
+      overflow="hidden"
+    >
       {/* Header */}
-      <div class={styles.header}>
-        <div class={styles.expressionDisplay}>
-          <code class={styles.expression}>{currentExpression}</code>
-          <button class={styles.editBtn} onClick={toggleEditor}>
+      <Flex
+        justify="space-between"
+        alignItems="center"
+        p="3"
+        bg="bg.subtle"
+        borderBottomWidth="1px"
+        borderColor="border.default"
+        flexWrap="wrap"
+        gap="2"
+      >
+        <Flex alignItems="center" gap="3">
+          <Code
+            fontSize="lg"
+            fontWeight="bold"
+            color={{ base: "blue.600", _dark: "blue.400" }}
+            bg="bg.canvas"
+            px="3"
+            py="1.5"
+            rounded="md"
+            borderWidth="1px"
+            borderColor="border.default"
+          >
+            {currentExpression}
+          </Code>
+          <Button variant="outline" size="sm" onClick={toggleEditor}>
             {showEditor ? "Hide Editor" : "Edit"}
-          </button>
-        </div>
+          </Button>
+        </Flex>
         {props.timezone && (
-          <span class={styles.timezone}>Timezone: {props.timezone}</span>
+          <Box
+            fontSize="xs"
+            color="fg.muted"
+            bg="bg.canvas"
+            px="2"
+            py="1"
+            rounded="sm"
+            fontFamily="mono"
+          >
+            Timezone: {props.timezone}
+          </Box>
         )}
-      </div>
+      </Flex>
 
       {/* Description */}
-      <div class={styles.description}>{description}</div>
+      <Box
+        p="4"
+        fontSize="md"
+        fontWeight="medium"
+        bg={{ base: "blue.50", _dark: "blue.950/30" }}
+        color={{ base: "blue.800", _dark: "blue.200" }}
+        borderBottomWidth="1px"
+        borderColor="border.default"
+      >
+        {description}
+      </Box>
 
       {/* Editor */}
       {showEditor && <CronEditor parts={parts} onChange={handleEditorChange} />}
 
       {/* Content */}
-      <div class={styles.content}>
+      <Flex flexWrap="wrap" flex="1" overflowY="auto">
         {/* Next Runs */}
         {(props.showNextRuns ?? 5) > 0 && (
-          <div class={styles.nextRuns}>
-            <div class={styles.sectionTitle}>
+          <Box
+            flex="1 1 300px"
+            p="4"
+            borderRightWidth="1px"
+            borderColor="border.default"
+            css={{ "&:last-child": { borderRightWidth: 0 } }}
+          >
+            <Box
+              fontSize="xs"
+              fontWeight="semibold"
+              color="fg.muted"
+              textTransform="uppercase"
+              letterSpacing="wide"
+              mb="3"
+            >
               Next {props.showNextRuns ?? 5} Executions
-            </div>
-            <div class={styles.runsList}>
+            </Box>
+            <Stack gap="2">
               {nextRuns.map((run, idx) => (
-                <div key={idx} class={styles.runItem}>
-                  <span class={styles.runNumber}>{idx + 1}.</span>
-                  <span class={styles.runDate}>
+                <Flex
+                  key={idx}
+                  alignItems="center"
+                  gap="2"
+                  p="2"
+                  rounded="md"
+                  bg="bg.subtle"
+                >
+                  <Box fontSize="xs" fontWeight="bold" color="fg.muted" w="20px">
+                    {idx + 1}.
+                  </Box>
+                  <Box flex="1" fontFamily="mono" fontSize="sm">
                     {formatDateTime(run, props.timezone)}
-                  </span>
-                  <span class={styles.runRelative}>{formatRelative(run)}</span>
-                </div>
+                  </Box>
+                  <Box fontSize="xs" color="fg.muted" fontStyle="italic">
+                    {formatRelative(run)}
+                  </Box>
+                </Flex>
               ))}
-            </div>
-          </div>
+            </Stack>
+          </Box>
         )}
 
         {/* Calendar */}
         {props.showCalendar !== false && (
-          <div class={styles.calendarSection}>
-            <div class={styles.sectionTitle}>Calendar View</div>
+          <Box flex="1 1 280px" p="4">
+            <Box
+              fontSize="xs"
+              fontWeight="semibold"
+              color="fg.muted"
+              textTransform="uppercase"
+              letterSpacing="wide"
+              mb="3"
+            >
+              Calendar View
+            </Box>
             <MiniCalendar parts={parts} timezone={props.timezone} />
-          </div>
+          </Box>
         )}
-      </div>
+      </Flex>
 
       {/* Field breakdown */}
-      <div class={styles.breakdown}>
-        <div class={styles.sectionTitle}>Field Breakdown</div>
-        <div class={styles.breakdownGrid}>
+      <Box
+        p="4"
+        borderTopWidth="1px"
+        borderColor="border.default"
+        bg="bg.subtle"
+      >
+        <Box
+          fontSize="xs"
+          fontWeight="semibold"
+          color="fg.muted"
+          textTransform="uppercase"
+          letterSpacing="wide"
+          mb="3"
+        >
+          Field Breakdown
+        </Box>
+        <Grid
+          columns={{ base: 2, sm: 3, md: 5 }}
+          gap="3"
+        >
           {(Object.keys(parts) as (keyof CronParts)[]).map((field) => {
             const labels: Record<keyof CronParts, string> = {
               minute: "Minute",
@@ -696,353 +886,39 @@ function CronViewer() {
               dayOfWeek: "Day (week)",
             };
             return (
-              <div key={field} class={styles.breakdownItem}>
-                <span class={styles.breakdownLabel}>{labels[field]}</span>
-                <code class={styles.breakdownValue}>{parts[field]}</code>
-                <span class={styles.breakdownDesc}>
+              <Stack
+                key={field}
+                gap="1"
+                p="2"
+                bg="bg.canvas"
+                rounded="md"
+                borderWidth="1px"
+                borderColor="border.default"
+              >
+                <Box fontSize="xs" fontWeight="semibold" color="fg.muted">
+                  {labels[field]}
+                </Box>
+                <Code
+                  fontSize="md"
+                  fontWeight="bold"
+                  color={{ base: "blue.600", _dark: "blue.400" }}
+                >
+                  {parts[field]}
+                </Code>
+                <Box fontSize="xs" color="fg.muted">
                   {describeField(field, field, FIELD_RANGES[field])}
-                </span>
-              </div>
+                </Box>
+              </Stack>
             );
           })}
-        </div>
-      </div>
-    </div>
+        </Grid>
+      </Box>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    display: "flex",
-    flexDirection: "column",
-    maxH: "600px",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    p: "3",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    flexWrap: "wrap",
-    gap: "2",
-  }),
-  expressionDisplay: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "3",
-  }),
-  expression: css({
-    fontSize: "lg",
-    fontFamily: "mono",
-    fontWeight: "bold",
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-    bg: "bg.canvas",
-    px: "3",
-    py: "1.5",
-    rounded: "md",
-    border: "1px solid",
-    borderColor: "border.default",
-  }),
-  editBtn: css({
-    px: "3",
-    py: "1.5",
-    fontSize: "sm",
-    fontWeight: "medium",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.canvas",
-    cursor: "pointer",
-    transition: "all 0.15s",
-    _hover: { bg: "bg.subtle", borderColor: "blue.400" },
-  }),
-  timezone: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    bg: "bg.canvas",
-    px: "2",
-    py: "1",
-    rounded: "sm",
-    fontFamily: "mono",
-  }),
-  description: css({
-    p: "4",
-    fontSize: "md",
-    fontWeight: "medium",
-    bg: "blue.50",
-    color: "blue.800",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    _dark: { bg: "blue.950/30", color: "blue.200" },
-  }),
-  content: css({
-    display: "flex",
-    flexWrap: "wrap",
-    flex: 1,
-    overflowY: "auto",
-  }),
-  nextRuns: css({
-    flex: "1 1 300px",
-    p: "4",
-    borderRight: "1px solid",
-    borderColor: "border.default",
-    _last: { borderRight: "none" },
-  }),
-  sectionTitle: css({
-    fontSize: "xs",
-    fontWeight: "semibold",
-    color: "fg.muted",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-    mb: "3",
-  }),
-  runsList: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "2",
-  }),
-  runItem: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    p: "2",
-    rounded: "md",
-    bg: "bg.subtle",
-  }),
-  runNumber: css({
-    fontSize: "xs",
-    fontWeight: "bold",
-    color: "fg.muted",
-    w: "20px",
-  }),
-  runDate: css({
-    flex: 1,
-    fontFamily: "mono",
-    fontSize: "sm",
-  }),
-  runRelative: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    fontStyle: "italic",
-  }),
-  calendarSection: css({
-    flex: "1 1 280px",
-    p: "4",
-  }),
-  calendar: css({
-    bg: "bg.canvas",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-  }),
-  calendarHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    p: "2",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-  }),
-  calendarNavBtn: css({
-    w: "28px",
-    h: "28px",
-    border: "none",
-    bg: "transparent",
-    cursor: "pointer",
-    fontSize: "md",
-    fontWeight: "bold",
-    color: "fg.muted",
-    rounded: "md",
-    _hover: { bg: "bg.subtle", color: "fg.default" },
-  }),
-  calendarMonth: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-  }),
-  calendarGrid: css({
-    display: "grid",
-    gridTemplateColumns: "repeat(7, 1fr)",
-    gap: "1px",
-    p: "2",
-  }),
-  calendarDayHeader: css({
-    textAlign: "center",
-    fontSize: "xs",
-    fontWeight: "semibold",
-    color: "fg.muted",
-    py: "1",
-  }),
-  calendarDay: css({
-    textAlign: "center",
-    fontSize: "sm",
-    py: "1.5",
-    rounded: "sm",
-    cursor: "default",
-  }),
-  calendarDayEmpty: css({
-    visibility: "hidden",
-  }),
-  calendarDayActive: css({
-    bg: "blue.100",
-    color: "blue.700",
-    fontWeight: "medium",
-    _dark: { bg: "blue.900/50", color: "blue.300" },
-  }),
-  calendarDayToday: css({
-    border: "2px solid",
-    borderColor: "green.500",
-    fontWeight: "bold",
-  }),
-  calendarLegend: css({
-    display: "flex",
-    gap: "4",
-    p: "2",
-    borderTop: "1px solid",
-    borderColor: "border.default",
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  legendItem: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "1",
-  }),
-  legendDot: css({
-    w: "10px",
-    h: "10px",
-    rounded: "sm",
-  }),
-  legendDotActive: css({
-    bg: "blue.100",
-    border: "1px solid",
-    borderColor: "blue.300",
-    _dark: { bg: "blue.900/50", borderColor: "blue.700" },
-  }),
-  legendDotToday: css({
-    bg: "transparent",
-    border: "2px solid",
-    borderColor: "green.500",
-  }),
-  breakdown: css({
-    p: "4",
-    borderTop: "1px solid",
-    borderColor: "border.default",
-    bg: "bg.subtle",
-  }),
-  breakdownGrid: css({
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-    gap: "3",
-  }),
-  breakdownItem: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "1",
-    p: "2",
-    bg: "bg.canvas",
-    rounded: "md",
-    border: "1px solid",
-    borderColor: "border.default",
-  }),
-  breakdownLabel: css({
-    fontSize: "xs",
-    fontWeight: "semibold",
-    color: "fg.muted",
-  }),
-  breakdownValue: css({
-    fontSize: "md",
-    fontFamily: "mono",
-    fontWeight: "bold",
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-  }),
-  breakdownDesc: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  editor: css({
-    p: "4",
-    bg: "orange.50",
-    borderBottom: "1px solid",
-    borderColor: "orange.200",
-    _dark: { bg: "orange.950/30", borderColor: "orange.800" },
-  }),
-  editorTitle: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-    mb: "3",
-    color: "orange.800",
-    _dark: { color: "orange.300" },
-  }),
-  editorFields: css({
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-    gap: "3",
-    mb: "3",
-  }),
-  editorField: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "1",
-  }),
-  editorLabel: css({
-    fontSize: "xs",
-    fontWeight: "medium",
-    color: "fg.muted",
-  }),
-  editorInput: css({
-    px: "2",
-    py: "1.5",
-    fontSize: "sm",
-    fontFamily: "mono",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.canvas",
-    _focus: { outline: "none", borderColor: "orange.500" },
-  }),
-  editorPreview: css({
-    fontSize: "sm",
-    color: "fg.muted",
-  }),
-  editorCode: css({
-    fontFamily: "mono",
-    fontWeight: "bold",
-    color: "orange.700",
-    _dark: { color: "orange.400" },
-  }),
-  loading: css({
-    p: "4",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  error: css({
-    p: "4",
-    textAlign: "center",
-    color: "red.600",
-    _dark: { color: "red.400" },
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<CronViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<CronViewer />);

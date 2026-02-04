@@ -11,11 +11,14 @@
  * @module lib/std/src/ui/commit-graph
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Stack } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -211,25 +214,32 @@ function formatFullDate(timestamp: number): string {
 // ============================================================================
 
 interface RefBadgeProps {
-  ref: string;
+  refName: string;
 }
 
-function RefBadge({ ref }: RefBadgeProps) {
-  const isTag = ref.startsWith("tag:");
-  const isRemote = ref.includes("/");
-  const isHead = ref === "HEAD";
-  const displayName = isTag ? ref.replace("tag:", "") : ref;
+function RefBadge({ refName }: RefBadgeProps) {
+  const isTag = refName.startsWith("tag:");
+  const isRemote = refName.includes("/");
+  const isHead = refName === "HEAD";
+  const displayName = isTag ? refName.replace("tag:", "") : refName;
 
-  let badgeClass = styles.refBadge;
+  let variant: "solid" | "subtle" | "outline" = "subtle";
+  let colorPalette = "green";
+
   if (isTag) {
-    badgeClass = `${styles.refBadge} ${styles.refBadgeTag}`;
+    colorPalette = "amber";
   } else if (isHead) {
-    badgeClass = `${styles.refBadge} ${styles.refBadgeHead}`;
+    colorPalette = "purple";
   } else if (isRemote) {
-    badgeClass = `${styles.refBadge} ${styles.refBadgeRemote}`;
+    colorPalette = "gray";
+    variant = "outline";
   }
 
-  return <span class={badgeClass}>{displayName}</span>;
+  return (
+    <Badge size="sm" variant={variant} colorPalette={colorPalette}>
+      {displayName}
+    </Badge>
+  );
 }
 
 interface CommitPopupProps {
@@ -241,34 +251,47 @@ function CommitPopup({ node, position }: CommitPopupProps) {
   const { commit } = node;
 
   return (
-    <div
-      class={styles.popup}
+    <Box
+      position="fixed"
+      zIndex={100}
+      w="320px"
+      p="3"
+      bg="bg.default"
+      border="1px solid"
+      borderColor="border.default"
+      rounded="lg"
+      shadow="lg"
+      pointerEvents="none"
       style={{
         top: `${position.y + 15}px`,
         left: `${Math.min(position.x, window.innerWidth - 350)}px`,
       }}
     >
-      <div class={styles.popupHeader}>
-        <span class={styles.popupHash}>{commit.hash.slice(0, 10)}</span>
-        <span class={styles.popupDate}>{formatFullDate(commit.timestamp)}</span>
-      </div>
-      <div class={styles.popupAuthor}>
+      <Flex justify="space-between" align="center" mb="2" pb="2" borderBottom="1px solid" borderColor="border.subtle">
+        <span className={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600", _dark: { color: "blue.400" } })}>
+          {commit.hash.slice(0, 10)}
+        </span>
+        <span className={css({ fontSize: "xs", color: "fg.muted" })}>{formatFullDate(commit.timestamp)}</span>
+      </Flex>
+      <Box fontSize="sm" mb="2">
         <strong>{commit.author}</strong>
-      </div>
-      <div class={styles.popupMessage}>{commit.message}</div>
+      </Box>
+      <Box fontSize="sm" color="fg.default" lineHeight="1.4" wordBreak="break-word" mb="2">
+        {commit.message}
+      </Box>
       {commit.refs.length > 0 && (
-        <div class={styles.popupRefs}>
+        <Flex flexWrap="wrap" gap="1" mb="2">
           {commit.refs.map((ref) => (
-            <RefBadge key={ref} ref={ref} />
+            <RefBadge key={ref} refName={ref} />
           ))}
-        </div>
+        </Flex>
       )}
       {commit.parents.length > 0 && (
-        <div class={styles.popupParents}>
+        <Box fontSize="xs" color="fg.muted" fontFamily="mono">
           Parents: {commit.parents.map((p) => p.slice(0, 7)).join(", ")}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -303,9 +326,7 @@ function CommitGraph() {
       setError(null);
 
       try {
-        const textContent = result.content?.find(
-          (c) => c.type === "text"
-        ) as ContentItem | undefined;
+        const textContent = result.content?.find((c) => c.type === "text") as ContentItem | undefined;
         if (!textContent?.text) {
           setData(null);
           return;
@@ -316,9 +337,7 @@ function CommitGraph() {
         setSelectedHash(null);
         setZoom(1);
       } catch (e) {
-        setError(
-          `Failed to parse graph data: ${e instanceof Error ? e.message : "Unknown"}`
-        );
+        setError(`Failed to parse graph data: ${e instanceof Error ? e.message : "Unknown"}`);
       }
     };
 
@@ -357,8 +376,7 @@ function CommitGraph() {
   // Handlers
   const handleNodeClick = useCallback(
     (node: GraphNode) => {
-      const newSelected =
-        selectedHash === node.commit.hash ? null : node.commit.hash;
+      const newSelected = selectedHash === node.commit.hash ? null : node.commit.hash;
       setSelectedHash(newSelected);
       if (newSelected) {
         notifyModel("select", {
@@ -383,68 +401,71 @@ function CommitGraph() {
   // Render states
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading commit graph...</div>
-      </div>
+      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
+        <Box p="10" textAlign="center" color="fg.muted">Loading commit graph...</Box>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>{error}</div>
-      </div>
+      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
+        <Box p="4" bg="red.50" color="red.700" rounded="md" m="4" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
+      </Box>
     );
   }
 
   if (!data || data.commits.length === 0) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No commits to display</div>
-      </div>
+      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
+        <Box p="10" textAlign="center" color="fg.muted">No commits to display</Box>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container} ref={containerRef}>
+    <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative" ref={containerRef}>
       {/* Header */}
-      <div class={styles.header}>
-        <div class={styles.headerInfo}>
-          <span class={styles.headerTitle}>Commit Graph</span>
-          <span class={styles.headerStats}>
+      <Flex
+        position="sticky"
+        top="0"
+        zIndex={10}
+        justify="space-between"
+        align="center"
+        p="3"
+        bg="bg.subtle"
+        borderBottom="1px solid"
+        borderColor="border.default"
+      >
+        <Flex align="center" gap="3">
+          <span className={css({ fontWeight: "semibold", fontSize: "lg" })}>Commit Graph</span>
+          <span className={css({ fontSize: "sm", color: "fg.muted" })}>
             {data.totalCommits} commits | {data.branches.length} branches
           </span>
-        </div>
-        <div class={styles.zoomControls}>
-          <button class={styles.btn} onClick={handleZoomOut}>
-            -
-          </button>
-          <span class={styles.zoomLevel}>{Math.round(zoom * 100)}%</span>
-          <button class={styles.btn} onClick={handleZoomIn}>
-            +
-          </button>
-        </div>
-      </div>
+        </Flex>
+        <Flex align="center" gap="2">
+          <Button variant="outline" size="sm" onClick={handleZoomOut}>-</Button>
+          <span className={css({ minW: "50px", textAlign: "center", fontSize: "sm", color: "fg.muted" })}>
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button variant="outline" size="sm" onClick={handleZoomIn}>+</Button>
+        </Flex>
+      </Flex>
 
       {/* Graph content */}
-      <div class={styles.graphContainer}>
-        <div
-          class={styles.graphContent}
-          style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
-        >
+      <Box overflow="auto" position="relative">
+        <Flex position="relative" minW="fit-content" style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}>
           {/* SVG for graph lines */}
           <svg
-            class={styles.graphSvg}
             width={svgDimensions.width}
             height={svgDimensions.height}
+            style={{ position: "absolute", top: 0, left: 0, flexShrink: 0 }}
           >
             {/* Connection lines */}
             {graphNodes.map((node) =>
               node.parentConnections.map((conn, idx) => {
                 const color = RAIL_COLORS[node.rail % RAIL_COLORS.length];
-                const parentNode = graphNodes.find(
-                  (n) => n.commit.hash === conn.parentHash
-                );
+                const parentNode = graphNodes.find((n) => n.commit.hash === conn.parentHash);
                 if (!parentNode) return null;
 
                 const startX = node.x;
@@ -462,7 +483,7 @@ function CommitGraph() {
                       d={path}
                       fill="none"
                       stroke={color}
-                      stroke-width={2}
+                      strokeWidth={2}
                       opacity={0.6}
                     />
                   );
@@ -477,7 +498,7 @@ function CommitGraph() {
                     x2={endX}
                     y2={endY}
                     stroke={color}
-                    stroke-width={2}
+                    strokeWidth={2}
                     opacity={0.6}
                   />
                 );
@@ -506,33 +527,17 @@ function CommitGraph() {
                     r={isSelected ? NODE_RADIUS + 2 : NODE_RADIUS}
                     fill={isMerge ? "white" : color}
                     stroke={color}
-                    stroke-width={isMerge ? 3 : 2}
+                    strokeWidth={isMerge ? 3 : 2}
                   />
 
                   {/* Selection ring */}
                   {isSelected && (
-                    <circle
-                      cx={node.x}
-                      cy={node.y}
-                      r={NODE_RADIUS + 5}
-                      fill="none"
-                      stroke={color}
-                      stroke-width={2}
-                      opacity={0.5}
-                    />
+                    <circle cx={node.x} cy={node.y} r={NODE_RADIUS + 5} fill="none" stroke={color} strokeWidth={2} opacity={0.5} />
                   )}
 
                   {/* Hover highlight */}
                   {isHovered && !isSelected && (
-                    <circle
-                      cx={node.x}
-                      cy={node.y}
-                      r={NODE_RADIUS + 3}
-                      fill="none"
-                      stroke={color}
-                      stroke-width={1}
-                      opacity={0.3}
-                    />
+                    <circle cx={node.x} cy={node.y} r={NODE_RADIUS + 3} fill="none" stroke={color} strokeWidth={1} opacity={0.3} />
                   )}
                 </g>
               );
@@ -540,18 +545,24 @@ function CommitGraph() {
           </svg>
 
           {/* Commit rows with info */}
-          <div
-            class={styles.commitList}
-            style={{ marginLeft: `${svgDimensions.width + 10}px` }}
-          >
+          <Stack gap="0" minW="400px" style={{ marginLeft: `${svgDimensions.width + 10}px` }}>
             {graphNodes.map((node) => {
               const isSelected = selectedHash === node.commit.hash;
               const isHovered = hoveredNode?.commit.hash === node.commit.hash;
 
               return (
-                <div
+                <Flex
                   key={node.commit.hash}
-                  class={`${styles.commitRow} ${isSelected ? styles.commitRowSelected : ""} ${isHovered ? styles.commitRowHovered : ""}`}
+                  align="center"
+                  gap="2"
+                  px="2"
+                  cursor="pointer"
+                  borderBottom="1px solid"
+                  borderColor="border.subtle"
+                  transition="background 0.1s"
+                  _hover={{ bg: "bg.muted" }}
+                  bg={isSelected ? "blue.50" : "transparent"}
+                  _dark={isSelected ? { bg: "blue.950" } : {}}
                   style={{ height: `${ROW_HEIGHT}px` }}
                   onMouseEnter={() => setHoveredNode(node)}
                   onMouseLeave={() => setHoveredNode(null)}
@@ -559,278 +570,47 @@ function CommitGraph() {
                 >
                   {/* Refs */}
                   {node.commit.refs.length > 0 && (
-                    <span class={styles.commitRefs}>
+                    <Flex gap="1" flexShrink={0}>
                       {node.commit.refs.map((ref) => (
-                        <RefBadge key={ref} ref={ref} />
+                        <RefBadge key={ref} refName={ref} />
                       ))}
-                    </span>
+                    </Flex>
                   )}
 
                   {/* Hash */}
-                  <span class={styles.commitHash}>{node.commit.shortHash}</span>
+                  <span className={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600", _dark: { color: "blue.400" }, minW: "60px", flexShrink: 0 })}>
+                    {node.commit.shortHash}
+                  </span>
 
                   {/* Message */}
-                  <span class={styles.commitMessage}>{node.commit.message}</span>
+                  <span className={css({ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "fg.default" })}>
+                    {node.commit.message}
+                  </span>
 
                   {/* Author and time */}
-                  <span class={styles.commitMeta}>
-                    <span class={styles.commitAuthor}>{node.commit.author}</span>
-                    <span class={styles.commitTime}>
+                  <Flex align="center" gap="2" flexShrink={0} fontSize="xs" color="fg.muted">
+                    <span className={css({ maxW: "100px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" })}>
+                      {node.commit.author}
+                    </span>
+                    <span className={css({ minW: "60px", textAlign: "right" })}>
                       {formatRelativeTime(node.commit.timestamp)}
                     </span>
-                  </span>
-                </div>
+                  </Flex>
+                </Flex>
               );
             })}
-          </div>
-        </div>
-      </div>
+          </Stack>
+        </Flex>
+      </Box>
 
       {/* Hover popup */}
       {hoveredNode && <CommitPopup node={hoveredNode} position={popupPosition} />}
-    </div>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    fontFamily: "system-ui, sans-serif",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minHeight: "100vh",
-    position: "relative",
-  }),
-  header: css({
-    position: "sticky",
-    top: 0,
-    zIndex: 10,
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    p: "3",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-  }),
-  headerInfo: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "3",
-  }),
-  headerTitle: css({
-    fontWeight: "semibold",
-    fontSize: "lg",
-  }),
-  headerStats: css({
-    fontSize: "sm",
-    color: "fg.muted",
-  }),
-  zoomControls: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  zoomLevel: css({
-    minW: "50px",
-    textAlign: "center",
-    fontSize: "sm",
-    color: "fg.muted",
-  }),
-  btn: css({
-    px: "3",
-    py: "1.5",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "sm",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  graphContainer: css({
-    overflow: "auto",
-    position: "relative",
-  }),
-  graphContent: css({
-    display: "flex",
-    position: "relative",
-    minWidth: "fit-content",
-  }),
-  graphSvg: css({
-    position: "absolute",
-    top: 0,
-    left: 0,
-    flexShrink: 0,
-  }),
-  commitList: css({
-    display: "flex",
-    flexDirection: "column",
-    minWidth: "400px",
-  }),
-  commitRow: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    px: "2",
-    cursor: "pointer",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    transition: "background 0.1s",
-    _hover: {
-      bg: "bg.muted",
-    },
-  }),
-  commitRowSelected: css({
-    bg: "blue.50",
-    _dark: { bg: "blue.950" },
-  }),
-  commitRowHovered: css({}),
-  commitRefs: css({
-    display: "flex",
-    gap: "1",
-    flexShrink: 0,
-  }),
-  commitHash: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-    minWidth: "60px",
-    flexShrink: 0,
-  }),
-  commitMessage: css({
-    flex: 1,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    color: "fg.default",
-  }),
-  commitMeta: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    flexShrink: 0,
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  commitAuthor: css({
-    maxWidth: "100px",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  }),
-  commitTime: css({
-    minWidth: "60px",
-    textAlign: "right",
-  }),
-  refBadge: css({
-    display: "inline-flex",
-    alignItems: "center",
-    px: "1.5",
-    py: "0.5",
-    fontSize: "10px",
-    fontWeight: "medium",
-    rounded: "sm",
-    bg: "green.100",
-    color: "green.700",
-    _dark: { bg: "green.900", color: "green.300" },
-  }),
-  refBadgeTag: css({
-    bg: "amber.100",
-    color: "amber.700",
-    _dark: { bg: "amber.900", color: "amber.300" },
-  }),
-  refBadgeHead: css({
-    bg: "purple.100",
-    color: "purple.700",
-    _dark: { bg: "purple.900", color: "purple.300" },
-  }),
-  refBadgeRemote: css({
-    bg: "gray.100",
-    color: "gray.600",
-    _dark: { bg: "gray.800", color: "gray.400" },
-  }),
-  popup: css({
-    position: "fixed",
-    zIndex: 100,
-    width: "320px",
-    p: "3",
-    bg: "bg.default",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    shadow: "lg",
-    pointerEvents: "none",
-  }),
-  popupHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "2",
-    pb: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  popupHash: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-  }),
-  popupDate: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  popupAuthor: css({
-    fontSize: "sm",
-    mb: "2",
-  }),
-  popupMessage: css({
-    fontSize: "sm",
-    color: "fg.default",
-    lineHeight: "1.4",
-    wordBreak: "break-word",
-    mb: "2",
-  }),
-  popupRefs: css({
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "1",
-    mb: "2",
-  }),
-  popupParents: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    fontFamily: "mono",
-  }),
-  loading: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  empty: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  error: css({
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    m: "4",
-    _dark: { bg: "red.950", color: "red.300" },
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<CommitGraph />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<CommitGraph />);

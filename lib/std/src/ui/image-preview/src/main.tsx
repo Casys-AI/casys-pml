@@ -10,11 +10,14 @@
  * @module lib/std/src/ui/image-preview
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback, useRef } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
+import { Box, Flex, VStack, HStack, Center } from "../../styled-system/jsx";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Button } from "../../components/ui/button";
+import { IconButton } from "../../components/ui/icon-button";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -150,277 +153,147 @@ function ImagePreview() {
   // Render states
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading image...</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Center p="10" color="fg.muted">Loading image...</Center>
+      </Box>
     );
   }
 
   if (!imageData) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No image data</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Center p="10" color="fg.muted">No image data</Center>
+      </Box>
     );
   }
 
   if (!imageData.valid || imageData.error) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>
-          <div class={styles.errorIcon}>X</div>
-          <div class={styles.errorTitle}>Invalid Image</div>
-          <div class={styles.errorMessage}>{imageData.error || "Unknown error"}</div>
-        </div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <VStack
+          gap="2"
+          p="6"
+          bg={{ base: "red.50", _dark: "red.950" }}
+          rounded="lg"
+          textAlign="center"
+          alignItems="center"
+        >
+          <Center
+            w="40px"
+            h="40px"
+            fontSize="xl"
+            fontWeight="bold"
+            color={{ base: "red.500", _dark: "red.300" }}
+            bg={{ base: "red.100", _dark: "red.900" }}
+            rounded="full"
+          >
+            X
+          </Center>
+          <Box fontSize="md" fontWeight="semibold" color={{ base: "red.700", _dark: "red.300" }}>
+            Invalid Image
+          </Box>
+          <Box fontSize="sm" color={{ base: "red.600", _dark: "red.400" }}>
+            {imageData.error || "Unknown error"}
+          </Box>
+        </VStack>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container}>
+    <VStack gap="3" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
       {/* Toolbar */}
-      <div class={styles.toolbar}>
-        <div class={styles.zoomControls}>
-          <button class={styles.btn} onClick={handleZoomOut} title="Zoom out">
+      <Flex justify="space-between" align="center" gap="2" flexWrap="wrap" w="full">
+        <HStack gap="1" alignItems="center">
+          <IconButton variant="outline" size="sm" onClick={handleZoomOut} title="Zoom out">
             -
-          </button>
-          <span class={styles.zoomLabel}>{zoom}%</span>
-          <button class={styles.btn} onClick={handleZoomIn} title="Zoom in">
+          </IconButton>
+          <Box minW="50px" textAlign="center" fontSize="xs" color="fg.muted">{zoom}%</Box>
+          <IconButton variant="outline" size="sm" onClick={handleZoomIn} title="Zoom in">
             +
-          </button>
-          <button class={styles.btnSecondary} onClick={handleZoomReset} title="Reset zoom">
+          </IconButton>
+          <Button variant="outline" size="sm" onClick={handleZoomReset} title="Reset zoom">
             Reset
-          </button>
-        </div>
-        <button class={styles.btnPrimary} onClick={handleDownload} title="Download image">
+          </Button>
+        </HStack>
+        <Button variant="solid" size="sm" onClick={handleDownload} title="Download image">
           Download
-        </button>
-      </div>
+        </Button>
+      </Flex>
 
       {/* Image container */}
-      <div class={styles.imageContainer}>
-        <div class={styles.imageWrapper} style={{ transform: `scale(${zoom / 100})` }}>
+      <Center
+        flex="1"
+        overflow="auto"
+        border="1px solid"
+        borderColor="border.default"
+        rounded="lg"
+        bg="bg.subtle"
+        minH="150px"
+        p="2"
+        w="full"
+        className={css({
+          // Checkerboard pattern for transparency
+          backgroundImage: `
+            linear-gradient(45deg, token(colors.gray.200) 25%, transparent 25%),
+            linear-gradient(-45deg, token(colors.gray.200) 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, token(colors.gray.200) 75%),
+            linear-gradient(-45deg, transparent 75%, token(colors.gray.200) 75%)
+          `,
+          backgroundSize: "16px 16px",
+          backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px",
+          _dark: {
+            backgroundImage: `
+              linear-gradient(45deg, token(colors.gray.800) 25%, transparent 25%),
+              linear-gradient(-45deg, token(colors.gray.800) 25%, transparent 25%),
+              linear-gradient(45deg, transparent 75%, token(colors.gray.800) 75%),
+              linear-gradient(-45deg, transparent 75%, token(colors.gray.800) 75%)
+            `,
+          },
+        })}
+      >
+        <Box style={{ transform: `scale(${zoom / 100})`, transition: "transform 0.2s ease", transformOrigin: "center center" }}>
           <img
             ref={imageRef}
             src={imageData.dataUri}
             alt="Preview"
-            class={styles.image}
+            className={css({ display: "block", maxW: "100%", maxH: "400px", objectFit: "contain" })}
           />
-        </div>
-      </div>
+        </Box>
+      </Center>
 
       {/* Metadata */}
-      <div class={styles.metadata}>
-        <div class={styles.metaItem}>
-          <span class={styles.metaLabel}>Type</span>
-          <span class={styles.metaValue}>{getMimeTypeLabel(imageData.mimeType)}</span>
-        </div>
+      <Flex
+        gap="4"
+        flexWrap="wrap"
+        p="3"
+        bg="bg.subtle"
+        rounded="lg"
+        border="1px solid"
+        borderColor="border.default"
+        w="full"
+      >
+        <VStack gap="0.5" alignItems="flex-start">
+          <Box fontSize="xs" color="fg.muted" textTransform="uppercase" letterSpacing="wide">Type</Box>
+          <Box fontSize="sm" fontWeight="medium" fontFamily="mono">{getMimeTypeLabel(imageData.mimeType)}</Box>
+        </VStack>
         {imageData.width && imageData.height && (
-          <div class={styles.metaItem}>
-            <span class={styles.metaLabel}>Dimensions</span>
-            <span class={styles.metaValue}>{imageData.width} x {imageData.height}</span>
-          </div>
+          <VStack gap="0.5" alignItems="flex-start">
+            <Box fontSize="xs" color="fg.muted" textTransform="uppercase" letterSpacing="wide">Dimensions</Box>
+            <Box fontSize="sm" fontWeight="medium" fontFamily="mono">{imageData.width} x {imageData.height}</Box>
+          </VStack>
         )}
-        <div class={styles.metaItem}>
-          <span class={styles.metaLabel}>Size</span>
-          <span class={styles.metaValue}>{formatBytes(imageData.size)}</span>
-        </div>
-      </div>
-    </div>
+        <VStack gap="0.5" alignItems="flex-start">
+          <Box fontSize="xs" color="fg.muted" textTransform="uppercase" letterSpacing="wide">Size</Box>
+          <Box fontSize="sm" fontWeight="medium" fontFamily="mono">{formatBytes(imageData.size)}</Box>
+        </VStack>
+      </Flex>
+    </VStack>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    display: "flex",
-    flexDirection: "column",
-    gap: "3",
-    minH: "200px",
-  }),
-  toolbar: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "2",
-    flexWrap: "wrap",
-  }),
-  zoomControls: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "1",
-  }),
-  zoomLabel: css({
-    minW: "50px",
-    textAlign: "center",
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  btn: css({
-    w: "28px",
-    h: "28px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "md",
-    fontWeight: "bold",
-    bg: "bg.subtle",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  btnSecondary: css({
-    px: "2",
-    py: "1",
-    fontSize: "xs",
-    bg: "bg.subtle",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  btnPrimary: css({
-    px: "3",
-    py: "1.5",
-    fontSize: "xs",
-    fontWeight: "medium",
-    bg: "blue.500",
-    color: "white",
-    border: "none",
-    rounded: "md",
-    cursor: "pointer",
-    _hover: { bg: "blue.600" },
-  }),
-  imageContainer: css({
-    flex: 1,
-    overflow: "auto",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    bg: "bg.subtle",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minH: "150px",
-    p: "2",
-    // Checkerboard pattern for transparency
-    backgroundImage: `
-      linear-gradient(45deg, token(colors.gray.200) 25%, transparent 25%),
-      linear-gradient(-45deg, token(colors.gray.200) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, token(colors.gray.200) 75%),
-      linear-gradient(-45deg, transparent 75%, token(colors.gray.200) 75%)
-    `,
-    backgroundSize: "16px 16px",
-    backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px",
-    _dark: {
-      backgroundImage: `
-        linear-gradient(45deg, token(colors.gray.800) 25%, transparent 25%),
-        linear-gradient(-45deg, token(colors.gray.800) 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, token(colors.gray.800) 75%),
-        linear-gradient(-45deg, transparent 75%, token(colors.gray.800) 75%)
-      `,
-    },
-  }),
-  imageWrapper: css({
-    transition: "transform 0.2s ease",
-    transformOrigin: "center center",
-  }),
-  image: css({
-    display: "block",
-    maxW: "100%",
-    maxH: "400px",
-    objectFit: "contain",
-  }),
-  metadata: css({
-    display: "flex",
-    gap: "4",
-    flexWrap: "wrap",
-    p: "3",
-    bg: "bg.subtle",
-    rounded: "lg",
-    border: "1px solid",
-    borderColor: "border.default",
-  }),
-  metaItem: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.5",
-  }),
-  metaLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    textTransform: "uppercase",
-    letterSpacing: "wide",
-  }),
-  metaValue: css({
-    fontSize: "sm",
-    fontWeight: "medium",
-    fontFamily: "mono",
-  }),
-  loading: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    p: "10",
-    color: "fg.muted",
-  }),
-  empty: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    p: "10",
-    color: "fg.muted",
-  }),
-  error: css({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "2",
-    p: "6",
-    bg: "red.50",
-    rounded: "lg",
-    textAlign: "center",
-    _dark: { bg: "red.950" },
-  }),
-  errorIcon: css({
-    w: "40px",
-    h: "40px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "xl",
-    fontWeight: "bold",
-    color: "red.500",
-    bg: "red.100",
-    rounded: "full",
-    _dark: { bg: "red.900", color: "red.300" },
-  }),
-  errorTitle: css({
-    fontSize: "md",
-    fontWeight: "semibold",
-    color: "red.700",
-    _dark: { color: "red.300" },
-  }),
-  errorMessage: css({
-    fontSize: "sm",
-    color: "red.600",
-    _dark: { color: "red.400" },
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<ImagePreview />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<ImagePreview />);

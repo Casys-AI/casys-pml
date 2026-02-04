@@ -10,11 +10,13 @@
  * @module lib/std/src/ui/erd-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback, useRef, useMemo } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, VStack } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -119,23 +121,18 @@ function getConnectionPoints(
 ): { x1: number; y1: number; x2: number; y2: number } {
   const fromY = fromPos.y + HEADER_HEIGHT + fromColumnIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
   const toY = toPos.y + HEADER_HEIGHT + toColumnIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
-
-  // Determine which side to connect from
   const fromRight = fromPos.x + fromPos.width;
   const toRight = toPos.x + toPos.width;
 
   let x1: number, x2: number;
 
   if (fromRight < toPos.x) {
-    // From is left of To
     x1 = fromRight;
     x2 = toPos.x;
   } else if (toRight < fromPos.x) {
-    // To is left of From
     x1 = fromPos.x;
     x2 = toRight;
   } else {
-    // Overlapping horizontally, connect right sides
     x1 = fromRight;
     x2 = toRight;
   }
@@ -159,7 +156,6 @@ function ERDViewer() {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Connect to MCP host
   useEffect(() => {
     app.connect().then(() => {
       appConnected = true;
@@ -171,13 +167,9 @@ function ERDViewer() {
     app.ontoolresult = (result: { content?: ContentItem[] }) => {
       setLoading(false);
       setError(null);
-
       try {
         const textContent = result.content?.find((c) => c.type === "text") as ContentItem | undefined;
-        if (!textContent?.text) {
-          setData(null);
-          return;
-        }
+        if (!textContent?.text) { setData(null); return; }
         const parsed = JSON.parse(textContent.text);
         setData(parsed);
         setSelectedTable(null);
@@ -192,13 +184,11 @@ function ERDViewer() {
     app.ontoolinputpartial = () => setLoading(true);
   }, []);
 
-  // Calculate positions
   const tablePositions = useMemo(() => {
     if (!data) return new Map();
     return calculateTablePositions(data.tables);
   }, [data]);
 
-  // Calculate SVG bounds
   const svgBounds = useMemo(() => {
     let maxX = 800;
     let maxY = 600;
@@ -209,7 +199,6 @@ function ERDViewer() {
     return { width: maxX, height: maxY };
   }, [tablePositions]);
 
-  // Handlers
   const handleSelectTable = useCallback((tableName: string) => {
     setSelectedTable(tableName === selectedTable ? null : tableName);
     setSelectedRelation(null);
@@ -249,38 +238,55 @@ function ERDViewer() {
     setIsPanning(false);
   }, []);
 
-  // Render
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading ERD...</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px" display="flex" flexDirection="column">
+        <Box p="10" textAlign="center" color="fg.muted">Loading ERD...</Box>
+      </Box>
+    );
   }
 
   if (error) {
-    return <div class={styles.container}><div class={styles.error}>{error}</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px" display="flex" flexDirection="column">
+        <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">{error}</Box>
+      </Box>
+    );
   }
 
   if (!data || data.tables.length === 0) {
-    return <div class={styles.container}><div class={styles.empty}>No tables to display</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px" display="flex" flexDirection="column">
+        <Box p="10" textAlign="center" color="fg.muted">No tables to display</Box>
+      </Box>
+    );
   }
 
   return (
-    <div class={styles.container}>
+    <VStack p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="400px" alignItems="stretch" gap="3">
       {/* Toolbar */}
-      <div class={styles.toolbar}>
-        <div class={styles.schemaInfo}>
-          <span class={styles.schemaName}>Schema: {data.schema}</span>
-          <span class={styles.stats}>{data.tableCount} tables, {data.relationshipCount} relationships</span>
-        </div>
-        <div class={styles.zoomControls}>
-          <button class={styles.btn} onClick={handleZoomOut}>-</button>
-          <span class={styles.zoomLevel}>{Math.round(zoom * 100)}%</span>
-          <button class={styles.btn} onClick={handleZoomIn}>+</button>
-        </div>
-      </div>
+      <Flex justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="2">
+        <Flex alignItems="center" gap="3">
+          <Box fontWeight="bold" fontSize="lg">Schema: {data.schema}</Box>
+          <Box color="fg.muted" fontSize="sm">{data.tableCount} tables, {data.relationshipCount} relationships</Box>
+        </Flex>
+        <Flex alignItems="center" gap="2">
+          <Button variant="outline" size="sm" onClick={handleZoomOut}>-</Button>
+          <Box minW="50px" textAlign="center" fontSize="sm" color="fg.muted">{Math.round(zoom * 100)}%</Box>
+          <Button variant="outline" size="sm" onClick={handleZoomIn}>+</Button>
+        </Flex>
+      </Flex>
 
       {/* SVG Canvas */}
-      <div
+      <Box
         ref={containerRef}
-        class={styles.canvas}
+        flex={1}
+        border="1px solid"
+        borderColor="border.default"
+        rounded="lg"
+        overflow="hidden"
+        bg="bg.subtle"
+        minH="350px"
         onMouseDown={handleMouseDown as any}
         onMouseMove={handleMouseMove as any}
         onMouseUp={handleMouseUp}
@@ -297,7 +303,7 @@ function ERDViewer() {
           }}
         >
           {/* Relationship lines */}
-          <g class="relationships">
+          <g className="relationships">
             {data.relationships.map((rel) => {
               const fromPos = tablePositions.get(rel.fromTable);
               const toPos = tablePositions.get(rel.toTable);
@@ -309,113 +315,50 @@ function ERDViewer() {
 
               const fromColIdx = fromTable.columns.findIndex((c) => c.name === rel.fromColumn);
               const toColIdx = toTable.columns.findIndex((c) => c.name === rel.toColumn);
-
               const points = getConnectionPoints(fromPos, toPos, fromColIdx, toColIdx);
               const isSelected = selectedRelation === rel.name;
-
-              // Create curved path
               const midX = (points.x1 + points.x2) / 2;
               const path = `M ${points.x1} ${points.y1} C ${midX} ${points.y1}, ${midX} ${points.y2}, ${points.x2} ${points.y2}`;
 
               return (
                 <g key={rel.name} onClick={() => handleSelectRelation(rel.name)} style={{ cursor: "pointer" }}>
-                  <path
-                    d={path}
-                    fill="none"
-                    stroke={isSelected ? "#3b82f6" : "#94a3b8"}
-                    stroke-width={isSelected ? 3 : 2}
-                  />
-                  {/* Arrow at end */}
-                  <circle
-                    cx={points.x2}
-                    cy={points.y2}
-                    r={4}
-                    fill={isSelected ? "#3b82f6" : "#94a3b8"}
-                  />
+                  <path d={path} fill="none" stroke={isSelected ? "#3b82f6" : "#94a3b8"} strokeWidth={isSelected ? 3 : 2} />
+                  <circle cx={points.x2} cy={points.y2} r={4} fill={isSelected ? "#3b82f6" : "#94a3b8"} />
                 </g>
               );
             })}
           </g>
 
           {/* Tables */}
-          <g class="tables">
+          <g className="tables">
             {data.tables.map((table) => {
               const pos = tablePositions.get(table.name);
               if (!pos) return null;
 
               const isSelected = selectedTable === table.name;
-              const isConnected = data.relationships.some(
-                (r) => r.fromTable === table.name || r.toTable === table.name
-              );
+              const isConnected = data.relationships.some((r) => r.fromTable === table.name || r.toTable === table.name);
 
               return (
-                <g
-                  key={table.name}
-                  transform={`translate(${pos.x}, ${pos.y})`}
-                  onClick={() => handleSelectTable(table.name)}
-                  style={{ cursor: "pointer" }}
-                >
+                <g key={table.name} transform={`translate(${pos.x}, ${pos.y})`} onClick={() => handleSelectTable(table.name)} style={{ cursor: "pointer" }}>
                   {/* Table box */}
-                  <rect
-                    width={pos.width}
-                    height={pos.height}
-                    rx={6}
-                    fill={isSelected ? "#eff6ff" : "#ffffff"}
-                    stroke={isSelected ? "#3b82f6" : isConnected ? "#64748b" : "#e2e8f0"}
-                    stroke-width={isSelected ? 2 : 1}
-                  />
-
+                  <rect width={pos.width} height={pos.height} rx={6} fill={isSelected ? "#eff6ff" : "#ffffff"} stroke={isSelected ? "#3b82f6" : isConnected ? "#64748b" : "#e2e8f0"} strokeWidth={isSelected ? 2 : 1} />
                   {/* Header */}
-                  <rect
-                    width={pos.width}
-                    height={HEADER_HEIGHT}
-                    rx={6}
-                    fill={isSelected ? "#3b82f6" : "#1e293b"}
-                  />
-                  <rect
-                    y={HEADER_HEIGHT - 6}
-                    width={pos.width}
-                    height={6}
-                    fill={isSelected ? "#3b82f6" : "#1e293b"}
-                  />
-                  <text
-                    x={pos.width / 2}
-                    y={HEADER_HEIGHT / 2 + 5}
-                    text-anchor="middle"
-                    fill="#ffffff"
-                    font-weight="bold"
-                    font-size="13"
-                  >
+                  <rect width={pos.width} height={HEADER_HEIGHT} rx={6} fill={isSelected ? "#3b82f6" : "#1e293b"} />
+                  <rect y={HEADER_HEIGHT - 6} width={pos.width} height={6} fill={isSelected ? "#3b82f6" : "#1e293b"} />
+                  <text x={pos.width / 2} y={HEADER_HEIGHT / 2 + 5} textAnchor="middle" fill="#ffffff" fontWeight="bold" fontSize="13">
                     {table.name}
                   </text>
-
                   {/* Columns */}
                   {table.columns.map((col, idx) => {
                     const y = HEADER_HEIGHT + idx * ROW_HEIGHT + TABLE_PADDING;
-                    const isFk = data.relationships.some(
-                      (r) => r.fromTable === table.name && r.fromColumn === col.name
-                    );
+                    const isFk = data.relationships.some((r) => r.fromTable === table.name && r.fromColumn === col.name);
 
                     return (
                       <g key={col.name}>
-                        <text
-                          x={TABLE_PADDING}
-                          y={y + ROW_HEIGHT / 2 + 4}
-                          font-size="11"
-                          fill={col.isPrimaryKey ? "#d97706" : isFk ? "#7c3aed" : "#334155"}
-                          font-weight={col.isPrimaryKey ? "bold" : "normal"}
-                        >
-                          {col.isPrimaryKey ? "🔑 " : isFk ? "🔗 " : ""}
-                          {col.name}
+                        <text x={TABLE_PADDING} y={y + ROW_HEIGHT / 2 + 4} fontSize="11" fill={col.isPrimaryKey ? "#d97706" : isFk ? "#7c3aed" : "#334155"} fontWeight={col.isPrimaryKey ? "bold" : "normal"}>
+                          {col.isPrimaryKey ? "# " : isFk ? "> " : ""}{col.name}
                         </text>
-                        <text
-                          x={pos.width - TABLE_PADDING}
-                          y={y + ROW_HEIGHT / 2 + 4}
-                          text-anchor="end"
-                          font-size="10"
-                          fill="#94a3b8"
-                          font-family="monospace"
-                        >
+                        <text x={pos.width - TABLE_PADDING} y={y + ROW_HEIGHT / 2 + 4} textAnchor="end" fontSize="10" fill="#94a3b8" fontFamily="monospace">
                           {col.type}
                         </text>
                       </g>
@@ -426,120 +369,39 @@ function ERDViewer() {
             })}
           </g>
         </svg>
-      </div>
+      </Box>
 
       {/* Selected Info Panel */}
       {(selectedTable || selectedRelation) && (
-        <div class={styles.infoPanel}>
+        <Box p="3" bg="bg.subtle" rounded="lg" border="1px solid" borderColor="border.default">
           {selectedTable && (
-            <div>
-              <h4>Table: {selectedTable}</h4>
-              <p>{data.tables.find((t) => t.name === selectedTable)?.columns.length} columns</p>
-            </div>
+            <Box>
+              <Box as="h4" fontWeight="semibold" m="0">Table: {selectedTable}</Box>
+              <Box color="fg.muted">{data.tables.find((t) => t.name === selectedTable)?.columns.length} columns</Box>
+            </Box>
           )}
           {selectedRelation && (
-            <div>
+            <Box>
               {(() => {
                 const rel = data.relationships.find((r) => r.name === selectedRelation);
                 if (!rel) return null;
                 return (
                   <>
-                    <h4>Relationship: {rel.name}</h4>
-                    <p>{rel.fromTable}.{rel.fromColumn} → {rel.toTable}.{rel.toColumn}</p>
+                    <Box as="h4" fontWeight="semibold" m="0">Relationship: {rel.name}</Box>
+                    <Box color="fg.muted">{rel.fromTable}.{rel.fromColumn} - {rel.toTable}.{rel.toColumn}</Box>
                   </>
                 );
               })()}
-            </div>
+            </Box>
           )}
-        </div>
+        </Box>
       )}
-    </div>
+    </VStack>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minH: "400px",
-    display: "flex",
-    flexDirection: "column",
-  }),
-  toolbar: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "3",
-    flexWrap: "wrap",
-    gap: "2",
-  }),
-  schemaInfo: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "3",
-  }),
-  schemaName: css({
-    fontWeight: "bold",
-    fontSize: "lg",
-  }),
-  stats: css({
-    color: "fg.muted",
-    fontSize: "sm",
-  }),
-  zoomControls: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  zoomLevel: css({
-    minW: "50px",
-    textAlign: "center",
-    fontSize: "sm",
-    color: "fg.muted",
-  }),
-  btn: css({
-    px: "3",
-    py: "1.5",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "sm",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  canvas: css({
-    flex: 1,
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-    bg: "bg.subtle",
-    minH: "350px",
-  }),
-  infoPanel: css({
-    mt: "3",
-    p: "3",
-    bg: "bg.subtle",
-    rounded: "lg",
-    border: "1px solid",
-    borderColor: "border.default",
-  }),
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  error: css({ p: "4", bg: "red.50", color: "red.700", rounded: "md", _dark: { bg: "red.950", color: "red.300" } }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<ERDViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<ERDViewer />);

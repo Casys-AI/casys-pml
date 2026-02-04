@@ -11,11 +11,15 @@
  * @module lib/std/src/ui/jwt-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
+import { Box, Flex, VStack, HStack, Center } from "../../styled-system/jsx";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Code } from "../../components/ui/code";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -184,7 +188,7 @@ function Icon({ name, className }: { name: string; className?: string }) {
 
   return (
     <svg
-      class={className || css({ w: "4", h: "4", flexShrink: 0 })}
+      className={className || css({ w: "4", h: "4", flexShrink: 0 })}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -219,24 +223,15 @@ function LiveCountdown({ exp }: { exp: number }) {
   const { text, status } = timeRemaining;
 
   const statusColors = {
-    valid: css({
-      color: "green.600",
-      _dark: { color: "green.400" },
-    }),
-    expiring: css({
-      color: "orange.600",
-      _dark: { color: "orange.400" },
-    }),
-    expired: css({
-      color: "red.600",
-      _dark: { color: "red.400" },
-    }),
+    valid: css({ color: "green.600", _dark: { color: "green.400" } }),
+    expiring: css({ color: "orange.600", _dark: { color: "orange.400" } }),
+    expired: css({ color: "red.600", _dark: { color: "red.400" } }),
   };
 
   return (
-    <span class={`${css({ fontFamily: "mono", fontSize: "sm", fontWeight: "medium" })} ${statusColors[status]}`}>
+    <Box fontFamily="mono" fontSize="sm" fontWeight="medium" className={statusColors[status]}>
       {text}
-    </span>
+    </Box>
   );
 }
 
@@ -244,7 +239,7 @@ function LiveCountdown({ exp }: { exp: number }) {
 // Expiration Badge Component
 // ============================================================================
 
-function ExpirationBadge({ exp, expiresAt }: { exp: number; expiresAt?: string }) {
+function ExpirationBadge({ exp }: { exp: number; expiresAt?: string }) {
   const [timeRemaining, setTimeRemaining] = useState<TimeRemaining>(getTimeRemaining(exp));
 
   useEffect(() => {
@@ -291,15 +286,12 @@ function ExpirationBadge({ exp, expiresAt }: { exp: number; expiresAt?: string }
   };
 
   return (
-    <div
-      class={`${css({
+    <Badge
+      size="sm"
+      className={`${css({
         display: "inline-flex",
         alignItems: "center",
         gap: "1.5",
-        px: "2.5",
-        py: "1",
-        rounded: "full",
-        fontSize: "xs",
         fontWeight: "bold",
         textTransform: "uppercase",
         border: "1px solid",
@@ -307,7 +299,7 @@ function ExpirationBadge({ exp, expiresAt }: { exp: number; expiresAt?: string }
     >
       <Icon name={icons[status]} className={css({ w: "3.5", h: "3.5" })} />
       {labels[status]}
-    </div>
+    </Badge>
   );
 }
 
@@ -326,28 +318,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   }, [text, label]);
 
   return (
-    <button
-      onClick={handleCopy}
-      class={css({
-        display: "flex",
-        alignItems: "center",
-        gap: "1",
-        px: "2",
-        py: "1",
-        rounded: "md",
-        fontSize: "xs",
-        border: "1px solid",
-        borderColor: "border.default",
-        bg: "bg.subtle",
-        color: "fg.muted",
-        cursor: "pointer",
-        transition: "all 0.15s",
-        _hover: { bg: "bg.muted", color: "fg.default" },
-      })}
-    >
+    <Button variant="outline" size="xs" onClick={handleCopy} className={css({ gap: "1" })}>
       <Icon name={copied ? "check" : "copy"} />
       {copied ? "Copied!" : `Copy`}
-    </button>
+    </Button>
   );
 }
 
@@ -382,33 +356,33 @@ function ClaimRow({
     : css({ color: "fg.default" });
 
   return (
-    <div class={css({ display: "flex", alignItems: "flex-start", gap: "2", py: "1" })}>
+    <Flex alignItems="flex-start" gap="2" py="1">
       {standardClaim && (
-        <span class={`${css({ mt: "0.5", flexShrink: 0 })} ${keyStyle}`}>
+        <Box mt="0.5" flexShrink={0} className={keyStyle}>
           <Icon name={standardClaim.icon} />
-        </span>
+        </Box>
       )}
-      <div class={css({ flex: 1, minW: 0 })}>
-        <div class={css({ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: "1" })}>
-          <span class={`${css({ fontWeight: standardClaim ? "bold" : "medium" })} ${keyStyle}`}>
+      <Box flex="1" minW="0">
+        <Flex alignItems="baseline" flexWrap="wrap" gap="1">
+          <Box fontWeight={standardClaim ? "bold" : "medium"} className={keyStyle}>
             "{claimKey}"
-          </span>
-          <span class={css({ color: "fg.muted" })}>:</span>
-          <span class={css({ color: getValueColor(value), wordBreak: "break-word" })}>
+          </Box>
+          <Box color="fg.muted">:</Box>
+          <Box color={getValueColor(value)} wordBreak="break-word">
             {formattedValue}
-          </span>
-          {!isLast && <span class={css({ color: "fg.muted" })}>,</span>}
-        </div>
+          </Box>
+          {!isLast && <Box color="fg.muted">,</Box>}
+        </Flex>
         {standardClaim && (
-          <span class={css({ fontSize: "xs", color: "fg.muted", fontStyle: "italic" })}>
+          <Box fontSize="xs" color="fg.muted" fontStyle="italic">
             {standardClaim.label}
             {["exp", "iat", "nbf"].includes(claimKey) && typeof value === "number" && (
               <> - {formatDate(value)}</>
             )}
-          </span>
+          </Box>
         )}
-      </div>
-    </div>
+      </Box>
+    </Flex>
   );
 }
 
@@ -420,9 +394,9 @@ function JsonDisplay({ data }: { data: Record<string, unknown> }) {
   const entries = Object.entries(data);
 
   return (
-    <div class={css({ fontFamily: "mono", fontSize: "sm", lineHeight: "relaxed" })}>
-      <span class={css({ color: "fg.muted" })}>{"{"}</span>
-      <div class={css({ pl: "4" })}>
+    <Box fontFamily="mono" fontSize="sm" lineHeight="relaxed">
+      <Box color="fg.muted">{"{"}</Box>
+      <Box pl="4">
         {entries.map(([key, value], index) => (
           <ClaimRow
             key={key}
@@ -431,9 +405,9 @@ function JsonDisplay({ data }: { data: Record<string, unknown> }) {
             isLast={index === entries.length - 1}
           />
         ))}
-      </div>
-      <span class={css({ color: "fg.muted" })}>{"}"}</span>
-    </div>
+      </Box>
+      <Box color="fg.muted">{"}"}</Box>
+    </Box>
   );
 }
 
@@ -511,64 +485,52 @@ function SectionCard({
   const style = colorStyles[color];
 
   return (
-    <div
-      class={`${css({
-        border: "1px solid",
-        rounded: "lg",
-        overflow: "hidden",
-        bg: "bg.default",
-      })} ${style.border}`}
-    >
+    <Box border="1px solid" rounded="lg" overflow="hidden" bg="bg.default" className={style.border}>
       {/* Header */}
-      <div
-        class={`${css({
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "2",
-          px: "4",
-          py: "3",
-          borderBottom: "1px solid",
-          borderColor: "inherit",
-        })} ${style.header}`}
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        flexWrap="wrap"
+        gap="2"
+        px="4"
+        py="3"
+        borderBottom="1px solid"
+        borderColor="inherit"
+        className={style.header}
       >
-        <div class={css({ display: "flex", alignItems: "center", gap: "2", flexWrap: "wrap" })}>
-          <span class={style.title}>
+        <HStack gap="2" flexWrap="wrap" alignItems="center">
+          <Box className={style.title}>
             <Icon name={icon} />
-          </span>
-          <h3 class={`${css({ fontSize: "sm", fontWeight: "semibold" })} ${style.title}`}>
+          </Box>
+          <Box fontSize="sm" fontWeight="semibold" className={style.title}>
             {title}
-          </h3>
+          </Box>
           {badge}
-        </div>
+        </HStack>
         <CopyButton text={copyText} label={copyLabel} />
-      </div>
+      </Flex>
 
       {/* Countdown bar (for payload with exp) */}
       {countdown && (
-        <div
-          class={css({
-            px: "4",
-            py: "2",
-            bg: "bg.subtle",
-            borderBottom: "1px solid",
-            borderColor: "inherit",
-            display: "flex",
-            alignItems: "center",
-            gap: "2",
-          })}
+        <HStack
+          gap="2"
+          px="4"
+          py="2"
+          bg="bg.subtle"
+          borderBottom="1px solid"
+          borderColor="inherit"
+          alignItems="center"
         >
           <Icon name="clock" className={css({ w: "4", h: "4", color: "fg.muted" })} />
           {countdown}
-        </div>
+        </HStack>
       )}
 
       {/* Content */}
-      <div class={css({ p: "4", overflowX: "auto" })}>
+      <Box p="4" overflowX="auto">
         {children}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
@@ -578,26 +540,22 @@ function SectionCard({
 
 function ErrorDisplay({ error }: { error: string }) {
   return (
-    <div
-      class={css({
-        display: "flex",
-        alignItems: "flex-start",
-        gap: "3",
-        p: "4",
-        bg: "red.50",
-        border: "1px solid",
-        borderColor: "red.200",
-        rounded: "lg",
-        color: "red.800",
-        _dark: { bg: "red.950/30", borderColor: "red.800", color: "red.300" },
-      })}
+    <Flex
+      alignItems="flex-start"
+      gap="3"
+      p="4"
+      bg={{ base: "red.50", _dark: "red.950/30" }}
+      border="1px solid"
+      borderColor={{ base: "red.200", _dark: "red.800" }}
+      rounded="lg"
+      color={{ base: "red.800", _dark: "red.300" }}
     >
       <Icon name="x-circle" className={css({ w: "5", h: "5", flexShrink: 0, mt: "0.5" })} />
-      <div>
-        <div class={css({ fontWeight: "semibold", mb: "1" })}>Invalid JWT Token</div>
-        <div class={css({ fontSize: "sm" })}>{error}</div>
-      </div>
-    </div>
+      <Box>
+        <Box fontWeight="semibold" mb="1">Invalid JWT Token</Box>
+        <Box fontSize="sm">{error}</Box>
+      </Box>
+    </Flex>
   );
 }
 
@@ -642,49 +600,47 @@ function JwtViewer() {
   // Render states
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>
-          <div class={css({ display: "flex", alignItems: "center", gap: "2" })}>
-            <div
-              class={css({
-                w: "4",
-                h: "4",
-                border: "2px solid",
-                borderColor: "border.default",
-                borderTopColor: "blue.500",
-                rounded: "full",
-                animation: "spin 1s linear infinite",
-              })}
+      <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Center p="10" color="fg.muted">
+          <HStack gap="2" alignItems="center">
+            <Box
+              w="4"
+              h="4"
+              border="2px solid"
+              borderColor="border.default"
+              borderTopColor="blue.500"
+              rounded="full"
+              animation="spin 1s linear infinite"
             />
             Loading JWT...
-          </div>
-        </div>
-      </div>
+          </HStack>
+        </Center>
+      </VStack>
     );
   }
 
   if (parseError) {
     return (
-      <div class={styles.container}>
+      <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
         <ErrorDisplay error={parseError} />
-      </div>
+      </VStack>
     );
   }
 
   if (!data) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No JWT data received</div>
-      </div>
+      <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Box p="10" textAlign="center" color="fg.muted">No JWT data received</Box>
+      </VStack>
     );
   }
 
   // Handle invalid JWT from the tool
   if (!data.valid && data.error) {
     return (
-      <div class={styles.container}>
+      <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
         <ErrorDisplay error={data.error} />
-      </div>
+      </VStack>
     );
   }
 
@@ -692,7 +648,7 @@ function JwtViewer() {
   const expTimestamp = data.payload?.exp as number;
 
   return (
-    <div class={styles.container}>
+    <VStack gap="4" p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
       {/* Header Section */}
       <SectionCard
         title="Header"
@@ -718,32 +674,29 @@ function JwtViewer() {
 
         {/* Time details */}
         {(data.expiresAt || data.issuedAt) && (
-          <div
-            class={css({
-              mt: "4",
-              pt: "4",
-              borderTop: "1px solid",
-              borderColor: "border.subtle",
-              display: "flex",
-              flexDirection: "column",
-              gap: "2",
-              fontSize: "xs",
-              color: "fg.muted",
-            })}
+          <VStack
+            gap="2"
+            mt="4"
+            pt="4"
+            borderTop="1px solid"
+            borderColor="border.subtle"
+            fontSize="xs"
+            color="fg.muted"
+            alignItems="flex-start"
           >
             {data.issuedAt && (
-              <div class={css({ display: "flex", alignItems: "center", gap: "2" })}>
+              <HStack gap="2" alignItems="center">
                 <Icon name="calendar" />
                 <span>Issued: {formatFullDate(data.issuedAt)}</span>
-              </div>
+              </HStack>
             )}
             {data.expiresAt && (
-              <div class={css({ display: "flex", alignItems: "center", gap: "2" })}>
+              <HStack gap="2" alignItems="center">
                 <Icon name="clock" />
                 <span>Expires: {formatFullDate(data.expiresAt)}</span>
-              </div>
+              </HStack>
             )}
-          </div>
+          </VStack>
         )}
       </SectionCard>
 
@@ -755,67 +708,42 @@ function JwtViewer() {
         copyText={data.signature}
         copyLabel="Signature"
       >
-        <div class={css({ fontFamily: "mono", fontSize: "sm" })}>
-          <div
-            class={css({
-              wordBreak: "break-all",
-              color: "fg.muted",
-              mb: "3",
-              p: "3",
-              bg: "bg.subtle",
-              rounded: "md",
-              border: "1px solid",
-              borderColor: "border.subtle",
-            })}
+        <Box fontFamily="mono" fontSize="sm">
+          <Code
+            wordBreak="break-all"
+            color="fg.muted"
+            mb="3"
+            p="3"
+            bg="bg.subtle"
+            rounded="md"
+            border="1px solid"
+            borderColor="border.subtle"
+            display="block"
           >
             {data.signature}
-          </div>
-          <div
-            class={css({
-              display: "flex",
-              alignItems: "center",
-              gap: "2",
-              p: "3",
-              bg: "yellow.50",
-              border: "1px solid",
-              borderColor: "yellow.200",
-              rounded: "md",
-              fontSize: "xs",
-              color: "yellow.800",
-              _dark: { bg: "yellow.950/30", borderColor: "yellow.800", color: "yellow.300" },
-            })}
+          </Code>
+          <Flex
+            alignItems="center"
+            gap="2"
+            p="3"
+            bg={{ base: "yellow.50", _dark: "yellow.950/30" }}
+            border="1px solid"
+            borderColor={{ base: "yellow.200", _dark: "yellow.800" }}
+            rounded="md"
+            fontSize="xs"
+            color={{ base: "yellow.800", _dark: "yellow.300" }}
           >
             <Icon name="alert-triangle" className={css({ w: "4", h: "4", flexShrink: 0 })} />
             <span>Signature verification requires the secret key. This view is for inspection only.</span>
-          </div>
-        </div>
+          </Flex>
+        </Box>
       </SectionCard>
-    </div>
+    </VStack>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minH: "200px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "4",
-  }),
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<JwtViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<JwtViewer />);

@@ -11,11 +11,14 @@
  * @module lib/std/src/ui/yaml-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -61,9 +64,7 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 function parseYaml(yamlStr: string): unknown {
   const lines = yamlStr.split("\n");
   const result: unknown[] = [];
-  const stack: { indent: number; obj: unknown; key?: string }[] = [
-    { indent: -1, obj: result },
-  ];
+  const stack: { indent: number; obj: unknown; key?: string }[] = [{ indent: -1, obj: result }];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -162,10 +163,7 @@ function ensureArray(parent: { obj: unknown }, _stack: unknown[]): unknown[] {
   return arr;
 }
 
-function ensureObject(
-  parent: { obj: unknown },
-  _stack: unknown[]
-): Record<string, unknown> {
+function ensureObject(parent: { obj: unknown }, _stack: unknown[]): Record<string, unknown> {
   if (Array.isArray(parent.obj)) {
     const obj: Record<string, unknown> = {};
     parent.obj.push(obj);
@@ -196,6 +194,19 @@ function parseValue(str: string): unknown {
 }
 
 // ============================================================================
+// Value Styles
+// ============================================================================
+
+const valueStyles: Record<YamlNode["type"], string> = {
+  string: css({ color: "green.600", fontFamily: "mono", _dark: { color: "green.400" } }),
+  number: css({ color: "orange.600", fontFamily: "mono", _dark: { color: "orange.400" } }),
+  boolean: css({ color: "purple.600", fontFamily: "mono", _dark: { color: "purple.400" } }),
+  null: css({ color: "gray.500", fontStyle: "italic", fontFamily: "mono" }),
+  object: css({ color: "fg.default", fontFamily: "mono" }),
+  array: css({ color: "fg.default", fontFamily: "mono" }),
+};
+
+// ============================================================================
 // YAML Tree Node Component
 // ============================================================================
 
@@ -222,36 +233,31 @@ function YamlTreeNode({
       String(node.value).toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div class={css({ position: "relative" })}>
+    <Box position="relative">
       {/* Indent guide line */}
       {depth > 0 && (
-        <div
-          class={css({
-            position: "absolute",
-            left: `${(depth - 1) * 20 + 8}px`,
-            top: "0",
-            bottom: "0",
-            width: "1px",
-            bg: "border.default",
-            opacity: "0.3",
-          })}
+        <Box
+          position="absolute"
+          left={`${(depth - 1) * 20 + 8}px`}
+          top="0"
+          bottom="0"
+          width="1px"
+          bg="border.default"
+          opacity="0.3"
         />
       )}
 
-      <div
-        class={css({
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "1",
-          py: "1",
-          pl: `${depth * 20}px`,
-          pr: "2",
-          rounded: "sm",
-          cursor: hasChildren ? "pointer" : "default",
-          bg: matchesSearch ? "yellow.100" : "transparent",
-          _hover: { bg: "bg.subtle" },
-          _dark: matchesSearch ? { bg: "yellow.900/30" } : {},
-        })}
+      <Flex
+        align="flex-start"
+        gap="1"
+        py="1"
+        pl={`${depth * 20}px`}
+        pr="2"
+        rounded="sm"
+        cursor={hasChildren ? "pointer" : "default"}
+        bg={matchesSearch ? "yellow.100" : "transparent"}
+        _hover={{ bg: "bg.subtle" }}
+        _dark={matchesSearch ? { bg: "yellow.900/30" } : {}}
         onClick={() => {
           if (hasChildren) onToggle(node.path);
           else onSelect(node.path, node.value);
@@ -259,49 +265,41 @@ function YamlTreeNode({
       >
         {/* Array item marker */}
         {node.isArrayItem && (
-          <span class={css({ color: "fg.muted", fontFamily: "mono", mr: "1" })}>-</span>
+          <span className={css({ color: "fg.muted", fontFamily: "mono", mr: "1" })}>-</span>
         )}
 
         {/* Expand/collapse icon for objects/arrays */}
         {hasChildren ? (
-          <span
-            class={css({
-              w: "4",
-              color: "fg.muted",
-              fontSize: "xs",
-              flexShrink: "0",
-              userSelect: "none",
-            })}
-          >
+          <span className={css({ w: "4", color: "fg.muted", fontSize: "xs", flexShrink: "0", userSelect: "none" })}>
             {isExpanded ? "v" : ">"}
           </span>
         ) : (
-          <span class={css({ w: "4", flexShrink: "0" })} />
+          <span className={css({ w: "4", flexShrink: "0" })} />
         )}
 
         {/* Key */}
         {!node.isArrayItem && node.key !== "$" && (
           <>
-            <span class={styles.key}>{node.key}</span>
-            <span class={css({ color: "fg.muted" })}>:</span>
+            <span className={css({ color: "blue.600", fontWeight: "medium", fontFamily: "mono", _dark: { color: "blue.400" } })}>
+              {node.key}
+            </span>
+            <span className={css({ color: "fg.muted" })}>:</span>
           </>
         )}
 
         {/* Value */}
         {hasChildren ? (
-          <span class={css({ color: "fg.muted", fontSize: "xs", ml: "1" })}>
-            {node.type === "array"
-              ? `(${node.children!.length} items)`
-              : `(${node.children!.length} keys)`}
+          <span className={css({ color: "fg.muted", fontSize: "xs", ml: "1" })}>
+            {node.type === "array" ? `(${node.children!.length} items)` : `(${node.children!.length} keys)`}
           </span>
         ) : (
-          <span class={getValueStyle(node.type)}>{formatValue(node.value, node.type)}</span>
+          <span className={valueStyles[node.type]}>{formatValue(node.value, node.type)}</span>
         )}
-      </div>
+      </Flex>
 
       {/* Children */}
       {hasChildren && isExpanded && (
-        <div>
+        <Box>
           {node.children!.map((child) => (
             <YamlTreeNode
               key={child.path}
@@ -313,9 +311,9 @@ function YamlTreeNode({
               searchTerm={searchTerm}
             />
           ))}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -384,9 +382,7 @@ data:
       setError(null);
 
       try {
-        const textContent = result.content?.find((c) => c.type === "text") as
-          | ContentItem
-          | undefined;
+        const textContent = result.content?.find((c) => c.type === "text") as ContentItem | undefined;
         if (!textContent?.text) {
           setData(null);
           setRawYaml("");
@@ -456,62 +452,63 @@ data:
   // Render
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading YAML...</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Box p="10" textAlign="center" color="fg.muted">Loading YAML...</Box>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>{error}</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Box p="4" bg="red.50" color="red.700" rounded="md" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
+      </Box>
     );
   }
 
   if (!tree) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No YAML data</div>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
+        <Box p="10" textAlign="center" color="fg.muted">No YAML data</Box>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="200px">
       {/* Toolbar */}
-      <div class={styles.toolbar}>
-        <input
+      <Flex gap="2" mb="3" flexWrap="wrap" align="center">
+        <Input
           type="text"
           placeholder="Search keys or values..."
           value={searchTerm}
-          onInput={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
-          class={styles.searchInput}
+          onChange={(e) => setSearchTerm((e.target as HTMLInputElement).value)}
+          size="sm"
+          className={css({ flex: 1, minW: "150px" })}
         />
-        <button class={styles.btn} onClick={handleExpandAll}>
+        <Button variant="outline" size="sm" onClick={handleExpandAll}>
           Expand All
-        </button>
-        <button class={styles.btn} onClick={handleCollapseAll}>
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleCollapseAll}>
           Collapse
-        </button>
-        <button class={styles.btn} onClick={handleCopyToClipboard}>
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleCopyToClipboard}>
           {copyStatus || "Copy"}
-        </button>
-      </div>
+        </Button>
+      </Flex>
 
       {/* Selected path */}
       {selectedPath && (
-        <div class={styles.pathBar}>
-          <span class={css({ color: "fg.muted", fontSize: "xs" })}>Path:</span>
-          <code class={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600" })}>
+        <Flex gap="2" align="center" mb="2" p="2" bg="bg.subtle" rounded="md">
+          <span className={css({ color: "fg.muted", fontSize: "xs" })}>Path:</span>
+          <code className={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600" })}>
             {selectedPath}
           </code>
-        </div>
+        </Flex>
       )}
 
       {/* Tree */}
-      <div class={styles.treeContainer}>
+      <Box border="1px solid" borderColor="border.default" rounded="lg" p="3" bg="bg.default" overflowX="auto" fontFamily="mono" fontSize="sm">
         {tree.children ? (
           tree.children.map((child) => (
             <YamlTreeNode
@@ -534,130 +531,16 @@ data:
             searchTerm={searchTerm}
           />
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
-}
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minH: "200px",
-  }),
-  toolbar: css({
-    display: "flex",
-    gap: "2",
-    mb: "3",
-    flexWrap: "wrap",
-    alignItems: "center",
-  }),
-  searchInput: css({
-    flex: 1,
-    minW: "150px",
-    p: "1.5",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "sm",
-    outline: "none",
-    _focus: { borderColor: "border.accent" },
-  }),
-  btn: css({
-    px: "3",
-    py: "1.5",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  pathBar: css({
-    display: "flex",
-    gap: "2",
-    alignItems: "center",
-    mb: "2",
-    p: "2",
-    bg: "bg.subtle",
-    rounded: "md",
-  }),
-  treeContainer: css({
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    p: "3",
-    bg: "bg.default",
-    overflowX: "auto",
-    fontFamily: "mono",
-    fontSize: "sm",
-  }),
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  error: css({
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    _dark: { bg: "red.950", color: "red.300" },
-  }),
-  key: css({
-    color: "blue.600",
-    fontWeight: "medium",
-    fontFamily: "mono",
-    _dark: { color: "blue.400" },
-  }),
-};
-
-function getValueStyle(type: YamlNode["type"]): string {
-  const typeStyles: Record<YamlNode["type"], string> = {
-    string: css({
-      color: "green.600",
-      fontFamily: "mono",
-      _dark: { color: "green.400" },
-    }),
-    number: css({
-      color: "orange.600",
-      fontFamily: "mono",
-      _dark: { color: "orange.400" },
-    }),
-    boolean: css({
-      color: "purple.600",
-      fontFamily: "mono",
-      _dark: { color: "purple.400" },
-    }),
-    null: css({
-      color: "gray.500",
-      fontStyle: "italic",
-      fontFamily: "mono",
-    }),
-    object: css({ color: "fg.default", fontFamily: "mono" }),
-    array: css({ color: "fg.default", fontFamily: "mono" }),
-  };
-  return typeStyles[type];
 }
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-function buildTree(
-  key: string,
-  value: unknown,
-  path: string,
-  isArrayItem: boolean
-): YamlNode {
+function buildTree(key: string, value: unknown, path: string, isArrayItem: boolean): YamlNode {
   const type = getType(value);
   const node: YamlNode = { key, value, path, type, isArrayItem };
 
@@ -666,9 +549,7 @@ function buildTree(
       buildTree(k, v, `${path}.${k}`, false)
     );
   } else if (type === "array") {
-    node.children = (value as unknown[]).map((v, i) =>
-      buildTree(String(i), v, `${path}[${i}]`, true)
-    );
+    node.children = (value as unknown[]).map((v, i) => buildTree(String(i), v, `${path}[${i}]`, true));
   }
 
   return node;
@@ -758,4 +639,4 @@ function toYamlString(data: unknown, indent: number): string {
 // Mount
 // ============================================================================
 
-render(<YamlViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<YamlViewer />);

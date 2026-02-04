@@ -1,17 +1,21 @@
 /**
  * Table Viewer UI for MCP Apps
  *
- * Interactive table using Preact + Park UI (Panda CSS).
+ * Interactive table using React + Park UI (Panda CSS).
  * Displays query results with sorting, filtering, pagination, and row selection.
  *
  * @module lib/std/src/ui/table-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Center } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import * as Table from "../../components/ui/table";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -173,283 +177,174 @@ function TableViewer() {
   // Render states
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading data...</div>
-      </div>
+      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Center p="10" color="fg.muted">Loading data...</Center>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>{error}</div>
-      </div>
+      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box p="4" bg="red.50" color="red.700" rounded="md" _dark={{ bg: "red.950", color: "red.300" }}>
+          {error}
+        </Box>
+      </Box>
     );
   }
 
   if (!data || data.rows.length === 0) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No data to display</div>
-      </div>
+      <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Center p="10" color="fg.muted">No data to display</Center>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" maxW="100%" overflow="hidden" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
       {/* Header */}
-      <div class={styles.header}>
-        <input
+      <Flex gap="3" mb="3" align="center" flexWrap="wrap">
+        <Input
           type="text"
           placeholder="Filter rows..."
           value={filterText}
-          onInput={handleFilter}
-          class={styles.filterInput}
+          onChange={handleFilter}
+          size="sm"
+          className={css({ flex: 1, minW: "200px" })}
         />
-        <span class={styles.stats}>
+        <Box color="fg.muted" fontSize="xs" whiteSpace="nowrap">
           Showing {startIdx + 1}-{Math.min(startIdx + pageSize, sortedRows.length)} of {sortedRows.length}
           {filterText && ` (filtered from ${data.rows.length})`}
-        </span>
-      </div>
+        </Box>
+      </Flex>
 
       {/* Table */}
-      <div class={styles.tableContainer}>
-        <table class={styles.table}>
-          <thead>
-            <tr>
+      <Box overflowX="auto" rounded="lg">
+        <Table.Root size="sm" variant="outline">
+          <Table.Head>
+            <Table.Row>
               {data.columns.map((col, i) => (
-                <th
+                <Table.Header
                   key={i}
-                  class={css(styles.th, sortColumn === i && styles.thSorted)}
                   onClick={() => handleSort(i)}
+                  className={css({
+                    cursor: "pointer",
+                    userSelect: "none",
+                    whiteSpace: "nowrap",
+                    bg: sortColumn === i ? "bg.muted" : "bg.subtle",
+                    _hover: { bg: "bg.muted" },
+                  })}
                 >
                   {col}
-                  <span class={styles.sortIndicator}>
-                    {sortColumn === i ? (sortDirection === "asc" ? "▲" : "▼") : "⇅"}
-                  </span>
-                </th>
+                  <Box as="span" ml="1" opacity={0.5}>
+                    {sortColumn === i ? (sortDirection === "asc" ? "\u25B2" : "\u25BC") : "\u21C5"}
+                  </Box>
+                </Table.Header>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </Table.Row>
+          </Table.Head>
+          <Table.Body>
             {pageRows.map((row, rowIdx) => {
               const absoluteIdx = startIdx + rowIdx;
+              const isSelected = selectedRow === absoluteIdx;
               return (
-                <tr
+                <Table.Row
                   key={absoluteIdx}
-                  class={css(styles.tr, selectedRow === absoluteIdx && styles.trSelected)}
                   onClick={() => handleRowClick(rowIdx)}
+                  className={css({
+                    cursor: "pointer",
+                    bg: isSelected ? "blue.50" : "transparent",
+                    _hover: { bg: isSelected ? "blue.100" : "bg.subtle" },
+                    _dark: isSelected ? { bg: "blue.950", _hover: { bg: "blue.900" } } : {},
+                  })}
                 >
                   {row.map((cell, cellIdx) => {
                     const isNull = cell == null;
                     const isNumber = typeof cell === "number";
                     return (
-                      <td
+                      <Table.Cell
                         key={cellIdx}
-                        class={css(
-                          styles.td,
-                          isNull && styles.tdNull,
-                          isNumber && styles.tdNumber
-                        )}
                         title={String(cell ?? "")}
+                        className={css({
+                          maxW: "300px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          color: isNull ? "fg.muted" : "inherit",
+                          fontStyle: isNull ? "italic" : "normal",
+                          fontFamily: isNumber ? "mono" : "inherit",
+                          textAlign: isNumber ? "right" : "left",
+                        })}
                       >
                         {isNull ? "NULL" : formatValue(cell)}
-                      </td>
+                      </Table.Cell>
                     );
                   })}
-                </tr>
+                </Table.Row>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </Table.Body>
+        </Table.Root>
+      </Box>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div class={styles.pagination}>
-          <span class={styles.pageInfo}>Page {currentPage + 1} of {totalPages}</span>
-          <div class={styles.pageControls}>
-            <button
-              class={styles.pageBtn}
+        <Flex justify="space-between" align="center" mt="3" gap="3">
+          <Box color="fg.muted" fontSize="xs">
+            Page {currentPage + 1} of {totalPages}
+          </Box>
+          <Flex gap="1">
+            <Button
+              variant="outline"
+              size="xs"
               disabled={currentPage === 0}
               onClick={() => setCurrentPage(0)}
-            >⏮</button>
-            <button
-              class={styles.pageBtn}
+            >First</Button>
+            <Button
+              variant="outline"
+              size="xs"
               disabled={currentPage === 0}
               onClick={() => setCurrentPage((p) => p - 1)}
-            >◀</button>
-            <button
-              class={styles.pageBtn}
+            >Prev</Button>
+            <Button
+              variant="outline"
+              size="xs"
               disabled={currentPage >= totalPages - 1}
               onClick={() => setCurrentPage((p) => p + 1)}
-            >▶</button>
-            <button
-              class={styles.pageBtn}
+            >Next</Button>
+            <Button
+              variant="outline"
+              size="xs"
               disabled={currentPage >= totalPages - 1}
               onClick={() => setCurrentPage(totalPages - 1)}
-            >⏭</button>
-          </div>
-        </div>
+            >Last</Button>
+          </Flex>
+        </Flex>
       )}
-    </div>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles (Panda CSS)
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    maxW: "100%",
-    overflow: "hidden",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-  }),
-  header: css({
-    display: "flex",
-    gap: "3",
-    mb: "3",
-    alignItems: "center",
-    flexWrap: "wrap",
-  }),
-  filterInput: css({
-    flex: 1,
-    minW: "200px",
-    p: "2",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "sm",
-    outline: "none",
-    _focus: {
-      borderColor: "border.accent",
-      shadow: "0 0 0 3px token(colors.blue.500/20)",
-    },
-  }),
-  stats: css({
-    color: "fg.muted",
-    fontSize: "xs",
-    whiteSpace: "nowrap",
-  }),
-  tableContainer: css({
-    overflowX: "auto",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-  }),
-  table: css({
-    w: "full",
-    borderCollapse: "collapse",
-    fontSize: "sm",
-  }),
-  th: css({
-    p: "3",
-    textAlign: "left",
-    bg: "bg.subtle",
-    fontWeight: "semibold",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    cursor: "pointer",
-    userSelect: "none",
-    whiteSpace: "nowrap",
-    position: "sticky",
-    top: 0,
-    _hover: { bg: "bg.muted" },
-  }),
-  thSorted: css({
-    bg: "bg.muted",
-  }),
-  sortIndicator: css({
-    ml: "1",
-    opacity: 0.5,
-  }),
-  tr: css({
-    cursor: "pointer",
-    _hover: { bg: "bg.subtle" },
-  }),
-  trSelected: css({
-    bg: "blue.50",
-    _hover: { bg: "blue.100" },
-    _dark: { bg: "blue.950", _hover: { bg: "blue.900" } },
-  }),
-  td: css({
-    p: "2.5",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    maxW: "300px",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  }),
-  tdNull: css({
-    color: "fg.muted",
-    fontStyle: "italic",
-  }),
-  tdNumber: css({
-    fontFamily: "mono",
-    textAlign: "right",
-  }),
-  pagination: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mt: "3",
-    gap: "3",
-  }),
-  pageInfo: css({
-    color: "fg.muted",
-    fontSize: "xs",
-  }),
-  pageControls: css({
-    display: "flex",
-    gap: "1",
-  }),
-  pageBtn: css({
-    px: "3",
-    py: "1.5",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "sm",
-    bg: "bg.subtle",
-    color: "fg.default",
-    cursor: "pointer",
-    fontSize: "sm",
-    _hover: { bg: "bg.muted" },
-    _disabled: { opacity: 0.5, cursor: "not-allowed" },
-  }),
-  loading: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    p: "10",
-    color: "fg.muted",
-  }),
-  empty: css({
-    textAlign: "center",
-    p: "10",
-    color: "fg.muted",
-  }),
-  error: css({
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    _dark: { bg: "red.950", color: "red.300" },
-  }),
-};
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
 function normalizeData(parsed: unknown): QueryResult | null {
+  // Handle MCP content format: {content: [{type: "text", text: "..."}]}
+  if (parsed && typeof parsed === "object" && "content" in parsed) {
+    const content = (parsed as { content: ContentItem[] }).content;
+    const textItem = content?.find((c) => c.type === "text");
+    if (textItem?.text) {
+      try {
+        const innerParsed = JSON.parse(textItem.text);
+        return normalizeData(innerParsed); // Recurse with extracted data
+      } catch {
+        // Not JSON, treat as raw text
+      }
+    }
+  }
+
   if (Array.isArray(parsed)) {
     if (parsed.length > 0 && typeof parsed[0] === "object" && parsed[0] !== null) {
       const columns = Object.keys(parsed[0]);
@@ -460,10 +355,26 @@ function normalizeData(parsed: unknown): QueryResult | null {
   }
 
   if (parsed && typeof parsed === "object") {
+    // Format 1: Already has columns/rows structure (mock data, SQL results)
     if ("columns" in parsed && "rows" in parsed) {
       return parsed as QueryResult;
     }
+
+    // Format 2: Object with an array of objects property (e.g., { containers: [...], count: 8 })
+    // Find the first property that is an array of objects and use it as the main data
     const entries = Object.entries(parsed);
+    const arrayEntry = entries.find(
+      ([, v]) => Array.isArray(v) && v.length > 0 && typeof v[0] === "object" && v[0] !== null
+    );
+    if (arrayEntry) {
+      const [, arrayData] = arrayEntry;
+      const arr = arrayData as Record<string, unknown>[];
+      const columns = Object.keys(arr[0]);
+      const rows = arr.map((item) => columns.map((col) => item[col]));
+      return { columns, rows, totalCount: rows.length };
+    }
+
+    // Format 3: Simple key-value object (fallback)
     return {
       columns: ["key", "value"],
       rows: entries.map(([k, v]) => [k, formatValue(v)]),
@@ -484,4 +395,4 @@ function formatValue(value: unknown): string {
 // Mount
 // ============================================================================
 
-render(<TableViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<TableViewer />);

@@ -10,11 +10,15 @@
  * @module lib/std/src/ui/diff-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Grid } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { ButtonGroup } from "../../components/ui/button";
+import * as Select from "../../components/ui/select";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -304,6 +308,45 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 }
 
 // ============================================================================
+// Syntax Highlighting Styles
+// ============================================================================
+
+const syntaxStyles: Record<SyntaxToken["type"], string> = {
+  keyword: css({
+    color: "purple.600",
+    fontWeight: "medium",
+    _dark: { color: "purple.400" },
+  }),
+  string: css({
+    color: "green.700",
+    _dark: { color: "green.400" },
+  }),
+  comment: css({
+    color: "gray.500",
+    fontStyle: "italic",
+    _dark: { color: "gray.400" },
+  }),
+  number: css({
+    color: "orange.600",
+    _dark: { color: "orange.400" },
+  }),
+  operator: css({
+    color: "fg.default",
+  }),
+  function: css({
+    color: "blue.600",
+    _dark: { color: "blue.400" },
+  }),
+  type: css({
+    color: "cyan.700",
+    _dark: { color: "cyan.400" },
+  }),
+  plain: css({
+    color: "inherit",
+  }),
+};
+
+// ============================================================================
 // Components
 // ============================================================================
 
@@ -313,7 +356,7 @@ function HighlightedCode({ content, language }: { content: string; language: Sup
   return (
     <>
       {tokens.map((token, i) => (
-        <span key={i} class={syntaxStyles[token.type]}>
+        <span key={i} className={syntaxStyles[token.type]}>
           {token.value}
         </span>
       ))}
@@ -323,99 +366,188 @@ function HighlightedCode({ content, language }: { content: string; language: Sup
 
 function UnifiedView({ hunks, language }: { hunks: DiffHunk[]; language: SupportedLanguage }) {
   return (
-    <div class={styles.diffContent}>
+    <Box overflowX="auto">
       {hunks.map((hunk, hi) => (
-        <div key={hi} class={styles.hunk}>
-          <div class={styles.hunkHeader}>{hunk.header}</div>
+        <Box key={hi} borderBottom="1px solid" borderColor="border.subtle" _last={{ borderBottom: "none" }}>
+          <Box p="2" bg="blue.50" color="blue.700" fontSize="xs" _dark={{ bg: "blue.950", color: "blue.300" }}>
+            {hunk.header}
+          </Box>
           {hunk.lines.map((line, li) => (
-            <div
+            <Flex
               key={li}
-              class={css(
-                styles.line,
-                line.type === "add" && styles.lineAdd,
-                line.type === "remove" && styles.lineRemove,
-                line.type === "header" && styles.lineHeader
-              )}
+              minH="24px"
+              bg={line.type === "add" ? "green.50" : line.type === "remove" ? "red.50" : line.type === "header" ? "bg.subtle" : undefined}
+              _hover={{ bg: line.type === "add" ? "green.100" : line.type === "remove" ? "red.100" : "bg.subtle" }}
+              _dark={{
+                bg: line.type === "add" ? "green.950/50" : line.type === "remove" ? "red.950/50" : line.type === "header" ? "bg.subtle" : undefined,
+                _hover: { bg: line.type === "add" ? "green.900/50" : line.type === "remove" ? "red.900/50" : "bg.subtle" },
+              }}
               onClick={() => notifyModel("click", { hunk: hi, line: li, type: line.type })}
             >
-              <span class={styles.lineNumber}>
+              <Box
+                w="10"
+                px="2"
+                py="0.5"
+                textAlign="right"
+                color="fg.muted"
+                bg="bg.subtle"
+                borderRight="1px solid"
+                borderColor="border.subtle"
+                userSelect="none"
+                fontSize="xs"
+              >
                 {line.type === "remove" ? line.oldLine || "" : ""}
-              </span>
-              <span class={styles.lineNumber}>
+              </Box>
+              <Box
+                w="10"
+                px="2"
+                py="0.5"
+                textAlign="right"
+                color="fg.muted"
+                bg="bg.subtle"
+                borderRight="1px solid"
+                borderColor="border.subtle"
+                userSelect="none"
+                fontSize="xs"
+              >
                 {line.type === "add" ? line.newLine || "" : ""}
-              </span>
-              <span class={styles.lineNumber}>
+              </Box>
+              <Box
+                w="10"
+                px="2"
+                py="0.5"
+                textAlign="right"
+                color="fg.muted"
+                bg="bg.subtle"
+                borderRight="1px solid"
+                borderColor="border.subtle"
+                userSelect="none"
+                fontSize="xs"
+              >
                 {line.type === "context" ? line.oldLine || "" : ""}
-              </span>
-              <span class={styles.linePrefix}>
+              </Box>
+              <Box w="5" px="1" py="0.5" textAlign="center" fontWeight="bold" userSelect="none">
                 {line.type === "add" ? "+" : line.type === "remove" ? "-" : " "}
-              </span>
-              <span class={styles.lineContent}>
+              </Box>
+              <Box flex="1" px="2" py="0.5" whiteSpace="pre">
                 <HighlightedCode content={line.content} language={language} />
-              </span>
-            </div>
+              </Box>
+            </Flex>
           ))}
-        </div>
+        </Box>
       ))}
-    </div>
+    </Box>
   );
 }
 
 function SplitView({ hunks, language }: { hunks: DiffHunk[]; language: SupportedLanguage }) {
   return (
-    <div class={styles.splitContainer}>
+    <Grid gridTemplateColumns="1fr 1fr">
       {/* Old file (left) */}
-      <div class={styles.splitPane}>
-        <div class={styles.splitHeader}>Old</div>
+      <Box overflowX="auto" borderRight="1px solid" borderColor="border.default">
+        <Box p="2" bg="bg.subtle" fontWeight="medium" fontSize="xs" color="fg.muted" borderBottom="1px solid" borderColor="border.default">
+          Old
+        </Box>
         {hunks.map((hunk, hi) => (
-          <div key={hi} class={styles.hunk}>
+          <Box key={hi} borderBottom="1px solid" borderColor="border.subtle" _last={{ borderBottom: "none" }}>
             {hunk.lines
               .filter((l) => l.type !== "add")
               .map((line, li) => (
-                <div
+                <Flex
                   key={li}
-                  class={css(
-                    styles.line,
-                    line.type === "remove" && styles.lineRemove
-                  )}
+                  minH="24px"
+                  bg={line.type === "remove" ? "red.50" : undefined}
+                  _hover={{ bg: line.type === "remove" ? "red.100" : "bg.subtle" }}
+                  _dark={{
+                    bg: line.type === "remove" ? "red.950/50" : undefined,
+                    _hover: { bg: line.type === "remove" ? "red.900/50" : "bg.subtle" },
+                  }}
                 >
-                  <span class={styles.lineNumber}>{line.oldLine || ""}</span>
-                  <span class={styles.lineContent}>
+                  <Box
+                    w="10"
+                    px="2"
+                    py="0.5"
+                    textAlign="right"
+                    color="fg.muted"
+                    bg="bg.subtle"
+                    borderRight="1px solid"
+                    borderColor="border.subtle"
+                    userSelect="none"
+                    fontSize="xs"
+                  >
+                    {line.oldLine || ""}
+                  </Box>
+                  <Box flex="1" px="2" py="0.5" whiteSpace="pre">
                     <HighlightedCode content={line.content} language={language} />
-                  </span>
-                </div>
+                  </Box>
+                </Flex>
               ))}
-          </div>
+          </Box>
         ))}
-      </div>
+      </Box>
 
       {/* New file (right) */}
-      <div class={styles.splitPane}>
-        <div class={styles.splitHeader}>New</div>
+      <Box overflowX="auto">
+        <Box p="2" bg="bg.subtle" fontWeight="medium" fontSize="xs" color="fg.muted" borderBottom="1px solid" borderColor="border.default">
+          New
+        </Box>
         {hunks.map((hunk, hi) => (
-          <div key={hi} class={styles.hunk}>
+          <Box key={hi} borderBottom="1px solid" borderColor="border.subtle" _last={{ borderBottom: "none" }}>
             {hunk.lines
               .filter((l) => l.type !== "remove")
               .map((line, li) => (
-                <div
+                <Flex
                   key={li}
-                  class={css(
-                    styles.line,
-                    line.type === "add" && styles.lineAdd
-                  )}
+                  minH="24px"
+                  bg={line.type === "add" ? "green.50" : undefined}
+                  _hover={{ bg: line.type === "add" ? "green.100" : "bg.subtle" }}
+                  _dark={{
+                    bg: line.type === "add" ? "green.950/50" : undefined,
+                    _hover: { bg: line.type === "add" ? "green.900/50" : "bg.subtle" },
+                  }}
                 >
-                  <span class={styles.lineNumber}>{line.newLine || ""}</span>
-                  <span class={styles.lineContent}>
+                  <Box
+                    w="10"
+                    px="2"
+                    py="0.5"
+                    textAlign="right"
+                    color="fg.muted"
+                    bg="bg.subtle"
+                    borderRight="1px solid"
+                    borderColor="border.subtle"
+                    userSelect="none"
+                    fontSize="xs"
+                  >
+                    {line.newLine || ""}
+                  </Box>
+                  <Box flex="1" px="2" py="0.5" whiteSpace="pre">
                     <HighlightedCode content={line.content} language={language} />
-                  </span>
-                </div>
+                  </Box>
+                </Flex>
               ))}
-          </div>
+          </Box>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Grid>
   );
 }
+
+interface LanguageItem {
+  value: SupportedLanguage;
+  label: string;
+}
+
+const languageItems: LanguageItem[] = [
+  { value: "plain", label: "Plain Text" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "python", label: "Python" },
+  { value: "json", label: "JSON" },
+  { value: "css", label: "CSS" },
+  { value: "html", label: "HTML" },
+  { value: "sql", label: "SQL" },
+  { value: "bash", label: "Bash" },
+];
 
 function LanguageSelector({
   language,
@@ -424,31 +556,35 @@ function LanguageSelector({
   language: SupportedLanguage;
   onLanguageChange: (lang: SupportedLanguage) => void;
 }) {
-  const languages: Array<{ value: SupportedLanguage; label: string }> = [
-    { value: "plain", label: "Plain Text" },
-    { value: "javascript", label: "JavaScript" },
-    { value: "typescript", label: "TypeScript" },
-    { value: "python", label: "Python" },
-    { value: "json", label: "JSON" },
-    { value: "css", label: "CSS" },
-    { value: "html", label: "HTML" },
-    { value: "sql", label: "SQL" },
-    { value: "bash", label: "Bash" },
-  ];
-
   return (
-    <select
-      class={styles.languageSelect}
-      value={language}
-      onChange={(e) => onLanguageChange((e.target as HTMLSelectElement).value as SupportedLanguage)}
-      title="Select syntax highlighting language"
+    <Select.Root
+      items={languageItems}
+      value={[language]}
+      onValueChange={(details) => {
+        if (details.value[0]) {
+          onLanguageChange(details.value[0] as SupportedLanguage);
+        }
+      }}
+      positioning={{ sameWidth: true }}
+      size="sm"
     >
-      {languages.map((lang) => (
-        <option key={lang.value} value={lang.value}>
-          {lang.label}
-        </option>
-      ))}
-    </select>
+      <Select.Control>
+        <Select.Trigger className={css({ minW: "120px" })}>
+          <Select.ValueText placeholder="Language" />
+          <Select.Indicator />
+        </Select.Trigger>
+      </Select.Control>
+      <Select.Positioner>
+        <Select.Content>
+          {languageItems.map((item) => (
+            <Select.Item key={item.value} item={item}>
+              <Select.ItemText>{item.label}</Select.ItemText>
+              <Select.ItemIndicator />
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Positioner>
+    </Select.Root>
   );
 }
 
@@ -558,32 +694,44 @@ function DiffViewer() {
     notifyModel("navigate", { hunk: newHunk, direction });
   }, [diffData, currentHunk]);
 
-  // Render
+  // Render states
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading diff...</div></div>;
+    return (
+      <Box p="4" fontFamily="mono" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box p="10" textAlign="center" color="fg.muted">Loading diff...</Box>
+      </Box>
+    );
   }
 
   if (error) {
-    return <div class={styles.container}><div class={styles.error}>{error}</div></div>;
+    return (
+      <Box p="4" fontFamily="mono" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box p="4" bg="red.50" color="red.700" rounded="md" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
+      </Box>
+    );
   }
 
   if (!diffData?.hunks || diffData.hunks.length === 0) {
-    return <div class={styles.container}><div class={styles.empty}>No diff to display</div></div>;
+    return (
+      <Box p="4" fontFamily="mono" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box p="10" textAlign="center" color="fg.muted">No diff to display</Box>
+      </Box>
+    );
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="mono" fontSize="sm" color="fg.default" bg="bg.canvas">
       {/* Header */}
-      <div class={styles.header}>
-        <div class={styles.fileInfo}>
-          {diffData.filename && <span class={styles.filename}>{diffData.filename}</span>}
-          <span class={styles.stats}>
-            <span class={styles.statsAdd}>+{stats.additions}</span>
-            <span class={styles.statsRemove}>-{stats.deletions}</span>
-          </span>
-        </div>
+      <Flex justify="space-between" align="center" mb="3" flexWrap="wrap" gap="2">
+        <Flex align="center" gap="3">
+          {diffData.filename && <Box fontWeight="semibold" color="fg.default">{diffData.filename}</Box>}
+          <Flex gap="2" fontSize="xs">
+            <Box color="green.600" _dark={{ color: "green.400" }}>+{stats.additions}</Box>
+            <Box color="red.600" _dark={{ color: "red.400" }}>-{stats.deletions}</Box>
+          </Flex>
+        </Flex>
 
-        <div class={styles.controls}>
+        <Flex gap="3" align="center">
           {/* Language selector */}
           <LanguageSelector
             language={detectedLanguage}
@@ -591,295 +739,63 @@ function DiffViewer() {
           />
 
           {/* View mode toggle */}
-          <div class={styles.viewToggle}>
-            <button
-              class={css(styles.toggleBtn, viewMode === "inline" && styles.toggleBtnActive)}
+          <ButtonGroup size="sm" variant="outline">
+            <Button
+              variant={viewMode === "inline" ? "solid" : "outline"}
               onClick={() => handleViewModeChange("inline")}
               title="Inline view: additions and deletions on the same lines"
             >
-              <span class={styles.toggleIcon}>&#9776;</span>
+              <span className={css({ mr: "1", fontSize: "xs", opacity: 0.8 })}>&#9776;</span>
               Inline
-            </button>
-            <button
-              class={css(styles.toggleBtn, viewMode === "side-by-side" && styles.toggleBtnActive)}
+            </Button>
+            <Button
+              variant={viewMode === "side-by-side" ? "solid" : "outline"}
               onClick={() => handleViewModeChange("side-by-side")}
               title="Side-by-side view: old and new files in two columns"
             >
-              <span class={styles.toggleIcon}>&#9871;</span>
-              Side-by-side
-            </button>
-          </div>
+              <span className={css({ mr: "1", fontSize: "xs", opacity: 0.8 })}>&#9871;</span>
+              Split
+            </Button>
+          </ButtonGroup>
 
           {/* Hunk navigation */}
           {diffData.hunks.length > 1 && (
-            <div class={styles.nav}>
-              <button
-                class={styles.navBtn}
+            <Flex align="center" gap="2">
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={currentHunk === 0}
                 onClick={() => navigateHunk("prev")}
               >
-                ◀ Prev
-              </button>
-              <span class={styles.navInfo}>
+                Prev
+              </Button>
+              <Box fontSize="xs" color="fg.muted">
                 {currentHunk + 1} / {diffData.hunks.length}
-              </span>
-              <button
-                class={styles.navBtn}
+              </Box>
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={currentHunk >= diffData.hunks.length - 1}
                 onClick={() => navigateHunk("next")}
               >
-                Next ▶
-              </button>
-            </div>
+                Next
+              </Button>
+            </Flex>
           )}
-        </div>
-      </div>
+        </Flex>
+      </Flex>
 
       {/* Diff content */}
-      <div class={styles.diffContainer}>
+      <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden">
         {viewMode === "inline" ? (
           <UnifiedView hunks={diffData.hunks} language={detectedLanguage} />
         ) : (
           <SplitView hunks={diffData.hunks} language={detectedLanguage} />
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "mono",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "3",
-    flexWrap: "wrap",
-    gap: "2",
-  }),
-  fileInfo: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "3",
-  }),
-  filename: css({
-    fontWeight: "semibold",
-    color: "fg.default",
-  }),
-  stats: css({
-    display: "flex",
-    gap: "2",
-    fontSize: "xs",
-  }),
-  statsAdd: css({
-    color: "green.600",
-    _dark: { color: "green.400" },
-  }),
-  statsRemove: css({
-    color: "red.600",
-    _dark: { color: "red.400" },
-  }),
-  controls: css({
-    display: "flex",
-    gap: "3",
-    alignItems: "center",
-  }),
-  viewToggle: css({
-    display: "flex",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    overflow: "hidden",
-  }),
-  toggleBtn: css({
-    px: "3",
-    py: "1",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "xs",
-    border: "none",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  toggleBtnActive: css({
-    bg: "blue.600",
-    color: "white",
-    _hover: { bg: "blue.700" },
-  }),
-  toggleIcon: css({
-    mr: "1",
-    fontSize: "xs",
-    opacity: 0.8,
-  }),
-  nav: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  navBtn: css({
-    px: "2",
-    py: "1",
-    bg: "bg.subtle",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "sm",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-    _disabled: { opacity: 0.5, cursor: "not-allowed" },
-  }),
-  navInfo: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  diffContainer: css({
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-  }),
-  diffContent: css({
-    overflowX: "auto",
-  }),
-  splitContainer: css({
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-  }),
-  splitPane: css({
-    overflowX: "auto",
-    borderRight: "1px solid",
-    borderColor: "border.default",
-    _last: { borderRight: "none" },
-  }),
-  splitHeader: css({
-    p: "2",
-    bg: "bg.subtle",
-    fontWeight: "medium",
-    fontSize: "xs",
-    color: "fg.muted",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-  }),
-  hunk: css({
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    _last: { borderBottom: "none" },
-  }),
-  hunkHeader: css({
-    p: "2",
-    bg: "blue.50",
-    color: "blue.700",
-    fontSize: "xs",
-    _dark: { bg: "blue.950", color: "blue.300" },
-  }),
-  line: css({
-    display: "flex",
-    minH: "24px",
-    _hover: { bg: "bg.subtle" },
-  }),
-  lineAdd: css({
-    bg: "green.50",
-    _hover: { bg: "green.100" },
-    _dark: { bg: "green.950/50", _hover: { bg: "green.900/50" } },
-  }),
-  lineRemove: css({
-    bg: "red.50",
-    _hover: { bg: "red.100" },
-    _dark: { bg: "red.950/50", _hover: { bg: "red.900/50" } },
-  }),
-  lineHeader: css({
-    bg: "bg.subtle",
-    color: "fg.muted",
-  }),
-  lineNumber: css({
-    w: "10",
-    px: "2",
-    py: "0.5",
-    textAlign: "right",
-    color: "fg.muted",
-    bg: "bg.subtle",
-    borderRight: "1px solid",
-    borderColor: "border.subtle",
-    userSelect: "none",
-    fontSize: "xs",
-  }),
-  linePrefix: css({
-    w: "5",
-    px: "1",
-    py: "0.5",
-    textAlign: "center",
-    fontWeight: "bold",
-    userSelect: "none",
-  }),
-  lineContent: css({
-    flex: 1,
-    px: "2",
-    py: "0.5",
-    whiteSpace: "pre",
-  }),
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  error: css({ p: "4", bg: "red.50", color: "red.700", rounded: "md", _dark: { bg: "red.950", color: "red.300" } }),
-  languageSelect: css({
-    px: "2",
-    py: "1",
-    bg: "bg.subtle",
-    color: "fg.default",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-    _focus: { outline: "none", borderColor: "blue.500" },
-  }),
-};
-
-// Syntax highlighting styles
-const syntaxStyles: Record<SyntaxToken["type"], string> = {
-  keyword: css({
-    color: "purple.600",
-    fontWeight: "medium",
-    _dark: { color: "purple.400" },
-  }),
-  string: css({
-    color: "green.700",
-    _dark: { color: "green.400" },
-  }),
-  comment: css({
-    color: "gray.500",
-    fontStyle: "italic",
-    _dark: { color: "gray.400" },
-  }),
-  number: css({
-    color: "orange.600",
-    _dark: { color: "orange.400" },
-  }),
-  operator: css({
-    color: "fg.default",
-  }),
-  function: css({
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-  }),
-  type: css({
-    color: "cyan.700",
-    _dark: { color: "cyan.400" },
-  }),
-  plain: css({
-    color: "inherit",
-  }),
-};
 
 // ============================================================================
 // Helpers
@@ -925,4 +841,4 @@ function parseUnifiedDiff(unified: string): DiffHunk[] {
 // Mount
 // ============================================================================
 
-render(<DiffViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<DiffViewer />);

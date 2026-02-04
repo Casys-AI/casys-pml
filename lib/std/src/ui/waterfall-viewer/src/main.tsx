@@ -11,11 +11,12 @@
  * @module lib/std/src/ui/waterfall-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useRef } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Stack } from "../../styled-system/jsx";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -87,6 +88,19 @@ function truncateUrl(url: string, maxLength: number = 60): string {
   return url.slice(0, maxLength - 3) + "...";
 }
 
+function getMethodColor(method: string): string {
+  const colors: Record<string, string> = {
+    GET: "var(--colors-green-600)",
+    POST: "var(--colors-blue-600)",
+    PUT: "var(--colors-yellow-600)",
+    PATCH: "var(--colors-purple-600)",
+    DELETE: "var(--colors-red-600)",
+    HEAD: "var(--colors-fg-muted)",
+    OPTIONS: "var(--colors-fg-muted)",
+  };
+  return colors[method.toUpperCase()] || "var(--colors-fg-default)";
+}
+
 // ============================================================================
 // Components
 // ============================================================================
@@ -96,42 +110,28 @@ function TimeScale({ maxTime, width }: { maxTime: number; width: number }) {
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) => (maxTime / tickCount) * i);
 
   return (
-    <div class={styles.timeScale}>
-      <svg width={width} height={20} class={styles.timeScaleSvg}>
+    <Box w="100%">
+      <svg width={width} height={20} style={{ display: "block" }}>
         {ticks.map((tick, i) => {
           const x = (tick / maxTime) * width;
           return (
             <g key={i}>
-              <line
-                x1={x}
-                y1={15}
-                x2={x}
-                y2={20}
-                stroke="var(--colors-border-default)"
-                stroke-width="1"
-              />
+              <line x1={x} y1={15} x2={x} y2={20} stroke="var(--colors-border-default)" strokeWidth="1" />
               <text
                 x={x}
                 y={12}
                 fill="var(--colors-fg-muted)"
-                font-size="10"
-                text-anchor={i === 0 ? "start" : i === tickCount ? "end" : "middle"}
+                fontSize="10"
+                textAnchor={i === 0 ? "start" : i === tickCount ? "end" : "middle"}
               >
                 {formatTime(tick)}
               </text>
             </g>
           );
         })}
-        <line
-          x1={0}
-          y1={20}
-          x2={width}
-          y2={20}
-          stroke="var(--colors-border-default)"
-          stroke-width="1"
-        />
+        <line x1={0} y1={20} x2={width} y2={20} stroke="var(--colors-border-default)" strokeWidth="1" />
       </svg>
-    </div>
+    </Box>
   );
 }
 
@@ -174,17 +174,10 @@ function WaterfallBar({
   };
 
   return (
-    <div class={styles.waterfallBarContainer}>
-      <svg width={width} height={barHeight + 4} class={styles.waterfallBarSvg}>
+    <Box position="relative">
+      <svg width={width} height={barHeight + 4} style={{ display: "block", width: "100%" }}>
         {/* Background track */}
-        <rect
-          x={0}
-          y={2}
-          width={width}
-          height={barHeight}
-          fill="var(--colors-bg-subtle)"
-          rx={2}
-        />
+        <rect x={0} y={2} width={width} height={barHeight} fill="var(--colors-bg-subtle)" rx={2} />
         {/* Phase bars */}
         {bars.map(({ key, x, width: barWidth, config }) => (
           <rect
@@ -195,26 +188,39 @@ function WaterfallBar({
             height={barHeight}
             fill={config.color}
             rx={x === 0 ? 2 : 0}
-            class={styles.phaseBar}
+            className={css({ cursor: "pointer", transition: "opacity 0.15s ease", _hover: { opacity: 0.8 } })}
             onMouseEnter={(e) => handleMouseEnter(key, e as unknown as MouseEvent)}
             onMouseLeave={handleMouseLeave}
           />
         ))}
       </svg>
       {hoveredPhase && (
-        <div
-          class={styles.tooltip}
+        <Box
+          position="fixed"
+          bg="bg.default"
+          border="1px solid"
+          borderColor="border.default"
+          rounded="md"
+          px="2"
+          py="1"
+          fontSize="xs"
+          color="fg.default"
+          boxShadow="lg"
+          zIndex={1000}
+          pointerEvents="none"
+          whiteSpace="nowrap"
           style={{
-            left: `${tooltipPos.x}px`,
             top: `${tooltipPos.y - 40}px`,
+            left: `${Math.min(tooltipPos.x, window.innerWidth - 320)}px`,
+            transform: "translateX(-50%)",
           }}
         >
           <strong>{PHASE_CONFIG[hoveredPhase].description}</strong>
           <br />
           {formatTime(phases[hoveredPhase]!)}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -232,33 +238,38 @@ function RequestRow({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div class={styles.requestRow} data-index={index}>
-      <div class={styles.requestInfo} onClick={() => setExpanded(!expanded)}>
-        <span class={styles.method} style={{ color: getMethodColor(request.method) }}>
+    <Flex
+      flexWrap="wrap"
+      align="center"
+      py="2"
+      borderBottom="1px solid"
+      borderColor="border.subtle"
+      _hover={{ bg: "bg.subtle" }}
+      data-index={index}
+    >
+      <Flex w="200px" flexShrink={0} align="center" gap="2" cursor="pointer" pr="2" onClick={() => setExpanded(!expanded)}>
+        <span className={css({ fontSize: "xs", fontWeight: "bold", fontFamily: "mono", flexShrink: 0 })} style={{ color: getMethodColor(request.method) }}>
           {request.method}
         </span>
-        <span class={styles.status} style={{ color: getStatusColor(request.status) }}>
+        <span className={css({ fontSize: "xs", fontFamily: "mono", flexShrink: 0 })} style={{ color: getStatusColor(request.status) }}>
           {request.status}
         </span>
-        <span class={styles.url} title={request.url}>
+        <span className={css({ fontSize: "sm", color: "fg.default", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" })} title={request.url}>
           {truncateUrl(request.url)}
         </span>
-      </div>
-      <div class={styles.waterfallCell}>
-        <WaterfallBar
-          phases={request.phases}
-          totalTime={request.totalTime}
-          maxTime={maxTime}
-          width={barWidth}
-        />
-      </div>
-      <div class={styles.totalTime}>{formatTime(request.totalTime)}</div>
+      </Flex>
+      <Box flex="1" minW="200px" position="relative">
+        <WaterfallBar phases={request.phases} totalTime={request.totalTime} maxTime={maxTime} width={barWidth} />
+      </Box>
+      <Box w="80px" flexShrink={0} textAlign="right" fontSize="sm" fontFamily="mono" color="fg.muted">
+        {formatTime(request.totalTime)}
+      </Box>
       {expanded && (
-        <div class={styles.expandedDetails}>
+        <Box w="100%" mt="2" pl="4" pr="4">
           <PhaseDetails phases={request.phases} totalTime={request.totalTime} />
-        </div>
+        </Box>
       )}
-    </div>
+    </Flex>
   );
 }
 
@@ -266,50 +277,37 @@ function PhaseDetails({ phases, totalTime }: { phases: TimingPhases; totalTime: 
   const phaseOrder: PhaseKey[] = ["dns", "connect", "tls", "ttfb", "download"];
 
   return (
-    <div class={styles.phaseDetails}>
+    <Stack gap="1" bg="bg.subtle" rounded="md" p="3">
       {phaseOrder.map((key) => {
         const duration = phases[key];
         if (duration === undefined || duration <= 0) return null;
         const config = PHASE_CONFIG[key];
         const percentage = ((duration / totalTime) * 100).toFixed(1);
         return (
-          <div class={styles.phaseRow} key={key}>
-            <span class={styles.phaseIndicator} style={{ backgroundColor: config.color }} />
-            <span class={styles.phaseName}>{config.description}</span>
-            <span class={styles.phaseDuration}>{formatTime(duration)}</span>
-            <span class={styles.phasePercent}>({percentage}%)</span>
-          </div>
+          <Flex align="center" gap="2" key={key}>
+            <Box w="8px" h="8px" rounded="sm" flexShrink={0} style={{ backgroundColor: config.color }} />
+            <Box flex="1" fontSize="sm" color="fg.default">{config.description}</Box>
+            <Box fontSize="sm" fontFamily="mono" color="fg.default" fontWeight="medium">{formatTime(duration)}</Box>
+            <Box fontSize="xs" color="fg.muted" w="50px" textAlign="right">({percentage}%)</Box>
+          </Flex>
         );
       })}
-    </div>
+    </Stack>
   );
 }
 
 function Legend() {
   const phases: PhaseKey[] = ["dns", "connect", "tls", "ttfb", "download"];
   return (
-    <div class={styles.legend}>
+    <Flex flexWrap="wrap" gap="3" mb="3" pb="3" borderBottom="1px solid" borderColor="border.default">
       {phases.map((key) => (
-        <div class={styles.legendItem} key={key}>
-          <span class={styles.legendColor} style={{ backgroundColor: PHASE_CONFIG[key].color }} />
-          <span class={styles.legendLabel}>{PHASE_CONFIG[key].label}</span>
-        </div>
+        <Flex align="center" gap="1.5" key={key}>
+          <Box w="12px" h="12px" rounded="sm" flexShrink={0} style={{ backgroundColor: PHASE_CONFIG[key].color }} />
+          <Box fontSize="xs" color="fg.muted">{PHASE_CONFIG[key].label}</Box>
+        </Flex>
       ))}
-    </div>
+    </Flex>
   );
-}
-
-function getMethodColor(method: string): string {
-  const colors: Record<string, string> = {
-    GET: "var(--colors-green-600)",
-    POST: "var(--colors-blue-600)",
-    PUT: "var(--colors-yellow-600)",
-    PATCH: "var(--colors-purple-600)",
-    DELETE: "var(--colors-red-600)",
-    HEAD: "var(--colors-fg-muted)",
-    OPTIONS: "var(--colors-fg-muted)",
-  };
-  return colors[method.toUpperCase()] || "var(--colors-fg-default)";
 }
 
 // ============================================================================
@@ -371,295 +369,54 @@ function WaterfallViewer() {
 
   if (loading) {
     return (
-      <div class={styles.container} ref={containerRef}>
-        <div class={styles.loading}>Loading...</div>
-      </div>
+      <Box p="4" fontFamily="sans" color="fg.default" bg="bg.canvas" minW="500px" maxW="100%" ref={containerRef}>
+        <Box p="4" color="fg.muted" textAlign="center">Loading...</Box>
+      </Box>
     );
   }
 
   if (!data || data.requests.length === 0) {
     return (
-      <div class={styles.container} ref={containerRef}>
-        <div class={styles.empty}>No timing data available</div>
-      </div>
+      <Box p="4" fontFamily="sans" color="fg.default" bg="bg.canvas" minW="500px" maxW="100%" ref={containerRef}>
+        <Box p="4" color="fg.muted" textAlign="center">No timing data available</Box>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container} ref={containerRef}>
-      {data.title && <h2 class={styles.title}>{data.title}</h2>}
+    <Box p="4" fontFamily="sans" color="fg.default" bg="bg.canvas" minW="500px" maxW="100%" ref={containerRef}>
+      {data.title && <Box as="h2" fontSize="lg" fontWeight="semibold" mb="3" color="fg.default">{data.title}</Box>}
       <Legend />
-      <div class={styles.header}>
-        <div class={styles.headerInfo}>Request</div>
-        <div class={styles.headerWaterfall}>
+      <Flex align="flex-end" borderBottom="1px solid" borderColor="border.default" pb="1" mb="1">
+        <Box w="200px" flexShrink={0} fontSize="xs" fontWeight="medium" color="fg.muted" textTransform="uppercase" letterSpacing="wider">
+          Request
+        </Box>
+        <Box flex="1" minW="200px">
           <TimeScale maxTime={maxTime} width={barWidth} />
-        </div>
-        <div class={styles.headerTotal}>Time</div>
-      </div>
-      <div class={styles.requestList}>
+        </Box>
+        <Box w="80px" flexShrink={0} textAlign="right" fontSize="xs" fontWeight="medium" color="fg.muted" textTransform="uppercase" letterSpacing="wider">
+          Time
+        </Box>
+      </Flex>
+      <Stack gap="0">
         {data.requests.map((request, index) => (
-          <RequestRow
-            key={index}
-            request={request}
-            maxTime={maxTime}
-            barWidth={barWidth}
-            index={index}
-          />
+          <RequestRow key={index} request={request} maxTime={maxTime} barWidth={barWidth} index={index} />
         ))}
-      </div>
-      <div class={styles.summary}>
-        <span class={styles.summaryItem}>
+      </Stack>
+      <Flex gap="4" mt="3" pt="3" borderTop="1px solid" borderColor="border.default">
+        <Box fontSize="sm" color="fg.muted">
           <strong>{data.requests.length}</strong> request{data.requests.length !== 1 ? "s" : ""}
-        </span>
-        <span class={styles.summaryItem}>
+        </Box>
+        <Box fontSize="sm" color="fg.muted">
           Total: <strong>{formatTime(data.requests.reduce((sum, r) => sum + r.totalTime, 0))}</strong>
-        </span>
-      </div>
-    </div>
+        </Box>
+      </Flex>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minWidth: "500px",
-    maxWidth: "100%",
-  }),
-  title: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-    mb: "3",
-    color: "fg.default",
-  }),
-  loading: css({
-    p: "4",
-    color: "fg.muted",
-    textAlign: "center",
-  }),
-  empty: css({
-    p: "4",
-    color: "fg.muted",
-    textAlign: "center",
-  }),
-  // Legend
-  legend: css({
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "3",
-    mb: "3",
-    pb: "3",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-  }),
-  legendItem: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "1.5",
-  }),
-  legendColor: css({
-    w: "12px",
-    h: "12px",
-    rounded: "sm",
-    flexShrink: 0,
-  }),
-  legendLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  // Header
-  header: css({
-    display: "flex",
-    alignItems: "flex-end",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-    pb: "1",
-    mb: "1",
-  }),
-  headerInfo: css({
-    w: "200px",
-    flexShrink: 0,
-    fontSize: "xs",
-    fontWeight: "medium",
-    color: "fg.muted",
-    textTransform: "uppercase",
-    letterSpacing: "wider",
-  }),
-  headerWaterfall: css({
-    flex: 1,
-    minW: "200px",
-  }),
-  headerTotal: css({
-    w: "80px",
-    flexShrink: 0,
-    textAlign: "right",
-    fontSize: "xs",
-    fontWeight: "medium",
-    color: "fg.muted",
-    textTransform: "uppercase",
-    letterSpacing: "wider",
-  }),
-  // Time scale
-  timeScale: css({
-    w: "100%",
-  }),
-  timeScaleSvg: css({
-    display: "block",
-  }),
-  // Request list
-  requestList: css({
-    display: "flex",
-    flexDirection: "column",
-  }),
-  requestRow: css({
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    py: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    "&:hover": {
-      bg: "bg.subtle",
-    },
-  }),
-  requestInfo: css({
-    w: "200px",
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    cursor: "pointer",
-    pr: "2",
-  }),
-  method: css({
-    fontSize: "xs",
-    fontWeight: "bold",
-    fontFamily: "mono",
-    flexShrink: 0,
-  }),
-  status: css({
-    fontSize: "xs",
-    fontFamily: "mono",
-    flexShrink: 0,
-  }),
-  url: css({
-    fontSize: "sm",
-    color: "fg.default",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  }),
-  waterfallCell: css({
-    flex: 1,
-    minW: "200px",
-    position: "relative",
-  }),
-  totalTime: css({
-    w: "80px",
-    flexShrink: 0,
-    textAlign: "right",
-    fontSize: "sm",
-    fontFamily: "mono",
-    color: "fg.muted",
-  }),
-  // Waterfall bar
-  waterfallBarContainer: css({
-    position: "relative",
-  }),
-  waterfallBarSvg: css({
-    display: "block",
-    w: "100%",
-  }),
-  phaseBar: css({
-    cursor: "pointer",
-    transition: "opacity 0.15s ease",
-    "&:hover": {
-      opacity: 0.8,
-    },
-  }),
-  // Tooltip
-  tooltip: css({
-    position: "fixed",
-    bg: "bg.default",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    px: "2",
-    py: "1",
-    fontSize: "xs",
-    color: "fg.default",
-    boxShadow: "lg",
-    zIndex: 1000,
-    pointerEvents: "none",
-    transform: "translateX(-50%)",
-    whiteSpace: "nowrap",
-  }),
-  // Expanded details
-  expandedDetails: css({
-    w: "100%",
-    mt: "2",
-    pl: "4",
-    pr: "4",
-  }),
-  phaseDetails: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "1",
-    bg: "bg.subtle",
-    rounded: "md",
-    p: "3",
-  }),
-  phaseRow: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  phaseIndicator: css({
-    w: "8px",
-    h: "8px",
-    rounded: "sm",
-    flexShrink: 0,
-  }),
-  phaseName: css({
-    flex: 1,
-    fontSize: "sm",
-    color: "fg.default",
-  }),
-  phaseDuration: css({
-    fontSize: "sm",
-    fontFamily: "mono",
-    color: "fg.default",
-    fontWeight: "medium",
-  }),
-  phasePercent: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    w: "50px",
-    textAlign: "right",
-  }),
-  // Summary
-  summary: css({
-    display: "flex",
-    gap: "4",
-    mt: "3",
-    pt: "3",
-    borderTop: "1px solid",
-    borderColor: "border.default",
-  }),
-  summaryItem: css({
-    fontSize: "sm",
-    color: "fg.muted",
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<WaterfallViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<WaterfallViewer />);

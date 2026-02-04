@@ -10,11 +10,12 @@
  * @module lib/std/src/ui/blame-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo, useRef } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex } from "../../styled-system/jsx";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -114,37 +115,49 @@ interface BlameAnnotationProps {
   onClick: (line: BlameLine) => void;
 }
 
-function BlameAnnotation({
-  line,
-  showFull,
-  prevHash,
-  onHover,
-  onClick,
-}: BlameAnnotationProps) {
+function BlameAnnotation({ line, showFull, prevHash, onHover, onClick }: BlameAnnotationProps) {
   const isNewCommit = prevHash !== line.commitHash;
   const shortHash = line.commitHash.slice(0, 7);
 
   return (
-    <div
-      class={styles.annotation}
+    <Flex
+      align="center"
+      gap="2"
+      w="220px"
+      minW="220px"
+      px="2"
+      py="0.5"
+      fontFamily="sans-serif"
+      fontSize="xs"
+      color="fg.muted"
+      bg="bg.subtle/50"
+      borderRight="1px solid"
+      borderColor="border.default"
+      cursor="pointer"
+      _hover={{ bg: "bg.muted" }}
       onMouseEnter={() => onHover(line)}
       onMouseLeave={() => onHover(null)}
       onClick={() => onClick(line)}
     >
       {isNewCommit || showFull ? (
         <>
-          <span class={styles.annotationHash}>{shortHash}</span>
-          <span class={styles.annotationAuthor} title={line.author}>
+          <span className={css({ fontFamily: "mono", fontSize: "10px", color: "blue.600", _dark: { color: "blue.400" }, minW: "60px" })}>
+            {shortHash}
+          </span>
+          <span
+            className={css({ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minW: "70px", maxW: "90px" })}
+            title={line.author}
+          >
             {line.author.split(" ")[0].slice(0, 10)}
           </span>
-          <span class={styles.annotationDate}>
+          <span className={css({ color: "fg.subtle", fontSize: "10px", minW: "50px", textAlign: "right" })}>
             {formatRelativeTime(line.timestamp)}
           </span>
         </>
       ) : (
-        <span class={styles.annotationEmpty} />
+        <span className={css({ h: "100%" })} />
       )}
-    </div>
+    </Flex>
   );
 }
 
@@ -155,25 +168,38 @@ interface CommitPopupProps {
 
 function CommitPopup({ line, position }: CommitPopupProps) {
   return (
-    <div
-      class={styles.popup}
+    <Box
+      position="fixed"
+      zIndex={100}
+      w="300px"
+      p="3"
+      bg="bg.default"
+      border="1px solid"
+      borderColor="border.default"
+      rounded="lg"
+      shadow="lg"
+      pointerEvents="none"
       style={{
         top: `${position.y + 10}px`,
         left: `${Math.min(position.x, window.innerWidth - 320)}px`,
       }}
     >
-      <div class={styles.popupHeader}>
-        <span class={styles.popupHash}>{line.commitHash.slice(0, 10)}</span>
-        <span class={styles.popupDate}>{formatFullDate(line.timestamp)}</span>
-      </div>
-      <div class={styles.popupAuthor}>
+      <Flex justify="space-between" align="center" mb="2" pb="2" borderBottom="1px solid" borderColor="border.subtle">
+        <span className={css({ fontFamily: "mono", fontSize: "xs", color: "blue.600", _dark: { color: "blue.400" } })}>
+          {line.commitHash.slice(0, 10)}
+        </span>
+        <span className={css({ fontSize: "xs", color: "fg.muted" })}>{formatFullDate(line.timestamp)}</span>
+      </Flex>
+      <Box fontSize="sm" mb="2">
         <strong>{line.author}</strong>
         {line.authorEmail && (
-          <span class={styles.popupEmail}>&lt;{line.authorEmail}&gt;</span>
+          <span className={css({ ml: "1", fontSize: "xs", color: "fg.muted" })}>&lt;{line.authorEmail}&gt;</span>
         )}
-      </div>
-      <div class={styles.popupSummary}>{line.summary}</div>
-    </div>
+      </Box>
+      <Box fontSize="sm" color="fg.default" lineHeight="1.4" wordBreak="break-word">
+        {line.summary}
+      </Box>
+    </Box>
   );
 }
 
@@ -207,9 +233,7 @@ function BlameViewer() {
       setError(null);
 
       try {
-        const textContent = result.content?.find(
-          (c) => c.type === "text"
-        ) as ContentItem | undefined;
+        const textContent = result.content?.find((c) => c.type === "text") as ContentItem | undefined;
         if (!textContent?.text) {
           setBlameData(null);
           return;
@@ -218,9 +242,7 @@ function BlameViewer() {
         const data: BlameData = JSON.parse(textContent.text);
         setBlameData(data);
       } catch (e) {
-        setError(
-          `Failed to parse blame data: ${e instanceof Error ? e.message : "Unknown"}`
-        );
+        setError(`Failed to parse blame data: ${e instanceof Error ? e.message : "Unknown"}`);
       }
     };
 
@@ -267,56 +289,74 @@ function BlameViewer() {
   // Render states
   if (loading) {
     return (
-      <div class={styles.container}>
-        <div class={styles.loading}>Loading blame data...</div>
-      </div>
+      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
+        <Box p="10" textAlign="center" color="fg.muted">Loading blame data...</Box>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div class={styles.container}>
-        <div class={styles.error}>{error}</div>
-      </div>
+      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
+        <Box p="4" bg="red.50" color="red.700" rounded="md" m="4" _dark={{ bg: "red.950", color: "red.300" }}>{error}</Box>
+      </Box>
     );
   }
 
   if (!blameData?.lines || blameData.lines.length === 0) {
     return (
-      <div class={styles.container}>
-        <div class={styles.empty}>No blame data to display</div>
-      </div>
+      <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative">
+        <Box p="10" textAlign="center" color="fg.muted">No blame data to display</Box>
+      </Box>
     );
   }
 
   return (
-    <div class={styles.container} ref={containerRef}>
+    <Box fontFamily="system-ui, sans-serif" fontSize="sm" color="fg.default" bg="bg.canvas" minH="100vh" position="relative" ref={containerRef}>
       {/* Header */}
-      <div class={styles.header}>
-        <div class={styles.fileInfo}>
-          <span class={styles.filename}>{blameData.file}</span>
-          <span class={styles.stats}>
-            {blameData.totalLines} lines | {stats.commits} commits |{" "}
-            {stats.authors.size} authors
+      <Flex
+        position="sticky"
+        top="0"
+        zIndex={10}
+        justify="space-between"
+        align="center"
+        p="3"
+        bg="bg.subtle"
+        borderBottom="1px solid"
+        borderColor="border.default"
+      >
+        <Flex align="center" gap="3">
+          <span className={css({ fontWeight: "semibold", fontFamily: "mono", color: "fg.default" })}>{blameData.file}</span>
+          <span className={css({ fontSize: "xs", color: "fg.muted" })}>
+            {blameData.totalLines} lines | {stats.commits} commits | {stats.authors.size} authors
           </span>
-        </div>
-      </div>
+        </Flex>
+      </Flex>
 
       {/* Blame content */}
-      <div class={styles.blameContainer}>
-        <div class={styles.blameContent}>
+      <Box overflow="auto">
+        <Box minW="fit-content">
           {blameData.lines.map((line, idx) => {
             const prevHash = idx > 0 ? blameData.lines[idx - 1].commitHash : null;
             const isSelected = selectedLine === line.lineNumber;
 
             return (
-              <div
+              <Flex
                 key={line.lineNumber}
-                class={css(styles.line, isSelected && styles.lineSelected)}
+                minH="22px"
+                borderBottom="1px solid"
+                borderColor="border.subtle"
+                _hover={{ filter: "brightness(0.97)", _dark: { filter: "brightness(1.1)" } }}
+                className={css(isSelected && { outline: "2px solid", outlineColor: "blue.500", outlineOffset: "-2px" })}
                 style={{
+                  background: `var(--commit-color)`,
+                  // @ts-expect-error CSS custom properties
                   "--commit-color": hashToColor(line.commitHash),
-                  "--commit-color-dark": hashToColorDark(line.commitHash),
-                } as React.CSSProperties}
+                }}
+                _dark={{
+                  // @ts-expect-error CSS custom properties
+                  "--commit-color": hashToColorDark(line.commitHash),
+                }}
               >
                 {/* Annotation column */}
                 <BlameAnnotation
@@ -328,226 +368,51 @@ function BlameViewer() {
                 />
 
                 {/* Line number */}
-                <span class={styles.lineNumber}>{line.lineNumber}</span>
+                <Box
+                  w="50px"
+                  minW="50px"
+                  px="2"
+                  py="0.5"
+                  textAlign="right"
+                  fontFamily="mono"
+                  fontSize="xs"
+                  color="fg.muted"
+                  bg="bg.subtle/30"
+                  borderRight="1px solid"
+                  borderColor="border.subtle"
+                  userSelect="none"
+                >
+                  {line.lineNumber}
+                </Box>
 
                 {/* Code content */}
-                <span
-                  class={styles.lineContent}
+                <Box
+                  flex="1"
+                  px="3"
+                  py="0.5"
+                  fontFamily="mono"
+                  fontSize="13px"
+                  whiteSpace="pre"
+                  cursor="text"
+                  userSelect="text"
                   onClick={() => handleLineClick(line)}
                 >
                   {line.content || " "}
-                </span>
-              </div>
+                </Box>
+              </Flex>
             );
           })}
-        </div>
-      </div>
+        </Box>
+      </Box>
 
       {/* Commit popup on hover */}
-      {hoveredLine && (
-        <CommitPopup line={hoveredLine} position={popupPosition} />
-      )}
-    </div>
+      {hoveredLine && <CommitPopup line={hoveredLine} position={popupPosition} />}
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    fontFamily: "system-ui, sans-serif",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minHeight: "100vh",
-    position: "relative",
-  }),
-  header: css({
-    position: "sticky",
-    top: 0,
-    zIndex: 10,
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    p: "3",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-  }),
-  fileInfo: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "3",
-  }),
-  filename: css({
-    fontWeight: "semibold",
-    fontFamily: "mono",
-    color: "fg.default",
-  }),
-  stats: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  blameContainer: css({
-    overflow: "auto",
-  }),
-  blameContent: css({
-    minWidth: "fit-content",
-  }),
-  line: css({
-    display: "flex",
-    minHeight: "22px",
-    bg: "var(--commit-color)",
-    _dark: { bg: "var(--commit-color-dark)" },
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    _hover: {
-      filter: "brightness(0.97)",
-      _dark: { filter: "brightness(1.1)" },
-    },
-  }),
-  lineSelected: css({
-    outline: "2px solid",
-    outlineColor: "blue.500",
-    outlineOffset: "-2px",
-  }),
-  annotation: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    width: "220px",
-    minWidth: "220px",
-    px: "2",
-    py: "0.5",
-    fontFamily: "sans-serif",
-    fontSize: "xs",
-    color: "fg.muted",
-    bg: "bg.subtle/50",
-    borderRight: "1px solid",
-    borderColor: "border.default",
-    cursor: "pointer",
-    _hover: {
-      bg: "bg.muted",
-    },
-  }),
-  annotationHash: css({
-    fontFamily: "mono",
-    fontSize: "10px",
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-    minWidth: "60px",
-  }),
-  annotationAuthor: css({
-    flex: 1,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    minWidth: "70px",
-    maxWidth: "90px",
-  }),
-  annotationDate: css({
-    color: "fg.subtle",
-    fontSize: "10px",
-    minWidth: "50px",
-    textAlign: "right",
-  }),
-  annotationEmpty: css({
-    height: "100%",
-  }),
-  lineNumber: css({
-    width: "50px",
-    minWidth: "50px",
-    px: "2",
-    py: "0.5",
-    textAlign: "right",
-    fontFamily: "mono",
-    fontSize: "xs",
-    color: "fg.muted",
-    bg: "bg.subtle/30",
-    borderRight: "1px solid",
-    borderColor: "border.subtle",
-    userSelect: "none",
-  }),
-  lineContent: css({
-    flex: 1,
-    px: "3",
-    py: "0.5",
-    fontFamily: "mono",
-    fontSize: "13px",
-    whiteSpace: "pre",
-    cursor: "text",
-    userSelect: "text",
-  }),
-  popup: css({
-    position: "fixed",
-    zIndex: 100,
-    width: "300px",
-    p: "3",
-    bg: "bg.default",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    shadow: "lg",
-    pointerEvents: "none",
-  }),
-  popupHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "2",
-    pb: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-  }),
-  popupHash: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-  }),
-  popupDate: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  popupAuthor: css({
-    fontSize: "sm",
-    mb: "2",
-  }),
-  popupEmail: css({
-    ml: "1",
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  popupSummary: css({
-    fontSize: "sm",
-    color: "fg.default",
-    lineHeight: "1.4",
-    wordBreak: "break-word",
-  }),
-  loading: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  empty: css({
-    p: "10",
-    textAlign: "center",
-    color: "fg.muted",
-  }),
-  error: css({
-    p: "4",
-    bg: "red.50",
-    color: "red.700",
-    rounded: "md",
-    m: "4",
-    _dark: { bg: "red.950", color: "red.300" },
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<BlameViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<BlameViewer />);

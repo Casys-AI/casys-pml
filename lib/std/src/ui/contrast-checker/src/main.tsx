@@ -1,7 +1,7 @@
 /**
  * Contrast Checker UI - WCAG Color Accessibility Checker
  *
- * Luxury/Editorial Magazine Design
+ * Luxury/Editorial Magazine Design with styled-system
  *
  * Features:
  * - Playfair Display serif for headings, Inter for body
@@ -15,9 +15,12 @@
  * @module lib/std/src/ui/contrast-checker
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback, useRef } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
+import { css } from "../../styled-system/css";
+import { Box, Flex, Grid, Stack } from "../../styled-system/jsx";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -123,7 +126,7 @@ function useAnimatedNumber(target: number, duration: number = 800): number {
 }
 
 // ============================================================================
-// Theme Colors
+// Theme Colors (Editorial Magazine)
 // ============================================================================
 
 const theme = {
@@ -133,7 +136,6 @@ const theme = {
     text: "#1a1a1a",
     textMuted: "#6b6b6b",
     accent: "#b8860b",
-    accentHover: "#9a7209",
     border: "rgba(0, 0, 0, 0.08)",
     borderFine: "rgba(0, 0, 0, 0.06)",
     passOlive: { bg: "#f0f4ec", text: "#4a5d23", border: "#c8d6b8" },
@@ -147,7 +149,6 @@ const theme = {
     text: "#faf9f7",
     textMuted: "#8a8a8a",
     accent: "#d4a017",
-    accentHover: "#e8b420",
     border: "rgba(255, 255, 255, 0.08)",
     borderFine: "rgba(255, 255, 255, 0.06)",
     passOlive: { bg: "#1a2310", text: "#a4c45a", border: "#3d4a28" },
@@ -215,38 +216,36 @@ function ThemeToggle({
   onToggle: () => void;
   colors: typeof theme.light;
 }) {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
-    <button
+    <Flex
+      as="button"
+      position="absolute"
+      top="6"
+      right="6"
+      w="10"
+      h="10"
+      rounded="full"
+      alignItems="center"
+      justifyContent="center"
+      cursor="pointer"
+      transition="all 0.3s ease"
       onClick={onToggle}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
-        position: "absolute",
-        top: "24px",
-        right: "24px",
-        width: "40px",
-        height: "40px",
-        borderRadius: "50%",
-        border: `0.5px solid ${colors.borderFine}`,
+        borderWidth: "0.5px",
+        borderStyle: "solid",
+        borderColor: colors.borderFine,
         background: colors.bgSubtle,
-        color: colors.textMuted,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        transition: "all 0.3s ease",
-        boxShadow: colors.shadow,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.color = colors.accent;
-        e.currentTarget.style.boxShadow = colors.shadowHover;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = colors.textMuted;
-        e.currentTarget.style.boxShadow = colors.shadow;
+        color: isHovered ? colors.accent : colors.textMuted,
+        boxShadow: isHovered ? colors.shadowHover : colors.shadow,
       }}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       {isDark ? <SunIcon /> : <MoonIcon />}
-    </button>
+    </Flex>
   );
 }
 
@@ -264,58 +263,52 @@ function ColorSwatch({
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div style={{ flex: 1 }}>
-      <span
-        style={{
-          display: "block",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: "10px",
-          fontWeight: "500",
-          letterSpacing: "0.15em",
-          textTransform: "uppercase",
-          color: colors.textMuted,
-          marginBottom: "12px",
-        }}
+    <Box flex="1">
+      <Box
+        fontSize="2xs"
+        fontWeight="medium"
+        letterSpacing="widest"
+        textTransform="uppercase"
+        mb="3"
+        style={{ color: colors.textMuted }}
       >
         {label}
-      </span>
-      <div
-        style={{
-          width: "100%",
-          aspectRatio: "3 / 2",
-          borderRadius: "4px",
-          border: `0.5px solid ${colors.borderFine}`,
-          cursor: onCopy ? "pointer" : "default",
-          transition: "transform 0.3s ease, box-shadow 0.3s ease",
-          transform: isHovered ? "scale(1.02)" : "scale(1)",
-          boxShadow: isHovered ? colors.shadowHover : colors.shadow,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "8px",
-          backgroundColor: color,
-          overflow: "hidden",
-        }}
+      </Box>
+      <Flex
+        w="full"
+        aspectRatio="3/2"
+        rounded="sm"
+        direction="column"
+        alignItems="center"
+        justifyContent="center"
+        gap="2"
+        overflow="hidden"
+        transition="all 0.3s ease"
         onClick={onCopy}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        style={{
+          borderWidth: "0.5px",
+          borderStyle: "solid",
+          borderColor: colors.borderFine,
+          backgroundColor: color,
+          transform: isHovered ? "scale(1.02)" : "scale(1)",
+          boxShadow: isHovered ? colors.shadowHover : colors.shadow,
+          cursor: onCopy ? "pointer" : "default",
+        }}
         title={onCopy ? "Click to copy" : undefined}
       >
-        <span
-          style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "13px",
-            fontWeight: "500",
-            letterSpacing: "0.05em",
-            color: getTextColor(color),
-            opacity: 0.9,
-          }}
+        <Box
+          fontSize="sm"
+          fontWeight="medium"
+          letterSpacing="wider"
+          opacity="0.9"
+          style={{ color: getTextColor(color) }}
         >
           {color.toUpperCase()}
-        </span>
-      </div>
-    </div>
+        </Box>
+      </Flex>
+    </Box>
   );
 }
 
@@ -329,63 +322,48 @@ function ContrastRatioDisplay({
   const animatedRatio = useAnimatedNumber(ratio);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "4px",
-        padding: "32px 0",
-      }}
-    >
-      <span
-        style={{
-          fontFamily: "'Inter', sans-serif",
-          fontSize: "10px",
-          fontWeight: "500",
-          letterSpacing: "0.15em",
-          textTransform: "uppercase",
-          color: colors.textMuted,
-        }}
+    <Flex direction="column" alignItems="center" gap="1" py="8">
+      <Box
+        fontSize="2xs"
+        fontWeight="medium"
+        letterSpacing="widest"
+        textTransform="uppercase"
+        style={{ color: colors.textMuted }}
       >
         Contrast Ratio
-      </span>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
-        <span
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "56px",
-            fontWeight: "600",
-            color: colors.text,
-            lineHeight: 1,
-            letterSpacing: "-0.02em",
-          }}
+      </Box>
+      <Flex alignItems="baseline" gap="0.5">
+        <Box
+          fontFamily="serif"
+          fontSize="6xl"
+          fontWeight="semibold"
+          lineHeight="none"
+          letterSpacing="tight"
+          style={{ color: colors.text }}
         >
           {animatedRatio.toFixed(2)}
-        </span>
-        <span
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "24px",
-            fontWeight: "400",
-            color: colors.textMuted,
-            marginLeft: "4px",
-          }}
+        </Box>
+        <Box
+          fontFamily="serif"
+          fontSize="2xl"
+          fontWeight="normal"
+          ml="1"
+          style={{ color: colors.textMuted }}
         >
           :1
-        </span>
-      </div>
-    </div>
+        </Box>
+      </Flex>
+    </Flex>
   );
 }
 
 function Separator({ colors }: { colors: typeof theme.light }) {
   return (
-    <div
+    <Box
+      h="1px"
+      my="6"
       style={{
-        height: "1px",
         background: `linear-gradient(to right, transparent, ${colors.border}, transparent)`,
-        margin: "24px 0",
       }}
     />
   );
@@ -402,25 +380,27 @@ function RatingBadge({
   const badgeColors = isPass ? colors.passOlive : colors.failBordeaux;
 
   return (
-    <div
+    <Flex
+      display="inline-flex"
+      alignItems="center"
+      gap="2"
+      px="5"
+      py="2.5"
+      rounded="full"
+      fontSize="xs"
+      fontWeight="semibold"
+      letterSpacing="wider"
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "8px",
-        padding: "10px 20px",
-        borderRadius: "100px",
-        fontSize: "12px",
-        fontFamily: "'Inter', sans-serif",
-        fontWeight: "600",
-        letterSpacing: "0.05em",
+        borderWidth: "0.5px",
+        borderStyle: "solid",
         background: badgeColors.bg,
         color: badgeColors.text,
-        border: `0.5px solid ${badgeColors.border}`,
+        borderColor: badgeColors.border,
       }}
     >
       {isPass ? <CheckIcon /> : <XIcon />}
       {rating}
-    </div>
+    </Flex>
   );
 }
 
@@ -438,45 +418,34 @@ function WCAGBadge({
   const badgeColors = pass ? colors.passOlive : colors.failBordeaux;
 
   return (
-    <div
+    <Flex
+      alignItems="center"
+      justifyContent="space-between"
+      px="4"
+      py="3"
+      rounded="sm"
+      fontSize="2xs"
+      fontWeight="medium"
+      transition="all 0.3s ease"
       style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "12px 16px",
-        borderRadius: "4px",
-        fontSize: "11px",
-        fontFamily: "'Inter', sans-serif",
-        fontWeight: "500",
+        borderWidth: "0.5px",
+        borderStyle: "solid",
         background: badgeColors.bg,
-        border: `0.5px solid ${badgeColors.border}`,
-        transition: "all 0.3s ease",
+        borderColor: badgeColors.border,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <span
-          style={{
-            fontWeight: "700",
-            letterSpacing: "0.05em",
-            color: badgeColors.text,
-          }}
-        >
+      <Flex alignItems="center" gap="2">
+        <Box fontWeight="bold" letterSpacing="wider" style={{ color: badgeColors.text }}>
           {level}
-        </span>
-        <span
-          style={{
-            color: badgeColors.text,
-            opacity: 0.7,
-            letterSpacing: "0.02em",
-          }}
-        >
+        </Box>
+        <Box opacity="0.7" letterSpacing="wide" style={{ color: badgeColors.text }}>
           {size === "large" ? "Large Text" : "Normal Text"}
-        </span>
-      </div>
-      <div style={{ color: badgeColors.text }}>
+        </Box>
+      </Flex>
+      <Box style={{ color: badgeColors.text }}>
         {pass ? <CheckIcon /> : <XIcon />}
-      </div>
-    </div>
+      </Box>
+    </Flex>
   );
 }
 
@@ -494,61 +463,55 @@ function TextPreview({
   colors: typeof theme.light;
 }) {
   return (
-    <div
+    <Box
+      rounded="sm"
+      overflow="hidden"
       style={{
-        borderRadius: "4px",
-        overflow: "hidden",
-        border: `0.5px solid ${colors.borderFine}`,
+        borderWidth: "0.5px",
+        borderStyle: "solid",
+        borderColor: colors.borderFine,
         boxShadow: colors.shadow,
       }}
     >
-      <div
-        style={{
-          padding: "32px 24px",
-          textAlign: "center",
-          backgroundColor: background,
-          color: foreground,
-        }}
+      <Box
+        p="8"
+        textAlign="center"
+        style={{ backgroundColor: background, color: foreground }}
       >
-        <p
+        <Box
+          fontFamily="serif"
+          mb="3"
+          lineHeight="tight"
           style={{
-            fontFamily: "'Playfair Display', serif",
             fontSize: `${fontSize}px`,
             fontWeight: fontWeight === "bold" ? 700 : 400,
-            marginBottom: "12px",
-            lineHeight: 1.2,
           }}
         >
           Sample Text
-        </p>
-        <p
-          style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "14px",
-            lineHeight: 1.6,
-            opacity: 0.9,
-          }}
-        >
+        </Box>
+        <Box fontSize="sm" lineHeight="relaxed" opacity="0.9">
           The quick brown fox jumps over the lazy dog
-        </p>
-      </div>
-      <div
+        </Box>
+      </Box>
+      <Flex
+        px="4"
+        py="2.5"
+        fontSize="2xs"
+        fontWeight="medium"
+        letterSpacing="wide"
+        textTransform="uppercase"
+        justifyContent="center"
         style={{
-          padding: "10px 16px",
+          borderTopWidth: "0.5px",
+          borderTopStyle: "solid",
           background: colors.bgSubtle,
-          fontSize: "10px",
-          fontFamily: "'Inter', sans-serif",
-          fontWeight: "500",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
           color: colors.textMuted,
-          textAlign: "center",
-          borderTop: `0.5px solid ${colors.borderFine}`,
+          borderColor: colors.borderFine,
         }}
       >
         {fontSize}px {fontWeight}
-      </div>
-    </div>
+      </Flex>
+    </Box>
   );
 }
 
@@ -567,84 +530,73 @@ function SuggestionCard({
   const isAAA = suggestion.rating === "AAA";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "16px",
-        padding: "16px",
-        background: isHovered ? colors.bgSubtle : "transparent",
-        borderRadius: "4px",
-        cursor: "pointer",
-        transition: "all 0.3s ease",
-        border: `0.5px solid ${isHovered ? colors.border : "transparent"}`,
-      }}
+    <Flex
+      alignItems="center"
+      gap="4"
+      p="4"
+      rounded="sm"
+      cursor="pointer"
+      transition="all 0.3s ease"
       onClick={() => onSelect(suggestion.color)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      style={{
+        borderWidth: "0.5px",
+        borderStyle: "solid",
+        background: isHovered ? colors.bgSubtle : "transparent",
+        borderColor: isHovered ? colors.border : "transparent",
+      }}
     >
-      <div
+      <Flex
+        w="16"
+        h="10"
+        rounded="xs"
+        alignItems="center"
+        justifyContent="center"
+        fontSize="sm"
+        fontFamily="serif"
+        fontWeight="semibold"
+        transition="transform 0.3s ease"
         style={{
-          width: "64px",
-          height: "40px",
-          borderRadius: "3px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "14px",
-          fontFamily: "'Playfair Display', serif",
-          fontWeight: "600",
-          border: `0.5px solid ${colors.borderFine}`,
+          borderWidth: "0.5px",
+          borderStyle: "solid",
+          borderColor: colors.borderFine,
           backgroundColor: background,
           color: suggestion.color,
           boxShadow: colors.shadow,
-          transition: "transform 0.3s ease",
           transform: isHovered ? "scale(1.05)" : "scale(1)",
         }}
       >
         Aa
-      </div>
+      </Flex>
 
-      <div style={{ flex: 1 }}>
-        <div
-          style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "13px",
-            fontWeight: "500",
-            letterSpacing: "0.05em",
-            color: colors.text,
-          }}
-        >
+      <Box flex="1">
+        <Box fontSize="sm" fontWeight="medium" letterSpacing="wider" style={{ color: colors.text }}>
           {suggestion.color.toUpperCase()}
-        </div>
-        <div
-          style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "11px",
-            color: colors.textMuted,
-            marginTop: "2px",
-          }}
-        >
+        </Box>
+        <Box fontSize="2xs" mt="0.5" style={{ color: colors.textMuted }}>
           {suggestion.contrastRatio}:1
-        </div>
-      </div>
+        </Box>
+      </Box>
 
-      <span
+      <Box
+        px="2.5"
+        py="1"
+        rounded="full"
+        fontSize="2xs"
+        fontWeight="semibold"
+        letterSpacing="wider"
         style={{
-          padding: "4px 10px",
-          borderRadius: "100px",
-          fontSize: "10px",
-          fontFamily: "'Inter', sans-serif",
-          fontWeight: "600",
-          letterSpacing: "0.05em",
+          borderWidth: "0.5px",
+          borderStyle: "solid",
           background: isAAA ? colors.passOlive.bg : colors.bgSubtle,
           color: isAAA ? colors.passOlive.text : colors.accent,
-          border: `0.5px solid ${isAAA ? colors.passOlive.border : colors.border}`,
+          borderColor: isAAA ? colors.passOlive.border : colors.border,
         }}
       >
         {suggestion.rating}
-      </span>
-    </div>
+      </Box>
+    </Flex>
   );
 }
 
@@ -675,6 +627,25 @@ function ContrastChecker() {
       console.log("[contrast-checker] Connected to MCP host");
     }).catch(() => {
       console.log("[contrast-checker] No MCP host (standalone mode)");
+      // Demo data for standalone mode
+      setData({
+        foreground: "#1a1a1a",
+        background: "#faf9f7",
+        contrastRatio: 15.2,
+        wcag: {
+          aa: { normal: true, large: true },
+          aaa: { normal: true, large: true },
+        },
+        rating: "AAA",
+        isLargeText: false,
+        fontSize: 16,
+        fontWeight: "normal",
+        suggestions: [
+          { color: "#2d2d2d", contrastRatio: 12.5, rating: "AAA" },
+          { color: "#444444", contrastRatio: 8.2, rating: "AA" },
+        ],
+      });
+      setLoading(false);
     });
 
     app.ontoolresult = (result: { content?: ContentItem[] }) => {
@@ -720,125 +691,105 @@ function ContrastChecker() {
   // Loading state
   if (loading) {
     return (
-      <div
-        style={{
-          padding: "48px 32px",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: "13px",
-          color: colors.textMuted,
-          background: colors.bg,
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-        }}
+      <Flex
+        p="12"
+        minH="100vh"
+        alignItems="center"
+        justifyContent="center"
+        fontSize="sm"
+        letterSpacing="wide"
+        textTransform="uppercase"
+        style={{ color: colors.textMuted, background: colors.bg }}
       >
         Checking contrast...
-      </div>
+      </Flex>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <div
-        style={{
-          padding: "32px",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: "13px",
-          background: colors.bg,
-          minHeight: "100vh",
-        }}
-      >
-        <div
+      <Box p="12" fontFamily="sans" fontSize="sm" minH="100vh" style={{ background: colors.bg }}>
+        <Box
+          p="5"
+          rounded="sm"
           style={{
-            padding: "20px 24px",
+            borderWidth: "0.5px",
+            borderStyle: "solid",
             background: colors.failBordeaux.bg,
             color: colors.failBordeaux.text,
-            borderRadius: "4px",
-            border: `0.5px solid ${colors.failBordeaux.border}`,
+            borderColor: colors.failBordeaux.border,
           }}
         >
           {error}
-        </div>
-      </div>
+        </Box>
+      </Box>
     );
   }
 
   // Empty state
   if (!data) {
     return (
-      <div
-        style={{
-          padding: "48px 32px",
-          fontFamily: "'Inter', sans-serif",
-          fontSize: "13px",
-          color: colors.textMuted,
-          background: colors.bg,
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-        }}
+      <Flex
+        p="12"
+        minH="100vh"
+        alignItems="center"
+        justifyContent="center"
+        fontSize="sm"
+        letterSpacing="wide"
+        textTransform="uppercase"
+        style={{ color: colors.textMuted, background: colors.bg }}
       >
         No contrast data
-      </div>
+      </Flex>
     );
   }
 
   const hasSuggestions = data.suggestions && data.suggestions.length > 0;
 
   return (
-    <div
+    <Box
+      p="12"
+      fontFamily="sans"
+      fontSize="sm"
+      minH="100vh"
+      position="relative"
+      transition="all 0.3s ease"
       style={{
-        padding: "48px 32px",
-        fontFamily: "'Inter', sans-serif",
-        fontSize: "14px",
         color: colors.text,
         background: colors.bg,
-        minHeight: "100vh",
-        position: "relative",
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? "translateY(0)" : "translateY(8px)",
-        transition: "opacity 0.6s ease, transform 0.6s ease",
       }}
     >
       {/* Theme toggle */}
       <ThemeToggle isDark={isDark} onToggle={toggleTheme} colors={colors} />
 
       {/* Header */}
-      <header style={{ marginBottom: "40px", maxWidth: "400px" }}>
-        <h1
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "28px",
-            fontWeight: "600",
-            color: colors.text,
-            marginBottom: "8px",
-            letterSpacing: "-0.01em",
-          }}
+      <Box as="header" mb="10" maxW="400px">
+        <Box
+          as="h1"
+          fontFamily="serif"
+          fontSize="3xl"
+          fontWeight="semibold"
+          mb="2"
+          letterSpacing="tight"
+          style={{ color: colors.text }}
         >
           Contrast Checker
-        </h1>
-        <p
-          style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "12px",
-            color: colors.textMuted,
-            letterSpacing: "0.02em",
-            lineHeight: 1.5,
-          }}
+        </Box>
+        <Box
+          fontSize="xs"
+          letterSpacing="wide"
+          lineHeight="relaxed"
+          style={{ color: colors.textMuted }}
         >
           WCAG 2.1 Color Accessibility Analysis
-        </p>
-      </header>
+        </Box>
+      </Box>
 
       {/* Color swatches - asymmetric layout */}
-      <div style={{ display: "flex", gap: "24px", marginBottom: "8px" }}>
+      <Flex gap="6" mb="2">
         <ColorSwatch
           color={data.foreground}
           label="Foreground"
@@ -851,34 +802,30 @@ function ContrastChecker() {
           onCopy={() => handleCopy(data.background, "background")}
           colors={colors}
         />
-      </div>
+      </Flex>
 
       <Separator colors={colors} />
 
       {/* Contrast ratio - large editorial typography */}
-      <div style={{ textAlign: "center" }}>
+      <Box textAlign="center">
         <ContrastRatioDisplay ratio={data.contrastRatio} colors={colors} />
         <RatingBadge rating={data.rating} colors={colors} />
-      </div>
+      </Box>
 
       <Separator colors={colors} />
 
       {/* Text preview */}
-      <div style={{ marginBottom: "32px" }}>
-        <span
-          style={{
-            display: "block",
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "10px",
-            fontWeight: "500",
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            color: colors.textMuted,
-            marginBottom: "16px",
-          }}
+      <Box mb="8">
+        <Box
+          fontSize="2xs"
+          fontWeight="medium"
+          letterSpacing="widest"
+          textTransform="uppercase"
+          mb="4"
+          style={{ color: colors.textMuted }}
         >
           Preview
-        </span>
+        </Box>
         <TextPreview
           foreground={data.foreground}
           background={data.background}
@@ -886,57 +833,43 @@ function ContrastChecker() {
           fontWeight={data.fontWeight}
           colors={colors}
         />
-      </div>
+      </Box>
 
       {/* WCAG compliance badges */}
-      <div style={{ marginBottom: "32px" }}>
-        <span
-          style={{
-            display: "block",
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "10px",
-            fontWeight: "500",
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            color: colors.textMuted,
-            marginBottom: "16px",
-          }}
+      <Box mb="8">
+        <Box
+          fontSize="2xs"
+          fontWeight="medium"
+          letterSpacing="widest"
+          textTransform="uppercase"
+          mb="4"
+          style={{ color: colors.textMuted }}
         >
           WCAG Compliance
-        </span>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: "8px",
-          }}
-        >
+        </Box>
+        <Grid columns={2} gap="2">
           <WCAGBadge level="AA" size="normal" pass={data.wcag.aa.normal} colors={colors} />
           <WCAGBadge level="AA" size="large" pass={data.wcag.aa.large} colors={colors} />
           <WCAGBadge level="AAA" size="normal" pass={data.wcag.aaa.normal} colors={colors} />
           <WCAGBadge level="AAA" size="large" pass={data.wcag.aaa.large} colors={colors} />
-        </div>
-      </div>
+        </Grid>
+      </Box>
 
       {/* Suggestions section */}
       {hasSuggestions && (
-        <div>
+        <Box>
           <Separator colors={colors} />
-          <span
-            style={{
-              display: "block",
-              fontFamily: "'Inter', sans-serif",
-              fontSize: "10px",
-              fontWeight: "500",
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              color: colors.textMuted,
-              marginBottom: "16px",
-            }}
+          <Box
+            fontSize="2xs"
+            fontWeight="medium"
+            letterSpacing="widest"
+            textTransform="uppercase"
+            mb="4"
+            style={{ color: colors.textMuted }}
           >
             Suggested Alternatives
-          </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          </Box>
+          <Stack gap="1">
             {data.suggestions!.map((suggestion, i) => (
               <SuggestionCard
                 key={i}
@@ -946,49 +879,35 @@ function ContrastChecker() {
                 colors={colors}
               />
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Box>
       )}
 
       {/* Copy feedback toast */}
       {copied && (
-        <div
+        <Flex
+          position="fixed"
+          bottom="8"
+          left="50%"
+          transform="translateX(-50%)"
+          px="6"
+          py="3"
+          rounded="full"
+          fontSize="2xs"
+          fontWeight="medium"
+          letterSpacing="wider"
+          zIndex="100"
+          animation="fade-in"
           style={{
-            position: "fixed",
-            bottom: "32px",
-            left: "50%",
-            transform: "translateX(-50%)",
             background: colors.text,
             color: colors.bg,
-            padding: "12px 24px",
-            borderRadius: "100px",
-            fontSize: "11px",
-            fontFamily: "'Inter', sans-serif",
-            fontWeight: "500",
-            letterSpacing: "0.05em",
             boxShadow: colors.shadow,
-            zIndex: 100,
-            animation: "fadeInUp 0.3s ease",
           }}
         >
           Copied {copied}
-        </div>
+        </Flex>
       )}
-
-      {/* Inline keyframes for animation */}
-      <style>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateX(-50%) translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-          }
-        }
-      `}</style>
-    </div>
+    </Box>
   );
 }
 
@@ -996,4 +915,4 @@ function ContrastChecker() {
 // Mount
 // ============================================================================
 
-render(<ContrastChecker />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<ContrastChecker />);

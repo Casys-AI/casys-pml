@@ -10,11 +10,13 @@
  * @module lib/std/src/ui/status-badge
  */
 
-import { render } from "preact";
-import { useState, useEffect } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, VStack, HStack, Circle } from "../../styled-system/jsx";
+import { Badge } from "../../components/ui/badge";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -70,45 +72,112 @@ function normalizeStatus(status: StatusType | boolean | undefined, valid?: boole
   return "info";
 }
 
-const statusConfig: Record<StatusType, { icon: string; color: string; bg: string }> = {
-  valid: { icon: "✓", color: "green.700", bg: "green.100" },
-  invalid: { icon: "✗", color: "red.700", bg: "red.100" },
-  warning: { icon: "!", color: "yellow.700", bg: "yellow.100" },
-  info: { icon: "i", color: "blue.700", bg: "blue.100" },
-  pending: { icon: "○", color: "gray.600", bg: "gray.100" },
+const statusConfig: Record<StatusType, { icon: string; colorPalette: string }> = {
+  valid: { icon: "\u2713", colorPalette: "green" },
+  invalid: { icon: "\u2717", colorPalette: "red" },
+  warning: { icon: "!", colorPalette: "orange" },
+  info: { icon: "i", colorPalette: "blue" },
+  pending: { icon: "\u25CB", colorPalette: "gray" },
+};
+
+const statusBgColors: Record<StatusType, string> = {
+  valid: "green.100",
+  invalid: "red.100",
+  warning: "yellow.100",
+  info: "blue.100",
+  pending: "gray.100",
+};
+
+const statusBgColorsDark: Record<StatusType, string> = {
+  valid: "green.900/50",
+  invalid: "red.900/50",
+  warning: "yellow.900/50",
+  info: "blue.900/50",
+  pending: "gray.800",
+};
+
+const statusTextColors: Record<StatusType, string> = {
+  valid: "green.700",
+  invalid: "red.700",
+  warning: "yellow.700",
+  info: "blue.700",
+  pending: "gray.600",
+};
+
+const statusTextColorsDark: Record<StatusType, string> = {
+  valid: "green.400",
+  invalid: "red.400",
+  warning: "yellow.400",
+  info: "blue.400",
+  pending: "gray.400",
 };
 
 // ============================================================================
 // Components
 // ============================================================================
 
-function Badge({ item }: { item: StatusItem }) {
+function StatusItemCard({ item }: { item: StatusItem }) {
   const status = normalizeStatus(item.status);
   const config = statusConfig[status];
 
+  const variantMap: Record<StatusType, "default" | "success" | "error" | "warning" | "info"> = {
+    valid: "success",
+    invalid: "error",
+    warning: "warning",
+    info: "info",
+    pending: "default",
+  };
+
   return (
-    <div
-      class={styles.badge}
+    <Flex
+      align="flex-start"
+      gap="2"
+      p="2"
+      bg="bg.subtle"
+      rounded="md"
+      cursor="pointer"
+      transition="background 0.15s"
+      _hover={{ bg: "bg.muted" }}
       onClick={() => notifyModel("click", { status, label: item.label, value: item.value })}
     >
-      <div class={css(styles.iconCircle, styles[`bg_${status}`])}>
-        <span class={css(styles.icon, styles[`color_${status}`])}>{config.icon}</span>
-      </div>
-      <div class={styles.content}>
-        <div class={styles.header}>
-          {item.label && <span class={styles.label}>{item.label}</span>}
-          <span class={css(styles.statusText, styles[`color_${status}`])}>
+      <Circle
+        size="24px"
+        flexShrink={0}
+        className={css({
+          bg: statusBgColors[status],
+          _dark: { bg: statusBgColorsDark[status] },
+        })}
+      >
+        <Box
+          fontSize="xs"
+          fontWeight="bold"
+          className={css({
+            color: statusTextColors[status],
+            _dark: { color: statusTextColorsDark[status] },
+          })}
+        >
+          {config.icon}
+        </Box>
+      </Circle>
+      <Box flex="1" minW="0">
+        <HStack gap="2">
+          {item.label && <Box fontWeight="medium">{item.label}</Box>}
+          <Badge size="sm" variant={variantMap[status]}>
             {status.charAt(0).toUpperCase() + status.slice(1)}
-          </span>
-        </div>
+          </Badge>
+        </HStack>
         {item.value !== undefined && (
-          <div class={styles.value}>{String(item.value)}</div>
+          <Box fontFamily="mono" fontSize="xs" color="fg.muted" mt="0.5" overflow="hidden" textOverflow="ellipsis">
+            {String(item.value)}
+          </Box>
         )}
         {item.message && (
-          <div class={styles.message}>{item.message}</div>
+          <Box fontSize="xs" color="fg.muted" mt="0.5">
+            {item.message}
+          </Box>
         )}
-      </div>
-    </div>
+      </Box>
+    </Flex>
   );
 }
 
@@ -154,11 +223,19 @@ function StatusBadge() {
   }, []);
 
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>...</div></div>;
+    return (
+      <Box p="3" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box color="fg.muted">...</Box>
+      </Box>
+    );
   }
 
   if (!data) {
-    return <div class={styles.container}><div class={styles.empty}>No status</div></div>;
+    return (
+      <Box p="3" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        <Box color="fg.muted">No status</Box>
+      </Box>
+    );
   }
 
   // Convert single status to items array for uniform rendering
@@ -175,131 +252,35 @@ function StatusBadge() {
   const warningCount = items.filter(i => normalizeStatus(i.status) === "warning").length;
 
   return (
-    <div class={styles.container}>
+    <Box p="3" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
       {/* Title */}
-      {data.title && <div class={styles.title}>{data.title}</div>}
+      {data.title && (
+        <Box fontSize="sm" fontWeight="semibold" mb="2">
+          {data.title}
+        </Box>
+      )}
 
       {/* Summary for multiple items */}
       {items.length > 1 && (
-        <div class={styles.summary}>
-          {validCount > 0 && <span class={styles.summaryValid}>✓ {validCount}</span>}
-          {invalidCount > 0 && <span class={styles.summaryInvalid}>✗ {invalidCount}</span>}
-          {warningCount > 0 && <span class={styles.summaryWarning}>! {warningCount}</span>}
-        </div>
+        <HStack gap="3" mb="2" fontSize="xs" fontWeight="medium">
+          {validCount > 0 && <Box color="green.600">{"\u2713"} {validCount}</Box>}
+          {invalidCount > 0 && <Box color="red.600">{"\u2717"} {invalidCount}</Box>}
+          {warningCount > 0 && <Box color="yellow.600">! {warningCount}</Box>}
+        </HStack>
       )}
 
       {/* Badges */}
-      <div class={styles.badges}>
+      <VStack gap="2">
         {items.map((item, i) => (
-          <Badge key={i} item={item} />
+          <StatusItemCard key={i} item={item} />
         ))}
-      </div>
-    </div>
+      </VStack>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "3",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-  }),
-  title: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-    mb: "2",
-  }),
-  summary: css({
-    display: "flex",
-    gap: "3",
-    mb: "2",
-    fontSize: "xs",
-    fontWeight: "medium",
-  }),
-  summaryValid: css({ color: "green.600" }),
-  summaryInvalid: css({ color: "red.600" }),
-  summaryWarning: css({ color: "yellow.600" }),
-  badges: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "2",
-  }),
-  badge: css({
-    display: "flex",
-    alignItems: "flex-start",
-    gap: "2",
-    p: "2",
-    bg: "bg.subtle",
-    rounded: "md",
-    cursor: "pointer",
-    transition: "background 0.15s",
-    _hover: { bg: "bg.muted" },
-  }),
-  iconCircle: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    w: "24px",
-    h: "24px",
-    rounded: "full",
-    flexShrink: 0,
-  }),
-  icon: css({
-    fontSize: "xs",
-    fontWeight: "bold",
-  }),
-  content: css({
-    flex: 1,
-    minW: 0,
-  }),
-  header: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  label: css({
-    fontWeight: "medium",
-  }),
-  statusText: css({
-    fontSize: "xs",
-    fontWeight: "semibold",
-  }),
-  value: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    color: "fg.muted",
-    mt: "0.5",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  }),
-  message: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    mt: "0.5",
-  }),
-  // Status colors
-  bg_valid: css({ bg: "green.100", _dark: { bg: "green.900/50" } }),
-  bg_invalid: css({ bg: "red.100", _dark: { bg: "red.900/50" } }),
-  bg_warning: css({ bg: "yellow.100", _dark: { bg: "yellow.900/50" } }),
-  bg_info: css({ bg: "blue.100", _dark: { bg: "blue.900/50" } }),
-  bg_pending: css({ bg: "gray.100", _dark: { bg: "gray.800" } }),
-  color_valid: css({ color: "green.700", _dark: { color: "green.400" } }),
-  color_invalid: css({ color: "red.700", _dark: { color: "red.400" } }),
-  color_warning: css({ color: "yellow.700", _dark: { color: "yellow.400" } }),
-  color_info: css({ color: "blue.700", _dark: { color: "blue.400" } }),
-  color_pending: css({ color: "gray.600", _dark: { color: "gray.400" } }),
-  loading: css({ color: "fg.muted" }),
-  empty: css({ color: "fg.muted" }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<StatusBadge />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<StatusBadge />);

@@ -9,11 +9,15 @@
  * @module lib/std/src/ui/form-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, VStack } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import * as Checkbox from "../../components/ui/checkbox";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -63,6 +67,41 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 }
 
 // ============================================================================
+// Styles (minimal)
+// ============================================================================
+
+const inputErrorStyle = css({
+  borderColor: "red.500!",
+  _focus: { borderColor: "red.500!", shadow: "0 0 0 3px token(colors.red.500/20)!" },
+});
+
+const textareaStyle = css({
+  p: "2",
+  border: "1px solid",
+  borderColor: "border.default",
+  rounded: "md",
+  bg: "bg.default",
+  color: "fg.default",
+  fontSize: "sm",
+  outline: "none",
+  resize: "vertical",
+  _focus: { borderColor: "border.accent", shadow: "0 0 0 3px token(colors.blue.500/20)" },
+});
+
+const selectStyle = css({
+  p: "2",
+  border: "1px solid",
+  borderColor: "border.default",
+  rounded: "md",
+  bg: "bg.default",
+  color: "fg.default",
+  fontSize: "sm",
+  outline: "none",
+  cursor: "pointer",
+  _focus: { borderColor: "border.accent", shadow: "0 0 0 3px token(colors.blue.500/20)" },
+});
+
+// ============================================================================
 // Field Components
 // ============================================================================
 
@@ -82,35 +121,35 @@ function TextField({
   const isTextarea = schema.maxLength && schema.maxLength > 100;
 
   return (
-    <div class={styles.field}>
-      <label class={styles.label}>
+    <VStack gap="1" alignItems="stretch">
+      <Box as="label" fontWeight="medium" color="fg.default" display="flex" flexDirection="column" gap="0.5">
         {schema.title || name}
         {schema.description && (
-          <span class={styles.description}>{schema.description}</span>
+          <Box as="span" fontSize="xs" color="fg.muted" fontWeight="normal">{schema.description}</Box>
         )}
-      </label>
+      </Box>
       {isTextarea ? (
         <textarea
-          class={css(styles.input, error && styles.inputError)}
+          className={`${textareaStyle} ${error ? inputErrorStyle : ""}`}
           value={value}
-          onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)}
+          onChange={(e) => onChange((e.target as HTMLTextAreaElement).value)}
           placeholder={schema.default as string || ""}
           rows={4}
         />
       ) : (
-        <input
+        <Input
           type={schema.format === "email" ? "email" : schema.format === "uri" ? "url" : "text"}
-          class={css(styles.input, error && styles.inputError)}
           value={value}
-          onInput={(e) => onChange((e.target as HTMLInputElement).value)}
+          onChange={(e) => onChange((e.target as HTMLInputElement).value)}
           placeholder={schema.default as string || ""}
           minLength={schema.minLength}
           maxLength={schema.maxLength}
           pattern={schema.pattern}
+          className={error ? inputErrorStyle : undefined}
         />
       )}
-      {error && <span class={styles.error}>{error}</span>}
-    </div>
+      {error && <Box fontSize="xs" color={{ base: "red.600", _dark: "red.400" }}>{error}</Box>}
+    </VStack>
   );
 }
 
@@ -128,25 +167,25 @@ function NumberField({
   error?: string;
 }) {
   return (
-    <div class={styles.field}>
-      <label class={styles.label}>
+    <VStack gap="1" alignItems="stretch">
+      <Box as="label" fontWeight="medium" color="fg.default" display="flex" flexDirection="column" gap="0.5">
         {schema.title || name}
-        {schema.description && <span class={styles.description}>{schema.description}</span>}
-      </label>
-      <input
+        {schema.description && <Box as="span" fontSize="xs" color="fg.muted" fontWeight="normal">{schema.description}</Box>}
+      </Box>
+      <Input
         type="number"
-        class={css(styles.input, error && styles.inputError)}
         value={value}
-        onInput={(e) => {
+        onChange={(e) => {
           const v = (e.target as HTMLInputElement).value;
           onChange(v === "" ? "" : Number(v));
         }}
         min={schema.minimum}
         max={schema.maximum}
         placeholder={schema.default !== undefined ? String(schema.default) : ""}
+        className={error ? inputErrorStyle : undefined}
       />
-      {error && <span class={styles.error}>{error}</span>}
-    </div>
+      {error && <Box fontSize="xs" color={{ base: "red.600", _dark: "red.400" }}>{error}</Box>}
+    </VStack>
   );
 }
 
@@ -162,18 +201,19 @@ function BooleanField({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <div class={styles.field}>
-      <label class={styles.checkboxLabel}>
-        <input
-          type="checkbox"
-          checked={value}
-          onChange={(e) => onChange((e.target as HTMLInputElement).checked)}
-          class={styles.checkbox}
-        />
-        <span>{schema.title || name}</span>
-      </label>
-      {schema.description && <span class={styles.description}>{schema.description}</span>}
-    </div>
+    <VStack gap="1" alignItems="stretch">
+      <Checkbox.Root
+        checked={value}
+        onCheckedChange={(details) => onChange(details.checked === true)}
+      >
+        <Checkbox.Control>
+          <Checkbox.Indicator />
+        </Checkbox.Control>
+        <Checkbox.Label>{schema.title || name}</Checkbox.Label>
+        <Checkbox.HiddenInput />
+      </Checkbox.Root>
+      {schema.description && <Box fontSize="xs" color="fg.muted">{schema.description}</Box>}
+    </VStack>
   );
 }
 
@@ -191,13 +231,13 @@ function SelectField({
   error?: string;
 }) {
   return (
-    <div class={styles.field}>
-      <label class={styles.label}>
+    <VStack gap="1" alignItems="stretch">
+      <Box as="label" fontWeight="medium" color="fg.default" display="flex" flexDirection="column" gap="0.5">
         {schema.title || name}
-        {schema.description && <span class={styles.description}>{schema.description}</span>}
-      </label>
+        {schema.description && <Box as="span" fontSize="xs" color="fg.muted" fontWeight="normal">{schema.description}</Box>}
+      </Box>
       <select
-        class={css(styles.input, styles.select, error && styles.inputError)}
+        className={`${selectStyle} ${error ? inputErrorStyle : ""}`}
         value={String(value)}
         onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
       >
@@ -208,8 +248,8 @@ function SelectField({
           </option>
         ))}
       </select>
-      {error && <span class={styles.error}>{error}</span>}
-    </div>
+      {error && <Box fontSize="xs" color={{ base: "red.600", _dark: "red.400" }}>{error}</Box>}
+    </VStack>
   );
 }
 
@@ -224,7 +264,6 @@ function FormViewer() {
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
 
-  // Connect to MCP host
   useEffect(() => {
     app.connect().then(() => {
       appConnected = true;
@@ -252,7 +291,6 @@ function FormViewer() {
     app.ontoolinputpartial = () => setLoading(true);
   }, []);
 
-  // Handle field change
   const handleChange = useCallback((name: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => {
@@ -263,7 +301,6 @@ function FormViewer() {
     notifyModel("change", { field: name, value });
   }, []);
 
-  // Validate and submit
   const handleSubmit = useCallback((e: Event) => {
     e.preventDefault();
     if (!formData?.schema.properties) return;
@@ -273,7 +310,6 @@ function FormViewer() {
 
     for (const [name, schema] of Object.entries(formData.schema.properties)) {
       const value = values[name];
-
       if (required.includes(name) && (value === undefined || value === "" || value === null)) {
         newErrors[name] = "This field is required";
       }
@@ -288,23 +324,37 @@ function FormViewer() {
     notifyModel("submit", { values });
   }, [formData, values]);
 
-  // Render
   if (loading) {
-    return <div class={styles.container}><div class={styles.loadingText}>Loading form...</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="500px">
+        <Box p="10" textAlign="center" color="fg.muted">Loading form...</Box>
+      </Box>
+    );
   }
 
   if (!formData?.schema.properties) {
-    return <div class={styles.container}><div class={styles.empty}>No form schema provided</div></div>;
+    return (
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="500px">
+        <Box p="10" textAlign="center" color="fg.muted">No form schema provided</Box>
+      </Box>
+    );
   }
 
   if (submitted) {
     return (
-      <div class={styles.container}>
-        <div class={styles.success}>
-          <span class={styles.successIcon}>✓</span>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="500px">
+        <Flex
+          alignItems="center"
+          gap="2"
+          p="4"
+          bg={{ base: "green.50", _dark: "green.950" }}
+          color={{ base: "green.700", _dark: "green.300" }}
+          rounded="md"
+        >
+          <Box fontSize="sm" fontWeight="bold">OK</Box>
           Form submitted successfully
-        </div>
-      </div>
+        </Flex>
+      </Box>
     );
   }
 
@@ -312,10 +362,14 @@ function FormViewer() {
   const required = formData.schema.required || [];
 
   return (
-    <div class={styles.container}>
-      {formData.title && <h2 class={styles.title}>{formData.title}</h2>}
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" maxW="500px">
+      {formData.title && (
+        <Box as="h2" fontSize="lg" fontWeight="semibold" mb="4" color="fg.default">
+          {formData.title}
+        </Box>
+      )}
 
-      <form onSubmit={handleSubmit} class={styles.form}>
+      <VStack as="form" onSubmit={handleSubmit} gap="4" alignItems="stretch">
         {Object.entries(properties).map(([name, schema]) => {
           const isRequired = required.includes(name);
           const value = values[name];
@@ -371,118 +425,13 @@ function FormViewer() {
           }
         })}
 
-        <button type="submit" class={styles.submitBtn}>
+        <Button type="submit" mt="2">
           {formData.submitLabel || "Submit"}
-        </button>
-      </form>
-    </div>
+        </Button>
+      </VStack>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    maxW: "500px",
-  }),
-  title: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-    mb: "4",
-    color: "fg.default",
-  }),
-  form: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "4",
-  }),
-  field: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "1",
-  }),
-  label: css({
-    fontWeight: "medium",
-    color: "fg.default",
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.5",
-  }),
-  description: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    fontWeight: "normal",
-  }),
-  input: css({
-    p: "2",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.default",
-    color: "fg.default",
-    fontSize: "sm",
-    outline: "none",
-    _focus: { borderColor: "border.accent", shadow: "0 0 0 3px token(colors.blue.500/20)" },
-  }),
-  inputError: css({
-    borderColor: "red.500",
-    _focus: { borderColor: "red.500", shadow: "0 0 0 3px token(colors.red.500/20)" },
-  }),
-  select: css({
-    cursor: "pointer",
-  }),
-  checkbox: css({
-    w: "4",
-    h: "4",
-    cursor: "pointer",
-  }),
-  checkboxLabel: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    cursor: "pointer",
-  }),
-  error: css({
-    fontSize: "xs",
-    color: "red.600",
-    _dark: { color: "red.400" },
-  }),
-  submitBtn: css({
-    mt: "2",
-    px: "4",
-    py: "2.5",
-    bg: "blue.600",
-    color: "white",
-    fontWeight: "medium",
-    rounded: "md",
-    border: "none",
-    cursor: "pointer",
-    _hover: { bg: "blue.700" },
-    _active: { bg: "blue.800" },
-  }),
-  loadingText: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  success: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    p: "4",
-    bg: "green.50",
-    color: "green.700",
-    rounded: "md",
-    _dark: { bg: "green.950", color: "green.300" },
-  }),
-  successIcon: css({
-    fontSize: "lg",
-  }),
-};
 
 // ============================================================================
 // Helpers
@@ -506,4 +455,4 @@ function getDefaultValues(schema: JsonSchema): Record<string, unknown> {
 // Mount
 // ============================================================================
 
-render(<FormViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<FormViewer />);

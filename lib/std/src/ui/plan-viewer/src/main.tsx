@@ -11,11 +11,16 @@
  * @module lib/std/src/ui/plan-viewer
  */
 
-import { render } from "preact";
-import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { Box, Flex, Stack, Grid } from "../../styled-system/jsx";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { IconButton } from "../../components/ui/icon-button";
+import * as Card from "../../components/ui/card";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -194,13 +199,21 @@ function getNodeIcon(nodeType: string): string {
   return icons[nodeType] || nodeType.substring(0, 2).toUpperCase();
 }
 
-function getNodeColor(nodeType: string): string {
+function getNodeColorClass(nodeType: string): string {
   if (nodeType.includes("Scan")) return "scan";
   if (nodeType.includes("Join")) return "join";
   if (nodeType.includes("Sort") || nodeType.includes("Aggregate")) return "sort";
   if (nodeType.includes("Hash")) return "hash";
   return "default";
 }
+
+const nodeBadgeColors: Record<string, { bg: string; color: string; _dark: { bg: string; color: string } }> = {
+  scan: { bg: "blue.100", color: "blue.800", _dark: { bg: "blue.900", color: "blue.200" } },
+  join: { bg: "purple.100", color: "purple.800", _dark: { bg: "purple.900", color: "purple.200" } },
+  sort: { bg: "orange.100", color: "orange.800", _dark: { bg: "orange.900", color: "orange.200" } },
+  hash: { bg: "green.100", color: "green.800", _dark: { bg: "green.900", color: "green.200" } },
+  default: { bg: "gray.100", color: "gray.800", _dark: { bg: "gray.800", color: "gray.200" } },
+};
 
 // ============================================================================
 // Components
@@ -215,76 +228,111 @@ interface PlanNodeRowProps {
 }
 
 function PlanNodeRow({ flatNode, isExpanded, isSelected, onToggle, onSelect }: PlanNodeRowProps) {
-  const { node, depth, actualTime, percentOfTotal, isSlow } = flatNode;
+  const { node, depth, percentOfTotal, isSlow } = flatNode;
   const hasChildren = node.Plans && node.Plans.length > 0;
-  const nodeColor = getNodeColor(node["Node Type"]);
+  const nodeColor = getNodeColorClass(node["Node Type"]);
+  const badgeStyle = nodeBadgeColors[nodeColor];
 
   return (
-    <div
-      class={css(
-        styles.nodeRow,
-        isSelected && styles.nodeRowSelected,
-        isSlow && styles.nodeRowSlow
-      )}
+    <Flex
+      align="center"
+      p="2"
+      borderBottom="1px solid"
+      borderColor="border.subtle"
+      cursor="pointer"
+      transition="background 0.1s"
+      _hover={{ bg: "bg.subtle" }}
       onClick={onSelect}
+      bg={isSelected ? { base: "blue.50", _dark: "blue.950" } : undefined}
+      borderLeft={isSlow ? "3px solid" : undefined}
+      borderLeftColor={isSlow ? "red.500" : undefined}
     >
       {/* Indentation and expand toggle */}
-      <div class={styles.nodeIndent} style={{ paddingLeft: `${depth * 20}px` }}>
+      <Flex align="center" style={{ paddingLeft: `${depth * 20}px` }}>
         {hasChildren ? (
-          <button class={styles.expandBtn} onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+          <IconButton
+            variant="outline"
+            size="xs"
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            className={css({ w: "18px", h: "18px", mr: "2", minW: "18px" })}
+          >
             {isExpanded ? "-" : "+"}
-          </button>
+          </IconButton>
         ) : (
-          <span class={styles.expandPlaceholder} />
+          <Box w="18px" mr="2" />
         )}
-      </div>
+      </Flex>
 
       {/* Node type badge */}
-      <div class={css(styles.nodeBadge, styles[`nodeBadge_${nodeColor}`])}>
+      <Box
+        w="28px"
+        h="20px"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        rounded="sm"
+        fontSize="xs"
+        fontWeight="bold"
+        mr="2"
+        flexShrink={0}
+        bg={badgeStyle.bg}
+        color={badgeStyle.color}
+        _dark={badgeStyle._dark}
+      >
         {getNodeIcon(node["Node Type"])}
-      </div>
+      </Box>
 
       {/* Node info */}
-      <div class={styles.nodeInfo}>
-        <span class={styles.nodeType}>{node["Node Type"]}</span>
+      <Box flex="1" minW="0" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+        <Box as="span" fontWeight="medium" color="fg.default">{node["Node Type"]}</Box>
         {node["Relation Name"] && (
-          <span class={styles.nodeRelation}> on {node["Relation Name"]}</span>
+          <Box as="span" color={{ base: "blue.600", _dark: "blue.400" }}> on {node["Relation Name"]}</Box>
         )}
         {node["Index Name"] && (
-          <span class={styles.nodeIndex}> using {node["Index Name"]}</span>
+          <Box as="span" color={{ base: "green.600", _dark: "green.400" }} fontSize="xs"> using {node["Index Name"]}</Box>
         )}
         {node["Alias"] && node["Alias"] !== node["Relation Name"] && (
-          <span class={styles.nodeAlias}> ({node["Alias"]})</span>
+          <Box as="span" color="fg.muted" fontSize="xs"> ({node["Alias"]})</Box>
         )}
-      </div>
+      </Box>
 
       {/* Stats */}
-      <div class={styles.nodeStats}>
-        <div class={styles.statItem}>
-          <span class={styles.statLabel}>Time</span>
-          <span class={css(styles.statValue, isSlow && styles.statValueSlow)}>
+      <Flex gap="3" w="200px" flexShrink={0}>
+        <Stack gap="0" align="flex-end">
+          <Box fontSize="xs" color="fg.muted">Time</Box>
+          <Box
+            fontFamily="mono"
+            fontSize="xs"
+            color={isSlow ? { base: "red.600", _dark: "red.400" } : "fg.default"}
+            fontWeight={isSlow ? "bold" : "normal"}
+          >
             {formatTime(node["Actual Total Time"])}
-          </span>
-        </div>
-        <div class={styles.statItem}>
-          <span class={styles.statLabel}>Rows</span>
-          <span class={styles.statValue}>{formatRows(node["Actual Rows"])}</span>
-        </div>
-        <div class={styles.statItem}>
-          <span class={styles.statLabel}>Loops</span>
-          <span class={styles.statValue}>{node["Actual Loops"] ?? "-"}</span>
-        </div>
-      </div>
+          </Box>
+        </Stack>
+        <Stack gap="0" align="flex-end">
+          <Box fontSize="xs" color="fg.muted">Rows</Box>
+          <Box fontFamily="mono" fontSize="xs" color="fg.default">{formatRows(node["Actual Rows"])}</Box>
+        </Stack>
+        <Stack gap="0" align="flex-end">
+          <Box fontSize="xs" color="fg.muted">Loops</Box>
+          <Box fontFamily="mono" fontSize="xs" color="fg.default">{node["Actual Loops"] ?? "-"}</Box>
+        </Stack>
+      </Flex>
 
       {/* Cost bar */}
-      <div class={styles.costBarContainer}>
-        <div
-          class={css(styles.costBar, isSlow && styles.costBarSlow)}
+      <Flex w="120px" align="center" gap="2" flexShrink={0}>
+        <Box
+          h="8px"
+          bg={isSlow ? "red.500" : "blue.400"}
+          rounded="full"
+          transition="width 0.2s"
           style={{ width: `${Math.min(percentOfTotal, 100)}%` }}
         />
-        <span class={styles.costPercent}>{percentOfTotal.toFixed(1)}%</span>
-      </div>
-    </div>
+        <Box fontSize="xs" fontFamily="mono" color="fg.muted" minW="45px" textAlign="right">
+          {percentOfTotal.toFixed(1)}%
+        </Box>
+      </Flex>
+    </Flex>
   );
 }
 
@@ -355,21 +403,23 @@ function NodeDetails({ node }: NodeDetailsProps) {
   }
 
   if (details.length === 0) {
-    return <div class={styles.detailsEmpty}>No additional details</div>;
+    return <Box p="3" color="fg.muted" fontStyle="italic">No additional details</Box>;
   }
 
   return (
-    <div class={styles.detailsPanel}>
-      <h4 class={styles.detailsTitle}>Details: {node["Node Type"]}</h4>
-      <div class={styles.detailsGrid}>
+    <Box p="3" bg="bg.subtle" rounded="lg" border="1px solid" borderColor="border.default" mb="4">
+      <Box as="h4" fontSize="sm" fontWeight="semibold" color="fg.default" mb="2">
+        Details: {node["Node Type"]}
+      </Box>
+      <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap="2">
         {details.map(({ label, value }) => (
-          <div key={label} class={styles.detailItem}>
-            <span class={styles.detailLabel}>{label}</span>
-            <span class={styles.detailValue}>{value}</span>
-          </div>
+          <Stack key={label} gap="0">
+            <Box fontSize="xs" color="fg.muted">{label}</Box>
+            <Box fontFamily="mono" fontSize="sm" color="fg.default" wordBreak="break-all">{value}</Box>
+          </Stack>
         ))}
-      </div>
-    </div>
+      </Grid>
+    </Box>
   );
 }
 
@@ -486,77 +536,87 @@ function PlanViewer() {
 
   // Render states
   if (loading) {
-    return <div class={styles.container}><div class={styles.loading}>Loading query plan...</div></div>;
+    return <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
+      <Box p="10" textAlign="center" color="fg.muted">Loading query plan...</Box>
+    </Box>;
   }
 
   if (error) {
-    return <div class={styles.container}><div class={styles.error}>{error}</div></div>;
+    return <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
+      <Box p="4" bg={{ base: "red.50", _dark: "red.950" }} color={{ base: "red.700", _dark: "red.300" }} rounded="md">{error}</Box>
+    </Box>;
   }
 
   if (!data) {
-    return <div class={styles.container}><div class={styles.empty}>No plan data</div></div>;
+    return <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
+      <Box p="10" textAlign="center" color="fg.muted">No plan data</Box>
+    </Box>;
   }
 
   // Handle text format (non-JSON)
   if (typeof data.plan === "string") {
     return (
-      <div class={styles.container}>
-        <div class={styles.header}>
-          <span class={styles.title}>Query Plan (Text)</span>
-        </div>
-        <pre class={styles.textPlan}>{data.plan}</pre>
-      </div>
+      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
+        <Flex justify="space-between" align="center" mb="3">
+          <Box fontWeight="bold" fontSize="lg" color="fg.default">Query Plan (Text)</Box>
+        </Flex>
+        <Box as="pre" fontFamily="mono" fontSize="xs" p="3" bg="bg.subtle" rounded="md" border="1px solid" borderColor="border.default" overflow="auto" whiteSpace="pre">
+          {data.plan}
+        </Box>
+      </Box>
     );
   }
 
   if (!planResult) {
-    return <div class={styles.container}><div class={styles.empty}>Invalid plan format</div></div>;
+    return <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
+      <Box p="10" textAlign="center" color="fg.muted">Invalid plan format</Box>
+    </Box>;
   }
 
   return (
-    <div class={styles.container}>
+    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" minH="300px">
       {/* Header */}
-      <div class={styles.header}>
-        <div class={styles.headerInfo}>
-          <span class={styles.title}>Query Execution Plan</span>
+      <Flex justify="space-between" align="center" mb="3">
+        <Flex align="center" gap="2">
+          <Box fontWeight="bold" fontSize="lg" color="fg.default">Query Execution Plan</Box>
           {data.analyzed && (
-            <span class={styles.analyzedBadge}>ANALYZED</span>
+            <Badge variant="solid" className={css({ bg: "green.100", color: "green.800", _dark: { bg: "green.900", color: "green.200" } })}>ANALYZED</Badge>
           )}
-        </div>
-        <div class={styles.headerActions}>
-          <button class={styles.btn} onClick={handleExpandAll}>Expand All</button>
-          <button class={styles.btn} onClick={handleCollapseAll}>Collapse All</button>
-        </div>
-      </div>
+        </Flex>
+        <Flex gap="2">
+          <Button variant="outline" size="xs" onClick={handleExpandAll}>Expand All</Button>
+          <Button variant="outline" size="xs" onClick={handleCollapseAll}>Collapse All</Button>
+        </Flex>
+      </Flex>
 
       {/* Summary stats */}
-      <div class={styles.summary}>
+      <Flex gap="4" mb="4" p="3" bg="bg.subtle" rounded="lg" border="1px solid" borderColor="border.default">
         {planResult["Planning Time"] !== undefined && (
-          <div class={styles.summaryItem}>
-            <span class={styles.summaryLabel}>Planning Time</span>
-            <span class={styles.summaryValue}>{formatTime(planResult["Planning Time"])}</span>
-          </div>
+          <Stack gap="0.5">
+            <Box fontSize="xs" color="fg.muted" textTransform="uppercase">Planning Time</Box>
+            <Box fontSize="lg" fontWeight="semibold" color="fg.default">{formatTime(planResult["Planning Time"])}</Box>
+          </Stack>
         )}
         {planResult["Execution Time"] !== undefined && (
-          <div class={styles.summaryItem}>
-            <span class={styles.summaryLabel}>Execution Time</span>
-            <span class={styles.summaryValue}>{formatTime(planResult["Execution Time"])}</span>
-          </div>
+          <Stack gap="0.5">
+            <Box fontSize="xs" color="fg.muted" textTransform="uppercase">Execution Time</Box>
+            <Box fontSize="lg" fontWeight="semibold" color="fg.default">{formatTime(planResult["Execution Time"])}</Box>
+          </Stack>
         )}
-        <div class={styles.summaryItem}>
-          <span class={styles.summaryLabel}>Total Nodes</span>
-          <span class={styles.summaryValue}>{flatNodes.length}</span>
-        </div>
-      </div>
+        <Stack gap="0.5">
+          <Box fontSize="xs" color="fg.muted" textTransform="uppercase">Total Nodes</Box>
+          <Box fontSize="lg" fontWeight="semibold" color="fg.default">{flatNodes.length}</Box>
+        </Stack>
+      </Flex>
 
       {/* Plan tree */}
-      <div class={styles.planTree}>
-        <div class={styles.treeHeader}>
-          <span class={styles.treeHeaderCell} style={{ flex: 1 }}>Operation</span>
-          <span class={styles.treeHeaderCell} style={{ width: "200px" }}>Stats</span>
-          <span class={styles.treeHeaderCell} style={{ width: "120px" }}>Cost %</span>
-        </div>
-        <div class={styles.treeBody}>
+      <Box border="1px solid" borderColor="border.default" rounded="lg" overflow="hidden" mb="4">
+        <Flex align="center" p="2" bg="bg.subtle" borderBottom="1px solid" borderColor="border.default">
+          <Box flex="1" fontSize="xs" fontWeight="semibold" color="fg.muted" textTransform="uppercase">Operation</Box>
+          <Box w="200px" fontSize="xs" fontWeight="semibold" color="fg.muted" textTransform="uppercase">Stats</Box>
+          <Box w="120px" fontSize="xs" fontWeight="semibold" color="fg.muted" textTransform="uppercase">Cost %</Box>
+        </Flex>
+        <Box maxH="400px" overflowY="auto">
           {visibleNodes.map((flatNode) => (
             <PlanNodeRow
               key={flatNode.id}
@@ -567,355 +627,25 @@ function PlanViewer() {
               onSelect={() => handleSelectNode(flatNode.id)}
             />
           ))}
-        </div>
-      </div>
+        </Box>
+      </Box>
 
       {/* Selected node details */}
       {selectedNode && <NodeDetails node={selectedNode} />}
 
       {/* Query display */}
-      <div class={styles.querySection}>
-        <h4 class={styles.queryTitle}>Query</h4>
-        <pre class={styles.queryCode}>{data.query}</pre>
-      </div>
-    </div>
+      <Box mt="4">
+        <Box as="h4" fontSize="sm" fontWeight="semibold" color="fg.muted" mb="2">Query</Box>
+        <Box as="pre" fontFamily="mono" fontSize="xs" p="3" bg="bg.subtle" rounded="md" border="1px solid" borderColor="border.default" overflow="auto" whiteSpace="pre-wrap" wordBreak="break-word">
+          {data.query}
+        </Box>
+      </Box>
+    </Box>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    p: "4",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-    minH: "300px",
-  }),
-  header: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mb: "3",
-  }),
-  headerInfo: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-  }),
-  headerActions: css({
-    display: "flex",
-    gap: "2",
-  }),
-  title: css({
-    fontWeight: "bold",
-    fontSize: "lg",
-    color: "fg.default",
-  }),
-  analyzedBadge: css({
-    px: "2",
-    py: "0.5",
-    fontSize: "xs",
-    fontWeight: "semibold",
-    bg: "green.100",
-    color: "green.800",
-    rounded: "md",
-    _dark: { bg: "green.900", color: "green.200" },
-  }),
-  btn: css({
-    px: "3",
-    py: "1.5",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "md",
-    bg: "bg.subtle",
-    color: "fg.default",
-    fontSize: "xs",
-    cursor: "pointer",
-    _hover: { bg: "bg.muted" },
-  }),
-  summary: css({
-    display: "flex",
-    gap: "4",
-    mb: "4",
-    p: "3",
-    bg: "bg.subtle",
-    rounded: "lg",
-    border: "1px solid",
-    borderColor: "border.default",
-  }),
-  summaryItem: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.5",
-  }),
-  summaryLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-    textTransform: "uppercase",
-  }),
-  summaryValue: css({
-    fontSize: "lg",
-    fontWeight: "semibold",
-    color: "fg.default",
-  }),
-  planTree: css({
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "lg",
-    overflow: "hidden",
-    mb: "4",
-  }),
-  treeHeader: css({
-    display: "flex",
-    alignItems: "center",
-    p: "2",
-    bg: "bg.subtle",
-    borderBottom: "1px solid",
-    borderColor: "border.default",
-  }),
-  treeHeaderCell: css({
-    fontSize: "xs",
-    fontWeight: "semibold",
-    color: "fg.muted",
-    textTransform: "uppercase",
-  }),
-  treeBody: css({
-    maxH: "400px",
-    overflowY: "auto",
-  }),
-  nodeRow: css({
-    display: "flex",
-    alignItems: "center",
-    p: "2",
-    borderBottom: "1px solid",
-    borderColor: "border.subtle",
-    cursor: "pointer",
-    transition: "background 0.1s",
-    _hover: { bg: "bg.subtle" },
-  }),
-  nodeRowSelected: css({
-    bg: "blue.50",
-    _hover: { bg: "blue.100" },
-    _dark: { bg: "blue.950", _hover: { bg: "blue.900" } },
-  }),
-  nodeRowSlow: css({
-    borderLeft: "3px solid",
-    borderLeftColor: "red.500",
-  }),
-  nodeIndent: css({
-    display: "flex",
-    alignItems: "center",
-  }),
-  expandBtn: css({
-    w: "18px",
-    h: "18px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    border: "1px solid",
-    borderColor: "border.default",
-    rounded: "sm",
-    bg: "bg.default",
-    color: "fg.muted",
-    fontSize: "xs",
-    cursor: "pointer",
-    mr: "2",
-    _hover: { bg: "bg.muted" },
-  }),
-  expandPlaceholder: css({
-    w: "18px",
-    mr: "2",
-  }),
-  nodeBadge: css({
-    w: "28px",
-    h: "20px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    rounded: "sm",
-    fontSize: "xs",
-    fontWeight: "bold",
-    mr: "2",
-    flexShrink: 0,
-  }),
-  nodeBadge_scan: css({
-    bg: "blue.100",
-    color: "blue.800",
-    _dark: { bg: "blue.900", color: "blue.200" },
-  }),
-  nodeBadge_join: css({
-    bg: "purple.100",
-    color: "purple.800",
-    _dark: { bg: "purple.900", color: "purple.200" },
-  }),
-  nodeBadge_sort: css({
-    bg: "orange.100",
-    color: "orange.800",
-    _dark: { bg: "orange.900", color: "orange.200" },
-  }),
-  nodeBadge_hash: css({
-    bg: "green.100",
-    color: "green.800",
-    _dark: { bg: "green.900", color: "green.200" },
-  }),
-  nodeBadge_default: css({
-    bg: "gray.100",
-    color: "gray.800",
-    _dark: { bg: "gray.800", color: "gray.200" },
-  }),
-  nodeInfo: css({
-    flex: 1,
-    minW: 0,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  }),
-  nodeType: css({
-    fontWeight: "medium",
-    color: "fg.default",
-  }),
-  nodeRelation: css({
-    color: "blue.600",
-    _dark: { color: "blue.400" },
-  }),
-  nodeIndex: css({
-    color: "green.600",
-    fontSize: "xs",
-    _dark: { color: "green.400" },
-  }),
-  nodeAlias: css({
-    color: "fg.muted",
-    fontSize: "xs",
-  }),
-  nodeStats: css({
-    display: "flex",
-    gap: "3",
-    w: "200px",
-    flexShrink: 0,
-  }),
-  statItem: css({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-  }),
-  statLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  statValue: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    color: "fg.default",
-  }),
-  statValueSlow: css({
-    color: "red.600",
-    fontWeight: "bold",
-    _dark: { color: "red.400" },
-  }),
-  costBarContainer: css({
-    w: "120px",
-    display: "flex",
-    alignItems: "center",
-    gap: "2",
-    flexShrink: 0,
-  }),
-  costBar: css({
-    h: "8px",
-    bg: "blue.400",
-    rounded: "full",
-    transition: "width 0.2s",
-  }),
-  costBarSlow: css({
-    bg: "red.500",
-  }),
-  costPercent: css({
-    fontSize: "xs",
-    fontFamily: "mono",
-    color: "fg.muted",
-    minW: "45px",
-    textAlign: "right",
-  }),
-  detailsPanel: css({
-    p: "3",
-    bg: "bg.subtle",
-    rounded: "lg",
-    border: "1px solid",
-    borderColor: "border.default",
-    mb: "4",
-  }),
-  detailsTitle: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-    color: "fg.default",
-    mb: "2",
-  }),
-  detailsGrid: css({
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-    gap: "2",
-  }),
-  detailItem: css({
-    display: "flex",
-    flexDirection: "column",
-  }),
-  detailLabel: css({
-    fontSize: "xs",
-    color: "fg.muted",
-  }),
-  detailValue: css({
-    fontFamily: "mono",
-    fontSize: "sm",
-    color: "fg.default",
-    wordBreak: "break-all",
-  }),
-  detailsEmpty: css({
-    p: "3",
-    color: "fg.muted",
-    fontStyle: "italic",
-  }),
-  querySection: css({
-    mt: "4",
-  }),
-  queryTitle: css({
-    fontSize: "sm",
-    fontWeight: "semibold",
-    color: "fg.muted",
-    mb: "2",
-  }),
-  queryCode: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    p: "3",
-    bg: "bg.subtle",
-    rounded: "md",
-    border: "1px solid",
-    borderColor: "border.default",
-    overflow: "auto",
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-  }),
-  textPlan: css({
-    fontFamily: "mono",
-    fontSize: "xs",
-    p: "3",
-    bg: "bg.subtle",
-    rounded: "md",
-    border: "1px solid",
-    borderColor: "border.default",
-    overflow: "auto",
-    whiteSpace: "pre",
-  }),
-  loading: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  empty: css({ p: "10", textAlign: "center", color: "fg.muted" }),
-  error: css({ p: "4", bg: "red.50", color: "red.700", rounded: "md", _dark: { bg: "red.950", color: "red.300" } }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<PlanViewer />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<PlanViewer />);

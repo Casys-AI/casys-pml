@@ -9,11 +9,12 @@
  * @module lib/std/src/ui/sparkline
  */
 
-import { render } from "preact";
-import { useState, useEffect, useMemo } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useState, useEffect, useMemo } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { css } from "../../styled-system/css";
-import "./styles.css";
+import { HStack, Box } from "../../styled-system/jsx";
+import "../../global.css";
 
 // ============================================================================
 // Types
@@ -81,11 +82,19 @@ function Sparkline() {
   }, [data]);
 
   if (loading) {
-    return <div class={styles.container}>...</div>;
+    return (
+      <HStack gap="2" p="2" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        ...
+      </HStack>
+    );
   }
 
   if (!data?.values?.length || !computed) {
-    return <div class={styles.container}>No data</div>;
+    return (
+      <HStack gap="2" p="2" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+        No data
+      </HStack>
+    );
   }
 
   const {
@@ -113,12 +122,27 @@ function Sparkline() {
   const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${padding} ${height - padding} Z`;
 
-  return (
-    <div class={styles.container}>
-      {label && <span class={styles.label}>{label}</span>}
+  const trendColor = trend === "up" ? "green.500" : trend === "down" ? "red.500" : "fg.muted";
+  const trendArrow = trend === "up" ? "\u2191" : trend === "down" ? "\u2193" : "\u2192";
 
-      <div class={styles.chartContainer}>
-        <svg width={width} height={height} class={styles.svg}>
+  return (
+    <HStack
+      gap="2"
+      p="2"
+      fontFamily="sans"
+      fontSize="sm"
+      color="fg.default"
+      bg="bg.canvas"
+      display="inline-flex"
+    >
+      {label && (
+        <Box color="fg.muted" fontSize="xs" minW="40px">
+          {label}
+        </Box>
+      )}
+
+      <Box position="relative">
+        <svg width={width} height={height} style={{ display: "block" }}>
           {type === "area" && (
             <path d={areaPath} fill={color} opacity={0.2} />
           )}
@@ -128,9 +152,9 @@ function Sparkline() {
               d={linePath}
               fill="none"
               stroke={color}
-              stroke-width={1.5}
-              stroke-linecap="round"
-              stroke-linejoin="round"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
           ) : (
             // Bar chart
@@ -164,87 +188,31 @@ function Sparkline() {
             />
           )}
         </svg>
-      </div>
+      </Box>
 
       {showCurrent && (
-        <div class={styles.currentValue}>
-          <span class={css(
-            styles.trendArrow,
-            trend === "up" && styles.trendUp,
-            trend === "down" && styles.trendDown
-          )}>
-            {trend === "up" ? "↑" : trend === "down" ? "↓" : "→"}
-          </span>
-          <span class={styles.value}>{Number.isInteger(current) ? current : current.toFixed(1)}</span>
-        </div>
+        <HStack gap="1" fontFamily="mono" fontWeight="semibold">
+          <Box fontSize="xs" color={trendColor}>
+            {trendArrow}
+          </Box>
+          <Box fontSize="sm">
+            {Number.isInteger(current) ? current : current.toFixed(1)}
+          </Box>
+        </HStack>
       )}
 
       {showMinMax && (
-        <div class={styles.minMax}>
+        <Box display="flex" flexDirection="column" fontSize="xs" color="fg.muted" lineHeight="1">
           <span>{min.toFixed(0)}</span>
           <span>{max.toFixed(0)}</span>
-        </div>
+        </Box>
       )}
-    </div>
+    </HStack>
   );
 }
-
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = {
-  container: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "2",
-    p: "2",
-    fontFamily: "sans",
-    fontSize: "sm",
-    color: "fg.default",
-    bg: "bg.canvas",
-  }),
-  label: css({
-    color: "fg.muted",
-    fontSize: "xs",
-    minW: "40px",
-  }),
-  chartContainer: css({
-    position: "relative",
-  }),
-  svg: css({
-    display: "block",
-  }),
-  currentValue: css({
-    display: "flex",
-    alignItems: "center",
-    gap: "1",
-    fontFamily: "mono",
-    fontWeight: "semibold",
-  }),
-  value: css({
-    fontSize: "sm",
-  }),
-  trendArrow: css({
-    fontSize: "xs",
-  }),
-  trendUp: css({
-    color: "green.500",
-  }),
-  trendDown: css({
-    color: "red.500",
-  }),
-  minMax: css({
-    display: "flex",
-    flexDirection: "column",
-    fontSize: "xs",
-    color: "fg.muted",
-    lineHeight: "1",
-  }),
-};
 
 // ============================================================================
 // Mount
 // ============================================================================
 
-render(<Sparkline />, document.getElementById("app")!);
+createRoot(document.getElementById("app")!).render(<Sparkline />);
