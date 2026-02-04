@@ -158,6 +158,30 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
             scroll-behavior: smooth;
             scroll-padding-top: 80px;
           }
+
+          /* Custom scrollbar */
+          html, body {
+            scrollbar-width: thin;
+            scrollbar-color: #2a2a2e #0a0908;
+          }
+
+          ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+          }
+
+          ::-webkit-scrollbar-track {
+            background: #0a0908;
+          }
+
+          ::-webkit-scrollbar-thumb {
+            background: #2a2a2e;
+            border-radius: 4px;
+          }
+
+          ::-webkit-scrollbar-thumb:hover {
+            background: #4a4a4e;
+          }
           `}
         </style>
       </div>
