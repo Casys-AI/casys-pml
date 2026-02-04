@@ -33,6 +33,7 @@ import {
 } from "../../application/use-cases/discover/mod.ts";
 import type { IDecisionLogger } from "../../telemetry/decision-logger.ts";
 import { getUserScope } from "../../lib/user.ts";
+import { uuidv7 } from "../../utils/uuid.ts";
 
 // ============================================================================
 // Types
@@ -291,7 +292,7 @@ export class DiscoverHandlerFacade {
     scope: Scope,
     context: HandlerContext,
   ): Promise<MCPToolResponse | MCPErrorResponse> {
-    const correlationId = crypto.randomUUID();
+    const correlationId = uuidv7();
     const intent = params.intent!;
     const filterType = params.filter?.type ?? "all";
     const minScore = params.filter?.minScore ?? 0.0;

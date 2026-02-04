@@ -16,6 +16,7 @@ import { eventBus } from "../events/mod.ts";
 import type { AlgorithmDecisionPayload } from "../events/types.ts";
 import { isPureOperation } from "../capabilities/pure-operations.ts";
 import type { AlgorithmMode, AlgorithmParams, AlgorithmSignals, TargetType } from "./algorithm-tracer.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 // ============================================================================
 // Abstract Interface (Port)
@@ -99,7 +100,7 @@ export class TelemetryAdapter implements IDecisionLogger {
    * Returns traceId immediately (sync) - subscribers handle async work.
    */
   logDecision(decision: AlgorithmDecision): string {
-    const traceId = crypto.randomUUID();
+    const traceId = uuidv7();
 
     // Auto-detect pure flag from targetId if not explicitly set
     const pure = decision.targetId ? isPureOperation(decision.targetId) : undefined;
@@ -170,7 +171,7 @@ export class TelemetryAdapter implements IDecisionLogger {
  */
 export class NoOpDecisionLogger implements IDecisionLogger {
   logDecision(_decision: AlgorithmDecision): string {
-    return crypto.randomUUID();
+    return uuidv7();
   }
 }
 

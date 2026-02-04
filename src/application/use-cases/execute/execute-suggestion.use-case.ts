@@ -10,6 +10,7 @@
  */
 
 import * as log from "@std/log";
+import { uuidv7 } from "../../../utils/uuid.ts";
 import type { IDAGSuggester, CapabilityMatch, SuggestionResult } from "../../../domain/interfaces/dag-suggester.ts";
 import type { ICapabilityRepository } from "../../../domain/interfaces/capability-repository.ts";
 import type { UseCaseResult } from "../shared/types.ts";
@@ -139,7 +140,7 @@ export class ExecuteSuggestionUseCase {
   ): Promise<UseCaseResult<ExecuteSuggestionResult>> {
     const { intent } = request;
     const startTime = performance.now();
-    const correlationId = crypto.randomUUID();
+    const correlationId = uuidv7();
 
     log.info("[ExecuteSuggestionUseCase] Starting suggestion mode", {
       correlationId,

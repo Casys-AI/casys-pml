@@ -28,6 +28,7 @@ import {
 import { ControlledExecutor } from "../../dag/controlled-executor.ts";
 import { deleteWorkflowDAG, saveWorkflowDAG } from "../workflow-dag-store.ts";
 import type { WorkflowHandlerDependencies } from "./workflow-handler-types.ts";
+import { uuidv7 } from "../../utils/uuid.ts";
 import { getTaskType } from "../../dag/execution/task-router.ts";
 import type { CapabilityStore } from "../../capabilities/capability-store.ts";
 import { getToolPermissionConfig } from "../../capabilities/permission-inferrer.ts";
@@ -406,7 +407,7 @@ async function executeStandardWorkflow(
 
     // Update graph with execution data (learning loop)
     await deps.graphEngine.updateFromExecution({
-      executionId: crypto.randomUUID(),
+      executionId: uuidv7(),
       executedAt: new Date(),
       intentText: intent ?? "",
       dagStructure: dag,
@@ -461,7 +462,7 @@ async function executeWithPerLayerValidation(
   userId?: string,
   learningContext?: LearningContext,
 ): Promise<MCPToolResponse> {
-  const workflowId = crypto.randomUUID();
+  const workflowId = uuidv7();
 
   // Save DAG to database for stateless continuation
   // Include learningContext for capability saving after HIL approval

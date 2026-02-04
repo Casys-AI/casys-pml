@@ -29,6 +29,7 @@
  */
 
 import * as log from "@std/log";
+import { uuidv7 } from "../../../utils/uuid.ts";
 import type { IEventBus } from "../../../domain/interfaces/event-bus.ts";
 import type { UseCaseResult } from "../shared/types.ts";
 import type {
@@ -433,7 +434,7 @@ export class ExecuteCodeUseCase {
         };
 
         await this.deps.graphUpdater.updateFromExecution({
-          executionId: crypto.randomUUID(),
+          executionId: uuidv7(),
           executedAt: new Date(),
           intentText: intent,
           dagStructure: tracedDAG,

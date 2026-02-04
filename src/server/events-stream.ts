@@ -11,6 +11,7 @@ import * as log from "@std/log";
 
 import type { EventType, PmlEvent } from "../events/types.ts";
 import { eventBus } from "../events/mod.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 /**
  * Configuration for EventsStreamManager
@@ -98,7 +99,7 @@ export class EventsStreamManager {
       Uint8Array
     >();
     const writer = writable.getWriter();
-    const clientId = crypto.randomUUID();
+    const clientId = uuidv7();
 
     // Register client with filters
     this.clients.set(clientId, { writer, filters });

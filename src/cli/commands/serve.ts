@@ -313,7 +313,7 @@ async function executeServeCommand(options: ServeOptions): Promise<void> {
 
   const allServers = await discovery.discoverServers();
   if (allServers.length === 0) {
-    throw new Error("No MCP servers configured");
+    log.warn("No MCP servers configured at startup - servers can be added dynamically");
   }
 
   // Step 2: Initialize database

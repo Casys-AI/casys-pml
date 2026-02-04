@@ -32,6 +32,7 @@
  */
 
 import * as log from "@std/log";
+import { uuidv7 } from "../../utils/uuid.ts";
 import type { DbClient } from "../../db/types.ts";
 import type {
   EpisodicEvent,
@@ -90,7 +91,7 @@ export class EpisodicMemoryStore {
    */
   async capture(event: EpisodicEventInput): Promise<string> {
     const fullEvent: EpisodicEvent = {
-      id: crypto.randomUUID(),
+      id: uuidv7(),
       ...event,
       context_hash: event.context_hash || this.hashContext(event.data.context || {}),
     };

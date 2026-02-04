@@ -8,6 +8,7 @@
  */
 
 import * as log from "@std/log";
+import { uuidv7 } from "../../utils/uuid.ts";
 import type {
   PackageSession,
   RegisterRequest,
@@ -93,7 +94,7 @@ export class SessionStore {
     userId: string,
     scope?: UserScope,
   ): RegisterResponse {
-    const sessionId = crypto.randomUUID();
+    const sessionId = uuidv7();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + this.sessionTtlMs);
 

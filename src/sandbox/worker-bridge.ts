@@ -47,6 +47,7 @@ import { getLogger } from "../telemetry/logger.ts";
 import { eventBus } from "../events/mod.ts";
 import { RpcRouter } from "./rpc-router.ts";
 import { getUserScope } from "../lib/user.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 const logger = getLogger("default");
 
@@ -220,7 +221,7 @@ export class WorkerBridge {
     // Story 7.3b: Setup BroadcastChannel for capability traces
     // Story 6.5: Bridge capability traces to unified EventBus (ADR-036)
     // Use unique channel name per WorkerBridge to prevent test interference
-    this.traceChannelName = `pml-traces-${crypto.randomUUID()}`;
+    this.traceChannelName = `pml-traces-${uuidv7()}`;
 
     // Story 7.3b: Code generator for capability injection
     this.codeGenerator = new CapabilityCodeGenerator();

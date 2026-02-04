@@ -10,6 +10,7 @@
 import type { DbClient } from "../db/types.ts";
 import type { PermissionAuditLogEntry, PermissionSet } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 const logger = getLogger("default");
 
@@ -90,7 +91,7 @@ export class PermissionAuditStore {
    * @returns The created audit log entry
    */
   async logEscalation(input: LogEscalationInput): Promise<PermissionAuditLogEntry> {
-    const id = crypto.randomUUID();
+    const id = uuidv7();
     const timestamp = Date.now();
 
     const {

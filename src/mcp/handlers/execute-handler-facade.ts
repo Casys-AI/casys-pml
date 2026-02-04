@@ -19,6 +19,7 @@ import {
   type ExecuteResponse,
 } from "../../application/use-cases/execute/mod.ts";
 import type { JsonValue } from "../../capabilities/types/mod.ts";
+import { uuidv7 } from "../../utils/uuid.ts";
 
 // ============================================================================
 // Request/Response Types
@@ -133,7 +134,7 @@ export class ExecuteHandlerFacade {
 
     // Pre-generate trace UUID at entry point (same pattern as workflowId)
     // This ensures trace.id in DB matches the traceId used in sandbox
-    const executionTraceId = crypto.randomUUID();
+    const executionTraceId = uuidv7();
 
     const result = await this.deps.executeDirectUC.execute({
       code: request.code!,

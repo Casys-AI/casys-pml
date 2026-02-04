@@ -16,6 +16,7 @@ import type { DbClient } from "../db/types.ts";
 import type { Checkpoint } from "./types.ts";
 import type { WorkflowState } from "./state.ts";
 import * as log from "@std/log";
+import { uuidv7 } from "../utils/uuid.ts";
 
 /**
  * Checkpoint persistence manager with PGlite backend
@@ -68,7 +69,7 @@ export class CheckpointManager {
 
     try {
       // Generate UUID v4 for checkpoint ID
-      const id = crypto.randomUUID();
+      const id = uuidv7();
       const timestamp = new Date();
 
       // Serialize WorkflowState to JSON

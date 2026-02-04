@@ -18,6 +18,7 @@ import type {
   WorkflowTaskResult,
 } from "../../../../domain/interfaces/workflow-repository.ts";
 import type { DAGStructure } from "../../../../graphrag/types.ts";
+import { uuidv7 } from "../../../../utils/uuid.ts";
 
 /**
  * In-memory workflow storage
@@ -59,7 +60,7 @@ export class WorkflowRepositoryAdapter implements IWorkflowRepository {
    * Create a new workflow
    */
   async create(input: CreateWorkflowInput): Promise<WorkflowState> {
-    const workflowId = input.workflowId ?? crypto.randomUUID();
+    const workflowId = input.workflowId ?? uuidv7();
     const now = new Date();
 
     const workflow: WorkflowState = {

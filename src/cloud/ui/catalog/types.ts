@@ -32,6 +32,8 @@ export interface CatalogEntry {
   namespace: string | null;
   /** Action (for capability only) */
   action: string | null;
+  /** Has MCP Apps UI (from tool_schema.ui_meta) */
+  hasUi?: boolean;
 }
 
 /**

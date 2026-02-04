@@ -418,6 +418,10 @@ interface CapabilityForTraining {
   embedding: number[];
   toolsUsed: string[];
   successRate: number;
+  /** Parent capability IDs (for multi-level hierarchy) */
+  parents?: string[];
+  /** Child capability IDs (for multi-level hierarchy) */
+  children?: string[];
 }
 
 /**
@@ -626,11 +630,14 @@ export async function trainSHGATOnPathTracesSubprocess(
   }));
 
   // Capabilities keep their original toolsUsed (no hack)
+  // Include parents/children for multi-level hierarchy training
   const capsForWorker = capabilities.map((c) => ({
     id: c.id,
     embedding: c.embedding,
     toolsUsed: c.toolsUsed,
     successRate: c.successRate,
+    parents: c.parents,
+    children: c.children,
   }));
 
   // Step 6: Train in subprocess

@@ -13,6 +13,7 @@ import type { EmbeddingModelInterface } from "./embeddings.ts";
 import type { MCPTool } from "../mcp/types.ts";
 import { VectorSearchError } from "../errors/error-types.ts";
 import { eventBus } from "../events/mod.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 /**
  * Search result from semantic vector search
@@ -181,7 +182,7 @@ export class VectorSearch {
       return [];
     }
 
-    const searchId = crypto.randomUUID().slice(0, 8);
+    const searchId = uuidv7().slice(0, 8);
     this.emitSearchStarted(searchId, params);
 
     try {

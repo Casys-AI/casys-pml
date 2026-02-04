@@ -53,6 +53,7 @@ import type { ICodeAnalyzer } from "../../domain/interfaces/code-analyzer.ts";
 import { resolveRouting, getToolRouting } from "../../capabilities/routing-resolver.ts";
 // Multi-tenant FQDN resolution
 import { getUserScope, resolveToolFqdn } from "../../lib/user.ts";
+import { uuidv7 } from "../../utils/uuid.ts";
 
 /**
  * Dependencies required for code execution handler
@@ -728,7 +729,7 @@ async function executeSandboxMode(
 
     // Update GraphRAG with execution data
     await deps.graphEngine.updateFromExecution({
-      executionId: crypto.randomUUID(),
+      executionId: uuidv7(),
       executedAt: new Date(),
       intentText: request.intent ?? "code_execution",
       dagStructure: tracedDAG,
