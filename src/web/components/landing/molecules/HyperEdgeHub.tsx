@@ -20,8 +20,7 @@ export function HyperEdgeHub({ hub, nodes, color, label }: HyperEdgeHubProps) {
   const depthOpacity = 1 - hub.z * 0.2;
 
   return (
-    <g class="heh">
-      {/* Lines from hub to each node */}
+    <g>
       {nodes.map((node, i) => (
         <GraphEdge3D
           key={i}
@@ -36,7 +35,6 @@ export function HyperEdgeHub({ hub, nodes, color, label }: HyperEdgeHubProps) {
         />
       ))}
 
-      {/* Hub point */}
       <circle
         cx={hub.x}
         cy={hub.y}
@@ -45,14 +43,12 @@ export function HyperEdgeHub({ hub, nodes, color, label }: HyperEdgeHubProps) {
         opacity={0.6 * depthOpacity}
       />
 
-      {/* Label */}
       {label && (
         <text
           x={hub.x}
           y={hub.y - 8}
           fill={color}
-          font-size="7"
-          font-family="'Geist Mono', monospace"
+          class="text-[7px] font-mono"
           text-anchor="middle"
           opacity={0.7 * depthOpacity}
         >

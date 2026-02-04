@@ -11,21 +11,14 @@ import { useEffect } from "preact/hooks";
 import type { PhaseTransition } from "../../../../shared/emergence.types.ts";
 
 interface PhaseTransitionBannerProps {
-  /** Phase transition data */
   transition: PhaseTransition;
-  /** Callback when dismissed (manual or auto) */
   onDismiss: () => void;
 }
 
-/**
- * Animated banner for phase transition alerts
- * Auto-dismisses after 10 seconds
- */
 export function PhaseTransitionBanner({
   transition,
   onDismiss,
 }: PhaseTransitionBannerProps) {
-  // Auto-dismiss after 10 seconds (AC10)
   useEffect(() => {
     if (!transition.detected) return;
     const timer = setTimeout(() => {
@@ -36,29 +29,25 @@ export function PhaseTransitionBanner({
 
   if (!transition.detected) return null;
 
-  const bgColor =
-    transition.type === "expansion"
-      ? "rgba(74, 222, 128, 0.15)"
-      : "rgba(251, 191, 36, 0.15)";
-  const borderColor =
-    transition.type === "expansion"
-      ? "rgba(74, 222, 128, 0.3)"
-      : "rgba(251, 191, 36, 0.3)";
-  const icon = transition.type === "expansion" ? "🌱" : "🔮";
+  const isExpansion = transition.type === "expansion";
+  const icon = isExpansion ? "🌱" : "🔮";
 
   return (
     <div
-      class="p-3 rounded-lg mb-4 flex items-center justify-between animate-pulse"
-      style={{ background: bgColor, border: `1px solid ${borderColor}` }}
+      class={`p-3 rounded-lg mb-4 flex items-center justify-between animate-pulse border ${
+        isExpansion
+          ? "bg-green-400/15 border-green-400/30"
+          : "bg-amber-400/15 border-amber-400/30"
+      }`}
     >
       <div class="flex items-center gap-2">
         <span class="text-lg">{icon}</span>
         <div>
-          <div class="font-semibold text-sm" style={{ color: "var(--text)" }}>
+          <div class="font-semibold text-sm text-stone-100">
             Phase Transition:{" "}
             {transition.type.charAt(0).toUpperCase() + transition.type.slice(1)}
           </div>
-          <div class="text-xs" style={{ color: "var(--text-muted)" }}>
+          <div class="text-xs text-stone-400">
             {transition.description} ({(transition.confidence * 100).toFixed(0)}
             % confidence)
           </div>
@@ -66,8 +55,7 @@ export function PhaseTransitionBanner({
       </div>
       <button
         type="button"
-        class="p-1 rounded hover:bg-white/10 transition-colors"
-        style={{ color: "var(--text-dim)" }}
+        class="p-1 rounded hover:bg-white/10 transition-colors text-stone-500"
         onClick={onDismiss}
       >
         ✕

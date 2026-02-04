@@ -2652,91 +2652,49 @@ export default function CytoscapeGraph({
   }, [expandAll, collapseAll]);
 
   return (
-    <div class="w-full h-full relative" style={{ background: "var(--bg, #0a0908)" }}>
-      {/* Cytoscape container */}
+    <div class="w-full h-full relative bg-stone-950">
       <div ref={containerRef} class="w-full h-full" />
 
-      {/* Cluster visualization canvas overlay */}
       <canvas
         ref={canvasRef}
-        class="absolute top-0 left-0 w-full h-full pointer-events-none z-5"
-        style={{ opacity: clusterViz ? 1 : 0, transition: "opacity 0.2s ease-out" }}
+        class={`absolute top-0 left-0 w-full h-full pointer-events-none z-5 transition-opacity duration-200 ${clusterViz ? "opacity-100" : "opacity-0"}`}
       />
 
-      {/* Timeline separators overlay (only in capabilities mode) */}
       {viewMode === "capabilities" && renderedSeparators.length > 0 && (
-        <div
-          class="absolute top-0 left-0 pointer-events-none z-10 overflow-hidden"
-          style={{ width: "100%", height: "100%" }}
-        >
+        <div class="absolute top-0 left-0 pointer-events-none z-10 overflow-hidden w-full h-full">
           {renderedSeparators
             .filter((sep) => sep.visible)
             .map((sep, i) => (
               <div
                 key={`sep-${i}`}
-                class="absolute left-0 right-0 flex items-center gap-3 px-4"
-                style={{
-                  top: `${sep.y}px`,
-                  transform: "translateY(-50%)",
-                  transition: "top 0.1s ease-out",
-                }}
+                class="absolute left-0 right-0 flex items-center gap-3 px-4 -translate-y-1/2 transition-[top] duration-100 ease-out"
+                style={{ top: `${sep.y}px` }}
               >
-                <div
-                  class="h-px flex-1"
-                  style={{
-                    background:
-                      "linear-gradient(to right, transparent, var(--border, #3a3631) 20%, var(--border, #3a3631) 80%, transparent)",
-                  }}
-                />
-                <span
-                  class="text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap"
-                  style={{
-                    background: "var(--bg-elevated, #12110f)",
-                    color: "var(--text-muted, #a0a0a0)",
-                    border: "1px solid var(--border, #3a3631)",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-                  }}
-                >
+                <div class="h-px flex-1 bg-gradient-to-r from-transparent via-stone-700 to-transparent" />
+                <span class="text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap bg-stone-900 text-stone-400 border border-stone-700 shadow-lg">
                   {sep.label}
                 </span>
-                <div
-                  class="h-px flex-1"
-                  style={{
-                    background:
-                      "linear-gradient(to left, transparent, var(--border, #3a3631) 20%, var(--border, #3a3631) 80%, transparent)",
-                  }}
-                />
+                <div class="h-px flex-1 bg-gradient-to-l from-transparent via-stone-700 to-transparent" />
               </div>
             ))}
         </div>
       )}
 
-      {/* Loading spinner */}
       {isLoading && (
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
           <div class="flex flex-col items-center gap-3">
-            <div
-              class="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin"
-              style={{ color: "var(--accent, #FFB86F)" }}
-            />
-            <span class="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+            <div class="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <span class="text-sm font-medium text-stone-400">
               Loading graph...
             </span>
           </div>
         </div>
       )}
 
-      {/* Error message */}
       {error && !isLoading && (
-        <div
-          class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 max-w-md text-center p-6 rounded-xl"
-          style={{
-            background: "var(--bg-elevated, #12110f)",
-            border: "1px solid var(--border)",
-          }}
-        >
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 max-w-md text-center p-6 rounded-xl bg-stone-900 border border-amber-400/10">
           <div class="text-4xl mb-3">Error</div>
-          <p style={{ color: "var(--text-muted)" }}>{error}</p>
+          <p class="text-stone-400">{error}</p>
         </div>
       )}
 

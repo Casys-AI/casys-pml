@@ -21,11 +21,15 @@ interface DagStepRowProps {
   alignment?: "start" | "center" | "end";
 }
 
-export function DagStepRow({ steps, alignment = "center" }: DagStepRowProps) {
-  const alignmentClass = `dag-step-row--${alignment}`;
+const alignmentClasses = {
+  start: "justify-start",
+  center: "justify-center",
+  end: "justify-end pr-8"
+};
 
+export function DagStepRow({ steps, alignment = "center" }: DagStepRowProps) {
   return (
-    <div class={`dag-step-row ${alignmentClass}`}>
+    <div class={`flex items-center gap-2 max-sm:flex-wrap max-sm:justify-center max-sm:pr-0 ${alignmentClasses[alignment]}`}>
       {steps.map((step, index) => (
         <>
           <DagStep
@@ -36,44 +40,13 @@ export function DagStepRow({ steps, alignment = "center" }: DagStepRowProps) {
             color={step.color}
             isLast={index === steps.length - 1 && alignment === "end"}
           />
-          {index < steps.length - 1 && <DagArrow direction="right" />}
+          {index < steps.length - 1 && (
+            <span class="max-sm:hidden">
+              <DagArrow direction="right" />
+            </span>
+          )}
         </>
       ))}
-
-      <style>
-        {`
-        .dag-step-row {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .dag-step-row--start {
-          justify-content: flex-start;
-        }
-
-        .dag-step-row--center {
-          justify-content: center;
-        }
-
-        .dag-step-row--end {
-          justify-content: flex-end;
-          padding-right: 2rem;
-        }
-
-        @media (max-width: 600px) {
-          .dag-step-row {
-            flex-wrap: wrap;
-            justify-content: center !important;
-            padding-right: 0 !important;
-          }
-
-          .dag-step-row .dag-arrow--right {
-            display: none;
-          }
-        }
-        `}
-      </style>
     </div>
   );
 }

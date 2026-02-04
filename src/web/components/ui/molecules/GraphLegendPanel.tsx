@@ -9,10 +9,8 @@ import Button from "../atoms/Button.tsx";
 import Divider from "../atoms/Divider.tsx";
 import Slider from "../atoms/Slider.tsx";
 
-/** View mode for the graph */
 export type ViewMode = "capabilities" | "emergence" | "graph";
 
-/** Node mode - definition (generic tools) vs invocation (actual calls) */
 export type NodeMode = "definition" | "invocation";
 
 interface GraphLegendPanelProps {
@@ -24,10 +22,8 @@ interface GraphLegendPanelProps {
   onToggleOrphans: () => void;
   onExportJson: () => void;
   onExportPng: () => void;
-  // Highlight depth control
   highlightDepth?: number;
   onHighlightDepthChange?: (d: number) => void;
-  // View mode control
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
 }
@@ -41,47 +37,25 @@ export default function GraphLegendPanel({
   onToggleOrphans,
   onExportJson,
   onExportPng,
-  // Highlight depth
   highlightDepth = 1,
   onHighlightDepthChange,
-  // View mode
   viewMode = "capabilities",
   onViewModeChange,
 }: GraphLegendPanelProps): JSX.Element {
   return (
-    <div
-      class="absolute top-5 left-5 p-4 rounded-xl z-10 transition-all duration-300 max-h-[calc(100vh-120px)] overflow-y-auto"
-      style={{
-        background: "rgba(18, 17, 15, 0.95)",
-        border: "1px solid var(--border)",
-        backdropFilter: "blur(12px)",
-        minWidth: "200px",
-      }}
-    >
-      {/* View Mode Toggle */}
+    <div class="absolute top-5 left-5 p-4 rounded-xl z-10 transition-all duration-300 max-h-[calc(100vh-120px)] overflow-y-auto min-w-[200px] bg-stone-900/95 border border-amber-500/10 backdrop-blur-md">
       {onViewModeChange && (
         <>
-          <h3
-            class="text-xs font-semibold uppercase tracking-widest mb-2"
-            style={{ color: "var(--text-dim)" }}
-          >
+          <h3 class="text-xs font-semibold uppercase tracking-widest mb-2 text-stone-500">
             View Mode
           </h3>
           <div class="flex gap-1 mb-3">
-            {/* Capabilities - Boxes/Grid icon */}
             <button
-              class="flex-1 p-2 rounded-lg transition-all flex items-center justify-center"
-              style={{
-                background: viewMode === "capabilities"
-                  ? "var(--accent, #FFB86F)"
-                  : "var(--bg-surface, #1a1816)",
-                color: viewMode === "capabilities"
-                  ? "var(--bg, #0a0908)"
-                  : "var(--text-muted, #d5c3b5)",
-                border: viewMode === "capabilities"
-                  ? "1px solid var(--accent, #FFB86F)"
-                  : "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-              }}
+              class={`flex-1 p-2 rounded-lg transition-all flex items-center justify-center border ${
+                viewMode === "capabilities"
+                  ? "bg-amber-400 text-stone-950 border-amber-400"
+                  : "bg-stone-900 text-stone-300 border-amber-500/10 hover:border-amber-400/50"
+              }`}
               onClick={() => onViewModeChange("capabilities")}
               title="Capabilities - Compound nodes with tools inside"
             >
@@ -99,18 +73,12 @@ export default function GraphLegendPanel({
                 <rect x="14" y="14" width="7" height="7" rx="1" />
               </svg>
             </button>
-            {/* Emergence - CAS metrics */}
             <button
-              class="flex-1 p-2 rounded-lg transition-all flex items-center justify-center"
-              style={{
-                background: viewMode === "emergence"
-                  ? "var(--accent, #FFB86F)"
-                  : "var(--bg-surface, #1a1816)",
-                color: viewMode === "emergence" ? "var(--bg, #0a0908)" : "var(--text-muted, #d5c3b5)",
-                border: viewMode === "emergence"
-                  ? "1px solid var(--accent, #FFB86F)"
-                  : "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-              }}
+              class={`flex-1 p-2 rounded-lg transition-all flex items-center justify-center border ${
+                viewMode === "emergence"
+                  ? "bg-amber-400 text-stone-950 border-amber-400"
+                  : "bg-stone-900 text-stone-300 border-amber-500/10 hover:border-amber-400/50"
+              }`}
               onClick={() => onViewModeChange("emergence")}
               title="Emergence - CAS metrics dashboard"
             >
@@ -122,23 +90,16 @@ export default function GraphLegendPanel({
                 stroke="currentColor"
                 stroke-width="2"
               >
-                {/* Sparkles icon for emergence */}
                 <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
                 <circle cx="12" cy="12" r="4" />
               </svg>
             </button>
-            {/* Graph - Network/Force-directed icon */}
             <button
-              class="flex-1 p-2 rounded-lg transition-all flex items-center justify-center"
-              style={{
-                background: viewMode === "graph"
-                  ? "var(--accent, #FFB86F)"
-                  : "var(--bg-surface, #1a1816)",
-                color: viewMode === "graph" ? "var(--bg, #0a0908)" : "var(--text-muted, #d5c3b5)",
-                border: viewMode === "graph"
-                  ? "1px solid var(--accent, #FFB86F)"
-                  : "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-              }}
+              class={`flex-1 p-2 rounded-lg transition-all flex items-center justify-center border ${
+                viewMode === "graph"
+                  ? "bg-amber-400 text-stone-950 border-amber-400"
+                  : "bg-stone-900 text-stone-300 border-amber-500/10 hover:border-amber-400/50"
+              }`}
               onClick={() => onViewModeChange("graph")}
               title="Graph - Force-directed with deduplicated tools"
             >
@@ -166,43 +127,27 @@ export default function GraphLegendPanel({
         </>
       )}
 
-      {/* Hierarchy Legend (Graph mode) */}
       {viewMode === "graph" && (
         <>
-          <h3
-            class="text-xs font-semibold uppercase tracking-widest mb-3"
-            style={{ color: "var(--text-dim)" }}
-          >
+          <h3 class="text-xs font-semibold uppercase tracking-widest mb-3 text-stone-500">
             Hierarchy Level
           </h3>
           <div class="flex flex-col gap-2 mb-3">
-            {/* Level 0 - Capabilities (leaf) */}
             <div class="flex items-center gap-2">
-              <div
-                class="w-4 h-4 rounded-full"
-                style={{ background: "#FFB86F", opacity: 0.4 }}
-              />
-              <span class="text-xs" style={{ color: "var(--text-muted)" }}>
+              <div class="w-4 h-4 rounded-full bg-amber-400 opacity-40" />
+              <span class="text-xs text-stone-400">
                 Leaf (level 0)
               </span>
             </div>
-            {/* Level 1 - Meta-capabilities */}
             <div class="flex items-center gap-2">
-              <div
-                class="w-4 h-4 rounded-full"
-                style={{ background: "#FFB86F", opacity: 0.7 }}
-              />
-              <span class="text-xs" style={{ color: "var(--text-muted)" }}>
+              <div class="w-4 h-4 rounded-full bg-amber-400 opacity-70" />
+              <span class="text-xs text-stone-400">
                 Meta (level 1)
               </span>
             </div>
-            {/* Level 2+ - Deep meta */}
             <div class="flex items-center gap-2">
-              <div
-                class="w-4 h-4 rounded-full"
-                style={{ background: "#FFB86F", opacity: 1.0 }}
-              />
-              <span class="text-xs" style={{ color: "var(--text-muted)" }}>
+              <div class="w-4 h-4 rounded-full bg-amber-400" />
+              <span class="text-xs text-stone-400">
                 Deep meta (level 2+)
               </span>
             </div>
@@ -211,13 +156,9 @@ export default function GraphLegendPanel({
         </>
       )}
 
-      {/* MCP Servers (Capabilities/Tools modes only) */}
       {viewMode !== "graph" && (
         <>
-          <h3
-            class="text-xs font-semibold uppercase tracking-widest mb-3"
-            style={{ color: "var(--text-dim)" }}
-          >
+          <h3 class="text-xs font-semibold uppercase tracking-widest mb-3 text-stone-500">
             MCP Servers
           </h3>
           {Array.from(servers).map((server) => (
@@ -233,7 +174,6 @@ export default function GraphLegendPanel({
         </>
       )}
 
-      {/* Orphan toggle */}
       <Badge
         color="transparent"
         label="Orphan nodes"
@@ -244,13 +184,9 @@ export default function GraphLegendPanel({
 
       <Divider />
 
-      {/* Highlight Depth Control */}
       {onHighlightDepthChange && (
         <>
-          <h3
-            class="text-xs font-semibold uppercase tracking-widest mb-3"
-            style={{ color: "var(--text-dim)" }}
-          >
+          <h3 class="text-xs font-semibold uppercase tracking-widest mb-3 text-stone-500">
             Highlight Depth
           </h3>
 
@@ -263,7 +199,7 @@ export default function GraphLegendPanel({
               label={highlightDepth >= 10 ? "∞" : String(highlightDepth)}
               onChange={(v) => onHighlightDepthChange(v >= 10 ? Infinity : v)}
             />
-            <div class="flex justify-between text-[10px] mt-1" style={{ color: "var(--text-dim)" }}>
+            <div class="flex justify-between text-[10px] mt-1 text-stone-500">
               <span>Direct (1)</span>
               <span>Full stack (∞)</span>
             </div>
@@ -273,7 +209,6 @@ export default function GraphLegendPanel({
         </>
       )}
 
-      {/* Export buttons */}
       <div class="flex gap-2">
         <Button variant="default" size="sm" onClick={onExportJson} class="flex-1">
           Export JSON

@@ -34,11 +34,10 @@ function LineIndicator({ color, lineStyle }: { color: string; lineStyle: string 
 
   return (
     <div
-      class="w-6 h-0.5 flex-shrink-0"
+      class={`w-6 h-0.5 flex-shrink-0 ${lineStyle === "dotted" ? "opacity-50" : ""}`}
       style={{
         background: isSolid ? color : "transparent",
         borderTop: !isSolid ? `2px ${lineStyle} ${color}` : "none",
-        opacity: lineStyle === "dotted" ? 0.5 : 1,
       }}
     />
   );
@@ -52,43 +51,26 @@ export default function FilterGroup({
 }: FilterGroupProps): JSX.Element {
   const isClickable = Boolean(onToggle);
 
-  function handleMouseOver(e: MouseEvent): void {
-    if (isClickable) {
-      (e.currentTarget as HTMLElement).style.background = "var(--accent-dim)";
-    }
-  }
-
-  function handleMouseOut(e: MouseEvent): void {
-    if (isClickable) {
-      (e.currentTarget as HTMLElement).style.background = "transparent";
-    }
-  }
-
   return (
     <section class="mb-4">
-      <h3
-        class="text-xs font-semibold uppercase tracking-widest mb-3"
-        style={{ color: "var(--text-dim)" }}
-      >
+      <h3 class="text-xs font-semibold uppercase tracking-widest mb-3 text-stone-500">
         {title}
       </h3>
       {items.map((item) => {
         const color = item.color || "var(--text-dim)";
         const lineStyle = item.lineStyle || "solid";
-        const activeClass = item.active === false ? "opacity-35" : "";
-        const clickableClass = isClickable ? "cursor-pointer" : "";
 
         return (
           <div
             key={item.id}
-            class={`flex items-center gap-2.5 py-1.5 px-3 -mx-3 rounded-lg transition-all duration-200 ${activeClass} ${clickableClass}`.trim()}
+            class={`flex items-center gap-2.5 py-1.5 px-3 -mx-3 rounded-lg transition-all duration-200 ${
+              item.active === false ? "opacity-35" : ""
+            } ${isClickable ? "cursor-pointer hover:bg-amber-400/10" : ""}`}
             onClick={() => onToggle?.(item.id)}
-            onMouseOver={handleMouseOver}
-            onMouseOut={handleMouseOut}
           >
             {showIndicator === "dot" && <DotIndicator color={color} />}
             {showIndicator === "line" && <LineIndicator color={color} lineStyle={lineStyle} />}
-            <span class="text-sm" style={{ color: "var(--text-muted)" }}>
+            <span class="text-sm text-stone-400">
               {item.label}
             </span>
           </div>

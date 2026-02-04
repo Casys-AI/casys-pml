@@ -18,14 +18,11 @@ export interface InputProps {
   type?: InputType;
 }
 
-const BASE_STYLE = {
-  background: "var(--bg-surface)",
-  border: "1px solid var(--border)",
-  color: "var(--text)",
-  fontFamily: "var(--font-sans)",
-};
-
-const BASE_CLASSES = "py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50";
+const BASE_CLASSES =
+  "py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all duration-200 " +
+  "bg-stone-900 border border-stone-700 text-stone-100 font-sans " +
+  "placeholder:text-stone-500 placeholder:opacity-50 " +
+  "focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20";
 
 export default function Input({
   value,
@@ -45,15 +42,11 @@ export default function Input({
     }
   }, [autoFocus]);
 
-  function handleFocus(e: JSX.TargetedFocusEvent<HTMLInputElement>): void {
-    e.currentTarget.style.borderColor = "var(--accent)";
-    e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent-dim)";
+  function handleFocus(): void {
     onFocus?.();
   }
 
-  function handleBlur(e: JSX.TargetedFocusEvent<HTMLInputElement>): void {
-    e.currentTarget.style.borderColor = "var(--border)";
-    e.currentTarget.style.boxShadow = "none";
+  function handleBlur(): void {
     onBlur?.();
   }
 
@@ -66,7 +59,6 @@ export default function Input({
       ref={inputRef}
       type={type}
       class={`${BASE_CLASSES} ${className || ""}`.trim()}
-      style={BASE_STYLE}
       placeholder={placeholder}
       value={value}
       onInput={handleInput}

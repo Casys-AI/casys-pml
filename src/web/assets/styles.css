@@ -136,3 +136,82 @@
   }
 }
 
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInStep {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.5s ease forwards;
+}
+
+.animate-fade-up-delay-1 {
+  animation: fadeUp 0.5s ease 0.1s forwards;
+}
+
+.animate-fade-up-delay-2 {
+  animation: fadeUp 0.5s ease 0.2s forwards;
+}
+
+.animate-fade-up-delay-3 {
+  animation: fadeUp 0.5s ease 0.3s forwards;
+}
+
+.animate-fade-up-delay-4 {
+  animation: fadeUp 0.5s ease 0.4s forwards;
+}
+
+.animate-fade-in-step {
+  animation: fadeInStep 0.5s ease forwards;
+}
+
+.animate-fade-in-step-1 {
+  animation: fadeInStep 0.5s ease 0.1s forwards;
+}
+
+.animate-fade-in-step-2 {
+  animation: fadeInStep 0.5s ease 0.2s forwards;
+}
+
+.animate-fade-in-step-3 {
+  animation: fadeInStep 0.5s ease 0.3s forwards;
+}
+
+.animate-fade-in-step-4 {
+  animation: fadeInStep 0.5s ease 0.4s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-up-delay-1,
+  .animate-fade-up-delay-2,
+  .animate-fade-up-delay-3,
+  .animate-fade-up-delay-4,
+  .animate-fade-in-step,
+  .animate-fade-in-step-1,
+  .animate-fade-in-step-2,
+  .animate-fade-in-step-3,
+  .animate-fade-in-step-4 {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+

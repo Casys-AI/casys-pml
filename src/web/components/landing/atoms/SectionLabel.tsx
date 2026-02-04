@@ -12,25 +12,8 @@ interface SectionLabelProps {
 
 export function SectionLabel({ children }: SectionLabelProps) {
   return (
-    <span class="section-label">
+    <span class="inline-block font-mono text-[0.7rem] font-medium text-amber-400 uppercase tracking-widest px-4 py-2 bg-amber-500/10 rounded mb-6">
       {children}
-      <style>
-        {`
-        .section-label {
-          display: inline-block;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.7rem;
-          font-weight: 500;
-          color: #FFB86F;
-          text-transform: uppercase;
-          letter-spacing: 0.15em;
-          padding: 0.5rem 1rem;
-          background: rgba(255, 184, 111, 0.1);
-          border-radius: 4px;
-          margin-bottom: 1.5rem;
-        }
-        `}
-      </style>
     </span>
   );
 }

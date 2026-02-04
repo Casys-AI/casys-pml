@@ -20,28 +20,22 @@ interface CatalogPageIslandProps {
   isCloudMode?: boolean;
 }
 
-/** Server card data (grouped from tools) */
 interface ServerCardData {
-  id: string; // serverId or category for std
+  id: string;
   displayName: string;
   toolCount: number;
   description: string | null;
   routing: "local" | "cloud";
-  isStdCategory: boolean; // true if this is a std tool category
-  sampleTools: string[]; // First 3 tool names for preview
+  isStdCategory: boolean;
+  sampleTools: string[];
 }
 
-/** Capability card data (grouped by namespace) */
 interface CapabilityCardData {
   namespace: string;
   count: number;
   capabilities: CatalogEntry[];
 }
 
-/**
- * Get display name for a server.
- * For std tools, extract the category from the tool name.
- */
 function getServerDisplayName(serverId: string | null, toolName: string): string {
   if (!serverId) return "Unknown";
 
@@ -57,9 +51,6 @@ function getServerDisplayName(serverId: string | null, toolName: string): string
   return serverId;
 }
 
-/**
- * Get URL-safe server ID for routing
- */
 function getServerRouteId(serverId: string, toolName: string): string {
   if (serverId === "std") {
     const underscoreIndex = toolName.indexOf("_");
@@ -71,7 +62,6 @@ function getServerRouteId(serverId: string, toolName: string): string {
   return serverId;
 }
 
-/** Icon for server category */
 function getServerIcon(displayName: string): string {
   const icons: Record<string, string> = {
     Docker: "🐳",
@@ -125,7 +115,6 @@ export default function CatalogPageIsland({
     recordTypes: [],
   });
 
-  // Group entries by server to create server cards
   const serverCards = useMemo(() => {
     const groups = new Map<string, {
       entries: CatalogEntry[];
@@ -149,7 +138,6 @@ export default function CatalogPageIsland({
       }
     });
 
-    // Convert to ServerCardData
     const cards: ServerCardData[] = [];
     groups.forEach((group, id) => {
       const firstEntry = group.entries[0];
@@ -164,11 +152,9 @@ export default function CatalogPageIsland({
       });
     });
 
-    // Sort by tool count (most tools first)
     return cards.sort((a, b) => b.toolCount - a.toolCount);
   }, [entries]);
 
-  // Filter server cards
   const filteredCards = useMemo(() => {
     return serverCards.filter((card) => {
       if (filters.search) {
@@ -183,7 +169,6 @@ export default function CatalogPageIsland({
     });
   }, [serverCards, filters]);
 
-  // Group capabilities by namespace
   const capabilityCards = useMemo(() => {
     const groups = new Map<string, CatalogEntry[]>();
 
@@ -204,7 +189,6 @@ export default function CatalogPageIsland({
     return cards.sort((a, b) => b.count - a.count);
   }, [entries]);
 
-  // Filter capabilities by search
   const filteredCapabilities = useMemo(() => {
     if (!filters.search) return capabilityCards;
     const searchLower = filters.search.toLowerCase();
@@ -225,24 +209,21 @@ export default function CatalogPageIsland({
 
   const hasActiveFilters = filters.search.length > 0;
 
-  // Sidebar content
   const sidebar = (
-    <div class="catalog-filters">
-      {/* Header */}
-      <div class="catalog-filters-header">
-        <h2 class="catalog-filters-title">Filters</h2>
+    <div class="flex flex-col gap-6">
+      <div class="flex justify-between items-center">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-stone-500">Filters</h2>
         {hasActiveFilters && (
-          <button type="button" class="catalog-filters-clear" onClick={clearFilters}>
+          <button type="button" class="text-xs text-amber-400 bg-transparent border-none cursor-pointer p-0 transition-opacity duration-200 hover:opacity-80" onClick={clearFilters}>
             Clear all
           </button>
         )}
       </div>
 
-      {/* Search */}
-      <div class="catalog-filter-group">
-        <label class="catalog-filter-label">Search</label>
-        <div class="catalog-search-wrapper">
-          <svg class="catalog-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <div class="flex flex-col gap-3">
+        <label class="text-xs font-medium uppercase tracking-wide text-stone-400">Search</label>
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="11" cy="11" r="8" strokeWidth="2" />
             <path strokeWidth="2" d="m21 21-4.35-4.35" />
           </svg>
@@ -251,181 +232,47 @@ export default function CatalogPageIsland({
             value={filters.search}
             onInput={(e) => setFilters({ ...filters, search: (e.target as HTMLInputElement).value })}
             placeholder="Search servers & tools..."
-            class="catalog-search-input"
+            class="w-full py-2.5 px-3 pl-9 text-sm text-stone-100 bg-stone-950 border border-amber-500/10 rounded-lg outline-none transition-all duration-200 placeholder:text-stone-500 focus:border-amber-500/30 focus:shadow-[0_0_0_3px_rgba(255,184,111,0.05)]"
           />
         </div>
       </div>
 
-      {/* Stats */}
-      <div class="catalog-stats">
-        <div class="catalog-stat">
-          <span class="catalog-stat-value">{serverCards.length}</span>
-          <span class="catalog-stat-label">Servers</span>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1 p-3.5 bg-stone-950 border border-amber-500/10 rounded-lg">
+          <span class="text-2xl font-semibold font-mono text-amber-400">{serverCards.length}</span>
+          <span class="text-xs text-stone-500 uppercase tracking-wide">Servers</span>
         </div>
-        <div class="catalog-stat">
-          <span class="catalog-stat-value">{entries.filter(e => e.recordType === "mcp-tool").length}</span>
-          <span class="catalog-stat-label">MCP Tools</span>
+        <div class="flex flex-col gap-1 p-3.5 bg-stone-950 border border-amber-500/10 rounded-lg">
+          <span class="text-2xl font-semibold font-mono text-amber-400">{entries.filter(e => e.recordType === "mcp-tool").length}</span>
+          <span class="text-xs text-stone-500 uppercase tracking-wide">MCP Tools</span>
         </div>
         {capabilityCount > 0 && (
-          <div class="catalog-stat">
-            <span class="catalog-stat-value">{capabilityCount}</span>
-            <span class="catalog-stat-label">Capabilities</span>
+          <div class="flex flex-col gap-1 p-3.5 bg-stone-950 border border-amber-500/10 rounded-lg">
+            <span class="text-2xl font-semibold font-mono text-amber-400">{capabilityCount}</span>
+            <span class="text-xs text-stone-500 uppercase tracking-wide">Capabilities</span>
           </div>
         )}
       </div>
 
-      {/* Results count */}
-      <div class="catalog-results-count">
-        Showing <strong>{filteredCards.length}</strong> of {serverCards.length} servers
+      <div class="pt-4 border-t border-amber-500/10 text-[0.8125rem] text-stone-500">
+        Showing <strong class="text-amber-400 font-semibold">{filteredCards.length}</strong> of {serverCards.length} servers
       </div>
-
-      <style>
-        {`
-        .catalog-filters {
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-        }
-
-        .catalog-filters-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .catalog-filters-title {
-          font-size: 0.75rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          color: #6b6560;
-        }
-
-        .catalog-filters-clear {
-          font-size: 0.75rem;
-          color: #FFB86F;
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 0;
-          transition: opacity 0.2s;
-        }
-
-        .catalog-filters-clear:hover {
-          opacity: 0.8;
-        }
-
-        .catalog-filter-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .catalog-filter-label {
-          font-size: 0.75rem;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #a8a29e;
-        }
-
-        .catalog-search-wrapper {
-          position: relative;
-        }
-
-        .catalog-search-icon {
-          position: absolute;
-          left: 0.75rem;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 16px;
-          height: 16px;
-          color: #6b6560;
-          pointer-events: none;
-        }
-
-        .catalog-search-input {
-          width: 100%;
-          padding: 0.625rem 0.75rem 0.625rem 2.25rem;
-          font-size: 0.875rem;
-          color: #f0ede8;
-          background: #141418;
-          border: 1px solid rgba(255, 184, 111, 0.1);
-          border-radius: 8px;
-          outline: none;
-          transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        .catalog-search-input::placeholder {
-          color: #6b6560;
-        }
-
-        .catalog-search-input:focus {
-          border-color: rgba(255, 184, 111, 0.3);
-          box-shadow: 0 0 0 3px rgba(255, 184, 111, 0.05);
-        }
-
-        .catalog-stats {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 0.75rem;
-        }
-
-        .catalog-stat {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-          padding: 0.875rem;
-          background: #141418;
-          border: 1px solid rgba(255, 184, 111, 0.08);
-          border-radius: 8px;
-        }
-
-        .catalog-stat-value {
-          font-size: 1.5rem;
-          font-weight: 600;
-          font-family: 'Geist Mono', monospace;
-          color: #FFB86F;
-        }
-
-        .catalog-stat-label {
-          font-size: 0.75rem;
-          color: #6b6560;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .catalog-results-count {
-          padding-top: 1rem;
-          border-top: 1px solid rgba(255, 184, 111, 0.08);
-          font-size: 0.8125rem;
-          color: #6b6560;
-        }
-
-        .catalog-results-count strong {
-          color: #FFB86F;
-          font-weight: 600;
-        }
-        `}
-      </style>
     </div>
   );
 
   return (
     <CatalogLayout sidebar={sidebar} user={user} isCloudMode={isCloudMode}>
-      {/* Page Header */}
-      <div class="catalog-header">
-        <h1 class="catalog-title">MCP Server Catalog</h1>
-        <p class="catalog-subtitle">
+      <div class="mb-8">
+        <h1 class="font-serif text-[2rem] font-normal text-stone-100 mb-2">MCP Server Catalog</h1>
+        <p class="text-base text-stone-400 max-w-[600px]">
           Browse available MCP servers and their tools. Click a server to explore its API.
         </p>
       </div>
 
-      {/* Capabilities Section (first - more relevant) */}
       {filteredCapabilities.length > 0 && (
         <>
-          <h2 class="catalog-section-title">Learned Capabilities</h2>
-          <div class="catalog-grid">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500 mb-4">Learned Capabilities</h2>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5">
             {filteredCapabilities.map((card) => (
               <CapabilityCard key={card.namespace} card={card} />
             ))}
@@ -433,13 +280,12 @@ export default function CatalogPageIsland({
         </>
       )}
 
-      {/* MCP Servers Grid */}
       {filteredCards.length > 0 && (
         <>
-          <h2 class="catalog-section-title" style={{ marginTop: "2.5rem" }}>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500 mb-4 mt-10">
             MCP Servers
           </h2>
-          <div class="catalog-grid">
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5">
             {filteredCards.map((card) => (
               <ServerCard key={card.id} card={card} />
             ))}
@@ -447,93 +293,23 @@ export default function CatalogPageIsland({
         </>
       )}
 
-      {/* Empty state */}
       {filteredCards.length === 0 && filteredCapabilities.length === 0 && (
-        <div class="catalog-empty">
-          <svg class="catalog-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <div class="text-center py-16 px-8 bg-stone-950 border border-amber-500/10 rounded-xl">
+          <svg class="w-12 h-12 mx-auto mb-4 text-stone-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="11" cy="11" r="8" strokeWidth="1.5" />
             <path strokeWidth="1.5" d="m21 21-4.35-4.35" />
           </svg>
-          <h3 class="catalog-empty-title">No results found</h3>
-          <p class="catalog-empty-text">Try adjusting your search query</p>
+          <h3 class="text-lg text-stone-100 mb-2">No results found</h3>
+          <p class="text-sm text-stone-500">Try adjusting your search query</p>
         </div>
       )}
-
-      <style>
-        {`
-        .catalog-header {
-          margin-bottom: 2rem;
-        }
-
-        .catalog-title {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 2rem;
-          font-weight: 400;
-          color: #f0ede8;
-          margin-bottom: 0.5rem;
-        }
-
-        .catalog-subtitle {
-          font-size: 1rem;
-          color: #a8a29e;
-          max-width: 600px;
-        }
-
-        .catalog-section-title {
-          font-size: 0.875rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #6b6560;
-          margin-bottom: 1rem;
-        }
-
-        .catalog-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 1.25rem;
-        }
-
-        .catalog-empty {
-          text-align: center;
-          padding: 4rem 2rem;
-          background: #0f0f12;
-          border: 1px solid rgba(255, 184, 111, 0.08);
-          border-radius: 12px;
-        }
-
-        .catalog-empty-icon {
-          width: 48px;
-          height: 48px;
-          margin: 0 auto 1rem;
-          color: #6b6560;
-        }
-
-        .catalog-empty-title {
-          font-size: 1.125rem;
-          color: #f0ede8;
-          margin-bottom: 0.5rem;
-        }
-
-        .catalog-empty-text {
-          font-size: 0.875rem;
-          color: #6b6560;
-        }
-        `}
-      </style>
     </CatalogLayout>
   );
 }
 
-/**
- * Generate description from tool descriptions (from DB)
- * Uses first tool's description as a sample
- */
 function generateServerDescription(entries: CatalogEntry[], displayName: string): string {
-  // Find first tool with a description
   const withDesc = entries.find((e) => e.description);
   if (withDesc && withDesc.description) {
-    // Get first sentence
     const firstSentence = withDesc.description.split(".")[0];
     if (firstSentence.length > 0 && firstSentence.length < 80) {
       return firstSentence;
@@ -542,354 +318,82 @@ function generateServerDescription(entries: CatalogEntry[], displayName: string)
   return `${entries.length} tools from ${displayName}`;
 }
 
-// Server Card component
 function ServerCard({ card }: { card: ServerCardData }) {
   const icon = getServerIcon(card.displayName);
 
   return (
-    <a href={`/catalog/${card.id}`} class="server-card">
-      {/* Icon */}
-      <div class="server-card-icon">
-        <span class="server-card-emoji">{icon}</span>
+    <a
+      href={`/catalog/${card.id}`}
+      class="group flex items-start gap-4 p-5 bg-gradient-to-br from-stone-950 to-stone-900 border border-amber-500/10 rounded-2xl cursor-pointer no-underline transition-all duration-300 ease-out relative overflow-hidden hover:border-amber-500/20 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.4)]"
+    >
+      <div class="absolute inset-0 bg-gradient-to-br from-amber-500/[0.03] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+      <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center shrink-0">
+        <span class="text-2xl">{icon}</span>
       </div>
 
-      {/* Content */}
-      <div class="server-card-content">
-        <div class="server-card-header">
-          <h3 class="server-card-name">{card.displayName}</h3>
-          <span class="server-card-count">{card.toolCount} tools</span>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-3 mb-1.5">
+          <h3 class="text-lg font-semibold text-stone-100 whitespace-nowrap overflow-hidden text-ellipsis">{card.displayName}</h3>
+          <span class="text-xs font-mono text-amber-400 bg-amber-500/10 py-0.5 px-2 rounded shrink-0">{card.toolCount} tools</span>
         </div>
 
-        <p class="server-card-desc">{card.description}</p>
+        <p class="text-sm leading-relaxed text-stone-400 mb-3">{card.description}</p>
 
-        {/* Sample tools preview */}
-        <div class="server-card-tools">
+        <div class="flex flex-wrap gap-1.5">
           {card.sampleTools.map((tool, i) => (
-            <span key={i} class="server-card-tool">{tool}</span>
+            <span key={i} class="text-[0.6875rem] font-mono text-stone-500 bg-white/[0.03] py-0.5 px-1.5 rounded-sm whitespace-nowrap">{tool}</span>
           ))}
           {card.toolCount > 3 && (
-            <span class="server-card-more">+{card.toolCount - 3}</span>
+            <span class="text-[0.6875rem] font-mono text-amber-400 py-0.5 px-1.5">+{card.toolCount - 3}</span>
           )}
         </div>
       </div>
 
-      {/* Routing badge */}
-      <span class={`server-card-routing ${card.routing}`}>
+      <span class={`absolute top-4 right-10 text-[0.6875rem] ${card.routing === "cloud" ? "text-blue-400" : "text-stone-500"}`}>
         {card.routing === "cloud" ? "☁️ Cloud" : "💻 Local"}
       </span>
 
-      {/* Arrow */}
-      <svg class="server-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:text-amber-400 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" />
       </svg>
-
-      <style>
-        {`
-        .server-card {
-          display: flex;
-          align-items: flex-start;
-          gap: 1rem;
-          padding: 1.25rem;
-          background: linear-gradient(135deg, #0f0f12 0%, #111114 100%);
-          border: 1px solid rgba(255, 184, 111, 0.08);
-          border-radius: 16px;
-          cursor: pointer;
-          text-decoration: none;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .server-card::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(255, 184, 111, 0.03) 0%, transparent 50%);
-          opacity: 0;
-          transition: opacity 0.25s;
-        }
-
-        .server-card:hover {
-          border-color: rgba(255, 184, 111, 0.2);
-          transform: translateY(-4px);
-          box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
-        }
-
-        .server-card:hover::before {
-          opacity: 1;
-        }
-
-        .server-card-icon {
-          width: 48px;
-          height: 48px;
-          background: rgba(255, 184, 111, 0.08);
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .server-card-emoji {
-          font-size: 1.5rem;
-        }
-
-        .server-card-content {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .server-card-header {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          margin-bottom: 0.375rem;
-        }
-
-        .server-card-name {
-          font-size: 1.125rem;
-          font-weight: 600;
-          color: #f0ede8;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .server-card-count {
-          font-size: 0.75rem;
-          font-family: 'Geist Mono', monospace;
-          color: #FFB86F;
-          background: rgba(255, 184, 111, 0.1);
-          padding: 0.125rem 0.5rem;
-          border-radius: 4px;
-          flex-shrink: 0;
-        }
-
-        .server-card-desc {
-          font-size: 0.875rem;
-          line-height: 1.5;
-          color: #a8a29e;
-          margin-bottom: 0.75rem;
-        }
-
-        .server-card-tools {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.375rem;
-        }
-
-        .server-card-tool {
-          font-size: 0.6875rem;
-          font-family: 'Geist Mono', monospace;
-          color: #6b6560;
-          background: rgba(255, 255, 255, 0.03);
-          padding: 0.125rem 0.375rem;
-          border-radius: 3px;
-          white-space: nowrap;
-        }
-
-        .server-card-more {
-          font-size: 0.6875rem;
-          font-family: 'Geist Mono', monospace;
-          color: #FFB86F;
-          padding: 0.125rem 0.375rem;
-        }
-
-        .server-card-routing {
-          position: absolute;
-          top: 1rem;
-          right: 2.5rem;
-          font-size: 0.6875rem;
-          color: #6b6560;
-        }
-
-        .server-card-routing.cloud {
-          color: #60a5fa;
-        }
-
-        .server-card-arrow {
-          position: absolute;
-          right: 1rem;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 20px;
-          height: 20px;
-          color: #6b6560;
-          opacity: 0;
-          transition: all 0.25s;
-        }
-
-        .server-card:hover .server-card-arrow {
-          opacity: 1;
-          color: #FFB86F;
-          transform: translateY(-50%) translateX(4px);
-        }
-        `}
-      </style>
     </a>
   );
 }
 
-// Capability Card component - now links to namespace detail page
 function CapabilityCard({ card }: { card: CapabilityCardData }) {
-  // Get sample actions for preview
   const sampleActions = card.capabilities.slice(0, 3).map((c) => c.action || c.name);
 
   return (
-    <a href={`/catalog/ns/${encodeURIComponent(card.namespace)}`} class="capability-card">
-      {/* Icon */}
-      <div class="capability-card-icon">
-        <span class="capability-card-emoji">⚡</span>
+    <a
+      href={`/catalog/ns/${encodeURIComponent(card.namespace)}`}
+      class="group flex items-start gap-4 p-5 bg-gradient-to-br from-stone-950 to-stone-900 border border-green-400/10 rounded-2xl cursor-pointer no-underline transition-all duration-300 ease-out relative overflow-hidden hover:border-green-400/25 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.4)]"
+    >
+      <div class="absolute inset-0 bg-gradient-to-br from-green-400/[0.03] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+      <div class="w-12 h-12 bg-green-400/10 rounded-xl flex items-center justify-center shrink-0">
+        <span class="text-2xl">⚡</span>
       </div>
 
-      {/* Content */}
-      <div class="capability-card-content">
-        <div class="capability-card-header">
-          <h3 class="capability-card-name">{card.namespace}</h3>
-          <span class="capability-card-count">{card.count} capabilities</span>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-3 mb-2">
+          <h3 class="text-lg font-semibold text-stone-100 font-mono whitespace-nowrap overflow-hidden text-ellipsis">{card.namespace}</h3>
+          <span class="text-xs font-mono text-green-400 bg-green-400/10 py-0.5 px-2 rounded shrink-0">{card.count} capabilities</span>
         </div>
 
-        {/* Sample actions preview */}
-        <div class="capability-card-actions">
+        <div class="flex flex-wrap gap-1.5">
           {sampleActions.map((action, i) => (
-            <span key={i} class="capability-card-action">{action}</span>
+            <span key={i} class="text-[0.6875rem] font-mono text-stone-500 bg-white/[0.03] py-0.5 px-1.5 rounded-sm whitespace-nowrap">{action}</span>
           ))}
           {card.count > 3 && (
-            <span class="capability-card-more">+{card.count - 3}</span>
+            <span class="text-[0.6875rem] font-mono text-green-400 py-0.5 px-1.5">+{card.count - 3}</span>
           )}
         </div>
       </div>
 
-      {/* Arrow */}
-      <svg class="capability-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:text-green-400 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" />
       </svg>
-
-      <style>
-        {`
-        .capability-card {
-          display: flex;
-          align-items: flex-start;
-          gap: 1rem;
-          padding: 1.25rem;
-          background: linear-gradient(135deg, #0f0f12 0%, #111114 100%);
-          border: 1px solid rgba(74, 222, 128, 0.1);
-          border-radius: 16px;
-          cursor: pointer;
-          text-decoration: none;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .capability-card::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(74, 222, 128, 0.03) 0%, transparent 50%);
-          opacity: 0;
-          transition: opacity 0.25s;
-        }
-
-        .capability-card:hover {
-          border-color: rgba(74, 222, 128, 0.25);
-          transform: translateY(-4px);
-          box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
-        }
-
-        .capability-card:hover::before {
-          opacity: 1;
-        }
-
-        .capability-card-icon {
-          width: 48px;
-          height: 48px;
-          background: rgba(74, 222, 128, 0.1);
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .capability-card-emoji {
-          font-size: 1.5rem;
-        }
-
-        .capability-card-content {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .capability-card-header {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          margin-bottom: 0.5rem;
-        }
-
-        .capability-card-name {
-          font-size: 1.125rem;
-          font-weight: 600;
-          color: #f0ede8;
-          font-family: 'Geist Mono', monospace;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .capability-card-count {
-          font-size: 0.75rem;
-          font-family: 'Geist Mono', monospace;
-          color: #4ade80;
-          background: rgba(74, 222, 128, 0.1);
-          padding: 0.125rem 0.5rem;
-          border-radius: 4px;
-          flex-shrink: 0;
-        }
-
-        .capability-card-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.375rem;
-        }
-
-        .capability-card-action {
-          font-size: 0.6875rem;
-          font-family: 'Geist Mono', monospace;
-          color: #6b6560;
-          background: rgba(255, 255, 255, 0.03);
-          padding: 0.125rem 0.375rem;
-          border-radius: 3px;
-          white-space: nowrap;
-        }
-
-        .capability-card-more {
-          font-size: 0.6875rem;
-          font-family: 'Geist Mono', monospace;
-          color: #4ade80;
-          padding: 0.125rem 0.375rem;
-        }
-
-        .capability-card-arrow {
-          position: absolute;
-          right: 1rem;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 20px;
-          height: 20px;
-          color: #6b6560;
-          opacity: 0;
-          transition: all 0.25s;
-        }
-
-        .capability-card:hover .capability-card-arrow {
-          opacity: 1;
-          color: #4ade80;
-          transform: translateY(-50%) translateX(4px);
-        }
-        `}
-      </style>
     </a>
   );
 }

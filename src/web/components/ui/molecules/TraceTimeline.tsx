@@ -19,23 +19,18 @@ interface LogicalOperation {
 interface TaskResult {
   taskId: string;
   tool: string;
-  /** Story 10.1: Resolved capability name for $cap:uuid references */
   resolvedTool?: string;
   success: boolean;
   durationMs: number;
   layerIndex?: number;
-  // Phase 2a: Fusion metadata
   isFused?: boolean;
   logicalOperations?: LogicalOperation[];
-  // Loop abstraction metadata (new format: single loop task with bodyTools)
   loopId?: string;
   loopIteration?: number;
   loopType?: "for" | "while" | "forOf" | "forIn" | "doWhile";
   loopCondition?: string;
-  bodyTools?: string[]; // New: tools inside the loop (from static DAG)
-  /** Story 10.1: Flag indicating this is a capability call (not a regular tool) */
+  bodyTools?: string[];
   isCapabilityCall?: boolean;
-  /** Story 10.1: Nested tools inside the called capability */
   nestedTools?: string[];
 }
 
@@ -46,7 +41,6 @@ interface ExecutionTrace {
   errorMessage?: string | null;
   priority: number;
   taskResults: TaskResult[];
-  // Two-level DAG: All logical operations (includes non-executable ops)
   executedPath?: string[];
 }
 
@@ -55,34 +49,26 @@ interface TraceTimelineProps {
   getServerColor?: (server: string) => string;
 }
 
-/** Grouped loop with its iterations */
 interface LoopGroup {
   loopId: string;
   loopType: string;
   loopCondition?: string;
   iterations: number;
-  tasks: TaskResult[]; // All tasks across all iterations
-  uniqueTools: string[]; // Unique tools in the loop body (pattern)
+  tasks: TaskResult[];
+  uniqueTools: string[];
   totalDurationMs: number;
   success: boolean;
 }
 
 const DEFAULT_COLORS = [
-  "#22c55e", // emerald
-  "#3b82f6", // blue
-  "#f59e0b", // amber
-  "#a855f7", // purple
-  "#14b8a6", // teal
-  "#ec4899", // pink
+  "#22c55e",
+  "#3b82f6",
+  "#f59e0b",
+  "#a855f7",
+  "#14b8a6",
+  "#ec4899",
 ];
 
-/**
- * Group tasks by loopId within a layer
- * Handles two formats:
- * - New format: single loop task with tool="loop:forOf" and bodyTools array
- * - Legacy format: multiple tasks with same loopId
- * Returns: { loops: LoopGroup[], nonLoopTasks: TaskResult[] }
- */
 function groupTasksByLoop(tasks: TaskResult[]): {
   loops: LoopGroup[];
   nonLoopTasks: TaskResult[];
@@ -92,21 +78,19 @@ function groupTasksByLoop(tasks: TaskResult[]): {
   const nonLoopTasks: TaskResult[] = [];
 
   for (const task of tasks) {
-    // New format: task is a loop task itself (tool starts with "loop:")
     if (task.tool.startsWith("loop:")) {
       const loopType = task.tool.replace("loop:", "") as "for" | "while" | "forOf" | "forIn" | "doWhile";
       loops.push({
         loopId: task.loopId || task.taskId,
         loopType: task.loopType || loopType,
         loopCondition: task.loopCondition,
-        iterations: 1, // Not tracking iterations in new format (runtime count unknown)
+        iterations: 1,
         tasks: [task],
-        uniqueTools: task.bodyTools || [], // Use bodyTools from static DAG
+        uniqueTools: task.bodyTools || [],
         totalDurationMs: task.durationMs,
         success: task.success,
       });
     } else if (task.loopId) {
-      // Legacy format: task is inside a loop, group by loopId
       if (!loopMap.has(task.loopId)) {
         loopMap.set(task.loopId, []);
       }
@@ -116,7 +100,6 @@ function groupTasksByLoop(tasks: TaskResult[]): {
     }
   }
 
-  // Process legacy format loop groups
   for (const [loopId, loopTasks] of loopMap) {
     const iterations = Math.max(...loopTasks.map((t) => t.loopIteration ?? 1));
     const uniqueTools = [...new Set(loopTasks.map((t) => t.tool))];
@@ -143,7 +126,6 @@ export default function TraceTimeline({
   trace,
   getServerColor,
 }: TraceTimelineProps) {
-  // Group tasks by layerIndex for fan-in/fan-out visualization
   const tasksByLayer = new Map<number, TaskResult[]>();
   for (const task of trace.taskResults) {
     const layer = task.layerIndex ?? 0;
@@ -155,101 +137,48 @@ export default function TraceTimeline({
   const sortedLayers = Array.from(tasksByLayer.entries()).sort((a, b) => a[0] - b[0]);
 
   return (
-    <div
-      style={{
-        background: "var(--bg, #0a0908)",
-        borderRadius: "8px",
-        border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-        padding: "12px",
-      }}
-    >
-      {/* Trace Summary */}
-      <div
-        style={{
-          display: "flex",
-          gap: "16px",
-          marginBottom: "12px",
-          fontSize: "0.8125rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <span
-          style={{ color: trace.success ? "var(--success, #22c55e)" : "var(--error, #ef4444)" }}
-        >
+    <div class="bg-stone-950 rounded-lg border border-amber-500/10 p-3">
+      <div class="flex gap-4 mb-3 text-sm flex-wrap">
+        <span class={trace.success ? "text-green-500" : "text-red-500"}>
           {trace.success ? "✅ Success" : "❌ Failed"}
         </span>
-        <span style={{ color: "var(--text-muted, #d5c3b5)" }}>
+        <span class="text-stone-300">
           {trace.durationMs}ms total
         </span>
-        <span style={{ color: "var(--text-dim, #8a8078)" }}>
+        <span class="text-stone-500">
           {trace.taskResults.length} tasks
         </span>
         <span
-          style={{
-            padding: "2px 6px",
-            borderRadius: "4px",
-            background: `rgba(255, 184, 111, ${trace.priority * 0.3})`,
-            color: "var(--accent, #FFB86F)",
-            fontSize: "0.7rem",
-          }}
+          class="px-1.5 py-0.5 rounded text-amber-400 text-[0.7rem]"
+          style={{ background: `rgba(255, 184, 111, ${trace.priority * 0.3})` }}
           title="TD Error priority for learning"
         >
           P: {(trace.priority * 100).toFixed(0)}%
         </span>
       </div>
 
-      {/* Error Message if failed */}
       {!trace.success && trace.errorMessage && (
-        <div
-          style={{
-            padding: "8px",
-            marginBottom: "12px",
-            borderRadius: "4px",
-            background: "rgba(239, 68, 68, 0.1)",
-            color: "var(--error, #ef4444)",
-            fontSize: "0.8125rem",
-          }}
-        >
+        <div class="p-2 mb-3 rounded bg-red-500/10 text-red-500 text-sm">
           {trace.errorMessage}
         </div>
       )}
 
-      {/* Task Timeline by Layer (Fan-in/Fan-out) */}
-      {/* Note: "Operation Chain" workaround removed - fusion metadata now enriched in taskResults */}
-      {/* FusedTaskCard will display fused operations when task.isFused is true */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div class="flex flex-col gap-2">
         {sortedLayers.map(([layerIdx, tasks]) => {
           return (
             <div key={layerIdx}>
-              {/* Layer header */}
-              <div
-                style={{
-                  fontSize: "0.7rem",
-                  color: "var(--text-dim, #8a8078)",
-                  marginBottom: "4px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
+              <div class="text-[0.7rem] text-stone-500 mb-1 uppercase tracking-wider">
                 Layer {layerIdx} {tasks.length > 1 ? `(${tasks.length} parallel)` : ""}
               </div>
 
-              {/* Tasks in this layer - grouped by loops */}
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "8px",
-                }}
-              >
+              <div class="flex flex-wrap gap-2">
                 {(() => {
                   const { loops, nonLoopTasks } = groupTasksByLoop(tasks);
 
                   return (
                     <>
-                      {/* Render loop groups */}
                       {loops.map((loop) => {
-                        const color = "#a855f7"; // Purple for loops
+                        const color = "#a855f7";
                         return (
                           <LoopTaskCard
                             key={`loop-${loop.loopId}`}
@@ -267,16 +196,12 @@ export default function TraceTimeline({
                         );
                       })}
 
-                      {/* Render non-loop tasks */}
                       {nonLoopTasks.map((task, taskIdx) => {
-                        // Story 10.1: Check if this is a capability call (marked by backend)
                         if (task.isCapabilityCall) {
-                          // nestedTools contains the toolsUsed of this capability
                           const nestedTasks = (task.nestedTools || []).map((toolId) => ({
                             toolId,
                             durationMs: task.durationMs / (task.nestedTools?.length || 1),
                           }));
-                          // Parse capability name for display (FQDN → short format)
                           const { namespace, action } = parseToolId(task.tool);
                           const displayName = `${namespace}:${action}`;
                           return (
@@ -295,7 +220,6 @@ export default function TraceTimeline({
                         const color = getServerColor?.(server) ||
                           DEFAULT_COLORS[server.charCodeAt(0) % DEFAULT_COLORS.length];
 
-                        // Phase 2a: Render fused tasks with expandable logical operations
                         if (task.isFused && task.logicalOperations) {
                           return (
                             <FusedTaskCard
@@ -308,7 +232,6 @@ export default function TraceTimeline({
                           );
                         }
 
-                        // Regular task card
                         return (
                           <TaskCard
                             key={`${layerIdx}-${taskIdx}`}

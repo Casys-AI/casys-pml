@@ -126,24 +126,26 @@ export default function SettingsIsland({
   const copyTitle = flashApiKey ? "Copy API key" : "Regenerate key to copy";
 
   return (
-    <div class="api-key-section">
+    <div class="relative">
       {flashApiKey && (
-        <div class="flash-key-alert">
-          <InfoIcon />
-          <div class="flash-key-text">
-            <strong>New API Key Generated!</strong>
-            <span>Save this key now - it won't be shown again after you leave this page.</span>
+        <div class="flex items-start gap-3 p-4 bg-green-400/10 border border-green-400/20 rounded-lg mb-4">
+          <span class="text-green-400 shrink-0 mt-0.5">
+            <InfoIcon />
+          </span>
+          <div class="flex-1">
+            <strong class="block text-green-400 mb-1 text-[0.9rem]">New API Key Generated!</strong>
+            <span class="text-stone-400 text-[0.8rem]">Save this key now - it won't be shown again after you leave this page.</span>
           </div>
         </div>
       )}
 
-      <div class="api-key-display">
-        <code class="api-key-value">{maskedKey}</code>
-        <div class="api-key-actions">
+      <div class="flex items-center gap-4 p-4 bg-stone-950 border border-amber-500/10 rounded-lg mb-3">
+        <code class="flex-1 font-mono text-[0.9rem] text-stone-400 break-all">{maskedKey}</code>
+        <div class="flex gap-2 shrink-0">
           {flashApiKey && (
             <button
               type="button"
-              class="btn-sm"
+              class="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md border border-amber-500/10 bg-stone-950 text-stone-400 cursor-pointer transition-all duration-200 hover:border-amber-400 hover:text-amber-400"
               onClick={handleToggleShow}
               title={showKey.value ? "Hide key" : "Show key"}
             >
@@ -153,7 +155,7 @@ export default function SettingsIsland({
           )}
           <button
             type="button"
-            class="btn-sm"
+            class="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md border border-amber-500/10 bg-stone-950 text-stone-400 cursor-pointer transition-all duration-200 hover:border-amber-400 hover:text-amber-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-amber-500/10 disabled:hover:text-stone-400"
             onClick={handleCopy}
             disabled={!flashApiKey}
             title={copyTitle}
@@ -164,141 +166,14 @@ export default function SettingsIsland({
         </div>
       </div>
 
-      <p class="api-key-note">{keyNote}</p>
+      <p class="text-[0.8rem] text-stone-500">{keyNote}</p>
 
       {toastMessage.value && (
-        <div class="toast">
+        <div class="fixed bottom-8 right-8 flex items-center gap-2 py-3 px-5 bg-stone-900 border border-green-400/20 rounded-lg text-green-400 text-sm font-medium shadow-[0_10px_30px_rgba(0,0,0,0.4)] animate-[slideIn_0.3s_ease-out] z-[1000]">
           <CheckIcon />
           {toastMessage.value}
         </div>
       )}
-
-      <style>
-        {`
-          .api-key-section {
-            position: relative;
-          }
-
-          .flash-key-alert {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-            padding: 1rem;
-            background: rgba(74, 222, 128, 0.1);
-            border: 1px solid rgba(74, 222, 128, 0.2);
-            border-radius: 8px;
-            margin-bottom: 1rem;
-          }
-
-          .flash-key-alert svg {
-            color: #4ade80;
-            flex-shrink: 0;
-            margin-top: 0.125rem;
-          }
-
-          .flash-key-text {
-            flex: 1;
-          }
-
-          .flash-key-text strong {
-            display: block;
-            color: #4ade80;
-            margin-bottom: 0.25rem;
-            font-size: 0.9rem;
-          }
-
-          .flash-key-text span {
-            color: #a8a29e;
-            font-size: 0.8rem;
-          }
-
-          .api-key-display {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            background: #08080a;
-            border: 1px solid rgba(255, 184, 111, 0.08);
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-          }
-
-          .api-key-value {
-            flex: 1;
-            font-family: 'Geist Mono', monospace;
-            font-size: 0.9rem;
-            color: #a8a29e;
-            word-break: break-all;
-          }
-
-          .api-key-actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-shrink: 0;
-          }
-
-          .btn-sm {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.375rem;
-            padding: 0.375rem 0.75rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            font-family: 'Geist', sans-serif;
-            border-radius: 6px;
-            border: 1px solid rgba(255, 184, 111, 0.08);
-            background: #0f0f12;
-            color: #a8a29e;
-            cursor: pointer;
-            transition: all 0.2s;
-          }
-
-          .btn-sm:hover:not(:disabled) {
-            border-color: #FFB86F;
-            color: #FFB86F;
-          }
-
-          .btn-sm:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-          }
-
-          .api-key-note {
-            font-size: 0.8rem;
-            color: #6b6560;
-          }
-
-          .toast {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.25rem;
-            background: #141418;
-            border: 1px solid rgba(74, 222, 128, 0.2);
-            border-radius: 8px;
-            color: #4ade80;
-            font-size: 0.875rem;
-            font-weight: 500;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-            animation: slide-in 0.3s ease-out;
-            z-index: 1000;
-          }
-
-          @keyframes slide-in {
-            from {
-              opacity: 0;
-              transform: translateY(20px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-        `}
-      </style>
     </div>
   );
 }

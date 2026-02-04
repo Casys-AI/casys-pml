@@ -40,16 +40,6 @@ const SCOPE_OPTIONS: ScopeOption[] = [
   },
 ];
 
-const TOGGLE_CONTAINER_STYLE = {
-  background: "var(--bg-surface, #1a1816)",
-  border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-};
-
-const TOOLTIP_STYLE = {
-  background: "var(--bg-elevated, #12110f)",
-  border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-};
-
 export default function ScopeToggle({
   scope,
   onChange,
@@ -65,51 +55,45 @@ export default function ScopeToggle({
     setShowTooltip(false);
   }
 
-  function getButtonStyle(optionValue: Scope): Record<string, string> {
-    const isActive = scope === optionValue;
-    return {
-      background: isActive ? "var(--accent-dim, rgba(255, 184, 111, 0.1))" : "transparent",
-      color: isActive ? "var(--accent, #FFB86F)" : "var(--text-muted, #d5c3b5)",
-      borderRight: optionValue === "user" ? "1px solid var(--border, rgba(255, 184, 111, 0.1))" : "none",
-    };
-  }
-
   return (
     <div
       class="relative inline-flex items-center"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div class="flex rounded-lg overflow-hidden" style={TOGGLE_CONTAINER_STYLE}>
-        {SCOPE_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            class="px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer hover:brightness-110"
-            style={getButtonStyle(option.value)}
-            title={option.description}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div class="flex rounded-lg overflow-hidden bg-stone-900 border border-amber-500/10">
+        {SCOPE_OPTIONS.map((option) => {
+          const isActive = scope === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              class={`px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer hover:brightness-110 ${
+                isActive
+                  ? "bg-amber-400/10 text-amber-400"
+                  : "bg-transparent text-stone-300"
+              } ${option.value === "user" ? "border-r border-amber-500/10" : ""}`}
+              title={option.description}
+            >
+              {option.label}
+            </button>
+          );
+        })}
       </div>
 
       {showTooltip && (
-        <div
-          class="absolute top-full left-0 mt-2 w-64 p-3 rounded-lg shadow-xl z-50"
-          style={TOOLTIP_STYLE}
-        >
-          <div class="text-sm font-medium mb-2" style={{ color: "var(--text, #f5f0ea)" }}>
+        <div class="absolute top-full left-0 mt-2 w-64 p-3 rounded-lg shadow-xl z-50 bg-stone-800 border border-amber-500/10">
+          <div class="text-sm font-medium mb-2 text-stone-100">
             Scope Filter
           </div>
           <div class="space-y-2">
             {SCOPE_OPTIONS.map((option) => (
               <div key={option.value}>
-                <span class="text-xs font-semibold" style={{ color: "var(--accent, #FFB86F)" }}>
+                <span class="text-xs font-semibold text-amber-400">
                   {option.label}:
                 </span>
-                <span class="text-xs ml-1" style={{ color: "var(--text-dim, #8a8078)" }}>
+                <span class="text-xs ml-1 text-stone-500">
                   {option.description}
                 </span>
               </div>
@@ -117,14 +101,8 @@ export default function ScopeToggle({
           </div>
 
           {isLocalMode && (
-            <div
-              class="mt-3 pt-2 text-xs"
-              style={{
-                borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-                color: "var(--text-dim, #8a8078)",
-              }}
-            >
-              <span style={{ color: "var(--info, #60a5fa)" }}>
+            <div class="mt-3 pt-2 text-xs border-t border-amber-500/10 text-stone-500">
+              <span class="text-blue-400">
                 In local mode, both views show the same data.
               </span>
               <br />

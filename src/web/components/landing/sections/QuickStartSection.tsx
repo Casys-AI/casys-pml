@@ -13,47 +13,64 @@ export function QuickStartSection() {
   const { steps } = quickStart;
 
   return (
-    <section id="quickstart" class="quickstart">
-      {/* Label */}
-      <div class="quickstart__label">{quickStart.label}</div>
+    <section id="quickstart" class="relative py-20 px-8 sm:py-16 sm:px-4 bg-[#08080a]">
+      <div class="text-center font-mono text-[0.65rem] uppercase tracking-[0.2em] text-stone-600 mb-6">
+        {quickStart.label}
+      </div>
 
-      {/* Title */}
-      <h2 class="quickstart__title">{quickStart.title}</h2>
-      <p class="quickstart__subtitle">{quickStart.subtitle}</p>
+      <h2 class="font-serif text-[clamp(1.75rem,3vw,2.25rem)] font-normal text-stone-100 text-center m-0 mb-2">
+        {quickStart.title}
+      </h2>
+      <p class="font-sans text-base text-stone-600 text-center m-0 mb-12">
+        {quickStart.subtitle}
+      </p>
 
-      {/* Steps */}
-      <div class="quickstart__steps">
+      <div class="max-w-[640px] sm:max-w-full mx-auto flex flex-col">
         {steps.map((step, index) => (
-          <div class="quickstart__step" key={step.id}>
-            {/* Step number */}
-            <div class="quickstart__step-marker">
-              <span class="quickstart__step-number">{index + 1}</span>
-              {index < steps.length - 1 && <div class="quickstart__step-line" />}
+          <div
+            class={`grid grid-cols-[40px_1fr] sm:grid-cols-[28px_1fr] gap-6 sm:gap-3 opacity-0 ${
+              index === 0 ? "animate-fade-in-step-1" : index === 1 ? "animate-fade-in-step-2" : "animate-fade-in-step-3"
+            }`}
+            key={step.id}
+          >
+            <div class="flex flex-col items-center">
+              <span class="w-8 h-8 sm:w-[26px] sm:h-[26px] flex items-center justify-center font-mono text-[0.8rem] sm:text-[0.7rem] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/25 rounded-lg shrink-0">
+                {index + 1}
+              </span>
+              {index < steps.length - 1 && (
+                <div class="w-px flex-1 min-h-[40px] bg-gradient-to-b from-amber-400/30 to-amber-400/5 my-2" />
+              )}
             </div>
 
-            {/* Step content */}
-            <div class="quickstart__step-content">
-              <h3 class="quickstart__step-title">{step.title}</h3>
-              <p class="quickstart__step-desc">{step.description}</p>
+            <div class="pb-8">
+              <h3 class="font-sans text-base font-semibold text-stone-100 mt-1 mb-2">
+                {step.title}
+              </h3>
+              <p class="font-sans text-[0.875rem] sm:text-[0.8rem] text-stone-600 m-0 mb-4 leading-normal break-words">
+                {step.description}
+              </p>
 
-              {/* Code block */}
-              <div class="quickstart__code">
-                <div class="quickstart__code-header">
-                  <span class="quickstart__code-dot" />
-                  <span class="quickstart__code-dot" />
-                  <span class="quickstart__code-dot" />
-                  <span class="quickstart__code-file">{step.filename}</span>
+              <div class="bg-[#0c0c0f] border border-white/[0.06] rounded-[10px] overflow-hidden sm:max-w-full">
+                <div class="flex items-center gap-1.5 py-2.5 px-3.5 bg-white/[0.02] border-b border-white/[0.04]">
+                  <span class="w-2 h-2 rounded-full bg-red-500/50" />
+                  <span class="w-2 h-2 rounded-full bg-yellow-500/50" />
+                  <span class="w-2 h-2 rounded-full bg-green-500/50" />
+                  <span class="ml-auto font-mono text-[0.65rem] text-stone-600">
+                    {step.filename}
+                  </span>
                 </div>
-                <pre class="quickstart__code-body">
-                  <code dangerouslySetInnerHTML={{ __html: step.codeHtml }} />
+                <pre class="m-0 p-4 sm:p-3 overflow-x-auto sm:touch-pan-x">
+                  <code
+                    class="font-mono text-[0.8rem] sm:text-[0.65rem] leading-relaxed text-stone-400 sm:whitespace-pre sm:block [&_.cmd]:text-amber-400 [&_.flag]:text-blue-400 [&_.str]:text-green-400 [&_.comment]:text-stone-600 [&_.comment]:italic [&_.output]:text-green-400 [&_.dim]:text-stone-600"
+                    dangerouslySetInnerHTML={{ __html: step.codeHtml }}
+                  />
                 </pre>
               </div>
 
-              {/* Result indicator for last step */}
               {step.result && (
-                <div class="quickstart__result">
-                  <span class="quickstart__result-icon">✓</span>
-                  <span class="quickstart__result-text">{step.result}</span>
+                <div class="inline-flex items-center gap-2 mt-3 py-1.5 px-3 bg-green-400/[0.08] border border-green-400/20 rounded-md">
+                  <span class="text-green-400 text-[0.85rem]">✓</span>
+                  <span class="font-mono text-[0.75rem] text-green-400">{step.result}</span>
                 </div>
               )}
             </div>
@@ -61,288 +78,17 @@ export function QuickStartSection() {
         ))}
       </div>
 
-      {/* CTA */}
-      <div class="quickstart__cta">
-        <a href={quickStart.cta.href} class="quickstart__btn">
+      <div class="text-center mt-8 opacity-0 animate-fade-in-step-4">
+        <a
+          href={quickStart.cta.href}
+          class="inline-flex items-center gap-2 py-3 px-5 font-mono text-[0.8rem] font-medium text-amber-400 no-underline bg-transparent border border-amber-400/25 rounded-lg transition-all duration-200 hover:bg-amber-400/[0.08] hover:border-amber-400/50 hover:translate-x-1"
+        >
           {quickStart.cta.label}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </a>
       </div>
-
-      <style>
-        {`
-        .quickstart {
-          padding: 5rem 2rem;
-          background: #08080a;
-          position: relative;
-        }
-
-        .quickstart__label {
-          text-align: center;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.65rem;
-          text-transform: uppercase;
-          letter-spacing: 0.2em;
-          color: #555;
-          margin-bottom: 1.5rem;
-        }
-
-        .quickstart__title {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: clamp(1.75rem, 3vw, 2.25rem);
-          font-weight: 400;
-          color: #f0ede8;
-          text-align: center;
-          margin: 0 0 0.5rem;
-        }
-
-        .quickstart__subtitle {
-          font-family: 'Geist', sans-serif;
-          font-size: 1rem;
-          color: #666;
-          text-align: center;
-          margin: 0 0 3rem;
-        }
-
-        /* Steps container */
-        .quickstart__steps {
-          max-width: 640px;
-          margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          gap: 0;
-        }
-
-        /* Individual step */
-        .quickstart__step {
-          display: grid;
-          grid-template-columns: 40px 1fr;
-          gap: 1.5rem;
-          opacity: 0;
-          animation: fadeInStep 0.5s ease forwards;
-        }
-
-        .quickstart__step:nth-child(1) { animation-delay: 0.1s; }
-        .quickstart__step:nth-child(2) { animation-delay: 0.2s; }
-        .quickstart__step:nth-child(3) { animation-delay: 0.3s; }
-
-        @keyframes fadeInStep {
-          from { opacity: 0; transform: translateX(-10px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-
-        /* Step marker (number + line) */
-        .quickstart__step-marker {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-
-        .quickstart__step-number {
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: #FFB86F;
-          background: rgba(255, 184, 111, 0.1);
-          border: 1px solid rgba(255, 184, 111, 0.25);
-          border-radius: 8px;
-          flex-shrink: 0;
-        }
-
-        .quickstart__step-line {
-          width: 1px;
-          flex: 1;
-          min-height: 40px;
-          background: linear-gradient(to bottom, rgba(255, 184, 111, 0.3), rgba(255, 184, 111, 0.05));
-          margin: 0.5rem 0;
-        }
-
-        /* Step content */
-        .quickstart__step-content {
-          padding-bottom: 2rem;
-        }
-
-        .quickstart__step-title {
-          font-family: 'Geist', sans-serif;
-          font-size: 1rem;
-          font-weight: 600;
-          color: #f0ede8;
-          margin: 0.25rem 0 0.5rem;
-        }
-
-        .quickstart__step-desc {
-          font-family: 'Geist', sans-serif;
-          font-size: 0.875rem;
-          color: #777;
-          margin: 0 0 1rem;
-          line-height: 1.5;
-        }
-
-        /* Code block */
-        .quickstart__code {
-          background: #0c0c0f;
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 10px;
-          overflow: hidden;
-        }
-
-        .quickstart__code-header {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 0.6rem 0.875rem;
-          background: rgba(255, 255, 255, 0.02);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        }
-
-        .quickstart__code-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.1);
-        }
-
-        .quickstart__code-dot:nth-child(1) { background: rgba(255, 95, 86, 0.5); }
-        .quickstart__code-dot:nth-child(2) { background: rgba(255, 189, 46, 0.5); }
-        .quickstart__code-dot:nth-child(3) { background: rgba(39, 201, 63, 0.5); }
-
-        .quickstart__code-file {
-          margin-left: auto;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.65rem;
-          color: #555;
-        }
-
-        .quickstart__code-body {
-          margin: 0;
-          padding: 1rem;
-          overflow-x: auto;
-        }
-
-        .quickstart__code-body code {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.8rem;
-          line-height: 1.6;
-          color: #a8a29e;
-        }
-
-        /* Syntax highlighting */
-        .quickstart__code .cmd { color: #FFB86F; }
-        .quickstart__code .flag { color: #82aaff; }
-        .quickstart__code .str { color: #c3e88d; }
-        .quickstart__code .comment { color: #555; font-style: italic; }
-        .quickstart__code .output { color: #4ade80; }
-        .quickstart__code .dim { color: #555; }
-
-        /* Result indicator */
-        .quickstart__result {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-top: 0.75rem;
-          padding: 0.4rem 0.75rem;
-          background: rgba(74, 222, 128, 0.08);
-          border: 1px solid rgba(74, 222, 128, 0.2);
-          border-radius: 6px;
-        }
-
-        .quickstart__result-icon {
-          color: #4ade80;
-          font-size: 0.85rem;
-        }
-
-        .quickstart__result-text {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.75rem;
-          color: #4ade80;
-        }
-
-        /* CTA */
-        .quickstart__cta {
-          text-align: center;
-          margin-top: 2rem;
-          opacity: 0;
-          animation: fadeInStep 0.5s ease 0.4s forwards;
-        }
-
-        .quickstart__btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1.25rem;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.8rem;
-          font-weight: 500;
-          color: #FFB86F;
-          text-decoration: none;
-          background: transparent;
-          border: 1px solid rgba(255, 184, 111, 0.25);
-          border-radius: 8px;
-          transition: all 0.2s;
-        }
-
-        .quickstart__btn:hover {
-          background: rgba(255, 184, 111, 0.08);
-          border-color: rgba(255, 184, 111, 0.5);
-          transform: translateX(4px);
-        }
-
-        /* Responsive */
-        @media (max-width: 640px) {
-          .quickstart {
-            padding: 4rem 1rem;
-          }
-
-          .quickstart__steps {
-            max-width: 100%;
-          }
-
-          .quickstart__step {
-            grid-template-columns: 28px 1fr;
-            gap: 0.75rem;
-          }
-
-          .quickstart__step-number {
-            width: 26px;
-            height: 26px;
-            font-size: 0.7rem;
-          }
-
-          .quickstart__step-content {
-            min-width: 0;
-            overflow: hidden;
-          }
-
-          .quickstart__step-desc {
-            font-size: 0.8rem;
-            word-wrap: break-word;
-          }
-
-          .quickstart__code {
-            max-width: 100%;
-          }
-
-          .quickstart__code-body {
-            padding: 0.75rem;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-
-          .quickstart__code-body code {
-            font-size: 0.65rem;
-            white-space: pre;
-            display: block;
-          }
-        }
-        `}
-      </style>
     </section>
   );
 }

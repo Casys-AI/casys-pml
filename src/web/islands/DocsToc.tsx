@@ -11,7 +11,6 @@ export default function DocsToc() {
   const tocItems = useSignal<TocItem[]>([]);
   const activeId = useSignal<string>("");
 
-  // Extract headings from DOM on mount
   useEffect(() => {
     const article = document.querySelector(".doc-content");
     if (!article) return;
@@ -25,7 +24,6 @@ export default function DocsToc() {
         .replace(/\s+/g, "-") ||
         "";
 
-      // Ensure heading has an ID for linking
       if (!heading.id && id) {
         heading.id = id;
       }
@@ -42,7 +40,6 @@ export default function DocsToc() {
     tocItems.value = items;
   }, []);
 
-  // Scroll spy - highlight active section
   useEffect(() => {
     if (tocItems.value.length === 0) return;
 
@@ -76,24 +73,32 @@ export default function DocsToc() {
   }
 
   return (
-    <aside class="toc">
-      <div class="toc-header">On this page</div>
-      <nav class="toc-nav">
-        <ul class="toc-list">
+    <aside class="w-[220px] shrink-0 sticky top-[85px] h-[calc(100vh-100px)] overflow-y-auto px-4 hidden xl:block">
+      <div class="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3 pb-2 border-b border-amber-400/[0.08]">
+        On this page
+      </div>
+      <nav class="text-[0.8rem]">
+        <ul class="list-none m-0 p-0">
           {tocItems.value.map((item) => (
             <li
               key={item.id}
-              class={`toc-item toc-level-${item.level}`}
+              class="m-0"
+              style={{
+                paddingLeft: item.level === 2 ? "0" : item.level === 3 ? "0.75rem" : "1.5rem",
+              }}
             >
               <a
                 href={`#${item.id}`}
-                class={`toc-link ${activeId.value === item.id ? "toc-link-active" : ""}`}
+                class={`block py-1.5 no-underline transition-all duration-150 border-l-2 pl-3 -ml-3 ${
+                  activeId.value === item.id
+                    ? "text-amber-400 border-l-amber-400"
+                    : "text-stone-400 border-transparent hover:text-stone-100"
+                }`}
                 onClick={(e) => {
                   e.preventDefault();
                   const element = document.getElementById(item.id);
                   if (element) {
                     element.scrollIntoView({ behavior: "smooth", block: "start" });
-                    // Update URL hash without jumping
                     history.pushState(null, "", `#${item.id}`);
                     activeId.value = item.id;
                   }
@@ -105,83 +110,6 @@ export default function DocsToc() {
           ))}
         </ul>
       </nav>
-
-      <style>
-        {`
-        .toc {
-          width: 220px;
-          flex-shrink: 0;
-          position: sticky;
-          top: 85px;
-          height: calc(100vh - 100px);
-          overflow-y: auto;
-          padding: 0 1rem;
-        }
-
-        .toc-header {
-          font-size: 0.75rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: var(--text-dim, #6b6560);
-          margin-bottom: 0.75rem;
-          padding-bottom: 0.5rem;
-          border-bottom: 1px solid var(--border, rgba(255, 184, 111, 0.08));
-        }
-
-        .toc-nav {
-          font-size: 0.8rem;
-        }
-
-        .toc-list {
-          list-style: none;
-          margin: 0;
-          padding: 0;
-        }
-
-        .toc-item {
-          margin: 0;
-        }
-
-        .toc-level-2 {
-          padding-left: 0;
-        }
-
-        .toc-level-3 {
-          padding-left: 0.75rem;
-        }
-
-        .toc-level-4 {
-          padding-left: 1.5rem;
-        }
-
-        .toc-link {
-          display: block;
-          padding: 0.35rem 0;
-          color: var(--text-muted, #a8a29e);
-          text-decoration: none;
-          transition: all 0.15s ease;
-          border-left: 2px solid transparent;
-          padding-left: 0.75rem;
-          margin-left: -0.75rem;
-        }
-
-        .toc-link:hover {
-          color: var(--text, #f0ede8);
-        }
-
-        .toc-link-active {
-          color: var(--accent, #FFB86F);
-          border-left-color: var(--accent, #FFB86F);
-        }
-
-        @media (max-width: 1280px) {
-          .toc {
-            display: none;
-          }
-        }
-        `}
-      </style>
     </aside>
   );
 }

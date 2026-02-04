@@ -9,62 +9,33 @@ interface BadgeProps {
   children: ComponentChildren;
   variant?: "default" | "success" | "warning" | "error" | "info";
   size?: "sm" | "md";
+  class?: string;
 }
+
+const sizeClasses = {
+  sm: "text-[0.6875rem] px-1.5 py-0.5",
+  md: "text-xs px-2 py-1",
+};
+
+const variantClasses = {
+  default: "bg-amber-500/10 text-amber-400",
+  success: "bg-green-400/10 text-green-400",
+  warning: "bg-yellow-400/10 text-yellow-400",
+  error: "bg-red-400/15 text-red-400",
+  info: "bg-blue-400/10 text-blue-400",
+};
 
 export default function Badge({
   children,
   variant = "default",
   size = "sm",
+  class: className,
 }: BadgeProps) {
   return (
-    <>
-      <span class={`badge badge--${variant} badge--${size}`}>{children}</span>
-      <style>
-        {`
-        .badge {
-          display: inline-flex;
-          align-items: center;
-          font-weight: 500;
-          border-radius: 4px;
-          white-space: nowrap;
-        }
-
-        .badge--sm {
-          font-size: 0.6875rem;
-          padding: 0.125rem 0.375rem;
-        }
-
-        .badge--md {
-          font-size: 0.75rem;
-          padding: 0.25rem 0.5rem;
-        }
-
-        .badge--default {
-          background: rgba(255, 184, 111, 0.1);
-          color: #FFB86F;
-        }
-
-        .badge--success {
-          background: rgba(74, 222, 128, 0.1);
-          color: #4ade80;
-        }
-
-        .badge--warning {
-          background: rgba(251, 191, 36, 0.1);
-          color: #fbbf24;
-        }
-
-        .badge--error {
-          background: rgba(239, 68, 68, 0.15);
-          color: #f87171;
-        }
-
-        .badge--info {
-          background: rgba(96, 165, 250, 0.1);
-          color: #60a5fa;
-        }
-        `}
-      </style>
-    </>
+    <span
+      class={`inline-flex items-center font-medium rounded whitespace-nowrap ${sizeClasses[size]} ${variantClasses[variant]} ${className || ""}`}
+    >
+      {children}
+    </span>
   );
 }

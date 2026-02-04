@@ -13,15 +13,9 @@ export default function Divider({
   class: className,
   vertical = false,
 }: DividerProps): JSX.Element {
-  const direction = vertical ? "to bottom" : "to right";
-  const sizeClass = vertical ? "w-px my-2" : "h-px my-3";
+  const baseClass = vertical
+    ? "w-px my-2 bg-gradient-to-b from-transparent via-stone-600 to-transparent"
+    : "h-px my-3 bg-gradient-to-r from-transparent via-stone-600 to-transparent";
 
-  return (
-    <div
-      class={`${sizeClass} ${className || ""}`.trim()}
-      style={{
-        background: `linear-gradient(${direction}, transparent, var(--border-strong), transparent)`,
-      }}
-    />
-  );
+  return <div class={`${baseClass} ${className || ""}`.trim()} />;
 }

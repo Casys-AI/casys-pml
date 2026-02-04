@@ -21,16 +21,6 @@ export interface EmptyStateProps {
   action?: EmptyStateAction;
 }
 
-const CONTAINER_STYLE = {
-  background: "var(--bg-elevated, #12110f)",
-  border: "1px solid var(--border)",
-};
-
-const BUTTON_STYLE = {
-  background: "var(--accent, #FFB86F)",
-  color: "var(--bg, #08080a)",
-};
-
 export function EmptyState({
   icon = "\uD83D\uDE80",
   title,
@@ -39,19 +29,18 @@ export function EmptyState({
 }: EmptyStateProps): JSX.Element {
   return (
     <div class="w-full h-full flex items-center justify-center p-6">
-      <div class="text-center p-8 rounded-xl max-w-md" style={CONTAINER_STYLE}>
+      <div class="text-center p-8 rounded-xl max-w-md bg-stone-900 border border-stone-700">
         <div class="text-5xl mb-4">{icon}</div>
-        <h3 class="text-xl font-semibold mb-2" style={{ color: "var(--text)" }}>
+        <h3 class="text-xl font-semibold mb-2 text-stone-100">
           {title}
         </h3>
-        <p class="mb-6" style={{ color: "var(--text-muted)", lineHeight: "1.6" }}>
+        <p class="mb-6 text-stone-400 leading-relaxed">
           {description}
         </p>
         {action && (
           <a
             href={action.href}
-            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold transition-all hover:brightness-110"
-            style={BUTTON_STYLE}
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold transition-all hover:brightness-110 bg-amber-500 text-stone-950"
           >
             {action.icon}
             {action.label}

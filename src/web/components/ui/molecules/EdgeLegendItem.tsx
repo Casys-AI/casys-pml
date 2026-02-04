@@ -9,7 +9,6 @@ interface EdgeLegendItemProps {
   color: string;
   lineStyle?: "solid" | "dashed" | "dotted";
   opacity?: number;
-  /** If provided, makes the item clickable as a toggle */
   active?: boolean;
   onClick?: () => void;
 }
@@ -29,13 +28,9 @@ export default function EdgeLegendItem({
     <div
       class={`flex items-center gap-2.5 py-1.5 px-3 -mx-3 rounded transition-all ${
         isToggleable ? "cursor-pointer hover:bg-white/5" : ""
-      }`}
+      } ${isActive ? "opacity-100" : "opacity-40"}`}
       onClick={onClick}
-      style={{
-        opacity: isActive ? 1 : 0.4,
-      }}
     >
-      {/* Checkbox indicator for toggleable items */}
       {isToggleable && (
         <div
           class="w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center"
@@ -65,7 +60,7 @@ export default function EdgeLegendItem({
           opacity,
         }}
       />
-      <span class="text-xs" style={{ color: "var(--text-muted)" }}>
+      <span class="text-xs text-stone-400">
         {label}
       </span>
     </div>

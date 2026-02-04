@@ -494,18 +494,15 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
   const getScoreColor = (score: number) =>
     score >= 0.7 ? "var(--success)" : score >= 0.4 ? "var(--warning)" : "var(--error)";
 
-  // Collapsed: small icon button
   if (viewMode === "collapsed") {
     return (
       <div
-        class="fixed right-5 top-1/2 -translate-y-full -mt-2 p-3 rounded-lg cursor-pointer z-20 hover:scale-105 transition-transform"
-        style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+        class="fixed right-5 top-1/2 -translate-y-full -mt-2 p-3 rounded-lg cursor-pointer z-20 hover:scale-105 transition-transform bg-stone-900 border border-amber-400/10"
         onClick={() => setViewMode("sidebar")}
         title="Open Metrics"
       >
         <svg
-          class="w-4 h-4"
-          style={{ color: "var(--text-muted)" }}
+          class="w-4 h-4 text-stone-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -521,30 +518,20 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
     );
   }
 
-  // Dashboard: fullscreen overlay
   if (viewMode === "dashboard") {
     return (
-      <div
-        class="fixed inset-0 overflow-auto"
-        style={{ background: "var(--bg)", backdropFilter: "blur(8px)", zIndex: 110 }}
-      >
+      <div class="fixed inset-0 overflow-auto bg-stone-950 backdrop-blur-lg z-[110]">
         <div class="p-6 max-w-7xl mx-auto">
-          {/* Header */}
           <div class="flex justify-between items-center mb-6">
-            <h1 class="text-xl font-bold" style={{ color: "var(--text)" }}>Metrics Dashboard</h1>
+            <h1 class="text-xl font-bold text-stone-100">Metrics Dashboard</h1>
             <div class="flex items-center gap-3">
-              {/* Time Range */}
-              <div
-                class="flex gap-1 p-0.5 rounded-lg"
-                style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-              >
+              <div class="flex gap-1 p-0.5 rounded-lg bg-stone-800 border border-amber-400/10">
                 {(["1h", "24h", "7d"] as MetricsTimeRange[]).map((r) => (
                   <button
                     key={r}
-                    class="py-1.5 px-3 rounded text-xs font-semibold"
-                    style={dateRange === r
-                      ? { background: "var(--accent)", color: "var(--bg)" }
-                      : { color: "var(--text-muted)" }}
+                    class={`py-1.5 px-3 rounded text-xs font-semibold ${
+                      dateRange === r ? "bg-amber-400 text-stone-950" : "text-stone-400"
+                    }`}
                     onClick={() => setDateRange(r)}
                   >
                     {r}
@@ -552,12 +539,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                 ))}
               </div>
               <button
-                class="p-2 rounded-lg"
-                style={{
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--border)",
-                  color: "var(--text-muted)",
-                }}
+                class="p-2 rounded-lg bg-stone-800 border border-amber-400/10 text-stone-400"
                 onClick={() => setViewMode("sidebar")}
                 title="Back to sidebar"
               >
@@ -574,9 +556,9 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
           </div>
 
           {loading && (
-            <div class="text-center py-8" style={{ color: "var(--text-dim)" }}>Loading...</div>
+            <div class="text-center py-8 text-stone-500">Loading...</div>
           )}
-          {error && <div class="text-center py-4" style={{ color: "var(--error)" }}>{error}</div>}
+          {error && <div class="text-center py-4 text-red-400">{error}</div>}
 
           {metrics && !loading && (
             <>
@@ -603,20 +585,13 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                 />
               </div>
 
-              {/* Main Charts Grid - 2x2 */}
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                <div
-                  class="rounded-xl p-5"
-                  style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                >
+                <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
                   <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                    <h3 class="text-sm font-semibold text-stone-100">
                       Edge Growth
                     </h3>
-                    <span
-                      class="text-xs px-2 py-1 rounded"
-                      style={{ background: "var(--accent-dim)", color: "var(--accent)" }}
-                    >
+                    <span class="text-xs px-2 py-1 rounded bg-amber-400/10 text-amber-400">
                       +{metrics.period.newEdgesCreated} new
                     </span>
                   </div>
@@ -624,18 +599,12 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     <canvas ref={chartRefs.edges} />
                   </div>
                 </div>
-                <div
-                  class="rounded-xl p-5"
-                  style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                >
+                <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
                   <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                    <h3 class="text-sm font-semibold text-stone-100">
                       Average Confidence
                     </h3>
-                    <span
-                      class="text-xs px-2 py-1 rounded"
-                      style={{ background: "rgba(74, 222, 128, 0.15)", color: "#4ade80" }}
-                    >
+                    <span class="text-xs px-2 py-1 rounded bg-green-400/15 text-green-400">
                       α = {metrics.current.adaptiveAlpha.toFixed(2)}
                     </span>
                   </div>
@@ -643,18 +612,12 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     <canvas ref={chartRefs.confidence} />
                   </div>
                 </div>
-                <div
-                  class="rounded-xl p-5"
-                  style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                >
+                <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
                   <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                    <h3 class="text-sm font-semibold text-stone-100">
                       Workflow Execution Rate
                     </h3>
-                    <span
-                      class="text-xs px-2 py-1 rounded"
-                      style={{ background: "rgba(96, 165, 250, 0.15)", color: "#60a5fa" }}
-                    >
+                    <span class="text-xs px-2 py-1 rounded bg-blue-400/15 text-blue-400">
                       {dateRange}
                     </span>
                   </div>
@@ -662,12 +625,8 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     <canvas ref={chartRefs.workflows} />
                   </div>
                 </div>
-                {/* Learning Progress Card */}
-                <div
-                  class="rounded-xl p-5"
-                  style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                >
-                  <h3 class="text-sm font-semibold mb-4" style={{ color: "var(--text)" }}>
+                <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
+                  <h3 class="text-sm font-semibold mb-4 text-stone-100">
                     Learning Progress
                   </h3>
                   <div class="grid grid-cols-2 gap-3 mb-4">
@@ -697,11 +656,8 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     color="var(--accent)"
                     height={8}
                   />
-                  <div class="mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
-                    <h4
-                      class="text-xs font-semibold mb-2 uppercase tracking-wide"
-                      style={{ color: "var(--text-dim)" }}
-                    >
+                  <div class="mt-4 pt-4 border-t border-amber-400/10">
+                    <h4 class="text-xs font-semibold mb-2 uppercase tracking-wide text-stone-500">
                       Top PageRank
                     </h4>
                     <div class="max-h-32 overflow-y-auto">
@@ -718,22 +674,14 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                 </div>
               </div>
 
-              {/* Algorithm Section - Only if we have traces */}
               {metrics.algorithm && metrics.algorithm.tracesCount > 0 && (
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* Decisions Doughnut */}
-                  <div
-                    class="rounded-xl p-5"
-                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                  >
+                  <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
                     <div class="flex justify-between items-center mb-4">
-                      <h3 class="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                      <h3 class="text-sm font-semibold text-stone-100">
                         Algorithm Decisions
                       </h3>
-                      <span
-                        class="text-xs px-2 py-1 rounded"
-                        style={{ background: "var(--bg)", color: "var(--text-muted)" }}
-                      >
+                      <span class="text-xs px-2 py-1 rounded bg-stone-950 text-stone-400">
                         {metrics.algorithm.tracesCount} traces
                       </span>
                     </div>
@@ -742,13 +690,9 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     </div>
                   </div>
 
-                  {/* Scores Horizontal Bar */}
-                  <div
-                    class="rounded-xl p-5"
-                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                  >
+                  <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
                     <div class="flex justify-between items-center mb-4">
-                      <h3 class="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                      <h3 class="text-sm font-semibold text-stone-100">
                         Average Scores
                       </h3>
                       <span
@@ -769,12 +713,8 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     </div>
                   </div>
 
-                  {/* Detailed Stats */}
-                  <div
-                    class="rounded-xl p-5"
-                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                  >
-                    <h3 class="text-sm font-semibold mb-4" style={{ color: "var(--text)" }}>
+                  <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
+                    <h3 class="text-sm font-semibold mb-4 text-stone-100">
                       Algorithm Details
                     </h3>
                     <div class="grid grid-cols-2 gap-3">
@@ -799,28 +739,22 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                         color="#34d399"
                       />
                     </div>
-                    <div class="mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
+                    <div class="mt-4 pt-4 border-t border-amber-400/10">
                       <div class="flex justify-between text-sm mb-2">
-                        <span style={{ color: "var(--text-muted)" }}>Target Types</span>
+                        <span class="text-stone-400">Target Types</span>
                       </div>
                       <div class="flex gap-4">
-                        <div
-                          class="flex-1 p-3 rounded-lg text-center"
-                          style={{ background: "var(--bg)" }}
-                        >
-                          <div class="text-lg font-bold" style={{ color: "var(--accent)" }}>
+                        <div class="flex-1 p-3 rounded-lg text-center bg-stone-950">
+                          <div class="text-lg font-bold text-amber-400">
                             {metrics.algorithm.byTargetType.tool}
                           </div>
-                          <div class="text-xs" style={{ color: "var(--text-dim)" }}>Tools</div>
+                          <div class="text-xs text-stone-500">Tools</div>
                         </div>
-                        <div
-                          class="flex-1 p-3 rounded-lg text-center"
-                          style={{ background: "var(--bg)" }}
-                        >
-                          <div class="text-lg font-bold" style={{ color: "var(--info)" }}>
+                        <div class="flex-1 p-3 rounded-lg text-center bg-stone-950">
+                          <div class="text-lg font-bold text-blue-400">
                             {metrics.algorithm.byTargetType.capability}
                           </div>
-                          <div class="text-xs" style={{ color: "var(--text-dim)" }}>
+                          <div class="text-xs text-stone-500">
                             Capabilities
                           </div>
                         </div>
@@ -830,30 +764,23 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                 </div>
               )}
 
-              {/* ADR-039: Algorithm Insights - Compact inline with tabs */}
               {metrics.algorithm && metrics.algorithm.tracesCount > 0 &&
                 metrics.algorithm.byGraphType && (
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
-                  {/* Left: Graph/Hypergraph Stats with tabs */}
-                  <div
-                    class="rounded-xl p-4"
-                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                  >
+                  <div class="rounded-xl p-4 bg-stone-800 border border-amber-400/10">
                     <div class="flex justify-between items-center mb-3">
-                      <h3 class="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                      <h3 class="text-sm font-semibold text-stone-100">
                         By Graph Type
                       </h3>
-                      <div class="flex gap-0.5 p-0.5 rounded" style={{ background: "var(--bg)" }}>
+                      <div class="flex gap-0.5 p-0.5 rounded bg-stone-950">
                         {(["graph", "hypergraph"] as GraphTypeTab[]).map((tab) => (
                           <button
                             key={tab}
-                            class="py-1 px-2 rounded text-[10px] font-semibold capitalize"
-                            style={graphTypeTab === tab
-                              ? {
-                                background: tab === "graph" ? "#ffb86f" : "#a78bfa",
-                                color: "var(--bg)",
-                              }
-                              : { color: "var(--text-muted)" }}
+                            class={`py-1 px-2 rounded text-[10px] font-semibold capitalize ${
+                              graphTypeTab === tab
+                                ? tab === "graph" ? "bg-amber-400 text-stone-950" : "bg-violet-400 text-stone-950"
+                                : "text-stone-400"
+                            }`}
                             onClick={() => setGraphTypeTab(tab)}
                           >
                             {tab}
@@ -883,60 +810,30 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                               compact
                             />
                           </div>
-                          {/* Graph: Top Signals inline */}
                           {graphTypeTab === "graph" &&
                             metrics.algorithm!.byGraphType!.graph.topSignals && (
-                            <div
-                              class="flex gap-2 text-[10px]"
-                              style={{ color: "var(--text-dim)" }}
-                            >
+                            <div class="flex gap-2 text-[10px] text-stone-500">
                               <span>
-                                PR:{" "}
-                                <b style={{ color: "#ffb86f" }}>
-                                  {metrics.algorithm!.byGraphType!.graph.topSignals.pagerank
-                                    .toFixed(2)}
-                                </b>
+                                PR: <b class="text-amber-400">{metrics.algorithm!.byGraphType!.graph.topSignals.pagerank.toFixed(2)}</b>
                               </span>
                               <span>
-                                AA:{" "}
-                                <b style={{ color: "#34d399" }}>
-                                  {metrics.algorithm!.byGraphType!.graph.topSignals.adamicAdar
-                                    .toFixed(2)}
-                                </b>
+                                AA: <b class="text-emerald-400">{metrics.algorithm!.byGraphType!.graph.topSignals.adamicAdar.toFixed(2)}</b>
                               </span>
                               <span>
-                                Co:{" "}
-                                <b style={{ color: "#60a5fa" }}>
-                                  {metrics.algorithm!.byGraphType!.graph.topSignals.cooccurrence
-                                    .toFixed(2)}
-                                </b>
+                                Co: <b class="text-blue-400">{metrics.algorithm!.byGraphType!.graph.topSignals.cooccurrence.toFixed(2)}</b>
                               </span>
                             </div>
                           )}
-                          {/* Hypergraph: Spectral compact */}
                           {graphTypeTab === "hypergraph" &&
                             metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance && (
-                            <div
-                              class="flex gap-3 text-[10px]"
-                              style={{ color: "var(--text-dim)" }}
-                            >
+                            <div class="flex gap-3 text-[10px] text-stone-500">
                               <span>
-                                w/ cluster:{" "}
-                                <b style={{ color: "#4ade80" }}>
-                                  {metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance
-                                    .withClusterMatch.avgScore.toFixed(2)}
-                                </b>{" "}
-                                ({(metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance
-                                  .withClusterMatch.selectedRate * 100).toFixed(0)}%)
+                                w/ cluster: <b class="text-green-400">{metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withClusterMatch.avgScore.toFixed(2)}</b>{" "}
+                                ({(metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withClusterMatch.selectedRate * 100).toFixed(0)}%)
                               </span>
                               <span>
-                                w/o:{" "}
-                                <b style={{ color: "#fbbf24" }}>
-                                  {metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance
-                                    .withoutClusterMatch.avgScore.toFixed(2)}
-                                </b>{" "}
-                                ({(metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance
-                                  .withoutClusterMatch.selectedRate * 100).toFixed(0)}%)
+                                w/o: <b class="text-amber-400">{metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withoutClusterMatch.avgScore.toFixed(2)}</b>{" "}
+                                ({(metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withoutClusterMatch.selectedRate * 100).toFixed(0)}%)
                               </span>
                             </div>
                           )}
@@ -945,23 +842,15 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     })()}
                   </div>
 
-                  {/* Right: Score Distribution mini chart */}
-                  <div
-                    class="rounded-xl p-4"
-                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                  >
+                  <div class="rounded-xl p-4 bg-stone-800 border border-amber-400/10">
                     <div class="flex justify-between items-center mb-2">
-                      <h3 class="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                      <h3 class="text-sm font-semibold text-stone-100">
                         Score Dist.
                       </h3>
                       <span
-                        class="text-[10px] px-1.5 py-0.5 rounded capitalize"
-                        style={{
-                          background: graphTypeTab === "graph"
-                            ? "rgba(255, 184, 111, 0.15)"
-                            : "rgba(167, 139, 250, 0.15)",
-                          color: graphTypeTab === "graph" ? "#ffb86f" : "#a78bfa",
-                        }}
+                        class={`text-[10px] px-1.5 py-0.5 rounded capitalize ${
+                          graphTypeTab === "graph" ? "bg-amber-400/15 text-amber-400" : "bg-violet-400/15 text-violet-400"
+                        }`}
                       >
                         {graphTypeTab}
                       </span>
@@ -971,13 +860,8 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     </div>
                   </div>
 
-                  {/* Bottom row: Threshold & Mode - spans full width */}
-                  <div
-                    class="lg:col-span-2 rounded-xl p-4"
-                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-                  >
+                  <div class="lg:col-span-2 rounded-xl p-4 bg-stone-800 border border-amber-400/10">
                     <div class="flex flex-wrap gap-4 items-center">
-                      {/* Threshold */}
                       {metrics.algorithm!.thresholdEfficiency && (
                         <div class="flex-1 min-w-[150px]">
                           <ProgressBar
@@ -990,22 +874,21 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                           />
                         </div>
                       )}
-                      {/* Mode stats inline */}
                       {metrics.algorithm!.byMode && (
                         <div class="flex gap-4 text-[11px]">
                           <div class="text-center">
-                            <div class="font-bold" style={{ color: "#60a5fa" }}>
+                            <div class="font-bold text-blue-400">
                               {metrics.algorithm!.byMode.activeSearch.avgScore.toFixed(2)}
                             </div>
-                            <div style={{ color: "var(--text-dim)" }}>
+                            <div class="text-stone-500">
                               Active ({metrics.algorithm!.byMode.activeSearch.count})
                             </div>
                           </div>
                           <div class="text-center">
-                            <div class="font-bold" style={{ color: "#34d399" }}>
+                            <div class="font-bold text-emerald-400">
                               {metrics.algorithm!.byMode.passiveSuggestion.avgScore.toFixed(2)}
                             </div>
-                            <div style={{ color: "var(--text-dim)" }}>
+                            <div class="text-stone-500">
                               Passive ({metrics.algorithm!.byMode.passiveSuggestion.count})
                             </div>
                           </div>
@@ -1016,13 +899,9 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                 </div>
               )}
 
-              {/* Empty state for Algorithm Insights - compact */}
               {metrics.algorithm && metrics.algorithm.tracesCount === 0 && (
-                <div
-                  class="mt-4 p-4 rounded-xl text-center"
-                  style={{ background: "var(--bg-surface)", border: "1px dashed var(--border)" }}
-                >
-                  <div class="text-xs" style={{ color: "var(--text-muted)" }}>
+                <div class="mt-4 p-4 rounded-xl text-center bg-stone-800 border border-dashed border-amber-400/10">
+                  <div class="text-xs text-stone-400">
                     No algorithm traces for this period
                   </div>
                 </div>
@@ -1034,23 +913,13 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
     );
   }
 
-  // Sidebar mode (default)
   return (
-    <div
-      class="p-3 overflow-y-auto flex flex-col gap-2 h-full transition-all duration-300"
-      style={{
-        width: "280px",
-        background: "linear-gradient(to bottom, var(--bg-elevated), var(--bg))",
-        borderLeft: "1px solid var(--border)",
-      }}
-    >
-      {/* Header */}
+    <div class="w-[280px] p-3 overflow-y-auto flex flex-col gap-2 h-full transition-all duration-300 bg-gradient-to-b from-stone-900 to-stone-950 border-l border-amber-400/10">
       <div class="flex justify-between items-center mb-1">
-        <h2 class="text-sm font-bold" style={{ color: "var(--text)" }}>Metrics</h2>
+        <h2 class="text-sm font-bold text-stone-100">Metrics</h2>
         <div class="flex gap-1">
           <button
-            class="p-1.5 rounded-lg transition-colors"
-            style={{ color: "var(--text-muted)" }}
+            class="p-1.5 rounded-lg transition-colors text-stone-400"
             onClick={() => setViewMode("dashboard")}
             title="Open Dashboard"
           >
@@ -1064,8 +933,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
             </svg>
           </button>
           <button
-            class="p-1.5 rounded-lg"
-            style={{ color: "var(--text-muted)" }}
+            class="p-1.5 rounded-lg text-stone-400"
             onClick={() => setViewMode("collapsed")}
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1080,18 +948,13 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
         </div>
       </div>
 
-      {/* Time Range */}
-      <div
-        class="flex gap-1 p-0.5 rounded-lg"
-        style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-      >
+      <div class="flex gap-1 p-0.5 rounded-lg bg-stone-800 border border-amber-400/10">
         {(["1h", "24h", "7d"] as MetricsTimeRange[]).map((r) => (
           <button
             key={r}
-            class="flex-1 py-1 px-2 rounded text-[10px] font-semibold"
-            style={dateRange === r
-              ? { background: "var(--accent)", color: "var(--bg)" }
-              : { color: "var(--text-muted)" }}
+            class={`flex-1 py-1 px-2 rounded text-[10px] font-semibold ${
+              dateRange === r ? "bg-amber-400 text-stone-950" : "text-stone-400"
+            }`}
             onClick={() => setDateRange(r)}
           >
             {r}
@@ -1100,10 +963,10 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
       </div>
 
       {loading && (
-        <div class="text-xs text-center py-4" style={{ color: "var(--text-dim)" }}>Loading...</div>
+        <div class="text-xs text-center py-4 text-stone-500">Loading...</div>
       )}
       {error && (
-        <div class="text-xs text-center py-2" style={{ color: "var(--error)" }}>{error}</div>
+        <div class="text-xs text-center py-2 text-red-400">{error}</div>
       )}
 
       {metrics && !loading && (
@@ -1190,26 +1053,21 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                 />
               ))}
               {(metrics.current.pagerankTop10?.length ?? 0) === 0 && (
-                <div class="text-[10px] text-center py-2" style={{ color: "var(--text-dim)" }}>
+                <div class="text-[10px] text-center py-2 text-stone-500">
                   No data
                 </div>
               )}
             </div>
           </SectionCard>
 
-          {/* Chart */}
-          <div
-            class="p-2 rounded-lg"
-            style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-          >
+          <div class="p-2 rounded-lg bg-stone-800 border border-amber-400/10">
             <div class="flex gap-1 mb-2">
               {(["edges", "confidence", "workflows"] as const).map((tab) => (
                 <button
                   key={tab}
-                  class="flex-1 py-1 rounded text-[9px] font-semibold"
-                  style={activeChart === tab
-                    ? { background: "var(--accent)", color: "var(--bg)" }
-                    : { background: "var(--bg)", color: "var(--text-muted)" }}
+                  class={`flex-1 py-1 rounded text-[9px] font-semibold ${
+                    activeChart === tab ? "bg-amber-400 text-stone-950" : "bg-stone-950 text-stone-400"
+                  }`}
                   onClick={() => setActiveChart(tab)}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1, 4)}

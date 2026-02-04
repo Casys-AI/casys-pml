@@ -27,7 +27,6 @@ export default function CapabilityCarousel({ capabilities }: Props) {
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
-  // Auto-scroll every 5 seconds
   useEffect(() => {
     if (isPaused || isDragging) return;
 
@@ -39,10 +38,8 @@ export default function CapabilityCarousel({ capabilities }: Props) {
       const isAtEnd = container.scrollLeft >= maxScroll - 10;
 
       if (isAtEnd) {
-        // Loop back to start
         container.scrollTo({ left: 0, behavior: "smooth" });
       } else {
-        // Scroll to next card
         container.scrollBy({ left: 360, behavior: "smooth" });
       }
     }, 5000);
@@ -57,7 +54,6 @@ export default function CapabilityCarousel({ capabilities }: Props) {
     container.scrollBy({ left: scrollAmount, behavior: "smooth" });
   };
 
-  // Drag-to-scroll handlers for desktop
   const handleMouseDown = (e: MouseEvent) => {
     const container = scrollRef.current;
     if (!container) return;
@@ -72,7 +68,7 @@ export default function CapabilityCarousel({ capabilities }: Props) {
     const container = scrollRef.current;
     if (!container) return;
     const x = e.pageX - container.offsetLeft;
-    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    const walk = (x - startX) * 1.5;
     container.scrollLeft = scrollLeft - walk;
   };
 
@@ -86,14 +82,13 @@ export default function CapabilityCarousel({ capabilities }: Props) {
 
   return (
     <div
-      class="carousel-wrapper"
+      class="relative w-full max-w-[1200px] mx-auto px-12 md:px-12 max-[480px]:px-0"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      {/* Navigation */}
       <button
         type="button"
-        class="carousel-nav carousel-nav--prev"
+        class="absolute top-1/2 -translate-y-1/2 z-10 w-[46px] h-[46px] border border-amber-400/30 rounded-full bg-stone-950/[0.98] text-amber-400 text-[1.6rem] cursor-pointer transition-all duration-200 flex items-center justify-center backdrop-blur-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:border-amber-400/60 hover:bg-amber-400/15 hover:scale-[1.08] hover:shadow-[0_4px_24px_rgba(255,184,111,0.2)] left-3 md:left-3 max-[768px]:w-9 max-[768px]:h-9 max-[768px]:text-xl max-[768px]:left-1 max-[480px]:w-8 max-[480px]:h-8 max-[480px]:text-[1.1rem] max-[480px]:top-auto max-[480px]:bottom-0 max-[480px]:translate-y-0 max-[480px]:left-[calc(50%-40px)]"
         aria-label="Previous"
         onClick={() => handleScroll("prev")}
       >
@@ -101,312 +96,56 @@ export default function CapabilityCarousel({ capabilities }: Props) {
       </button>
       <button
         type="button"
-        class="carousel-nav carousel-nav--next"
+        class="absolute top-1/2 -translate-y-1/2 z-10 w-[46px] h-[46px] border border-amber-400/30 rounded-full bg-stone-950/[0.98] text-amber-400 text-[1.6rem] cursor-pointer transition-all duration-200 flex items-center justify-center backdrop-blur-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:border-amber-400/60 hover:bg-amber-400/15 hover:scale-[1.08] hover:shadow-[0_4px_24px_rgba(255,184,111,0.2)] right-3 md:right-3 max-[768px]:w-9 max-[768px]:h-9 max-[768px]:text-xl max-[768px]:right-1 max-[480px]:w-8 max-[480px]:h-8 max-[480px]:text-[1.1rem] max-[480px]:top-auto max-[480px]:bottom-0 max-[480px]:translate-y-0 max-[480px]:right-[calc(50%-40px)]"
         aria-label="Next"
         onClick={() => handleScroll("next")}
       >
         ›
       </button>
 
-      {/* Scroll container */}
       <div
         ref={scrollRef}
-        class={`carousel-scroll ${isDragging ? "carousel-scroll--dragging" : ""}`}
+        class={`flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth p-4 pb-6 cursor-grab select-none scroll-pl-4 scrollbar-none max-[480px]:gap-4 max-[480px]:p-3 max-[480px]:pb-5 ${isDragging ? "cursor-grabbing !snap-none !scroll-auto" : ""}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
       >
         {capabilities.map((cap) => (
-          <article class="carousel-card" key={`${cap.namespace}:${cap.action}`}>
-            {/* Header */}
-            <header class="carousel-card__header">
-              <span class="carousel-card__ns">{cap.namespace}</span>
-              <span class="carousel-card__sep">:</span>
-              <span class="carousel-card__action">{cap.action}</span>
+          <article
+            class="flex-[0_0_340px] snap-start bg-gradient-to-br from-stone-900 to-stone-950 border border-amber-500/10 rounded-[14px] p-6 transition-all duration-300 last:mr-4 hover:border-amber-500/25 hover:-translate-y-[3px] max-[768px]:flex-[0_0_300px] max-[480px]:flex-[0_0_calc(100vw-2rem)] max-[480px]:p-5 max-[480px]:last:mr-4"
+            key={`${cap.namespace}:${cap.action}`}
+          >
+            <header class="font-mono text-[1.1rem] mb-2.5 max-[480px]:text-base">
+              <span class="text-amber-400">{cap.namespace}</span>
+              <span class="text-stone-700 mx-[0.1em]">:</span>
+              <span class="text-stone-100">{cap.action}</span>
             </header>
 
-            {/* Description */}
-            <p class="carousel-card__desc">{cap.description}</p>
+            <p class="text-[0.85rem] text-stone-500 m-0 mb-5 leading-[1.45]">{cap.description}</p>
 
-            {/* Code */}
-            <div class="carousel-card__code">
-              <div class="carousel-card__code-bar">
-                <span /><span /><span />
+            <div class="bg-stone-950 border border-white/5 rounded-[10px] overflow-hidden mb-5">
+              <div class="flex gap-[5px] py-2.5 px-3 bg-white/[0.02] border-b border-white/[0.03]">
+                <span class="w-[9px] h-[9px] rounded-full bg-red-400/65" />
+                <span class="w-[9px] h-[9px] rounded-full bg-yellow-400/65" />
+                <span class="w-[9px] h-[9px] rounded-full bg-green-500/65" />
               </div>
-              <pre><code dangerouslySetInnerHTML={{ __html: cap.codeHtml }} /></pre>
+              <pre class="m-0 p-4 overflow-x-auto">
+                <code class="font-mono text-[0.78rem] leading-[1.6] text-stone-400 max-[480px]:text-[0.7rem]" dangerouslySetInnerHTML={{ __html: cap.codeHtml }} />
+              </pre>
             </div>
 
-            {/* Tools */}
-            <footer class="carousel-card__tools">
+            <footer class="flex flex-wrap gap-1.5 items-center">
               {cap.tools.map((tool, i) => (
                 <span key={tool}>
-                  {i > 0 && <span class="carousel-card__arrow">→</span>}
-                  <span class="carousel-card__tool">{tool}</span>
+                  {i > 0 && <span class="text-amber-400 opacity-60 mx-1.5 text-xs">→</span>}
+                  <span class="font-mono text-[0.7rem] text-amber-400 bg-amber-500/10 py-1 px-2 rounded-[5px] border border-amber-500/15">{tool}</span>
                 </span>
               ))}
             </footer>
           </article>
         ))}
       </div>
-
-      <style>
-        {`
-        .carousel-wrapper {
-          position: relative;
-          width: 100%;
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 0 3rem;
-        }
-
-        /* Scroll container */
-        .carousel-scroll {
-          display: flex;
-          gap: 1.5rem;
-          overflow-x: auto;
-          scroll-snap-type: x mandatory;
-          scroll-behavior: smooth;
-          padding: 1rem 1rem 1.5rem;
-          -webkit-overflow-scrolling: touch;
-          cursor: grab;
-          user-select: none;
-          scroll-padding-inline-start: 1rem;
-        }
-
-        /* Dragging state */
-        .carousel-scroll--dragging {
-          cursor: grabbing;
-          scroll-snap-type: none;
-          scroll-behavior: auto;
-        }
-
-        /* Hide scrollbar but keep functionality */
-        .carousel-scroll {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-        .carousel-scroll::-webkit-scrollbar {
-          display: none;
-        }
-
-        /* Cards */
-        .carousel-card {
-          flex: 0 0 340px;
-          scroll-snap-align: start;
-          background: linear-gradient(160deg, #151519 0%, #0c0c0f 100%);
-          border: 1px solid rgba(255, 184, 111, 0.1);
-          border-radius: 14px;
-          padding: 1.5rem;
-          transition: border-color 0.25s, transform 0.25s;
-        }
-
-        .carousel-card:last-child {
-          margin-right: 1rem;
-        }
-
-        .carousel-card:hover {
-          border-color: rgba(255, 184, 111, 0.25);
-          transform: translateY(-3px);
-        }
-
-        /* Header */
-        .carousel-card__header {
-          font-family: 'Geist Mono', monospace;
-          font-size: 1.1rem;
-          margin-bottom: 0.6rem;
-        }
-
-        .carousel-card__ns {
-          color: #FFB86F;
-        }
-
-        .carousel-card__sep {
-          color: #444;
-          margin: 0 0.1em;
-        }
-
-        .carousel-card__action {
-          color: #f0ede8;
-        }
-
-        /* Description */
-        .carousel-card__desc {
-          font-size: 0.85rem;
-          color: #777;
-          margin: 0 0 1.25rem;
-          line-height: 1.45;
-        }
-
-        /* Code block */
-        .carousel-card__code {
-          background: #08080a;
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
-          overflow: hidden;
-          margin-bottom: 1.25rem;
-        }
-
-        .carousel-card__code-bar {
-          display: flex;
-          gap: 5px;
-          padding: 0.6rem 0.8rem;
-          background: rgba(255, 255, 255, 0.02);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-        }
-
-        .carousel-card__code-bar span {
-          width: 9px;
-          height: 9px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.08);
-        }
-
-        .carousel-card__code-bar span:nth-child(1) { background: rgba(255, 95, 86, 0.65); }
-        .carousel-card__code-bar span:nth-child(2) { background: rgba(255, 189, 46, 0.65); }
-        .carousel-card__code-bar span:nth-child(3) { background: rgba(39, 201, 63, 0.65); }
-
-        .carousel-card__code pre {
-          margin: 0;
-          padding: 1rem;
-          overflow-x: auto;
-        }
-
-        .carousel-card__code code {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.78rem;
-          line-height: 1.6;
-          color: #b8b2a8;
-        }
-
-        /* Syntax */
-        .carousel-card__code .kw { color: #c792ea; }
-        .carousel-card__code .fn { color: #82aaff; }
-        .carousel-card__code .str { color: #c3e88d; }
-        .carousel-card__code .key { color: #ffcb6b; }
-        .carousel-card__code .num { color: #f78c6c; }
-
-        /* Tools */
-        .carousel-card__tools {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.35rem;
-          align-items: center;
-        }
-
-        .carousel-card__tool {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.7rem;
-          color: #FFB86F;
-          background: rgba(255, 184, 111, 0.08);
-          padding: 0.25rem 0.5rem;
-          border-radius: 5px;
-          border: 1px solid rgba(255, 184, 111, 0.12);
-        }
-
-        .carousel-card__arrow {
-          color: #FFB86F;
-          opacity: 0.6;
-          margin: 0 0.3rem;
-          font-size: 0.75rem;
-        }
-
-        /* Navigation buttons */
-        .carousel-nav {
-          position: absolute;
-          top: 50%;
-          transform: translateY(-50%);
-          z-index: 10;
-          width: 46px;
-          height: 46px;
-          border: 1px solid rgba(255, 184, 111, 0.3);
-          border-radius: 50%;
-          background: rgba(12, 12, 15, 0.98);
-          color: #FFB86F;
-          font-size: 1.6rem;
-          cursor: pointer;
-          transition: all 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          backdrop-filter: blur(12px);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-        }
-
-        .carousel-nav:hover {
-          border-color: rgba(255, 184, 111, 0.6);
-          background: rgba(255, 184, 111, 0.15);
-          color: #FFB86F;
-          transform: translateY(-50%) scale(1.08);
-          box-shadow: 0 4px 24px rgba(255, 184, 111, 0.2);
-        }
-
-        .carousel-nav--prev {
-          left: 0.75rem;
-        }
-
-        .carousel-nav--next {
-          right: 0.75rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-          .carousel-card {
-            flex: 0 0 300px;
-          }
-
-          .carousel-nav {
-            width: 36px;
-            height: 36px;
-            font-size: 1.25rem;
-          }
-
-          .carousel-nav--prev { left: 0.25rem; }
-          .carousel-nav--next { right: 0.25rem; }
-        }
-
-        @media (max-width: 480px) {
-          .carousel-wrapper {
-            padding: 0;
-          }
-
-          .carousel-scroll {
-            gap: 1rem;
-            padding: 0.75rem 1rem 1.25rem;
-            scroll-padding-inline-start: 1rem;
-          }
-
-          .carousel-card {
-            flex: 0 0 calc(100vw - 2rem);
-            padding: 1.25rem;
-          }
-
-          .carousel-card:last-child {
-            margin-right: 1rem;
-          }
-
-          .carousel-card__header {
-            font-size: 1rem;
-          }
-
-          .carousel-card__code code {
-            font-size: 0.7rem;
-          }
-
-          .carousel-nav {
-            width: 32px;
-            height: 32px;
-            font-size: 1.1rem;
-            top: auto;
-            bottom: 0;
-            transform: none;
-          }
-
-          .carousel-nav--prev { left: calc(50% - 40px); }
-          .carousel-nav--next { right: calc(50% - 40px); }
-        }
-        `}
-      </style>
     </div>
   );
 }

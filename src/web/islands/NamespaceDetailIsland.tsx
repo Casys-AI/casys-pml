@@ -69,13 +69,11 @@ export default function NamespaceDetailIsland({
   const [selectedCap, setSelectedCap] = useState<CapabilityEntry | null>(capabilities[0] || null);
   const [showNodeNav, setShowNodeNav] = useState(false);
 
-  // Find current position in nodes (for ns/ routes, id is ns/namespace)
   const currentNodeId = `ns/${namespace}`;
   const currentIndex = allNodes.findIndex((n) => n.id === currentNodeId || n.name.toLowerCase() === namespace.toLowerCase());
   const prevNode = currentIndex > 0 ? allNodes[currentIndex - 1] : null;
   const nextNode = currentIndex < allNodes.length - 1 ? allNodes[currentIndex + 1] : null;
 
-  // Filter capabilities by search
   const filteredCaps = useMemo(() => {
     if (!search) return capabilities;
     const searchLower = search.toLowerCase();
@@ -87,7 +85,6 @@ export default function NamespaceDetailIsland({
     );
   }, [capabilities, search]);
 
-  // Auto-select first capability when filter changes
   useEffect(() => {
     if (filteredCaps.length > 0) {
       const stillVisible = selectedCap && filteredCaps.some(c => c.id === selectedCap.id);
@@ -99,7 +96,6 @@ export default function NamespaceDetailIsland({
     }
   }, [search]);
 
-  // Group tools by server
   const groupedTools = useMemo(() => {
     if (!selectedCap?.toolsUsed.length) return new Map<string, string[]>();
 
@@ -119,7 +115,6 @@ export default function NamespaceDetailIsland({
     return result;
   }, [selectedCap]);
 
-  // Get node URL helper
   const getNodeUrl = (node: NodeNavItem) => {
     if (node.id.startsWith("ns/")) return `/catalog/${node.id}`;
     if (node.id.startsWith("std-")) return `/catalog/${node.id}`;
@@ -127,62 +122,59 @@ export default function NamespaceDetailIsland({
   };
 
   return (
-    <div class="cap-detail-page">
-      {/* Site header */}
+    <div class="min-h-screen bg-stone-950 text-stone-100 font-sans pt-[60px]">
       <VitrineHeader activePage="catalog" />
 
-      {/* Capability header bar */}
-      <header class="cap-header-bar">
-        <div class="cap-header-left">
-          <a href="/catalog" class="back-link">
+      <header class="flex items-center justify-between py-3 px-6 bg-stone-950/95 border-b border-green-400/10 sticky top-[60px] z-[90] backdrop-blur-xl">
+        <div class="flex items-center gap-2">
+          <a href="/catalog" class="flex items-center justify-center w-7 h-7 rounded-md text-stone-500 no-underline transition-all duration-150 hover:bg-green-400/10 hover:text-green-400">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
               <path strokeWidth="2" strokeLinecap="round" d="M15 18l-6-6 6-6" />
             </svg>
           </a>
-          <div class="cap-breadcrumb">
-            <a href="/catalog" class="breadcrumb-link">Catalog</a>
-            <span class="breadcrumb-sep">/</span>
+          <div class="flex items-center gap-2 text-[0.8125rem]">
+            <a href="/catalog" class="text-stone-500 no-underline transition-colors duration-150 hover:text-green-400">Catalog</a>
+            <span class="text-stone-700">/</span>
             <button
               type="button"
-              class="breadcrumb-current cap-selector"
+              class="flex items-center gap-1.5 text-stone-100 font-medium bg-transparent border-none cursor-pointer py-1 px-2 -my-1 -mx-2 rounded transition-colors duration-150 hover:bg-green-400/10"
               onClick={() => setShowNodeNav(!showNodeNav)}
             >
-              <span class="cap-icon">⚡</span>
+              <span class="text-base">⚡</span>
               {namespace}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="12" height="12" class="chevron-down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="12" height="12" class="opacity-50">
                 <path strokeWidth="2" strokeLinecap="round" d="M6 9l6 6 6-6" />
               </svg>
             </button>
           </div>
         </div>
-        <div class="cap-header-right">
-          {/* Prev/Next navigation */}
+        <div class="flex items-center gap-4">
           {allNodes.length > 0 && (
-            <div class="cap-nav-box">
+            <div class="flex items-center gap-2 bg-green-400/5 border border-green-400/15 rounded-lg p-1">
               {prevNode ? (
-                <a href={getNodeUrl(prevNode)} class="nav-link prev" title={prevNode.name}>
+                <a href={getNodeUrl(prevNode)} class="flex items-center gap-1.5 py-1.5 px-2.5 rounded-md text-stone-400 no-underline transition-all duration-150 text-xs hover:bg-green-400/15 hover:text-green-400" title={prevNode.name}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
                     <path strokeWidth="2.5" strokeLinecap="round" d="M15 18l-6-6 6-6" />
                   </svg>
-                  <span class="nav-link-name">{prevNode.name}</span>
+                  <span class="font-mono font-medium max-w-[80px] overflow-hidden text-ellipsis whitespace-nowrap">{prevNode.name}</span>
                 </a>
               ) : (
-                <span class="nav-link prev disabled">
+                <span class="flex items-center gap-1.5 py-1.5 px-1.5 opacity-25 pointer-events-none">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
                     <path strokeWidth="2.5" strokeLinecap="round" d="M15 18l-6-6 6-6" />
                   </svg>
                 </span>
               )}
-              <span class="nav-counter">{currentIndex + 1}<span class="nav-sep">/</span>{allNodes.length}</span>
+              <span class="text-[0.8125rem] font-mono font-semibold text-stone-100 py-1 px-2 min-w-[48px] text-center">{currentIndex + 1}<span class="text-stone-500 mx-0.5">/</span>{allNodes.length}</span>
               {nextNode ? (
-                <a href={getNodeUrl(nextNode)} class="nav-link next" title={nextNode.name}>
-                  <span class="nav-link-name">{nextNode.name}</span>
+                <a href={getNodeUrl(nextNode)} class="flex items-center gap-1.5 py-1.5 px-2.5 rounded-md text-stone-400 no-underline transition-all duration-150 text-xs hover:bg-green-400/15 hover:text-green-400" title={nextNode.name}>
+                  <span class="font-mono font-medium max-w-[80px] overflow-hidden text-ellipsis whitespace-nowrap">{nextNode.name}</span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
                     <path strokeWidth="2.5" strokeLinecap="round" d="M9 6l6 6-6 6" />
                   </svg>
                 </a>
               ) : (
-                <span class="nav-link next disabled">
+                <span class="flex items-center gap-1.5 py-1.5 px-1.5 opacity-25 pointer-events-none">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
                     <path strokeWidth="2.5" strokeLinecap="round" d="M9 6l6 6-6 6" />
                   </svg>
@@ -190,29 +182,28 @@ export default function NamespaceDetailIsland({
               )}
             </div>
           )}
-          <span class="cap-stat">{capabilities.length} caps</span>
+          <span class="text-xs font-mono text-green-400 bg-green-400/10 py-1 px-2.5 rounded">{capabilities.length} caps</span>
         </div>
       </header>
 
-      {/* Node dropdown navigation */}
       {showNodeNav && (
-        <div class="cap-nav-dropdown">
-          <div class="cap-nav-grid">
+        <div class="fixed top-[108px] left-0 right-0 bg-stone-950 border-b border-green-400/10 p-6 z-[89] max-h-[50vh] overflow-y-auto animate-[dropIn_0.15s_ease-out]">
+          <div class="flex flex-wrap gap-1.5">
             {allNodes.map((node) => (
               <a
                 key={node.id}
                 href={getNodeUrl(node)}
-                class={`cap-nav-item ${node.name.toLowerCase() === namespace.toLowerCase() ? "current" : ""}`}
+                class={`inline-flex items-center gap-1 py-1.5 px-2 text-[0.6875rem] text-stone-400 no-underline bg-stone-900 border border-green-400/5 rounded transition-all duration-150 hover:bg-green-400/10 hover:border-green-400/20 hover:text-stone-100 ${node.name.toLowerCase() === namespace.toLowerCase() ? "bg-green-400/15 border-green-400 text-green-400" : ""}`}
               >
-                <span class="cap-nav-icon">{node.icon}</span>
-                <span class="cap-nav-name">{node.name}</span>
-                <span class="cap-nav-count">{node.toolCount}</span>
+                <span class="text-xs">{node.icon}</span>
+                <span class="font-mono">{node.name}</span>
+                <span class="font-mono text-[0.5625rem] text-stone-500 bg-green-400/5 py-0.5 px-1 rounded-sm">{node.toolCount}</span>
               </a>
             ))}
           </div>
           <button
             type="button"
-            class="cap-nav-close"
+            class="block mx-auto mt-3 py-1.5 px-4 text-[0.6875rem] text-stone-500 bg-transparent border border-green-400/10 rounded cursor-pointer transition-all duration-150 hover:border-green-400/30 hover:text-stone-400"
             onClick={() => setShowNodeNav(false)}
           >
             Close
@@ -220,11 +211,10 @@ export default function NamespaceDetailIsland({
         </div>
       )}
 
-      {/* Info bar + search */}
-      <div class="cap-info-bar">
-        <p class="cap-description">Learned capabilities in the <code>{namespace}</code> namespace</p>
-        <div class="search-wrapper">
-          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <div class="flex items-center justify-between gap-8 py-4 px-6 border-b border-green-400/5">
+        <p class="text-sm text-stone-400 flex-1">Learned capabilities in the <code class="font-mono text-green-400">{namespace}</code> namespace</p>
+        <div class="relative w-[220px] shrink-0">
+          <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="11" cy="11" r="8" strokeWidth="2" />
             <path strokeWidth="2" d="m21 21-4.35-4.35" />
           </svg>
@@ -233,79 +223,72 @@ export default function NamespaceDetailIsland({
             value={search}
             onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
             placeholder="Filter capabilities..."
-            class="search-input"
+            class="w-full py-1.5 px-2.5 pl-8 text-xs text-stone-100 bg-stone-900 border border-green-400/10 rounded-md outline-none transition-colors duration-150 placeholder:text-stone-500 focus:border-green-400/30"
           />
         </div>
       </div>
 
-      {/* Capabilities grid (compact chips) */}
-      <div class="caps-grid">
+      <div class="flex flex-wrap gap-1.5 py-4 px-6 min-h-[60px]">
         {filteredCaps.map((cap) => (
           <button
             key={cap.id}
             type="button"
-            class={`cap-chip ${selectedCap?.id === cap.id ? "selected" : ""}`}
+            class={`inline-flex items-center gap-1.5 py-1.5 px-2 text-[0.6875rem] font-mono text-stone-400 bg-stone-900 border border-green-400/10 rounded cursor-pointer transition-all duration-150 hover:bg-green-400/10 hover:border-green-400/20 hover:text-stone-100 ${selectedCap?.id === cap.id ? "bg-green-400/15 border-green-400 text-green-400" : ""}`}
             onClick={() => setSelectedCap(selectedCap?.id === cap.id ? null : cap)}
             title={cap.description || cap.name}
           >
-            <span class="cap-chip-name">{cap.action || cap.name}</span>
+            <span>{cap.action || cap.name}</span>
             {cap.toolsUsed.length > 0 && (
-              <span class="cap-chip-tools">{cap.toolsUsed.length}t</span>
+              <span class="text-[0.5625rem] text-amber-400 bg-amber-500/10 py-0.5 px-1 rounded-sm">{cap.toolsUsed.length}t</span>
             )}
           </button>
         ))}
         {filteredCaps.length === 0 && (
-          <div class="caps-empty">No capabilities match "{search}"</div>
+          <div class="w-full py-8 text-center text-[0.8125rem] text-stone-500">No capabilities match "{search}"</div>
         )}
       </div>
 
-      {/* Selected capability detail */}
       {selectedCap && (
-        <div class="cap-detail-panel">
-          {/* Header */}
-          <div class="cap-detail-header">
-            <div class="cap-detail-title-row">
-              <code class="cap-detail-name">{namespace}:{selectedCap.action || selectedCap.name}</code>
-              <div class="cap-detail-badges">
-                <span class={`cap-routing-badge ${selectedCap.routing}`}>
+        <div class="mx-6 mb-6 bg-stone-950 border border-green-400/10 rounded-[10px] overflow-hidden animate-[slideUp_0.2s_ease-out]">
+          <div class="p-5 border-b border-green-400/10">
+            <div class="flex items-center justify-between mb-2">
+              <code class="font-mono text-[0.9375rem] font-semibold text-green-400">{namespace}:{selectedCap.action || selectedCap.name}</code>
+              <div class="flex items-center gap-2">
+                <span class={`text-[0.6875rem] py-0.5 px-1.5 rounded-sm ${selectedCap.routing === "cloud" ? "bg-blue-400/10" : "bg-green-400/10"}`}>
                   {selectedCap.routing === "cloud" ? "☁️" : "💻"}
                 </span>
                 <button
                   type="button"
-                  class="cap-detail-close"
+                  class="w-6 h-6 flex items-center justify-center bg-transparent border-none text-stone-500 text-xl cursor-pointer rounded transition-all duration-150 hover:bg-green-400/10 hover:text-green-400"
                   onClick={() => setSelectedCap(null)}
                 >
                   ×
                 </button>
               </div>
             </div>
-            <p class="cap-detail-desc">
+            <p class="text-[0.8125rem] text-stone-400 leading-relaxed">
               {selectedCap.description || "No description"}
             </p>
           </div>
 
-          {/* Content: code + sidebar */}
-          <div class="cap-detail-content">
-            {/* Code section */}
-            <div class="cap-code-section">
-              <div class="cap-section-header">
-                <span class="cap-section-label">Implementation</span>
+          <div class="grid grid-cols-[1fr_240px] gap-px bg-green-400/5 md:grid-cols-[1fr_240px] max-md:grid-cols-1">
+            <div class="bg-stone-950">
+              <div class="flex items-center justify-between py-2.5 px-4 border-b border-green-400/5">
+                <span class="text-[0.625rem] font-semibold uppercase tracking-wide text-stone-500">Implementation</span>
               </div>
               {selectedCap.code ? (
                 <CodeBlock code={selectedCap.code} />
               ) : (
-                <div class="cap-code-empty">No code available</div>
+                <div class="py-8 text-center text-xs text-stone-500">No code available</div>
               )}
             </div>
 
-            {/* Sidebar: params + tools */}
-            <div class="cap-sidebar">
-              {/* Input parameters */}
+            <div class="bg-stone-950 flex flex-col">
               {selectedCap.inputSchema && selectedCap.inputSchema.properties && (
-                <div class="cap-params-section">
-                  <div class="cap-section-header">
-                    <span class="cap-section-label">Parameters</span>
-                    <span class="cap-section-count">
+                <div class="border-b border-green-400/5">
+                  <div class="flex items-center justify-between py-2.5 px-4 border-b border-green-400/5">
+                    <span class="text-[0.625rem] font-semibold uppercase tracking-wide text-stone-500">Parameters</span>
+                    <span class="text-[0.5625rem] font-mono text-stone-500 bg-green-400/5 py-0.5 px-1 rounded-sm">
                       {Object.keys(selectedCap.inputSchema.properties).length}
                     </span>
                   </div>
@@ -313,18 +296,17 @@ export default function NamespaceDetailIsland({
                 </div>
               )}
 
-              {/* Tools used */}
               {groupedTools.size > 0 && (
-                <div class="cap-tools-section">
-                  <div class="cap-section-header">
-                    <span class="cap-section-label">Tools Used</span>
-                    <span class="cap-section-count">{selectedCap.toolsUsed.length}</span>
+                <div>
+                  <div class="flex items-center justify-between py-2.5 px-4 border-b border-amber-500/10">
+                    <span class="text-[0.625rem] font-semibold uppercase tracking-wide text-stone-500">Tools Used</span>
+                    <span class="text-[0.5625rem] font-mono text-stone-500 bg-green-400/5 py-0.5 px-1 rounded-sm">{selectedCap.toolsUsed.length}</span>
                   </div>
-                  <div class="cap-tools-groups">
+                  <div class="p-2 flex flex-col gap-3">
                     {[...groupedTools.entries()].map(([server, actions]) => (
-                      <div key={server} class="cap-tools-group">
-                        <div class="cap-tools-server">{server}</div>
-                        <div class="cap-tools-list">
+                      <div key={server} class="flex flex-col gap-1">
+                        <div class="text-[0.5625rem] font-semibold uppercase tracking-wide text-stone-500 pl-1">{server}</div>
+                        <div class="flex flex-col gap-1">
                           {actions.map((action) => (
                             <ToolBadge key={`${server}:${action}`} tool={`${server}:${action}`} />
                           ))}
@@ -338,533 +320,6 @@ export default function NamespaceDetailIsland({
           </div>
         </div>
       )}
-
-      <style>
-        {`
-        .cap-detail-page {
-          min-height: 100vh;
-          background: #0a0908;
-          color: #f0ede8;
-          font-family: 'Inter', -apple-system, sans-serif;
-          padding-top: 60px; /* Space for VitrineHeader */
-        }
-
-        /* Capability Header */
-        .cap-header-bar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0.75rem 1.5rem;
-          background: rgba(15, 15, 18, 0.95);
-          border-bottom: 1px solid rgba(74, 222, 128, 0.08);
-          position: sticky;
-          top: 60px; /* Below VitrineHeader */
-          z-index: 90;
-          backdrop-filter: blur(12px);
-        }
-
-        .cap-header-left {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .back-link {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          border-radius: 6px;
-          color: #6b6560;
-          text-decoration: none;
-          transition: all 0.15s;
-        }
-
-        .back-link:hover {
-          background: rgba(74, 222, 128, 0.1);
-          color: #4ade80;
-        }
-
-        .cap-breadcrumb {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.8125rem;
-        }
-
-        .breadcrumb-link {
-          color: #6b6560;
-          text-decoration: none;
-          transition: color 0.15s;
-        }
-
-        .breadcrumb-link:hover {
-          color: #4ade80;
-        }
-
-        .breadcrumb-sep {
-          color: #3a3835;
-        }
-
-        .breadcrumb-current {
-          display: flex;
-          align-items: center;
-          gap: 0.375rem;
-          color: #f0ede8;
-          font-weight: 500;
-        }
-
-        .cap-selector {
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 0.25rem 0.5rem;
-          margin: -0.25rem -0.5rem;
-          border-radius: 4px;
-          transition: background 0.15s;
-        }
-
-        .cap-selector:hover {
-          background: rgba(74, 222, 128, 0.1);
-        }
-
-        .cap-icon {
-          font-size: 1rem;
-        }
-
-        .chevron-down {
-          opacity: 0.5;
-        }
-
-        .cap-header-right {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .cap-nav-box {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          background: rgba(74, 222, 128, 0.04);
-          border: 1px solid rgba(74, 222, 128, 0.12);
-          border-radius: 8px;
-          padding: 0.25rem;
-        }
-
-        .nav-link {
-          display: flex;
-          align-items: center;
-          gap: 0.375rem;
-          padding: 0.375rem 0.625rem;
-          border-radius: 6px;
-          color: #a8a29e;
-          text-decoration: none;
-          transition: all 0.15s;
-          font-size: 0.75rem;
-        }
-
-        .nav-link:hover {
-          background: rgba(74, 222, 128, 0.12);
-          color: #4ade80;
-        }
-
-        .nav-link.disabled {
-          opacity: 0.25;
-          pointer-events: none;
-          padding: 0.375rem;
-        }
-
-        .nav-link-name {
-          font-family: 'Geist Mono', monospace;
-          font-weight: 500;
-          max-width: 80px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .nav-counter {
-          font-size: 0.8125rem;
-          font-family: 'Geist Mono', monospace;
-          font-weight: 600;
-          color: #f0ede8;
-          padding: 0.25rem 0.5rem;
-          min-width: 48px;
-          text-align: center;
-        }
-
-        .nav-sep {
-          color: #6b6560;
-          margin: 0 0.125rem;
-        }
-
-        .cap-stat {
-          font-size: 0.75rem;
-          font-family: 'Geist Mono', monospace;
-          color: #4ade80;
-          background: rgba(74, 222, 128, 0.08);
-          padding: 0.25rem 0.625rem;
-          border-radius: 4px;
-        }
-
-        /* Node dropdown */
-        .cap-nav-dropdown {
-          position: fixed;
-          top: 108px; /* VitrineHeader (60px) + CapHeader (~48px) */
-          left: 0;
-          right: 0;
-          background: #0f0f12;
-          border-bottom: 1px solid rgba(74, 222, 128, 0.1);
-          padding: 1rem 1.5rem;
-          z-index: 89;
-          max-height: 50vh;
-          overflow-y: auto;
-          animation: dropIn 0.15s ease-out;
-        }
-
-        @keyframes dropIn {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .cap-nav-grid {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.375rem;
-        }
-
-        .cap-nav-item {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.25rem;
-          padding: 0.3rem 0.5rem;
-          font-size: 0.6875rem;
-          color: #a8a29e;
-          text-decoration: none;
-          background: #141418;
-          border: 1px solid rgba(74, 222, 128, 0.06);
-          border-radius: 4px;
-          transition: all 0.12s;
-        }
-
-        .cap-nav-item:hover {
-          background: rgba(74, 222, 128, 0.08);
-          border-color: rgba(74, 222, 128, 0.2);
-          color: #f0ede8;
-        }
-
-        .cap-nav-item.current {
-          background: rgba(74, 222, 128, 0.12);
-          border-color: #4ade80;
-          color: #4ade80;
-        }
-
-        .cap-nav-icon { font-size: 0.75rem; }
-        .cap-nav-name { font-family: 'Geist Mono', monospace; }
-        .cap-nav-count {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.5625rem;
-          color: #6b6560;
-          background: rgba(74, 222, 128, 0.06);
-          padding: 0.0625rem 0.25rem;
-          border-radius: 2px;
-        }
-
-        .cap-nav-close {
-          display: block;
-          margin: 0.75rem auto 0;
-          padding: 0.375rem 1rem;
-          font-size: 0.6875rem;
-          color: #6b6560;
-          background: none;
-          border: 1px solid rgba(74, 222, 128, 0.1);
-          border-radius: 4px;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-
-        .cap-nav-close:hover {
-          border-color: rgba(74, 222, 128, 0.3);
-          color: #a8a29e;
-        }
-
-        /* Info bar */
-        .cap-info-bar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 2rem;
-          padding: 1rem 1.5rem;
-          border-bottom: 1px solid rgba(74, 222, 128, 0.04);
-        }
-
-        .cap-description {
-          font-size: 0.875rem;
-          color: #a8a29e;
-          flex: 1;
-        }
-
-        .cap-description code {
-          font-family: 'Geist Mono', monospace;
-          color: #4ade80;
-        }
-
-        .search-wrapper {
-          position: relative;
-          width: 220px;
-          flex-shrink: 0;
-        }
-
-        .search-icon {
-          position: absolute;
-          left: 0.625rem;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 14px;
-          height: 14px;
-          color: #6b6560;
-          pointer-events: none;
-        }
-
-        .search-input {
-          width: 100%;
-          padding: 0.4rem 0.625rem 0.4rem 2rem;
-          font-size: 0.75rem;
-          color: #f0ede8;
-          background: #141418;
-          border: 1px solid rgba(74, 222, 128, 0.1);
-          border-radius: 6px;
-          outline: none;
-          transition: border-color 0.15s;
-        }
-
-        .search-input::placeholder { color: #6b6560; }
-        .search-input:focus { border-color: rgba(74, 222, 128, 0.3); }
-
-        /* Capabilities grid */
-        .caps-grid {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.375rem;
-          padding: 1rem 1.5rem;
-          min-height: 60px;
-        }
-
-        .cap-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.375rem;
-          padding: 0.3rem 0.5rem;
-          font-size: 0.6875rem;
-          font-family: 'Geist Mono', monospace;
-          color: #a8a29e;
-          background: #141418;
-          border: 1px solid rgba(74, 222, 128, 0.08);
-          border-radius: 4px;
-          cursor: pointer;
-          transition: all 0.12s;
-        }
-
-        .cap-chip:hover {
-          background: rgba(74, 222, 128, 0.08);
-          border-color: rgba(74, 222, 128, 0.2);
-          color: #f0ede8;
-        }
-
-        .cap-chip.selected {
-          background: rgba(74, 222, 128, 0.15);
-          border-color: #4ade80;
-          color: #4ade80;
-        }
-
-        .cap-chip-tools {
-          font-size: 0.5625rem;
-          color: #FFB86F;
-          background: rgba(255, 184, 111, 0.1);
-          padding: 0.0625rem 0.25rem;
-          border-radius: 2px;
-        }
-
-        .caps-empty {
-          width: 100%;
-          padding: 2rem;
-          text-align: center;
-          font-size: 0.8125rem;
-          color: #6b6560;
-        }
-
-        /* Detail panel */
-        .cap-detail-panel {
-          margin: 0 1.5rem 1.5rem;
-          background: #0f0f12;
-          border: 1px solid rgba(74, 222, 128, 0.1);
-          border-radius: 10px;
-          overflow: hidden;
-          animation: slideUp 0.2s ease-out;
-        }
-
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .cap-detail-header {
-          padding: 1rem 1.25rem;
-          border-bottom: 1px solid rgba(74, 222, 128, 0.08);
-        }
-
-        .cap-detail-title-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 0.5rem;
-        }
-
-        .cap-detail-name {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.9375rem;
-          font-weight: 600;
-          color: #4ade80;
-        }
-
-        .cap-detail-badges {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .cap-routing-badge {
-          font-size: 0.6875rem;
-          padding: 0.125rem 0.375rem;
-          border-radius: 3px;
-          background: rgba(74, 222, 128, 0.1);
-        }
-
-        .cap-routing-badge.cloud {
-          background: rgba(96, 165, 250, 0.1);
-        }
-
-        .cap-detail-close {
-          width: 24px;
-          height: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: none;
-          border: none;
-          color: #6b6560;
-          font-size: 1.25rem;
-          cursor: pointer;
-          border-radius: 4px;
-          transition: all 0.15s;
-        }
-
-        .cap-detail-close:hover {
-          background: rgba(74, 222, 128, 0.1);
-          color: #4ade80;
-        }
-
-        .cap-detail-desc {
-          font-size: 0.8125rem;
-          color: #a8a29e;
-          line-height: 1.5;
-        }
-
-        /* Content grid */
-        .cap-detail-content {
-          display: grid;
-          grid-template-columns: 1fr 240px;
-          gap: 1px;
-          background: rgba(74, 222, 128, 0.06);
-        }
-
-        @media (max-width: 768px) {
-          .cap-detail-content {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        .cap-code-section {
-          background: #0f0f12;
-        }
-
-        .cap-sidebar {
-          background: #0f0f12;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .cap-section-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0.625rem 1rem;
-          border-bottom: 1px solid rgba(74, 222, 128, 0.06);
-        }
-
-        .cap-section-label {
-          font-size: 0.625rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #6b6560;
-        }
-
-        .cap-section-count {
-          font-size: 0.5625rem;
-          font-family: 'Geist Mono', monospace;
-          color: #6b6560;
-          background: rgba(74, 222, 128, 0.06);
-          padding: 0.0625rem 0.25rem;
-          border-radius: 2px;
-        }
-
-        .cap-code-empty {
-          padding: 2rem;
-          text-align: center;
-          color: #6b6560;
-          font-size: 0.75rem;
-        }
-
-        .cap-params-section {
-          border-bottom: 1px solid rgba(74, 222, 128, 0.06);
-        }
-
-        .cap-tools-section .cap-section-header {
-          border-color: rgba(255, 184, 111, 0.08);
-        }
-
-        .cap-tools-groups {
-          padding: 0.5rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .cap-tools-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-
-        .cap-tools-server {
-          font-size: 0.5625rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #6b6560;
-          padding-left: 0.25rem;
-        }
-
-        .cap-tools-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-        `}
-      </style>
     </div>
   );
 }

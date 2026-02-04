@@ -392,47 +392,15 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
     return prevEvent?.correlationId !== event.correlationId;
   };
 
-  const styles = {
-    sidebar: {
-      background: "linear-gradient(to bottom, var(--bg-elevated), var(--bg))",
-      borderLeft: "1px solid var(--border)",
-      fontFamily: "var(--font-sans)",
-    },
-    button: {
-      background: "var(--bg-surface)",
-      border: "1px solid var(--border)",
-      color: "var(--text-muted)",
-    },
-    buttonActive: {
-      background: "var(--accent)",
-      border: "1px solid var(--accent)",
-      color: "var(--bg)",
-    },
-  };
-
   if (collapsed) {
     return (
       <div
-        class="fixed right-5 top-1/2 mt-2 p-3.5 rounded-xl cursor-pointer z-20 transition-all duration-300"
-        style={{
-          background: "var(--bg-elevated)",
-          border: "1px solid var(--border)",
-          backdropFilter: "blur(12px)",
-        }}
+        class="fixed right-5 top-1/2 mt-2 p-3.5 rounded-xl cursor-pointer z-20 transition-all duration-300 bg-stone-900 border border-amber-400/10 backdrop-blur-xl hover:border-amber-400/30 hover:bg-amber-400/10"
         onClick={() => setCollapsed(false)}
         title="Algorithm Tracing"
-        onMouseOver={(e) => {
-          e.currentTarget.style.borderColor = "var(--accent-medium)";
-          e.currentTarget.style.background = "var(--accent-dim)";
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.borderColor = "var(--border)";
-          e.currentTarget.style.background = "var(--bg-elevated)";
-        }}
       >
         <svg
-          class="w-5 h-5"
-          style={{ color: "var(--text-muted)" }}
+          class="w-5 h-5 text-stone-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -451,56 +419,30 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
   return (
     <div
       ref={panelRef}
-      class="p-4 overflow-hidden flex flex-col gap-3 h-full relative"
+      class="p-4 overflow-hidden flex flex-col gap-3 h-full relative bg-gradient-to-b from-stone-900 to-stone-950 border-l border-amber-400/10"
       style={{
-        ...styles.sidebar,
         width: `${panelWidth}px`,
         minWidth: `${MIN_WIDTH}px`,
         maxWidth: `${MAX_WIDTH}px`,
       }}
     >
-      {/* Resize handle */}
       <div
-        class="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize z-10 group"
+        class={`absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize z-10 group transition-colors ${isResizing ? "bg-amber-400" : "bg-transparent hover:bg-amber-400/30"}`}
         onMouseDown={() => setIsResizing(true)}
-        style={{
-          background: isResizing ? "var(--accent)" : "transparent",
-        }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.background = "var(--accent-medium)";
-        }}
-        onMouseOut={(e) => {
-          if (!isResizing) {
-            e.currentTarget.style.background = "transparent";
-          }
-        }}
       >
-        <div
-          class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ background: "var(--accent)" }}
-        />
+        <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-amber-400" />
       </div>
 
-      {/* Header */}
       <div class="flex justify-between items-center shrink-0">
-        <h2 class="text-lg font-bold" style={{ color: "var(--text)" }}>
+        <h2 class="text-lg font-bold text-stone-100">
           Algorithm Traces
         </h2>
         <div class="flex gap-1">
           <button
             type="button"
-            class="p-1.5 rounded-lg transition-all duration-200"
-            style={styles.button}
+            class="p-1.5 rounded-lg transition-all duration-200 bg-stone-800 border border-amber-400/10 text-stone-400 hover:border-amber-400/30 hover:text-amber-400"
             onClick={refreshEvents}
             title="Refresh"
-            onMouseOver={(e) => {
-              e.currentTarget.style.borderColor = "var(--accent-medium)";
-              e.currentTarget.style.color = "var(--accent)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.borderColor = "var(--border)";
-              e.currentTarget.style.color = "var(--text-muted)";
-            }}
           >
             <svg
               class={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
@@ -518,8 +460,9 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
           </button>
           <button
             type="button"
-            class="p-1.5 rounded-lg transition-all duration-200"
-            style={paused ? styles.buttonActive : styles.button}
+            class={`p-1.5 rounded-lg transition-all duration-200 border ${
+              paused ? "bg-amber-400 border-amber-400 text-stone-950" : "bg-stone-800 border-amber-400/10 text-stone-400"
+            }`}
             onClick={() => setPaused(!paused)}
             title={paused ? "Resume" : "Pause"}
           >
@@ -537,18 +480,9 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
           </button>
           <button
             type="button"
-            class="p-1.5 rounded-lg transition-all duration-200"
-            style={styles.button}
+            class="p-1.5 rounded-lg transition-all duration-200 bg-stone-800 border border-amber-400/10 text-stone-400 hover:border-amber-400/30 hover:text-amber-400"
             onClick={clearEvents}
             title="Clear"
-            onMouseOver={(e) => {
-              e.currentTarget.style.borderColor = "var(--accent-medium)";
-              e.currentTarget.style.color = "var(--accent)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.borderColor = "var(--border)";
-              e.currentTarget.style.color = "var(--text-muted)";
-            }}
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -561,18 +495,9 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
           </button>
           <button
             type="button"
-            class="p-1.5 rounded-lg transition-all duration-200"
-            style={styles.button}
+            class="p-1.5 rounded-lg transition-all duration-200 bg-stone-800 border border-amber-400/10 text-stone-400 hover:border-amber-400/30 hover:text-amber-400"
             onClick={() => setCollapsed(true)}
             title="Collapse"
-            onMouseOver={(e) => {
-              e.currentTarget.style.borderColor = "var(--accent-medium)";
-              e.currentTarget.style.color = "var(--accent)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.borderColor = "var(--border)";
-              e.currentTarget.style.color = "var(--text-muted)";
-            }}
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -586,34 +511,23 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
         </div>
       </div>
 
-      {/* Status bar */}
-      <div
-        class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs shrink-0"
-        style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-      >
+      <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs shrink-0 bg-stone-800 border border-amber-400/10">
         <span
-          class="w-2 h-2 rounded-full"
-          style={{ background: paused ? "var(--warning)" : "var(--success)" }}
+          class={`w-2 h-2 rounded-full ${paused ? "bg-amber-400" : "bg-green-400"}`}
         />
-        <span style={{ color: "var(--text-muted)" }}>
+        <span class="text-stone-400">
           {paused ? "Paused" : "Live"} · {events.length} traces
         </span>
       </div>
 
-      {/* Table container */}
       <div
         ref={eventsContainerRef}
-        class="flex-1 overflow-auto rounded-lg"
-        style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border)",
-          minHeight: 0,
-        }}
+        class="flex-1 overflow-auto rounded-lg min-h-0 bg-stone-800 border border-amber-400/10"
       >
         {loading && events.length === 0
           ? (
             <div class="p-4 text-center">
-              <p class="text-sm" style={{ color: "var(--text-dim)" }}>
+              <p class="text-sm text-stone-500">
                 Loading traces...
               </p>
             </div>
@@ -621,59 +535,34 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
           : events.length === 0
           ? (
             <div class="p-4 text-center">
-              <p class="text-sm" style={{ color: "var(--text-dim)" }}>
+              <p class="text-sm text-stone-500">
                 No algorithm traces yet
               </p>
-              <p class="text-xs mt-1" style={{ color: "var(--text-dim)" }}>
+              <p class="text-xs mt-1 text-stone-500">
                 Execute a search or DAG to see scoring
               </p>
             </div>
           )
           : (
-            <table class="w-full text-xs" style={{ fontFamily: "var(--font-mono)" }}>
+            <table class="w-full text-xs font-mono">
               <thead>
-                <tr
-                  style={{
-                    background: "var(--bg-elevated)",
-                    borderBottom: "1px solid var(--border)",
-                    position: "sticky",
-                    top: 0,
-                  }}
-                >
-                  <th
-                    class="px-2 py-1.5 text-left font-medium"
-                    style={{ color: "var(--text-muted)", width: "70px" }}
-                  >
+                <tr class="bg-stone-900 border-b border-amber-400/10 sticky top-0">
+                  <th class="px-2 py-1.5 text-left font-medium text-stone-400 w-[70px]">
                     Time
                   </th>
-                  <th
-                    class="px-2 py-1.5 text-left font-medium"
-                    style={{ color: "var(--text-muted)", width: "80px" }}
-                  >
+                  <th class="px-2 py-1.5 text-left font-medium text-stone-400 w-[80px]">
                     Algorithm
                   </th>
-                  <th
-                    class="px-2 py-1.5 text-left font-medium"
-                    style={{ color: "var(--text-muted)", width: "30px" }}
-                  >
+                  <th class="px-2 py-1.5 text-left font-medium text-stone-400 w-[30px]">
                     T
                   </th>
-                  <th
-                    class="px-2 py-1.5 text-left font-medium"
-                    style={{ color: "var(--text-muted)" }}
-                  >
+                  <th class="px-2 py-1.5 text-left font-medium text-stone-400">
                     Target
                   </th>
-                  <th
-                    class="px-2 py-1.5 text-right font-medium"
-                    style={{ color: "var(--text-muted)", width: "45px" }}
-                  >
+                  <th class="px-2 py-1.5 text-right font-medium text-stone-400 w-[45px]">
                     Score
                   </th>
-                  <th
-                    class="px-2 py-1.5 text-center font-medium"
-                    style={{ color: "var(--text-muted)", width: "20px" }}
-                  >
+                  <th class="px-2 py-1.5 text-center font-medium text-stone-400 w-[20px]">
                     ✓
                   </th>
                 </tr>

@@ -10,21 +10,13 @@ export interface KbdProps {
   class?: string;
 }
 
-const KBD_STYLE = {
-  background: "var(--accent-dim)",
-  border: "1px solid var(--border)",
-  color: "var(--text-dim)",
-  fontFamily: "var(--font-mono)",
-};
-
 export default function Kbd({
   children,
   class: className,
 }: KbdProps): JSX.Element {
   return (
     <kbd
-      class={`px-2 py-0.5 rounded-md text-xs font-medium ${className || ""}`.trim()}
-      style={KBD_STYLE}
+      class={`px-2 py-0.5 rounded-md text-xs font-medium font-mono bg-amber-500/10 border border-stone-700 text-stone-500 ${className || ""}`.trim()}
     >
       {children}
     </kbd>

@@ -13,10 +13,10 @@ interface StatusBadgeProps {
 }
 
 const statusConfig = {
-  success: { color: "#4ade80", icon: "✓", label: "Success" },
-  running: { color: "#60a5fa", icon: "◉", label: "Running" },
-  pending: { color: "#a8a29e", icon: "○", label: "Pending" },
-  error: { color: "#f87171", icon: "✗", label: "Error" },
+  success: { color: "text-green-400", dotColor: "bg-green-400", label: "Success", pulse: true },
+  running: { color: "text-blue-400", dotColor: "bg-blue-400", label: "Running", pulse: true },
+  pending: { color: "text-stone-400", dotColor: "bg-stone-400", label: "Pending", pulse: false },
+  error: { color: "text-red-400", dotColor: "bg-red-400", label: "Error", pulse: false },
 };
 
 export function StatusBadge({ status, label, compact = false }: StatusBadgeProps) {
@@ -25,50 +25,14 @@ export function StatusBadge({ status, label, compact = false }: StatusBadgeProps
 
   return (
     <span
-      class={`status-badge status-badge--${status} ${compact ? "status-badge--compact" : ""}`}
-      style={{ "--status-color": config.color } as any}
+      class={`inline-flex items-center font-mono text-[0.7rem] ${config.color} ${compact ? "gap-0" : "gap-1.5"}`}
     >
-      <span class="status-badge__dot" />
-      {!compact && <span class="status-badge__label">{displayLabel}</span>}
-
-      <style>
-        {`
-        .status-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.35rem;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.7rem;
-          color: var(--status-color);
-        }
-
-        .status-badge--compact {
-          gap: 0;
-        }
-
-        .status-badge__dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--status-color);
-        }
-
-        .status-badge--running .status-badge__dot,
-        .status-badge--success .status-badge__dot {
-          animation: statusPulse 2s ease-in-out infinite;
-        }
-
-        .status-badge__label {
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        @keyframes statusPulse {
-          0%, 100% { opacity: 0.5; transform: scale(0.9); }
-          50% { opacity: 1; transform: scale(1.1); }
-        }
-        `}
-      </style>
+      <span
+        class={`w-1.5 h-1.5 rounded-full ${config.dotColor} ${config.pulse ? "animate-pulse" : ""}`}
+      />
+      {!compact && (
+        <span class="uppercase tracking-wide">{displayLabel}</span>
+      )}
     </span>
   );
 }

@@ -28,7 +28,6 @@ function NavItem({
     if (hasChildren) {
       e.preventDefault();
       toggleSection(item.href);
-      // Navigate to the section index page
       globalThis.location.href = item.href;
     }
   };
@@ -39,19 +38,27 @@ function NavItem({
     toggleSection(item.href);
   };
 
+  const paddingLeft = 1.5 + depth * 1;
+
   return (
-    <li class="nav-item">
+    <li class="m-0">
       <a
         href={item.href}
-        class={`nav-link ${isActive ? "nav-link-active" : ""} ${
-          isParentActive ? "nav-link-parent" : ""
+        class={`flex items-center gap-2 py-2.5 text-stone-400 no-underline text-sm transition-all duration-150 border-l-2 cursor-pointer hover:text-stone-100 hover:bg-amber-400/10 ${
+          isActive
+            ? "text-amber-400 bg-amber-400/10 border-l-amber-400"
+            : isParentActive
+            ? "text-stone-100 border-transparent"
+            : "border-transparent"
         }`}
-        style={{ paddingLeft: `${1.5 + depth * 1}rem` }}
+        style={{ paddingLeft: `${paddingLeft}rem`, paddingRight: "1.5rem" }}
         onClick={hasChildren ? handleClick : undefined}
       >
         {hasChildren && (
           <span
-            class={`nav-arrow ${isExpanded ? "nav-arrow-expanded" : ""}`}
+            class={`flex items-center justify-center w-[18px] h-[18px] shrink-0 rounded transition-transform duration-200 hover:bg-amber-400/10 ${
+              isExpanded ? "rotate-90" : ""
+            }`}
             onClick={handleArrowClick}
           >
             <svg
@@ -66,10 +73,10 @@ function NavItem({
             </svg>
           </span>
         )}
-        <span class="nav-link-text">{item.title}</span>
+        <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{item.title}</span>
       </a>
       {hasChildren && isExpanded && (
-        <ul class="nav-children">
+        <ul class="list-none m-0 p-0">
           {item.children!.map((child) => (
             <NavItem
               key={child.slug}
@@ -87,10 +94,8 @@ function NavItem({
 }
 
 export default function DocsSidebar({ navigation, currentPath }: DocsSidebarProps) {
-  // Initialize expanded sections based on current path
   const getInitialExpanded = (): Set<string> => {
     const expanded = new Set<string>();
-    // Expand all parent sections of current path
     const parts = currentPath.split("/").filter(Boolean);
     let path = "";
     for (const part of parts) {
@@ -113,12 +118,17 @@ export default function DocsSidebar({ navigation, currentPath }: DocsSidebarProp
   };
 
   return (
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <a href="/docs" class="sidebar-title">Documentation</a>
+    <aside class="w-[280px] shrink-0 border-r border-amber-400/[0.08] bg-stone-900 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto hidden lg:block">
+      <div class="p-6 border-b border-amber-400/[0.08]">
+        <a
+          href="/docs"
+          class="font-serif text-xl text-stone-100 no-underline hover:text-amber-400"
+        >
+          Documentation
+        </a>
       </div>
-      <nav class="sidebar-nav">
-        <ul class="nav-list">
+      <nav class="py-4">
+        <ul class="list-none m-0 p-0">
           {navigation.map((item) => (
             <NavItem
               key={item.slug}
@@ -130,117 +140,6 @@ export default function DocsSidebar({ navigation, currentPath }: DocsSidebarProp
           ))}
         </ul>
       </nav>
-
-      <style>
-        {`
-        .sidebar {
-          width: var(--sidebar-width, 280px);
-          flex-shrink: 0;
-          border-right: 1px solid var(--border, rgba(255, 184, 111, 0.08));
-          background: var(--bg-elevated, #0f0f12);
-          position: sticky;
-          top: 65px;
-          height: calc(100vh - 65px);
-          overflow-y: auto;
-        }
-
-        .sidebar-header {
-          padding: 1.5rem;
-          border-bottom: 1px solid var(--border, rgba(255, 184, 111, 0.08));
-        }
-
-        .sidebar-title {
-          font-family: var(--font-display, 'Instrument Serif', Georgia, serif);
-          font-size: 1.25rem;
-          color: var(--text, #f0ede8);
-          text-decoration: none;
-        }
-
-        .sidebar-title:hover {
-          color: var(--accent, #FFB86F);
-        }
-
-        .sidebar-nav {
-          padding: 1rem 0;
-        }
-
-        .nav-list {
-          list-style: none;
-          margin: 0;
-          padding: 0;
-        }
-
-        .nav-item {
-          margin: 0;
-        }
-
-        .nav-children {
-          list-style: none;
-          margin: 0;
-          padding: 0;
-        }
-
-        .sidebar-nav .nav-link {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.6rem 1.5rem;
-          color: var(--text-muted, #a8a29e);
-          text-decoration: none;
-          font-size: 0.875rem;
-          transition: all 0.15s ease;
-          border-left: 2px solid transparent;
-          cursor: pointer;
-        }
-
-        .sidebar-nav .nav-link:hover {
-          color: var(--text, #f0ede8);
-          background: var(--accent-dim, rgba(255, 184, 111, 0.1));
-        }
-
-        .sidebar-nav .nav-link-active {
-          color: var(--accent, #FFB86F);
-          background: var(--accent-dim, rgba(255, 184, 111, 0.1));
-          border-left-color: var(--accent, #FFB86F);
-        }
-
-        .sidebar-nav .nav-link-parent {
-          color: var(--text, #f0ede8);
-        }
-
-        .nav-arrow {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 18px;
-          height: 18px;
-          transition: transform 0.2s ease;
-          flex-shrink: 0;
-          border-radius: 3px;
-        }
-
-        .nav-arrow:hover {
-          background: var(--accent-dim, rgba(255, 184, 111, 0.1));
-        }
-
-        .nav-arrow-expanded {
-          transform: rotate(90deg);
-        }
-
-        .nav-link-text {
-          flex: 1;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        @media (max-width: 1024px) {
-          .sidebar {
-            display: none;
-          }
-        }
-        `}
-      </style>
     </aside>
   );
 }

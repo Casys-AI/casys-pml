@@ -1,8 +1,3 @@
-/**
- * MobileMenu - Elegant slide-out navigation for mobile devices
- * Design: Matches the Casys PML dark theme with amber accent
- */
-
 import type { JSX } from "preact";
 import { useSignal } from "@preact/signals";
 
@@ -38,7 +33,7 @@ function CloseIcon(): JSX.Element {
 function ExternalLinkIcon(): JSX.Element {
   return (
     <svg
-      class="mobile-menu-external-icon"
+      class="opacity-50 group-hover:opacity-100 transition-opacity"
       width="16"
       height="16"
       viewBox="0 0 24 24"
@@ -66,362 +61,124 @@ export default function MobileMenu(): JSX.Element {
 
   return (
     <>
-      {/* Hamburger Button */}
       <button
         type="button"
         onClick={toggleMenu}
-        class="mobile-menu-trigger"
+        class="hidden md:hidden items-center justify-center w-11 h-11 p-0 bg-transparent border border-amber-400/15 rounded-[10px] cursor-pointer transition-all duration-200 hover:bg-amber-400/[0.08] hover:border-amber-400/30 focus:bg-amber-400/[0.08] focus:border-amber-400/30 focus:outline-none active:scale-95 max-md:flex"
         aria-label={isOpen.value ? "Close menu" : "Open menu"}
         aria-expanded={isOpen.value}
+        style={{ WebkitTapHighlightColor: "transparent" }}
       >
-        <div class={`hamburger ${isOpen.value ? "hamburger--open" : ""}`}>
-          <span class="hamburger-line hamburger-line--1" />
-          <span class="hamburger-line hamburger-line--2" />
-          <span class="hamburger-line hamburger-line--3" />
+        <div class="relative w-[22px] h-4">
+          <span
+            class={`absolute left-0 w-full h-0.5 bg-amber-400 rounded-sm transition-all duration-300 ${
+              isOpen.value
+                ? "top-1/2 -translate-y-1/2 rotate-45"
+                : "top-0"
+            }`}
+            style={{ transitionTimingFunction: "cubic-bezier(0.68, -0.55, 0.265, 1.55)" }}
+          />
+          <span
+            class={`absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-amber-400 rounded-sm transition-all duration-300 ${
+              isOpen.value ? "opacity-0 -translate-x-2.5" : ""
+            }`}
+            style={{ transitionTimingFunction: "cubic-bezier(0.68, -0.55, 0.265, 1.55)" }}
+          />
+          <span
+            class={`absolute left-0 w-full h-0.5 bg-amber-400 rounded-sm transition-all duration-300 ${
+              isOpen.value
+                ? "bottom-1/2 translate-y-1/2 -rotate-45"
+                : "bottom-0"
+            }`}
+            style={{ transitionTimingFunction: "cubic-bezier(0.68, -0.55, 0.265, 1.55)" }}
+          />
         </div>
       </button>
 
-      {/* Backdrop */}
       <div
-        class={`mobile-menu-backdrop ${isOpen.value ? "mobile-menu-backdrop--visible" : ""}`}
+        class={`fixed inset-0 z-[998] bg-stone-950/85 backdrop-blur-sm transition-all duration-300 ${
+          isOpen.value ? "opacity-100 visible" : "opacity-0 invisible"
+        }`}
         onClick={closeMenu}
         aria-hidden="true"
-        style={{ visibility: isOpen.value ? "visible" : "hidden", opacity: isOpen.value ? 1 : 0 }}
       />
 
-      {/* Slide-out Drawer */}
       <nav
-        class={`mobile-menu-drawer ${isOpen.value ? "mobile-menu-drawer--open" : ""}`}
+        class={`fixed top-0 right-0 z-[999] w-[min(320px,85vw)] h-screen flex flex-col bg-gradient-to-br from-stone-900 via-stone-950 to-stone-950 border-l border-amber-400/[0.12] shadow-[-20px_0_60px_rgba(0,0,0,0.5)] overflow-hidden transition-transform duration-400 ${
+          isOpen.value ? "translate-x-0" : "translate-x-full"
+        }`}
+        style={{
+          height: "100dvh",
+          transitionTimingFunction: "cubic-bezier(0.32, 0.72, 0, 1)",
+        }}
         aria-hidden={!isOpen.value}
-        style={{ transform: isOpen.value ? "translateX(0)" : "translateX(100%)" }}
       >
-        <div class="mobile-menu-header">
-          <span class="mobile-menu-logo">Casys PML</span>
+        <div class="flex items-center justify-between px-6 py-5 border-b border-amber-400/[0.08]">
+          <span class="font-serif text-2xl font-normal text-amber-400 tracking-tight">
+            Casys PML
+          </span>
           <button
             type="button"
             onClick={closeMenu}
-            class="mobile-menu-close"
+            class="flex items-center justify-center w-10 h-10 p-0 bg-amber-400/5 border border-amber-400/10 rounded-[10px] text-stone-400 cursor-pointer transition-all duration-200 hover:bg-amber-400/10 hover:border-amber-400/20 hover:text-amber-400 focus:bg-amber-400/10 focus:border-amber-400/20 focus:text-amber-400 focus:outline-none"
             aria-label="Close menu"
           >
             <CloseIcon />
           </button>
         </div>
 
-        <ul class="mobile-menu-links">
+        <ul class="flex-1 list-none m-0 py-6 overflow-y-auto">
           {NAV_LINKS.map((link, index) => (
             <li
               key={link.href}
-              class="mobile-menu-item"
+              class={`${isOpen.value ? "animate-slide-in" : "opacity-0 translate-x-5"}`}
               style={{ animationDelay: `${index * 50}ms` }}
             >
               <a
                 href={link.href}
-                class="mobile-menu-link"
+                class="group relative flex items-center justify-between px-6 py-4 no-underline text-stone-100 font-sans text-lg font-medium tracking-wide transition-all duration-200 border-l-[3px] border-transparent hover:bg-amber-400/5 hover:text-amber-400 hover:pl-8 focus:bg-amber-400/5 focus:text-amber-400 focus:pl-8 focus:outline-none before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-0 before:bg-amber-400 before:rounded-r before:transition-[height] before:duration-200 hover:before:h-[60%] focus:before:h-[60%]"
                 onClick={closeMenu}
                 target={link.isExternal ? "_blank" : undefined}
                 rel={link.isExternal ? "noopener noreferrer" : undefined}
               >
-                <span class="mobile-menu-link-text">{link.label}</span>
+                <span class="relative">{link.label}</span>
                 {link.isExternal && <ExternalLinkIcon />}
               </a>
             </li>
           ))}
         </ul>
 
-        {/* Decorative Footer */}
-        <div class="mobile-menu-footer">
-          <div class="mobile-menu-tagline">Procedural Memory Layer</div>
-          <div class="mobile-menu-glow" />
+        <div class="relative px-6 py-6 border-t border-amber-400/[0.08] overflow-hidden">
+          <div class="font-mono text-[0.7rem] text-stone-500 uppercase tracking-[0.15em]">
+            Procedural Memory Layer
+          </div>
+          <div class="absolute -bottom-[50px] -right-[50px] w-[150px] h-[150px] bg-[radial-gradient(circle,rgba(255,184,111,0.15)_0%,transparent_70%)] pointer-events-none" />
         </div>
       </nav>
 
       <style>
         {`
-        /* ═══════════════════════════════════════════════════════════════════
-           MOBILE MENU - Only visible on mobile (< 768px)
-        ═══════════════════════════════════════════════════════════════════ */
-
-        .mobile-menu-trigger {
-          display: none;
-          align-items: center;
-          justify-content: center;
-          width: 44px;
-          height: 44px;
-          padding: 0;
-          background: transparent;
-          border: 1px solid rgba(255, 184, 111, 0.15);
-          border-radius: 10px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          -webkit-tap-highlight-color: transparent;
-        }
-
-        .mobile-menu-trigger:hover,
-        .mobile-menu-trigger:focus {
-          background: rgba(255, 184, 111, 0.08);
-          border-color: rgba(255, 184, 111, 0.3);
-          outline: none;
-        }
-
-        .mobile-menu-trigger:active {
-          transform: scale(0.95);
-        }
-
-        /* Hamburger Icon */
-        .hamburger {
-          position: relative;
-          width: 22px;
-          height: 16px;
-        }
-
-        .hamburger-line {
-          position: absolute;
-          left: 0;
-          width: 100%;
-          height: 2px;
-          background: #FFB86F;
-          border-radius: 2px;
-          transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-
-        .hamburger-line--1 { top: 0; }
-        .hamburger-line--2 { top: 50%; transform: translateY(-50%); }
-        .hamburger-line--3 { bottom: 0; }
-
-        /* Hamburger → X animation */
-        .hamburger--open .hamburger-line--1 {
-          top: 50%;
-          transform: translateY(-50%) rotate(45deg);
-        }
-
-        .hamburger--open .hamburger-line--2 {
-          opacity: 0;
-          transform: translateX(-10px);
-        }
-
-        .hamburger--open .hamburger-line--3 {
-          bottom: 50%;
-          transform: translateY(50%) rotate(-45deg);
-        }
-
-        /* Backdrop */
-        .mobile-menu-backdrop {
-          position: fixed;
-          inset: 0;
-          z-index: 998;
-          background: rgba(8, 8, 10, 0.85);
-          backdrop-filter: blur(8px);
-          opacity: 0;
-          visibility: hidden;
-          transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-
-        .mobile-menu-backdrop--visible {
-          opacity: 1;
-          visibility: visible;
-        }
-
-        /* Drawer */
-        .mobile-menu-drawer {
-          position: fixed;
-          top: 0;
-          right: 0;
-          z-index: 999;
-          width: min(320px, 85vw);
-          height: 100vh;
-          height: 100dvh;
-          display: flex;
-          flex-direction: column;
-          background: linear-gradient(
-            165deg,
-            #0f0f12 0%,
-            #08080a 50%,
-            #0a0908 100%
-          );
-          border-left: 1px solid rgba(255, 184, 111, 0.12);
-          box-shadow: -20px 0 60px rgba(0, 0, 0, 0.5);
-          transform: translateX(100%);
-          transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-          overflow: hidden;
-        }
-
-        .mobile-menu-drawer--open {
-          transform: translateX(0);
-        }
-
-        /* Drawer Header */
-        .mobile-menu-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 1.25rem 1.5rem;
-          border-bottom: 1px solid rgba(255, 184, 111, 0.08);
-        }
-
-        .mobile-menu-logo {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 1.5rem;
-          font-weight: 400;
-          color: #FFB86F;
-          letter-spacing: -0.02em;
-        }
-
-        .mobile-menu-close {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 40px;
-          height: 40px;
-          padding: 0;
-          background: rgba(255, 184, 111, 0.05);
-          border: 1px solid rgba(255, 184, 111, 0.1);
-          border-radius: 10px;
-          color: #a8a29e;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .mobile-menu-close:hover,
-        .mobile-menu-close:focus {
-          background: rgba(255, 184, 111, 0.1);
-          border-color: rgba(255, 184, 111, 0.2);
-          color: #FFB86F;
-          outline: none;
-        }
-
-        /* Navigation Links */
-        .mobile-menu-links {
-          flex: 1;
-          list-style: none;
-          margin: 0;
-          padding: 1.5rem 0;
-          overflow-y: auto;
-        }
-
-        .mobile-menu-item {
-          opacity: 0;
-          transform: translateX(20px);
-        }
-
-        .mobile-menu-drawer--open .mobile-menu-item {
-          animation: slideIn 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards;
-        }
-
-        @keyframes slideIn {
+        @keyframes slide-in {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
           to {
             opacity: 1;
             transform: translateX(0);
           }
         }
-
-        .mobile-menu-link {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 1rem 1.5rem;
-          text-decoration: none;
-          color: #f0ede8;
-          font-family: 'Geist', -apple-system, system-ui, sans-serif;
-          font-size: 1.125rem;
-          font-weight: 500;
-          letter-spacing: 0.01em;
-          transition: all 0.2s ease;
-          position: relative;
+        .animate-slide-in {
+          animation: slide-in 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards;
         }
-
-        .mobile-menu-link::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 3px;
-          height: 0;
-          background: #FFB86F;
-          border-radius: 0 2px 2px 0;
-          transition: height 0.2s ease;
-        }
-
-        .mobile-menu-link:hover,
-        .mobile-menu-link:focus {
-          background: rgba(255, 184, 111, 0.05);
-          color: #FFB86F;
-          padding-left: 2rem;
-          outline: none;
-        }
-
-        .mobile-menu-link:hover::before,
-        .mobile-menu-link:focus::before {
-          height: 60%;
-        }
-
-        .mobile-menu-link-text {
-          position: relative;
-        }
-
-        .mobile-menu-external-icon {
-          opacity: 0.5;
-          transition: opacity 0.2s ease;
-        }
-
-        .mobile-menu-link:hover .mobile-menu-external-icon {
-          opacity: 1;
-        }
-
-        /* Footer */
-        .mobile-menu-footer {
-          position: relative;
-          padding: 1.5rem;
-          border-top: 1px solid rgba(255, 184, 111, 0.08);
-          overflow: hidden;
-        }
-
-        .mobile-menu-tagline {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.7rem;
-          color: #6b6560;
-          text-transform: uppercase;
-          letter-spacing: 0.15em;
-        }
-
-        .mobile-menu-glow {
-          position: absolute;
-          bottom: -50px;
-          right: -50px;
-          width: 150px;
-          height: 150px;
-          background: radial-gradient(
-            circle,
-            rgba(255, 184, 111, 0.15) 0%,
-            transparent 70%
-          );
-          pointer-events: none;
-        }
-
-        /* Show only on mobile */
-        @media (max-width: 768px) {
-          .mobile-menu-trigger {
-            display: flex;
-          }
-        }
-
-        /* Reduced motion preference */
         @media (prefers-reduced-motion: reduce) {
-          .mobile-menu-drawer,
-          .mobile-menu-backdrop,
-          .hamburger-line,
-          .mobile-menu-item,
-          .mobile-menu-link {
-            transition: none;
+          .animate-slide-in {
             animation: none;
-          }
-
-          .mobile-menu-item {
             opacity: 1;
             transform: none;
           }
         }
-      `}
+        `}
       </style>
     </>
   );

@@ -8,16 +8,20 @@ import { cta } from "../../../content/landing.ts";
 
 export function CTASection() {
   return (
-    <section class="cta-section">
-      <div class="container">
-        <div class="cta__content">
-          <h2 class="cta__title">{cta.title}</h2>
-          <p class="cta__desc">{cta.description}</p>
+    <section class="relative z-10 py-20 px-8 bg-[#08080a] border-t border-amber-400/[0.08]">
+      <div class="max-w-[1200px] mx-auto">
+        <div class="text-center max-w-[600px] mx-auto">
+          <h2 class="font-serif text-4xl md:text-[2rem] font-normal text-stone-100 mb-4">
+            {cta.title}
+          </h2>
+          <p class="text-lg text-stone-400 mb-8 leading-relaxed">
+            {cta.description}
+          </p>
 
-          <div class="cta__actions">
+          <div class="flex justify-center gap-4 flex-wrap md:flex-col">
             <a
               href={cta.actions.primary.href}
-              class="btn btn--primary"
+              class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-amber-400 text-[#08080a] border-none cursor-pointer transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5"
               target="_blank"
               rel="noopener"
             >
@@ -26,7 +30,10 @@ export function CTASection() {
               </svg>
               {cta.actions.primary.label}
             </a>
-            <a href={cta.actions.secondary.href} class="btn btn--accent">
+            <a
+              href={cta.actions.secondary.href}
+              class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-transparent text-amber-400 border border-amber-400 cursor-pointer transition-all duration-200 hover:bg-amber-400 hover:text-[#08080a]"
+            >
               {cta.actions.secondary.label}
               <svg
                 width="16"
@@ -42,98 +49,6 @@ export function CTASection() {
           </div>
         </div>
       </div>
-
-      <style>
-        {`
-        .cta-section {
-          position: relative;
-          z-index: 10;
-          padding: 5rem 2rem;
-          background: #08080a;
-          border-top: 1px solid rgba(255, 184, 111, 0.08);
-        }
-
-        .container {
-          max-width: 1200px;
-          margin: 0 auto;
-        }
-
-        .cta__content {
-          text-align: center;
-          max-width: 600px;
-          margin: 0 auto;
-        }
-
-        .cta__title {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 2.5rem;
-          font-weight: 400;
-          color: #f0ede8;
-          margin-bottom: 1rem;
-        }
-
-        .cta__desc {
-          font-size: 1.125rem;
-          color: #a8a29e;
-          margin-bottom: 2rem;
-          line-height: 1.7;
-        }
-
-        .cta__actions {
-          display: flex;
-          justify-content: center;
-          gap: 1rem;
-          flex-wrap: wrap;
-        }
-
-        /* Buttons */
-        .btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.875rem 1.5rem;
-          font-size: 0.9rem;
-          font-weight: 600;
-          font-family: 'Geist', -apple-system, system-ui, sans-serif;
-          text-decoration: none;
-          border-radius: 8px;
-          transition: all 0.2s;
-          cursor: pointer;
-          border: none;
-        }
-
-        .btn--primary {
-          background: #FFB86F;
-          color: #08080a;
-        }
-
-        .btn--primary:hover {
-          filter: brightness(1.1);
-          transform: translateY(-2px);
-        }
-
-        .btn--accent {
-          background: transparent;
-          color: #FFB86F;
-          border: 1px solid #FFB86F;
-        }
-
-        .btn--accent:hover {
-          background: #FFB86F;
-          color: #08080a;
-        }
-
-        @media (max-width: 768px) {
-          .cta__actions {
-            flex-direction: column;
-          }
-
-          .cta__title {
-            font-size: 2rem;
-          }
-        }
-        `}
-      </style>
     </section>
   );
 }

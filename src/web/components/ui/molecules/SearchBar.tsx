@@ -17,15 +17,6 @@ export interface SearchBarProps {
   class?: string;
 }
 
-const INPUT_STYLE = {
-  background: "var(--bg-surface)",
-  border: "1px solid var(--border)",
-  color: "var(--text)",
-  fontFamily: "var(--font-sans)",
-};
-
-const INPUT_CLASSES = "w-full py-3 px-4 pr-12 rounded-xl text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50";
-
 function isShortcutTrigger(e: KeyboardEvent): boolean {
   const isSlashKey = e.key === "/" && !e.ctrlKey && document.activeElement?.tagName !== "INPUT";
   const isCtrlK = e.ctrlKey && e.key === "k";
@@ -59,30 +50,17 @@ export default function SearchBar({
     onChange((e.target as HTMLInputElement).value);
   }
 
-  function handleFocus(e: JSX.TargetedFocusEvent<HTMLInputElement>): void {
-    e.currentTarget.style.borderColor = "var(--accent)";
-    e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent-dim)";
-    onFocus?.();
-  }
-
-  function handleBlur(e: JSX.TargetedFocusEvent<HTMLInputElement>): void {
-    e.currentTarget.style.borderColor = "var(--border)";
-    e.currentTarget.style.boxShadow = "none";
-    onBlur?.();
-  }
-
   return (
     <div class={`relative ${className || ""}`.trim()}>
       <input
         ref={inputRef}
         type="text"
-        class={INPUT_CLASSES}
-        style={INPUT_STYLE}
+        class="w-full py-3 px-4 pr-12 rounded-xl text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50 bg-stone-900 border border-amber-500/10 text-stone-100 font-sans focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
         placeholder={placeholder}
         value={value}
         onInput={handleInput}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
+        onFocus={onFocus}
+        onBlur={onBlur}
       />
       <span class="absolute right-3 top-1/2 -translate-y-1/2">
         <Kbd>{shortcut}</Kbd>
