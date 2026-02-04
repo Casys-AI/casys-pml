@@ -37,7 +37,7 @@ export default function ConfigCopyButton({
       class={`py-1 px-3 text-xs font-semibold rounded cursor-pointer transition-all duration-200 border ${
         copied.value
           ? "bg-green-400/20 text-green-400 border-green-400/20"
-          : "bg-stone-950 text-stone-400 border-amber-500/10 hover:border-amber-400 hover:text-amber-400"
+          : "bg-stone-950 text-stone-400 border-amber-500/10 hover:border-pml-accent hover:text-pml-accent"
       }`}
       onClick={handleCopy}
     >

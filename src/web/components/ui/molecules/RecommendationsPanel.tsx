@@ -18,7 +18,7 @@ const TYPE_STYLES: Record<
   Recommendation["type"],
   { bg: string; border: string; icon: string }
 > = {
-  warning: { bg: "bg-amber-400/10", border: "border-l-amber-400", icon: "⚠️" },
+  warning: { bg: "bg-pml-accent/10", border: "border-l-pml-accent", icon: "⚠️" },
   info: { bg: "bg-blue-400/10", border: "border-l-blue-400", icon: "ℹ️" },
   success: { bg: "bg-green-400/10", border: "border-l-green-400", icon: "✓" },
 };

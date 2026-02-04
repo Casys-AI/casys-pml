@@ -216,7 +216,7 @@ function CompactRow({
     <>
       <div
         class={`flex items-center gap-3 px-3 py-1.5 cursor-pointer transition-all duration-150 hover:bg-white/5 font-mono text-[11px] ${
-          isSelected ? "bg-white/[0.08] border-l-[3px] border-l-amber-400" : "border-l-[3px] border-l-transparent"
+          isSelected ? "bg-white/[0.08] border-l-[3px] border-l-pml-accent" : "border-l-[3px] border-l-transparent"
         } ${isNew ? "animate-pulse" : ""}`}
         onClick={onClick}
       >
@@ -227,7 +227,7 @@ function CompactRow({
         )}
 
         <span
-          class={`w-40 truncate font-medium shrink-0 ${isSelected ? "text-amber-400" : "text-stone-100"}`}
+          class={`w-40 truncate font-medium shrink-0 ${isSelected ? "text-pml-accent" : "text-stone-100"}`}
           title={name}
         >
           {name}

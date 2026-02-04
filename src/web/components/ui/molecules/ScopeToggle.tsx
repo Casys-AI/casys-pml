@@ -71,7 +71,7 @@ export default function ScopeToggle({
               onClick={() => onChange(option.value)}
               class={`px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer hover:brightness-110 ${
                 isActive
-                  ? "bg-amber-400/10 text-amber-400"
+                  ? "bg-pml-accent/10 text-pml-accent"
                   : "bg-transparent text-stone-300"
               } ${option.value === "user" ? "border-r border-amber-500/10" : ""}`}
               title={option.description}
@@ -90,7 +90,7 @@ export default function ScopeToggle({
           <div class="space-y-2">
             {SCOPE_OPTIONS.map((option) => (
               <div key={option.value}>
-                <span class="text-xs font-semibold text-amber-400">
+                <span class="text-xs font-semibold text-pml-accent">
                   {option.label}:
                 </span>
                 <span class="text-xs ml-1 text-stone-500">

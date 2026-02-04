@@ -103,7 +103,7 @@ export default function ExplorerSidebar({
   if (collapsed) {
     return (
       <div
-        class="flex items-center justify-center cursor-pointer h-full transition-all hover:bg-white/5 bg-gradient-to-b from-stone-900 to-stone-950 border-r border-amber-400/[0.08]"
+        class="flex items-center justify-center cursor-pointer h-full transition-all hover:bg-white/5 bg-gradient-to-b from-stone-900 to-stone-950 border-r border-pml-accent/[0.08]"
         style={{ width: "40px" }}
         onClick={() => setCollapsed(false)}
         title="Ouvrir le panneau"
@@ -126,7 +126,7 @@ export default function ExplorerSidebar({
   return (
     <div
       ref={panelRef}
-      class="flex flex-col h-full relative overflow-hidden bg-gradient-to-b from-stone-900 to-stone-950 border-r border-amber-400/[0.08]"
+      class="flex flex-col h-full relative overflow-hidden bg-gradient-to-b from-stone-900 to-stone-950 border-r border-pml-accent/[0.08]"
       style={{
         width: `${panelWidth}px`,
         minWidth: `${MIN_WIDTH}px`,
@@ -135,7 +135,7 @@ export default function ExplorerSidebar({
     >
       <div
         class={`absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize z-10 group ${
-          isResizing ? "bg-amber-400" : "bg-transparent"
+          isResizing ? "bg-pml-accent" : "bg-transparent"
         }`}
         onMouseDown={() => setIsResizing(true)}
         onMouseOver={(e) => {
@@ -145,10 +145,10 @@ export default function ExplorerSidebar({
           if (!isResizing) e.currentTarget.style.background = "transparent";
         }}
       >
-        <div class="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-16 rounded-full bg-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div class="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-16 rounded-full bg-pml-accent opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
-      <div class="flex items-center justify-between px-3 py-3 shrink-0 border-b border-amber-400/[0.08]">
+      <div class="flex items-center justify-between px-3 py-3 shrink-0 border-b border-pml-accent/[0.08]">
         <h2 class="text-sm font-semibold text-stone-100">
           Explorer
         </h2>
@@ -183,8 +183,8 @@ export default function ExplorerSidebar({
                 type="button"
                 class={`flex-1 p-2 rounded-lg transition-all flex items-center justify-center border ${
                   viewMode === "capabilities"
-                    ? "bg-amber-400 text-stone-950 border-amber-400"
-                    : "bg-stone-800 text-stone-400 border-amber-400/[0.08]"
+                    ? "bg-pml-accent text-stone-950 border-pml-accent"
+                    : "bg-stone-800 text-stone-400 border-pml-accent/[0.08]"
                 }`}
                 onClick={() => onViewModeChange("capabilities")}
                 title="Capabilities"
@@ -200,8 +200,8 @@ export default function ExplorerSidebar({
                 type="button"
                 class={`flex-1 p-2 rounded-lg transition-all flex items-center justify-center border ${
                   viewMode === "emergence"
-                    ? "bg-amber-400 text-stone-950 border-amber-400"
-                    : "bg-stone-800 text-stone-400 border-amber-400/[0.08]"
+                    ? "bg-pml-accent text-stone-950 border-pml-accent"
+                    : "bg-stone-800 text-stone-400 border-pml-accent/[0.08]"
                 }`}
                 onClick={() => onViewModeChange("emergence")}
                 title="Emergence - CAS metrics"
@@ -215,8 +215,8 @@ export default function ExplorerSidebar({
                 type="button"
                 class={`flex-1 p-2 rounded-lg transition-all flex items-center justify-center border ${
                   viewMode === "graph"
-                    ? "bg-amber-400 text-stone-950 border-amber-400"
-                    : "bg-stone-800 text-stone-400 border-amber-400/[0.08]"
+                    ? "bg-pml-accent text-stone-950 border-pml-accent"
+                    : "bg-stone-800 text-stone-400 border-pml-accent/[0.08]"
                 }`}
                 onClick={() => onViewModeChange("graph")}
                 title="Graph"
@@ -252,8 +252,8 @@ export default function ExplorerSidebar({
                     type="button"
                     class={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 border ${
                       density === key
-                        ? "bg-amber-400 text-stone-950 border-amber-400"
-                        : "bg-stone-800 text-stone-400 border-amber-400/[0.08]"
+                        ? "bg-pml-accent text-stone-950 border-pml-accent"
+                        : "bg-stone-800 text-stone-400 border-pml-accent/[0.08]"
                     }`}
                     onClick={() => onDensityChange(key)}
                     title={label}
@@ -280,8 +280,8 @@ export default function ExplorerSidebar({
                     type="button"
                     class={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                       sortBy === sort
-                        ? "bg-amber-400 text-stone-950 border-amber-400"
-                        : "bg-stone-800 text-stone-400 border-amber-400/[0.08]"
+                        ? "bg-pml-accent text-stone-950 border-pml-accent"
+                        : "bg-stone-800 text-stone-400 border-pml-accent/[0.08]"
                     }`}
                     onClick={() => onSortChange(sort)}
                   >
@@ -312,8 +312,8 @@ export default function ExplorerSidebar({
                     type="button"
                     class={`px-2 py-1 rounded-md text-xs font-medium transition-all border ${
                       successFilter === key
-                        ? "bg-amber-400 text-stone-950 border-amber-400"
-                        : "bg-stone-800 text-stone-400 border-amber-400/[0.08]"
+                        ? "bg-pml-accent text-stone-950 border-pml-accent"
+                        : "bg-stone-800 text-stone-400 border-pml-accent/[0.08]"
                     }`}
                     onClick={() => onSuccessFilterChange(key)}
                   >
@@ -366,7 +366,7 @@ export default function ExplorerSidebar({
                       background: `linear-gradient(to right, #FFB86F 0%, #FFB86F ${((highlightDepth - 1) / 4) * 100}%, #1a1816 ${((highlightDepth - 1) / 4) * 100}%, #1a1816 100%)`,
                     }}
                   />
-                  <span class="text-sm font-semibold w-6 text-center text-amber-400">
+                  <span class="text-sm font-semibold w-6 text-center text-pml-accent">
                     {highlightDepth}
                   </span>
                 </div>
@@ -385,11 +385,11 @@ export default function ExplorerSidebar({
               </h3>
               <div class="space-y-1.5">
                 <div class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full bg-amber-400/35" />
+                  <div class="w-3 h-3 rounded-full bg-pml-accent/35" />
                   <span class="text-xs text-stone-400">Tools</span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full bg-amber-400/60" />
+                  <div class="w-3 h-3 rounded-full bg-pml-accent/60" />
                   <span class="text-xs text-stone-400">Capabilities</span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -402,17 +402,17 @@ export default function ExplorerSidebar({
         )}
       </div>
 
-      <div class="p-3 shrink-0 flex gap-2 border-t border-amber-400/[0.08]">
+      <div class="p-3 shrink-0 flex gap-2 border-t border-pml-accent/[0.08]">
         <button
           type="button"
-          class="flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all bg-stone-800 text-stone-400 border border-amber-400/[0.08] hover:brightness-110"
+          class="flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all bg-stone-800 text-stone-400 border border-pml-accent/[0.08] hover:brightness-110"
           onClick={onExportJson}
         >
           JSON
         </button>
         <button
           type="button"
-          class="flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all bg-stone-800 text-stone-400 border border-amber-400/[0.08] hover:brightness-110"
+          class="flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all bg-stone-800 text-stone-400 border border-pml-accent/[0.08] hover:brightness-110"
           onClick={onExportPng}
         >
           PNG

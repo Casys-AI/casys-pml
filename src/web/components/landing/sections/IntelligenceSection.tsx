@@ -38,13 +38,13 @@ export function IntelligenceSection() {
         </div>
 
         <div class="max-w-[520px] lg:max-w-full lg:order-1 text-center lg:text-left">
-          <p class="font-mono text-[0.7rem] sm:text-[0.6rem] font-medium text-amber-400 uppercase tracking-[0.2em] sm:tracking-[0.15em] mb-4 opacity-0 animate-fade-up">
+          <p class="font-mono text-[0.7rem] sm:text-[0.6rem] font-medium text-pml-accent uppercase tracking-[0.2em] sm:tracking-[0.15em] mb-4 opacity-0 animate-fade-up">
             Collective Intelligence
           </p>
 
           <h2 class="font-serif text-[clamp(1.75rem,4vw,2.75rem)] font-normal leading-[1.15] mb-4 opacity-0 animate-fade-up-delay-1">
             <span class="block text-stone-100">Every execution</span>
-            <span class="block text-amber-400 italic">makes it smarter.</span>
+            <span class="block text-pml-accent italic">makes it smarter.</span>
           </h2>
 
           <p class="text-[0.95rem] sm:text-sm leading-relaxed text-stone-600 mb-8 opacity-0 animate-fade-up-delay-2">

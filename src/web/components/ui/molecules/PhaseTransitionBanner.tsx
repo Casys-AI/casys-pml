@@ -37,7 +37,7 @@ export function PhaseTransitionBanner({
       class={`p-3 rounded-lg mb-4 flex items-center justify-between animate-pulse border ${
         isExpansion
           ? "bg-green-400/15 border-green-400/30"
-          : "bg-amber-400/15 border-amber-400/30"
+          : "bg-pml-accent/15 border-pml-accent/30"
       }`}
     >
       <div class="flex items-center gap-2">

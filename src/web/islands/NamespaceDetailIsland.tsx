@@ -239,7 +239,7 @@ export default function NamespaceDetailIsland({
           >
             <span>{cap.action || cap.name}</span>
             {cap.toolsUsed.length > 0 && (
-              <span class="text-[0.5625rem] text-amber-400 bg-amber-500/10 py-0.5 px-1 rounded-sm">{cap.toolsUsed.length}t</span>
+              <span class="text-[0.5625rem] text-pml-accent bg-amber-500/10 py-0.5 px-1 rounded-sm">{cap.toolsUsed.length}t</span>
             )}
           </button>
         ))}

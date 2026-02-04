@@ -21,7 +21,7 @@ export default function GraphTooltip({
 }: GraphTooltipProps): JSX.Element {
   return (
     <div
-      class="absolute py-2.5 px-3.5 rounded-lg text-xs pointer-events-none z-[1000] min-w-[160px] bg-stone-900/95 border border-amber-400/25 backdrop-blur-md shadow-lg shadow-black/40"
+      class="absolute py-2.5 px-3.5 rounded-lg text-xs pointer-events-none z-[1000] min-w-[160px] bg-stone-900/95 border border-pml-accent/25 backdrop-blur-md shadow-lg shadow-black/40"
       style={{
         left: `${x}px`,
         top: `${y}px`,
@@ -43,7 +43,7 @@ export default function GraphTooltip({
       <div class="flex gap-4 pt-1.5 mt-1.5 border-t border-white/10">
         <div>
           <span class="text-stone-500">PR</span>
-          <span class="text-amber-400">{data.pagerank.toFixed(3)}</span>
+          <span class="text-pml-accent">{data.pagerank.toFixed(3)}</span>
         </div>
         <div>
           <span class="text-stone-500">Deg</span>

@@ -269,7 +269,7 @@ export default function GraphInsightsPanel({
   return (
     <div
       ref={panelRef}
-      class="fixed right-0 bottom-0 flex flex-col z-[110] bg-gradient-to-b from-stone-900 to-stone-950 border-l border-amber-400/10 shadow-[-4px_0_24px_rgba(0,0,0,0.3)]"
+      class="fixed right-0 bottom-0 flex flex-col z-[110] bg-gradient-to-b from-stone-900 to-stone-950 border-l border-pml-accent/10 shadow-[-4px_0_24px_rgba(0,0,0,0.3)]"
       style={{
         top: "56px",
         width: `${panelWidth}px`,
@@ -279,12 +279,12 @@ export default function GraphInsightsPanel({
     >
       {/* Resize handle */}
       <div
-        class={`absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize z-10 transition-colors ${isResizing ? "bg-amber-400" : "bg-transparent hover:bg-amber-400/30"}`}
+        class={`absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize z-10 transition-colors ${isResizing ? "bg-pml-accent" : "bg-transparent hover:bg-pml-accent/30"}`}
         onMouseDown={() => setIsResizing(true)}
       />
 
       {/* Header */}
-      <div class="flex items-center justify-between px-4 py-3 shrink-0 border-b border-amber-400/10">
+      <div class="flex items-center justify-between px-4 py-3 shrink-0 border-b border-pml-accent/10">
         <h2 class="text-sm font-semibold text-stone-100">
           Graph Insights
         </h2>
@@ -310,7 +310,7 @@ export default function GraphInsightsPanel({
 
       {/* Selected Node Info */}
       {selectedNode && (
-        <div class="px-4 py-3 shrink-0 border-b border-amber-400/10">
+        <div class="px-4 py-3 shrink-0 border-b border-pml-accent/10">
           <div class="flex items-center gap-2 mb-2">
             <span class="text-base">{getTypeIcon(selectedNode.type)}</span>
             <div
@@ -338,7 +338,7 @@ export default function GraphInsightsPanel({
               </span>
             )}
             {selectedNode.pagerank !== undefined && (
-              <span class="text-amber-400">
+              <span class="text-pml-accent">
                 PR: {selectedNode.pagerank.toFixed(3)}
               </span>
             )}
@@ -349,7 +349,7 @@ export default function GraphInsightsPanel({
             )}
             {selectedNode.successRate !== undefined && (
               <span
-                class={selectedNode.successRate >= 0.8 ? "text-green-400" : "text-amber-400"}
+                class={selectedNode.successRate >= 0.8 ? "text-green-400" : "text-pml-accent"}
               >
                 {(selectedNode.successRate * 100).toFixed(0)}%
               </span>
@@ -407,7 +407,7 @@ export default function GraphInsightsPanel({
         {isLoading
           ? (
             <div class="flex items-center justify-center py-8">
-              <div class="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              <div class="w-6 h-6 border-2 border-pml-accent border-t-transparent rounded-full animate-spin" />
             </div>
           )
           : (() => {
@@ -429,7 +429,7 @@ export default function GraphInsightsPanel({
                   <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-600">
                     Related
                   </span>
-                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400">
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-pml-accent/10 text-pml-accent">
                     {allItems.length}
                   </span>
                 </div>
@@ -444,11 +444,11 @@ export default function GraphInsightsPanel({
                     allItems.map((item, index) => (
                       <div
                         key={item.id}
-                        class="p-2.5 rounded-lg cursor-pointer transition-all duration-200 bg-stone-800 border border-amber-400/10 hover:bg-amber-400/10 hover:translate-x-0.5"
+                        class="p-2.5 rounded-lg cursor-pointer transition-all duration-200 bg-stone-800 border border-pml-accent/10 hover:bg-pml-accent/10 hover:translate-x-0.5"
                         onClick={() => onItemSelect(item.id, item.type)}
                       >
                         <div class="flex items-center gap-2 mb-1.5">
-                          <span class="text-[10px] font-bold w-5 text-center text-amber-400">
+                          <span class="text-[10px] font-bold w-5 text-center text-pml-accent">
                             #{index + 1}
                           </span>
                           <span class="text-xs">{getTypeIcon(item.type)}</span>
@@ -466,7 +466,7 @@ export default function GraphInsightsPanel({
                           >
                             {item.name}
                           </span>
-                          <span class="text-[10px] font-semibold text-amber-400">
+                          <span class="text-[10px] font-semibold text-pml-accent">
                             {formatScore(item.score)}
                           </span>
                         </div>
@@ -512,7 +512,7 @@ export default function GraphInsightsPanel({
                         {/* Score bar */}
                         <div class="h-1 rounded-full overflow-hidden ml-5 bg-stone-950">
                           <div
-                            class="h-full rounded-full bg-amber-400"
+                            class="h-full rounded-full bg-pml-accent"
                             style={{ width: `${(item.score / maxScore) * 100}%` }}
                           />
                         </div>
@@ -525,7 +525,7 @@ export default function GraphInsightsPanel({
       </div>
 
       {/* Footer with pinned sets legend */}
-      <div class="px-4 py-2 shrink-0 border-t border-amber-400/10">
+      <div class="px-4 py-2 shrink-0 border-t border-pml-accent/10">
         {pinnedSets.length > 0 && (
           <div class="mb-2 space-y-1.5">
             <div class="flex items-center justify-between">

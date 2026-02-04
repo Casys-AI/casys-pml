@@ -405,13 +405,13 @@ export default function EmergencePanel({
             isLocalMode={isLocalMode}
           />
         </div>
-        <div class="flex gap-1 p-0.5 rounded-lg bg-stone-800 border border-amber-400/10">
+        <div class="flex gap-1 p-0.5 rounded-lg bg-stone-800 border border-pml-accent/10">
           {(["1h", "24h", "7d", "30d"] as TimeRange[]).map((r) => (
             <button
               key={r}
               type="button"
               class={`py-1.5 px-3 rounded text-xs font-semibold transition-colors ${
-                timeRange === r ? "bg-amber-400 text-stone-950" : "text-stone-400"
+                timeRange === r ? "bg-pml-accent text-stone-950" : "text-stone-400"
               }`}
               onClick={() => setTimeRange(r)}
             >
@@ -490,7 +490,7 @@ export default function EmergencePanel({
       </div>
 
       <div class="flex flex-wrap gap-3 mb-4 items-center">
-        <div class="p-3 rounded-lg flex-shrink-0 relative bg-stone-800 border border-amber-400/10">
+        <div class="p-3 rounded-lg flex-shrink-0 relative bg-stone-800 border border-pml-accent/10">
           <GaugeChart
             value={current.speculationAccuracy}
             label="Speculation Accuracy"
@@ -592,7 +592,7 @@ export default function EmergencePanel({
       {/* Recommendations */}
       <RecommendationsPanel recommendations={recommendations} />
 
-      <div class="mt-4 pt-3 text-xs text-center border-t border-amber-400/10 text-stone-500">
+      <div class="mt-4 pt-3 text-xs text-center border-t border-pml-accent/10 text-stone-500">
         Based on CAS theory (Holland 1992) &amp; SYMBIOSIS/ODI (arxiv:2503.13754)
       </div>
     </div>

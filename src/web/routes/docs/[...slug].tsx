@@ -66,19 +66,19 @@ export default function DocsPage({ data }: { data: DocsPageData }) {
       </Head>
 
       <div class="min-h-screen bg-[#08080a] text-stone-100 font-[Geist,_-apple-system,_system-ui,_sans-serif] flex flex-col overflow-x-hidden">
-        <header class="sticky top-0 z-100 px-4 py-4 md:px-8 bg-[#08080a]/95 backdrop-blur-xl border-b border-amber-400/8">
+        <header class="sticky top-0 z-100 px-4 py-4 md:px-8 bg-[#08080a]/95 backdrop-blur-xl border-b border-pml-accent/8">
           <div class="max-w-[1400px] mx-auto flex justify-between items-center">
             <a href="/" class="flex items-center gap-4 no-underline">
-              <span class="font-[Instrument_Serif,_Georgia,_serif] text-2xl text-amber-400">Casys PML</span>
+              <span class="font-[Instrument_Serif,_Georgia,_serif] text-2xl text-pml-accent">Casys PML</span>
               <span class="text-xs text-stone-500 tracking-widest uppercase hidden md:inline">Documentation</span>
             </a>
             <nav class="flex items-center gap-3 md:gap-8">
-              <a href="/" class="hidden md:inline text-stone-400 no-underline text-sm font-medium transition-colors duration-200 hover:text-amber-400">Home</a>
-              <a href="/blog" class="hidden md:inline text-stone-400 no-underline text-sm font-medium transition-colors duration-200 hover:text-amber-400">Blog</a>
-              <a href="/docs" class="hidden md:inline text-amber-400 no-underline text-sm font-medium">Docs</a>
+              <a href="/" class="hidden md:inline text-stone-400 no-underline text-sm font-medium transition-colors duration-200 hover:text-pml-accent">Home</a>
+              <a href="/blog" class="hidden md:inline text-stone-400 no-underline text-sm font-medium transition-colors duration-200 hover:text-pml-accent">Blog</a>
+              <a href="/docs" class="hidden md:inline text-pml-accent no-underline text-sm font-medium">Docs</a>
               <a
                 href="https://github.com/Casys-AI/casys-pml"
-                class="flex items-center p-2 text-stone-400 rounded-md transition-all duration-200 hover:text-stone-100 hover:bg-amber-400/10"
+                class="flex items-center p-2 text-stone-400 rounded-md transition-all duration-200 hover:text-stone-100 hover:bg-pml-accent/10"
                 target="_blank"
                 rel="noopener"
               >
@@ -101,32 +101,32 @@ export default function DocsPage({ data }: { data: DocsPageData }) {
                   {index > 0 && <span class="text-stone-500">/</span>}
                   {index === doc.breadcrumbs.length - 1
                     ? <span class="text-stone-100">{crumb.label}</span>
-                    : <a href={crumb.href} class="text-stone-400 no-underline transition-colors duration-200 hover:text-amber-400">{crumb.label}</a>}
+                    : <a href={crumb.href} class="text-stone-400 no-underline transition-colors duration-200 hover:text-pml-accent">{crumb.label}</a>}
                 </span>
               ))}
             </nav>
 
             <article class={`
               bg-transparent text-stone-100 font-[Geist,_-apple-system,_system-ui,_sans-serif] text-base leading-relaxed max-w-[800px]
-              [&_h1]:font-[Instrument_Serif,_Georgia,_serif] [&_h1]:text-4xl [&_h1]:font-normal [&_h1]:text-stone-100 [&_h1]:mb-4 [&_h1]:pb-3 [&_h1]:border-b [&_h1]:border-amber-400/8
-              [&_h2]:font-[Instrument_Serif,_Georgia,_serif] [&_h2]:text-2xl [&_h2]:font-normal [&_h2]:text-stone-100 [&_h2]:mt-10 [&_h2]:mb-4 [&_h2]:pb-2 [&_h2]:border-b [&_h2]:border-amber-400/8
+              [&_h1]:font-[Instrument_Serif,_Georgia,_serif] [&_h1]:text-4xl [&_h1]:font-normal [&_h1]:text-stone-100 [&_h1]:mb-4 [&_h1]:pb-3 [&_h1]:border-b [&_h1]:border-pml-accent/8
+              [&_h2]:font-[Instrument_Serif,_Georgia,_serif] [&_h2]:text-2xl [&_h2]:font-normal [&_h2]:text-stone-100 [&_h2]:mt-10 [&_h2]:mb-4 [&_h2]:pb-2 [&_h2]:border-b [&_h2]:border-pml-accent/8
               [&_h3]:font-[Instrument_Serif,_Georgia,_serif] [&_h3]:text-xl [&_h3]:font-normal [&_h3]:text-stone-100 [&_h3]:mt-8 [&_h3]:mb-3
               [&_h4]:text-base [&_h4]:font-semibold [&_h4]:text-stone-100 [&_h4]:mt-6 [&_h4]:mb-2
               [&_p]:mb-4 [&_p]:text-stone-400
-              [&_a]:text-amber-400 [&_a]:no-underline [&_a:hover]:underline
+              [&_a]:text-pml-accent [&_a]:no-underline [&_a:hover]:underline
               [&_strong]:text-stone-100 [&_strong]:font-semibold
-              [&_code:not(pre_code)]:bg-[#0f0f12] [&_code:not(pre_code)]:border [&_code:not(pre_code)]:border-amber-400/8 [&_code:not(pre_code)]:px-1.5 [&_code:not(pre_code)]:py-0.5 [&_code:not(pre_code)]:rounded [&_code:not(pre_code)]:font-[Geist_Mono,_monospace] [&_code:not(pre_code)]:text-[0.875em] [&_code:not(pre_code)]:text-[#ce9178]
-              [&_pre]:bg-[#1a1a1d]! [&_pre]:border! [&_pre]:border-amber-400/15! [&_pre]:rounded-lg [&_pre]:p-4! [&_pre]:overflow-x-auto [&_pre]:my-4! [&_pre:hover]:border-amber-400!
+              [&_code:not(pre_code)]:bg-[#0f0f12] [&_code:not(pre_code)]:border [&_code:not(pre_code)]:border-pml-accent/8 [&_code:not(pre_code)]:px-1.5 [&_code:not(pre_code)]:py-0.5 [&_code:not(pre_code)]:rounded [&_code:not(pre_code)]:font-[Geist_Mono,_monospace] [&_code:not(pre_code)]:text-[0.875em] [&_code:not(pre_code)]:text-[#ce9178]
+              [&_pre]:bg-[#1a1a1d]! [&_pre]:border! [&_pre]:border-pml-accent/15! [&_pre]:rounded-lg [&_pre]:p-4! [&_pre]:overflow-x-auto [&_pre]:my-4! [&_pre:hover]:border-pml-accent!
               [&_pre_code]:bg-transparent! [&_pre_code]:border-none! [&_pre_code]:p-0! [&_pre_code]:text-sm! [&_pre_code]:leading-relaxed! [&_pre_code]:text-[#d4d4d4]! [&_pre_code]:font-[Geist_Mono,_monospace]!
-              [&_blockquote]:border-l-[3px] [&_blockquote]:border-amber-400 [&_blockquote]:pl-4 [&_blockquote]:my-4 [&_blockquote]:text-stone-400 [&_blockquote]:italic
+              [&_blockquote]:border-l-[3px] [&_blockquote]:border-pml-accent [&_blockquote]:pl-4 [&_blockquote]:my-4 [&_blockquote]:text-stone-400 [&_blockquote]:italic
               [&_ul]:my-4 [&_ul]:pl-6 [&_ul]:text-stone-400
               [&_ol]:my-4 [&_ol]:pl-6 [&_ol]:text-stone-400
               [&_li]:mb-2
-              [&_hr]:border-none [&_hr]:border-t [&_hr]:border-amber-400/8 [&_hr]:my-8
+              [&_hr]:border-none [&_hr]:border-t [&_hr]:border-pml-accent/8 [&_hr]:my-8
               [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
-              [&_th]:bg-[#0f0f12] [&_th]:p-3 [&_th]:text-left [&_th]:font-semibold [&_th]:text-stone-100 [&_th]:border [&_th]:border-amber-400/8
-              [&_td]:p-3 [&_td]:border [&_td]:border-amber-400/8 [&_td]:text-stone-400
-              [&_tr:hover_td]:bg-amber-400/10
+              [&_th]:bg-[#0f0f12] [&_th]:p-3 [&_th]:text-left [&_th]:font-semibold [&_th]:text-stone-100 [&_th]:border [&_th]:border-pml-accent/8
+              [&_td]:p-3 [&_td]:border [&_td]:border-pml-accent/8 [&_td]:text-stone-400
+              [&_tr:hover_td]:bg-pml-accent/10
               [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-4
               md:[&_h1]:text-4xl
               max-md:[&_h1]:text-[1.75rem] max-md:[&_h2]:text-xl

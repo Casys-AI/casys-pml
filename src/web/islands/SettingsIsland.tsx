@@ -145,7 +145,7 @@ export default function SettingsIsland({
           {flashApiKey && (
             <button
               type="button"
-              class="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md border border-amber-500/10 bg-stone-950 text-stone-400 cursor-pointer transition-all duration-200 hover:border-amber-400 hover:text-amber-400"
+              class="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md border border-amber-500/10 bg-stone-950 text-stone-400 cursor-pointer transition-all duration-200 hover:border-pml-accent hover:text-pml-accent"
               onClick={handleToggleShow}
               title={showKey.value ? "Hide key" : "Show key"}
             >
@@ -155,7 +155,7 @@ export default function SettingsIsland({
           )}
           <button
             type="button"
-            class="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md border border-amber-500/10 bg-stone-950 text-stone-400 cursor-pointer transition-all duration-200 hover:border-amber-400 hover:text-amber-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-amber-500/10 disabled:hover:text-stone-400"
+            class="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md border border-amber-500/10 bg-stone-950 text-stone-400 cursor-pointer transition-all duration-200 hover:border-pml-accent hover:text-pml-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-amber-500/10 disabled:hover:text-stone-400"
             onClick={handleCopy}
             disabled={!flashApiKey}
             title={copyTitle}

@@ -12,7 +12,7 @@ interface SectionLabelProps {
 
 export function SectionLabel({ children }: SectionLabelProps) {
   return (
-    <span class="inline-block font-mono text-[0.7rem] font-medium text-amber-400 uppercase tracking-widest px-4 py-2 bg-amber-500/10 rounded mb-6">
+    <span class="inline-block font-mono text-[0.7rem] font-medium text-pml-accent uppercase tracking-widest px-4 py-2 bg-amber-500/10 rounded mb-6">
       {children}
     </span>
   );

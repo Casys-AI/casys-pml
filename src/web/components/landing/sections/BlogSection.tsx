@@ -33,10 +33,10 @@ export function BlogSection({ posts, formatDate }: BlogSectionProps) {
           {posts.map((post) => (
             <article
               key={post.slug}
-              class="p-7 bg-[#141418] border border-amber-400/15 rounded-xl transition-all duration-200 hover:border-amber-400 hover:-translate-y-1"
+              class="p-7 bg-[#141418] border border-pml-accent/15 rounded-xl transition-all duration-200 hover:border-pml-accent hover:-translate-y-1"
             >
               <div class="flex items-center gap-4 mb-4">
-                <span class="font-mono text-[0.65rem] text-amber-400 uppercase tracking-[0.1em] py-0.5 px-2.5 bg-amber-400/10 rounded">
+                <span class="font-mono text-[0.65rem] text-pml-accent uppercase tracking-[0.1em] py-0.5 px-2.5 bg-pml-accent/10 rounded">
                   {post.category}
                 </span>
                 <time class="text-[0.8rem] text-stone-500">
@@ -44,7 +44,7 @@ export function BlogSection({ posts, formatDate }: BlogSectionProps) {
                 </time>
               </div>
               <h3 class="font-serif text-xl font-normal mb-3">
-                <a href={`/blog/${post.slug}`} class="text-stone-100 no-underline hover:text-amber-400">
+                <a href={`/blog/${post.slug}`} class="text-stone-100 no-underline hover:text-pml-accent">
                   {post.title}
                 </a>
               </h3>
@@ -65,7 +65,7 @@ export function BlogSection({ posts, formatDate }: BlogSectionProps) {
         <div class="text-center">
           <a
             href={blog.cta.href}
-            class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-transparent text-stone-400 border border-amber-400/15 transition-all duration-200 hover:bg-amber-400/10 hover:border-amber-400 hover:text-stone-100"
+            class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-transparent text-stone-400 border border-pml-accent/15 transition-all duration-200 hover:bg-pml-accent/10 hover:border-pml-accent hover:text-stone-100"
           >
             {blog.cta.label}
           </a>

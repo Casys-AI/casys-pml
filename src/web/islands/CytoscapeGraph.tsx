@@ -242,6 +242,35 @@ interface TransformedData {
   edges: Edge[];
 }
 
+/** Story 16.6: Collected UI resource from MCP Apps */
+export interface CollectedUiResource {
+  /** Tool that returned this UI - short format (e.g., "std:docker_ps") */
+  source: string;
+  /** Full tool ID for trace matching - long format (e.g., "pml.mcp.std.docker_ps.06bd") */
+  toolId?: string;
+  /** URI of the UI resource (e.g., "ui://postgres/table/abc123") */
+  resourceUri: string;
+  /** Optional context data for the UI */
+  context?: Record<string, unknown>;
+  /** Execution order slot (0-based index) */
+  slot: number;
+}
+
+/** Story 16.6: UI orchestration configuration per capability */
+export interface UiOrchestrationState {
+  /** Layout mode: split, tabs, grid, stack */
+  layout: "split" | "tabs" | "grid" | "stack";
+  /** Sync rules (tool names as from/to) */
+  sync?: Array<{
+    from: string;
+    event: string;
+    to: string | "*";
+    action: string;
+  }>;
+  /** Current panel order (slot indices in display order) */
+  panelOrder?: number[];
+}
+
 export interface CapabilityData {
   id: string;
   label: string;
@@ -271,6 +300,10 @@ export interface CapabilityData {
       type: "sequence" | "provides" | "conditional" | "contains" | "loop_body";
     }>;
   };
+  /** Story 16.6: Collected UI resources from last pml:execute */
+  collectedUis?: CollectedUiResource[];
+  /** Story 16.6: UI orchestration state (layout, sync rules, panel order) */
+  uiOrchestration?: UiOrchestrationState;
 }
 
 export interface ToolData {
@@ -2683,7 +2716,7 @@ export default function CytoscapeGraph({
       {isLoading && (
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
           <div class="flex flex-col items-center gap-3">
-            <div class="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <div class="w-8 h-8 border-2 border-pml-accent border-t-transparent rounded-full animate-spin" />
             <span class="text-sm font-medium text-stone-400">
               Loading graph...
             </span>
@@ -2692,7 +2725,7 @@ export default function CytoscapeGraph({
       )}
 
       {error && !isLoading && (
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 max-w-md text-center p-6 rounded-xl bg-stone-900 border border-amber-400/10">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 max-w-md text-center p-6 rounded-xl bg-stone-900 border border-pml-accent/10">
           <div class="text-4xl mb-3">Error</div>
           <p class="text-stone-400">{error}</p>
         </div>

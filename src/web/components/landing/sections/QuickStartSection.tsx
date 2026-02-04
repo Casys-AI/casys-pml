@@ -34,11 +34,11 @@ export function QuickStartSection() {
             key={step.id}
           >
             <div class="flex flex-col items-center">
-              <span class="w-8 h-8 sm:w-[26px] sm:h-[26px] flex items-center justify-center font-mono text-[0.8rem] sm:text-[0.7rem] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/25 rounded-lg shrink-0">
+              <span class="w-8 h-8 sm:w-[26px] sm:h-[26px] flex items-center justify-center font-mono text-[0.8rem] sm:text-[0.7rem] font-semibold text-pml-accent bg-pml-accent/10 border border-pml-accent/25 rounded-lg shrink-0">
                 {index + 1}
               </span>
               {index < steps.length - 1 && (
-                <div class="w-px flex-1 min-h-[40px] bg-gradient-to-b from-amber-400/30 to-amber-400/5 my-2" />
+                <div class="w-px flex-1 min-h-[40px] bg-gradient-to-b from-pml-accent/30 to-pml-accent/5 my-2" />
               )}
             </div>
 
@@ -61,7 +61,7 @@ export function QuickStartSection() {
                 </div>
                 <pre class="m-0 p-4 sm:p-3 overflow-x-auto sm:touch-pan-x">
                   <code
-                    class="font-mono text-[0.8rem] sm:text-[0.65rem] leading-relaxed text-stone-400 sm:whitespace-pre sm:block [&_.cmd]:text-amber-400 [&_.flag]:text-blue-400 [&_.str]:text-green-400 [&_.comment]:text-stone-600 [&_.comment]:italic [&_.output]:text-green-400 [&_.dim]:text-stone-600"
+                    class="font-mono text-[0.8rem] sm:text-[0.65rem] leading-relaxed text-stone-400 sm:whitespace-pre sm:block [&_.cmd]:text-pml-accent [&_.flag]:text-blue-400 [&_.str]:text-green-400 [&_.comment]:text-stone-600 [&_.comment]:italic [&_.output]:text-green-400 [&_.dim]:text-stone-600"
                     dangerouslySetInnerHTML={{ __html: step.codeHtml }}
                   />
                 </pre>
@@ -81,7 +81,7 @@ export function QuickStartSection() {
       <div class="text-center mt-8 opacity-0 animate-fade-in-step-4">
         <a
           href={quickStart.cta.href}
-          class="inline-flex items-center gap-2 py-3 px-5 font-mono text-[0.8rem] font-medium text-amber-400 no-underline bg-transparent border border-amber-400/25 rounded-lg transition-all duration-200 hover:bg-amber-400/[0.08] hover:border-amber-400/50 hover:translate-x-1"
+          class="inline-flex items-center gap-2 py-3 px-5 font-mono text-[0.8rem] font-medium text-pml-accent no-underline bg-transparent border border-pml-accent/25 rounded-lg transition-all duration-200 hover:bg-pml-accent/[0.08] hover:border-pml-accent/50 hover:translate-x-1"
         >
           {quickStart.cta.label}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

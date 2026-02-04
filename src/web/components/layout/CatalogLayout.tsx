@@ -35,19 +35,19 @@ export default function CatalogLayout({
 
       <div class="flex flex-col md:flex-row min-h-[calc(100vh-60px)] pt-[60px]">
         {sidebar && (
-          <aside class="w-full md:w-60 lg:w-70 flex-shrink-0 bg-[#0c0c0e] border-b md:border-b-0 md:border-r border-amber-400/[0.06] md:sticky md:top-[60px] md:h-[calc(100vh-60px)] md:overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-amber-400/15 hover:scrollbar-thumb-amber-400/25">
+          <aside class="w-full md:w-60 lg:w-70 flex-shrink-0 bg-[#0c0c0e] border-b md:border-b-0 md:border-r border-pml-accent/[0.06] md:sticky md:top-[60px] md:h-[calc(100vh-60px)] md:overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-pml-accent/15 hover:scrollbar-thumb-pml-accent/25">
             <div class="p-4 md:p-6">{sidebar}</div>
           </aside>
         )}
 
-        <main class="flex-1 min-w-0 p-4 md:p-8 bg-gradient-to-br from-amber-400/[0.01] to-transparent">
+        <main class="flex-1 min-w-0 p-4 md:p-8 bg-gradient-to-br from-pml-accent/[0.01] to-transparent">
           {children}
         </main>
       </div>
 
-      <footer class="bg-[#0c0c0e] border-t border-amber-400/[0.06] px-8 py-6">
+      <footer class="bg-[#0c0c0e] border-t border-pml-accent/[0.06] px-8 py-6">
         <div class="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
-          <span class="font-serif text-lg text-amber-400">Casys PML</span>
+          <span class="font-serif text-lg text-pml-accent">Casys PML</span>
           <div class="flex gap-6">
             <a href="https://casys.ai" target="_blank" rel="noopener" class="text-stone-500 hover:text-stone-400 text-sm transition-colors">
               Casys.ai

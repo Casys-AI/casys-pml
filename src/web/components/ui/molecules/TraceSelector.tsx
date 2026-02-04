@@ -49,7 +49,7 @@ export default function TraceSelector({
 
   return (
     <div class="flex justify-between items-center mb-3">
-      <span class="text-xs font-semibold uppercase tracking-wider text-amber-400">
+      <span class="text-xs font-semibold uppercase tracking-wider text-pml-accent">
         Execution Traces ({traces.length})
       </span>
 

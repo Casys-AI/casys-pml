@@ -81,7 +81,7 @@ function highlightCode(code: string): preact.JSX.Element[] {
 
       const levelMatch = remaining.match(/^(Level \d+:)/);
       if (levelMatch) {
-        elements.push(<span key={key++} class="text-amber-400 font-semibold">{levelMatch[1]}</span>);
+        elements.push(<span key={key++} class="text-pml-accent font-semibold">{levelMatch[1]}</span>);
         remaining = remaining.slice(levelMatch[1].length);
         continue;
       }
@@ -260,8 +260,8 @@ export function HeroRepl() {
   const content = tabContents[activeTab.value];
 
   return (
-    <div class="w-full max-w-[580px] bg-stone-950 border border-amber-400/15 rounded-xl overflow-hidden font-mono shadow-[0_0_0_1px_rgba(255,184,111,0.05),0_20px_50px_rgba(0,0,0,0.5),0_0_100px_rgba(255,184,111,0.03)] max-sm:max-w-full">
-      <div class="flex items-center gap-3 px-4 py-3 bg-stone-900 border-b border-amber-400/[0.08]">
+    <div class="w-full max-w-[580px] bg-stone-950 border border-pml-accent/15 rounded-xl overflow-hidden font-mono shadow-[0_0_0_1px_rgba(255,184,111,0.05),0_20px_50px_rgba(0,0,0,0.5),0_0_100px_rgba(255,184,111,0.03)] max-sm:max-w-full">
+      <div class="flex items-center gap-3 px-4 py-3 bg-stone-900 border-b border-pml-accent/[0.08]">
         <div class="flex gap-1.5">
           <span class="w-2.5 h-2.5 rounded-full bg-red-500" />
           <span class="w-2.5 h-2.5 rounded-full bg-yellow-500" />
@@ -273,14 +273,14 @@ export function HeroRepl() {
         </div>
       </div>
 
-      <div class="flex gap-0.5 px-3 pt-2 bg-stone-900/80 border-b border-amber-400/[0.08]">
+      <div class="flex gap-0.5 px-3 pt-2 bg-stone-900/80 border-b border-pml-accent/[0.08]">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             class={`flex items-center gap-1.5 px-4 py-2.5 bg-transparent border-none border-b-2 font-mono text-[11px] font-medium cursor-pointer transition-all tracking-wide ${
               activeTab.value === tab.id
-                ? "text-amber-400 border-b-amber-400 bg-amber-400/5"
-                : "text-stone-500 border-b-transparent hover:text-stone-400 hover:bg-amber-400/[0.03]"
+                ? "text-pml-accent border-b-pml-accent bg-pml-accent/5"
+                : "text-stone-500 border-b-transparent hover:text-stone-400 hover:bg-pml-accent/[0.03]"
             }`}
             onClick={() => (activeTab.value = tab.id)}
           >
@@ -294,16 +294,16 @@ export function HeroRepl() {
 
       <div class="p-5 min-h-[220px] bg-gradient-to-b from-stone-950 to-stone-950/95 max-sm:p-4 max-sm:min-h-[200px]">
         <div class="flex gap-3">
-          <span class="text-amber-400 text-sm font-semibold leading-relaxed select-none">›</span>
+          <span class="text-pml-accent text-sm font-semibold leading-relaxed select-none">›</span>
           <pre class="flex-1 m-0 text-xs leading-relaxed text-stone-200 whitespace-pre-wrap break-words max-sm:text-[11px]">
             <code class="text-inherit">{highlightCode(displayedCode.value)}</code>
-            {isTyping.value && <span class="text-amber-400 animate-blink ml-px">▋</span>}
+            {isTyping.value && <span class="text-pml-accent animate-blink ml-px">▋</span>}
           </pre>
         </div>
 
         {showOutput.value && (
           <div
-            class={`mt-5 pt-4 border-t border-dashed border-amber-400/10 ${
+            class={`mt-5 pt-4 border-t border-dashed border-pml-accent/10 ${
               content.status === "success"
                 ? "[&>div]:text-stone-400 [&>div:first-child]:text-green-400"
                 : content.status === "info"
@@ -320,7 +320,7 @@ export function HeroRepl() {
         )}
       </div>
 
-      <div class="flex gap-5 px-4 py-2.5 bg-stone-900/80 border-t border-amber-400/[0.08]">
+      <div class="flex gap-5 px-4 py-2.5 bg-stone-900/80 border-t border-pml-accent/[0.08]">
         <span class="flex items-center gap-1.5 text-[10px] text-stone-600 tracking-wide">
           <span class="w-1.5 h-1.5 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.4)]" />
           {isTyping.value ? "typing..." : showOutput.value ? "complete" : "ready"}

@@ -27,7 +27,7 @@ export function DagHeader({
   return (
     <div class="flex justify-between items-center pb-4 mb-5 border-b border-amber-500/10 max-sm:flex-col max-sm:items-start max-sm:gap-3">
       <div class="flex items-center gap-3">
-        <span class="font-mono text-base font-semibold text-amber-400">{name}</span>
+        <span class="font-mono text-base font-semibold text-pml-accent">{name}</span>
         <StatusBadge status={status} compact />
       </div>
       <div class="flex items-center gap-5 max-sm:w-full max-sm:justify-between">

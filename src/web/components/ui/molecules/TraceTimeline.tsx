@@ -149,7 +149,7 @@ export default function TraceTimeline({
           {trace.taskResults.length} tasks
         </span>
         <span
-          class="px-1.5 py-0.5 rounded text-amber-400 text-[0.7rem]"
+          class="px-1.5 py-0.5 rounded text-pml-accent text-[0.7rem]"
           style={{ background: `rgba(255, 184, 111, ${trace.priority * 0.3})` }}
           title="TD Error priority for learning"
         >

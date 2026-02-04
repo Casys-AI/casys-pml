@@ -64,14 +64,14 @@ export default function MobileMenu(): JSX.Element {
       <button
         type="button"
         onClick={toggleMenu}
-        class="hidden md:hidden items-center justify-center w-11 h-11 p-0 bg-transparent border border-amber-400/15 rounded-[10px] cursor-pointer transition-all duration-200 hover:bg-amber-400/[0.08] hover:border-amber-400/30 focus:bg-amber-400/[0.08] focus:border-amber-400/30 focus:outline-none active:scale-95 max-md:flex"
+        class="hidden md:hidden items-center justify-center w-11 h-11 p-0 bg-transparent border border-pml-accent/15 rounded-[10px] cursor-pointer transition-all duration-200 hover:bg-pml-accent/[0.08] hover:border-pml-accent/30 focus:bg-pml-accent/[0.08] focus:border-pml-accent/30 focus:outline-none active:scale-95 max-md:flex"
         aria-label={isOpen.value ? "Close menu" : "Open menu"}
         aria-expanded={isOpen.value}
         style={{ WebkitTapHighlightColor: "transparent" }}
       >
         <div class="relative w-[22px] h-4">
           <span
-            class={`absolute left-0 w-full h-0.5 bg-amber-400 rounded-sm transition-all duration-300 ${
+            class={`absolute left-0 w-full h-0.5 bg-pml-accent rounded-sm transition-all duration-300 ${
               isOpen.value
                 ? "top-1/2 -translate-y-1/2 rotate-45"
                 : "top-0"
@@ -79,13 +79,13 @@ export default function MobileMenu(): JSX.Element {
             style={{ transitionTimingFunction: "cubic-bezier(0.68, -0.55, 0.265, 1.55)" }}
           />
           <span
-            class={`absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-amber-400 rounded-sm transition-all duration-300 ${
+            class={`absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-pml-accent rounded-sm transition-all duration-300 ${
               isOpen.value ? "opacity-0 -translate-x-2.5" : ""
             }`}
             style={{ transitionTimingFunction: "cubic-bezier(0.68, -0.55, 0.265, 1.55)" }}
           />
           <span
-            class={`absolute left-0 w-full h-0.5 bg-amber-400 rounded-sm transition-all duration-300 ${
+            class={`absolute left-0 w-full h-0.5 bg-pml-accent rounded-sm transition-all duration-300 ${
               isOpen.value
                 ? "bottom-1/2 translate-y-1/2 -rotate-45"
                 : "bottom-0"
@@ -104,7 +104,7 @@ export default function MobileMenu(): JSX.Element {
       />
 
       <nav
-        class={`fixed top-0 right-0 z-[999] w-[min(320px,85vw)] h-screen flex flex-col bg-gradient-to-br from-stone-900 via-stone-950 to-stone-950 border-l border-amber-400/[0.12] shadow-[-20px_0_60px_rgba(0,0,0,0.5)] overflow-hidden transition-transform duration-400 ${
+        class={`fixed top-0 right-0 z-[999] w-[min(320px,85vw)] h-screen flex flex-col bg-gradient-to-br from-stone-900 via-stone-950 to-stone-950 border-l border-pml-accent/[0.12] shadow-[-20px_0_60px_rgba(0,0,0,0.5)] overflow-hidden transition-transform duration-400 ${
           isOpen.value ? "translate-x-0" : "translate-x-full"
         }`}
         style={{
@@ -113,14 +113,14 @@ export default function MobileMenu(): JSX.Element {
         }}
         aria-hidden={!isOpen.value}
       >
-        <div class="flex items-center justify-between px-6 py-5 border-b border-amber-400/[0.08]">
-          <span class="font-serif text-2xl font-normal text-amber-400 tracking-tight">
+        <div class="flex items-center justify-between px-6 py-5 border-b border-pml-accent/[0.08]">
+          <span class="font-serif text-2xl font-normal text-pml-accent tracking-tight">
             Casys PML
           </span>
           <button
             type="button"
             onClick={closeMenu}
-            class="flex items-center justify-center w-10 h-10 p-0 bg-amber-400/5 border border-amber-400/10 rounded-[10px] text-stone-400 cursor-pointer transition-all duration-200 hover:bg-amber-400/10 hover:border-amber-400/20 hover:text-amber-400 focus:bg-amber-400/10 focus:border-amber-400/20 focus:text-amber-400 focus:outline-none"
+            class="flex items-center justify-center w-10 h-10 p-0 bg-pml-accent/5 border border-pml-accent/10 rounded-[10px] text-stone-400 cursor-pointer transition-all duration-200 hover:bg-pml-accent/10 hover:border-pml-accent/20 hover:text-pml-accent focus:bg-pml-accent/10 focus:border-pml-accent/20 focus:text-pml-accent focus:outline-none"
             aria-label="Close menu"
           >
             <CloseIcon />
@@ -136,7 +136,7 @@ export default function MobileMenu(): JSX.Element {
             >
               <a
                 href={link.href}
-                class="group relative flex items-center justify-between px-6 py-4 no-underline text-stone-100 font-sans text-lg font-medium tracking-wide transition-all duration-200 border-l-[3px] border-transparent hover:bg-amber-400/5 hover:text-amber-400 hover:pl-8 focus:bg-amber-400/5 focus:text-amber-400 focus:pl-8 focus:outline-none before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-0 before:bg-amber-400 before:rounded-r before:transition-[height] before:duration-200 hover:before:h-[60%] focus:before:h-[60%]"
+                class="group relative flex items-center justify-between px-6 py-4 no-underline text-stone-100 font-sans text-lg font-medium tracking-wide transition-all duration-200 border-l-[3px] border-transparent hover:bg-pml-accent/5 hover:text-pml-accent hover:pl-8 focus:bg-pml-accent/5 focus:text-pml-accent focus:pl-8 focus:outline-none before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-0 before:bg-pml-accent before:rounded-r before:transition-[height] before:duration-200 hover:before:h-[60%] focus:before:h-[60%]"
                 onClick={closeMenu}
                 target={link.isExternal ? "_blank" : undefined}
                 rel={link.isExternal ? "noopener noreferrer" : undefined}
@@ -148,7 +148,7 @@ export default function MobileMenu(): JSX.Element {
           ))}
         </ul>
 
-        <div class="relative px-6 py-6 border-t border-amber-400/[0.08] overflow-hidden">
+        <div class="relative px-6 py-6 border-t border-pml-accent/[0.08] overflow-hidden">
           <div class="font-mono text-[0.7rem] text-stone-500 uppercase tracking-[0.15em]">
             Procedural Memory Layer
           </div>

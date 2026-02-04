@@ -8,7 +8,7 @@ import { cta } from "../../../content/landing.ts";
 
 export function CTASection() {
   return (
-    <section class="relative z-10 py-20 px-8 bg-[#08080a] border-t border-amber-400/[0.08]">
+    <section class="relative z-10 py-20 px-8 bg-[#08080a] border-t border-pml-accent/[0.08]">
       <div class="max-w-[1200px] mx-auto">
         <div class="text-center max-w-[600px] mx-auto">
           <h2 class="font-serif text-4xl md:text-[2rem] font-normal text-stone-100 mb-4">
@@ -21,7 +21,7 @@ export function CTASection() {
           <div class="flex justify-center gap-4 flex-wrap md:flex-col">
             <a
               href={cta.actions.primary.href}
-              class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-amber-400 text-[#08080a] border-none cursor-pointer transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5"
+              class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-pml-accent text-[#08080a] border-none cursor-pointer transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5"
               target="_blank"
               rel="noopener"
             >
@@ -32,7 +32,7 @@ export function CTASection() {
             </a>
             <a
               href={cta.actions.secondary.href}
-              class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-transparent text-amber-400 border border-amber-400 cursor-pointer transition-all duration-200 hover:bg-amber-400 hover:text-[#08080a]"
+              class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-transparent text-pml-accent border border-pml-accent cursor-pointer transition-all duration-200 hover:bg-pml-accent hover:text-[#08080a]"
             >
               {cta.actions.secondary.label}
               <svg

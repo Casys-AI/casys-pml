@@ -39,11 +39,11 @@ export function TraceCarousel({
     >
       <div class="flex items-center justify-between px-1 pb-3 border-b border-white/[0.06]">
         <div class="flex items-center gap-2.5">
-          <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(255,184,111,0.5)]" />
+          <span class="w-2 h-2 rounded-full bg-pml-accent shadow-[0_0_12px_rgba(255,184,111,0.5)]" />
           <span class="font-mono text-[0.8rem] font-semibold text-neutral-100 tracking-tight">workflow:ci-deploy</span>
         </div>
-        <span class="flex items-center gap-1.5 font-mono text-[0.6rem] font-medium text-amber-400 uppercase tracking-wider px-2.5 py-1 bg-amber-400/10 border border-amber-400/20 rounded-md">
-          <span class="w-[5px] h-[5px] rounded-full bg-amber-400 animate-[carouselBlink_1.5s_ease-in-out_infinite]" />
+        <span class="flex items-center gap-1.5 font-mono text-[0.6rem] font-medium text-pml-accent uppercase tracking-wider px-2.5 py-1 bg-pml-accent/10 border border-pml-accent/20 rounded-md">
+          <span class="w-[5px] h-[5px] rounded-full bg-pml-accent animate-[carouselBlink_1.5s_ease-in-out_infinite]" />
           live
         </span>
       </div>
@@ -59,12 +59,12 @@ export function TraceCarousel({
       <div class="flex items-center justify-between px-1 pt-3 border-t border-white/[0.06]">
         <div class="flex items-center gap-3">
           <span class="flex items-baseline gap-1">
-            <span class="font-mono text-[0.85rem] font-bold text-amber-400">{rows.length}</span>
+            <span class="font-mono text-[0.85rem] font-bold text-pml-accent">{rows.length}</span>
             <span class="font-mono text-[0.55rem] text-neutral-600 uppercase tracking-wide">calls</span>
           </span>
           <span class="w-px h-3 bg-neutral-700" />
           <span class="flex items-baseline gap-1">
-            <span class="font-mono text-[0.85rem] font-bold text-amber-400">{models.size}</span>
+            <span class="font-mono text-[0.85rem] font-bold text-pml-accent">{models.size}</span>
             <span class="font-mono text-[0.55rem] text-neutral-600 uppercase tracking-wide">models</span>
           </span>
           <span class="w-px h-3 bg-neutral-700" />
@@ -83,7 +83,7 @@ export function TraceCarousel({
           )}
         </div>
         <div class="flex items-center gap-1.5 md:flex hidden">
-          <span class="font-mono text-[0.5rem] font-medium uppercase tracking-wide px-2 py-[3px] rounded text-amber-400 bg-amber-400/10">cost tracked</span>
+          <span class="font-mono text-[0.5rem] font-medium uppercase tracking-wide px-2 py-[3px] rounded text-pml-accent bg-pml-accent/10">cost tracked</span>
         </div>
       </div>
 

@@ -1,15 +1,28 @@
 /**
- * CatalogPageIsland - Server catalog with grouped server cards
+ * CatalogPageIsland - Unified MCP Catalog
  *
- * Shows server cards (not individual tools). Clicking a server card
- * navigates to the server detail page with tools list and schema viewer.
+ * Sidebar + Bento Grid layout inspired by Flowbite/shadcn.
+ * - UI Components: Bento grid with live previews
+ * - Tools/Capabilities: Compact chips
  *
  * @module web/islands/CatalogPageIsland
  */
 
-import { useMemo, useState } from "preact/hooks";
-import CatalogLayout from "../components/layout/CatalogLayout.tsx";
-import type { CatalogEntry, CatalogFilters } from "../../cloud/ui/catalog/types.ts";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import VitrineHeader from "../components/layout/VitrineHeader.tsx";
+import type { CatalogEntry } from "../../cloud/ui/catalog/types.ts";
+import {
+  buildComponentMeta,
+  getComponentBentoSize,
+  BENTO_SIZE_CONFIGS,
+} from "../data/ui-component-categories.ts";
+import {
+  AppBridge,
+  PostMessageTransport,
+} from "@modelcontextprotocol/ext-apps/app-bridge";
+import { getMockData } from "../data/ui-mock-data.ts";
+import ToolDetailPanel from "../components/shared/ToolDetailPanel.tsx";
+import CapabilityDetailPanel from "../components/shared/CapabilityDetailPanel.tsx";
 
 interface CatalogPageIslandProps {
   entries: CatalogEntry[];
@@ -20,380 +33,807 @@ interface CatalogPageIslandProps {
   isCloudMode?: boolean;
 }
 
-interface ServerCardData {
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TYPES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+type ItemType = "tool" | "capability" | "ui";
+
+interface CatalogItem {
   id: string;
-  displayName: string;
-  toolCount: number;
+  name: string;
   description: string | null;
-  routing: "local" | "cloud";
-  isStdCategory: boolean;
-  sampleTools: string[];
+  type: ItemType;
+  category: string;
+  href: string;
+  hasUi?: boolean;
+  resourceUri?: string;
+  bentoSize?: string;
 }
 
-interface CapabilityCardData {
-  namespace: string;
-  count: number;
-  capabilities: CatalogEntry[];
+interface Category {
+  id: string;
+  label: string;
+  icon: string;
+  items: CatalogItem[];
+  isUiCategory?: boolean;
 }
 
-function getServerDisplayName(serverId: string | null, toolName: string): string {
-  if (!serverId) return "Unknown";
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CATEGORY DEFINITIONS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  if (serverId === "std") {
-    const underscoreIndex = toolName.indexOf("_");
-    if (underscoreIndex > 0) {
-      const category = toolName.substring(0, underscoreIndex);
-      return category.charAt(0).toUpperCase() + category.slice(1);
-    }
-    return "Std";
+const UI_CATEGORIES: Record<string, { label: string; icon: string }> = {
+  "data-display": { label: "Data Display", icon: "📊" },
+  "charts": { label: "Charts", icon: "📈" },
+  "code": { label: "Code & Diffs", icon: "💻" },
+  "forms": { label: "Forms", icon: "📝" },
+  "visualization": { label: "Visualization", icon: "🗺️" },
+  "media": { label: "Media", icon: "🖼️" },
+  "system": { label: "System", icon: "⚙️" },
+  "security": { label: "Security", icon: "🔐" },
+};
+
+const TOOL_CATEGORIES: Record<string, { label: string; icon: string; prefixes: string[] }> = {
+  docker: { label: "Docker", icon: "🐳", prefixes: ["docker"] },
+  git: { label: "Git", icon: "📦", prefixes: ["git"] },
+  database: { label: "Database", icon: "🐘", prefixes: ["psql", "pglite", "mongo", "mysql", "redis"] },
+  network: { label: "Network", icon: "🌐", prefixes: ["http", "ssh", "dns", "ip", "cidr", "mac", "ping", "netstat", "netcat", "nslookup", "dig", "port"] },
+  kubernetes: { label: "Kubernetes", icon: "☸️", prefixes: ["k8s", "kubectl"] },
+  browser: { label: "Browser", icon: "🌍", prefixes: ["browser"] },
+  color: { label: "Colors", icon: "🎨", prefixes: ["color"] },
+  geo: { label: "Geolocation", icon: "📍", prefixes: ["geo"] },
+  faker: { label: "Mock Data", icon: "🎲", prefixes: ["faker", "data"] },
+  array: { label: "Collections", icon: "📚", prefixes: ["array"] },
+  diff: { label: "Diff & Compare", icon: "↔️", prefixes: ["diff", "compare"] },
+  encode: { label: "Encoding", icon: "🔣", prefixes: ["encode", "base"] },
+  text: { label: "Text & Format", icon: "📝", prefixes: ["text", "json", "format", "transform", "string"] },
+  file: { label: "Files", icon: "📄", prefixes: ["read", "write", "edit", "list", "move", "directory", "chmod", "chown"] },
+  process: { label: "Process", icon: "⚙️", prefixes: ["process", "ps", "kill", "free", "df", "du", "lsof", "memory"] },
+  utils: { label: "Utilities", icon: "🔧", prefixes: ["datetime", "crypto", "math", "path", "algo", "cron", "duration", "hash", "password", "random", "regex", "roman"] },
+  resilience: { label: "Resilience", icon: "🛡️", prefixes: ["resilience"] },
+  barcode: { label: "Barcodes & QR", icon: "📱", prefixes: ["barcode", "qr"] },
+  agent: { label: "AI Agents", icon: "🤖", prefixes: ["agent"] },
+  cloud: { label: "Cloud CLI", icon: "☁️", prefixes: ["aws", "gcloud", "az"] },
+  python: { label: "Python", icon: "🐍", prefixes: ["python", "pip"] },
+  media: { label: "Media", icon: "🎬", prefixes: ["media", "image", "ffmpeg", "ffprobe", "imagemagick"] },
+  archive: { label: "Archive", icon: "📦", prefixes: ["archive", "vfs", "rsync"] },
+  devtools: { label: "DevTools", icon: "🔧", prefixes: ["click", "fill", "hover", "drag", "navigate", "emulate", "evaluate", "press", "take", "new", "close", "list", "select", "resize", "wait", "handle", "performance", "get"] },
+  validation: { label: "Validation", icon: "✓", prefixes: ["validation", "schema"] },
+  env: { label: "Environment", icon: "🔐", prefixes: ["env"] },
+  jwt: { label: "JWT & Auth", icon: "🔑", prefixes: ["jwt"] },
+  other: { label: "Other Tools", icon: "🔨", prefixes: [] },
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function getToolCategory(name: string): string {
+  const prefix = name.split("_")[0]?.toLowerCase() ?? "";
+  for (const [catId, cat] of Object.entries(TOOL_CATEGORIES)) {
+    if (cat.prefixes.includes(prefix)) return catId;
   }
-
-  return serverId;
+  return "other";
 }
 
 function getServerRouteId(serverId: string, toolName: string): string {
   if (serverId === "std") {
-    const underscoreIndex = toolName.indexOf("_");
-    if (underscoreIndex > 0) {
-      return `std-${toolName.substring(0, underscoreIndex)}`;
-    }
+    const idx = toolName.indexOf("_");
+    if (idx > 0) return `std-${toolName.substring(0, idx)}`;
     return "std";
   }
   return serverId;
 }
 
-function getServerIcon(displayName: string): string {
-  const icons: Record<string, string> = {
-    Docker: "🐳",
-    Git: "📦",
-    Database: "🗄️",
-    Network: "🌐",
-    Process: "⚙️",
-    Archive: "📁",
-    Ssh: "🔐",
-    Kubernetes: "☸️",
-    Media: "🎬",
-    Cloud: "☁️",
-    Sysinfo: "💻",
-    Packages: "📦",
-    Text: "📝",
-    Json: "{ }",
-    Math: "🔢",
-    Datetime: "📅",
-    Crypto: "🔒",
-    Collections: "📚",
-    Vfs: "💾",
-    Http: "🌍",
-    Validation: "✓",
-    Format: "📋",
-    Transform: "🔄",
-    Algo: "🧮",
-    Color: "🎨",
-    String: "🔤",
-    Path: "📂",
-    Faker: "🎭",
-    Geo: "🌍",
-    Qrcode: "📱",
-    Resilience: "🛡️",
-    Schema: "📐",
-    Diff: "↔️",
-    Agent: "🤖",
-    Pml: "⚡",
-    Python: "🐍",
-    Pglite: "🐘",
-  };
-  return icons[displayName] || "🔧";
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// BENTO PREVIEW COMPONENT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface BentoPreviewProps {
+  item: CatalogItem;
+  index: number;
 }
+
+function BentoPreview({ item, index }: BentoPreviewProps) {
+  const [status, setStatus] = useState<"idle" | "loading" | "connected" | "error">("idle");
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLAnchorElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const bridgeRef = useRef<AppBridge | null>(null);
+
+  // Intersection observer for lazy loading
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Convert mock data to MCP content format
+  const resultToMcpContent = useCallback((result: unknown): Array<{ type: "text"; text: string }> => {
+    if (result === null || result === undefined) {
+      return [{ type: "text", text: "null" }];
+    }
+    if (typeof result === "string") {
+      return [{ type: "text", text: result }];
+    }
+    return [{ type: "text", text: JSON.stringify(result, null, 2) }];
+  }, []);
+
+  // Setup bridge when iframe becomes visible
+  const setupBridge = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow || !item.resourceUri) return;
+
+    if (bridgeRef.current) {
+      bridgeRef.current.close().catch(() => {});
+    }
+
+    setStatus("loading");
+
+    const bridge = new AppBridge(
+      null,
+      { name: "Catalog Preview", version: "1.0.0" },
+      { openLinks: {}, logging: {} },
+      { hostContext: { theme: "dark", displayMode: "inline" } },
+    );
+
+    const mockData = getMockData(item.resourceUri);
+
+    bridge.oninitialized = () => {
+      setStatus("connected");
+      bridge.sendToolResult({
+        content: resultToMcpContent(mockData),
+        isError: false,
+      });
+    };
+
+    bridgeRef.current = bridge;
+
+    const transport = new PostMessageTransport(
+      iframe.contentWindow,
+      iframe.contentWindow,
+    );
+
+    bridge.connect(transport).then(() => {
+      iframe.src = `/api/ui/resource?uri=${encodeURIComponent(item.resourceUri!)}`;
+    }).catch(() => {
+      setStatus("error");
+    });
+  }, [item.resourceUri, resultToMcpContent]);
+
+  // Initialize bridge when visible
+  useEffect(() => {
+    if (!isVisible || !item.resourceUri) return;
+
+    const iframe = iframeRef.current;
+    if (iframe) {
+      setupBridge();
+    }
+
+    return () => {
+      if (bridgeRef.current) {
+        bridgeRef.current.close().catch(() => {});
+        bridgeRef.current = null;
+      }
+    };
+  }, [isVisible, item.resourceUri, setupBridge]);
+
+  const animDelay = Math.min(index * 30, 400);
+  const size = item.bentoSize || "medium";
+  const config = BENTO_SIZE_CONFIGS[size as keyof typeof BENTO_SIZE_CONFIGS];
+
+  // Determine grid span classes based on size
+  const sizeClasses = size === "large" || size === "wide" ? "lg:col-span-2" : "";
+
+  return (
+    <a
+      ref={containerRef}
+      href={item.href}
+      class={`relative bg-[#0a0a0c] border border-[rgba(78,205,196,0.12)] rounded-lg overflow-hidden no-underline cursor-pointer transition-all duration-200 ease-out animate-[bentoIn_0.3s_ease-out_both] hover:border-[rgba(78,205,196,0.5)] hover:-translate-y-[3px] hover:shadow-[0_12px_32px_-8px_rgba(78,205,196,0.25),0_0_0_1px_rgba(78,205,196,0.1)] ${sizeClasses}`}
+      style={{
+        minHeight: `${config?.minHeight || 280}px`,
+        animationDelay: `${animDelay}ms`,
+      }}
+    >
+      {/* Preview area */}
+      <div class="absolute inset-0 bottom-9">
+        {isVisible && status === "loading" && (
+          <div class="flex items-center justify-center bg-gradient-to-br from-[#0c0c0e] to-[#111114] absolute inset-0">
+            <div class="w-6 h-6 rounded-full border-2 border-[#2a2a2e] border-t-[#4ECDC4] animate-spin" />
+          </div>
+        )}
+
+        {status === "error" && (
+          <div class="absolute inset-0 flex items-center justify-center text-xs text-pml-text-dim bg-[#0a0a0c]">
+            <span>Preview unavailable</span>
+          </div>
+        )}
+
+        {isVisible && item.resourceUri && (
+          <iframe
+            ref={iframeRef}
+            title={`Preview: ${item.name}`}
+            sandbox="allow-scripts allow-same-origin"
+            class="w-full h-full border-none bg-[#0a0a0c] transition-opacity duration-400 ease-out"
+            style={{
+              opacity: status === "connected" ? 1 : 0,
+            }}
+          />
+        )}
+      </div>
+
+      {/* Label overlay */}
+      <div class="absolute bottom-0 left-0 right-0 h-9 px-3 bg-[#0f0f12] border-t border-[rgba(78,205,196,0.08)] flex items-center justify-between">
+        <span class="font-mono text-xs font-medium text-pml-text group-hover:text-[#4ECDC4]">{item.name}</span>
+        <span class="text-[0.5625rem] font-semibold text-[#4ECDC4] bg-[rgba(78,205,196,0.12)] px-1.5 py-0.5 rounded border border-[rgba(78,205,196,0.2)]">UI</span>
+      </div>
+    </a>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DETAIL PANEL - uses shared ToolDetailPanel component
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface ToolDetailFromApi {
+  id: string;
+  name: string;
+  description: string | null;
+  routing: "local" | "cloud";
+  serverId: string;
+  inputSchema: Record<string, unknown> | null;
+  uiMeta: {
+    resourceUri: string;
+    emits?: string[];
+    accepts?: string[];
+  } | null;
+}
+
+interface CapabilityDetailFromApi {
+  id: string;
+  name: string;
+  action: string | null;
+  namespace: string | null;
+  description: string | null;
+  routing: "local" | "cloud";
+  code: string | null;
+  toolsUsed: string[];
+  inputSchema: {
+    type: string;
+    properties?: Record<string, {
+      type: string;
+      examples?: unknown[];
+      description?: string;
+    }>;
+    required?: string[];
+  } | null;
+}
+
+interface DetailPanelProps {
+  item: CatalogItem;
+  onClose: () => void;
+}
+
+function DetailPanel({ item, onClose }: DetailPanelProps) {
+  const [toolDetail, setToolDetail] = useState<ToolDetailFromApi | null>(null);
+  const [capabilityDetail, setCapabilityDetail] = useState<CapabilityDetailFromApi | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // Fetch tool details when item changes (only for tools)
+  useEffect(() => {
+    if (item.type !== "tool") {
+      setToolDetail(null);
+      return;
+    }
+
+    const toolId = item.id.replace("tool-", "");
+
+    setDetailLoading(true);
+    fetch(`/api/catalog/tool/${encodeURIComponent(toolId)}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        setToolDetail(data);
+        setDetailLoading(false);
+      })
+      .catch(() => {
+        setToolDetail(null);
+        setDetailLoading(false);
+      });
+  }, [item.id, item.type]);
+
+  // Fetch capability details when item changes (only for capabilities)
+  useEffect(() => {
+    if (item.type !== "capability") {
+      setCapabilityDetail(null);
+      return;
+    }
+
+    const capId = item.id.replace("cap-", "");
+
+    setDetailLoading(true);
+    fetch(`/api/catalog/capability/${encodeURIComponent(capId)}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        setCapabilityDetail(data);
+        setDetailLoading(false);
+      })
+      .catch(() => {
+        setCapabilityDetail(null);
+        setDetailLoading(false);
+      });
+  }, [item.id, item.type]);
+
+  // For capabilities, use CapabilityDetailPanel with fetched data
+  if (item.type === "capability") {
+    if (detailLoading) {
+      return (
+        <div class="mt-3 bg-[#0f0f12] border border-[rgba(74,222,128,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
+          <div class="w-6 h-6 rounded-full border-2 border-[#2a2a2e] border-t-[#4ade80] animate-spin" />
+          <span>Chargement...</span>
+        </div>
+      );
+    }
+
+    if (!capabilityDetail) {
+      return (
+        <div class="mt-3 bg-[#0f0f12] border border-[rgba(74,222,128,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
+          <span>Impossible de charger les details</span>
+          <button
+            type="button"
+            onClick={onClose}
+            class="font-mono text-[0.6875rem] text-pml-text-dim bg-transparent border border-[rgba(74,222,128,0.2)] px-3 py-1.5 rounded cursor-pointer transition-all duration-150 hover:border-[rgba(74,222,128,0.4)] hover:text-[#4ade80]"
+          >
+            Fermer
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <CapabilityDetailPanel
+        capability={{
+          name: capabilityDetail.name,
+          action: capabilityDetail.action,
+          namespace: capabilityDetail.namespace,
+          description: capabilityDetail.description,
+          routing: capabilityDetail.routing,
+          code: capabilityDetail.code,
+          toolsUsed: capabilityDetail.toolsUsed,
+          inputSchema: capabilityDetail.inputSchema,
+        }}
+        onClose={onClose}
+        detailHref={item.href}
+        loading={detailLoading}
+      />
+    );
+  }
+
+  // For tools, use ToolDetailPanel with fetched data
+  if (!toolDetail && detailLoading) {
+    return (
+      <div class="mt-3 bg-[#0f0f12] border border-[rgba(255,184,111,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
+        <div class="w-6 h-6 rounded-full border-2 border-[#2a2a2e] border-t-pml-accent animate-spin" />
+        <span>Loading tool details...</span>
+      </div>
+    );
+  }
+
+  if (!toolDetail) {
+    return (
+      <div class="mt-3 bg-[#0f0f12] border border-[rgba(255,184,111,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
+        <span>Could not load tool details</span>
+        <button
+          type="button"
+          onClick={onClose}
+          class="font-mono text-[0.6875rem] text-pml-text-dim bg-transparent border border-[rgba(255,184,111,0.2)] px-3 py-1.5 rounded cursor-pointer transition-all duration-150 hover:border-[rgba(255,184,111,0.4)] hover:text-pml-accent"
+        >
+          Close
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <ToolDetailPanel
+      tool={{
+        name: toolDetail.name,
+        description: toolDetail.description,
+        routing: toolDetail.routing,
+        inputSchema: toolDetail.inputSchema,
+        uiMeta: toolDetail.uiMeta,
+      }}
+      onClose={onClose}
+      detailHref={item.href}
+      schemaLoading={detailLoading}
+    />
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MAIN COMPONENT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export default function CatalogPageIsland({
   entries,
-  user,
-  isCloudMode,
+  user: _user,
+  isCloudMode: _isCloudMode,
 }: CatalogPageIslandProps) {
-  const [filters, setFilters] = useState<CatalogFilters>({
-    search: "",
-    recordTypes: [],
-  });
+  void _user;
+  void _isCloudMode;
 
-  const serverCards = useMemo(() => {
-    const groups = new Map<string, {
-      entries: CatalogEntry[];
-      displayName: string;
-      isStdCategory: boolean;
-    }>();
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
 
-    entries.forEach((e) => {
-      if (e.recordType === "mcp-tool" && e.serverId) {
-        const displayName = getServerDisplayName(e.serverId, e.name);
-        const routeId = getServerRouteId(e.serverId, e.name);
+  // Build UI components
+  const uiComponents = useMemo(() => buildComponentMeta(), []);
 
-        if (!groups.has(routeId)) {
-          groups.set(routeId, {
-            entries: [],
-            displayName,
-            isStdCategory: e.serverId === "std",
-          });
-        }
-        groups.get(routeId)!.entries.push(e);
-      }
-    });
+  // Build categories with items
+  const categories = useMemo(() => {
+    const cats: Category[] = [];
 
-    const cards: ServerCardData[] = [];
-    groups.forEach((group, id) => {
-      const firstEntry = group.entries[0];
-      cards.push({
-        id,
-        displayName: group.displayName,
-        toolCount: group.entries.length,
-        description: generateServerDescription(group.entries, group.displayName),
-        routing: firstEntry.routing,
-        isStdCategory: group.isStdCategory,
-        sampleTools: group.entries.slice(0, 3).map(e => e.name),
+    // 1. UI Component categories
+    for (const [catId, catInfo] of Object.entries(UI_CATEGORIES)) {
+      const catComponents = uiComponents.filter((c) => c.category === catId);
+      if (catComponents.length === 0) continue;
+
+      cats.push({
+        id: `ui-${catId}`,
+        label: catInfo.label,
+        icon: catInfo.icon,
+        isUiCategory: true,
+        items: catComponents.map((comp) => ({
+          id: `ui-${comp.id}`,
+          name: comp.name,
+          description: comp.description,
+          type: "ui" as ItemType,
+          category: `ui-${catId}`,
+          href: `/catalog/ui/${comp.id}`,
+          hasUi: true,
+          resourceUri: comp.resourceUri,
+          bentoSize: getComponentBentoSize(comp.id),
+        })),
       });
-    });
-
-    return cards.sort((a, b) => b.toolCount - a.toolCount);
-  }, [entries]);
-
-  const filteredCards = useMemo(() => {
-    return serverCards.filter((card) => {
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesSearch =
-          card.displayName.toLowerCase().includes(searchLower) ||
-          card.id.toLowerCase().includes(searchLower) ||
-          card.sampleTools.some(t => t.toLowerCase().includes(searchLower));
-        if (!matchesSearch) return false;
-      }
-      return true;
-    });
-  }, [serverCards, filters]);
-
-  const capabilityCards = useMemo(() => {
-    const groups = new Map<string, CatalogEntry[]>();
-
-    entries.forEach((e) => {
-      if (e.recordType === "capability" && e.namespace) {
-        if (!groups.has(e.namespace)) {
-          groups.set(e.namespace, []);
-        }
-        groups.get(e.namespace)!.push(e);
-      }
-    });
-
-    const cards: CapabilityCardData[] = [];
-    groups.forEach((capabilities, namespace) => {
-      cards.push({ namespace, count: capabilities.length, capabilities });
-    });
-
-    return cards.sort((a, b) => b.count - a.count);
-  }, [entries]);
-
-  const filteredCapabilities = useMemo(() => {
-    if (!filters.search) return capabilityCards;
-    const searchLower = filters.search.toLowerCase();
-    return capabilityCards.filter((card) =>
-      card.namespace.toLowerCase().includes(searchLower) ||
-      card.capabilities.some((c) =>
-        c.name.toLowerCase().includes(searchLower) ||
-        c.action?.toLowerCase().includes(searchLower)
-      )
-    );
-  }, [capabilityCards, filters]);
-
-  const capabilityCount = entries.filter(e => e.recordType === "capability").length;
-
-  const clearFilters = () => {
-    setFilters({ search: "", recordTypes: [] });
-  };
-
-  const hasActiveFilters = filters.search.length > 0;
-
-  const sidebar = (
-    <div class="flex flex-col gap-6">
-      <div class="flex justify-between items-center">
-        <h2 class="text-xs font-semibold uppercase tracking-widest text-stone-500">Filters</h2>
-        {hasActiveFilters && (
-          <button type="button" class="text-xs text-amber-400 bg-transparent border-none cursor-pointer p-0 transition-opacity duration-200 hover:opacity-80" onClick={clearFilters}>
-            Clear all
-          </button>
-        )}
-      </div>
-
-      <div class="flex flex-col gap-3">
-        <label class="text-xs font-medium uppercase tracking-wide text-stone-400">Search</label>
-        <div class="relative">
-          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <circle cx="11" cy="11" r="8" strokeWidth="2" />
-            <path strokeWidth="2" d="m21 21-4.35-4.35" />
-          </svg>
-          <input
-            type="text"
-            value={filters.search}
-            onInput={(e) => setFilters({ ...filters, search: (e.target as HTMLInputElement).value })}
-            placeholder="Search servers & tools..."
-            class="w-full py-2.5 px-3 pl-9 text-sm text-stone-100 bg-stone-950 border border-amber-500/10 rounded-lg outline-none transition-all duration-200 placeholder:text-stone-500 focus:border-amber-500/30 focus:shadow-[0_0_0_3px_rgba(255,184,111,0.05)]"
-          />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3">
-        <div class="flex flex-col gap-1 p-3.5 bg-stone-950 border border-amber-500/10 rounded-lg">
-          <span class="text-2xl font-semibold font-mono text-amber-400">{serverCards.length}</span>
-          <span class="text-xs text-stone-500 uppercase tracking-wide">Servers</span>
-        </div>
-        <div class="flex flex-col gap-1 p-3.5 bg-stone-950 border border-amber-500/10 rounded-lg">
-          <span class="text-2xl font-semibold font-mono text-amber-400">{entries.filter(e => e.recordType === "mcp-tool").length}</span>
-          <span class="text-xs text-stone-500 uppercase tracking-wide">MCP Tools</span>
-        </div>
-        {capabilityCount > 0 && (
-          <div class="flex flex-col gap-1 p-3.5 bg-stone-950 border border-amber-500/10 rounded-lg">
-            <span class="text-2xl font-semibold font-mono text-amber-400">{capabilityCount}</span>
-            <span class="text-xs text-stone-500 uppercase tracking-wide">Capabilities</span>
-          </div>
-        )}
-      </div>
-
-      <div class="pt-4 border-t border-amber-500/10 text-[0.8125rem] text-stone-500">
-        Showing <strong class="text-amber-400 font-semibold">{filteredCards.length}</strong> of {serverCards.length} servers
-      </div>
-    </div>
-  );
-
-  return (
-    <CatalogLayout sidebar={sidebar} user={user} isCloudMode={isCloudMode}>
-      <div class="mb-8">
-        <h1 class="font-serif text-[2rem] font-normal text-stone-100 mb-2">MCP Server Catalog</h1>
-        <p class="text-base text-stone-400 max-w-[600px]">
-          Browse available MCP servers and their tools. Click a server to explore its API.
-        </p>
-      </div>
-
-      {filteredCapabilities.length > 0 && (
-        <>
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500 mb-4">Learned Capabilities</h2>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5">
-            {filteredCapabilities.map((card) => (
-              <CapabilityCard key={card.namespace} card={card} />
-            ))}
-          </div>
-        </>
-      )}
-
-      {filteredCards.length > 0 && (
-        <>
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500 mb-4 mt-10">
-            MCP Servers
-          </h2>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5">
-            {filteredCards.map((card) => (
-              <ServerCard key={card.id} card={card} />
-            ))}
-          </div>
-        </>
-      )}
-
-      {filteredCards.length === 0 && filteredCapabilities.length === 0 && (
-        <div class="text-center py-16 px-8 bg-stone-950 border border-amber-500/10 rounded-xl">
-          <svg class="w-12 h-12 mx-auto mb-4 text-stone-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <circle cx="11" cy="11" r="8" strokeWidth="1.5" />
-            <path strokeWidth="1.5" d="m21 21-4.35-4.35" />
-          </svg>
-          <h3 class="text-lg text-stone-100 mb-2">No results found</h3>
-          <p class="text-sm text-stone-500">Try adjusting your search query</p>
-        </div>
-      )}
-    </CatalogLayout>
-  );
-}
-
-function generateServerDescription(entries: CatalogEntry[], displayName: string): string {
-  const withDesc = entries.find((e) => e.description);
-  if (withDesc && withDesc.description) {
-    const firstSentence = withDesc.description.split(".")[0];
-    if (firstSentence.length > 0 && firstSentence.length < 80) {
-      return firstSentence;
     }
-  }
-  return `${entries.length} tools from ${displayName}`;
-}
 
-function ServerCard({ card }: { card: ServerCardData }) {
-  const icon = getServerIcon(card.displayName);
+    // 2. Tool categories
+    const toolEntries = entries.filter((e) => e.recordType === "mcp-tool");
+    const toolsByCategory = new Map<string, CatalogItem[]>();
+
+    for (const entry of toolEntries) {
+      const catId = getToolCategory(entry.name);
+      if (!toolsByCategory.has(catId)) {
+        toolsByCategory.set(catId, []);
+      }
+      const entryUiMeta = (entry as any).uiMeta;
+      toolsByCategory.get(catId)!.push({
+        id: `tool-${entry.id}`,
+        name: entry.name,
+        description: entry.description,
+        type: "tool",
+        category: catId,
+        href: `/catalog/${getServerRouteId(entry.serverId || "std", entry.name)}#${entry.name}`,
+        hasUi: !!entryUiMeta?.resourceUri,
+        resourceUri: entryUiMeta?.resourceUri,
+      });
+    }
+
+    for (const [catId, catInfo] of Object.entries(TOOL_CATEGORIES)) {
+      const items = toolsByCategory.get(catId) || [];
+      if (items.length === 0) continue;
+
+      items.sort((a, b) => a.name.localeCompare(b.name));
+      cats.push({
+        id: catId,
+        label: catInfo.label,
+        icon: catInfo.icon,
+        items,
+      });
+    }
+
+    // 3. Capabilities
+    const capEntries = entries.filter((e) => e.recordType === "capability");
+    if (capEntries.length > 0) {
+      cats.push({
+        id: "capabilities",
+        label: "Capabilities",
+        icon: "⚡",
+        items: capEntries.map((entry) => ({
+          id: `cap-${entry.id}`,
+          name: entry.action || entry.name,
+          description: entry.description,
+          type: "capability" as ItemType,
+          category: "capabilities",
+          href: `/catalog/ns/${encodeURIComponent(entry.namespace || "default")}#${entry.name}`,
+        })),
+      });
+    }
+
+    return cats;
+  }, [entries, uiComponents]);
+
+  // Filter items
+  const filteredCategories = useMemo(() => {
+    if (!search && !activeCategory) return categories;
+
+    return categories
+      .filter((cat) => !activeCategory || cat.id === activeCategory)
+      .map((cat) => ({
+        ...cat,
+        items: cat.items.filter((item) => {
+          if (!search) return true;
+          const q = search.toLowerCase();
+          return (
+            item.name.toLowerCase().includes(q) ||
+            item.description?.toLowerCase().includes(q)
+          );
+        }),
+      }))
+      .filter((cat) => cat.items.length > 0);
+  }, [categories, search, activeCategory]);
+
+  // Stats
+  const totalItems = categories.reduce((sum, cat) => sum + cat.items.length, 0);
+  const filteredCount = filteredCategories.reduce((sum, cat) => sum + cat.items.length, 0);
+
+  // Auto-select first tool when category changes (only for non-UI categories)
+  useEffect(() => {
+    if (!activeCategory) {
+      setSelectedItem(null);
+      return;
+    }
+
+    const cat = categories.find((c) => c.id === activeCategory);
+    if (cat && !cat.isUiCategory && cat.items.length > 0) {
+      // Select first tool/capability in the category
+      setSelectedItem(cat.items[0]);
+    } else {
+      setSelectedItem(null);
+    }
+  }, [activeCategory, categories]);
 
   return (
-    <a
-      href={`/catalog/${card.id}`}
-      class="group flex items-start gap-4 p-5 bg-gradient-to-br from-stone-950 to-stone-900 border border-amber-500/10 rounded-2xl cursor-pointer no-underline transition-all duration-300 ease-out relative overflow-hidden hover:border-amber-500/20 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.4)]"
-    >
-      <div class="absolute inset-0 bg-gradient-to-br from-amber-500/[0.03] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+    <div class="min-h-screen bg-pml-bg text-pml-text font-sans pt-[60px] flex flex-col">
+      <VitrineHeader activePage="catalog" />
 
-      <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center shrink-0">
-        <span class="text-2xl">{icon}</span>
+      <div class="flex flex-1 max-w-[1600px] mx-auto w-full max-md:flex-col">
+        {/* Sidebar */}
+        <aside class="w-[200px] flex-shrink-0 bg-[#0f0f12] border-r border-[rgba(255,184,111,0.06)] py-4 sticky top-[60px] h-[calc(100vh-60px)] overflow-y-auto max-md:w-full max-md:relative max-md:top-0 max-md:h-auto max-md:border-r-0 max-md:border-b max-md:border-[rgba(255,184,111,0.06)] max-md:p-2">
+          <div class="flex items-center justify-between px-3 pb-3 border-b border-[rgba(255,184,111,0.06)] mb-2">
+            <h2 class="font-serif text-base font-normal m-0">Catalogue</h2>
+            <span class="font-mono text-[0.625rem] text-pml-text-dim bg-[rgba(255,184,111,0.08)] px-1.5 py-0.5 rounded">{totalItems}</span>
+          </div>
+
+          <nav class="flex flex-col gap-0.5 px-1.5 max-md:flex-row max-md:flex-wrap max-md:gap-1">
+            <button
+              type="button"
+              class={`flex items-center gap-1.5 px-2 py-1.5 text-xs bg-transparent border-none rounded cursor-pointer transition-all duration-100 text-left w-full max-md:py-1 max-md:px-1.5 max-md:text-[0.6875rem] ${
+                !activeCategory
+                  ? "bg-[rgba(255,184,111,0.1)] text-pml-accent"
+                  : "text-stone-400 hover:bg-[rgba(255,184,111,0.06)] hover:text-pml-text"
+              }`}
+              onClick={() => setActiveCategory(null)}
+            >
+              <span class="text-[0.8125rem] w-[1.125rem] text-center">📚</span>
+              <span class="flex-1 whitespace-nowrap overflow-hidden text-ellipsis">Tous</span>
+              <span class="font-mono text-[0.5625rem] text-pml-text-dim bg-[rgba(255,255,255,0.04)] px-1 py-0.5 rounded-sm">{totalItems}</span>
+            </button>
+
+            <div class="py-2.5 px-1.5 text-[0.5625rem] font-mono uppercase tracking-wider text-[#4a4540] max-md:w-full max-md:p-1"><span>UI Components</span></div>
+
+            {categories.filter((c) => c.isUiCategory).map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                class={`flex items-center gap-1.5 px-2 py-1.5 text-xs bg-transparent border-none rounded cursor-pointer transition-all duration-100 text-left w-full max-md:py-1 max-md:px-1.5 max-md:text-[0.6875rem] ${
+                  activeCategory === cat.id
+                    ? "bg-[rgba(255,184,111,0.1)] text-pml-accent"
+                    : "text-stone-400 hover:bg-[rgba(255,184,111,0.06)] hover:text-pml-text"
+                }`}
+                onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+              >
+                <span class="text-[0.8125rem] w-[1.125rem] text-center">{cat.icon}</span>
+                <span class="flex-1 whitespace-nowrap overflow-hidden text-ellipsis">{cat.label}</span>
+                <span class="font-mono text-[0.5625rem] text-pml-text-dim bg-[rgba(255,255,255,0.04)] px-1 py-0.5 rounded-sm">{cat.items.length}</span>
+              </button>
+            ))}
+
+            <div class="py-2.5 px-1.5 text-[0.5625rem] font-mono uppercase tracking-wider text-[#4a4540] max-md:w-full max-md:p-1"><span>MCP Tools</span></div>
+
+            {categories.filter((c) => !c.isUiCategory && c.id !== "capabilities").map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                class={`flex items-center gap-1.5 px-2 py-1.5 text-xs bg-transparent border-none rounded cursor-pointer transition-all duration-100 text-left w-full max-md:py-1 max-md:px-1.5 max-md:text-[0.6875rem] ${
+                  activeCategory === cat.id
+                    ? "bg-[rgba(255,184,111,0.1)] text-pml-accent"
+                    : "text-stone-400 hover:bg-[rgba(255,184,111,0.06)] hover:text-pml-text"
+                }`}
+                onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+              >
+                <span class="text-[0.8125rem] w-[1.125rem] text-center">{cat.icon}</span>
+                <span class="flex-1 whitespace-nowrap overflow-hidden text-ellipsis">{cat.label}</span>
+                <span class="font-mono text-[0.5625rem] text-pml-text-dim bg-[rgba(255,255,255,0.04)] px-1 py-0.5 rounded-sm">{cat.items.length}</span>
+              </button>
+            ))}
+
+            {categories.find((c) => c.id === "capabilities") && (
+              <>
+                <div class="py-2.5 px-1.5 text-[0.5625rem] font-mono uppercase tracking-wider text-[#4a4540] max-md:w-full max-md:p-1"><span>Workflows</span></div>
+                <button
+                  type="button"
+                  class={`flex items-center gap-1.5 px-2 py-1.5 text-xs bg-transparent border-none rounded cursor-pointer transition-all duration-100 text-left w-full max-md:py-1 max-md:px-1.5 max-md:text-[0.6875rem] ${
+                    activeCategory === "capabilities"
+                      ? "bg-[rgba(255,184,111,0.1)] text-pml-accent"
+                      : "text-stone-400 hover:bg-[rgba(255,184,111,0.06)] hover:text-pml-text"
+                  }`}
+                  onClick={() => setActiveCategory(activeCategory === "capabilities" ? null : "capabilities")}
+                >
+                  <span class="text-[0.8125rem] w-[1.125rem] text-center">⚡</span>
+                  <span class="flex-1 whitespace-nowrap overflow-hidden text-ellipsis">Capabilities</span>
+                  <span class="font-mono text-[0.5625rem] text-pml-text-dim bg-[rgba(255,255,255,0.04)] px-1 py-0.5 rounded-sm">
+                    {categories.find((c) => c.id === "capabilities")?.items.length || 0}
+                  </span>
+                </button>
+              </>
+            )}
+          </nav>
+        </aside>
+
+        {/* Main content */}
+        <main class="flex-1 p-4 px-5 overflow-y-auto">
+          {/* Search bar */}
+          <div class="flex items-center gap-4 mb-4">
+            <div class="flex-1 relative max-w-[320px]">
+              <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-pml-text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="11" cy="11" r="8" strokeWidth="2" />
+                <path strokeWidth="2" d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+                placeholder="Rechercher..."
+                class="w-full py-2 px-2.5 pl-8 font-mono text-xs text-pml-text bg-[#141418] border border-[rgba(255,184,111,0.08)] rounded outline-none focus:border-[rgba(255,184,111,0.25)] placeholder:text-pml-text-dim"
+              />
+              {search && (
+                <button
+                  type="button"
+                  class="absolute right-1.5 top-1/2 -translate-y-1/2 bg-transparent border-none text-pml-text-dim cursor-pointer text-sm p-1"
+                  onClick={() => setSearch("")}
+                >
+                  x
+                </button>
+              )}
+            </div>
+            <div class="flex items-center gap-1 text-[0.6875rem]">
+              <span class="font-mono font-semibold text-pml-text">{filteredCount}</span>
+              <span class="text-pml-text-dim">resultats</span>
+              {activeCategory && (
+                <button
+                  type="button"
+                  class="ml-1.5 text-pml-accent bg-transparent border-none cursor-pointer text-[0.625rem]"
+                  onClick={() => setActiveCategory(null)}
+                >
+                  Effacer
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Content */}
+          <div class="flex flex-col gap-5">
+            {filteredCategories.map((cat) => (
+              <section key={cat.id} class="bg-[#0f0f12] border border-[rgba(255,184,111,0.06)] rounded-md p-3.5">
+                <h3 class="flex items-center gap-1.5 m-0 mb-3 text-xs font-medium">
+                  <span class="text-sm">{cat.icon}</span>
+                  <span class="text-pml-text">{cat.label}</span>
+                  <span class="font-mono text-[0.5625rem] text-pml-text-dim bg-[rgba(255,255,255,0.04)] px-1 py-0.5 rounded-sm ml-auto">{cat.items.length}</span>
+                </h3>
+
+                {/* UI Categories: Bento Grid with Previews */}
+                {cat.isUiCategory ? (
+                  <div class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4 items-start max-lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-md:grid-cols-1">
+                    {cat.items.map((item, i) => (
+                      <BentoPreview key={item.id} item={item} index={i} />
+                    ))}
+                  </div>
+                ) : (
+                  /* Tools/Capabilities: Chips + Detail Panel */
+                  <>
+                    <div class="flex flex-wrap gap-1">
+                      {cat.items.map((item, i) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          class={`inline-flex items-center gap-1 px-2 py-1 font-mono text-[0.625rem] bg-[#141418] border rounded-sm no-underline cursor-pointer transition-all duration-100 animate-[chipIn_0.15s_ease-out_both] ${
+                            selectedItem?.id === item.id
+                              ? item.type === "capability"
+                                ? "bg-[rgba(74,222,128,0.15)] border-[rgba(74,222,128,0.4)] text-[#4ade80] shadow-[0_0_0_1px_rgba(74,222,128,0.2)]"
+                                : "bg-[rgba(255,184,111,0.15)] border-[rgba(255,184,111,0.4)] text-pml-accent shadow-[0_0_0_1px_rgba(255,184,111,0.2)]"
+                              : item.type === "capability"
+                                ? "text-stone-400 border-[rgba(74,222,128,0.1)] hover:bg-[rgba(74,222,128,0.08)] hover:border-[rgba(74,222,128,0.3)] hover:text-[#4ade80]"
+                                : "text-stone-400 border-[rgba(255,184,111,0.06)] hover:bg-[rgba(255,184,111,0.08)] hover:border-[rgba(255,184,111,0.3)] hover:text-pml-accent"
+                          }`}
+                          style={{ animationDelay: `${Math.min(i * 10, 200)}ms` }}
+                          onClick={() => setSelectedItem(selectedItem?.id === item.id ? null : item)}
+                        >
+                          <span class="whitespace-nowrap overflow-hidden text-ellipsis max-w-[160px]">{item.name}</span>
+                          {item.type === "capability" && <span class="text-[0.5rem] opacity-70 text-[#4ade80]">⚡</span>}
+                          {item.hasUi && item.type === "tool" && <span class="text-[0.5rem] opacity-70 text-[#4ECDC4]">◉</span>}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Detail Panel - shows when an item from this category is selected */}
+                    {selectedItem && cat.items.some(item => item.id === selectedItem.id) && (
+                      <DetailPanel item={selectedItem} onClose={() => setSelectedItem(null)} />
+                    )}
+                  </>
+                )}
+              </section>
+            ))}
+
+            {filteredCategories.length === 0 && (
+              <div class="flex flex-col items-center p-8 text-center bg-[#0f0f12] border border-dashed border-[rgba(255,184,111,0.1)] rounded-md">
+                <span class="text-2xl opacity-50 mb-2">🔍</span>
+                <p class="text-xs text-pml-text-dim m-0 mb-3">Aucun resultat</p>
+                <button
+                  type="button"
+                  class="font-mono text-[0.625rem] text-pml-accent bg-transparent border border-[rgba(255,184,111,0.3)] px-3 py-1.5 rounded-sm cursor-pointer"
+                  onClick={() => { setSearch(""); setActiveCategory(null); }}
+                >
+                  Reinitialiser
+                </button>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
 
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-3 mb-1.5">
-          <h3 class="text-lg font-semibold text-stone-100 whitespace-nowrap overflow-hidden text-ellipsis">{card.displayName}</h3>
-          <span class="text-xs font-mono text-amber-400 bg-amber-500/10 py-0.5 px-2 rounded shrink-0">{card.toolCount} tools</span>
+      {/* Footer */}
+      <footer class="bg-pml-bg border-t border-[rgba(255,184,111,0.06)] px-6 py-4">
+        <div class="max-w-[1600px] mx-auto flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <span class="font-serif text-sm text-pml-accent">Casys PML</span>
+            <span class="text-[0.625rem] text-pml-text-dim">Procedural Memory Layer</span>
+          </div>
+          <div class="flex gap-4">
+            <a href="https://casys.ai" target="_blank" rel="noopener" class="text-[0.625rem] text-pml-text-dim no-underline hover:text-pml-accent">Casys.ai</a>
+            <a href="https://github.com/Casys-AI/casys-pml" target="_blank" rel="noopener" class="text-[0.625rem] text-pml-text-dim no-underline hover:text-pml-accent">GitHub</a>
+          </div>
         </div>
+      </footer>
 
-        <p class="text-sm leading-relaxed text-stone-400 mb-3">{card.description}</p>
-
-        <div class="flex flex-wrap gap-1.5">
-          {card.sampleTools.map((tool, i) => (
-            <span key={i} class="text-[0.6875rem] font-mono text-stone-500 bg-white/[0.03] py-0.5 px-1.5 rounded-sm whitespace-nowrap">{tool}</span>
-          ))}
-          {card.toolCount > 3 && (
-            <span class="text-[0.6875rem] font-mono text-amber-400 py-0.5 px-1.5">+{card.toolCount - 3}</span>
-          )}
-        </div>
-      </div>
-
-      <span class={`absolute top-4 right-10 text-[0.6875rem] ${card.routing === "cloud" ? "text-blue-400" : "text-stone-500"}`}>
-        {card.routing === "cloud" ? "☁️ Cloud" : "💻 Local"}
-      </span>
-
-      <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:text-amber-400 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" />
-      </svg>
-    </a>
-  );
-}
-
-function CapabilityCard({ card }: { card: CapabilityCardData }) {
-  const sampleActions = card.capabilities.slice(0, 3).map((c) => c.action || c.name);
-
-  return (
-    <a
-      href={`/catalog/ns/${encodeURIComponent(card.namespace)}`}
-      class="group flex items-start gap-4 p-5 bg-gradient-to-br from-stone-950 to-stone-900 border border-green-400/10 rounded-2xl cursor-pointer no-underline transition-all duration-300 ease-out relative overflow-hidden hover:border-green-400/25 hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.4)]"
-    >
-      <div class="absolute inset-0 bg-gradient-to-br from-green-400/[0.03] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
-      <div class="w-12 h-12 bg-green-400/10 rounded-xl flex items-center justify-center shrink-0">
-        <span class="text-2xl">⚡</span>
-      </div>
-
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-3 mb-2">
-          <h3 class="text-lg font-semibold text-stone-100 font-mono whitespace-nowrap overflow-hidden text-ellipsis">{card.namespace}</h3>
-          <span class="text-xs font-mono text-green-400 bg-green-400/10 py-0.5 px-2 rounded shrink-0">{card.count} capabilities</span>
-        </div>
-
-        <div class="flex flex-wrap gap-1.5">
-          {sampleActions.map((action, i) => (
-            <span key={i} class="text-[0.6875rem] font-mono text-stone-500 bg-white/[0.03] py-0.5 px-1.5 rounded-sm whitespace-nowrap">{action}</span>
-          ))}
-          {card.count > 3 && (
-            <span class="text-[0.6875rem] font-mono text-green-400 py-0.5 px-1.5">+{card.count - 3}</span>
-          )}
-        </div>
-      </div>
-
-      <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:text-green-400 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" />
-      </svg>
-    </a>
+      {/* Minimal style block for keyframe animations only */}
+      <style>
+        {`
+        @keyframes bentoIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes chipIn {
+          from { opacity: 0; transform: translateY(3px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        `}
+      </style>
+    </div>
   );
 }

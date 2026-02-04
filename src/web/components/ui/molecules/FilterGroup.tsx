@@ -65,7 +65,7 @@ export default function FilterGroup({
             key={item.id}
             class={`flex items-center gap-2.5 py-1.5 px-3 -mx-3 rounded-lg transition-all duration-200 ${
               item.active === false ? "opacity-35" : ""
-            } ${isClickable ? "cursor-pointer hover:bg-amber-400/10" : ""}`}
+            } ${isClickable ? "cursor-pointer hover:bg-pml-accent/10" : ""}`}
             onClick={() => onToggle?.(item.id)}
           >
             {showIndicator === "dot" && <DotIndicator color={color} />}

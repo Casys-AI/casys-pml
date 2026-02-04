@@ -88,7 +88,7 @@ export default function CapabilityCarousel({ capabilities }: Props) {
     >
       <button
         type="button"
-        class="absolute top-1/2 -translate-y-1/2 z-10 w-[46px] h-[46px] border border-amber-400/30 rounded-full bg-stone-950/[0.98] text-amber-400 text-[1.6rem] cursor-pointer transition-all duration-200 flex items-center justify-center backdrop-blur-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:border-amber-400/60 hover:bg-amber-400/15 hover:scale-[1.08] hover:shadow-[0_4px_24px_rgba(255,184,111,0.2)] left-3 md:left-3 max-[768px]:w-9 max-[768px]:h-9 max-[768px]:text-xl max-[768px]:left-1 max-[480px]:w-8 max-[480px]:h-8 max-[480px]:text-[1.1rem] max-[480px]:top-auto max-[480px]:bottom-0 max-[480px]:translate-y-0 max-[480px]:left-[calc(50%-40px)]"
+        class="absolute top-1/2 -translate-y-1/2 z-10 w-[46px] h-[46px] border border-pml-accent/30 rounded-full bg-stone-950/[0.98] text-pml-accent text-[1.6rem] cursor-pointer transition-all duration-200 flex items-center justify-center backdrop-blur-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:border-pml-accent/60 hover:bg-pml-accent/15 hover:scale-[1.08] hover:shadow-[0_4px_24px_rgba(255,184,111,0.2)] left-3 md:left-3 max-[768px]:w-9 max-[768px]:h-9 max-[768px]:text-xl max-[768px]:left-1 max-[480px]:w-8 max-[480px]:h-8 max-[480px]:text-[1.1rem] max-[480px]:top-auto max-[480px]:bottom-0 max-[480px]:translate-y-0 max-[480px]:left-[calc(50%-40px)]"
         aria-label="Previous"
         onClick={() => handleScroll("prev")}
       >
@@ -96,7 +96,7 @@ export default function CapabilityCarousel({ capabilities }: Props) {
       </button>
       <button
         type="button"
-        class="absolute top-1/2 -translate-y-1/2 z-10 w-[46px] h-[46px] border border-amber-400/30 rounded-full bg-stone-950/[0.98] text-amber-400 text-[1.6rem] cursor-pointer transition-all duration-200 flex items-center justify-center backdrop-blur-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:border-amber-400/60 hover:bg-amber-400/15 hover:scale-[1.08] hover:shadow-[0_4px_24px_rgba(255,184,111,0.2)] right-3 md:right-3 max-[768px]:w-9 max-[768px]:h-9 max-[768px]:text-xl max-[768px]:right-1 max-[480px]:w-8 max-[480px]:h-8 max-[480px]:text-[1.1rem] max-[480px]:top-auto max-[480px]:bottom-0 max-[480px]:translate-y-0 max-[480px]:right-[calc(50%-40px)]"
+        class="absolute top-1/2 -translate-y-1/2 z-10 w-[46px] h-[46px] border border-pml-accent/30 rounded-full bg-stone-950/[0.98] text-pml-accent text-[1.6rem] cursor-pointer transition-all duration-200 flex items-center justify-center backdrop-blur-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.4)] hover:border-pml-accent/60 hover:bg-pml-accent/15 hover:scale-[1.08] hover:shadow-[0_4px_24px_rgba(255,184,111,0.2)] right-3 md:right-3 max-[768px]:w-9 max-[768px]:h-9 max-[768px]:text-xl max-[768px]:right-1 max-[480px]:w-8 max-[480px]:h-8 max-[480px]:text-[1.1rem] max-[480px]:top-auto max-[480px]:bottom-0 max-[480px]:translate-y-0 max-[480px]:right-[calc(50%-40px)]"
         aria-label="Next"
         onClick={() => handleScroll("next")}
       >
@@ -117,7 +117,7 @@ export default function CapabilityCarousel({ capabilities }: Props) {
             key={`${cap.namespace}:${cap.action}`}
           >
             <header class="font-mono text-[1.1rem] mb-2.5 max-[480px]:text-base">
-              <span class="text-amber-400">{cap.namespace}</span>
+              <span class="text-pml-accent">{cap.namespace}</span>
               <span class="text-stone-700 mx-[0.1em]">:</span>
               <span class="text-stone-100">{cap.action}</span>
             </header>
@@ -138,8 +138,8 @@ export default function CapabilityCarousel({ capabilities }: Props) {
             <footer class="flex flex-wrap gap-1.5 items-center">
               {cap.tools.map((tool, i) => (
                 <span key={tool}>
-                  {i > 0 && <span class="text-amber-400 opacity-60 mx-1.5 text-xs">→</span>}
-                  <span class="font-mono text-[0.7rem] text-amber-400 bg-amber-500/10 py-1 px-2 rounded-[5px] border border-amber-500/15">{tool}</span>
+                  {i > 0 && <span class="text-pml-accent opacity-60 mx-1.5 text-xs">→</span>}
+                  <span class="font-mono text-[0.7rem] text-pml-accent bg-amber-500/10 py-1 px-2 rounded-[5px] border border-amber-500/15">{tool}</span>
                 </span>
               ))}
             </footer>

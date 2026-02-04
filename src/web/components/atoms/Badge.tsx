@@ -18,7 +18,7 @@ const sizeClasses = {
 };
 
 const variantClasses = {
-  default: "bg-amber-500/10 text-amber-400",
+  default: "bg-amber-500/10 text-pml-accent",
   success: "bg-green-400/10 text-green-400",
   warning: "bg-yellow-400/10 text-yellow-400",
   error: "bg-red-400/15 text-red-400",

@@ -52,13 +52,13 @@ export function HeroSection() {
     <section class="relative min-h-[90vh] flex items-center py-24 px-8 sm:py-20 sm:px-5 bg-[#08080a]">
       <div class="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         <div class="max-w-[520px] lg:max-w-full text-center lg:text-left">
-          <p class="font-mono text-[0.7rem] sm:text-[0.6rem] font-medium text-amber-400 uppercase tracking-[0.2em] sm:tracking-[0.15em] mb-5 opacity-0 animate-fade-up">
+          <p class="font-mono text-[0.7rem] sm:text-[0.6rem] font-medium text-pml-accent uppercase tracking-[0.2em] sm:tracking-[0.15em] mb-5 opacity-0 animate-fade-up">
             {hero.eyebrow}
           </p>
 
           <h1 class="font-serif text-[clamp(1.75rem,4.5vw,3.25rem)] font-normal leading-[1.15] mb-6 opacity-0 animate-fade-up-delay-1">
             <span class="block text-stone-100">One gateway. Any model.</span>
-            <span class="block text-amber-400 italic">Full observability.</span>
+            <span class="block text-pml-accent italic">Full observability.</span>
           </h1>
 
           <p class="text-lg sm:text-[0.95rem] leading-relaxed text-stone-500 mb-8 opacity-0 animate-fade-up-delay-2">
@@ -69,14 +69,14 @@ export function HeroSection() {
           <div class="flex gap-4 flex-wrap justify-center lg:justify-start mb-10 opacity-0 animate-fade-up-delay-3 sm:flex-col sm:gap-3">
             <a
               href={hero.cta.primary.href}
-              class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-amber-400 text-[#08080a] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(255,184,111,0.25)] sm:w-full sm:justify-center"
+              class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-pml-accent text-[#08080a] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(255,184,111,0.25)] sm:w-full sm:justify-center"
             >
               {hero.cta.primary.label}
               <MaterialIcon name="arrow_downward" size={16} />
             </a>
             <a
               href={hero.cta.secondary.href}
-              class="inline-flex items-center py-3.5 px-6 text-sm font-medium font-sans no-underline rounded-lg text-stone-400 border border-amber-400/20 transition-all duration-200 hover:border-amber-400 hover:text-stone-100 sm:w-full sm:justify-center"
+              class="inline-flex items-center py-3.5 px-6 text-sm font-medium font-sans no-underline rounded-lg text-stone-400 border border-pml-accent/20 transition-all duration-200 hover:border-pml-accent hover:text-stone-100 sm:w-full sm:justify-center"
             >
               {hero.cta.secondary.label}
             </a>

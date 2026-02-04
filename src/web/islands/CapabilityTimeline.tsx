@@ -284,6 +284,7 @@ export default function CapabilityTimeline({
             }),
           );
 
+          console.log("[CapabilityTimeline] Building cap from node.data.id:", node.data.id, "node.data.label:", node.data.label);
           caps.push({
             id: node.data.id,
             name: node.data.label,

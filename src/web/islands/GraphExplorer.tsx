@@ -694,7 +694,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
         <input
           ref={searchInputRef}
           type="text"
-          class="w-[420px] py-2.5 px-4 pr-[60px] rounded-xl text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50 bg-stone-800 border border-amber-400/10 text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10"
+          class="w-[420px] py-2.5 px-4 pr-[60px] rounded-xl text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50 bg-stone-800 border border-pml-accent/10 text-stone-100 focus:border-pml-accent focus:ring-2 focus:ring-pml-accent/10"
           placeholder="Search capabilities & tools... (/ or Ctrl+K)"
           value={searchQuery}
           onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
@@ -737,21 +737,21 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
                 </svg>
               </button>
             )
-            : <kbd class="px-2 py-0.5 rounded-md text-xs font-medium bg-amber-400/10 border border-amber-400/10 text-stone-500">/</kbd>}
+            : <kbd class="px-2 py-0.5 rounded-md text-xs font-medium bg-pml-accent/10 border border-pml-accent/10 text-stone-500">/</kbd>}
         </span>
 
         {showResults && searchResults.length > 0 && (
-          <div class="absolute top-full left-0 mt-2 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto shadow-2xl w-[420px] z-[9999] bg-stone-900 border border-amber-400/10 backdrop-blur-xl">
+          <div class="absolute top-full left-0 mt-2 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto shadow-2xl w-[420px] z-[9999] bg-stone-900 border border-pml-accent/10 backdrop-blur-xl">
             {searchResults.map((result) => (
               <div
                 key={result.id}
-                class="px-4 py-3 cursor-pointer flex justify-between items-center transition-colors border-b border-amber-400/10 hover:bg-amber-400/10"
+                class="px-4 py-3 cursor-pointer flex justify-between items-center transition-colors border-b border-pml-accent/10 hover:bg-pml-accent/10"
                 onClick={() => selectSearchResult(result)}
               >
                 <div class="flex gap-3 items-center">
                   <span
                     class={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${
-                      result.type === "capability" ? "bg-amber-400/10 text-amber-400" : "bg-stone-800 text-stone-500"
+                      result.type === "capability" ? "bg-pml-accent/10 text-pml-accent" : "bg-stone-800 text-stone-500"
                     }`}
                   >
                     {result.type === "capability" ? "cap" : "tool"}
@@ -770,7 +770,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
                     {(result.score * 100).toFixed(0)}%
                   </span>
                   {result.extra && (
-                    <span class="text-amber-400 font-semibold">
+                    <span class="text-pml-accent font-semibold">
                       {result.extra}
                     </span>
                   )}
@@ -785,8 +785,8 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
         type="button"
         class={`py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-200 border ${
           showPathFinder
-            ? "bg-amber-400/10 border-amber-400 text-amber-400"
-            : "bg-stone-800 border-amber-400/10 text-stone-400 hover:border-amber-400/30"
+            ? "bg-pml-accent/10 border-pml-accent text-pml-accent"
+            : "bg-stone-800 border-pml-accent/10 text-stone-400 hover:border-pml-accent/30"
         }`}
         onClick={() => setShowPathFinder(!showPathFinder)}
         title="Find Path (Ctrl+P)"
@@ -805,19 +805,19 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
       {headerSlot && createPortal(searchBarContent, headerSlot)}
 
       {showPathFinder && (
-        <div class="absolute top-20 left-1/2 -translate-x-1/2 z-[90] p-4 px-5 rounded-xl shadow-2xl mt-2 bg-stone-900 border border-amber-400/10 backdrop-blur-xl">
+        <div class="absolute top-20 left-1/2 -translate-x-1/2 z-[90] p-4 px-5 rounded-xl shadow-2xl mt-2 bg-stone-900 border border-pml-accent/10 backdrop-blur-xl">
           <div class="flex gap-3 items-center">
             <input
               type="text"
-              class="w-[200px] py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all bg-stone-800 border border-amber-400/10 text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10"
+              class="w-[200px] py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all bg-stone-800 border border-pml-accent/10 text-stone-100 focus:border-pml-accent focus:ring-2 focus:ring-pml-accent/10"
               placeholder="From tool..."
               value={pathFrom}
               onInput={(e) => setPathFrom((e.target as HTMLInputElement).value)}
             />
-            <span class="text-amber-400 text-xl">→</span>
+            <span class="text-pml-accent text-xl">→</span>
             <input
               type="text"
-              class="w-[200px] py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all bg-stone-800 border border-amber-400/10 text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10"
+              class="w-[200px] py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all bg-stone-800 border border-pml-accent/10 text-stone-100 focus:border-pml-accent focus:ring-2 focus:ring-pml-accent/10"
               placeholder="To tool..."
               value={pathTo}
               onInput={(e) => setPathTo((e.target as HTMLInputElement).value)}
@@ -825,7 +825,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
             <button
               type="button"
               onClick={findPath}
-              class="py-3 px-5 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 hover:brightness-110 bg-amber-400 text-stone-950"
+              class="py-3 px-5 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 hover:brightness-110 bg-pml-accent text-stone-950"
             >
               Find Path
             </button>
@@ -840,7 +840,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
             )}
           </div>
           {pathNodes && pathNodes.length > 0 && (
-            <div class="mt-4 pt-4 border-t border-amber-400/10">
+            <div class="mt-4 pt-4 border-t border-pml-accent/10">
               <span class="text-green-400 text-sm font-semibold">
                 Path ({pathNodes.length - 1} hops):
               </span>
@@ -848,10 +848,10 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
                 {pathNodes.map((nodeId, i) => (
                   <span key={nodeId}>
                     {i > 0 && (
-                      <span class="text-amber-400 mx-1 font-semibold">→</span>
+                      <span class="text-pml-accent mx-1 font-semibold">→</span>
                     )}
                     <span
-                      class="cursor-pointer px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all text-amber-400 bg-amber-400/10 border border-amber-400/30 hover:bg-amber-400/20"
+                      class="cursor-pointer px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all text-pml-accent bg-pml-accent/10 border border-pml-accent/30 hover:bg-pml-accent/20"
                       onClick={() => setHighlightedNode(nodeId)}
                     >
                       {nodeId.split(":")[1] || nodeId}
@@ -865,15 +865,15 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
       )}
 
       {breadcrumbs.length > 0 && (
-        <div class="absolute top-5 left-[240px] z-[80] py-2.5 px-4 rounded-xl flex items-center gap-2.5 text-sm bg-stone-900 border border-amber-400/10 backdrop-blur-xl">
+        <div class="absolute top-5 left-[240px] z-[80] py-2.5 px-4 rounded-xl flex items-center gap-2.5 text-sm bg-stone-900 border border-pml-accent/10 backdrop-blur-xl">
           <span class="text-stone-500 font-medium">History:</span>
           {breadcrumbs.map((item, index) => (
             <span key={item.id}>
               {index > 0 && <span class="text-stone-500/50">/</span>}
               <span
-                class={`cursor-pointer px-2.5 py-1 rounded-md font-medium transition-all hover:bg-amber-400/10 hover:text-stone-100 ${
+                class={`cursor-pointer px-2.5 py-1 rounded-md font-medium transition-all hover:bg-pml-accent/10 hover:text-stone-100 ${
                   index === breadcrumbs.length - 1
-                    ? "text-amber-400 bg-amber-400/10"
+                    ? "text-pml-accent bg-pml-accent/10"
                     : "text-stone-400 bg-transparent"
                 }`}
                 onClick={() => navigateBreadcrumb(item, index)}
@@ -1019,6 +1019,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
               apiKey={apiKey}
               onCapabilitySelect={(cap) => {
                 if (cap) {
+                  console.log("[GraphExplorer] onCapabilitySelect cap.id:", cap.id, "cap.name:", cap.name);
                   // Convert TimelineCapability to CapabilityData format
                   setSelectedCapability({
                     id: cap.id,

@@ -93,9 +93,9 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
       </Head>
 
       <div class="min-h-screen bg-[#08080a] text-stone-100 font-[Geist,_-apple-system,_system-ui,_sans-serif]">
-        <header class="flex justify-between items-center px-8 py-4 bg-[#0f0f12] border-b border-amber-400/8 max-sm:flex-col max-sm:gap-4">
+        <header class="flex justify-between items-center px-8 py-4 bg-[#0f0f12] border-b border-pml-accent/8 max-sm:flex-col max-sm:gap-4">
           <div>
-            <a href="/dashboard" class="flex items-center gap-2 text-stone-400 no-underline text-sm font-medium px-4 py-2 rounded-lg bg-[#08080a] border border-amber-400/8 transition-all duration-200 hover:text-amber-400 hover:border-amber-400/20">
+            <a href="/dashboard" class="flex items-center gap-2 text-stone-400 no-underline text-sm font-medium px-4 py-2 rounded-lg bg-[#08080a] border border-pml-accent/8 transition-all duration-200 hover:text-pml-accent hover:border-pml-accent/20">
               <svg
                 width="16"
                 height="16"
@@ -114,7 +114,7 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
               <img
                 src={user.avatarUrl || "/default-avatar.svg"}
                 alt={user.username}
-                class="w-7 h-7 rounded-full border border-amber-400/8"
+                class="w-7 h-7 rounded-full border border-pml-accent/8"
               />
               <span class="text-sm font-medium">
                 {user.username === "local" ? "Local User" : user.username}
@@ -143,8 +143,8 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
           <h1 class="font-[Instrument_Serif,_Georgia,_serif] text-3xl font-normal mb-8">Settings</h1>
 
           {isCloudMode && (
-            <section class="bg-[#141418] border border-amber-400/8 rounded-xl mb-6 overflow-hidden">
-              <h2 class="flex items-center gap-3 px-6 py-4 text-base font-semibold bg-[#0f0f12] border-b border-amber-400/8">
+            <section class="bg-[#141418] border border-pml-accent/8 rounded-xl mb-6 overflow-hidden">
+              <h2 class="flex items-center gap-3 px-6 py-4 text-base font-semibold bg-[#0f0f12] border-b border-pml-accent/8">
                 <svg
                   width="20"
                   height="20"
@@ -163,10 +163,10 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
                   apiKeyPrefix={apiKeyPrefix}
                 />
 
-                <div class="mt-6 p-4 bg-[#08080a] border border-amber-400/8 rounded-lg">
+                <div class="mt-6 p-4 bg-[#08080a] border border-pml-accent/8 rounded-lg">
                   <h3 class="text-sm font-semibold mb-2">Setup</h3>
                   <p class="text-[0.8rem] text-stone-400 mb-2">Set your API key as an environment variable:</p>
-                  <pre class="m-0 px-3 py-2 bg-[#0f0f12] rounded overflow-x-auto"><code class="font-[Geist_Mono,_monospace] text-[0.8rem] text-amber-400">export PML_API_KEY="your_api_key_here"</code></pre>
+                  <pre class="m-0 px-3 py-2 bg-[#0f0f12] rounded overflow-x-auto"><code class="font-[Geist_Mono,_monospace] text-[0.8rem] text-pml-accent">export PML_API_KEY="your_api_key_here"</code></pre>
                 </div>
               </div>
             </section>
@@ -175,7 +175,7 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
 
           {isCloudMode && (
             <section class="bg-[#141418] border border-red-400/20 rounded-xl mb-6 overflow-hidden">
-              <h2 class="flex items-center gap-3 px-6 py-4 text-base font-semibold bg-[#0f0f12] border-b border-amber-400/8 text-red-400">
+              <h2 class="flex items-center gap-3 px-6 py-4 text-base font-semibold bg-[#0f0f12] border-b border-pml-accent/8 text-red-400">
                 <svg
                   width="20"
                   height="20"

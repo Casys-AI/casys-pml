@@ -31,7 +31,7 @@ interface TraceRowProps {
 
 // Refined color palette - brand gold for tools
 const config: Record<TraceType, { color: string; bgHover: string; barColor: string; icon: string }> = {
-  tool:       { color: "text-amber-400", bgHover: "hover:bg-amber-500/[0.08]", barColor: "bg-amber-400", icon: ">" },
+  tool:       { color: "text-pml-accent", bgHover: "hover:bg-amber-500/[0.08]", barColor: "bg-pml-accent", icon: ">" },
   llm:        { color: "text-pink-500", bgHover: "hover:bg-pink-500/[0.08]", barColor: "bg-pink-500", icon: "●" },
   loop:       { color: "text-blue-500", bgHover: "hover:bg-blue-500/[0.08]", barColor: "bg-blue-500", icon: "↻" },
   agent:      { color: "text-purple-500", bgHover: "hover:bg-purple-500/[0.08]", barColor: "bg-purple-500", icon: "◎" },
@@ -41,7 +41,7 @@ const config: Record<TraceType, { color: string; bgHover: string; barColor: stri
 
 // Model colors
 const modelColors: Record<string, string> = {
-  "claude-3.5": "text-amber-400",
+  "claude-3.5": "text-pml-accent",
   "gpt-4o": "text-emerald-500",
   "ollama": "text-indigo-500",
 };
@@ -124,7 +124,7 @@ export function TraceRow({ data }: TraceRowProps) {
 
       {/* Cost */}
       {data.cost !== undefined && (
-        <span class="text-amber-400 text-[0.52rem] font-medium shrink-0">
+        <span class="text-pml-accent text-[0.52rem] font-medium shrink-0">
           ${data.cost < 0.01 ? data.cost.toFixed(4) : data.cost.toFixed(3)}
         </span>
       )}
@@ -135,7 +135,7 @@ export function TraceRow({ data }: TraceRowProps) {
       </span>
 
       {/* Status */}
-      <span class={`text-[0.55rem] shrink-0 w-3 text-center ${isSuccess ? "text-amber-400 opacity-70" : "text-red-500"}`}>
+      <span class={`text-[0.55rem] shrink-0 w-3 text-center ${isSuccess ? "text-pml-accent opacity-70" : "text-red-500"}`}>
         {isSuccess ? "✓" : "✗"}
       </span>
     </div>

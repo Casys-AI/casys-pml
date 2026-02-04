@@ -74,7 +74,7 @@ export default function DocsToc() {
 
   return (
     <aside class="w-[220px] shrink-0 sticky top-[85px] h-[calc(100vh-100px)] overflow-y-auto px-4 hidden xl:block">
-      <div class="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3 pb-2 border-b border-amber-400/[0.08]">
+      <div class="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3 pb-2 border-b border-pml-accent/[0.08]">
         On this page
       </div>
       <nav class="text-[0.8rem]">
@@ -91,7 +91,7 @@ export default function DocsToc() {
                 href={`#${item.id}`}
                 class={`block py-1.5 no-underline transition-all duration-150 border-l-2 pl-3 -ml-3 ${
                   activeId.value === item.id
-                    ? "text-amber-400 border-l-amber-400"
+                    ? "text-pml-accent border-l-pml-accent"
                     : "text-stone-400 border-transparent hover:text-stone-100"
                 }`}
                 onClick={(e) => {

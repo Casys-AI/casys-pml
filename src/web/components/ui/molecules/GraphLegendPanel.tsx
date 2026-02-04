@@ -53,8 +53,8 @@ export default function GraphLegendPanel({
             <button
               class={`flex-1 p-2 rounded-lg transition-all flex items-center justify-center border ${
                 viewMode === "capabilities"
-                  ? "bg-amber-400 text-stone-950 border-amber-400"
-                  : "bg-stone-900 text-stone-300 border-amber-500/10 hover:border-amber-400/50"
+                  ? "bg-pml-accent text-stone-950 border-pml-accent"
+                  : "bg-stone-900 text-stone-300 border-amber-500/10 hover:border-pml-accent/50"
               }`}
               onClick={() => onViewModeChange("capabilities")}
               title="Capabilities - Compound nodes with tools inside"
@@ -76,8 +76,8 @@ export default function GraphLegendPanel({
             <button
               class={`flex-1 p-2 rounded-lg transition-all flex items-center justify-center border ${
                 viewMode === "emergence"
-                  ? "bg-amber-400 text-stone-950 border-amber-400"
-                  : "bg-stone-900 text-stone-300 border-amber-500/10 hover:border-amber-400/50"
+                  ? "bg-pml-accent text-stone-950 border-pml-accent"
+                  : "bg-stone-900 text-stone-300 border-amber-500/10 hover:border-pml-accent/50"
               }`}
               onClick={() => onViewModeChange("emergence")}
               title="Emergence - CAS metrics dashboard"
@@ -97,8 +97,8 @@ export default function GraphLegendPanel({
             <button
               class={`flex-1 p-2 rounded-lg transition-all flex items-center justify-center border ${
                 viewMode === "graph"
-                  ? "bg-amber-400 text-stone-950 border-amber-400"
-                  : "bg-stone-900 text-stone-300 border-amber-500/10 hover:border-amber-400/50"
+                  ? "bg-pml-accent text-stone-950 border-pml-accent"
+                  : "bg-stone-900 text-stone-300 border-amber-500/10 hover:border-pml-accent/50"
               }`}
               onClick={() => onViewModeChange("graph")}
               title="Graph - Force-directed with deduplicated tools"
@@ -134,19 +134,19 @@ export default function GraphLegendPanel({
           </h3>
           <div class="flex flex-col gap-2 mb-3">
             <div class="flex items-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-amber-400 opacity-40" />
+              <div class="w-4 h-4 rounded-full bg-pml-accent opacity-40" />
               <span class="text-xs text-stone-400">
                 Leaf (level 0)
               </span>
             </div>
             <div class="flex items-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-amber-400 opacity-70" />
+              <div class="w-4 h-4 rounded-full bg-pml-accent opacity-70" />
               <span class="text-xs text-stone-400">
                 Meta (level 1)
               </span>
             </div>
             <div class="flex items-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-amber-400" />
+              <div class="w-4 h-4 rounded-full bg-pml-accent" />
               <span class="text-xs text-stone-400">
                 Deep meta (level 2+)
               </span>

@@ -29,14 +29,14 @@ export default function NodeDetailsPanel({
   onClose,
 }: NodeDetailsPanelProps): JSX.Element {
   return (
-    <div class="absolute bottom-5 left-5 p-5 rounded-xl min-w-[280px] z-10 bg-stone-900/90 border border-amber-400/10 backdrop-blur-md">
+    <div class="absolute bottom-5 left-5 p-5 rounded-xl min-w-[280px] z-10 bg-stone-900/90 border border-pml-accent/10 backdrop-blur-md">
       <span
         class="absolute top-3 right-3 cursor-pointer w-7 h-7 flex items-center justify-center rounded-md transition-all text-stone-500 hover:bg-red-400/10 hover:text-red-400"
         onClick={onClose}
       >
         {"\u2715"}
       </span>
-      <h3 class="text-lg font-semibold mb-3 text-amber-400">
+      <h3 class="text-lg font-semibold mb-3 text-pml-accent">
         {node.label}
       </h3>
       <DetailRow label="Server" value={node.server} />

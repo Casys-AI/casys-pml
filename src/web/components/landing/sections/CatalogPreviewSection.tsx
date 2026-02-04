@@ -33,7 +33,7 @@ export function CatalogPreviewSection() {
         </div>
         <a
           href={catalogPreview.cta.href}
-          class="font-mono text-[0.8rem] text-amber-400 no-underline py-2.5 px-5 border border-amber-400/25 rounded-md transition-all duration-200 hover:bg-amber-400/[0.08] hover:border-amber-400/40"
+          class="font-mono text-[0.8rem] text-pml-accent no-underline py-2.5 px-5 border border-pml-accent/25 rounded-md transition-all duration-200 hover:bg-pml-accent/[0.08] hover:border-pml-accent/40"
         >
           {catalogPreview.cta.label} →
         </a>

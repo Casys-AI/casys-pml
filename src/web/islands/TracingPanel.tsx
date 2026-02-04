@@ -395,7 +395,7 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
   if (collapsed) {
     return (
       <div
-        class="fixed right-5 top-1/2 mt-2 p-3.5 rounded-xl cursor-pointer z-20 transition-all duration-300 bg-stone-900 border border-amber-400/10 backdrop-blur-xl hover:border-amber-400/30 hover:bg-amber-400/10"
+        class="fixed right-5 top-1/2 mt-2 p-3.5 rounded-xl cursor-pointer z-20 transition-all duration-300 bg-stone-900 border border-pml-accent/10 backdrop-blur-xl hover:border-pml-accent/30 hover:bg-pml-accent/10"
         onClick={() => setCollapsed(false)}
         title="Algorithm Tracing"
       >
@@ -419,7 +419,7 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
   return (
     <div
       ref={panelRef}
-      class="p-4 overflow-hidden flex flex-col gap-3 h-full relative bg-gradient-to-b from-stone-900 to-stone-950 border-l border-amber-400/10"
+      class="p-4 overflow-hidden flex flex-col gap-3 h-full relative bg-gradient-to-b from-stone-900 to-stone-950 border-l border-pml-accent/10"
       style={{
         width: `${panelWidth}px`,
         minWidth: `${MIN_WIDTH}px`,
@@ -427,10 +427,10 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
       }}
     >
       <div
-        class={`absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize z-10 group transition-colors ${isResizing ? "bg-amber-400" : "bg-transparent hover:bg-amber-400/30"}`}
+        class={`absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize z-10 group transition-colors ${isResizing ? "bg-pml-accent" : "bg-transparent hover:bg-pml-accent/30"}`}
         onMouseDown={() => setIsResizing(true)}
       >
-        <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-amber-400" />
+        <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-pml-accent" />
       </div>
 
       <div class="flex justify-between items-center shrink-0">
@@ -440,7 +440,7 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
         <div class="flex gap-1">
           <button
             type="button"
-            class="p-1.5 rounded-lg transition-all duration-200 bg-stone-800 border border-amber-400/10 text-stone-400 hover:border-amber-400/30 hover:text-amber-400"
+            class="p-1.5 rounded-lg transition-all duration-200 bg-stone-800 border border-pml-accent/10 text-stone-400 hover:border-pml-accent/30 hover:text-pml-accent"
             onClick={refreshEvents}
             title="Refresh"
           >
@@ -461,7 +461,7 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
           <button
             type="button"
             class={`p-1.5 rounded-lg transition-all duration-200 border ${
-              paused ? "bg-amber-400 border-amber-400 text-stone-950" : "bg-stone-800 border-amber-400/10 text-stone-400"
+              paused ? "bg-pml-accent border-pml-accent text-stone-950" : "bg-stone-800 border-pml-accent/10 text-stone-400"
             }`}
             onClick={() => setPaused(!paused)}
             title={paused ? "Resume" : "Pause"}
@@ -480,7 +480,7 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
           </button>
           <button
             type="button"
-            class="p-1.5 rounded-lg transition-all duration-200 bg-stone-800 border border-amber-400/10 text-stone-400 hover:border-amber-400/30 hover:text-amber-400"
+            class="p-1.5 rounded-lg transition-all duration-200 bg-stone-800 border border-pml-accent/10 text-stone-400 hover:border-pml-accent/30 hover:text-pml-accent"
             onClick={clearEvents}
             title="Clear"
           >
@@ -495,7 +495,7 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
           </button>
           <button
             type="button"
-            class="p-1.5 rounded-lg transition-all duration-200 bg-stone-800 border border-amber-400/10 text-stone-400 hover:border-amber-400/30 hover:text-amber-400"
+            class="p-1.5 rounded-lg transition-all duration-200 bg-stone-800 border border-pml-accent/10 text-stone-400 hover:border-pml-accent/30 hover:text-pml-accent"
             onClick={() => setCollapsed(true)}
             title="Collapse"
           >
@@ -511,9 +511,9 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
         </div>
       </div>
 
-      <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs shrink-0 bg-stone-800 border border-amber-400/10">
+      <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs shrink-0 bg-stone-800 border border-pml-accent/10">
         <span
-          class={`w-2 h-2 rounded-full ${paused ? "bg-amber-400" : "bg-green-400"}`}
+          class={`w-2 h-2 rounded-full ${paused ? "bg-pml-accent" : "bg-green-400"}`}
         />
         <span class="text-stone-400">
           {paused ? "Paused" : "Live"} · {events.length} traces
@@ -522,7 +522,7 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
 
       <div
         ref={eventsContainerRef}
-        class="flex-1 overflow-auto rounded-lg min-h-0 bg-stone-800 border border-amber-400/10"
+        class="flex-1 overflow-auto rounded-lg min-h-0 bg-stone-800 border border-pml-accent/10"
       >
         {loading && events.length === 0
           ? (
@@ -546,7 +546,7 @@ export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelP
           : (
             <table class="w-full text-xs font-mono">
               <thead>
-                <tr class="bg-stone-900 border-b border-amber-400/10 sticky top-0">
+                <tr class="bg-stone-900 border-b border-pml-accent/10 sticky top-0">
                   <th class="px-2 py-1.5 text-left font-medium text-stone-400 w-[70px]">
                     Time
                   </th>

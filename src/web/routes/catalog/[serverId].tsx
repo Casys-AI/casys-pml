@@ -25,6 +25,11 @@ interface ToolEntry {
   description: string | null;
   routing: "local" | "cloud";
   inputSchema: Record<string, unknown> | null;
+  uiMeta: {
+    resourceUri: string;
+    emits?: string[];
+    accepts?: string[];
+  } | null;
 }
 
 interface NodeNavItem {
@@ -174,26 +179,39 @@ async function loadServerTools(serverId: string): Promise<ToolEntry[]> {
       description: string | null;
       routing: "local" | "cloud";
       input_schema: Record<string, unknown> | null;
+      ui_meta: { resourceUri: string; emits?: string[]; accepts?: string[] } | null;
     }>(`
       SELECT
         tool_id,
         name,
         description,
         routing,
-        input_schema
+        input_schema,
+        ui_meta
       FROM tool_schema
       WHERE ${whereClause}
       ORDER BY name
     `, params);
 
-    return rows.map((row) => ({
-      id: row.tool_id,
-      name: row.name,
-      description: row.description,
-      routing: row.routing,
-      // input_schema is already parsed as JSONB from PostgreSQL
-      inputSchema: row.input_schema as Record<string, unknown> | null,
-    }));
+    return rows.map((row) => {
+      // Handle double-encoded JSON (string inside JSONB)
+      let uiMeta = row.ui_meta;
+      if (typeof uiMeta === "string") {
+        try {
+          uiMeta = JSON.parse(uiMeta);
+        } catch {
+          uiMeta = null;
+        }
+      }
+      return {
+        id: row.tool_id,
+        name: row.name,
+        description: row.description,
+        routing: row.routing,
+        inputSchema: row.input_schema as Record<string, unknown> | null,
+        uiMeta,
+      };
+    });
   } catch (error) {
     console.error("Error loading server tools:", error);
     return [];

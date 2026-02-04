@@ -497,7 +497,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
   if (viewMode === "collapsed") {
     return (
       <div
-        class="fixed right-5 top-1/2 -translate-y-full -mt-2 p-3 rounded-lg cursor-pointer z-20 hover:scale-105 transition-transform bg-stone-900 border border-amber-400/10"
+        class="fixed right-5 top-1/2 -translate-y-full -mt-2 p-3 rounded-lg cursor-pointer z-20 hover:scale-105 transition-transform bg-stone-900 border border-pml-accent/10"
         onClick={() => setViewMode("sidebar")}
         title="Open Metrics"
       >
@@ -525,12 +525,12 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
           <div class="flex justify-between items-center mb-6">
             <h1 class="text-xl font-bold text-stone-100">Metrics Dashboard</h1>
             <div class="flex items-center gap-3">
-              <div class="flex gap-1 p-0.5 rounded-lg bg-stone-800 border border-amber-400/10">
+              <div class="flex gap-1 p-0.5 rounded-lg bg-stone-800 border border-pml-accent/10">
                 {(["1h", "24h", "7d"] as MetricsTimeRange[]).map((r) => (
                   <button
                     key={r}
                     class={`py-1.5 px-3 rounded text-xs font-semibold ${
-                      dateRange === r ? "bg-amber-400 text-stone-950" : "text-stone-400"
+                      dateRange === r ? "bg-pml-accent text-stone-950" : "text-stone-400"
                     }`}
                     onClick={() => setDateRange(r)}
                   >
@@ -539,7 +539,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                 ))}
               </div>
               <button
-                class="p-2 rounded-lg bg-stone-800 border border-amber-400/10 text-stone-400"
+                class="p-2 rounded-lg bg-stone-800 border border-pml-accent/10 text-stone-400"
                 onClick={() => setViewMode("sidebar")}
                 title="Back to sidebar"
               >
@@ -586,12 +586,12 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
               </div>
 
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
+                <div class="rounded-xl p-5 bg-stone-800 border border-pml-accent/10">
                   <div class="flex justify-between items-center mb-4">
                     <h3 class="text-sm font-semibold text-stone-100">
                       Edge Growth
                     </h3>
-                    <span class="text-xs px-2 py-1 rounded bg-amber-400/10 text-amber-400">
+                    <span class="text-xs px-2 py-1 rounded bg-pml-accent/10 text-pml-accent">
                       +{metrics.period.newEdgesCreated} new
                     </span>
                   </div>
@@ -599,7 +599,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     <canvas ref={chartRefs.edges} />
                   </div>
                 </div>
-                <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
+                <div class="rounded-xl p-5 bg-stone-800 border border-pml-accent/10">
                   <div class="flex justify-between items-center mb-4">
                     <h3 class="text-sm font-semibold text-stone-100">
                       Average Confidence
@@ -612,7 +612,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     <canvas ref={chartRefs.confidence} />
                   </div>
                 </div>
-                <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
+                <div class="rounded-xl p-5 bg-stone-800 border border-pml-accent/10">
                   <div class="flex justify-between items-center mb-4">
                     <h3 class="text-sm font-semibold text-stone-100">
                       Workflow Execution Rate
@@ -625,7 +625,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     <canvas ref={chartRefs.workflows} />
                   </div>
                 </div>
-                <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
+                <div class="rounded-xl p-5 bg-stone-800 border border-pml-accent/10">
                   <h3 class="text-sm font-semibold mb-4 text-stone-100">
                     Learning Progress
                   </h3>
@@ -656,7 +656,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     color="var(--accent)"
                     height={8}
                   />
-                  <div class="mt-4 pt-4 border-t border-amber-400/10">
+                  <div class="mt-4 pt-4 border-t border-pml-accent/10">
                     <h4 class="text-xs font-semibold mb-2 uppercase tracking-wide text-stone-500">
                       Top PageRank
                     </h4>
@@ -676,7 +676,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
 
               {metrics.algorithm && metrics.algorithm.tracesCount > 0 && (
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
+                  <div class="rounded-xl p-5 bg-stone-800 border border-pml-accent/10">
                     <div class="flex justify-between items-center mb-4">
                       <h3 class="text-sm font-semibold text-stone-100">
                         Algorithm Decisions
@@ -690,7 +690,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     </div>
                   </div>
 
-                  <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
+                  <div class="rounded-xl p-5 bg-stone-800 border border-pml-accent/10">
                     <div class="flex justify-between items-center mb-4">
                       <h3 class="text-sm font-semibold text-stone-100">
                         Average Scores
@@ -713,7 +713,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     </div>
                   </div>
 
-                  <div class="rounded-xl p-5 bg-stone-800 border border-amber-400/10">
+                  <div class="rounded-xl p-5 bg-stone-800 border border-pml-accent/10">
                     <h3 class="text-sm font-semibold mb-4 text-stone-100">
                       Algorithm Details
                     </h3>
@@ -739,13 +739,13 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                         color="#34d399"
                       />
                     </div>
-                    <div class="mt-4 pt-4 border-t border-amber-400/10">
+                    <div class="mt-4 pt-4 border-t border-pml-accent/10">
                       <div class="flex justify-between text-sm mb-2">
                         <span class="text-stone-400">Target Types</span>
                       </div>
                       <div class="flex gap-4">
                         <div class="flex-1 p-3 rounded-lg text-center bg-stone-950">
-                          <div class="text-lg font-bold text-amber-400">
+                          <div class="text-lg font-bold text-pml-accent">
                             {metrics.algorithm.byTargetType.tool}
                           </div>
                           <div class="text-xs text-stone-500">Tools</div>
@@ -767,7 +767,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
               {metrics.algorithm && metrics.algorithm.tracesCount > 0 &&
                 metrics.algorithm.byGraphType && (
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
-                  <div class="rounded-xl p-4 bg-stone-800 border border-amber-400/10">
+                  <div class="rounded-xl p-4 bg-stone-800 border border-pml-accent/10">
                     <div class="flex justify-between items-center mb-3">
                       <h3 class="text-sm font-semibold text-stone-100">
                         By Graph Type
@@ -778,7 +778,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                             key={tab}
                             class={`py-1 px-2 rounded text-[10px] font-semibold capitalize ${
                               graphTypeTab === tab
-                                ? tab === "graph" ? "bg-amber-400 text-stone-950" : "bg-violet-400 text-stone-950"
+                                ? tab === "graph" ? "bg-pml-accent text-stone-950" : "bg-violet-400 text-stone-950"
                                 : "text-stone-400"
                             }`}
                             onClick={() => setGraphTypeTab(tab)}
@@ -814,7 +814,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                             metrics.algorithm!.byGraphType!.graph.topSignals && (
                             <div class="flex gap-2 text-[10px] text-stone-500">
                               <span>
-                                PR: <b class="text-amber-400">{metrics.algorithm!.byGraphType!.graph.topSignals.pagerank.toFixed(2)}</b>
+                                PR: <b class="text-pml-accent">{metrics.algorithm!.byGraphType!.graph.topSignals.pagerank.toFixed(2)}</b>
                               </span>
                               <span>
                                 AA: <b class="text-emerald-400">{metrics.algorithm!.byGraphType!.graph.topSignals.adamicAdar.toFixed(2)}</b>
@@ -832,7 +832,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                                 ({(metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withClusterMatch.selectedRate * 100).toFixed(0)}%)
                               </span>
                               <span>
-                                w/o: <b class="text-amber-400">{metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withoutClusterMatch.avgScore.toFixed(2)}</b>{" "}
+                                w/o: <b class="text-pml-accent">{metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withoutClusterMatch.avgScore.toFixed(2)}</b>{" "}
                                 ({(metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withoutClusterMatch.selectedRate * 100).toFixed(0)}%)
                               </span>
                             </div>
@@ -842,14 +842,14 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     })()}
                   </div>
 
-                  <div class="rounded-xl p-4 bg-stone-800 border border-amber-400/10">
+                  <div class="rounded-xl p-4 bg-stone-800 border border-pml-accent/10">
                     <div class="flex justify-between items-center mb-2">
                       <h3 class="text-sm font-semibold text-stone-100">
                         Score Dist.
                       </h3>
                       <span
                         class={`text-[10px] px-1.5 py-0.5 rounded capitalize ${
-                          graphTypeTab === "graph" ? "bg-amber-400/15 text-amber-400" : "bg-violet-400/15 text-violet-400"
+                          graphTypeTab === "graph" ? "bg-pml-accent/15 text-pml-accent" : "bg-violet-400/15 text-violet-400"
                         }`}
                       >
                         {graphTypeTab}
@@ -860,7 +860,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
                     </div>
                   </div>
 
-                  <div class="lg:col-span-2 rounded-xl p-4 bg-stone-800 border border-amber-400/10">
+                  <div class="lg:col-span-2 rounded-xl p-4 bg-stone-800 border border-pml-accent/10">
                     <div class="flex flex-wrap gap-4 items-center">
                       {metrics.algorithm!.thresholdEfficiency && (
                         <div class="flex-1 min-w-[150px]">
@@ -900,7 +900,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
               )}
 
               {metrics.algorithm && metrics.algorithm.tracesCount === 0 && (
-                <div class="mt-4 p-4 rounded-xl text-center bg-stone-800 border border-dashed border-amber-400/10">
+                <div class="mt-4 p-4 rounded-xl text-center bg-stone-800 border border-dashed border-pml-accent/10">
                   <div class="text-xs text-stone-400">
                     No algorithm traces for this period
                   </div>
@@ -914,7 +914,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
   }
 
   return (
-    <div class="w-[280px] p-3 overflow-y-auto flex flex-col gap-2 h-full transition-all duration-300 bg-gradient-to-b from-stone-900 to-stone-950 border-l border-amber-400/10">
+    <div class="w-[280px] p-3 overflow-y-auto flex flex-col gap-2 h-full transition-all duration-300 bg-gradient-to-b from-stone-900 to-stone-950 border-l border-pml-accent/10">
       <div class="flex justify-between items-center mb-1">
         <h2 class="text-sm font-bold text-stone-100">Metrics</h2>
         <div class="flex gap-1">
@@ -948,12 +948,12 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
         </div>
       </div>
 
-      <div class="flex gap-1 p-0.5 rounded-lg bg-stone-800 border border-amber-400/10">
+      <div class="flex gap-1 p-0.5 rounded-lg bg-stone-800 border border-pml-accent/10">
         {(["1h", "24h", "7d"] as MetricsTimeRange[]).map((r) => (
           <button
             key={r}
             class={`flex-1 py-1 px-2 rounded text-[10px] font-semibold ${
-              dateRange === r ? "bg-amber-400 text-stone-950" : "text-stone-400"
+              dateRange === r ? "bg-pml-accent text-stone-950" : "text-stone-400"
             }`}
             onClick={() => setDateRange(r)}
           >
@@ -1060,13 +1060,13 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
             </div>
           </SectionCard>
 
-          <div class="p-2 rounded-lg bg-stone-800 border border-amber-400/10">
+          <div class="p-2 rounded-lg bg-stone-800 border border-pml-accent/10">
             <div class="flex gap-1 mb-2">
               {(["edges", "confidence", "workflows"] as const).map((tab) => (
                 <button
                   key={tab}
                   class={`flex-1 py-1 rounded text-[9px] font-semibold ${
-                    activeChart === tab ? "bg-amber-400 text-stone-950" : "bg-stone-950 text-stone-400"
+                    activeChart === tab ? "bg-pml-accent text-stone-950" : "bg-stone-950 text-stone-400"
                   }`}
                   onClick={() => setActiveChart(tab)}
                 >

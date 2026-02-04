@@ -55,7 +55,7 @@ export default function SearchBar({
       <input
         ref={inputRef}
         type="text"
-        class="w-full py-3 px-4 pr-12 rounded-xl text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50 bg-stone-900 border border-amber-500/10 text-stone-100 font-sans focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+        class="w-full py-3 px-4 pr-12 rounded-xl text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50 bg-stone-900 border border-amber-500/10 text-stone-100 font-sans focus:border-pml-accent focus:ring-2 focus:ring-pml-accent/20"
         placeholder={placeholder}
         value={value}
         onInput={handleInput}

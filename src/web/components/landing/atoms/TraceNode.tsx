@@ -29,7 +29,7 @@ interface TraceNodeProps {
 
 const typeConfig: Record<TraceNodeType, { color: string; bgColor: string; icon: string }> = {
   tool: { color: "text-green-400", bgColor: "bg-green-400", icon: ">" },
-  capability: { color: "text-amber-400", bgColor: "bg-amber-400", icon: "◆" },
+  capability: { color: "text-pml-accent", bgColor: "bg-pml-accent", icon: "◆" },
   loop: { color: "text-blue-400", bgColor: "bg-blue-400", icon: "↻" },
   agent: { color: "text-violet-400", bgColor: "bg-violet-400", icon: "◎" },
   llm: { color: "text-pink-400", bgColor: "bg-pink-400", icon: "●" },

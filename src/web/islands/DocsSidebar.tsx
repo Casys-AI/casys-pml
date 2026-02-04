@@ -44,9 +44,9 @@ function NavItem({
     <li class="m-0">
       <a
         href={item.href}
-        class={`flex items-center gap-2 py-2.5 text-stone-400 no-underline text-sm transition-all duration-150 border-l-2 cursor-pointer hover:text-stone-100 hover:bg-amber-400/10 ${
+        class={`flex items-center gap-2 py-2.5 text-stone-400 no-underline text-sm transition-all duration-150 border-l-2 cursor-pointer hover:text-stone-100 hover:bg-pml-accent/10 ${
           isActive
-            ? "text-amber-400 bg-amber-400/10 border-l-amber-400"
+            ? "text-pml-accent bg-pml-accent/10 border-l-pml-accent"
             : isParentActive
             ? "text-stone-100 border-transparent"
             : "border-transparent"
@@ -56,7 +56,7 @@ function NavItem({
       >
         {hasChildren && (
           <span
-            class={`flex items-center justify-center w-[18px] h-[18px] shrink-0 rounded transition-transform duration-200 hover:bg-amber-400/10 ${
+            class={`flex items-center justify-center w-[18px] h-[18px] shrink-0 rounded transition-transform duration-200 hover:bg-pml-accent/10 ${
               isExpanded ? "rotate-90" : ""
             }`}
             onClick={handleArrowClick}
@@ -118,11 +118,11 @@ export default function DocsSidebar({ navigation, currentPath }: DocsSidebarProp
   };
 
   return (
-    <aside class="w-[280px] shrink-0 border-r border-amber-400/[0.08] bg-stone-900 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto hidden lg:block">
-      <div class="p-6 border-b border-amber-400/[0.08]">
+    <aside class="w-[280px] shrink-0 border-r border-pml-accent/[0.08] bg-stone-900 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto hidden lg:block">
+      <div class="p-6 border-b border-pml-accent/[0.08]">
         <a
           href="/docs"
-          class="font-serif text-xl text-stone-100 no-underline hover:text-amber-400"
+          class="font-serif text-xl text-stone-100 no-underline hover:text-pml-accent"
         >
           Documentation
         </a>
