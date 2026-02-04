@@ -19,7 +19,9 @@ import {
   HeroSection,
   IntelligenceSection,
   ArchitectureSection,
+  IsolationSection,
   CatalogPreviewSection,
+  CodeToUiShowcase,
   QuickStartSection,
   BlogSection,
   BetaSignupSection,
@@ -111,8 +113,14 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
           {/* Architecture */}
           <ArchitectureSection />
 
-          {/* Catalog Preview */}
+          {/* Isolation - Security & Checkpoints */}
+          <IsolationSection />
+
+          {/* Catalog Preview - Existing workflow carousel */}
           <CatalogPreviewSection />
+
+          {/* Code to UI Showcase - "Write → Get" demo (WIP/Preview) */}
+          <CodeToUiShowcase />
 
           {/* Quick Start */}
           <QuickStartSection />
