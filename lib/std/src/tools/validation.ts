@@ -530,4 +530,63 @@ export const validationTools: MiniTool[] = [
       };
     },
   },
+  {
+    name: "form_schema",
+    description:
+      "Generate and display a form from a JSON Schema definition. Render interactive form fields based on schema properties, types, and validation rules. Useful for dynamic forms, settings pages, or data entry UIs. Keywords: form, schema, JSON Schema, form generator, dynamic form, input fields.",
+    category: "validation",
+    inputSchema: {
+      type: "object",
+      properties: {
+        schema: {
+          type: "object",
+          description: "JSON Schema object defining the form structure",
+        },
+        title: { type: "string", description: "Form title (optional)" },
+        submitLabel: { type: "string", description: "Submit button label (default: 'Submit')" },
+        values: {
+          type: "object",
+          description: "Initial values for form fields (optional)",
+        },
+      },
+      required: ["schema"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/form-viewer",
+      },
+    },
+    handler: ({ schema, title, submitLabel = "Submit", values = {} }) => {
+      const s = schema as Record<string, unknown>;
+      const properties = (s.properties || {}) as Record<string, Record<string, unknown>>;
+      const required = (s.required || []) as string[];
+
+      // Extract field information from schema
+      const fields = Object.entries(properties).map(([name, prop]) => ({
+        name,
+        type: prop.type as string,
+        title: (prop.title as string) || name,
+        description: prop.description as string | undefined,
+        required: required.includes(name),
+        default: prop.default,
+        enum: prop.enum as unknown[] | undefined,
+        minimum: prop.minimum as number | undefined,
+        maximum: prop.maximum as number | undefined,
+        minLength: prop.minLength as number | undefined,
+        maxLength: prop.maxLength as number | undefined,
+        pattern: prop.pattern as string | undefined,
+        format: prop.format as string | undefined,
+      }));
+
+      return {
+        title: title || (s.title as string) || "Form",
+        description: s.description as string | undefined,
+        submitLabel: submitLabel as string,
+        schema: s,
+        fields,
+        values: values as Record<string, unknown>,
+        requiredFields: required,
+      };
+    },
+  },
 ];

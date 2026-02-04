@@ -14,11 +14,18 @@
 import { createRoot } from "react-dom/client";
 import { useState, useEffect } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
+import { css, cx } from "../../styled-system/css";
 import { Box, Flex, Grid, VStack, HStack, Center } from "../../styled-system/jsx";
-import { Badge } from "../../components/ui/badge";
-import { Spinner } from "../../components/ui/spinner";
+import { Tooltip } from "../../components/ui/tooltip";
 import * as Card from "../../components/ui/card";
+import {
+  MetricsSkeleton,
+  StatusBadge,
+  typography,
+  containers,
+  interactive,
+  valueTransition,
+} from "../../shared";
 import "../../global.css";
 
 // ============================================================================
@@ -96,7 +103,7 @@ function formatValue(value: number, unit?: string): string {
 // ============================================================================
 
 function GaugeMetric({ metric }: { metric: MetricData }) {
-  const { value, min = 0, max = 100, thresholds, label, unit } = metric;
+  const { value, min = 0, max = 100, thresholds, label, unit, description } = metric;
   const percentage = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
   const color = getColor(value, thresholds);
 
@@ -104,7 +111,7 @@ function GaugeMetric({ metric }: { metric: MetricData }) {
   const circumference = 2 * Math.PI * radius * (270 / 360);
   const offset = circumference - (circumference * percentage) / 100;
 
-  return (
+  const gauge = (
     <VStack gap="0" align="center" position="relative">
       <svg viewBox="0 0 100 100" className={css({ w: "80px", h: "80px" })}>
         <circle
@@ -125,23 +132,25 @@ function GaugeMetric({ metric }: { metric: MetricData }) {
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={offset}
           transform="rotate(135 50 50)"
-          className={css({ transition: "stroke-dashoffset 0.5s ease" })}
+          className={valueTransition}
         />
       </svg>
       <Box position="absolute" top="50%" left="50%" transform="translate(-50%, -40%)" textAlign="center">
-        <Box fontSize="xl" fontWeight="bold" fontFamily="mono">
+        <Box className={cx(typography.value, valueTransition)}>
           {formatValue(value, unit)}
         </Box>
       </Box>
-      <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
-        {label}
-      </Box>
+      <Box className={typography.label}>{label}</Box>
     </VStack>
   );
+
+  return description ? (
+    <Tooltip content={description} portalled={false}>{gauge}</Tooltip>
+  ) : gauge;
 }
 
 function SparklineMetric({ metric }: { metric: MetricData }) {
-  const { value, history = [], thresholds, label, unit, min, max } = metric;
+  const { value, history = [], thresholds, label, unit, min, max, description } = metric;
   const color = getColor(value, thresholds);
 
   const values = history.length ? history : [value];
@@ -161,58 +170,55 @@ function SparklineMetric({ metric }: { metric: MetricData }) {
   const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${padding} ${height - padding} Z`;
 
-  return (
+  const sparkline = (
     <VStack gap="1" align="stretch">
       <Flex justify="space-between" align="baseline">
-        <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
-          {label}
-        </Box>
-        <Box fontSize="lg" fontWeight="bold" fontFamily="mono" style={{ color }}>
+        <Box className={typography.label}>{label}</Box>
+        <Box className={cx(typography.value, valueTransition)} style={{ color }}>
           {formatValue(value, unit)}
         </Box>
       </Flex>
       <svg width={width} height={height} className={css({ display: "block", w: "100%" })}>
-        <path d={areaPath} fill={color} opacity={0.15} />
-        <path d={linePath} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
-        <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={3} fill={color} />
+        <path d={areaPath} fill={color} opacity={0.15} className={valueTransition} />
+        <path d={linePath} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" className={valueTransition} />
+        <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={3} fill={color} className={valueTransition} />
       </svg>
     </VStack>
   );
+
+  return description ? (
+    <Tooltip content={description} portalled={false}>{sparkline}</Tooltip>
+  ) : sparkline;
 }
 
 function StatMetric({ metric }: { metric: MetricData }) {
   const { value, thresholds, label, unit, description } = metric;
   const color = getColor(value, thresholds);
 
-  return (
+  const stat = (
     <VStack gap="0" textAlign="center">
-      <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
-        {label}
-      </Box>
-      <Box fontSize="2xl" fontWeight="bold" fontFamily="mono" my="1" style={{ color }}>
+      <Box className={typography.label}>{label}</Box>
+      <Box className={cx(typography.value, valueTransition)} fontSize="2xl" my="1" style={{ color }}>
         {formatValue(value, unit)}
       </Box>
-      {description && (
-        <Box fontSize="xs" color="fg.muted">
-          {description}
-        </Box>
-      )}
     </VStack>
   );
+
+  return description ? (
+    <Tooltip content={description} portalled={false}>{stat}</Tooltip>
+  ) : stat;
 }
 
 function BarMetric({ metric }: { metric: MetricData }) {
-  const { value, min = 0, max = 100, thresholds, label, unit } = metric;
+  const { value, min = 0, max = 100, thresholds, label, unit, description } = metric;
   const percentage = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
   const color = getColor(value, thresholds);
 
-  return (
+  const bar = (
     <VStack gap="1" align="stretch">
       <Flex justify="space-between" align="baseline">
-        <Box fontSize="xs" color="fg.muted" fontWeight="medium" textTransform="uppercase" letterSpacing="wide">
-          {label}
-        </Box>
-        <Box fontWeight="semibold" fontFamily="mono">
+        <Box className={typography.label}>{label}</Box>
+        <Box className={cx(typography.valueSmall, valueTransition)}>
           {formatValue(value, unit)}
         </Box>
       </Flex>
@@ -221,7 +227,7 @@ function BarMetric({ metric }: { metric: MetricData }) {
           h="100%"
           rounded="full"
           style={{ width: `${percentage}%`, backgroundColor: color }}
-          className={css({ transition: "width 0.5s ease" })}
+          className={valueTransition}
         />
         {thresholds?.warning && (
           <Box
@@ -246,6 +252,10 @@ function BarMetric({ metric }: { metric: MetricData }) {
       </Box>
     </VStack>
   );
+
+  return description ? (
+    <Tooltip content={description} portalled={false}>{bar}</Tooltip>
+  ) : bar;
 }
 
 function MetricCard({ metric }: { metric: MetricData }) {
@@ -254,8 +264,10 @@ function MetricCard({ metric }: { metric: MetricData }) {
   return (
     <Card.Root
       cursor="pointer"
-      className={css({ transition: "all 0.15s", _hover: { borderColor: "border.emphasized", shadow: "sm" } })}
+      className={cx(interactive.cardHover, interactive.focusRing)}
+      tabIndex={0}
       onClick={() => notifyModel("selectMetric", { id: metric.id, metric })}
+      onKeyDown={(e) => e.key === "Enter" && notifyModel("selectMetric", { id: metric.id, metric })}
     >
       <Card.Body p="3">
         {type === "gauge" && <GaugeMetric metric={metric} />}
@@ -303,20 +315,13 @@ function MetricsPanel() {
   }, []);
 
   if (loading) {
-    return (
-      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="3">
-        <Center p="6" flexDirection="column" gap="2">
-          <Spinner size="md" />
-          <Box color="fg.muted">Loading metrics...</Box>
-        </Center>
-      </Box>
-    );
+    return <MetricsSkeleton count={4} />;
   }
 
   if (!data?.metrics?.length) {
     return (
-      <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="3">
-        <Center p="6" color="fg.muted">No metrics</Center>
+      <Box className={containers.root}>
+        <Box className={containers.centered}>No metrics</Box>
       </Box>
     );
   }
@@ -324,25 +329,19 @@ function MetricsPanel() {
   const columns = data.columns || Math.min(4, Math.max(2, data.metrics.length));
 
   return (
-    <Box fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" p="3">
+    <Box className={containers.root}>
       {/* Header */}
       {(data.title || data.timestamp) && (
         <Flex justify="space-between" align="center" mb="3" pb="2" borderBottom="1px solid" borderColor="border.subtle">
           {data.title && (
-            <Box as="h2" fontSize="lg" fontWeight="semibold" m="0">
-              {data.title}
-            </Box>
+            <Box className={typography.sectionTitle}>{data.title}</Box>
           )}
           <HStack gap="3">
             {data.refreshInterval && (
-              <Badge variant="outline" size="sm">
-                ↻ {data.refreshInterval}s
-              </Badge>
+              <StatusBadge status="neutral" size="sm">↻ {data.refreshInterval}s</StatusBadge>
             )}
             {data.timestamp && (
-              <Box fontSize="xs" color="fg.muted">
-                {data.timestamp}
-              </Box>
+              <Box className={typography.muted}>{data.timestamp}</Box>
             )}
           </HStack>
         </Flex>

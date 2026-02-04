@@ -710,6 +710,55 @@ export const textTools: MiniTool[] = [
       return computeTextDiff(text1 as string, text2 as string, context as number);
     },
   },
+  {
+    name: "markdown_render",
+    description:
+      "Render Markdown text with syntax highlighting preview. Parse and display markdown content including headers, lists, code blocks, links, and formatting. Useful for documentation preview, README display, or content rendering. Keywords: markdown, render, preview, documentation, README, formatted text.",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        content: { type: "string", description: "Markdown content to render" },
+        flavor: {
+          type: "string",
+          enum: ["gfm", "commonmark"],
+          description: "Markdown flavor: 'gfm' (GitHub Flavored) or 'commonmark' (default: 'gfm')",
+        },
+      },
+      required: ["content"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/markdown-viewer",
+      },
+    },
+    handler: ({ content, flavor = "gfm" }) => {
+      const md = content as string;
+
+      // Basic markdown stats
+      const lines = md.split("\n");
+      const headers = lines.filter((l) => /^#{1,6}\s/.test(l)).length;
+      const codeBlocks = (md.match(/```[\s\S]*?```/g) || []).length;
+      const links = (md.match(/\[([^\]]+)\]\([^)]+\)/g) || []).length;
+      const images = (md.match(/!\[([^\]]*)\]\([^)]+\)/g) || []).length;
+      const lists = lines.filter((l) => /^(\s*[-*+]|\s*\d+\.)\s/.test(l)).length;
+
+      return {
+        content: md,
+        flavor: flavor as string,
+        stats: {
+          lines: lines.length,
+          characters: md.length,
+          words: md.split(/\s+/).filter(Boolean).length,
+          headers,
+          codeBlocks,
+          links,
+          images,
+          listItems: lists,
+        },
+      };
+    },
+  },
 ];
 
 /**

@@ -541,6 +541,74 @@ export const textanalysisTools: MiniTool[] = [
       };
     },
   },
+  {
+    name: "word_cloud",
+    description:
+      "Generate word frequency data for word cloud visualization. Analyze text to extract most common words with counts, excluding common stop words. Useful for content analysis, keyword extraction, or text summarization. Keywords: word cloud, frequency, keywords, text analysis, word count, tag cloud.",
+    category: "textanalysis",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to analyze for word frequencies" },
+        maxWords: { type: "number", description: "Maximum number of words to return (default: 50)" },
+        minLength: { type: "number", description: "Minimum word length (default: 3)" },
+        stopWords: { type: "boolean", description: "Filter out common stop words (default: true)" },
+      },
+      required: ["text"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/word-cloud",
+      },
+    },
+    handler: ({ text, maxWords = 50, minLength = 3, stopWords = true }) => {
+      const commonStopWords = new Set([
+        "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
+        "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
+        "this", "but", "his", "by", "from", "they", "we", "say", "her", "she",
+        "or", "an", "will", "my", "one", "all", "would", "there", "their", "what",
+        "so", "up", "out", "if", "about", "who", "get", "which", "go", "me",
+        "when", "make", "can", "like", "time", "no", "just", "him", "know", "take",
+        "people", "into", "year", "your", "good", "some", "could", "them", "see", "other",
+        "than", "then", "now", "look", "only", "come", "its", "over", "think", "also",
+        "back", "after", "use", "two", "how", "our", "work", "first", "well", "way",
+        "even", "new", "want", "because", "any", "these", "give", "day", "most", "us",
+        "is", "are", "was", "were", "been", "being", "has", "had", "does", "did",
+      ]);
+
+      const words = (text as string)
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= (minLength as number));
+
+      const filteredWords = stopWords
+        ? words.filter((w) => !commonStopWords.has(w))
+        : words;
+
+      const frequency = new Map<string, number>();
+      for (const word of filteredWords) {
+        frequency.set(word, (frequency.get(word) || 0) + 1);
+      }
+
+      const sorted = Array.from(frequency.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, maxWords as number);
+
+      const maxCount = sorted[0]?.[1] || 1;
+
+      return {
+        title: "Word Cloud",
+        words: sorted.map(([word, count]) => ({
+          word,
+          count,
+          weight: Math.round((count / maxCount) * 100),
+        })),
+        totalWords: words.length,
+        uniqueWords: frequency.size,
+      };
+    },
+  },
 ];
 
 // Helper to format duration

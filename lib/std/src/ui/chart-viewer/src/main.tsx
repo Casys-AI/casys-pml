@@ -1,7 +1,7 @@
 /**
  * Chart Viewer UI for MCP Apps
  *
- * Simple SVG-based charts:
+ * Simple SVG-based charts with smooth animations:
  * - Bar chart
  * - Line chart
  * - Pie chart
@@ -12,9 +12,19 @@
 import { createRoot } from "react-dom/client";
 import { useState, useEffect } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
+import { css, cx } from "../../styled-system/css";
 import { Box, Flex, HStack } from "../../styled-system/jsx";
 import { Button } from "../../components/ui/button";
+import { Tooltip } from "../../components/ui/tooltip";
+import * as Alert from "../../components/ui/alert";
+import {
+  ChartSkeleton,
+  StatusBadge,
+  interactive,
+  typography,
+  containers,
+  valueTransition,
+} from "../../shared";
 import "../../global.css";
 
 // ============================================================================
@@ -53,10 +63,34 @@ function notifyModel(event: string, data: Record<string, unknown>) {
 }
 
 // ============================================================================
-// Chart Components
+// Styles
 // ============================================================================
 
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
+const COLORS = [
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#84cc16",
+];
+
+const dataPointStyle = css({
+  cursor: "pointer",
+  transition: "opacity 0.15s ease, transform 0.15s ease",
+  _hover: { opacity: 0.8 },
+});
+
+const dataPointScaleStyle = css({
+  cursor: "pointer",
+  transition: "r 0.15s ease, transform 0.15s ease",
+});
+
+// ============================================================================
+// Chart Components
+// ============================================================================
 
 function BarChart({ data, width, height }: { data: ChartData; width: number; height: number }) {
   const padding = { top: 20, right: 20, bottom: 40, left: 50 };
@@ -72,45 +106,77 @@ function BarChart({ data, width, height }: { data: ChartData; width: number; hei
   return (
     <svg width={width} height={height} className={css({ bg: "bg.default", rounded: "lg" })}>
       {/* Y axis */}
-      <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="currentColor" strokeOpacity={0.2} />
+      <line
+        x1={padding.left}
+        y1={padding.top}
+        x2={padding.left}
+        y2={height - padding.bottom}
+        stroke="currentColor"
+        strokeOpacity={0.2}
+      />
 
       {/* X axis */}
-      <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} stroke="currentColor" strokeOpacity={0.2} />
+      <line
+        x1={padding.left}
+        y1={height - padding.bottom}
+        x2={width - padding.right}
+        y2={height - padding.bottom}
+        stroke="currentColor"
+        strokeOpacity={0.2}
+      />
 
       {/* Grid lines */}
       {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
         const y = padding.top + chartHeight * (1 - ratio);
         return (
           <g key={ratio}>
-            <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="currentColor" strokeOpacity={0.1} strokeDasharray="4" />
-            <text x={padding.left - 5} y={y + 4} textAnchor="end" fontSize={10} fill="currentColor" fillOpacity={0.6}>
+            <line
+              x1={padding.left}
+              y1={y}
+              x2={width - padding.right}
+              y2={y}
+              stroke="currentColor"
+              strokeOpacity={0.1}
+              strokeDasharray="4"
+            />
+            <text
+              x={padding.left - 5}
+              y={y + 4}
+              textAnchor="end"
+              fontSize={10}
+              fill="currentColor"
+              fillOpacity={0.6}
+            >
               {Math.round(maxValue * ratio)}
             </text>
           </g>
         );
       })}
 
-      {/* Bars */}
+      {/* Bars with Tooltips */}
       {data.datasets.map((dataset, di) =>
         dataset.data.map((value, i) => {
           const barHeight = (value / maxValue) * chartHeight;
           const x = padding.left + gap + i * barGroupWidth + di * barWidth;
           const y = height - padding.bottom - barHeight;
+          const color = dataset.color || COLORS[di % COLORS.length];
+          const tooltipContent = `${data.labels[i]}: ${value}${dataset.label ? ` (${dataset.label})` : ""}`;
 
           return (
-            <rect
-              key={`${di}-${i}`}
-              x={x}
-              y={y}
-              width={barWidth - 2}
-              height={barHeight}
-              fill={dataset.color || COLORS[di % COLORS.length]}
-              rx={2}
-              className={css({ cursor: "pointer", _hover: { opacity: 0.8 } })}
-              onClick={() => notifyModel("click", { label: data.labels[i], value, dataset: dataset.label })}
-            >
-              <title>{`${data.labels[i]}: ${value}`}</title>
-            </rect>
+            <Tooltip key={`${di}-${i}`} content={tooltipContent} portalled={false}>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth - 2}
+                height={barHeight}
+                fill={color}
+                rx={2}
+                className={cx(dataPointStyle, valueTransition)}
+                onClick={() =>
+                  notifyModel("click", { label: data.labels[i], value, dataset: dataset.label })
+                }
+              />
+            </Tooltip>
           );
         })
       )}
@@ -126,7 +192,7 @@ function BarChart({ data, width, height }: { data: ChartData; width: number; hei
           fill="currentColor"
           fillOpacity={0.7}
         >
-          {label.length > 10 ? label.slice(0, 10) + "..." : label}
+          {label.length > 10 ? label.slice(0, 10) + "…" : label}
         </text>
       ))}
     </svg>
@@ -145,15 +211,44 @@ function LineChart({ data, width, height }: { data: ChartData; width: number; he
   return (
     <svg width={width} height={height} className={css({ bg: "bg.default", rounded: "lg" })}>
       {/* Axes and grid */}
-      <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="currentColor" strokeOpacity={0.2} />
-      <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} stroke="currentColor" strokeOpacity={0.2} />
+      <line
+        x1={padding.left}
+        y1={padding.top}
+        x2={padding.left}
+        y2={height - padding.bottom}
+        stroke="currentColor"
+        strokeOpacity={0.2}
+      />
+      <line
+        x1={padding.left}
+        y1={height - padding.bottom}
+        x2={width - padding.right}
+        y2={height - padding.bottom}
+        stroke="currentColor"
+        strokeOpacity={0.2}
+      />
 
       {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
         const y = padding.top + chartHeight * (1 - ratio);
         return (
           <g key={ratio}>
-            <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="currentColor" strokeOpacity={0.1} strokeDasharray="4" />
-            <text x={padding.left - 5} y={y + 4} textAnchor="end" fontSize={10} fill="currentColor" fillOpacity={0.6}>
+            <line
+              x1={padding.left}
+              y1={y}
+              x2={width - padding.right}
+              y2={y}
+              stroke="currentColor"
+              strokeOpacity={0.1}
+              strokeDasharray="4"
+            />
+            <text
+              x={padding.left - 5}
+              y={y + 4}
+              textAnchor="end"
+              fontSize={10}
+              fill="currentColor"
+              fillOpacity={0.6}
+            >
               {Math.round(maxValue * ratio)}
             </text>
           </g>
@@ -162,32 +257,45 @@ function LineChart({ data, width, height }: { data: ChartData; width: number; he
 
       {/* Lines */}
       {data.datasets.map((dataset, di) => {
-        const points = dataset.data.map((value, i) => {
-          const x = padding.left + i * stepX;
-          const y = height - padding.bottom - (value / maxValue) * chartHeight;
-          return `${x},${y}`;
-        }).join(" ");
+        const points = dataset.data
+          .map((value, i) => {
+            const x = padding.left + i * stepX;
+            const y = height - padding.bottom - (value / maxValue) * chartHeight;
+            return `${x},${y}`;
+          })
+          .join(" ");
 
         const color = dataset.color || COLORS[di % COLORS.length];
 
         return (
           <g key={di}>
-            <polyline fill="none" stroke={color} strokeWidth={2} points={points} />
+            <polyline
+              fill="none"
+              stroke={color}
+              strokeWidth={2}
+              points={points}
+              className={valueTransition}
+            />
             {dataset.data.map((value, i) => {
               const x = padding.left + i * stepX;
               const y = height - padding.bottom - (value / maxValue) * chartHeight;
+              const tooltipContent = `${data.labels[i]}: ${value}${dataset.label ? ` (${dataset.label})` : ""}`;
+
               return (
-                <circle
-                  key={i}
-                  cx={x}
-                  cy={y}
-                  r={4}
-                  fill={color}
-                  className={css({ cursor: "pointer", _hover: { r: "6" } })}
-                  onClick={() => notifyModel("click", { label: data.labels[i], value, dataset: dataset.label })}
-                >
-                  <title>{`${data.labels[i]}: ${value}`}</title>
-                </circle>
+                <Tooltip key={i} content={tooltipContent} portalled={false}>
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={4}
+                    fill={color}
+                    className={dataPointScaleStyle}
+                    onMouseEnter={(e) => e.currentTarget.setAttribute("r", "6")}
+                    onMouseLeave={(e) => e.currentTarget.setAttribute("r", "4")}
+                    onClick={() =>
+                      notifyModel("click", { label: data.labels[i], value, dataset: dataset.label })
+                    }
+                  />
+                </Tooltip>
               );
             })}
           </g>
@@ -205,7 +313,7 @@ function LineChart({ data, width, height }: { data: ChartData; width: number; he
           fill="currentColor"
           fillOpacity={0.7}
         >
-          {label.length > 8 ? label.slice(0, 8) + "..." : label}
+          {label.length > 8 ? label.slice(0, 8) + "…" : label}
         </text>
       ))}
     </svg>
@@ -237,22 +345,36 @@ function PieChart({ data, width, height }: { data: ChartData; width: number; hei
     const largeArc = angle > Math.PI ? 1 : 0;
     const path = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 
-    return { path, color: COLORS[i % COLORS.length], label: data.labels[i], value, percent: ((value / total) * 100).toFixed(1) };
+    return {
+      path,
+      color: COLORS[i % COLORS.length],
+      label: data.labels[i],
+      value,
+      percent: ((value / total) * 100).toFixed(1),
+    };
   });
 
   return (
     <svg width={width} height={height} className={css({ bg: "bg.default", rounded: "lg" })}>
-      {slices.map((slice, i) => (
-        <path
-          key={i}
-          d={slice.path}
-          fill={slice.color}
-          className={css({ cursor: "pointer", _hover: { opacity: 0.8 } })}
-          onClick={() => notifyModel("click", { label: slice.label, value: slice.value, percent: slice.percent })}
-        >
-          <title>{`${slice.label}: ${slice.value} (${slice.percent}%)`}</title>
-        </path>
-      ))}
+      {slices.map((slice, i) => {
+        const tooltipContent = `${slice.label}: ${slice.value} (${slice.percent}%)`;
+        return (
+          <Tooltip key={i} content={tooltipContent} portalled={false}>
+            <path
+              d={slice.path}
+              fill={slice.color}
+              className={dataPointStyle}
+              onClick={() =>
+                notifyModel("click", {
+                  label: slice.label,
+                  value: slice.value,
+                  percent: slice.percent,
+                })
+              }
+            />
+          </Tooltip>
+        );
+      })}
 
       {/* Legend */}
       {slices.map((slice, i) => (
@@ -279,19 +401,24 @@ function ChartViewer() {
 
   // Connect to MCP host
   useEffect(() => {
-    app.connect().then(() => {
-      appConnected = true;
-      console.log("[chart-viewer] Connected to MCP host");
-    }).catch(() => {
-      console.log("[chart-viewer] No MCP host (standalone mode)");
-    });
+    app
+      .connect()
+      .then(() => {
+        appConnected = true;
+        console.log("[chart-viewer] Connected to MCP host");
+      })
+      .catch(() => {
+        console.log("[chart-viewer] No MCP host (standalone mode)");
+      });
 
     app.ontoolresult = (result: { content?: ContentItem[] }) => {
       setLoading(false);
       setError(null);
 
       try {
-        const textContent = result.content?.find((c) => c.type === "text") as ContentItem | undefined;
+        const textContent = result.content?.find((c) => c.type === "text") as
+          | ContentItem
+          | undefined;
         if (!textContent?.text) {
           setChartData(null);
           return;
@@ -311,44 +438,40 @@ function ChartViewer() {
   const width = 500;
   const height = 300;
 
+  // Loading state
   if (loading) {
-    return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Box p="10" textAlign="center" color="fg.muted">Loading chart...</Box>
-      </Box>
-    );
+    return <ChartSkeleton />;
   }
 
+  // Error state
   if (error) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Box
-          p="4"
-          bg={{ base: "red.50", _dark: "red.950" }}
-          color={{ base: "red.700", _dark: "red.300" }}
-          rounded="md"
-        >
-          {error}
-        </Box>
+      <Box className={containers.root}>
+        <Alert.Root status="error">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Error</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
       </Box>
     );
   }
 
+  // Empty state
   if (!chartData) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
-        <Box p="10" textAlign="center" color="fg.muted">No chart data</Box>
+      <Box className={containers.root}>
+        <Box className={containers.centered}>No chart data</Box>
       </Box>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas">
+    <Box className={containers.root}>
       {/* Header */}
       <Flex justify="space-between" alignItems="center" mb="4" flexWrap="wrap" gap="2">
-        {chartData.title && (
-          <Box fontSize="lg" fontWeight="semibold">{chartData.title}</Box>
-        )}
+        {chartData.title && <Box className={typography.sectionTitle}>{chartData.title}</Box>}
         <HStack gap="1">
           {(["bar", "line", "pie"] as const).map((type) => (
             <Button
@@ -356,6 +479,7 @@ function ChartViewer() {
               variant={chartType === type ? "solid" : "outline"}
               size="sm"
               onClick={() => setChartType(type)}
+              className={interactive.scaleOnHover}
             >
               {type.charAt(0).toUpperCase() + type.slice(1)}
             </Button>
@@ -364,13 +488,7 @@ function ChartViewer() {
       </Flex>
 
       {/* Chart */}
-      <Flex
-        justify="center"
-        borderWidth="1px"
-        borderColor="border.default"
-        rounded="lg"
-        p="2"
-      >
+      <Flex justify="center" borderWidth="1px" borderColor="border.default" rounded="lg" p="2">
         {chartType === "bar" && <BarChart data={chartData} width={width} height={height} />}
         {chartType === "line" && <LineChart data={chartData} width={width} height={height} />}
         {chartType === "pie" && <PieChart data={chartData} width={width} height={height} />}
@@ -378,17 +496,22 @@ function ChartViewer() {
 
       {/* Legend for multi-dataset */}
       {chartData.datasets.length > 1 && chartType !== "pie" && (
-        <Flex gap="4" mt="3" justify="center" flexWrap="wrap">
+        <Flex gap="3" mt="3" justify="center" flexWrap="wrap">
           {chartData.datasets.map((ds, i) => (
-            <Flex key={i} alignItems="center" gap="1.5" fontSize="xs" color="fg.muted">
-              <Box
-                w="3"
-                h="3"
-                rounded="sm"
-                style={{ backgroundColor: ds.color || COLORS[i % COLORS.length] }}
-              />
-              <span>{ds.label || `Dataset ${i + 1}`}</span>
-            </Flex>
+            <StatusBadge
+              key={i}
+              status="neutral"
+              icon={
+                <Box
+                  w="10px"
+                  h="10px"
+                  rounded="sm"
+                  style={{ backgroundColor: ds.color || COLORS[i % COLORS.length] }}
+                />
+              }
+            >
+              {ds.label || `Dataset ${i + 1}`}
+            </StatusBadge>
           ))}
         </Flex>
       )}

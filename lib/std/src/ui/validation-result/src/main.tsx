@@ -14,9 +14,18 @@
 import { createRoot } from "react-dom/client";
 import { useState, useEffect, useMemo } from "react";
 import { App } from "@modelcontextprotocol/ext-apps";
-import { css } from "../../styled-system/css";
+import { css, cx } from "../../styled-system/css";
 import { Box, Flex, Stack } from "../../styled-system/jsx";
 import { Button } from "../../components/ui/button";
+import { Tooltip } from "../../components/ui/tooltip";
+import * as Alert from "../../components/ui/alert";
+import {
+  ContentSkeleton,
+  StatusBadge,
+  typography,
+  containers,
+  interactive,
+} from "../../shared";
 import "../../global.css";
 
 // ============================================================================
@@ -109,46 +118,19 @@ function getUniqueKeywords(errors: ValidationError[]): string[] {
 
 function GlobalStatus({ valid, errorCount }: { valid: boolean; errorCount: number }) {
   return (
-    <Flex
-      align="center"
-      gap="3"
-      p="4"
-      rounded="lg"
-      mb="4"
-      bg={valid ? "green.100" : "red.100"}
-      _dark={{ bg: valid ? "green.900/30" : "red.900/30" }}
-    >
-      <Flex
-        align="center"
-        justify="center"
-        w="40px"
-        h="40px"
-        rounded="full"
-        bg="white"
-        _dark={{ bg: "black/20" }}
-      >
-        {valid ? (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        ) : (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        )}
-      </Flex>
-      <Stack gap="0.5">
-        <span className={css({ fontSize: "lg", fontWeight: "bold", letterSpacing: "wide" })}>
+    <Alert.Root status={valid ? "success" : "error"} variant="surface" mb="4">
+      <Alert.Indicator />
+      <Alert.Content>
+        <Alert.Title>
           {valid ? "VALID" : "INVALID"}
-        </span>
+        </Alert.Title>
         {!valid && errorCount > 0 && (
-          <span className={css({ fontSize: "sm", color: "fg.muted" })}>
-            {errorCount} error{errorCount !== 1 ? "s" : ""}
-          </span>
+          <Alert.Description>
+            {errorCount} error{errorCount !== 1 ? "s" : ""} found
+          </Alert.Description>
         )}
-      </Stack>
-    </Flex>
+      </Alert.Content>
+    </Alert.Root>
   );
 }
 
@@ -162,13 +144,20 @@ function ErrorItem({ error, onCopy }: { error: ValidationError; onCopy: (text: s
       rounded="md"
       overflow="hidden"
       cursor="pointer"
-      transition="all 0.15s"
       border="1px solid"
       borderColor="transparent"
+      className={cx(interactive.rowHover, interactive.focusRing)}
+      tabIndex={0}
       _hover={{ borderColor: "red.300", _dark: { borderColor: "red.700" } }}
       onClick={() => {
         notifyModel("select-error", { path: error.path, keyword: error.keyword });
         onCopy(error.path);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          notifyModel("select-error", { path: error.path, keyword: error.keyword });
+          onCopy(error.path);
+        }
       }}
     >
       {/* Path header */}
@@ -284,26 +273,29 @@ function FilterBar({
 
   return (
     <Flex align="center" gap="2" mb="3" flexWrap="wrap">
-      <span className={css({ fontSize: "xs", color: "fg.muted", fontWeight: "medium" })}>Filter:</span>
+      <Box className={typography.label}>Filter:</Box>
       <Button
         variant={!selectedKeyword ? "solid" : "outline"}
         size="xs"
         onClick={() => onSelect(null)}
+        className={interactive.scaleOnHover}
       >
         All
       </Button>
       {keywords.map((kw) => {
         const info = getKeywordInfo(kw);
         return (
-          <Button
-            key={kw}
-            variant={selectedKeyword === kw ? "solid" : "outline"}
-            size="xs"
-            onClick={() => onSelect(kw)}
-          >
-            <span className={css({ fontFamily: "mono", fontSize: "10px", fontWeight: "bold" })}>{info.icon}</span>
-            {info.label}
-          </Button>
+          <Tooltip key={kw} content={info.suggestion || info.label} portalled={false}>
+            <Button
+              variant={selectedKeyword === kw ? "solid" : "outline"}
+              size="xs"
+              onClick={() => onSelect(kw)}
+              className={interactive.scaleOnHover}
+            >
+              <span className={css({ fontFamily: "mono", fontSize: "10px", fontWeight: "bold" })}>{info.icon}</span>
+              {info.label}
+            </Button>
+          </Tooltip>
         );
       })}
     </Flex>
@@ -357,26 +349,22 @@ function ValidationResultViewer() {
   }, [data?.errors, selectedKeyword]);
 
   if (loading) {
-    return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" position="relative">
-        <Box color="fg.muted" textAlign="center" py="8">Loading validation results...</Box>
-      </Box>
-    );
+    return <ContentSkeleton lines={4} />;
   }
 
   if (!data) {
     return (
-      <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" position="relative">
-        <Box color="fg.muted" textAlign="center" py="8">No validation result</Box>
+      <Box className={containers.root}>
+        <Box className={containers.centered}>No validation result</Box>
       </Box>
     );
   }
 
   return (
-    <Box p="4" fontFamily="sans" fontSize="sm" color="fg.default" bg="bg.canvas" position="relative">
+    <Box className={containers.root}>
       {/* Schema name if provided */}
       {data.schema && (
-        <Box fontSize="xs" color="fg.muted" mb="2" fontFamily="mono">{data.schema}</Box>
+        <Box className={typography.muted} mb="2" fontFamily="mono">{data.schema}</Box>
       )}
 
       {/* Global status */}

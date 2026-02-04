@@ -1150,4 +1150,144 @@ export const colorTools: MiniTool[] = [
       return result;
     },
   },
+  {
+    name: "color_palette",
+    description:
+      "Generate a color palette from a base color using various harmony rules. Create complementary, analogous, triadic, split-complementary, tetradic, or monochromatic palettes. Useful for design systems, UI theming, or brand color exploration. Keywords: palette, color scheme, harmony, complementary, analogous, triadic, color theory, design.",
+    category: "color",
+    inputSchema: {
+      type: "object",
+      properties: {
+        baseColor: {
+          type: "string",
+          description: "Base color (hex, rgb, or named color like 'red', 'blue')",
+        },
+        type: {
+          type: "string",
+          enum: ["complementary", "analogous", "triadic", "split-complementary", "tetradic", "monochromatic"],
+          description: "Palette harmony type (default: 'analogous')",
+        },
+        count: {
+          type: "number",
+          description: "Number of colors to generate (default: 5, max: 10)",
+        },
+      },
+      required: ["baseColor"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/palette-viewer",
+      },
+    },
+    handler: ({ baseColor, type = "analogous", count = 5 }) => {
+      const parseToHsl = (color: string): { h: number; s: number; l: number } | null => {
+        const c = color.trim().toLowerCase();
+
+        // Named color
+        if (namedColors[c]) {
+          const rgb = hexToRgb(namedColors[c]);
+          if (rgb) return rgbToHsl(rgb.r, rgb.g, rgb.b);
+        }
+
+        // Hex
+        if (c.startsWith("#") || /^[0-9a-f]{3,6}$/i.test(c)) {
+          const hex = c.startsWith("#") ? c : `#${c}`;
+          const rgb = hexToRgb(hex);
+          if (rgb) return rgbToHsl(rgb.r, rgb.g, rgb.b);
+        }
+
+        // RGB
+        const rgbMatch = c.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (rgbMatch) {
+          return rgbToHsl(
+            parseInt(rgbMatch[1], 10),
+            parseInt(rgbMatch[2], 10),
+            parseInt(rgbMatch[3], 10)
+          );
+        }
+
+        return null;
+      };
+
+      const hsl = parseToHsl(baseColor as string);
+      if (!hsl) {
+        throw new Error(`Unable to parse base color: ${baseColor}`);
+      }
+
+      const n = Math.min(Math.max(count as number, 2), 10);
+      const colors: Array<{ hex: string; name: string; rgb: { r: number; g: number; b: number } }> = [];
+
+      const addColor = (h: number, s: number, l: number, name: string) => {
+        h = ((h % 360) + 360) % 360;
+        const rgb = hslToRgb(h, s, l);
+        colors.push({
+          hex: rgbToHex(rgb.r, rgb.g, rgb.b),
+          name,
+          rgb,
+        });
+      };
+
+      switch (type) {
+        case "complementary":
+          addColor(hsl.h, hsl.s, hsl.l, "Base");
+          addColor(hsl.h + 180, hsl.s, hsl.l, "Complement");
+          // Add variations
+          for (let i = 2; i < n; i++) {
+            const lightness = hsl.l + (i % 2 === 0 ? 15 : -15) * Math.ceil(i / 2);
+            addColor(i % 2 === 0 ? hsl.h : hsl.h + 180, hsl.s, Math.max(10, Math.min(90, lightness)), `Shade ${i - 1}`);
+          }
+          break;
+
+        case "analogous":
+          const analogousStep = 30;
+          for (let i = 0; i < n; i++) {
+            const offset = (i - Math.floor(n / 2)) * analogousStep;
+            addColor(hsl.h + offset, hsl.s, hsl.l, i === Math.floor(n / 2) ? "Base" : `Analogous ${i + 1}`);
+          }
+          break;
+
+        case "triadic":
+          addColor(hsl.h, hsl.s, hsl.l, "Base");
+          addColor(hsl.h + 120, hsl.s, hsl.l, "Triadic 1");
+          addColor(hsl.h + 240, hsl.s, hsl.l, "Triadic 2");
+          for (let i = 3; i < n; i++) {
+            addColor(hsl.h + (i * 120), hsl.s, hsl.l + (i % 2 === 0 ? 10 : -10), `Shade ${i - 2}`);
+          }
+          break;
+
+        case "split-complementary":
+          addColor(hsl.h, hsl.s, hsl.l, "Base");
+          addColor(hsl.h + 150, hsl.s, hsl.l, "Split 1");
+          addColor(hsl.h + 210, hsl.s, hsl.l, "Split 2");
+          for (let i = 3; i < n; i++) {
+            addColor(hsl.h + (i * 60), hsl.s, hsl.l, `Accent ${i - 2}`);
+          }
+          break;
+
+        case "tetradic":
+          addColor(hsl.h, hsl.s, hsl.l, "Base");
+          addColor(hsl.h + 90, hsl.s, hsl.l, "Tetradic 1");
+          addColor(hsl.h + 180, hsl.s, hsl.l, "Tetradic 2");
+          addColor(hsl.h + 270, hsl.s, hsl.l, "Tetradic 3");
+          for (let i = 4; i < n; i++) {
+            addColor(hsl.h + (i * 90), hsl.s, hsl.l + 15, `Shade ${i - 3}`);
+          }
+          break;
+
+        case "monochromatic":
+        default:
+          for (let i = 0; i < n; i++) {
+            const lightness = 20 + (60 / (n - 1)) * i;
+            addColor(hsl.h, hsl.s, lightness, i === Math.floor(n / 2) ? "Base" : `Shade ${i + 1}`);
+          }
+          break;
+      }
+
+      return {
+        type: type as string,
+        baseColor: colors[0]?.hex || rgbToHex(hslToRgb(hsl.h, hsl.s, hsl.l).r, hslToRgb(hsl.h, hsl.s, hsl.l).g, hslToRgb(hsl.h, hsl.s, hsl.l).b),
+        colors: colors.slice(0, n),
+      };
+    },
+  },
 ];
