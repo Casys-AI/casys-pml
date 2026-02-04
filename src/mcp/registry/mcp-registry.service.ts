@@ -35,28 +35,8 @@ import {
   extractShortHash,
 } from "./hash-utils.ts";
 
-// Cached server config from .mcp-servers.json
-let cachedServerConfig: Record<string, ServerConnectionInfo> | null = null;
-
-/**
- * Load MCP server config from config/.mcp-servers.json
- */
-async function loadServerConfigFromFile(): Promise<Record<string, ServerConnectionInfo>> {
-  if (cachedServerConfig !== null) return cachedServerConfig;
-
-  try {
-    const content = await Deno.readTextFile("config/.mcp-servers.json");
-    const parsed = JSON.parse(content);
-    // Handle { mcpServers: { ... } } format
-    cachedServerConfig = parsed.mcpServers || parsed;
-    log.debug("[McpRegistry] Loaded server config from config/.mcp-servers.json");
-  } catch {
-    log.debug("[McpRegistry] No .mcp-servers.json found");
-    cachedServerConfig = {};
-  }
-
-  return cachedServerConfig!;
-}
+// Tech-spec 01.5: Server config now comes from tool_observations DB table
+// (synced from client .pml.json via POST /api/tools/sync)
 
 /**
  * MCP Registry Service
@@ -432,9 +412,8 @@ export class McpRegistryService {
       };
 
       // Add type-specific fields
-      // Note: "std" uses binary distribution - client downloads from GitHub releases
-      // No install info needed as client's binary-resolver handles it
-      if (type === "stdio" && config && row.server_id !== "std") {
+      // Tech-spec 01.5: All servers (including std) get install info from observed_config
+      if (type === "stdio" && config) {
         entry.install = {
           command: config.command || "",
           args: config.args || [],
@@ -452,12 +431,31 @@ export class McpRegistryService {
   }
 
   /**
-   * Get server connection info from config/.mcp-servers.json
+   * Get server connection info from tool_observations DB.
+   * Tech-spec 01.5: Config is synced from client .pml.json
    */
   private async getServerConfig(serverId: string | null): Promise<ServerConnectionInfo | null> {
     if (!serverId) return null;
 
-    const configs = await loadServerConfigFromFile();
-    return configs[serverId] || null;
+    try {
+      // Query tool_observations for the server's observed_config
+      // Note: observed_config is JSONB containing { command, args, env }
+      const rows = await this.db.query(
+        `SELECT observed_config
+         FROM tool_observations
+         WHERE server_namespace = $1
+         LIMIT 1`,
+        [serverId],
+      ) as { observed_config: ServerConnectionInfo }[];
+
+      if (rows.length > 0 && rows[0].observed_config) {
+        return rows[0].observed_config;
+      }
+
+      return null;
+    } catch (e) {
+      log.debug(`[McpRegistry] Error getting server config for ${serverId}: ${e}`);
+      return null;
+    }
   }
 }

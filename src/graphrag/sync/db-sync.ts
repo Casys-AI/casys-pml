@@ -142,31 +142,31 @@ export async function syncGraphFromDatabase(
     graph.addNode(toolId, attributes);
   }
 
-  // 1b. Load tool observations (aggregated across all users)
-  // Tech-Spec 01: observedConfigs = all observed configurations per tool
-  let observationsLoaded = 0;
+  // 1b. Load server configs from tool_observations
+  // Tech-Spec 01.5: observed_config contains { command, args, env } per server
+  let configsLoaded = 0;
   try {
-    const observations = await db.query(`
-      SELECT tool_id, array_agg(DISTINCT observed_args ORDER BY observed_args) as observed_configs
+    const configs = await db.query(`
+      SELECT server_namespace, observed_config
       FROM tool_observations
-      GROUP BY tool_id
+      WHERE observed_config != '{}'
     `);
 
-    for (const obs of observations) {
-      const toolId = obs.tool_id as string;
-      if (graph.hasNode(toolId) && graph.setNodeAttribute) {
-        // Set observedConfigs attribute on existing tool node
-        graph.setNodeAttribute(toolId, "observedConfigs", obs.observed_configs);
-        observationsLoaded++;
+    for (const cfg of configs) {
+      const serverName = cfg.server_namespace as string;
+      // Store server config as graph attribute (not per-tool)
+      if (graph.setAttribute) {
+        graph.setAttribute(`serverConfig:${serverName}`, cfg.observed_config);
+        configsLoaded++;
       }
     }
 
-    if (observationsLoaded > 0) {
-      log.debug(`Loaded observations for ${observationsLoaded} tools`);
+    if (configsLoaded > 0) {
+      log.debug(`Loaded configs for ${configsLoaded} servers`);
     }
   } catch {
     // Table might not exist yet (migration not run) - that's OK
-    log.debug("tool_observations table not yet available, skipping observation loading");
+    log.debug("tool_observations table not yet available, skipping config loading");
   }
 
   // 2. Load edges (dependencies) from PGlite

@@ -132,11 +132,31 @@ export interface TracesResponse {
 // Tools API Types (from tools.ts)
 // ============================================================================
 
+/** UI metadata from MCP Apps (SEP-1865) */
+export interface ToolUiMeta {
+  resourceUri?: string;
+  visibility?: Array<"model" | "app">;
+  emits?: string[];
+  accepts?: string[];
+}
+
 /** Input for a discovered tool from client */
 export interface DiscoveredToolInput {
   name: string;
   description?: string;
   inputSchema?: Record<string, unknown>;
+  /** MCP Apps UI metadata (Story 16.6) */
+  uiMeta?: ToolUiMeta;
+}
+
+/** Fetched UI HTML content (Story 16.6) */
+export interface FetchedUiHtmlInput {
+  /** Resource URI (e.g., "ui://mcp-std/table-viewer") */
+  resourceUri: string;
+  /** HTML content */
+  content: string;
+  /** MIME type */
+  mimeType?: string;
 }
 
 /** Discovery result for a single MCP server */
@@ -144,12 +164,28 @@ export interface DiscoveryResultInput {
   serverName: string;
   tools: DiscoveredToolInput[];
   error?: string;
+  /** Fetched UI HTML content (Story 16.6) */
+  uiHtml?: FetchedUiHtmlInput[];
+}
+
+/**
+ * MCP server spawn config from client .pml.json
+ * Tech-spec 01.5: Server Config Sync
+ */
+export interface ObservedConfig {
+  /** Command to spawn the server (deno, npx, uvx, etc.) */
+  command: string;
+  /** Arguments for the command */
+  args: string[];
+  /** Environment variables (placeholders only, e.g., "${API_KEY}") */
+  env?: Record<string, string>;
 }
 
 /** Request body for POST /api/tools/sync */
 export interface ToolsSyncRequest {
   tools: DiscoveryResultInput[];
-  observedArgs?: Record<string, string[]>;
+  /** Tech-spec 01.5: Server spawn configs from .pml.json */
+  observedConfig?: Record<string, ObservedConfig>;
 }
 
 // ============================================================================

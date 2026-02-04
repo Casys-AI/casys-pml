@@ -25,22 +25,56 @@ export interface SyncResult {
 }
 
 /**
+ * MCP server spawn config synced to cloud.
+ * Tech-spec 01.5: Server Config Sync
+ */
+export interface ObservedConfig {
+  /** Command to spawn the server (deno, npx, uvx, etc.) */
+  command: string;
+  /** Arguments for the command */
+  args: string[];
+  /** Environment variables (placeholders only, never actual values!) */
+  env?: Record<string, string>;
+}
+
+/**
+ * Convert env values to placeholders for safe transmission.
+ * NEVER send actual API keys to the server.
+ *
+ * Tech-spec 01.5: Security - ensures secrets never leave the client.
+ * Exported for testing.
+ *
+ * @example { "API_KEY": "sk-secret" } → { "API_KEY": "${API_KEY}" }
+ */
+export function sanitizeEnvToPlaceholders(
+  env: Record<string, string> | undefined,
+): Record<string, string> | undefined {
+  if (!env || Object.keys(env).length === 0) return undefined;
+  const sanitized: Record<string, string> = {};
+  for (const key of Object.keys(env)) {
+    sanitized[key] = `\${${key}}`;
+  }
+  return sanitized;
+}
+
+/**
  * Sync discovered tools to PML cloud.
  *
  * Sends the discovery results to POST /api/tools/sync.
  * The server will upsert tool_schema and insert tool_observations.
  *
+ * Tech-spec 01.5: Now includes observedConfig with server spawn config
+ * (command, args, env placeholders) from .pml.json.
+ *
  * @param cloudUrl - PML cloud URL
  * @param apiKey - User's PML API key
  * @param results - Discovery results from MCP servers
- * @param observedArgs - Optional args observed per server (for multi-config scenarios)
  * @returns Sync result
  */
 export async function syncDiscoveredTools(
   cloudUrl: string,
   apiKey: string,
   results: DiscoveryResult[],
-  observedArgs: Record<string, string[]> = {},
 ): Promise<SyncResult> {
   // Filter out results with no tools
   const resultsToSync = results.filter((r) => r.tools.length > 0);
@@ -48,6 +82,19 @@ export async function syncDiscoveredTools(
   if (resultsToSync.length === 0) {
     log.debug("[tool-sync] No tools to sync");
     return { success: true, synced: 0, observations: 0 };
+  }
+
+  // Tech-spec 01.5: Build observedConfig from discovery results
+  // Only include stdio servers (with command), skip http servers (with url)
+  const observedConfig: Record<string, ObservedConfig> = {};
+  for (const r of resultsToSync) {
+    if (r.config && !r.error && r.config.command) {
+      observedConfig[r.serverName] = {
+        command: r.config.command,
+        args: r.config.args || [],
+        env: sanitizeEnvToPlaceholders(r.config.env),
+      };
+    }
   }
 
   try {
@@ -70,7 +117,8 @@ export async function syncDiscoveredTools(
           // Story 16.6: Include fetched UI HTML
           uiHtml: r.uiHtml,
         })),
-        observedArgs,
+        // Tech-spec 01.5: Include server spawn configs
+        observedConfig,
       }),
     });
 

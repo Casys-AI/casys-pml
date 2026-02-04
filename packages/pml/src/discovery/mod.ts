@@ -19,9 +19,9 @@ export type {
   DiscoverySummary,
 } from "./mcp-discovery.ts";
 
-export { syncDiscoveredTools } from "./tool-sync.ts";
+export { syncDiscoveredTools, sanitizeEnvToPlaceholders } from "./tool-sync.ts";
 
-export type { SyncResult } from "./tool-sync.ts";
+export type { SyncResult, ObservedConfig } from "./tool-sync.ts";
 
 export { ConfigWatcher } from "./config-watcher.ts";
 
