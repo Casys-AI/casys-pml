@@ -1,4 +1,9 @@
-@import "tailwindcss";
+@import "tailwindcss" source(".");
+
+/*
+ * Source detection is set to scan from this CSS file's directory.
+ * This ensures components/, shared/, and all viewer directories are scanned.
+ */
 
 /* Theme configuration - Tailwind v4 */
 @theme {
