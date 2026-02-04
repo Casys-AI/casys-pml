@@ -30,189 +30,37 @@ export default function CatalogLayout({
   isCloudMode,
 }: CatalogLayoutProps) {
   return (
-    <div class="catalog-page">
-      {/* Vitrine Header */}
+    <div class="min-h-screen bg-[#08080a] text-stone-100 font-sans">
       <VitrineHeader activePage="catalog" user={user} isCloudMode={isCloudMode} />
 
-      {/* Main Layout */}
-      <div class="catalog-layout">
-        {/* Left Sidebar - Filters */}
+      <div class="flex flex-col md:flex-row min-h-[calc(100vh-60px)] pt-[60px]">
         {sidebar && (
-          <aside class="catalog-sidebar">
-            <div class="catalog-sidebar-inner">{sidebar}</div>
+          <aside class="w-full md:w-60 lg:w-70 flex-shrink-0 bg-[#0c0c0e] border-b md:border-b-0 md:border-r border-amber-400/[0.06] md:sticky md:top-[60px] md:h-[calc(100vh-60px)] md:overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-amber-400/15 hover:scrollbar-thumb-amber-400/25">
+            <div class="p-4 md:p-6">{sidebar}</div>
           </aside>
         )}
 
-        {/* Main Content */}
-        <main class="catalog-main">{children}</main>
+        <main class="flex-1 min-w-0 p-4 md:p-8 bg-gradient-to-br from-amber-400/[0.01] to-transparent">
+          {children}
+        </main>
       </div>
 
-      {/* Footer */}
-      <footer class="catalog-footer">
-        <div class="catalog-footer-inner">
-          <span class="catalog-footer-brand">Casys PML</span>
-          <div class="catalog-footer-links">
-            <a href="https://casys.ai" target="_blank" rel="noopener">
+      <footer class="bg-[#0c0c0e] border-t border-amber-400/[0.06] px-8 py-6">
+        <div class="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
+          <span class="font-serif text-lg text-amber-400">Casys PML</span>
+          <div class="flex gap-6">
+            <a href="https://casys.ai" target="_blank" rel="noopener" class="text-stone-500 hover:text-stone-400 text-sm transition-colors">
               Casys.ai
             </a>
-            <a href="https://github.com/Casys-AI/casys-pml" target="_blank" rel="noopener">
+            <a href="https://github.com/Casys-AI/casys-pml" target="_blank" rel="noopener" class="text-stone-500 hover:text-stone-400 text-sm transition-colors">
               GitHub
             </a>
-            <a href="/docs">Docs</a>
+            <a href="/docs" class="text-stone-500 hover:text-stone-400 text-sm transition-colors">
+              Docs
+            </a>
           </div>
         </div>
       </footer>
-
-      <style>
-        {`
-        /* ═══════════════════════════════════════════════════════════════════
-           CATALOG LAYOUT - Marketplace Aesthetic
-        ═══════════════════════════════════════════════════════════════════ */
-
-        .catalog-page {
-          min-height: 100vh;
-          background: #08080a;
-          color: #f0ede8;
-          font-family: 'Geist', -apple-system, system-ui, sans-serif;
-        }
-
-        .catalog-layout {
-          display: flex;
-          min-height: calc(100vh - 60px);
-          padding-top: 60px; /* Header height */
-        }
-
-        /* ═══════════════════════════════════════════════════════════════════
-           SIDEBAR
-        ═══════════════════════════════════════════════════════════════════ */
-
-        .catalog-sidebar {
-          width: 280px;
-          flex-shrink: 0;
-          background: #0c0c0e;
-          border-right: 1px solid rgba(255, 184, 111, 0.06);
-          position: sticky;
-          top: 60px;
-          height: calc(100vh - 60px);
-          overflow-y: auto;
-        }
-
-        .catalog-sidebar-inner {
-          padding: 1.5rem;
-        }
-
-        /* Custom scrollbar for sidebar */
-        .catalog-sidebar::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .catalog-sidebar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .catalog-sidebar::-webkit-scrollbar-thumb {
-          background: rgba(255, 184, 111, 0.15);
-          border-radius: 3px;
-        }
-
-        .catalog-sidebar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 184, 111, 0.25);
-        }
-
-        /* ═══════════════════════════════════════════════════════════════════
-           MAIN CONTENT
-        ═══════════════════════════════════════════════════════════════════ */
-
-        .catalog-main {
-          flex: 1;
-          min-width: 0;
-          padding: 2rem;
-          background: linear-gradient(
-            135deg,
-            rgba(255, 184, 111, 0.01) 0%,
-            transparent 50%
-          );
-        }
-
-        /* ═══════════════════════════════════════════════════════════════════
-           FOOTER
-        ═══════════════════════════════════════════════════════════════════ */
-
-        .catalog-footer {
-          background: #0c0c0e;
-          border-top: 1px solid rgba(255, 184, 111, 0.06);
-          padding: 1.5rem 2rem;
-        }
-
-        .catalog-footer-inner {
-          max-width: 1400px;
-          margin: 0 auto;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .catalog-footer-brand {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 1.125rem;
-          color: #FFB86F;
-        }
-
-        .catalog-footer-links {
-          display: flex;
-          gap: 1.5rem;
-        }
-
-        .catalog-footer-links a {
-          color: #6b6560;
-          text-decoration: none;
-          font-size: 0.875rem;
-          transition: color 0.2s;
-        }
-
-        .catalog-footer-links a:hover {
-          color: #a8a29e;
-        }
-
-        /* ═══════════════════════════════════════════════════════════════════
-           RESPONSIVE
-        ═══════════════════════════════════════════════════════════════════ */
-
-        @media (max-width: 1024px) {
-          .catalog-sidebar {
-            width: 240px;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .catalog-layout {
-            flex-direction: column;
-          }
-
-          .catalog-sidebar {
-            width: 100%;
-            height: auto;
-            position: static;
-            border-right: none;
-            border-bottom: 1px solid rgba(255, 184, 111, 0.06);
-          }
-
-          .catalog-sidebar-inner {
-            padding: 1rem;
-          }
-
-          .catalog-main {
-            padding: 1rem;
-          }
-
-          .catalog-footer-inner {
-            flex-direction: column;
-            gap: 1rem;
-            text-align: center;
-          }
-        }
-        `}
-      </style>
     </div>
   );
 }

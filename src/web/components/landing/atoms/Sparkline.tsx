@@ -27,7 +27,6 @@ export function Sparkline({
   const min = Math.min(...data);
   const range = max - min || 1;
 
-  // Normalize data to fit within the height
   const points = data.map((val, i) => {
     const x = (i / (data.length - 1)) * width;
     const y = height - ((val - min) / range) * (height - 4) - 2;
@@ -39,7 +38,7 @@ export function Sparkline({
   const lastY = height - ((lastPoint - min) / range) * (height - 4) - 2;
 
   return (
-    <div class="sparkline">
+    <div class="inline-flex items-center">
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         <polyline
           points={points}
@@ -48,7 +47,7 @@ export function Sparkline({
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          class="sparkline__line"
+          class="opacity-80"
         />
         {showDot && (
           <circle
@@ -56,26 +55,19 @@ export function Sparkline({
             cy={lastY}
             r="2.5"
             fill={color}
-            class="sparkline__dot"
+            class="animate-sparkline-pulse"
           />
         )}
       </svg>
 
       <style>
         {`
-        .sparkline {
-          display: inline-flex;
-          align-items: center;
-        }
-        .sparkline__line {
-          opacity: 0.8;
-        }
-        .sparkline__dot {
-          animation: sparklinePulse 2s ease-in-out infinite;
-        }
-        @keyframes sparklinePulse {
+        @keyframes sparkline-pulse {
           0%, 100% { opacity: 0.6; r: 2; }
           50% { opacity: 1; r: 3; }
+        }
+        .animate-sparkline-pulse {
+          animation: sparkline-pulse 2s ease-in-out infinite;
         }
         `}
       </style>

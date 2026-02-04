@@ -59,43 +59,41 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
           href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
-        {/* Critical CSS to prevent white flash on navigation */}
-        <style>{`html,body{background:#08080a;margin:0}`}</style>
+        <style>{`html,body{background:#0a0908;margin:0}`}</style>
         <style dangerouslySetInnerHTML={{ __html: PRISM_THEME_CSS }} />
       </Head>
 
-      <div class="page">
-        {/* Reading progress bar */}
-        <div class="reading-progress" id="reading-progress"></div>
+      <div class="min-h-screen bg-pml-bg text-pml-text font-[var(--font-sans)] flex flex-col overflow-x-hidden">
+        <div class="reading-progress fixed top-0 left-0 h-[3px] bg-gradient-to-r from-pml-accent to-violet-400 w-0 z-[1000] transition-[width] duration-100 ease-out" id="reading-progress"></div>
 
-        <header class="header">
-          <div class="header-inner">
-            <a href="/" class="logo">
-              <span class="logo-mark">Casys PML</span>
-              <span class="logo-text">Procedural Memory Layer</span>
+        <header class="sticky top-0 z-100 px-4 py-4 md:px-8 bg-[rgba(10,9,8,0.9)] backdrop-blur-[20px] border-b border-pml-border">
+          <div class="max-w-[1200px] mx-auto flex justify-between items-center">
+            <a href="/" class="flex items-center gap-4 no-underline">
+              <span class="font-[var(--font-display)] text-2xl text-pml-accent">Casys PML</span>
+              <span class="hidden md:inline text-xs text-pml-text-dim tracking-[0.1em] uppercase">Procedural Memory Layer</span>
             </a>
-            <nav class="nav">
-              <a href="/" class="nav-link">Home</a>
-              <a href="/docs" class="nav-link">Docs</a>
-              <a href="/blog" class="nav-link nav-link-active">Blog</a>
+            <nav class="flex items-center gap-3 md:gap-8">
+              <a href="/" class="hidden md:inline text-pml-text-muted no-underline text-sm font-medium transition-colors duration-200 hover:text-pml-accent">Home</a>
+              <a href="/docs" class="hidden md:inline text-pml-text-muted no-underline text-sm font-medium transition-colors duration-200 hover:text-pml-accent">Docs</a>
+              <a href="/blog" class="hidden md:inline text-pml-accent no-underline text-sm font-medium transition-colors duration-200">Blog</a>
               <MobileMenu />
             </nav>
           </div>
         </header>
 
-        <main class="article-main">
-          <article class="article">
-            <header class="article-header">
-              <a href="/blog" class="back-link">← Back to Blog</a>
-              <div class="article-meta">
-                <span class="article-category">{post.category}</span>
-                <time class="article-date">{formatDate(post.date)}</time>
-                <span class="article-author">by {post.author}</span>
+        <main class="flex-1 px-4 py-8 md:px-8 md:py-16">
+          <article class="max-w-[720px] mx-auto">
+            <header class="mb-12 pb-8 border-b border-pml-border">
+              <a href="/blog" class="inline-block text-pml-text-muted no-underline text-sm mb-8 transition-colors duration-200 hover:text-pml-accent">← Back to Blog</a>
+              <div class="flex items-center gap-2 md:gap-4 mb-6 flex-wrap">
+                <span class="font-[var(--font-mono)] text-[0.7rem] text-pml-accent uppercase tracking-[0.1em] py-1 px-3 bg-pml-accent-dim rounded">{post.category}</span>
+                <time class="text-sm text-pml-text-dim">{formatDate(post.date)}</time>
+                <span class="text-sm text-pml-text-dim">by {post.author}</span>
               </div>
-              <h1 class="article-title">{post.title}</h1>
-              <p class="article-snippet">{post.snippet}</p>
-              <div class="article-tags">
-                {post.tags.map((tag) => <span class="article-tag" key={tag}>#{tag}</span>)}
+              <h1 class="font-[var(--font-display)] text-3xl md:text-[2.5rem] font-normal leading-[1.2] mb-4">{post.title}</h1>
+              <p class="text-lg md:text-xl text-pml-text-muted leading-relaxed mb-6">{post.snippet}</p>
+              <div class="flex gap-3 flex-wrap">
+                {post.tags.map((tag) => <span class="font-[var(--font-mono)] text-[0.8rem] text-pml-text-dim" key={tag}>#{tag}</span>)}
               </div>
             </header>
 
@@ -108,16 +106,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
                 <>
                   <div dangerouslySetInnerHTML={{ __html: part }} />
                   {index < array.length - 1 && (
-                    <div
-                      style={{
-                        height: "400px",
-                        margin: "2rem 0",
-                        border: "1px solid var(--border)",
-                        borderRadius: "12px",
-                        background: "var(--bg-card)",
-                        overflow: "hidden",
-                      }}
-                    >
+                    <div class="h-[400px] my-8 border border-pml-border rounded-xl bg-pml-bg-elevated overflow-hidden">
                       <ArchitectureDiagram />
                     </div>
                   )}
@@ -125,17 +114,17 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
               ))}
             </div>
 
-            <footer class="article-footer">
-              <div class="share-section">
-                <span class="share-label">Share this article:</span>
-                <div class="share-links">
+            <footer class="mt-12 pt-8 border-t border-pml-border">
+              <div class="mb-8">
+                <span class="block text-sm text-pml-text-dim mb-3">Share this article:</span>
+                <div class="flex gap-4">
                   <a
                     href={`https://twitter.com/intent/tweet?text=${
                       encodeURIComponent(post.title)
                     }&url=${encodeURIComponent(`https://pml.casys.ai/blog/${post.slug}`)}`}
                     target="_blank"
                     rel="noopener"
-                    class="share-link"
+                    class="py-2 px-4 bg-pml-bg-elevated border border-pml-border rounded-md text-pml-text-muted no-underline text-sm transition-all duration-200 hover:border-pml-accent hover:text-pml-accent"
                   >
                     Twitter
                   </a>
@@ -145,223 +134,48 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
                     }`}
                     target="_blank"
                     rel="noopener"
-                    class="share-link"
+                    class="py-2 px-4 bg-pml-bg-elevated border border-pml-border rounded-md text-pml-text-muted no-underline text-sm transition-all duration-200 hover:border-pml-accent hover:text-pml-accent"
                   >
                     LinkedIn
                   </a>
                 </div>
               </div>
-              <a href="/blog" class="back-link">← Back to all posts</a>
+              <a href="/blog" class="inline-block text-pml-text-muted no-underline text-sm transition-colors duration-200 hover:text-pml-accent">← Back to all posts</a>
             </footer>
           </article>
         </main>
 
-        <footer class="footer">
-          <div class="footer-inner">
-            <div class="footer-brand">
-              <span class="logo-mark">Casys PML</span>
-              <span class="footer-tagline">Procedural Memory Layer</span>
+        <footer class="p-4 md:p-8 border-t border-pml-border">
+          <div class="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+            <div class="flex items-center gap-4">
+              <span class="font-[var(--font-display)] text-2xl text-pml-accent">Casys PML</span>
+              <span class="text-xs text-pml-text-dim uppercase tracking-[0.1em]">Procedural Memory Layer</span>
             </div>
-            <div class="footer-links">
-              <a href="https://casys.ai" target="_blank" rel="noopener">Casys.ai</a>
+            <div class="flex gap-8">
+              <a href="https://casys.ai" target="_blank" rel="noopener" class="text-pml-text-muted no-underline text-sm hover:text-pml-accent">Casys.ai</a>
               <a
                 href="https://github.com/Casys-AI/casys-pml"
                 target="_blank"
                 rel="noopener"
+                class="text-pml-text-muted no-underline text-sm hover:text-pml-accent"
               >
                 GitHub
               </a>
-              <a href="/dashboard">Dashboard</a>
+              <a href="/dashboard" class="text-pml-text-muted no-underline text-sm hover:text-pml-accent">Dashboard</a>
             </div>
           </div>
         </footer>
 
         <style>
           {`
-          :root {
-            --bg: #08080a;
-            --bg-elevated: #0f0f12;
-            --bg-card: #141418;
-            --accent: #FFB86F;
-            --accent-dim: rgba(255, 184, 111, 0.1);
-            --accent-medium: rgba(255, 184, 111, 0.2);
-            --purple: #a78bfa;
-            --text: #f0ede8;
-            --text-muted: #a8a29e;
-            --text-dim: #6b6560;
-            --border: rgba(255, 184, 111, 0.08);
-            --border-strong: rgba(255, 184, 111, 0.15);
-            --font-display: 'Instrument Serif', Georgia, serif;
-            --font-sans: 'Geist', -apple-system, system-ui, sans-serif;
-            --font-mono: 'Geist Mono', monospace;
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
           }
 
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-
-          .page {
-            min-height: 100vh;
-            background: var(--bg);
-            color: var(--text);
-            font-family: var(--font-sans);
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-          }
-
-          /* Reading Progress */
-          .reading-progress {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--accent), var(--purple));
-            width: 0%;
-            z-index: 1000;
-            transition: width 0.1s ease-out;
-          }
-
-          /* Header */
-          .header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            padding: 1rem 2rem;
-            background: rgba(8, 8, 10, 0.9);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border);
-          }
-
-          .header-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            text-decoration: none;
-          }
-
-          .logo-mark {
-            font-family: var(--font-display);
-            font-size: 1.5rem;
-            color: var(--accent);
-          }
-
-          .logo-text {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-          }
-
-          .nav {
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-          }
-
-          .nav-link {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: color 0.2s;
-          }
-
-          .nav-link:hover, .nav-link-active {
-            color: var(--accent);
-          }
-
-          /* Article Main */
-          .article-main {
-            flex: 1;
-            padding: 4rem 2rem;
-          }
-
-          .article {
-            max-width: 720px;
-            margin: 0 auto;
-          }
-
-          .back-link {
-            display: inline-block;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-            margin-bottom: 2rem;
-            transition: color 0.2s;
-          }
-
-          .back-link:hover {
-            color: var(--accent);
-          }
-
-          .article-header {
-            margin-bottom: 3rem;
-            padding-bottom: 2rem;
-            border-bottom: 1px solid var(--border);
-          }
-
-          .article-meta {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-          }
-
-          .article-category {
-            font-family: var(--font-mono);
-            font-size: 0.7rem;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            padding: 0.25rem 0.75rem;
-            background: var(--accent-dim);
-            border-radius: 4px;
-          }
-
-          .article-date, .article-author {
-            font-size: 0.875rem;
-            color: var(--text-dim);
-          }
-
-          .article-title {
-            font-family: var(--font-display);
-            font-size: 2.5rem;
-            font-weight: 400;
-            line-height: 1.2;
-            margin-bottom: 1rem;
-          }
-
-          .article-snippet {
-            font-size: 1.25rem;
-            color: var(--text-muted);
-            line-height: 1.6;
-            margin-bottom: 1.5rem;
-          }
-
-          .article-tags {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-          }
-
-          .article-tag {
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            color: var(--text-dim);
-          }
-
-          /* Article Content - GFM Override */
           .article-content.markdown-body {
             background: transparent !important;
-            color: var(--text) !important;
+            color: var(--text, #f5f0ea) !important;
             font-family: var(--font-sans);
             font-size: 1.125rem;
             line-height: 1.9;
@@ -370,49 +184,36 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             animation: fadeIn 0.6s ease-out 0.2s forwards;
           }
 
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-
           .markdown-body h1,
           .markdown-body h2,
           .markdown-body h3,
           .markdown-body h4 {
             font-family: var(--font-display);
             font-weight: 400;
-            color: var(--text);
+            color: var(--text, #f5f0ea);
             margin-top: 2.5rem;
             margin-bottom: 1rem;
             border-bottom: none;
           }
 
-          .markdown-body h2 {
-            font-size: 1.75rem;
-          }
-
-          .markdown-body h3 {
-            font-size: 1.375rem;
-          }
+          .markdown-body h2 { font-size: 1.75rem; }
+          .markdown-body h3 { font-size: 1.375rem; }
 
           .markdown-body p {
             margin-bottom: 1.5rem;
-            color: var(--text-muted);
+            color: var(--text-muted, #d5c3b5);
           }
 
-          .markdown-body a {
-            color: var(--accent);
-          }
+          .markdown-body a { color: var(--accent, #ffb86f); }
 
           .markdown-body strong {
-            color: var(--text);
+            color: var(--text, #f5f0ea);
             font-weight: 600;
           }
 
-          /* Inline code */
           .markdown-body code:not(pre code) {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border);
+            background: var(--bg-elevated, #12110f);
+            border: 1px solid var(--border, rgba(255, 184, 111, 0.1));
             padding: 0.2em 0.4em;
             border-radius: 4px;
             font-family: var(--font-mono);
@@ -420,7 +221,6 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             color: #ce9178;
           }
 
-          /* Formula wrapper for horizontal scroll on overflow */
           .markdown-body .formula-scroll {
             display: block;
             overflow-x: auto;
@@ -433,7 +233,6 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             white-space: nowrap;
           }
 
-          /* Code blocks - Container styling with VS Code Dark+ */
           .markdown-body pre,
           .markdown-body pre[class*="language-"],
           .markdown-body .highlight {
@@ -446,10 +245,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
           }
 
-          .markdown-body .highlight {
-            padding: 0 !important;
-          }
-
+          .markdown-body .highlight { padding: 0 !important; }
           .markdown-body .highlight pre {
             margin: 0 !important;
             border: none !important;
@@ -458,7 +254,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
 
           .markdown-body pre:hover,
           .markdown-body .highlight:hover {
-            border-color: var(--accent);
+            border-color: var(--accent, #ffb86f);
             transition: border-color 0.3s;
           }
 
@@ -474,10 +270,10 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
           }
 
           .markdown-body blockquote {
-            border-left: 3px solid var(--accent);
+            border-left: 3px solid var(--accent, #ffb86f);
             padding-left: 1.5rem;
             margin: 1.5rem 0;
-            color: var(--text-muted);
+            color: var(--text-muted, #d5c3b5);
             font-style: italic;
           }
 
@@ -485,26 +281,21 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
           .markdown-body ol {
             margin: 1.5rem 0;
             padding-left: 2rem;
-            color: var(--text-muted);
+            color: var(--text-muted, #d5c3b5);
           }
 
-          .markdown-body li {
-            margin-bottom: 0.5rem;
-          }
+          .markdown-body li { margin-bottom: 0.5rem; }
 
           .markdown-body hr {
             border: none;
-            border-top: 1px solid var(--border);
+            border-top: 1px solid var(--border, rgba(255, 184, 111, 0.1));
             margin: 3rem 0;
           }
 
-          /* ═══════════════════════════════════════════════════════════════
-             DETAILS/SUMMARY - Collapsible sections with clear affordance
-             ═══════════════════════════════════════════════════════════════ */
           .markdown-body details {
             margin: 1.5rem 0;
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-strong);
+            background: var(--bg-elevated, #12110f);
+            border: 1px solid var(--border-strong, rgba(255, 184, 111, 0.2));
             border-radius: 8px;
             overflow: hidden;
             transition: border-color 0.2s ease;
@@ -515,7 +306,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
           }
 
           .markdown-body details[open] {
-            border-color: var(--accent);
+            border-color: var(--accent, #ffb86f);
             box-shadow: 0 2px 12px rgba(255, 184, 111, 0.1);
           }
 
@@ -526,26 +317,19 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             padding: 1rem 1.25rem;
             cursor: pointer;
             font-weight: 500;
-            color: var(--text);
-            background: linear-gradient(
-              180deg,
-              rgba(255, 184, 111, 0.08) 0%,
-              rgba(255, 184, 111, 0.03) 100%
-            );
+            color: var(--text, #f5f0ea);
+            background: linear-gradient(180deg, rgba(255, 184, 111, 0.08) 0%, rgba(255, 184, 111, 0.03) 100%);
             border-bottom: 1px solid transparent;
             transition: all 0.2s ease;
             list-style: none;
           }
 
-          .markdown-body summary::-webkit-details-marker {
-            display: none;
-          }
+          .markdown-body summary::-webkit-details-marker { display: none; }
 
-          /* Chevron indicator */
           .markdown-body summary::before {
             content: "▶";
             font-size: 0.65rem;
-            color: var(--accent);
+            color: var(--accent, #ffb86f);
             transition: transform 0.2s ease;
             flex-shrink: 0;
           }
@@ -555,37 +339,23 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
           }
 
           .markdown-body summary:hover {
-            background: linear-gradient(
-              180deg,
-              rgba(255, 184, 111, 0.12) 0%,
-              rgba(255, 184, 111, 0.06) 100%
-            );
+            background: linear-gradient(180deg, rgba(255, 184, 111, 0.12) 0%, rgba(255, 184, 111, 0.06) 100%);
           }
 
           .markdown-body details[open] summary {
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--border, rgba(255, 184, 111, 0.1));
           }
 
-          /* Content area */
-          .markdown-body details > *:not(summary) {
-            padding: 0 1.25rem;
-          }
+          .markdown-body details > *:not(summary) { padding: 0 1.25rem; }
+          .markdown-body details > *:last-child { padding-bottom: 1.25rem; }
+          .markdown-body details > p:first-of-type { padding-top: 1rem; }
 
-          .markdown-body details > *:last-child {
-            padding-bottom: 1.25rem;
-          }
-
-          .markdown-body details > p:first-of-type {
-            padding-top: 1rem;
-          }
-
-          /* Click hint on hover */
           .markdown-body summary::after {
             content: "cliquer pour ouvrir";
             margin-left: auto;
             font-size: 0.7rem;
             font-weight: 400;
-            color: var(--text-dim);
+            color: var(--text-dim, #8a8078);
             opacity: 0;
             transition: opacity 0.2s ease;
             font-family: var(--font-mono);
@@ -593,31 +363,19 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             letter-spacing: 0.05em;
           }
 
-          .markdown-body summary:hover::after {
-            opacity: 1;
-          }
+          .markdown-body summary:hover::after { opacity: 1; }
+          .markdown-body details[open] summary::after { content: ""; }
 
-          .markdown-body details[open] summary::after {
-            content: "";
-          }
-
-          /* ═══════════════════════════════════════════════════════════════
-             MERMAID/KROKI DIAGRAMS - Scrollable container for dark mode
-             ═══════════════════════════════════════════════════════════════ */
-          /* Wrapper for horizontal scroll on wide diagrams */
           .markdown-body .diagram-scroll-wrapper {
             overflow-x: auto;
             margin: 2.5rem 0;
             padding: 1.5rem;
-            background: var(--bg-elevated);
+            background: var(--bg-elevated, #12110f);
             border-radius: 12px;
             border: 1px solid rgba(255, 184, 111, 0.2);
-            box-shadow:
-              0 4px 24px rgba(0, 0, 0, 0.4),
-              0 1px 3px rgba(255, 184, 111, 0.1);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(255, 184, 111, 0.1);
           }
 
-          /* Scrollable diagram wrapper for mobile */
           .markdown-body .diagram-scroll {
             overflow-x: auto;
             margin: 2rem 0;
@@ -626,7 +384,6 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             text-align: center;
           }
 
-          /* Target all diagram images in scroll wrapper */
           .markdown-body .diagram-scroll img {
             display: inline-block;
             width: 100%;
@@ -635,35 +392,17 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             max-width: 100%;
             margin: 0 auto;
             padding: 1rem;
-            background: var(--bg-elevated);
+            background: var(--bg-elevated, #12110f);
             border-radius: 12px;
             border: 1px solid rgba(255, 184, 111, 0.2);
-            box-shadow:
-              0 4px 24px rgba(0, 0, 0, 0.4),
-              0 1px 3px rgba(255, 184, 111, 0.1);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(255, 184, 111, 0.1);
           }
 
-          /* Desktop: larger diagrams */
-          @media (min-width: 768px) {
-            .markdown-body .diagram-scroll {
-              overflow-x: auto;
-            }
-
-            .markdown-body .diagram-scroll img {
-              width: auto;
-              min-width: 700px;
-              max-width: 100%;
-              padding: 1.5rem;
-            }
-          }
-
-          /* Wide diagrams: allow natural width with scroll */
           .markdown-body .diagram-wide img {
             max-width: none;
             min-width: 600px;
           }
 
-          /* Container styles for diagram-container class (legacy support) */
           .markdown-body .diagram-container {
             display: flex;
             justify-content: center;
@@ -671,12 +410,10 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             overflow-x: auto;
             margin: 2.5rem 0;
             padding: 1.5rem;
-            background: var(--bg-elevated);
+            background: var(--bg-elevated, #12110f);
             border-radius: 12px;
             border: 1px solid rgba(255, 184, 111, 0.2);
-            box-shadow:
-              0 4px 24px rgba(0, 0, 0, 0.4),
-              0 1px 3px rgba(255, 184, 111, 0.1);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(255, 184, 111, 0.1);
           }
 
           .markdown-body .diagram-container img {
@@ -690,28 +427,21 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             box-shadow: none;
           }
 
-          /* ═══════════════════════════════════════════════════════════════
-             TABLES - Editorial refined style with accent borders
-             ═══════════════════════════════════════════════════════════════ */
           .markdown-body table {
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
             margin: 2rem 0;
             font-size: 0.9375rem;
-            background: var(--bg-elevated);
+            background: var(--bg-elevated, #12110f);
             border-radius: 8px;
             overflow: hidden;
-            border: 1px solid var(--border-strong);
+            border: 1px solid var(--border-strong, rgba(255, 184, 111, 0.2));
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
           }
 
           .markdown-body thead {
-            background: linear-gradient(
-              180deg,
-              rgba(255, 184, 111, 0.12) 0%,
-              rgba(255, 184, 111, 0.06) 100%
-            );
+            background: linear-gradient(180deg, rgba(255, 184, 111, 0.12) 0%, rgba(255, 184, 111, 0.06) 100%);
           }
 
           .markdown-body th {
@@ -720,7 +450,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: var(--accent);
+            color: var(--accent, #ffb86f);
             padding: 1rem 1.25rem;
             text-align: left;
             border-bottom: 2px solid rgba(255, 184, 111, 0.25);
@@ -729,137 +459,39 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
 
           .markdown-body td {
             padding: 0.875rem 1.25rem;
-            color: var(--text-muted);
-            border-bottom: 1px solid var(--border);
+            color: var(--text-muted, #d5c3b5);
+            border-bottom: 1px solid var(--border, rgba(255, 184, 111, 0.1));
             vertical-align: top;
             line-height: 1.6;
           }
 
-          .markdown-body tbody tr:last-child td {
-            border-bottom: none;
-          }
+          .markdown-body tbody tr:last-child td { border-bottom: none; }
+          .markdown-body tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+          .markdown-body tbody tr { transition: background 0.15s ease; }
+          .markdown-body tbody tr:hover { background: rgba(255, 184, 111, 0.05); }
 
-          /* Alternating row colors for readability */
-          .markdown-body tbody tr:nth-child(even) {
-            background: rgba(255, 255, 255, 0.02);
-          }
-
-          /* Hover effect */
-          .markdown-body tbody tr {
-            transition: background 0.15s ease;
-          }
-
-          .markdown-body tbody tr:hover {
-            background: rgba(255, 184, 111, 0.05);
-          }
-
-          /* First column emphasis for definition tables */
           .markdown-body td:first-child {
-            color: var(--text);
+            color: var(--text, #f5f0ea);
             font-weight: 500;
           }
 
-          /* Code in tables */
           .markdown-body td code,
           .markdown-body th code {
             font-size: 0.8125rem;
             padding: 0.15em 0.4em;
           }
 
-          /* Article Footer */
-          .article-footer {
-            margin-top: 3rem;
-            padding-top: 2rem;
-            border-top: 1px solid var(--border);
-          }
-
-          .share-section {
-            margin-bottom: 2rem;
-          }
-
-          .share-label {
-            display: block;
-            font-size: 0.875rem;
-            color: var(--text-dim);
-            margin-bottom: 0.75rem;
-          }
-
-          .share-links {
-            display: flex;
-            gap: 1rem;
-          }
-
-          .share-link {
-            padding: 0.5rem 1rem;
-            background: var(--bg-elevated);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-          }
-
-          .share-link:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-          }
-
-          /* Footer */
-          .footer {
-            padding: 2rem;
-            border-top: 1px solid var(--border);
-          }
-
-          .footer-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .footer-brand {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-          }
-
-          .footer-tagline {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-          }
-
-          .footer-links {
-            display: flex;
-            gap: 2rem;
-          }
-
-          .footer-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-          }
-
-          .footer-links a:hover {
-            color: var(--accent);
+          @media (min-width: 768px) {
+            .markdown-body .diagram-scroll { overflow-x: auto; }
+            .markdown-body .diagram-scroll img {
+              width: auto;
+              min-width: 700px;
+              max-width: 100%;
+              padding: 1.5rem;
+            }
           }
 
           @media (max-width: 768px) {
-            .header { padding: 1rem; }
-            .logo-text { display: none; }
-            .nav { gap: 0.75rem; }
-            /* Hide desktop nav on mobile - MobileMenu handles navigation */
-            .nav-link { display: none; }
-            .article-main { padding: 2rem 1rem; }
-            .article-title { font-size: 1.75rem; }
-            .article-snippet { font-size: 1rem; }
-            .article-meta { gap: 0.5rem; }
-            .footer-inner { flex-direction: column; gap: 1.5rem; text-align: center; }
-
-            /* Code blocks mobile */
             .markdown-body pre,
             .markdown-body pre[class*="language-"],
             .markdown-body .highlight {
@@ -877,7 +509,6 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
               -webkit-overflow-scrolling: touch;
             }
 
-            /* Details mobile */
             .markdown-body details {
               margin: 1rem -1rem;
               border-radius: 0;
@@ -885,11 +516,8 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
               border-right: none;
             }
 
-            .markdown-body summary::after {
-              display: none;
-            }
+            .markdown-body summary::after { display: none; }
 
-            /* Diagrams mobile - scrollable */
             .markdown-body img[src*="kroki.io"],
             .markdown-body img[alt*="Diagram"],
             .markdown-body img[alt*="Mermaid"],
@@ -905,7 +533,6 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
               overflow-x: auto;
             }
 
-            /* Tables mobile - clean contained style */
             .markdown-body table {
               display: table;
               width: 100%;
@@ -913,7 +540,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
               -webkit-overflow-scrolling: touch;
               margin: 1.5rem 0;
               border-radius: 8px;
-              border: 1px solid var(--border-strong);
+              border: 1px solid var(--border-strong, rgba(255, 184, 111, 0.2));
             }
 
             .markdown-body th,
@@ -922,9 +549,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
               font-size: 0.8125rem;
             }
 
-            .markdown-body th {
-              font-size: 0.6875rem;
-            }
+            .markdown-body th { font-size: 0.6875rem; }
           }
         `}
         </style>
@@ -933,7 +558,6 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
           type="module"
           dangerouslySetInnerHTML={{
             __html: `
-              // Reading progress bar
               window.addEventListener('scroll', () => {
                 const article = document.querySelector('.article-content');
                 if (!article) return;

@@ -61,26 +61,24 @@ export default function DocsPage({ data }: { data: DocsPageData }) {
           href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
-        {/* Critical CSS to prevent white flash on navigation */}
         <style>{`html,body{background:#08080a;margin:0}`}</style>
         <style dangerouslySetInnerHTML={{ __html: PRISM_THEME_CSS }} />
       </Head>
 
-      <div class="docs-page">
-        {/* Header */}
-        <header class="header">
-          <div class="header-inner">
-            <a href="/" class="logo">
-              <span class="logo-mark">Casys PML</span>
-              <span class="logo-text">Documentation</span>
+      <div class="min-h-screen bg-[#08080a] text-stone-100 font-[Geist,_-apple-system,_system-ui,_sans-serif] flex flex-col overflow-x-hidden">
+        <header class="sticky top-0 z-100 px-4 py-4 md:px-8 bg-[#08080a]/95 backdrop-blur-xl border-b border-amber-400/8">
+          <div class="max-w-[1400px] mx-auto flex justify-between items-center">
+            <a href="/" class="flex items-center gap-4 no-underline">
+              <span class="font-[Instrument_Serif,_Georgia,_serif] text-2xl text-amber-400">Casys PML</span>
+              <span class="text-xs text-stone-500 tracking-widest uppercase hidden md:inline">Documentation</span>
             </a>
-            <nav class="nav">
-              <a href="/" class="nav-link">Home</a>
-              <a href="/blog" class="nav-link">Blog</a>
-              <a href="/docs" class="nav-link nav-link-active">Docs</a>
+            <nav class="flex items-center gap-3 md:gap-8">
+              <a href="/" class="hidden md:inline text-stone-400 no-underline text-sm font-medium transition-colors duration-200 hover:text-amber-400">Home</a>
+              <a href="/blog" class="hidden md:inline text-stone-400 no-underline text-sm font-medium transition-colors duration-200 hover:text-amber-400">Blog</a>
+              <a href="/docs" class="hidden md:inline text-amber-400 no-underline text-sm font-medium">Docs</a>
               <a
                 href="https://github.com/Casys-AI/casys-pml"
-                class="nav-link-github"
+                class="flex items-center p-2 text-stone-400 rounded-md transition-all duration-200 hover:text-stone-100 hover:bg-amber-400/10"
                 target="_blank"
                 rel="noopener"
               >
@@ -93,453 +91,54 @@ export default function DocsPage({ data }: { data: DocsPageData }) {
           </div>
         </header>
 
-        <div class="docs-layout">
-          {/* Sidebar - Interactive Island */}
+        <div class="flex flex-1 max-w-[1400px] mx-auto w-full">
           <DocsSidebar navigation={navigation} currentPath={currentPath} />
 
-          {/* Main Content */}
-          <main class="docs-main">
-            {/* Breadcrumbs */}
-            <nav class="breadcrumbs">
+          <main class="flex-1 min-w-0 p-4 md:p-6 lg:px-12 lg:py-8">
+            <nav class="flex items-center gap-2 mb-8 text-sm">
               {doc.breadcrumbs.map((crumb, index) => (
                 <span key={crumb.href}>
-                  {index > 0 && <span class="breadcrumb-sep">/</span>}
+                  {index > 0 && <span class="text-stone-500">/</span>}
                   {index === doc.breadcrumbs.length - 1
-                    ? <span class="breadcrumb-current">{crumb.label}</span>
-                    : <a href={crumb.href} class="breadcrumb-link">{crumb.label}</a>}
+                    ? <span class="text-stone-100">{crumb.label}</span>
+                    : <a href={crumb.href} class="text-stone-400 no-underline transition-colors duration-200 hover:text-amber-400">{crumb.label}</a>}
                 </span>
               ))}
             </nav>
 
-            {/* Document Content */}
-            <article class="doc-content markdown-body">
+            <article class={`
+              bg-transparent text-stone-100 font-[Geist,_-apple-system,_system-ui,_sans-serif] text-base leading-relaxed max-w-[800px]
+              [&_h1]:font-[Instrument_Serif,_Georgia,_serif] [&_h1]:text-4xl [&_h1]:font-normal [&_h1]:text-stone-100 [&_h1]:mb-4 [&_h1]:pb-3 [&_h1]:border-b [&_h1]:border-amber-400/8
+              [&_h2]:font-[Instrument_Serif,_Georgia,_serif] [&_h2]:text-2xl [&_h2]:font-normal [&_h2]:text-stone-100 [&_h2]:mt-10 [&_h2]:mb-4 [&_h2]:pb-2 [&_h2]:border-b [&_h2]:border-amber-400/8
+              [&_h3]:font-[Instrument_Serif,_Georgia,_serif] [&_h3]:text-xl [&_h3]:font-normal [&_h3]:text-stone-100 [&_h3]:mt-8 [&_h3]:mb-3
+              [&_h4]:text-base [&_h4]:font-semibold [&_h4]:text-stone-100 [&_h4]:mt-6 [&_h4]:mb-2
+              [&_p]:mb-4 [&_p]:text-stone-400
+              [&_a]:text-amber-400 [&_a]:no-underline [&_a:hover]:underline
+              [&_strong]:text-stone-100 [&_strong]:font-semibold
+              [&_code:not(pre_code)]:bg-[#0f0f12] [&_code:not(pre_code)]:border [&_code:not(pre_code)]:border-amber-400/8 [&_code:not(pre_code)]:px-1.5 [&_code:not(pre_code)]:py-0.5 [&_code:not(pre_code)]:rounded [&_code:not(pre_code)]:font-[Geist_Mono,_monospace] [&_code:not(pre_code)]:text-[0.875em] [&_code:not(pre_code)]:text-[#ce9178]
+              [&_pre]:bg-[#1a1a1d]! [&_pre]:border! [&_pre]:border-amber-400/15! [&_pre]:rounded-lg [&_pre]:p-4! [&_pre]:overflow-x-auto [&_pre]:my-4! [&_pre:hover]:border-amber-400!
+              [&_pre_code]:bg-transparent! [&_pre_code]:border-none! [&_pre_code]:p-0! [&_pre_code]:text-sm! [&_pre_code]:leading-relaxed! [&_pre_code]:text-[#d4d4d4]! [&_pre_code]:font-[Geist_Mono,_monospace]!
+              [&_blockquote]:border-l-[3px] [&_blockquote]:border-amber-400 [&_blockquote]:pl-4 [&_blockquote]:my-4 [&_blockquote]:text-stone-400 [&_blockquote]:italic
+              [&_ul]:my-4 [&_ul]:pl-6 [&_ul]:text-stone-400
+              [&_ol]:my-4 [&_ol]:pl-6 [&_ol]:text-stone-400
+              [&_li]:mb-2
+              [&_hr]:border-none [&_hr]:border-t [&_hr]:border-amber-400/8 [&_hr]:my-8
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
+              [&_th]:bg-[#0f0f12] [&_th]:p-3 [&_th]:text-left [&_th]:font-semibold [&_th]:text-stone-100 [&_th]:border [&_th]:border-amber-400/8
+              [&_td]:p-3 [&_td]:border [&_td]:border-amber-400/8 [&_td]:text-stone-400
+              [&_tr:hover_td]:bg-amber-400/10
+              [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-4
+              md:[&_h1]:text-4xl
+              max-md:[&_h1]:text-[1.75rem] max-md:[&_h2]:text-xl
+              max-md:[&_pre]:mx-[-1rem]! max-md:[&_pre]:rounded-none! max-md:[&_pre]:p-4! max-md:[&_pre]:text-[0.8rem]!
+              max-md:[&_pre_code]:text-xs!
+            `}>
               <div dangerouslySetInnerHTML={{ __html: doc.html }} />
             </article>
           </main>
 
-          {/* Table of Contents - Right sidebar (dynamic, extracts headings from DOM) */}
           <DocsToc />
         </div>
-
-        <style>
-          {`
-          :root {
-            --bg: #08080a;
-            --bg-elevated: #0f0f12;
-            --bg-card: #141418;
-            --accent: #FFB86F;
-            --accent-dim: rgba(255, 184, 111, 0.1);
-            --accent-medium: rgba(255, 184, 111, 0.2);
-            --purple: #a78bfa;
-            --text: #f0ede8;
-            --text-muted: #a8a29e;
-            --text-dim: #6b6560;
-            --border: rgba(255, 184, 111, 0.08);
-            --border-strong: rgba(255, 184, 111, 0.15);
-            --font-display: 'Instrument Serif', Georgia, serif;
-            --font-sans: 'Geist', -apple-system, system-ui, sans-serif;
-            --font-mono: 'Geist Mono', monospace;
-            --sidebar-width: 280px;
-          }
-
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-
-          .docs-page {
-            min-height: 100vh;
-            background: var(--bg);
-            color: var(--text);
-            font-family: var(--font-sans);
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-          }
-
-          /* Header */
-          .header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            padding: 1rem 2rem;
-            background: rgba(8, 8, 10, 0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border);
-          }
-
-          .header-inner {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            text-decoration: none;
-          }
-
-          .logo-mark {
-            font-family: var(--font-display);
-            font-size: 1.5rem;
-            color: var(--accent);
-          }
-
-          .logo-text {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-          }
-
-          .nav {
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-          }
-
-          .nav-link {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: color 0.2s;
-          }
-
-          .nav-link:hover, .header .nav-link-active {
-            color: var(--accent);
-          }
-
-          .nav-link-github {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem;
-            color: var(--text-muted);
-            border-radius: 6px;
-            transition: all 0.2s;
-          }
-
-          .nav-link-github:hover {
-            color: var(--text);
-            background: var(--accent-dim);
-          }
-
-          /* Docs Layout */
-          .docs-layout {
-            display: flex;
-            flex: 1;
-            max-width: 1400px;
-            margin: 0 auto;
-            width: 100%;
-          }
-
-          /* Sidebar */
-          .sidebar {
-            width: var(--sidebar-width);
-            flex-shrink: 0;
-            border-right: 1px solid var(--border);
-            background: var(--bg-elevated);
-            position: sticky;
-            top: 65px;
-            height: calc(100vh - 65px);
-            overflow-y: auto;
-          }
-
-          .sidebar-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-          }
-
-          .sidebar-title {
-            font-family: var(--font-display);
-            font-size: 1.25rem;
-            color: var(--text);
-            text-decoration: none;
-          }
-
-          .sidebar-nav {
-            padding: 1rem 0;
-          }
-
-          .nav-list {
-            list-style: none;
-          }
-
-          .nav-item {
-            margin: 0;
-          }
-
-          .sidebar-nav .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1.5rem;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-            border-left: 2px solid transparent;
-          }
-
-          .sidebar-nav .nav-link:hover {
-            color: var(--text);
-            background: var(--accent-dim);
-          }
-
-          .sidebar-nav .nav-link-active {
-            color: var(--accent);
-            background: var(--accent-dim);
-            border-left-color: var(--accent);
-          }
-
-          .sidebar-nav .nav-link-parent {
-            color: var(--text);
-          }
-
-          .nav-arrow {
-            display: flex;
-            transition: transform 0.2s;
-          }
-
-          .nav-arrow-expanded {
-            transform: rotate(90deg);
-          }
-
-          .nav-children {
-            list-style: none;
-          }
-
-          /* Main Content */
-          .docs-main {
-            flex: 1;
-            min-width: 0;
-            padding: 2rem 3rem;
-          }
-
-          /* Breadcrumbs */
-          .breadcrumbs {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            font-size: 0.875rem;
-          }
-
-          .breadcrumb-link {
-            color: var(--text-muted);
-            text-decoration: none;
-            transition: color 0.2s;
-          }
-
-          .breadcrumb-link:hover {
-            color: var(--accent);
-          }
-
-          .breadcrumb-sep {
-            color: var(--text-dim);
-          }
-
-          .breadcrumb-current {
-            color: var(--text);
-          }
-
-          /* Document Content - Markdown */
-          .doc-content.markdown-body {
-            background: transparent !important;
-            color: var(--text) !important;
-            font-family: var(--font-sans);
-            font-size: 1rem;
-            line-height: 1.8;
-            max-width: 800px;
-          }
-
-          .markdown-body h1 {
-            font-family: var(--font-display);
-            font-size: 2.25rem;
-            font-weight: 400;
-            color: var(--text);
-            margin-bottom: 1rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid var(--border);
-          }
-
-          .markdown-body h2 {
-            font-family: var(--font-display);
-            font-size: 1.5rem;
-            font-weight: 400;
-            color: var(--text);
-            margin-top: 2.5rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid var(--border);
-          }
-
-          .markdown-body h3 {
-            font-family: var(--font-display);
-            font-size: 1.25rem;
-            font-weight: 400;
-            color: var(--text);
-            margin-top: 2rem;
-            margin-bottom: 0.75rem;
-          }
-
-          .markdown-body h4 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-top: 1.5rem;
-            margin-bottom: 0.5rem;
-          }
-
-          .markdown-body p {
-            margin-bottom: 1rem;
-            color: var(--text-muted);
-          }
-
-          .markdown-body a {
-            color: var(--accent);
-            text-decoration: none;
-          }
-
-          .markdown-body a:hover {
-            text-decoration: underline;
-          }
-
-          .markdown-body strong {
-            color: var(--text);
-            font-weight: 600;
-          }
-
-          /* Inline code */
-          .markdown-body code:not(pre code) {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border);
-            padding: 0.15em 0.4em;
-            border-radius: 4px;
-            font-family: var(--font-mono);
-            font-size: 0.875em;
-            color: #ce9178;
-          }
-
-          /* Code blocks */
-          .markdown-body pre {
-            background: #1a1a1d !important;
-            border: 1px solid var(--border-strong) !important;
-            border-radius: 8px;
-            padding: 1rem !important;
-            overflow-x: auto;
-            margin: 1rem 0 !important;
-          }
-
-          .markdown-body pre:hover {
-            border-color: var(--accent) !important;
-          }
-
-          .markdown-body pre code {
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-            font-size: 0.875rem !important;
-            line-height: 1.6 !important;
-            color: #d4d4d4 !important;
-            font-family: var(--font-mono) !important;
-          }
-
-          .markdown-body blockquote {
-            border-left: 3px solid var(--accent);
-            padding-left: 1rem;
-            margin: 1rem 0;
-            color: var(--text-muted);
-            font-style: italic;
-          }
-
-          .markdown-body ul, .markdown-body ol {
-            margin: 1rem 0;
-            padding-left: 1.5rem;
-            color: var(--text-muted);
-          }
-
-          .markdown-body li {
-            margin-bottom: 0.5rem;
-          }
-
-          .markdown-body hr {
-            border: none;
-            border-top: 1px solid var(--border);
-            margin: 2rem 0;
-          }
-
-          .markdown-body table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1.5rem 0;
-          }
-
-          .markdown-body th {
-            background: var(--bg-elevated);
-            padding: 0.75rem;
-            text-align: left;
-            font-weight: 600;
-            color: var(--text);
-            border: 1px solid var(--border);
-          }
-
-          .markdown-body td {
-            padding: 0.75rem;
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-          }
-
-          .markdown-body tr:hover td {
-            background: var(--accent-dim);
-          }
-
-          .markdown-body img {
-            max-width: 100%;
-            border-radius: 8px;
-            margin: 1rem 0;
-          }
-
-          /* Responsive */
-          @media (max-width: 1024px) {
-            .sidebar {
-              display: none;
-            }
-
-            .docs-main {
-              padding: 1.5rem;
-            }
-          }
-
-          @media (max-width: 768px) {
-            .header { padding: 1rem; }
-            .logo-text { display: none; }
-            .nav { gap: 0.75rem; }
-            /* Hide desktop nav on mobile - MobileMenu handles navigation */
-            .nav-link:not(.nav-link-github) { display: none; }
-
-            .docs-main {
-              padding: 1rem;
-            }
-
-            .markdown-body h1 { font-size: 1.75rem; }
-            .markdown-body h2 { font-size: 1.25rem; }
-
-            .markdown-body pre {
-              margin-left: -1rem !important;
-              margin-right: -1rem !important;
-              border-radius: 0 !important;
-              padding: 1rem !important;
-              font-size: 0.8rem !important;
-            }
-
-            .markdown-body pre code {
-              font-size: 0.75rem !important;
-            }
-          }
-        `}
-        </style>
       </div>
     </>
   );

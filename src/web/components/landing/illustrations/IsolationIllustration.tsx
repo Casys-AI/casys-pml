@@ -16,7 +16,7 @@
 
 export function IsolationIllustration() {
   return (
-    <div class="isolation-illustration">
+    <div class="w-full max-w-[800px] aspect-[13/5.6] motion-reduce:[&_svg_*]:!animate-none motion-reduce:[&_svg_*]:!transition-none motion-reduce:[&_.iso-particle]:opacity-60 motion-reduce:[&_.iso-pulse]:opacity-60 motion-reduce:[&_.iso-flash]:opacity-60 motion-reduce:[&_.iso-checkmark_path]:opacity-60">
       <svg
         width="100%"
         height="100%"
@@ -383,37 +383,6 @@ export function IsolationIllustration() {
           />
         </circle>
       </svg>
-
-      <style>
-        {`
-        .isolation-illustration {
-          width: 100%;
-          max-width: 800px;
-          aspect-ratio: 13 / 5.6;
-        }
-
-        /* Respect reduced motion preferences (WCAG 2.3.3) */
-        @media (prefers-reduced-motion: reduce) {
-          .isolation-illustration svg * {
-            animation: none !important;
-            transition: none !important;
-          }
-          .iso-particle,
-          .iso-pulse,
-          .iso-flash,
-          .iso-checkmark path {
-            opacity: 0.6;
-          }
-          .iso-particle animate,
-          .iso-particle animateMotion,
-          .iso-pulse animate,
-          .iso-flash animate,
-          .iso-checkmark animate {
-            display: none;
-          }
-        }
-        `}
-      </style>
     </div>
   );
 }

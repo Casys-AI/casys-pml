@@ -30,7 +30,6 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
           name="description"
           content="Engineering insights, technical deep-dives, and lessons learned building Casys PML - a Procedural Memory Layer for AI agents."
         />
-        {/* Open Graph / LinkedIn */}
         <meta property="og:type" content="blog" />
         <meta property="og:url" content="https://pml.casys.ai/blog" />
         <meta property="og:title" content="Blog - Casys PML" />
@@ -42,7 +41,6 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:site_name" content="Casys PML" />
-        {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Blog - Casys PML" />
         <meta
@@ -62,22 +60,21 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
           title="Casys PML Blog Feed"
           href="/blog/feed.xml"
         />
-        {/* Critical CSS to prevent white flash on navigation */}
-        <style>{`html,body{background:#08080a;margin:0}`}</style>
+        <style>{`html,body{background:#0a0908;margin:0}`}</style>
       </Head>
 
-      <div class="page">
-        <header class="header">
-          <div class="header-inner">
-            <a href="/" class="logo">
-              <span class="logo-mark">Casys PML</span>
-              <span class="logo-text">Procedural Memory Layer</span>
+      <div class="min-h-screen bg-pml-bg text-pml-text font-[var(--font-sans)] flex flex-col overflow-x-hidden">
+        <header class="sticky top-0 z-100 px-4 py-4 md:px-8 bg-[rgba(10,9,8,0.9)] backdrop-blur-[20px] border-b border-pml-border">
+          <div class="max-w-[1200px] mx-auto flex justify-between items-center">
+            <a href="/" class="flex items-center gap-4 no-underline">
+              <span class="font-[var(--font-display)] text-2xl text-pml-accent">Casys PML</span>
+              <span class="hidden md:inline text-xs text-pml-text-dim tracking-[0.1em] uppercase">Procedural Memory Layer</span>
             </a>
-            <nav class="nav">
-              <a href="/" class="nav-link">Home</a>
-              <a href="/docs" class="nav-link">Docs</a>
-              <a href="/blog" class="nav-link nav-link-active">Blog</a>
-              <a href="/blog/feed.xml" class="nav-link nav-link-rss" title="RSS Feed">
+            <nav class="flex items-center gap-3 md:gap-8">
+              <a href="/" class="hidden md:inline text-pml-text-muted no-underline text-sm font-medium transition-colors duration-200 hover:text-pml-accent">Home</a>
+              <a href="/docs" class="hidden md:inline text-pml-text-muted no-underline text-sm font-medium transition-colors duration-200 hover:text-pml-accent">Docs</a>
+              <a href="/blog" class="hidden md:inline text-pml-accent no-underline text-sm font-medium transition-colors duration-200">Blog</a>
+              <a href="/blog/feed.xml" class="flex p-2 rounded-md text-pml-text-muted no-underline text-sm font-medium transition-colors duration-200 hover:text-pml-accent hover:bg-pml-accent-dim" title="RSS Feed">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <circle cx="6.18" cy="17.82" r="2.18" />
                   <path d="M4 4.44v2.83c7.03 0 12.73 5.7 12.73 12.73h2.83c0-8.59-6.97-15.56-15.56-15.56zm0 5.66v2.83c3.9 0 7.07 3.17 7.07 7.07h2.83c0-5.47-4.43-9.9-9.9-9.9z" />
@@ -88,44 +85,46 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
           </div>
         </header>
 
-        <main class="blog-main">
-          <div class="container">
-            <div class="blog-header">
-              <span class="section-label">Engineering Blog</span>
-              <h1 class="blog-title">Insights & Deep Dives</h1>
-              <p class="blog-desc">
+        <main class="flex-1 py-8 md:py-24 pb-8 md:pb-16">
+          <div class="max-w-[1000px] mx-auto px-4 md:px-8">
+            <div class="text-center mb-8 md:mb-16">
+              <span class="inline-block font-[var(--font-mono)] text-[0.7rem] text-pml-accent uppercase tracking-[0.15em] py-2 px-4 bg-pml-accent-dim rounded mb-6">Engineering Blog</span>
+              <h1 class="font-[var(--font-display)] text-3xl md:text-5xl font-normal mb-4">Insights & Deep Dives</h1>
+              <p class="text-lg text-pml-text-muted max-w-[500px] mx-auto">
                 Technical explorations, debugging stories, and lessons learned building Casys PML.
               </p>
             </div>
 
-            <div class="posts-bento">
-              {posts.length === 0 ? <p class="no-posts">No posts yet. Check back soon!</p> : (
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-auto">
+              {posts.length === 0 ? <p class="text-center text-pml-text-muted py-16 col-span-full">No posts yet. Check back soon!</p> : (
                 posts.map((post: Post, index: number) => (
                   <a
                     href={`/blog/${post.slug}`}
-                    class={`post-card post-card-${(index % 4) + 1}`}
+                    class={`post-card relative block p-6 md:p-8 bg-pml-bg-surface border border-pml-border rounded-2xl no-underline overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.4,0,0.2,1)] opacity-0 animate-[fadeInUp_0.6s_ease-out_forwards] hover:border-pml-accent hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] ${
+                      (index % 4) === 0 ? "md:col-span-2" : ""
+                    }${(index % 4) === 3 ? "md:col-span-2" : ""}`}
                     key={post.slug}
                     style={`animation-delay: ${index * 0.1}s`}
                   >
-                    <div class="post-card-inner">
-                      <div class="post-meta">
-                        <span class="post-category">{post.category}</span>
-                        <time class="post-date">{formatDate(post.date)}</time>
+                    <div class="relative z-[2]">
+                      <div class="flex items-center gap-4 mb-4">
+                        <span class="font-[var(--font-mono)] text-[0.7rem] text-pml-accent uppercase tracking-[0.1em] py-1 px-3 bg-pml-accent-dim rounded">{post.category}</span>
+                        <time class="text-sm text-pml-text-dim">{formatDate(post.date)}</time>
                       </div>
-                      <h2 class="post-title">{post.title}</h2>
-                      <p class="post-snippet">{post.snippet}</p>
-                      <div class="post-footer">
-                        <div class="post-tags">
+                      <h2 class="font-[var(--font-display)] text-2xl md:text-[1.75rem] font-normal mb-4 text-pml-text leading-[1.3] transition-colors duration-200 group-hover:text-pml-accent">{post.title}</h2>
+                      <p class="text-base text-pml-text-muted leading-relaxed mb-6">{post.snippet}</p>
+                      <div class="flex justify-between items-center flex-wrap gap-3">
+                        <div class={`flex flex-wrap gap-2 ${(index % 4) === 1 || (index % 4) === 2 ? "md:hidden" : ""}`}>
                           {post.tags.slice(0, 3).map((tag) => (
-                            <span class="post-tag" key={tag}>#{tag}</span>
+                            <span class="font-[var(--font-mono)] text-xs text-pml-text-dim" key={tag}>#{tag}</span>
                           ))}
                         </div>
-                        <span class="post-read-more">
+                        <span class="text-sm text-pml-accent font-medium opacity-70 transition-all duration-200">
                           Read →
                         </span>
                       </div>
                     </div>
-                    <div class="post-card-glow"></div>
+                    <div class="post-card-glow absolute inset-0 bg-[radial-gradient(600px_circle_at_var(--mouse-x,50%)_var(--mouse-y,50%),rgba(255,184,111,0.08),transparent_40%)] opacity-0 transition-opacity duration-300 pointer-events-none"></div>
                   </a>
                 ))
               )}
@@ -133,201 +132,29 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
           </div>
         </main>
 
-        <footer class="footer">
-          <div class="footer-inner">
-            <div class="footer-brand">
-              <span class="logo-mark">Casys PML</span>
-              <span class="footer-tagline">Procedural Memory Layer</span>
+        <footer class="p-4 md:p-8 border-t border-pml-border">
+          <div class="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+            <div class="flex items-center gap-4">
+              <span class="font-[var(--font-display)] text-2xl text-pml-accent">Casys PML</span>
+              <span class="text-xs text-pml-text-dim uppercase tracking-[0.1em]">Procedural Memory Layer</span>
             </div>
-            <div class="footer-links">
-              <a href="https://casys.ai" target="_blank" rel="noopener">Casys.ai</a>
+            <div class="flex gap-8">
+              <a href="https://casys.ai" target="_blank" rel="noopener" class="text-pml-text-muted no-underline text-sm hover:text-pml-accent">Casys.ai</a>
               <a
                 href="https://github.com/Casys-AI/casys-pml"
                 target="_blank"
                 rel="noopener"
+                class="text-pml-text-muted no-underline text-sm hover:text-pml-accent"
               >
                 GitHub
               </a>
-              <a href="/dashboard">Dashboard</a>
+              <a href="/dashboard" class="text-pml-text-muted no-underline text-sm hover:text-pml-accent">Dashboard</a>
             </div>
           </div>
         </footer>
 
         <style>
           {`
-          :root {
-            --bg: #08080a;
-            --bg-elevated: #0f0f12;
-            --bg-card: #141418;
-            --accent: #FFB86F;
-            --accent-dim: rgba(255, 184, 111, 0.1);
-            --accent-medium: rgba(255, 184, 111, 0.2);
-            --purple: #a78bfa;
-            --green: #4ade80;
-            --text: #f0ede8;
-            --text-muted: #a8a29e;
-            --text-dim: #6b6560;
-            --border: rgba(255, 184, 111, 0.08);
-            --border-strong: rgba(255, 184, 111, 0.15);
-            --font-display: 'Instrument Serif', Georgia, serif;
-            --font-sans: 'Geist', -apple-system, system-ui, sans-serif;
-            --font-mono: 'Geist Mono', monospace;
-          }
-
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-
-          .page {
-            min-height: 100vh;
-            background: var(--bg);
-            color: var(--text);
-            font-family: var(--font-sans);
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-          }
-
-          .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 0 2rem;
-          }
-
-          /* Header */
-          .header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            padding: 1rem 2rem;
-            background: rgba(8, 8, 10, 0.9);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border);
-          }
-
-          .header-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            text-decoration: none;
-          }
-
-          .logo-mark {
-            font-family: var(--font-display);
-            font-size: 1.5rem;
-            color: var(--accent);
-          }
-
-          .logo-text {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-          }
-
-          .nav {
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-          }
-
-          .nav-link {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: color 0.2s;
-          }
-
-          .nav-link:hover, .nav-link-active {
-            color: var(--accent);
-          }
-
-          .nav-link-rss {
-            display: flex;
-            padding: 0.5rem;
-            border-radius: 6px;
-          }
-
-          .nav-link-rss:hover {
-            background: var(--accent-dim);
-          }
-
-          /* Blog Main */
-          .blog-main {
-            flex: 1;
-            padding: 6rem 0 4rem;
-          }
-
-          .blog-header {
-            text-align: center;
-            margin-bottom: 4rem;
-          }
-
-          .section-label {
-            display: inline-block;
-            font-family: var(--font-mono);
-            font-size: 0.7rem;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            padding: 0.5rem 1rem;
-            background: var(--accent-dim);
-            border-radius: 4px;
-            margin-bottom: 1.5rem;
-          }
-
-          .blog-title {
-            font-family: var(--font-display);
-            font-size: 3rem;
-            font-weight: 400;
-            margin-bottom: 1rem;
-          }
-
-          .blog-desc {
-            font-size: 1.125rem;
-            color: var(--text-muted);
-            max-width: 500px;
-            margin: 0 auto;
-          }
-
-          /* Bento Grid */
-          .posts-bento {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 1.5rem;
-            grid-auto-flow: dense;
-            align-items: start;
-          }
-
-          .no-posts {
-            text-align: center;
-            color: var(--text-muted);
-            padding: 4rem;
-            grid-column: 1 / -1;
-          }
-
-          /* Bento card variations */
-          .post-card {
-            position: relative;
-            display: block;
-            padding: 2rem;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            text-decoration: none;
-            overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            opacity: 0;
-            animation: fadeInUp 0.6s ease-out forwards;
-          }
-
           @keyframes fadeInUp {
             from {
               opacity: 0;
@@ -339,180 +166,17 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
             }
           }
 
-          .post-card-inner {
-            position: relative;
-            z-index: 2;
-          }
-
-          .post-card-glow {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(
-              600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-              rgba(255, 184, 111, 0.08),
-              transparent 40%
-            );
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-          }
-
-          .post-card:hover {
-            border-color: var(--accent);
-            transform: translateY(-4px) scale(1.01);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-          }
-
           .post-card:hover .post-card-glow {
             opacity: 1;
           }
 
-          @media (min-width: 768px) {
-            .posts-bento {
-              grid-template-columns: repeat(3, 1fr);
-            }
-            .post-card-1 { grid-column: span 2; }
-            .post-card-2 { grid-column: span 1; }
-            .post-card-3 { grid-column: span 1; }
-            .post-card-4 { grid-column: span 2; }
-
-            /* Hide tags on small cards */
-            .post-card-2 .post-tags,
-            .post-card-3 .post-tags {
-              display: none;
-            }
+          .post-card:hover h2 {
+            color: var(--pml-accent, #ffb86f);
           }
 
-          .post-meta {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-          }
-
-          .post-category {
-            font-family: var(--font-mono);
-            font-size: 0.7rem;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            padding: 0.25rem 0.75rem;
-            background: var(--accent-dim);
-            border-radius: 4px;
-          }
-
-          .post-date {
-            font-size: 0.875rem;
-            color: var(--text-dim);
-          }
-
-          .post-title {
-            font-family: var(--font-display);
-            font-size: 1.75rem;
-            font-weight: 400;
-            margin-bottom: 1rem;
-            color: var(--text);
-            line-height: 1.3;
-            transition: color 0.2s;
-          }
-
-          .post-card:hover .post-title {
-            color: var(--accent);
-          }
-
-          .post-snippet {
-            font-size: 1rem;
-            color: var(--text-muted);
-            line-height: 1.6;
-            margin-bottom: 1.5rem;
-          }
-
-          .post-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-          }
-
-          .post-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-          }
-
-          .post-tag {
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            color: var(--text-dim);
-          }
-
-          .post-read-more {
-            font-size: 0.875rem;
-            color: var(--accent);
-            font-weight: 500;
-            opacity: 0.7;
-            transition: all 0.2s;
-          }
-
-          .post-card:hover .post-read-more {
+          .post-card:hover .text-pml-accent.font-medium {
             opacity: 1;
             transform: translateX(4px);
-          }
-
-          /* Footer */
-          .footer {
-            padding: 2rem;
-            border-top: 1px solid var(--border);
-          }
-
-          .footer-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .footer-brand {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-          }
-
-          .footer-tagline {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-          }
-
-          .footer-links {
-            display: flex;
-            gap: 2rem;
-          }
-
-          .footer-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-          }
-
-          .footer-links a:hover {
-            color: var(--accent);
-          }
-
-          @media (max-width: 768px) {
-            .header { padding: 1rem; }
-            .logo-text { display: none; }
-            .nav { gap: 0.75rem; }
-            /* Hide desktop nav on mobile - MobileMenu handles navigation */
-            .nav-link:not(.nav-link-rss) { display: none; }
-            .blog-main { padding: 4rem 0 2rem; }
-            .blog-title { font-size: 2rem; }
-            .post-card { padding: 1.5rem; }
-            .post-footer { flex-direction: column; align-items: flex-start; gap: 1rem; }
-            .footer-inner { flex-direction: column; gap: 1.5rem; text-align: center; }
           }
         `}
         </style>

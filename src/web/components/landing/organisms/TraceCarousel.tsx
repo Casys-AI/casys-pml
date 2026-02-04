@@ -33,262 +33,74 @@ export function TraceCarousel({
   const errorCount = rows.filter(r => r.success === false).length;
 
   return (
-    <div class="carousel" style={{ "--h": `${height}px`, "--speed": `${speed}s` } as any}>
-      {/* Header */}
-      <div class="carousel__header">
-        <div class="carousel__title">
-          <span class="carousel__dot" />
-          <span class="carousel__name">workflow:ci-deploy</span>
+    <div
+      class="w-full max-w-[460px] md:max-w-[460px] opacity-0 animate-[carouselFadeIn_0.6s_ease_0.3s_forwards]"
+      style={{ "--carousel-h": `${height}px`, "--carousel-speed": `${speed}s` } as any}
+    >
+      <div class="flex items-center justify-between px-1 pb-3 border-b border-white/[0.06]">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(255,184,111,0.5)]" />
+          <span class="font-mono text-[0.8rem] font-semibold text-neutral-100 tracking-tight">workflow:ci-deploy</span>
         </div>
-        <span class="carousel__live">
-          <span class="carousel__live-dot" />
+        <span class="flex items-center gap-1.5 font-mono text-[0.6rem] font-medium text-amber-400 uppercase tracking-wider px-2.5 py-1 bg-amber-400/10 border border-amber-400/20 rounded-md">
+          <span class="w-[5px] h-[5px] rounded-full bg-amber-400 animate-[carouselBlink_1.5s_ease-in-out_infinite]" />
           live
         </span>
       </div>
 
-      {/* Scrolling area */}
-      <div class="carousel__viewport">
-        <div class="carousel__track">
+      <div class="relative overflow-hidden my-2 before:content-[''] before:absolute before:left-0 before:right-0 before:h-[60px] before:z-[2] before:pointer-events-none before:top-0 before:bg-gradient-to-b before:from-[#08080a] before:to-transparent after:content-[''] after:absolute after:left-0 after:right-0 after:h-[60px] after:z-[2] after:pointer-events-none after:bottom-0 after:bg-gradient-to-t after:from-[#08080a] after:to-transparent" style={{ height: `var(--carousel-h)` }}>
+        <div class="animate-[carouselScroll_var(--carousel-speed)_linear_infinite] hover:[animation-play-state:paused]">
           {allRows.map((row, i) => (
             <TraceRow key={`${row.name}-${i}`} data={row} />
           ))}
         </div>
       </div>
 
-      {/* Footer */}
-      <div class="carousel__footer">
-        <div class="carousel__stats">
-          <span class="carousel__stat">
-            <span class="carousel__num">{rows.length}</span>
-            <span class="carousel__label">calls</span>
+      <div class="flex items-center justify-between px-1 pt-3 border-t border-white/[0.06]">
+        <div class="flex items-center gap-3">
+          <span class="flex items-baseline gap-1">
+            <span class="font-mono text-[0.85rem] font-bold text-amber-400">{rows.length}</span>
+            <span class="font-mono text-[0.55rem] text-neutral-600 uppercase tracking-wide">calls</span>
           </span>
-          <span class="carousel__divider" />
-          <span class="carousel__stat">
-            <span class="carousel__num">{models.size}</span>
-            <span class="carousel__label">models</span>
+          <span class="w-px h-3 bg-neutral-700" />
+          <span class="flex items-baseline gap-1">
+            <span class="font-mono text-[0.85rem] font-bold text-amber-400">{models.size}</span>
+            <span class="font-mono text-[0.55rem] text-neutral-600 uppercase tracking-wide">models</span>
           </span>
-          <span class="carousel__divider" />
-          <span class="carousel__stat">
-            <span class="carousel__num carousel__num--cost">${totalCost.toFixed(3)}</span>
-            <span class="carousel__label">cost</span>
+          <span class="w-px h-3 bg-neutral-700" />
+          <span class="flex items-baseline gap-1">
+            <span class="font-mono text-[0.85rem] font-bold text-emerald-400">${totalCost.toFixed(3)}</span>
+            <span class="font-mono text-[0.55rem] text-neutral-600 uppercase tracking-wide">cost</span>
           </span>
           {errorCount > 0 && (
             <>
-              <span class="carousel__divider" />
-              <span class="carousel__stat">
-                <span class="carousel__num carousel__num--err">{errorCount}</span>
-                <span class="carousel__label">retry</span>
+              <span class="w-px h-3 bg-neutral-700" />
+              <span class="flex items-baseline gap-1">
+                <span class="font-mono text-[0.85rem] font-bold text-red-400">{errorCount}</span>
+                <span class="font-mono text-[0.55rem] text-neutral-600 uppercase tracking-wide">retry</span>
               </span>
             </>
           )}
         </div>
-        <div class="carousel__badges">
-          <span class="carousel__badge carousel__badge--cost">cost tracked</span>
+        <div class="flex items-center gap-1.5 md:flex hidden">
+          <span class="font-mono text-[0.5rem] font-medium uppercase tracking-wide px-2 py-[3px] rounded text-amber-400 bg-amber-400/10">cost tracked</span>
         </div>
       </div>
 
       <style>
         {`
-        .carousel {
-          width: 100%;
-          max-width: 460px;
-          opacity: 0;
-          animation: fadeIn 0.6s ease 0.3s forwards;
-        }
-
-        @keyframes fadeIn {
+        @keyframes carouselFadeIn {
           to { opacity: 1; }
         }
 
-        .carousel__header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 4px 12px;
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-
-        .carousel__title {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .carousel__dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: #FFB86F;
-          box-shadow: 0 0 12px rgba(255, 184, 111, 0.5);
-        }
-
-        .carousel__name {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: #f5f5f5;
-          letter-spacing: -0.01em;
-        }
-
-        .carousel__live {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.6rem;
-          font-weight: 500;
-          color: #FFB86F;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          padding: 4px 10px;
-          background: rgba(255, 184, 111, 0.1);
-          border: 1px solid rgba(255, 184, 111, 0.2);
-          border-radius: 6px;
-        }
-
-        .carousel__live-dot {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background: #FFB86F;
-          animation: blink 1.5s ease-in-out infinite;
-        }
-
-        @keyframes blink {
+        @keyframes carouselBlink {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
         }
 
-        .carousel__viewport {
-          position: relative;
-          height: var(--h);
-          overflow: hidden;
-          margin: 8px 0;
-        }
-
-        /* Gradient masks */
-        .carousel__viewport::before,
-        .carousel__viewport::after {
-          content: '';
-          position: absolute;
-          left: 0;
-          right: 0;
-          height: 60px;
-          z-index: 2;
-          pointer-events: none;
-        }
-
-        .carousel__viewport::before {
-          top: 0;
-          background: linear-gradient(to bottom, #08080a 0%, transparent 100%);
-        }
-
-        .carousel__viewport::after {
-          bottom: 0;
-          background: linear-gradient(to top, #08080a 0%, transparent 100%);
-        }
-
-        .carousel__track {
-          animation: scroll var(--speed) linear infinite;
-        }
-
-        @keyframes scroll {
+        @keyframes carouselScroll {
           0% { transform: translateY(0); }
           100% { transform: translateY(-50%); }
-        }
-
-        .carousel__track:hover {
-          animation-play-state: paused;
-        }
-
-        .carousel__footer {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px 4px 0;
-          border-top: 1px solid rgba(255,255,255,0.06);
-        }
-
-        .carousel__stats {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .carousel__stat {
-          display: flex;
-          align-items: baseline;
-          gap: 4px;
-        }
-
-        .carousel__num {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.85rem;
-          font-weight: 700;
-          color: #FFB86F;
-        }
-
-        .carousel__num--cost {
-          color: #34d399;
-        }
-
-        .carousel__num--err {
-          color: #f87171;
-        }
-
-        .carousel__label {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.55rem;
-          color: #525252;
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
-        }
-
-        .carousel__divider {
-          width: 1px;
-          height: 12px;
-          background: #333;
-        }
-
-        .carousel__badges {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .carousel__badge {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.5rem;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
-          padding: 3px 8px;
-          border-radius: 4px;
-        }
-
-        .carousel__badge--args {
-          color: #6b7280;
-          background: rgba(107, 114, 128, 0.1);
-        }
-
-        .carousel__badge--results {
-          color: #34d399;
-          background: rgba(52, 211, 153, 0.1);
-        }
-
-        .carousel__badge--cost {
-          color: #FFB86F;
-          background: rgba(255, 184, 111, 0.1);
-        }
-
-        @media (max-width: 768px) {
-          .carousel {
-            max-width: 100%;
-          }
-
-          .carousel__badges {
-            display: none;
-          }
         }
         `}
       </style>

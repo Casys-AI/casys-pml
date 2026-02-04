@@ -11,16 +11,12 @@ import type { ComponentChildren } from "preact";
 import MobileMenu from "../../islands/MobileMenu.tsx";
 
 interface VitrineHeaderProps {
-  /** Current page for active state */
   activePage?: "home" | "docs" | "blog" | "catalog";
-  /** User info for auth display */
   user?: {
     username: string;
     avatarUrl?: string;
   } | null;
-  /** Is cloud mode */
   isCloudMode?: boolean;
-  /** Optional children (e.g., search bar) */
   children?: ComponentChildren;
 }
 
@@ -30,7 +26,6 @@ export default function VitrineHeader({
   isCloudMode,
   children,
 }: VitrineHeaderProps) {
-  // Feature flag - set to true to show auth UI
   const SHOW_AUTH = false;
 
   const navLinks = [
@@ -41,33 +36,35 @@ export default function VitrineHeader({
   ];
 
   return (
-    <header class="vitrine-header">
-      <div class="vitrine-header-inner">
-        {/* Logo */}
-        <a href="/" class="vitrine-logo">
-          <span class="vitrine-logo-mark">Casys PML</span>
-          <span class="vitrine-logo-text">Procedural Memory Layer</span>
+    <header class="fixed top-0 left-0 right-0 z-[100] px-8 py-3.5 bg-[#08080a]/85 backdrop-blur-[20px] border-b border-amber-400/[0.08]">
+      <div class="max-w-[1400px] mx-auto flex justify-between items-center gap-8">
+        <a href="/" class="flex items-center gap-3.5 no-underline flex-shrink-0">
+          <span class="font-serif text-[1.375rem] font-normal text-amber-400 tracking-tight">Casys PML</span>
+          <span class="text-[0.7rem] text-stone-500 tracking-widest uppercase hidden md:block">Procedural Memory Layer</span>
         </a>
 
-        {/* Optional center content (search, etc.) */}
-        {children && <div class="vitrine-header-center">{children}</div>}
+        {children && <div class="flex-1 flex justify-center max-w-[400px]">{children}</div>}
 
-        {/* Navigation */}
-        <nav class="vitrine-nav">
+        <nav class="flex items-center gap-8">
           {navLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              class={`vitrine-nav-link ${activePage === link.page ? "active" : ""} ${"highlight" in link && link.highlight ? "vitrine-nav-highlight" : ""}`}
+              class={`
+                text-stone-400 no-underline text-sm font-medium transition-colors relative
+                hover:text-stone-100
+                ${activePage === link.page ? "text-amber-400 after:content-[''] after:absolute after:bottom-[-0.5rem] after:left-0 after:right-0 after:h-0.5 after:bg-amber-400 after:rounded-sm" : ""}
+                ${"highlight" in link && link.highlight ? "!text-amber-400 px-3 py-1.5 bg-amber-400/10 border border-amber-400/25 rounded-md hover:bg-amber-400/20 hover:border-amber-400/40" : ""}
+                hidden md:inline-block
+              `}
             >
               {link.label}
             </a>
           ))}
 
-          {/* GitHub */}
           <a
             href="https://github.com/Casys-AI/casys-pml"
-            class="vitrine-nav-link vitrine-nav-social"
+            class="flex items-center p-2 rounded-md transition-colors text-stone-400 hover:text-stone-100 hover:bg-amber-400/10"
             target="_blank"
             rel="noopener"
             title="View on GitHub"
@@ -78,10 +75,9 @@ export default function VitrineHeader({
             </svg>
           </a>
 
-          {/* Discord */}
           <a
             href="https://discord.gg/fuPg8drR"
-            class="vitrine-nav-link vitrine-nav-social"
+            class="flex items-center p-2 rounded-md transition-colors text-stone-400 hover:text-stone-100 hover:bg-amber-400/10"
             target="_blank"
             rel="noopener"
             title="Join Discord"
@@ -92,27 +88,26 @@ export default function VitrineHeader({
             </svg>
           </a>
 
-          {/* Auth section */}
           {SHOW_AUTH &&
             (isCloudMode
               ? user
                 ? (
-                  <a href="/dashboard/settings" class="vitrine-nav-user">
+                  <a href="/dashboard/settings" class="hidden md:flex items-center gap-2 px-3 py-1.5 no-underline rounded-lg bg-amber-400/10 border border-amber-400/[0.08] transition-all hover:border-amber-400">
                     <img
                       src={user.avatarUrl || "/default-avatar.svg"}
                       alt={user.username}
-                      class="vitrine-nav-avatar"
+                      class="w-6 h-6 rounded-full object-cover"
                     />
-                    <span class="vitrine-nav-username">{user.username}</span>
+                    <span class="text-sm font-medium text-stone-100">{user.username}</span>
                   </a>
                 )
                 : (
-                  <a href="/auth/signin" class="vitrine-btn-signin">
+                  <a href="/auth/signin" class="hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold no-underline rounded-lg bg-amber-400 text-[#08080a] transition-all hover:brightness-110 hover:-translate-y-px">
                     Sign in
                   </a>
                 )
               : (
-                <span class="vitrine-badge-local">
+                <span class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono text-green-400 bg-green-400/10 border border-green-400/20 rounded-md">
                   <svg
                     width="14"
                     height="14"
@@ -128,206 +123,9 @@ export default function VitrineHeader({
                 </span>
               ))}
 
-          {/* Mobile Menu */}
           <MobileMenu />
         </nav>
       </div>
-
-      <style>
-        {`
-        .vitrine-header {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          z-index: 100;
-          padding: 0.875rem 2rem;
-          background: rgba(8, 8, 10, 0.85);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(255, 184, 111, 0.08);
-        }
-
-        .vitrine-header-inner {
-          max-width: 1400px;
-          margin: 0 auto;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 2rem;
-        }
-
-        .vitrine-header-center {
-          flex: 1;
-          display: flex;
-          justify-content: center;
-          max-width: 400px;
-        }
-
-        .vitrine-logo {
-          display: flex;
-          align-items: center;
-          gap: 0.875rem;
-          text-decoration: none;
-          flex-shrink: 0;
-        }
-
-        .vitrine-logo-mark {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 1.375rem;
-          font-weight: 400;
-          color: #FFB86F;
-          letter-spacing: -0.02em;
-        }
-
-        .vitrine-logo-text {
-          font-size: 0.7rem;
-          color: #6b6560;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          display: none;
-        }
-
-        @media (min-width: 768px) {
-          .vitrine-logo-text {
-            display: block;
-          }
-        }
-
-        .vitrine-nav {
-          display: flex;
-          align-items: center;
-          gap: 2rem;
-        }
-
-        .vitrine-nav-link {
-          color: #a8a29e;
-          text-decoration: none;
-          font-size: 0.875rem;
-          font-weight: 500;
-          transition: color 0.2s;
-          position: relative;
-        }
-
-        .vitrine-nav-link:hover {
-          color: #f0ede8;
-        }
-
-        .vitrine-nav-link.active {
-          color: #FFB86F;
-        }
-
-        .vitrine-nav-link.active::after {
-          content: '';
-          position: absolute;
-          bottom: -0.5rem;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: #FFB86F;
-          border-radius: 1px;
-        }
-
-        .vitrine-nav-highlight {
-          color: #FFB86F !important;
-          padding: 0.4rem 0.75rem;
-          background: rgba(255, 184, 111, 0.1);
-          border: 1px solid rgba(255, 184, 111, 0.25);
-          border-radius: 6px;
-        }
-
-        .vitrine-nav-highlight:hover {
-          background: rgba(255, 184, 111, 0.2);
-          border-color: rgba(255, 184, 111, 0.4);
-        }
-
-        .vitrine-nav-social {
-          display: flex;
-          align-items: center;
-          padding: 0.5rem;
-          border-radius: 6px;
-          transition: background 0.2s;
-        }
-
-        .vitrine-nav-social:hover {
-          background: rgba(255, 184, 111, 0.1);
-        }
-
-        .vitrine-btn-signin {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 1rem;
-          font-size: 0.875rem;
-          font-weight: 600;
-          text-decoration: none;
-          border-radius: 8px;
-          background: #FFB86F;
-          color: #08080a;
-          transition: all 0.2s;
-        }
-
-        .vitrine-btn-signin:hover {
-          filter: brightness(1.1);
-          transform: translateY(-1px);
-        }
-
-        .vitrine-badge-local {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.375rem;
-          padding: 0.375rem 0.75rem;
-          font-size: 0.75rem;
-          font-weight: 500;
-          font-family: 'Geist Mono', monospace;
-          color: #4ade80;
-          background: rgba(74, 222, 128, 0.1);
-          border: 1px solid rgba(74, 222, 128, 0.2);
-          border-radius: 6px;
-        }
-
-        .vitrine-nav-user {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.375rem 0.75rem;
-          text-decoration: none;
-          border-radius: 8px;
-          background: rgba(255, 184, 111, 0.1);
-          border: 1px solid rgba(255, 184, 111, 0.08);
-          transition: all 0.2s;
-        }
-
-        .vitrine-nav-user:hover {
-          border-color: #FFB86F;
-        }
-
-        .vitrine-nav-avatar {
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          object-fit: cover;
-        }
-
-        .vitrine-nav-username {
-          font-size: 0.875rem;
-          font-weight: 500;
-          color: #f0ede8;
-        }
-
-        /* Hide nav links on mobile, show hamburger */
-        @media (max-width: 768px) {
-          .vitrine-nav-link:not(.vitrine-nav-social) {
-            display: none;
-          }
-          .vitrine-btn-signin,
-          .vitrine-badge-local,
-          .vitrine-nav-user {
-            display: none;
-          }
-        }
-        `}
-      </style>
     </header>
   );
 }
