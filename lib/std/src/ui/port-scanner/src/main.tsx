@@ -147,16 +147,16 @@ function PortScanner() {
   // Render states
   if (loading) {
     return (
-      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
-        <div class="flex items-center justify-center p-10 text-fg-muted">Scanning ports...</div>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="flex items-center justify-center p-10 text-fg-muted">Scanning ports...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
-        <div class="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
           {error}
         </div>
       </div>
@@ -165,19 +165,19 @@ function PortScanner() {
 
   if (!data || data.ports.length === 0) {
     return (
-      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
-        <div class="flex items-center justify-center p-10 text-fg-muted">No scan results</div>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+        <div className="flex items-center justify-center p-10 text-fg-muted">No scan results</div>
       </div>
     );
   }
 
   return (
-    <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[200px]">
       {/* Header */}
-      <div class="mb-4">
-        <div class="text-lg font-semibold mb-1">{data.host}</div>
+      <div className="mb-4">
+        <div className="text-lg font-semibold mb-1">{data.host}</div>
         {data.timestamp && (
-          <div class="text-xs text-fg-muted">
+          <div className="text-xs text-fg-muted">
             Scanned: {new Date(data.timestamp).toLocaleString()}
             {data.scanTime && ` (${data.scanTime}ms)`}
           </div>
@@ -185,7 +185,7 @@ function PortScanner() {
       </div>
 
       {/* Statistics */}
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <StatCard label="Total" value={stats.total} color="blue" />
         <StatCard label="Open" value={stats.open} color="green" />
         <StatCard label="Closed" value={stats.closed} color="red" />
@@ -193,7 +193,7 @@ function PortScanner() {
       </div>
 
       {/* Filter buttons */}
-      <div class="flex gap-2 mb-3 flex-wrap">
+      <div className="flex gap-2 mb-3 flex-wrap">
         {(["all", "open", "closed", "filtered"] as FilterStatus[]).map((f) => (
           <Button
             key={f}
@@ -208,12 +208,12 @@ function PortScanner() {
       </div>
 
       {/* Results table */}
-      <div class="overflow-x-auto rounded-lg">
+      <div className="overflow-x-auto rounded-lg">
         <Table.Root size="sm" variant="outline">
           <Table.Head>
             <Table.Row>
-              <Table.Header class="w-20">Port</Table.Header>
-              <Table.Header class="w-[100px]">Status</Table.Header>
+              <Table.Header className="w-20">Port</Table.Header>
+              <Table.Header className="w-[100px]">Status</Table.Header>
               <Table.Header>Service</Table.Header>
               <Table.Header>Banner</Table.Header>
             </Table.Row>
@@ -223,19 +223,19 @@ function PortScanner() {
               <Table.Row
                 key={port.port}
                 onClick={() => handlePortClick(port)}
-                class="cursor-pointer hover:bg-bg-subtle"
+                className="cursor-pointer hover:bg-bg-subtle"
               >
-                <Table.Cell class="font-mono font-medium">
+                <Table.Cell className="font-mono font-medium">
                   {port.port}
                 </Table.Cell>
                 <Table.Cell>
                   <PortStatusBadge status={port.status} />
                 </Table.Cell>
-                <Table.Cell class={port.service ? "text-fg-default" : "text-fg-muted"}>
+                <Table.Cell className={port.service ? "text-fg-default" : "text-fg-muted"}>
                   {port.service || "-"}
                 </Table.Cell>
                 <Table.Cell
-                  class="text-fg-muted text-xs max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap"
+                  className="text-fg-muted text-xs max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap"
                   title={port.banner}
                 >
                   {port.banner || "-"}
@@ -248,9 +248,9 @@ function PortScanner() {
 
       {/* Summary for open ports */}
       {stats.open > 0 && filter === "all" && (
-        <div class="mt-3 p-3 bg-bg-subtle rounded-md">
-          <div class="text-xs text-fg-muted mb-1">Open ports:</div>
-          <div class="flex gap-2 flex-wrap">
+        <div className="mt-3 p-3 bg-bg-subtle rounded-md">
+          <div className="text-xs text-fg-muted mb-1">Open ports:</div>
+          <div className="flex gap-2 flex-wrap">
             {data.ports
               .filter((p) => p.status === "open")
               .map((p) => (
@@ -285,9 +285,9 @@ function StatCard({ label, value, color }: { label: string; value: number; color
   };
 
   return (
-    <div class={cx("p-3 rounded-md text-center", bgColorMap[color] || "bg-gray-50 dark:bg-gray-900")}>
-      <div class={cx("text-2xl font-bold", textColorMap[color] || "text-gray-700 dark:text-gray-300")}>{value}</div>
-      <div class="text-xs text-fg-muted">{label}</div>
+    <div className={cx("p-3 rounded-md text-center", bgColorMap[color] || "bg-gray-50 dark:bg-gray-900")}>
+      <div className={cx("text-2xl font-bold", textColorMap[color] || "text-gray-700 dark:text-gray-300")}>{value}</div>
+      <div className="text-xs text-fg-muted">{label}</div>
     </div>
   );
 }

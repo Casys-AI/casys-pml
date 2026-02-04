@@ -1,12 +1,17 @@
 import { ComponentChildren, JSX } from "preact";
 import { cx } from "../utils";
 
-export interface ButtonProps extends Omit<JSX.HTMLAttributes<HTMLButtonElement>, "loading"> {
+export interface ButtonProps {
   variant?: "solid" | "outline" | "ghost";
   size?: "xs" | "sm" | "md" | "lg";
   loading?: boolean;
   loadingText?: string;
+  disabled?: boolean;
+  type?: "button" | "submit" | "reset";
+  onClick?: JSX.MouseEventHandler<HTMLButtonElement>;
+  className?: string;
   children: ComponentChildren;
+  [key: string]: unknown;
 }
 
 const variants = {

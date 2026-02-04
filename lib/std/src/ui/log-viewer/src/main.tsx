@@ -491,7 +491,7 @@ function LogViewer() {
             <button
               key={level}
               onClick={() => toggleLevel(level)}
-              onDoubleClick={() => showOnlyLevel(level)}
+              onDblClick={() => showOnlyLevel(level)}
               title={`Toggle ${level} (double-click to show only)`}
               className={cx(
                 "flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all",

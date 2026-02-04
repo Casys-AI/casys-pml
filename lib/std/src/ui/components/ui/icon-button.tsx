@@ -1,14 +1,19 @@
 import { ComponentChildren, JSX } from "preact";
 import { cx } from "../utils";
 
-export interface IconButtonProps extends Omit<JSX.HTMLAttributes<HTMLButtonElement>, "size"> {
+export interface IconButtonProps {
   children: ComponentChildren;
   variant?: "solid" | "outline" | "ghost";
   size?: "xs" | "sm" | "md" | "lg";
   colorPalette?: "blue" | "gray" | "red" | "green";
   loading?: boolean;
-  "aria-label": string;
+  disabled?: boolean;
+  "aria-label"?: string;
+  title?: string;
+  onClick?: JSX.MouseEventHandler<HTMLButtonElement>;
+  className?: string;
   as?: "button" | "span";
+  [key: string]: unknown;
 }
 
 const variants = {

@@ -5,11 +5,14 @@
 
 /**
  * Combine class names (like clsx/cx)
+ * Accepts any type for flexibility with Preact's Signalish types
  */
 export function cx(
-  ...classes: (string | undefined | false | null)[]
+  ...classes: unknown[]
 ): string {
-  return classes.filter(Boolean).join(" ");
+  return classes
+    .filter((c): c is string => typeof c === "string" && c.length > 0)
+    .join(" ");
 }
 
 /**

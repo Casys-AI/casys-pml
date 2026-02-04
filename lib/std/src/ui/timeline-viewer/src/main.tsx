@@ -177,18 +177,18 @@ function EventNode({ event, expanded, onToggle, highlight }: {
   const hasDescription = !!event.description;
   const hasMetadata = event.metadata && Object.keys(event.metadata).length > 0;
 
-  const typeConfig: Record<EventType, { colorPalette: string }> = {
-    info: { colorPalette: "blue" },
-    warning: { colorPalette: "orange" },
-    error: { colorPalette: "red" },
-    success: { colorPalette: "green" },
+  const typeConfig: Record<EventType, { colorScheme: "blue" | "orange" | "red" | "green" }> = {
+    info: { colorScheme: "blue" },
+    warning: { colorScheme: "orange" },
+    error: { colorScheme: "red" },
+    success: { colorScheme: "green" },
   };
 
   const config = typeConfig[type];
 
   return (
     <div
-      class={cx(
+      className={cx(
         "flex items-start gap-3 p-2 rounded-md cursor-pointer transition-colors duration-150",
         highlight ? "bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/50 dark:hover:bg-yellow-950/70" : "hover:bg-bg-subtle"
       )}
@@ -200,10 +200,10 @@ function EventNode({ event, expanded, onToggle, highlight }: {
       }}
     >
       {/* Timeline connector */}
-      <div class="flex flex-col items-center pt-1 w-4 shrink-0 relative">
-        <div class="w-0.5 h-full min-h-5 bg-border-default absolute top-0 bottom-0" />
+      <div className="flex flex-col items-center pt-1 w-4 shrink-0 relative">
+        <div className="w-0.5 h-full min-h-5 bg-border-default absolute top-0 bottom-0" />
         <div
-          class={cx(
+          className={cx(
             "w-3 h-3 rounded-full border-2 border-bg-canvas shadow-sm relative z-10",
             dotColors[type]
           )}
@@ -211,25 +211,25 @@ function EventNode({ event, expanded, onToggle, highlight }: {
       </div>
 
       {/* Time */}
-      <div class="text-xs font-mono text-fg-muted w-[70px] shrink-0 pt-0.5">
+      <div className="text-xs font-mono text-fg-muted w-[70px] shrink-0 pt-0.5">
         {formatTime(date)}
       </div>
 
       {/* Content */}
-      <div class="flex-1 flex flex-wrap items-start gap-2">
+      <div className="flex-1 flex flex-wrap items-start gap-2">
         {/* Type badge */}
-        <Badge size="sm" variant="subtle" colorPalette={config.colorPalette}>
+        <Badge size="sm" variant="subtle" colorScheme={config.colorScheme}>
           {type}
         </Badge>
 
         {/* Title */}
-        <div class="font-medium flex-1 min-w-[150px]">
+        <div className="font-medium flex-1 min-w-[150px]">
           {event.title}
         </div>
 
         {/* Source */}
         {event.source && (
-          <Badge size="sm" variant="outline" colorPalette="gray">
+          <Badge size="sm" variant="outline" colorScheme="gray">
             {event.source}
           </Badge>
         )}
@@ -237,7 +237,7 @@ function EventNode({ event, expanded, onToggle, highlight }: {
         {/* Expand indicator */}
         {(hasDescription || hasMetadata) && (
           <div
-            class="text-xs text-fg-muted cursor-pointer transition-transform duration-150"
+            className="text-xs text-fg-muted cursor-pointer transition-transform duration-150"
             style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
           >
             {"\u25B6"}
@@ -246,18 +246,18 @@ function EventNode({ event, expanded, onToggle, highlight }: {
 
         {/* Description (collapsible) */}
         {expanded && hasDescription && (
-          <div class="w-full mt-2 p-2 bg-bg-subtle rounded-md text-sm text-fg-muted whitespace-pre-wrap leading-relaxed">
+          <div className="w-full mt-2 p-2 bg-bg-subtle rounded-md text-sm text-fg-muted whitespace-pre-wrap leading-relaxed">
             {event.description}
           </div>
         )}
 
         {/* Metadata (collapsible) */}
         {expanded && hasMetadata && (
-          <div class="w-full mt-2 p-2 bg-bg-subtle rounded-md text-xs font-mono">
+          <div className="w-full mt-2 p-2 bg-bg-subtle rounded-md text-xs font-mono">
             {Object.entries(event.metadata!).map(([key, value]) => (
-              <div key={key} class="flex gap-2 py-0.5">
-                <div class="text-fg-muted font-medium">{key}:</div>
-                <div class="text-fg-default break-all">
+              <div key={key} className="flex gap-2 py-0.5">
+                <div className="text-fg-muted font-medium">{key}:</div>
+                <div className="text-fg-default break-all">
                   {typeof value === "object" ? JSON.stringify(value) : String(value)}
                 </div>
               </div>
@@ -276,15 +276,15 @@ function DateGroup({ group, expandedIds, toggleExpand, searchFilter }: {
   searchFilter: string;
 }) {
   return (
-    <div class="mb-4">
-      <div class="flex items-center gap-2 mb-3">
-        <div class="flex-1 h-px bg-border-default" />
-        <div class="text-xs font-semibold text-fg-muted uppercase tracking-wide px-2">
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex-1 h-px bg-border-default" />
+        <div className="text-xs font-semibold text-fg-muted uppercase tracking-wide px-2">
           {group.label}
         </div>
-        <div class="flex-1 h-px bg-border-default" />
+        <div className="flex-1 h-px bg-border-default" />
       </div>
-      <div class="flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         {group.events.map((event, idx) => {
           const eventId = `${group.date.toISOString()}-${idx}`;
           const isHighlighted = searchFilter && (
@@ -427,16 +427,16 @@ function TimelineViewer() {
 
   if (loading) {
     return (
-      <div class="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[500px] border border-border-default rounded-lg overflow-hidden">
-        <div class="p-4 text-center text-fg-muted">Loading timeline...</div>
+      <div className="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[500px] border border-border-default rounded-lg overflow-hidden">
+        <div className="p-4 text-center text-fg-muted">Loading timeline...</div>
       </div>
     );
   }
 
   if (!data?.events?.length) {
     return (
-      <div class="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[500px] border border-border-default rounded-lg overflow-hidden">
-        <div class="p-4 text-center text-fg-muted">No events</div>
+      <div className="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[500px] border border-border-default rounded-lg overflow-hidden">
+        <div className="p-4 text-center text-fg-muted">No events</div>
       </div>
     );
   }
@@ -444,18 +444,18 @@ function TimelineViewer() {
   const eventTypes: EventType[] = ["error", "warning", "info", "success"];
 
   return (
-    <div class="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[500px] border border-border-default rounded-lg overflow-hidden">
+    <div className="font-sans text-sm text-fg-default bg-bg-canvas flex flex-col max-h-[500px] border border-border-default rounded-lg overflow-hidden">
       {/* Header */}
-      <div class="flex justify-between items-center p-3 bg-bg-subtle border-b border-border-default flex-wrap gap-2">
+      <div className="flex justify-between items-center p-3 bg-bg-subtle border-b border-border-default flex-wrap gap-2">
         {data.title && (
-          <h3 class="text-base font-semibold m-0">
+          <h3 className="text-base font-semibold m-0">
             {data.title}
           </h3>
         )}
 
-        <div class="flex gap-2 items-center flex-wrap">
+        <div className="flex gap-2 items-center flex-wrap">
           {/* Type filters */}
-          <div class="flex gap-1">
+          <div className="flex gap-1">
             {eventTypes.map((type) => {
               const colors = typeBtnColors[type];
               return (
@@ -464,7 +464,7 @@ function TimelineViewer() {
                   variant={typeFilter.has(type) ? "outline" : "ghost"}
                   size="xs"
                   onClick={() => toggleType(type)}
-                  class={cx(
+                  className={cx(
                     typeFilter.has(type) ? "opacity-100 font-medium" : "opacity-50 font-normal",
                     "capitalize transition-all duration-150 hover:opacity-80",
                     colors.light,
@@ -484,7 +484,7 @@ function TimelineViewer() {
             value={searchFilter}
             onInput={handleSearchChange}
             size="sm"
-            class="w-[150px]"
+            className="w-[150px]"
           />
 
           {/* Expand/Collapse buttons */}
@@ -518,13 +518,13 @@ function TimelineViewer() {
       </div>
 
       {/* Stats */}
-      <div class="px-3 py-1.5 text-xs text-fg-muted bg-bg-subtle border-b border-border-subtle">
+      <div className="px-3 py-1.5 text-xs text-fg-muted bg-bg-subtle border-b border-border-subtle">
         {filteredEvents.length} / {data.events.length} events
         {searchFilter && ` matching "${searchFilter}"`}
       </div>
 
       {/* Timeline content */}
-      <div class="flex-1 overflow-y-auto p-3" ref={containerRef}>
+      <div className="flex-1 overflow-y-auto p-3" ref={containerRef}>
         {groupedEvents.map((group) => (
           <DateGroup
             key={group.date.toISOString()}

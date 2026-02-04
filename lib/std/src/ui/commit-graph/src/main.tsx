@@ -223,7 +223,7 @@ function RefBadge({ refName }: RefBadgeProps) {
   const displayName = isTag ? refName.replace("tag:", "") : refName;
 
   let variant: "solid" | "subtle" | "outline" = "subtle";
-  let colorPalette = "green";
+  let colorPalette: "green" | "amber" | "purple" | "gray" = "green";
 
   if (isTag) {
     colorPalette = "amber";
@@ -235,7 +235,7 @@ function RefBadge({ refName }: RefBadgeProps) {
   }
 
   return (
-    <Badge size="sm" variant={variant} colorPalette={colorPalette}>
+    <Badge size="sm" variant={variant} colorScheme={colorPalette}>
       {displayName}
     </Badge>
   );

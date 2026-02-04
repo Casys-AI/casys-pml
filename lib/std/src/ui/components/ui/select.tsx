@@ -576,12 +576,15 @@ export interface SelectHiddenSelectProps extends JSX.HTMLAttributes<HTMLSelectEl
 export function HiddenSelect({ name, ...props }: SelectHiddenSelectProps) {
   const { value, multiple, items } = useSelectContext();
 
+  // Note: value type differs between single/multiple mode
+  const selectValue = multiple ? value : (value[0] || "");
+
   return (
     <select
       name={name}
       multiple={multiple}
-      value={multiple ? value : value[0] || ""}
-      readOnly
+      value={selectValue as string}
+      onChange={() => {}} // No-op since this is a hidden select for form submission
       className="sr-only"
       tabIndex={-1}
       aria-hidden="true"

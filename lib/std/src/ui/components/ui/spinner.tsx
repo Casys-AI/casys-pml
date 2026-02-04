@@ -3,12 +3,18 @@ import { cx } from "../utils";
 
 export type SpinnerSize = "xs" | "sm" | "md" | "lg" | "xl" | "inherit";
 
-export interface SpinnerProps extends JSX.HTMLAttributes<HTMLSpanElement> {
+export type SpinnerColorPalette = "blue" | "green" | "red" | "yellow" | "orange" | "purple" | "gray";
+
+export interface SpinnerProps {
   size?: SpinnerSize;
   color?: string;
+  colorPalette?: SpinnerColorPalette;
   borderWidth?: string;
   speed?: string;
   label?: string;
+  className?: string;
+  style?: JSX.CSSProperties;
+  [key: string]: unknown;
 }
 
 const sizeStyles: Record<SpinnerSize, string> = {
@@ -20,9 +26,20 @@ const sizeStyles: Record<SpinnerSize, string> = {
   inherit: "w-[1em] h-[1em]",
 };
 
+const colorPaletteMap: Record<SpinnerColorPalette, string> = {
+  blue: "#3b82f6",
+  green: "#22c55e",
+  red: "#ef4444",
+  yellow: "#eab308",
+  orange: "#f97316",
+  purple: "#a855f7",
+  gray: "#6b7280",
+};
+
 export function Spinner({
   size = "md",
   color,
+  colorPalette,
   borderWidth = "2px",
   speed = "0.65s",
   label = "Loading...",
@@ -30,6 +47,8 @@ export function Spinner({
   style,
   ...rest
 }: SpinnerProps) {
+  const resolvedColor = color || (colorPalette ? colorPaletteMap[colorPalette] : "currentColor");
+
   return (
     <span
       role="status"
@@ -43,8 +62,8 @@ export function Spinner({
       style={{
         borderWidth,
         animationDuration: speed,
-        color: color || "currentColor",
-        ...style,
+        color: resolvedColor,
+        ...(style || {}),
       }}
       {...rest}
     >

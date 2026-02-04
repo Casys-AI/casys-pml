@@ -109,7 +109,7 @@ function TimeScale({ maxTime, width }: { maxTime: number; width: number }) {
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) => (maxTime / tickCount) * i);
 
   return (
-    <div class="w-full">
+    <div className="w-full">
       <svg width={width} height={20} style={{ display: "block" }}>
         {ticks.map((tick, i) => {
           const x = (tick / maxTime) * width;
@@ -173,7 +173,7 @@ function WaterfallBar({
   };
 
   return (
-    <div class="relative">
+    <div className="relative">
       <svg width={width} height={barHeight + 4} style={{ display: "block", width: "100%" }}>
         {/* Background track */}
         <rect x={0} y={2} width={width} height={barHeight} fill="var(--colors-bg-subtle)" rx={2} />
@@ -187,7 +187,7 @@ function WaterfallBar({
             height={barHeight}
             fill={config.color}
             rx={x === 0 ? 2 : 0}
-            class="cursor-pointer transition-opacity duration-150 hover:opacity-80"
+            className="cursor-pointer transition-opacity duration-150 hover:opacity-80"
             onMouseEnter={(e) => handleMouseEnter(key, e as unknown as MouseEvent)}
             onMouseLeave={handleMouseLeave}
           />
@@ -195,7 +195,7 @@ function WaterfallBar({
       </svg>
       {hoveredPhase && (
         <div
-          class="fixed bg-bg-default border border-border-default rounded-md px-2 py-1 text-xs text-fg-default shadow-lg z-[1000] pointer-events-none whitespace-nowrap"
+          className="fixed bg-bg-default border border-border-default rounded-md px-2 py-1 text-xs text-fg-default shadow-lg z-[1000] pointer-events-none whitespace-nowrap"
           style={{
             top: `${tooltipPos.y - 40}px`,
             left: `${Math.min(tooltipPos.x, window.innerWidth - 320)}px`,
@@ -226,28 +226,28 @@ function RequestRow({
 
   return (
     <div
-      class="flex flex-wrap items-center py-2 border-b border-border-subtle hover:bg-bg-subtle"
+      className="flex flex-wrap items-center py-2 border-b border-border-subtle hover:bg-bg-subtle"
       data-index={index}
     >
-      <div class="w-[200px] shrink-0 flex items-center gap-2 cursor-pointer pr-2" onClick={() => setExpanded(!expanded)}>
-        <span class="text-xs font-bold font-mono shrink-0" style={{ color: getMethodColor(request.method) }}>
+      <div className="w-[200px] shrink-0 flex items-center gap-2 cursor-pointer pr-2" onClick={() => setExpanded(!expanded)}>
+        <span className="text-xs font-bold font-mono shrink-0" style={{ color: getMethodColor(request.method) }}>
           {request.method}
         </span>
-        <span class="text-xs font-mono shrink-0" style={{ color: getStatusColor(request.status) }}>
+        <span className="text-xs font-mono shrink-0" style={{ color: getStatusColor(request.status) }}>
           {request.status}
         </span>
-        <span class="text-sm text-fg-default overflow-hidden text-ellipsis whitespace-nowrap" title={request.url}>
+        <span className="text-sm text-fg-default overflow-hidden text-ellipsis whitespace-nowrap" title={request.url}>
           {truncateUrl(request.url)}
         </span>
       </div>
-      <div class="flex-1 min-w-[200px] relative">
+      <div className="flex-1 min-w-[200px] relative">
         <WaterfallBar phases={request.phases} totalTime={request.totalTime} maxTime={maxTime} width={barWidth} />
       </div>
-      <div class="w-20 shrink-0 text-right text-sm font-mono text-fg-muted">
+      <div className="w-20 shrink-0 text-right text-sm font-mono text-fg-muted">
         {formatTime(request.totalTime)}
       </div>
       {expanded && (
-        <div class="w-full mt-2 pl-4 pr-4">
+        <div className="w-full mt-2 pl-4 pr-4">
           <PhaseDetails phases={request.phases} totalTime={request.totalTime} />
         </div>
       )}
@@ -259,18 +259,18 @@ function PhaseDetails({ phases, totalTime }: { phases: TimingPhases; totalTime: 
   const phaseOrder: PhaseKey[] = ["dns", "connect", "tls", "ttfb", "download"];
 
   return (
-    <div class="flex flex-col gap-1 bg-bg-subtle rounded-md p-3">
+    <div className="flex flex-col gap-1 bg-bg-subtle rounded-md p-3">
       {phaseOrder.map((key) => {
         const duration = phases[key];
         if (duration === undefined || duration <= 0) return null;
         const config = PHASE_CONFIG[key];
         const percentage = ((duration / totalTime) * 100).toFixed(1);
         return (
-          <div class="flex items-center gap-2" key={key}>
-            <div class="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: config.color }} />
-            <div class="flex-1 text-sm text-fg-default">{config.description}</div>
-            <div class="text-sm font-mono text-fg-default font-medium">{formatTime(duration)}</div>
-            <div class="text-xs text-fg-muted w-[50px] text-right">({percentage}%)</div>
+          <div className="flex items-center gap-2" key={key}>
+            <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: config.color }} />
+            <div className="flex-1 text-sm text-fg-default">{config.description}</div>
+            <div className="text-sm font-mono text-fg-default font-medium">{formatTime(duration)}</div>
+            <div className="text-xs text-fg-muted w-[50px] text-right">({percentage}%)</div>
           </div>
         );
       })}
@@ -281,11 +281,11 @@ function PhaseDetails({ phases, totalTime }: { phases: TimingPhases; totalTime: 
 function Legend() {
   const phases: PhaseKey[] = ["dns", "connect", "tls", "ttfb", "download"];
   return (
-    <div class="flex flex-wrap gap-3 mb-3 pb-3 border-b border-border-default">
+    <div className="flex flex-wrap gap-3 mb-3 pb-3 border-b border-border-default">
       {phases.map((key) => (
-        <div class="flex items-center gap-1.5" key={key}>
-          <div class="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: PHASE_CONFIG[key].color }} />
-          <div class="text-xs text-fg-muted">{PHASE_CONFIG[key].label}</div>
+        <div className="flex items-center gap-1.5" key={key}>
+          <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: PHASE_CONFIG[key].color }} />
+          <div className="text-xs text-fg-muted">{PHASE_CONFIG[key].label}</div>
         </div>
       ))}
     </div>
@@ -351,45 +351,45 @@ function WaterfallViewer() {
 
   if (loading) {
     return (
-      <div class="p-4 font-sans text-fg-default bg-bg-canvas min-w-[500px] max-w-full" ref={containerRef}>
-        <div class="p-4 text-fg-muted text-center">Loading...</div>
+      <div className="p-4 font-sans text-fg-default bg-bg-canvas min-w-[500px] max-w-full" ref={containerRef}>
+        <div className="p-4 text-fg-muted text-center">Loading...</div>
       </div>
     );
   }
 
   if (!data || data.requests.length === 0) {
     return (
-      <div class="p-4 font-sans text-fg-default bg-bg-canvas min-w-[500px] max-w-full" ref={containerRef}>
-        <div class="p-4 text-fg-muted text-center">No timing data available</div>
+      <div className="p-4 font-sans text-fg-default bg-bg-canvas min-w-[500px] max-w-full" ref={containerRef}>
+        <div className="p-4 text-fg-muted text-center">No timing data available</div>
       </div>
     );
   }
 
   return (
-    <div class="p-4 font-sans text-fg-default bg-bg-canvas min-w-[500px] max-w-full" ref={containerRef}>
-      {data.title && <h2 class="text-lg font-semibold mb-3 text-fg-default">{data.title}</h2>}
+    <div className="p-4 font-sans text-fg-default bg-bg-canvas min-w-[500px] max-w-full" ref={containerRef}>
+      {data.title && <h2 className="text-lg font-semibold mb-3 text-fg-default">{data.title}</h2>}
       <Legend />
-      <div class="flex items-end border-b border-border-default pb-1 mb-1">
-        <div class="w-[200px] shrink-0 text-xs font-medium text-fg-muted uppercase tracking-wider">
+      <div className="flex items-end border-b border-border-default pb-1 mb-1">
+        <div className="w-[200px] shrink-0 text-xs font-medium text-fg-muted uppercase tracking-wider">
           Request
         </div>
-        <div class="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-[200px]">
           <TimeScale maxTime={maxTime} width={barWidth} />
         </div>
-        <div class="w-20 shrink-0 text-right text-xs font-medium text-fg-muted uppercase tracking-wider">
+        <div className="w-20 shrink-0 text-right text-xs font-medium text-fg-muted uppercase tracking-wider">
           Time
         </div>
       </div>
-      <div class="flex flex-col gap-0">
+      <div className="flex flex-col gap-0">
         {data.requests.map((request, index) => (
           <RequestRow key={index} request={request} maxTime={maxTime} barWidth={barWidth} index={index} />
         ))}
       </div>
-      <div class="flex gap-4 mt-3 pt-3 border-t border-border-default">
-        <div class="text-sm text-fg-muted">
+      <div className="flex gap-4 mt-3 pt-3 border-t border-border-default">
+        <div className="text-sm text-fg-muted">
           <strong>{data.requests.length}</strong> request{data.requests.length !== 1 ? "s" : ""}
         </div>
-        <div class="text-sm text-fg-muted">
+        <div className="text-sm text-fg-muted">
           Total: <strong>{formatTime(data.requests.reduce((sum, r) => sum + r.totalTime, 0))}</strong>
         </div>
       </div>

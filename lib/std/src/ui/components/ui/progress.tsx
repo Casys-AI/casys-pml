@@ -2,16 +2,20 @@ import { ComponentChildren, JSX } from "preact";
 import { cx } from "../utils";
 
 export type ProgressSize = "xs" | "sm" | "md" | "lg";
-export type ProgressColorScheme = "blue" | "green" | "yellow" | "red" | "purple";
+export type ProgressColorScheme = "blue" | "green" | "yellow" | "orange" | "red" | "purple";
 
-export interface ProgressProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "size"> {
+export interface ProgressProps {
   value?: number;
   min?: number;
   max?: number;
   size?: ProgressSize;
   colorScheme?: ProgressColorScheme;
+  /** Alias for colorScheme (backward compatibility) */
+  colorPalette?: ProgressColorScheme;
   isIndeterminate?: boolean;
   children?: ComponentChildren;
+  className?: string;
+  [key: string]: unknown;
 }
 
 const sizeStyles: Record<ProgressSize, string> = {
@@ -25,6 +29,7 @@ const colorStyles: Record<ProgressColorScheme, string> = {
   blue: "bg-blue-600",
   green: "bg-green-600",
   yellow: "bg-yellow-500",
+  orange: "bg-orange-500",
   red: "bg-red-600",
   purple: "bg-purple-600",
 };
@@ -34,12 +39,14 @@ export function Progress({
   min = 0,
   max = 100,
   size = "md",
-  colorScheme = "blue",
+  colorScheme,
+  colorPalette,
   isIndeterminate = false,
   className,
   children,
   ...rest
 }: ProgressProps) {
+  const color = (colorScheme || colorPalette || "blue") as ProgressColorScheme;
   const percentage = Math.min(Math.max(((value - min) / (max - min)) * 100, 0), 100);
 
   return (
@@ -61,7 +68,7 @@ export function Progress({
         <div
           className={cx(
             "h-full rounded-full transition-all duration-300 ease-out",
-            colorStyles[colorScheme],
+            colorStyles[color],
             isIndeterminate && "animate-progress-indeterminate"
           )}
           style={{

@@ -19,13 +19,17 @@ function useSwitchContext() {
 }
 
 // Root
-export interface SwitchRootProps extends Omit<JSX.HTMLAttributes<HTMLLabelElement>, "onChange"> {
+export interface SwitchRootProps {
   children?: ComponentChildren;
   checked?: boolean;
   defaultChecked?: boolean;
   onChange?: (checked: boolean) => void;
+  /** Alias for onChange (backward compatibility) */
+  onCheckedChange?: (details: { checked: boolean }) => void;
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
+  className?: string;
+  [key: string]: unknown;
 }
 
 const sizeStyles = {
@@ -51,6 +55,7 @@ export function Root({
   checked: controlledChecked,
   defaultChecked = false,
   onChange,
+  onCheckedChange,
   disabled = false,
   size = "md",
   className,
@@ -67,7 +72,8 @@ export function Root({
       setInternalChecked(newChecked);
     }
     onChange?.(newChecked);
-  }, [checked, isControlled, onChange, disabled]);
+    onCheckedChange?.({ checked: newChecked });
+  }, [checked, isControlled, onChange, onCheckedChange, disabled]);
 
   const styles = sizeStyles[size];
 
@@ -240,5 +246,9 @@ export function ThumbIndicator({ children, fallback, className, ...rest }: Switc
 
 // Export context for advanced use cases
 export { SwitchContext as Context };
+
+// Simple Switch component (alias for Root)
+export const Switch = Root;
+export type SwitchProps = SwitchRootProps;
 
 export type RootProps = SwitchRootProps;

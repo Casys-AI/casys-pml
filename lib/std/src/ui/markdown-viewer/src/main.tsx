@@ -17,7 +17,7 @@
  * @module lib/std/src/ui/markdown-viewer
  */
 
-import { render } from "preact";
+import { render, JSX, h } from "preact";
 import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { App } from "@modelcontextprotocol/ext-apps";
 import { cx } from "../../components/utils";
@@ -740,11 +740,12 @@ function MarkdownBlock({ block }: { block: ParsedBlock }) {
         6: "text-sm",
       };
       const level = block.level || 1;
-      const HeadingTag = `h${level}` as keyof JSX.IntrinsicElements;
-      return (
-        <HeadingTag
-          id={block.id}
-          className={cx(
+      const headingTag = `h${level}`;
+      return h(
+        headingTag,
+        {
+          id: block.id,
+          className: cx(
             headingSizes[level],
             level <= 2 ? "font-bold" : "font-semibold",
             level <= 2 ? "mb-4" : level <= 4 ? "mb-3" : "mb-2",
@@ -753,10 +754,9 @@ function MarkdownBlock({ block }: { block: ParsedBlock }) {
             level === 1 ? "border-border-default" : "border-border-subtle",
             level === 6 ? "text-fg-muted" : "text-fg-default",
             "scroll-mt-4"
-          )}
-        >
-          <InlineContent tokens={parseInline(block.content)} />
-        </HeadingTag>
+          ),
+        },
+        h(InlineContent, { tokens: parseInline(block.content) })
       );
     }
 

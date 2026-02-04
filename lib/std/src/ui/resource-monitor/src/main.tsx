@@ -106,7 +106,7 @@ function CircularGauge({ percent, label, size = 80 }: { percent: number; label: 
   const offset = circumference - (circumference * Math.min(100, percent)) / 100;
 
   return (
-    <div class="flex flex-col items-center gap-1 relative">
+    <div className="flex flex-col items-center gap-1 relative">
       <svg viewBox={`0 0 ${size} ${size}`} style={{ width: size, height: size, display: "block" }}>
         {/* Background arc */}
         <circle
@@ -132,15 +132,15 @@ function CircularGauge({ percent, label, size = 80 }: { percent: number; label: 
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={offset}
           transform={`rotate(135 ${size / 2} ${size / 2})`}
-          class="transition-all duration-500 ease-out"
+          className="transition-all duration-500 ease-out"
         />
       </svg>
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-        <div class="text-lg font-bold font-mono" style={{ color }}>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+        <div className="text-lg font-bold font-mono" style={{ color }}>
           {formatPercent(percent)}
         </div>
       </div>
-      <div class="text-xs text-fg-muted font-medium uppercase tracking-wide mt-1">
+      <div className="text-xs text-fg-muted font-medium uppercase tracking-wide mt-1">
         {label}
       </div>
     </div>
@@ -156,26 +156,26 @@ function ProgressBar({ percent, label, sublabel }: { percent: number; label: str
   const clampedPercent = Math.min(100, Math.max(0, percent));
 
   return (
-    <div class="w-full min-w-[120px]">
-      <div class="flex justify-between items-baseline mb-1">
-        <div class="text-xs text-fg-muted font-medium uppercase tracking-wide">
+    <div className="w-full min-w-[120px]">
+      <div className="flex justify-between items-baseline mb-1">
+        <div className="text-xs text-fg-muted font-medium uppercase tracking-wide">
           {label}
         </div>
-        <div class="text-sm font-bold font-mono" style={{ color }}>
+        <div className="text-sm font-bold font-mono" style={{ color }}>
           {formatPercent(percent)}
         </div>
       </div>
-      <div class="relative h-2 bg-bg-muted rounded-full overflow-hidden">
+      <div className="relative h-2 bg-bg-muted rounded-full overflow-hidden">
         <div
-          class="h-full rounded-full transition-all duration-500 ease-out"
+          className="h-full rounded-full transition-all duration-500 ease-out"
           style={{ width: `${clampedPercent}%`, backgroundColor: color }}
         />
         {/* Threshold markers */}
-        <div class="absolute top-0 bottom-0 left-[70%] w-px bg-yellow-500 opacity-50" />
-        <div class="absolute top-0 bottom-0 left-[90%] w-px bg-red-500 opacity-50" />
+        <div className="absolute top-0 bottom-0 left-[70%] w-px bg-yellow-500 opacity-50" />
+        <div className="absolute top-0 bottom-0 left-[90%] w-px bg-red-500 opacity-50" />
       </div>
       {sublabel && (
-        <div class="text-xs text-fg-muted mt-1 text-center">{sublabel}</div>
+        <div className="text-xs text-fg-muted mt-1 text-center">{sublabel}</div>
       )}
     </div>
   );
@@ -187,21 +187,21 @@ function ProgressBar({ percent, label, sublabel }: { percent: number; label: str
 
 function NetworkIO({ network }: { network: NonNullable<ResourceData["network"]> }) {
   return (
-    <div class="p-2 bg-bg-muted rounded-md min-w-[100px]">
-      <div class="text-xs text-fg-muted font-medium uppercase tracking-wide mb-1">
+    <div className="p-2 bg-bg-muted rounded-md min-w-[100px]">
+      <div className="text-xs text-fg-muted font-medium uppercase tracking-wide mb-1">
         Network
       </div>
-      <div class="flex items-center gap-2">
-        <div class="text-sm text-fg-muted font-bold">{"\u2193"}</div>
-        <div class="text-xs text-fg-muted w-7">RX</div>
-        <div class="text-sm font-semibold font-mono text-fg-default">
+      <div className="flex items-center gap-2">
+        <div className="text-sm text-fg-muted font-bold">{"\u2193"}</div>
+        <div className="text-xs text-fg-muted w-7">RX</div>
+        <div className="text-sm font-semibold font-mono text-fg-default">
           {network.rxRate !== undefined ? formatRate(network.rxRate) : formatBytes(network.rxBytes)}
         </div>
       </div>
-      <div class="flex items-center gap-2">
-        <div class="text-sm text-fg-muted font-bold">{"\u2191"}</div>
-        <div class="text-xs text-fg-muted w-7">TX</div>
-        <div class="text-sm font-semibold font-mono text-fg-default">
+      <div className="flex items-center gap-2">
+        <div className="text-sm text-fg-muted font-bold">{"\u2191"}</div>
+        <div className="text-xs text-fg-muted w-7">TX</div>
+        <div className="text-sm font-semibold font-mono text-fg-default">
           {network.txRate !== undefined ? formatRate(network.txRate) : formatBytes(network.txBytes)}
         </div>
       </div>
@@ -215,19 +215,19 @@ function NetworkIO({ network }: { network: NonNullable<ResourceData["network"]> 
 
 function BlockIO({ blockIO }: { blockIO: NonNullable<ResourceData["blockIO"]> }) {
   return (
-    <div class="p-2 bg-bg-muted rounded-md min-w-[100px]">
-      <div class="text-xs text-fg-muted font-medium uppercase tracking-wide mb-1">
+    <div className="p-2 bg-bg-muted rounded-md min-w-[100px]">
+      <div className="text-xs text-fg-muted font-medium uppercase tracking-wide mb-1">
         Block I/O
       </div>
-      <div class="flex items-center gap-2">
-        <div class="text-xs text-fg-muted w-7">Read</div>
-        <div class="text-sm font-semibold font-mono text-fg-default">
+      <div className="flex items-center gap-2">
+        <div className="text-xs text-fg-muted w-7">Read</div>
+        <div className="text-sm font-semibold font-mono text-fg-default">
           {formatBytes(blockIO.read)}
         </div>
       </div>
-      <div class="flex items-center gap-2">
-        <div class="text-xs text-fg-muted w-7">Write</div>
-        <div class="text-sm font-semibold font-mono text-fg-default">
+      <div className="flex items-center gap-2">
+        <div className="text-xs text-fg-muted w-7">Write</div>
+        <div className="text-sm font-semibold font-mono text-fg-default">
           {formatBytes(blockIO.write)}
         </div>
       </div>
@@ -276,21 +276,21 @@ function ResourceCard({ resource, history }: { resource: ResourceData; history?:
 
   return (
     <div
-      class="p-3 bg-bg-subtle border border-border-default rounded-lg cursor-pointer transition-all duration-150 hover:border-border-emphasized hover:shadow-sm"
+      className="p-3 bg-bg-subtle border border-border-default rounded-lg cursor-pointer transition-all duration-150 hover:border-border-emphasized hover:shadow-sm"
       onClick={() => notifyModel("selectResource", { name: resource.name, resource })}
     >
       {/* Header */}
-      <div class="flex justify-between items-center mb-3 pb-2 border-b border-border-subtle">
-        <div class="text-base font-semibold font-mono">{resource.name}</div>
+      <div className="flex justify-between items-center mb-3 pb-2 border-b border-border-subtle">
+        <div className="text-base font-semibold font-mono">{resource.name}</div>
         {resource.cpu.cores && (
           <Badge size="sm" variant="outline">{resource.cpu.cores} cores</Badge>
         )}
       </div>
 
       {/* Metrics Grid */}
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-4">
         {/* CPU Section */}
-        <div class="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2">
           <CircularGauge percent={resource.cpu.percent} label="CPU" />
           {history?.cpu && history.cpu.length > 1 && (
             <Sparkline data={history.cpu} color={getThresholdColor(resource.cpu.percent)} />
@@ -298,7 +298,7 @@ function ResourceCard({ resource, history }: { resource: ResourceData; history?:
         </div>
 
         {/* Memory Section */}
-        <div class="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2">
           <ProgressBar
             percent={resource.memory.percent}
             label="Memory"
@@ -311,14 +311,14 @@ function ResourceCard({ resource, history }: { resource: ResourceData; history?:
 
         {/* Network Section */}
         {resource.network && (
-          <div class="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-2">
             <NetworkIO network={resource.network} />
           </div>
         )}
 
         {/* Block I/O Section */}
         {resource.blockIO && (
-          <div class="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-2">
             <BlockIO blockIO={resource.blockIO} />
           </div>
         )}
@@ -326,7 +326,7 @@ function ResourceCard({ resource, history }: { resource: ResourceData; history?:
 
       {/* Timestamp */}
       {resource.timestamp && (
-        <div class="mt-2 pt-2 border-t border-border-subtle text-xs text-fg-muted text-right">
+        <div className="mt-2 pt-2 border-t border-border-subtle text-xs text-fg-muted text-right">
           {new Date(resource.timestamp).toLocaleTimeString()}
         </div>
       )}
@@ -393,41 +393,41 @@ function ResourceMonitor() {
 
   if (loading) {
     return (
-      <div class="font-sans text-sm text-fg-default bg-bg-canvas p-3 min-w-[320px]">
-        <div class="p-6 text-center text-fg-muted">Loading resources...</div>
+      <div className="font-sans text-sm text-fg-default bg-bg-canvas p-3 min-w-[320px]">
+        <div className="p-6 text-center text-fg-muted">Loading resources...</div>
       </div>
     );
   }
 
   if (!data?.resources?.length) {
     return (
-      <div class="font-sans text-sm text-fg-default bg-bg-canvas p-3 min-w-[320px]">
-        <div class="p-6 text-center text-fg-muted">No resources to monitor</div>
+      <div className="font-sans text-sm text-fg-default bg-bg-canvas p-3 min-w-[320px]">
+        <div className="p-6 text-center text-fg-muted">No resources to monitor</div>
       </div>
     );
   }
 
   return (
-    <div class="font-sans text-sm text-fg-default bg-bg-canvas p-3 min-w-[320px]">
+    <div className="font-sans text-sm text-fg-default bg-bg-canvas p-3 min-w-[320px]">
       {/* Header */}
       {(data.title || data.refreshInterval || data.timestamp) && (
-        <div class="flex justify-between items-center mb-3 pb-2 border-b border-border-subtle">
-          {data.title && <h2 class="text-lg font-semibold m-0">{data.title}</h2>}
-          <div class="flex items-center gap-3">
+        <div className="flex justify-between items-center mb-3 pb-2 border-b border-border-subtle">
+          {data.title && <h2 className="text-lg font-semibold m-0">{data.title}</h2>}
+          <div className="flex items-center gap-3">
             {data.refreshInterval && (
               <Badge size="sm" variant="outline">
                 {"\u21BB"} {data.refreshInterval}s
               </Badge>
             )}
             {data.timestamp && (
-              <div class="text-xs text-fg-muted">{data.timestamp}</div>
+              <div className="text-xs text-fg-muted">{data.timestamp}</div>
             )}
           </div>
         </div>
       )}
 
       {/* Resources List */}
-      <div class="flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         {data.resources.map((resource) => (
           <ResourceCard
             key={resource.name}

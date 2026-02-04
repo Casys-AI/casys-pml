@@ -142,8 +142,12 @@ export function RootProvider(props: PaginationRootProps) {
 }
 
 // PrevTrigger
-export interface PaginationPrevTriggerProps extends JSX.HTMLAttributes<HTMLButtonElement> {
+export interface PaginationPrevTriggerProps {
   children?: ComponentChildren;
+  disabled?: boolean;
+  className?: string;
+  onClick?: JSX.MouseEventHandler<HTMLButtonElement>;
+  [key: string]: unknown;
 }
 
 export function PrevTrigger({ children, className, disabled, ...rest }: PaginationPrevTriggerProps) {
@@ -178,8 +182,12 @@ export function PrevTrigger({ children, className, disabled, ...rest }: Paginati
 }
 
 // NextTrigger
-export interface PaginationNextTriggerProps extends JSX.HTMLAttributes<HTMLButtonElement> {
+export interface PaginationNextTriggerProps {
   children?: ComponentChildren;
+  disabled?: boolean;
+  className?: string;
+  onClick?: JSX.MouseEventHandler<HTMLButtonElement>;
+  [key: string]: unknown;
 }
 
 export function NextTrigger({ children, className, disabled, ...rest }: PaginationNextTriggerProps) {
@@ -214,11 +222,14 @@ export function NextTrigger({ children, className, disabled, ...rest }: Paginati
 }
 
 // Item (page number button)
-export interface PaginationItemProps extends Omit<JSX.HTMLAttributes<HTMLButtonElement>, "value" | "type"> {
+export interface PaginationItemProps {
   children?: ComponentChildren;
   value?: number;
-  type?: "page";
+  pageType?: "page";
   asChild?: boolean;
+  className?: string;
+  onClick?: JSX.MouseEventHandler<HTMLButtonElement>;
+  [key: string]: unknown;
 }
 
 export function Item({ children, value, className, asChild, ...rest }: PaginationItemProps) {
@@ -277,12 +288,13 @@ export function Ellipsis({ children, className, index, asChild, ...rest }: Pagin
 }
 
 // Items helper component
-export interface PaginationItemsProps extends JSX.HTMLAttributes<HTMLElement> {
+export interface PaginationItemsProps {
   render: (page: { type: "page"; value: number; selected: boolean }) => ComponentChildren;
   ellipsis?: ComponentChildren;
+  className?: string;
 }
 
-export function Items({ render, ellipsis, ...rest }: PaginationItemsProps) {
+export function Items({ render, ellipsis, className }: PaginationItemsProps) {
   const { page, pages } = usePaginationContext();
 
   return (
@@ -290,14 +302,14 @@ export function Items({ render, ellipsis, ...rest }: PaginationItemsProps) {
       {pages.map((pageItem, index) => {
         if (pageItem.type === "ellipsis") {
           return (
-            <Ellipsis key={`ellipsis-${index}`} index={index} {...rest}>
+            <Ellipsis key={`ellipsis-${index}`} index={index} className={className}>
               {ellipsis}
             </Ellipsis>
           );
         }
 
         return (
-          <Item key={pageItem.value} value={pageItem.value} {...rest}>
+          <Item key={pageItem.value} value={pageItem.value} className={className}>
             {render({ ...pageItem, selected: page === pageItem.value })}
           </Item>
         );

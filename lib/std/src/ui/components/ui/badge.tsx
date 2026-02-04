@@ -1,15 +1,19 @@
-import { ComponentChildren, JSX } from "preact";
+import { ComponentChildren } from "preact";
 import { cx } from "../utils";
 
 export type BadgeVariant = "subtle" | "solid" | "outline";
 export type BadgeSize = "sm" | "md" | "lg";
-export type BadgeColorScheme = "gray" | "red" | "orange" | "yellow" | "green" | "teal" | "blue" | "purple";
+export type BadgeColorScheme = "gray" | "red" | "orange" | "amber" | "yellow" | "green" | "teal" | "blue" | "purple";
 
-export interface BadgeProps extends JSX.HTMLAttributes<HTMLSpanElement> {
+export interface BadgeProps {
   variant?: BadgeVariant;
   size?: BadgeSize;
   colorScheme?: BadgeColorScheme;
+  /** Alias for colorScheme (backward compatibility) */
+  colorPalette?: BadgeColorScheme;
   children: ComponentChildren;
+  className?: string;
+  [key: string]: unknown;
 }
 
 const sizeStyles: Record<BadgeSize, string> = {
@@ -33,6 +37,11 @@ const colorStyles: Record<BadgeColorScheme, Record<BadgeVariant, string>> = {
     subtle: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-200",
     solid: "bg-orange-600 text-white",
     outline: "border border-orange-300 text-orange-700 dark:border-orange-600 dark:text-orange-300",
+  },
+  amber: {
+    subtle: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
+    solid: "bg-amber-600 text-white",
+    outline: "border border-amber-300 text-amber-700 dark:border-amber-600 dark:text-amber-300",
   },
   yellow: {
     subtle: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-200",
@@ -64,17 +73,19 @@ const colorStyles: Record<BadgeColorScheme, Record<BadgeVariant, string>> = {
 export function Badge({
   variant = "subtle",
   size = "md",
-  colorScheme = "gray",
+  colorScheme,
+  colorPalette,
   children,
   className,
   ...rest
 }: BadgeProps) {
+  const color = (colorScheme || colorPalette || "gray") as BadgeColorScheme;
   return (
     <span
       className={cx(
         "inline-flex items-center font-medium rounded-md whitespace-nowrap",
         sizeStyles[size],
-        colorStyles[colorScheme][variant],
+        colorStyles[color][variant],
         className
       )}
       {...rest}

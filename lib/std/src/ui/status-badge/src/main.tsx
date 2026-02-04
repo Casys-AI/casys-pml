@@ -105,12 +105,12 @@ function StatusItemCard({ item }: { item: StatusItem }) {
   const status = normalizeStatus(item.status);
   const config = statusConfig[status];
 
-  const variantMap: Record<StatusType, "default" | "success" | "error" | "warning" | "info"> = {
-    valid: "success",
-    invalid: "error",
-    warning: "warning",
-    info: "info",
-    pending: "default",
+  const colorMap: Record<StatusType, "green" | "red" | "orange" | "blue" | "gray"> = {
+    valid: "green",
+    invalid: "red",
+    warning: "orange",
+    info: "blue",
+    pending: "gray",
   };
 
   return (
@@ -131,7 +131,7 @@ function StatusItemCard({ item }: { item: StatusItem }) {
       <div className="flex-1 min-w-0">
         <div className="flex gap-2 items-center">
           {item.label && <div className="font-medium">{item.label}</div>}
-          <Badge size="sm" variant={variantMap[status]}>
+          <Badge size="sm" variant="subtle" colorScheme={colorMap[status]}>
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </Badge>
         </div>

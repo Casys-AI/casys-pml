@@ -4,12 +4,28 @@ import { cx } from "../utils";
 export type InputSize = "sm" | "md" | "lg";
 export type InputVariant = "outline" | "filled" | "flushed";
 
-export interface InputProps extends Omit<JSX.HTMLAttributes<HTMLInputElement>, "size"> {
+export interface InputProps {
   size?: InputSize;
   variant?: InputVariant;
   isInvalid?: boolean;
   isDisabled?: boolean;
   isReadOnly?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  type?: string;
+  value?: string | number;
+  placeholder?: string;
+  onChange?: JSX.GenericEventHandler<HTMLInputElement>;
+  onInput?: JSX.GenericEventHandler<HTMLInputElement>;
+  className?: string;
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  name?: string;
+  id?: string;
+  [key: string]: unknown;
 }
 
 const sizeStyles: Record<InputSize, string> = {

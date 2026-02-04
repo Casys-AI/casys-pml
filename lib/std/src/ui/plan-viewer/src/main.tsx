@@ -234,7 +234,7 @@ function PlanNodeRow({ flatNode, isExpanded, isSelected, onToggle, onSelect }: P
 
   return (
     <div
-      class={cx(
+      className={cx(
         "flex items-center p-2 border-b border-border-subtle cursor-pointer transition-colors duration-100 hover:bg-bg-subtle",
         isSelected && "bg-blue-50 dark:bg-blue-950",
         isSlow && "border-l-[3px] border-l-red-500"
@@ -242,24 +242,24 @@ function PlanNodeRow({ flatNode, isExpanded, isSelected, onToggle, onSelect }: P
       onClick={onSelect}
     >
       {/* Indentation and expand toggle */}
-      <div class="flex items-center" style={{ paddingLeft: `${depth * 20}px` }}>
+      <div className="flex items-center" style={{ paddingLeft: `${depth * 20}px` }}>
         {hasChildren ? (
           <IconButton
             variant="outline"
             size="xs"
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
-            class="w-[18px] h-[18px] mr-2 min-w-[18px]"
+            className="w-[18px] h-[18px] mr-2 min-w-[18px]"
           >
             {isExpanded ? "-" : "+"}
           </IconButton>
         ) : (
-          <div class="w-[18px] mr-2" />
+          <div className="w-[18px] mr-2" />
         )}
       </div>
 
       {/* Node type badge */}
       <div
-        class={cx(
+        className={cx(
           "w-7 h-5 flex items-center justify-center rounded-sm text-xs font-bold mr-2 shrink-0",
           badgeStyle.bg,
           badgeStyle.text,
@@ -271,25 +271,25 @@ function PlanNodeRow({ flatNode, isExpanded, isSelected, onToggle, onSelect }: P
       </div>
 
       {/* Node info */}
-      <div class="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-        <span class="font-medium text-fg-default">{node["Node Type"]}</span>
+      <div className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+        <span className="font-medium text-fg-default">{node["Node Type"]}</span>
         {node["Relation Name"] && (
-          <span class="text-blue-600 dark:text-blue-400"> on {node["Relation Name"]}</span>
+          <span className="text-blue-600 dark:text-blue-400"> on {node["Relation Name"]}</span>
         )}
         {node["Index Name"] && (
-          <span class="text-green-600 dark:text-green-400 text-xs"> using {node["Index Name"]}</span>
+          <span className="text-green-600 dark:text-green-400 text-xs"> using {node["Index Name"]}</span>
         )}
         {node["Alias"] && node["Alias"] !== node["Relation Name"] && (
-          <span class="text-fg-muted text-xs"> ({node["Alias"]})</span>
+          <span className="text-fg-muted text-xs"> ({node["Alias"]})</span>
         )}
       </div>
 
       {/* Stats */}
-      <div class="flex gap-3 w-[200px] shrink-0">
-        <div class="flex flex-col items-end gap-0">
-          <div class="text-xs text-fg-muted">Time</div>
+      <div className="flex gap-3 w-[200px] shrink-0">
+        <div className="flex flex-col items-end gap-0">
+          <div className="text-xs text-fg-muted">Time</div>
           <div
-            class={cx(
+            className={cx(
               "font-mono text-xs",
               isSlow ? "text-red-600 dark:text-red-400 font-bold" : "text-fg-default"
             )}
@@ -297,23 +297,23 @@ function PlanNodeRow({ flatNode, isExpanded, isSelected, onToggle, onSelect }: P
             {formatTime(node["Actual Total Time"])}
           </div>
         </div>
-        <div class="flex flex-col items-end gap-0">
-          <div class="text-xs text-fg-muted">Rows</div>
-          <div class="font-mono text-xs text-fg-default">{formatRows(node["Actual Rows"])}</div>
+        <div className="flex flex-col items-end gap-0">
+          <div className="text-xs text-fg-muted">Rows</div>
+          <div className="font-mono text-xs text-fg-default">{formatRows(node["Actual Rows"])}</div>
         </div>
-        <div class="flex flex-col items-end gap-0">
-          <div class="text-xs text-fg-muted">Loops</div>
-          <div class="font-mono text-xs text-fg-default">{node["Actual Loops"] ?? "-"}</div>
+        <div className="flex flex-col items-end gap-0">
+          <div className="text-xs text-fg-muted">Loops</div>
+          <div className="font-mono text-xs text-fg-default">{node["Actual Loops"] ?? "-"}</div>
         </div>
       </div>
 
       {/* Cost bar */}
-      <div class="flex w-[120px] items-center gap-2 shrink-0">
+      <div className="flex w-[120px] items-center gap-2 shrink-0">
         <div
-          class={cx("h-2 rounded-full transition-all duration-200", isSlow ? "bg-red-500" : "bg-blue-400")}
+          className={cx("h-2 rounded-full transition-all duration-200", isSlow ? "bg-red-500" : "bg-blue-400")}
           style={{ width: `${Math.min(percentOfTotal, 100)}%` }}
         />
-        <div class="text-xs font-mono text-fg-muted min-w-[45px] text-right">
+        <div className="text-xs font-mono text-fg-muted min-w-[45px] text-right">
           {percentOfTotal.toFixed(1)}%
         </div>
       </div>
@@ -388,19 +388,19 @@ function NodeDetails({ node }: NodeDetailsProps) {
   }
 
   if (details.length === 0) {
-    return <div class="p-3 text-fg-muted italic">No additional details</div>;
+    return <div className="p-3 text-fg-muted italic">No additional details</div>;
   }
 
   return (
-    <div class="p-3 bg-bg-subtle rounded-lg border border-border-default mb-4">
-      <h4 class="text-sm font-semibold text-fg-default mb-2">
+    <div className="p-3 bg-bg-subtle rounded-lg border border-border-default mb-4">
+      <h4 className="text-sm font-semibold text-fg-default mb-2">
         Details: {node["Node Type"]}
       </h4>
-      <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
         {details.map(({ label, value }) => (
-          <div key={label} class="flex flex-col gap-0">
-            <div class="text-xs text-fg-muted">{label}</div>
-            <div class="font-mono text-sm text-fg-default break-all">{value}</div>
+          <div key={label} className="flex flex-col gap-0">
+            <div className="text-xs text-fg-muted">{label}</div>
+            <div className="font-mono text-sm text-fg-default break-all">{value}</div>
           </div>
         ))}
       </div>
@@ -522,24 +522,24 @@ function PlanViewer() {
   // Render states
   if (loading) {
     return (
-      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
-        <div class="p-10 text-center text-fg-muted">Loading query plan...</div>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div className="p-10 text-center text-fg-muted">Loading query plan...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
-        <div class="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">{error}</div>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div className="p-4 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">{error}</div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
-        <div class="p-10 text-center text-fg-muted">No plan data</div>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div className="p-10 text-center text-fg-muted">No plan data</div>
       </div>
     );
   }
@@ -547,11 +547,11 @@ function PlanViewer() {
   // Handle text format (non-JSON)
   if (typeof data.plan === "string") {
     return (
-      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
-        <div class="flex justify-between items-center mb-3">
-          <div class="font-bold text-lg text-fg-default">Query Plan (Text)</div>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div className="flex justify-between items-center mb-3">
+          <div className="font-bold text-lg text-fg-default">Query Plan (Text)</div>
         </div>
-        <pre class="font-mono text-xs p-3 bg-bg-subtle rounded-md border border-border-default overflow-auto whitespace-pre">
+        <pre className="font-mono text-xs p-3 bg-bg-subtle rounded-md border border-border-default overflow-auto whitespace-pre">
           {data.plan}
         </pre>
       </div>
@@ -560,56 +560,56 @@ function PlanViewer() {
 
   if (!planResult) {
     return (
-      <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
-        <div class="p-10 text-center text-fg-muted">Invalid plan format</div>
+      <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+        <div className="p-10 text-center text-fg-muted">Invalid plan format</div>
       </div>
     );
   }
 
   return (
-    <div class="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
+    <div className="p-4 font-sans text-sm text-fg-default bg-bg-canvas min-h-[300px]">
       {/* Header */}
-      <div class="flex justify-between items-center mb-3">
-        <div class="flex items-center gap-2">
-          <div class="font-bold text-lg text-fg-default">Query Execution Plan</div>
+      <div className="flex justify-between items-center mb-3">
+        <div className="flex items-center gap-2">
+          <div className="font-bold text-lg text-fg-default">Query Execution Plan</div>
           {data.analyzed && (
-            <Badge variant="solid" class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">ANALYZED</Badge>
+            <Badge variant="solid" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">ANALYZED</Badge>
           )}
         </div>
-        <div class="flex gap-2">
+        <div className="flex gap-2">
           <Button variant="outline" size="xs" onClick={handleExpandAll}>Expand All</Button>
           <Button variant="outline" size="xs" onClick={handleCollapseAll}>Collapse All</Button>
         </div>
       </div>
 
       {/* Summary stats */}
-      <div class="flex gap-4 mb-4 p-3 bg-bg-subtle rounded-lg border border-border-default">
+      <div className="flex gap-4 mb-4 p-3 bg-bg-subtle rounded-lg border border-border-default">
         {planResult["Planning Time"] !== undefined && (
-          <div class="flex flex-col gap-0.5">
-            <div class="text-xs text-fg-muted uppercase">Planning Time</div>
-            <div class="text-lg font-semibold text-fg-default">{formatTime(planResult["Planning Time"])}</div>
+          <div className="flex flex-col gap-0.5">
+            <div className="text-xs text-fg-muted uppercase">Planning Time</div>
+            <div className="text-lg font-semibold text-fg-default">{formatTime(planResult["Planning Time"])}</div>
           </div>
         )}
         {planResult["Execution Time"] !== undefined && (
-          <div class="flex flex-col gap-0.5">
-            <div class="text-xs text-fg-muted uppercase">Execution Time</div>
-            <div class="text-lg font-semibold text-fg-default">{formatTime(planResult["Execution Time"])}</div>
+          <div className="flex flex-col gap-0.5">
+            <div className="text-xs text-fg-muted uppercase">Execution Time</div>
+            <div className="text-lg font-semibold text-fg-default">{formatTime(planResult["Execution Time"])}</div>
           </div>
         )}
-        <div class="flex flex-col gap-0.5">
-          <div class="text-xs text-fg-muted uppercase">Total Nodes</div>
-          <div class="text-lg font-semibold text-fg-default">{flatNodes.length}</div>
+        <div className="flex flex-col gap-0.5">
+          <div className="text-xs text-fg-muted uppercase">Total Nodes</div>
+          <div className="text-lg font-semibold text-fg-default">{flatNodes.length}</div>
         </div>
       </div>
 
       {/* Plan tree */}
-      <div class="border border-border-default rounded-lg overflow-hidden mb-4">
-        <div class="flex items-center p-2 bg-bg-subtle border-b border-border-default">
-          <div class="flex-1 text-xs font-semibold text-fg-muted uppercase">Operation</div>
-          <div class="w-[200px] text-xs font-semibold text-fg-muted uppercase">Stats</div>
-          <div class="w-[120px] text-xs font-semibold text-fg-muted uppercase">Cost %</div>
+      <div className="border border-border-default rounded-lg overflow-hidden mb-4">
+        <div className="flex items-center p-2 bg-bg-subtle border-b border-border-default">
+          <div className="flex-1 text-xs font-semibold text-fg-muted uppercase">Operation</div>
+          <div className="w-[200px] text-xs font-semibold text-fg-muted uppercase">Stats</div>
+          <div className="w-[120px] text-xs font-semibold text-fg-muted uppercase">Cost %</div>
         </div>
-        <div class="max-h-[400px] overflow-y-auto">
+        <div className="max-h-[400px] overflow-y-auto">
           {visibleNodes.map((flatNode) => (
             <PlanNodeRow
               key={flatNode.id}
@@ -627,9 +627,9 @@ function PlanViewer() {
       {selectedNode && <NodeDetails node={selectedNode} />}
 
       {/* Query display */}
-      <div class="mt-4">
-        <h4 class="text-sm font-semibold text-fg-muted mb-2">Query</h4>
-        <pre class="font-mono text-xs p-3 bg-bg-subtle rounded-md border border-border-default overflow-auto whitespace-pre-wrap break-all">
+      <div className="mt-4">
+        <h4 className="text-sm font-semibold text-fg-muted mb-2">Query</h4>
+        <pre className="font-mono text-xs p-3 bg-bg-subtle rounded-md border border-border-default overflow-auto whitespace-pre-wrap break-all">
           {data.query}
         </pre>
       </div>
