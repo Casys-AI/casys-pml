@@ -180,7 +180,7 @@ export async function handleExecuteCode(
 ): Promise<MCPToolResponse | MCPErrorResponse> {
   // Story 10.7: Deprecation warning
   log.warn(
-    "[DEPRECATED] pml:execute_code is deprecated. Use pml:execute with code parameter for unified execution + automatic capability learning.",
+    "[DEPRECATED] execute_code is deprecated. Use execute with code parameter for unified execution + automatic capability learning.",
   );
 
   try {

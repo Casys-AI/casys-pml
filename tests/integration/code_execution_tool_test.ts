@@ -79,7 +79,7 @@ Deno.test({
     const result = await listToolsMethod({});
 
     // Verify execute_code tool is registered
-    const executeCodeTool = result.tools.find((t: any) => t.name === "pml:execute_code");
+    const executeCodeTool = result.tools.find((t: any) => t.name === "execute_code");
 
     assertExists(executeCodeTool, "execute_code tool should be registered");
     assertEquals(
@@ -101,7 +101,7 @@ Deno.test({
     const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
     const result = await handleCallTool({
       params: {
-        name: "pml:execute_code",
+        name: "execute_code",
         arguments: { code: "return 1 + 1;" },
       },
     });
@@ -127,7 +127,7 @@ Deno.test({
     const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
     const result = await handleCallTool({
       params: {
-        name: "pml:execute_code",
+        name: "execute_code",
         arguments: { code: "return 1 +;" }, // Syntax error
       },
     });
@@ -153,7 +153,7 @@ Deno.test({
     const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
     const result = await handleCallTool({
       params: {
-        name: "pml:execute_code",
+        name: "execute_code",
         arguments: {
           code: "while (true) { /* infinite loop */ }",
           sandbox_config: { timeout: 100 }, // 100ms timeout
@@ -177,7 +177,7 @@ Deno.test({
     const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
     const result = await handleCallTool({
       params: {
-        name: "pml:execute_code",
+        name: "execute_code",
         arguments: {
           code: "return { sum: data.a + data.b };",
           context: { data: { a: 10, b: 20 } },
@@ -205,7 +205,7 @@ Deno.test({
     const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
     const result = await handleCallTool({
       params: {
-        name: "pml:execute_code",
+        name: "execute_code",
         arguments: { code: largeCode },
       },
     });

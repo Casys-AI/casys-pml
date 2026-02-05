@@ -216,9 +216,9 @@ export const quickStart = {
       description: "That's it. Claude Code auto-starts PML. Just describe what you want.",
       filename: "claude-code",
       codeHtml: `<span class="comment"># PML tools are available automatically:</span>
-<span class="flag">pml:discover</span>({ <span class="key">intent</span>: <span class="str">"read a JSON file"</span> })
+<span class="flag">discover</span>({ <span class="key">intent</span>: <span class="str">"read a JSON file"</span> })
 
-<span class="flag">pml:execute</span>({
+<span class="flag">execute</span>({
   <span class="key">intent</span>: <span class="str">"List dependencies from package.json"</span>,
   <span class="key">code</span>: <span class="str">\`const pkg = await mcp.fs.read_file(...);\`</span>
 })`,

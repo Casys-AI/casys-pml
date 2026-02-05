@@ -1,7 +1,7 @@
 /**
  * E2E Test 10: PML Execute Hybrid Routing
  *
- * Tests hybrid routing for pml:execute - server-only tools execute on server,
+ * Tests hybrid routing for execute - server-only tools execute on server,
  * client tools trigger execute_locally response for package-side execution.
  *
  * Tech-spec: tech-spec-2026-01-09-pml-execute-hybrid-routing.md
@@ -133,7 +133,7 @@ Deno.test("E2E 10.2: Server returns execute_locally for client tools", async (t)
           id: 1,
           method: "tools/call",
           params: {
-            name: "pml:execute",
+            name: "execute",
             arguments: { code },
           },
         }),
@@ -169,7 +169,7 @@ Deno.test("E2E 10.2: Server returns execute_locally for client tools", async (t)
           id: 2,
           method: "tools/call",
           params: {
-            name: "pml:execute",
+            name: "execute",
             arguments: { code },
           },
         }),
@@ -207,7 +207,7 @@ Deno.test("E2E 10.2: Server returns execute_locally for client tools", async (t)
           id: 3,
           method: "tools/call",
           params: {
-            name: "pml:execute",
+            name: "execute",
             arguments: { code },
           },
         }),
@@ -248,7 +248,7 @@ Deno.test("E2E 10.2: Server returns execute_locally for client tools", async (t)
           id: 4,
           method: "tools/call",
           params: {
-            name: "pml:execute",
+            name: "execute",
             arguments: { code },
           },
         }),
@@ -307,7 +307,7 @@ Deno.test("E2E 10.3: Edge cases and error handling", async (t) => {
           id: 10,
           method: "tools/call",
           params: {
-            name: "pml:execute",
+            name: "execute",
             arguments: { code: "" },
           },
         }),
@@ -344,7 +344,7 @@ Deno.test("E2E 10.3: Edge cases and error handling", async (t) => {
           id: 11,
           method: "tools/call",
           params: {
-            name: "pml:execute",
+            name: "execute",
             arguments: { code },
           },
         }),
@@ -382,7 +382,7 @@ Deno.test("E2E 10.3: Edge cases and error handling", async (t) => {
           id: 12,
           method: "tools/call",
           params: {
-            name: "pml:execute",
+            name: "execute",
             arguments: { code },
           },
         }),
@@ -466,6 +466,6 @@ Deno.test("E2E 10.5: execute_locally response structure", async (t) => {
 });
 
 console.log("\n🧪 E2E 10: PML Execute Hybrid Routing Tests");
-console.log("   Tests routing check for pml:execute");
+console.log("   Tests routing check for execute");
 console.log("   Server-only → execute on server");
 console.log("   Client tools → return execute_locally to package\n");

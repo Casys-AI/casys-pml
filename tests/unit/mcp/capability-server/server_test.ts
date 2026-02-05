@@ -240,7 +240,7 @@ Deno.test("CapabilityMCPServer - isCapabilityTool identifies capability tools", 
   // Native MCP tools
   assertEquals(server.isCapabilityTool("filesystem:read_file"), false);
   assertEquals(server.isCapabilityTool("github:create_issue"), false);
-  assertEquals(server.isCapabilityTool("pml_execute"), false);
+  assertEquals(server.isCapabilityTool("execute"), false);
 });
 
 Deno.test("CapabilityMCPServer - handleCallTool returns error for unknown tool", async () => {

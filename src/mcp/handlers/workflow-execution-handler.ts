@@ -249,7 +249,7 @@ export async function handleWorkflowExecution(
 ): Promise<MCPToolResponse | MCPErrorResponse> {
   // Story 10.7: Deprecation warning
   log.warn(
-    "[DEPRECATED] pml:execute_dag is deprecated. Use pml:execute instead for unified execution + automatic capability learning.",
+    "[DEPRECATED] execute_dag is deprecated. Use execute instead for unified execution + automatic capability learning.",
   );
 
   const workflowArgs = args as WorkflowExecutionArgs;

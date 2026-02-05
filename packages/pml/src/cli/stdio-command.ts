@@ -226,8 +226,8 @@ async function handleToolsCall(
 ): Promise<void> {
   const { name, arguments: args } = params;
 
-  // Handle pml:discover - always forward to cloud
-  if (name === "pml:discover") {
+  // Handle discover - always forward to cloud
+  if (name === "discover") {
     const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
@@ -237,8 +237,8 @@ async function handleToolsCall(
     return;
   }
 
-  // Handle pml:admin - always forward to cloud (MCP Tools Consolidation)
-  if (name === "pml:admin") {
+  // Handle admin - always forward to cloud (MCP Tools Consolidation)
+  if (name === "admin") {
     const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
@@ -248,8 +248,8 @@ async function handleToolsCall(
     return;
   }
 
-  // Handle pml:abort - always forward to cloud
-  if (name === "pml:abort") {
+  // Handle abort - always forward to cloud
+  if (name === "abort") {
     const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
@@ -259,8 +259,8 @@ async function handleToolsCall(
     return;
   }
 
-  // Handle pml:replan - always forward to cloud
-  if (name === "pml:replan") {
+  // Handle replan - always forward to cloud
+  if (name === "replan") {
     const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
@@ -270,12 +270,12 @@ async function handleToolsCall(
     return;
   }
 
-  // Handle pml:execute with hybrid routing support
-  if (name === "pml:execute") {
+  // Handle execute with hybrid routing support
+  if (name === "execute") {
     const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
 
     if (continueWorkflow) {
-      stdioLog.debug(`pml:execute with continue_workflow: approved=${continueWorkflow.approved}`);
+      stdioLog.debug(`execute with continue_workflow: approved=${continueWorkflow.approved}`);
 
       // Check if this is a LOCAL workflow (stored in our pending store)
       const pendingWorkflow = continueWorkflow.workflowId

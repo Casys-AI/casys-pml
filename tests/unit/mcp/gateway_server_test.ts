@@ -204,10 +204,10 @@ Deno.test({
     // Story 10.6: pml:discover for tool/capability search
     // Legacy tools (execute_dag, execute_code, continue) now deprecated and removed
     const criticalTools = [
-      "pml:execute",
-      "pml:discover",
-      "pml:abort",
-      "pml:replan",
+      "execute",
+      "discover",
+      "abort",
+      "replan",
     ];
 
     criticalTools.forEach((name) => {
@@ -222,9 +222,9 @@ Deno.test({
     );
 
     // Verify primary execute tool is included (unified API per Story 10.7)
-    const executeTool = result.tools.find((t: MCPTool) => t.name === "pml:execute");
+    const executeTool = result.tools.find((t: MCPTool) => t.name === "execute");
     assertExists(executeTool);
-    assertEquals(executeTool.name, "pml:execute");
+    assertEquals(executeTool.name, "execute");
   },
 });
 
@@ -255,7 +255,7 @@ Deno.test({
     assert(Array.isArray(result.tools));
 
     // Should include primary execute tool + semantic search results (Story 10.7)
-    const executeTool = result.tools.find((t: MCPTool) => t.name === "pml:execute");
+    const executeTool = result.tools.find((t: MCPTool) => t.name === "execute");
     assertExists(executeTool);
   },
 });
@@ -317,7 +317,7 @@ Deno.test({
     const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
     const result = await handleCallTool({
       params: {
-        name: "pml:execute",
+        name: "execute",
         arguments: {
           intent: "Read a test file",
           code: `return "test";`,

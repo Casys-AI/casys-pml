@@ -464,7 +464,7 @@ Deno.test("PmlStdServer - isCapManagementTool", () => {
   assertEquals(server.isCapManagementTool("cap:list"), true);
   assertEquals(server.isCapManagementTool("cap:rename"), true);
   assertEquals(server.isCapManagementTool("mcp__fs__read"), false);
-  assertEquals(server.isCapManagementTool("pml:execute"), false);
+  assertEquals(server.isCapManagementTool("execute"), false);
 });
 
 Deno.test("PmlStdServer - rejects non-cap tools", async () => {
