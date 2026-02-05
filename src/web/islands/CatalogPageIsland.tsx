@@ -138,9 +138,26 @@ interface BentoPreviewProps {
 function BentoPreview({ item, index }: BentoPreviewProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "connected" | "error">("idle");
   const [isVisible, setIsVisible] = useState(false);
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
   const containerRef = useRef<HTMLAnchorElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bridgeRef = useRef<AppBridge | null>(null);
+
+  // Listen for auto-resize messages from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "mcp-app-resize" && typeof event.data.height === "number") {
+        const iframe = iframeRef.current;
+        if (iframe && event.source === iframe.contentWindow) {
+          // Add padding for label bar (36px) + some margin
+          setContentHeight(event.data.height + 48);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   // Intersection observer for lazy loading
   useEffect(() => {
@@ -233,6 +250,10 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
   const animDelay = Math.min(index * 30, 400);
   const size = item.bentoSize || "medium";
   const config = BENTO_SIZE_CONFIGS[size as keyof typeof BENTO_SIZE_CONFIGS];
+  const minHeight = config?.minHeight || 280;
+
+  // Use content height if available, otherwise fall back to config minHeight
+  const actualHeight = contentHeight && contentHeight > minHeight ? contentHeight : minHeight;
 
   // Determine grid span classes based on size
   const sizeClasses = size === "large" || size === "wide" ? "lg:col-span-2" : "";
@@ -243,7 +264,9 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
       href={item.href}
       class={`relative bg-[#0a0a0c] border border-[rgba(78,205,196,0.12)] rounded-lg overflow-hidden no-underline cursor-pointer transition-all duration-200 ease-out animate-[bentoIn_0.3s_ease-out_both] hover:border-[rgba(78,205,196,0.5)] hover:-translate-y-[3px] hover:shadow-[0_12px_32px_-8px_rgba(78,205,196,0.25),0_0_0_1px_rgba(78,205,196,0.1)] ${sizeClasses}`}
       style={{
-        minHeight: `${config?.minHeight || 280}px`,
+        minHeight: `${minHeight}px`,
+        height: contentHeight ? `${actualHeight}px` : "auto",
+        transition: "height 0.3s ease-out",
         animationDelay: `${animDelay}ms`,
       }}
     >

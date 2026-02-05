@@ -8,9 +8,9 @@
  * - Distribution curve - Normal curve overlay (optional)
  *
  * Design: DM Sans for labels, Space Mono for numbers
- * Colors: Dark gradient with blue-violet-pink accent palette
+ * Colors: Casys Design System - Dark theme with golden accent (#ffb86f)
  *
- * Stack: Preact + Tailwind CSS
+ * Stack: Preact + Tailwind CSS 4
  *
  * @module lib/std/src/ui/stats-panel
  */
@@ -233,16 +233,24 @@ function useAnimatedMount(delay: number = 0): boolean {
 // Chart Components
 // ============================================================================
 
+// Casys Design System Colors
 const COLORS = {
-  primary: "#3b82f6",
-  secondary: "#10b981",
-  accent: "#f59e0b",
-  danger: "#ef4444",
-  muted: "#6b7280",
-  curve: "#8b5cf6",
-  gradientStart: "#3b82f6",
-  gradientMid: "#8b5cf6",
-  gradientEnd: "#ec4899",
+  // Primary accent - golden yellow
+  accent: "#ffb86f",
+  accentDim: "rgba(255, 184, 111, 0.1)",
+  accentMedium: "rgba(255, 184, 111, 0.2)",
+  // Semantic colors
+  success: "#4ade80",
+  warning: "#fbbf24",
+  error: "#f87171",
+  info: "#60a5fa",
+  // Text colors
+  muted: "#d5c3b5",
+  dim: "#8a8078",
+  // Gradient uses accent with variations
+  gradientStart: "#ffb86f",
+  gradientMid: "#e09850",
+  gradientEnd: "#c27830",
 };
 
 interface ChartProps {
@@ -418,13 +426,13 @@ function Histogram({ data, stats, bins, width, height, showCurve }: ChartProps) 
       {showCurve && curvePoints && (
         <polyline
           fill="none"
-          stroke={COLORS.curve}
+          stroke={COLORS.info}
           strokeWidth={2.5}
           points={curvePoints}
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{
-            filter: "drop-shadow(0 0 6px rgba(139, 92, 246, 0.6))",
+            filter: "drop-shadow(0 0 6px rgba(96, 165, 250, 0.6))",
             opacity: mounted ? 1 : 0,
             transition: "opacity 0.8s ease 0.5s",
           }}
@@ -439,10 +447,10 @@ function Histogram({ data, stats, bins, width, height, showCurve }: ChartProps) 
             y1={padding.top}
             x2={padding.left + ((stats.mean - stats.min) / (stats.max - stats.min)) * chartWidth}
             y2={height - padding.bottom}
-            stroke={COLORS.danger}
+            stroke={COLORS.error}
             strokeWidth={2}
             strokeDasharray="6 4"
-            style={{ filter: "drop-shadow(0 0 4px rgba(239, 68, 68, 0.5))" }}
+            style={{ filter: "drop-shadow(0 0 4px rgba(248, 113, 113, 0.5))" }}
           />
           <text
             x={padding.left + ((stats.mean - stats.min) / (stats.max - stats.min)) * chartWidth}
@@ -452,7 +460,7 @@ function Histogram({ data, stats, bins, width, height, showCurve }: ChartProps) 
               fontSize: "10px",
               fontFamily: "'DM Sans', sans-serif",
               fontWeight: 500,
-              fill: COLORS.danger,
+              fill: COLORS.error,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
             }}
@@ -618,10 +626,10 @@ function BoxPlot({ stats, width, height }: { stats: Stats; width: number; height
           y1={boxY}
           x2={scale(stats.median)}
           y2={boxY + boxHeight}
-          stroke={COLORS.secondary}
+          stroke={COLORS.success}
           strokeWidth={3}
           strokeLinecap="round"
-          style={{ filter: "drop-shadow(0 0 6px rgba(16, 185, 129, 0.6))" }}
+          style={{ filter: "drop-shadow(0 0 6px rgba(74, 222, 128, 0.6))" }}
         />
 
         {/* Mean marker */}
@@ -629,8 +637,8 @@ function BoxPlot({ stats, width, height }: { stats: Stats; width: number; height
           cx={scale(stats.mean)}
           cy={boxY + boxHeight / 2}
           r={5}
-          fill={COLORS.danger}
-          style={{ filter: "drop-shadow(0 0 4px rgba(239, 68, 68, 0.6))" }}
+          fill={COLORS.error}
+          style={{ filter: "drop-shadow(0 0 4px rgba(248, 113, 113, 0.6))" }}
         >
           <title>Mean: {stats.mean.toFixed(2)}</title>
         </circle>
@@ -643,11 +651,11 @@ function BoxPlot({ stats, width, height }: { stats: Stats; width: number; height
             cy={boxY + boxHeight / 2}
             r={4}
             fill="none"
-            stroke={COLORS.accent}
+            stroke={COLORS.warning}
             strokeWidth={2}
             style={{
               cursor: "pointer",
-              filter: "drop-shadow(0 0 3px rgba(245, 158, 11, 0.5))",
+              filter: "drop-shadow(0 0 3px rgba(251, 191, 36, 0.5))",
               transition: "r 0.2s ease, stroke-width 0.2s ease",
             }}
             onClick={() => notifyModel("outlier-click", { value: outlier })}
@@ -699,7 +707,7 @@ function BoxPlot({ stats, width, height }: { stats: Stats; width: number; height
             fontSize: "10px",
             fontFamily: "'DM Sans', sans-serif",
             fontWeight: 500,
-            fill: COLORS.secondary,
+            fill: COLORS.success,
           }}
         >
           Med: {stats.median.toFixed(1)}
@@ -735,7 +743,7 @@ function BoxPlot({ stats, width, height }: { stats: Stats; width: number; height
         transform={`translate(${padding.left}, ${height - 10})`}
         style={{ opacity: mounted ? 1 : 0, transition: "opacity 0.5s ease 0.8s" }}
       >
-        <circle cx={0} cy={0} r={4} fill={COLORS.danger} />
+        <circle cx={0} cy={0} r={4} fill={COLORS.error} />
         <text
           x={10}
           y={3}
@@ -747,7 +755,7 @@ function BoxPlot({ stats, width, height }: { stats: Stats; width: number; height
         >
           Mean
         </text>
-        <line x1={50} y1={0} x2={65} y2={0} stroke={COLORS.secondary} strokeWidth={2} />
+        <line x1={50} y1={0} x2={65} y2={0} stroke={COLORS.success} strokeWidth={2} />
         <text
           x={72}
           y={3}
@@ -759,7 +767,7 @@ function BoxPlot({ stats, width, height }: { stats: Stats; width: number; height
         >
           Median
         </text>
-        <circle cx={130} cy={0} r={4} fill="none" stroke={COLORS.accent} strokeWidth={2} />
+        <circle cx={130} cy={0} r={4} fill="none" stroke={COLORS.warning} strokeWidth={2} />
         <text
           x={140}
           y={3}
@@ -793,7 +801,7 @@ function StatCard({ label, value, decimals = 4, delay = 0 }: { label: string; va
         opacity: mounted ? 1 : 0,
         transform: mounted ? "translateY(0)" : "translateY(8px)",
         transition: `all 0.4s ease ${delay}ms`,
-        boxShadow: hovered ? "0 8px 32px rgba(139, 92, 246, 0.15)" : "none",
+        boxShadow: hovered ? "0 8px 32px rgba(255, 184, 111, 0.15)" : "none",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -924,23 +932,24 @@ function StatsPanel() {
   const histogramHeight = 260;
   const boxPlotHeight = 140;
 
+  // Casys Design System - Dark background with subtle grid
   const containerStyle = {
-    background: "linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%)",
+    background: "linear-gradient(180deg, #0a0908 0%, #12110f 100%)",
     backgroundImage: `
-      linear-gradient(180deg, #0f0f14 0%, #1a1a24 100%),
+      linear-gradient(180deg, #0a0908 0%, #12110f 100%),
       repeating-linear-gradient(
         0deg,
         transparent,
         transparent 40px,
-        rgba(255, 255, 255, 0.015) 40px,
-        rgba(255, 255, 255, 0.015) 41px
+        rgba(255, 184, 111, 0.02) 40px,
+        rgba(255, 184, 111, 0.02) 41px
       ),
       repeating-linear-gradient(
         90deg,
         transparent,
         transparent 40px,
-        rgba(255, 255, 255, 0.015) 40px,
-        rgba(255, 255, 255, 0.015) 41px
+        rgba(255, 184, 111, 0.02) 40px,
+        rgba(255, 184, 111, 0.02) 41px
       )
     `,
   };
@@ -952,7 +961,7 @@ function StatsPanel() {
         style={containerStyle}
       >
         <div className="flex flex-col items-center justify-center p-[60px] text-white/40">
-          <Spinner size="lg" colorPalette="purple" />
+          <Spinner size="lg" colorPalette="orange" />
           <div className="mt-4">Loading statistics...</div>
         </div>
       </div>

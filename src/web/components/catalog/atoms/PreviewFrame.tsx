@@ -19,8 +19,12 @@ interface PreviewFrameProps {
   resourceUri: string;
   /** Compact mode for thumbnails */
   compact?: boolean;
-  /** Height in pixels */
+  /** Height in pixels (ignored if autoResize is true) */
   height?: number;
+  /** Auto-resize based on iframe content height */
+  autoResize?: boolean;
+  /** Minimum height when autoResize is enabled */
+  minHeight?: number;
   /** Whether to load immediately or wait for intersection */
   eager?: boolean;
   /** Callback when iframe loads */
@@ -31,14 +35,34 @@ export default function PreviewFrame({
   resourceUri,
   compact = false,
   height = 200,
+  autoResize = false,
+  minHeight = 100,
   eager = false,
   onLoad,
 }: PreviewFrameProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "connected" | "error">("idle");
   const [isVisible, setIsVisible] = useState(eager);
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bridgeRef = useRef<AppBridge | null>(null);
+
+  // Listen for auto-resize messages from iframe
+  useEffect(() => {
+    if (!autoResize) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "mcp-app-resize" && typeof event.data.height === "number") {
+        const iframe = iframeRef.current;
+        if (iframe && event.source === iframe.contentWindow) {
+          setContentHeight(Math.max(event.data.height, minHeight));
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [autoResize, minHeight]);
 
   // Intersection observer for lazy loading
   useEffect(() => {
@@ -141,6 +165,9 @@ export default function PreviewFrame({
     };
   }, [isVisible, resourceUri]);
 
+  // Determine actual height: autoResize uses contentHeight, otherwise fixed height
+  const actualHeight = autoResize && contentHeight ? contentHeight : height;
+
   return (
     <div
       ref={containerRef}
@@ -148,10 +175,12 @@ export default function PreviewFrame({
       style={{
         position: "relative",
         width: "100%",
-        height: `${height}px`,
+        height: `${actualHeight}px`,
+        minHeight: autoResize ? `${minHeight}px` : undefined,
         background: "#0a0a0c",
         borderRadius: compact ? "6px" : "8px",
         overflow: "hidden",
+        transition: autoResize ? "height 0.2s ease-out" : undefined,
       }}
     >
       {/* Loading state */}

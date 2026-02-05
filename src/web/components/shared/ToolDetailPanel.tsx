@@ -55,6 +55,23 @@ function UiPreviewWithBridge({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bridgeRef = useRef<AppBridge | null>(null);
   const [status, setStatus] = useState<"loading" | "connected" | "error">("loading");
+  const [iframeHeight, setIframeHeight] = useState<number | null>(null);
+
+  // Listen for auto-resize messages from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "mcp-app-resize" && typeof event.data.height === "number") {
+        // Only update if message is from our iframe
+        const iframe = iframeRef.current;
+        if (iframe && event.source === iframe.contentWindow) {
+          setIframeHeight(event.data.height);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   const resultToMcpContent = useCallback((result: unknown): Array<{ type: "text"; text: string }> => {
     if (result === null || result === undefined) {
@@ -126,6 +143,7 @@ function UiPreviewWithBridge({
         title={`UI Preview: ${toolName}`}
         sandbox="allow-scripts allow-same-origin"
         class="tdp-iframe"
+        style={iframeHeight ? { height: `${iframeHeight}px`, minHeight: "unset" } : undefined}
       />
       {status === "loading" && (
         <div class="tdp-preview-status loading">
