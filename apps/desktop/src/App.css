@@ -201,3 +201,84 @@ html, body, #root {
 .webgpu-error p {
   color: #a0a0a0;
 }
+
+/* Terminal Panel */
+.terminal-panel {
+  width: 400px;
+  min-width: 200px;
+  max-width: 60%;
+  background: #0a0908;
+  border-left: 1px solid #2d3a5a;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.terminal-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #16213e;
+  border-bottom: 1px solid #2d3a5a;
+  font-size: 0.85rem;
+  color: #a0a0a0;
+}
+
+.terminal-panel-header button {
+  background: none;
+  border: none;
+  color: #808080;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.terminal-panel-header button:hover {
+  color: #e0e0e0;
+}
+
+.terminal-panel-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.terminal-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Terminal resize handle */
+.terminal-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+  background: transparent;
+}
+
+.terminal-resize-handle:hover {
+  background: rgba(255, 184, 111, 0.3);
+}
+
+/* Terminal collapsed state */
+.terminal-collapsed {
+  width: 32px;
+  background: #0a0908;
+  border-left: 1px solid #2d3a5a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #808080;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 0.75rem;
+}
+
+.terminal-collapsed:hover {
+  background: #16213e;
+  color: #e0e0e0;
+}
