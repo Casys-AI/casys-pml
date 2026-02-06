@@ -1,8 +1,8 @@
 /**
- * HeroSection - Refonte alignée brainstorming
+ * HeroSection - Polished landing hero
  *
- * Nouveau message: "One gateway. Any model. Full observability."
- * Visual: Carousel vertical montrant un workflow complexe avec scroll infini
+ * Message: "One gateway. Any model. Full observability."
+ * Visual: Vertical trace carousel showing live workflow execution
  *
  * @module web/components/landing/sections/HeroSection
  */
@@ -49,52 +49,70 @@ const pillars = [
 
 export function HeroSection() {
   return (
-    <section class="relative min-h-[90vh] flex items-center py-24 px-8 sm:py-20 sm:px-5 bg-[#08080a]">
-      <div class="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-        <div class="max-w-[520px] lg:max-w-full text-center lg:text-left">
+    <section class="relative min-h-[92vh] flex items-center pt-28 pb-20 px-8 sm:pt-24 sm:pb-16 sm:px-5 bg-[#08080a] overflow-hidden">
+      {/* Subtle radial gradient */}
+      <div
+        class="absolute inset-0 pointer-events-none opacity-30"
+        style={{
+          background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(255,184,111,0.06) 0%, transparent 50%)",
+        }}
+      />
+
+      <div class="relative z-10 max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center">
+        {/* Left: Content */}
+        <div class="max-w-[540px] lg:max-w-full text-center lg:text-left">
+          {/* Eyebrow */}
           <p class="font-mono text-[0.7rem] sm:text-[0.6rem] font-medium text-pml-accent uppercase tracking-[0.2em] sm:tracking-[0.15em] mb-5 opacity-0 animate-fade-up">
             {hero.eyebrow}
           </p>
 
-          <h1 class="font-serif text-[clamp(1.75rem,4.5vw,3.25rem)] font-normal leading-[1.15] mb-6 opacity-0 animate-fade-up-delay-1">
+          {/* Title */}
+          <h1 class="font-serif text-[clamp(1.75rem,4vw,2.75rem)] font-normal leading-[1.15] mb-6 opacity-0 animate-fade-up-delay-1">
             <span class="block text-stone-100">One gateway. Any model.</span>
             <span class="block text-pml-accent italic">Full observability.</span>
           </h1>
 
+          {/* Description */}
           <p class="text-lg sm:text-[0.95rem] leading-relaxed text-stone-500 mb-8 opacity-0 animate-fade-up-delay-2">
             Build AI workflows once, run them with Claude, GPT, Gemini, or your local Ollama.
             Every tool call traced. Debug in seconds, not hours.
           </p>
 
-          <div class="flex gap-4 flex-wrap justify-center lg:justify-start mb-10 opacity-0 animate-fade-up-delay-3 sm:flex-col sm:gap-3">
+          {/* CTAs */}
+          <div class="flex gap-3 flex-wrap justify-center lg:justify-start mb-8 opacity-0 animate-fade-up-delay-3">
             <a
               href={hero.cta.primary.href}
-              class="inline-flex items-center gap-2 py-3.5 px-6 text-sm font-semibold font-sans no-underline rounded-lg bg-pml-accent text-[#08080a] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(255,184,111,0.25)] sm:w-full sm:justify-center"
+              class="inline-flex items-center gap-2 py-2.5 px-5 text-sm font-semibold font-sans no-underline rounded-md bg-pml-accent text-[#08080a] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(255,184,111,0.2)]"
             >
               {hero.cta.primary.label}
-              <MaterialIcon name="arrow_downward" size={16} />
+              <MaterialIcon name="arrow_downward" size={14} />
             </a>
             <a
               href={hero.cta.secondary.href}
-              class="inline-flex items-center py-3.5 px-6 text-sm font-medium font-sans no-underline rounded-lg text-stone-400 border border-pml-accent/20 transition-all duration-200 hover:border-pml-accent hover:text-stone-100 sm:w-full sm:justify-center"
+              class="inline-flex items-center py-2.5 px-5 text-sm font-medium font-sans no-underline rounded-md text-stone-400 border border-pml-accent/20 transition-all duration-200 hover:border-pml-accent hover:text-stone-100"
             >
               {hero.cta.secondary.label}
             </a>
           </div>
 
-          <div class="flex gap-6 justify-center lg:justify-start opacity-0 animate-fade-up-delay-4 sm:flex-col sm:items-center sm:gap-3">
-            {pillars.map((pillar) => (
-              <div class="flex items-center gap-2" key={pillar.label}>
-                <MaterialIcon name={pillar.icon} size={18} color="#FFB86F" />
-                <span class="font-mono text-[0.7rem] font-medium text-stone-500 uppercase tracking-[0.05em]">
+          {/* Pillars */}
+          <div class="flex items-center gap-5 justify-center lg:justify-start opacity-0 animate-fade-up-delay-4 flex-wrap">
+            {pillars.map((pillar, i) => (
+              <div class="flex items-center gap-1.5" key={pillar.label}>
+                <MaterialIcon name={pillar.icon} size={14} color="#FFB86F" />
+                <span class="font-mono text-[0.65rem] text-stone-500 uppercase tracking-wide">
                   {pillar.label}
                 </span>
+                {i < pillars.length - 1 && <span class="text-stone-700 ml-3">·</span>}
               </div>
             ))}
           </div>
         </div>
 
-        <TraceCarousel rows={workflowTrace} height={320} speed={25} />
+        {/* Right: Trace Carousel */}
+        <div class="lg:pl-4">
+          <TraceCarousel rows={workflowTrace} height={340} speed={28} />
+        </div>
       </div>
     </section>
   );

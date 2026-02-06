@@ -18,6 +18,7 @@ import { generateStandalonePreview } from "../../../data/ui-mock-data.ts";
 /**
  * Script injected into all MCP App iframes to report their height to parent.
  * Uses ResizeObserver for efficient tracking of size changes.
+ * Calculates actual content height by measuring children, not viewport.
  */
 const AUTO_RESIZE_SCRIPT = `
 <script data-mcp-auto-resize>
@@ -25,13 +26,28 @@ const AUTO_RESIZE_SCRIPT = `
   var lastHeight = 0;
   var debounceTimer = null;
 
+  function getContentHeight() {
+    // Calculate height from actual content, not viewport
+    var height = 0;
+    var children = document.body.children;
+    for (var i = 0; i < children.length; i++) {
+      var child = children[i];
+      // Skip our own script tag
+      if (child.hasAttribute && child.hasAttribute('data-mcp-auto-resize')) continue;
+      var rect = child.getBoundingClientRect();
+      var bottom = rect.top + rect.height + window.scrollY;
+      if (bottom > height) height = bottom;
+    }
+    // Add body padding/margin
+    var bodyStyle = getComputedStyle(document.body);
+    height += parseInt(bodyStyle.paddingBottom || '0', 10);
+    height += parseInt(bodyStyle.marginBottom || '0', 10);
+    // Ensure minimum reasonable height
+    return Math.max(height, 50);
+  }
+
   function reportHeight() {
-    var height = Math.max(
-      document.body.scrollHeight,
-      document.body.offsetHeight,
-      document.documentElement.scrollHeight,
-      document.documentElement.offsetHeight
-    );
+    var height = getContentHeight();
     if (height !== lastHeight && height > 0) {
       lastHeight = height;
       window.parent.postMessage({
@@ -49,9 +65,11 @@ const AUTO_RESIZE_SCRIPT = `
 
   // Initial report after DOM ready
   if (document.readyState === 'complete') {
-    reportHeight();
+    setTimeout(reportHeight, 100);
   } else {
-    window.addEventListener('load', reportHeight);
+    window.addEventListener('load', function() {
+      setTimeout(reportHeight, 100);
+    });
   }
 
   // Watch for size changes
@@ -59,8 +77,8 @@ const AUTO_RESIZE_SCRIPT = `
     new ResizeObserver(debouncedReport).observe(document.body);
   }
 
-  // Fallback: periodic check for dynamic content
-  setInterval(reportHeight, 1000);
+  // Fallback: periodic check for dynamic content (less frequent)
+  setInterval(reportHeight, 2000);
 })();
 </script>
 `;

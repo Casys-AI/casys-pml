@@ -251,16 +251,16 @@ export const blog = {
 // =============================================================================
 
 export const cta = {
-  title: "Curious? Dive in.",
+  title: "Ready to try?",
   description:
-    "Casys PML is fully open source. " +
-    "Explore the code, run experiments, or contribute to the research.",
+    "Give your agents procedural memory. " +
+    "Start building smarter workflows today.",
 
   actions: {
     primary: {
-      label: "Clone & Experiment",
-      href: "https://github.com/Casys-AI/casys-pml",
-      icon: "github",
+      label: "Get Started",
+      href: "#quickstart",
+      icon: "arrow",
     },
     secondary: {
       label: "Request Beta Access",

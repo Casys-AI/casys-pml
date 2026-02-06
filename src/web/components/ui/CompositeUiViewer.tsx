@@ -173,13 +173,45 @@ export default function CompositeUiViewer({
   );
   const [syncError, setSyncError] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  // Active tab index for tabs layout
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
 
   // Refs for iframes and bridges
   const iframeRefs = useRef<Map<number, HTMLIFrameElement>>(new Map());
   const bridgeRefs = useRef<Map<number, AppBridge>>(new Map());
   const bridgeInitializedRefs = useRef<Map<number, boolean>>(new Map());
 
+  // Auto-resize: track content heights for each slot
+  const [contentHeights, setContentHeights] = useState<Map<number, number>>(new Map());
+
   const getColor = getServerColor ?? getDefaultColor;
+
+  // Listen for auto-resize messages from iframes
+  useEffect(() => {
+    const handleResizeMessage = (event: MessageEvent) => {
+      if (event.data?.type === "mcp-app-resize" && typeof event.data.height === "number") {
+        // Find which slot this message came from
+        for (const [slot, iframe] of iframeRefs.current.entries()) {
+          if (iframe?.contentWindow === event.source) {
+            // Clamp height between reasonable bounds
+            const minHeight = 150;
+            const maxHeight = 500;
+            const newHeight = Math.min(Math.max(event.data.height, minHeight), maxHeight);
+
+            setContentHeights((prev) => {
+              const next = new Map(prev);
+              next.set(slot, newHeight);
+              return next;
+            });
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("message", handleResizeMessage);
+    return () => window.removeEventListener("message", handleResizeMessage);
+  }, []);
 
   // Get panels in display order
   const panelOrder = orchestration.panelOrder ?? collectedUis.map((_, i) => i);
@@ -601,48 +633,98 @@ export default function CompositeUiViewer({
         </div>
       </div>
 
+      {/* Tabs bar (only for tabs layout) */}
+      {orchestration.layout === "tabs" && orderedPanels.length > 1 && (
+        <div
+          style={{
+            display: "flex",
+            gap: "2px",
+            padding: "0 8px",
+            borderBottom: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+            background: "var(--bg, #0a0908)",
+          }}
+        >
+          {orderedPanels.map((panel, index) => {
+            const color = getColor(panel.source.split(":")[0]);
+            const isActive = index === activeTabIndex;
+
+            return (
+              <button
+                key={panel.slot}
+                onClick={() => setActiveTabIndex(index)}
+                style={{
+                  padding: "8px 16px",
+                  border: "none",
+                  borderBottom: isActive ? `2px solid ${color}` : "2px solid transparent",
+                  background: isActive ? `${color}15` : "transparent",
+                  color: isActive ? color : "var(--text-muted, #d5c3b5)",
+                  fontSize: "0.8rem",
+                  fontWeight: isActive ? 600 : 400,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {panel.source.split(":")[1] || panel.source}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* UI Panels - Direct iframes with MCP Apps protocol */}
       <div
         style={{
           padding: "8px",
-          height: `${height}px`,
-          overflow: "auto",
-          ...getLayoutStyles(orchestration.layout),
+          minHeight: `${Math.min(height, 300)}px`,
+          maxHeight: `${height}px`,
+          ...(orchestration.layout === "tabs"
+            ? { display: "flex", flexDirection: "column" }
+            : getLayoutStyles(orchestration.layout)),
         }}
       >
-        {orderedPanels.map((panel) => {
+        {orderedPanels.map((panel, index) => {
           const color = getColor(panel.source.split(":")[0]);
+
+          // In tabs mode, only show the active tab
+          if (orchestration.layout === "tabs" && index !== activeTabIndex) {
+            return null;
+          }
 
           return (
             <div
               key={panel.slot}
               style={{
-                flex: orchestration.layout === "split" ? 1 : undefined,
+                flex: 1,
                 minWidth: orchestration.layout === "split" ? "200px" : undefined,
+                minHeight: "150px",
                 border: `1px solid ${color}40`,
                 borderRadius: "8px",
                 background: "#1a1a1a",
                 overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
               }}
             >
-              {/* Panel header */}
-              <div
-                style={{
-                  padding: "6px 12px",
-                  background: `${color}15`,
-                  borderBottom: `1px solid ${color}30`,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span style={{ color: color, fontSize: "0.8rem", fontWeight: 500 }}>
-                  {panel.source}
-                </span>
-                <span style={{ color: "#666", fontSize: "0.65rem" }}>
-                  slot {panel.slot}
-                </span>
-              </div>
+              {/* Panel header (hidden in tabs mode since we have tab bar) */}
+              {orchestration.layout !== "tabs" && (
+                <div
+                  style={{
+                    padding: "6px 12px",
+                    background: `${color}15`,
+                    borderBottom: `1px solid ${color}30`,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ color: color, fontSize: "0.8rem", fontWeight: 500 }}>
+                    {panel.source}
+                  </span>
+                  <span style={{ color: "#666", fontSize: "0.65rem" }}>
+                    slot {panel.slot}
+                  </span>
+                </div>
+              )}
 
               {/* UI iframe - src is set by setupBridge after bridge.connect() completes */}
               <iframe
@@ -655,9 +737,9 @@ export default function CompositeUiViewer({
                 title={`UI: ${panel.source}`}
                 sandbox="allow-scripts allow-same-origin"
                 style={{
+                  flex: 1,
                   width: "100%",
-                  height: orchestration.layout === "stack" ? "280px" : "100%",
-                  minHeight: "200px",
+                  minHeight: "100px",
                   border: "none",
                   background: "#1a1a1a",
                 }}

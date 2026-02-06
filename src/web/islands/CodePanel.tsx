@@ -88,9 +88,12 @@ const MIN_PANEL_HEIGHT = 150;
 const DEFAULT_MAX_HEIGHT = 800;
 const DEFAULT_PANEL_HEIGHT = 300;
 
-// Get max height dynamically (SSR-safe)
+// Get max height dynamically (SSR-safe) - allow full window height
 const getMaxPanelHeight = () =>
-  typeof window !== "undefined" ? globalThis.innerHeight * 0.8 : DEFAULT_MAX_HEIGHT;
+  typeof window !== "undefined" ? globalThis.innerHeight : DEFAULT_MAX_HEIGHT;
+
+// Threshold for fullscreen mode (covers header)
+const FULLSCREEN_THRESHOLD = 0.9;
 
 export default function CodePanel({
   capability,
@@ -121,6 +124,8 @@ export default function CodePanel({
     return DEFAULT_PANEL_HEIGHT;
   });
   const [isResizing, setIsResizing] = useState(false);
+  // Fullscreen mode: covers entire viewport including header
+  const isFullscreen = typeof window !== "undefined" && panelHeight >= globalThis.innerHeight * FULLSCREEN_THRESHOLD;
   const panelRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
   const startHeightRef = useRef(0);
@@ -339,14 +344,16 @@ export default function CodePanel({
 
       <div
         ref={panelRef}
-        class="code-panel w-full flex flex-col relative z-[100] outline-none bg-pml-bg-elevated border-t border-pml-border"
+        class={`code-panel w-full flex flex-col outline-none bg-pml-bg-elevated border-t border-pml-border ${
+          isFullscreen ? "fixed inset-0 z-[200]" : "relative z-[100]"
+        }`}
         role="region"
         aria-labelledby="code-panel-title"
         tabIndex={0}
         style={{
-          height: `${panelHeight}px`,
+          height: isFullscreen ? "100vh" : `${panelHeight}px`,
           minHeight: `${MIN_PANEL_HEIGHT}px`,
-          maxHeight: `${getMaxPanelHeight()}px`,
+          maxHeight: isFullscreen ? "100vh" : `${getMaxPanelHeight()}px`,
           animation: hasAnimated ? "none" : "slideUp 300ms ease-out",
         }}
       >
@@ -482,7 +489,7 @@ export default function CodePanel({
               //   body: JSON.stringify(newOrchestration),
               // });
             }}
-            height={200}
+            height={Math.max(200, panelHeight - 150)}
             getServerColor={getServerColor}
             // Pass trace results from selected trace to replay in UIs
             traceResults={(() => {

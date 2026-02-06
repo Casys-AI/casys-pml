@@ -9,16 +9,16 @@
 
 export function ArchitectureSection() {
   return (
-    <section class="relative py-20 px-8 sm:py-12 sm:px-5 bg-[#08080a]">
+    <section class="relative py-16 px-8 sm:py-12 sm:px-5 bg-[#08080a]">
       <div class="max-w-[1100px] mx-auto">
-        <div class="text-center mb-12">
-          <span class="font-mono text-[0.7rem] font-medium text-pml-accent uppercase tracking-[0.2em]">
+        <div class="text-center mb-10">
+          <p class="font-mono text-[0.7rem] font-medium text-pml-accent uppercase tracking-[0.2em] mb-3">
             Architecture
-          </span>
-          <h2 class="font-serif text-[clamp(1.75rem,3vw,2.25rem)] font-normal text-stone-100 my-3">
+          </p>
+          <h2 class="font-serif text-[clamp(1.5rem,3vw,2.25rem)] font-normal text-stone-100 mb-3">
             How it works
           </h2>
-          <p class="text-base text-stone-500 max-w-[500px] mx-auto leading-relaxed">
+          <p class="text-[0.95rem] text-stone-500 max-w-[480px] mx-auto leading-relaxed">
             A unified gateway that connects any LLM to any MCP server, with full observability and continuous learning.
           </p>
         </div>

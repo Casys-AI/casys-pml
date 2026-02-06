@@ -542,9 +542,10 @@ export default function CodeToUiCarousel() {
             padding: 0 12px 12px;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            grid-auto-rows: minmax(90px, 1fr);
+            grid-auto-rows: auto;
             gap: 8px;
             overflow: auto;
+            align-content: start;
           }
 
           .ctu-click-hint {
@@ -716,8 +717,27 @@ interface UiPreviewItemProps {
 
 function UiPreviewItem({ resourceUri, mockData, size = "medium", index }: UiPreviewItemProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "connected" | "error">("idle");
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bridgeRef = useRef<AppBridge | null>(null);
+
+  // Listen for auto-resize messages from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "mcp-app-resize" && typeof event.data.height === "number") {
+        const iframe = iframeRef.current;
+        if (iframe && event.source === iframe.contentWindow) {
+          // Clamp height between reasonable bounds for the landing page grid
+          const minHeight = 80;
+          const maxHeight = size === "large" ? 200 : 150;
+          setContentHeight(Math.min(Math.max(event.data.height, minHeight), maxHeight));
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [size]);
 
   const resultToMcpContent = useCallback((result: unknown): Array<{ type: "text"; text: string }> => {
     if (result === null || result === undefined) {
@@ -785,11 +805,16 @@ function UiPreviewItem({ resourceUri, mockData, size = "medium", index }: UiPrev
   // Large items span full width
   const gridSpan = size === "large" ? "1 / -1" : "auto";
 
+  // Use content height if available, otherwise use defaults based on size
+  const defaultHeight = size === "large" ? 160 : size === "small" ? 80 : 100;
+  const actualHeight = contentHeight ?? defaultHeight;
+
   return (
     <div
       class="ctu-preview-item"
       style={{
         gridColumn: gridSpan,
+        height: `${actualHeight}px`,
         animationDelay: `${index * 50}ms`,
       }}
     >
@@ -827,7 +852,7 @@ function UiPreviewItem({ resourceUri, mockData, size = "medium", index }: UiPrev
             background: #0c0c0e;
             border: 1px solid ${colors.borderSubtle};
             animation: itemFadeIn 0.3s ease-out both;
-            min-height: 80px;
+            transition: height 0.2s ease-out;
           }
 
           @keyframes itemFadeIn {

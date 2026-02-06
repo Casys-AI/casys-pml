@@ -251,9 +251,12 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
   const size = item.bentoSize || "medium";
   const config = BENTO_SIZE_CONFIGS[size as keyof typeof BENTO_SIZE_CONFIGS];
   const minHeight = config?.minHeight || 280;
+  const maxHeight = 400; // Prevent excessive heights
 
-  // Use content height if available, otherwise fall back to config minHeight
-  const actualHeight = contentHeight && contentHeight > minHeight ? contentHeight : minHeight;
+  // Use content height if available, clamped between min and max
+  const actualHeight = contentHeight
+    ? Math.min(Math.max(contentHeight, minHeight), maxHeight)
+    : minHeight;
 
   // Determine grid span classes based on size
   const sizeClasses = size === "large" || size === "wide" ? "lg:col-span-2" : "";
@@ -265,8 +268,7 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
       class={`relative bg-[#0a0a0c] border border-[rgba(78,205,196,0.12)] rounded-lg overflow-hidden no-underline cursor-pointer transition-all duration-200 ease-out animate-[bentoIn_0.3s_ease-out_both] hover:border-[rgba(78,205,196,0.5)] hover:-translate-y-[3px] hover:shadow-[0_12px_32px_-8px_rgba(78,205,196,0.25),0_0_0_1px_rgba(78,205,196,0.1)] ${sizeClasses}`}
       style={{
         minHeight: `${minHeight}px`,
-        height: contentHeight ? `${actualHeight}px` : "auto",
-        transition: "height 0.3s ease-out",
+        height: `${actualHeight}px`,
         animationDelay: `${animDelay}ms`,
       }}
     >
