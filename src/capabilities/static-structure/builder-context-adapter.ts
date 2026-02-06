@@ -9,6 +9,7 @@
  * @module capabilities/static-structure/builder-context-adapter
  */
 
+import type { ArgumentValue } from "../types.ts";
 import type { HandlerContext } from "./ast-handlers.ts";
 import type { InternalNode } from "./types.ts";
 
@@ -53,6 +54,9 @@ export interface IStaticStructureBuilder {
     nestingLevel?: number,
     currentParentOp?: string,
   ): void;
+
+  // Argument extraction (Story 10.5-fix: exposed for sequence edge generation)
+  extractArgumentValue(node: Record<string, unknown>): ArgumentValue | undefined;
 
   // State
   readonly processedSpans: Map<string, string>;
@@ -101,6 +105,10 @@ export class BuilderContextAdapter implements HandlerContext {
 
   extractLiteralValue = (node: Record<string, unknown>): unknown =>
     this.builder.extractLiteralValue(node);
+
+  // Story 10.5-fix: Expose extractArgumentValue for sequence edge generation in handlers
+  extractArgumentValue = (node: Record<string, unknown>): ArgumentValue | undefined =>
+    this.builder.extractArgumentValue(node);
 
   findNodes = (
     node: unknown,
