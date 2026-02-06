@@ -36,19 +36,13 @@ export class PostgresClient implements DbClient {
   }
 
   /**
-   * Throw if database is not connected
+   * Get connected sql or throw
    */
-  private ensureConnected(): asserts this is { sql: ReturnType<typeof postgres> } {
+  private getSql(): ReturnType<typeof postgres> {
     if (!this.sql) {
       throw new Error("Database not connected");
     }
-  }
-
-  /**
-   * Check if params array has values
-   */
-  private hasParams(params?: unknown[]): params is unknown[] {
-    return params !== undefined && params.length > 0;
+    return this.sql;
   }
 
   /**
@@ -85,12 +79,12 @@ export class PostgresClient implements DbClient {
    * Execute SQL statement without returning results
    */
   async exec(sql: string, params?: unknown[]): Promise<void> {
-    this.ensureConnected();
+    const db = this.getSql();
     try {
-      if (this.hasParams(params)) {
-        await this.sql.unsafe(sql, params as any[]);
+      if (params && params.length > 0) {
+        await db.unsafe(sql, params as any[]);
       } else {
-        await this.sql.unsafe(sql);
+        await db.unsafe(sql);
       }
     } catch (error) {
       log.error(`SQL execution failed: ${error}`);
@@ -102,11 +96,11 @@ export class PostgresClient implements DbClient {
    * Execute query and return results
    */
   async query(sql: string, params?: unknown[]): Promise<Row[]> {
-    this.ensureConnected();
+    const db = this.getSql();
     try {
-      const result = this.hasParams(params)
-        ? await this.sql.unsafe(sql, params as any[])
-        : await this.sql.unsafe(sql);
+      const result = (params && params.length > 0)
+        ? await db.unsafe(sql, params as any[])
+        : await db.unsafe(sql);
       return result as unknown as Row[];
     } catch (error) {
       log.error(`SQL query failed: ${error}`);
@@ -131,7 +125,7 @@ export class PostgresClient implements DbClient {
       return null;
     }
     try {
-      const result = this.hasParams(params)
+      const result = (params && params.length > 0)
         ? await this.sql.unsafe(sql, params as any[])
         : await this.sql.unsafe(sql);
       return result as unknown as Row[];
@@ -152,19 +146,19 @@ export class PostgresClient implements DbClient {
    * Run a transaction
    */
   async transaction<T>(fn: (tx: Transaction) => Promise<T>): Promise<T> {
-    this.ensureConnected();
+    const db = this.getSql();
 
-    const result = await this.sql.begin(async (sqlTx) => {
+    const result = await db.begin(async (sqlTx: ReturnType<typeof postgres>) => {
       const tx: Transaction = {
         exec: async (sql: string, params?: unknown[]) => {
-          if (this.hasParams(params)) {
+          if (params && params.length > 0) {
             await sqlTx.unsafe(sql, params as any[]);
           } else {
             await sqlTx.unsafe(sql);
           }
         },
         query: async (sql: string, params?: unknown[]) => {
-          const queryResult = this.hasParams(params)
+          const queryResult = (params && params.length > 0)
             ? await sqlTx.unsafe(sql, params as any[])
             : await sqlTx.unsafe(sql);
           return queryResult as unknown as Row[];

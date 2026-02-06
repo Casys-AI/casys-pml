@@ -14,6 +14,7 @@ import { ensureDir } from "@std/fs";
 import { getAgentCardsDatabasePath } from "../cli/utils.ts";
 import type { DbClient, Row, Transaction } from "./types.ts";
 import { eventBus } from "../events/mod.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 /** Threshold for slow query warning (ms) */
 const SLOW_QUERY_THRESHOLD_MS = 100;
@@ -90,32 +91,26 @@ export class PGliteClient implements DbClient {
   }
 
   /**
-   * Throw if database is not connected
+   * Get connected db or throw
    */
-  private ensureConnected(): asserts this is { db: PGlite } {
+  private getDb(): PGlite {
     if (!this.db) {
       throw new Error("Database not connected");
     }
-  }
-
-  /**
-   * Check if params array has values
-   */
-  private hasParams(params?: unknown[]): params is unknown[] {
-    return params !== undefined && params.length > 0;
+    return this.db;
   }
 
   /**
    * Execute SQL statement without returning results
    */
   async exec(sql: string, params?: unknown[]): Promise<void> {
-    this.ensureConnected();
+    const db = this.getDb();
     try {
-      if (this.hasParams(params)) {
+      if (params && params.length > 0) {
         // PGlite exec doesn't support params directly, use query instead for parameterized execution
-        await (this.db as any).exec(sql, params as any);
+        await (db as any).exec(sql, params as any);
       } else {
-        await this.db.exec(sql);
+        await db.exec(sql);
       }
     } catch (error) {
       log.error(`SQL execution failed: ${error}`);
@@ -127,9 +122,10 @@ export class PGliteClient implements DbClient {
    * Execute query and return results
    */
   async query(sql: string, params?: unknown[]): Promise<Row[]> {
-    this.ensureConnected();
+    const db = this.getDb();
+    const hasParams = params && params.length > 0;
 
-    const queryId = crypto.randomUUID().slice(0, 8);
+    const queryId = uuidv7().slice(0, 8);
     const startTime = performance.now();
 
     eventBus.emit({
@@ -138,14 +134,14 @@ export class PGliteClient implements DbClient {
       payload: {
         queryId,
         sql: sql.slice(0, 100),
-        hasParams: this.hasParams(params),
+        hasParams,
       },
     });
 
     try {
-      const result = this.hasParams(params)
-        ? await (this.db as any).query(sql, params)
-        : await (this.db as any).query(sql);
+      const result = hasParams
+        ? await (db as any).query(sql, params)
+        : await (db as any).query(sql);
 
       const durationMs = performance.now() - startTime;
       const rowCount = result.rows?.length ?? 0;
@@ -188,9 +184,9 @@ export class PGliteClient implements DbClient {
    * Run a transaction
    */
   async transaction<T>(fn: (tx: Transaction) => Promise<T>): Promise<T> {
-    this.ensureConnected();
+    this.getDb(); // ensure connected
 
-    const txId = crypto.randomUUID().slice(0, 8);
+    const txId = uuidv7().slice(0, 8);
 
     try {
       await this.exec("BEGIN TRANSACTION;");
