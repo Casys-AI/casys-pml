@@ -236,7 +236,6 @@ export function validateAuthConfig(serverName: string): void {
 ╚══════════════════════════════════════════════════════════════════════════════╝
 `;
     log.critical(errorMsg);
-    console.error(errorMsg);
     throw new Error(
       `[${serverName}] SECURITY: Cannot start in production without authentication configured`,
     );
@@ -256,7 +255,6 @@ export function validateAuthConfig(serverName: string): void {
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 `;
     log.warn(warningMsg);
-    console.warn(warningMsg);
   }
 }
 

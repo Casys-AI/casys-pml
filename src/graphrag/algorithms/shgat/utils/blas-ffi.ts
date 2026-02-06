@@ -7,6 +7,8 @@
  * @module graphrag/algorithms/shgat/utils/blas-ffi
  */
 
+import * as log from "@std/log";
+
 // CBLAS constants
 const CblasRowMajor = 101;
 const CblasNoTrans = 111;
@@ -49,7 +51,7 @@ function initBlas(): boolean {
 
   // Check if FFI is available
   if (typeof Deno?.dlopen !== "function") {
-    console.warn("[BLAS] Deno.dlopen not available - using JS fallback");
+    log.warn("[BLAS] Deno.dlopen not available - using JS fallback");
     return false;
   }
 
@@ -70,14 +72,14 @@ function initBlas(): boolean {
         },
       });
       blasAvailable = true;
-      console.error(`[BLAS] Loaded OpenBLAS from: ${path}`);
+      log.info(`[BLAS] Loaded OpenBLAS from: ${path}`);
       return true;
     } catch {
       // Try next path
     }
   }
 
-  console.warn("[BLAS] Could not load BLAS library - using JS fallback");
+  log.warn("[BLAS] Could not load BLAS library - using JS fallback");
   return false;
 }
 

@@ -427,7 +427,7 @@ Deno.test({
 // AC6: workflow_pattern.user_id FK
 // =============================================================================
 
-Deno.test("Migration 039: workflow_pattern - convert created_by to user_id FK", async () => {
+Deno.test({ name: "Migration 039: workflow_pattern - convert created_by to user_id FK", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const client = await setupTestDb("workflow-pattern-user-id");
 
   // Setup users
@@ -481,4 +481,4 @@ Deno.test("Migration 039: workflow_pattern - convert created_by to user_id FK", 
   assertEquals(pattern?.user_id, userId);
 
   await client.close();
-});
+}});

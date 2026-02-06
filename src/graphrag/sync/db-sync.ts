@@ -29,6 +29,7 @@ export interface SyncableGraph {
   addEdge(source: string, target: string, attributes: Record<string, unknown>): void;
   hasNode(nodeId: string): boolean;
   hasEdge(source: string, target: string): boolean;
+  setAttribute?(name: string, value: unknown): void;
   setNodeAttribute?(nodeId: string, name: string, value: unknown): void;
   order: number;
   size: number;

@@ -34,6 +34,15 @@ async function setupTestDb(): Promise<PGliteClient> {
 }
 
 /**
+ * Insert a test user into the users table (required by fk_execution_trace_user FK)
+ */
+async function ensureTestUser(db: PGliteClient, userId: string): Promise<void> {
+  await db.exec(
+    `INSERT INTO users (id, username) VALUES ('${userId}', 'test-user') ON CONFLICT (id) DO NOTHING`,
+  );
+}
+
+/**
  * Create a capability in workflow_pattern for FK tests
  * @param description - Optional description for intentText (since migration 030, intentText comes from JOIN)
  */
@@ -613,6 +622,7 @@ Deno.test("ExecutionTraceStore - anonymizeUserTraces() returns 0 for unknown use
 
   // Use valid UUID for existing user
   const existingUserId = crypto.randomUUID();
+  await ensureTestUser(db, existingUserId);
   await store.saveTrace(createTestTraceInput({ userId: existingUserId }));
 
   // Anonymize non-existent user (different UUID)
@@ -631,6 +641,8 @@ Deno.test("ExecutionTraceStore - anonymizeUserTraces() anonymizes multiple trace
   // Use valid UUIDs (migration 039 requires UUID or null for userId)
   const userToAnonymize = crypto.randomUUID();
   const otherUserId = crypto.randomUUID();
+  await ensureTestUser(db, userToAnonymize);
+  await ensureTestUser(db, otherUserId);
 
   // Create capability with description for intentText (migration 030)
   const capabilityId = await createTestCapability(db, "User query");

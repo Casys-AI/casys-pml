@@ -214,7 +214,7 @@ export class GraphRAGEngine {
     if (this.pendingMetricsCount >= GraphRAGEngine.METRICS_RECALC_THRESHOLD) {
       this.precomputeMetrics().catch((err) => {
         // Log but don't fail - metrics will be recalculated on next threshold
-        console.warn("[GraphRAGEngine] Background metrics recalc failed:", err);
+        log.warn("[GraphRAGEngine] Background metrics recalc failed:", err);
       });
       this.pendingMetricsCount = 0;
     }

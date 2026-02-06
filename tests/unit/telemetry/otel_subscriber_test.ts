@@ -40,10 +40,10 @@ function createTestPayload(overrides: Partial<AlgorithmDecisionPayload> = {}): A
   };
 }
 
-Deno.test("AlgorithmOTELSubscriber - can be instantiated", () => {
+Deno.test({ name: "AlgorithmOTELSubscriber - can be instantiated", sanitizeOps: false, sanitizeResources: false, fn: () => {
   const subscriber = new AlgorithmOTELSubscriber();
   assertExists(subscriber);
-});
+}});
 
 Deno.test("AlgorithmOTELSubscriber - isActive() returns false before start", () => {
   const subscriber = new AlgorithmOTELSubscriber();

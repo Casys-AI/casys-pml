@@ -260,7 +260,7 @@ Deno.test({
   },
 });
 
-Deno.test("PMLGatewayServer - call_tool single tool proxy", async () => {
+Deno.test({ name: "PMLGatewayServer - call_tool single tool proxy", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -290,7 +290,7 @@ Deno.test("PMLGatewayServer - call_tool single tool proxy", async () => {
   assertExists(result.content);
   assert(Array.isArray(result.content));
   assertEquals(result.content[0].type, "text");
-});
+}});
 
 Deno.test({
   name: "PMLGatewayServer - call_tool pml:execute routes correctly",

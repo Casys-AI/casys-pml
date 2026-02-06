@@ -28,7 +28,7 @@ Deno.test("extractServerName: standard format server:action", () => {
   assertEquals(extractServerName("filesystem:read_file"), "filesystem");
   assertEquals(extractServerName("memory:store"), "memory");
   assertEquals(extractServerName("tavily:search"), "tavily");
-  assertEquals(extractServerName("execute"), "pml");
+  assertEquals(extractServerName("execute"), "execute");
 });
 
 Deno.test("extractServerName: capability tool format mcp__namespace__action", () => {

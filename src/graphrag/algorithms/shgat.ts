@@ -1784,7 +1784,7 @@ export class SHGAT {
 
     // Log timing breakdown only for very slow batches (>5s)
     if (t6 - t0 > 5000) {
-      console.error(
+      getLog().warn(
         `[SHGAT] Slow batch (${t6 - t0}ms): ` +
         `hierarchy=${t1 - t0}ms, matrices=${t2 - t1}ms, forward=${t3 - t2}ms, ` +
         `khead=${t4 - t3}ms, backward-loop=${t5 - t4}ms, backward-mp=${t6 - t5}ms`

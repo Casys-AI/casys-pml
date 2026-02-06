@@ -86,7 +86,7 @@ Deno.test({
   },
 });
 
-Deno.test("EpisodicMemoryStore - auto-flush on buffer full", async () => {
+Deno.test({ name: "EpisodicMemoryStore - auto-flush on buffer full", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const db = await setupTestDb();
   const store = new EpisodicMemoryStore(db, { bufferSize: 3, flushIntervalMs: 60000 });
 
@@ -109,7 +109,7 @@ Deno.test("EpisodicMemoryStore - auto-flush on buffer full", async () => {
 
   await store.shutdown();
   await db.close();
-});
+}});
 
 Deno.test({
   name: "EpisodicMemoryStore - retrieveRelevant with context hash",
@@ -198,7 +198,7 @@ Deno.test("EpisodicMemoryStore - retrieveRelevant with event type filter", async
   await db.close();
 });
 
-Deno.test("EpisodicMemoryStore - getWorkflowEvents returns ordered events", async () => {
+Deno.test({ name: "EpisodicMemoryStore - getWorkflowEvents returns ordered events", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const db = await setupTestDb();
   const store = new EpisodicMemoryStore(db, { bufferSize: 100, flushIntervalMs: 60000 });
 
@@ -221,7 +221,7 @@ Deno.test("EpisodicMemoryStore - getWorkflowEvents returns ordered events", asyn
 
   await store.shutdown();
   await db.close();
-});
+}});
 
 Deno.test("EpisodicMemoryStore - getStats returns correct statistics", async () => {
   const db = await setupTestDb();

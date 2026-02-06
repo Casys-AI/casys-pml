@@ -52,7 +52,7 @@ export class HealthChecker {
    * Perform initial health check at startup
    */
   async initialHealthCheck(): Promise<void> {
-    console.error("Performing initial health check...\n");
+    log.info("Performing initial health check...");
 
     // Check all servers in parallel for faster startup
     const checks = Array.from(this.mcpClients.entries()).map(async ([serverId, client]) => {
@@ -65,10 +65,10 @@ export class HealthChecker {
     this.logHealthResults(results);
 
     const summary = this.getHealthSummary();
-    console.error(`\nHealth summary: ${summary.healthy}/${summary.total} servers healthy\n`);
+    log.info(`Health summary: ${summary.healthy}/${summary.total} servers healthy`);
 
     if (summary.down > 0) {
-      console.warn(`Warning: ${summary.down} server(s) are down. Some tools may be unavailable.`);
+      log.warn(`Warning: ${summary.down} server(s) are down. Some tools may be unavailable.`);
     }
   }
 
@@ -78,10 +78,10 @@ export class HealthChecker {
   private logHealthResults(results: ServerHealth[]): void {
     for (const health of results) {
       const icon = this.getStatusIcon(health.status);
-      console.error(`${icon} ${health.serverName} (${health.serverId}): ${health.status}`);
+      log.info(`${icon} ${health.serverName} (${health.serverId}): ${health.status}`);
 
       if (health.errorMessage) {
-        console.error(`   └─ ${health.errorMessage}`);
+        log.info(`   └─ ${health.errorMessage}`);
       }
 
       log.info("Health check completed", {
@@ -99,7 +99,7 @@ export class HealthChecker {
    * Start periodic health checks
    */
   startPeriodicChecks(): void {
-    console.error("Starting periodic health checks (every 5 minutes)");
+    log.info("Starting periodic health checks (every 5 minutes)");
 
     this.checkInterval = setInterval(() => {
       this.performHealthCheck();
@@ -241,12 +241,10 @@ export class HealthChecker {
     current: ServerHealth,
   ): void {
     const icon = this.getStatusIcon(current.status);
-    console.warn(
-      `${icon} ${current.serverName}: ${previous.status} → ${current.status}`,
-    );
+    log.warn(`${icon} ${current.serverName}: ${previous.status} → ${current.status}`);
 
     if (current.errorMessage) {
-      console.warn(`   └─ ${current.errorMessage}`);
+      log.warn(`   └─ ${current.errorMessage}`);
     }
 
     log.warn("Server status changed", {

@@ -1151,7 +1151,7 @@ export const colorTools: MiniTool[] = [
     },
   },
   {
-    name: "color_palette",
+    name: "color_palette_harmony",
     description:
       "Generate a color palette from a base color using various harmony rules. Create complementary, analogous, triadic, split-complementary, tetradic, or monochromatic palettes. Useful for design systems, UI theming, or brand color exploration. Keywords: palette, color scheme, harmony, complementary, analogous, triadic, color theory, design.",
     category: "color",
