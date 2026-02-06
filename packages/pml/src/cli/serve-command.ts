@@ -120,7 +120,10 @@ export function createServeCommand(): Command<any> {
       if (!Deno.env.get("PML_API_KEY")) {
         try {
           await reloadEnv(workspace);
-        } catch { /* ignore */ }
+        } catch (e) {
+          // .env loading failure is non-fatal - API key check below will catch missing key
+          console.warn(colors.yellow(`Warning: Failed to load .env: ${e instanceof Error ? e.message : e}`));
+        }
       }
 
       const apiKey = Deno.env.get("PML_API_KEY");
@@ -145,7 +148,10 @@ export function createServeCommand(): Command<any> {
       if (await exists(configPath)) {
         try {
           config = { ...config, ...JSON.parse(await Deno.readTextFile(configPath)) };
-        } catch { /* ignore */ }
+        } catch (e) {
+          console.warn(colors.yellow(`Warning: Failed to parse ${PML_CONFIG_FILE}: ${e instanceof Error ? e.message : e}`));
+          console.warn(colors.yellow("Using default configuration."));
+        }
       }
 
       // Load permissions

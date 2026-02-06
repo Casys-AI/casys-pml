@@ -6,7 +6,7 @@
  * @module sandbox/transport/deno-worker-transport
  */
 
-import type { MessageTransport } from "./types.ts";
+import { BaseTransport } from "./base-transport.ts";
 
 /**
  * MessageTransport implementation for Deno Workers.
@@ -25,22 +25,18 @@ import type { MessageTransport } from "./types.ts";
  * const bridge = new RpcBridge(transport, onRpc);
  * ```
  */
-export class DenoWorkerTransport implements MessageTransport {
+export class DenoWorkerTransport extends BaseTransport {
   private messageHandlerRegistered = false;
   private errorHandlerRegistered = false;
-  private isClosed = false;
 
-  constructor(private readonly worker: Worker) {}
+  constructor(private readonly worker: Worker) {
+    super();
+  }
 
   /**
    * Send a message to the Worker via postMessage.
-   *
-   * @throws Error if transport has been closed
    */
-  send(message: unknown): void {
-    if (this.isClosed) {
-      throw new Error("DenoWorkerTransport has been closed");
-    }
+  protected doSend(message: unknown): void {
     this.worker.postMessage(message);
   }
 
@@ -62,9 +58,11 @@ export class DenoWorkerTransport implements MessageTransport {
   /**
    * Register handler for Worker errors.
    *
+   * Workers support explicit error events, so this is fully functional.
+   *
    * @throws Error if a handler has already been registered
    */
-  onError(handler: (error: Error) => void): void {
+  override onError(handler: (error: Error) => void): void {
     if (this.errorHandlerRegistered) {
       throw new Error(
         "Error handler already registered. DenoWorkerTransport only supports a single handler.",
@@ -77,16 +75,7 @@ export class DenoWorkerTransport implements MessageTransport {
   /**
    * Terminate the Worker.
    */
-  close(): void {
-    if (this.isClosed) return;
-    this.isClosed = true;
+  protected doClose(): void {
     this.worker.terminate();
-  }
-
-  /**
-   * Check if transport has been closed.
-   */
-  get closed(): boolean {
-    return this.isClosed;
   }
 }

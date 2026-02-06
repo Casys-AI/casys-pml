@@ -22,7 +22,6 @@ import {
   SANDBOX_RPC_TIMEOUT_MS,
 } from "../constants.ts";
 import { RpcBridge } from "./rpc-bridge.ts";
-import { DenoWorkerTransport } from "../transport/deno-worker-transport.ts";
 
 /**
  * Log debug message for sandbox operations.
@@ -56,7 +55,6 @@ function logDebug(message: string): void {
  */
 export class SandboxWorker {
   private worker: Worker | null = null;
-  private transport: DenoWorkerTransport | null = null;
   private bridge: RpcBridge | null = null;
   private readonly onRpc: RpcHandler;
   private readonly executionTimeoutMs: number;
@@ -95,8 +93,8 @@ export class SandboxWorker {
     const executionId = uuidv7();
 
     try {
-      // Create worker, transport and bridge if not exists
-      if (!this.worker || !this.transport || !this.bridge) {
+      // Create worker and bridge if not exists
+      if (!this.worker || !this.bridge) {
         await this.initializeWorker();
       }
 
@@ -154,7 +152,7 @@ export class SandboxWorker {
    * Initialize the sandbox Worker and RpcBridge.
    *
    * Creates a Worker with `permissions: "none"` for complete isolation.
-   * Delegates message handling to RpcBridge.
+   * Delegates message handling to RpcBridge via factory method.
    */
   private async initializeWorker(): Promise<void> {
     logDebug("Initializing sandbox Worker");
@@ -170,11 +168,8 @@ export class SandboxWorker {
       },
     );
 
-    // Create transport wrapper for the Worker
-    this.transport = new DenoWorkerTransport(this.worker);
-
-    // Create RpcBridge to handle all message passing via transport
-    this.bridge = new RpcBridge(this.transport, this.onRpc, this.rpcTimeoutMs);
+    // Create RpcBridge with factory (handles transport internally)
+    this.bridge = RpcBridge.forWorker(this.worker, this.onRpc, this.rpcTimeoutMs);
 
     // Wait for worker to be ready (small delay for initialization)
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -225,8 +220,7 @@ export class SandboxWorker {
       this.bridge.close();
       this.bridge = null;
     }
-    // Transport and worker are closed by bridge.close()
-    this.transport = null;
+    // Worker is terminated by bridge.close() -> transport.close()
     this.worker = null;
     logDebug("Worker terminated");
   }

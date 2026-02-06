@@ -7,7 +7,7 @@
  * @module sandbox/transport/iframe-transport
  */
 
-import type { MessageTransport } from "./types.ts";
+import { BaseTransport } from "./base-transport.ts";
 
 /**
  * Browser iframe element interface (subset of HTMLIFrameElement).
@@ -33,11 +33,10 @@ interface IframeElement {
  * const bridge = new RpcBridge(transport, onRpc, 30000, adapter);
  * ```
  */
-export class IframeTransport implements MessageTransport {
+export class IframeTransport extends BaseTransport {
   private handler?: (message: unknown) => void;
   // deno-lint-ignore no-explicit-any
   private readonly boundHandleMessage: (e: any) => void;
-  private isClosed = false;
 
   /**
    * Create an IframeTransport for the given iframe.
@@ -49,6 +48,8 @@ export class IframeTransport implements MessageTransport {
     private readonly iframe: IframeElement,
     private readonly targetOrigin: string = "*",
   ) {
+    super();
+
     // Security warning for wildcard origin
     if (targetOrigin === "*") {
       console.warn(
@@ -84,13 +85,8 @@ export class IframeTransport implements MessageTransport {
 
   /**
    * Send a message to the iframe via postMessage.
-   *
-   * @throws Error if transport has been closed
    */
-  send(message: unknown): void {
-    if (this.isClosed) {
-      throw new Error("IframeTransport has been closed");
-    }
+  protected doSend(message: unknown): void {
     this.iframe.contentWindow?.postMessage(message, this.targetOrigin);
   }
 
@@ -101,34 +97,19 @@ export class IframeTransport implements MessageTransport {
     this.handler = handler;
   }
 
-  /**
-   * Iframes don't have explicit error events.
-   * This method is a no-op for compatibility.
-   */
-  onError(_handler: (error: Error) => void): void {
-    // Iframes don't have explicit error events like Workers
-    // Connection errors would need to be detected through timeouts
-  }
+  // Note: onError() uses the BaseTransport default implementation which logs
+  // a warning. Iframes don't have explicit error events - errors must be
+  // detected through RPC timeouts.
 
   /**
    * Remove event listener and cleanup.
    */
-  close(): void {
-    if (this.isClosed) return;
-
-    this.isClosed = true;
+  protected doClose(): void {
     // Browser-only: removeEventListener for "message" events
     (globalThis as unknown as EventTarget).removeEventListener(
       "message",
       this.boundHandleMessage as EventListener,
     );
     this.handler = undefined;
-  }
-
-  /**
-   * Check if transport has been closed.
-   */
-  get closed(): boolean {
-    return this.isClosed;
   }
 }

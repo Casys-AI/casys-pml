@@ -414,60 +414,36 @@ export class CapabilityLoader {
     // 4. For client-routed stdio types, build the dependency object for approval/install checks
     // All client-routed tools need local installation. For stdio, the MCP itself must be installed.
     // For deno, mcpDeps are already checked via ensureDependencies() above.
-    // Special case: "std" uses binary distribution - no install approval needed
     let stdioDep: McpDependency | null = null;
     const serverName = namespace.split(":")[0];
 
-    if (metadata.routing === "client" && metadata.type === "stdio") {
-      if (serverName === "std") {
-        // std uses binary distribution - binary-resolver will download automatically
-        stdioDep = {
-          name: "std",
-          type: "stdio" as const,
-          install: "binary", // Marker for binary distribution
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-        };
+    // Tech-spec 01.5: All stdio servers (including std) use metadata.install from registry
+    // std is detected by isMcpStd() in stdio-manager via args containing @casys/mcp-std
+    if (metadata.routing === "client" && metadata.type === "stdio" && metadata.install) {
+      stdioDep = {
+        name: serverName,
+        type: "stdio" as const,
+        install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+        version: "latest",
+        integrity: metadata.integrity ?? "",
+        command: metadata.install.command,
+        args: metadata.install.args,
+        // Story 14.6: envRequired from registry metadata (dynamic key detection)
+        envRequired: metadata.install.envRequired,
+      };
 
-        // std still needs tool_permission approval before first use
-        // Always check return - env vars may still be missing after approval
-        const toolIdForPermission = `${serverName}:*`;
-        const stdApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolIdForPermission,
-        );
-        if (stdApproval) {
-          logDebug(`std binary requires approval before download`);
-          return stdApproval;
-        }
-      } else if (metadata.install) {
-        // Other stdio servers use standard install flow
-        stdioDep = {
-          name: serverName,
-          type: "stdio" as const,
-          install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-          command: metadata.install.command,
-          args: metadata.install.args,
-          // Story 14.6: envRequired from registry metadata (dynamic key detection)
-          envRequired: metadata.install.envRequired,
-        };
-
-        // Check if this stdio MCP needs approval to install
-        // Always check return - env vars may still be missing after approval
-        // Use serverName:* as toolId for permission matching (not FQDN namespace)
-        const toolIdForPermission = `${serverName}:*`;
-        const stdioApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolIdForPermission,
-        );
-        if (stdioApproval) {
-          logDebug(`Stdio MCP ${namespace} requires approval to install`);
-          return stdioApproval;
-        }
+      // Check if this stdio MCP needs approval to install
+      // Always check return - env vars may still be missing after approval
+      // Use serverName:* as toolId for permission matching (not FQDN namespace)
+      const toolIdForPermission = `${serverName}:*`;
+      const stdioApproval = await this.ensureDependency(
+        stdioDep,
+        continueWorkflow?.approved ?? false,
+        toolIdForPermission,
+      );
+      if (stdioApproval) {
+        logDebug(`Stdio MCP ${namespace} requires approval to install`);
+        return stdioApproval;
       }
     }
 
@@ -765,51 +741,29 @@ export class CapabilityLoader {
     // DEBUG: Log metadata for permission check
     loaderLog.info(`[loadByFqdn] ${fqdn} → routing=${metadata.routing}, type=${metadata.type}, namespace=${namespace}`);
 
-    if (metadata.routing === "client" && metadata.type === "stdio") {
-      if (namespace === "std") {
-        stdioDep = {
-          name: "std",
-          type: "stdio" as const,
-          install: "binary", // Marker for binary distribution
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-        };
+    // Tech-spec 01.5: All stdio servers (including std) use metadata.install from registry
+    if (metadata.routing === "client" && metadata.type === "stdio" && metadata.install) {
+      stdioDep = {
+        name: namespace,
+        type: "stdio" as const,
+        install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+        version: "latest",
+        integrity: metadata.integrity ?? "",
+        command: metadata.install.command,
+        args: metadata.install.args,
+        envRequired: metadata.install.envRequired,
+      };
 
-        // std still needs tool_permission approval before first use (same as load())
-        // Always check return - env vars may still be missing after approval
-        const toolIdForPermission = `${namespace}:*`;
-        const stdApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolIdForPermission,
-        );
-        if (stdApproval) {
-          logDebug(`std binary requires approval before download (FQDN: ${fqdn})`);
-          return stdApproval;
-        }
-      } else if (metadata.install) {
-        stdioDep = {
-          name: namespace,
-          type: "stdio" as const,
-          install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-          command: metadata.install.command,
-          args: metadata.install.args,
-          envRequired: metadata.install.envRequired,
-        };
-
-        // Always check ensureDependency return - even after approval,
-        // env vars may still be missing (user didn't add key to .env)
-        const stdioApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolId,
-        );
-        if (stdioApproval) {
-          logDebug(`Stdio MCP ${fqdn} requires approval to install`);
-          return stdioApproval;
-        }
+      // Always check ensureDependency return - even after approval,
+      // env vars may still be missing (user didn't add key to .env)
+      const stdioApproval = await this.ensureDependency(
+        stdioDep,
+        continueWorkflow?.approved ?? false,
+        toolId,
+      );
+      if (stdioApproval) {
+        logDebug(`Stdio MCP ${fqdn} requires approval to install`);
+        return stdioApproval;
       }
     }
 

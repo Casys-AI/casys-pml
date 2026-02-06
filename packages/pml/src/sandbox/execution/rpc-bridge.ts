@@ -88,6 +88,40 @@ export class RpcBridge {
   private isShutdown = false;
 
   /**
+   * Create an RpcBridge for a Worker.
+   *
+   * Factory method that wraps the Worker in DenoWorkerTransport.
+   *
+   * @param worker - Worker instance
+   * @param onRpc - Handler for mcp.* calls
+   * @param rpcTimeoutMs - Timeout for RPC calls
+   * @param onInit - Optional handler for init messages
+   * @returns Configured RpcBridge
+   *
+   * @example
+   * ```ts
+   * const worker = new Worker(url, { deno: { permissions: "none" } });
+   * const bridge = RpcBridge.forWorker(worker, async (method, args) => {
+   *   return await handleRpc(method, args);
+   * });
+   * ```
+   */
+  static forWorker(
+    worker: Worker,
+    onRpc: RpcHandler,
+    rpcTimeoutMs = SANDBOX_RPC_TIMEOUT_MS,
+    onInit?: InitHandler,
+  ): RpcBridge {
+    return new RpcBridge(
+      new DenoWorkerTransport(worker),
+      onRpc,
+      rpcTimeoutMs,
+      undefined, // No adapter for Workers
+      onInit,
+    );
+  }
+
+  /**
    * Create an RpcBridge.
    *
    * @param transportOrWorker - MessageTransport or Worker (backward compatible)
