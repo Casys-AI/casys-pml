@@ -1,10 +1,10 @@
 /**
- * Landing Page (Vitrine)
+ * Landing Page V2
  *
- * Main marketing/showcase page for Casys PML.
- * Uses atomic design with content separated from structure.
+ * "The Gateway for the Conversational Web"
+ * New positioning: boring infrastructure, no AI hype.
  *
- * @module web/routes/index
+ * @module web/routes/v2
  */
 
 import { page } from "fresh";
@@ -16,22 +16,21 @@ import type { AuthState } from "./_middleware.ts";
 // Components
 import VitrineHeader from "../components/layout/VitrineHeader.tsx";
 import {
-  HeroSection,
-  IntelligenceSection,
-  ArchitectureSection,
-  IsolationSection,
-  CatalogPreviewSection,
-  QuickStartSection,
-  BlogSection,
-  BetaSignupSection,
-  CTASection,
-} from "../components/landing/index.ts";
+  HeroSectionV2,
+  ProblemSection,
+  SolutionSection,
+  CatalogPreviewSectionV2,
+  QuickStartSectionV2,
+  BlogSectionV2,
+  BetaSignupSectionV2,
+  CTASectionV2,
+} from "../components/landing-v2/index.ts";
 import { GoogleAnalytics } from "../components/GoogleAnalytics.tsx";
 
 // Content
-import { meta, footer } from "../content/landing.ts";
+import { meta, footer } from "../content/landing-v2.ts";
 
-interface LandingPageData {
+interface LandingV2PageData {
   latestPosts: Post[];
   isCloudMode: boolean;
   user: AuthState["user"];
@@ -39,6 +38,15 @@ interface LandingPageData {
 
 export const handler = {
   async GET(ctx: FreshContext<AuthState>) {
+    // Preview mode: only accessible with ?preview=casys
+    const url = new URL(ctx.req.url);
+    if (url.searchParams.get("preview") !== "casys") {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "/" },
+      });
+    }
+
     try {
       const posts = await getPosts();
       const latestPosts = posts.slice(0, 3);
@@ -48,7 +56,7 @@ export const handler = {
         user: ctx.state.user,
       });
     } catch (error) {
-      console.error("Error loading posts for landing page:", error);
+      console.error("Error loading posts for landing v2:", error);
       return page({
         latestPosts: [],
         isCloudMode: ctx.state.isCloudMode,
@@ -58,7 +66,7 @@ export const handler = {
   },
 };
 
-export default function LandingPage({ data }: { data: LandingPageData }) {
+export default function LandingV2Page({ data }: { data: LandingV2PageData }) {
   const { latestPosts, isCloudMode, user } = data;
 
   return (
@@ -71,7 +79,7 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
 
         {/* Open Graph / LinkedIn */}
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://pml.casys.ai/" />
+        <meta property="og:url" content="https://pml.casys.ai/v2" />
         <meta property="og:title" content={meta.title} />
         <meta property="og:description" content={meta.description} />
         <meta property="og:image" content={meta.ogImage} />
@@ -101,15 +109,14 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
         <VitrineHeader activePage="home" user={user} isCloudMode={isCloudMode} />
 
         <main>
-          <HeroSection />
-          <IntelligenceSection />
-          <ArchitectureSection />
-          <IsolationSection />
-          <CatalogPreviewSection />
-          <QuickStartSection />
-          <BlogSection posts={latestPosts} formatDate={formatDate} />
-          <BetaSignupSection />
-          <CTASection />
+          <HeroSectionV2 />
+          <ProblemSection />
+          <SolutionSection />
+          <CatalogPreviewSectionV2 />
+          <QuickStartSectionV2 />
+          <BlogSectionV2 posts={latestPosts} formatDate={formatDate} />
+          <BetaSignupSectionV2 />
+          <CTASectionV2 />
         </main>
 
         <Footer isCloudMode={isCloudMode} />
@@ -132,7 +139,9 @@ function Footer({ isCloudMode }: FooterProps) {
       <div class="max-w-[1100px] mx-auto flex justify-between items-center max-md:flex-col max-md:gap-4 max-md:text-center">
         <div class="flex items-center gap-3">
           <span class="font-serif text-lg text-pml-accent">{footer.brand.name}</span>
-          <span class="text-[0.65rem] text-stone-600 uppercase tracking-wide">{footer.brand.tagline}</span>
+          <span class="text-[0.65rem] text-stone-600 uppercase tracking-wide">
+            {footer.brand.tagline}
+          </span>
         </div>
         <div class="flex gap-6">
           {footer.links.map((link) => (
@@ -147,7 +156,10 @@ function Footer({ isCloudMode }: FooterProps) {
             </a>
           ))}
           {!isCloudMode && (
-            <a href="/dashboard" class="text-stone-500 no-underline text-[0.8rem] transition-colors duration-200 hover:text-pml-accent">
+            <a
+              href="/dashboard"
+              class="text-stone-500 no-underline text-[0.8rem] transition-colors duration-200 hover:text-pml-accent"
+            >
               Dashboard
             </a>
           )}
