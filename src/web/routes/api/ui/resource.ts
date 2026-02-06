@@ -12,7 +12,7 @@
  */
 
 import { Handlers } from "$fresh/server.ts";
-import { getUiCacheService } from "../../../../services/ui-cache-service.ts";
+import { ensureUiCacheReady } from "../../../../services/ui-cache-service.ts";
 import { generateStandalonePreview } from "../../../data/ui-mock-data.ts";
 
 /**
@@ -110,8 +110,7 @@ export const handler: Handlers = {
     }
 
     try {
-      const cacheService = getUiCacheService();
-      await cacheService.init();
+      const cacheService = await ensureUiCacheReady();
 
       const cached = await cacheService.get(resourceUri);
 

@@ -25,6 +25,7 @@ import type { AuthState } from "../../../_middleware.ts";
 import { getDb } from "../../../../../db/mod.ts";
 import { UiCollector } from "../../../../../services/ui-collector.ts";
 import { getToolDisplayName } from "../../../../../capabilities/tool-id-utils.ts";
+import type { UiOrchestrationState } from "../../../../types/ui-types.ts";
 import * as log from "@std/log";
 
 const json = (data: unknown, status = 200) =>
@@ -32,20 +33,6 @@ const json = (data: unknown, status = 200) =>
     status,
     headers: { "Content-Type": "application/json" },
   });
-
-/**
- * UI orchestration state stored per capability
- */
-interface UiOrchestrationState {
-  layout: "split" | "tabs" | "grid" | "stack";
-  sync?: Array<{
-    from: string;
-    event: string;
-    to: string | "*";
-    action: string;
-  }>;
-  panelOrder?: number[];
-}
 
 export const handler = {
   /**
@@ -93,7 +80,7 @@ export const handler = {
       // Tools in dag_structure.tools_used may be FQDNs - convert to "namespace:action" for DB lookup
       // but keep original toolId for trace matching
       const rawTools = capability.tools_used ?? [];
-      log.info(`[uis] rawTools type=${typeof rawTools}, isArray=${Array.isArray(rawTools)}, value=${JSON.stringify(rawTools)}`);
+      log.debug(`[uis] rawTools type=${typeof rawTools}, isArray=${Array.isArray(rawTools)}, value=${JSON.stringify(rawTools)}`);
 
       // Build mapping: shortId -> longId for trace matching
       const toolIdMapping = new Map<string, string>();
@@ -103,7 +90,7 @@ export const handler = {
       }
 
       const toolsUsed = rawTools.map((toolId: string) => getToolDisplayName(toolId));
-      log.info(`[uis] toolsUsed=${JSON.stringify(toolsUsed)}`);
+      log.debug(`[uis] toolsUsed=${JSON.stringify(toolsUsed)}`);
       const uiCollector = new UiCollector(db);
       const collectedUisRaw = await uiCollector.collectFromToolsCalled(toolsUsed);
 
@@ -119,28 +106,36 @@ export const handler = {
         panelOrder: collectedUis.map((_, i) => i),
       };
 
-      // Enrich UIs with tool metadata (description, emits, accepts)
-      const enrichedUis = await Promise.all(
-        collectedUis.map(async (ui) => {
-          // Parse tool ID from source (e.g., "postgres:query" -> server="postgres", tool="query")
-          const [server, toolName] = ui.source.split(":");
+      // Enrich UIs with tool metadata (description, emits, accepts) - single batch query
+      let enrichedUis = collectedUis;
+      if (collectedUis.length > 0) {
+        // Build batch query: WHERE (server_id, name) IN (($1,$2), ($3,$4), ...)
+        const pairs = collectedUis.map((ui) => ui.source.split(":"));
+        const placeholders = pairs.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(", ");
+        const params = pairs.flat();
 
-          // Get tool metadata if available
-          const toolInfo = await db.queryOne(
-            `SELECT description, ui_meta
-             FROM tool_schema
-             WHERE server_id = $1 AND name = $2`,
-            [server, toolName],
-          ) as { description: string | null; ui_meta: { emits?: string[]; accepts?: string[] } | null } | null;
+        const toolInfoRows = await db.query(
+          `SELECT server_id, name, description, ui_meta
+           FROM tool_schema
+           WHERE (server_id, name) IN (${placeholders})`,
+          params,
+        ) as Array<{ server_id: string; name: string; description: string | null; ui_meta: { emits?: string[]; accepts?: string[] } | null }>;
 
+        // Index by "server:name" for O(1) lookup
+        const toolInfoMap = new Map(
+          toolInfoRows.map((row) => [`${row.server_id}:${row.name}`, row]),
+        );
+
+        enrichedUis = collectedUis.map((ui) => {
+          const toolInfo = toolInfoMap.get(ui.source);
           return {
             ...ui,
             toolDescription: toolInfo?.description,
             emits: toolInfo?.ui_meta?.emits,
             accepts: toolInfo?.ui_meta?.accepts,
           };
-        }),
-      );
+        });
+      }
 
       return json({
         capabilityId,

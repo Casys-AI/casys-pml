@@ -23,6 +23,8 @@ import {
   type HullPoint,
 } from "../utils/graph/index.ts";
 import { parseToolId, getToolShortName } from "../../capabilities/tool-id-utils.ts";
+export type { CollectedUiResource, UiOrchestrationState } from "../types/ui-types.ts";
+import type { CollectedUiResource, UiOrchestrationState } from "../types/ui-types.ts";
 
 // Tool invocation from API (snake_case)
 interface ApiToolInvocation {
@@ -242,34 +244,8 @@ interface TransformedData {
   edges: Edge[];
 }
 
-/** Story 16.6: Collected UI resource from MCP Apps */
-export interface CollectedUiResource {
-  /** Tool that returned this UI - short format (e.g., "std:docker_ps") */
-  source: string;
-  /** Full tool ID for trace matching - long format (e.g., "pml.mcp.std.docker_ps.06bd") */
-  toolId?: string;
-  /** URI of the UI resource (e.g., "ui://postgres/table/abc123") */
-  resourceUri: string;
-  /** Optional context data for the UI */
-  context?: Record<string, unknown>;
-  /** Execution order slot (0-based index) */
-  slot: number;
-}
-
-/** Story 16.6: UI orchestration configuration per capability */
-export interface UiOrchestrationState {
-  /** Layout mode: split, tabs, grid, stack */
-  layout: "split" | "tabs" | "grid" | "stack";
-  /** Sync rules (tool names as from/to) */
-  sync?: Array<{
-    from: string;
-    event: string;
-    to: string | "*";
-    action: string;
-  }>;
-  /** Current panel order (slot indices in display order) */
-  panelOrder?: number[];
-}
+// CollectedUiResource and UiOrchestrationState imported from ../types/ui-types.ts
+// Re-exported above for backwards compatibility with CompositeUiViewer
 
 export interface CapabilityData {
   id: string;

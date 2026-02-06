@@ -93,6 +93,9 @@ import { createPmlRegistryHashColumnMigration } from "./migrations/040_pml_regis
 import { createParentTraceIdFkMigration } from "./migrations/041_parent_trace_id_fk.ts";
 import { createToolObservationsMigration } from "./migrations/042_tool_observations.ts";
 import { createToolObservationsFkMigration } from "./migrations/043_tool_observations_fk.ts";
+import { createUiMetadataMigration } from "./migrations/044_ui_metadata.ts";
+import { createObservedConfigMigration } from "./migrations/045_observed_config.ts";
+import { createUiOrchestrationDefaultMigration } from "./migrations/046_ui_orchestration_default.ts";
 
 /**
  * Migration definition
@@ -454,5 +457,8 @@ export function getAllMigrations(): Migration[] {
     createParentTraceIdFkMigration(), // ADR-041: Ensure parent_trace_id FK is DEFERRABLE
     createToolObservationsMigration(), // Tech-spec 01: Tool observations (multi-tenant BYOK MCP)
     createToolObservationsFkMigration(), // F12 Fix: Add FK tool_observations → tool_schema
+    createUiMetadataMigration(), // Story 16.6: UI metadata columns for MCP Apps orchestration
+    createObservedConfigMigration(), // Tech-spec 01.5: observed_args → observed_config JSONB
+    createUiOrchestrationDefaultMigration(), // Story 16.6 review: DEFAULT for ui_orchestration
   ];
 }

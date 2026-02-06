@@ -16,7 +16,7 @@ import {
   UUID_REGEX,
   VALID_NAME_PATTERN,
 } from "./types.ts";
-import { getUiCacheService } from "../services/ui-cache-service.ts";
+import { ensureUiCacheReady } from "../services/ui-cache-service.ts";
 
 /**
  * Normalize userId to valid UUID.
@@ -203,8 +203,7 @@ export async function handleToolsSync(
     for (const result of tools) {
       if (result.uiHtml && Array.isArray(result.uiHtml)) {
         try {
-          const cacheService = getUiCacheService();
-          await cacheService.init();
+          const cacheService = await ensureUiCacheReady();
 
           for (const ui of result.uiHtml) {
             if (ui.resourceUri && ui.content) {

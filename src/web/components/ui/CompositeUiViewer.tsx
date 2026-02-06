@@ -173,6 +173,7 @@ export default function CompositeUiViewer({
   );
   const [syncError, setSyncError] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [bridgeErrors, setBridgeErrors] = useState<Map<number, string>>(new Map());
   // Active tab index for tabs layout
   const [activeTabIndex, setActiveTabIndex] = useState(0);
 
@@ -281,16 +282,35 @@ export default function CompositeUiViewer({
         iframe.contentWindow,
       );
 
-      // CRITICAL: Connect bridge and wait for it to be ready BEFORE loading iframe content
-      bridge.connect(transport).then(() => {
-        console.log(`[CompositeUiViewer] Bridge ready, loading iframe for ${toolSource}`);
-        // NOW set the iframe src - bridge is listening
-        const srcUrl = `/api/ui/resource?uri=${encodeURIComponent(
-          collectedUis.find((u) => u.slot === slot)?.resourceUri ?? ""
-        )}`;
-        iframe.src = srcUrl;
-      }).catch((err) => {
+      // CRITICAL: Connect bridge, then fetch HTML and inject via srcdoc.
+      // Using srcdoc eliminates the need for allow-same-origin in the sandbox,
+      // and avoids the race condition between bridge.connect() and iframe navigation.
+      bridge.connect(transport).then(async () => {
+        console.log(`[CompositeUiViewer] Bridge ready, fetching HTML for ${toolSource}`);
+        const resourceUri = collectedUis.find((u) => u.slot === slot)?.resourceUri ?? "";
+        const srcUrl = `/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`;
+        try {
+          const resp = await fetch(srcUrl);
+          if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+          }
+          const html = await resp.text();
+          iframe.srcdoc = html;
+        } catch (fetchErr) {
+          console.error(`[CompositeUiViewer] Failed to fetch UI HTML for ${toolSource}:`, fetchErr);
+          setBridgeErrors((prev) => {
+            const next = new Map(prev);
+            next.set(slot, fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+            return next;
+          });
+        }
+      }).catch((err: unknown) => {
         console.error(`[CompositeUiViewer] Bridge connect error for ${toolSource}:`, err);
+        setBridgeErrors((prev) => {
+          const next = new Map(prev);
+          next.set(slot, err instanceof Error ? err.message : String(err));
+          return next;
+        });
       });
     },
     [traceResults, collectedUis],
@@ -735,7 +755,7 @@ export default function CompositeUiViewer({
                   }
                 }}
                 title={`UI: ${panel.source}`}
-                sandbox="allow-scripts allow-same-origin"
+                sandbox="allow-scripts"
                 style={{
                   flex: 1,
                   width: "100%",
@@ -744,6 +764,23 @@ export default function CompositeUiViewer({
                   background: "#1a1a1a",
                 }}
               />
+
+              {/* Bridge error overlay */}
+              {bridgeErrors.get(panel.slot) && (
+                <div
+                  style={{
+                    padding: "12px",
+                    color: "#ef4444",
+                    fontSize: "0.75rem",
+                    textAlign: "center",
+                    background: "rgba(239, 68, 68, 0.1)",
+                    borderRadius: "4px",
+                    margin: "4px 8px",
+                  }}
+                >
+                  Bridge connection failed: {bridgeErrors.get(panel.slot)}
+                </div>
+              )}
             </div>
           );
         })}
