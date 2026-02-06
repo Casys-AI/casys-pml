@@ -124,8 +124,8 @@ scripts/deploy.sh
 .pml.db
 backups/
 
-# Playground (not mature yet)
-playground/
+# Playground (legacy Jupyter playground, not the Epic 17 web playground)
+/playground/
 .devcontainer/playground/
 
 # Debug files
