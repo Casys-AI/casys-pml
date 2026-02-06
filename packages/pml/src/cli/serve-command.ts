@@ -391,6 +391,11 @@ export function createServeCommand(): Command<any> {
                   loader.approveToolForSession(pending.toolId);
                 } else if (pending.approvalType === "api_key_required") {
                   await reloadEnv(workspace);
+                } else if (pending.approvalType === "integrity" && loader) {
+                  // Use fqdnBase (e.g., "pml.mcp.std.data_address") not toolId (e.g., "fake:address")
+                  // toolId is the capability being loaded, fqdnBase is the actual tool with integrity change
+                  const integrityTarget = pending.integrityInfo?.fqdnBase ?? pending.toolId;
+                  await loader.approveIntegrityForSession(integrityTarget);
                 }
 
                 const fqdnMap = new Map(Object.entries(pending.fqdnMap ?? {}));

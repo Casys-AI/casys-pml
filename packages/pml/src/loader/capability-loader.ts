@@ -335,30 +335,33 @@ export class CapabilityLoader {
     let metadata: CapabilityMetadata;
 
     if (this.lockfileManager) {
-      // Story 14.7: Use fetchWithIntegrity for lockfile validation
-      const fetchResult = await this.registryClient.fetchWithIntegrity(
-        namespace,
-        this.lockfileManager,
-      );
-
-      // Check if integrity approval is required
-      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
-        const integrityApproval = fetchResult as IntegrityApprovalRequired;
-
-        if (continueWorkflow?.approved === true) {
-          const approvedResult = await this.registryClient.continueFetchWithApproval(
-            namespace,
-            this.lockfileManager,
-            true,
-          );
-          metadata = approvedResult.metadata;
-        } else if (continueWorkflow?.approved === false) {
-          handleIntegrityRejection(integrityApproval);
-        } else {
-          return integrityApproval;
-        }
+      // If user already approved integrity change, skip re-validation (same fix as FQDN path)
+      if (continueWorkflow?.approved === true) {
+        const approvedResult = await this.registryClient.continueFetchWithApproval(
+          namespace,
+          this.lockfileManager,
+          true,
+        );
+        metadata = approvedResult.metadata;
       } else {
-        metadata = (fetchResult as { metadata: CapabilityMetadata }).metadata;
+        // Story 14.7: Use fetchWithIntegrity for lockfile validation
+        const fetchResult = await this.registryClient.fetchWithIntegrity(
+          namespace,
+          this.lockfileManager,
+        );
+
+        // Check if integrity approval is required
+        if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+          const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+          if (continueWorkflow?.approved === false) {
+            handleIntegrityRejection(integrityApproval);
+          } else {
+            return integrityApproval;
+          }
+        } else {
+          metadata = (fetchResult as { metadata: CapabilityMetadata }).metadata;
+        }
       }
     } else {
       const { metadata: fetchedMetadata } = await this.registryClient.fetch(namespace);
@@ -657,31 +660,36 @@ export class CapabilityLoader {
     let metadata: CapabilityMetadata;
 
     if (this.lockfileManager) {
-      // Use fetchWithIntegrity - accepts FQDNs (toolNameToFqdn passes them through)
-      const fetchResult = await this.registryClient.fetchWithIntegrity(
-        fqdn,
-        this.lockfileManager,
-        serverWorkflowId,
-      );
-
-      // Check if integrity approval is required (hash changed)
-      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
-        const integrityApproval = fetchResult as IntegrityApprovalRequired;
-
-        if (continueWorkflow?.approved === true) {
-          const approvedResult = await this.registryClient.continueFetchWithApproval(
-            fqdn,
-            this.lockfileManager,
-            true,
-          );
-          metadata = approvedResult.metadata;
-        } else if (continueWorkflow?.approved === false) {
-          handleIntegrityRejection(integrityApproval);
-        } else {
-          return integrityApproval;
-        }
+      // If user already approved integrity change, skip re-validation and go straight
+      // to fetch+update. Re-calling fetchWithIntegrity would re-detect the same hash
+      // change and create an infinite approval loop.
+      if (continueWorkflow?.approved === true) {
+        const approvedResult = await this.registryClient.continueFetchWithApproval(
+          fqdn,
+          this.lockfileManager,
+          true,
+        );
+        metadata = approvedResult.metadata;
       } else {
-        metadata = (fetchResult as RegistryFetchResult).metadata;
+        // Use fetchWithIntegrity - accepts FQDNs (toolNameToFqdn passes them through)
+        const fetchResult = await this.registryClient.fetchWithIntegrity(
+          fqdn,
+          this.lockfileManager,
+          serverWorkflowId,
+        );
+
+        // Check if integrity approval is required (hash changed)
+        if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+          const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+          if (continueWorkflow?.approved === false) {
+            handleIntegrityRejection(integrityApproval);
+          } else {
+            return integrityApproval;
+          }
+        } else {
+          metadata = (fetchResult as RegistryFetchResult).metadata;
+        }
       }
     } else {
       const { metadata: fetchedMetadata } = await this.registryClient.fetchByFqdn(fqdn);
@@ -1225,6 +1233,35 @@ export class CapabilityLoader {
   approveToolForSession(toolId: string): void {
     this.approvedTools.add(toolId);
     logDebug(`Approved ${toolId} for session`);
+  }
+
+  /**
+   * Approve an integrity change for a tool before re-execution.
+   * Called after user approves an integrity approval via continue_workflow.
+   *
+   * Updates the lockfile with the new hash so subsequent nested calls
+   * (inside meta-capabilities) don't re-trigger the same integrity check.
+   * Without this, integrity approvals for nested tool calls cause an infinite loop.
+   *
+   * @param toolId - Full tool ID (e.g., "std:data_address")
+   */
+  async approveIntegrityForSession(toolId: string): Promise<void> {
+    if (!this.lockfileManager) {
+      logDebug(`No lockfileManager — skipping integrity approval for ${toolId}`);
+      return;
+    }
+
+    try {
+      const result = await this.registryClient.continueFetchWithApproval(
+        toolId,
+        this.lockfileManager,
+        true,
+      );
+      logDebug(`Integrity approved for ${toolId} → lockfile updated (fqdn: ${result.metadata.fqdn})`);
+    } catch (error) {
+      // Log but don't throw — the re-execution will handle it
+      logDebug(`Failed to pre-approve integrity for ${toolId}: ${error}`);
+    }
   }
 
   /**
