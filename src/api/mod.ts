@@ -18,6 +18,7 @@ export { handleTracesRoutes } from "./traces.ts";
 export { handleRoutingRoutes } from "./routing.ts";
 export { handleMcpRegistryRoutes } from "./mcp-registry.ts";
 export { handleUiResourcesRoutes } from "./ui-resources.ts";
+export { handleCatalogRoutes } from "./catalog.ts";
 
 // Algorithm API (core logic, called by Fresh thin wrappers)
 export {
