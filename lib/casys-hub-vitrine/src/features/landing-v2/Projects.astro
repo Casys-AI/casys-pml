@@ -13,17 +13,7 @@ const translations = {
           status: 'Active Development',
           license: 'AGPL-3.0',
           featured: true,
-          problem: {
-            title: 'The Problem',
-            items: [
-              'AI workflows locked to a single LLM provider',
-              'Tool calls are black boxes — debugging takes hours',
-              'No learning — same mistakes repeated over and over'
-            ]
-          },
-          solution: {
-            title: 'Our Solution',
-            features: [
+          features: [
               {
                 icon: 'swap_horiz',
                 name: 'Model-Agnostic',
@@ -39,8 +29,7 @@ const translations = {
                 name: 'Pattern Learning',
                 description: 'Workflows improve automatically over time'
               }
-            ]
-          },
+          ],
           results: [
             {
               stat: '120+',
@@ -149,22 +138,6 @@ const translations = {
           }
         }
       ],
-      archivedProjects: {
-        title: 'Research Archive',
-        description: 'Past research that informs our current work',
-        projects: [
-          {
-            name: 'Living Content Ecosystem',
-            tagline: 'SEO & Content Intelligence (2023-2024)',
-            description: 'Graph-based content, automated relationships → Foundation MCP Gateway'
-          },
-          {
-            name: 'Solo RPG',
-            tagline: 'Dynamic Narrative Systems (Experimental)',
-            description: 'AI-driven storytelling exploration via LinkedIn articles'
-          }
-        ]
-      }
     },
   fr: {
       title: 'Nos Projets',
@@ -177,17 +150,7 @@ const translations = {
           status: 'Développement Actif',
           license: 'AGPL-3.0',
           featured: true,
-          problem: {
-            title: 'Le Problème',
-            items: [
-              'Workflows AI verrouillés sur un seul fournisseur LLM',
-              'Appels d\'outils opaques — déboguer prend des heures',
-              'Aucun apprentissage — les mêmes erreurs se répètent'
-            ]
-          },
-          solution: {
-            title: 'Notre Solution',
-            features: [
+          features: [
               {
                 icon: 'swap_horiz',
                 name: 'Model-Agnostic',
@@ -203,8 +166,7 @@ const translations = {
                 name: 'Apprentissage de Patterns',
                 description: 'Les workflows s\'améliorent automatiquement'
               }
-            ]
-          },
+          ],
           results: [
             {
               stat: '120+',
@@ -313,22 +275,6 @@ const translations = {
           }
         }
       ],
-      archivedProjects: {
-        title: 'Research Archive',
-        description: 'Recherche passée qui informe notre travail actuel',
-        projects: [
-          {
-            name: 'Living Content Ecosystem',
-            tagline: 'SEO & Content Intelligence (2023-2024)',
-            description: 'Graph-based content, automated relationships → Foundation MCP Gateway'
-          },
-          {
-            name: 'Solo RPG',
-            tagline: 'Dynamic Narrative Systems (Expérimental)',
-            description: 'AI-driven storytelling exploration via LinkedIn articles'
-          }
-        ]
-      }
     },
   zh: {
       title: '我们的项目',
@@ -341,17 +287,7 @@ const translations = {
           status: '活跃开发中',
           license: 'AGPL-3.0',
           featured: true,
-          problem: {
-            title: '问题',
-            items: [
-              'AI 工作流被锁定在单一 LLM 提供商',
-              '工具调用是黑盒——调试需要数小时',
-              '没有学习机制——同样的错误反复出现'
-            ]
-          },
-          solution: {
-            title: '我们的方案',
-            features: [
+          features: [
               {
                 icon: 'swap_horiz',
                 name: '模型无关',
@@ -367,8 +303,7 @@ const translations = {
                 name: '模式学习',
                 description: '工作流随时间自动改进'
               }
-            ]
-          },
+          ],
           results: [
             { stat: '120+', label: '目录中的能力' },
             { stat: '4', label: '支持的 LLM 提供商' },
@@ -452,22 +387,6 @@ const translations = {
           }
         }
       ],
-      archivedProjects: {
-        title: '研究档案',
-        description: '影响当前工作的历史研究',
-        projects: [
-          {
-            name: 'Living Content Ecosystem',
-            tagline: 'SEO 与内容智能 (2023-2024)',
-            description: '基于图的内容、自动化关系 → MCP Gateway 基础'
-          },
-          {
-            name: 'Solo RPG',
-            tagline: '动态叙事系统（实验性）',
-            description: '通过 LinkedIn 文章进行 AI 驱动的故事探索'
-          }
-        ]
-      }
     }
 } as const;
 
@@ -498,19 +417,9 @@ const content = translations[locale as keyof typeof translations] ?? translation
           </div>
         </div>
 
-        <!-- Problem -->
-        <div class="problem-section">
-          <h4>{content.activeProjects[0].problem.title}</h4>
-          <ul class="problem-list">
-            {content.activeProjects[0].problem.items.map((item) => (
-              <li>{item}</li>
-            ))}
-          </ul>
-        </div>
-
-        <!-- Solution Features -->
+        <!-- Features -->
         <div class="features-grid">
-          {content.activeProjects[0].solution.features.map((feature) => (
+          {content.activeProjects[0].features.map((feature) => (
             <div class="feature-card">
               <span class="material-symbols-rounded">{feature.icon}</span>
               <div>
@@ -599,25 +508,6 @@ const content = translations[locale as keyof typeof translations] ?? translation
         </div>
       ))}
 
-      <!-- Archived Projects - Medium (Bottom Right) -->
-      <div class="project-card medium archived">
-        <div class="archived-header">
-          <span class="material-symbols-rounded">archive</span>
-          <h3>{content.archivedProjects.title}</h3>
-        </div>
-        <p class="archived-description">{content.archivedProjects.description}</p>
-
-        <div class="archived-list">
-          {content.archivedProjects.projects.map((project) => (
-            <div class="archived-item">
-              <div class="archived-name">{project.name}</div>
-              <div class="archived-tagline">{project.tagline}</div>
-              <div class="archived-desc">{project.description}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
     </div>
   </div>
 </section>
@@ -668,11 +558,6 @@ const content = translations[locale as keyof typeof translations] ?? translation
 
   /* Featured Project - Full width */
   .project-card.featured {
-    grid-column: 1 / -1;
-  }
-
-  /* Archived - Full width */
-  .project-card.archived {
     grid-column: 1 / -1;
   }
 
@@ -777,49 +662,6 @@ const content = translations[locale as keyof typeof translations] ?? translation
     border-radius: 8px;
     font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 600;
-  }
-
-  /* Problem Section */
-  .problem-section h4 {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--md-sys-color-on-surface-variant);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin: 0 0 12px;
-  }
-
-  .problem-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .problem-list li {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 8px 0;
-    color: var(--md-sys-color-on-surface-variant);
-    font-size: 0.875rem;
-    border-bottom: 1px solid var(--md-sys-color-outline-variant);
-  }
-
-  .problem-list li:last-child {
-    border-bottom: none;
-  }
-
-  .problem-list li::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    background: var(--md-sys-color-error);
-    border-radius: 50%;
-    flex-shrink: 0;
-    margin-top: 6px;
   }
 
   /* Features Grid */
@@ -937,61 +779,6 @@ const content = translations[locale as keyof typeof translations] ?? translation
   }
 
 
-  /* Archived Section */
-  .archived-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .archived-header .material-symbols-rounded {
-    font-size: 28px;
-    color: var(--md-sys-color-secondary);
-  }
-
-  .archived-header h3 {
-    font-size: var(--md-sys-typescale-title-large-size);
-    font-weight: 600;
-    color: var(--md-sys-color-on-surface);
-    margin: 0;
-  }
-
-  .archived-description {
-    font-size: var(--md-sys-typescale-body-medium-size);
-    color: var(--md-sys-color-on-surface-variant);
-    margin: 0;
-  }
-
-  .archived-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .archived-item {
-    padding: 16px;
-    background: var(--md-sys-color-surface-container-high);
-    border-radius: 12px;
-  }
-
-  .archived-name {
-    font-size: var(--md-sys-typescale-title-small-size);
-    font-weight: 600;
-    color: var(--md-sys-color-on-surface);
-    margin-bottom: 4px;
-  }
-
-  .archived-tagline {
-    font-size: var(--md-sys-typescale-body-small-size);
-    color: var(--md-sys-color-secondary);
-    margin-bottom: 8px;
-  }
-
-  .archived-desc {
-    font-size: var(--md-sys-typescale-body-small-size);
-    color: var(--md-sys-color-on-surface-variant);
-  }
-
   /* Tablet & Mobile Responsive */
   @media (max-width: 1024px) {
     .bento-grid {
@@ -1000,8 +787,7 @@ const content = translations[locale as keyof typeof translations] ?? translation
     }
 
     .project-card.featured,
-    .project-card.casysdb,
-    .project-card.archived {
+    .project-card.casysdb {
       grid-column: 1 / 2;
       grid-row: auto;
     }
@@ -1086,19 +872,6 @@ const content = translations[locale as keyof typeof translations] ?? translation
     color: #d5c3b5;
   }
 
-  html[data-theme="dark"] #projects .problem-section h4 {
-    color: #d5c3b5;
-  }
-
-  html[data-theme="dark"] #projects .problem-list li {
-    color: #d5c3b5;
-    border-bottom-color: rgba(255, 255, 255, 0.08);
-  }
-
-  html[data-theme="dark"] #projects .problem-list li::before {
-    background: #e57373;
-  }
-
   html[data-theme="dark"] #projects .feature-card {
     background: rgba(255, 255, 255, 0.03);
   }
@@ -1135,34 +908,6 @@ const content = translations[locale as keyof typeof translations] ?? translation
   html[data-theme="dark"] #projects .project-link:hover {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.2);
-  }
-
-  html[data-theme="dark"] #projects .archived-header h3 {
-    color: #f5f0ea;
-  }
-
-  html[data-theme="dark"] #projects .archived-header .material-symbols-rounded {
-    color: #d5c3b5;
-  }
-
-  html[data-theme="dark"] #projects .archived-description {
-    color: #a89a8c;
-  }
-
-  html[data-theme="dark"] #projects .archived-item {
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  html[data-theme="dark"] #projects .archived-name {
-    color: #f5f0ea;
-  }
-
-  html[data-theme="dark"] #projects .archived-tagline {
-    color: #FFB86F;
-  }
-
-  html[data-theme="dark"] #projects .archived-desc {
-    color: #a89a8c;
   }
 
   html[data-theme="dark"] #projects .feature-item .material-symbols-rounded {
