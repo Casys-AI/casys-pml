@@ -1,0 +1,51 @@
+---
+import PmlLayout from '../../../layouts/PmlLayout.astro';
+import CatalogPageIsland from '../../../islands/catalog/CatalogPageIsland';
+
+const apiUrl = import.meta.env.CASYS_API_URL ?? 'http://localhost:3003';
+let entries: any[] = [];
+try {
+  const res = await fetch(`${apiUrl}/api/catalog/entries`);
+  if (res.ok) entries = await res.json();
+} catch { /* API unavailable, fallback empty */ }
+---
+
+<PmlLayout title="Catalogue du Registry - Casys PML">
+  <script is:inline src="https://cdn.tailwindcss.com"></script>
+  <script is:inline>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'pml-accent': '#FFB86F',
+            'pml-bg': '#0a0908',
+            'pml-text': '#f5f0ea',
+            'pml-text-dim': '#78716c',
+          }
+        }
+      }
+    }
+  </script>
+  <CatalogPageIsland client:only="preact" entries={entries} />
+</PmlLayout>
+
+<style is:global>
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(255, 184, 111, 0.15);
+    border-radius: 3px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 184, 111, 0.3);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 184, 111, 0.15) transparent;
+  }
+</style>

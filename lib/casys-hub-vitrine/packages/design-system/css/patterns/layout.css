@@ -1,0 +1,25 @@
+/* DS Layout & Surface Patterns */
+
+/* Surfaces */
+.ds-surface { background: var(--md-sys-color-surface); }
+.ds-surface-container { background: var(--md-sys-color-surface-container); }
+.ds-surface-container-high { background: var(--md-sys-color-surface-container-high); }
+.ds-surface-container-highest { background: var(--md-sys-color-surface-container-highest); }
+
+/* Shape */
+.ds-rounded-lg { border-radius: var(--md-sys-shape-corner-large, 24px); }
+
+/* Typography helpers */
+.ds-title-variant { color: var(--md-sys-color-on-surface-variant); }
+
+/* Grid layouts */
+.ds-grid-auto { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.ds-grid-tight { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+/* Spacing */
+.ds-content { padding: 16px; }
+.ds-gap-12 { gap: 12px; }
+.ds-gap-16 { gap: 16px; }
+
+/* Toolbar helpers */
+.ds-toolbar-spacer { flex: 1; }

@@ -1,0 +1,230 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    title: '5 Lines to',
+    titleAccent: 'Production',
+    subtitle: 'No boilerplate. No config ceremony. Register a tool, call start(), ship it.',
+    tabBasic: 'Basic (STDIO)',
+    tabHttp: 'HTTP + Auth',
+    tabYaml: 'YAML Config',
+  },
+  fr: {
+    title: '5 Lignes vers la',
+    titleAccent: 'Prod',
+    subtitle: 'Pas de boilerplate. Pas de ceremonie de config. Enregistrez un tool, appelez start(), livrez.',
+    tabBasic: 'Basique (STDIO)',
+    tabHttp: 'HTTP + Auth',
+    tabYaml: 'Config YAML',
+  },
+  zh: {
+    title: '5 行代码到',
+    titleAccent: '生产',
+    subtitle: '无样板代码。无配置仪式。注册工具，调用 start()，直接上线。',
+    tabBasic: '基础 (STDIO)',
+    tabHttp: 'HTTP + 认证',
+    tabYaml: 'YAML 配置',
+  },
+} as const;
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+
+// Code examples stored in frontmatter to avoid Astro JSX expression parsing of curly braces
+const codeBasic = `<span class="c-keyword">import</span> { ConcurrentMCPServer } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-server"</span>;
+
+<span class="c-keyword">const</span> server = <span class="c-keyword">new</span> <span class="c-type">ConcurrentMCPServer</span>({
+  name: <span class="c-string">"my-server"</span>,
+  version: <span class="c-string">"1.0.0"</span>,
+});
+
+server.<span class="c-fn">registerTool</span>(
+  { name: <span class="c-string">"greet"</span>, description: <span class="c-string">"Greet a user"</span>,
+    inputSchema: { type: <span class="c-string">"object"</span>,
+      properties: { name: { type: <span class="c-string">"string"</span> } },
+      required: [<span class="c-string">"name"</span>] } },
+  ({ name }) =&gt; <span class="c-string">\\\`Hello, \\\${name}!\\\`</span>,
+);
+
+<span class="c-keyword">await</span> server.<span class="c-fn">start</span>();`;
+
+const codeHttp = `<span class="c-keyword">import</span> { ConcurrentMCPServer, createGoogleAuthProvider } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-server"</span>;
+
+<span class="c-keyword">const</span> server = <span class="c-keyword">new</span> <span class="c-type">ConcurrentMCPServer</span>({
+  name: <span class="c-string">"my-api"</span>, version: <span class="c-string">"1.0.0"</span>,
+  auth: {
+    provider: <span class="c-fn">createGoogleAuthProvider</span>({
+      audience: <span class="c-string">"https://my-mcp.example.com"</span>,
+      resource: <span class="c-string">"https://my-mcp.example.com"</span>,
+    }),
+  },
+});
+
+server.<span class="c-fn">registerTool</span>(
+  { name: <span class="c-string">"query"</span>, description: <span class="c-string">"Query the database"</span>,
+    inputSchema: { type: <span class="c-string">"object"</span>,
+      properties: { sql: { type: <span class="c-string">"string"</span> } } },
+    requiredScopes: [<span class="c-string">"db:read"</span>] },
+  <span class="c-keyword">async</span> ({ sql }) =&gt; ({ rows: [] }),
+);
+
+<span class="c-keyword">await</span> server.<span class="c-fn">startHttp</span>({ port: <span class="c-num">3000</span> });`;
+
+const codeYaml = `<span class="c-comment"># mcp-server.yaml</span>
+<span class="c-keyword">auth</span>:
+  <span class="c-keyword">provider</span>: <span class="c-string">auth0</span>
+  <span class="c-keyword">audience</span>: <span class="c-string">https://my-mcp.example.com</span>
+  <span class="c-keyword">resource</span>: <span class="c-string">https://my-mcp.example.com</span>
+  <span class="c-keyword">domain</span>: <span class="c-string">my-tenant.auth0.com</span>
+  <span class="c-keyword">scopesSupported</span>: [<span class="c-string">read</span>, <span class="c-string">write</span>, <span class="c-string">admin</span>]`;
+
+const codeBash = `<span class="c-comment"># Override with env vars in production</span>
+<span class="c-keyword">MCP_AUTH_AUDIENCE</span>=https://prod.example.com ./my-server --http --port 3000`;
+---
+
+<section id="quickstart">
+  <div class="container">
+    <div class="section-header">
+      <h2>{t.title} <span class="accent-text">{t.titleAccent}</span></h2>
+      <p class="section-subtitle">{t.subtitle}</p>
+    </div>
+    <div class="code-tabs-container">
+      <div class="tabs-header" role="tablist" aria-label="Code examples">
+        <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-panel-basic" id="tab-basic" data-tab="basic">
+          <span class="material-symbols-rounded">terminal</span>
+          {t.tabBasic}
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-panel-http" id="tab-http" data-tab="http">
+          <span class="material-symbols-rounded">shield</span>
+          {t.tabHttp}
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-panel-yaml" id="tab-yaml" data-tab="yaml">
+          <span class="material-symbols-rounded">settings</span>
+          {t.tabYaml}
+        </button>
+      </div>
+      <div class="tabs-content">
+        <div class="tab-panel active" role="tabpanel" id="tab-panel-basic" aria-labelledby="tab-basic" data-tab="basic">
+          <pre class="code-block"><code set:html={codeBasic} /></pre>
+        </div>
+        <div class="tab-panel" role="tabpanel" id="tab-panel-http" aria-labelledby="tab-http" data-tab="http" hidden>
+          <pre class="code-block"><code set:html={codeHttp} /></pre>
+        </div>
+        <div class="tab-panel" role="tabpanel" id="tab-panel-yaml" aria-labelledby="tab-yaml" data-tab="yaml" hidden>
+          <pre class="code-block"><code set:html={codeYaml} /></pre>
+          <pre class="code-block code-block-bash"><code set:html={codeBash} /></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  #quickstart {
+    position: relative;
+    padding: 56px 0 64px;
+    background: var(--md-sys-color-surface-container-lowest);
+    overflow: hidden;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+  .section-header { margin-bottom: 32px; max-width: 600px; }
+  .section-header h2 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 600; font-optical-sizing: auto; color: var(--md-sys-color-on-surface); margin: 0 0 12px; letter-spacing: -0.02em; }
+  .section-subtitle { font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); margin: 0; line-height: 1.6; }
+
+  .code-tabs-container { border-radius: 16px; overflow: hidden; border: 1px solid var(--md-sys-color-outline-variant); background: var(--md-sys-color-surface-container-lowest); }
+
+  .tabs-header { display: flex; background: var(--md-sys-color-surface-container-high); border-bottom: 1px solid var(--md-sys-color-outline-variant); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .tab-btn { display: flex; align-items: center; gap: 8px; padding: 14px 24px; border: none; background: transparent; color: var(--md-sys-color-on-surface-variant); font-family: 'Inter', sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; white-space: nowrap; position: relative; transition: color 200ms ease-out, background 200ms ease-out; }
+  .tab-btn:hover { color: var(--md-sys-color-on-surface); background: var(--md-sys-color-surface-container); }
+  .tab-btn:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: -3px; }
+  .tab-btn .material-symbols-rounded { font-size: 18px; }
+  .tab-btn.active { color: var(--md-sys-color-primary); font-weight: 600; }
+  .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 16px; right: 16px; height: 2px; background: var(--md-sys-color-primary); border-radius: 1px 1px 0 0; }
+
+  .tabs-content { padding: 0; }
+  .tab-panel { display: none; padding: 0; }
+  .tab-panel.active { display: block; }
+
+  .code-block { margin: 0; padding: 24px 28px; font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; line-height: 1.75; overflow-x: auto; -webkit-overflow-scrolling: touch; color: var(--md-sys-color-on-surface); }
+  .code-block code { display: block; white-space: pre; }
+  .code-block-bash { border-top: 1px solid var(--md-sys-color-outline-variant); }
+
+
+  @media (max-width: 1024px) { .container { padding: 0 32px; } }
+  @media (max-width: 768px) {
+    #quickstart { padding: 60px 0; }
+    .container { padding: 0 20px; }
+    .tabs-header { gap: 0; }
+    .tab-btn { padding: 12px 16px; font-size: 0.8125rem; }
+    .tab-btn .material-symbols-rounded { display: none; }
+    .code-block { padding: 16px; font-size: 0.6875rem; line-height: 1.7; }
+  }
+  @media (max-width: 380px) { .container { padding: 0 14px; } }
+</style>
+
+<style is:global>
+  /* Syntax highlighting - global because set:html content has no Astro scoped hash */
+  #quickstart .c-keyword { color: #92400e; font-weight: 600; }
+  #quickstart .c-string { color: #047857; }
+  #quickstart .c-type { color: #1d4ed8; }
+  #quickstart .c-fn { color: #b45309; }
+  #quickstart .c-num { color: #dc2626; }
+  #quickstart .c-comment { color: #9ca3af; font-style: italic; }
+  #quickstart .c-interp { color: #047857; }
+
+  html[data-theme="dark"] #quickstart { background: #0a0908; }
+  html[data-theme="dark"] #quickstart .section-header h2 { color: #f5f0ea; }
+  html[data-theme="dark"] #quickstart .section-subtitle { color: #d5c3b5; }
+  html[data-theme="dark"] #quickstart .code-tabs-container { background: #111110; border-color: rgba(255, 184, 111, 0.1); }
+  html[data-theme="dark"] #quickstart .tabs-header { background: #1a1815; border-bottom-color: rgba(255, 184, 111, 0.08); }
+  html[data-theme="dark"] #quickstart .tab-btn { color: #a89a8c; }
+  html[data-theme="dark"] #quickstart .tab-btn:hover { color: #f5f0ea; background: rgba(255, 255, 255, 0.03); }
+  html[data-theme="dark"] #quickstart .tab-btn.active { color: #FFB86F; }
+  html[data-theme="dark"] #quickstart .tab-btn.active::after { background: #FFB86F; }
+  html[data-theme="dark"] #quickstart .code-block { color: #f5f0ea; }
+  html[data-theme="dark"] #quickstart .code-block-bash { border-top-color: rgba(255, 184, 111, 0.08); }
+
+  /* Dark mode syntax */
+  html[data-theme="dark"] #quickstart .c-keyword { color: #c4b5fd; }
+  html[data-theme="dark"] #quickstart .c-string { color: #6ee7b7; }
+  html[data-theme="dark"] #quickstart .c-type { color: #93c5fd; }
+  html[data-theme="dark"] #quickstart .c-fn { color: #FFB86F; }
+  html[data-theme="dark"] #quickstart .c-num { color: #fca5a5; }
+  html[data-theme="dark"] #quickstart .c-comment { color: #6b7280; font-style: italic; }
+  html[data-theme="dark"] #quickstart .c-interp { color: #6ee7b7; }
+</style>
+
+<script is:inline>
+  // Code tabs switching
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  var tabPanels = document.querySelectorAll('.tab-panel');
+
+  tabBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var target = btn.dataset.tab;
+      if (!target) return;
+      tabBtns.forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      tabPanels.forEach(function(panel) {
+        if (panel.dataset.tab === target) { panel.classList.add('active'); panel.removeAttribute('hidden'); }
+        else { panel.classList.remove('active'); panel.setAttribute('hidden', ''); }
+      });
+    });
+
+    btn.addEventListener('keydown', function(e) {
+      var tabs = Array.from(tabBtns);
+      var idx = tabs.indexOf(btn);
+      var nextIdx = idx;
+      if (e.key === 'ArrowRight') nextIdx = (idx + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft') nextIdx = (idx - 1 + tabs.length) % tabs.length;
+      else if (e.key === 'Home') nextIdx = 0;
+      else if (e.key === 'End') nextIdx = tabs.length - 1;
+      else return;
+      e.preventDefault();
+      tabs[nextIdx].focus();
+      tabs[nextIdx].click();
+    });
+  });
+</script>

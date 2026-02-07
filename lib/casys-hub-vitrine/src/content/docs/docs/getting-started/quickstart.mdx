@@ -1,0 +1,129 @@
+---
+title: Quick Start
+description: Build your first MCP server in under a minute.
+---
+
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+
+Let's build a working MCP server. By the end of this page you'll have a server running with STDIO transport, then upgrade it to HTTP with auth, rate limiting, and concurrency control.
+
+## Your first server
+
+<Steps>
+1. **Create `server.ts`**:
+
+    ```typescript
+    import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+    const server = new ConcurrentMCPServer({
+      name: "my-server",
+      version: "1.0.0",
+    });
+
+    server.registerTool(
+      {
+        name: "greet",
+        description: "Greet a user",
+        inputSchema: {
+          type: "object",
+          properties: { name: { type: "string" } },
+          required: ["name"],
+        },
+      },
+      ({ name }) => `Hello, ${name}!`,
+    );
+
+    await server.start(); // STDIO transport
+    ```
+
+2. **Run it**:
+
+    ```bash
+    deno run --allow-net server.ts
+    ```
+
+3. **Connect** with any MCP client — Claude Desktop, Cursor, VS Code, etc.
+</Steps>
+
+<Aside type="tip">
+  That's 5 lines of meaningful code. You get STDIO transport, proper MCP protocol handling, and graceful shutdown — all out of the box.
+</Aside>
+
+## Level up: HTTP + Auth + Everything
+
+For remote deployment, swap `start()` for `startHttp()` and turn on the features you need:
+
+```typescript
+import {
+  ConcurrentMCPServer,
+  createGoogleAuthProvider,
+} from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "my-api",
+  version: "1.0.0",
+  maxConcurrent: 10,                                    // 10 concurrent tool calls
+  backpressureStrategy: "queue",                         // FIFO queue when at capacity
+  validateSchema: true,                                  // Reject bad input automatically
+  rateLimit: { maxRequests: 100, windowMs: 60_000 },    // 100 req/min per client
+  auth: {
+    provider: createGoogleAuthProvider({
+      audience: "https://my-mcp.example.com",
+      resource: "https://my-mcp.example.com",
+    }),
+  },
+});
+
+server.registerTool(
+  {
+    name: "query",
+    description: "Query the database",
+    inputSchema: {
+      type: "object",
+      properties: { sql: { type: "string" } },
+    },
+    requiredScopes: ["db:read"],  // Token must have this scope
+  },
+  async ({ sql }) => ({ rows: await db.query(sql) }),
+);
+
+await server.startHttp({ port: 3000 });
+```
+
+<Aside>
+  With HTTP transport you automatically get: RFC 9728 metadata discovery at `/.well-known/oauth-protected-resource`, SSE streaming, and session management. No extra code needed.
+</Aside>
+
+## Ship as a binary with YAML config
+
+When distributing as a compiled binary, your users configure auth via a `mcp-server.yaml` file — zero code changes:
+
+```yaml
+# mcp-server.yaml
+auth:
+  provider: auth0
+  audience: https://my-mcp.example.com
+  resource: https://my-mcp.example.com
+  domain: my-tenant.auth0.com
+  scopesSupported:
+    - read
+    - write
+    - admin
+```
+
+Environment variables override YAML for deployment flexibility:
+
+```bash
+MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
+```
+
+Priority: `programmatic > env vars > YAML > no auth`
+
+## Where to go from here
+
+You've got a running server. Now make it yours:
+
+- **[Middleware Pipeline](/docs/guides/middleware/)** — Add logging, caching, metrics, or any custom logic to the request chain
+- **[Authentication](/docs/guides/auth/)** — Deep dive into OAuth2 presets for Google, Auth0, GitHub, and OIDC
+- **[Configuration](/docs/guides/configuration/)** — YAML + env var configuration for binary distribution
+- **[API Reference](/docs/api/concurrent-mcp-server/)** — Every method and option, documented

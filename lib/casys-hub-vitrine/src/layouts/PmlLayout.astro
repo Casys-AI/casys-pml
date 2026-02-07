@@ -1,0 +1,491 @@
+---
+import '../styles.css';
+import Analytics from '@vercel/analytics/astro';
+import Footer from '../components/Footer.astro';
+
+export interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const locale = (Astro as any).currentLocale ?? 'en';
+const pathname = Astro.url.pathname;
+const siteUrl = 'https://pml.casys.ai';
+const canonicalUrl = new URL(pathname, siteUrl).toString();
+const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN' } as const;
+const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
+
+const metaDescriptions = {
+  en: 'Procedural Memory Layer for AI Agents. One gateway, any model, full observability. Build AI workflows once, run with Claude, GPT, Gemini, or Ollama.',
+  fr: 'Couche de Mémoire Procédurale pour Agents AI. Un gateway, tout modèle, observabilité complète. Construisez des workflows AI une fois, exécutez avec Claude, GPT, Gemini ou Ollama.',
+  zh: 'AI 代理的程序化记忆层。一个网关，任何模型，完整可观测性。构建一次 AI 工作流，使用 Claude、GPT、Gemini 或 Ollama 运行。',
+} as const;
+const metaDescription = metaDescriptions[locale as keyof typeof metaDescriptions] ?? metaDescriptions.en;
+
+const navTranslations = {
+  en: {
+    brand: 'Casys PML',
+    capabilities: 'Capabilities',
+    catalog: 'Catalog',
+    docs: 'Docs',
+    beta: 'Beta',
+    github: 'GitHub',
+  },
+  fr: {
+    brand: 'Casys PML',
+    capabilities: 'Capabilities',
+    catalog: 'Catalogue',
+    docs: 'Docs',
+    beta: 'Beta',
+    github: 'GitHub',
+  },
+  zh: {
+    brand: 'Casys PML',
+    capabilities: '能力',
+    catalog: '目录',
+    docs: '文档',
+    beta: '测试版',
+    github: 'GitHub',
+  },
+} as const;
+const nav = navTranslations[locale as keyof typeof navTranslations] ?? navTranslations.en;
+---
+
+<!DOCTYPE html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={metaDescription} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/icons/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/icons/site.webmanifest" />
+
+    <!-- Fonts: Fraunces (display), Instrument Serif (accent), Inter (body), JetBrains Mono (code), Geist Mono (traces), Material Symbols -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Instrument+Serif:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <script>
+      // Auto theme sync with system preference
+      (function () {
+        try {
+          var root = document.documentElement;
+          var mql = window.matchMedia('(prefers-color-scheme: dark)');
+          var apply = function () {
+            root.dataset.theme = mql.matches ? 'dark' : 'light';
+          };
+          apply();
+          mql.addEventListener('change', apply);
+        } catch (_) { /* no-op */ }
+      })();
+    </script>
+    <title>{title}</title>
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={metaDescription} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:locale" content={ogLocale} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={metaDescription} />
+
+    <!-- Google tag (gtag.js) -->
+    <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-FR86NHGK8Y"></script>
+    <script is:inline>
+      // @ts-nocheck
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-FR86NHGK8Y');
+    </script>
+  </head>
+
+  <body>
+    <!-- PML Header -->
+    <header class="pml-header">
+      <div class="pml-header-container">
+        <a href={locale === 'fr' ? '/fr/pml' : locale === 'zh' ? '/zh/pml' : '/pml'} class="pml-logo">
+          <img src="/icons/logo.svg" alt="Casys Logo" class="pml-logo-img" />
+          <span class="pml-logo-text">{nav.brand}</span>
+        </a>
+
+        <nav class="pml-nav-desktop">
+          <div class="pml-nav-links">
+            <a href="#catalog" class="pml-nav-link">{nav.capabilities}</a>
+            <a href={locale === 'en' ? '/pml/catalog' : `/${locale}/pml/catalog`} class="pml-nav-link">{nav.catalog}</a>
+            <a href="/docs" class="pml-nav-link">{nav.docs}</a>
+            <a href="#beta" class="pml-nav-link pml-nav-highlight">{nav.beta}</a>
+          </div>
+          <a href="https://github.com/Casys-AI/casys-pml" class="pml-github-link" target="_blank" rel="noopener" aria-label="GitHub">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </a>
+        </nav>
+
+        <button id="pml-mobile-menu-btn" class="pml-menu-btn" aria-label="Toggle menu" aria-expanded="false">
+          <span class="pml-menu-bar"></span>
+          <span class="pml-menu-bar"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mobile Menu -->
+    <div id="pml-mobile-menu" class="pml-mobile-menu">
+      <nav class="pml-mobile-nav">
+        <a href="#catalog" class="pml-nav-link">{nav.capabilities}</a>
+        <a href={locale === 'en' ? '/pml/catalog' : `/${locale}/pml/catalog`} class="pml-nav-link">{nav.catalog}</a>
+        <a href="/docs" class="pml-nav-link">{nav.docs}</a>
+        <a href="#beta" class="pml-nav-link">{nav.beta}</a>
+        <div class="pml-mobile-cta">
+          <a href="https://github.com/Casys-AI/casys-pml" class="pml-btn-primary" target="_blank" rel="noopener">
+            GitHub
+            <span class="pml-btn-arrow" aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </nav>
+    </div>
+
+    <main>
+      <slot />
+    </main>
+
+    <Footer />
+
+    <script>
+      // Header scroll behavior
+      const pmlHeader = document.querySelector('.pml-header');
+      let pmlLastScrollY = window.scrollY;
+      window.addEventListener('scroll', () => {
+        const y = window.scrollY;
+        if (y < 100) {
+          pmlHeader?.classList.remove('pml-header-hidden');
+        } else if (y > pmlLastScrollY && y > 100) {
+          pmlHeader?.classList.add('pml-header-hidden');
+        } else if (y < pmlLastScrollY) {
+          pmlHeader?.classList.remove('pml-header-hidden');
+        }
+        pmlLastScrollY = y;
+      });
+
+      // Mobile menu toggle
+      const pmlMenuBtn = document.getElementById('pml-mobile-menu-btn');
+      const pmlMobileMenu = document.getElementById('pml-mobile-menu');
+      pmlMenuBtn?.addEventListener('click', () => {
+        const isOpen = pmlMobileMenu?.classList.toggle('open');
+        pmlMenuBtn?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+      pmlMobileMenu?.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+          pmlMobileMenu?.classList.remove('open');
+          pmlMenuBtn?.setAttribute('aria-expanded', 'false');
+        });
+      });
+    </script>
+
+    <Analytics />
+  </body>
+</html>
+
+<style>
+  /* ========================================
+     PML HEADER - Dark-first design
+     ======================================== */
+
+  body {
+    padding-top: 64px;
+    margin: 0;
+  }
+
+  .pml-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(8, 8, 10, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 184, 111, 0.08);
+    transition: transform 300ms ease;
+  }
+
+  .pml-header.pml-header-hidden {
+    transform: translateY(-100%);
+  }
+
+  .pml-header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pml-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+
+  .pml-logo-img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+  }
+
+  .pml-logo-text {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 1.4rem;
+    font-weight: 400;
+    color: #f5f0ea;
+    letter-spacing: -0.01em;
+  }
+
+  .pml-nav-desktop {
+    display: none;
+    align-items: center;
+    gap: 24px;
+  }
+
+  @media (min-width: 768px) {
+    .pml-nav-desktop {
+      display: flex;
+    }
+  }
+
+  .pml-nav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .pml-nav-link {
+    padding: 8px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #a89a8c;
+    text-decoration: none;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: color 200ms ease;
+  }
+
+  .pml-nav-link:hover {
+    color: #f5f0ea;
+  }
+
+  .pml-nav-highlight {
+    color: #FFB86F;
+    background: rgba(255, 184, 111, 0.08);
+    border: 1px solid rgba(255, 184, 111, 0.15);
+  }
+
+  .pml-nav-highlight:hover {
+    color: #FFB86F;
+    background: rgba(255, 184, 111, 0.15);
+  }
+
+  .pml-github-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    color: #a89a8c;
+    border-radius: 8px;
+    transition: color 200ms ease;
+  }
+
+  .pml-github-link:hover {
+    color: #FFB86F;
+  }
+
+  /* Mobile menu button */
+  .pml-menu-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 12px;
+    border: 1px solid rgba(255, 184, 111, 0.1);
+    background: transparent;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+
+  .pml-menu-bar {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: #f5f0ea;
+    border-radius: 1px;
+    transition: transform 200ms ease;
+  }
+
+  .pml-menu-btn[aria-expanded="true"] .pml-menu-bar:first-child {
+    transform: rotate(45deg) translateY(5px);
+  }
+
+  .pml-menu-btn[aria-expanded="true"] .pml-menu-bar:last-child {
+    transform: rotate(-45deg) translateY(-5px);
+  }
+
+  @media (min-width: 768px) {
+    .pml-menu-btn {
+      display: none;
+    }
+  }
+
+  /* Mobile menu */
+  .pml-mobile-menu {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(10, 9, 8, 0.98);
+    backdrop-filter: blur(20px);
+    transform: translateX(100%);
+    transition: transform 300ms ease;
+    z-index: 99;
+    overflow-y: auto;
+  }
+
+  .pml-mobile-menu.open {
+    transform: translateX(0);
+  }
+
+  @media (min-width: 768px) {
+    .pml-mobile-menu {
+      display: none;
+    }
+  }
+
+  .pml-mobile-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 32px 24px;
+    gap: 8px;
+  }
+
+  .pml-mobile-nav .pml-nav-link {
+    padding: 16px 0;
+    font-size: 1rem;
+    border-bottom: 1px solid rgba(255, 184, 111, 0.08);
+    border-radius: 0;
+  }
+
+  .pml-mobile-cta {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 184, 111, 0.1);
+  }
+
+  .pml-btn-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px 24px;
+    background: #FFB86F;
+    color: #1a1815;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 8px;
+  }
+
+  .pml-btn-primary:hover {
+    background: #D4A574;
+  }
+
+  .pml-btn-arrow {
+    font-size: 1.1em;
+  }
+</style>
+
+<style is:global>
+  /* PML Layout - Light mode header overrides */
+  html:not([data-theme="dark"]) .pml-header {
+    background: rgba(255, 255, 255, 0.92);
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+
+  html:not([data-theme="dark"]) .pml-logo-text {
+    color: var(--md-sys-color-on-surface);
+  }
+
+  html:not([data-theme="dark"]) .pml-nav-link {
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  html:not([data-theme="dark"]) .pml-nav-link:hover {
+    color: var(--md-sys-color-on-surface);
+  }
+
+  html:not([data-theme="dark"]) .pml-nav-highlight {
+    color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+    border-color: transparent;
+  }
+
+  html:not([data-theme="dark"]) .pml-github-link {
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  html:not([data-theme="dark"]) .pml-github-link:hover {
+    color: var(--md-sys-color-primary);
+  }
+
+  html:not([data-theme="dark"]) .pml-menu-btn {
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  html:not([data-theme="dark"]) .pml-menu-bar {
+    background: var(--md-sys-color-on-surface);
+  }
+
+  html:not([data-theme="dark"]) .pml-mobile-menu {
+    background: rgba(255, 255, 255, 0.98);
+  }
+
+  html:not([data-theme="dark"]) .pml-mobile-nav .pml-nav-link {
+    color: var(--md-sys-color-on-surface-variant);
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+
+  html:not([data-theme="dark"]) .pml-btn-primary {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+  }
+
+  /* Dark mode body background for PML */
+  html[data-theme="dark"] body {
+    background: #08080a;
+    color: #f5f0ea;
+  }
+
+  /* PML accent color variable */
+  :root {
+    --pml-accent: #FFB86F;
+    --pml-bg-dark: #08080a;
+    --pml-surface-dark: #0a0908;
+    --pml-text-primary-dark: #f5f0ea;
+    --pml-text-secondary-dark: #d5c3b5;
+    --pml-text-muted-dark: #a89a8c;
+    --pml-border-dark: rgba(255, 184, 111, 0.08);
+  }
+</style>

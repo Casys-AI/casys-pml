@@ -1,0 +1,31 @@
+{
+  "name": "@casys/shared",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./schemas/*": {
+      "import": "./dist/schemas/*.js",
+      "types": "./dist/schemas/*.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "pnpm run watch",
+    "watch": "tsup --watch",
+    "lint": "pnpm run lint:full",
+    "lint:fast": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0 --cache --cache-location .eslintcache --cache-strategy content",
+    "lint:full": "pnpm run lint:fast && pnpm run type-check",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.1.12"
+  }
+}

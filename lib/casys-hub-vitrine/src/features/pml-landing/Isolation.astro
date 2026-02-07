@@ -1,0 +1,578 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    eyebrow: 'Security',
+    titleLine1: 'Autonomous,',
+    titleLine2: 'not reckless.',
+    description: 'Every AI action runs inside an isolated sandbox with resource limits. Dangerous operations pause for human approval before touching production systems.',
+    features: [
+      {
+        id: 'sandbox',
+        title: 'Sandboxed Execution',
+        description: 'Code runs in isolated workers with no direct access to the host system or network.',
+      },
+      {
+        id: 'hil',
+        title: 'Human-in-the-Loop',
+        description: 'Dangerous actions like file writes or database mutations require explicit approval before execution.',
+      },
+      {
+        id: 'audit',
+        title: 'Audit Trail',
+        description: 'Every action is logged with full context for transparency and post-mortem analysis.',
+      },
+    ],
+    svg: {
+      sandbox: 'SANDBOX',
+      checkpoint: 'CHECKPOINT',
+      protected: 'PROTECTED',
+      aiActions: 'AI ACTIONS',
+      toolsData: 'TOOLS & DATA',
+      approve: 'APPROVE?',
+      fetch: 'fetch',
+      parse: 'parse',
+      llm: 'llm',
+      run: 'run',
+      file: 'file',
+      db: 'db',
+      api: 'api',
+      shell: 'shell',
+    },
+  },
+  fr: {
+    eyebrow: 'S\u00e9curit\u00e9',
+    titleLine1: 'Autonome,',
+    titleLine2: 'pas imprudent.',
+    description: 'Chaque action AI s\u2019ex\u00e9cute dans un sandbox isol\u00e9 avec des limites de ressources. Les op\u00e9rations dangereuses se mettent en pause pour approbation humaine avant de toucher les syst\u00e8mes de production.',
+    features: [
+      {
+        id: 'sandbox',
+        title: 'Ex\u00e9cution Isol\u00e9e',
+        description: 'Le code s\u2019ex\u00e9cute dans des workers isol\u00e9s sans acc\u00e8s direct au syst\u00e8me h\u00f4te ou au r\u00e9seau.',
+      },
+      {
+        id: 'hil',
+        title: 'Humain dans la Boucle',
+        description: 'Les actions dangereuses comme l\u2019\u00e9criture de fichiers ou les mutations de base de donn\u00e9es n\u00e9cessitent une approbation explicite.',
+      },
+      {
+        id: 'audit',
+        title: 'Piste d\u2019Audit',
+        description: 'Chaque action est enregistr\u00e9e avec un contexte complet pour la transparence et l\u2019analyse post-mortem.',
+      },
+    ],
+    svg: {
+      sandbox: 'SANDBOX',
+      checkpoint: 'CHECKPOINT',
+      protected: 'PROT\u00c9G\u00c9',
+      aiActions: 'ACTIONS AI',
+      toolsData: 'OUTILS & DONN\u00c9ES',
+      approve: 'APPROUVER?',
+      fetch: 'fetch',
+      parse: 'parse',
+      llm: 'llm',
+      run: 'run',
+      file: 'file',
+      db: 'db',
+      api: 'api',
+      shell: 'shell',
+    },
+  },
+  zh: {
+    eyebrow: '\u5b89\u5168\u6027',
+    titleLine1: '\u81ea\u4e3b\u7684\uff0c',
+    titleLine2: '\u4f46\u4e0d\u9c81\u83bd\u3002',
+    description: '\u6bcf\u4e2a AI \u64cd\u4f5c\u90fd\u5728\u5e26\u6709\u8d44\u6e90\u9650\u5236\u7684\u9694\u79bb\u6c99\u7bb1\u4e2d\u8fd0\u884c\u3002\u5371\u9669\u64cd\u4f5c\u5728\u89e6\u53ca\u751f\u4ea7\u7cfb\u7edf\u4e4b\u524d\u4f1a\u6682\u505c\u7b49\u5f85\u4eba\u5de5\u5ba1\u6279\u3002',
+    features: [
+      {
+        id: 'sandbox',
+        title: '\u6c99\u7bb1\u6267\u884c',
+        description: '\u4ee3\u7801\u5728\u9694\u79bb\u7684 worker \u4e2d\u8fd0\u884c\uff0c\u65e0\u6cd5\u76f4\u63a5\u8bbf\u95ee\u4e3b\u673a\u7cfb\u7edf\u6216\u7f51\u7edc\u3002',
+      },
+      {
+        id: 'hil',
+        title: '\u4eba\u5728\u56de\u8def\u4e2d',
+        description: '\u6587\u4ef6\u5199\u5165\u6216\u6570\u636e\u5e93\u53d8\u66f4\u7b49\u5371\u9669\u64cd\u4f5c\u9700\u8981\u660e\u786e\u6279\u51c6\u540e\u624d\u80fd\u6267\u884c\u3002',
+      },
+      {
+        id: 'audit',
+        title: '\u5ba1\u8ba1\u8ffd\u8e2a',
+        description: '\u6bcf\u4e2a\u64cd\u4f5c\u90fd\u4f1a\u88ab\u8bb0\u5f55\u5b8c\u6574\u4e0a\u4e0b\u6587\uff0c\u4ee5\u4fbf\u900f\u660e\u548c\u4e8b\u540e\u5206\u6790\u3002',
+      },
+    ],
+    svg: {
+      sandbox: '\u6c99\u7bb1',
+      checkpoint: '\u68c0\u67e5\u70b9',
+      protected: '\u53d7\u4fdd\u62a4',
+      aiActions: 'AI \u64cd\u4f5c',
+      toolsData: '\u5de5\u5177\u548c\u6570\u636e',
+      approve: '\u6279\u51c6\uff1f',
+      fetch: 'fetch',
+      parse: 'parse',
+      llm: 'llm',
+      run: 'run',
+      file: 'file',
+      db: 'db',
+      api: 'api',
+      shell: 'shell',
+    },
+  },
+};
+
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="isolation">
+  <div class="iso-container">
+    <div class="iso-grid">
+      <!-- Left: Illustration -->
+      <div class="iso-illustration" aria-hidden="true">
+        <svg viewBox="0 0 650 280" fill="none" xmlns="http://www.w3.org/2000/svg" class="iso-svg" role="img">
+          <title>Isolation architecture: sandbox, checkpoint, and protected zones</title>
+          <defs>
+            <!-- Particle travel path -->
+            <path id="particle-path" d="M 170 140 Q 250 140 325 140 Q 400 140 480 140" />
+            <!-- Glow filter -->
+            <filter id="iso-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <!-- ===== SANDBOX ZONE (left) ===== -->
+          <rect x="40" y="40" width="200" height="200" rx="12"
+            stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="6 4"
+            fill="rgba(167, 139, 250, 0.04)" />
+
+          <!-- Sandbox label -->
+          <text x="140" y="30" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700"
+            letter-spacing="0.1em" fill="#a78bfa">{t.svg.sandbox}</text>
+
+          <!-- AI Actions sub-label -->
+          <text x="140" y="260" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="8" font-weight="500"
+            letter-spacing="0.05em" fill="#7c6cb0">{t.svg.aiActions}</text>
+
+          <!-- Action circles: fetch, parse, llm, run -->
+          <circle cx="90" cy="100" r="22" fill="rgba(167, 139, 250, 0.08)" stroke="#a78bfa" stroke-width="1" />
+          <text x="90" y="104" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="9" font-weight="500"
+            fill="#c4b5fd">{t.svg.fetch}</text>
+
+          <circle cx="190" cy="100" r="22" fill="rgba(167, 139, 250, 0.08)" stroke="#a78bfa" stroke-width="1" />
+          <text x="190" y="104" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="9" font-weight="500"
+            fill="#c4b5fd">{t.svg.parse}</text>
+
+          <circle cx="90" cy="180" r="22" fill="rgba(167, 139, 250, 0.08)" stroke="#a78bfa" stroke-width="1" />
+          <text x="90" y="184" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="9" font-weight="500"
+            fill="#c4b5fd">{t.svg.llm}</text>
+
+          <circle cx="190" cy="180" r="22" fill="rgba(167, 139, 250, 0.08)" stroke="#a78bfa" stroke-width="1" />
+          <text x="190" y="184" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="9" font-weight="500"
+            fill="#c4b5fd">{t.svg.run}</text>
+
+          <!-- ===== CHECKPOINT ZONE (center) ===== -->
+          <!-- Shield shape -->
+          <path d="M 325 60 L 365 80 L 365 150 Q 365 185 325 210 Q 285 185 285 150 L 285 80 Z"
+            fill="rgba(167, 139, 250, 0.06)" stroke="#a78bfa" stroke-width="1.5" />
+
+          <!-- Pulsing ring -->
+          <circle cx="325" cy="135" r="30" fill="none" stroke="#a78bfa" stroke-width="0.8" opacity="0.3">
+            <animate attributeName="r" values="30;40;30" dur="3s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.3;0.05;0.3" dur="3s" repeatCount="indefinite" />
+          </circle>
+
+          <!-- Lock icon -->
+          <rect x="315" y="130" width="20" height="16" rx="3"
+            fill="none" stroke="#a78bfa" stroke-width="1.5" />
+          <path d="M 320 130 L 320 122 Q 320 115 325 115 Q 330 115 330 122 L 330 130"
+            fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" />
+
+          <!-- Checkpoint label -->
+          <text x="325" y="50" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700"
+            letter-spacing="0.1em" fill="#a78bfa">{t.svg.checkpoint}</text>
+
+          <!-- APPROVE? label -->
+          <text x="325" y="260" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="8" font-weight="600"
+            letter-spacing="0.05em" fill="#a78bfa">
+            {t.svg.approve}
+            <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite" />
+          </text>
+
+          <!-- ===== PROTECTED ZONE (right) ===== -->
+          <rect x="430" y="40" width="180" height="200" rx="12"
+            stroke="#4ade80" stroke-width="1.5"
+            fill="rgba(74, 222, 128, 0.04)" />
+
+          <!-- Protected label -->
+          <text x="520" y="30" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700"
+            letter-spacing="0.1em" fill="#4ade80">{t.svg.protected}</text>
+
+          <!-- Tools & Data sub-label -->
+          <text x="520" y="260" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="8" font-weight="500"
+            letter-spacing="0.05em" fill="#36a368">{t.svg.toolsData}</text>
+
+          <!-- Protected icons: file, db, api, shell -->
+          <!-- file icon -->
+          <rect x="458" y="78" width="30" height="36" rx="4"
+            fill="rgba(74, 222, 128, 0.08)" stroke="#4ade80" stroke-width="1" />
+          <text x="473" y="100" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="8" font-weight="500"
+            fill="#86efac">{t.svg.file}</text>
+
+          <!-- db icon -->
+          <rect x="552" y="78" width="30" height="36" rx="4"
+            fill="rgba(74, 222, 128, 0.08)" stroke="#4ade80" stroke-width="1" />
+          <text x="567" y="100" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="8" font-weight="500"
+            fill="#86efac">{t.svg.db}</text>
+
+          <!-- api icon -->
+          <rect x="458" y="158" width="30" height="36" rx="4"
+            fill="rgba(74, 222, 128, 0.08)" stroke="#4ade80" stroke-width="1" />
+          <text x="473" y="180" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="8" font-weight="500"
+            fill="#86efac">{t.svg.api}</text>
+
+          <!-- shell icon -->
+          <rect x="552" y="158" width="30" height="36" rx="4"
+            fill="rgba(74, 222, 128, 0.08)" stroke="#4ade80" stroke-width="1" />
+          <text x="567" y="180" text-anchor="middle"
+            font-family="'JetBrains Mono', monospace" font-size="8" font-weight="500"
+            fill="#86efac">{t.svg.shell}</text>
+
+          <!-- ===== ANIMATED PARTICLE ===== -->
+          <circle r="5" fill="#a78bfa" filter="url(#iso-glow)">
+            <animateMotion dur="4s" repeatCount="indefinite" path="M 170 140 Q 250 140 325 140 Q 400 140 480 140" />
+            <animate attributeName="fill" values="#a78bfa;#a78bfa;#4ade80;#4ade80" dur="4s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.9;1;0.6;1;0.9" dur="4s" repeatCount="indefinite" />
+          </circle>
+
+          <!-- Connecting dashed lines between zones -->
+          <line x1="240" y1="140" x2="285" y2="140"
+            stroke="#a78bfa" stroke-width="1" stroke-dasharray="3 3" opacity="0.4" />
+          <line x1="365" y1="140" x2="430" y2="140"
+            stroke="#4ade80" stroke-width="1" stroke-dasharray="3 3" opacity="0.4" />
+        </svg>
+      </div>
+
+      <!-- Right: Content -->
+      <div class="iso-content">
+        <span class="iso-eyebrow">{t.eyebrow}</span>
+        <h2 class="iso-title">
+          <span class="iso-title-line1">{t.titleLine1}</span>
+          <span class="iso-title-line2">{t.titleLine2}</span>
+        </h2>
+        <p class="iso-description">{t.description}</p>
+
+        <div class="iso-features">
+          <!-- Feature 1: Sandboxed Execution -->
+          <div class="iso-feature">
+            <div class="iso-feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="iso-icon-svg">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <div class="iso-feature-text">
+              <h3 class="iso-feature-title">{t.features[0].title}</h3>
+              <p class="iso-feature-desc">{t.features[0].description}</p>
+            </div>
+          </div>
+
+          <!-- Feature 2: Human-in-the-Loop -->
+          <div class="iso-feature">
+            <div class="iso-feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="iso-icon-svg">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <polyline points="9 12 11 14 15 10" />
+              </svg>
+            </div>
+            <div class="iso-feature-text">
+              <h3 class="iso-feature-title">{t.features[1].title}</h3>
+              <p class="iso-feature-desc">{t.features[1].description}</p>
+            </div>
+          </div>
+
+          <!-- Feature 3: Audit Trail -->
+          <div class="iso-feature">
+            <div class="iso-feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="iso-icon-svg">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <div class="iso-feature-text">
+              <h3 class="iso-feature-title">{t.features[2].title}</h3>
+              <p class="iso-feature-desc">{t.features[2].description}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     ISOLATION SECTION - Light mode
+     Fonts: Instrument Serif, JetBrains Mono, Inter
+     Accent: Violet (#a78bfa)
+     ======================================== */
+
+  section {
+    padding: 96px 0;
+    background: var(--md-sys-color-surface);
+    overflow: hidden;
+  }
+
+  .iso-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* --- Grid Layout --- */
+  .iso-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  @media (max-width: 900px) {
+    .iso-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+  }
+
+  /* --- Illustration --- */
+  .iso-illustration {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .iso-svg {
+    width: 100%;
+    max-width: 650px;
+    height: auto;
+  }
+
+  @media (max-width: 900px) {
+    .iso-illustration {
+      order: 2;
+    }
+    .iso-content {
+      order: 1;
+    }
+  }
+
+  /* --- Content --- */
+  .iso-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .iso-eyebrow {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #a78bfa;
+    margin-bottom: 12px;
+  }
+
+  .iso-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 400;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .iso-title-line1 {
+    display: block;
+  }
+
+  .iso-title-line2 {
+    display: block;
+    font-style: italic;
+    color: #a78bfa;
+  }
+
+  .iso-description {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 1.0625rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.7;
+    margin: 0 0 36px;
+    max-width: 480px;
+  }
+
+  /* --- Features --- */
+  .iso-features {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .iso-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .iso-feature-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    color: #a78bfa;
+  }
+
+  .iso-icon-svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .iso-feature-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .iso-feature-title {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .iso-feature-desc {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.875rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* --- Responsive --- */
+  @media (max-width: 768px) {
+    section {
+      padding: 64px 0;
+    }
+
+    .iso-title {
+      font-size: clamp(1.75rem, 5vw, 2.25rem);
+    }
+
+    .iso-description {
+      font-size: 0.9375rem;
+      margin-bottom: 28px;
+    }
+
+    .iso-features {
+      gap: 20px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .iso-feature-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+    }
+
+    .iso-icon-svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     ISOLATION - DARK MODE
+     Violet accent (#a78bfa), Green (#4ade80)
+     ======================================== */
+
+  html[data-theme="dark"] #isolation {
+    background: #08080a;
+  }
+
+  /* Content text */
+  html[data-theme="dark"] #isolation .iso-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #isolation .iso-title-line2 {
+    color: #a78bfa;
+  }
+
+  html[data-theme="dark"] #isolation .iso-description {
+    color: #a89a8c;
+  }
+
+  html[data-theme="dark"] #isolation .iso-feature-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #isolation .iso-feature-desc {
+    color: #a89a8c;
+  }
+
+  /* Feature icons */
+  html[data-theme="dark"] #isolation .iso-feature-icon {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.2);
+    color: #c4b5fd;
+  }
+
+  /* SVG zone backgrounds in dark mode */
+  html[data-theme="dark"] #isolation .iso-svg rect[fill="rgba(167, 139, 250, 0.04)"] {
+    fill: rgba(167, 139, 250, 0.06);
+  }
+
+  html[data-theme="dark"] #isolation .iso-svg rect[fill="rgba(74, 222, 128, 0.04)"] {
+    fill: rgba(74, 222, 128, 0.06);
+  }
+
+  html[data-theme="dark"] #isolation .iso-svg path[fill="rgba(167, 139, 250, 0.06)"] {
+    fill: rgba(167, 139, 250, 0.08);
+  }
+
+  html[data-theme="dark"] #isolation .iso-svg circle[fill="rgba(167, 139, 250, 0.08)"] {
+    fill: rgba(167, 139, 250, 0.1);
+  }
+
+  html[data-theme="dark"] #isolation .iso-svg rect[fill="rgba(74, 222, 128, 0.08)"] {
+    fill: rgba(74, 222, 128, 0.1);
+  }
+</style>

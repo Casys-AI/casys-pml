@@ -1,0 +1,984 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    eyebrow: 'Procedural Memory for AI Agents',
+    titleLine1: 'One gateway. Any model.',
+    titleAccent: 'Full observability.',
+    description: 'Build AI workflows once, run them with Claude, GPT, Gemini, or your local Ollama. Every tool call traced. Debug in seconds, not hours.',
+    ctaPrimary: 'Get Started',
+    ctaSecondary: 'Read the Docs',
+    pillars: ['Model-Agnostic', 'Full Traceability', 'Learns Patterns'],
+    traceHeader: 'workflow:ci-deploy',
+    traceLive: 'live',
+    traceCalls: '22 calls',
+    traceModels: '3 models',
+    traceCost: '$0.028',
+  },
+  fr: {
+    eyebrow: 'Memoire Procedurale pour Agents AI',
+    titleLine1: 'Un gateway. N\'importe quel modele.',
+    titleAccent: 'Observabilite complete.',
+    description: 'Construisez vos workflows AI une fois, executez-les avec Claude, GPT, Gemini ou votre Ollama local. Chaque appel trace. Deboguez en secondes, pas en heures.',
+    ctaPrimary: 'Commencer',
+    ctaSecondary: 'Lire la Doc',
+    pillars: ['Multi-Modele', 'Tracabilite Totale', 'Apprend les Patterns'],
+    traceHeader: 'workflow:ci-deploy',
+    traceLive: 'live',
+    traceCalls: '22 appels',
+    traceModels: '3 modeles',
+    traceCost: '0.028 $',
+  },
+  zh: {
+    eyebrow: 'AI 代理的程序化记忆',
+    titleLine1: '一个网关。任何模型。',
+    titleAccent: '完整可观测性。',
+    description: '一次构建 AI 工作流，使用 Claude、GPT、Gemini 或本地 Ollama 运行。每次工具调用均可追踪。秒级调试，而非小时。',
+    ctaPrimary: '开始使用',
+    ctaSecondary: '阅读文档',
+    pillars: ['模型无关', '完整可追踪', '学习模式'],
+    traceHeader: 'workflow:ci-deploy',
+    traceLive: 'live',
+    traceCalls: '22 次调用',
+    traceModels: '3 个模型',
+    traceCost: '$0.028',
+  },
+};
+
+const t = translations[locale] ?? translations.en;
+
+/* ----- Trace data ----- */
+interface TraceRow {
+  name: string;
+  type: 'tool' | 'llm' | 'loop' | 'agent' | 'checkpoint' | 'parallel';
+  args?: string;
+  model?: string;
+  result?: string;
+  time: number;
+  cost?: number;
+  depth?: number;
+  lane?: number;
+  inParallel?: boolean;
+  isLast?: boolean;
+  success?: boolean;
+}
+
+const traceRows: TraceRow[] = [
+  { name: 'git.diff', type: 'tool', args: 'HEAD~1', result: '+142 -38', time: 24 },
+  { name: 'parallel', type: 'parallel', args: 'fork \u00d72', result: '890ms', time: 890 },
+  { name: 'analyze.code', type: 'llm', model: 'claude-3.5', result: '5 issues', time: 890, cost: 0.0034, depth: 1, lane: 1, inParallel: true },
+  { name: 'lint.check', type: 'tool', result: '2 warnings', time: 156, depth: 1, lane: 2, inParallel: true, isLast: true },
+  { name: 'test.suite', type: 'agent', model: 'claude-3.5', time: 6800, cost: 0.0089 },
+  { name: 'unit.run', type: 'loop', args: '\u00d724', result: '24/24 \u2713', time: 2340, depth: 1 },
+  { name: 'integration', type: 'tool', result: '7/8 \u2713', time: 4200, depth: 1, success: false },
+  { name: 'retry', type: 'tool', result: '8/8 \u2713', time: 1200, depth: 1 },
+  { name: 'coverage', type: 'tool', result: '94.2%', time: 89, depth: 1, isLast: true },
+  { name: 'security.scan', type: 'agent', model: 'gpt-4o', time: 1660, cost: 0.0156 },
+  { name: 'parallel', type: 'parallel', args: 'fork \u00d73', result: '1.2s', time: 1200, depth: 1 },
+  { name: 'deps.audit', type: 'tool', result: 'all safe', time: 340, depth: 2, lane: 1, inParallel: true },
+  { name: 'secrets.check', type: 'tool', result: '0 found', time: 120, depth: 2, lane: 2, inParallel: true },
+  { name: 'vuln.scan', type: 'tool', result: '0 CVEs', time: 1200, depth: 2, lane: 3, inParallel: true, isLast: true },
+  { name: 'build', type: 'tool', args: '--tag v2.1.0', time: 18400 },
+  { name: 'approve.prod', type: 'checkpoint', args: '\u2192 prod', result: 'approved', time: 45000 },
+  { name: 'deploy.k8s', type: 'agent', model: 'ollama', time: 12500, cost: 0.0 },
+  { name: 'registry.push', type: 'tool', result: 'sha:a3f2', time: 8900, depth: 1 },
+  { name: 'rollout', type: 'tool', result: '3/3 ready', time: 450, depth: 1 },
+  { name: 'health.check', type: 'loop', args: '\u00d73', result: 'healthy', time: 890, depth: 1, isLast: true },
+  { name: 'notify.slack', type: 'tool', args: '#deploy', result: 'sent', time: 120 },
+  { name: 'metrics.push', type: 'tool', result: 'recorded', time: 45 },
+];
+
+/* Duplicate rows for seamless CSS loop */
+const allRows = [...traceRows, ...traceRows];
+
+const typeColors: Record<string, string> = {
+  tool: '#FFB86F',
+  llm: '#ec4899',
+  loop: '#3b82f6',
+  agent: '#a855f7',
+  checkpoint: '#f59e0b',
+  parallel: '#06b6d4',
+};
+
+const typeIcons: Record<string, string> = {
+  tool: '\u2699',
+  llm: '\u2728',
+  loop: '\u21BB',
+  agent: '\u{1F916}',
+  checkpoint: '\u23F8',
+  parallel: '\u2947',
+};
+
+function formatTime(ms: number): string {
+  if (ms >= 60000) return (ms / 60000).toFixed(1) + 'm';
+  if (ms >= 1000) return (ms / 1000).toFixed(1) + 's';
+  return ms + 'ms';
+}
+
+function getTreeConnector(row: TraceRow, index: number, rows: TraceRow[]): string {
+  const depth = row.depth ?? 0;
+  if (depth === 0) return '';
+  const isLast = row.isLast ?? false;
+  if (depth === 2) {
+    return isLast ? '  \u2570' : '  \u251C';
+  }
+  return isLast ? '\u2570' : '\u251C';
+}
+
+function getLaneIndicator(row: TraceRow): string {
+  if (!row.inParallel || !row.lane) return '';
+  return '[' + row.lane + ']';
+}
+---
+
+<section id="hero" aria-label={t.eyebrow}>
+  <!-- Background gradient orb -->
+  <div class="hero-gradient-orb" aria-hidden="true"></div>
+
+  <div class="hero-container">
+    <!-- LEFT COLUMN: Content -->
+    <div class="hero-content">
+      <!-- Eyebrow -->
+      <span class="hero-eyebrow">{t.eyebrow}</span>
+
+      <!-- Title -->
+      <h1 class="hero-title">
+        <span class="title-main">{t.titleLine1}</span>
+        <span class="title-accent">{t.titleAccent}</span>
+      </h1>
+
+      <!-- Description -->
+      <p class="hero-description">{t.description}</p>
+
+      <!-- CTA Buttons -->
+      <div class="hero-cta-group">
+        <a href="/docs/quickstart" class="hero-cta-primary">
+          <span>{t.ctaPrimary}</span>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M7 10h10M14 7l3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+        <a href="/docs" class="hero-cta-secondary">
+          <span>{t.ctaSecondary}</span>
+        </a>
+      </div>
+
+      <!-- Pillar Badges -->
+      <div class="hero-pillars" role="list" aria-label="Key features">
+        {t.pillars.map((pillar) => (
+          <span class="hero-pillar" role="listitem">{pillar}</span>
+        ))}
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Trace Carousel -->
+    <div class="trace-carousel" aria-hidden="true">
+      <!-- Header bar -->
+      <div class="trace-header">
+        <div class="trace-header-left">
+          <span class="trace-dot"></span>
+          <span class="trace-workflow-name">{t.traceHeader}</span>
+        </div>
+        <span class="trace-live-badge">{t.traceLive}</span>
+      </div>
+
+      <!-- Scrolling area -->
+      <div class="trace-viewport">
+        <div class="trace-scroll-track">
+          {allRows.map((row, i) => {
+            const depth = row.depth ?? 0;
+            const color = typeColors[row.type] ?? '#FFB86F';
+            const icon = typeIcons[row.type] ?? '\u2699';
+            const connector = getTreeConnector(row, i, allRows);
+            const laneTag = getLaneIndicator(row);
+            const isSuccess = row.success !== false;
+            return (
+              <div
+                class:list={['trace-row', `trace-type-${row.type}`, { 'trace-row-nested': depth > 0, 'trace-row-deep': depth > 1 }]}
+                style={`--row-color: ${color}; --row-indent: ${depth * 20}px;`}
+              >
+                {/* Color bar */}
+                <span class="trace-bar" style={`background: ${color};`}></span>
+
+                {/* Tree connector */}
+                {connector && <span class="trace-connector">{connector}</span>}
+
+                {/* Lane indicator */}
+                {laneTag && <span class="trace-lane" style={`color: ${color};`}>{laneTag}</span>}
+
+                {/* Icon */}
+                <span class="trace-icon">{icon}</span>
+
+                {/* Name */}
+                <span class="trace-name">{row.name}</span>
+
+                {/* Model badge */}
+                {row.model && <span class="trace-model">{row.model}</span>}
+
+                {/* Args */}
+                {row.args && <span class="trace-args">{row.args}</span>}
+
+                {/* Spacer */}
+                <span class="trace-spacer"></span>
+
+                {/* Result */}
+                {row.result && <span class:list={['trace-result', { 'trace-result-fail': !isSuccess }]}>{row.result}</span>}
+
+                {/* Cost */}
+                {row.cost !== undefined && row.cost > 0 && <span class="trace-cost">${row.cost.toFixed(4)}</span>}
+
+                {/* Time */}
+                <span class="trace-time">{formatTime(row.time)}</span>
+
+                {/* Status */}
+                <span class:list={['trace-status', { 'trace-status-fail': !isSuccess }]}>
+                  {isSuccess ? '\u2713' : '\u2717'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Gradient masks */}
+      <div class="trace-mask-top"></div>
+      <div class="trace-mask-bottom"></div>
+
+      {/* Footer stats */}
+      <div class="trace-footer">
+        <span class="trace-stat">{t.traceCalls}</span>
+        <span class="trace-stat-divider"></span>
+        <span class="trace-stat">{t.traceModels}</span>
+        <span class="trace-stat-divider"></span>
+        <span class="trace-stat trace-stat-cost">{t.traceCost}</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ============================================
+     PML HERO SECTION - Light Mode (Scoped)
+     Fonts: Instrument Serif (headings),
+            JetBrains Mono (mono), Inter (body)
+     ============================================ */
+
+  section {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 120px 0 80px;
+    background: var(--md-sys-color-surface);
+    overflow: hidden;
+  }
+
+  /* Background gradient */
+  .hero-gradient-orb {
+    position: absolute;
+    top: 40%;
+    left: 55%;
+    transform: translate(-50%, -50%);
+    width: min(1400px, 90vw);
+    height: min(1000px, 80vh);
+    background:
+      radial-gradient(ellipse at 30% 40%, rgba(245, 158, 11, 0.08) 0%, transparent 55%),
+      radial-gradient(ellipse at 70% 60%, rgba(168, 85, 247, 0.06) 0%, transparent 55%);
+    filter: blur(80px);
+    opacity: 0.6;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Container: 2-column grid */
+  .hero-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 0 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  /* ----- LEFT COLUMN: Content ----- */
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  /* Eyebrow */
+  .hero-eyebrow {
+    display: inline-block;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--md-sys-color-primary);
+    padding: 6px 14px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 100px;
+    background: var(--md-sys-color-surface-container-low);
+  }
+
+  /* Title */
+  .hero-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: clamp(2.5rem, 5.5vw, 4rem);
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .title-main {
+    display: block;
+  }
+
+  .title-accent {
+    display: block;
+    font-style: italic;
+    color: var(--md-sys-color-primary);
+  }
+
+  /* Description */
+  .hero-description {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: clamp(1rem, 1.5vw, 1.1875rem);
+    font-weight: 400;
+    line-height: 1.65;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 520px;
+  }
+
+  /* CTA Group */
+  .hero-cta-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-top: 8px;
+  }
+
+  .hero-cta-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--md-sys-color-on-primary);
+    background: var(--md-sys-color-primary);
+    border-radius: 8px;
+    transition: background 200ms ease-out, transform 150ms ease-out;
+  }
+
+  .hero-cta-primary:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    transform: translateY(-1px);
+  }
+
+  .hero-cta-primary:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  .hero-cta-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 24px;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--md-sys-color-on-surface);
+    background: transparent;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 8px;
+    transition: background 200ms ease-out, border-color 200ms ease-out;
+  }
+
+  .hero-cta-secondary:hover {
+    background: var(--md-sys-color-surface-container);
+    border-color: var(--md-sys-color-primary);
+  }
+
+  .hero-cta-secondary:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  /* Pillar Badges */
+  .hero-pillars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 8px;
+  }
+
+  .hero-pillar {
+    display: inline-block;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 100px;
+    background: var(--md-sys-color-surface-container);
+    color: var(--md-sys-color-on-surface-variant);
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  /* ----- RIGHT COLUMN: Trace Carousel ----- */
+  .trace-carousel {
+    position: relative;
+    width: 100%;
+    max-width: 540px;
+    height: 480px;
+    border-radius: 16px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-lowest);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Trace Header */
+  .trace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-low);
+    flex-shrink: 0;
+  }
+
+  .trace-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .trace-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+    animation: pulseDot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseDot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .trace-workflow-name {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .trace-live-badge {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #22c55e;
+    padding: 3px 10px;
+    border-radius: 100px;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.08);
+  }
+
+  /* Trace Viewport */
+  .trace-viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .trace-scroll-track {
+    display: flex;
+    flex-direction: column;
+    animation: carouselScroll 40s linear infinite;
+  }
+
+  @keyframes carouselScroll {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-50%); }
+  }
+
+  .trace-scroll-track:hover {
+    animation-play-state: paused;
+  }
+
+  /* Gradient Masks */
+  .trace-mask-top,
+  .trace-mask-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 48px;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .trace-mask-top {
+    top: 44px; /* below header */
+    background: linear-gradient(to bottom, var(--md-sys-color-surface-container-lowest), transparent);
+  }
+
+  .trace-mask-bottom {
+    bottom: 40px; /* above footer */
+    background: linear-gradient(to top, var(--md-sys-color-surface-container-lowest), transparent);
+  }
+
+  /* Trace Footer */
+  .trace-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-low);
+    flex-shrink: 0;
+  }
+
+  .trace-stat {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .trace-stat-cost {
+    color: var(--md-sys-color-primary);
+  }
+
+  .trace-stat-divider {
+    width: 1px;
+    height: 14px;
+    background: var(--md-sys-color-outline-variant);
+  }
+
+  /* ----- Individual Trace Rows ----- */
+  .trace-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px 6px calc(12px + var(--row-indent, 0px));
+    min-height: 32px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    transition: background 150ms ease-out;
+  }
+
+  .trace-row:hover {
+    background: var(--md-sys-color-surface-container);
+  }
+
+  .trace-bar {
+    width: 3px;
+    height: 18px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .trace-connector {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-outline);
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+    user-select: none;
+  }
+
+  .trace-lane {
+    font-size: 0.625rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    user-select: none;
+  }
+
+  .trace-icon {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    width: 18px;
+    text-align: center;
+  }
+
+  .trace-name {
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    white-space: nowrap;
+  }
+
+  .trace-model {
+    font-size: 0.5625rem;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .trace-args {
+    font-size: 0.625rem;
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+  }
+
+  .trace-spacer {
+    flex: 1;
+    min-width: 4px;
+  }
+
+  .trace-result {
+    font-size: 0.625rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .trace-result-fail {
+    color: #ef4444;
+  }
+
+  .trace-cost {
+    font-size: 0.5625rem;
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.6;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .trace-time {
+    font-size: 0.625rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  .trace-status {
+    font-size: 0.75rem;
+    color: #22c55e;
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+  }
+
+  .trace-status-fail {
+    color: #ef4444;
+  }
+
+  /* ============================================
+     RESPONSIVE - Tablet
+     ============================================ */
+  @media (max-width: 1024px) {
+    .hero-container {
+      grid-template-columns: 1fr;
+      gap: 48px;
+      padding: 0 32px;
+    }
+
+    section {
+      padding: 100px 0 60px;
+    }
+
+    .hero-content {
+      align-items: center;
+      text-align: center;
+    }
+
+    .hero-description {
+      max-width: 600px;
+    }
+
+    .hero-cta-group {
+      justify-content: center;
+    }
+
+    .hero-pillars {
+      justify-content: center;
+    }
+
+    .trace-carousel {
+      max-width: 100%;
+      margin: 0 auto;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE - Mobile
+     ============================================ */
+  @media (max-width: 768px) {
+    section {
+      min-height: 100svh;
+      padding: 88px 0 40px;
+    }
+
+    .hero-container {
+      padding: 0 16px;
+      gap: 32px;
+    }
+
+    .hero-title {
+      font-size: clamp(1.875rem, 7vw, 2.5rem);
+    }
+
+    .hero-description {
+      font-size: 0.9375rem;
+      line-height: 1.55;
+    }
+
+    .hero-cta-group {
+      flex-direction: column;
+      width: 100%;
+      gap: 12px;
+    }
+
+    .hero-cta-primary,
+    .hero-cta-secondary {
+      width: 100%;
+      justify-content: center;
+      padding: 14px 20px;
+    }
+
+    .trace-carousel {
+      height: 380px;
+    }
+
+    .hero-gradient-orb {
+      left: 50%;
+      width: min(500px, 95vw);
+      height: min(500px, 60vh);
+      filter: blur(60px);
+    }
+  }
+
+  /* Extra small */
+  @media (max-width: 380px) {
+    .hero-container {
+      padding: 0 12px;
+    }
+
+    .hero-title {
+      font-size: 1.75rem;
+    }
+
+    .trace-carousel {
+      height: 320px;
+    }
+
+    .trace-row {
+      font-size: 0.625rem;
+      padding: 5px 8px 5px calc(8px + var(--row-indent, 0px));
+    }
+  }
+</style>
+
+<style is:global>
+  /* ============================================
+     PML HERO - DARK MODE
+     Primary look. #08080a background.
+     Accent: #FFB86F
+     ============================================ */
+
+  html[data-theme="dark"] #hero {
+    background: var(--pml-bg-dark, #08080a);
+  }
+
+  /* Background gradient - dark */
+  html[data-theme="dark"] #hero .hero-gradient-orb {
+    background:
+      radial-gradient(ellipse at 30% 40%, rgba(255, 184, 111, 0.06) 0%, transparent 55%),
+      radial-gradient(ellipse at 70% 60%, rgba(168, 85, 247, 0.04) 0%, transparent 55%);
+    filter: blur(100px);
+    opacity: 0.5;
+  }
+
+  /* Eyebrow */
+  html[data-theme="dark"] #hero .hero-eyebrow {
+    color: var(--pml-accent, #FFB86F);
+    border-color: rgba(255, 184, 111, 0.2);
+    background: rgba(255, 184, 111, 0.06);
+  }
+
+  /* Title */
+  html[data-theme="dark"] #hero .hero-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #hero .title-accent {
+    color: var(--pml-accent, #FFB86F);
+  }
+
+  /* Description */
+  html[data-theme="dark"] #hero .hero-description {
+    color: #b8a99a;
+  }
+
+  /* CTA Primary */
+  html[data-theme="dark"] #hero .hero-cta-primary {
+    background: var(--pml-accent, #FFB86F);
+    color: #1a1815;
+  }
+
+  html[data-theme="dark"] #hero .hero-cta-primary:hover {
+    background: #D4A574;
+  }
+
+  html[data-theme="dark"] #hero .hero-cta-primary:focus-visible {
+    outline-color: var(--pml-accent, #FFB86F);
+  }
+
+  /* CTA Secondary */
+  html[data-theme="dark"] #hero .hero-cta-secondary {
+    color: #f5f0ea;
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #hero .hero-cta-secondary:hover {
+    background: rgba(255, 184, 111, 0.08);
+    border-color: var(--pml-accent, #FFB86F);
+  }
+
+  html[data-theme="dark"] #hero .hero-cta-secondary:focus-visible {
+    outline-color: var(--pml-accent, #FFB86F);
+  }
+
+  /* Pillar Badges */
+  html[data-theme="dark"] #hero .hero-pillar {
+    background: rgba(255, 184, 111, 0.06);
+    color: #d5c3b5;
+    border-color: rgba(255, 184, 111, 0.12);
+  }
+
+  /* ----- Trace Carousel Dark Mode ----- */
+  html[data-theme="dark"] #hero .trace-carousel {
+    background: #0f0e0c;
+    border-color: rgba(255, 184, 111, 0.1);
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  html[data-theme="dark"] #hero .trace-header {
+    background: #141210;
+    border-bottom-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] #hero .trace-workflow-name {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #hero .trace-live-badge {
+    color: #22c55e;
+    border-color: rgba(34, 197, 94, 0.2);
+    background: rgba(34, 197, 94, 0.06);
+  }
+
+  /* Rows */
+  html[data-theme="dark"] #hero .trace-row {
+    border-bottom-color: rgba(255, 255, 255, 0.04);
+  }
+
+  html[data-theme="dark"] #hero .trace-row:hover {
+    background: rgba(255, 184, 111, 0.04);
+  }
+
+  html[data-theme="dark"] #hero .trace-connector {
+    color: rgba(255, 255, 255, 0.2);
+  }
+
+  html[data-theme="dark"] #hero .trace-name {
+    color: #e8ddd2;
+  }
+
+  html[data-theme="dark"] #hero .trace-model {
+    background: rgba(255, 255, 255, 0.06);
+    color: #b8a99a;
+  }
+
+  html[data-theme="dark"] #hero .trace-args {
+    color: #8a7d72;
+  }
+
+  html[data-theme="dark"] #hero .trace-result {
+    color: #b8a99a;
+  }
+
+  html[data-theme="dark"] #hero .trace-result-fail {
+    color: #f87171;
+  }
+
+  html[data-theme="dark"] #hero .trace-cost {
+    color: #8a7d72;
+  }
+
+  html[data-theme="dark"] #hero .trace-time {
+    color: #8a7d72;
+  }
+
+  html[data-theme="dark"] #hero .trace-status {
+    color: #4ade80;
+  }
+
+  html[data-theme="dark"] #hero .trace-status-fail {
+    color: #f87171;
+  }
+
+  /* Masks - dark */
+  html[data-theme="dark"] #hero .trace-mask-top {
+    background: linear-gradient(to bottom, #0f0e0c, transparent);
+  }
+
+  html[data-theme="dark"] #hero .trace-mask-bottom {
+    background: linear-gradient(to top, #0f0e0c, transparent);
+  }
+
+  /* Footer */
+  html[data-theme="dark"] #hero .trace-footer {
+    background: #141210;
+    border-top-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] #hero .trace-stat {
+    color: #8a7d72;
+  }
+
+  html[data-theme="dark"] #hero .trace-stat-cost {
+    color: var(--pml-accent, #FFB86F);
+  }
+
+  html[data-theme="dark"] #hero .trace-stat-divider {
+    background: rgba(255, 255, 255, 0.08);
+  }
+</style>

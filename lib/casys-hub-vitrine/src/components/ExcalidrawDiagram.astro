@@ -1,0 +1,231 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+
+interface Props {
+  src: string;
+  alt: string;
+}
+
+const { src, alt } = Astro.props;
+
+// Read the pre-generated SVG at build time
+const svgPath = path.join(process.cwd(), 'public', 'diagrams', `${src}.svg`);
+let svgContent = '';
+
+try {
+  svgContent = fs.readFileSync(svgPath, 'utf-8');
+} catch (e) {
+  console.error(`[ExcalidrawDiagram] Failed to read: ${svgPath}`);
+}
+
+// Transform SVG for theme support:
+// 1. Remove hardcoded width/height (keep viewBox for responsive sizing)
+// 2. Replace dark background rect with transparent
+// 3. Add CSS classes for theme-adaptive colors
+if (svgContent) {
+  // Remove fixed width/height from root <svg> to make responsive
+  svgContent = svgContent.replace(
+    /(<svg[^>]*?)(\s+width="\d+")?(\s+height="\d+")?/,
+    (match, svg) => {
+      return svg.replace(/\s+width="\d+"/, '').replace(/\s+height="\d+"/, '');
+    }
+  );
+
+  // Replace the background rect fill (#08080a) with a CSS class
+  svgContent = svgContent.replace(
+    /(<rect x="0" y="0"[^>]*?)fill="#08080a"/,
+    '$1class="excali-bg" fill="#08080a"'
+  );
+
+  // Replace dark card fills with classes
+  svgContent = svgContent.replace(
+    /fill="#1f1f23"/g,
+    'class="excali-card-primary" fill="#1f1f23"'
+  );
+  svgContent = svgContent.replace(
+    /fill="#2d2d35"/g,
+    'class="excali-card" fill="#2d2d35"'
+  );
+  svgContent = svgContent.replace(
+    /fill="#1a1a1e"/g,
+    'class="excali-card-inner" fill="#1a1a1e"'
+  );
+
+  // Replace neutral text color with class
+  svgContent = svgContent.replace(
+    /fill="#f0ede8"/g,
+    'class="excali-text" fill="#f0ede8"'
+  );
+
+  // Replace gray strokes/fills with class
+  svgContent = svgContent.replace(
+    /stroke="#666666"/g,
+    'class="excali-muted-stroke" stroke="#666666"'
+  );
+  svgContent = svgContent.replace(
+    /fill="#666666"/g,
+    'class="excali-muted-fill" fill="#666666"'
+  );
+
+  // Replace accent colors (too light for light mode) with classes
+  // Red
+  svgContent = svgContent.replace(/stroke="#ef4444"/g, 'class="excali-accent-red-stroke" stroke="#ef4444"');
+  svgContent = svgContent.replace(/fill="#ef4444"/g, 'class="excali-accent-red-fill" fill="#ef4444"');
+  // Blue
+  svgContent = svgContent.replace(/stroke="#60a5fa"/g, 'class="excali-accent-blue-stroke" stroke="#60a5fa"');
+  svgContent = svgContent.replace(/fill="#60a5fa"/g, 'class="excali-accent-blue-fill" fill="#60a5fa"');
+  // Yellow/amber
+  svgContent = svgContent.replace(/stroke="#fbbf24"/g, 'class="excali-accent-yellow-stroke" stroke="#fbbf24"');
+  svgContent = svgContent.replace(/fill="#fbbf24"/g, 'class="excali-accent-yellow-fill" fill="#fbbf24"');
+  // Green
+  svgContent = svgContent.replace(/stroke="#4ade80"/g, 'class="excali-accent-green-stroke" stroke="#4ade80"');
+  svgContent = svgContent.replace(/fill="#4ade80"/g, 'class="excali-accent-green-fill" fill="#4ade80"');
+  // Purple
+  svgContent = svgContent.replace(/stroke="#a78bfa"/g, 'class="excali-accent-purple-stroke" stroke="#a78bfa"');
+  svgContent = svgContent.replace(/fill="#a78bfa"/g, 'class="excali-accent-purple-fill" fill="#a78bfa"');
+  // Pink
+  svgContent = svgContent.replace(/stroke="#f472b6"/g, 'class="excali-accent-pink-stroke" stroke="#f472b6"');
+  svgContent = svgContent.replace(/fill="#f472b6"/g, 'class="excali-accent-pink-fill" fill="#f472b6"');
+}
+---
+
+<figure class="excalidraw-figure" role="img" aria-label={alt}>
+  <div class="excalidraw-wrapper" set:html={svgContent} />
+  <figcaption class="excalidraw-caption">{alt}</figcaption>
+</figure>
+
+<style>
+  .excalidraw-figure {
+    margin: 2rem 0;
+    padding: 0;
+  }
+
+  .excalidraw-wrapper {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-low);
+  }
+
+  .excalidraw-wrapper :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .excalidraw-caption {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-top: 8px;
+    font-style: italic;
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     EXCALIDRAW DIAGRAM - LIGHT MODE
+     ======================================== */
+
+  .excalidraw-wrapper .excali-bg {
+    fill: #f8f7f4 !important;
+  }
+
+  .excalidraw-wrapper .excali-card-primary {
+    fill: #eceae5 !important;
+  }
+
+  .excalidraw-wrapper .excali-card {
+    fill: #e2e0db !important;
+  }
+
+  .excalidraw-wrapper .excali-card-inner {
+    fill: #e8e6e1 !important;
+  }
+
+  .excalidraw-wrapper .excali-text {
+    fill: #2a2520 !important;
+  }
+
+  .excalidraw-wrapper .excali-muted-stroke {
+    stroke: #999 !important;
+  }
+
+  .excalidraw-wrapper .excali-muted-fill {
+    fill: #999 !important;
+  }
+
+  /* Accent colors - Casys brand palette (dark variants for light mode) */
+  .excalidraw-wrapper .excali-accent-red-stroke { stroke: #A04A35 !important; }
+  .excalidraw-wrapper .excali-accent-red-fill { fill: #A04A35 !important; }
+  .excalidraw-wrapper .excali-accent-blue-stroke { stroke: #3A6A7A !important; }
+  .excalidraw-wrapper .excali-accent-blue-fill { fill: #3A6A7A !important; }
+  .excalidraw-wrapper .excali-accent-yellow-stroke { stroke: #A07030 !important; }
+  .excalidraw-wrapper .excali-accent-yellow-fill { fill: #A07030 !important; }
+  .excalidraw-wrapper .excali-accent-green-stroke { stroke: #5A7A3A !important; }
+  .excalidraw-wrapper .excali-accent-green-fill { fill: #5A7A3A !important; }
+  .excalidraw-wrapper .excali-accent-purple-stroke { stroke: #6A3A63 !important; }
+  .excalidraw-wrapper .excali-accent-purple-fill { fill: #6A3A63 !important; }
+  .excalidraw-wrapper .excali-accent-pink-stroke { stroke: #8A4A50 !important; }
+  .excalidraw-wrapper .excali-accent-pink-fill { fill: #8A4A50 !important; }
+
+  /* ========================================
+     EXCALIDRAW DIAGRAM - DARK MODE
+     ======================================== */
+
+  html[data-theme="dark"] .excalidraw-wrapper {
+    border-color: rgba(255, 184, 111, 0.1);
+    background: #0a0908;
+  }
+
+  html[data-theme="dark"] .excalidraw-wrapper .excali-bg {
+    fill: #0a0908 !important;
+  }
+
+  html[data-theme="dark"] .excalidraw-wrapper .excali-card-primary {
+    fill: #1f1f23 !important;
+  }
+
+  html[data-theme="dark"] .excalidraw-wrapper .excali-card {
+    fill: #2d2d35 !important;
+  }
+
+  html[data-theme="dark"] .excalidraw-wrapper .excali-card-inner {
+    fill: #1a1a1e !important;
+  }
+
+  html[data-theme="dark"] .excalidraw-wrapper .excali-text {
+    fill: #f0ede8 !important;
+  }
+
+  html[data-theme="dark"] .excalidraw-wrapper .excali-muted-stroke {
+    stroke: #666 !important;
+  }
+
+  html[data-theme="dark"] .excalidraw-wrapper .excali-muted-fill {
+    fill: #666 !important;
+  }
+
+  /* Accent colors - Casys brand palette (bright variants for dark mode) */
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-red-stroke { stroke: #FF9B7A !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-red-fill { fill: #FF9B7A !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-blue-stroke { stroke: #7CBCD4 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-blue-fill { fill: #7CBCD4 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-yellow-stroke { stroke: #FFB86F !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-yellow-fill { fill: #FFB86F !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-green-stroke { stroke: #B8D4A0 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-green-fill { fill: #B8D4A0 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-purple-stroke { stroke: #C9A0D4 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-purple-fill { fill: #C9A0D4 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-pink-stroke { stroke: #E8A8B0 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-accent-pink-fill { fill: #E8A8B0 !important; }
+
+  /* Dark mode container */
+  html[data-theme="dark"] .excalidraw-figure .excalidraw-caption {
+    color: #d5c3b5;
+  }
+</style>

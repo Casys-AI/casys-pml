@@ -1,0 +1,246 @@
+---
+
+// i18n support
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const faqs = locale === 'fr'
+  ? [
+      {
+        question: 'CASYS vs ChatGPT / Jasper / autres outils : quelle est la différence ?',
+        answer: 'ChatGPT écrit des articles. CASYS automatise votre stratégie de contenu. La différence ? Le linking. Vous payez 40-80 heures/mois à lier manuellement vos articles. CASYS le fait en 30 secondes par article. Et votre écosystème croît exponentiellement—10 articles = faible, 50+ = puissant.'
+      },
+      {
+        question: 'Combien de temps/argent économisé réellement ?',
+        answer: '20 heures par semaine de linking manual zéro. À 100€/h typique, c\'est 2000€/mois de valeur. Votre abonnement $129/mo = 15x ROI immédiat. Sans compter les +40-80% de trafic interne supplémentaire.'
+      },
+      {
+        question: 'Pourquoi lier manuellement mate quand CASYS le fait auto ?',
+        answer: 'Exactement. Chaque nouvel article que vous publiez, CASYS identifie les 3-5 pièces pertinentes et les lie. Zéro travail. Et chaque lien rend vos anciens articles plus forts et plus trouvables. Compounding effet.'
+      },
+      {
+        question: 'Je dois avoir 50+ articles pour que ça marche ?',
+        answer: 'Non, mais c\'est quand vous atteignez 50 que ça devient explosif. À 10 articles, vous voyez déjà +20% trafic interne. À 50+, votre système devient autonome. Et CASYS s\'améliore avec chaque nouveau contenu.'
+      },
+      {
+        question: 'Et mon contenu existant ?',
+        answer: 'Analysé automatiquement jour 1. Vos 20 articles existants ? Ils deviennent plus puissants immédiatement. Nous les lions aux nouveaux contenus et détectons les 5-10 gaps critiques à remplir en priorité.'
+      },
+      {
+        question: 'Mes données restent siennes ? (No vendor lock-in)',
+        answer: 'Oui, totalement. Votre contenu vit sur WordPress, GitHub, Medium, Substack. Vous contrôlez tout. Si vous annulez, tout reste vôtre. CASYS n\'est qu\'un assistant, pas une plateforme qui vous capture.'
+      },
+      {
+        question: 'CASYS c\'est quoi exactement ? Une IA ? Un outil ? Une plateforme ?',
+        answer: 'CASYS = automatisation de votre stratégie de contenu. 1) Création (articles, descriptions, docs) 2) Linking (auto-liens 3-5 pertinents) 3) Synchronisation (publie où vous voulez) 4) Metrics (trafic interne, linking score). Tout ensemble.'
+      },
+      {
+        question: 'Quelle est la différence entre Marketing Hub / Product Engine / Docs Suite ?',
+        answer: 'Même technologie de base. Trois cas d\'usage différents. Marketing = blogs + posts sociaux + newsletters. Product = descriptions produits + pages catégories + guides d\'achat. Docs = docs techniques + help center + changelogs.'
+      },
+      {
+        question: 'Combien de contenu puis-je créer avec $129/mo ?',
+        answer: 'Beta = génération illimitée. Post-beta, limites à annoncer (probablement 20-50 pièces/mois selon package). Mais utilisateurs beta verrouillent prix + limites généreuses pour toujours.'
+      },
+      {
+        question: 'Quand je verrai les résultats ? Comment je mesure ROI ?',
+        answer: 'Trafic interne visible en 2-3 semaines. Linking score s\'améliore immédiatement. Vous aurez un dashboard montrant : articles créés, liens auto-générés, trafic interne, et (bientôt) impact revenue.'
+      },
+      {
+        question: 'Est-ce que j\'ai besoin de connaissances tech ?',
+        answer: 'Non. Si vous pouvez écrire un brief ou cliquer "Publier", vous êtes bon. CASYS gère : analyse SEO, détection de gaps, stratégie de linking, indexation. Vous vous concentrez sur l\'idée.'
+      },
+      {
+        question: 'Garantie satisfait ou remboursé ?',
+        answer: '30 jours complet remboursement, aucune question. Nous voulons clients qui voient la valeur, pas prisonniers de leur abonnement. Et vous pouvez annuler quand vous voulez.'
+      }
+    ]
+  : [
+      {
+        question: 'CASYS vs ChatGPT / Jasper / other writing tools: What\'s the difference?',
+        answer: 'ChatGPT writes articles. CASYS automates your content strategy. The difference? Linking. You spend 40-80 hours/month manually linking articles. CASYS does it in 30 seconds per article. And your ecosystem grows exponentially—10 articles = weak, 50+ = powerful.'
+      },
+      {
+        question: 'How much time/money saved really?',
+        answer: '20 hours per week zero manual linking. At $100/hr typical rate, that\'s $2,000/month value. Your $129/mo subscription = 15x ROI immediately. Plus +40-80% internal traffic gain on top.'
+      },
+      {
+        question: 'Why manually link when CASYS does it automatically?',
+        answer: 'Exactly. Every new article you publish, CASYS identifies the 3-5 relevant pieces and links them. Zero work. And every link makes your old articles stronger and more discoverable. Compounding effect.'
+      },
+      {
+        question: 'Do I need 50+ articles for this to work?',
+        answer: 'No, but it gets explosive at 50+. At 10 articles, you\'ll already see +20% internal traffic. At 50+, your system becomes self-running. And CASYS improves with every new piece.'
+      },
+      {
+        question: 'What about my existing content?',
+        answer: 'Analyzed automatically day 1. Your 20 existing articles? They become more powerful immediately. We link them to new content and identify the 5-10 critical gaps to fill first.'
+      },
+      {
+        question: 'My data stays mine? (No vendor lock-in)',
+        answer: 'Yes, completely. Your content lives on WordPress, GitHub, Medium, Substack. You control everything. Cancel anytime, everything stays yours. CASYS is just an assistant, not a platform that captures you.'
+      },
+      {
+        question: 'What exactly is CASYS? AI? Tool? Platform?',
+        answer: 'CASYS = content strategy automation. 1) Generation (articles, descriptions, docs) 2) Linking (auto 3-5 relevant links) 3) Syndication (publishes where you want) 4) Metrics (internal traffic, linking score). All together.'
+      },
+      {
+        question: 'What\'s the difference between Marketing Hub / Product Engine / Docs Suite?',
+        answer: 'Same core technology. Three different use cases. Marketing = blogs + social posts + newsletters. Product = product descriptions + category pages + buying guides. Docs = technical docs + help center + changelogs.'
+      },
+      {
+        question: 'How much content can I create with $129/mo?',
+        answer: 'Beta = unlimited generation. Post-beta, limits TBA (probably 20-50 pieces/month based on package). But beta users lock in price + generous limits forever.'
+      },
+      {
+        question: 'When will I see results? How do I measure ROI?',
+        answer: 'Internal traffic visible in 2-3 weeks. Linking score improves immediately. You\'ll get a dashboard showing: articles created, auto-generated links, internal traffic, and (soon) revenue impact.'
+      },
+      {
+        question: 'Do I need technical knowledge?',
+        answer: 'No. If you can write a brief or click "Publish," you\'re good. CASYS handles: SEO analysis, gap detection, linking strategy, indexing. You focus on the idea.'
+      },
+      {
+        question: '30-day money-back guarantee?',
+        answer: 'Yes, full refund no questions asked. We want customers who see value, not prisoners of their subscription. And you can cancel anytime.'
+      }
+    ];
+
+const t = locale === 'fr'
+  ? {
+      title: 'Questions Fréquentes',
+      subtitle: 'Tout ce que vous devez savoir sur l\'écosystème vivant'
+    }
+  : {
+      title: 'Frequently Asked Questions',
+      subtitle: 'Everything you need to know about the living ecosystem'
+    };
+
+---
+
+<section class="py-32 bg-surface">
+  <div class="max-w-4xl mx-auto px-4 md:px-6">
+    <!-- Section Header -->
+    <div class="text-center mb-20">
+      <h2 class="text-headline-large text-on-surface mb-4">{t.title}</h2>
+      <p class="text-title-medium text-on-surface-variant max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <!-- FAQ Accordion -->
+    <div class="flex flex-col gap-3 md:gap-4">
+      {faqs.map((faq, index) => (
+        <div
+          class={`faq-item bg-surface-container-high rounded-2xl overflow-hidden transition-all duration-300 opacity-0 transform translate-y-5 hover:shadow-md cursor-pointer ${index === 0 ? 'expanded' : ''}`}
+          data-index={index}
+          style={`animation-delay: ${index * 100}ms`}
+        >
+          <!-- Question Header -->
+          <button class="question-header flex items-center justify-between w-full px-5 md:px-6 py-5 md:py-6 bg-transparent border-0 cursor-pointer text-left transition-all duration-300 hover:bg-surface-variant">
+            <span class="question-text text-body-large md:text-title-medium text-on-surface flex-1 pr-3 md:pr-4">{faq.question}</span>
+            <span class="expand-icon flex items-center justify-center w-8 h-8 bg-secondary-container text-on-secondary-container rounded-full transition-all duration-300 flex-shrink-0">
+              <span class="material-symbols-rounded text-[20px]">expand_more</span>
+            </span>
+          </button>
+
+          <!-- Answer Content -->
+          <div class="answer-content max-h-0 overflow-hidden transition-all duration-400">
+            <p class="text-body-medium md:text-body-large text-on-surface-variant leading-normal px-5 md:px-6 pb-5 md:pb-6">{faq.answer}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Expanded state styles */
+  .faq-item.expanded {
+    background: var(--md-sys-color-primary-container);
+  }
+
+  .faq-item.expanded .question-header:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .faq-item.expanded .question-text {
+    color: var(--md-sys-color-on-primary-container);
+    font-weight: 600;
+  }
+
+  .faq-item.expanded .expand-icon {
+    background: var(--md-sys-color-on-primary-container);
+    color: var(--md-sys-color-primary-container);
+    transform: rotate(180deg);
+  }
+
+  .faq-item.expanded .answer-content {
+    max-height: 500px;
+  }
+
+  .faq-item.expanded .answer-content p {
+    color: var(--md-sys-color-on-primary-container);
+  }
+</style>
+
+<script>
+  function initFAQ() {
+    const faqItems = document.querySelectorAll('.faq-item');
+    
+    // Intersection Observer for animations
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-in');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '-50px' }
+    );
+
+    // Observe each FAQ item
+    faqItems.forEach(item => observer.observe(item));
+
+    // Click handlers for accordion behavior
+    faqItems.forEach((item) => {
+      const header = item.querySelector('.question-header');
+      
+      header?.addEventListener('click', () => {
+        const isExpanded = item.classList.contains('expanded');
+
+        // Close all other items (accordion behavior)
+        faqItems.forEach((otherItem) => {
+          if (otherItem !== item) {
+            otherItem.classList.remove('expanded');
+          }
+        });
+
+        // Toggle current item
+        if (isExpanded) {
+          item.classList.remove('expanded');
+        } else {
+          item.classList.add('expanded');
+
+          // Smooth scroll to item if needed
+          setTimeout(() => {
+            const itemTop = item.getBoundingClientRect().top + window.scrollY;
+            const offset = 100;
+            if (window.scrollY > itemTop - offset) {
+              window.scrollTo({
+                top: itemTop - offset,
+                behavior: 'smooth'
+              });
+            }
+          }, 300);
+        }
+      });
+    });
+  }
+
+  // Initialize on DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFAQ);
+  } else {
+    initFAQ();
+  }
+</script>

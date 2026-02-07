@@ -1,0 +1,97 @@
+/**
+ * Material 3 Patterns - Metrics Cards
+ * Style Google Dashboard - Simple et épuré
+ */
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+/* Metric Card - Style Google épuré */
+.metric-card {
+  background: var(--md-sys-color-surface-container);
+  border-radius: var(--md-sys-shape-corner-large);
+  padding: 20px;
+  border-left: 4px solid var(--md-sys-color-primary);
+  transition: all 200ms var(--md-sys-motion-easing-standard);
+}
+
+.metric-card:hover {
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: var(--md-sys-elevation-level1);
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.metric-label {
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.metric-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--md-sys-color-primary);
+}
+
+.metric-value {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: var(--md-sys-typescale-display-small-size);
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface);
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+
+.metric-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: var(--md-sys-shape-corner-small);
+}
+
+.metric-change-positive {
+  color: var(--md-sys-color-tertiary);
+  background: var(--md-sys-color-tertiary-container);
+}
+
+.metric-change-negative {
+  color: var(--md-sys-color-error);
+  background: var(--md-sys-color-error-container);
+}
+
+.metric-change-neutral {
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-sys-color-surface-variant);
+}
+
+/* Variantes de couleur d'accent (border-left) */
+.metric-card-primary {
+  border-left-color: var(--md-sys-color-primary);
+}
+
+.metric-card-secondary {
+  border-left-color: var(--md-sys-color-secondary);
+}
+
+.metric-card-tertiary {
+  border-left-color: var(--md-sys-color-tertiary);
+}
+
+.metric-card-error {
+  border-left-color: var(--md-sys-color-error);
+}

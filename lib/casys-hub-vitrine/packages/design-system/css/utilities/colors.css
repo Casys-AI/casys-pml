@@ -1,0 +1,35 @@
+/**
+ * Material 3 Utilities - Colors
+ * Text and background color utilities
+ */
+
+/* Text Colors */
+.text-on-surface { color: var(--md-sys-color-on-surface); }
+.text-on-surface-variant { color: var(--md-sys-color-on-surface-variant); }
+.text-primary { color: var(--md-sys-color-primary); }
+.text-on-primary { color: var(--md-sys-color-on-primary); }
+.text-secondary { color: var(--md-sys-color-secondary); }
+.text-on-secondary { color: var(--md-sys-color-on-secondary); }
+.text-tertiary { color: var(--md-sys-color-tertiary); }
+.text-on-tertiary { color: var(--md-sys-color-on-tertiary); }
+.text-error { color: var(--md-sys-color-error); }
+.text-on-error { color: var(--md-sys-color-on-error); }
+
+/* Background Colors */
+.bg-surface { background: var(--md-sys-color-surface); }
+.bg-surface-dim { background: var(--md-sys-color-surface-dim); }
+.bg-surface-bright { background: var(--md-sys-color-surface-bright); }
+.bg-surface-container { background: var(--md-sys-color-surface-container); }
+.bg-surface-container-low { background: var(--md-sys-color-surface-container-low); }
+.bg-surface-container-high { background: var(--md-sys-color-surface-container-high); }
+.bg-surface-container-highest { background: var(--md-sys-color-surface-container-highest); }
+.bg-surface-variant { background: var(--md-sys-color-surface-variant); }
+
+.bg-primary { background: var(--md-sys-color-primary); }
+.bg-primary-container { background: var(--md-sys-color-primary-container); }
+.bg-secondary { background: var(--md-sys-color-secondary); }
+.bg-secondary-container { background: var(--md-sys-color-secondary-container); }
+.bg-tertiary { background: var(--md-sys-color-tertiary); }
+.bg-tertiary-container { background: var(--md-sys-color-tertiary-container); }
+.bg-error { background: var(--md-sys-color-error); }
+.bg-error-container { background: var(--md-sys-color-error-container); }

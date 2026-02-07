@@ -1,0 +1,1230 @@
+---
+// i18n support
+const locale = (Astro as any).currentLocale ?? 'en';
+
+// Segment-specific pricing data
+const pricingBySegment = {
+  teams: {
+    fr: {
+      title: 'Automatisez Votre Stratégie Contenu',
+      subtitle: 'Équipes marketing & stratégie contenu. Rejoignez la beta maintenant et verrouillez ce tarif pour toujours.',
+      betaPrice: '$199',
+      perMonth: '/mois',
+      roiItems: [
+        { icon: 'schedule', label: 'Temps Gagné', value: '20 h/semaine', desc: 'Par personne - zéro liaison manuelle' },
+        { icon: 'trending_up', label: 'Trafic Interne', value: '+40-80%', desc: 'Du meilleur linking stratégique' },
+        { icon: 'attach_money', label: 'Valeur Mensuelle', value: '1 600-2 000 €+', desc: 'Pour chaque personne gainée' }
+      ]
+    },
+    en: {
+      title: 'Automate Your Content Strategy',
+      subtitle: 'For content & marketing teams. Join the beta now and lock in this rate forever.',
+      betaPrice: '$199',
+      perMonth: '/mo',
+      roiItems: [
+        { icon: 'schedule', label: 'Time Saved Per Person', value: '20 hrs/week', desc: 'Each team member - zero manual linking' },
+        { icon: 'trending_up', label: 'Internal Traffic', value: '+40-80%', desc: 'From strategic content interconnection' },
+        { icon: 'attach_money', label: 'Monthly Value Per Person', value: '$1,600-$2,000+', desc: 'For each team member saved' }
+      ]
+    }
+  },
+  agencies: {
+    fr: {
+      title: 'Automatisez Votre Modèle Client',
+      subtitle: 'Agences & prestataires. Verrouillez ce tarif maintenant. Facturez à vos clients 30-50% plus cher.',
+      betaPrice: '$499',
+      perMonth: '/mois',
+      roiItems: [
+        { icon: 'trending_up', label: 'Revenu Par Client', value: '$600-900 €/mois', desc: 'Facturez $499 CASYS à $699-1299 au client' },
+        { icon: 'attach_money', label: 'Margin Par Client', value: '30-40%', desc: '~$200-$400 profit par client' },
+        { icon: 'scale', label: 'Scaling Sans Coût', value: '∞ Clients', desc: 'Un prix fixe, clients illimités' }
+      ]
+    },
+    en: {
+      title: 'Automate Your Client Model',
+      subtitle: 'For agencies & service providers. Lock in this rate now. Charge clients 30-50% more.',
+      betaPrice: '$499',
+      perMonth: '/mo',
+      roiItems: [
+        { icon: 'trending_up', label: 'Revenue Per Client', value: '$600-$900/mo', desc: 'Bill $499 CASYS to client at $699-$1,299' },
+        { icon: 'attach_money', label: 'Profit Per Client', value: '30-40%', desc: '~$200-$400 margin per client' },
+        { icon: 'scale', label: 'Scale Without Cost', value: '∞ Clients', desc: 'One fixed price, unlimited clients' }
+      ]
+    }
+  }
+};
+
+const defaultSegment = 'teams';
+const t = locale === 'fr'
+  ? {
+      ...pricingBySegment.teams.fr,
+      betaBadge: 'BETA',
+      includedTitle: 'Ce qui est inclus',
+      packageFeatures: {
+        marketing: [
+          'Blog SEO - Stratégie pilier/cluster, long-form 2000-3000 mots',
+          'Posts Sociaux - Auto-repurpose articles vers LinkedIn & X threads',
+          'Newsletter - Publication automatisée Substack depuis meilleur contenu',
+          'Liens Internes - Connexions sémantiques à travers toutes les pièces',
+          'Analyse Content Gap - Ce qui manque vs. concurrence',
+          'Audit SEO - Recommandations d\'optimisation continues',
+          'Graph sémantique avec mémoire persistante',
+          'Support prioritaire'
+        ],
+        product: [
+          'Descriptions Produits - SEO-optimisées, orientées conversion',
+          'Pages Catégories - Liens internes stratégiques entre produits',
+          'Guides d\'Achat - Contenu comparatif qui rank et convertit',
+          'FAQ Produit - Q&A auto depuis questions clients courantes',
+          'Base de Connaissances - Contenu support qui réduit tickets',
+          'Graphe Produit - Comprend relations, alternatives, bundles',
+          'Graph sémantique avec mémoire persistante',
+          'Support prioritaire'
+        ],
+        docs: [
+          'Docs Techniques - Références API, guides SDK, tutoriels',
+          'Help Center - Base de connaissances qui reste à jour avec produit',
+          'Automation FAQ - Détecte questions récurrentes, génère réponses',
+          'Changelog - Notes release formatées pour utilisateurs',
+          'Séries Tutoriel - Parcours d\'apprentissage progressifs',
+          'Version Control - Maintient historique docs aux côtés du code',
+          'Graph sémantique avec mémoire persistante',
+          'Support prioritaire'
+        ]
+      },
+      comingSoonTitle: 'À venir',
+      comingSoonFeatures: [
+        'Analytics de performance avancées',
+        'A/B testing intégré',
+        'Optimisation automatique basée sur les données',
+        'API pour intégrations custom'
+      ],
+      packagesTitle: 'Choisissez votre package',
+      packages: [
+        { id: 'marketing', label: 'Marketing Hub', desc: 'Blog & SEO', icon: 'campaign' },
+        { id: 'product', label: 'Product Engine', desc: 'E-commerce & Product', icon: 'shopping_cart' },
+        { id: 'docs', label: 'Docs Suite', desc: 'Technical Documentation', icon: 'description' }
+      ],
+      ctaButton: 'Rejoindre la Beta',
+      futurePricingTitle: 'Tarification Standard (Après Beta)',
+      futurePricing: [
+        { name: 'Marketing Hub', future: '$249', current: '$129', save: '$120' },
+        { name: 'Product Engine', future: '$349', current: '$129', save: '$220' },
+        { name: 'Docs Suite', future: '$299', current: '$129', save: '$170' }
+      ],
+      trustBadges: [
+        { icon: 'lock', text: 'Tarif Beta verrouillé à vie' },
+        { icon: 'cancel', text: 'Annulez à tout moment' },
+        { icon: 'paid', text: 'Garantie 30 jours satisfait ou remboursé' }
+      ]
+    }
+  : {
+      ...pricingBySegment.teams.en,
+      betaPrice: '$199', // Override from pricingBySegment
+      betaBadge: 'BETA',
+      includedTitle: 'What\'s Included',
+      packageFeatures: {
+        marketing: [
+          'Blog SEO - Pillar/cluster strategy, long-form 2000-3000 words',
+          'Social Posts - Auto-repurpose articles to LinkedIn & X threads',
+          'Newsletter - Automated Substack publishing from best content',
+          'Internal Linking - Semantic connections across all pieces',
+          'Content Gap Analysis - What\'s missing vs. competition',
+          'SEO Audit - Continuous optimization recommendations',
+          'Semantic graph with persistent memory',
+          'Priority support'
+        ],
+        product: [
+          'Product Descriptions - SEO-optimized, conversion-focused copy',
+          'Category Pages - Strategic internal linking between products',
+          'Buying Guides - Comparative content that ranks and converts',
+          'Product FAQ - Automated Q&A from common customer questions',
+          'Knowledge Base - Support content that reduces tickets',
+          'Product Graph - Understands relationships, alternatives, bundles',
+          'Semantic graph with persistent memory',
+          'Priority support'
+        ],
+        docs: [
+          'Technical Docs - API references, SDK guides, tutorials',
+          'Help Center - Knowledge base that stays current with product',
+          'FAQ Automation - Detects recurring questions, generates answers',
+          'Changelog - Release notes formatted for users',
+          'Tutorial Series - Progressive learning paths',
+          'Version Control - Maintains doc history alongside code',
+          'Semantic graph with persistent memory',
+          'Priority support'
+        ]
+      },
+      comingSoonTitle: 'Coming Soon',
+      comingSoonFeatures: [
+        'Advanced performance analytics',
+        'Built-in A/B testing',
+        'Automatic data-driven optimization',
+        'API for custom integrations'
+      ],
+      packagesTitle: 'Choose Your Package',
+      packages: [
+        { id: 'marketing', label: 'Marketing Hub', desc: 'Blog & SEO', icon: 'campaign' },
+        { id: 'product', label: 'Product Engine', desc: 'E-commerce & Product', icon: 'shopping_cart' },
+        { id: 'docs', label: 'Docs Suite', desc: 'Technical Documentation', icon: 'description' }
+      ],
+      ctaButton: 'Join Beta',
+      futurePricingTitle: 'Standard Pricing (After Beta)',
+      futurePricing: [
+        { name: 'Marketing Hub', future: '$249', current: '$129', save: '$120' },
+        { name: 'Product Engine', future: '$349', current: '$129', save: '$220' },
+        { name: 'Docs Suite', future: '$299', current: '$129', save: '$170' }
+      ],
+      trustBadges: [
+        { icon: 'lock', text: 'Lifetime beta pricing locked' },
+        { icon: 'cancel', text: 'Cancel anytime' },
+        { icon: 'paid', text: '30-day money-back guarantee' }
+      ]
+    };
+---
+
+<section id="pricing" class="pricing">
+  <div class="container">
+    <!-- Section Header -->
+    <div class="header">
+      <h2 class="title">{t.title}</h2>
+      <p class="subtitle">{t.subtitle}</p>
+    </div>
+
+    <!-- 2-Column Layout -->
+    <div class="pricing-grid">
+      <!-- Left Column (Sticky) - Price & CTA -->
+      <div class="pricing-sticky">
+        <div class="pricing-card-left">
+          <!-- Beta Badge & Price -->
+          <div class="price-header">
+            <div class="beta-badge">
+              <span class="material-symbols-rounded">rocket_launch</span>
+              {t.betaBadge}
+            </div>
+            <div class="price-display">
+              <span class="price-amount">{t.betaPrice}</span>
+              <span class="price-period">{t.perMonth}</span>
+            </div>
+          </div>
+
+          <!-- Package Selection -->
+          <div class="package-selection">
+            <h3 class="section-title">
+              <span class="material-symbols-rounded">category</span>
+              {t.packagesTitle}
+            </h3>
+            <div class="package-options">
+              {t.packages.map((pkg, index) => (
+                <label 
+                  class={`package-option ${index === 0 ? 'selected' : ''}`}
+                  data-package={pkg.id}
+                >
+                  <input
+                    type="radio"
+                    name="package"
+                    value={pkg.id}
+                    checked={index === 0}
+                  />
+                  <div class="package-content">
+                    <span class="material-symbols-rounded">{pkg.icon}</span>
+                    <div class="package-info">
+                      <div class="package-label">{pkg.label}</div>
+                      <div class="package-desc">{pkg.desc}</div>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <!-- CTA Button -->
+          <a href="#contact" class="cta-button">
+            <span class="material-symbols-rounded">stars</span>
+            {t.ctaButton}
+          </a>
+
+          <!-- Trust Badges -->
+          <div class="trust-badges">
+            {t.trustBadges.map((badge) => (
+              <div class="trust-badge">
+                <span class="material-symbols-rounded">{badge.icon}</span>
+                <span>{badge.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column (Scrollable) - Details -->
+      <div class="pricing-details">
+        <!-- Features Section -->
+        <div class="features-section">
+        <h3 class="section-title">
+          <span class="material-symbols-rounded">check_circle</span>
+          {t.includedTitle}
+        </h3>
+        <ul class="features-list" data-features-list>
+          {t.packageFeatures.marketing.map((feature, index) => (
+            <li class="feature-item" style={`animation-delay: ${index * 50}ms`}>
+              <span class="material-symbols-rounded">check</span>
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <!-- Coming Soon Section -->
+      <div class="coming-soon-section">
+        <h3 class="section-title">
+          <span class="material-symbols-rounded">upcoming</span>
+          {t.comingSoonTitle}
+        </h3>
+        <ul class="coming-soon-list">
+          {t.comingSoonFeatures.map((feature, index) => (
+            <li class="coming-soon-item" style={`animation-delay: ${index * 50}ms`}>
+              <span class="material-symbols-rounded">schedule</span>
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <!-- Future Pricing Comparison -->
+        <div class="future-pricing">
+        <h4 class="future-title">{t.futurePricingTitle}</h4>
+        <div class="price-comparison">
+          {t.futurePricing.map((item) => (
+            <div class="price-row">
+              <span class="plan-name">{item.name}</span>
+              <div class="price-change">
+                <span class="strikethrough">{item.future}</span>
+                <span class="arrow">→</span>
+                <span class="current-price">{item.current}</span>
+                <span class="save-badge">Save {item.save}/mo</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        </div>
+
+        <!-- ROI Breakdown -->
+        <div class="roi-section">
+          <h3 class="section-title">
+            <span class="material-symbols-rounded">trending_up</span>
+            {locale === 'fr' ? 'Votre Calcul ROI' : 'Your ROI Breakdown'}
+          </h3>
+          <div class="roi-grid" data-roi-container>
+            {t.roiItems.map((item, index) => (
+              <div class="roi-card" style={`animation-delay: ${index * 100}ms`}>
+                <div class="roi-icon">
+                  <span class="material-symbols-rounded">{item.icon}</span>
+                </div>
+                <div class="roi-content">
+                  <div class="roi-label">{item.label}</div>
+                  <div class="roi-value">{item.value}</div>
+                  <div class="roi-desc">{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .pricing {
+    padding: 120px 0;
+    background: linear-gradient(135deg,
+      var(--md-sys-color-surface-container) 0%,
+      var(--md-sys-color-surface) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 80px;
+  }
+
+  /* 2-Column Grid Layout */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+
+  /* Left Column - Sticky */
+  .pricing-sticky {
+    position: sticky;
+    top: 100px;
+  }
+
+  .title {
+    font-size: var(--md-sys-typescale-headline-large-size);
+    font-weight: var(--md-sys-typescale-headline-large-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 16px;
+  }
+
+  .subtitle {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Pricing Cards */
+  .pricing-card-left,
+  .pricing-details {
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 28px;
+    padding: 32px;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 8px rgba(0, 0, 0, 0.02);
+    /* Glassmorphism */
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .pricing-card-left {
+    border: 2px solid var(--md-sys-color-primary);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Mesh gradient orb on featured pricing card */
+  .pricing-card-left::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      circle at 30% 50%,
+      rgba(var(--md-sys-color-primary-rgb, 255, 153, 0), 0.15) 0%,
+      rgba(var(--md-sys-color-secondary-rgb, 255, 184, 111), 0.1) 25%,
+      transparent 50%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .pricing-card-left::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--md-sys-color-primary), var(--md-sys-color-secondary), var(--md-sys-color-tertiary));
+    z-index: 1;
+  }
+
+  .pricing-card-left > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .pricing-details {
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  /* Price Header */
+  .price-header {
+    text-align: center;
+    margin-bottom: 40px;
+    position: relative;
+  }
+
+  .beta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    padding: 8px 16px;
+    border-radius: 100px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 500;
+    margin-bottom: 24px;
+  }
+
+  .beta-badge .material-symbols-rounded {
+    font-size: 18px;
+  }
+
+  .price-display {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .price-amount {
+    font-size: 4rem;
+    font-weight: 700;
+    color: var(--md-sys-color-primary);
+    line-height: 1;
+  }
+
+  .price-period {
+    font-size: var(--md-sys-typescale-title-large-size);
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  /* Content Sections */
+  .features-section,
+  .coming-soon-section,
+  .package-selection {
+    margin-bottom: 32px;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 16px;
+  }
+
+  .section-title .material-symbols-rounded {
+    color: var(--md-sys-color-primary);
+    font-size: 24px;
+  }
+
+  /* Lists */
+  .features-list,
+  .coming-soon-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: opacity 300ms var(--md-sys-motion-easing-emphasized), transform 300ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .feature-item,
+  .coming-soon-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--md-sys-color-surface);
+    border-radius: 12px;
+    font-size: var(--md-sys-typescale-body-large-size);
+    color: var(--md-sys-color-on-surface);
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+
+  .feature-item.animate-in,
+  .coming-soon-item.animate-in {
+    opacity: 1;
+    transform: translateX(0);
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .feature-item .material-symbols-rounded {
+    color: var(--md-sys-color-primary);
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .coming-soon-item .material-symbols-rounded {
+    color: var(--md-sys-color-secondary);
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* Package Selection */
+  .package-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .package-option {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: var(--md-sys-color-surface);
+    border: 2px solid var(--md-sys-color-outline);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .package-option:hover {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+  }
+
+  .package-option.selected {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+  }
+
+  .package-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .package-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .package-content .material-symbols-rounded {
+    font-size: 24px;
+    color: var(--md-sys-color-primary);
+  }
+
+  .package-info {
+    flex: 1;
+  }
+
+  .package-label {
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: 2px;
+  }
+
+  .package-desc {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  /* CTA Button */
+  .cta-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 20px 32px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border: none;
+    border-radius: 16px;
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+    margin-bottom: 32px;
+  }
+
+  .cta-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  .cta-button .material-symbols-rounded {
+    font-size: 20px;
+  }
+
+  /* Future Pricing */
+  .future-pricing {
+    background: var(--md-sys-color-surface-variant);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+
+  .future-title {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 16px;
+    text-align: center;
+  }
+
+  .price-comparison {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  .plan-name {
+    font-size: var(--md-sys-typescale-body-large-size);
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .price-change {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .strikethrough {
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: var(--md-sys-color-on-surface-variant);
+    text-decoration: line-through;
+  }
+
+  .arrow {
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .current-price {
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+  }
+
+  .save-badge {
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+    padding: 4px 8px;
+    border-radius: 100px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    font-weight: 500;
+  }
+
+  /* Trust Badges */
+  .trust-badges {
+    display: flex;
+    justify-content: space-around;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .trust-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .trust-badge .material-symbols-rounded {
+    font-size: 16px;
+    color: var(--md-sys-color-tertiary);
+  }
+
+  /* ROI Section */
+  .roi-section {
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    padding-top: 32px;
+    margin-top: 32px;
+  }
+
+  .roi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .roi-card {
+    display: flex;
+    gap: 12px;
+    padding: 20px;
+    background: var(--md-sys-color-surface);
+    border-radius: 16px;
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  .roi-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .roi-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-primary);
+    border-radius: 12px;
+  }
+
+  .roi-icon .material-symbols-rounded {
+    font-size: 20px;
+  }
+
+  .roi-content {
+    flex: 1;
+  }
+
+  .roi-label {
+    font-size: var(--md-sys-typescale-label-medium-size);
+    color: var(--md-sys-color-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .roi-value {
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    margin-bottom: 8px;
+  }
+
+  .roi-desc {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.4;
+  }
+
+  /* Dark mode brand gradients */
+  html[data-theme="dark"] .pricing {
+    background: linear-gradient(135deg,
+      var(--casys-background-dark) 0%,
+      rgba(0, 0, 0, 0.95) 100%);
+  }
+
+  html[data-theme="dark"] .pricing-card-left,
+  html[data-theme="dark"] .pricing-details {
+    background: linear-gradient(135deg,
+      rgba(250, 194, 255, 0.08) 0%,
+      rgba(255, 184, 111, 0.05) 100%);
+    border-color: rgba(250, 194, 255, 0.12);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.3),
+      0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  html[data-theme="dark"] .pricing-card-left::before {
+    background: radial-gradient(
+      circle at 30% 50%,
+      rgba(250, 194, 255, 0.12) 0%,
+      rgba(255, 184, 111, 0.08) 25%,
+      transparent 50%
+    );
+  }
+
+  html[data-theme="dark"] .title {
+    color: var(--casys-text-primary);
+  }
+
+  html[data-theme="dark"] .subtitle {
+    color: var(--casys-text-secondary);
+  }
+
+  html[data-theme="dark"] .price-amount {
+    background: linear-gradient(135deg,
+      var(--casys-gradient-start) 0%,
+      var(--casys-gradient-mid) 50%,
+      var(--casys-gradient-end) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  html[data-theme="dark"] .feature-item,
+  html[data-theme="dark"] .coming-soon-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(250, 194, 255, 0.08);
+  }
+
+  html[data-theme="dark"] .roi-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(250, 194, 255, 0.08);
+  }
+
+  /* Icon micro-interactions */
+  .section-title .material-symbols-rounded,
+  .roi-icon {
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .section-title:hover .material-symbols-rounded {
+    transform: scale(1.05) rotate(3deg);
+  }
+
+  .roi-card:hover .roi-icon {
+    transform: scale(1.05) rotate(3deg);
+  }
+
+  /* Focus-visible states */
+  .package-option:focus-visible,
+  .cta-button:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  /* Touch optimizations */
+  @media (pointer: coarse) {
+    .package-option,
+    .cta-button {
+      min-height: 48px;
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .pricing-card-left,
+    .pricing-details,
+    .feature-item,
+    .coming-soon-item,
+    .roi-card,
+    .section-title .material-symbols-rounded,
+    .roi-icon {
+      animation: none;
+      transition: none;
+    }
+
+    .pricing-card-left::before {
+      animation: none;
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .pricing {
+      padding: 80px 0;
+    }
+
+    .pricing-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .pricing-sticky {
+      position: relative;
+      top: 0;
+    }
+
+    .pricing-card-left,
+    .pricing-details {
+      padding: 24px;
+    }
+
+    .price-amount {
+      font-size: 3rem;
+    }
+
+    .trust-badges {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .price-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .price-change {
+      align-self: stretch;
+      justify-content: space-between;
+    }
+  }
+</style>
+
+<script>
+  // Package features data
+  const packageFeaturesData = {
+    fr: {
+      marketing: [
+        'Blog SEO - Stratégie pilier/cluster, long-form 2000-3000 mots',
+        'Posts Sociaux - Auto-repurpose articles vers LinkedIn & X threads',
+        'Newsletter - Publication automatisée Substack depuis meilleur contenu',
+        'Liens Internes - Connexions sémantiques à travers toutes les pièces',
+        'Analyse Content Gap - Ce qui manque vs. concurrence',
+        'Audit SEO - Recommandations d\'optimisation continues',
+        'Graph sémantique avec mémoire persistante',
+        'Support prioritaire'
+      ],
+      product: [
+        'Descriptions Produits - SEO-optimisées, orientées conversion',
+        'Pages Catégories - Liens internes stratégiques entre produits',
+        'Guides d\'Achat - Contenu comparatif qui rank et convertit',
+        'FAQ Produit - Q&A auto depuis questions clients courantes',
+        'Base de Connaissances - Contenu support qui réduit tickets',
+        'Graphe Produit - Comprend relations, alternatives, bundles',
+        'Graph sémantique avec mémoire persistante',
+        'Support prioritaire'
+      ],
+      docs: [
+        'Docs Techniques - Références API, guides SDK, tutoriels',
+        'Help Center - Base de connaissances qui reste à jour avec produit',
+        'Automation FAQ - Détecte questions récurrentes, génère réponses',
+        'Changelog - Notes release formatées pour utilisateurs',
+        'Séries Tutoriel - Parcours d\'apprentissage progressifs',
+        'Version Control - Maintient historique docs aux côtés du code',
+        'Graph sémantique avec mémoire persistante',
+        'Support prioritaire'
+      ]
+    },
+    en: {
+      marketing: [
+        'Blog SEO - Pillar/cluster strategy, long-form 2000-3000 words',
+        'Social Posts - Auto-repurpose articles to LinkedIn & X threads',
+        'Newsletter - Automated Substack publishing from best content',
+        'Internal Linking - Semantic connections across all pieces',
+        'Content Gap Analysis - What\'s missing vs. competition',
+        'SEO Audit - Continuous optimization recommendations',
+        'Semantic graph with persistent memory',
+        'Priority support'
+      ],
+      product: [
+        'Product Descriptions - SEO-optimized, conversion-focused copy',
+        'Category Pages - Strategic internal linking between products',
+        'Buying Guides - Comparative content that ranks and converts',
+        'Product FAQ - Automated Q&A from common customer questions',
+        'Knowledge Base - Support content that reduces tickets',
+        'Product Graph - Understands relationships, alternatives, bundles',
+        'Semantic graph with persistent memory',
+        'Priority support'
+      ],
+      docs: [
+        'Technical Docs - API references, SDK guides, tutorials',
+        'Help Center - Knowledge base that stays current with product',
+        'FAQ Automation - Detects recurring questions, generates answers',
+        'Changelog - Release notes formatted for users',
+        'Tutorial Series - Progressive learning paths',
+        'Version Control - Maintains doc history alongside code',
+        'Semantic graph with persistent memory',
+        'Priority support'
+      ]
+    }
+  };
+
+  // Package selection functionality
+  function initPricing() {
+    const packageOptions = document.querySelectorAll('.package-option');
+    const featuresList = document.querySelector('[data-features-list]') as HTMLElement | null;
+    const locale = document.documentElement.lang === 'fr' ? 'fr' : 'en';
+    
+    function updateFeatures(packageId: string) {
+      if (!featuresList) return;
+      
+      const features = packageFeaturesData[locale][packageId as keyof typeof packageFeaturesData['en']];
+      if (!features) return;
+
+      // Fade out
+      featuresList.style.opacity = '0';
+      featuresList.style.transform = 'translateY(10px)';
+
+      setTimeout(() => {
+        // Update content
+        featuresList.innerHTML = features.map((feature, index) => `
+          <li class="feature-item animate-in" style="animation-delay: ${index * 50}ms">
+            <span class="material-symbols-rounded">check</span>
+            <span>${feature}</span>
+          </li>
+        `).join('');
+
+        // Fade in
+        setTimeout(() => {
+          featuresList.style.opacity = '1';
+          featuresList.style.transform = 'translateY(0)';
+        }, 50);
+      }, 300);
+    }
+
+    packageOptions.forEach((option) => {
+      option.addEventListener('click', () => {
+        // Remove selected from all
+        packageOptions.forEach(opt => opt.classList.remove('selected'));
+        // Add selected to clicked
+        option.classList.add('selected');
+        // Update radio
+        const radio = option.querySelector('input[type="radio"]') as HTMLInputElement | null;
+        if (radio) radio.checked = true;
+        
+        // Update features
+        const packageId = option.getAttribute('data-package');
+        if (packageId) {
+          updateFeatures(packageId);
+        }
+      });
+    });
+
+    // Intersection Observer for animations
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const featureItems = entry.target.querySelectorAll('.feature-item');
+            const comingSoonItems = entry.target.querySelectorAll('.coming-soon-item');
+            
+            // Animate features
+            featureItems.forEach((item, index) => {
+              setTimeout(() => {
+                item.classList.add('animate-in');
+              }, index * 100);
+            });
+
+            // Animate coming soon items
+            comingSoonItems.forEach((item, index) => {
+              setTimeout(() => {
+                item.classList.add('animate-in');
+              }, index * 100 + 500);
+            });
+
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '-50px' }
+    );
+
+    // Observe the pricing details section
+    const pricingDetails = document.querySelector('.pricing-details');
+    if (pricingDetails) {
+      observer.observe(pricingDetails);
+    }
+  }
+
+  // Segment-specific pricing data for switching
+  const segmentPricingData = {
+    teams: {
+      fr: {
+        title: 'Automatisez Votre Stratégie Contenu',
+        subtitle: 'Équipes marketing & stratégie contenu. Rejoignez la beta maintenant et verrouillez ce tarif pour toujours.',
+        price: '$199',
+        roiItems: [
+          { icon: 'schedule', label: 'Temps Gagné', value: '20 h/semaine', desc: 'Par personne - zéro liaison manuelle' },
+          { icon: 'trending_up', label: 'Trafic Interne', value: '+40-80%', desc: 'Du meilleur linking stratégique' },
+          { icon: 'attach_money', label: 'Valeur Mensuelle', value: '1 600-2 000 €+', desc: 'Pour chaque personne gainée' }
+        ]
+      },
+      en: {
+        title: 'Automate Your Content Strategy',
+        subtitle: 'For content & marketing teams. Join the beta now and lock in this rate forever.',
+        price: '$199',
+        roiItems: [
+          { icon: 'schedule', label: 'Time Saved Per Person', value: '20 hrs/week', desc: 'Each team member - zero manual linking' },
+          { icon: 'trending_up', label: 'Internal Traffic', value: '+40-80%', desc: 'From strategic content interconnection' },
+          { icon: 'attach_money', label: 'Monthly Value Per Person', value: '$1,600-$2,000+', desc: 'For each team member saved' }
+        ]
+      }
+    },
+    agencies: {
+      fr: {
+        title: 'Automatisez Votre Modèle Client',
+        subtitle: 'Agences & prestataires. Verrouillez ce tarif maintenant. Facturez à vos clients 30-50% plus cher.',
+        price: '$499',
+        roiItems: [
+          { icon: 'trending_up', label: 'Revenu Par Client', value: '$600-900 €/mois', desc: 'Facturez $499 CASYS à $699-1299 au client' },
+          { icon: 'attach_money', label: 'Margin Par Client', value: '30-40%', desc: '~$200-$400 profit par client' },
+          { icon: 'scale', label: 'Scaling Sans Coût', value: '∞ Clients', desc: 'Un prix fixe, clients illimités' }
+        ]
+      },
+      en: {
+        title: 'Automate Your Client Model',
+        subtitle: 'For agencies & service providers. Lock in this rate now. Charge clients 30-50% more.',
+        price: '$499',
+        roiItems: [
+          { icon: 'trending_up', label: 'Revenue Per Client', value: '$600-$900/mo', desc: 'Bill $499 CASYS to client at $699-$1,299' },
+          { icon: 'attach_money', label: 'Profit Per Client', value: '30-40%', desc: '~$200-$400 margin per client' },
+          { icon: 'scale', label: 'Scale Without Cost', value: '∞ Clients', desc: 'One fixed price, unlimited clients' }
+        ]
+      }
+    }
+  };
+
+  // Update pricing for segment change
+  function updatePricingForSegment(segment: string) {
+    const locale = document.documentElement.lang === 'fr' ? 'fr' : 'en';
+    const segmentData = segmentPricingData[segment as keyof typeof segmentPricingData];
+
+    if (!segmentData) return;
+
+    const data = segmentData[locale as keyof typeof segmentData];
+
+    // Update title and subtitle
+    const titleEl = document.querySelector('.title') as HTMLElement | null;
+    const subtitleEl = document.querySelector('.subtitle') as HTMLElement | null;
+    const priceEl = document.querySelector('.price-amount') as HTMLElement | null;
+    const roiContainer = document.querySelector('[data-roi-container]') as HTMLElement | null;
+
+    if (titleEl) titleEl.textContent = data.title;
+    if (subtitleEl) subtitleEl.textContent = data.subtitle;
+    if (priceEl) priceEl.textContent = data.price;
+
+    if (roiContainer) {
+      // Fade out
+      roiContainer.style.opacity = '0';
+      roiContainer.style.transform = 'translateY(10px)';
+
+      setTimeout(() => {
+        // Update content
+        roiContainer.innerHTML = data.roiItems.map((item, index) => `
+          <div class="roi-card animate-in" style="animation-delay: ${index * 100}ms">
+            <div class="roi-icon">
+              <span class="material-symbols-rounded">${item.icon}</span>
+            </div>
+            <div class="roi-content">
+              <div class="roi-label">${item.label}</div>
+              <div class="roi-value">${item.value}</div>
+              <div class="roi-desc">${item.desc}</div>
+            </div>
+          </div>
+        `).join('');
+
+        // Fade in
+        setTimeout(() => {
+          roiContainer.style.opacity = '1';
+          roiContainer.style.transform = 'translateY(0)';
+        }, 50);
+      }, 300);
+    }
+  }
+
+  // Listen for segment changes
+  window.addEventListener('segment-changed', (event: any) => {
+    updatePricingForSegment(event.detail.segment);
+  });
+
+  // Animate ROI cards on load
+  const animateRoiCards = () => {
+    const roiCards = document.querySelectorAll('.roi-card');
+    roiCards.forEach((card, index) => {
+      setTimeout(() => {
+        card.classList.add('animate-in');
+      }, index * 100);
+    });
+  };
+
+  // Initialize on DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      initPricing();
+      animateRoiCards();
+    });
+  } else {
+    initPricing();
+    animateRoiCards();
+  }
+</script>

@@ -1,0 +1,667 @@
+---
+// i18n support
+const locale = (Astro as any).currentLocale ?? 'en';
+
+// Segment-specific pricing data
+const pricingBySegment = {
+  teams: {
+    fr: {
+      title: 'Automatisez Votre Stratégie Contenu',
+      subtitle: 'Équipes marketing & stratégie contenu. Rejoignez la beta maintenant et verrouillez ce tarif pour toujours.',
+      betaPrice: '$199',
+      perMonth: '/mois',
+      targetBadge: '📊 Pour les équipes',
+      betaBadge: 'BETA',
+      packagesTitle: 'Choisissez votre package',
+      roiTitle: 'Votre Calcul ROI (Équipe)',
+      roiItems: [
+        { icon: 'schedule', label: 'Temps Gagné', value: '20 h/semaine', desc: 'Par personne - zéro liaison manuelle' },
+        { icon: 'trending_up', label: 'Trafic Interne', value: '+40-80%', desc: 'Du meilleur linking stratégique' },
+        { icon: 'attach_money', label: 'Valeur Mensuelle', value: '1 600-2 000 €+', desc: 'Pour chaque personne gainée' }
+      ],
+      teamFocusedFeatures: 'Parfait pour équipes de 2-10 personnes|Collaboration simplifiée|Analytics pour le reporting'
+    },
+    en: {
+      title: 'Automate Your Content Strategy',
+      subtitle: 'For content & marketing teams. Join the beta now and lock in this rate forever.',
+      betaPrice: '$199',
+      perMonth: '/mo',
+      targetBadge: '📊 For Teams',
+      betaBadge: 'BETA',
+      packagesTitle: 'Choose Your Package',
+      roiTitle: 'Your ROI Breakdown (Team)',
+      roiItems: [
+        { icon: 'schedule', label: 'Time Saved Per Person', value: '20 hrs/week', desc: 'Each team member - zero manual linking' },
+        { icon: 'trending_up', label: 'Internal Traffic', value: '+40-80%', desc: 'From strategic content interconnection' },
+        { icon: 'attach_money', label: 'Monthly Value Per Person', value: '$1,600-$2,000+', desc: 'For each team member saved' }
+      ],
+      teamFocusedFeatures: 'Perfect for teams of 2-10 people|Simplified collaboration|Team analytics & reporting'
+    }
+  },
+  agencies: {
+    fr: {
+      title: 'Automatisez Votre Modèle Client',
+      subtitle: 'Agences & prestataires. Verrouillez ce tarif maintenant. Facturez à vos clients 30-50% plus cher.',
+      betaPrice: '$499',
+      perMonth: '/mois',
+      targetBadge: '🏢 Pour les agences',
+      betaBadge: 'BETA AGENCY',
+      packagesTitle: 'Choisissez votre package',
+      roiTitle: 'Votre Calcul ROI (Agence)',
+      roiItems: [
+        { icon: 'trending_up', label: 'Revenu Par Client', value: '$600-900 €/mois', desc: 'Facturez $499 CASYS à $699-1299 au client' },
+        { icon: 'attach_money', label: 'Margin Par Client', value: '30-40%', desc: '~$200-$400 profit par client' },
+        { icon: 'scale', label: 'Scaling Sans Coût', value: '∞ Clients', desc: 'Un prix fixe, clients illimités' }
+      ],
+      agencyFocusedFeatures: 'Clients illimités au prix fixe|Marque blanche bientôt|Programme partenaire agence'
+    },
+    en: {
+      title: 'Automate Your Client Model',
+      subtitle: 'For agencies & service providers. Lock in this rate now. Charge clients 30-50% more.',
+      betaPrice: '$499',
+      perMonth: '/mo',
+      targetBadge: '🏢 For Agencies',
+      betaBadge: 'BETA AGENCY',
+      packagesTitle: 'Choose Your Package',
+      roiTitle: 'Your ROI Breakdown (Agency)',
+      roiItems: [
+        { icon: 'trending_up', label: 'Revenue Per Client', value: '$600-$900/mo', desc: 'Bill $499 CASYS to client at $699-$1,299' },
+        { icon: 'attach_money', label: 'Profit Per Client', value: '30-40%', desc: '~$200-$400 margin per client' },
+        { icon: 'scale', label: 'Scale Without Cost', value: '∞ Clients', desc: 'One fixed price, unlimited clients' }
+      ],
+      agencyFocusedFeatures: 'Unlimited clients at fixed price|White-label coming soon|Agency partner program'
+    }
+  }
+};
+
+const t = locale === 'fr'
+  ? {
+      ...pricingBySegment.teams.fr,
+      title: 'Automatisez Votre Stratégie Contenu',
+      subtitle: 'Rejoignez la beta maintenant et verrouillez ce tarif pour toujours. Économisez 40-80 heures par mois sur le linking.',
+      betaPrice: '$129',
+      perMonth: '/mois',
+      betaBadge: 'BETA',
+      includedTitle: 'Ce qui est inclus',
+      packageFeatures: {
+        marketing: [
+          'Création Articles - Stratégie pilier/cluster, long-form 2000-3000 mots',
+          'Linking Automatisé - Relie chaque article aux 3-5 pièces pertinentes',
+          'Synchronisation Multi-Canal - WordPress, Medium, LinkedIn, Substack',
+          'Repurposing Auto - Articles → posts sociaux, newsletter, summaries',
+          'Analyse Stratégie - Détecte gaps et opportunités de linking',
+          'Métriques Ecosystem - Trafic interne, linking score, autorité',
+          'Votre contenu reste sur vos plateformes',
+          'Support prioritaire <24h'
+        ],
+        product: [
+          'Descriptions Produits - SEO-optimisées, orientées conversion',
+          'Linking Produit - Relie produits entre eux automatiquement',
+          'Pages Catégories - Hiérarchie interne stratégique',
+          'Guides d\'Achat - Contenu comparatif qui convertit',
+          'FAQ Auto - Génère FAQ depuis questions clients courantes',
+          'Analyse Orphelins - Détecte produits mal-liés ou isolés',
+          'Votre catalogue reste sur votre plateforme',
+          'Support prioritaire <24h'
+        ],
+        docs: [
+          'Génération Docs - Guides techniques, tutoriels, références API',
+          'Linking Stratégique - Relie API docs aux tutoriels automatiquement',
+          'Détection Gaps - Identifie failles dans couverture documentation',
+          'Learning Paths - Crée parcours pédagogiques interconnectés',
+          'Help Center - Base de connaissances auto-mise à jour',
+          'Support Anti-Tickets - Réduit demandes support de 35%',
+          'Votre documentation reste maîtrisée',
+          'Support prioritaire <24h'
+        ]
+      },
+      comingSoonTitle: 'À venir',
+      comingSoonFeatures: [
+        'Dashboard linking analytics avancées',
+        'Tracking performance et A/B linking tests',
+        'Optimisation ROI basée sur données',
+        'API pour intégrations custom'
+      ],
+      packagesTitle: 'Choisissez votre package',
+      packages: [
+        { id: 'marketing', label: 'Marketing Hub', desc: 'Blog & SEO', icon: 'campaign' },
+        { id: 'product', label: 'Product Engine', desc: 'E-commerce & Product', icon: 'shopping_cart' },
+        { id: 'docs', label: 'Docs Suite', desc: 'Technical Documentation', icon: 'description' }
+      ],
+      ctaButton: 'Rejoindre la Beta',
+      futurePricingTitle: 'Tarification Standard (Après Beta)',
+      futurePricing: [
+        { name: 'Marketing Hub', future: '$249', current: '$129', save: '$120' },
+        { name: 'Product Engine', future: '$349', current: '$129', save: '$220' },
+        { name: 'Docs Suite', future: '$299', current: '$129', save: '$170' }
+      ],
+      trustBadges: [
+        { icon: 'lock', text: 'Tarif Beta verrouillé à vie' },
+        { icon: 'cancel', text: 'Annulez à tout moment' },
+        { icon: 'paid', text: 'Garantie 30 jours satisfait ou remboursé' }
+      ],
+      roiTitle: 'Votre Calcul ROI',
+      roiItems: [
+        { icon: 'schedule', label: 'Temps Gagné', value: '20 h/semaine', desc: 'Zéro liaison manuelle, linking automatisé' },
+        { icon: 'trending_up', label: 'Trafic Interne', value: '+40-80%', desc: 'Par meilleure interconnexion stratégique' },
+        { icon: 'attach_money', label: 'Valeur Mensuelle', value: '2 000 €+', desc: 'Base 20 h × 100 €/h typique en France' }
+      ]
+    }
+  : {
+      title: 'Automate Your Content Strategy',
+      subtitle: 'Join the beta now and lock in this rate forever. Save 40-80 hours per month on manual linking.',
+      betaPrice: '$129',
+      perMonth: '/mo',
+      betaBadge: 'BETA',
+      includedTitle: 'What\'s Included',
+      packageFeatures: {
+        marketing: [
+          'Article Generation - Pillar/cluster strategy, long-form 2000-3000 words',
+          'Automated Linking - Auto-links each article to 3-5 most relevant pieces',
+          'Multi-Channel Sync - WordPress, Medium, LinkedIn, Substack publishing',
+          'Auto-Repurposing - Articles → social posts, newsletter, summaries',
+          'Strategy Analysis - Detects gaps and linking opportunities',
+          'Ecosystem Metrics - Internal traffic, linking score, authority',
+          'Your content stays on your platforms',
+          'Priority support <24h'
+        ],
+        product: [
+          'Product Descriptions - SEO-optimized, conversion-focused copy',
+          'Product Linking - Auto-links products to related items',
+          'Category Pages - Strategic internal hierarchy and navigation',
+          'Buying Guides - Comparative content that ranks and converts',
+          'Auto FAQ - Generates FAQ from common customer questions',
+          'Orphan Detection - Finds poorly-linked or isolated products',
+          'Your catalog stays on your platform',
+          'Priority support <24h'
+        ],
+        docs: [
+          'Doc Generation - Technical guides, tutorials, API references',
+          'Strategic Linking - Auto-links API docs to tutorials and learning paths',
+          'Gap Detection - Identifies gaps in documentation coverage',
+          'Learning Paths - Creates interconnected learning journeys',
+          'Help Center - Knowledge base that stays current with product',
+          'Ticket Reduction - Cuts support requests by 35%',
+          'Your docs stay under your control',
+          'Priority support <24h'
+        ]
+      },
+      comingSoonTitle: 'Coming Soon',
+      comingSoonFeatures: [
+        'Advanced linking analytics dashboard',
+        'Performance tracking and A/B linking tests',
+        'Data-driven ROI optimization',
+        'API for custom integrations'
+      ],
+      packagesTitle: 'Choose Your Package',
+      packages: [
+        { id: 'marketing', label: 'Marketing Hub', desc: 'Blog & SEO', icon: 'campaign' },
+        { id: 'product', label: 'Product Engine', desc: 'E-commerce & Product', icon: 'shopping_cart' },
+        { id: 'docs', label: 'Docs Suite', desc: 'Technical Documentation', icon: 'description' }
+      ],
+      ctaButton: 'Join Beta',
+      futurePricingTitle: 'Standard Pricing (After Beta)',
+      futurePricing: [
+        { name: 'Marketing Hub', future: '$249', current: '$129', save: '$120' },
+        { name: 'Product Engine', future: '$349', current: '$129', save: '$220' },
+        { name: 'Docs Suite', future: '$299', current: '$129', save: '$170' }
+      ],
+      trustBadges: [
+        { icon: 'lock', text: 'Lifetime beta pricing locked' },
+        { icon: 'cancel', text: 'Cancel anytime' },
+        { icon: 'paid', text: '30-day money-back guarantee' }
+      ],
+      roiTitle: 'Your ROI Breakdown',
+      roiItems: [
+        { icon: 'schedule', label: 'Time Saved', value: '20 hrs/week', desc: 'Zero manual linking, fully automated' },
+        { icon: 'trending_up', label: 'Internal Traffic', value: '+40-80%', desc: 'From strategic content interconnection' },
+        { icon: 'attach_money', label: 'Monthly Value', value: '$2,000+', desc: 'Based on typical 20 hrs × $100/hr' }
+      ]
+    };
+---
+
+<section class="py-32 bg-surface-container">
+  <div class="max-w-6xl mx-auto px-4 md:px-6">
+    <!-- Section Header -->
+    <div class="text-center mb-20">
+      <h2 class="text-headline-large text-on-surface mb-4" data-pricing-title>{t.title}</h2>
+      <p class="text-title-medium text-on-surface-variant max-w-2xl mx-auto" data-pricing-subtitle>{t.subtitle}</p>
+    </div>
+
+    <!-- 2-Column Layout -->
+    <div class="grid grid-cols-[400px_1fr] gap-10 md:grid-cols-1 md:gap-6">
+      <!-- Left Column (Sticky) - Price & CTA -->
+      <div class="pricing-sticky sticky top-[100px] h-fit">
+        <div class="bg-surface-container-high rounded-3xl p-8 border-2 border-primary shadow-xs relative overflow-hidden">
+          <!-- Gradient Top Border -->
+          <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-tertiary"></div>
+
+          <!-- Beta Badge & Price -->
+          <div class="text-center mb-10">
+            <div class="inline-flex items-center gap-1.5 bg-primary text-on-primary px-4 py-2 rounded-full text-label-large font-medium mb-6">
+              <span class="material-symbols-rounded text-[18px]">rocket_launch</span>
+              {t.betaBadge}
+            </div>
+            <div class="flex items-baseline justify-center gap-2">
+              <span class="text-[4rem] font-bold text-primary leading-none" data-pricing-price>{t.betaPrice}</span>
+              <span class="text-title-large text-on-surface-variant">{t.perMonth}</span>
+            </div>
+          </div>
+
+          <!-- Package Selection -->
+          <div class="mb-8">
+            <h3 class="flex items-center gap-2 text-title-large text-on-surface m-0 mb-4 font-semibold">
+              <span class="material-symbols-rounded text-[24px] text-primary">category</span>
+              {t.packagesTitle}
+            </h3>
+            <div class="flex flex-col gap-2">
+              {t.packages.map((pkg, index) => (
+                <label
+                  class={`package-option flex items-center p-4 bg-surface border-2 rounded-2xl cursor-pointer transition-all duration-300 ${index === 0 ? 'selected border-primary bg-primary-container' : 'border-outline hover:border-primary hover:bg-primary-container'}`}
+                  data-package={pkg.id}
+                >
+                  <input
+                    type="radio"
+                    name="package"
+                    value={pkg.id}
+                    checked={index === 0}
+                    class="absolute opacity-0 pointer-events-none"
+                  />
+                  <div class="flex items-center gap-3 w-full">
+                    <span class="material-symbols-rounded text-[24px] text-primary">{pkg.icon}</span>
+                    <div class="flex-1">
+                      <div class="text-body-large font-medium text-on-surface mb-0.5">{pkg.label}</div>
+                      <div class="text-body-small text-on-surface-variant">{pkg.desc}</div>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <!-- CTA Button -->
+          <button class="w-full flex items-center justify-center gap-2 px-8 py-5 rounded-2xl text-title-medium font-medium cursor-pointer transition-all duration-300 mb-8 cta-button">
+            <span class="material-symbols-rounded text-[20px]">stars</span>
+            {t.ctaButton}
+          </button>
+
+          <!-- Trust Badges -->
+          <div class="flex flex-col gap-3 md:flex-row md:justify-around md:flex-wrap">
+            {t.trustBadges.map((badge) => (
+              <div class="flex items-center gap-1.5 text-body-small text-on-surface-variant">
+                <span class="material-symbols-rounded text-[16px] text-tertiary">{badge.icon}</span>
+                <span>{badge.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column (Scrollable) - Details -->
+      <div class="bg-surface-container-high rounded-3xl p-8 border border-outline-variant shadow-xs">
+        <!-- Features Section -->
+        <div class="mb-8">
+          <h3 class="flex items-center gap-2 text-title-large text-on-surface m-0 mb-4 font-semibold">
+            <span class="material-symbols-rounded text-[24px] text-primary">check_circle</span>
+            {t.includedTitle}
+          </h3>
+          <ul class="list-none p-0 m-0 flex flex-col gap-3 transition-all duration-300" data-features-list>
+            {t.packageFeatures.marketing.map((feature, index) => (
+              <li class="feature-item flex items-start gap-3 p-3 bg-surface rounded-2xl text-body-large text-on-surface opacity-0 transform -translate-x-2.5" style={`animation-delay: ${index * 50}ms`}>
+                <span class="material-symbols-rounded text-[20px] text-primary flex-shrink-0 mt-0.5">check</span>
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <!-- Coming Soon Section -->
+        <div class="mb-8">
+          <h3 class="flex items-center gap-2 text-title-large text-on-surface m-0 mb-4 font-semibold">
+            <span class="material-symbols-rounded text-[24px] text-secondary">upcoming</span>
+            {t.comingSoonTitle}
+          </h3>
+          <ul class="list-none p-0 m-0 flex flex-col gap-3 transition-all duration-300">
+            {t.comingSoonFeatures.map((feature, index) => (
+              <li class="coming-soon-item flex items-start gap-3 p-3 bg-surface rounded-2xl text-body-large text-on-surface opacity-0 transform -translate-x-2.5" style={`animation-delay: ${index * 50}ms`}>
+                <span class="material-symbols-rounded text-[20px] text-secondary flex-shrink-0 mt-0.5">schedule</span>
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <!-- Future Pricing Comparison -->
+        <div class="bg-surface-variant rounded-2xl p-6 mb-8">
+          <h4 class="text-title-medium text-on-surface m-0 mb-4 text-center font-semibold">{t.futurePricingTitle}</h4>
+          <div class="flex flex-col gap-3">
+            {t.futurePricing.map((item) => (
+              <div class="flex justify-between items-center md:flex-col md:items-start md:gap-2 py-2">
+                <span class="text-body-large text-on-surface">{item.name}</span>
+                <div class="flex items-center gap-2 md:w-full md:justify-between">
+                  <span class="text-body-medium text-on-surface-variant line-through">{item.future}</span>
+                  <span class="text-on-surface-variant">→</span>
+                  <span class="text-body-large font-semibold text-primary">{item.current}</span>
+                  <span class="bg-tertiary-container text-on-tertiary-container px-2 py-1 rounded-full text-body-small font-medium">{locale === 'fr' ? 'Économisez' : 'Save'} {item.save}/mo</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- ROI Breakdown -->
+        <div class="mt-8 pt-8 border-t border-outline-variant">
+          <h3 class="flex items-center gap-2 text-title-large text-on-surface m-0 mb-4 font-semibold">
+            <span class="material-symbols-rounded text-[24px] text-primary">trending_up</span>
+            {t.roiTitle}
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4" data-roi-container>
+            {t.roiItems.map((item, index) => (
+              <div class="roi-card flex gap-3 p-4 bg-surface rounded-2xl opacity-0 transform translate-y-2.5" style={`animation-delay: ${index * 100}ms`}>
+                <div class="flex items-center justify-center w-10 h-10 flex-shrink-0 bg-primary-container text-primary rounded-2xl">
+                  <span class="material-symbols-rounded text-[20px]">{item.icon}</span>
+                </div>
+                <div class="flex-1">
+                  <div class="text-label-medium text-on-surface-variant uppercase tracking-wider font-semibold mb-1">{item.label}</div>
+                  <div class="text-headline-small text-primary font-semibold mb-1">{item.value}</div>
+                  <div class="text-body-small text-on-surface-variant leading-relaxed">{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Animation states for scroll-triggered animations */
+  .feature-item,
+  .coming-soon-item {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+
+  .feature-item.animate-in,
+  .coming-soon-item.animate-in {
+    opacity: 1;
+    transform: translateX(0);
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .roi-card {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  .roi-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  /* Package selection states */
+  .package-option.selected {
+    border-color: var(--md-sys-color-primary) !important;
+    background-color: var(--md-sys-color-primary-container) !important;
+  }
+</style>
+
+<script>
+  // Segment-specific pricing data
+  const segmentPricingData = {
+    teams: {
+      fr: {
+        title: 'Automatisez Votre Stratégie Contenu',
+        subtitle: 'Équipes marketing & stratégie contenu. Rejoignez la beta maintenant et verrouillez ce tarif pour toujours.',
+        price: '$199',
+        roiItems: [
+          { icon: 'schedule', label: 'Temps Gagné', value: '20 h/semaine', desc: 'Par personne - zéro liaison manuelle' },
+          { icon: 'trending_up', label: 'Trafic Interne', value: '+40-80%', desc: 'Du meilleur linking stratégique' },
+          { icon: 'attach_money', label: 'Valeur Mensuelle', value: '1 600-2 000 €+', desc: 'Pour chaque personne gainée' }
+        ]
+      },
+      en: {
+        title: 'Automate Your Content Strategy',
+        subtitle: 'For content & marketing teams. Join the beta now and lock in this rate forever.',
+        price: '$199',
+        roiItems: [
+          { icon: 'schedule', label: 'Time Saved Per Person', value: '20 hrs/week', desc: 'Each team member - zero manual linking' },
+          { icon: 'trending_up', label: 'Internal Traffic', value: '+40-80%', desc: 'From strategic content interconnection' },
+          { icon: 'attach_money', label: 'Monthly Value Per Person', value: '$1,600-$2,000+', desc: 'For each team member saved' }
+        ]
+      }
+    },
+    agencies: {
+      fr: {
+        title: 'Automatisez Votre Modèle Client',
+        subtitle: 'Agences & prestataires. Verrouillez ce tarif maintenant. Facturez à vos clients 30-50% plus cher.',
+        price: '$499',
+        roiItems: [
+          { icon: 'trending_up', label: 'Revenu Par Client', value: '$600-900 €/mois', desc: 'Facturez $499 CASYS à $699-1299 au client' },
+          { icon: 'attach_money', label: 'Margin Par Client', value: '30-40%', desc: '~$200-$400 profit par client' },
+          { icon: 'scale', label: 'Scaling Sans Coût', value: '∞ Clients', desc: 'Un prix fixe, clients illimités' }
+        ]
+      },
+      en: {
+        title: 'Automate Your Client Model',
+        subtitle: 'For agencies & service providers. Lock in this rate now. Charge clients 30-50% more.',
+        price: '$499',
+        roiItems: [
+          { icon: 'trending_up', label: 'Revenue Per Client', value: '$600-$900/mo', desc: 'Bill $499 CASYS to client at $699-$1,299' },
+          { icon: 'attach_money', label: 'Profit Per Client', value: '30-40%', desc: '~$200-$400 margin per client' },
+          { icon: 'scale', label: 'Scale Without Cost', value: '∞ Clients', desc: 'One fixed price, unlimited clients' }
+        ]
+      }
+    }
+  };
+
+  // Package features data
+  const packageFeaturesData = {
+    fr: {
+      marketing: [
+        'Création Articles - Stratégie pilier/cluster, long-form 2000-3000 mots',
+        'Linking Automatisé - Relie chaque article aux 3-5 pièces pertinentes',
+        'Synchronisation Multi-Canal - WordPress, Medium, LinkedIn, Substack',
+        'Repurposing Auto - Articles → posts sociaux, newsletter, summaries',
+        'Analyse Stratégie - Détecte gaps et opportunités de linking',
+        'Métriques Ecosystem - Trafic interne, linking score, autorité',
+        'Votre contenu reste sur vos plateformes',
+        'Support prioritaire <24h'
+      ],
+      product: [
+        'Descriptions Produits - SEO-optimisées, orientées conversion',
+        'Linking Produit - Relie produits entre eux automatiquement',
+        'Pages Catégories - Hiérarchie interne stratégique',
+        'Guides d\'Achat - Contenu comparatif qui convertit',
+        'FAQ Auto - Génère FAQ depuis questions clients courantes',
+        'Analyse Orphelins - Détecte produits mal-liés ou isolés',
+        'Votre catalogue reste sur votre plateforme',
+        'Support prioritaire <24h'
+      ],
+      docs: [
+        'Génération Docs - Guides techniques, tutoriels, références API',
+        'Linking Stratégique - Relie API docs aux tutoriels automatiquement',
+        'Détection Gaps - Identifie failles dans couverture documentation',
+        'Learning Paths - Crée parcours pédagogiques interconnectés',
+        'Help Center - Base de connaissances auto-mise à jour',
+        'Support Anti-Tickets - Réduit demandes support de 35%',
+        'Votre documentation reste maîtrisée',
+        'Support prioritaire <24h'
+      ]
+    },
+    en: {
+      marketing: [
+        'Article Generation - Pillar/cluster strategy, long-form 2000-3000 words',
+        'Automated Linking - Auto-links each article to 3-5 most relevant pieces',
+        'Multi-Channel Sync - WordPress, Medium, LinkedIn, Substack publishing',
+        'Auto-Repurposing - Articles → social posts, newsletter, summaries',
+        'Strategy Analysis - Detects gaps and linking opportunities',
+        'Ecosystem Metrics - Internal traffic, linking score, authority',
+        'Your content stays on your platforms',
+        'Priority support <24h'
+      ],
+      product: [
+        'Product Descriptions - SEO-optimized, conversion-focused copy',
+        'Product Linking - Auto-links products to related items',
+        'Category Pages - Strategic internal hierarchy and navigation',
+        'Buying Guides - Comparative content that ranks and converts',
+        'Auto FAQ - Generates FAQ from common customer questions',
+        'Orphan Detection - Finds poorly-linked or isolated products',
+        'Your catalog stays on your platform',
+        'Priority support <24h'
+      ],
+      docs: [
+        'Doc Generation - Technical guides, tutorials, API references',
+        'Strategic Linking - Auto-links API docs to tutorials and learning paths',
+        'Gap Detection - Identifies gaps in documentation coverage',
+        'Learning Paths - Creates interconnected learning journeys',
+        'Help Center - Knowledge base that stays current with product',
+        'Ticket Reduction - Cuts support requests by 35%',
+        'Your docs stay under your control',
+        'Priority support <24h'
+      ]
+    }
+  };
+
+  // Package selection functionality
+  function initPricing() {
+    const packageOptions = document.querySelectorAll('.package-option');
+    const featuresList = document.querySelector('[data-features-list]') as HTMLElement | null;
+    const locale = document.documentElement.lang === 'fr' ? 'fr' : 'en';
+    
+    function updateFeatures(packageId: string) {
+      if (!featuresList) return;
+      
+      const features = packageFeaturesData[locale][packageId as keyof typeof packageFeaturesData['en']];
+      if (!features) return;
+
+      // Fade out
+      featuresList.style.opacity = '0';
+      featuresList.style.transform = 'translateY(10px)';
+
+      setTimeout(() => {
+        // Update content
+        featuresList.innerHTML = features.map((feature, index) => `
+          <li class="feature-item animate-in" style="animation-delay: ${index * 50}ms">
+            <span class="material-symbols-rounded">check</span>
+            <span>${feature}</span>
+          </li>
+        `).join('');
+
+        // Fade in
+        setTimeout(() => {
+          featuresList.style.opacity = '1';
+          featuresList.style.transform = 'translateY(0)';
+        }, 50);
+      }, 300);
+    }
+
+    packageOptions.forEach((option) => {
+      option.addEventListener('click', () => {
+        // Remove selected from all
+        packageOptions.forEach(opt => opt.classList.remove('selected'));
+        // Add selected to clicked
+        option.classList.add('selected');
+        // Update radio
+        const radio = option.querySelector('input[type="radio"]') as HTMLInputElement | null;
+        if (radio) radio.checked = true;
+        
+        // Update features
+        const packageId = option.getAttribute('data-package');
+        if (packageId) {
+          updateFeatures(packageId);
+        }
+      });
+    });
+
+    // Intersection Observer for animations
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const featureItems = entry.target.querySelectorAll('.feature-item');
+            const comingSoonItems = entry.target.querySelectorAll('.coming-soon-item');
+            const roiCards = entry.target.querySelectorAll('.roi-card');
+
+            // Animate features
+            featureItems.forEach((item, index) => {
+              setTimeout(() => {
+                item.classList.add('animate-in');
+              }, index * 100);
+            });
+
+            // Animate coming soon items
+            comingSoonItems.forEach((item, index) => {
+              setTimeout(() => {
+                item.classList.add('animate-in');
+              }, index * 100 + 500);
+            });
+
+            // Animate ROI cards
+            roiCards.forEach((card, index) => {
+              setTimeout(() => {
+                card.classList.add('animate-in');
+              }, index * 100 + 1000);
+            });
+
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '-50px' }
+    );
+
+    // Observe the right column for animations
+    const pricingSection = document.querySelector('section');
+    if (pricingSection) {
+      observer.observe(pricingSection);
+    }
+  }
+
+  // Listen for segment changes
+  function updatePricingForSegment(segment: string) {
+    const locale = document.documentElement.lang === 'fr' ? 'fr' : 'en';
+    const segmentData = segmentPricingData[segment as keyof typeof segmentPricingData];
+
+    if (!segmentData) return;
+
+    const data = segmentData[locale as keyof typeof segmentData];
+    const priceElement = document.querySelector('[data-pricing-price]');
+    const titleElement = document.querySelector('[data-pricing-title]');
+    const subtitleElement = document.querySelector('[data-pricing-subtitle]');
+    const roiCardsContainer = document.querySelector('[data-roi-container]');
+
+    if (priceElement) priceElement.textContent = data.price;
+    if (titleElement) titleElement.textContent = data.title;
+    if (subtitleElement) subtitleElement.textContent = data.subtitle;
+
+    if (roiCardsContainer) {
+      roiCardsContainer.innerHTML = data.roiItems.map((item, index) => `
+        <div class="roi-card animate-in" style="animation-delay: ${index * 100}ms">
+          <div class="flex items-center justify-center w-10 h-10 flex-shrink-0 bg-primary-container text-primary rounded-2xl">
+            <span class="material-symbols-rounded text-[20px]">${item.icon}</span>
+          </div>
+          <div class="flex-1">
+            <div class="text-label-medium text-on-surface-variant uppercase tracking-wider font-semibold mb-1">${item.label}</div>
+            <div class="text-headline-small text-primary font-semibold mb-1">${item.value}</div>
+            <div class="text-body-small text-on-surface-variant leading-relaxed">${item.desc}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Listen for segment changes from SegmentSelector
+  window.addEventListener('segment-changed', (event: any) => {
+    updatePricingForSegment(event.detail.segment);
+  });
+
+  // Initialize on DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPricing);
+  } else {
+    initPricing();
+  }
+</script>

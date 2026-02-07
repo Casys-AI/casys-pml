@@ -1,0 +1,98 @@
+---
+// Composant des bénéfices pour la landing page
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = locale === 'fr'
+  ? {
+      title: 'Les 3 Piliers de CASYS',
+      sub: 'Une plateforme créée autour de l\'automatisation de votre stratégie de contenu',
+      benefits: [
+        {
+          icon: 'link',
+          title: 'Le Linking s\'Automatise',
+          description: 'Plus de travail manuel sur les liens. Chaque nouvel article se relie automatiquement aux 3-5 pièces pertinentes. 30 secondes au lieu de 4 heures. Votre graph construit lui-même.'
+        },
+        {
+          icon: 'hub',
+          title: 'Votre Stratégie S\'Exécute',
+          description: 'Pas besoin de dire à chaque lecteur "allez lire Article B". CASYS s\'assure que chaque article pointe vers le contenu connexe. Google voit une autorité cohérente, pas une pile de documents orphelins.'
+        },
+        {
+          icon: 'trending_up',
+          title: 'Votre Trafic Se Compose',
+          description: '10 articles = trafic faible. 50 articles = trafic composé. 100+ articles = machine SEO autonome. Plus vous écrivez, plus le système devient puissant. L\'effet croît exponentiellement.'
+        }
+      ]
+    }
+  : {
+      title: 'The 3 Pillars of CASYS',
+      sub: 'A platform built around automating your content strategy execution',
+      benefits: [
+        {
+          icon: 'link',
+          title: 'Linking Automates',
+          description: 'No more manual link work. Every new article auto-links to the 3-5 most relevant pieces. 30 seconds instead of 4 hours. Your graph builds itself.'
+        },
+        {
+          icon: 'hub',
+          title: 'Your Strategy Executes',
+          description: 'You don\'t have to tell every reader "go read Article B". CASYS ensures every article points to connected content. Google sees cohesive authority, not orphaned documents.'
+        },
+        {
+          icon: 'trending_up',
+          title: 'Your Traffic Compounds',
+          description: '10 articles = weak traffic. 50 articles = compounding traffic. 100+ articles = self-running SEO machine. The more you write, the more powerful the system becomes. Effect grows exponentially.'
+        }
+      ]
+    };
+---
+
+<section class="benefits-section py-32 bg-surface">
+  <div class="max-w-6xl mx-auto px-4 md:px-6">
+    <!-- Section Header -->
+    <div class="text-center mb-20">
+      <h2 class="text-headline-large text-on-surface mb-4">{t.title}</h2>
+      <p class="text-title-medium text-on-surface-variant max-w-2xl mx-auto">{t.sub}</p>
+    </div>
+
+    <!-- Benefits Grid -->
+    <div class="benefits-grid grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-8">
+      {t.benefits.map((benefit, index) => (
+        <article class="benefit-card flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-5 bg-surface-container-high rounded-3xl p-6 md:p-8 transition-all duration-300 opacity-0 transform translate-y-5 hover:-translate-y-1 cursor-pointer" style={`animation-delay: ${index * 100}ms`}>
+          <div class="flex items-center justify-center w-12 md:w-14 h-12 md:h-14 bg-primary-container text-primary rounded-2xl flex-shrink-0">
+            <span class="material-symbols-rounded text-xl md:text-2xl">{benefit.icon}</span>
+          </div>
+          <div class="flex-1 text-center md:text-left">
+            <h3 class="text-headline-small text-on-surface mb-3">{benefit.title}</h3>
+            <p class="text-body-large text-on-surface-variant">{benefit.description}</p>
+          </div>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  // Intersection Observer for scroll-triggered animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const benefitCards = entry.target.querySelectorAll('.benefit-card');
+          benefitCards.forEach((card, index) => {
+            setTimeout(() => {
+              card.classList.add('animate-in');
+            }, index * 100);
+          });
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.2, rootMargin: '-50px' }
+  );
+
+  // Observe the benefits grid
+  const benefitsGrid = document.querySelector('.benefits-grid');
+  if (benefitsGrid) {
+    observer.observe(benefitsGrid);
+  }
+</script>

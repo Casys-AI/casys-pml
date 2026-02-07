@@ -1,0 +1,107 @@
+{
+  "md.sys.shape.corner.extra-small.top": {
+    "type": "shape",
+    "description": "Extra small top rounding",
+    "value": {
+      "all": "0px",
+      "method": "round",
+      "topLeft": "4px",
+      "topRight": "4px"
+    }
+  },
+  "md.sys.shape.corner.extra-small": {
+    "type": "shape",
+    "description": "Extra small rounding",
+    "value": {
+      "all": "4px",
+      "method": "round"
+    }
+  },
+  "md.sys.shape.corner.large": {
+    "type": "shape",
+    "description": "Large rounding",
+    "value": {
+      "all": "24px",
+      "method": "round"
+    }
+  },
+  "md.sys.shape.corner.none": {
+    "type": "shape",
+    "description": "No rounding",
+    "value": {
+      "all": "0px",
+      "method": "round"
+    }
+  },
+  "md.sys.shape.corner.large.start": {
+    "type": "shape",
+    "description": "Large start rounding",
+    "value": {
+      "all": "0px",
+      "method": "round",
+      "topLeft": "24px",
+      "bottomLeft": "24px"
+    }
+  },
+  "md.sys.shape.corner.medium": {
+    "type": "shape",
+    "description": "Medium rounding",
+    "value": {
+      "all": "12px",
+      "method": "round"
+    }
+  },
+  "md.sys.shape.corner.small": {
+    "type": "shape",
+    "description": "Small rounding",
+    "value": {
+      "all": "8px",
+      "method": "round"
+    }
+  },
+  "md.sys.shape.corner.large.end": {
+    "type": "shape",
+    "description": "Large end rounding",
+    "value": {
+      "all": "0px",
+      "method": "round",
+      "topRight": "24px",
+      "bottomRight": "24px"
+    }
+  },
+  "md.sys.shape.corner.large.top": {
+    "type": "shape",
+    "description": "Large top rounding",
+    "value": {
+      "all": "0px",
+      "method": "round",
+      "topLeft": "24px",
+      "topRight": "24px"
+    }
+  },
+  "md.sys.shape.corner.extra-large": {
+    "type": "shape",
+    "description": "Extra large rounding",
+    "value": {
+      "all": "28px",
+      "method": "round"
+    }
+  },
+  "md.sys.shape.corner.extra-large.top": {
+    "type": "shape",
+    "description": "Extra large top rounding",
+    "value": {
+      "all": "0px",
+      "method": "round",
+      "topLeft": "28px",
+      "topRight": "28px"
+    }
+  },
+  "md.sys.shape.corner.full": {
+    "type": "shape",
+    "description": "Fully rounded",
+    "value": {
+      "method": "circle"
+    }
+  }
+}

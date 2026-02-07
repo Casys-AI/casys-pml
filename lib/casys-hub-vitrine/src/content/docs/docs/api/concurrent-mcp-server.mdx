@@ -1,0 +1,229 @@
+---
+title: ConcurrentMCPServer
+description: Complete API reference for the ConcurrentMCPServer class.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The main entry point for the framework. `ConcurrentMCPServer` handles tool registration, middleware composition, transport selection, and lifecycle management.
+
+## Constructor
+
+```typescript
+import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer(options: ConcurrentServerOptions);
+```
+
+### ConcurrentServerOptions
+
+```typescript
+interface ConcurrentServerOptions {
+  name: string;                          // Server name (shown to clients)
+  version: string;                       // Semver version
+  maxConcurrent?: number;                // Default: 10
+  backpressureStrategy?: "sleep" | "queue" | "reject";  // Default: "sleep"
+  backpressureSleepMs?: number;          // Default: 10
+  rateLimit?: RateLimitOptions;          // Optional rate limiting
+  validateSchema?: boolean;              // Default: false
+  enableSampling?: boolean;              // Enable LLM sampling bridge
+  samplingClient?: SamplingClient;       // Custom sampling client
+  logger?: (msg: string) => void;        // Default: console.error
+  auth?: AuthOptions;                    // OAuth2/Bearer config
+}
+```
+
+### RateLimitOptions
+
+```typescript
+interface RateLimitOptions {
+  maxRequests: number;    // Max requests per window
+  windowMs: number;       // Window size in milliseconds
+}
+```
+
+### AuthOptions
+
+```typescript
+interface AuthOptions {
+  provider: AuthProvider;   // Use presets (createGoogleAuthProvider, etc.) or JwtAuthProvider
+}
+```
+
+## Registration methods
+
+All registration must happen **before** calling `start()` or `startHttp()`.
+
+### registerTool
+
+```typescript
+server.registerTool(tool: MCPTool, handler: ToolHandler): void;
+```
+
+Register a single tool with its handler:
+
+```typescript
+server.registerTool(
+  {
+    name: "greet",
+    description: "Greet someone",
+    inputSchema: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    },
+    requiredScopes: ["read"],  // Optional — requires this scope if auth is configured
+  },
+  ({ name }) => `Hello, ${name}!`,
+);
+```
+
+<Aside type="tip">
+  The handler can return any JSON-serializable value. Strings, objects, arrays — it all works.
+</Aside>
+
+### registerTools
+
+```typescript
+server.registerTools(tools: MCPTool[], handlers: Map<string, ToolHandler>): void;
+```
+
+Bulk-register tools. Map keys must match tool names exactly.
+
+### registerResource
+
+```typescript
+server.registerResource(resource: MCPResource, handler: ResourceHandler): void;
+```
+
+Register a single resource. See [MCP Apps](/docs/guides/mcp-apps/) for `ui://` resources.
+
+### registerResources
+
+```typescript
+server.registerResources(
+  resources: MCPResource[],
+  handlers: Map<string, ResourceHandler>,
+): void;
+```
+
+Bulk-register resources.
+
+### use
+
+```typescript
+server.use(middleware: Middleware): this;
+```
+
+Add a custom middleware to the pipeline. Returns `this` for chaining:
+
+```typescript
+server
+  .use(logging)
+  .use(metrics)
+  .use(caching);
+```
+
+<Aside type="caution">
+  Throws if called after `start()` or `startHttp()`. The pipeline is compiled at startup.
+</Aside>
+
+See the [Middleware Pipeline guide](/docs/guides/middleware/) for patterns and recipes.
+
+## Transport methods
+
+### start
+
+```typescript
+await server.start(): Promise<void>;
+```
+
+Start with STDIO transport. Use this for local tools (Claude Desktop, Cursor, etc.). Blocks until the server is stopped.
+
+### startHttp
+
+```typescript
+await server.startHttp(options: HttpServerOptions): Promise<void>;
+```
+
+Start with Streamable HTTP transport. Includes SSE streaming, session management, and RFC 9728 discovery.
+
+```typescript
+interface HttpServerOptions {
+  port: number;
+  hostname?: string;  // Default: "0.0.0.0"
+}
+```
+
+### stop
+
+```typescript
+await server.stop(): Promise<void>;
+```
+
+Graceful shutdown. Waits for in-flight requests to complete before closing.
+
+## Monitoring methods
+
+### getMetrics
+
+```typescript
+server.getMetrics(): QueueMetrics;
+// { inFlight: number, queued: number }
+```
+
+### getRateLimitMetrics
+
+```typescript
+server.getRateLimitMetrics(): { keys: number, totalRequests: number } | null;
+```
+
+Returns `null` if rate limiting is not configured.
+
+### getToolCount / getToolNames
+
+```typescript
+server.getToolCount(): number;
+server.getToolNames(): string[];
+```
+
+### getResourceCount / getResourceUris
+
+```typescript
+server.getResourceCount(): number;
+server.getResourceUris(): string[];
+```
+
+## SSE methods (HTTP transport only)
+
+### sendToSession
+
+```typescript
+server.sendToSession(sessionId: string, message: Record<string, unknown>): void;
+```
+
+Push a message to a specific SSE session.
+
+### broadcastNotification
+
+```typescript
+server.broadcastNotification(
+  method: string,
+  params?: Record<string, unknown>,
+): void;
+```
+
+Push a notification to **all** connected SSE clients.
+
+### getSSEClientCount
+
+```typescript
+server.getSSEClientCount(): number;
+```
+
+## See Also
+
+- [Quick Start](/docs/getting-started/quickstart/) — Server setup with both transports
+- [Middleware Pipeline](/docs/guides/middleware/) — `use()` guide and pipeline order
+- [Authentication (OAuth2)](/docs/guides/auth/) — `auth` option and scope enforcement
+- [Standalone Components](/docs/api/standalone-components/) — Use RateLimiter, RequestQueue independently

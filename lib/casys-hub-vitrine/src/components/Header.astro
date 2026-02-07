@@ -1,0 +1,459 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+const translations = {
+  en: {
+    projects: 'Projects',
+    whyCasys: 'Why Casys',
+    consulting: 'Consulting',
+    contact: 'Contact',
+    bookCall: 'Book a Call',
+  },
+  fr: {
+    projects: 'Projets',
+    whyCasys: 'Pourquoi Casys',
+    consulting: 'Consulting',
+    contact: 'Contact',
+    bookCall: 'Réserver un Appel',
+  },
+  zh: {
+    projects: '项目',
+    whyCasys: '为什么选择 Casys',
+    consulting: '咨询服务',
+    contact: '联系我们',
+    bookCall: '预约电话',
+  },
+} as const;
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<header class="header">
+  <div class="container">
+    <!-- Logo -->
+    <a href={locale === 'fr' ? '/fr' : locale === 'zh' ? '/zh' : '/'} class="logo">
+      <img src="/icons/logo.svg" alt="CASYS Logo" class="logo-img" />
+      <span class="logo-text">Casys</span>
+    </a>
+
+    <!-- Desktop Navigation - Asymmetric -->
+    <nav class="nav-desktop">
+      <div class="nav-links">
+        <a href="#projects" class="nav-link">{t.projects}</a>
+        <a href="#why-casys" class="nav-link">{t.whyCasys}</a>
+        <a href="#work-with-us" class="nav-link">{t.consulting}</a>
+        <a href="#contact" class="nav-link">{t.contact}</a>
+      </div>
+      <a href="https://calendly.com/casys/30min" class="btn-primary" target="_blank" rel="noopener">
+        {t.bookCall}
+        <span class="btn-arrow" aria-hidden="true">&rarr;</span>
+      </a>
+    </nav>
+
+    <!-- Mobile Menu Button -->
+    <button
+      id="mobile-menu-btn"
+      class="menu-btn"
+      aria-label="Toggle mobile menu"
+      aria-expanded="false"
+    >
+      <span class="menu-bar"></span>
+      <span class="menu-bar"></span>
+    </button>
+  </div>
+</header>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu" class="mobile-menu">
+  <nav class="mobile-nav">
+    <a href="#projects" class="nav-link">{t.projects}</a>
+    <a href="#why-casys" class="nav-link">{t.whyCasys}</a>
+    <a href="#work-with-us" class="nav-link">{t.consulting}</a>
+    <a href="#contact" class="nav-link">{t.contact}</a>
+    <div class="mobile-cta">
+      <a href="https://calendly.com/casys/30min" class="btn-primary" target="_blank" rel="noopener">
+        {t.bookCall}
+        <span class="btn-arrow" aria-hidden="true">&rarr;</span>
+      </a>
+    </div>
+  </nav>
+</div>
+
+<style>
+  /* ========================================
+     CASYS HEADER - Distinctive Design
+     ======================================== */
+
+  /* Dark mode variables */
+  html[data-theme="dark"] {
+    --casys-gradient-start: #FFB86F;
+    --casys-gradient-mid: #D4A574;
+    --casys-gradient-end: #C9DC9A;
+    --casys-surface-elevated: #2a2520;
+    --casys-surface-elevated-hover: #2f2a25;
+    --casys-background-dark: #1a1815;
+    --casys-border-subtle: rgba(255, 184, 111, 0.08);
+    --casys-border-medium: rgba(255, 184, 111, 0.15);
+    --casys-text-primary: #f5f0ea;
+    --casys-text-secondary: #d5c3b5;
+  }
+
+  /* Header */
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .header.header-hidden {
+    transform: translateY(-100%);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Logo */
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+
+  .logo-img {
+    height: 28px;
+    width: auto;
+  }
+
+  .logo-text {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.02em;
+  }
+
+  /* Desktop Navigation - Asymmetric layout */
+  .nav-desktop {
+    display: none;
+    align-items: center;
+    gap: 32px;
+  }
+
+  @media (min-width: 768px) {
+    .nav-desktop {
+      display: flex;
+    }
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .nav-link {
+    position: relative;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    text-decoration: none;
+    border-radius: 6px;
+  }
+
+  /* Distinctive hover: underline accent */
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 14px;
+    right: 14px;
+    height: 2px;
+    background: var(--md-sys-color-primary);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 200ms ease-out;
+  }
+
+  .nav-link:hover::after,
+  .nav-link.active::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  .nav-link:hover {
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .nav-link.active {
+    color: var(--md-sys-color-primary);
+    font-weight: 600;
+  }
+
+  /* Primary Button - Solid with arrow */
+  .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 8px;
+    border: none;
+  }
+
+  .btn-primary:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .btn-arrow {
+    font-size: 1.1em;
+    margin-left: 2px;
+  }
+
+  /* Mobile Menu Button - Custom bars */
+  .menu-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: transparent;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+
+  .menu-bar {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: var(--md-sys-color-on-surface);
+    border-radius: 1px;
+  }
+
+  .menu-btn[aria-expanded="true"] .menu-bar:first-child {
+    transform: rotate(45deg) translateY(5px);
+  }
+
+  .menu-btn[aria-expanded="true"] .menu-bar:last-child {
+    transform: rotate(-45deg) translateY(-5px);
+  }
+
+  @media (min-width: 768px) {
+    .menu-btn {
+      display: none;
+    }
+  }
+
+  /* Mobile Menu - Full screen overlay */
+  .mobile-menu {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    transform: translateX(100%);
+    z-index: 99;
+    overflow-y: auto;
+  }
+
+  .header-hidden ~ .mobile-menu {
+    top: 0;
+  }
+
+  .mobile-menu.open {
+    transform: translateX(0);
+  }
+
+  @media (min-width: 768px) {
+    .mobile-menu {
+      display: none;
+    }
+  }
+
+  .mobile-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 32px 24px;
+    gap: 8px;
+  }
+
+  .mobile-nav .nav-link {
+    padding: 16px 0;
+    font-size: 1.25rem;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0;
+  }
+
+  .mobile-nav .nav-link::after {
+    display: none;
+  }
+
+  .mobile-cta {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .mobile-cta .btn-primary {
+    width: 100%;
+    justify-content: center;
+    padding: 16px 24px;
+    font-size: 1rem;
+  }
+
+</style>
+
+<style is:global>
+  /* ========================================
+     HEADER DARK MODE (global for data-theme)
+     ======================================== */
+
+  html[data-theme="dark"] .header {
+    background: rgba(0, 0, 0, 0.85) !important;
+    border-bottom: 1px solid rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] .header .logo-text {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .header .nav-link {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .header .nav-link:hover {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .header .nav-link::after {
+    background: #FFB86F;
+  }
+
+  html[data-theme="dark"] .header .nav-link.active {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .header .btn-primary {
+    background: #FFB86F;
+    color: #1a1815;
+  }
+
+  html[data-theme="dark"] .header .btn-primary:hover {
+    background: #D4A574;
+  }
+
+  html[data-theme="dark"] .header .menu-btn {
+    border-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] .header .menu-bar {
+    background: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .mobile-menu {
+    background: rgba(26, 24, 21, 0.98) !important;
+  }
+
+  html[data-theme="dark"] .mobile-menu .nav-link {
+    color: #d5c3b5;
+    border-bottom-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] .mobile-menu .nav-link:hover {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .mobile-menu .mobile-cta {
+    border-top-color: rgba(255, 184, 111, 0.08);
+  }
+</style>
+
+<script>
+  // Header scroll behavior - hide on scroll down, show on scroll up
+  const header = document.querySelector('.header');
+  let lastScrollY = window.scrollY;
+  const scrollThreshold = 100;
+
+  window.addEventListener('scroll', () => {
+    const currentScrollY = window.scrollY;
+
+    if (currentScrollY < scrollThreshold) {
+      header?.classList.remove('header-hidden');
+    } else if (currentScrollY > lastScrollY && currentScrollY > scrollThreshold) {
+      header?.classList.add('header-hidden');
+    } else if (currentScrollY < lastScrollY) {
+      header?.classList.remove('header-hidden');
+    }
+
+    lastScrollY = currentScrollY;
+  });
+
+  // Mobile menu toggle
+  const menuBtn = document.getElementById('mobile-menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+
+  menuBtn?.addEventListener('click', () => {
+    const isOpen = mobileMenu?.classList.toggle('open');
+    menuBtn?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+
+  // Close menu on link click
+  mobileMenu?.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      mobileMenu.classList.remove('open');
+      menuBtn?.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  // Close menu on outside click
+  document.addEventListener('click', (e) => {
+    const target = e.target as Node;
+    if (!mobileMenu?.contains(target) &&
+        !menuBtn?.contains(target) &&
+        mobileMenu?.classList.contains('open')) {
+      mobileMenu.classList.remove('open');
+      menuBtn?.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  // Highlight active section on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-link[href^="#"]');
+
+  const sectionObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navLinks.forEach((link) => {
+          const href = link.getAttribute('href');
+          link.classList.toggle('active', href === `#${id}`);
+        });
+      }
+    });
+  }, { threshold: 0.3, rootMargin: '-100px 0px -60% 0px' });
+
+  sections.forEach((section) => sectionObserver.observe(section));
+</script>

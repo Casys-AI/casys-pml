@@ -1,0 +1,540 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+      title: 'Building in Public',
+      subtitle: 'Progress and community',
+      items: [
+        {
+          type: 'stat',
+          icon: 'code',
+          stat: 'Active',
+          label: 'In Dev',
+          description: 'Casys PML - MCP Gateway with GraphRAG & DAG',
+          link: {
+            text: 'Follow on GitHub',
+            url: 'https://github.com/Casys-AI/casys-pml'
+          }
+        },
+        {
+          type: 'stat',
+          icon: 'groups',
+          stat: '10+',
+          label: 'Years Expertise',
+          description: 'Context Management → Graph DBs → DAGs → MCP',
+          link: {
+            text: 'Read Our Story',
+            url: '/about'
+          }
+        },
+        {
+          type: 'stat',
+          icon: 'public',
+          stat: 'French Tech',
+          label: 'Taiwan',
+          description: 'Active member of French Tech Taiwan community',
+          link: {
+            text: 'See Our Talks',
+            url: '/blog?tag=talks'
+          }
+        }
+      ],
+      testimonials: {
+        placeholder: {
+          quote: 'More testimonials coming as Casys PML reaches production users',
+          author: 'Early Access Program',
+          role: 'Join the waitlist',
+          cta: {
+            text: 'Join Waitlist',
+            url: '#contact'
+          }
+        }
+      }
+    },
+  fr: {
+      title: 'Building in Public',
+      subtitle: 'Progrès et communauté',
+      items: [
+        {
+          type: 'stat',
+          icon: 'code',
+          stat: 'Actif',
+          label: 'En Dev',
+          description: 'Casys PML - Gateway MCP avec GraphRAG & DAG',
+          link: {
+            text: 'Suivre sur GitHub',
+            url: 'https://github.com/Casys-AI/casys-pml'
+          }
+        },
+        {
+          type: 'stat',
+          icon: 'groups',
+          stat: '10+',
+          label: 'Ans d\'Expertise',
+          description: 'Context Management → Graph DBs → DAGs → MCP',
+          link: {
+            text: 'Lire Notre Histoire',
+            url: '/about'
+          }
+        },
+        {
+          type: 'stat',
+          icon: 'public',
+          stat: 'French Tech',
+          label: 'Taiwan',
+          description: 'Membre actif communauté French Tech Taiwan',
+          link: {
+            text: 'Voir Nos Talks',
+            url: '/blog?tag=talks'
+          }
+        }
+      ],
+      testimonials: {
+        placeholder: {
+          quote: 'Plus de testimonials à venir quand Casys PML atteindra users production',
+          author: 'Programme Early Access',
+          role: 'Rejoindre la waitlist',
+          cta: {
+            text: 'Rejoindre Waitlist',
+            url: '#contact'
+          }
+        }
+      }
+    },
+  zh: {
+      title: 'Building in Public',
+      subtitle: '进展与社区',
+      items: [
+        {
+          type: 'stat',
+          icon: 'code',
+          stat: '活跃',
+          label: '开发中',
+          description: 'Casys PML - 集成 GraphRAG 和 DAG 的 MCP Gateway',
+          link: {
+            text: '在 GitHub 上关注',
+            url: 'https://github.com/Casys-AI/casys-pml'
+          }
+        },
+        {
+          type: 'stat',
+          icon: 'groups',
+          stat: '10+',
+          label: '年经验',
+          description: 'Context Management → Graph DBs → DAGs → MCP',
+          link: {
+            text: '了解我们的故事',
+            url: '/about'
+          }
+        },
+        {
+          type: 'stat',
+          icon: 'public',
+          stat: 'French Tech',
+          label: '台湾',
+          description: 'French Tech Taiwan 社区活跃成员',
+          link: {
+            text: '查看演讲',
+            url: '/blog?tag=talks'
+          }
+        }
+      ],
+      testimonials: {
+        placeholder: {
+          quote: '当 Casys PML 进入生产用户阶段后将有更多评价',
+          author: '早期体验计划',
+          role: '加入等候名单',
+          cta: {
+            text: '加入等候名单',
+            url: '#contact'
+          }
+        }
+      }
+    }
+};
+
+const content = translations[locale] ?? translations.en;
+---
+
+<section id="social-proof">
+  <div class="container">
+    <!-- Section Header -->
+    <div class="section-header">
+      <h2>{content.title}</h2>
+      <p class="section-subtitle">{content.subtitle}</p>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      {content.items.map((item) => (
+        <div class="stat-card">
+          <div class="stat-icon">
+            <span class="material-symbols-rounded">{item.icon}</span>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{item.stat}</div>
+            <div class="stat-label">{item.label}</div>
+            <p class="stat-description">{item.description}</p>
+            {item.link && (
+              <a href={item.link.url} class="stat-link" target={item.link.url.startsWith('http') ? '_blank' : undefined} rel={item.link.url.startsWith('http') ? 'noopener noreferrer' : undefined}>
+                <span>{item.link.text}</span>
+                <span class="material-symbols-rounded">arrow_forward</span>
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Testimonial Placeholder -->
+    <div class="testimonial-placeholder">
+      <div class="placeholder-icon">
+        <span class="material-symbols-rounded">reviews</span>
+      </div>
+      <blockquote class="placeholder-quote">
+        "{content.testimonials.placeholder.quote}"
+      </blockquote>
+      <div class="placeholder-author">
+        <div class="author-name">{content.testimonials.placeholder.author}</div>
+        <div class="author-role">{content.testimonials.placeholder.role}</div>
+      </div>
+      <a href={content.testimonials.placeholder.cta.url} class="placeholder-cta">
+        <span>{content.testimonials.placeholder.cta.text}</span>
+        <span class="material-symbols-rounded">notifications_active</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     SOCIAL PROOF - Editorial/Refined Aesthetic
+     Font: Fraunces for headlines
+     Palette: Warm orange for dark mode
+     ======================================== */
+
+  section {
+    padding: 80px 0;
+    background: var(--md-sys-color-surface-container-low);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Left-aligned header - editorial style */
+  .section-header {
+    text-align: left;
+    margin-bottom: 48px;
+    max-width: 600px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+
+  /* Base Card - Clean editorial style */
+  .stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    padding: 32px 24px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border-radius: 16px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+  }
+
+  .stat-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .stat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 12px;
+  }
+
+  .stat-icon .material-symbols-rounded {
+    font-size: 28px;
+    color: var(--md-sys-color-primary);
+  }
+
+  .stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .stat-value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .stat-description {
+    font-size: 0.9rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .stat-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    color: var(--md-sys-color-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .stat-link:hover {
+    text-decoration: underline;
+  }
+
+  .stat-link .material-symbols-rounded {
+    font-size: 18px;
+  }
+
+  /* Testimonial Placeholder - Clean style */
+  .testimonial-placeholder {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 40px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .placeholder-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 12px;
+  }
+
+  .placeholder-icon .material-symbols-rounded {
+    font-size: 24px;
+    color: var(--md-sys-color-primary);
+  }
+
+  .placeholder-quote {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.25rem;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--md-sys-color-on-surface);
+    line-height: 1.6;
+    margin: 0;
+    max-width: 550px;
+  }
+
+  .placeholder-author {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .author-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .author-role {
+    font-size: 0.9rem;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .placeholder-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 200ms ease-out;
+  }
+
+  .placeholder-cta:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .placeholder-cta .material-symbols-rounded {
+    font-size: 18px;
+  }
+
+  /* Mobile Responsiveness */
+  @media (max-width: 768px) {
+    section {
+      padding: 60px 0;
+    }
+
+    .stats-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      padding: 24px 20px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+    }
+
+    .testimonial-placeholder {
+      padding: 32px 24px;
+    }
+
+    .placeholder-quote {
+      font-size: 1.1rem;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     SOCIAL PROOF - DARK MODE
+     Warm orange palette (#FFB86F, #D4A574)
+     ======================================== */
+
+  html[data-theme="dark"] #social-proof {
+    background: #0a0908;
+  }
+
+  html[data-theme="dark"] #social-proof h2 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #social-proof .section-subtitle {
+    color: #d5c3b5;
+  }
+
+  /* Cards */
+  html[data-theme="dark"] #social-proof .stat-card {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #social-proof .stat-card:hover {
+    border-color: rgba(255, 184, 111, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] #social-proof .stat-icon {
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #social-proof .stat-icon .material-symbols-rounded {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #social-proof .stat-value {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #social-proof .stat-label {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #social-proof .stat-description {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #social-proof .stat-link {
+    color: #FFB86F;
+  }
+
+  /* Testimonial */
+  html[data-theme="dark"] #social-proof .testimonial-placeholder {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #social-proof .placeholder-icon {
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #social-proof .placeholder-icon .material-symbols-rounded {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #social-proof .placeholder-quote {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #social-proof .author-name {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #social-proof .author-role {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #social-proof .placeholder-cta {
+    background: #FFB86F;
+    color: #1a1815;
+  }
+
+  html[data-theme="dark"] #social-proof .placeholder-cta:hover {
+    background: #D4A574;
+  }
+</style>

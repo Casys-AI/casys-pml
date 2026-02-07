@@ -1,0 +1,134 @@
+---
+title: Auth Providers
+description: API reference for authentication presets and JwtAuthProvider.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Factory functions for common identity providers, plus the low-level `JwtAuthProvider` for full control. All return an `AuthProvider` compatible with `ConcurrentServerOptions.auth.provider`.
+
+## Factory functions (presets)
+
+### createGoogleAuthProvider
+
+```typescript
+import { createGoogleAuthProvider } from "@casys/mcp-server";
+
+const provider = createGoogleAuthProvider({
+  audience: string;    // Your server's audience URL
+  resource: string;    // Your server's resource URL
+});
+```
+
+Uses Google's OIDC issuer (`https://accounts.google.com`) and public JWKS endpoint.
+
+### createAuth0AuthProvider
+
+```typescript
+import { createAuth0AuthProvider } from "@casys/mcp-server";
+
+const provider = createAuth0AuthProvider({
+  domain: string;              // Auth0 tenant domain (e.g., "my-tenant.auth0.com")
+  audience: string;
+  resource: string;
+  scopesSupported?: string[];  // Scopes your server recognizes
+});
+```
+
+### createGitHubAuthProvider
+
+```typescript
+import { createGitHubAuthProvider } from "@casys/mcp-server";
+
+const provider = createGitHubAuthProvider({
+  audience: string;
+  resource: string;
+});
+```
+
+For GitHub Actions OIDC tokens. Uses `https://token.actions.githubusercontent.com` as issuer.
+
+### createOIDCAuthProvider
+
+```typescript
+import { createOIDCAuthProvider } from "@casys/mcp-server";
+
+const provider = createOIDCAuthProvider({
+  issuer: string;                      // OIDC issuer URL
+  audience: string;
+  resource: string;
+  authorizationServers?: string[];     // Default: [issuer]
+  scopesSupported?: string[];
+});
+```
+
+Generic OIDC provider. JWKS URI is derived automatically from the issuer's `.well-known/openid-configuration`.
+
+<Aside type="tip">
+  Not sure which preset to use? See the [Authentication guide](/docs/guides/auth/) for usage examples with each provider.
+</Aside>
+
+## JwtAuthProvider
+
+For full control over JWT validation. Use this when the presets don't cover your identity provider:
+
+```typescript
+import { JwtAuthProvider } from "@casys/mcp-server";
+
+const provider = new JwtAuthProvider({
+  issuer: string;
+  audience: string;
+  resource: string;
+  authorizationServers: string[];
+  jwksUri?: string;            // Derived from issuer if omitted
+  scopesSupported?: string[];
+});
+```
+
+### verifyToken
+
+```typescript
+const authInfo = await provider.verifyToken(token: string);
+```
+
+Returns an `AuthInfo` object on success, or `null` if the token is invalid:
+
+```typescript
+interface AuthInfo {
+  subject: string;                     // Token "sub" claim
+  clientId?: string;                   // Token "client_id" or "azp" claim
+  scopes: string[];                    // Parsed from "scope" claim (space-separated)
+  claims: Record<string, unknown>;     // All token claims
+  expiresAt: Date;                     // Token expiry
+}
+```
+
+## Config loader
+
+For binary distribution — load auth config from YAML files and environment variables at runtime.
+
+### loadAuthConfig
+
+```typescript
+import { loadAuthConfig } from "@casys/mcp-server";
+
+const config = await loadAuthConfig();
+// AuthConfig | null
+```
+
+Auto-loads from `mcp-server.yaml` + `MCP_AUTH_*` env vars. Returns `null` if no configuration is found (auth stays disabled).
+
+### createAuthProviderFromConfig
+
+```typescript
+import { createAuthProviderFromConfig } from "@casys/mcp-server";
+
+const provider = createAuthProviderFromConfig(config: AuthConfig);
+// Returns the appropriate AuthProvider based on config.provider
+```
+
+## See Also
+
+- [Authentication (OAuth2)](/docs/guides/auth/) — Usage guide with presets, scope enforcement, and RFC 9728
+- [Configuration (YAML)](/docs/guides/configuration/) — File-based auth config with env var overrides
+- [ConcurrentMCPServer API](/docs/api/concurrent-mcp-server/) — `AuthOptions` in constructor

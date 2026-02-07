@@ -1,0 +1,535 @@
+---
+// i18n support - Segment-aware problem/solution messaging
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const problemSolutionContent = locale === 'fr'
+  ? {
+      teams: {
+        problem: {
+          title: "Le Vrai Problème",
+          subtitle: "Votre équipe tue 40+ heures/mois sur le linking manuel",
+          items: [
+            "Chaque personne passe 4-8h/mois à relier manuellement",
+            "Coordination difficile: qui a lié quoi? Doublons partout",
+            "Les articles orphelins s'accumulent (20% de votre contenu perdu)"
+          ],
+          result: "Coût réel: 40-80h/mois × salaires + 40% trafic perdu"
+        },
+        solution: {
+          title: "Avec CASYS",
+          subtitle: "Votre équipe livre 2x plus en 50% moins de temps",
+          items: [
+            "Zéro linking manuel: CASYS relie en 30 secondes",
+            "Collaboration sans friction: tout le monde voit les liens",
+            "Stratégie exécutée: chaque article renforce les anciens"
+          ],
+          result: "Résultat: +40-80% trafic + 20h/semaine liberées par personne"
+        }
+      },
+      agencies: {
+        problem: {
+          title: "Le Vrai Problème",
+          subtitle: "Chaque projet client = 40+ heures de linking manuel",
+          items: [
+            "Vous facturez le manuel: 40h × 150€ = 6000€ de coût par projet",
+            "Marge amputée: temps en linking = moins de profit",
+            "Pas de scaling: doubler les clients = doubler la team"
+          ],
+          result: "Impact: Marge réduite + scaling impossible"
+        },
+        solution: {
+          title: "Avec CASYS",
+          subtitle: "Même prix client, gagnez 30-40% de marge extra",
+          items: [
+            "Linking automatisé: 40h manuelles → 30 secondes",
+            "Marge 30-40%: facturez $700-1300, CASYS coûte $499",
+            "Scaling infini: prix fixe, clients illimités"
+          ],
+          result: "Résultat: +$200-400 marge/client + clients illimités"
+        }
+      }
+    }
+  : {
+      teams: {
+        problem: {
+          title: "The Real Problem",
+          subtitle: "Your team wastes 40+ hours/month on manual linking",
+          items: [
+            "Each person spends 4-8h/month manually linking content",
+            "Hard to coordinate: who linked what? Duplicates everywhere",
+            "Orphaned articles pile up (20% of content lost)"
+          ],
+          result: "Real cost: 40-80h/month × salaries + 40% traffic lost"
+        },
+        solution: {
+          title: "With CASYS",
+          subtitle: "Your team ships 2x more in 50% less time",
+          items: [
+            "Zero manual linking: CASYS links in 30 seconds",
+            "Frictionless collaboration: everyone sees the links",
+            "Strategy executed: each article strengthens the others"
+          ],
+          result: "Result: +40-80% traffic + 20h/week freed per person"
+        }
+      },
+      agencies: {
+        problem: {
+          title: "The Real Problem",
+          subtitle: "Each client project = 40+ hours of manual linking labor",
+          items: [
+            "You bill for manual work: 40h × $150 = $6,000 labor cost per project",
+            "Margins shrink: time spent linking = less profit",
+            "Can't scale: double clients = double your team"
+          ],
+          result: "Impact: Reduced margins + scaling impossible"
+        },
+        solution: {
+          title: "With CASYS",
+          subtitle: "Same client price, earn 30-40% extra margin",
+          items: [
+            "Automated linking: 40h manual → 30 seconds",
+            "30-40% margins: charge $700-1300, CASYS costs $499",
+            "Infinite scale: fixed price, unlimited clients"
+          ],
+          result: "Result: +$200-400 margin/client + unlimited clients"
+        }
+      }
+    };
+
+const defaultSegment = 'teams';
+let t = problemSolutionContent[defaultSegment];
+---
+
+<section class="problem-solution">
+  <div class="container">
+    <div class="grid">
+      <!-- Problem Column -->
+      <div class="problem-card">
+        <div class="card-header">
+          <div class="icon-wrapper error">
+            <span class="material-symbols-rounded">error</span>
+          </div>
+          <div>
+            <h2 class="card-title">{t.problem.title}</h2>
+            <p class="subtitle">{t.problem.subtitle}</p>
+          </div>
+        </div>
+
+        <div class="items-list">
+          {t.problem.items.map((item, index) => (
+            <div class="list-item" style={`animation-delay: ${index * 100}ms`}>
+              <span class="material-symbols-rounded item-icon error">close</span>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+        
+        <div class="result-badge error">
+          <span class="material-symbols-rounded">trending_down</span>
+          <span>{t.problem.result}</span>
+        </div>
+      </div>
+
+      <!-- Solution Column -->
+      <div class="solution-card">
+        <div class="card-header">
+          <div class="icon-wrapper success">
+            <span class="material-symbols-rounded">check_circle</span>
+          </div>
+          <div>
+            <h2 class="card-title">{t.solution.title}</h2>
+            <p class="subtitle">{t.solution.subtitle}</p>
+          </div>
+        </div>
+
+        <div class="items-list">
+          {t.solution.items.map((item, index) => (
+            <div class="list-item" style={`animation-delay: ${200 + index * 100}ms`}>
+              <span class="material-symbols-rounded item-icon success">check</span>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+        
+        <div class="result-badge success">
+          <span class="material-symbols-rounded">trending_up</span>
+          <span>{t.solution.result}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .problem-solution {
+    padding: 120px 0;
+    background: var(--md-sys-color-surface);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+  }
+
+  .problem-card,
+  .solution-card {
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 28px;
+    padding: 32px;
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 8px rgba(0, 0, 0, 0.02);
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .problem-card {
+    border: 2px solid var(--md-sys-color-error-container);
+  }
+
+  .solution-card {
+    border: 2px solid var(--md-sys-color-primary-container);
+  }
+
+  .problem-card.animate-in,
+  .solution-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .problem-card:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 8px 24px rgba(0, 0, 0, 0.04);
+  }
+
+  .solution-card:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 8px 24px rgba(0, 0, 0, 0.04);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  .icon-wrapper.error {
+    background: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-tertiary);
+  }
+
+  .icon-wrapper.success {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-primary);
+  }
+
+  .card-title {
+    font-size: var(--md-sys-typescale-headline-medium-size);
+    font-weight: var(--md-sys-typescale-headline-medium-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 8px 0;
+  }
+
+  .subtitle {
+    font-size: var(--md-sys-typescale-body-large-size);
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+
+  .list-item.animate-in {
+    opacity: 1;
+    transform: translateX(0);
+    transition: all 500ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .item-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 20px;
+  }
+
+  .item-icon.error {
+    color: var(--md-sys-color-tertiary);
+  }
+
+  .item-icon.success {
+    color: var(--md-sys-color-primary);
+  }
+
+  .list-item span {
+    font-size: var(--md-sys-typescale-body-large-size);
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.5;
+  }
+
+  .result-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 100px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 500;
+  }
+
+  .result-badge.error {
+    background: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-tertiary);
+  }
+
+  .result-badge.success {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  /* Dark Mode: Card styles moved to LandingLayout.astro to avoid Astro scoping issues */
+  html[data-theme="dark"] .card-title {
+    color: var(--casys-text-primary);
+  }
+
+  html[data-theme="dark"] .subtitle {
+    color: var(--casys-text-secondary);
+  }
+
+  /* Focus-visible for accessibility */
+  .problem-card:focus-visible,
+  .solution-card:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .problem-card,
+    .solution-card,
+    .list-item {
+      animation: none;
+      transition: none;
+    }
+
+    .problem-card.animate-in,
+    .solution-card.animate-in,
+    .list-item.animate-in {
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  // Content structure for dynamic segment switching
+  const problemSolutionContent = {
+    fr: {
+      teams: {
+        problem: {
+          title: "Le Vrai Problème",
+          subtitle: "Votre équipe tue 40+ heures/mois sur le linking manuel",
+          items: [
+            "Chaque personne passe 4-8h/mois à relier manuellement",
+            "Coordination difficile: qui a lié quoi? Doublons partout",
+            "Les articles orphelins s'accumulent (20% de votre contenu perdu)"
+          ],
+          result: "Coût réel: 40-80h/mois × salaires + 40% trafic perdu"
+        },
+        solution: {
+          title: "Avec CASYS",
+          subtitle: "Votre équipe livre 2x plus en 50% moins de temps",
+          items: [
+            "Zéro linking manuel: CASYS relie en 30 secondes",
+            "Collaboration sans friction: tout le monde voit les liens",
+            "Stratégie exécutée: chaque article renforce les anciens"
+          ],
+          result: "Résultat: +40-80% trafic + 20h/semaine liberées par personne"
+        }
+      },
+      agencies: {
+        problem: {
+          title: "Le Vrai Problème",
+          subtitle: "Chaque projet client = 40+ heures de linking manuel",
+          items: [
+            "Vous facturez le manuel: 40h × 150€ = 6000€ de coût par projet",
+            "Marge amputée: temps en linking = moins de profit",
+            "Pas de scaling: doubler les clients = doubler la team"
+          ],
+          result: "Impact: Marge réduite + scaling impossible"
+        },
+        solution: {
+          title: "Avec CASYS",
+          subtitle: "Même prix client, gagnez 30-40% de marge extra",
+          items: [
+            "Linking automatisé: 40h manuelles → 30 secondes",
+            "Marge 30-40%: facturez $700-1300, CASYS coûte $499",
+            "Scaling infini: prix fixe, clients illimités"
+          ],
+          result: "Résultat: +$200-400 marge/client + clients illimités"
+        }
+      }
+    },
+    en: {
+      teams: {
+        problem: {
+          title: "The Real Problem",
+          subtitle: "Your team wastes 40+ hours/month on manual linking",
+          items: [
+            "Each person spends 4-8h/month manually linking content",
+            "Hard to coordinate: who linked what? Duplicates everywhere",
+            "Orphaned articles pile up (20% of content lost)"
+          ],
+          result: "Real cost: 40-80h/month × salaries + 40% traffic lost"
+        },
+        solution: {
+          title: "With CASYS",
+          subtitle: "Your team ships 2x more in 50% less time",
+          items: [
+            "Zero manual linking: CASYS links in 30 seconds",
+            "Frictionless collaboration: everyone sees the links",
+            "Strategy executed: each article strengthens the others"
+          ],
+          result: "Result: +40-80% traffic + 20h/week freed per person"
+        }
+      },
+      agencies: {
+        problem: {
+          title: "The Real Problem",
+          subtitle: "Each client project = 40+ hours of manual linking labor",
+          items: [
+            "You bill for manual work: 40h × $150 = $6,000 labor cost per project",
+            "Margins shrink: time spent linking = less profit",
+            "Can't scale: double clients = double your team"
+          ],
+          result: "Impact: Reduced margins + scaling impossible"
+        },
+        solution: {
+          title: "With CASYS",
+          subtitle: "Same client price, earn 30-40% extra margin",
+          items: [
+            "Automated linking: 40h manual → 30 seconds",
+            "30-40% margins: charge $700-1300, CASYS costs $499",
+            "Infinite scale: fixed price, unlimited clients"
+          ],
+          result: "Result: +$200-400 margin/client + unlimited clients"
+        }
+      }
+    }
+  };
+
+  // Intersection Observer for scroll-triggered animations + segment switching
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          // Animate cards
+          const cards = entry.target.querySelectorAll('.problem-card, .solution-card');
+          cards.forEach((card, index) => {
+            setTimeout(() => {
+              card.classList.add('animate-in');
+            }, index * 200);
+          });
+
+          // Animate list items
+          const listItems = entry.target.querySelectorAll('.list-item');
+          listItems.forEach((item) => {
+            item.classList.add('animate-in');
+          });
+
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.2, rootMargin: '-50px' }
+  );
+
+  // Observe the section
+  const section = document.querySelector('.problem-solution');
+  if (section) {
+    observer.observe(section);
+  }
+
+  // Segment switching handler
+  const updateProblemSolutionForSegment = (segment: string) => {
+    const locale = document.documentElement.lang === 'fr' ? 'fr' : 'en';
+    const content = problemSolutionContent[locale][segment as keyof typeof problemSolutionContent[typeof locale]];
+
+    if (!content) return;
+
+    // Update problem card
+    const problemTitle = document.querySelector('.problem-card .card-title');
+    const problemSubtitle = document.querySelector('.problem-card .subtitle');
+    const problemItems = document.querySelectorAll('.problem-card .list-item');
+    const problemResult = document.querySelector('.problem-card .result-badge');
+
+    if (problemTitle) problemTitle.textContent = content.problem.title;
+    if (problemSubtitle) problemSubtitle.textContent = content.problem.subtitle;
+    problemItems.forEach((item, index) => {
+      const textSpan = item.querySelector('span:last-child');
+      if (textSpan) textSpan.textContent = content.problem.items[index];
+    });
+    if (problemResult) problemResult.textContent = content.problem.result;
+
+    // Update solution card
+    const solutionTitle = document.querySelector('.solution-card .card-title');
+    const solutionSubtitle = document.querySelector('.solution-card .subtitle');
+    const solutionItems = document.querySelectorAll('.solution-card .list-item');
+    const solutionResult = document.querySelector('.solution-card .result-badge');
+
+    if (solutionTitle) solutionTitle.textContent = content.solution.title;
+    if (solutionSubtitle) solutionSubtitle.textContent = content.solution.subtitle;
+    solutionItems.forEach((item, index) => {
+      const textSpan = item.querySelector('span:last-child');
+      if (textSpan) textSpan.textContent = content.solution.items[index];
+    });
+    if (solutionResult) solutionResult.textContent = content.solution.result;
+  };
+
+  // Listen for segment changes
+  window.addEventListener('segment-changed', (event: any) => {
+    updateProblemSolutionForSegment(event.detail.segment);
+  });
+</script>

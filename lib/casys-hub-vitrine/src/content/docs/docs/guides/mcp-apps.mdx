@@ -1,0 +1,94 @@
+---
+title: MCP Apps (UI Resources)
+description: Serve interactive UIs alongside your MCP tools using the ui:// scheme.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+MCP tools return data. MCP Apps render it. Register HTML UIs as resources, and clients that support SEP-1865 will render them inline — dashboards, data viewers, forms, config panels, right next to your tools.
+
+## Registering a UI resource
+
+```typescript
+import { ConcurrentMCPServer, MCP_APP_MIME_TYPE } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "my-server",
+  version: "1.0.0",
+});
+
+server.registerResource(
+  {
+    uri: "ui://my-server/viewer",
+    name: "Data Viewer",
+    description: "Interactive data viewer",
+  },
+  async (uri) => ({
+    uri: uri.toString(),
+    mimeType: MCP_APP_MIME_TYPE,
+    text: `
+      <html>
+        <body>
+          <h1>Data Viewer</h1>
+          <div id="app"></div>
+          <script>
+            // Your interactive UI code here
+          </script>
+        </body>
+      </html>
+    `,
+  }),
+);
+
+await server.start();
+```
+
+## The `ui://` scheme
+
+The `ui://` URI scheme tells MCP clients that this resource is an interactive HTML application, not raw data.
+
+- **URI format**: `ui://{server-name}/{path}`
+- **MIME type**: Use `MCP_APP_MIME_TYPE` (exported constant)
+- **Content**: Full HTML document as a string
+
+<Aside>
+  Not all MCP clients support `ui://` resources yet. The resource simply won't appear in clients without SEP-1865 support — no errors, no broken UIs.
+</Aside>
+
+## Dynamic UI resources
+
+The handler receives the URI and can return different content based on state, fetched data, or anything else:
+
+```typescript
+server.registerResource(
+  {
+    uri: "ui://my-server/dashboard",
+    name: "Dashboard",
+    description: "Real-time metrics dashboard",
+  },
+  async (uri) => {
+    const metrics = await getMetrics();
+    return {
+      uri: uri.toString(),
+      mimeType: MCP_APP_MIME_TYPE,
+      text: renderDashboard(metrics),  // Fresh data on every read
+    };
+  },
+);
+```
+
+<Aside type="tip">
+  Since the handler runs on every resource read, your UI always reflects the latest state. No need for polling or websockets — the MCP client handles the refresh lifecycle.
+</Aside>
+
+## Checking registered resources
+
+```typescript
+server.getResourceCount();  // 2
+server.getResourceUris();   // ["ui://my-server/viewer", "ui://my-server/dashboard"]
+```
+
+## See Also
+
+- [ConcurrentMCPServer API](/docs/api/concurrent-mcp-server/) — `registerResource()` and `registerResources()` reference
+- [Quick Start](/docs/getting-started/quickstart/) — Server setup basics

@@ -1,0 +1,509 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    label: 'Quick Start',
+    title: 'Up and running in 3 steps',
+    subtitle: 'Add procedural memory to Claude Code in under a minute.',
+    docsLink: 'Read the full docs',
+    steps: [
+      {
+        number: '01',
+        title: 'Install PML',
+        description: 'One command. No dependencies. Works on macOS, Linux, and WSL.',
+        file: 'terminal',
+      },
+      {
+        number: '02',
+        title: 'Initialize your project',
+        description: 'PML creates a local config and connects to your environment.',
+        file: 'terminal',
+      },
+      {
+        number: '03',
+        title: 'Use with Claude Code',
+        description: 'PML tools are available automatically. Discover, execute, and learn.',
+        file: 'claude-code',
+      },
+    ],
+  },
+  fr: {
+    label: 'Demarrage Rapide',
+    title: 'Operationnel en 3 etapes',
+    subtitle: 'Ajoutez la memoire procedurale a Claude Code en moins d\'une minute.',
+    docsLink: 'Lire la documentation complete',
+    steps: [
+      {
+        number: '01',
+        title: 'Installer PML',
+        description: 'Une commande. Aucune dependance. Fonctionne sur macOS, Linux et WSL.',
+        file: 'terminal',
+      },
+      {
+        number: '02',
+        title: 'Initialiser votre projet',
+        description: 'PML cree une configuration locale et se connecte a votre environnement.',
+        file: 'terminal',
+      },
+      {
+        number: '03',
+        title: 'Utiliser avec Claude Code',
+        description: 'Les outils PML sont disponibles automatiquement. Decouvrez, executez et apprenez.',
+        file: 'claude-code',
+      },
+    ],
+  },
+  zh: {
+    label: '快速开始',
+    title: '3 步启动',
+    subtitle: '不到一分钟为 Claude Code 添加程序化记忆。',
+    docsLink: '阅读完整文档',
+    steps: [
+      {
+        number: '01',
+        title: '安装 PML',
+        description: '一条命令。无依赖。支持 macOS、Linux 和 WSL。',
+        file: 'terminal',
+      },
+      {
+        number: '02',
+        title: '初始化项目',
+        description: 'PML 创建本地配置并连接到您的环境。',
+        file: 'terminal',
+      },
+      {
+        number: '03',
+        title: '与 Claude Code 配合使用',
+        description: 'PML 工具自动可用。发现、执行和学习。',
+        file: 'claude-code',
+      },
+    ],
+  },
+};
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+
+/* ------------------------------------------------------------------ *
+ * Code blocks stored in frontmatter as raw HTML strings               *
+ * CSS classes: .cmd (amber), .flag (blue), .str (green),              *
+ *   .comment (muted italic), .dim (muted), .key (amber)              *
+ * ------------------------------------------------------------------ */
+
+const codeStep1 = `<span class="cmd">$</span> curl <span class="flag">-fsSL</span> <span class="str">https://pml.casys.ai/install.sh</span> | sh
+<span class="dim">✓ Installed pml to /usr/local/bin/pml</span>`;
+
+const codeStep2 = `<span class="cmd">$</span> cd your-project
+<span class="cmd">$</span> pml init
+<span class="dim">✓ Created .pml/config.yaml</span>
+<span class="dim">✓ Detected 3 MCP servers in environment</span>
+<span class="dim">✓ Ready to learn</span>
+
+<span class="cmd">$</span> echo <span class="str">"PML_API_KEY=your_key"</span> &gt;&gt; .env`;
+
+const codeStep3 = `<span class="comment"># PML tools are available automatically:</span>
+<span class="key">discover</span>({ intent: <span class="str">"read a JSON file"</span> })
+<span class="comment"># → file:read_file (0.94), json:parse (0.87), fs:readFileSync (0.81)</span>
+
+<span class="key">execute</span>({
+  intent: <span class="str">"read and parse config.json"</span>,
+  code: <span class="str">\`const data = await mcp.filesystem.read_file({ path: "config.json" });
+return JSON.parse(data);\`</span>
+})
+<span class="comment"># → { "name": "my-project", "version": "1.0.0" }</span>`;
+
+const codeBlocks = [codeStep1, codeStep2, codeStep3];
+---
+
+<section id="quickstart">
+  <div class="container">
+    <!-- Section header -->
+    <div class="section-header">
+      <span class="eyebrow">{t.label}</span>
+      <h2>{t.title}</h2>
+      <p class="section-subtitle">{t.subtitle}</p>
+    </div>
+
+    <!-- Steps -->
+    <div class="steps">
+      {t.steps.map((step, idx) => (
+        <div class="step">
+          {/* Connector line (not on last step) */}
+          {idx < t.steps.length - 1 && <div class="connector" aria-hidden="true" />}
+
+          {/* Number badge */}
+          <div class="step-badge" aria-hidden="true">{step.number}</div>
+
+          {/* Content */}
+          <div class="step-body">
+            <h3 class="step-title">{step.title}</h3>
+            <p class="step-desc">{step.description}</p>
+
+            {/* Terminal chrome */}
+            <div class="terminal">
+              <div class="terminal-bar">
+                <span class="dot red" />
+                <span class="dot yellow" />
+                <span class="dot green" />
+                <span class="terminal-file">{step.file}</span>
+              </div>
+              <pre class="terminal-code"><code><Fragment set:html={codeBlocks[idx]} /></code></pre>
+              {idx === 2 && (
+                <div class="result-badge">PML learns patterns as you work</div>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Docs CTA -->
+    <div class="docs-cta">
+      <a href="/docs" class="docs-link">
+        {t.docsLink}
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M7 5l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     QUICK START - Light mode (scoped)
+     Fonts: Instrument Serif headings,
+            JetBrains Mono code, Inter body
+     ======================================== */
+
+  section {
+    padding: 100px 0;
+    background: var(--md-sys-color-surface);
+  }
+
+  .container {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---- Header ---- */
+  .section-header {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--md-sys-color-primary);
+    margin-bottom: 12px;
+  }
+
+  h2 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 400;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  /* ---- Steps layout ---- */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 24px;
+    padding-bottom: 48px;
+  }
+
+  .step:last-child {
+    padding-bottom: 0;
+  }
+
+  /* Connector line */
+  .connector {
+    position: absolute;
+    left: 27px;
+    top: 56px;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--md-sys-color-primary), var(--md-sys-color-outline-variant));
+    opacity: 0.4;
+  }
+
+  /* Number badge */
+  .step-badge {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--md-sys-color-surface-container-high);
+    border: 2px solid var(--md-sys-color-outline-variant);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--md-sys-color-primary);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+
+  /* Step body */
+  .step-body {
+    min-width: 0;
+  }
+
+  .step-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 1.375rem;
+    font-weight: 400;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 6px;
+  }
+
+  .step-desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0 0 20px;
+    line-height: 1.5;
+  }
+
+  /* ---- Terminal chrome ---- */
+  .terminal {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-lowest);
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--md-sys-color-surface-container-high);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .dot.red { background: #ef4444; }
+  .dot.yellow { background: #f59e0b; }
+  .dot.green { background: #22c55e; }
+
+  .terminal-file {
+    margin-left: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.7;
+  }
+
+  .terminal-code {
+    margin: 0;
+    padding: 20px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .terminal-code code {
+    display: block;
+    white-space: pre;
+  }
+
+  /* Result badge */
+  .result-badge {
+    display: inline-block;
+    margin: 0 20px 16px;
+    padding: 6px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #047857;
+    background: rgba(4, 120, 87, 0.08);
+    border: 1px solid rgba(4, 120, 87, 0.2);
+    border-radius: 6px;
+  }
+
+  /* ---- Docs CTA ---- */
+  .docs-cta {
+    text-align: center;
+    margin-top: 56px;
+  }
+
+  .docs-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    text-decoration: none;
+    transition: gap 200ms ease-out;
+  }
+
+  .docs-link:hover {
+    gap: 10px;
+  }
+
+  .docs-link:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    section {
+      padding: 60px 0;
+    }
+
+    .step {
+      grid-template-columns: 40px 1fr;
+      gap: 16px;
+      padding-bottom: 36px;
+    }
+
+    .step-badge {
+      width: 40px;
+      height: 40px;
+      font-size: 0.75rem;
+    }
+
+    .connector {
+      left: 19px;
+      top: 40px;
+    }
+
+    h2 {
+      font-size: 2rem;
+    }
+
+    .terminal-code {
+      padding: 14px;
+      font-size: 0.6875rem;
+      line-height: 1.6;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     QUICK START - Dark mode + syntax tokens
+     (global because set:html content)
+     ======================================== */
+
+  /* Syntax classes - light mode */
+  #quickstart .cmd { color: #b45309; font-weight: 600; }
+  #quickstart .flag { color: #1d4ed8; }
+  #quickstart .str { color: #047857; }
+  #quickstart .comment { color: #9ca3af; font-style: italic; }
+  #quickstart .dim { color: #9ca3af; }
+  #quickstart .key { color: #b45309; font-weight: 600; }
+
+  /* ---- Dark mode ---- */
+  html[data-theme="dark"] #quickstart {
+    background: #08080a;
+  }
+
+  html[data-theme="dark"] #quickstart .eyebrow {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #quickstart h2 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #quickstart .section-subtitle {
+    color: #d5c3b5;
+  }
+
+  /* Step badge */
+  html[data-theme="dark"] #quickstart .step-badge {
+    background: rgba(255, 184, 111, 0.08);
+    border-color: rgba(255, 184, 111, 0.2);
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #quickstart .connector {
+    background: linear-gradient(to bottom, #FFB86F, rgba(255, 184, 111, 0.1));
+    opacity: 0.3;
+  }
+
+  html[data-theme="dark"] #quickstart .step-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #quickstart .step-desc {
+    color: #a89a8c;
+  }
+
+  /* Terminal chrome */
+  html[data-theme="dark"] #quickstart .terminal {
+    background: #111110;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #quickstart .terminal-bar {
+    background: #1a1815;
+    border-bottom-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] #quickstart .terminal-file {
+    color: #a89a8c;
+  }
+
+  html[data-theme="dark"] #quickstart .terminal-code {
+    color: #f5f0ea;
+  }
+
+  /* Syntax tokens - dark */
+  html[data-theme="dark"] #quickstart .cmd { color: #FFB86F; }
+  html[data-theme="dark"] #quickstart .flag { color: #93c5fd; }
+  html[data-theme="dark"] #quickstart .str { color: #6ee7b7; }
+  html[data-theme="dark"] #quickstart .comment { color: #6b7280; font-style: italic; }
+  html[data-theme="dark"] #quickstart .dim { color: #6b7280; }
+  html[data-theme="dark"] #quickstart .key { color: #FFB86F; }
+
+  /* Result badge - dark */
+  html[data-theme="dark"] #quickstart .result-badge {
+    color: #6ee7b7;
+    background: rgba(110, 231, 183, 0.08);
+    border-color: rgba(110, 231, 183, 0.2);
+  }
+
+  /* Docs link */
+  html[data-theme="dark"] #quickstart .docs-link {
+    color: #FFB86F;
+  }
+</style>

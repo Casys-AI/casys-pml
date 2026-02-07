@@ -1,0 +1,201 @@
+---
+import '../../styles.css';
+import Analytics from '@vercel/analytics/astro';
+import McpServerHeader from './McpServerHeader.astro';
+
+export interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const locale = (Astro as any).currentLocale ?? 'en';
+const pathname = Astro.url.pathname;
+const siteUrl = import.meta.env.PUBLIC_SITE_URL as string | undefined;
+const canonicalUrl = siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
+const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN' } as const;
+const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
+
+const metaDescriptions: Record<string, string> = {
+  fr: 'Framework MCP production-grade avec middleware composable, auth OAuth2, double transport. Le Hono pour MCP.',
+  zh: '生产级 MCP 服务器框架，具有可组合中间件、OAuth2 认证、双传输。MCP 的 Hono。',
+  en: 'Production-grade MCP server framework with composable middleware, OAuth2 auth, dual transport. The Hono for MCP.',
+};
+const metaDescription = metaDescriptions[locale] ?? metaDescriptions.en;
+
+const footerTexts: Record<string, { builtBy: string }> = {
+  fr: { builtBy: 'Un projet' },
+  zh: { builtBy: '由' },
+  en: { builtBy: 'A project by' },
+};
+const t = footerTexts[locale] ?? footerTexts.en;
+---
+
+<!DOCTYPE html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={metaDescription} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/icons/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/icons/site.webmanifest" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Instrument+Serif:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <script>
+      // Theme sync
+      (function () {
+        try {
+          var root = document.documentElement;
+          var mql = window.matchMedia('(prefers-color-scheme: dark)');
+          var apply = function () { root.dataset.theme = mql.matches ? 'dark' : 'light'; };
+          apply();
+          mql.addEventListener('change', apply);
+        } catch (_) {}
+      })();
+    </script>
+    <title>{title}</title>
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <style is:inline>
+      /* Override MD3 primary from purple to warm amber/orange for mcp-server brand */
+      :root {
+        --md-sys-color-primary: #b45309;
+        --md-sys-color-on-primary: #ffffff;
+        --md-sys-color-primary-container: rgba(180, 83, 9, 0.1);
+        --md-sys-color-on-primary-container: #92400e;
+        --md-sys-color-secondary-container: rgba(180, 83, 9, 0.08);
+        --md-sys-color-on-secondary-container: #78350f;
+      }
+      html { scroll-padding-top: 72px; }
+      body { padding-top: 56px; }
+      html[data-theme="dark"], html[data-theme="dark"] body { background: #0a0908; }
+    </style>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={metaDescription} />
+    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+    <meta property="og:locale" content={ogLocale} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={metaDescription} />
+
+    <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-FR86NHGK8Y"></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-FR86NHGK8Y');
+    </script>
+  </head>
+
+  <body>
+    <McpServerHeader />
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="mcp-footer">
+      <div class="mcp-footer-inner">
+        <div class="mcp-footer-left">
+          <span class="mcp-footer-pkg">@casys/mcp-server</span>
+          <span class="mcp-footer-sep" aria-hidden="true">&mdash;</span>
+          <span class="mcp-footer-by">{t.builtBy}</span>
+          <a href="https://casys.ai" class="mcp-footer-casys" target="_blank" rel="noopener noreferrer">Casys AI</a>
+        </div>
+        <div class="mcp-footer-right">
+          <a href="https://jsr.io/@casys/mcp-server" target="_blank" rel="noopener noreferrer">JSR</a>
+          <a href="https://github.com/Casys-AI/casys-pml" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://jsr.io/@casys/mcp-server/doc" target="_blank" rel="noopener noreferrer">Docs</a>
+        </div>
+      </div>
+    </footer>
+
+    <Analytics />
+  </body>
+</html>
+
+<style>
+  .mcp-footer {
+    padding: 24px 0;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface);
+  }
+
+  .mcp-footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .mcp-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8125rem;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .mcp-footer-pkg {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .mcp-footer-sep { opacity: 0.4; }
+
+  .mcp-footer-casys {
+    color: var(--md-sys-color-primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .mcp-footer-casys:hover { text-decoration: underline; }
+
+  .mcp-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .mcp-footer-right a {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    text-decoration: none;
+    transition: color 150ms ease-out;
+  }
+
+  .mcp-footer-right a:hover { color: var(--md-sys-color-primary); }
+
+  @media (max-width: 600px) {
+    .mcp-footer-inner { flex-direction: column; text-align: center; }
+    .mcp-footer-left { flex-wrap: wrap; justify-content: center; }
+    .mcp-footer-right { justify-content: center; }
+  }
+</style>
+
+<style is:global>
+  /* MCP Footer - Dark Mode */
+  html[data-theme="dark"] .mcp-footer {
+    background: #0a0908;
+    border-top-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] .mcp-footer-pkg { color: #f5f0ea; }
+  html[data-theme="dark"] .mcp-footer-left { color: #a89a8c; }
+  html[data-theme="dark"] .mcp-footer-casys { color: #FFB86F; }
+  html[data-theme="dark"] .mcp-footer-right a { color: #a89a8c; }
+  html[data-theme="dark"] .mcp-footer-right a:hover { color: #FFB86F; }
+</style>

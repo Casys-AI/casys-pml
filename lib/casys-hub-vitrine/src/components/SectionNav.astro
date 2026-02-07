@@ -1,0 +1,199 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const sections = locale === 'fr'
+  ? [
+      { id: 'hero', label: 'Accueil' },
+      { id: 'projects', label: 'Projets' },
+      { id: 'what-we-do', label: 'Ce qu\'on Fait' },
+      { id: 'why-casys', label: 'Pourquoi Casys' },
+      { id: 'work-with-us', label: 'Travailler Avec Nous' }
+    ]
+  : [
+      { id: 'hero', label: 'Home' },
+      { id: 'projects', label: 'Projects' },
+      { id: 'what-we-do', label: 'What We Do' },
+      { id: 'why-casys', label: 'Why Casys' },
+      { id: 'work-with-us', label: 'Work With Us' }
+    ];
+---
+
+<nav id="section-nav" class="section-nav">
+  <div class="nav-container">
+    {sections.map((section) => (
+      <a href={`#${section.id}`} class="nav-item" data-section={section.id}>
+        {section.label}
+      </a>
+    ))}
+  </div>
+</nav>
+
+<style>
+  .section-nav {
+    position: sticky;
+    top: 72px; /* Below header */
+    z-index: 100;
+    background: var(--md-sys-color-surface-container);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    backdrop-filter: blur(12px);
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+
+  .section-nav.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .nav-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-item {
+    padding: 12px 20px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    text-decoration: none;
+    white-space: nowrap;
+    border-radius: 8px;
+    transition: all 200ms var(--md-sys-motion-easing-standard);
+    position: relative;
+  }
+
+  .nav-item:hover {
+    color: var(--md-sys-color-on-surface);
+    background: var(--md-sys-color-surface-container-high);
+  }
+
+  .nav-item.active {
+    color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+    font-weight: 600;
+  }
+
+  .nav-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 3px;
+    background: var(--md-sys-color-primary);
+    border-radius: 3px 3px 0 0;
+  }
+
+  /* Mobile: Smaller padding */
+  @media (max-width: 768px) {
+    .section-nav {
+      top: 64px;
+    }
+
+    .nav-item {
+      padding: 10px 16px;
+      font-size: var(--md-sys-typescale-label-medium-size);
+    }
+
+    .nav-container {
+      padding: 0 16px;
+      gap: 4px;
+    }
+  }
+
+  /* Dark Mode */
+  html[data-theme="dark"] .section-nav {
+    background: var(--casys-surface-elevated);
+    border-bottom-color: var(--casys-border-subtle);
+  }
+
+  html[data-theme="dark"] .nav-item.active {
+    color: var(--casys-gradient-start);
+    background: rgba(250, 194, 255, 0.15);
+  }
+
+  html[data-theme="dark"] .nav-item.active::after {
+    background: var(--casys-gradient-start);
+  }
+</style>
+
+<script>
+  // Show nav after scrolling past hero
+  const nav = document.getElementById('section-nav');
+  const heroSection = document.getElementById('hero');
+
+  if (nav && heroSection) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            nav.classList.remove('visible');
+          } else {
+            nav.classList.add('visible');
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(heroSection);
+  }
+
+  // Highlight active section
+  const sections = document.querySelectorAll('section[id]');
+  const navItems = document.querySelectorAll('.nav-item');
+
+  const observerOptions = {
+    threshold: 0.3,
+    rootMargin: '-100px 0px -60% 0px'
+  };
+
+  const sectionObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach((item) => {
+          if (item.getAttribute('data-section') === id) {
+            item.classList.add('active');
+          } else {
+            item.classList.remove('active');
+          }
+        });
+      }
+    });
+  }, observerOptions);
+
+  sections.forEach((section) => {
+    sectionObserver.observe(section);
+  });
+
+  // Smooth scroll
+  navItems.forEach((item) => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetId = item.getAttribute('data-section');
+      const targetSection = document.getElementById(targetId);
+
+      if (targetSection) {
+        const offset = 140; // Header + nav height
+        const targetPosition = targetSection.offsetTop - offset;
+
+        window.scrollTo({
+          top: targetPosition,
+          behavior: 'smooth'
+        });
+      }
+    });
+  });
+</script>

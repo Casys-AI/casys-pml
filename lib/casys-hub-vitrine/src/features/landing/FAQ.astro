@@ -1,0 +1,565 @@
+---
+
+// i18n support
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const faqs = locale === 'fr'
+  ? [
+      {
+        question: 'En quoi CASYS est-il différent de ChatGPT ou autres outils d\'écriture IA ?',
+        answer: 'ChatGPT génère des pièces isolées. CASYS construit un écosystème connecté. Chaque article est indexé dans un graphe sémantique qui se souvient du contexte, découvre des relations et suggère des liens internes stratégiques. C\'est la différence entre une pile de documents et un système de connaissances.'
+      },
+      {
+        question: 'Qu\'est-ce qu\'un "écosystème de contenu vivant" ?',
+        answer: 'Le contenu traditionnel meurt après publication. CASYS garde votre contenu vivant en surveillant les changements de sujets, détectant les gaps et suggérant des rafraîchissements. Le graphe évolue à mesure que votre corpus grandit, rendant chaque nouvelle pièce plus intelligente que la précédente.'
+      },
+      {
+        question: 'Ai-je besoin de connaissances techniques pour utiliser CASYS ?',
+        answer: 'Non. CASYS gère la complexité (analyse SEO, indexation du graphe, linking sémantique) pour que vous vous concentriez sur la stratégie. Si vous pouvez écrire un brief ou cliquer sur "Publier", vous pouvez utiliser CASYS.'
+      },
+      {
+        question: 'Comment fonctionne la mémoire graphe ?',
+        answer: 'Chaque article, mot-clé et topic est stocké comme un nœud dans un graphe sémantique Neo4j. CASYS découvre automatiquement les relations (sujets similaires, angles complémentaires, gaps de contenu) et les utilise pour suggérer des liens internes et de nouvelles idées de contenu.'
+      },
+      {
+        question: 'Puis-je intégrer CASYS avec mon CMS ou site existant ?',
+        answer: 'Oui. CASYS publie directement vers GitHub Pages, WordPress, Medium, Substack et plus. Vous gardez la propriété complète—CASYS est un partenaire de contenu, pas une plateforme verrouillée.'
+      },
+      {
+        question: 'Quelle est la différence entre les trois packages ?',
+        answer: 'Tous les packages partagent la même technologie de base (mémoire graphe, linking sémantique). La différence est le cas d\'usage : Content Marketing Hub (blogs, posts sociaux, newsletters), Product Content Engine (descriptions e-commerce, guides d\'achat, FAQs), SaaS Documentation (docs techniques, centres d\'aide, changelogs).'
+      },
+      {
+        question: 'Qu\'arrive-t-il à mon contenu si j\'annule ?',
+        answer: 'Vous gardez tout. Votre contenu vit sur vos plateformes (GitHub, WordPress, etc.). CASYS ne retient pas vos données en otage—vous les possédez complètement.'
+      },
+      {
+        question: 'Combien de pièces de contenu puis-je générer ?',
+        answer: 'La beta inclut génération illimitée pendant la période beta. Les limites post-beta seront annoncées, mais les utilisateurs beta verrouillent leur tarif et limites généreuses pour toujours.'
+      },
+      {
+        question: 'Offrez-vous des remboursements ?',
+        answer: 'Oui. Annulez à tout moment dans les 30 premiers jours pour un remboursement complet. Nous voulons des utilisateurs qui voient la valeur, pas des abonnés qui se sentent piégés.'
+      },
+      {
+        question: 'Quel type de support est-ce que j\'obtiens ?',
+        answer: 'Les utilisateurs beta obtiennent un support email prioritaire avec temps de réponse <24h. Nous sommes une petite équipe qui construit aux côtés des premiers adopteurs—votre feedback façonne le produit.'
+      }
+    ]
+  : [
+      {
+        question: 'How is CASYS different from ChatGPT or other AI writing tools?',
+        answer: 'ChatGPT generates isolated pieces. CASYS builds a connected ecosystem. Every article is indexed in a semantic graph that remembers context, discovers relationships, and suggests strategic internal links. It\'s the difference between a pile of documents and a knowledge system.'
+      },
+      {
+        question: 'What is a "living content ecosystem"?',
+        answer: 'Traditional content dies after publication. CASYS keeps your content alive by monitoring topic shifts, detecting gaps, and suggesting refreshes. The graph evolves as your corpus grows, making every new piece smarter than the last.'
+      },
+      {
+        question: 'Do I need technical knowledge to use CASYS?',
+        answer: 'No. CASYS handles the complexity (SEO analysis, graph indexing, semantic linking) so you focus on strategy. If you can write a brief or click "Publish," you can use CASYS.'
+      },
+      {
+        question: 'How does the graph memory work?',
+        answer: 'Every article, keyword, and topic is stored as a node in a Neo4j semantic graph. CASYS automatically discovers relationships (similar topics, complementary angles, content gaps) and uses them to suggest internal links and new content ideas.'
+      },
+      {
+        question: 'Can I integrate CASYS with my existing CMS or website?',
+        answer: 'Yes. CASYS publishes directly to GitHub Pages, WordPress, Medium, Substack, and more. You keep full ownership—CASYS is a content partner, not a lock-in platform.'
+      },
+      {
+        question: 'What\'s the difference between the three packages?',
+        answer: 'All packages share the same core technology (graph memory, semantic linking). The difference is use case: Content Marketing Hub (blogs, social posts, newsletters), Product Content Engine (e-commerce descriptions, buying guides, FAQs), SaaS Documentation (technical docs, help centers, changelogs).'
+      },
+      {
+        question: 'What happens to my content if I cancel?',
+        answer: 'You keep everything. Your content lives on your platforms (GitHub, WordPress, etc.). CASYS doesn\'t hold your data hostage—you own it completely.'
+      },
+      {
+        question: 'How many pieces of content can I generate?',
+        answer: 'Beta includes unlimited generation during the beta period. Post-beta limits will be announced, but beta users lock in their rate and generous limits forever.'
+      },
+      {
+        question: 'Do you offer refunds?',
+        answer: 'Yes. Cancel anytime within the first 30 days for a full refund. We want users who see the value, not subscribers who feel trapped.'
+      },
+      {
+        question: 'What kind of support do I get?',
+        answer: 'Beta users get priority email support with <24h response time. We\'re a small team building alongside early adopters—your feedback shapes the product.'
+      }
+    ];
+
+const t = locale === 'fr'
+  ? {
+      title: 'Questions Fréquentes',
+      subtitle: 'Tout ce que vous devez savoir sur l\'écosystème vivant'
+    }
+  : {
+      title: 'Frequently Asked Questions',
+      subtitle: 'Everything you need to know about the living ecosystem'
+    };
+
+---
+
+<section id="faq" class="faq">
+  <div class="container">
+    <!-- Section Header -->
+    <div class="header">
+      <h2 class="title">{t.title}</h2>
+      <p class="subtitle">{t.subtitle}</p>
+    </div>
+
+    <!-- FAQ Accordion -->
+    <div class="faq-accordion">
+      {faqs.map((faq, index) => (
+        <div
+          class={`faq-item ${index === 0 ? 'expanded' : ''}`}
+          data-index={index}
+          style={`animation-delay: ${index * 80}ms`}
+        >
+          <!-- Question Header -->
+          <button class="question-header" aria-expanded={index === 0}>
+            <span class="question-text">{faq.question}</span>
+            <span class="expand-icon">
+              <span class="material-symbols-rounded">expand_more</span>
+            </span>
+          </button>
+
+          <!-- Answer Content -->
+          <div class="answer-content">
+            <p>{faq.answer}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq {
+    padding: 120px 0;
+    background: linear-gradient(135deg,
+      var(--md-sys-color-surface) 0%,
+      var(--md-sys-color-surface-container) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 80px;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .header.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 600ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* FAQ Accordion */
+  .faq-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .faq-item {
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 8px rgba(0, 0, 0, 0.02);
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    /* Glassmorphism */
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    position: relative;
+  }
+
+  .faq-item.animate-in {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .faq-item:hover {
+    box-shadow:
+      0 8px 16px rgba(0, 0, 0, 0.1),
+      0 12px 24px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+  }
+
+  .faq-item.expanded {
+    background: var(--md-sys-color-primary-container);
+    border-color: var(--md-sys-color-primary);
+  }
+
+  /* Mesh gradient on expanded FAQ items */
+  .faq-item.expanded::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 150%;
+    height: 150%;
+    background: radial-gradient(
+      circle at 70% 30%,
+      rgba(var(--md-sys-color-primary-rgb, 255, 153, 0), 0.1) 0%,
+      rgba(var(--md-sys-color-secondary-rgb, 255, 184, 111), 0.05) 30%,
+      transparent 60%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .faq-item > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Question Header */
+  .question-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 24px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .question-header:hover {
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  .faq-item.expanded .question-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Focus-visible state */
+  .question-header:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  .question-text {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    flex: 1;
+    padding-right: 16px;
+  }
+
+  .faq-item.expanded .question-text {
+    color: var(--md-sys-color-on-primary-container);
+    font-weight: 600;
+  }
+
+  .expand-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+    border-radius: 50%;
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+    flex-shrink: 0;
+  }
+
+  .faq-item.expanded .expand-icon {
+    background: var(--md-sys-color-on-primary-container);
+    color: var(--md-sys-color-primary-container);
+    transform: rotate(180deg);
+  }
+
+  /* Icon micro-interaction */
+  .expand-icon:hover {
+    transform: scale(1.05) rotate(3deg);
+  }
+
+  .faq-item.expanded .expand-icon:hover {
+    transform: scale(1.05) rotate(183deg);
+  }
+
+  .expand-icon .material-symbols-rounded {
+    font-size: 24px;
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  /* Answer Content */
+  .answer-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 500ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .faq-item.expanded .answer-content {
+    max-height: 600px;
+  }
+
+  .answer-content p {
+    font-size: var(--md-sys-typescale-body-large-size);
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.6;
+    margin: 0;
+    padding: 0 24px 24px;
+  }
+
+  .faq-item.expanded .answer-content p {
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  /* Dark mode brand gradients */
+  html[data-theme="dark"] .faq {
+    background: linear-gradient(135deg,
+      var(--casys-background-dark) 0%,
+      rgba(0, 0, 0, 0.95) 100%);
+  }
+
+  html[data-theme="dark"] .faq-item {
+    background: linear-gradient(135deg,
+      rgba(250, 194, 255, 0.08) 0%,
+      rgba(255, 184, 111, 0.05) 100%);
+    border-color: rgba(250, 194, 255, 0.12);
+  }
+
+  html[data-theme="dark"] .faq-item.expanded {
+    background: linear-gradient(135deg,
+      rgba(250, 194, 255, 0.15) 0%,
+      rgba(255, 184, 111, 0.12) 100%);
+    border-color: var(--casys-gradient-start);
+    box-shadow:
+      0 8px 16px rgba(0, 0, 0, 0.3),
+      0 12px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  html[data-theme="dark"] .faq-item.expanded::before {
+    background: radial-gradient(
+      circle at 70% 30%,
+      rgba(250, 194, 255, 0.12) 0%,
+      rgba(255, 184, 111, 0.08) 30%,
+      transparent 60%
+    );
+  }
+
+  html[data-theme="dark"] .title {
+    color: var(--casys-text-primary);
+  }
+
+  html[data-theme="dark"] .subtitle {
+    color: var(--casys-text-secondary);
+  }
+
+  html[data-theme="dark"] .question-text {
+    color: var(--casys-text-primary);
+  }
+
+  html[data-theme="dark"] .faq-item.expanded .question-text {
+    color: var(--casys-gradient-start);
+  }
+
+  html[data-theme="dark"] .answer-content p {
+    color: var(--casys-text-secondary);
+  }
+
+  html[data-theme="dark"] .faq-item.expanded .answer-content p {
+    color: var(--casys-text-primary);
+  }
+
+  /* Touch optimizations */
+  @media (pointer: coarse) {
+    .question-header {
+      padding: 28px 24px;
+      min-height: 72px;
+    }
+
+    .expand-icon {
+      width: 48px;
+      height: 48px;
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .faq-item,
+    .question-header,
+    .expand-icon,
+    .header {
+      animation: none;
+      transition: none;
+    }
+
+    .faq-item:hover,
+    .expand-icon:hover {
+      transform: none;
+    }
+
+    .faq-item.expanded .expand-icon {
+      transform: rotate(180deg);
+    }
+
+    .faq-item.expanded::before {
+      display: none;
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .faq {
+      padding: 80px 0;
+    }
+
+    .faq-accordion {
+      gap: 12px;
+    }
+
+    .question-header {
+      padding: 20px;
+    }
+
+    .question-text {
+      font-size: var(--md-sys-typescale-body-large-size);
+      padding-right: 12px;
+    }
+
+    .answer-content p {
+      padding: 0 20px 20px;
+      font-size: var(--md-sys-typescale-body-medium-size);
+    }
+
+    .expand-icon {
+      width: 36px;
+      height: 36px;
+    }
+
+    .expand-icon .material-symbols-rounded {
+      font-size: 20px;
+    }
+  }
+</style>
+
+<script>
+  function initFAQ() {
+    const faqItems = document.querySelectorAll('.faq-item');
+
+    // Animate header on load
+    const header = document.querySelector('.header');
+    if (header) {
+      setTimeout(() => {
+        header.classList.add('animate-in');
+      }, 100);
+    }
+
+    // Intersection Observer for scroll-triggered animations
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-in');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '-50px' }
+    );
+
+    // Observe each FAQ item with staggered animation
+    faqItems.forEach((item, index) => {
+      setTimeout(() => {
+        observer.observe(item);
+      }, index * 80);
+    });
+
+    // Click handlers for accordion behavior
+    faqItems.forEach((item) => {
+      const header = item.querySelector('.question-header');
+
+      header?.addEventListener('click', () => {
+        const isExpanded = item.classList.contains('expanded');
+
+        // Close all other items (accordion behavior)
+        faqItems.forEach((otherItem) => {
+          if (otherItem !== item) {
+            otherItem.classList.remove('expanded');
+            const otherHeader = otherItem.querySelector('.question-header');
+            otherHeader?.setAttribute('aria-expanded', 'false');
+          }
+        });
+
+        // Toggle current item
+        if (isExpanded) {
+          item.classList.remove('expanded');
+          header.setAttribute('aria-expanded', 'false');
+        } else {
+          item.classList.add('expanded');
+          header.setAttribute('aria-expanded', 'true');
+
+          // Smooth scroll to item if needed
+          setTimeout(() => {
+            const itemTop = item.getBoundingClientRect().top + window.scrollY;
+            const offset = 100;
+            if (window.scrollY > itemTop - offset) {
+              window.scrollTo({
+                top: itemTop - offset,
+                behavior: 'smooth'
+              });
+            }
+          }, 300);
+        }
+      });
+
+      // Keyboard navigation
+      header?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          header.click();
+        }
+      });
+    });
+  }
+
+  // Initialize on DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFAQ);
+  } else {
+    initFAQ();
+  }
+</script>

@@ -1,0 +1,208 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    title: 'Batteries',
+    titleAccent: 'Included',
+    subtitle: 'Everything between the request and your handler -- handled. You focus on business logic, we handle the plumbing.',
+    features: [
+      { icon: 'swap_horiz', name: 'Dual Transport', desc: 'STDIO for local dev, Streamable HTTP for production. Same server, same code, zero config changes.' },
+      { icon: 'layers', name: 'Middleware Pipeline', desc: 'Onion model like Koa/Hono. Stack rate-limit, auth, logging in any order. Add your own with 3 lines.' },
+      { icon: 'shield', name: 'OAuth2 Auth', desc: 'JWT/Bearer validation baked in. RFC 9728 metadata, scope enforcement, one-line setup.' },
+      { icon: 'key', name: 'OIDC Presets', desc: 'GitHub Actions, Google, Auth0 -- pre-configured. Pick a provider, pass your audience, done.' },
+      { icon: 'settings', name: 'YAML + Env Config', desc: 'File-based config with env var overrides. Ship as binary, configure at deploy time.' },
+      { icon: 'speed', name: 'Concurrency Control', desc: 'Built-in RequestQueue. Choose your backpressure strategy: sleep, queue, or reject.' },
+      { icon: 'timer', name: 'Rate Limiting', desc: 'Sliding window, per-client isolation, configurable burst. Protect your tools from abuse.' },
+      { icon: 'check_circle', name: 'Schema Validation', desc: 'JSON Schema compiled at registration via ajv. Invalid input never reaches your handler.' },
+      { icon: 'monitoring', name: 'Observability', desc: 'OpenTelemetry spans on every tool call + Prometheus /metrics endpoint. Plug into Grafana, Jaeger, or Datadog.' },
+      { icon: 'widgets', name: 'MCP Apps', desc: 'Register interactive UIs as resources with ui:// scheme. Serve HTML directly from your server.' },
+    ],
+  },
+  fr: {
+    title: 'Tout',
+    titleAccent: 'Inclus',
+    subtitle: 'Tout ce qui se passe entre la requete et votre handler -- c\'est gere. Concentrez-vous sur la logique metier, on gere la plomberie.',
+    features: [
+      { icon: 'swap_horiz', name: 'Double Transport', desc: 'STDIO en dev local, HTTP Streamable en prod. Meme serveur, meme code, zero changement de config.' },
+      { icon: 'layers', name: 'Pipeline Middleware', desc: 'Modele onion a la Koa/Hono. Empilez rate-limit, auth, logging dans n\'importe quel ordre. Ajoutez le votre en 3 lignes.' },
+      { icon: 'shield', name: 'Auth OAuth2', desc: 'Validation JWT/Bearer integree. Metadonnees RFC 9728, enforcement de scopes, setup en une ligne.' },
+      { icon: 'key', name: 'Presets OIDC', desc: 'GitHub Actions, Google, Auth0 -- pre-configures. Choisissez un provider, passez votre audience, c\'est fait.' },
+      { icon: 'settings', name: 'Config YAML + Env', desc: 'Config fichier avec override par variables d\'env. Shippez en binaire, configurez au deploiement.' },
+      { icon: 'speed', name: 'Controle de Concurrence', desc: 'RequestQueue integre. Choisissez votre strategie de backpressure : sleep, queue ou reject.' },
+      { icon: 'timer', name: 'Rate Limiting', desc: 'Fenetre glissante, isolation par client, burst configurable. Protegez vos tools contre les abus.' },
+      { icon: 'check_circle', name: 'Validation de Schema', desc: 'JSON Schema compile a l\'enregistrement via ajv. Les inputs invalides n\'atteignent jamais votre handler.' },
+      { icon: 'monitoring', name: 'Observabilite', desc: 'Spans OpenTelemetry sur chaque tool call + endpoint Prometheus /metrics. Branchez Grafana, Jaeger ou Datadog.' },
+      { icon: 'widgets', name: 'MCP Apps', desc: 'Enregistrez des UIs interactives comme ressources avec le scheme ui://. Servez du HTML directement depuis votre serveur.' },
+    ],
+  },
+  zh: {
+    title: '开箱',
+    titleAccent: '即用',
+    subtitle: '请求到处理器之间的一切——都已搞定。你专注业务逻辑，我们处理基础设施。',
+    features: [
+      { icon: 'swap_horiz', name: '双传输协议', desc: '本地开发用 STDIO，生产环境用 Streamable HTTP。同一服务器，同一代码，零配置更改。' },
+      { icon: 'layers', name: '中间件管道', desc: '类似 Koa/Hono 的洋葱模型。任意顺序堆叠限流、认证、日志。3 行代码添加自定义中间件。' },
+      { icon: 'shield', name: 'OAuth2 认证', desc: '内置 JWT/Bearer 验证。RFC 9728 元数据，作用域强制执行，一行配置。' },
+      { icon: 'key', name: 'OIDC 预设', desc: 'GitHub Actions、Google、Auth0——预配置就绪。选择提供商，传入 audience，搞定。' },
+      { icon: 'settings', name: 'YAML + 环境变量', desc: '基于文件的配置，支持环境变量覆盖。打包为二进制，部署时配置。' },
+      { icon: 'speed', name: '并发控制', desc: '内置 RequestQueue。选择背压策略：sleep、queue 或 reject。' },
+      { icon: 'timer', name: '速率限制', desc: '滑动窗口，按客户端隔离，可配置突发。保护你的工具免受滥用。' },
+      { icon: 'check_circle', name: 'Schema 验证', desc: '注册时通过 ajv 编译 JSON Schema。无效输入永远不会到达你的处理器。' },
+      { icon: 'monitoring', name: '可观测性', desc: '每次工具调用自动生成 OpenTelemetry span + Prometheus /metrics 端点。接入 Grafana、Jaeger 或 Datadog。' },
+      { icon: 'widgets', name: 'MCP Apps', desc: '使用 ui:// scheme 将交互式 UI 注册为资源。直接从服务器提供 HTML。' },
+    ],
+  },
+} as const;
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="features">
+  <div class="container">
+    <div class="section-header">
+      <h2>{t.title} <span class="accent-text">{t.titleAccent}</span></h2>
+      <p class="section-subtitle">{t.subtitle}</p>
+    </div>
+    <div class="features-grid">
+      {t.features.map((f) => (
+        <div class="feature-card">
+          <div class="feature-icon-wrap">
+            <span class="material-symbols-rounded">{f.icon}</span>
+          </div>
+          <h3 class="feature-name">{f.name}</h3>
+          <p class="feature-desc">{f.desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  #features {
+    position: relative;
+    padding: 56px 0 64px;
+    overflow: hidden;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+
+  .section-header {
+    margin-bottom: 32px;
+    max-width: 600px;
+  }
+
+  .section-header h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .feature-card {
+    padding: 24px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out, transform 200ms ease-out;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .feature-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+  }
+
+  .feature-icon-wrap {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--md-sys-color-primary-container);
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  .feature-icon-wrap .material-symbols-rounded {
+    font-size: 24px;
+    color: var(--md-sys-color-primary);
+  }
+
+  .feature-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .feature-desc {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+  }
+
+  @media (max-width: 1024px) {
+    .container { padding: 0 32px; }
+    .features-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 768px) {
+    #features { padding: 60px 0; }
+    .container { padding: 0 20px; }
+    .features-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 380px) {
+    .container { padding: 0 14px; }
+  }
+</style>
+
+<style is:global>
+  #features { background: var(--md-sys-color-surface); }
+  html[data-theme="dark"] #features { background: #0d0c0a; }
+
+  html[data-theme="dark"] #features .section-header h2 { color: #f5f0ea; }
+  html[data-theme="dark"] #features .section-subtitle { color: #d5c3b5; }
+
+  html[data-theme="dark"] #features .feature-card {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] #features .feature-card:hover {
+    border-color: rgba(255, 184, 111, 0.25);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] #features .feature-icon-wrap { background: rgba(255, 184, 111, 0.1); }
+  html[data-theme="dark"] #features .feature-icon-wrap .material-symbols-rounded { color: #FFB86F; }
+  html[data-theme="dark"] #features .feature-name { color: #f5f0ea; }
+  html[data-theme="dark"] #features .feature-desc { color: #a89a8c; }
+</style>
+

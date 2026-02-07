@@ -1,0 +1,106 @@
+---
+// i18n support
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const t = locale === 'fr'
+  ? {
+      title: 'Comment Ça Marche',
+      subtitle: '3 étapes, puis votre écosystème se renforce seul',
+      steps: [
+        {
+          number: '1',
+          title: 'Vous nous briefez (30 min)',
+          description: 'Vous donnez le contexte. Nous analysons votre marché, identifions les opportunités SEO, et construisons votre stratégie de contenu.',
+          icon: 'search'
+        },
+        {
+          number: '2',
+          title: 'On écrit & relie (3-5 jours)',
+          description: 'CASYS génère votre article et l\'optimise. Ensuite, c\'est l\'étape CRUCIALE: CASYS recherche vos 3-5 articles existants les plus pertinents et les relie automatiquement. Un article neuf renforce donc les anciens.',
+          icon: 'link'
+        },
+        {
+          number: '3',
+          title: 'Ça travaille ensemble pour toujours',
+          description: 'À chaque nouvel article, votre graph se renforce. Pas de travail manuel. Pas de stratégie à dire à chaque lecteur. Votre écosystème croît exponentiellement.',
+          icon: 'trending_up'
+        }
+      ]
+    }
+  : {
+      title: 'How It Works',
+      subtitle: '3 steps, then your ecosystem strengthens itself',
+      steps: [
+        {
+          number: '1',
+          title: 'You brief us (30 min)',
+          description: 'You give the context. We analyze your market, identify SEO opportunities, and build your content strategy.',
+          icon: 'search'
+        },
+        {
+          number: '2',
+          title: 'We write & link (3-5 days)',
+          description: 'CASYS generates and optimizes your article. Then the CRUCIAL step: CASYS finds your 3-5 most relevant existing articles and auto-links them. A new article strengthens the old ones.',
+          icon: 'link'
+        },
+        {
+          number: '3',
+          title: 'It works together forever',
+          description: 'With each new article, your graph strengthens. No manual work. No strategy to repeat to each reader. Your ecosystem compounds exponentially.',
+          icon: 'trending_up'
+        }
+      ]
+    };
+---
+
+<section class="py-32 bg-surface-container">
+  <div class="max-w-6xl mx-auto px-4 md:px-6">
+    <!-- Section Header -->
+    <div class="text-center mb-20">
+      <h2 class="text-headline-large text-on-surface mb-4">{t.title}</h2>
+      <p class="text-title-medium text-on-surface-variant max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <!-- Steps Grid -->
+    <div class="steps-grid grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-8">
+      {t.steps.map((step, index) => (
+        <div class="step-card bg-surface-container-high rounded-3xl p-6 md:p-8 transition-all duration-300" style={`animation-delay: ${index * 150}ms`}>
+          <div class="flex items-center gap-3 mb-5">
+            <span class="material-symbols-rounded text-[28px] md:text-[32px] text-primary">{step.icon}</span>
+            <span class="inline-flex items-center justify-center w-9 md:w-10 h-9 md:h-10 bg-primary-container text-on-primary-container rounded-full text-title-medium md:text-title-large font-bold">{step.number}</span>
+          </div>
+          <div class="pl-10 md:pl-11">
+            <h3 class="text-headline-small text-on-surface mb-3">{step.title}</h3>
+            <p class="text-body-large text-on-surface-variant">{step.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  // Intersection Observer for scroll-triggered animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const stepCards = entry.target.querySelectorAll('.step-card');
+          stepCards.forEach((card, index) => {
+            setTimeout(() => {
+              card.classList.add('animate-in');
+            }, index * 150);
+          });
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.2, rootMargin: '-50px' }
+  );
+
+  // Observe the steps grid
+  const stepsGrid = document.querySelector('.steps-grid');
+  if (stepsGrid) {
+    observer.observe(stepsGrid);
+  }
+</script>

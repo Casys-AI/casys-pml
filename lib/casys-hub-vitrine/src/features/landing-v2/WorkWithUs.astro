@@ -1,0 +1,649 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+      title: 'Work With Us',
+      subtitle: 'Three ways to engage, based on your level of investment',
+      options: [
+        {
+          id: 'explore',
+          icon: 'explore',
+          title: 'Explore',
+          tagline: 'Free & Open Source',
+          description: 'Discover our tools, read our research, join the community.',
+          items: [
+            { icon: 'code', text: 'Casys PML - Procedural Memory Layer for AI agents', url: 'https://pml.casys.ai' },
+            { icon: 'database', text: 'CasysDB - Embedded graph database with branches', url: 'https://github.com/casysai/casysdb' },
+            { icon: 'article', text: 'Blog & Technical articles', url: '/blog' },
+            { icon: 'groups', text: 'French Tech Taiwan community', url: 'https://www.linkedin.com/company/casys-ai' }
+          ],
+          cta: {
+            text: 'Explore on GitHub',
+            url: 'https://github.com/casys-ai',
+            icon: 'arrow_forward'
+          }
+        },
+        {
+          id: 'learn',
+          icon: 'school',
+          title: 'Learn',
+          tagline: 'Training & Workshops',
+          description: 'Hands-on programs to master our research areas.',
+          items: [
+            { icon: 'smart_toy', text: 'Context Management for AI Agents (2-3 days)' },
+            { icon: 'hub', text: 'Embedded Graph Databases (1-2 days)' },
+            { icon: 'architecture', text: 'Multi-Domain AI Architectures (3-5 days)' }
+          ],
+          details: [
+            'On-site or remote',
+            'Hands-on exercises',
+            'Custom materials'
+          ],
+          cta: {
+            text: 'Request Training',
+            url: 'https://calendly.com/casys/30min',
+            icon: 'calendar_today'
+          }
+        },
+        {
+          id: 'collaborate',
+          icon: 'handshake',
+          title: 'Collaborate',
+          tagline: 'Consulting & Projects',
+          description: 'Hands-on help for your complex AI architectures.',
+          items: [
+            { icon: 'check_circle', text: 'Architecture Review & Strategy' },
+            { icon: 'check_circle', text: 'Deployment & Custom Integrations' },
+            { icon: 'check_circle', text: 'Performance Optimization' },
+            { icon: 'check_circle', text: 'Pair Programming & Code Reviews' }
+          ],
+          highlights: [
+            'Direct access to builders',
+            'No minimum engagement',
+            'Fast iteration'
+          ],
+          cta: {
+            text: 'Book a Call',
+            url: 'https://calendly.com/casys/30min',
+            icon: 'calendar_today'
+          }
+        }
+      ]
+    },
+  fr: {
+      title: 'Travailler Avec Nous',
+      subtitle: 'Trois façons de s\'engager, selon votre niveau d\'investissement',
+      options: [
+        {
+          id: 'explore',
+          icon: 'explore',
+          title: 'Explorer',
+          tagline: 'Gratuit & Open Source',
+          description: 'Découvrez nos outils, lisez notre recherche, rejoignez la communauté.',
+          items: [
+            { icon: 'code', text: 'Casys PML - Procedural Memory Layer pour agents AI', url: 'https://pml.casys.ai' },
+            { icon: 'database', text: 'CasysDB - Graph database embedded avec branches', url: 'https://github.com/casysai/casysdb' },
+            { icon: 'article', text: 'Blog & Articles techniques', url: '/blog' },
+            { icon: 'groups', text: 'Communauté French Tech Taiwan', url: 'https://www.linkedin.com/company/casys-ai' }
+          ],
+          cta: {
+            text: 'Explorer sur GitHub',
+            url: 'https://github.com/casys-ai',
+            icon: 'arrow_forward'
+          }
+        },
+        {
+          id: 'learn',
+          icon: 'school',
+          title: 'Apprendre',
+          tagline: 'Formations & Workshops',
+          description: 'Programmes hands-on pour maîtriser nos domaines de recherche.',
+          items: [
+            { icon: 'smart_toy', text: 'Context Management pour Agents AI (2-3 jours)' },
+            { icon: 'hub', text: 'Graph Databases Embedded (1-2 jours)' },
+            { icon: 'architecture', text: 'Architectures Multi-Domaines AI (3-5 jours)' }
+          ],
+          details: [
+            'On-site ou remote',
+            'Exercices hands-on',
+            'Matériaux personnalisés'
+          ],
+          cta: {
+            text: 'Demander Formation',
+            url: 'https://calendly.com/casys/30min',
+            icon: 'calendar_today'
+          }
+        },
+        {
+          id: 'collaborate',
+          icon: 'handshake',
+          title: 'Collaborer',
+          tagline: 'Consulting & Projets',
+          description: 'Aide hands-on pour vos architectures AI complexes.',
+          items: [
+            { icon: 'check_circle', text: 'Architecture Review & Strategy' },
+            { icon: 'check_circle', text: 'Déploiement & Intégrations Custom' },
+            { icon: 'check_circle', text: 'Optimisation Performance' },
+            { icon: 'check_circle', text: 'Pair Programming & Code Reviews' }
+          ],
+          highlights: [
+            'Accès direct aux builders',
+            'Pas d\'engagement minimum',
+            'Itération rapide'
+          ],
+          cta: {
+            text: 'Réserver un Appel',
+            url: 'https://calendly.com/casys/30min',
+            icon: 'calendar_today'
+          }
+        }
+      ]
+    },
+  zh: {
+      title: '与我们合作',
+      subtitle: '三种合作方式，根据您的需求选择',
+      options: [
+        {
+          id: 'explore',
+          icon: 'explore',
+          title: '探索',
+          tagline: '免费与开源',
+          description: '了解我们的工具，阅读研究，加入社区。',
+          items: [
+            { icon: 'code', text: 'Casys PML - AI 代理的程序记忆层', url: 'https://pml.casys.ai' },
+            { icon: 'database', text: 'CasysDB - 支持分支的嵌入式图数据库', url: 'https://github.com/casysai/casysdb' },
+            { icon: 'article', text: '博客与技术文章', url: '/blog' },
+            { icon: 'groups', text: 'French Tech Taiwan 社区', url: 'https://www.linkedin.com/company/casys-ai' }
+          ],
+          cta: { text: '在 GitHub 上探索', url: 'https://github.com/casys-ai', icon: 'arrow_forward' }
+        },
+        {
+          id: 'learn',
+          icon: 'school',
+          title: '学习',
+          tagline: '培训与工作坊',
+          description: '掌握我们研究领域的实操课程。',
+          items: [
+            { icon: 'smart_toy', text: 'AI 代理上下文管理 (2-3天)' },
+            { icon: 'hub', text: '嵌入式图数据库 (1-2天)' },
+            { icon: 'architecture', text: '多领域 AI 架构 (3-5天)' }
+          ],
+          details: ['现场或远程', '实操练习', '定制教材'],
+          cta: { text: '申请培训', url: 'https://calendly.com/casys/30min', icon: 'calendar_today' }
+        },
+        {
+          id: 'collaborate',
+          icon: 'handshake',
+          title: '合作',
+          tagline: '咨询与项目',
+          description: '为您复杂的 AI 架构提供实操帮助。',
+          items: [
+            { icon: 'check_circle', text: '架构评审与策略' },
+            { icon: 'check_circle', text: '部署与定制集成' },
+            { icon: 'check_circle', text: '性能优化' },
+            { icon: 'check_circle', text: '结对编程与代码审查' }
+          ],
+          highlights: ['直接对接开发者', '无最低承诺', '快速迭代'],
+          cta: { text: '预约电话', url: 'https://calendly.com/casys/30min', icon: 'calendar_today' }
+        }
+      ]
+    }
+} as const;
+
+const content = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="work-with-us">
+  <div class="container">
+    <div class="section-header">
+      <h2>{content.title}</h2>
+      <p class="section-subtitle">{content.subtitle}</p>
+    </div>
+
+    <!-- 3 Cards Grid - Increasing engagement levels -->
+    <div class="engagement-grid">
+      {content.options.map((option, index) => (
+        <div class={`engagement-card ${option.id} ${index === 2 ? 'featured' : ''}`}>
+          <!-- Card Header -->
+          <div class="card-header">
+            <div class="card-icon">
+              <span class="material-symbols-rounded">{option.icon}</span>
+            </div>
+            <div class="card-titles">
+              <h3 class="card-title">{option.title}</h3>
+              <span class="card-tagline">{option.tagline}</span>
+            </div>
+          </div>
+
+          <p class="card-description">{option.description}</p>
+
+          <!-- Items List -->
+          <div class="items-list">
+            {option.items.map((item: any) => (
+              item.url ? (
+                <a href={item.url} class="item-link" target={item.url.startsWith('http') ? '_blank' : undefined} rel={item.url.startsWith('http') ? 'noopener noreferrer' : undefined}>
+                  <span class="material-symbols-rounded item-icon">{item.icon}</span>
+                  <span class="item-text">{item.text}</span>
+                  <span class="material-symbols-rounded item-arrow">arrow_forward</span>
+                </a>
+              ) : (
+                <div class="item">
+                  <span class="material-symbols-rounded item-icon">{item.icon}</span>
+                  <span class="item-text">{item.text}</span>
+                </div>
+              )
+            ))}
+          </div>
+
+          <!-- Details (for Learn card) -->
+          {option.details && (
+            <div class="details-row">
+              {option.details.map((detail: string) => (
+                <span class="detail-tag">{detail}</span>
+              ))}
+            </div>
+          )}
+
+          <!-- Highlights (for Collaborate card) -->
+          {option.highlights && (
+            <div class="highlights-row">
+              {option.highlights.map((highlight: string) => (
+                <div class="highlight">
+                  <span class="material-symbols-rounded">verified</span>
+                  <span>{highlight}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <!-- CTA -->
+          <a href={option.cta.url} class="card-cta" target={option.cta.url.startsWith('http') ? '_blank' : undefined} rel={option.cta.url.startsWith('http') ? 'noopener noreferrer' : undefined}>
+            <span>{option.cta.text}</span>
+            <span class="material-symbols-rounded">{option.cta.icon}</span>
+          </a>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     WORK WITH US - Editorial/Refined Aesthetic
+     Font: Fraunces for headlines
+     3 Cards: Explore → Learn → Collaborate
+     ======================================== */
+
+  section {
+    padding: 80px 0;
+    background: var(--md-sys-color-surface);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Left-aligned header - editorial style */
+  .section-header {
+    text-align: left;
+    margin-bottom: 48px;
+    max-width: 600px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  /* 3 Cards Grid */
+  .engagement-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    align-items: stretch;
+  }
+
+  /* Base Card */
+  .engagement-card {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 32px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border-radius: 16px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+  }
+
+  .engagement-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Featured Card (Collaborate) */
+  .engagement-card.featured {
+    border-left: 4px solid var(--md-sys-color-primary);
+  }
+
+  /* Card Header */
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  .card-icon .material-symbols-rounded {
+    font-size: 24px;
+    color: var(--md-sys-color-primary);
+  }
+
+  .card-titles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .card-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .card-tagline {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--md-sys-color-primary);
+  }
+
+  .card-description {
+    font-size: 0.95rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* Items List */
+  .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-grow: 1;
+  }
+
+  .item,
+  .item-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 10px;
+    text-decoration: none;
+  }
+
+  .item-link {
+    transition: background 200ms ease-out;
+  }
+
+  .item-link:hover {
+    background: var(--md-sys-color-surface-container-highest);
+  }
+
+  .item-icon {
+    font-size: 20px;
+    color: var(--md-sys-color-primary);
+    flex-shrink: 0;
+  }
+
+  .item-text {
+    font-size: 0.9rem;
+    color: var(--md-sys-color-on-surface);
+    flex-grow: 1;
+    line-height: 1.4;
+  }
+
+  .item-arrow {
+    font-size: 18px;
+    color: var(--md-sys-color-on-surface-variant);
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
+
+  .item-link:hover .item-arrow {
+    opacity: 1;
+    color: var(--md-sys-color-primary);
+  }
+
+  /* Details Row (Learn) */
+  .details-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .detail-tag {
+    padding: 6px 12px;
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  /* Highlights Row (Collaborate) */
+  .highlights-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .highlight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .highlight .material-symbols-rounded {
+    font-size: 18px;
+    color: var(--md-sys-color-secondary);
+  }
+
+  /* Card CTA */
+  .card-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 200ms ease-out;
+    margin-top: auto;
+  }
+
+  .card-cta:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .card-cta .material-symbols-rounded {
+    font-size: 20px;
+  }
+
+  /* Tablet: 2 columns then 1 */
+  @media (max-width: 1024px) {
+    .engagement-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .engagement-card.collaborate {
+      grid-column: span 2;
+    }
+  }
+
+  /* Mobile: Single column */
+  @media (max-width: 768px) {
+    section {
+      padding: 60px 0;
+    }
+
+    .engagement-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .engagement-card {
+      padding: 24px;
+    }
+
+    .engagement-card.collaborate {
+      grid-column: span 1;
+    }
+
+    h2 {
+      font-size: 2rem;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     WORK WITH US - DARK MODE
+     Warm orange palette (#FFB86F, #D4A574)
+     ======================================== */
+
+  html[data-theme="dark"] #work-with-us {
+    background: #0a0908;
+  }
+
+  html[data-theme="dark"] #work-with-us h2 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #work-with-us .section-subtitle {
+    color: #d5c3b5;
+  }
+
+  /* Cards */
+  html[data-theme="dark"] #work-with-us .engagement-card {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #work-with-us .engagement-card:hover {
+    border-color: rgba(255, 184, 111, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] #work-with-us .engagement-card.featured {
+    border-left-color: #FFB86F;
+  }
+
+  /* Card Header */
+  html[data-theme="dark"] #work-with-us .card-icon {
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #work-with-us .card-icon .material-symbols-rounded {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #work-with-us .card-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #work-with-us .card-tagline {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #work-with-us .card-description {
+    color: #d5c3b5;
+  }
+
+  /* Items */
+  html[data-theme="dark"] #work-with-us .item,
+  html[data-theme="dark"] #work-with-us .item-link {
+    background: rgba(255, 184, 111, 0.05);
+    border: 1px solid rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #work-with-us .item-link:hover {
+    background: rgba(255, 184, 111, 0.1);
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #work-with-us .item-icon {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #work-with-us .item-text {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #work-with-us .item-arrow {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #work-with-us .item-link:hover .item-arrow {
+    color: #FFB86F;
+  }
+
+  /* Details & Highlights */
+  html[data-theme="dark"] #work-with-us .detail-tag {
+    background: rgba(255, 184, 111, 0.15);
+    color: #f5f0ea;
+    border: 1px solid rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #work-with-us .highlight {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #work-with-us .highlight .material-symbols-rounded {
+    color: #FFB86F;
+  }
+
+  /* CTA */
+  html[data-theme="dark"] #work-with-us .card-cta {
+    background: #FFB86F;
+    color: #1a1815;
+  }
+
+  html[data-theme="dark"] #work-with-us .card-cta:hover {
+    background: #D4A574;
+  }
+</style>

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "astro",
+  "outputDirectory": ".vercel/output",
+  "rewrites": [
+    {
+      "source": "/api/catalog/:path*",
+      "has": [{ "type": "host", "value": "pml.casys.ai" }],
+      "destination": "https://api.casys.ai/api/catalog/:path*"
+    },
+    {
+      "source": "/api/ui/:path*",
+      "has": [{ "type": "host", "value": "pml.casys.ai" }],
+      "destination": "https://api.casys.ai/api/ui/:path*"
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "pml.casys.ai" }],
+      "destination": "/pml/:path*"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "pml.casys.ai" }],
+      "destination": "/pml"
+    }
+  ]
+}

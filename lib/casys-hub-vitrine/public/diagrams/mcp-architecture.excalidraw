@@ -1,0 +1,28 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "client-box", "type": "rectangle", "x": 20, "y": 20, "width": 100, "height": 80, "strokeColor": "#60a5fa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "client-title", "type": "text", "x": 35, "y": 28, "width": 70, "height": 12, "text": "Client (Agent)", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#60a5fa"},
+    {"id": "c1", "type": "rectangle", "x": 30, "y": 45, "width": 80, "height": 22, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "c1-text", "type": "text", "x": 40, "y": 50, "width": 60, "height": 10, "text": "Discovery", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "c2", "type": "rectangle", "x": 30, "y": 72, "width": 80, "height": 22, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "c2-text", "type": "text", "x": 40, "y": 77, "width": 60, "height": 10, "text": "Invocation", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "proto-box", "type": "rectangle", "x": 155, "y": 35, "width": 80, "height": 50, "strokeColor": "#fbbf24", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "proto-title", "type": "text", "x": 168, "y": 43, "width": 54, "height": 12, "text": "Protocol", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#fbbf24"},
+    {"id": "p", "type": "rectangle", "x": 165, "y": 58, "width": 60, "height": 20, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "p-text", "type": "text", "x": 170, "y": 62, "width": 50, "height": 10, "text": "JSON-RPC 2.0", "fontSize": 7, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "server-box", "type": "rectangle", "x": 270, "y": 20, "width": 110, "height": 80, "strokeColor": "#4ade80", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "server-title", "type": "text", "x": 285, "y": 28, "width": 80, "height": 12, "text": "Server (Tool)", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#4ade80"},
+    {"id": "s1", "type": "rectangle", "x": 280, "y": 45, "width": 90, "height": 22, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "s1-text", "type": "text", "x": 290, "y": 50, "width": 70, "height": 10, "text": "Tool Handlers", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+    {"id": "s2", "type": "rectangle", "x": 280, "y": 72, "width": 90, "height": 22, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "s2-text", "type": "text", "x": 285, "y": 77, "width": 80, "height": 10, "text": "Resource Handlers", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+    {"id": "arr1", "type": "arrow", "x": 125, "y": 55, "width": 25, "height": 5, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [25, 5]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arr2", "type": "arrow", "x": 125, "y": 82, "width": 25, "height": -12, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [25, -12]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arr3", "type": "arrow", "x": 240, "y": 58, "width": 25, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [25, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arr4", "type": "arrow", "x": 240, "y": 75, "width": 25, "height": 5, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [25, 5]], "startArrowhead": null, "endArrowhead": "arrow"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

@@ -1,0 +1,28 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "title1", "type": "text", "x": 20, "y": 20, "width": 80, "height": 14, "text": "Graph edge:", "fontSize": 11, "fontFamily": 1, "textAlign": "left", "verticalAlign": "top", "strokeColor": "#60a5fa"},
+    {"id": "a1", "type": "ellipse", "x": 130, "y": 15, "width": 30, "height": 30, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0},
+    {"id": "a1-text", "type": "text", "x": 139, "y": 23, "width": 12, "height": 14, "text": "A", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "line1", "type": "line", "x": 165, "y": 30, "width": 40, "height": 0, "strokeColor": "#666666", "strokeWidth": 3, "roughness": 0, "points": [[0, 0], [40, 0]]},
+    {"id": "b1", "type": "ellipse", "x": 210, "y": 15, "width": 30, "height": 30, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0},
+    {"id": "b1-text", "type": "text", "x": 219, "y": 23, "width": 12, "height": 14, "text": "B", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "note1", "type": "text", "x": 260, "y": 23, "width": 100, "height": 12, "text": "(connects 2 nodes)", "fontSize": 10, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#666666"},
+    {"id": "title2", "type": "text", "x": 20, "y": 70, "width": 80, "height": 14, "text": "Hyperedge:", "fontSize": 11, "fontFamily": 1, "textAlign": "left", "verticalAlign": "top", "strokeColor": "#4ade80"},
+    {"id": "hyperedge-box", "type": "rectangle", "x": 125, "y": 60, "width": 160, "height": 40, "strokeColor": "#4ade80", "backgroundColor": "#1a2520", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "ha", "type": "ellipse", "x": 135, "y": 70, "width": 22, "height": 22, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0},
+    {"id": "ha-text", "type": "text", "x": 141, "y": 75, "width": 10, "height": 10, "text": "A", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "hb", "type": "ellipse", "x": 162, "y": 70, "width": 22, "height": 22, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0},
+    {"id": "hb-text", "type": "text", "x": 168, "y": 75, "width": 10, "height": 10, "text": "B", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "hc", "type": "ellipse", "x": 189, "y": 70, "width": 22, "height": 22, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0},
+    {"id": "hc-text", "type": "text", "x": 195, "y": 75, "width": 10, "height": 10, "text": "C", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "hd", "type": "ellipse", "x": 216, "y": 70, "width": 22, "height": 22, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0},
+    {"id": "hd-text", "type": "text", "x": 222, "y": 75, "width": 10, "height": 10, "text": "D", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "he", "type": "ellipse", "x": 243, "y": 70, "width": 22, "height": 22, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0},
+    {"id": "he-text", "type": "text", "x": 249, "y": 75, "width": 10, "height": 10, "text": "E", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "note2", "type": "text", "x": 300, "y": 73, "width": 100, "height": 12, "text": "(connects N nodes)", "fontSize": 10, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#666666"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

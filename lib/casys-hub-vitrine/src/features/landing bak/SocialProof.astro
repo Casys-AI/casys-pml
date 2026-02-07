@@ -1,0 +1,279 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = locale === 'fr'
+  ? {
+      title: 'Résultats Réels de Bêta',
+      subtitle: 'Le linking automatisé change vraiment la donne',
+      testimonials: [
+        {
+          type: 'metrics',
+          company: 'Startup B2B SaaS',
+          link: 'Premier client CASYS',
+          metrics: [
+            { value: '145', label: 'liens auto-générés', icon: 'link' },
+            { value: '+58%', label: 'trafic interne', icon: 'trending_up' }
+          ],
+          description: '28 articles en 8 semaines. Au lieu de 40+ heures/mois de linking manuel, CASYS a fait chaque lien en <1min. Ecosystem compounding à son meilleur.'
+        },
+        {
+          type: 'metrics',
+          company: 'Agence Marketing',
+          link: '5 clients, 3 stratégies pilier/cluster',
+          metrics: [
+            { value: '40h', label: 'temps économisé/mois', icon: 'schedule' },
+            { value: '+42%', label: 'trafic interne moyen', icon: 'trending_up' }
+          ],
+          description: 'Avant CASYS : linking manuel tuait 40h/mois. Maintenant : 5 minutes de configuration par client. L\'écosystème se construit tout seul.'
+        },
+        {
+          type: 'quote',
+          quote: 'On pensait que CASYS générait juste des articles. La révélation c\'est le linking. Ça change TOUT pour notre stratégie SEO.',
+          author: 'Head of Content, E-commerce 50M€',
+          context: 'bêta fermée, 4 mois d\'usage',
+          icon: 'format_quote'
+        }
+      ]
+    }
+  : {
+      title: 'Real Results From Beta',
+      subtitle: 'Automated linking actually changes the game',
+      testimonials: [
+        {
+          type: 'metrics',
+          company: 'B2B SaaS Startup',
+          link: 'First CASYS customer',
+          metrics: [
+            { value: '145', label: 'auto-generated links', icon: 'link' },
+            { value: '+58%', label: 'internal traffic', icon: 'trending_up' }
+          ],
+          description: '28 articles in 8 weeks. Instead of 40+ hours/month manual linking, CASYS did every link in <1min. Ecosystem compounding at its best.'
+        },
+        {
+          type: 'metrics',
+          company: 'Marketing Agency',
+          link: '5 clients, 3 pillar/cluster strategies',
+          metrics: [
+            { value: '40h', label: 'time saved/month', icon: 'schedule' },
+            { value: '+42%', label: 'avg internal traffic', icon: 'trending_up' }
+          ],
+          description: 'Before CASYS: manual linking killed 40h/month. Now: 5 mins setup per client. Ecosystem builds itself.'
+        },
+        {
+          type: 'quote',
+          quote: 'We thought CASYS just generated articles. The revelation is the linking. It changes EVERYTHING for our SEO strategy.',
+          author: 'Head of Content, $50M ecommerce',
+          context: 'closed beta, 4 months of use',
+          icon: 'format_quote'
+        }
+      ]
+    };
+---
+
+<section class="py-32 bg-surface-container">
+  <div class="max-w-6xl mx-auto px-4 md:px-6">
+    <!-- Section Header -->
+    <div class="text-center mb-20">
+      <h2 class="text-headline-large text-on-surface mb-4">{t.title}</h2>
+      <p class="text-title-medium text-on-surface-variant max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <!-- Testimonials Grid -->
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-8">
+      {t.testimonials.map((testimonial, index) => (
+        <div class={`testimonial-card bg-surface-container-high rounded-3xl p-6 md:p-8 transition-all duration-300 opacity-0 transform translate-y-5 hover:-translate-y-1 ${testimonial.type === 'metrics' ? 'border-l-4 border-primary' : 'border-l-4 border-tertiary flex flex-col justify-between min-h-[280px]'}`} style={`animation-delay: ${index * 150}ms`}>
+          {testimonial.type === 'metrics' ? (
+            <>
+              <!-- Metrics Card -->
+              <div class="flex items-center gap-3 mb-6">
+                <div class="flex items-center justify-center w-12 h-12 bg-primary-container text-primary rounded-xl flex-shrink-0">
+                  <span class="material-symbols-rounded text-2xl">business</span>
+                </div>
+                <div>
+                  <h3 class="text-headline-small text-on-surface m-0">{testimonial.company}</h3>
+                  {testimonial.handle && <p class="text-body-small text-on-surface-variant m-0">{testimonial.handle}</p>}
+                  {testimonial.link && <p class="text-body-small text-on-surface-variant m-0">{testimonial.link}</p>}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 mb-6">
+                {testimonial.metrics.map((metric, idx) => (
+                  <div class="metric-item flex items-center gap-3 p-4 bg-surface rounded-2xl opacity-0 scale-90" style={`animation-delay: ${idx * 100}ms`}>
+                    <div class="flex items-center justify-center w-10 h-10 bg-secondary-container text-secondary rounded-lg flex-shrink-0">
+                      <span class="material-symbols-rounded text-[20px]">{metric.icon}</span>
+                    </div>
+                    <div class="flex-1">
+                      <div class="text-headline-medium text-on-surface mb-0.5">{metric.value}</div>
+                      <div class="text-body-small text-on-surface-variant uppercase tracking-wider">{metric.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p class="text-body-large text-on-surface-variant leading-normal m-0">{testimonial.description}</p>
+            </>
+          ) : (
+            <>
+              <!-- Quote Card -->
+              <div class="flex items-center justify-center w-14 h-14 bg-tertiary-container text-tertiary rounded-2xl mb-6">
+                <span class="material-symbols-rounded text-2xl">{testimonial.icon}</span>
+              </div>
+
+              <blockquote class="text-body-large italic text-on-surface leading-normal mb-6 relative">
+                <span class="absolute -top-6 -left-3 text-8xl text-tertiary/20">"</span>
+                "{testimonial.quote}"
+              </blockquote>
+
+              <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 bg-surface-variant text-on-surface-variant rounded-full flex-shrink-0">
+                  <span class="material-symbols-rounded text-[20px]">person</span>
+                </div>
+                <div class="flex-1">
+                  <div class="text-body-large font-medium text-on-surface mb-0.5">{testimonial.author}</div>
+                  <div class="text-body-small text-on-surface-variant">{testimonial.context}</div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+
+  /* Testimonials Grid */
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+  }
+
+  .testimonial-card {
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 28px;
+    padding: 32px;
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 8px rgba(0, 0, 0, 0.02);
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .testimonial-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .testimonial-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+      0 8px 16px rgba(0, 0, 0, 0.08),
+      0 16px 32px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Metrics Card Styles */
+  .testimonial-card.metrics {
+    border-left: 4px solid var(--md-sys-color-primary);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .company-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-primary);
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  .company-icon .material-symbols-rounded {
+    font-size: 24px;
+  }
+
+  .company-name {
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+  }
+
+  .company-meta {
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .metric-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--md-sys-color-surface);
+    border-radius: 16px;
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  .metric-item.animate-in {
+    opacity: 1;
+    transform: scale(1);
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .testimonial-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+
+<script>
+  // Intersection Observer for scroll-triggered animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const cards = entry.target.querySelectorAll('.testimonial-card');
+          cards.forEach((card, index) => {
+            setTimeout(() => {
+              card.classList.add('animate-in');
+              
+              // Animate metrics within cards
+              const metrics = card.querySelectorAll('.metric-item');
+              metrics.forEach((metric, metricIndex) => {
+                setTimeout(() => {
+                  metric.classList.add('animate-in');
+                }, metricIndex * 150);
+              });
+            }, index * 200);
+          });
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.2, rootMargin: '-50px' }
+  );
+
+  // Observe the section
+  const section = document.querySelector('.social-proof');
+  if (section) {
+    observer.observe(section);
+  }
+</script>

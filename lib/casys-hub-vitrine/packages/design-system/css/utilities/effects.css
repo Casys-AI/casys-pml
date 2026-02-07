@@ -1,0 +1,33 @@
+/**
+ * Material 3 Utilities - Effects
+ * Transitions, gradients, animations
+ */
+
+/* Transitions */
+.transition-standard { transition: all 250ms var(--md-sys-motion-easing-standard); }
+.transition-emphasized { transition: all 250ms var(--md-sys-motion-easing-emphasized); }
+
+/* Gradients */
+.gradient-text {
+  background: linear-gradient(135deg, var(--md-sys-color-primary) 0%, var(--md-sys-color-tertiary) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.gradient-bg-primary-tertiary {
+  background: linear-gradient(135deg, var(--md-sys-color-primary) 0%, var(--md-sys-color-tertiary) 100%);
+}
+
+.gradient-bg-surface {
+  background: linear-gradient(135deg, 
+    var(--md-sys-color-surface) 0%, 
+    var(--md-sys-color-surface-container) 100%);
+}
+
+/* Opacity */
+.opacity-0 { opacity: 0; }
+.opacity-50 { opacity: 0.5; }
+.opacity-90 { opacity: 0.9; }
+.opacity-100 { opacity: 1; }

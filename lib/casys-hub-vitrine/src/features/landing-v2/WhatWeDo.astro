@@ -1,0 +1,596 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+      title: 'What We Do',
+      subtitle: 'Applied AI research combining exploration, open source, and consulting',
+      cards: [
+        {
+          id: 'research',
+          icon: 'school',
+          title: 'Research & Exploration',
+          subtitle: 'Multi-domain AI architectures',
+          description: 'Knowledge Management (2013+) → Graph Databases → Modern Agentic Systems',
+          researchAreas: [
+            {
+              name: 'Knowledge Management',
+              description: '10+ years building KM systems, graphs, semantic search'
+            },
+            {
+              name: 'Agentic Systems',
+              description: 'Context optimization, orchestration, multi-agent architectures'
+            },
+            {
+              name: 'Content Intelligence',
+              description: 'Graph-based content systems, automated relationships'
+            },
+            {
+              name: 'Database Systems',
+              description: 'CasysDB and knowledge storage architectures'
+            }
+          ],
+          philosophy: [
+            { icon: 'vertical_align_bottom', text: 'Depth over breadth - but not afraid to explore new domains' },
+            { icon: 'public', text: 'Open research - we publish what we learn' },
+            { icon: 'rocket_launch', text: 'Practical - research that ships in production systems' }
+          ]
+        },
+        {
+          id: 'opensource',
+          icon: 'code',
+          title: 'Open Source Projects',
+          subtitle: 'MIT licensed tools',
+          projects: ['MCP Gateway: Context management', 'CasysDB: Embedded graph database'],
+          highlights: ['All MIT licensed', 'Production-ready', 'Consulting optional']
+        },
+        {
+          id: 'consulting',
+          icon: 'engineering',
+          title: 'Consulting',
+          subtitle: 'Hands-on help',
+          services: ['Architecture & Strategy', 'Implementation & Deployment', 'Training'],
+          highlights: ['Mid-market accessible', 'No minimum engagement', 'Direct builder access']
+        }
+      ]
+    },
+  fr: {
+      title: 'Ce qu\'on Fait',
+      subtitle: 'Recherche AI appliquée combinant exploration, open source et consulting',
+      cards: [
+        {
+          id: 'research',
+          icon: 'school',
+          title: 'Research & Exploration',
+          subtitle: 'Architectures AI multi-domaines',
+          description: 'Knowledge Management (2013+) → Graph Databases → Systèmes Agentiques modernes',
+          researchAreas: [
+            {
+              name: 'Knowledge Management',
+              description: '10+ ans de systèmes KM, graphes, recherche sémantique'
+            },
+            {
+              name: 'Systèmes Agentiques',
+              description: 'Optimisation contexte, orchestration, architectures multi-agents'
+            },
+            {
+              name: 'Content Intelligence',
+              description: 'Systèmes de contenu graph-based, relations automatisées'
+            },
+            {
+              name: 'Database Systems',
+              description: 'CasysDB et architectures de stockage knowledge'
+            }
+          ],
+          philosophy: [
+            { icon: 'vertical_align_bottom', text: 'Profondeur > largeur - sans peur des nouveaux domaines' },
+            { icon: 'public', text: 'Recherche ouverte - on publie ce qu\'on apprend' },
+            { icon: 'rocket_launch', text: 'Pratique - recherche qui ship en production' }
+          ]
+        },
+        {
+          id: 'opensource',
+          icon: 'code',
+          title: 'Projets Open Source',
+          subtitle: 'Outils MIT licensed',
+          projects: ['MCP Gateway: Context management', 'CasysDB: Graph database embedded'],
+          highlights: ['Tout en MIT', 'Production-ready', 'Consulting optionnel']
+        },
+        {
+          id: 'consulting',
+          icon: 'engineering',
+          title: 'Consulting',
+          subtitle: 'Aide hands-on',
+          services: ['Architecture & Strategy', 'Implémentation & Déploiement', 'Formations'],
+          highlights: ['Mid-market accessible', 'Pas d\'engagement minimum', 'Accès direct builders']
+        }
+      ]
+    },
+  zh: {
+      title: '我们做什么',
+      subtitle: '结合探索、开源和咨询的应用 AI 研究',
+      cards: [
+        {
+          id: 'research',
+          icon: 'school',
+          title: '研究与探索',
+          subtitle: '多领域 AI 架构',
+          description: '知识管理 (2013+) → 图数据库 → 现代智能体系统',
+          researchAreas: [
+            {
+              name: '知识管理',
+              description: '10+ 年 KM 系统、图谱、语义搜索经验'
+            },
+            {
+              name: '智能体系统',
+              description: '上下文优化、编排、多代理架构'
+            },
+            {
+              name: '内容智能',
+              description: '基于图的内容系统、自动化关系'
+            },
+            {
+              name: '数据库系统',
+              description: 'CasysDB 和知识存储架构'
+            }
+          ],
+          philosophy: [
+            { icon: 'vertical_align_bottom', text: '深度优先——但不惧探索新领域' },
+            { icon: 'public', text: '开放研究——我们发布所学' },
+            { icon: 'rocket_launch', text: '实用——研究能在生产中落地' }
+          ]
+        },
+        {
+          id: 'opensource',
+          icon: 'code',
+          title: '开源项目',
+          subtitle: 'MIT 许可工具',
+          projects: ['MCP Gateway: 上下文管理', 'CasysDB: 嵌入式图数据库'],
+          highlights: ['全部 MIT 许可', '生产就绪', '咨询可选']
+        },
+        {
+          id: 'consulting',
+          icon: 'engineering',
+          title: '咨询',
+          subtitle: '实操帮助',
+          services: ['架构与策略', '实施与部署', '培训'],
+          highlights: ['中端市场可及', '无最低承诺', '直接对接开发者']
+        }
+      ]
+    }
+};
+
+const content = translations[locale] ?? translations.en;
+---
+
+<section id="what-we-do">
+  <div class="container">
+    <div class="section-header">
+      <h2>{content.title}</h2>
+      <p class="section-subtitle">{content.subtitle}</p>
+    </div>
+
+    <!-- Bento Grid: Research (tall left) + Open Source (wide top) + Consulting (bottom) -->
+    <div class="bento-grid">
+
+      <!-- Research - Tall Left -->
+      <div class="pillar-card research">
+        <span class="material-symbols-rounded icon">{content.cards[0].icon}</span>
+        <h3>{content.cards[0].title}</h3>
+        <p class="subtitle">{content.cards[0].subtitle}</p>
+        <p class="description">{content.cards[0].description}</p>
+
+        <!-- Research Areas -->
+        <div class="research-areas">
+          {content.cards[0].researchAreas.map((area) => (
+            <div class="research-area">
+              <div class="area-name">{area.name}</div>
+              <div class="area-description">{area.description}</div>
+            </div>
+          ))}
+        </div>
+
+        <!-- Philosophy -->
+        <div class="philosophy">
+          {content.cards[0].philosophy.map((p) => (
+            <div class="philosophy-item">
+              <span class="material-symbols-rounded">{p.icon}</span>
+              <span>{p.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Open Source - Wide Top Right -->
+      <div class="pillar-card opensource">
+        <span class="material-symbols-rounded icon">{content.cards[1].icon}</span>
+        <h3>{content.cards[1].title}</h3>
+        <p class="subtitle">{content.cards[1].subtitle}</p>
+        <div class="projects-list">
+          {content.cards[1].projects.map((p) => (
+            <div class="project-item">{p}</div>
+          ))}
+        </div>
+        <div class="highlights">
+          {content.cards[1].highlights.map((h) => (
+            <div class="highlight-item">
+              <span class="material-symbols-rounded">check_circle</span>
+              <span>{h}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Consulting - Bottom Right -->
+      <div class="pillar-card consulting">
+        <span class="material-symbols-rounded icon">{content.cards[2].icon}</span>
+        <h3>{content.cards[2].title}</h3>
+        <p class="subtitle">{content.cards[2].subtitle}</p>
+        <div class="services-list">
+          {content.cards[2].services.map((s) => (
+            <div class="service-item">
+              <span class="material-symbols-rounded">arrow_forward</span>
+              <span>{s}</span>
+            </div>
+          ))}
+        </div>
+        <div class="highlights">
+          {content.cards[2].highlights.map((h) => (
+            <div class="highlight-item">
+              <span class="material-symbols-rounded">check_circle</span>
+              <span>{h}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     WHAT WE DO - Editorial/Refined Aesthetic
+     Font: Fraunces for headlines
+     Palette: Warm orange for dark mode
+     ======================================== */
+
+  section {
+    padding: 80px 0;
+    background: var(--md-sys-color-surface);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Left-aligned header - editorial style */
+  .section-header {
+    text-align: left;
+    margin-bottom: 48px;
+    max-width: 600px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  /* BENTO GRID */
+  .bento-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* Research - Tall Left (2 rows) */
+  .pillar-card.research {
+    grid-column: 1 / 2;
+    grid-row: 1 / 3;
+  }
+
+  /* Open Source - Wide Top Right */
+  .pillar-card.opensource {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+  }
+
+  /* Consulting - Bottom Right */
+  .pillar-card.consulting {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+  }
+
+  /* Base Card - Clean editorial style */
+  .pillar-card {
+    padding: 32px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border-radius: 16px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .pillar-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Research card - featured with left accent */
+  .pillar-card.research {
+    border-left: 4px solid var(--md-sys-color-primary);
+  }
+
+  .icon {
+    font-size: 32px;
+    color: var(--md-sys-color-primary);
+  }
+
+  h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .subtitle {
+    font-size: var(--md-sys-typescale-title-small-size);
+    color: var(--md-sys-color-primary);
+    margin: 0;
+  }
+
+  .description {
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .projects-list, .services-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .project-item {
+    padding: 12px 16px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 12px;
+    font-size: 0.9rem;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .service-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .service-item .material-symbols-rounded {
+    font-size: 18px;
+    color: var(--md-sys-color-tertiary);
+  }
+
+  .highlights {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  .highlight-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .highlight-item .material-symbols-rounded {
+    font-size: 18px;
+    color: var(--md-sys-color-secondary);
+  }
+
+  /* Research Areas */
+  .research-areas {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .research-area {
+    padding: 16px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 12px;
+    border-left: 3px solid var(--md-sys-color-primary);
+  }
+
+  .area-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: 4px;
+  }
+
+  .area-description {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.5;
+  }
+
+  /* Philosophy */
+  .philosophy {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    margin-top: auto;
+  }
+
+  .philosophy-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: var(--md-sys-color-on-surface);
+    font-weight: 500;
+  }
+
+  .philosophy-item .material-symbols-rounded {
+    font-size: 20px;
+    color: var(--md-sys-color-tertiary);
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .bento-grid {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+    }
+
+    .pillar-card.research,
+    .pillar-card.opensource,
+    .pillar-card.consulting {
+      grid-column: 1 / 2;
+      grid-row: auto;
+    }
+  }
+
+  @media (max-width: 768px) {
+    section {
+      padding: 40px 0;
+    }
+
+    .pillar-card {
+      padding: 24px;
+      gap: 16px;
+    }
+  }
+
+</style>
+
+<style is:global>
+  /* ========================================
+     WHAT WE DO - DARK MODE
+     Warm orange palette (#FFB86F, #D4A574)
+     ======================================== */
+
+  html[data-theme="dark"] #what-we-do {
+    background: #0a0908;
+  }
+
+  html[data-theme="dark"] #what-we-do h2 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #what-we-do .section-subtitle {
+    color: #d5c3b5;
+  }
+
+  /* Cards */
+  html[data-theme="dark"] #what-we-do .pillar-card {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #what-we-do .pillar-card:hover {
+    border-color: rgba(255, 184, 111, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] #what-we-do .pillar-card.research {
+    border-left-color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #what-we-do .icon {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #what-we-do h3 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #what-we-do .subtitle {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #what-we-do .description {
+    color: #d5c3b5;
+  }
+
+  /* Research areas */
+  html[data-theme="dark"] #what-we-do .research-area {
+    background: rgba(255, 184, 111, 0.08);
+    border-left-color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #what-we-do .area-name {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #what-we-do .area-description {
+    color: #d5c3b5;
+  }
+
+  /* Philosophy */
+  html[data-theme="dark"] #what-we-do .philosophy {
+    border-top-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #what-we-do .philosophy-item {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #what-we-do .philosophy-item .material-symbols-rounded {
+    color: #D4A574;
+  }
+
+  /* Projects & Services lists */
+  html[data-theme="dark"] #what-we-do .project-item {
+    background: rgba(255, 184, 111, 0.08);
+    border: 1px solid rgba(255, 184, 111, 0.12);
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #what-we-do .service-item {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #what-we-do .service-item .material-symbols-rounded {
+    color: #D4A574;
+  }
+
+  /* Highlights */
+  html[data-theme="dark"] #what-we-do .highlight-item {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #what-we-do .highlight-item .material-symbols-rounded {
+    color: #FFB86F;
+  }
+</style>

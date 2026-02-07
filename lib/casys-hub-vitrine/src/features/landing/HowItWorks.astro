@@ -1,0 +1,404 @@
+---
+// Segment-aware How It Works process
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const howItWorksContent = locale === 'fr'
+  ? {
+      teams: {
+        title: 'Comment Ça Marche',
+        subtitle: 'Le processus où le linking se fait sans vous',
+        steps: [
+          {
+            number: '1',
+            title: 'Vous Écrivez',
+            description: 'Vous créez du contenu. Pas de contrainte, pas de structure compliquée. CASYS s\'occupe du reste.',
+            icon: 'edit'
+          },
+          {
+            number: '2',
+            title: 'CASYS Analyse & Lie',
+            description: 'En 30 secondes, CASYS analyse votre article, découvre les 5-8 meilleures connexions à vos articles existants, et génère les liens internes automatiquement.',
+            icon: 'hub'
+          },
+          {
+            number: '3',
+            title: 'Votre Équipe Publie',
+            description: 'Appuyez sur un bouton. Les liens et les métadonnées SEO sont déjà là. Vous économisez 4-8h par article.',
+            icon: 'publish'
+          }
+        ]
+      },
+      agencies: {
+        title: 'Comment Ça Marche Pour Vos Clients',
+        subtitle: 'Le workflow où vous livrez plus vite, avec meilleure qualité',
+        steps: [
+          {
+            number: '1',
+            title: 'Vous Livrez du Contenu',
+            description: 'Vos articles sont structurés, prêts à être publiés. Zéro linking manuel, comme d\'habitude.',
+            icon: 'edit'
+          },
+          {
+            number: '2',
+            title: 'CASYS Génère les Liens',
+            description: 'Avant publication, CASYS analyse le contenu, trouve les meilleures connexions à l\'écosystème existant du client, et génère une stratégie de linking cohérente.',
+            icon: 'hub'
+          },
+          {
+            number: '3',
+            title: 'Client Obtient Plus de Trafic',
+            description: 'Le contenu est publié avec tous les liens internes optimisés. Votre client voit +40-80% de trafic interne. Il vous paie, vous payez CASYS $499. Marge: $200-400+.',
+            icon: 'trending_up'
+          }
+        ]
+      }
+    }
+  : {
+      teams: {
+        title: 'How It Works',
+        subtitle: 'The process where linking happens without you',
+        steps: [
+          {
+            number: '1',
+            title: 'You Write',
+            description: 'You create content. No constraints, no complex structures. CASYS handles the rest.',
+            icon: 'edit'
+          },
+          {
+            number: '2',
+            title: 'CASYS Analyzes & Links',
+            description: 'In 30 seconds, CASYS analyzes your article, discovers the 5-8 best connections to your existing pieces, and auto-generates internal links.',
+            icon: 'hub'
+          },
+          {
+            number: '3',
+            title: 'Your Team Publishes',
+            description: 'Hit publish. Links and SEO metadata are already there. You save 4-8 hours per article.',
+            icon: 'publish'
+          }
+        ]
+      },
+      agencies: {
+        title: 'How It Works For Your Clients',
+        subtitle: 'The workflow where you deliver faster, with better quality',
+        steps: [
+          {
+            number: '1',
+            title: 'You Deliver Content',
+            description: 'Your articles are structured, ready to publish. Zero manual linking, as usual.',
+            icon: 'edit'
+          },
+          {
+            number: '2',
+            title: 'CASYS Generates Links',
+            description: 'Before publication, CASYS analyzes the content, finds the best connections to the client\'s existing ecosystem, and generates a cohesive linking strategy.',
+            icon: 'hub'
+          },
+          {
+            number: '3',
+            title: 'Client Gets More Traffic',
+            description: 'Content is published with all internal links optimized. Your client sees +40-80% internal traffic. They pay you, you pay CASYS $499. Margin: $200-400+.',
+            icon: 'trending_up'
+          }
+        ]
+      }
+    };
+
+const defaultSegment = 'teams';
+let t = howItWorksContent[defaultSegment];
+---
+
+<section class="how-it-works">
+  <div class="container">
+    <!-- Section Header -->
+    <div class="header">
+      <h2 class="title">{t.title}</h2>
+      <p class="subtitle">{t.subtitle}</p>
+    </div>
+
+    <!-- Steps Grid -->
+    <div class="steps-grid">
+      {t.steps.map((step, index) => (
+        <div class="step-card" style={`animation-delay: ${index * 150}ms`}>
+          <div class="step-number">
+            <span class="material-symbols-rounded">{step.icon}</span>
+            <span class="number">{step.number}</span>
+          </div>
+          <div class="step-content">
+            <h3 class="step-title">{step.title}</h3>
+            <p class="step-description">{step.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .how-it-works {
+    padding: 120px 0;
+    background: var(--md-sys-color-surface-container);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 80px;
+  }
+
+  .title {
+    font-size: var(--md-sys-typescale-headline-large-size);
+    font-weight: var(--md-sys-typescale-headline-large-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 16px;
+  }
+
+  .subtitle {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+  }
+
+  .step-card {
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 28px;
+    padding: 32px;
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 8px rgba(0, 0, 0, 0.02);
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .step-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .step-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+      0 8px 16px rgba(0, 0, 0, 0.08),
+      0 16px 32px rgba(0, 0, 0, 0.04);
+  }
+
+  .step-number {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .step-number .material-symbols-rounded {
+    font-size: 32px;
+    color: var(--md-sys-color-primary);
+  }
+
+  .number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    border-radius: 50%;
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+  }
+
+  .step-content {
+    padding-left: 44px; /* Align with icon + number */
+  }
+
+  .step-title {
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+  }
+
+  .step-description {
+    font-size: var(--md-sys-typescale-body-large-size);
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    .steps-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .step-card {
+      padding: 24px;
+    }
+
+    .step-number {
+      margin-bottom: 16px;
+    }
+
+    .step-number .material-symbols-rounded {
+      font-size: 28px;
+    }
+
+    .number {
+      width: 36px;
+      height: 36px;
+      font-size: var(--md-sys-typescale-title-medium-size);
+    }
+
+    .step-content {
+      padding-left: 40px;
+    }
+  }
+
+  /* Dark Mode: Card styles moved to LandingLayout.astro to avoid Astro scoping issues */
+  html[data-theme="dark"] .title {
+    color: var(--casys-text-primary);
+  }
+
+  html[data-theme="dark"] .subtitle {
+    color: var(--casys-text-secondary);
+  }
+
+  /* Focus-visible for accessibility */
+  .step-card:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .step-card {
+      animation: none;
+      transition: none;
+    }
+
+    .step-card.animate-in {
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  // Segment-aware How It Works content
+  const howItWorksContent = {
+    fr: {
+      teams: {
+        title: 'Comment Ça Marche',
+        subtitle: 'Le processus où le linking se fait sans vous',
+        steps: [
+          { number: '1', title: 'Vous Écrivez', description: 'Vous créez du contenu. Pas de contrainte, pas de structure compliquée. CASYS s\'occupe du reste.', icon: 'edit' },
+          { number: '2', title: 'CASYS Analyse & Lie', description: 'En 30 secondes, CASYS analyse votre article, découvre les 5-8 meilleures connexions à vos articles existants, et génère les liens internes automatiquement.', icon: 'hub' },
+          { number: '3', title: 'Votre Équipe Publie', description: 'Appuyez sur un bouton. Les liens et les métadonnées SEO sont déjà là. Vous économisez 4-8h par article.', icon: 'publish' }
+        ]
+      },
+      agencies: {
+        title: 'Comment Ça Marche Pour Vos Clients',
+        subtitle: 'Le workflow où vous livrez plus vite, avec meilleure qualité',
+        steps: [
+          { number: '1', title: 'Vous Livrez du Contenu', description: 'Vos articles sont structurés, prêts à être publiés. Zéro linking manuel, comme d\'habitude.', icon: 'edit' },
+          { number: '2', title: 'CASYS Génère les Liens', description: 'Avant publication, CASYS analyse le contenu, trouve les meilleures connexions à l\'écosystème existant du client, et génère une stratégie de linking cohérente.', icon: 'hub' },
+          { number: '3', title: 'Client Obtient Plus de Trafic', description: 'Le contenu est publié avec tous les liens internes optimisés. Votre client voit +40-80% de trafic interne. Il vous paie, vous payez CASYS $499. Marge: $200-400+.', icon: 'trending_up' }
+        ]
+      }
+    },
+    en: {
+      teams: {
+        title: 'How It Works',
+        subtitle: 'The process where linking happens without you',
+        steps: [
+          { number: '1', title: 'You Write', description: 'You create content. No constraints, no complex structures. CASYS handles the rest.', icon: 'edit' },
+          { number: '2', title: 'CASYS Analyzes & Links', description: 'In 30 seconds, CASYS analyzes your article, discovers the 5-8 best connections to your existing pieces, and auto-generates internal links.', icon: 'hub' },
+          { number: '3', title: 'Your Team Publishes', description: 'Hit publish. Links and SEO metadata are already there. You save 4-8 hours per article.', icon: 'publish' }
+        ]
+      },
+      agencies: {
+        title: 'How It Works For Your Clients',
+        subtitle: 'The workflow where you deliver faster, with better quality',
+        steps: [
+          { number: '1', title: 'You Deliver Content', description: 'Your articles are structured, ready to publish. Zero manual linking, as usual.', icon: 'edit' },
+          { number: '2', title: 'CASYS Generates Links', description: 'Before publication, CASYS analyzes the content, finds the best connections to the client\'s existing ecosystem, and generates a cohesive linking strategy.', icon: 'hub' },
+          { number: '3', title: 'Client Gets More Traffic', description: 'Content is published with all internal links optimized. Your client sees +40-80% internal traffic. They pay you, you pay CASYS $499. Margin: $200-400+.', icon: 'trending_up' }
+        ]
+      }
+    }
+  };
+
+  // Intersection Observer for scroll-triggered animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const stepCards = entry.target.querySelectorAll('.step-card');
+          stepCards.forEach((card) => {
+            card.classList.add('animate-in');
+          });
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.2, rootMargin: '-50px' }
+  );
+
+  // Observe the section
+  const section = document.querySelector('.how-it-works');
+  if (section) {
+    observer.observe(section);
+  }
+
+  // Segment switching handler
+  const updateHowItWorksForSegment = (segment: string) => {
+    const locale = document.documentElement.lang === 'fr' ? 'fr' : 'en';
+    const content = howItWorksContent[locale][segment as keyof typeof howItWorksContent[typeof locale]];
+
+    if (!content) return;
+
+    // Update header
+    const headerTitle = document.querySelector('.how-it-works .header .title');
+    const headerSubtitle = document.querySelector('.how-it-works .header .subtitle');
+    if (headerTitle) headerTitle.textContent = content.title;
+    if (headerSubtitle) headerSubtitle.textContent = content.subtitle;
+
+    // Update step cards
+    const stepCards = document.querySelectorAll('.step-card');
+    stepCards.forEach((card, index) => {
+      const step = content.steps[index];
+      if (step) {
+        const icon = card.querySelector('.step-number .material-symbols-rounded');
+        const number = card.querySelector('.number');
+        const title = card.querySelector('.step-title');
+        const description = card.querySelector('.step-description');
+
+        if (icon) icon.textContent = step.icon;
+        if (number) number.textContent = step.number;
+        if (title) title.textContent = step.title;
+        if (description) description.textContent = step.description;
+      }
+    });
+  };
+
+  // Listen for segment changes
+  window.addEventListener('segment-changed', (event: any) => {
+    updateHowItWorksForSegment(event.detail.segment);
+  });
+</script>

@@ -1,0 +1,582 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    label: 'Catalog',
+    browseCta: 'Browse Full Catalog',
+  },
+  fr: {
+    label: 'Catalogue',
+    browseCta: 'Parcourir le Catalogue',
+  },
+  zh: {
+    label: '目录',
+    browseCta: '浏览完整目录',
+  },
+} as const;
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+
+const capabilities = [
+  {
+    namespace: 'ops',
+    action: 'deployNotify',
+    description: 'Orchestrate release notifications across platforms',
+    codeHtml: `<span class="kw">const</span> release = <span class="kw">await</span> <span class="fn">mcp.github.get_release</span>({ <span class="key">tag</span>: <span class="str">"latest"</span> });\n\n<span class="kw">await</span> <span class="fn">mcp.slack.post_message</span>({\n  <span class="key">channel</span>: <span class="str">"#deployments"</span>,\n  <span class="key">text</span>: <span class="str">\`🚀 \${release.tag_name} deployed!\`</span>\n});\n\n<span class="kw">await</span> <span class="fn">mcp.notion.update_page</span>({\n  <span class="key">page_id</span>: <span class="str">"releases"</span>,\n  <span class="key">properties</span>: { <span class="key">Status</span>: <span class="str">"Live"</span> }\n});\n\n<span class="kw">return</span> { <span class="key">version</span>: release.tag_name };`,
+    tools: ['github.get_release', 'slack.post_message', 'notion.update_page'],
+  },
+  {
+    namespace: 'sales',
+    action: 'researchCompany',
+    description: 'Multi-source intelligence with parallel fetching',
+    codeHtml: `<span class="kw">const</span> [web, linkedin, funding] = <span class="kw">await</span> <span class="fn">Promise.all</span>([\n  <span class="fn">mcp.brave.search</span>({ <span class="key">query</span>: <span class="str">\`\${company} news\`</span> }),\n  <span class="fn">mcp.linkedin.company</span>({ <span class="key">name</span>: company }),\n  <span class="fn">mcp.crunchbase.funding</span>({ <span class="key">company</span> })\n]);\n\n<span class="kw">const</span> summary = <span class="kw">await</span> <span class="fn">mcp.std.agent_summarize</span>({\n  <span class="key">content</span>: <span class="fn">JSON.stringify</span>({ web, linkedin, funding }),\n  <span class="key">format</span>: <span class="str">"bullet_points"</span>\n});\n\n<span class="kw">return</span> { company, summary, <span class="key">sources</span>: <span class="num">3</span> };`,
+    tools: ['brave.search', 'linkedin.company', 'crunchbase.funding', 'agent_summarize'],
+  },
+  {
+    namespace: 'data',
+    action: 'syncPipeline',
+    description: 'ETL workflow with validation and notifications',
+    codeHtml: `<span class="kw">const</span> leads = <span class="kw">await</span> <span class="fn">mcp.postgres.query</span>({\n  <span class="key">query</span>: <span class="str">"SELECT * FROM leads WHERE synced = false"</span>\n});\n\n<span class="kw">for</span> (<span class="kw">const</span> lead <span class="kw">of</span> leads.rows) {\n  <span class="kw">const</span> valid = <span class="kw">await</span> <span class="fn">mcp.std.validate_email</span>({ <span class="key">email</span>: lead.email });\n  <span class="kw">if</span> (valid) <span class="kw">await</span> <span class="fn">mcp.salesforce.upsert</span>({ <span class="key">data</span>: lead });\n}\n\n<span class="kw">await</span> <span class="fn">mcp.slack.dm</span>({ <span class="key">user</span>: <span class="str">"@sales"</span>, <span class="key">text</span>: <span class="str">\`✓ \${leads.rows.length} synced\`</span> });`,
+    tools: ['postgres.query', 'validate_email', 'salesforce.upsert', 'slack.dm'],
+  },
+  {
+    namespace: 'ai',
+    action: 'analyzeRepo',
+    description: 'Deep codebase analysis with agent delegation',
+    codeHtml: `<span class="kw">const</span> files = <span class="kw">await</span> <span class="fn">mcp.fs.glob</span>({ <span class="key">pattern</span>: <span class="str">"src/**/*.ts"</span> });\n\n<span class="kw">const</span> analysis = <span class="kw">await</span> <span class="fn">mcp.std.agent_delegate</span>({\n  <span class="key">goal</span>: <span class="str">"Analyze architecture patterns"</span>,\n  <span class="key">tools</span>: [<span class="str">"fs_read"</span>, <span class="str">"grep"</span>],\n  <span class="key">maxIterations</span>: <span class="num">10</span>\n});\n\n<span class="kw">await</span> <span class="fn">mcp.notion.create_page</span>({\n  <span class="key">title</span>: <span class="str">"Architecture Report"</span>,\n  <span class="key">content</span>: analysis.summary\n});`,
+    tools: ['fs.glob', 'agent_delegate', 'notion.create_page'],
+  },
+  {
+    namespace: 'support',
+    action: 'triageTicket',
+    description: 'Auto-classify and route support tickets',
+    codeHtml: `<span class="kw">const</span> ticket = <span class="kw">await</span> <span class="fn">mcp.zendesk.get_ticket</span>({ <span class="key">id</span>: ticketId });\n\n<span class="kw">const</span> classification = <span class="kw">await</span> <span class="fn">mcp.std.agent_classify</span>({\n  <span class="key">text</span>: ticket.description,\n  <span class="key">categories</span>: [<span class="str">"bug"</span>, <span class="str">"feature"</span>, <span class="str">"billing"</span>]\n});\n\n<span class="kw">await</span> <span class="fn">mcp.linear.create_issue</span>({\n  <span class="key">title</span>: ticket.subject,\n  <span class="key">labels</span>: [classification.category]\n});`,
+    tools: ['zendesk.get_ticket', 'agent_classify', 'linear.create_issue'],
+  },
+];
+
+const namespaces = [
+  { ns: 'fake', count: 29, icon: '🎭', desc: 'Mock data' },
+  { ns: 'db', count: 5, icon: '🗄️', desc: 'Database' },
+  { ns: 'fs', count: 4, icon: '📂', desc: 'Filesystem' },
+  { ns: 'nlp', count: 3, icon: '🧠', desc: 'Text analysis' },
+  { ns: 'browser', count: 2, icon: '🌐', desc: 'Automation' },
+  { ns: 'git', count: 2, icon: '📦', desc: 'Version control' },
+  { ns: 'startup', count: 2, icon: '🚀', desc: 'Business data' },
+  { ns: 'docker', count: 1, icon: '🐳', desc: 'Containers' },
+];
+---
+
+<section id="catalog">
+  <p class="catalog-label">{t.label}</p>
+
+  <!-- Capability Carousel -->
+  <div class="carousel-wrapper" id="capability-carousel">
+    <button type="button" class="carousel-btn carousel-btn-prev" aria-label="Previous" data-dir="prev">‹</button>
+    <button type="button" class="carousel-btn carousel-btn-next" aria-label="Next" data-dir="next">›</button>
+
+    <div class="carousel-track">
+      {capabilities.map((cap) => (
+        <article class="capability-card">
+          <header class="card-header">
+            <span class="card-ns">{cap.namespace}</span>
+            <span class="card-sep">:</span>
+            <span class="card-action">{cap.action}</span>
+          </header>
+
+          <p class="card-desc">{cap.description}</p>
+
+          <div class="card-code-block">
+            <div class="code-chrome">
+              <span class="dot dot-red"></span>
+              <span class="dot dot-yellow"></span>
+              <span class="dot dot-green"></span>
+            </div>
+            <pre class="code-pre"><code class="code-content" set:html={cap.codeHtml} /></pre>
+          </div>
+
+          <footer class="card-tools">
+            {cap.tools.map((tool, i) => (
+              <span class="tool-chain">
+                {i > 0 && <span class="tool-arrow">→</span>}
+                <span class="tool-badge">{tool}</span>
+              </span>
+            ))}
+          </footer>
+        </article>
+      ))}
+    </div>
+  </div>
+
+  <!-- Namespace Tags -->
+  <div class="catalog-footer">
+    <div class="ns-tags">
+      {namespaces.map((ns) => (
+        <span class="ns-tag">
+          <span>{ns.icon}</span>
+          <span>{ns.ns}</span>
+        </span>
+      ))}
+    </div>
+    <a href="/catalog" class="catalog-cta">
+      {t.browseCta} →
+    </a>
+  </div>
+</section>
+
+<script>
+  const carousel = document.getElementById('capability-carousel');
+  if (carousel) {
+    const track = carousel.querySelector('.carousel-track') as HTMLElement;
+    const prevBtn = carousel.querySelector('[data-dir="prev"]') as HTMLButtonElement;
+    const nextBtn = carousel.querySelector('[data-dir="next"]') as HTMLButtonElement;
+    let isPaused = false;
+    let isDragging = false;
+    let startX = 0;
+    let scrollLeftStart = 0;
+
+    // Auto-scroll
+    let interval = setInterval(autoScroll, 5000);
+
+    function autoScroll() {
+      if (isPaused || isDragging || !track) return;
+      const max = track.scrollWidth - track.clientWidth;
+      if (track.scrollLeft >= max - 10) {
+        track.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        track.scrollBy({ left: 360, behavior: 'smooth' });
+      }
+    }
+
+    // Nav buttons
+    prevBtn?.addEventListener('click', () => track.scrollBy({ left: -360, behavior: 'smooth' }));
+    nextBtn?.addEventListener('click', () => track.scrollBy({ left: 360, behavior: 'smooth' }));
+
+    // Pause on hover
+    carousel.addEventListener('mouseenter', () => { isPaused = true; });
+    carousel.addEventListener('mouseleave', () => { isPaused = false; isDragging = false; });
+
+    // Drag to scroll
+    track.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.pageX - track.offsetLeft;
+      scrollLeftStart = track.scrollLeft;
+      track.style.cursor = 'grabbing';
+      track.style.scrollSnapType = 'none';
+      track.style.scrollBehavior = 'auto';
+    });
+
+    track.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - track.offsetLeft;
+      track.scrollLeft = scrollLeftStart - (x - startX) * 1.5;
+    });
+
+    const stopDrag = () => {
+      isDragging = false;
+      track.style.cursor = '';
+      track.style.scrollSnapType = '';
+      track.style.scrollBehavior = '';
+    };
+    track.addEventListener('mouseup', stopDrag);
+    track.addEventListener('mouseleave', stopDrag);
+  }
+</script>
+
+<style>
+  section {
+    padding: 48px 0;
+    overflow: hidden;
+    background: var(--md-sys-color-surface);
+  }
+
+  .catalog-label {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--md-sys-color-primary);
+    margin: 0 0 24px;
+  }
+
+  /* Carousel Wrapper */
+  .carousel-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+
+  .carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 46px;
+    height: 46px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 50%;
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-primary);
+    font-size: 1.6rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 200ms ease;
+    backdrop-filter: blur(12px);
+  }
+
+  .carousel-btn:hover {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-container);
+    transform: translateY(-50%) scale(1.08);
+  }
+
+  .carousel-btn-prev { left: 12px; }
+  .carousel-btn-next { right: 12px; }
+
+  /* Track */
+  .carousel-track {
+    display: flex;
+    gap: 24px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    padding: 16px 16px 24px;
+    cursor: grab;
+    user-select: none;
+    scrollbar-width: none;
+  }
+
+  .carousel-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Cards */
+  .capability-card {
+    flex: 0 0 340px;
+    scroll-snap-align: start;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 14px;
+    padding: 24px;
+    transition: all 300ms ease;
+  }
+
+  .capability-card:last-child {
+    margin-right: 16px;
+  }
+
+  .capability-card:hover {
+    border-color: var(--md-sys-color-primary);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  .card-header {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+  }
+
+  .card-ns {
+    color: var(--md-sys-color-primary);
+  }
+
+  .card-sep {
+    color: var(--md-sys-color-outline);
+    margin: 0 0.1em;
+  }
+
+  .card-action {
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .card-desc {
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0 0 20px;
+    line-height: 1.45;
+  }
+
+  /* Code block */
+  .card-code-block {
+    background: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .code-chrome {
+    display: flex;
+    gap: 5px;
+    padding: 10px 12px;
+    background: var(--md-sys-color-surface-container);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+  }
+
+  .dot-red { background: rgba(239, 68, 68, 0.65); }
+  .dot-yellow { background: rgba(234, 179, 8, 0.65); }
+  .dot-green { background: rgba(34, 197, 94, 0.65); }
+
+  .code-pre {
+    margin: 0;
+    padding: 16px;
+    overflow-x: auto;
+  }
+
+  .code-content {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  /* Tool badges */
+  .card-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .tool-chain {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .tool-arrow {
+    color: var(--md-sys-color-primary);
+    opacity: 0.6;
+    margin: 0 6px;
+    font-size: 0.75rem;
+  }
+
+  .tool-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+    padding: 4px 8px;
+    border-radius: 5px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  /* Catalog Footer */
+  .catalog-footer {
+    max-width: 900px;
+    margin: 32px auto 0;
+    padding: 0 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .ns-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .ns-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 100px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--md-sys-color-on-surface-variant);
+    transition: all 200ms ease;
+  }
+
+  .ns-tag:hover {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .catalog-cta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--md-sys-color-primary);
+    text-decoration: none;
+    padding: 8px 16px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 6px;
+    transition: all 200ms ease;
+  }
+
+  .catalog-cta:hover {
+    background: var(--md-sys-color-primary-container);
+    border-color: var(--md-sys-color-primary);
+  }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    .carousel-wrapper {
+      padding: 0;
+    }
+
+    .carousel-btn {
+      width: 36px;
+      height: 36px;
+      font-size: 1.25rem;
+    }
+
+    .carousel-btn-prev { left: 4px; }
+    .carousel-btn-next { right: 4px; }
+
+    .capability-card {
+      flex: 0 0 300px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .capability-card {
+      flex: 0 0 calc(100vw - 2rem);
+      padding: 20px;
+    }
+
+    .carousel-btn {
+      width: 32px;
+      height: 32px;
+      font-size: 1.1rem;
+      top: auto;
+      bottom: 0;
+      transform: none;
+    }
+
+    .carousel-btn:hover {
+      transform: scale(1.08);
+    }
+
+    .carousel-btn-prev { left: calc(50% - 40px); }
+    .carousel-btn-next { right: calc(50% - 40px); }
+  }
+</style>
+
+<style is:global>
+  /* Catalog Section - Dark Mode */
+  html[data-theme="dark"] #catalog {
+    background: #08080a;
+  }
+
+  html[data-theme="dark"] #catalog .catalog-label {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #catalog .carousel-btn {
+    border-color: rgba(255, 184, 111, 0.3);
+    background: rgba(12, 10, 9, 0.98);
+    color: #FFB86F;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  html[data-theme="dark"] #catalog .carousel-btn:hover {
+    border-color: rgba(255, 184, 111, 0.6);
+    background: rgba(255, 184, 111, 0.15);
+  }
+
+  html[data-theme="dark"] #catalog .capability-card {
+    background: linear-gradient(135deg, #1c1917, #0c0a09);
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #catalog .capability-card:hover {
+    border-color: rgba(255, 184, 111, 0.25);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  html[data-theme="dark"] #catalog .card-ns {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #catalog .card-sep {
+    color: #44403c;
+  }
+
+  html[data-theme="dark"] #catalog .card-action {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #catalog .card-desc {
+    color: #a89a8c;
+  }
+
+  html[data-theme="dark"] #catalog .card-code-block {
+    background: #0c0a09;
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+
+  html[data-theme="dark"] #catalog .code-chrome {
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom-color: rgba(255, 255, 255, 0.03);
+  }
+
+  html[data-theme="dark"] #catalog .code-content {
+    color: #a8a29e;
+  }
+
+  /* Code syntax colors for dark mode */
+  html[data-theme="dark"] #catalog .code-content :global(.kw) { color: #c4b5fd; }
+  html[data-theme="dark"] #catalog .code-content :global(.fn) { color: #93c5fd; }
+  html[data-theme="dark"] #catalog .code-content :global(.str) { color: #86efac; }
+  html[data-theme="dark"] #catalog .code-content :global(.key) { color: #FFB86F; }
+  html[data-theme="dark"] #catalog .code-content :global(.num) { color: #fca5a5; }
+
+  /* Light mode code syntax */
+  #catalog .code-content :global(.kw) { color: #7c3aed; }
+  #catalog .code-content :global(.fn) { color: #2563eb; }
+  #catalog .code-content :global(.str) { color: #16a34a; }
+  #catalog .code-content :global(.key) { color: #d97706; }
+  #catalog .code-content :global(.num) { color: #dc2626; }
+
+  html[data-theme="dark"] #catalog .tool-badge {
+    color: #FFB86F;
+    background: rgba(255, 184, 111, 0.1);
+    border-color: rgba(255, 184, 111, 0.15);
+  }
+
+  html[data-theme="dark"] #catalog .tool-arrow {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #catalog .ns-tag {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.06);
+    color: #a89a8c;
+  }
+
+  html[data-theme="dark"] #catalog .ns-tag:hover {
+    background: rgba(255, 184, 111, 0.05);
+    border-color: rgba(255, 184, 111, 0.2);
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #catalog .catalog-cta {
+    color: #FFB86F;
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #catalog .catalog-cta:hover {
+    background: rgba(255, 184, 111, 0.06);
+    border-color: rgba(255, 184, 111, 0.4);
+  }
+</style>

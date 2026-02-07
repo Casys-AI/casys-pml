@@ -1,0 +1,102 @@
+---
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = locale === 'fr'
+  ? {
+      title: 'Fonctionne avec toutes vos plateformes',
+      subtitle: 'Votre contenu reste sur vos plateformes. Vous gardez le contrôle. Nous automatisons le linking.',
+      items: [
+        { name: 'GitHub', slug: 'github', color: '000000' },
+        { name: 'Lovable', slug: 'lovable', color: 'FF4D4D' },
+        { name: 'Astro', slug: 'astro', color: 'BC52EE' },
+        { name: 'Hugo', slug: 'hugo', color: 'FF4088' },
+        { name: 'WordPress', slug: 'wordpress', color: '21759B' },
+        { name: 'Medium', slug: 'medium', color: '12100E' },
+        { name: 'Substack', slug: 'substack', color: 'FF6719' },
+        { name: 'X (Twitter)', slug: 'x', color: '000000' },
+        { name: 'LinkedIn', slug: 'linkedin', color: '0A66C2' },
+        { name: 'Facebook', slug: 'facebook', color: '0866FF' },
+      ],
+    }
+  : {
+      title: 'Works with all your platforms',
+      subtitle: 'Your content stays on your platforms. You keep full control. We automate the linking.',
+      items: [
+        { name: 'GitHub', slug: 'github', color: '000000' },
+        { name: 'Lovable', slug: 'lovable', color: 'FF4D4D' },
+        { name: 'Astro', slug: 'astro', color: 'BC52EE' },
+        { name: 'Hugo', slug: 'hugo', color: 'FF4088' },
+        { name: 'WordPress', slug: 'wordpress', color: '21759B' },
+        { name: 'Medium', slug: 'medium', color: '12100E' },
+        { name: 'Substack', slug: 'substack', color: 'FF6719' },
+        { name: 'X (Twitter)', slug: 'x', color: '000000' },
+        { name: 'LinkedIn', slug: 'linkedin', color: '0A66C2' },
+        { name: 'Facebook', slug: 'facebook', color: '0866FF' },
+      ],
+    };
+
+// Helper to build Simple Icons CDN URL
+type Item = { name: string; slug: string; color: string };
+const iconUrl = (i: Item) => `https://cdn.simpleicons.org/${encodeURIComponent(i.slug)}/${i.color}`;
+
+// Styles are now in _works-with.scss
+---
+
+<section class="py-32 bg-surface-container">
+  <div class="max-w-6xl mx-auto px-4 md:px-6">
+    <!-- Section Header -->
+    <div class="text-center mb-20">
+      <h2 class="text-headline-large text-on-surface mb-4">{t.title}</h2>
+      <p class="text-title-medium text-on-surface-variant max-w-2xl mx-auto">{t.subtitle}</p>
+    </div>
+
+    <!-- Platform Grid -->
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-6">
+      {t.items.map((item, index) => (
+        <div
+          class="platform-item flex flex-col items-center justify-center p-8 bg-surface-container-high rounded-3xl transition-all duration-300 opacity-0 transform translate-y-5 cursor-pointer hover:bg-primary-container hover:-translate-y-1"
+          style={`animation-delay: ${index * 80}ms`}
+          aria-label={item.name}
+        >
+          <div class="platform-icon flex items-center justify-center w-16 h-16 bg-surface rounded-2xl mb-4 transition-all duration-300 group-hover:bg-on-primary-container group-hover:scale-110">
+            <img
+              src={iconUrl(item)}
+              alt={item.name}
+              width={32}
+              height={32}
+              loading="lazy"
+              class="w-8 h-8 transition-all duration-300"
+            />
+          </div>
+          <span class="text-body-large font-medium text-on-surface text-center transition-all duration-300">{item.name}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  // Intersection Observer for scroll-triggered animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const platformItems = entry.target.querySelectorAll('.platform-item');
+          platformItems.forEach((item, index) => {
+            setTimeout(() => {
+              item.classList.add('animate-in');
+            }, index * 100);
+          });
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.2, rootMargin: '-50px' }
+  );
+
+  // Observe the section
+  const section = document.querySelector('.works-with');
+  if (section) {
+    observer.observe(section);
+  }
+</script>

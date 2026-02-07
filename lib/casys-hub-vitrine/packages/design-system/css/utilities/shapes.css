@@ -1,0 +1,12 @@
+/**
+ * Material 3 Utilities - Shapes
+ * Border radius utilities
+ */
+
+.rounded-none { border-radius: 0; }
+.rounded-xs { border-radius: var(--md-sys-shape-corner-extra-small); }
+.rounded-sm { border-radius: var(--md-sys-shape-corner-small); }
+.rounded-md { border-radius: var(--md-sys-shape-corner-medium); }
+.rounded-lg { border-radius: var(--md-sys-shape-corner-large); }
+.rounded-xl { border-radius: var(--md-sys-shape-corner-extra-large); }
+.rounded-full { border-radius: var(--md-sys-shape-corner-full); }

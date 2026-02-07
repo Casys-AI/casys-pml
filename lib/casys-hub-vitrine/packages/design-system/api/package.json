@@ -1,0 +1,52 @@
+{
+  "name": "@casys/api",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "sh -c 'pnpm exec wait-on ../application/dist/index.js ../infrastructure/dist/index.js ../shared/dist/index.js && tsx --watch --watch-path=./src --watch-path=../application/dist --watch-path=../infrastructure/dist --watch-path=../shared/dist ./src/server.ts'",
+    "dev:debug": "sh -c 'DEBUG_PROMPTS=1 pnpm exec wait-on ../application/dist/index.js ../infrastructure/dist/index.js ../shared/dist/index.js && DEBUG_PROMPTS=1 tsx --watch --watch-path=./src --watch-path=../application/dist --watch-path=../infrastructure/dist --watch-path=../shared/dist ./src/server.ts'",
+    "watch": "tsup --watch",
+    "start": "node dist/server.js",
+    "serve:watch": "node --watch dist/server.js",
+    "dev:ts": "tsx ./src/server.ts",
+    "dev:ts:watch": "tsx --watch ./src/server.ts",
+    "lint": "pnpm run lint:full",
+    "lint:fast": "eslint . --ext .ts,.tsx --report-unused-disable-directives --cache --cache-location .eslintcache --cache-strategy content",
+    "lint:full": "pnpm run lint:fast && pnpm run type-check",
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "test:smoke": "vitest run -i src/**/*.smoke.test.ts"
+  },
+  "dependencies": {
+    "@casys/application": "workspace:*",
+    "@casys/infrastructure": "workspace:*",
+    "@hono/node-server": "^1.13.7",
+    "@hono/zod-validator": "^0.7.2",
+    "awilix": "^11.0.4",
+    "dotenv": "^16.5.0",
+    "hono": "^4.8.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@casys/core": "workspace:*",
+    "@casys/shared": "workspace:*",
+    "tsup": "^8.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.4",
+    "vitest": "^3.2.4"
+  }
+}

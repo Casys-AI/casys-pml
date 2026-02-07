@@ -1,0 +1,341 @@
+---
+// i18n support
+const locale = (Astro as any).currentLocale ?? 'en';
+
+// Segment-specific problem/solution messaging
+const problemSolutionContent = {
+  teams: {
+    fr: {
+      problem: {
+        title: "Le Vrai Problème",
+        subtitle: "Votre équipe tue 40+ heures/mois sur le linking manuel",
+        items: [
+          "Chaque personne passe 4-8h/mois à relier manuellement",
+          "Coordination difficile: qui a lié quoi? Doublons partout",
+          "Les articles orphelins s'accumulent (20% de votre contenu perdu)"
+        ],
+        result: "Coût: 40-80h/mois × salaires + 40% trafic perdu"
+      },
+      solution: {
+        title: "Avec CASYS",
+        subtitle: "Votre équipe livra 2x plus en 50% moins de temps",
+        items: [
+          "Zéro linking manuel: CASYS le fait en 30 secondes",
+          "Collaboration sans friction: tout le monde voit les liens auto-générés",
+          "Stratégie exécutée: chaque article renforce les anciens"
+        ],
+        result: "Résultat: +40-80% trafic + 20h/semaine liberées par personne"
+      }
+    },
+    en: {
+      problem: {
+        title: "The Real Problem",
+        subtitle: "Your team wastes 40+ hours/month on manual linking",
+        items: [
+          "Each person spends 4-8 hours/month linking manually",
+          "Coordination is messy: who linked what? Duplicates everywhere",
+          "Orphan articles pile up (20% of your content lost)"
+        ],
+        result: "Cost: 40-80 hrs/month × salaries + 40% traffic lost"
+      },
+      solution: {
+        title: "With CASYS",
+        subtitle: "Your team ships 2x more in 50% less time",
+        items: [
+          "Zero manual linking: CASYS does it in 30 seconds",
+          "Frictionless collaboration: everyone sees auto-generated links",
+          "Strategy executed: each article strengthens the old ones"
+        ],
+        result: "Result: +40-80% traffic + 20 hrs/week freed per person"
+      }
+    }
+  },
+  agencies: {
+    fr: {
+      problem: {
+        title: "Le Vrai Problème",
+        subtitle: "Chaque projet client=40+ heures de linking manuel",
+        items: [
+          "Vous facturez le travail manuel: 40h × 150€ = 6000€ de coût par projet",
+          "Marge réduite: temps passé en linking = moins de profitabilité",
+          "Pas de scaling: vous ne pouvez pas doubler les clients sans doubler la team"
+        ],
+        result: "Impact: Profits limités + scaling impossible"
+      },
+      solution: {
+        title: "Avec CASYS",
+        subtitle: "Facturez le même prix, gagnez 30-40% de marge extra",
+        items: [
+          "Linkage automatisé: vos 40h manuelles deviennent 30 secondes",
+          "Marge 30-40%: facturez $700-1300, CASYS coûte $499",
+          "Scaling infini: un prix fixe, clients illimités"
+        ],
+        result: "Résultat: +$200-400/client de marge + clients illimités"
+      }
+    },
+    en: {
+      problem: {
+        title: "The Real Problem",
+        subtitle: "Each client project = 40+ hours of manual linking",
+        items: [
+          "You bill the work: 40h × $150 = $6,000 labor cost per project",
+          "Lower margins: time spent linking = less profit per client",
+          "No scaling: you can't double clients without doubling team"
+        ],
+        result: "Impact: Limited profits + impossible to scale"
+      },
+      solution: {
+        title: "With CASYS",
+        subtitle: "Bill the same, earn 30-40% extra margin",
+        items: [
+          "Automatic linking: your 40 manual hours become 30 seconds",
+          "30-40% margin: bill $700-$1,300, CASYS costs $499",
+          "Infinite scaling: fixed price, unlimited clients"
+        ],
+        result: "Result: +$200-$400/client margin + unlimited clients"
+      }
+    }
+  }
+};
+
+const t = locale === 'fr'
+  ? problemSolutionContent.teams.fr
+  : problemSolutionContent.teams.en;
+---
+
+<section class="py-32 bg-surface problem-solution">
+  <div class="max-w-6xl mx-auto px-4 md:px-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+      <!-- Problem Column -->
+      <div class="problem-card bg-surface-container-high rounded-3xl p-6 md:p-8 border-2 border-error-container transition-all duration-300 opacity-0 transform translate-y-5 hover:-translate-y-0.5 cursor-pointer">
+        <div class="flex items-start gap-4 mb-6">
+          <div class="flex items-center justify-center w-12 h-12 bg-surface-variant text-tertiary rounded-xl flex-shrink-0">
+            <span class="material-symbols-rounded">error</span>
+          </div>
+          <div>
+            <h2 class="text-headline-medium text-on-surface m-0 mb-1">{t.problem.title}</h2>
+            <p class="text-body-medium text-on-surface-variant m-0 font-medium">{t.problem.subtitle}</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-4 mb-6">
+          {t.problem.items.map((item, index) => (
+            <div class="list-item flex items-start gap-3 opacity-0 transform -translate-x-2.5" style={`animation-delay: ${index * 100}ms`}>
+              <span class="material-symbols-rounded text-[20px] text-tertiary flex-shrink-0 mt-0.5">close</span>
+              <span class="text-body-large text-on-surface-variant leading-normal">{item}</span>
+            </div>
+          ))}
+        </div>
+
+        <div class="inline-flex items-center gap-2 px-5 py-3 bg-surface-variant text-tertiary rounded-full text-label-large font-medium">
+          <span class="material-symbols-rounded">trending_down</span>
+          <span>{t.problem.result}</span>
+        </div>
+      </div>
+
+      <!-- Solution Column -->
+      <div class="solution-card bg-surface-container-high rounded-3xl p-6 md:p-8 border-2 border-primary-container transition-all duration-300 opacity-0 transform translate-y-5 hover:-translate-y-0.5 cursor-pointer">
+        <div class="flex items-start gap-4 mb-6">
+          <div class="flex items-center justify-center w-12 h-12 bg-primary-container text-primary rounded-xl flex-shrink-0">
+            <span class="material-symbols-rounded">check_circle</span>
+          </div>
+          <div>
+            <h2 class="text-headline-medium text-on-surface m-0 mb-1">{t.solution.title}</h2>
+            <p class="text-body-medium text-on-surface-variant m-0 font-medium">{t.solution.subtitle}</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-4 mb-6">
+          {t.solution.items.map((item, index) => (
+            <div class="list-item flex items-start gap-3 opacity-0 transform -translate-x-2.5" style={`animation-delay: ${200 + index * 100}ms`}>
+              <span class="material-symbols-rounded text-[20px] text-primary flex-shrink-0 mt-0.5">check</span>
+              <span class="text-body-large text-on-surface-variant leading-normal">{item}</span>
+            </div>
+          ))}
+        </div>
+
+        <div class="inline-flex items-center gap-2 px-5 py-3 bg-primary-container text-on-primary-container rounded-full text-label-large font-medium">
+          <span class="material-symbols-rounded">trending_up</span>
+          <span>{t.solution.result}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Segment-specific content data
+  const problemSolutionSegmentContent = {
+    teams: {
+      fr: {
+        problem: {
+          title: "Le Vrai Problème",
+          subtitle: "Votre équipe tue 40+ heures/mois sur le linking manuel",
+          items: [
+            "Chaque personne passe 4-8h/mois à relier manuellement",
+            "Coordination difficile: qui a lié quoi? Doublons partout",
+            "Les articles orphelins s'accumulent (20% de votre contenu perdu)"
+          ],
+          result: "Coût: 40-80h/mois × salaires + 40% trafic perdu"
+        },
+        solution: {
+          title: "Avec CASYS",
+          subtitle: "Votre équipe livra 2x plus en 50% moins de temps",
+          items: [
+            "Zéro linking manuel: CASYS le fait en 30 secondes",
+            "Collaboration sans friction: tout le monde voit les liens auto-générés",
+            "Stratégie exécutée: chaque article renforce les anciens"
+          ],
+          result: "Résultat: +40-80% trafic + 20h/semaine liberées par personne"
+        }
+      },
+      en: {
+        problem: {
+          title: "The Real Problem",
+          subtitle: "Your team wastes 40+ hours/month on manual linking",
+          items: [
+            "Each person spends 4-8 hours/month linking manually",
+            "Coordination is messy: who linked what? Duplicates everywhere",
+            "Orphan articles pile up (20% of your content lost)"
+          ],
+          result: "Cost: 40-80 hrs/month × salaries + 40% traffic lost"
+        },
+        solution: {
+          title: "With CASYS",
+          subtitle: "Your team ships 2x more in 50% less time",
+          items: [
+            "Zero manual linking: CASYS does it in 30 seconds",
+            "Frictionless collaboration: everyone sees auto-generated links",
+            "Strategy executed: each article strengthens the old ones"
+          ],
+          result: "Result: +40-80% traffic + 20 hrs/week freed per person"
+        }
+      }
+    },
+    agencies: {
+      fr: {
+        problem: {
+          title: "Le Vrai Problème",
+          subtitle: "Chaque projet client=40+ heures de linking manuel",
+          items: [
+            "Vous facturez le travail manuel: 40h × 150€ = 6000€ de coût par projet",
+            "Marge réduite: temps passé en linking = moins de profitabilité",
+            "Pas de scaling: vous ne pouvez pas doubler les clients sans doubler la team"
+          ],
+          result: "Impact: Profits limités + scaling impossible"
+        },
+        solution: {
+          title: "Avec CASYS",
+          subtitle: "Facturez le même prix, gagnez 30-40% de marge extra",
+          items: [
+            "Linkage automatisé: vos 40h manuelles deviennent 30 secondes",
+            "Marge 30-40%: facturez $700-1300, CASYS coûte $499",
+            "Scaling infini: un prix fixe, clients illimités"
+          ],
+          result: "Résultat: +$200-400/client de marge + clients illimités"
+        }
+      },
+      en: {
+        problem: {
+          title: "The Real Problem",
+          subtitle: "Each client project = 40+ hours of manual linking",
+          items: [
+            "You bill the work: 40h × $150 = $6,000 labor cost per project",
+            "Lower margins: time spent linking = less profit per client",
+            "No scaling: you can't double clients without doubling team"
+          ],
+          result: "Impact: Limited profits + impossible to scale"
+        },
+        solution: {
+          title: "With CASYS",
+          subtitle: "Bill the same, earn 30-40% extra margin",
+          items: [
+            "Automatic linking: your 40 manual hours become 30 seconds",
+            "30-40% margin: bill $700-$1,300, CASYS costs $499",
+            "Infinite scaling: fixed price, unlimited clients"
+          ],
+          result: "Result: +$200-$400/client margin + unlimited clients"
+        }
+      }
+    }
+  };
+
+  // Update content for segment
+  function updateProblemSolutionForSegment(segment: string) {
+    const locale = document.documentElement.lang === 'fr' ? 'fr' : 'en';
+    const segmentData = problemSolutionSegmentContent[segment as keyof typeof problemSolutionSegmentContent];
+
+    if (!segmentData) return;
+
+    const data = segmentData[locale as keyof typeof segmentData];
+
+    // Update problem section
+    const problemTitle = document.querySelector('.problem-card h2');
+    const problemSubtitle = document.querySelector('.problem-card .text-body-medium');
+    const problemItems = document.querySelectorAll('.problem-card .list-item');
+    const problemResult = document.querySelector('.problem-card .inline-flex span:last-of-type');
+
+    if (problemTitle) problemTitle.textContent = data.problem.title;
+    if (problemSubtitle) problemSubtitle.textContent = data.problem.subtitle;
+    problemItems.forEach((item, index) => {
+      const span = item.querySelector('.text-body-large');
+      if (span && data.problem.items[index]) {
+        span.textContent = data.problem.items[index];
+      }
+    });
+    if (problemResult) problemResult.textContent = data.problem.result;
+
+    // Update solution section
+    const solutionTitle = document.querySelector('.solution-card h2');
+    const solutionSubtitle = document.querySelectorAll('.solution-card .text-body-medium')[0];
+    const solutionItems = document.querySelectorAll('.solution-card .list-item');
+    const solutionResult = document.querySelectorAll('.solution-card .inline-flex span:last-of-type')[0];
+
+    if (solutionTitle) solutionTitle.textContent = data.solution.title;
+    if (solutionSubtitle) solutionSubtitle.textContent = data.solution.subtitle;
+    solutionItems.forEach((item, index) => {
+      const span = item.querySelector('.text-body-large');
+      if (span && data.solution.items[index]) {
+        span.textContent = data.solution.items[index];
+      }
+    });
+    if (solutionResult) solutionResult.textContent = data.solution.result;
+  }
+
+  // Listen for segment changes
+  window.addEventListener('segment-changed', (event: any) => {
+    updateProblemSolutionForSegment(event.detail.segment);
+  });
+
+  // Intersection Observer for scroll-triggered animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          // Animate cards
+          const cards = entry.target.querySelectorAll('.problem-card, .solution-card');
+          cards.forEach((card, index) => {
+            setTimeout(() => {
+              card.classList.add('animate-in');
+            }, index * 200);
+          });
+
+          // Animate list items
+          const listItems = entry.target.querySelectorAll('.list-item');
+          listItems.forEach((item) => {
+            item.classList.add('animate-in');
+          });
+
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.2, rootMargin: '-50px' }
+  );
+
+  // Observe the section
+  const section = document.querySelector('.problem-solution');
+  if (section) {
+    observer.observe(section);
+  }
+</script>
