@@ -1,0 +1,94 @@
+---
+title: MCP Apps (Ressources UI)
+description: Servez des interfaces interactives a cote de vos outils MCP via le scheme ui://.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Les outils MCP retournent des donnees. Les MCP Apps les affichent. Enregistrez des interfaces HTML comme ressources, et les clients supportant SEP-1865 les rendront directement — dashboards, visualiseurs de donnees, formulaires, panneaux de configuration, a cote de vos outils.
+
+## Enregistrer une ressource UI
+
+```typescript
+import { ConcurrentMCPServer, MCP_APP_MIME_TYPE } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "my-server",
+  version: "1.0.0",
+});
+
+server.registerResource(
+  {
+    uri: "ui://my-server/viewer",
+    name: "Data Viewer",
+    description: "Interactive data viewer",
+  },
+  async (uri) => ({
+    uri: uri.toString(),
+    mimeType: MCP_APP_MIME_TYPE,
+    text: `
+      <html>
+        <body>
+          <h1>Data Viewer</h1>
+          <div id="app"></div>
+          <script>
+            // Your interactive UI code here
+          </script>
+        </body>
+      </html>
+    `,
+  }),
+);
+
+await server.start();
+```
+
+## Le scheme `ui://`
+
+Le scheme d'URI `ui://` indique aux clients MCP que cette ressource est une application HTML interactive, pas des donnees brutes.
+
+- **Format d'URI** : `ui://{server-name}/{path}`
+- **Type MIME** : Utilisez `MCP_APP_MIME_TYPE` (constante exportee)
+- **Contenu** : Document HTML complet sous forme de chaine
+
+<Aside>
+  Tous les clients MCP ne supportent pas encore les ressources `ui://`. La ressource n'apparaitra simplement pas dans les clients sans support SEP-1865 — pas d'erreurs, pas d'interfaces cassees.
+</Aside>
+
+## Ressources UI dynamiques
+
+Le handler recoit l'URI et peut retourner un contenu different selon l'etat, les donnees recuperees, ou autre :
+
+```typescript
+server.registerResource(
+  {
+    uri: "ui://my-server/dashboard",
+    name: "Dashboard",
+    description: "Real-time metrics dashboard",
+  },
+  async (uri) => {
+    const metrics = await getMetrics();
+    return {
+      uri: uri.toString(),
+      mimeType: MCP_APP_MIME_TYPE,
+      text: renderDashboard(metrics),  // Fresh data on every read
+    };
+  },
+);
+```
+
+<Aside type="tip">
+  Puisque le handler s'execute a chaque lecture de ressource, votre interface reflete toujours l'etat le plus recent. Pas besoin de polling ou de websockets — le client MCP gere le cycle de rafraichissement.
+</Aside>
+
+## Verifier les ressources enregistrees
+
+```typescript
+server.getResourceCount();  // 2
+server.getResourceUris();   // ["ui://my-server/viewer", "ui://my-server/dashboard"]
+```
+
+## Voir aussi
+
+- [API ConcurrentMCPServer](/fr/docs/api/concurrent-mcp-server/) — Reference `registerResource()` et `registerResources()`
+- [Demarrage rapide](/fr/docs/getting-started/quickstart/) — Bases de configuration du serveur

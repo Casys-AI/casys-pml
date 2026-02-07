@@ -1,0 +1,224 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    title: '29',
+    titleAccent: 'Categories',
+    subtitle: 'From database queries to AI agent orchestration, every tool organized and ready to use.',
+    cta: 'Browse all 508 tools',
+  },
+  fr: {
+    title: '29',
+    titleAccent: 'Categories',
+    subtitle: 'Des requetes base de donnees a l\'orchestration d\'agents IA, chaque outil organise et pret a l\'emploi.',
+    cta: 'Parcourir les 508 outils',
+  },
+  zh: {
+    title: '29 个',
+    titleAccent: '分类',
+    subtitle: '从数据库查询到 AI 智能体编排，每个工具都已分类、随时可用。',
+    cta: '浏览全部 508 个工具',
+  },
+} as const;
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+
+const categories = [
+  { emoji: '\u{1F433}', name: 'Docker', count: 20 },
+  { emoji: '\u{1F4E6}', name: 'Git', count: 9 },
+  { emoji: '\u{1F418}', name: 'Database', count: 31 },
+  { emoji: '\u{1F310}', name: 'Network', count: 30 },
+  { emoji: '\u{1F4DD}', name: 'Text & Format', count: 80 },
+  { emoji: '\u{1F4DA}', name: 'Collections', count: 20 },
+  { emoji: '\u{1F512}', name: 'Crypto', count: 21 },
+  { emoji: '\u{2211}',  name: 'Math', count: 19 },
+  { emoji: '\u{1F916}', name: 'AI Agents', count: 9 },
+  { emoji: '\u{1F3B2}', name: 'Mock Data', count: 27 },
+  { emoji: '\u{1F3A8}', name: 'Colors', count: 21 },
+  { emoji: '\u{1F4C5}', name: 'Date & Time', count: 9 },
+  { emoji: '\u{2713}',  name: 'Validation', count: 18 },
+  { emoji: '\u{1F523}', name: 'Encoding', count: 11 },
+  { emoji: '\u{1F4F1}', name: 'QR & Barcodes', count: 10 },
+  { emoji: '\u{1F6E1}', name: 'Resilience', count: 8 },
+];
+
+const catalogPath = locale === 'en' ? '/mcp-std/catalog' : `/${locale}/mcp-std/catalog`;
+---
+
+<section id="categories">
+  <div class="container">
+    <div class="section-header center">
+      <h2>{t.title} <span class="accent-text">{t.titleAccent}</span></h2>
+      <p class="section-subtitle">{t.subtitle}</p>
+    </div>
+    <div class="categories-grid">
+      {categories.map((cat) => (
+        <div class="category-card">
+          <span class="category-emoji" aria-hidden="true">{cat.emoji}</span>
+          <span class="category-name">{cat.name}</span>
+          <span class="category-count">{cat.count} tools</span>
+        </div>
+      ))}
+    </div>
+    <div class="categories-cta">
+      <a href={catalogPath}>{t.cta} <span aria-hidden="true">&rarr;</span></a>
+    </div>
+  </div>
+</section>
+
+<style>
+  #categories {
+    position: relative;
+    padding: 56px 0 64px;
+    overflow: hidden;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+  .section-header {
+    margin-bottom: 32px;
+    max-width: 600px;
+  }
+
+  .section-header.center {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .section-header h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .categories-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--md-sys-color-outline-variant);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .category-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 20px 12px;
+    background: var(--md-sys-color-surface-container-lowest);
+    text-align: center;
+    transition: background 150ms ease-out;
+  }
+
+  .category-card:hover {
+    background: var(--md-sys-color-surface-container);
+  }
+
+  .category-emoji {
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .category-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    line-height: 1.3;
+  }
+
+  .category-count {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.3;
+  }
+
+  .categories-cta {
+    text-align: center;
+    margin-top: 28px;
+  }
+
+  .categories-cta a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    text-decoration: none;
+    padding: 10px 24px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 8px;
+    transition: background 200ms ease-out, border-color 200ms ease-out;
+  }
+
+  .categories-cta a:hover {
+    background: var(--md-sys-color-surface-container);
+    border-color: var(--md-sys-color-primary);
+  }
+
+  .categories-cta a:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  @media (max-width: 1024px) { .container { padding: 0 32px; } }
+  @media (max-width: 768px) {
+    #categories { padding: 48px 0; }
+    .container { padding: 0 20px; }
+    .categories-grid { grid-template-columns: repeat(2, 1fr); }
+    .category-card { padding: 16px 10px; }
+  }
+  @media (max-width: 380px) {
+    .container { padding: 0 14px; }
+    .category-card { padding: 14px 8px; }
+  }
+</style>
+
+<style is:global>
+  #categories { background: var(--md-sys-color-surface); }
+  html[data-theme="dark"] #categories { background: #0d0c0a; }
+
+  html[data-theme="dark"] #categories .section-header h2 { color: #f5f0ea; }
+  html[data-theme="dark"] #categories .section-subtitle { color: #d5c3b5; }
+
+  html[data-theme="dark"] #categories .categories-grid {
+    background: rgba(255, 184, 111, 0.06);
+    border-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] #categories .category-card {
+    background: #0d0c0a;
+  }
+
+  html[data-theme="dark"] #categories .category-card:hover {
+    background: #1a1815;
+  }
+
+  html[data-theme="dark"] #categories .category-name { color: #f5f0ea; }
+  html[data-theme="dark"] #categories .category-count { color: #a89a8c; }
+
+  html[data-theme="dark"] #categories .categories-cta a {
+    color: #FFB86F;
+    border-color: rgba(255, 184, 111, 0.12);
+  }
+
+  html[data-theme="dark"] #categories .categories-cta a:hover {
+    background: rgba(255, 184, 111, 0.08);
+    border-color: rgba(255, 184, 111, 0.3);
+  }
+</style>

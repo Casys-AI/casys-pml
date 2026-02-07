@@ -1,0 +1,94 @@
+---
+title: MCP Apps (UI 资源)
+description: 通过 ui:// scheme 在 MCP 工具旁提供交互式 UI。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+MCP 工具返回数据。MCP Apps 渲染数据。将 HTML UI 注册为资源，支持 SEP-1865 的客户端会内联渲染 — 仪表盘、数据查看器、表单、配置面板，就在你的工具旁边。
+
+## 注册 UI 资源
+
+```typescript
+import { ConcurrentMCPServer, MCP_APP_MIME_TYPE } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "my-server",
+  version: "1.0.0",
+});
+
+server.registerResource(
+  {
+    uri: "ui://my-server/viewer",
+    name: "Data Viewer",
+    description: "Interactive data viewer",
+  },
+  async (uri) => ({
+    uri: uri.toString(),
+    mimeType: MCP_APP_MIME_TYPE,
+    text: `
+      <html>
+        <body>
+          <h1>Data Viewer</h1>
+          <div id="app"></div>
+          <script>
+            // Your interactive UI code here
+          </script>
+        </body>
+      </html>
+    `,
+  }),
+);
+
+await server.start();
+```
+
+## `ui://` scheme
+
+`ui://` URI scheme 告知 MCP 客户端这个资源是一个交互式 HTML 应用，而非原始数据。
+
+- **URI 格式**：`ui://{server-name}/{path}`
+- **MIME 类型**：使用 `MCP_APP_MIME_TYPE` (导出常量)
+- **内容**：完整 HTML 文档字符串
+
+<Aside>
+  并非所有 MCP 客户端都支持 `ui://` 资源。在不支持 SEP-1865 的客户端中，资源不会显示 — 不会报错，不会出现损坏的界面。
+</Aside>
+
+## 动态 UI 资源
+
+handler 接收 URI，可以根据状态、获取的数据或其他条件返回不同内容：
+
+```typescript
+server.registerResource(
+  {
+    uri: "ui://my-server/dashboard",
+    name: "Dashboard",
+    description: "Real-time metrics dashboard",
+  },
+  async (uri) => {
+    const metrics = await getMetrics();
+    return {
+      uri: uri.toString(),
+      mimeType: MCP_APP_MIME_TYPE,
+      text: renderDashboard(metrics),  // Fresh data on every read
+    };
+  },
+);
+```
+
+<Aside type="tip">
+  由于 handler 在每次资源读取时执行，你的 UI 始终反映最新状态。无需轮询或 websocket — MCP 客户端管理刷新生命周期。
+</Aside>
+
+## 查看已注册资源
+
+```typescript
+server.getResourceCount();  // 2
+server.getResourceUris();   // ["ui://my-server/viewer", "ui://my-server/dashboard"]
+```
+
+## 另请参阅
+
+- [ConcurrentMCPServer API](/zh/docs/api/concurrent-mcp-server/) — `registerResource()` 和 `registerResources()` 参考
+- [快速开始](/zh/docs/getting-started/quickstart/) — 服务器配置基础

@@ -1,15 +1,15 @@
 ---
-title: Middleware Pipeline
-description: Composable onion-model middleware for MCP tool calls.
+title: 中间件管道
+description: 面向 MCP 工具调用的可组合洋葱模型中间件。
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-Every tool call in `@casys/mcp-server` flows through a composable middleware chain — the same onion model you know from Hono, Koa, or Express. This is how auth, rate limiting, validation, and your custom logic all compose together without tangling.
+`@casys/mcp-server` 中的每个工具调用都会经过一条可组合的中间件链 — 与你在 Hono、Koa 或 Express 中熟悉的洋葱模型相同。认证、速率限制、验证和你的自定义逻辑就是这样组合在一起而不会纠缠的。
 
-## How it works
+## 工作原理
 
-<img src="/diagrams/mcp-server/mcp-middleware-pipeline.svg" alt="Middleware Pipeline" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
+<img src="/diagrams/mcp-server/mcp-middleware-pipeline.svg" alt="MCP 中间件管道" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
 
 ```
 Request → Rate Limit → Auth → Custom Middlewares → Scope Check → Validation → Backpressure → Handler
@@ -17,11 +17,11 @@ Request → Rate Limit → Auth → Custom Middlewares → Scope Check → Valid
 Response ← Rate Limit ← Auth ← Custom Middlewares ← Scope Check ← Validation ← Backpressure ← Result
 ```
 
-Each middleware receives a `context` object and a `next()` function. Call `next()` to pass control downstream. The response flows back through the same chain in reverse — so a single middleware can act on both the request and the response.
+每个中间件接收一个 `context` 对象和一个 `next()` 函数。调用 `next()` 将控制权传递给下游。响应沿相同的链反向流动 — 因此单个中间件可以同时处理请求和响应。
 
-## Writing a middleware
+## 编写中间件
 
-A middleware is just an async function. Here's a logger that times every tool call:
+中间件就是一个 async 函数。这是一个为每个工具调用计时的日志中间件：
 
 ```typescript
 import type { Middleware } from "@casys/mcp-server";
@@ -38,11 +38,11 @@ const logging: Middleware = async (ctx, next) => {
 };
 ```
 
-That's it. No base class, no decorators, no registration boilerplate.
+就这样。没有基类，没有装饰器，没有注册样板代码。
 
-## Registering middlewares
+## 注册中间件
 
-Use `server.use()` to add your middlewares. They slot in between the built-in layers (rate limit, auth) and the built-in checks (validation, backpressure):
+使用 `server.use()` 添加中间件。它们被插入到内置层 (rate limit、auth) 和内置检查 (validation、backpressure) 之间：
 
 ```typescript
 const server = new ConcurrentMCPServer({
@@ -59,30 +59,30 @@ await server.startHttp({ port: 3000 });
 ```
 
 <Aside type="caution">
-  `use()` must be called **before** `start()` or `startHttp()`. The pipeline is compiled at startup and cannot be modified after.
+  `use()` 必须在 `start()` 或 `startHttp()` **之前** 调用。管道在启动时编译，之后无法修改。
 </Aside>
 
-## Pipeline order
+## 管道顺序
 
-Here's exactly what runs for every tool call, and in what order:
+以下是每个工具调用的精确执行顺序：
 
-| Order | Layer | Source | What it does |
-|-------|-------|--------|-------------|
-| 1 | Rate Limit | Built-in (if configured) | Sliding-window per-client throttling |
-| 2 | Auth | Built-in (if configured) | JWT/Bearer token validation |
-| 3 | **Your middlewares** | `server.use()` | Your code, in registration order |
-| 4 | Scope Check | Built-in (if auth + scopes) | Verifies token scopes match `requiredScopes` |
-| 5 | Validation | Built-in (if configured) | JSON Schema validation via ajv |
-| 6 | Backpressure | Built-in | Queue/sleep/reject based on concurrency |
-| 7 | Handler | `registerTool()` | Your tool handler function |
+| 顺序 | 层 | 来源 | 作用 |
+|------|------|------|------|
+| 1 | Rate Limit | 内置 (如已配置) | 按客户端的滑动窗口限流 |
+| 2 | Auth | 内置 (如已配置) | JWT/Bearer token 验证 |
+| 3 | **你的中间件** | `server.use()` | 你的代码，按注册顺序 |
+| 4 | Scope Check | 内置 (如有 auth + scopes) | 验证 token scope 是否匹配 `requiredScopes` |
+| 5 | Validation | 内置 (如已配置) | 通过 ajv 进行 JSON Schema 验证 |
+| 6 | Backpressure | 内置 | 根据并发情况执行 queue/sleep/reject |
+| 7 | Handler | `registerTool()` | 你的工具 handler 函数 |
 
 <Aside type="tip">
-  Your middlewares run **after** auth but **before** validation. This means you have access to `ctx.authInfo` and can enrich the context before the handler runs.
+  你的中间件在 auth **之后** 但在 validation **之前** 运行。这意味着你可以访问 `ctx.authInfo` 并在 handler 执行前丰富上下文。
 </Aside>
 
-## The context object
+## context 对象
 
-Every middleware and handler receives the same context:
+每个中间件和 handler 接收相同的 context：
 
 ```typescript
 interface MiddlewareContext {
@@ -94,9 +94,9 @@ interface MiddlewareContext {
 }
 ```
 
-## Enriching context
+## 丰富 context
 
-Middlewares can attach data for downstream middlewares and the handler. This is the recommended way to share cross-cutting data:
+中间件可以为下游中间件和 handler 附加数据。这是共享横切关注点数据的推荐方式：
 
 ```typescript
 const tenantResolver: Middleware = async (ctx, next) => {
@@ -109,9 +109,9 @@ const tenantResolver: Middleware = async (ctx, next) => {
 };
 ```
 
-## Short-circuiting
+## 短路
 
-Don't call `next()` to skip the rest of the pipeline. This is how you build caching:
+不调用 `next()` 即可跳过管道的其余部分。这就是构建缓存的方式：
 
 ```typescript
 const cache = new Map<string, { result: unknown; expiry: number }>();
@@ -130,9 +130,9 @@ const caching: Middleware = async (ctx, next) => {
 };
 ```
 
-## Error handling
+## 错误处理
 
-Errors thrown anywhere in the chain propagate back through all middlewares. Put your error handler first so it wraps everything:
+链中任何位置抛出的错误都会通过所有中间件回传。将错误处理器放在首位，使其包裹一切：
 
 ```typescript
 const errorHandler: Middleware = async (ctx, next) => {
@@ -150,9 +150,9 @@ server.use(logging);
 server.use(caching);
 ```
 
-## Recipes
+## 实用示例
 
-### Request timing with metrics export
+### 带指标导出的请求计时
 
 ```typescript
 const timing: Middleware = async (ctx, next) => {
@@ -166,7 +166,7 @@ const timing: Middleware = async (ctx, next) => {
 };
 ```
 
-### Tool-specific access control
+### 按工具的访问控制
 
 ```typescript
 const adminOnly: Middleware = async (ctx, next) => {
@@ -180,7 +180,7 @@ const adminOnly: Middleware = async (ctx, next) => {
 };
 ```
 
-### Request/response transformation
+### 请求/响应转换
 
 ```typescript
 const sanitizer: Middleware = async (ctx, next) => {
@@ -196,8 +196,8 @@ const sanitizer: Middleware = async (ctx, next) => {
 };
 ```
 
-## See Also
+## 另请参阅
 
-- [Authentication (OAuth2)](/docs/guides/auth/) — The built-in auth middleware and OIDC presets
-- [ConcurrentMCPServer API](/docs/api/concurrent-mcp-server/) — Full `use()` and `registerTool()` reference
-- [Standalone Components](/docs/api/standalone-components/) — Use RateLimiter, RequestQueue as standalone utilities
+- [认证 (OAuth2)](/zh/docs/guides/auth/) — 内置认证中间件和 OIDC 配置
+- [ConcurrentMCPServer API](/zh/docs/api/concurrent-mcp-server/) — `use()` 和 `registerTool()` 完整参考
+- [独立组件](/zh/docs/api/standalone-components/) — 将 RateLimiter、RequestQueue 作为独立工具使用

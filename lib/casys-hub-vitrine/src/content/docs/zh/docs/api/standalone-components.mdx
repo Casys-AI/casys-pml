@@ -1,16 +1,16 @@
 ---
-title: Standalone Components
-description: Use RateLimiter, RequestQueue, and SchemaValidator independently.
+title: 独立组件
+description: 独立使用 RateLimiter、RequestQueue 和 SchemaValidator。
 next: false
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-The building blocks of `@casys/mcp-server` are useful on their own. Rate limiting, concurrency control, and schema validation — all usable in any Deno or Node.js project, no MCP required.
+`@casys/mcp-server` 的构建模块可以独立使用。速率限制、并发控制和 Schema 验证 — 可在任何 Deno 或 Node.js 项目中使用，无需 MCP。
 
 ## RateLimiter
 
-Sliding-window rate limiter with per-key tracking. Lightweight, no external dependencies.
+滑动窗口速率限制器，支持按键追踪。轻量级，无外部依赖。
 
 ```typescript
 import { RateLimiter } from "@casys/mcp-server";
@@ -27,7 +27,7 @@ const limiter = new RateLimiter({
 limiter.checkLimit(key: string): boolean;
 ```
 
-Returns `true` if within limits, `false` if rate-limited. Non-blocking — never waits.
+在限制内返回 `true`，被限流时返回 `false`。非阻塞 — 不会等待。
 
 ```typescript
 if (limiter.checkLimit("client-123")) {
@@ -43,7 +43,7 @@ if (limiter.checkLimit("client-123")) {
 await limiter.waitForSlot(key: string): Promise<void>;
 ```
 
-Blocks until a slot opens. Timeout equals `windowMs`.
+阻塞直到有可用槽位。超时等于 `windowMs`。
 
 ```typescript
 await limiter.waitForSlot("client-123");
@@ -58,7 +58,7 @@ limiter.getMetrics(): { keys: number, totalRequests: number };
 
 ## RequestQueue
 
-Concurrency control with configurable backpressure. Protects downstream services from overload.
+可配置背压的并发控制。保护下游服务免受过载。
 
 ```typescript
 import { RequestQueue } from "@casys/mcp-server";
@@ -70,13 +70,13 @@ const queue = new RequestQueue({
 });
 ```
 
-### Strategies
+### 策略
 
-| Strategy | Behavior | Best for |
-|----------|----------|----------|
-| `sleep` | Spin-wait with `sleepMs` delay until a slot opens | Low-latency, CPU-tolerant |
-| `queue` | FIFO queue — requests wait in order | Fair ordering, predictable |
-| `reject` | Immediately reject if at capacity | Fail-fast, circuit-breaker style |
+| 策略 | 行为 | 适用场景 |
+|------|------|---------|
+| `sleep` | 以 `sleepMs` 间隔自旋等待直到槽位释放 | 低延迟，可容忍 CPU |
+| `queue` | FIFO 队列 — 请求按顺序等待 | 公平调度，可预测 |
+| `reject` | 满载时立即拒绝 | 快速失败，断路器风格 |
 
 ### acquire / release
 
@@ -85,7 +85,7 @@ await queue.acquire(): Promise<void>;
 queue.release(): void;
 ```
 
-Always use try/finally to prevent slot leaks:
+始终使用 try/finally 防止槽位泄漏：
 
 ```typescript
 await queue.acquire();
@@ -104,7 +104,7 @@ queue.getMetrics(): { inFlight: number, queued: number };
 
 ## SchemaValidator
 
-JSON Schema validation powered by ajv. Schemas are compiled once at registration time — validation is fast.
+基于 ajv 的 JSON Schema 验证。Schema 在注册时一次性编译 — 验证速度快。
 
 ```typescript
 import { SchemaValidator } from "@casys/mcp-server";
@@ -118,7 +118,7 @@ const validator = new SchemaValidator();
 validator.addSchema(toolName: string, schema: object): void;
 ```
 
-Compiles and caches the schema. Call once per tool at startup:
+编译并缓存 schema。在启动时每个工具调用一次：
 
 ```typescript
 validator.addSchema("my_tool", {
@@ -153,10 +153,10 @@ validator.validate("my_tool", { count: 5 });
 ```
 
 <Aside type="tip">
-  Inside `ConcurrentMCPServer`, these components are wired up automatically based on your options. You only need standalone usage when building custom infrastructure outside the framework.
+  在 `ConcurrentMCPServer` 内部，这些组件根据你的选项自动装配。独立使用仅在框架之外构建自定义基础设施时需要。
 </Aside>
 
-## See Also
+## 另请参阅
 
-- [ConcurrentMCPServer API](/docs/api/concurrent-mcp-server/) — How these components are used internally
-- [Middleware Pipeline](/docs/guides/middleware/) — Rate limiting, validation, and backpressure in the pipeline
+- [ConcurrentMCPServer API](/zh/docs/api/concurrent-mcp-server/) — 这些组件在内部的使用方式
+- [中间件管道](/zh/docs/guides/middleware/) — 管道中的速率限制、验证和背压

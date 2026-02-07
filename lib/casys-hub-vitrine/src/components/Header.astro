@@ -5,25 +5,60 @@ const translations = {
     projects: 'Projects',
     whyCasys: 'Why Casys',
     consulting: 'Consulting',
+    blog: 'Blog',
     contact: 'Contact',
-    bookCall: 'Book a Call',
   },
   fr: {
     projects: 'Projets',
     whyCasys: 'Pourquoi Casys',
     consulting: 'Consulting',
+    blog: 'Blog',
     contact: 'Contact',
-    bookCall: 'Réserver un Appel',
   },
   zh: {
     projects: '项目',
     whyCasys: '为什么选择 Casys',
     consulting: '咨询服务',
+    blog: 'Blog',
     contact: '联系我们',
-    bookCall: '预约电话',
   },
 } as const;
 const t = translations[locale as keyof typeof translations] ?? translations.en;
+
+const blogHref = locale === 'en' ? '/blog' : `/${locale}/blog`;
+
+const projects = [
+  {
+    name: 'PML Gateway',
+    href: 'https://pml.casys.ai',
+    description: 'MCP Gateway with full observability',
+    icon: 'hub',
+  },
+  {
+    name: '@casys/mcp-std',
+    href: 'https://mcp-std.casys.ai',
+    description: '508 MCP standard tools',
+    icon: 'handyman',
+  },
+  {
+    name: '@casys/mcp-server',
+    href: 'https://mcp-server.casys.ai',
+    description: 'Production MCP server framework',
+    icon: 'dns',
+  },
+  {
+    name: 'PML Engine',
+    href: 'https://engine.casys.ai',
+    description: 'Graph neural network for tool orchestration',
+    icon: 'neurology',
+  },
+  {
+    name: 'CasysDB',
+    href: 'https://github.com/casysai/casysdb',
+    description: 'Embedded graph database with branches',
+    icon: 'database',
+  },
+];
 ---
 
 <header class="header">
@@ -37,15 +72,46 @@ const t = translations[locale as keyof typeof translations] ?? translations.en;
     <!-- Desktop Navigation - Asymmetric -->
     <nav class="nav-desktop">
       <div class="nav-links">
-        <a href="#projects" class="nav-link">{t.projects}</a>
+        <!-- Projects dropdown trigger -->
+        <div class="dropdown-wrapper" id="projects-dropdown">
+          <button
+            class="nav-link dropdown-trigger"
+            aria-expanded="false"
+            aria-haspopup="true"
+            type="button"
+          >
+            {t.projects}
+            <span class="material-symbols-rounded chevron-icon" aria-hidden="true">expand_more</span>
+          </button>
+          <div class="dropdown-panel" role="menu" aria-label={t.projects}>
+            {projects.map((project) => (
+              <a href={project.href} class="dropdown-item" role="menuitem" target="_blank" rel="noopener">
+                <span class="material-symbols-rounded dropdown-item-icon" aria-hidden="true">{project.icon}</span>
+                <div class="dropdown-item-text">
+                  <span class="dropdown-item-name">{project.name}</span>
+                  <span class="dropdown-item-desc">{project.description}</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
         <a href="#why-casys" class="nav-link">{t.whyCasys}</a>
         <a href="#work-with-us" class="nav-link">{t.consulting}</a>
+        <a href={blogHref} class="nav-link">{t.blog}</a>
         <a href="#contact" class="nav-link">{t.contact}</a>
       </div>
-      <a href="https://calendly.com/casys/30min" class="btn-primary" target="_blank" rel="noopener">
-        {t.bookCall}
-        <span class="btn-arrow" aria-hidden="true">&rarr;</span>
-      </a>
+      <div class="nav-icons">
+        <a href="https://discord.gg/fuPg8drR" target="_blank" rel="noopener" aria-label="Discord" class="icon-link">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+          </svg>
+        </a>
+        <a href="https://github.com/Casys-AI" target="_blank" rel="noopener" aria-label="GitHub" class="icon-link">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
     </nav>
 
     <!-- Mobile Menu Button -->
@@ -64,14 +130,37 @@ const t = translations[locale as keyof typeof translations] ?? translations.en;
 <!-- Mobile Menu -->
 <div id="mobile-menu" class="mobile-menu">
   <nav class="mobile-nav">
-    <a href="#projects" class="nav-link">{t.projects}</a>
+    <!-- Projects section: inline list in mobile -->
+    <div class="mobile-projects-section">
+      <span class="mobile-projects-heading">{t.projects}</span>
+      <div class="mobile-projects-list">
+        {projects.map((project) => (
+          <a href={project.href} class="mobile-project-item" target="_blank" rel="noopener">
+            <span class="material-symbols-rounded mobile-project-icon" aria-hidden="true">{project.icon}</span>
+            <div class="mobile-project-text">
+              <span class="mobile-project-name">{project.name}</span>
+              <span class="mobile-project-desc">{project.description}</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
     <a href="#why-casys" class="nav-link">{t.whyCasys}</a>
     <a href="#work-with-us" class="nav-link">{t.consulting}</a>
+    <a href={blogHref} class="nav-link">{t.blog}</a>
     <a href="#contact" class="nav-link">{t.contact}</a>
-    <div class="mobile-cta">
-      <a href="https://calendly.com/casys/30min" class="btn-primary" target="_blank" rel="noopener">
-        {t.bookCall}
-        <span class="btn-arrow" aria-hidden="true">&rarr;</span>
+    <div class="mobile-social">
+      <a href="https://discord.gg/fuPg8drR" target="_blank" rel="noopener" class="mobile-social-link">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+        </svg>
+        Discord
+      </a>
+      <a href="https://github.com/Casys-AI" target="_blank" rel="noopener" class="mobile-social-link">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        </svg>
+        GitHub
       </a>
     </div>
   </nav>
@@ -108,9 +197,6 @@ const t = translations[locale as keyof typeof translations] ?? translations.en;
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   }
 
-  .header.header-hidden {
-    transform: translateY(-100%);
-  }
 
   .container {
     max-width: 1200px;
@@ -202,29 +288,142 @@ const t = translations[locale as keyof typeof translations] ?? translations.en;
     font-weight: 600;
   }
 
-  /* Primary Button - Solid with arrow */
-  .btn-primary {
+  /* ========================================
+     DROPDOWN - Projects mega menu
+     ======================================== */
+
+  .dropdown-wrapper {
+    position: relative;
+  }
+
+  .dropdown-trigger {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    background: var(--md-sys-color-primary);
-    color: var(--md-sys-color-on-primary);
+    gap: 2px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* Override ::after for dropdown trigger - no underline on this one */
+  .dropdown-trigger::after {
+    display: none;
+  }
+
+  .chevron-icon {
+    font-size: 18px;
+    transition: transform 200ms ease-out;
+    line-height: 1;
+  }
+
+  .dropdown-wrapper[data-open="true"] .chevron-icon {
+    transform: rotate(180deg);
+  }
+
+  .dropdown-panel {
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 480px;
+    max-width: 600px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-50%) translateY(4px);
+    transition: opacity 150ms ease-out, visibility 150ms ease-out, transform 150ms ease-out;
+    z-index: 200;
+  }
+
+  .dropdown-wrapper[data-open="true"] .dropdown-panel {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--md-sys-color-on-surface);
+    transition: background 150ms ease-out;
+  }
+
+  .dropdown-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .dropdown-item-icon {
+    font-size: 22px;
+    color: var(--md-sys-color-primary);
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 8px;
+  }
+
+  .dropdown-item-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .dropdown-item-name {
     font-size: 0.9rem;
     font-weight: 600;
-    text-decoration: none;
+    color: var(--md-sys-color-on-surface);
+    white-space: nowrap;
+  }
+
+  .dropdown-item-desc {
+    font-size: 0.8rem;
+    color: var(--md-sys-color-on-surface-variant);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Icon Links (GitHub, Discord) */
+  .nav-icons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .icon-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    color: var(--md-sys-color-on-surface-variant);
     border-radius: 8px;
-    border: none;
+    text-decoration: none;
+    transition: color 200ms ease-out, background 200ms ease-out;
   }
 
-  .btn-primary:hover {
-    background: var(--md-sys-color-primary-container);
-    color: var(--md-sys-color-on-primary-container);
+  .icon-link:hover {
+    color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-container-high);
   }
 
-  .btn-arrow {
-    font-size: 1.1em;
-    margin-left: 2px;
+  .icon-link svg {
+    width: 20px;
+    height: 20px;
   }
 
   /* Mobile Menu Button - Custom bars */
@@ -278,9 +477,6 @@ const t = translations[locale as keyof typeof translations] ?? translations.en;
     overflow-y: auto;
   }
 
-  .header-hidden ~ .mobile-menu {
-    top: 0;
-  }
 
   .mobile-menu.open {
     transform: translateX(0);
@@ -311,17 +507,102 @@ const t = translations[locale as keyof typeof translations] ?? translations.en;
     display: none;
   }
 
-  .mobile-cta {
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  /* ========================================
+     MOBILE - Projects inline section
+     ======================================== */
+
+  .mobile-projects-section {
+    padding-bottom: 8px;
+    margin-bottom: 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   }
 
-  .mobile-cta .btn-primary {
-    width: 100%;
+  .mobile-projects-heading {
+    display: block;
+    padding: 16px 0 8px;
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .mobile-projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 4px;
+  }
+
+  .mobile-project-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 8px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--md-sys-color-on-surface);
+    transition: background 150ms ease-out;
+  }
+
+  .mobile-project-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .mobile-project-icon {
+    font-size: 20px;
+    color: var(--md-sys-color-primary);
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
     justify-content: center;
-    padding: 16px 24px;
-    font-size: 1rem;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 6px;
+  }
+
+  .mobile-project-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .mobile-project-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .mobile-project-desc {
+    font-size: 0.78rem;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  /* Mobile social */
+  .mobile-social {
+    display: flex;
+    gap: 16px;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .mobile-social-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    color: var(--md-sys-color-on-surface-variant);
+    text-decoration: none;
+  }
+
+  .mobile-social-link:hover {
+    color: var(--md-sys-color-primary);
+  }
+
+  .mobile-social-link svg {
+    width: 20px;
+    height: 20px;
   }
 
 </style>
@@ -356,13 +637,49 @@ const t = translations[locale as keyof typeof translations] ?? translations.en;
     color: #FFB86F;
   }
 
-  html[data-theme="dark"] .header .btn-primary {
-    background: #FFB86F;
-    color: #1a1815;
+  html[data-theme="dark"] .header .dropdown-trigger {
+    color: #d5c3b5;
   }
 
-  html[data-theme="dark"] .header .btn-primary:hover {
-    background: #D4A574;
+  html[data-theme="dark"] .header .dropdown-trigger:hover {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .header .chevron-icon {
+    color: #d5c3b5;
+  }
+
+  /* Dropdown panel dark mode */
+  html[data-theme="dark"] .header .dropdown-panel {
+    background: rgba(26, 24, 21, 0.98);
+    border: 1px solid rgba(255, 184, 111, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  html[data-theme="dark"] .header .dropdown-item:hover {
+    background: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] .header .dropdown-item-icon {
+    color: #FFB86F;
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] .header .dropdown-item-name {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .header .dropdown-item-desc {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .header .icon-link {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .header .icon-link:hover {
+    color: #FFB86F;
+    background: rgba(255, 184, 111, 0.1);
   }
 
   html[data-theme="dark"] .header .menu-btn {
@@ -386,30 +703,47 @@ const t = translations[locale as keyof typeof translations] ?? translations.en;
     color: #f5f0ea;
   }
 
-  html[data-theme="dark"] .mobile-menu .mobile-cta {
+  /* Mobile projects dark mode */
+  html[data-theme="dark"] .mobile-menu .mobile-projects-section {
+    border-bottom-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] .mobile-menu .mobile-projects-heading {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .mobile-menu .mobile-project-item:hover {
+    background: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] .mobile-menu .mobile-project-icon {
+    color: #FFB86F;
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] .mobile-menu .mobile-project-name {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .mobile-menu .mobile-project-desc {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .mobile-menu .mobile-social {
     border-top-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] .mobile-menu .mobile-social-link {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .mobile-menu .mobile-social-link:hover {
+    color: #FFB86F;
   }
 </style>
 
 <script>
-  // Header scroll behavior - hide on scroll down, show on scroll up
-  const header = document.querySelector('.header');
-  let lastScrollY = window.scrollY;
-  const scrollThreshold = 100;
-
-  window.addEventListener('scroll', () => {
-    const currentScrollY = window.scrollY;
-
-    if (currentScrollY < scrollThreshold) {
-      header?.classList.remove('header-hidden');
-    } else if (currentScrollY > lastScrollY && currentScrollY > scrollThreshold) {
-      header?.classList.add('header-hidden');
-    } else if (currentScrollY < lastScrollY) {
-      header?.classList.remove('header-hidden');
-    }
-
-    lastScrollY = currentScrollY;
-  });
+  // Header always visible (fixed at top)
 
   // Mobile menu toggle
   const menuBtn = document.getElementById('mobile-menu-btn');
@@ -456,4 +790,69 @@ const t = translations[locale as keyof typeof translations] ?? translations.en;
   }, { threshold: 0.3, rootMargin: '-100px 0px -60% 0px' });
 
   sections.forEach((section) => sectionObserver.observe(section));
+
+  // ========================================
+  // DROPDOWN - Projects mega menu (desktop)
+  // ========================================
+  const dropdownWrapper = document.getElementById('projects-dropdown');
+  const dropdownTrigger = dropdownWrapper?.querySelector('.dropdown-trigger');
+  let openTimeout: ReturnType<typeof setTimeout> | null = null;
+  let closeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function openDropdown() {
+    if (closeTimeout) {
+      clearTimeout(closeTimeout);
+      closeTimeout = null;
+    }
+    openTimeout = setTimeout(() => {
+      dropdownWrapper?.setAttribute('data-open', 'true');
+      dropdownTrigger?.setAttribute('aria-expanded', 'true');
+    }, 80);
+  }
+
+  function closeDropdown() {
+    if (openTimeout) {
+      clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    closeTimeout = setTimeout(() => {
+      dropdownWrapper?.setAttribute('data-open', 'false');
+      dropdownTrigger?.setAttribute('aria-expanded', 'false');
+    }, 150);
+  }
+
+  // Open on hover (desktop)
+  dropdownWrapper?.addEventListener('mouseenter', openDropdown);
+  dropdownWrapper?.addEventListener('mouseleave', closeDropdown);
+
+  // Toggle on click (keyboard / touch fallback)
+  dropdownTrigger?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const isOpen = dropdownWrapper?.getAttribute('data-open') === 'true';
+    if (isOpen) {
+      dropdownWrapper?.setAttribute('data-open', 'false');
+      dropdownTrigger?.setAttribute('aria-expanded', 'false');
+    } else {
+      dropdownWrapper?.setAttribute('data-open', 'true');
+      dropdownTrigger?.setAttribute('aria-expanded', 'true');
+    }
+  });
+
+  // Close dropdown on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && dropdownWrapper?.getAttribute('data-open') === 'true') {
+      dropdownWrapper?.setAttribute('data-open', 'false');
+      dropdownTrigger?.setAttribute('aria-expanded', 'false');
+      (dropdownTrigger as HTMLElement)?.focus();
+    }
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    const target = e.target as Node;
+    if (!dropdownWrapper?.contains(target) && dropdownWrapper?.getAttribute('data-open') === 'true') {
+      dropdownWrapper?.setAttribute('data-open', 'false');
+      dropdownTrigger?.setAttribute('aria-expanded', 'false');
+    }
+  });
 </script>

@@ -1,0 +1,53 @@
+---
+import McpStdLayout from '../../features/mcp-std/McpStdLayout.astro';
+import CatalogPageIsland from '../../islands/catalog/CatalogPageIsland';
+import catalogData from '../../data/mcp-std-catalog.json';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const pageTitle = locale === 'fr'
+  ? 'Catalog - @casys/mcp-std'
+  : locale === 'zh'
+    ? '目录 - @casys/mcp-std'
+    : 'Catalog - @casys/mcp-std';
+---
+
+<McpStdLayout title={pageTitle}>
+  <script is:inline src="https://cdn.tailwindcss.com"></script>
+  <script is:inline>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'pml-accent': '#FFB86F',
+            'pml-bg': '#0a0908',
+            'pml-text': '#f5f0ea',
+            'pml-text-dim': '#78716c',
+          }
+        }
+      }
+    }
+  </script>
+  <CatalogPageIsland client:only="preact" entries={catalogData} />
+</McpStdLayout>
+
+<style is:global>
+  /* Catalog scrollbar */
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(255, 184, 111, 0.15);
+    border-radius: 3px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 184, 111, 0.3);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 184, 111, 0.15) transparent;
+  }
+</style>

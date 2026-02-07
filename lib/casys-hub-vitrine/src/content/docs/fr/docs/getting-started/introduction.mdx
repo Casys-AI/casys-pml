@@ -1,0 +1,88 @@
+---
+title: Introduction
+description: Framework MCP server de production pour Deno. Le "Hono pour MCP".
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+Le **"Hono pour MCP"** — un framework de production pour construire des serveurs MCP avec un pipeline de middleware composable, OAuth2, double transport, et tout ce qu'il faut pour passer du prototype a la production.
+
+Construit sur le SDK officiel [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/sdk). Publie sur [JSR](https://jsr.io/@casys/mcp-server).
+
+<img src="/diagrams/mcp-server/mcp-architecture.svg" alt="Architecture MCP Server" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
+
+## Le probleme
+
+Construire un serveur MCP avec le SDK officiel prend 5 minutes. Le mettre en production prend des semaines.
+
+Il faut de l'authentification. Du rate limiting. De la validation d'entrees. Du backpressure quand 50 clients tapent sur votre serveur en meme temps. De la configuration que l'ops peut modifier sans recompiler. De la gestion de sessions pour le transport HTTP. Et chaque nouveau besoin signifie une couche supplementaire de plomberie artisanale autour de votre logique metier.
+
+**Vous n'avez pas signe pour construire de l'infrastructure.** Vous avez signe pour construire des outils.
+
+## La solution
+
+`@casys/mcp-server` vous offre un framework batteries-included ou tout cela est gere nativement — avec un pipeline de middleware composable inspire de [Hono](https://hono.dev) et [Koa](https://koajs.com).
+
+```typescript
+// This is a production-ready MCP server. Really.
+const server = new ConcurrentMCPServer({
+  name: "my-api",
+  version: "1.0.0",
+  maxConcurrent: 10,
+  backpressureStrategy: "queue",
+  validateSchema: true,
+  rateLimit: { maxRequests: 100, windowMs: 60_000 },
+  auth: {
+    provider: createGoogleAuthProvider({
+      audience: "https://my-mcp.example.com",
+      resource: "https://my-mcp.example.com",
+    }),
+  },
+});
+
+server.use(logging).use(metrics); // Your custom middleware
+server.registerTool(myTool, myHandler);
+await server.startHttp({ port: 3000 });
+```
+
+<Aside type="tip">
+  Authentification, rate limiting, controle de concurrence, validation de schema, backpressure, streaming SSE, et gestion de sessions — le tout depuis un seul import.
+</Aside>
+
+## Ce qui est inclus
+
+<CardGrid>
+  <Card title="Double Transport" icon="rocket">
+    STDIO pour les outils locaux, Streamable HTTP (SSE + sessions) pour les API distantes. Meme code serveur, les deux transports — il suffit de remplacer `start()` par `startHttp()`.
+  </Card>
+  <Card title="Pipeline Middleware" icon="puzzle">
+    Modele oignon composable comme Hono/Koa. Branchez auth, logging, cache, rate limiting — ou ecrivez le votre en 5 lignes.
+  </Card>
+  <Card title="Auth OAuth2" icon="approve-check">
+    Validation JWT/Bearer avec rotation de cles JWKS et metadonnees RFC 9728. Presets en une ligne pour Google, Auth0, GitHub Actions, et OIDC generique.
+  </Card>
+  <Card title="Config YAML + Env" icon="setting">
+    Configuration par fichier avec surcharge par variables d'environnement. Livrez des binaires compiles — les utilisateurs configurent l'auth sans toucher au code.
+  </Card>
+  <Card title="Controle de Concurrence" icon="list-format">
+    RequestQueue integree avec 3 strategies de backpressure (sleep, queue, reject). Plus de serveurs submerges.
+  </Card>
+  <Card title="Validation de Schema" icon="approve-check-circle">
+    Validation JSON Schema (ajv) compilee a l'enregistrement. Les entrees invalides sont rejetees avant meme que votre handler ne s'execute.
+  </Card>
+  <Card title="MCP Apps" icon="laptop">
+    Servez des interfaces HTML interactives a cote de vos outils via le scheme `ui://` (SEP-1865). Dashboards, formulaires, visualiseurs — directement dans le client.
+  </Card>
+  <Card title="Sampling Bridge" icon="random">
+    Delegation LLM bidirectionnelle (SEP-1577). Votre serveur peut appeler des LLMs via la connexion client.
+  </Card>
+</CardGrid>
+
+## Pour commencer
+
+<CardGrid>
+  <LinkCard title="Installation" href="/fr/docs/getting-started/installation/" description="Une seule commande. Deno ou npm." />
+  <LinkCard title="Demarrage rapide" href="/fr/docs/getting-started/quickstart/" description="De zero a un serveur fonctionnel en moins d'une minute." />
+  <LinkCard title="Guide Middleware" href="/fr/docs/guides/middleware/" description="Le modele pipeline qui rend tout composable." />
+  <LinkCard title="Guide Auth" href="/fr/docs/guides/auth/" description="Securisez votre serveur avec des presets OAuth2 en une ligne." />
+</CardGrid>

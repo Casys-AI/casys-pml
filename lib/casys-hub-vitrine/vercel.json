@@ -4,24 +4,24 @@
   "outputDirectory": ".vercel/output",
   "rewrites": [
     {
-      "source": "/api/catalog/:path*",
-      "has": [{ "type": "host", "value": "pml.casys.ai" }],
-      "destination": "https://api.casys.ai/api/catalog/:path*"
+      "source": "/api/:path*",
+      "has": [{ "type": "host", "value": "mcp-std.casys.ai" }],
+      "destination": "https://pml.casys.ai/api/:path*"
     },
     {
-      "source": "/api/ui/:path*",
-      "has": [{ "type": "host", "value": "pml.casys.ai" }],
-      "destination": "https://api.casys.ai/api/ui/:path*"
+      "source": "/:path((?!_astro|_vercel|api|icons|fonts|images|pagefind|mcp-server).*)",
+      "has": [{ "type": "host", "value": "mcp-server.casys.ai" }],
+      "destination": "/mcp-server/:path"
     },
     {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "pml.casys.ai" }],
-      "destination": "/pml/:path*"
+      "source": "/:path((?!_astro|_vercel|api|icons|fonts|images|pagefind|mcp-std).*)",
+      "has": [{ "type": "host", "value": "mcp-std.casys.ai" }],
+      "destination": "/mcp-std/:path"
     },
     {
-      "source": "/",
-      "has": [{ "type": "host", "value": "pml.casys.ai" }],
-      "destination": "/pml"
+      "source": "/:path((?!_astro|_vercel|api|icons|fonts|images|pagefind|engine).*)",
+      "has": [{ "type": "host", "value": "engine.casys.ai" }],
+      "destination": "/engine/:path"
     }
   ]
 }

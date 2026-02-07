@@ -1,0 +1,111 @@
+---
+title: 配置 (YAML + 环境变量)
+description: 通过 YAML 文件和环境变量配置你的 MCP 服务器。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+当你将 MCP 服务器以编译后的二进制文件发布时，用户需要在不修改代码的情况下配置认证和设置。`@casys/mcp-server` 支持基于文件的配置与环境变量覆盖 — 这与 Docker、Kubernetes 以及所有成熟部署工具使用的模式相同。
+
+## 优先级顺序
+
+```
+程序化配置 (代码) > 环境变量 > YAML 文件 > 默认值 (无认证)
+```
+
+高优先级覆盖低优先级。这意味着你可以在 YAML 中提供合理的默认值，并在每个环境中用环境变量覆盖特定值。
+
+## YAML 配置
+
+在工作目录中创建 `mcp-server.yaml`：
+
+```yaml
+# mcp-server.yaml
+auth:
+  provider: auth0
+  audience: https://my-mcp.example.com
+  resource: https://my-mcp.example.com
+  domain: my-tenant.auth0.com
+  scopesSupported:
+    - read
+    - write
+    - admin
+```
+
+### 支持的提供商
+
+| 提供商 | 必填字段 |
+|--------|---------|
+| `google` | `audience`, `resource` |
+| `auth0` | `domain`, `audience`, `resource` |
+| `github` | `audience`, `resource` |
+| `oidc` | `issuer`, `audience`, `resource` |
+
+## 环境变量
+
+每个 YAML 字段都可以用 `MCP_AUTH_*` 环境变量覆盖：
+
+| 变量 | YAML 字段 | 示例 |
+|------|----------|------|
+| `MCP_AUTH_PROVIDER` | `auth.provider` | `google`, `auth0`, `github`, `oidc` |
+| `MCP_AUTH_AUDIENCE` | `auth.audience` | `https://my-mcp.example.com` |
+| `MCP_AUTH_RESOURCE` | `auth.resource` | `https://my-mcp.example.com` |
+| `MCP_AUTH_DOMAIN` | `auth.domain` | `my-tenant.auth0.com` |
+| `MCP_AUTH_ISSUER` | `auth.issuer` | `https://my-idp.example.com` |
+| `MCP_AUTH_JWKS_URI` | `auth.jwksUri` | `https://.../.well-known/jwks.json` |
+| `MCP_AUTH_SCOPES` | `auth.scopesSupported` | `read write admin` (空格分隔) |
+
+### 生产环境覆盖
+
+```bash
+# Ship with staging config in YAML, override audience for production
+MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
+```
+
+## 在代码中加载配置
+
+如需以程序方式访问已加载的配置：
+
+```typescript
+import {
+  loadAuthConfig,
+  createAuthProviderFromConfig,
+} from "@casys/mcp-server";
+
+// Auto-loads from mcp-server.yaml + MCP_AUTH_* env vars
+const config = await loadAuthConfig();
+
+if (config) {
+  const provider = createAuthProviderFromConfig(config);
+  // Pass to ConcurrentMCPServer options
+}
+```
+
+<Aside type="tip">
+  `loadAuthConfig()` 在没有 YAML 文件且未设置环境变量时返回 `null`。认证是可选的 — 你的服务器无需任何配置即可运行。
+</Aside>
+
+## Docker 示例
+
+```dockerfile
+FROM denoland/deno:2.0
+
+COPY . .
+RUN deno compile --allow-net --allow-read --allow-env -o server main.ts
+
+ENV MCP_AUTH_PROVIDER=google
+ENV MCP_AUTH_AUDIENCE=https://my-mcp.example.com
+ENV MCP_AUTH_RESOURCE=https://my-mcp.example.com
+
+CMD ["./server", "--http", "--port", "3000"]
+```
+
+<Aside>
+  编译一次，到处配置。二进制文件在启动时读取 `mcp-server.yaml` 和 `MCP_AUTH_*` 环境变量。
+</Aside>
+
+## 另请参阅
+
+- [认证 (OAuth2)](/zh/docs/guides/auth/) — 使用预设的程序化认证配置
+- [Auth Providers API](/zh/docs/api/auth-providers/) — `loadAuthConfig` 和 `createAuthProviderFromConfig` 参考
+- [快速开始](/zh/docs/getting-started/quickstart/) — YAML 配置上下文示例

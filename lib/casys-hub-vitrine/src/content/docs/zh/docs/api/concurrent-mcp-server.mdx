@@ -1,0 +1,229 @@
+---
+title: ConcurrentMCPServer
+description: ConcurrentMCPServer 类的完整 API 参考。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+框架的主入口。`ConcurrentMCPServer` 处理工具注册、中间件组合、传输选择和生命周期管理。
+
+## 构造函数
+
+```typescript
+import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer(options: ConcurrentServerOptions);
+```
+
+### ConcurrentServerOptions
+
+```typescript
+interface ConcurrentServerOptions {
+  name: string;                          // Server name (shown to clients)
+  version: string;                       // Semver version
+  maxConcurrent?: number;                // Default: 10
+  backpressureStrategy?: "sleep" | "queue" | "reject";  // Default: "sleep"
+  backpressureSleepMs?: number;          // Default: 10
+  rateLimit?: RateLimitOptions;          // Optional rate limiting
+  validateSchema?: boolean;              // Default: false
+  enableSampling?: boolean;              // Enable LLM sampling bridge
+  samplingClient?: SamplingClient;       // Custom sampling client
+  logger?: (msg: string) => void;        // Default: console.error
+  auth?: AuthOptions;                    // OAuth2/Bearer config
+}
+```
+
+### RateLimitOptions
+
+```typescript
+interface RateLimitOptions {
+  maxRequests: number;    // Max requests per window
+  windowMs: number;       // Window size in milliseconds
+}
+```
+
+### AuthOptions
+
+```typescript
+interface AuthOptions {
+  provider: AuthProvider;   // Use presets (createGoogleAuthProvider, etc.) or JwtAuthProvider
+}
+```
+
+## 注册方法
+
+所有注册必须在调用 `start()` 或 `startHttp()` **之前**完成。
+
+### registerTool
+
+```typescript
+server.registerTool(tool: MCPTool, handler: ToolHandler): void;
+```
+
+注册单个工具及其 handler：
+
+```typescript
+server.registerTool(
+  {
+    name: "greet",
+    description: "Greet someone",
+    inputSchema: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    },
+    requiredScopes: ["read"],  // Optional — requires this scope if auth is configured
+  },
+  ({ name }) => `Hello, ${name}!`,
+);
+```
+
+<Aside type="tip">
+  handler 可以返回任何 JSON 可序列化的值。字符串、对象、数组 — 都可以。
+</Aside>
+
+### registerTools
+
+```typescript
+server.registerTools(tools: MCPTool[], handlers: Map<string, ToolHandler>): void;
+```
+
+批量注册工具。Map 的键必须与工具名称完全匹配。
+
+### registerResource
+
+```typescript
+server.registerResource(resource: MCPResource, handler: ResourceHandler): void;
+```
+
+注册单个资源。参见 [MCP Apps](/zh/docs/guides/mcp-apps/) 了解 `ui://` 资源。
+
+### registerResources
+
+```typescript
+server.registerResources(
+  resources: MCPResource[],
+  handlers: Map<string, ResourceHandler>,
+): void;
+```
+
+批量注册资源。
+
+### use
+
+```typescript
+server.use(middleware: Middleware): this;
+```
+
+向管道添加自定义中间件。返回 `this` 以支持链式调用：
+
+```typescript
+server
+  .use(logging)
+  .use(metrics)
+  .use(caching);
+```
+
+<Aside type="caution">
+  在 `start()` 或 `startHttp()` 之后调用会抛出错误。管道在启动时编译。
+</Aside>
+
+参见[中间件管道指南](/zh/docs/guides/middleware/)了解模式和示例。
+
+## 传输方法
+
+### start
+
+```typescript
+await server.start(): Promise<void>;
+```
+
+使用 STDIO 传输启动。用于本地工具 (Claude Desktop、Cursor 等)。阻塞直到服务器停止。
+
+### startHttp
+
+```typescript
+await server.startHttp(options: HttpServerOptions): Promise<void>;
+```
+
+使用 Streamable HTTP 传输启动。包含 SSE 流、会话管理和 RFC 9728 发现。
+
+```typescript
+interface HttpServerOptions {
+  port: number;
+  hostname?: string;  // Default: "0.0.0.0"
+}
+```
+
+### stop
+
+```typescript
+await server.stop(): Promise<void>;
+```
+
+优雅关闭。等待进行中的请求完成后再关闭。
+
+## 监控方法
+
+### getMetrics
+
+```typescript
+server.getMetrics(): QueueMetrics;
+// { inFlight: number, queued: number }
+```
+
+### getRateLimitMetrics
+
+```typescript
+server.getRateLimitMetrics(): { keys: number, totalRequests: number } | null;
+```
+
+未配置速率限制时返回 `null`。
+
+### getToolCount / getToolNames
+
+```typescript
+server.getToolCount(): number;
+server.getToolNames(): string[];
+```
+
+### getResourceCount / getResourceUris
+
+```typescript
+server.getResourceCount(): number;
+server.getResourceUris(): string[];
+```
+
+## SSE 方法 (仅 HTTP 传输)
+
+### sendToSession
+
+```typescript
+server.sendToSession(sessionId: string, message: Record<string, unknown>): void;
+```
+
+向特定 SSE 会话推送消息。
+
+### broadcastNotification
+
+```typescript
+server.broadcastNotification(
+  method: string,
+  params?: Record<string, unknown>,
+): void;
+```
+
+向**所有**已连接的 SSE 客户端推送通知。
+
+### getSSEClientCount
+
+```typescript
+server.getSSEClientCount(): number;
+```
+
+## 另请参阅
+
+- [快速开始](/zh/docs/getting-started/quickstart/) — 使用两种传输的服务器配置
+- [中间件管道](/zh/docs/guides/middleware/) — `use()` 指南和管道顺序
+- [认证 (OAuth2)](/zh/docs/guides/auth/) — `auth` 选项和 scope 验证
+- [独立组件](/zh/docs/api/standalone-components/) — 独立使用 RateLimiter、RequestQueue

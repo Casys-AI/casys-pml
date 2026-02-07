@@ -1,15 +1,15 @@
 ---
-title: Middleware Pipeline
-description: Composable onion-model middleware for MCP tool calls.
+title: Pipeline Middleware
+description: Middleware composable en modele oignon pour les appels d'outils MCP.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-Every tool call in `@casys/mcp-server` flows through a composable middleware chain — the same onion model you know from Hono, Koa, or Express. This is how auth, rate limiting, validation, and your custom logic all compose together without tangling.
+Chaque appel d'outil dans `@casys/mcp-server` traverse une chaine de middleware composable — le meme modele oignon que vous connaissez de Hono, Koa, ou Express. C'est ainsi que l'auth, le rate limiting, la validation, et votre logique personnalisee se composent ensemble sans s'emmeler.
 
-## How it works
+## Comment ca marche
 
-<img src="/diagrams/mcp-server/mcp-middleware-pipeline.svg" alt="Middleware Pipeline" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
+<img src="/diagrams/mcp-server/mcp-middleware-pipeline.svg" alt="Pipeline Middleware MCP" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
 
 ```
 Request → Rate Limit → Auth → Custom Middlewares → Scope Check → Validation → Backpressure → Handler
@@ -17,11 +17,11 @@ Request → Rate Limit → Auth → Custom Middlewares → Scope Check → Valid
 Response ← Rate Limit ← Auth ← Custom Middlewares ← Scope Check ← Validation ← Backpressure ← Result
 ```
 
-Each middleware receives a `context` object and a `next()` function. Call `next()` to pass control downstream. The response flows back through the same chain in reverse — so a single middleware can act on both the request and the response.
+Chaque middleware recoit un objet `context` et une fonction `next()`. Appelez `next()` pour passer le controle en aval. La reponse remonte a travers la meme chaine en sens inverse — un seul middleware peut agir a la fois sur la requete et la reponse.
 
-## Writing a middleware
+## Ecrire un middleware
 
-A middleware is just an async function. Here's a logger that times every tool call:
+Un middleware est simplement une fonction async. Voici un logger qui chronometre chaque appel d'outil :
 
 ```typescript
 import type { Middleware } from "@casys/mcp-server";
@@ -38,11 +38,11 @@ const logging: Middleware = async (ctx, next) => {
 };
 ```
 
-That's it. No base class, no decorators, no registration boilerplate.
+C'est tout. Pas de classe de base, pas de decorateurs, pas de boilerplate d'enregistrement.
 
-## Registering middlewares
+## Enregistrer des middlewares
 
-Use `server.use()` to add your middlewares. They slot in between the built-in layers (rate limit, auth) and the built-in checks (validation, backpressure):
+Utilisez `server.use()` pour ajouter vos middlewares. Ils se placent entre les couches integrees (rate limit, auth) et les verifications integrees (validation, backpressure) :
 
 ```typescript
 const server = new ConcurrentMCPServer({
@@ -59,30 +59,30 @@ await server.startHttp({ port: 3000 });
 ```
 
 <Aside type="caution">
-  `use()` must be called **before** `start()` or `startHttp()`. The pipeline is compiled at startup and cannot be modified after.
+  `use()` doit etre appele **avant** `start()` ou `startHttp()`. Le pipeline est compile au demarrage et ne peut plus etre modifie ensuite.
 </Aside>
 
-## Pipeline order
+## Ordre du pipeline
 
-Here's exactly what runs for every tool call, and in what order:
+Voici exactement ce qui s'execute pour chaque appel d'outil, et dans quel ordre :
 
-| Order | Layer | Source | What it does |
-|-------|-------|--------|-------------|
-| 1 | Rate Limit | Built-in (if configured) | Sliding-window per-client throttling |
-| 2 | Auth | Built-in (if configured) | JWT/Bearer token validation |
-| 3 | **Your middlewares** | `server.use()` | Your code, in registration order |
-| 4 | Scope Check | Built-in (if auth + scopes) | Verifies token scopes match `requiredScopes` |
-| 5 | Validation | Built-in (if configured) | JSON Schema validation via ajv |
-| 6 | Backpressure | Built-in | Queue/sleep/reject based on concurrency |
-| 7 | Handler | `registerTool()` | Your tool handler function |
+| Ordre | Couche | Source | Ce qu'elle fait |
+|-------|--------|--------|-----------------|
+| 1 | Rate Limit | Integre (si configure) | Limitation par fenetre glissante par client |
+| 2 | Auth | Integre (si configure) | Validation de token JWT/Bearer |
+| 3 | **Vos middlewares** | `server.use()` | Votre code, dans l'ordre d'enregistrement |
+| 4 | Scope Check | Integre (si auth + scopes) | Verifie que les scopes du token correspondent a `requiredScopes` |
+| 5 | Validation | Integre (si configure) | Validation JSON Schema via ajv |
+| 6 | Backpressure | Integre | Queue/sleep/reject selon la concurrence |
+| 7 | Handler | `registerTool()` | Votre fonction handler |
 
 <Aside type="tip">
-  Your middlewares run **after** auth but **before** validation. This means you have access to `ctx.authInfo` and can enrich the context before the handler runs.
+  Vos middlewares s'executent **apres** l'auth mais **avant** la validation. Cela signifie que vous avez acces a `ctx.authInfo` et pouvez enrichir le contexte avant l'execution du handler.
 </Aside>
 
-## The context object
+## L'objet context
 
-Every middleware and handler receives the same context:
+Chaque middleware et handler recoit le meme contexte :
 
 ```typescript
 interface MiddlewareContext {
@@ -94,9 +94,9 @@ interface MiddlewareContext {
 }
 ```
 
-## Enriching context
+## Enrichir le contexte
 
-Middlewares can attach data for downstream middlewares and the handler. This is the recommended way to share cross-cutting data:
+Les middlewares peuvent attacher des donnees pour les middlewares en aval et le handler. C'est la methode recommandee pour partager des donnees transversales :
 
 ```typescript
 const tenantResolver: Middleware = async (ctx, next) => {
@@ -109,9 +109,9 @@ const tenantResolver: Middleware = async (ctx, next) => {
 };
 ```
 
-## Short-circuiting
+## Court-circuitage
 
-Don't call `next()` to skip the rest of the pipeline. This is how you build caching:
+N'appelez pas `next()` pour sauter le reste du pipeline. C'est ainsi que vous construisez un cache :
 
 ```typescript
 const cache = new Map<string, { result: unknown; expiry: number }>();
@@ -130,9 +130,9 @@ const caching: Middleware = async (ctx, next) => {
 };
 ```
 
-## Error handling
+## Gestion des erreurs
 
-Errors thrown anywhere in the chain propagate back through all middlewares. Put your error handler first so it wraps everything:
+Les erreurs lancees n'importe ou dans la chaine se propagent a travers tous les middlewares. Placez votre gestionnaire d'erreurs en premier pour qu'il enveloppe tout :
 
 ```typescript
 const errorHandler: Middleware = async (ctx, next) => {
@@ -150,9 +150,9 @@ server.use(logging);
 server.use(caching);
 ```
 
-## Recipes
+## Recettes
 
-### Request timing with metrics export
+### Chronometrage avec export de metriques
 
 ```typescript
 const timing: Middleware = async (ctx, next) => {
@@ -166,7 +166,7 @@ const timing: Middleware = async (ctx, next) => {
 };
 ```
 
-### Tool-specific access control
+### Controle d'acces par outil
 
 ```typescript
 const adminOnly: Middleware = async (ctx, next) => {
@@ -180,7 +180,7 @@ const adminOnly: Middleware = async (ctx, next) => {
 };
 ```
 
-### Request/response transformation
+### Transformation requete/reponse
 
 ```typescript
 const sanitizer: Middleware = async (ctx, next) => {
@@ -196,8 +196,8 @@ const sanitizer: Middleware = async (ctx, next) => {
 };
 ```
 
-## See Also
+## Voir aussi
 
-- [Authentication (OAuth2)](/docs/guides/auth/) — The built-in auth middleware and OIDC presets
-- [ConcurrentMCPServer API](/docs/api/concurrent-mcp-server/) — Full `use()` and `registerTool()` reference
-- [Standalone Components](/docs/api/standalone-components/) — Use RateLimiter, RequestQueue as standalone utilities
+- [Authentification (OAuth2)](/fr/docs/guides/auth/) — Le middleware d'auth integre et les presets OIDC
+- [API ConcurrentMCPServer](/fr/docs/api/concurrent-mcp-server/) — Reference complete de `use()` et `registerTool()`
+- [Composants Standalone](/fr/docs/api/standalone-components/) — Utiliser RateLimiter, RequestQueue comme utilitaires independants

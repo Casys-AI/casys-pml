@@ -1,0 +1,88 @@
+---
+title: 简介
+description: 面向 Deno 的生产级 MCP 服务器框架。MCP 领域的 "Hono"。
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+**"MCP 领域的 Hono"** — 一个生产级框架，用于构建具有可组合中间件管道、OAuth2 认证、双传输模式的 MCP 服务器，提供从原型到生产所需的一切。
+
+基于官方 [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/sdk) 构建。发布在 [JSR](https://jsr.io/@casys/mcp-server) 上。
+
+<img src="/diagrams/mcp-server/mcp-architecture.svg" alt="MCP Server 架构" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
+
+## 问题
+
+用官方 SDK 构建 MCP 服务器只需 5 分钟。将其部署到生产环境则需要数周。
+
+你需要认证、速率限制、输入验证、50 个客户端同时请求时的背压处理、运维人员无需重新构建即可更改的配置、HTTP 传输的会话管理。每一个新需求都意味着在你的业务逻辑外面再包一层手工管道代码。
+
+**你注册不是为了构建基础设施。** 你注册是为了构建工具。
+
+## 解决方案
+
+`@casys/mcp-server` 提供开箱即用的完整框架 — 采用受 [Hono](https://hono.dev) 和 [Koa](https://koajs.com) 启发的可组合中间件管道。
+
+```typescript
+// This is a production-ready MCP server. Really.
+const server = new ConcurrentMCPServer({
+  name: "my-api",
+  version: "1.0.0",
+  maxConcurrent: 10,
+  backpressureStrategy: "queue",
+  validateSchema: true,
+  rateLimit: { maxRequests: 100, windowMs: 60_000 },
+  auth: {
+    provider: createGoogleAuthProvider({
+      audience: "https://my-mcp.example.com",
+      resource: "https://my-mcp.example.com",
+    }),
+  },
+});
+
+server.use(logging).use(metrics); // Your custom middleware
+server.registerTool(myTool, myHandler);
+await server.startHttp({ port: 3000 });
+```
+
+<Aside type="tip">
+  认证、速率限制、并发控制、Schema 验证、背压、SSE 流、会话管理 — 全部来自一个 import。
+</Aside>
+
+## 功能概览
+
+<CardGrid>
+  <Card title="双传输" icon="rocket">
+    STDIO 用于本地工具，Streamable HTTP (SSE + 会话) 用于远程 API。同一份服务器代码，两种传输 — 只需将 `start()` 替换为 `startHttp()`。
+  </Card>
+  <Card title="中间件管道" icon="puzzle">
+    可组合的洋葱模型，类似 Hono/Koa。接入认证、日志、缓存、速率限制 — 或用 5 行代码编写自己的中间件。
+  </Card>
+  <Card title="OAuth2 认证" icon="approve-check">
+    JWT/Bearer 验证，支持 JWKS 密钥轮换和 RFC 9728 元数据。为 Google、Auth0、GitHub Actions 和通用 OIDC 提供一行配置。
+  </Card>
+  <Card title="YAML + 环境变量配置" icon="setting">
+    基于文件的配置，支持环境变量覆盖。发布编译后的二进制文件 — 用户无需修改代码即可配置认证。
+  </Card>
+  <Card title="并发控制" icon="list-format">
+    内置 RequestQueue，支持 3 种背压策略 (sleep、queue、reject)。不再有过载的服务器。
+  </Card>
+  <Card title="Schema 验证" icon="approve-check-circle">
+    JSON Schema 验证 (ajv)，在注册时编译。无效输入在 handler 执行前即被拒绝。
+  </Card>
+  <Card title="MCP Apps" icon="laptop">
+    通过 `ui://` scheme (SEP-1865) 在工具旁提供交互式 HTML 界面。仪表盘、表单、查看器 — 直接在客户端中呈现。
+  </Card>
+  <Card title="Sampling Bridge" icon="random">
+    双向 LLM 委托 (SEP-1577)。服务器可通过客户端连接回调 LLM。
+  </Card>
+</CardGrid>
+
+## 开始使用
+
+<CardGrid>
+  <LinkCard title="安装" href="/zh/docs/getting-started/installation/" description="一条命令。Deno 或 npm。" />
+  <LinkCard title="快速开始" href="/zh/docs/getting-started/quickstart/" description="从零到运行服务器，不到一分钟。" />
+  <LinkCard title="中间件指南" href="/zh/docs/guides/middleware/" description="让一切可组合的管道模型。" />
+  <LinkCard title="认证指南" href="/zh/docs/guides/auth/" description="用一行 OAuth2 配置保护你的服务器。" />
+</CardGrid>

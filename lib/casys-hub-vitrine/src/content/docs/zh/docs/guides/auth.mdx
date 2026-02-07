@@ -1,17 +1,17 @@
 ---
-title: Authentication (OAuth2)
-description: Secure your MCP server with JWT/Bearer authentication and OIDC presets.
+title: 认证 (OAuth2)
+description: 使用 JWT/Bearer 认证和 OIDC 预设保护你的 MCP 服务器。
 ---
 
 import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
 
-Adding auth to an MCP server usually means wiring up JWKS fetching, token validation, key rotation, scope checking, and metadata endpoints yourself. With `@casys/mcp-server`, it's a one-liner.
+为 MCP 服务器添加认证通常意味着自己接入 JWKS 获取、token 验证、密钥轮换、scope 检查和元数据端点。使用 `@casys/mcp-server`，一行代码即可搞定。
 
-<img src="/diagrams/mcp-server/mcp-auth-flow.svg" alt="OAuth2 Authentication Flow" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
+<img src="/diagrams/mcp-server/mcp-auth-flow.svg" alt="MCP 认证流程" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
 
-## Auth presets
+## 认证预设
 
-Pick your identity provider. Each preset handles issuer URLs, JWKS endpoints, and key rotation automatically:
+选择你的身份提供商。每个预设自动处理 issuer URL、JWKS 端点和密钥轮换：
 
 <Tabs>
   <TabItem label="Google">
@@ -74,10 +74,10 @@ Pick your identity provider. Each preset handles issuer URLs, JWKS endpoints, an
     ```
 
     <Aside type="tip">
-      Perfect for CI/CD pipelines. GitHub Actions automatically provisions OIDC tokens — no secrets to manage.
+      非常适合 CI/CD 流水线。GitHub Actions 自动提供 OIDC token — 无需管理密钥。
     </Aside>
   </TabItem>
-  <TabItem label="Generic OIDC">
+  <TabItem label="通用 OIDC">
     ```typescript
     import {
       ConcurrentMCPServer,
@@ -100,9 +100,9 @@ Pick your identity provider. Each preset handles issuer URLs, JWKS endpoints, an
   </TabItem>
 </Tabs>
 
-## Scope enforcement
+## Scope 验证
 
-Tools can declare required scopes. The framework automatically checks the token before the handler runs:
+工具可以声明所需的 scope。框架在 handler 执行前自动检查 token：
 
 ```typescript
 server.registerTool(
@@ -125,12 +125,12 @@ server.registerTool(
 ```
 
 <Aside>
-  Scope checking is **AND-based** — the token must have *all* listed scopes. Need OR-based logic? Implement it in a [custom middleware](/docs/guides/middleware/).
+  Scope 检查是**基于 AND 的** — token 必须拥有*所有*列出的 scope。需要 OR 逻辑？在[自定义中间件](/zh/docs/guides/middleware/)中实现。
 </Aside>
 
-## Advanced: JwtAuthProvider
+## 进阶：JwtAuthProvider
 
-For full control over validation parameters, use `JwtAuthProvider` directly:
+要完全控制验证参数，直接使用 `JwtAuthProvider`：
 
 ```typescript
 import { JwtAuthProvider } from "@casys/mcp-server";
@@ -148,9 +148,9 @@ const authInfo = await provider.verifyToken(token);
 // { subject, clientId, scopes, claims, expiresAt } — or null if invalid
 ```
 
-## Automatic discovery (RFC 9728)
+## 自动发现 (RFC 9728)
 
-When auth is configured on an HTTP server, the framework automatically serves a discovery endpoint. MCP clients use this to figure out how to authenticate:
+在 HTTP 服务器上配置认证后，框架自动提供发现端点。MCP 客户端用它来确定如何认证：
 
 ```
 GET /.well-known/oauth-protected-resource
@@ -166,15 +166,15 @@ GET /.well-known/oauth-protected-resource
 ```
 
 <Aside type="tip">
-  You don't need to set this up manually. It's derived from your auth provider configuration and served automatically.
+  无需手动设置。这是从你的 auth provider 配置中派生的，自动提供服务。
 </Aside>
 
-## YAML-based auth
+## 基于 YAML 的认证
 
-Shipping a compiled binary? Your users can configure auth without touching code — see the [Configuration guide](/docs/guides/configuration/).
+发布编译后的二进制文件？用户无需修改代码即可配置认证 — 参见[配置指南](/zh/docs/guides/configuration/)。
 
-## See Also
+## 另请参阅
 
-- [Auth Providers API](/docs/api/auth-providers/) — Full API reference for presets and `JwtAuthProvider`
-- [Middleware Pipeline](/docs/guides/middleware/) — How auth fits in the middleware chain
-- [Configuration (YAML)](/docs/guides/configuration/) — File-based auth configuration for binary distribution
+- [Auth Providers API](/zh/docs/api/auth-providers/) — 预设和 `JwtAuthProvider` 的完整 API 参考
+- [中间件管道](/zh/docs/guides/middleware/) — 认证在中间件链中的位置
+- [配置 (YAML)](/zh/docs/guides/configuration/) — 用于二进制分发的基于文件的认证配置

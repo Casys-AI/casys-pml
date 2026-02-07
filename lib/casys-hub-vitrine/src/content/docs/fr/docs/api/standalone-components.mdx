@@ -1,16 +1,16 @@
 ---
-title: Standalone Components
-description: Use RateLimiter, RequestQueue, and SchemaValidator independently.
+title: Composants Standalone
+description: Utiliser RateLimiter, RequestQueue, et SchemaValidator independamment.
 next: false
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-The building blocks of `@casys/mcp-server` are useful on their own. Rate limiting, concurrency control, and schema validation — all usable in any Deno or Node.js project, no MCP required.
+Les briques de base de `@casys/mcp-server` sont utiles seules. Rate limiting, controle de concurrence, et validation de schema — tout utilisable dans n'importe quel projet Deno ou Node.js, sans MCP.
 
 ## RateLimiter
 
-Sliding-window rate limiter with per-key tracking. Lightweight, no external dependencies.
+Rate limiter a fenetre glissante avec suivi par cle. Leger, sans dependance externe.
 
 ```typescript
 import { RateLimiter } from "@casys/mcp-server";
@@ -27,7 +27,7 @@ const limiter = new RateLimiter({
 limiter.checkLimit(key: string): boolean;
 ```
 
-Returns `true` if within limits, `false` if rate-limited. Non-blocking — never waits.
+Retourne `true` si dans les limites, `false` si rate-limited. Non-bloquant — n'attend jamais.
 
 ```typescript
 if (limiter.checkLimit("client-123")) {
@@ -43,7 +43,7 @@ if (limiter.checkLimit("client-123")) {
 await limiter.waitForSlot(key: string): Promise<void>;
 ```
 
-Blocks until a slot opens. Timeout equals `windowMs`.
+Bloque jusqu'a ce qu'un slot se libere. Le timeout est egal a `windowMs`.
 
 ```typescript
 await limiter.waitForSlot("client-123");
@@ -58,7 +58,7 @@ limiter.getMetrics(): { keys: number, totalRequests: number };
 
 ## RequestQueue
 
-Concurrency control with configurable backpressure. Protects downstream services from overload.
+Controle de concurrence avec backpressure configurable. Protege les services en aval de la surcharge.
 
 ```typescript
 import { RequestQueue } from "@casys/mcp-server";
@@ -72,11 +72,11 @@ const queue = new RequestQueue({
 
 ### Strategies
 
-| Strategy | Behavior | Best for |
-|----------|----------|----------|
-| `sleep` | Spin-wait with `sleepMs` delay until a slot opens | Low-latency, CPU-tolerant |
-| `queue` | FIFO queue — requests wait in order | Fair ordering, predictable |
-| `reject` | Immediately reject if at capacity | Fail-fast, circuit-breaker style |
+| Strategie | Comportement | Ideal pour |
+|-----------|-------------|------------|
+| `sleep` | Attente active avec delai `sleepMs` jusqu'a liberation d'un slot | Faible latence, tolerant au CPU |
+| `queue` | File FIFO — les requetes attendent dans l'ordre | Ordonnancement equitable, previsible |
+| `reject` | Rejet immediat si a pleine capacite | Fail-fast, style circuit-breaker |
 
 ### acquire / release
 
@@ -85,7 +85,7 @@ await queue.acquire(): Promise<void>;
 queue.release(): void;
 ```
 
-Always use try/finally to prevent slot leaks:
+Toujours utiliser try/finally pour eviter les fuites de slots :
 
 ```typescript
 await queue.acquire();
@@ -104,7 +104,7 @@ queue.getMetrics(): { inFlight: number, queued: number };
 
 ## SchemaValidator
 
-JSON Schema validation powered by ajv. Schemas are compiled once at registration time — validation is fast.
+Validation JSON Schema propulsee par ajv. Les schemas sont compiles une seule fois a l'enregistrement — la validation est rapide.
 
 ```typescript
 import { SchemaValidator } from "@casys/mcp-server";
@@ -118,7 +118,7 @@ const validator = new SchemaValidator();
 validator.addSchema(toolName: string, schema: object): void;
 ```
 
-Compiles and caches the schema. Call once per tool at startup:
+Compile et met en cache le schema. A appeler une fois par outil au demarrage :
 
 ```typescript
 validator.addSchema("my_tool", {
@@ -153,10 +153,10 @@ validator.validate("my_tool", { count: 5 });
 ```
 
 <Aside type="tip">
-  Inside `ConcurrentMCPServer`, these components are wired up automatically based on your options. You only need standalone usage when building custom infrastructure outside the framework.
+  Dans `ConcurrentMCPServer`, ces composants sont cables automatiquement selon vos options. L'utilisation standalone n'est necessaire que pour construire une infrastructure personnalisee en dehors du framework.
 </Aside>
 
-## See Also
+## Voir aussi
 
-- [ConcurrentMCPServer API](/docs/api/concurrent-mcp-server/) — How these components are used internally
-- [Middleware Pipeline](/docs/guides/middleware/) — Rate limiting, validation, and backpressure in the pipeline
+- [API ConcurrentMCPServer](/fr/docs/api/concurrent-mcp-server/) — Comment ces composants sont utilises en interne
+- [Pipeline Middleware](/fr/docs/guides/middleware/) — Rate limiting, validation, et backpressure dans le pipeline

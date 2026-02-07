@@ -1,17 +1,17 @@
 ---
-title: Authentication (OAuth2)
-description: Secure your MCP server with JWT/Bearer authentication and OIDC presets.
+title: Authentification (OAuth2)
+description: Securisez votre serveur MCP avec l'authentification JWT/Bearer et les presets OIDC.
 ---
 
 import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
 
-Adding auth to an MCP server usually means wiring up JWKS fetching, token validation, key rotation, scope checking, and metadata endpoints yourself. With `@casys/mcp-server`, it's a one-liner.
+Ajouter l'auth a un serveur MCP signifie generalement brancher la recuperation JWKS, la validation de tokens, la rotation de cles, la verification des scopes, et les endpoints de metadonnees soi-meme. Avec `@casys/mcp-server`, c'est une seule ligne.
 
-<img src="/diagrams/mcp-server/mcp-auth-flow.svg" alt="OAuth2 Authentication Flow" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
+<img src="/diagrams/mcp-server/mcp-auth-flow.svg" alt="Flux d'authentification MCP" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
 
-## Auth presets
+## Presets d'auth
 
-Pick your identity provider. Each preset handles issuer URLs, JWKS endpoints, and key rotation automatically:
+Choisissez votre fournisseur d'identite. Chaque preset gere automatiquement les URLs d'issuer, les endpoints JWKS, et la rotation de cles :
 
 <Tabs>
   <TabItem label="Google">
@@ -74,10 +74,10 @@ Pick your identity provider. Each preset handles issuer URLs, JWKS endpoints, an
     ```
 
     <Aside type="tip">
-      Perfect for CI/CD pipelines. GitHub Actions automatically provisions OIDC tokens — no secrets to manage.
+      Parfait pour les pipelines CI/CD. GitHub Actions fournit automatiquement des tokens OIDC — aucun secret a gerer.
     </Aside>
   </TabItem>
-  <TabItem label="Generic OIDC">
+  <TabItem label="OIDC generique">
     ```typescript
     import {
       ConcurrentMCPServer,
@@ -100,9 +100,9 @@ Pick your identity provider. Each preset handles issuer URLs, JWKS endpoints, an
   </TabItem>
 </Tabs>
 
-## Scope enforcement
+## Verification des scopes
 
-Tools can declare required scopes. The framework automatically checks the token before the handler runs:
+Les outils peuvent declarer des scopes requis. Le framework verifie automatiquement le token avant l'execution du handler :
 
 ```typescript
 server.registerTool(
@@ -125,12 +125,12 @@ server.registerTool(
 ```
 
 <Aside>
-  Scope checking is **AND-based** — the token must have *all* listed scopes. Need OR-based logic? Implement it in a [custom middleware](/docs/guides/middleware/).
+  La verification des scopes est **basee sur le AND** — le token doit posseder *tous* les scopes listes. Besoin d'une logique OR ? Implementez-la dans un [middleware personnalise](/fr/docs/guides/middleware/).
 </Aside>
 
-## Advanced: JwtAuthProvider
+## Avance : JwtAuthProvider
 
-For full control over validation parameters, use `JwtAuthProvider` directly:
+Pour un controle total sur les parametres de validation, utilisez `JwtAuthProvider` directement :
 
 ```typescript
 import { JwtAuthProvider } from "@casys/mcp-server";
@@ -148,9 +148,9 @@ const authInfo = await provider.verifyToken(token);
 // { subject, clientId, scopes, claims, expiresAt } — or null if invalid
 ```
 
-## Automatic discovery (RFC 9728)
+## Decouverte automatique (RFC 9728)
 
-When auth is configured on an HTTP server, the framework automatically serves a discovery endpoint. MCP clients use this to figure out how to authenticate:
+Quand l'auth est configuree sur un serveur HTTP, le framework sert automatiquement un endpoint de decouverte. Les clients MCP l'utilisent pour savoir comment s'authentifier :
 
 ```
 GET /.well-known/oauth-protected-resource
@@ -166,15 +166,15 @@ GET /.well-known/oauth-protected-resource
 ```
 
 <Aside type="tip">
-  You don't need to set this up manually. It's derived from your auth provider configuration and served automatically.
+  Pas besoin de configurer cela manuellement. C'est derive de votre configuration d'auth provider et servi automatiquement.
 </Aside>
 
-## YAML-based auth
+## Auth via YAML
 
-Shipping a compiled binary? Your users can configure auth without touching code — see the [Configuration guide](/docs/guides/configuration/).
+Vous livrez un binaire compile ? Vos utilisateurs peuvent configurer l'auth sans toucher au code — voir le [Guide de configuration](/fr/docs/guides/configuration/).
 
-## See Also
+## Voir aussi
 
-- [Auth Providers API](/docs/api/auth-providers/) — Full API reference for presets and `JwtAuthProvider`
-- [Middleware Pipeline](/docs/guides/middleware/) — How auth fits in the middleware chain
-- [Configuration (YAML)](/docs/guides/configuration/) — File-based auth configuration for binary distribution
+- [API Auth Providers](/fr/docs/api/auth-providers/) — Reference complete des presets et de `JwtAuthProvider`
+- [Pipeline Middleware](/fr/docs/guides/middleware/) — Comment l'auth s'integre dans la chaine middleware
+- [Configuration (YAML)](/fr/docs/guides/configuration/) — Configuration d'auth par fichier pour la distribution binaire

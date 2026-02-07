@@ -1,0 +1,134 @@
+---
+title: Auth Providers
+description: 认证预设和 JwtAuthProvider 的 API 参考。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+常见身份提供商的工厂函数，以及用于完全控制的底层 `JwtAuthProvider`。所有函数返回与 `ConcurrentServerOptions.auth.provider` 兼容的 `AuthProvider`。
+
+## 工厂函数 (预设)
+
+### createGoogleAuthProvider
+
+```typescript
+import { createGoogleAuthProvider } from "@casys/mcp-server";
+
+const provider = createGoogleAuthProvider({
+  audience: string;    // Your server's audience URL
+  resource: string;    // Your server's resource URL
+});
+```
+
+使用 Google 的 OIDC issuer (`https://accounts.google.com`) 和公共 JWKS 端点。
+
+### createAuth0AuthProvider
+
+```typescript
+import { createAuth0AuthProvider } from "@casys/mcp-server";
+
+const provider = createAuth0AuthProvider({
+  domain: string;              // Auth0 tenant domain (e.g., "my-tenant.auth0.com")
+  audience: string;
+  resource: string;
+  scopesSupported?: string[];  // Scopes your server recognizes
+});
+```
+
+### createGitHubAuthProvider
+
+```typescript
+import { createGitHubAuthProvider } from "@casys/mcp-server";
+
+const provider = createGitHubAuthProvider({
+  audience: string;
+  resource: string;
+});
+```
+
+用于 GitHub Actions OIDC token。使用 `https://token.actions.githubusercontent.com` 作为 issuer。
+
+### createOIDCAuthProvider
+
+```typescript
+import { createOIDCAuthProvider } from "@casys/mcp-server";
+
+const provider = createOIDCAuthProvider({
+  issuer: string;                      // OIDC issuer URL
+  audience: string;
+  resource: string;
+  authorizationServers?: string[];     // Default: [issuer]
+  scopesSupported?: string[];
+});
+```
+
+通用 OIDC 提供商。JWKS URI 从 issuer 的 `.well-known/openid-configuration` 自动派生。
+
+<Aside type="tip">
+  不确定使用哪个预设？参见[认证指南](/zh/docs/guides/auth/)了解每个提供商的使用示例。
+</Aside>
+
+## JwtAuthProvider
+
+完全控制 JWT 验证。当预设无法覆盖你的身份提供商时使用：
+
+```typescript
+import { JwtAuthProvider } from "@casys/mcp-server";
+
+const provider = new JwtAuthProvider({
+  issuer: string;
+  audience: string;
+  resource: string;
+  authorizationServers: string[];
+  jwksUri?: string;            // Derived from issuer if omitted
+  scopesSupported?: string[];
+});
+```
+
+### verifyToken
+
+```typescript
+const authInfo = await provider.verifyToken(token: string);
+```
+
+成功时返回 `AuthInfo` 对象，token 无效时返回 `null`：
+
+```typescript
+interface AuthInfo {
+  subject: string;                     // Token "sub" claim
+  clientId?: string;                   // Token "client_id" or "azp" claim
+  scopes: string[];                    // Parsed from "scope" claim (space-separated)
+  claims: Record<string, unknown>;     // All token claims
+  expiresAt: Date;                     // Token expiry
+}
+```
+
+## 配置加载器
+
+用于二进制分发 — 在运行时从 YAML 文件和环境变量加载认证配置。
+
+### loadAuthConfig
+
+```typescript
+import { loadAuthConfig } from "@casys/mcp-server";
+
+const config = await loadAuthConfig();
+// AuthConfig | null
+```
+
+自动从 `mcp-server.yaml` + `MCP_AUTH_*` 环境变量加载。未找到配置时返回 `null` (认证保持禁用)。
+
+### createAuthProviderFromConfig
+
+```typescript
+import { createAuthProviderFromConfig } from "@casys/mcp-server";
+
+const provider = createAuthProviderFromConfig(config: AuthConfig);
+// Returns the appropriate AuthProvider based on config.provider
+```
+
+## 另请参阅
+
+- [认证 (OAuth2)](/zh/docs/guides/auth/) — 使用预设、scope 验证和 RFC 9728 的指南
+- [配置 (YAML)](/zh/docs/guides/configuration/) — 基于文件的认证配置与环境变量覆盖
+- [ConcurrentMCPServer API](/zh/docs/api/concurrent-mcp-server/) — 构造函数中的 `AuthOptions`

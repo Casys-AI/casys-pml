@@ -1,0 +1,111 @@
+---
+title: Configuration (YAML + Env)
+description: Configurez votre serveur MCP via des fichiers YAML et des variables d'environnement.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Quand vous livrez votre serveur MCP sous forme de binaire compile, vos utilisateurs doivent configurer l'auth et les parametres sans modifier le code. `@casys/mcp-server` supporte la configuration par fichier avec surcharge par variables d'environnement — le meme pattern utilise par Docker, Kubernetes, et tous les outils de deploiement serieux.
+
+## Ordre de priorite
+
+```
+programmatique (code) > variables d'environnement > fichier YAML > defauts (pas d'auth)
+```
+
+La priorite la plus haute l'emporte. Cela signifie que vous pouvez livrer des defauts raisonnables en YAML et surcharger des valeurs specifiques par environnement avec des variables d'env.
+
+## Configuration YAML
+
+Creez un fichier `mcp-server.yaml` dans le repertoire de travail :
+
+```yaml
+# mcp-server.yaml
+auth:
+  provider: auth0
+  audience: https://my-mcp.example.com
+  resource: https://my-mcp.example.com
+  domain: my-tenant.auth0.com
+  scopesSupported:
+    - read
+    - write
+    - admin
+```
+
+### Fournisseurs supportes
+
+| Fournisseur | Champs requis |
+|-------------|---------------|
+| `google` | `audience`, `resource` |
+| `auth0` | `domain`, `audience`, `resource` |
+| `github` | `audience`, `resource` |
+| `oidc` | `issuer`, `audience`, `resource` |
+
+## Variables d'environnement
+
+Chaque champ YAML peut etre surcharge avec des variables `MCP_AUTH_*` :
+
+| Variable | Champ YAML | Exemple |
+|----------|------------|---------|
+| `MCP_AUTH_PROVIDER` | `auth.provider` | `google`, `auth0`, `github`, `oidc` |
+| `MCP_AUTH_AUDIENCE` | `auth.audience` | `https://my-mcp.example.com` |
+| `MCP_AUTH_RESOURCE` | `auth.resource` | `https://my-mcp.example.com` |
+| `MCP_AUTH_DOMAIN` | `auth.domain` | `my-tenant.auth0.com` |
+| `MCP_AUTH_ISSUER` | `auth.issuer` | `https://my-idp.example.com` |
+| `MCP_AUTH_JWKS_URI` | `auth.jwksUri` | `https://.../.well-known/jwks.json` |
+| `MCP_AUTH_SCOPES` | `auth.scopesSupported` | `read write admin` (separes par des espaces) |
+
+### Surcharge pour la production
+
+```bash
+# Ship with staging config in YAML, override audience for production
+MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
+```
+
+## Charger la config dans le code
+
+Si vous avez besoin d'un acces programmatique a la configuration chargee :
+
+```typescript
+import {
+  loadAuthConfig,
+  createAuthProviderFromConfig,
+} from "@casys/mcp-server";
+
+// Auto-loads from mcp-server.yaml + MCP_AUTH_* env vars
+const config = await loadAuthConfig();
+
+if (config) {
+  const provider = createAuthProviderFromConfig(config);
+  // Pass to ConcurrentMCPServer options
+}
+```
+
+<Aside type="tip">
+  `loadAuthConfig()` retourne `null` si aucun fichier YAML n'existe et aucune variable d'env n'est definie. L'auth est opt-in — votre serveur fonctionne sans aucune configuration.
+</Aside>
+
+## Exemple Docker
+
+```dockerfile
+FROM denoland/deno:2.0
+
+COPY . .
+RUN deno compile --allow-net --allow-read --allow-env -o server main.ts
+
+ENV MCP_AUTH_PROVIDER=google
+ENV MCP_AUTH_AUDIENCE=https://my-mcp.example.com
+ENV MCP_AUTH_RESOURCE=https://my-mcp.example.com
+
+CMD ["./server", "--http", "--port", "3000"]
+```
+
+<Aside>
+  Compilez une fois, configurez partout. Le binaire lit `mcp-server.yaml` et les variables `MCP_AUTH_*` au demarrage.
+</Aside>
+
+## Voir aussi
+
+- [Authentification (OAuth2)](/fr/docs/guides/auth/) — Configuration programmatique de l'auth avec les presets
+- [API Auth Providers](/fr/docs/api/auth-providers/) — Reference `loadAuthConfig` et `createAuthProviderFromConfig`
+- [Demarrage rapide](/fr/docs/getting-started/quickstart/) — Exemple de config YAML en contexte
