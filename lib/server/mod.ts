@@ -119,3 +119,15 @@ export type { PresetOptions } from "./src/auth/mod.ts";
 // Auth - Config (YAML + env)
 export { loadAuthConfig, createAuthProviderFromConfig } from "./src/auth/mod.ts";
 export type { AuthConfig, AuthProviderName } from "./src/auth/mod.ts";
+
+// Observability
+export {
+  ServerMetrics,
+  type ServerMetricsSnapshot,
+  getServerTracer,
+  startToolCallSpan,
+  endToolCallSpan,
+  recordAuthEvent,
+  isOtelEnabled,
+  type ToolCallSpanAttributes,
+} from "./src/observability/mod.ts";
