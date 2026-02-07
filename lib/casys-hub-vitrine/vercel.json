@@ -4,22 +4,17 @@
   "outputDirectory": ".vercel/output",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "has": [{ "type": "host", "value": "mcp-std.casys.ai" }],
-      "destination": "https://pml.casys.ai/api/:path*"
-    },
-    {
-      "source": "/:path((?!_astro|_vercel|api|icons|fonts|images|pagefind|mcp-server).*)",
+      "source": "/:path((?!_astro|_vercel|api|ui|icons|fonts|images|pagefind|docs|mcp-server).*)",
       "has": [{ "type": "host", "value": "mcp-server.casys.ai" }],
       "destination": "/mcp-server/:path"
     },
     {
-      "source": "/:path((?!_astro|_vercel|api|icons|fonts|images|pagefind|mcp-std).*)",
+      "source": "/:path((?!_astro|_vercel|api|ui|icons|fonts|images|pagefind|docs|mcp-std).*)",
       "has": [{ "type": "host", "value": "mcp-std.casys.ai" }],
       "destination": "/mcp-std/:path"
     },
     {
-      "source": "/:path((?!_astro|_vercel|api|icons|fonts|images|pagefind|engine).*)",
+      "source": "/:path((?!_astro|_vercel|api|ui|icons|fonts|images|pagefind|docs|engine).*)",
       "has": [{ "type": "host", "value": "engine.casys.ai" }],
       "destination": "/engine/:path"
     }
