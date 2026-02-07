@@ -39,3 +39,12 @@
 .expressive-code .frame {
   border-radius: 10px;
 }
+
+/* Subdomain sidebar filtering — FOUC prevention.
+   Hide sidebar groups until the head script sets data-sidebar-ready. */
+.top-level > li {
+  display: none;
+}
+html[data-sidebar-ready] .top-level > li:not([hidden]) {
+  display: list-item;
+}
