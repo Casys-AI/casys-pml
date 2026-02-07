@@ -623,6 +623,7 @@ export class SHGAT {
       intentEmbedding,
       tensorParams,
       this.config,
+      tensorParams.projectionHead,
     );
 
     // Clean up forward pass tensors
@@ -753,7 +754,7 @@ export class SHGAT {
   // ==========================================================================
 
   /** @deprecated Fusion weights are legacy - K-head scoring uses learned attention */
-  getFusionWeights() { return this.params.fusionWeights; }
+  getFusionWeights(): FusionWeights { return this.params.fusionWeights; }
   setFusionWeights(weights: Partial<FusionWeights>): void {
     Object.assign(this.params.fusionWeights, weights);
   }
@@ -828,7 +829,6 @@ export class SHGAT {
 
 export {
   createSHGAT,
-  createSHGATFromCapabilities,
   trainSHGATOnEpisodes,
   trainSHGATOnEpisodesKHead,
   trainSHGATOnExecution,

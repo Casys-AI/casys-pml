@@ -68,6 +68,23 @@ if (svgContent) {
     'class="excali-muted-fill" fill="#666666"'
   );
 
+  // Replace SHGAT-specific node background fills
+  svgContent = svgContent.replace(/fill="#1a3a1a"/g, 'class="excali-node-green" fill="#1a3a1a"');
+  svgContent = svgContent.replace(/fill="#3a2a0a"/g, 'class="excali-node-amber" fill="#3a2a0a"');
+  svgContent = svgContent.replace(/fill="#1a2744"/g, 'class="excali-node-blue" fill="#1a2744"');
+  svgContent = svgContent.replace(/fill="#2d2044"/g, 'class="excali-node-purple" fill="#2d2044"');
+  svgContent = svgContent.replace(/fill="#3a1a2e"/g, 'class="excali-node-pink" fill="#3a1a2e"');
+
+  // Replace warm gray text (#e7e5e4 — used in SHGAT diagrams)
+  svgContent = svgContent.replace(/fill="#e7e5e4"/g, 'class="excali-text-warm" fill="#e7e5e4"');
+
+  // Replace gray-500 labels/strokes (#6b7280)
+  svgContent = svgContent.replace(/fill="#6b7280"/g, 'class="excali-gray-fill" fill="#6b7280"');
+  svgContent = svgContent.replace(/stroke="#6b7280"/g, 'class="excali-gray-stroke" stroke="#6b7280"');
+
+  // Replace gray-400 (#9ca3af)
+  svgContent = svgContent.replace(/fill="#9ca3af"/g, 'class="excali-gray-light-fill" fill="#9ca3af"');
+
   // Replace accent colors (too light for light mode) with classes
   // Red
   svgContent = svgContent.replace(/stroke="#ef4444"/g, 'class="excali-accent-red-stroke" stroke="#ef4444"');
@@ -159,6 +176,21 @@ if (svgContent) {
     fill: #999 !important;
   }
 
+  /* SHGAT node backgrounds - light pastel fills */
+  .excalidraw-wrapper .excali-node-green { fill: #dcfce7 !important; }
+  .excalidraw-wrapper .excali-node-amber { fill: #fef3c7 !important; }
+  .excalidraw-wrapper .excali-node-blue { fill: #dbeafe !important; }
+  .excalidraw-wrapper .excali-node-purple { fill: #ede9fe !important; }
+  .excalidraw-wrapper .excali-node-pink { fill: #fce7f3 !important; }
+
+  /* Warm gray text — dark for light mode */
+  .excalidraw-wrapper .excali-text-warm { fill: #2a2520 !important; }
+
+  /* Gray labels and strokes */
+  .excalidraw-wrapper .excali-gray-fill { fill: #4b5563 !important; }
+  .excalidraw-wrapper .excali-gray-stroke { stroke: #9ca3af !important; }
+  .excalidraw-wrapper .excali-gray-light-fill { fill: #6b7280 !important; }
+
   /* Accent colors - Casys brand palette (dark variants for light mode) */
   .excalidraw-wrapper .excali-accent-red-stroke { stroke: #A04A35 !important; }
   .excalidraw-wrapper .excali-accent-red-fill { fill: #A04A35 !important; }
@@ -209,6 +241,21 @@ if (svgContent) {
   html[data-theme="dark"] .excalidraw-wrapper .excali-muted-fill {
     fill: #666 !important;
   }
+
+  /* SHGAT node backgrounds - restore dark fills */
+  html[data-theme="dark"] .excalidraw-wrapper .excali-node-green { fill: #1a3a1a !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-node-amber { fill: #3a2a0a !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-node-blue { fill: #1a2744 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-node-purple { fill: #2d2044 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-node-pink { fill: #3a1a2e !important; }
+
+  /* Warm gray text — light for dark mode */
+  html[data-theme="dark"] .excalidraw-wrapper .excali-text-warm { fill: #e7e5e4 !important; }
+
+  /* Gray labels and strokes */
+  html[data-theme="dark"] .excalidraw-wrapper .excali-gray-fill { fill: #6b7280 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-gray-stroke { stroke: #6b7280 !important; }
+  html[data-theme="dark"] .excalidraw-wrapper .excali-gray-light-fill { fill: #9ca3af !important; }
 
   /* Accent colors - Casys brand palette (bright variants for dark mode) */
   html[data-theme="dark"] .excalidraw-wrapper .excali-accent-red-stroke { stroke: #FF9B7A !important; }

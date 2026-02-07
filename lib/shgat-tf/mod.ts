@@ -1,34 +1,36 @@
 /**
- * SHGAT-TF - SuperHyperGraph Attention Networks with TensorFlow.js
+ * SHGAT-TF - SuperHyperGraph Attention Networks with TensorFlow FFI
  *
- * A TypeScript implementation of SuperHyperGraph Attention Networks using
- * TensorFlow.js for GPU-accelerated training and inference.
+ * A TypeScript/Deno implementation of SuperHyperGraph Attention Networks using
+ * libtensorflow via FFI for high-performance training and inference.
  *
  * Key features:
- * - TensorFlow.js backend (WebGPU/WASM acceleration)
+ * - libtensorflow FFI backend (native C performance, no WASM overhead)
  * - Two-phase message passing: Vertex→Hyperedge, Hyperedge→Vertex
- * - K-head attention with adaptive head count
- * - Multi-level hierarchy support
- * - GRU-based TransitionModel for path building
- * - Automatic differentiation (no manual backward passes)
+ * - K-head attention (4-16 adaptive heads) with InfoNCE contrastive loss
+ * - Multi-level hierarchy support (n-SuperHyperGraph)
+ * - Sparse message passing for large graphs (~10x training speedup)
+ * - Prioritized Experience Replay (PER) for sample efficiency
+ * - Automatic differentiation via TensorFlow autograd
  *
  * @example
  * ```typescript
- * import { initTensorFlow, SHGAT, TransitionModel } from "@pml/shgat-tf";
+ * import { createSHGAT, type Node } from "@casys/shgat-tf";
  *
- * // Initialize TensorFlow.js
- * await initTensorFlow();
+ * // Create nodes (leaves have children: [], composites list their children)
+ * const nodes: Node[] = [
+ *   { id: "tool-a", embedding: toolAEmb, children: [], level: 0 },
+ *   { id: "tool-b", embedding: toolBEmb, children: [], level: 0 },
+ *   { id: "cap-1",  embedding: capEmb,   children: ["tool-a", "tool-b"], level: 0 },
+ * ];
  *
- * // Create SHGAT
- * const shgat = createSHGATFromCapabilities(capabilities);
+ * // Create SHGAT from unified nodes
+ * const shgat = createSHGAT(nodes);
  *
- * // Create TransitionModel for path building
- * const transition = new TransitionModel();
- * transition.setToolVocabulary(toolEmbeddings);
- *
- * // Build path: SHGAT scores first tool, TransitionModel builds the rest
- * const firstTool = shgat.scoreCapability(intent, candidates)[0];
- * const path = await transition.buildPath(intent, firstTool);
+ * // Score nodes for an intent
+ * const intentEmbedding = new Array(1024).fill(0).map(() => Math.random());
+ * const scores = shgat.scoreNodes(intentEmbedding, 1); // composites only
+ * console.log(scores[0]); // { nodeId: "cap-1", score: 0.73, ... }
  * ```
  *
  * @module shgat-tf
@@ -37,7 +39,6 @@
 // Main SHGAT class and factory functions
 export {
   createSHGAT,
-  createSHGATFromCapabilities,
   SHGAT,
   trainSHGATOnEpisodes,
   trainSHGATOnEpisodesKHead,

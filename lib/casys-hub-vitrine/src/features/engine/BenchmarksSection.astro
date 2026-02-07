@@ -1,0 +1,207 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    title: 'Numbers,',
+    titleAccent: 'Not Promises',
+    subtitle: 'Benchmarked on 245 nodes (218 leaves + 26 composites + 1 root). All metrics from production traces.',
+    shgatTitle: 'SHGAT-TF',
+    shgatRows: [
+      ['Hit@1', '56.2%'],
+      ['Hit@3', '86.3%'],
+      ['MRR', '0.705'],
+      ['Leaves (L0)', '218'],
+      ['Composites (L1)', '26'],
+      ['Attention heads', '16 \u00d7 64D'],
+      ['Hierarchy levels', '3 (L0 \u2192 L1 \u2192 L2)'],
+      ['Score latency', '2.3s'],
+    ],
+  },
+  fr: {
+    title: 'Des Chiffres,',
+    titleAccent: 'Pas des Promesses',
+    subtitle: 'Benchmarke sur 245 noeuds (218 leaves + 26 composites + 1 root). Toutes les metriques proviennent de traces de production.',
+    shgatTitle: 'SHGAT-TF',
+    shgatRows: [
+      ['Hit@1', '56.2%'],
+      ['Hit@3', '86.3%'],
+      ['MRR', '0.705'],
+      ['Leaves (L0)', '218'],
+      ['Composites (L1)', '26'],
+      ['Tetes d\'attention', '16 \u00d7 64D'],
+      ['Niveaux hierarchie', '3 (L0 \u2192 L1 \u2192 L2)'],
+      ['Latence scoring', '2.3s'],
+    ],
+  },
+  zh: {
+    title: 'Numbers,',
+    titleAccent: 'Not Promises',
+    subtitle: 'Benchmarked on 245 nodes (218 leaves + 26 composites + 1 root). All metrics from production traces.',
+    shgatTitle: 'SHGAT-TF',
+    shgatRows: [
+      ['Hit@1', '56.2%'],
+      ['Hit@3', '86.3%'],
+      ['MRR', '0.705'],
+      ['Leaves (L0)', '218'],
+      ['Composites (L1)', '26'],
+      ['Attention heads', '16 \u00d7 64D'],
+      ['Hierarchy levels', '3 (L0 \u2192 L1 \u2192 L2)'],
+      ['Score latency', '2.3s'],
+    ],
+  },
+} as const;
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="benchmarks">
+  <div class="container">
+    <div class="section-header center">
+      <h2>{t.title} <span class="accent-text">{t.titleAccent}</span></h2>
+      <p class="section-subtitle">{t.subtitle}</p>
+    </div>
+
+    <div class="bench-grid">
+      <!-- Card 1: SHGAT-TF -->
+      <div class="bench-card">
+        <div class="bench-card-header">
+          <span class="material-symbols-rounded bench-icon">hub</span>
+          <span class="bench-card-title">{t.shgatTitle}</span>
+        </div>
+        <table class="bench-table">
+          <tbody>
+            {t.shgatRows.map(([metric, value], i) => (
+              <tr class={i % 2 === 1 ? 'bench-row-alt' : ''}>
+                <td class="bench-metric">{metric}</td>
+                <td class="bench-value">{value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<style>
+  #benchmarks {
+    position: relative;
+    padding: 56px 0 64px;
+    overflow: hidden;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+  .section-header { margin-bottom: 28px; }
+  .section-header.center { text-align: center; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .section-header h2 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 600; color: var(--md-sys-color-on-surface); margin: 0 0 12px; letter-spacing: -0.02em; }
+  .section-subtitle { font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); margin: 0; line-height: 1.6; }
+
+  .bench-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .bench-card {
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .bench-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    background: var(--md-sys-color-surface-container-high);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .bench-icon {
+    font-size: 20px;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .bench-card-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: 0.02em;
+  }
+
+  .bench-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .bench-table tr {
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .bench-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .bench-table td {
+    padding: 10px 20px;
+    background: var(--md-sys-color-surface-container-lowest);
+  }
+
+  .bench-row-alt td {
+    background: var(--md-sys-color-surface-container);
+  }
+
+  .bench-metric {
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    text-align: left;
+  }
+
+  .bench-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--md-sys-color-primary);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1024px) { .container { padding: 0 32px; } }
+  @media (max-width: 768px) {
+    #benchmarks { padding: 48px 0; }
+    .container { padding: 0 20px; }
+    .bench-grid { grid-template-columns: 1fr; gap: 20px; }
+    .bench-table { font-size: 0.8125rem; }
+    .bench-table td { padding: 8px 16px; }
+    .bench-card-header { padding: 14px 16px; }
+  }
+  @media (max-width: 380px) {
+    .container { padding: 0 14px; }
+    .bench-table { font-size: 0.75rem; }
+    .bench-table td { padding: 8px 12px; }
+  }
+</style>
+
+<style is:global>
+  #benchmarks { background: var(--md-sys-color-surface-container-lowest); }
+  html[data-theme="dark"] #benchmarks { background: #0d0c0a; }
+  html[data-theme="dark"] #benchmarks .section-header h2 { color: #f5f0ea; }
+  html[data-theme="dark"] #benchmarks .section-subtitle { color: #d5c3b5; }
+
+  html[data-theme="dark"] #benchmarks .bench-card { border-color: rgba(255, 184, 111, 0.1); }
+  html[data-theme="dark"] #benchmarks .bench-card-header { background: #1a1815; border-color: rgba(255, 184, 111, 0.08); }
+  html[data-theme="dark"] #benchmarks .bench-icon { color: #a89a8c; }
+  html[data-theme="dark"] #benchmarks .bench-card-title { color: #f5f0ea; }
+
+  html[data-theme="dark"] #benchmarks .bench-table tr { border-color: rgba(255, 184, 111, 0.06); }
+  html[data-theme="dark"] #benchmarks .bench-table td { background: #0d0c0a; }
+  html[data-theme="dark"] #benchmarks .bench-row-alt td { background: #111110; }
+
+  html[data-theme="dark"] #benchmarks .bench-metric { color: #f5f0ea; }
+  html[data-theme="dark"] #benchmarks .bench-value { color: #FFB86F; }
+</style>

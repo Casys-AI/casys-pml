@@ -1,0 +1,810 @@
+---
+/**
+ * SHGAT Section - SuperHyperGraph Attention Networks
+ *
+ * 2-column grid: content left, SVG hierarchy visualization right.
+ * Shows the 3-level message-passing architecture of the SHGAT-TF model.
+ *
+ * @module features/engine/ShgatSection
+ */
+
+const locale = (Astro as any).currentLocale ?? 'en';
+
+/* ------------------------------------------------------------------ */
+/*  i18n                                                               */
+/* ------------------------------------------------------------------ */
+
+const translations: Record<string, {
+  eyebrow: string;
+  titleLine1: string;
+  titleLine2: string;
+  description: string;
+  features: Array<{ icon: string; title: string; desc: string }>;
+}> = {
+  en: {
+    eyebrow: 'SHGAT-TF',
+    titleLine1: 'SuperHyperGraph',
+    titleLine2: 'Attention Networks',
+    description:
+      'Why a hypergraph? Regular graphs model pairwise relations (tool A calls tool B). Hypergraphs model N-to-N: one composite groups multiple leaves, one leaf belongs to multiple composites. This captures the real structure of agentic tool ecosystems.',
+    features: [
+      {
+        icon: 'hub',
+        title: 'K-Head Attention (16 \u00d7 64D)',
+        desc: 'Each head captures a different relevance signal \u2014 co-occurrence, recency, error recovery, success rates. Heads are combined via learned fusion weights.',
+      },
+      {
+        icon: 'account_tree',
+        title: 'Multi-Level Message Passing',
+        desc: 'L0: 218 leaves (tools). L1: 26 composites. L2: meta-composites. Context propagates bottom-up then top-down. A leaf inherits relevance from sibling composites it has never been paired with.',
+      },
+      {
+        icon: 'trending_up',
+        title: 'InfoNCE Contrastive Loss',
+        desc: 'Temperature-annealed training (0.10 \u2192 0.06) with hard negatives and prioritized experience replay. Hit@3 reaches 86.3% on 644 nodes.',
+      },
+      {
+        icon: 'model_training',
+        title: 'Training Included',
+        desc: 'SHGAT-TF trains from production traces \u2014 no external service, no GPU required. libtensorflow FFI runs natively via Deno.dlopen. Self-contained.',
+      },
+    ],
+  },
+  fr: {
+    eyebrow: 'SHGAT-TF',
+    titleLine1: 'SuperHyperGraph',
+    titleLine2: 'Attention Networks',
+    description:
+      'Pourquoi un hypergraphe ? Les graphes classiques modelisent des relations par paires (outil A appelle outil B). Les hypergraphes modelisent le N-vers-N : un composite regroupe plusieurs leaves, un leaf appartient a plusieurs composites. Ca capture la vraie structure des ecosystemes d\'outils agentiques.',
+    features: [
+      {
+        icon: 'hub',
+        title: 'Attention K-Head (16 \u00d7 64D)',
+        desc: 'Chaque tete capture un signal de pertinence different \u2014 co-occurrence, recence, recuperation d\'erreur, taux de succes. Les tetes sont combinees via des poids de fusion appris.',
+      },
+      {
+        icon: 'account_tree',
+        title: 'Message Passing Multi-Niveaux',
+        desc: 'L0 : 218 leaves (outils). L1 : 26 composites. L2 : meta-composites. Le contexte propage de bas en haut puis de haut en bas. Un leaf herite de la pertinence de composites soeurs avec lesquels il n\'a jamais ete appaire.',
+      },
+      {
+        icon: 'trending_up',
+        title: 'Perte Contrastive InfoNCE',
+        desc: 'Entrainement avec annealing de temperature (0.10 \u2192 0.06), negatives difficiles et replay d\'experience prioritise. Hit@3 atteint 86.3% sur 644 noeuds.',
+      },
+      {
+        icon: 'model_training',
+        title: 'Entrainement Inclus',
+        desc: 'SHGAT-TF s\'entraine depuis les traces de production \u2014 aucun service externe, aucun GPU requis. libtensorflow FFI tourne nativement via Deno.dlopen. Autonome.',
+      },
+    ],
+  },
+};
+
+const t = translations[locale] ?? translations.en;
+---
+
+<section id="shgat" class="shgat-section">
+  <div class="shgat-container">
+
+    <!-- Left: Content -->
+    <div class="shgat-content">
+      <span class="shgat-eyebrow">{t.eyebrow}</span>
+
+      <h2 class="shgat-title">
+        <span class="shgat-title-line1">{t.titleLine1}</span>
+        <span class="shgat-title-line2">{t.titleLine2}</span>
+      </h2>
+
+      <p class="shgat-description">{t.description}</p>
+
+      <div class="shgat-features">
+        {t.features.map((f) => (
+          <div class="shgat-feature">
+            <div class="shgat-feature-icon">
+              <span class="material-symbols-rounded">{f.icon}</span>
+            </div>
+            <div class="shgat-feature-body">
+              <h3 class="shgat-feature-title">{f.title}</h3>
+              <p class="shgat-feature-desc">{f.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- Right: SVG Hierarchy Diagram — Message Passing Visualization -->
+    <div class="shgat-viz" aria-hidden="true">
+      <svg
+        class="shgat-svg"
+        viewBox="0 0 520 470"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="SHGAT 2-phase message passing: upward aggregation then downward propagation across 3 hierarchy levels"
+      >
+        <defs>
+          <!-- Glow filter for meta node -->
+          <filter id="shgat-glow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <!-- Soft shadow for boxes -->
+          <filter id="shgat-shadow" x="-10%" y="-10%" width="120%" height="130%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.25" />
+          </filter>
+          <!-- Arrow markers — upward (green) -->
+          <marker id="shgat-arrow-up" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#4ade80" opacity="0.9" />
+          </marker>
+          <!-- Arrow markers — downward (blue) -->
+          <marker id="shgat-arrow-down" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#60a5fa" opacity="0.9" />
+          </marker>
+          <!-- Arrow marker — intent (amber) -->
+          <marker id="shgat-arrow-intent" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#fbbf24" opacity="0.9" />
+          </marker>
+          <!-- Arrow marker — score output (amber) -->
+          <marker id="shgat-arrow-score" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#fbbf24" opacity="0.9" />
+          </marker>
+        </defs>
+
+        <!-- ======================================== -->
+        <!-- Background: subtle dot grid              -->
+        <!-- ======================================== -->
+        <g class="shgat-grid" opacity="0.08">
+          {Array.from({ length: 17 }).map((_, ix) =>
+            Array.from({ length: 16 }).map((_, iy) => (
+              <circle cx={16 + ix * 30} cy={16 + iy * 30} r="0.8" fill="currentColor" />
+            ))
+          )}
+        </g>
+
+        <!-- ======================================== -->
+        <!-- Phase labels (left / right columns)      -->
+        <!-- ======================================== -->
+        <!-- Phase 1: Aggregate (left) -->
+        <g class="shgat-phase-label" transform="translate(18, 220)">
+          <text x="0" y="0" fill="#4ade80" font-size="9" font-weight="700"
+            font-family="'JetBrains Mono', monospace" opacity="0.85"
+            letter-spacing="0.05em">Phase 1</text>
+          <text x="0" y="13" fill="#4ade80" font-size="7.5"
+            font-family="'Inter', system-ui, sans-serif" opacity="0.6">Aggregate</text>
+          <line x1="0" y1="18" x2="40" y2="18" stroke="#4ade80" stroke-width="1" opacity="0.3" />
+        </g>
+        <!-- Phase 2: Propagate (right) -->
+        <g class="shgat-phase-label" transform="translate(460, 220)">
+          <text x="0" y="0" fill="#60a5fa" font-size="9" font-weight="700"
+            font-family="'JetBrains Mono', monospace" opacity="0.85"
+            letter-spacing="0.05em">Phase 2</text>
+          <text x="0" y="13" fill="#60a5fa" font-size="7.5"
+            font-family="'Inter', system-ui, sans-serif" opacity="0.6">Propagate</text>
+          <line x1="0" y1="18" x2="48" y2="18" stroke="#60a5fa" stroke-width="1" opacity="0.3" />
+        </g>
+
+        <!-- ======================================== -->
+        <!-- Level labels (left margin)               -->
+        <!-- ======================================== -->
+        <text x="12" y="80" fill="#a8a29e" font-size="8"
+          font-family="'JetBrains Mono', monospace" opacity="0.5">L2</text>
+        <text x="12" y="198" fill="#a8a29e" font-size="8"
+          font-family="'JetBrains Mono', monospace" opacity="0.5">L1</text>
+        <text x="12" y="330" fill="#a8a29e" font-size="8"
+          font-family="'JetBrains Mono', monospace" opacity="0.5">L0</text>
+
+        <!-- ======================================== -->
+        <!-- Dashed level separators                  -->
+        <!-- ======================================== -->
+        <line x1="32" y1="140" x2="490" y2="140"
+          stroke="#78716c" stroke-width="0.5" stroke-dasharray="6 4" opacity="0.2" />
+        <line x1="32" y1="270" x2="490" y2="270"
+          stroke="#78716c" stroke-width="0.5" stroke-dasharray="6 4" opacity="0.2" />
+
+        <!-- ======================================== -->
+        <!-- STRUCTURAL EDGES (thin, neutral)         -->
+        <!-- ======================================== -->
+        <!-- L0 leaves -> L1 composites -->
+        <!-- psql_query -> database -->
+        <path d="M 115,305 C 115,270 155,240 170,218"
+          stroke="#57534e" stroke-width="0.8" fill="none" opacity="0.2" />
+        <!-- csv_parse -> database -->
+        <path d="M 225,305 C 225,270 195,240 185,218"
+          stroke="#57534e" stroke-width="0.8" fill="none" opacity="0.2" />
+        <!-- csv_parse -> data-ops -->
+        <path d="M 245,305 C 260,270 305,240 320,218"
+          stroke="#57534e" stroke-width="0.8" fill="none" opacity="0.2" />
+        <!-- git_status -> data-ops -->
+        <path d="M 370,305 C 370,270 350,240 340,218"
+          stroke="#57534e" stroke-width="0.8" fill="none" opacity="0.2" />
+        <!-- fs_read -> data-ops -->
+        <path d="M 455,305 C 440,270 360,240 350,218"
+          stroke="#57534e" stroke-width="0.8" fill="none" opacity="0.2" />
+
+        <!-- L1 composites -> L2 meta -->
+        <path d="M 170,185 C 170,155 230,115 248,100"
+          stroke="#57534e" stroke-width="0.8" fill="none" opacity="0.2" />
+        <path d="M 340,185 C 340,155 290,115 270,100"
+          stroke="#57534e" stroke-width="0.8" fill="none" opacity="0.2" />
+
+        <!-- ======================================== -->
+        <!-- PHASE 1: Upward arrows (green, animated) -->
+        <!-- ======================================== -->
+        <!-- L0 -> L1 upward messages -->
+        <path class="shgat-arrow-up shgat-up-1" d="M 108,303 C 108,268 150,238 165,216"
+          stroke="#4ade80" stroke-width="1.8" fill="none" opacity="0.7"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-up)" />
+        <path class="shgat-arrow-up shgat-up-2" d="M 230,303 C 235,268 200,238 188,216"
+          stroke="#4ade80" stroke-width="1.8" fill="none" opacity="0.7"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-up)" />
+        <path class="shgat-arrow-up shgat-up-3" d="M 365,303 C 360,268 345,238 338,216"
+          stroke="#22c55e" stroke-width="1.8" fill="none" opacity="0.6"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-up)" />
+        <!-- L1 -> L2 upward messages -->
+        <path class="shgat-arrow-up shgat-up-4" d="M 165,183 C 165,153 225,118 245,98"
+          stroke="#4ade80" stroke-width="2" fill="none" opacity="0.75"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-up)" />
+        <path class="shgat-arrow-up shgat-up-5" d="M 335,183 C 335,153 285,118 268,98"
+          stroke="#22c55e" stroke-width="2" fill="none" opacity="0.65"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-up)" />
+
+        <!-- ======================================== -->
+        <!-- PHASE 2: Downward arrows (blue, animated)-->
+        <!-- ======================================== -->
+        <!-- L2 -> L1 downward messages -->
+        <path class="shgat-arrow-down shgat-down-1" d="M 252,100 C 240,130 185,160 175,186"
+          stroke="#60a5fa" stroke-width="2" fill="none" opacity="0.75"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-down)" />
+        <path class="shgat-arrow-down shgat-down-2" d="M 268,100 C 280,130 330,160 340,186"
+          stroke="#3b82f6" stroke-width="2" fill="none" opacity="0.65"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-down)" />
+        <!-- L1 -> L0 downward messages -->
+        <path class="shgat-arrow-down shgat-down-3" d="M 178,218 C 185,248 200,278 215,303"
+          stroke="#60a5fa" stroke-width="1.8" fill="none" opacity="0.7"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-down)" />
+        <path class="shgat-arrow-down shgat-down-4" d="M 332,218 C 325,248 310,278 300,303"
+          stroke="#3b82f6" stroke-width="1.8" fill="none" opacity="0.6"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-down)" />
+        <path class="shgat-arrow-down shgat-down-5" d="M 345,218 C 360,248 385,278 395,303"
+          stroke="#60a5fa" stroke-width="1.8" fill="none" opacity="0.65"
+          stroke-dasharray="5 4" marker-end="url(#shgat-arrow-down)" />
+
+        <!-- ======================================== -->
+        <!-- INTENT embedding input (top-left)        -->
+        <!-- ======================================== -->
+        <g class="shgat-intent-group">
+          <!-- Intent pill -->
+          <rect x="30" y="45" width="78" height="26" rx="13" ry="13"
+            fill="#fbbf24" opacity="0.1" stroke="#fbbf24" stroke-width="1.5" />
+          <text x="69" y="62" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600"
+            font-family="'JetBrains Mono', monospace">Intent</text>
+          <!-- Arrow from Intent pill to meta node -->
+          <path class="shgat-intent-arrow" d="M 112,58 C 145,58 185,68 210,75"
+            stroke="#fbbf24" stroke-width="2" fill="none" opacity="0.7"
+            stroke-dasharray="5 3" marker-end="url(#shgat-arrow-intent)" />
+        </g>
+
+        <!-- ======================================== -->
+        <!-- L2: META node (cyan, excalidraw box)     -->
+        <!-- ======================================== -->
+        <g class="shgat-node-root" filter="url(#shgat-shadow)">
+          <!-- Outer glow rect -->
+          <rect x="201" y="64" width="118" height="34" rx="8" ry="8"
+            fill="#06b6d4" opacity="0.06" />
+          <!-- Fill rect -->
+          <rect x="203" y="66" width="114" height="30" rx="7" ry="7"
+            fill="#0e1820" />
+          <!-- Double-stroke hand-drawn border (excalidraw effect) -->
+          <rect x="203" y="66" width="114" height="30" rx="7" ry="7"
+            fill="none" stroke="#06b6d4" stroke-width="2" opacity="0.8" />
+          <rect x="204.5" y="67.5" width="111" height="27" rx="6" ry="6"
+            fill="none" stroke="#06b6d4" stroke-width="0.5" opacity="0.3" />
+          <!-- Label -->
+          <text x="260" y="85" text-anchor="middle" fill="#67e8f9" font-size="9.5" font-weight="600"
+            font-family="'JetBrains Mono', monospace" class="shgat-node-label">data-pipeline</text>
+        </g>
+
+        <!-- ======================================== -->
+        <!-- L1: COMPOSITE nodes (purple, excalidraw) -->
+        <!-- ======================================== -->
+        <!-- database composite -->
+        <g class="shgat-node-composite" filter="url(#shgat-shadow)">
+          <rect x="120" y="185" width="100" height="30" rx="7" ry="7"
+            fill="#1a1228" />
+          <rect x="120" y="185" width="100" height="30" rx="7" ry="7"
+            fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.8" />
+          <rect x="121.5" y="186.5" width="97" height="27" rx="6" ry="6"
+            fill="none" stroke="#8b5cf6" stroke-width="0.5" opacity="0.3" />
+          <text x="170" y="204" text-anchor="middle" fill="#c4b5fd" font-size="9" font-weight="500"
+            font-family="'JetBrains Mono', monospace" class="shgat-node-label">database</text>
+        </g>
+        <!-- data-ops composite -->
+        <g class="shgat-node-composite" filter="url(#shgat-shadow)">
+          <rect x="280" y="185" width="108" height="30" rx="7" ry="7"
+            fill="#1a1228" />
+          <rect x="280" y="185" width="108" height="30" rx="7" ry="7"
+            fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.8" />
+          <rect x="281.5" y="186.5" width="105" height="27" rx="6" ry="6"
+            fill="none" stroke="#8b5cf6" stroke-width="0.5" opacity="0.3" />
+          <text x="334" y="204" text-anchor="middle" fill="#c4b5fd" font-size="9" font-weight="500"
+            font-family="'JetBrains Mono', monospace" class="shgat-node-label">data-ops</text>
+        </g>
+
+        <!-- ======================================== -->
+        <!-- L0: LEAF nodes (amber, excalidraw boxes) -->
+        <!-- ======================================== -->
+        <!-- psql_query -->
+        <g class="shgat-node-leaf" filter="url(#shgat-shadow)">
+          <rect x="62" y="307" width="100" height="28" rx="6" ry="6"
+            fill="#1c1508" />
+          <rect x="62" y="307" width="100" height="28" rx="6" ry="6"
+            fill="none" stroke="#f59e0b" stroke-width="1.8" opacity="0.75" />
+          <rect x="63.5" y="308.5" width="97" height="25" rx="5" ry="5"
+            fill="none" stroke="#f59e0b" stroke-width="0.4" opacity="0.25" />
+          <text x="112" y="325" text-anchor="middle" fill="#fcd34d" font-size="8" font-weight="500"
+            font-family="'JetBrains Mono', monospace" class="shgat-node-label">psql_query</text>
+        </g>
+        <!-- csv_parse -->
+        <g class="shgat-node-leaf" filter="url(#shgat-shadow)">
+          <rect x="186" y="307" width="96" height="28" rx="6" ry="6"
+            fill="#1c1508" />
+          <rect x="186" y="307" width="96" height="28" rx="6" ry="6"
+            fill="none" stroke="#f59e0b" stroke-width="1.8" opacity="0.75" />
+          <rect x="187.5" y="308.5" width="93" height="25" rx="5" ry="5"
+            fill="none" stroke="#f59e0b" stroke-width="0.4" opacity="0.25" />
+          <text x="234" y="325" text-anchor="middle" fill="#fcd34d" font-size="8" font-weight="500"
+            font-family="'JetBrains Mono', monospace" class="shgat-node-label">csv_parse</text>
+        </g>
+        <!-- git_status -->
+        <g class="shgat-node-leaf" filter="url(#shgat-shadow)">
+          <rect x="305" y="307" width="100" height="28" rx="6" ry="6"
+            fill="#1c1508" />
+          <rect x="305" y="307" width="100" height="28" rx="6" ry="6"
+            fill="none" stroke="#f59e0b" stroke-width="1.8" opacity="0.75" />
+          <rect x="306.5" y="308.5" width="97" height="25" rx="5" ry="5"
+            fill="none" stroke="#f59e0b" stroke-width="0.4" opacity="0.25" />
+          <text x="355" y="325" text-anchor="middle" fill="#fcd34d" font-size="8" font-weight="500"
+            font-family="'JetBrains Mono', monospace" class="shgat-node-label">git_status</text>
+        </g>
+        <!-- fs_read -->
+        <g class="shgat-node-leaf" filter="url(#shgat-shadow)">
+          <rect x="420" y="307" width="80" height="28" rx="6" ry="6"
+            fill="#1c1508" />
+          <rect x="420" y="307" width="80" height="28" rx="6" ry="6"
+            fill="none" stroke="#f59e0b" stroke-width="1.8" opacity="0.75" />
+          <rect x="421.5" y="308.5" width="77" height="25" rx="5" ry="5"
+            fill="none" stroke="#f59e0b" stroke-width="0.4" opacity="0.25" />
+          <text x="460" y="325" text-anchor="middle" fill="#fcd34d" font-size="8" font-weight="500"
+            font-family="'JetBrains Mono', monospace" class="shgat-node-label">fs_read</text>
+        </g>
+
+        <!-- ======================================== -->
+        <!-- SCORE OUTPUT (bottom, ranked results)    -->
+        <!-- ======================================== -->
+        <g class="shgat-score-output">
+          <!-- Downward arrow from leaves zone -->
+          <path d="M 260,350 L 260,378"
+            stroke="#fbbf24" stroke-width="1.5" opacity="0.5"
+            stroke-dasharray="4 3" marker-end="url(#shgat-arrow-score)" />
+          <!-- Score output pill -->
+          <rect x="164" y="388" width="192" height="32" rx="8" ry="8"
+            fill="#1c1508" />
+          <rect x="164" y="388" width="192" height="32" rx="8" ry="8"
+            fill="none" stroke="#fbbf24" stroke-width="1.2" opacity="0.5" />
+          <!-- Ranked bars inside -->
+          <rect x="178" y="396" width="48" height="5" rx="2" fill="#22c55e" opacity="0.6" />
+          <rect x="178" y="404" width="36" height="5" rx="2" fill="#22c55e" opacity="0.4" />
+          <rect x="178" y="412" width="22" height="5" rx="2" fill="#22c55e" opacity="0.25" />
+          <!-- Score text -->
+          <text x="250" y="403" fill="#fbbf24" font-size="7.5" font-weight="600"
+            font-family="'JetBrains Mono', monospace" opacity="0.8">Hit@3: 86.3%</text>
+          <text x="250" y="413" fill="#a8a29e" font-size="6.5"
+            font-family="'Inter', system-ui, sans-serif" opacity="0.5">ranked scores</text>
+        </g>
+
+        <!-- ======================================== -->
+        <!-- Annotation: tiny flow description        -->
+        <!-- ======================================== -->
+        <g opacity="0.5">
+          <!-- Green upward flow hint -->
+          <text x="80" y="262" fill="#4ade80" font-size="7"
+            font-family="'Inter', system-ui, sans-serif" font-style="italic">
+            embeddings flow up</text>
+          <!-- Blue downward flow hint -->
+          <text x="380" y="262" fill="#60a5fa" font-size="7"
+            font-family="'Inter', system-ui, sans-serif" font-style="italic">
+            context flows down</text>
+        </g>
+
+        <!-- ======================================== -->
+        <!-- Level type labels (right margin)         -->
+        <!-- ======================================== -->
+        <text x="490" y="80" fill="#67e8f9" font-size="7" text-anchor="end"
+          font-family="'Inter', system-ui, sans-serif" opacity="0.4">3 meta</text>
+        <text x="490" y="198" fill="#c4b5fd" font-size="7" text-anchor="end"
+          font-family="'Inter', system-ui, sans-serif" opacity="0.4">26 composites</text>
+        <text x="490" y="330" fill="#fcd34d" font-size="7" text-anchor="end"
+          font-family="'Inter', system-ui, sans-serif" opacity="0.4">218 leaves</text>
+
+      </svg>
+    </div>
+
+  </div>
+</section>
+
+<!-- Scoped styles (light mode default + SVG animations) -->
+<style>
+  /* ========================================
+     SHGAT SECTION - Light Mode
+     Fonts: Fraunces (title L1) / Instrument Serif (title L2) / Inter / JetBrains Mono
+     ======================================== */
+
+  .shgat-section {
+    position: relative;
+    padding: 80px 32px;
+    background: var(--md-sys-color-surface-container-lowest);
+  }
+
+  .shgat-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  /* Content left (order 1), SVG right (order 2) */
+  .shgat-content {
+    order: 1;
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .shgat-viz {
+    order: 2;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: shgatFadeIn 0.6s ease 0.3s forwards;
+  }
+
+  .shgat-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 520px;
+  }
+
+  /* Eyebrow - pill badge */
+  .shgat-eyebrow {
+    display: inline-block;
+    font-family: 'JetBrains Mono', 'Geist Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: #b45309;
+    background: rgba(180, 83, 9, 0.08);
+    border: 1px solid rgba(180, 83, 9, 0.2);
+    border-radius: 100px;
+    padding: 4px 14px;
+    margin: 0 0 20px;
+  }
+
+  /* Title */
+  .shgat-title {
+    font-size: clamp(1.5rem, 3.5vw, 2.5rem);
+    font-weight: 400;
+    line-height: 1.15;
+    margin: 0 0 16px;
+  }
+
+  .shgat-title-line1 {
+    display: block;
+    font-family: 'Fraunces', Georgia, serif;
+    color: #1a1a1a;
+  }
+
+  .shgat-title-line2 {
+    display: block;
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    color: #b45309;
+  }
+
+  /* Description */
+  .shgat-description {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #666;
+    margin: 0 0 32px;
+  }
+
+  /* Feature list */
+  .shgat-features {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .shgat-feature {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .shgat-feature-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(180, 83, 9, 0.1);
+    border-radius: 6px;
+  }
+
+  .shgat-feature-icon .material-symbols-rounded {
+    font-size: 14px;
+    color: #b45309;
+  }
+
+  .shgat-feature-body {
+    flex: 1;
+    padding-top: 2px;
+  }
+
+  .shgat-feature-title {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 2px;
+  }
+
+  .shgat-feature-desc {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: #888;
+    margin: 0;
+  }
+
+  /* ========================================
+     SVG ANIMATION KEYFRAMES
+     ======================================== */
+
+  /* Entrance fade */
+  @keyframes shgatFadeIn {
+    to { opacity: 1; }
+  }
+
+  /* Phase 1: upward dash-offset animation (green arrows) */
+  @keyframes shgatFlowUp {
+    0% { stroke-dashoffset: 18; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  /* Phase 2: downward dash-offset animation (blue arrows) */
+  @keyframes shgatFlowDown {
+    0% { stroke-dashoffset: 18; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  /* Root node gentle pulse */
+  @keyframes shgatRootPulse {
+    0%, 100% { opacity: 0.06; }
+    50% { opacity: 0.12; }
+  }
+
+  /* Intent arrow flow */
+  @keyframes shgatIntentFlow {
+    0% { stroke-dashoffset: 16; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  /* Apply animations to upward arrows */
+  .shgat-arrow-up {
+    animation: shgatFlowUp 1.8s linear infinite;
+  }
+  .shgat-up-1 { animation-delay: 0s; }
+  .shgat-up-2 { animation-delay: 0.2s; }
+  .shgat-up-3 { animation-delay: 0.4s; }
+  .shgat-up-4 { animation-delay: 0.8s; }
+  .shgat-up-5 { animation-delay: 1.0s; }
+
+  /* Apply animations to downward arrows */
+  .shgat-arrow-down {
+    animation: shgatFlowDown 1.8s linear infinite;
+  }
+  .shgat-down-1 { animation-delay: 1.4s; }
+  .shgat-down-2 { animation-delay: 1.6s; }
+  .shgat-down-3 { animation-delay: 2.0s; }
+  .shgat-down-4 { animation-delay: 2.2s; }
+  .shgat-down-5 { animation-delay: 2.4s; }
+
+  /* Root glow pulse */
+  .shgat-node-root rect:first-child {
+    animation: shgatRootPulse 3s ease-in-out infinite;
+  }
+
+  /* Intent arrow animation */
+  .shgat-intent-arrow {
+    animation: shgatIntentFlow 2s linear infinite;
+  }
+
+  /* ========================================
+     RESPONSIVE
+     ======================================== */
+
+  /* Tablet */
+  @media (max-width: 1024px) {
+    .shgat-section {
+      padding: 60px 24px;
+    }
+
+    .shgat-container {
+      gap: 40px;
+    }
+  }
+
+  /* Mobile - stack vertically */
+  @media (max-width: 768px) {
+    .shgat-section {
+      padding: 48px 20px;
+    }
+
+    .shgat-container {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+
+    .shgat-content {
+      order: 2;
+      text-align: center;
+    }
+
+    .shgat-viz {
+      order: 1;
+    }
+
+    .shgat-eyebrow {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+    }
+
+    .shgat-features {
+      text-align: left;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+  }
+
+  /* ========================================
+     REDUCED MOTION — disables all animations
+     ======================================== */
+  @media (prefers-reduced-motion: reduce) {
+    .shgat-viz {
+      animation: none;
+      opacity: 1;
+    }
+
+    .shgat-arrow-up,
+    .shgat-arrow-down,
+    .shgat-intent-arrow,
+    .shgat-node-root rect:first-child {
+      animation: none;
+    }
+  }
+</style>
+
+<!-- Global styles for dark mode -->
+<style is:global>
+  /* ========================================
+     SHGAT SVG - Light Mode Fills
+     ======================================== */
+
+  /* Node backgrounds: light pastel fills for white bg */
+  #shgat .shgat-node-root > rect:nth-child(2) { fill: #ecfeff; }
+  #shgat .shgat-node-composite > rect:first-child { fill: #f3f0ff; }
+  #shgat .shgat-node-leaf > rect:first-child { fill: #fef9ee; }
+  #shgat .shgat-score-output > rect:nth-of-type(1) { fill: #fef9ee; }
+
+  /* Node labels: dark readable colors on light bg */
+  #shgat .shgat-node-root .shgat-node-label { fill: #0e7490; }
+  #shgat .shgat-node-composite .shgat-node-label { fill: #6d28d9; }
+  #shgat .shgat-node-leaf .shgat-node-label { fill: #92400e; }
+
+  /* Score output text: darker amber for readability */
+  #shgat .shgat-score-output text:first-of-type { fill: #b45309; }
+
+  /* ========================================
+     SHGAT SECTION - Dark Mode
+     bg: #0a0908, accent: #FFB86F / warm amber
+     ======================================== */
+
+  html[data-theme="dark"] #shgat {
+    background: #0c0a08;
+  }
+
+  html[data-theme="dark"] #shgat .shgat-eyebrow {
+    color: #FFB86F;
+    background: rgba(255, 184, 111, 0.08);
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #shgat .shgat-title-line1 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #shgat .shgat-title-line2 {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #shgat .shgat-description {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #shgat .shgat-feature-icon {
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #shgat .shgat-feature-icon .material-symbols-rounded {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #shgat .shgat-feature-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #shgat .shgat-feature-desc {
+    color: #a89a8c;
+  }
+
+  /* SVG dark mode: dot grid uses warm white */
+  html[data-theme="dark"] #shgat .shgat-grid circle {
+    fill: #a8a29e;
+  }
+
+  /* SVG dark mode: node box fills become slightly more visible */
+  html[data-theme="dark"] #shgat .shgat-node-leaf rect:first-child,
+  html[data-theme="dark"] #shgat .shgat-node-composite rect:first-child,
+  html[data-theme="dark"] #shgat .shgat-node-root rect:nth-child(2) {
+    opacity: 1;
+  }
+
+  /* SVG dark mode: upward arrows brighter */
+  html[data-theme="dark"] #shgat .shgat-arrow-up {
+    opacity: 0.8;
+  }
+
+  /* SVG dark mode: downward arrows brighter */
+  html[data-theme="dark"] #shgat .shgat-arrow-down {
+    opacity: 0.8;
+  }
+
+  /* SVG dark mode: node fills (restore dark fills over light defaults) */
+  html[data-theme="dark"] #shgat .shgat-node-root > rect:nth-child(2) { fill: #0e1820; }
+  html[data-theme="dark"] #shgat .shgat-node-composite > rect:first-child { fill: #1a1228; }
+  html[data-theme="dark"] #shgat .shgat-node-leaf > rect:first-child { fill: #1c1508; }
+  html[data-theme="dark"] #shgat .shgat-score-output > rect:nth-of-type(1) { fill: #1c1508; }
+
+  /* SVG dark mode: node labels (bright on dark) */
+  html[data-theme="dark"] #shgat .shgat-node-root .shgat-node-label { fill: #67e8f9; }
+  html[data-theme="dark"] #shgat .shgat-node-composite .shgat-node-label { fill: #c4b5fd; }
+  html[data-theme="dark"] #shgat .shgat-node-leaf .shgat-node-label { fill: #fcd34d; }
+
+  /* SVG dark mode: score output text */
+  html[data-theme="dark"] #shgat .shgat-score-output text:first-of-type { fill: #fbbf24; }
+</style>

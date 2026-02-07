@@ -1,0 +1,147 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    title: 'From Intent to',
+    titleAccent: 'Ranked Tools',
+    subtitle: 'One model, one pipeline. SHGAT scores tool relevance across the full hierarchy, then the DAG executor runs the top-ranked tools.',
+    steps: [
+      { icon: 'search', label: 'Intent', sublabel: 'user query', type: 'incoming' },
+      { icon: 'text_fields', label: 'Embed', sublabel: 'BGE-M3 1024D', type: '' },
+      { icon: 'hub', label: 'SHGAT Score', sublabel: 'K-head \u00d7 16', type: '' },
+      { icon: 'format_list_numbered', label: 'Rank', sublabel: 'top-K tools', type: '' },
+      { icon: 'play_arrow', label: 'Execute', sublabel: 'DAG runner', type: 'handler' },
+    ],
+  },
+  fr: {
+    title: 'De l\'Intent aux',
+    titleAccent: 'Outils Classes',
+    subtitle: 'Un modele, un pipeline. SHGAT score la pertinence des outils sur toute la hierarchie, puis le DAG executor lance les mieux classes.',
+    steps: [
+      { icon: 'search', label: 'Intent', sublabel: 'requete', type: 'incoming' },
+      { icon: 'text_fields', label: 'Embedding', sublabel: 'BGE-M3 1024D', type: '' },
+      { icon: 'hub', label: 'Score SHGAT', sublabel: 'K-head \u00d7 16', type: '' },
+      { icon: 'format_list_numbered', label: 'Classement', sublabel: 'top-K outils', type: '' },
+      { icon: 'play_arrow', label: 'Executer', sublabel: 'DAG runner', type: 'handler' },
+    ],
+  },
+  zh: {
+    title: 'From Intent to',
+    titleAccent: 'Ranked Tools',
+    subtitle: 'One model, one pipeline. SHGAT scores tool relevance across the full hierarchy, then the DAG executor runs the top-ranked tools.',
+    steps: [
+      { icon: 'search', label: 'Intent', sublabel: 'user query', type: 'incoming' },
+      { icon: 'text_fields', label: 'Embed', sublabel: 'BGE-M3 1024D', type: '' },
+      { icon: 'hub', label: 'SHGAT Score', sublabel: 'K-head \u00d7 16', type: '' },
+      { icon: 'format_list_numbered', label: 'Rank', sublabel: 'top-K tools', type: '' },
+      { icon: 'play_arrow', label: 'Execute', sublabel: 'DAG runner', type: 'handler' },
+    ],
+  },
+} as const;
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="how-it-works">
+  <div class="eng-container">
+    <div class="eng-section-header eng-center">
+      <h2>{t.title} <span class="eng-accent-text">{t.titleAccent}</span></h2>
+      <p class="eng-section-subtitle">{t.subtitle}</p>
+    </div>
+    <div class="eng-pipeline-flow" role="img" aria-label="Engine pipeline visualization: Intent, Embed, SHGAT Score, Rank, Execute">
+      {t.steps.map((step, i) => (
+        <>
+          <div class={`eng-pipeline-step ${step.type}`}>
+            <span class="material-symbols-rounded">{step.icon}</span>
+            <span class="eng-pipeline-label">{step.label}</span>
+            <span class="eng-pipeline-sublabel">{step.sublabel}</span>
+          </div>
+          {i < t.steps.length - 1 && <div class="eng-pipeline-connector" aria-hidden="true"></div>}
+        </>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  #how-it-works {
+    position: relative;
+    padding: 56px 0 64px;
+    background: var(--md-sys-color-surface-container-lowest);
+    overflow: hidden;
+  }
+
+  .eng-container { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+  .eng-section-header { margin-bottom: 24px; }
+  .eng-section-header.eng-center { text-align: center; max-width: 700px; margin-left: auto; margin-right: auto; }
+  .eng-section-header h2 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 600; font-optical-sizing: auto; color: var(--md-sys-color-on-surface); margin: 0 0 12px; letter-spacing: -0.02em; }
+  .eng-section-subtitle { font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); margin: 0; line-height: 1.6; }
+
+  .eng-pipeline-flow { display: flex; align-items: flex-start; justify-content: center; gap: 0; padding: 48px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .eng-pipeline-step { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 12px; min-width: 100px; border-radius: 12px; transition: transform 200ms ease-out; flex-shrink: 0; }
+  .eng-pipeline-step:hover { transform: translateY(-4px); }
+
+  .eng-pipeline-step .material-symbols-rounded { font-size: 28px; color: var(--md-sys-color-on-surface-variant); width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; background: var(--md-sys-color-surface-container-high); border: 1px solid var(--md-sys-color-outline-variant); border-radius: 14px; transition: border-color 200ms ease-out, background 200ms ease-out; }
+  .eng-pipeline-step:hover .material-symbols-rounded { border-color: var(--md-sys-color-primary); color: var(--md-sys-color-primary); }
+
+  .eng-pipeline-step.incoming .material-symbols-rounded { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); border-color: transparent; }
+  .eng-pipeline-step.handler .material-symbols-rounded { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); border-color: transparent; }
+
+  .eng-pipeline-label { font-size: 0.75rem; font-weight: 600; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
+
+  .eng-pipeline-sublabel {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.625rem;
+    font-weight: 400;
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.65;
+    text-align: center;
+    margin-top: -4px;
+  }
+
+  .eng-pipeline-connector { width: 24px; height: 2px; background: var(--md-sys-color-outline-variant); flex-shrink: 0; position: relative; margin-top: 42px; }
+  .eng-pipeline-connector::after { content: ''; position: absolute; right: -1px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-left: 5px solid var(--md-sys-color-outline-variant); border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+
+  @media (max-width: 1024px) {
+    .eng-container { padding: 0 32px; }
+    .eng-pipeline-flow { justify-content: flex-start; padding: 32px 0; }
+  }
+
+  @media (max-width: 768px) {
+    #how-it-works { padding: 60px 0; }
+    .eng-container { padding: 0 20px; }
+    .eng-pipeline-flow { gap: 0; padding: 24px 0; }
+    .eng-pipeline-step { min-width: 64px; padding: 8px 4px; }
+    .eng-pipeline-step .material-symbols-rounded { width: 40px; height: 40px; font-size: 20px; border-radius: 10px; }
+    .eng-pipeline-label { font-size: 0.5625rem; }
+    .eng-pipeline-sublabel { font-size: 0.5rem; }
+    .eng-pipeline-connector { width: 12px; margin-top: 34px; }
+  }
+
+  @media (max-width: 380px) {
+    .eng-container { padding: 0 14px; }
+    .eng-pipeline-step { min-width: 52px; }
+    .eng-pipeline-connector { width: 6px; }
+    .eng-pipeline-connector::after { display: none; }
+  }
+</style>
+
+<style is:global>
+  #how-it-works .eng-accent-text { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; color: var(--md-sys-color-primary); }
+
+  html[data-theme="dark"] #how-it-works { background: #0d0c0a; }
+  html[data-theme="dark"] #how-it-works .eng-section-header h2 { color: #f5f0ea; }
+  html[data-theme="dark"] #how-it-works .eng-accent-text { color: #FFB86F; }
+  html[data-theme="dark"] #how-it-works .eng-section-subtitle { color: #d5c3b5; }
+
+  html[data-theme="dark"] #how-it-works .eng-pipeline-step .material-symbols-rounded { background: #1a1815; border-color: rgba(255, 184, 111, 0.12); color: #d5c3b5; }
+  html[data-theme="dark"] #how-it-works .eng-pipeline-step:hover .material-symbols-rounded { border-color: #FFB86F; color: #FFB86F; }
+  html[data-theme="dark"] #how-it-works .eng-pipeline-step.incoming .material-symbols-rounded { background: rgba(255, 184, 111, 0.15); color: #FFB86F; border-color: transparent; }
+  html[data-theme="dark"] #how-it-works .eng-pipeline-step.handler .material-symbols-rounded { background: #FFB86F; color: #1a1815; border-color: transparent; }
+  html[data-theme="dark"] #how-it-works .eng-pipeline-label { color: #a89a8c; }
+  html[data-theme="dark"] #how-it-works .eng-pipeline-sublabel { color: #a89a8c; }
+  html[data-theme="dark"] #how-it-works .eng-pipeline-connector { background: rgba(255, 184, 111, 0.15); }
+  html[data-theme="dark"] #how-it-works .eng-pipeline-connector::after { border-left-color: rgba(255, 184, 111, 0.15); }
+</style>

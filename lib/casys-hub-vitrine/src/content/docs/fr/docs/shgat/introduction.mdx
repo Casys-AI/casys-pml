@@ -1,0 +1,78 @@
+---
+title: Introduction
+description: Reseaux d'attention SuperHyperGraph pour le scoring de pertinence des outils. Passage de messages multi-niveaux sur hypergraphes avec attention a K tetes.
+prev: false
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+Evaluez la pertinence des outils a travers les hierarchies d'hypergraphes -- sans appels LLM, sans API externes, de maniere deterministe.
+
+Construit sur [libtensorflow](https://www.tensorflow.org/install/lang_c) via Deno FFI pour des performances natives en C. Publie sur [JSR](https://jsr.io/@casys/shgat).
+
+## Le probleme
+
+Les outils sont organises en hierarchies. Un composite "database" contient `psql_query`, `psql_exec`, `pg_dump`. Un composite "data-pipeline" contient le composite "database" plus `csv_parse` et `json_transform`. Les approches de scoring traditionnelles aplatissent cette structure en une liste unique, perdant les relations N-a-N entre les noeuds.
+
+Quand un utilisateur dit "exporte mes donnees en CSV", il faut un scoring qui propage la pertinence **a travers les niveaux** -- des feuilles jusqu'aux composites -- pas simplement une similarite cosinus sur une liste plate.
+
+## La solution
+
+`@casys/shgat` utilise l'attention sur hypergraphe pour propager la pertinence a travers toute la hierarchie. Le passage de messages multi-niveaux (V->E->...->V) enrichit les embeddings a chaque niveau avant que l'attention a K tetes ne les evalue par rapport a l'intention utilisateur. Un seul modele, autonome, qui tourne sur votre materiel.
+
+```typescript
+import { createSHGAT, type Node } from "@casys/shgat";
+
+// Define your tool hierarchy
+const nodes: Node[] = [
+  { id: "psql_query",  embedding: queryEmb,  children: [], level: 0 },
+  { id: "psql_exec",   embedding: execEmb,   children: [], level: 0 },
+  { id: "csv_parse",   embedding: csvEmb,    children: [], level: 0 },
+  { id: "database",    embedding: dbEmb,     children: ["psql_query", "psql_exec"], level: 1 },
+  { id: "data-pipeline", embedding: pipeEmb, children: ["database", "csv_parse"],  level: 2 },
+];
+
+// Create model and score
+const model = createSHGAT(nodes);
+const ranked = model.scoreNodes(intentEmbedding);
+
+for (const { nodeId, score, level } of ranked.slice(0, 5)) {
+  console.log(`${nodeId} (L${level}): ${score.toFixed(4)}`);
+}
+
+model.dispose();
+```
+
+<Aside type="tip">
+  `scoreNodes()` execute le passage de messages multi-niveaux et l'attention a K tetes en un seul appel. Toutes les operations tensorielles restent sur le backend natif jusqu'a la conversion finale du resultat.
+</Aside>
+
+## Contenu du package
+
+<CardGrid>
+  <Card title="Attention a K tetes" icon="star">
+    Attention a 16 tetes (adaptative 4-16) avec projections cle/requete par tete. Chaque tete evalue independamment, puis fusion. Deterministe -- meme entree, meme sortie.
+  </Card>
+  <Card title="Passage de messages multi-niveaux" icon="random">
+    Propagation ascendante (V->E^0->E^1->...->E^L) puis descendante (E^L->...->E^0->V). Les composites aggregent leurs enfants, puis propagent le contexte vers le bas.
+  </Card>
+  <Card title="Perte contrastive InfoNCE" icon="approve-check">
+    Entrainement contrastif avec entropie croisee a temperature ajustable. Positif = l'outil qui a ete execute. Negatifs = echantillonnes par paliers de curriculum (facile->difficile).
+  </Card>
+  <Card title="Passage de messages creux" icon="list-format">
+    Matrices d'incidence creuses pour une propagation efficace. Passe a l'echelle avec des milliers de noeuds sans le cout des matrices denses.
+  </Card>
+  <Card title="Entrainement PER" icon="rocket">
+    Buffer de Prioritized Experience Replay avec apprentissage par curriculum. Les negatifs difficiles sont echantillonnes plus souvent a mesure que la precision s'ameliore.
+  </Card>
+  <Card title="libtensorflow FFI" icon="setting">
+    TensorFlow natif en C via `Deno.dlopen`. Pas de WASM, pas de packages npm tf. Acceleration GPU avec CUDA si disponible.
+  </Card>
+</CardGrid>
+
+## Pour commencer
+
+<CardGrid>
+  <LinkCard title="Installation" href="/fr/docs/shgat/installation/" description="Installer via JSR et configurer libtensorflow." />
+  <LinkCard title="Demarrage rapide" href="/fr/docs/shgat/quickstart/" description="Evaluez vos premiers noeuds en moins d'une minute." />
+</CardGrid>

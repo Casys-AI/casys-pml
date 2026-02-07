@@ -1,0 +1,119 @@
+---
+title: Installation
+description: Install @casys/shgat via JSR and set up libtensorflow.
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+Install the package, set up the native TensorFlow backend, and verify everything works.
+
+## Install
+
+<Tabs>
+  <TabItem label="Deno (recommended)">
+    ```bash
+    deno add jsr:@casys/shgat
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npx jsr add @casys/shgat
+    ```
+  </TabItem>
+</Tabs>
+
+Published on [JSR](https://jsr.io/@casys/shgat), the modern JavaScript registry.
+
+## Requirements
+
+| Dependency | Minimum Version | Notes |
+|-----------|----------------|-------|
+| **Deno** | 2.0+ | FFI requires `--unstable-ffi` flag |
+| **libtensorflow** | 2.15.x | Native C library (see below) |
+| **Linux x86_64** | Ubuntu 20.04+ / Debian 11+ | macOS x86_64 also supported |
+| **CUDA** (optional) | 11.8+ | Only for GPU acceleration |
+
+## TensorFlow Installation
+
+`@casys/shgat` uses the C TensorFlow library directly via `Deno.dlopen`. You need `libtensorflow` installed on your system.
+
+### Option A: Install script
+
+```bash
+./scripts/install-libtensorflow.sh        # CPU (default)
+./scripts/install-libtensorflow.sh gpu     # GPU (requires CUDA 11.8+)
+```
+
+### Option B: Manual install
+
+<Tabs>
+  <TabItem label="Linux">
+    ```bash
+    # Download libtensorflow 2.15.0 (CPU)
+    curl -L https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.15.0.tar.gz \
+      -o /tmp/libtensorflow.tar.gz
+
+    # Extract to /usr/local
+    sudo tar -C /usr/local -xzf /tmp/libtensorflow.tar.gz
+
+    # Update library cache
+    sudo ldconfig
+
+    # Verify
+    ls /usr/local/lib/libtensorflow.so
+    ```
+  </TabItem>
+  <TabItem label="macOS">
+    ```bash
+    # Download libtensorflow 2.15.0 (CPU)
+    curl -L https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-darwin-x86_64-2.15.0.tar.gz \
+      -o /tmp/libtensorflow.tar.gz
+
+    # Extract to /usr/local
+    sudo tar -C /usr/local -xzf /tmp/libtensorflow.tar.gz
+
+    # Verify
+    ls /usr/local/lib/libtensorflow.dylib
+    ```
+  </TabItem>
+</Tabs>
+
+## Verify it works
+
+Create a `test-shgat.ts` file:
+
+```typescript
+import { createSHGAT, type Node } from "@casys/shgat";
+
+const nodes: Node[] = [
+  { id: "tool-a", embedding: new Array(1024).fill(0.1), children: [], level: 0 },
+  { id: "tool-b", embedding: new Array(1024).fill(0.2), children: [], level: 0 },
+  { id: "group",  embedding: new Array(1024).fill(0.15), children: ["tool-a", "tool-b"], level: 1 },
+];
+
+const model = createSHGAT(nodes);
+console.log(`Nodes registered: ${model.getToolCount()} leaves, ${model.getCapabilityCount()} composites`);
+
+const scores = model.scoreNodes(new Array(1024).fill(0.1));
+console.log("Top result:", scores[0]?.nodeId, scores[0]?.score.toFixed(4));
+
+model.dispose();
+```
+
+Run it:
+
+```bash
+deno run --unstable-ffi --allow-ffi test-shgat.ts
+```
+
+<Aside type="tip">
+  If you see the node count and a score, the native TensorFlow backend is working. Head to the Quick Start to score real nodes.
+</Aside>
+
+<Aside>
+  SHGAT uses libtensorflow via Deno FFI (`Deno.dlopen`). No WASM, no npm tf packages, native C performance. The `--unstable-ffi` and `--allow-ffi` flags are required for Deno to load the shared library.
+</Aside>
+
+## Next up
+
+Score your first real nodes and see ranked results: **[Quick Start](/docs/shgat/quickstart/)**.

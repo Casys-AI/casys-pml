@@ -1,0 +1,372 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    tagline: 'ML COMPUTATION LAYER',
+    heroTitle1: 'Score, Rank, Build Paths',
+    heroTitle2: 'No LLM Required',
+    heroSubtitle: 'SHGAT attention networks score tool relevance across a hypergraph hierarchy. Multi-level message passing, K-head attention, zero LLM calls. Deterministic. Observable. Runs on your hardware.',
+    statTools: 'Nodes indexed',
+    statHit: 'Hit@3',
+    statLatency: 'Score latency',
+    ctaPrimary: 'How It Works',
+    ctaDocs: 'Documentation',
+    ctaSecondary: 'GitHub',
+  },
+  fr: {
+    tagline: 'ML COMPUTATION LAYER',
+    heroTitle1: 'Score, Rank, Build Paths',
+    heroTitle2: 'No LLM Required',
+    heroSubtitle: 'Les reseaux d\'attention SHGAT scorent la pertinence des outils sur une hierarchie d\'hypergraphe. Message passing multi-niveaux, attention K-head, zero appel LLM. Deterministe. Observable. Tourne sur votre hardware.',
+    statTools: 'Noeuds indexes',
+    statHit: 'Hit@3',
+    statLatency: 'Latence scoring',
+    ctaPrimary: 'Comment ca marche',
+    ctaDocs: 'Documentation',
+    ctaSecondary: 'GitHub',
+  },
+  zh: {
+    tagline: 'ML COMPUTATION LAYER',
+    heroTitle1: 'Score, Rank, Build Paths',
+    heroTitle2: 'No LLM Required',
+    heroSubtitle: 'SHGAT attention networks score tool relevance across a hypergraph hierarchy. Multi-level message passing, K-head attention, zero LLM calls. Deterministic. Observable. Runs on your hardware.',
+    statTools: 'Nodes indexed',
+    statHit: 'Hit@3',
+    statLatency: 'Score latency',
+    ctaPrimary: 'How It Works',
+    ctaDocs: 'Documentation',
+    ctaSecondary: 'GitHub',
+  },
+} as const;
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+
+const terminalLines = `<code class="eng-terminal-line"><span class="t-prompt">$</span> casys engine score --intent "deploy to staging"</code>
+<code class="eng-terminal-line t-dim" style="margin-top:4px">  casys/engine v0.1</code>
+<code class="eng-terminal-line t-dim">&nbsp;</code>
+<code class="eng-terminal-line"><span class="t-dim">  SHGAT-TF</span> <span class="t-accent">16 heads</span> <span class="t-dim">&times;</span> <span class="t-accent">64D</span></code>
+<code class="eng-terminal-line"><span class="t-dim">  &#9500;</span> <span class="t-key">Message passing:</span> L0 (218) &#8594; L1 (26) &#8594; L2 (1)</code>
+<code class="eng-terminal-line"><span class="t-dim">  &#9492;</span> <span class="t-ok">Scoring complete:</span> <span class="t-accent">2.3s</span></code>
+<code class="eng-terminal-line t-dim">&nbsp;</code>
+<code class="eng-terminal-line"><span class="t-dim">  Rank  Tool                Score</span></code>
+<code class="eng-terminal-line"><span class="t-ok">  #1</span>    <span class="t-key">deploy:staging</span>      <span class="t-accent">0.847</span></code>
+<code class="eng-terminal-line"><span class="t-ok">  #2</span>    <span class="t-key">docker:build</span>        <span class="t-accent">0.723</span></code>
+<code class="eng-terminal-line"><span class="t-ok">  #3</span>    <span class="t-key">k8s:apply</span>           <span class="t-accent">0.691</span></code>
+<code class="eng-terminal-line t-dim">&nbsp;</code>
+<code class="eng-terminal-line"><span class="t-ok">  Done</span> in <span class="t-accent">2.3s</span> &middot; 16 heads &middot; 3 levels</code>`;
+---
+
+<section id="engine-hero">
+  <div class="eng-gradient-orb" aria-hidden="true"></div>
+  <div class="eng-container eng-hero-grid">
+    <div class="eng-hero-content">
+      <span class="eng-hero-tagline">{t.tagline}</span>
+      <h1 class="eng-hero-title">
+        <span class="eng-title-line">{t.heroTitle1}</span>
+        <span class="eng-title-line eng-accent">{t.heroTitle2}</span>
+      </h1>
+      <p class="eng-hero-subtitle">{t.heroSubtitle}</p>
+      <div class="eng-cta-group">
+        <a href="#how-it-works" class="eng-cta-primary">
+          <span class="material-symbols-rounded">arrow_downward</span>
+          <span>{t.ctaPrimary}</span>
+        </a>
+        <a href="/docs/shgat/introduction/" class="eng-cta-secondary">
+          <span class="material-symbols-rounded">description</span>
+          <span>{t.ctaDocs}</span>
+        </a>
+        <a href="https://github.com/Casys-AI/shgat" class="eng-cta-secondary" target="_blank" rel="noopener noreferrer">
+          <span>{t.ctaSecondary}</span>
+          <span class="material-symbols-rounded">arrow_outward</span>
+        </a>
+      </div>
+      <div class="eng-stats-row">
+        <div class="eng-stat-item">
+          <span class="eng-stat-value">644</span>
+          <span class="eng-stat-label">{t.statTools}</span>
+        </div>
+        <div class="eng-stat-item">
+          <span class="eng-stat-value">86.3%</span>
+          <span class="eng-stat-label">{t.statHit}</span>
+        </div>
+        <div class="eng-stat-item">
+          <span class="eng-stat-value">21ms</span>
+          <span class="eng-stat-label">{t.statLatency}</span>
+        </div>
+      </div>
+    </div>
+    <div class="eng-hero-visual" aria-hidden="true">
+      <div class="eng-terminal-window">
+        <div class="eng-terminal-header">
+          <span class="eng-terminal-dot red"></span>
+          <span class="eng-terminal-dot yellow"></span>
+          <span class="eng-terminal-dot green"></span>
+          <span class="eng-terminal-title">casys-engine</span>
+        </div>
+        <div class="eng-terminal-body" set:html={terminalLines} />
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  #engine-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 56px 0 40px;
+  }
+
+  .eng-container { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+  .eng-hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: start;
+  }
+
+  .eng-hero-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 8px;
+  }
+
+  .eng-hero-tagline {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--md-sys-color-primary);
+    padding: 5px 12px;
+    background: var(--md-sys-color-primary-container);
+    border-radius: 100px;
+    width: fit-content;
+  }
+
+  .eng-hero-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(2.25rem, 4.5vw, 3.5rem);
+    font-weight: 500;
+    font-optical-sizing: auto;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    margin: 0;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .eng-title-line { display: block; }
+  .eng-title-line.eng-accent { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; color: var(--md-sys-color-primary); }
+
+  .eng-hero-subtitle {
+    font-size: clamp(1rem, 1.4vw, 1.125rem);
+    font-weight: 400;
+    line-height: 1.65;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 480px;
+  }
+
+  .eng-cta-group { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .eng-cta-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 200ms ease-out, transform 100ms ease-out;
+  }
+  .eng-cta-primary:hover { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+  .eng-cta-primary:active { transform: scale(0.98); }
+  .eng-cta-primary:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 4px; }
+  .eng-cta-primary .material-symbols-rounded { font-size: 18px; }
+
+  .eng-cta-secondary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 20px;
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    transition: background 200ms ease-out, border-color 200ms ease-out;
+  }
+  .eng-cta-secondary:hover { background: var(--md-sys-color-surface-container); border-color: var(--md-sys-color-primary); }
+  .eng-cta-secondary:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 4px; }
+  .eng-cta-secondary .material-symbols-rounded { font-size: 16px; }
+
+  .eng-stats-row {
+    display: flex;
+    gap: 28px;
+    padding: 14px 0 0;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .eng-stat-item { display: flex; flex-direction: column; gap: 2px; }
+
+  .eng-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--md-sys-color-primary);
+    line-height: 1;
+  }
+
+  .eng-stat-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Terminal mockup */
+  .eng-hero-visual { display: flex; justify-content: flex-end; }
+
+  .eng-terminal-window {
+    width: 100%;
+    max-width: 500px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-lowest);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  .eng-terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 14px;
+    background: var(--md-sys-color-surface-container-high);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .eng-terminal-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .eng-terminal-dot.red { background: #ff5f57; }
+  .eng-terminal-dot.yellow { background: #febc2e; }
+  .eng-terminal-dot.green { background: #28c840; }
+
+  .eng-terminal-title {
+    margin-left: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    color: var(--md-sys-color-on-surface-variant);
+    font-weight: 500;
+  }
+
+  .eng-terminal-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
+
+  .eng-terminal-line {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.7;
+    color: var(--md-sys-color-on-surface);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: pre;
+  }
+
+  /* Terminal text colors are in <style is:global> because set:html content has no Astro scoped hash */
+
+  /* Gradient orb */
+  .eng-gradient-orb {
+    position: absolute;
+    top: 40%;
+    left: 65%;
+    transform: translate(-50%, -50%);
+    width: min(800px, 60vw);
+    height: min(600px, 50vh);
+    background:
+      radial-gradient(circle at 30% 40%, rgba(180, 83, 9, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 70% 60%, rgba(20, 184, 166, 0.05) 0%, transparent 50%);
+    filter: blur(80px);
+    opacity: 0.6;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @media (max-width: 1024px) {
+    .eng-container { padding: 0 32px; }
+    .eng-hero-grid { grid-template-columns: 1fr; gap: 32px; }
+    .eng-hero-content { align-items: center; text-align: center; padding-top: 0; }
+    .eng-hero-subtitle { max-width: 560px; }
+    .eng-stats-row { justify-content: center; }
+    .eng-cta-group { justify-content: center; }
+    .eng-hero-visual { justify-content: center; }
+    .eng-terminal-window { max-width: 480px; }
+  }
+
+  @media (max-width: 768px) {
+    #engine-hero { padding: 48px 0 32px; }
+    .eng-container { padding: 0 20px; }
+    .eng-hero-grid { gap: 24px; }
+    .eng-hero-title { font-size: clamp(1.75rem, 7vw, 2.5rem); }
+    .eng-hero-subtitle { font-size: 0.9375rem; }
+    .eng-stats-row { gap: 20px; flex-wrap: wrap; }
+    .eng-cta-group { flex-direction: column; width: 100%; }
+    .eng-cta-primary, .eng-cta-secondary { width: 100%; justify-content: center; }
+    .eng-terminal-window { max-width: 100%; }
+    .eng-terminal-body { padding: 14px; }
+    .eng-terminal-line { font-size: 0.6875rem; }
+  }
+
+  @media (max-width: 380px) {
+    .eng-container { padding: 0 14px; }
+    .eng-hero-title { font-size: 1.5rem; }
+    .eng-hero-tagline { font-size: 0.75rem; }
+  }
+</style>
+
+<style is:global>
+  /* Terminal text colors - global because set:html content has no Astro scoped hash */
+  #engine-hero .t-prompt { color: var(--md-sys-color-primary); font-weight: 700; }
+  #engine-hero .t-dim { color: var(--md-sys-color-on-surface-variant); opacity: 0.6; }
+  #engine-hero .t-ok { color: #22c55e; font-weight: 700; }
+  #engine-hero .t-key { color: var(--md-sys-color-on-surface); font-weight: 600; }
+  #engine-hero .t-accent { color: var(--md-sys-color-primary); font-weight: 700; }
+
+  #engine-hero { background: var(--md-sys-color-surface); }
+  html[data-theme="dark"] #engine-hero { background: #0a0908; }
+
+  html[data-theme="dark"] #engine-hero .eng-hero-tagline { background: rgba(255, 184, 111, 0.12); color: #FFB86F; }
+  html[data-theme="dark"] #engine-hero .eng-hero-title { color: #f5f0ea; }
+  html[data-theme="dark"] #engine-hero .eng-title-line.eng-accent { color: #FFB86F; }
+  html[data-theme="dark"] #engine-hero .eng-hero-subtitle { color: #d5c3b5; }
+  html[data-theme="dark"] #engine-hero .eng-stats-row { border-color: rgba(255, 184, 111, 0.15); }
+  html[data-theme="dark"] #engine-hero .eng-stat-value { color: #FFB86F; }
+  html[data-theme="dark"] #engine-hero .eng-stat-label { color: #a89a8c; }
+  html[data-theme="dark"] #engine-hero .eng-cta-primary { background: #FFB86F; color: #1a1815; }
+  html[data-theme="dark"] #engine-hero .eng-cta-primary:hover { background: #D4A574; }
+  html[data-theme="dark"] #engine-hero .eng-cta-secondary { color: #f5f0ea; border-color: rgba(255, 184, 111, 0.2); }
+  html[data-theme="dark"] #engine-hero .eng-cta-secondary:hover { background: rgba(255, 184, 111, 0.1); border-color: #FFB86F; }
+
+  html[data-theme="dark"] #engine-hero .eng-terminal-window { background: #111110; border-color: rgba(255, 184, 111, 0.1); box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 184, 111, 0.05); }
+  html[data-theme="dark"] #engine-hero .eng-terminal-header { background: #1a1815; border-bottom-color: rgba(255, 184, 111, 0.08); }
+  html[data-theme="dark"] #engine-hero .eng-terminal-title { color: #6b6560; }
+  html[data-theme="dark"] #engine-hero .eng-terminal-line { color: #d5c3b5; }
+  html[data-theme="dark"] #engine-hero .t-prompt { color: #FFB86F; }
+  html[data-theme="dark"] #engine-hero .t-dim { color: #6b6560; }
+  html[data-theme="dark"] #engine-hero .t-ok { color: #6ee7b7; }
+  html[data-theme="dark"] #engine-hero .t-key { color: #f5f0ea; }
+  html[data-theme="dark"] #engine-hero .t-accent { color: #FFB86F; }
+
+  html[data-theme="dark"] #engine-hero .eng-gradient-orb {
+    background: radial-gradient(circle at 25% 35%, rgba(255, 184, 111, 0.06) 0%, transparent 50%), radial-gradient(circle at 75% 65%, rgba(212, 165, 116, 0.04) 0%, transparent 50%);
+    filter: blur(100px);
+    opacity: 0.4;
+  }
+</style>

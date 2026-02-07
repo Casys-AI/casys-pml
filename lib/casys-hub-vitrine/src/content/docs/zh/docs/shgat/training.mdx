@@ -1,0 +1,234 @@
+---
+title: 训练
+description: InfoNCE 对比损失、温度退火和优先经验回放。
+---
+
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+import ExcalidrawDiagram from '../../../../../components/ExcalidrawDiagram.astro';
+
+SHGAT 在生产执行追踪上进行训练。每次选择和执行工具时，结果都会反馈到模型中。没有合成数据，没有手动整理的数据集——训练信号来自实际使用。
+
+## 从生产追踪训练
+
+每个训练样本是从真实执行中提取的 `(intent, chosen_tool, outcome)` 元组：
+
+```typescript
+interface TrainingExample {
+  intentEmbedding: number[];     // 1024D BGE-M3 embedding of the user intent
+  candidateId: string;           // The tool that was actually selected (positive)
+  outcome: number;               // 1 = success, 0 = failure
+  contextTools: string[];        // Tools active in the current session
+  negativeCapIds?: string[];     // Other tools (negatives for contrastive loss)
+  allNegativesSorted?: string[]; // All negatives sorted by similarity (hard -> easy)
+}
+```
+
+模型不需要数千个样本就能产生有用的排名。`minTracesForTraining` 配置（默认：100）设置冷启动阈值。低于此值时，模型回退到纯嵌入相似度。
+
+## InfoNCE 对比损失
+
+SHGAT 使用 InfoNCE（噪声对比估计）作为训练目标。核心思想很简单：在嵌入空间中拉近正样本对（intent, chosen_tool），推远负样本对。
+
+对于包含一个正样本和 N 个负样本的批次：
+
+```
+L = -log( exp(sim(q, k+) / tau) / (exp(sim(q, k+) / tau) + sum_i exp(sim(q, k_i-) / tau)) )
+```
+
+其中：
+- `q` = 投影后的意图嵌入
+- `k+` = 正样本工具嵌入（被选中的工具）
+- `k_i-` = 负样本工具嵌入（未被选中的工具）
+- `tau` = 温度参数（控制分布的锐利度）
+- `sim` = K-head 注意力后的点积相似度
+
+低温度使分布更锐利——模型必须更有信心才能将正样本评分高于近似负样本。高温度更宽容。
+
+## 温度退火
+
+<ExcalidrawDiagram src="shgat/shgat-training" alt="SHGAT 训练循环" />
+
+温度从高开始，在训练过程中逐渐降低。早期模型进行广泛探索（高温度 = 柔和概率）。后期聚焦于细粒度区分（低温度 = 锐利概率）。
+
+SHGAT 使用余弦退火：
+
+```
+tau(t) = tau_end + (tau_start - tau_end) * 0.5 * (1 + cos(pi * t / T))
+```
+
+<Tabs>
+  <TabItem label="退火函数">
+    ```typescript
+    import { annealTemperature } from "@casys/shgat";
+
+    const totalEpochs = 25;
+    const tauStart = 0.10;  // Warm: soft probabilities
+    const tauEnd = 0.06;    // Cool: sharp distinctions
+
+    for (let epoch = 0; epoch < totalEpochs; epoch++) {
+      const tau = annealTemperature(epoch, totalEpochs, tauStart, tauEnd);
+      // epoch 0:  tau = 0.100
+      // epoch 12: tau = 0.080
+      // epoch 24: tau = 0.060
+    }
+    ```
+  </TabItem>
+  <TabItem label="曲线可视化">
+    ```
+    tau
+    0.10 |*
+         | **
+         |   ***
+    0.08 |      ****
+         |          ****
+         |              ****
+    0.06 |                  *****
+         +-------------------------
+         0        12        24
+                epoch
+    ```
+  </TabItem>
+</Tabs>
+
+余弦退火在末尾减速，给模型时间稳定在一个稳定最小值，而不是超调。
+
+## 困难负样本挖掘
+
+并非所有负样本都同样有用。一个明显不相关的负样本（例如，当意图是数据库查询时的 `git_commit`）几乎不提供梯度信号。模型已经给它低分了。
+
+困难负样本是语义上接近正样本但功能不同的工具。这些是模型需要发展细粒度区分能力的情况。
+
+SHGAT 按与正样本的相似度预排序所有负样本：
+
+```typescript
+interface TrainingExample {
+  // ...
+  allNegativesSorted?: string[];  // Hard -> easy order
+}
+```
+
+在训练期间，课程学习根据当前模型准确率从不同难度层级选择负样本：
+
+| 准确率 | 层级 | 负样本采样自 |
+|---|---|---|
+| < 0.35 | 简单 | 最后三分之一（最不相似） |
+| 0.35 - 0.55 | 中等 | 中间三分之一 |
+| > 0.55 | 困难 | 前三分之一（最相似） |
+
+这防止模型在尚无法处理的样本上卡住，同时随着准确率提高逐步增加难度。
+
+## 优先经验回放（PER）
+
+并非所有训练样本都值得同等关注。模型犯大错的样本比已经正确处理的样本更有信息量。PER 按错误幅度成比例地采样训练样本。
+
+```typescript
+import { PERBuffer, annealBeta } from "@casys/shgat";
+
+// Wrap your training examples in a PER buffer
+const buffer = new PERBuffer(trainingExamples, {
+  alpha: 0.6,        // Priority exponent (0 = uniform, 1 = full prioritization)
+  beta: 0.4,         // IS weight correction (annealed to 1.0)
+  epsilon: 0.01,     // Floor to prevent starvation
+  maxPriority: 1.0,  // Initial priority for new examples
+});
+
+// Sample a batch -- high-error examples are sampled more often
+const { items, indices, weights } = buffer.sample(batchSize);
+
+// After training, update priorities with the new errors
+const tdErrors = items.map((ex) => computeError(ex));
+buffer.updatePriorities(indices, tdErrors);
+
+// Decay priorities periodically to prevent stale high-priority examples
+buffer.decayPriorities(0.9);
+```
+
+重要性采样权重（`weights`）校正采样偏差。没有它们，模型会在困难样本上过拟合。Beta 在训练过程中从 0.4 退火到 1.0——早期部分校正，收敛时完全校正。
+
+## 训练循环
+
+完整的训练循环，包含温度退火、PER 和课程学习：
+
+<Steps>
+1. **收集追踪数据**，从生产执行到 `TrainingExample[]`。
+
+2. **初始化缓冲区和训练器**：
+
+    ```typescript
+    import { SHGAT, PERBuffer, annealTemperature, annealBeta } from "@casys/shgat";
+    import { AutogradTrainer } from "@casys/shgat/training";
+
+    const shgat = new SHGAT({ numHeads: 16 });
+    // ... register nodes, finalize ...
+
+    const buffer = new PERBuffer(trainingExamples);
+    const trainer = new AutogradTrainer({
+      learningRate: 0.001,
+      batchSize: 32,
+      temperature: 0.07,
+      gradientClip: 1.0,
+      l2Lambda: 0.0001,
+    });
+    ```
+
+3. **运行训练循环**：
+
+    ```typescript
+    const totalEpochs = 25;
+
+    for (let epoch = 0; epoch < totalEpochs; epoch++) {
+      // Anneal temperature: 0.10 -> 0.06
+      const tau = annealTemperature(epoch, totalEpochs, 0.10, 0.06);
+
+      // Anneal beta for IS correction: 0.4 -> 1.0
+      const beta = annealBeta(epoch, totalEpochs, 0.4);
+
+      // Sample batch with PER
+      const { items, indices, weights } = buffer.sample(32, beta);
+
+      // Train on batch
+      const metrics = trainer.trainBatch(items, {
+        temperature: tau,
+        isWeights: weights,
+      });
+
+      // Update priorities from training errors
+      const errors = items.map((_, i) => metrics.perExampleLoss?.[i] ?? metrics.loss);
+      buffer.updatePriorities(indices, errors);
+
+      // Decay stale priorities every 5 epochs
+      if (epoch % 5 === 0) {
+        buffer.decayPriorities(0.9);
+      }
+
+      console.log(
+        `Epoch ${epoch}: loss=${metrics.loss.toFixed(4)} ` +
+        `acc=${metrics.accuracy.toFixed(3)} tau=${tau.toFixed(3)}`
+      );
+    }
+    ```
+
+4. **导出训练参数**：
+
+    ```typescript
+    const params = shgat.exportParams();
+    await Deno.writeTextFile("shgat-params.json", JSON.stringify(params));
+    ```
+</Steps>
+
+<Aside type="note" title="基准测试">
+  在 245 个节点（218 个叶子 + 26 个复合节点 + 1 个根节点）的生产目录上，使用 16 个头和 25 个训练轮次：
+
+  | 指标 | 值 |
+  |---|---|
+  | Hit@1 | 56.2% |
+  | Hit@3 | 86.3% |
+  | MRR | 0.705 |
+
+  Hit@1 = 正确工具排名第一。Hit@3 = 正确工具在前 3 名。MRR = 所有查询的平均倒数排名。
+</Aside>
+
+## 另请参阅
+
+- [架构](/zh/docs/shgat/architecture/) -- K-head 注意力和消息传递
+- [持久化](/zh/docs/shgat/persistence/) -- 保存和加载训练参数

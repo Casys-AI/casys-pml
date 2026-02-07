@@ -1,0 +1,128 @@
+---
+title: 持久化
+description: 以 JSON 格式导出和导入模型参数。
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+SHGAT 参数是普通对象。以 JSON 导出，以 JSON 导入。没有二进制格式，没有框架锁定，没有自定义序列化协议。
+
+## 导出
+
+<Steps>
+1. **训练或加载您的 SHGAT 实例**（参见[训练](/zh/docs/shgat/training/)）。
+
+2. **将参数导出到文件**：
+
+    ```typescript
+    import { SHGAT } from "@casys/shgat";
+
+    const shgat = new SHGAT({ numHeads: 16 });
+    // ... register nodes, train, etc.
+
+    const params = shgat.exportParams();
+    const json = JSON.stringify(params);
+    await Deno.writeTextFile("shgat-params.json", json);
+    ```
+
+    就是这样。`exportParams()` 返回一个简单的 `Record<string, unknown>` -- 每个值都是数字、数字数组或数字的嵌套对象。全部可 JSON 序列化。
+</Steps>
+
+## 导入
+
+<Steps>
+1. **读取参数文件**：
+
+    ```typescript
+    const json = await Deno.readTextFile("shgat-params.json");
+    const params = JSON.parse(json);
+    ```
+
+2. **加载到 SHGAT 实例**：
+
+    ```typescript
+    const shgat = new SHGAT();
+    // ... register the same nodes as the exported model ...
+
+    shgat.importParams(params);
+    ```
+
+    `importParams()` 后，实例即可评分。无需重新训练。
+</Steps>
+
+<Aside type="caution">
+  节点图（注册的节点及其层次结构）不是导出参数的一部分。导入前必须注册相同的节点。参数包含训练权重——针对您特定图结构拟合的投影矩阵、注意力向量和融合权重。
+</Aside>
+
+## 参数内容
+
+导出的对象包含所有可训练参数：
+
+| 键 | 形状 | 描述 |
+|---|---|---|
+| `headParams` | `[numHeads]` | 每头 W_q、W_k 矩阵和注意力向量 |
+| `W_intent` | `[embDim, hiddenDim]` | 意图投影矩阵 |
+| `fusionWeights` | `{semantic, structure, temporal}` | 旧版融合权重 |
+| `levelParams` | `{level: {W_child, W_parent, a_upward, a_downward}}` | 按级别的消息传递参数 |
+| `v2vParams` | `{residualLogit, temperatureLogit}` | 顶点到顶点共现参数 |
+| `config` | `SHGATConfig` | 架构配置（numHeads、embeddingDim 等） |
+| `projectionHead` | `{W1, b1, W2, b2}` | 投影头权重（如果启用） |
+
+所有值都是数字或数字的嵌套数组。没有张量，没有类型化数组，没有框架特定对象。
+
+## 版本控制
+
+导出的参数将完整的 `SHGATConfig` 作为元数据包含。导入时，SHGAT 检查配置兼容性：
+
+```typescript
+// The config is embedded in the exported params
+const params = shgat.exportParams();
+console.log(params.config);
+// {
+//   numHeads: 16,
+//   hiddenDim: 1024,
+//   headDim: 64,
+//   embeddingDim: 1024,
+//   numLayers: 2,
+//   ...
+// }
+```
+
+如果您从不同架构的模型导入参数（例如 8 个头导入到 16 个头的模型），导入会应用能应用的部分，其余使用新初始化。检查 `numHeads` 和 `embeddingDim` 在导出和导入之间匹配，以避免静默的维度不匹配。
+
+<Aside type="tip">
+  对于 245 个节点、16 个头的图，参数通常为 2-5 MB。JSON 压缩效果好——如果存储或传输大小重要，gzip 可将其压缩到 1 MB 以下。
+</Aside>
+
+## 序列化模块
+
+对于高级用例——在参数版本之间迁移、格式转换，或构建自定义导入/导出流水线——序列化模块暴露了底层函数：
+
+```typescript
+import {
+  exportSHGATParams,
+  importSHGATParams,
+} from "@casys/shgat/core/serialization";
+
+// Export with full context
+const exported = exportSHGATParams({
+  config,
+  params,
+  levelParams,
+  v2vParams,
+});
+
+// Import with version migration
+const result = importSHGATParams(serialized, currentParams, currentV2VParams);
+// result.config  -- updated config (or null if compatible)
+// result.params  -- merged parameters
+// result.levelParams -- per-level message passing weights
+// result.v2vParams   -- vertex-to-vertex weights
+```
+
+导入函数处理向后兼容：从旧版本导出的参数会自动迁移。序列化数据中不存在的字段用默认值初始化。序列化数据中存在但当前版本中不存在的字段会被静默忽略。
+
+## 另请参阅
+
+- [架构](/zh/docs/shgat/architecture/) -- 这些参数控制什么
+- [训练](/zh/docs/shgat/training/) -- 如何产生训练参数

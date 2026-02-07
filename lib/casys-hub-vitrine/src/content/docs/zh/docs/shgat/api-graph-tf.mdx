@@ -1,0 +1,448 @@
+---
+title: Graph & TensorFlow
+description: 图构建、层次计算和 TensorFlow FFI 后端。
+next: false
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+`@casys/shgat` 的图构建、批量操作、消息传递和 TensorFlow FFI 后端。发布在 [JSR](https://jsr.io/@casys/shgat)。
+
+## 图构建
+
+### GraphBuilder
+
+管理超图结构。处理统一节点注册、旧版 tool/capability 节点、关联矩阵构建和索引管理。
+
+```typescript
+import { GraphBuilder } from "@casys/shgat";
+
+const builder = new GraphBuilder();
+
+// Register unified nodes
+builder.registerNode({ id: "tool-a", embedding: embA, children: [], level: 0 });
+builder.registerNode({ id: "tool-b", embedding: embB, children: [], level: 0 });
+builder.registerNode({ id: "cap-1",  embedding: embC, children: ["tool-a", "tool-b"], level: 0 });
+
+// Finalize: recompute levels and rebuild indices
+builder.finalizeNodes();
+```
+
+| 方法 | 签名 | 描述 |
+|--------|-----------|-------------|
+| `registerNode()` | `(node: Node) => void` | 注册统一节点。也填充旧版映射以保持向后兼容。 |
+| `finalizeNodes()` | `() => void` | 通过 DFS 重新计算级别并重建索引。所有注册完成后调用一次。 |
+| `getNode()` | `(id: string) => Node \| undefined` | 通过 ID 获取统一节点。 |
+| `getNodes()` | `() => Map<string, Node>` | 获取所有统一节点。 |
+| `getNodesByLevel()` | `(level: number) => Node[]` | 获取特定层次级别的节点。 |
+| `getMaxLevel()` | `() => number` | 统一节点的最大层次级别。 |
+| `getNodeIdsByLevel()` | `() => Map<number, Set<string>>` | 按级别分组的节点 ID。 |
+| `getDescendants()` | `(id: string) => string[]` | 节点的所有传递性后代 ID。 |
+| `hasNode()` | `(id: string) => boolean` | 检查统一节点是否存在。 |
+| `getNodeCount()` | `() => number` | 统一节点数量。 |
+| `getNodeIds()` | `() => string[]` | 所有统一节点 ID。 |
+| `clearNodes()` | `() => void` | 清除所有统一节点。 |
+
+### buildMultiLevelIncidence()
+
+为 n-SuperHyperGraph 的所有级别构建关联结构。
+
+```typescript
+import { buildMultiLevelIncidence, type MultiLevelIncidence } from "@casys/shgat";
+
+const incidence: MultiLevelIncidence = buildMultiLevelIncidence(graphBuilder);
+```
+
+**返回：** `MultiLevelIncidence` -- 包含每个级别转换的关联矩阵、tool-to-capability 映射和 capability-to-capability 的父子关系。
+
+### computeHierarchyLevels()
+
+通过拓扑排序计算能力的层次级别。检测循环。
+
+```typescript
+import { computeHierarchyLevels, HierarchyCycleError, type HierarchyResult } from "@casys/shgat";
+
+try {
+  const result: HierarchyResult = computeHierarchyLevels(graphBuilder);
+  console.log(`Max level: ${result.maxHierarchyLevel}`);
+  console.log(`Levels: ${[...result.hierarchyLevels.entries()]}`);
+} catch (e) {
+  if (e instanceof HierarchyCycleError) {
+    console.error("Cycle detected in capability hierarchy");
+  }
+}
+```
+
+### generateDefaultToolEmbedding()
+
+为工具 ID 生成确定性默认嵌入（当未提供嵌入时使用）。
+
+```typescript
+import { generateDefaultToolEmbedding } from "@casys/shgat";
+
+const embedding = generateDefaultToolEmbedding("psql_query", 1024);
+```
+
+## 节点类型
+
+### Node（统一）
+
+推荐的节点类型。层次从结构隐式推断。
+
+```typescript
+interface Node {
+  id: string;           // Unique identifier
+  embedding: number[];  // Embedding vector (e.g., BGE-M3 1024-dim)
+  children: string[];   // Child node IDs. Empty = leaf (level 0)
+  level: number;        // Hierarchy level. Computed at graph construction.
+}
+```
+
+- `children.length === 0` -- 叶子节点（级别 0）
+- `children.length > 0` -- 复合节点（级别 = 1 + 最大子节点级别）
+
+### ToolNode（旧版）
+
+```typescript
+/** @deprecated Use Node with children: [] */
+interface ToolNode {
+  id: string;
+  embedding: number[];
+  toolFeatures?: ToolGraphFeatures;
+}
+```
+
+### CapabilityNode（旧版）
+
+```typescript
+/** @deprecated Use Node with children: [...] */
+interface CapabilityNode {
+  id: string;
+  embedding: number[];
+  members: Member[];
+  hierarchyLevel: number;
+  successRate: number;
+  toolsUsed?: string[];
+  children?: string[];
+  parents?: string[];
+  hypergraphFeatures?: HypergraphFeatures;
+}
+```
+
+### Member（旧版）
+
+```typescript
+type Member =
+  | { type: "tool"; id: string }
+  | { type: "capability"; id: string };
+```
+
+<Aside type="tip">
+  使用带有 `children` 数组的 `Node` 代替带有 `Member` 数组的 `CapabilityNode`。统一 API 更简单，`createSHGAT()` 自动处理级别计算。
+</Aside>
+
+## 图工具
+
+直接使用 `Node` 映射的辅助函数（无需 `GraphBuilder`）。
+
+| 函数 | 签名 | 描述 |
+|----------|-----------|-------------|
+| `buildGraph()` | `(nodes: Node[]) => Map<string, Node>` | 从数组构建图映射，通过 DFS 计算级别。 |
+| `computeAllLevels()` | `(nodes: Map<string, Node>) => void` | 使用 DFS 记忆化就地计算所有节点的级别。 |
+| `groupNodesByLevel()` | `(nodes: Map<string, Node>) => Map<number, Node[]>` | 按层次级别分组节点。 |
+
+### 关联矩阵
+
+| 函数 | 签名 | 描述 |
+|----------|-----------|-------------|
+| `buildIncidenceMatrix()` | `(nodes, childLevel, parentLevel) => { matrix, childIndex, parentIndex }` | 构建两个级别之间的关联矩阵。`A[child][parent] = 1` 如果子节点在父节点中。 |
+| `buildAllIncidenceMatrices()` | `(nodes) => Map<number, { matrix, childIndex, parentIndex }>` | 构建所有级别转换的矩阵（0到1、1到2等）。 |
+
+## 批量操作
+
+针对统一 `Node` 类型的 BLAS 优化操作。预计算图结构一次，所有前向传递复用。
+
+### precomputeGraphStructure()
+
+```typescript
+import { precomputeGraphStructure, type BatchedGraphStructure } from "@casys/shgat";
+
+const structure: BatchedGraphStructure = precomputeGraphStructure(nodeMap);
+```
+
+```typescript
+interface BatchedGraphStructure {
+  nodesByLevel: Map<number, Node[]>;
+  embeddingsByLevel: Map<number, BatchedEmbeddings>;
+  incidenceMatrices: Map<number, { matrix, childIndex, parentIndex }>;
+  maxLevel: number;
+  embDim: number;
+}
+```
+
+### 批量嵌入查找
+
+| 函数 | 签名 | 描述 |
+|----------|-----------|-------------|
+| `batchGetEmbeddings()` | `(nodes, ids?) => BatchedEmbeddings` | 获取 `[N x dim]` 矩阵形式的嵌入用于批量 BLAS 操作。 |
+| `batchGetEmbeddingsByLevel()` | `(nodes, level) => BatchedEmbeddings` | 仅获取特定级别节点的嵌入。 |
+| `batchGetNodes()` | `(nodes, ids) => Node[]` | 单次遍历通过 ID 获取多个节点。 |
+
+```typescript
+interface BatchedEmbeddings {
+  matrix: number[][];              // [N x dim] embedding matrix
+  ids: string[];                   // Node IDs in row order
+  indexMap: Map<string, number>;   // ID to row index
+}
+```
+
+### 批量前向传递
+
+| 函数 | 签名 | 描述 |
+|----------|-----------|-------------|
+| `batchedForward()` | `(structure, W_up, W_down, ...) => BatchedForwardResult` | 通过矩阵运算的多级消息传递。 |
+| `batchedUpwardPass()` | `(structure, ...) => Map<number, number[][]>` | 上行聚合：通过关联矩阵从子到父。 |
+| `batchedDownwardPass()` | `(structure, ...) => Map<number, number[][]>` | 下行传播：从父到子。 |
+
+```typescript
+interface BatchedForwardResult {
+  E: Map<number, number[][]>;                // Final embeddings per level
+  attentionUp: Map<number, number[][]>;      // Upward attention weights
+  attentionDown: Map<number, number[][]>;    // Downward attention weights
+}
+```
+
+### 批量评分
+
+| 函数 | 签名 | 描述 |
+|----------|-----------|-------------|
+| `batchScoreAllNodes()` | `(structure, intent, headParams, config) => NodeScore[]` | 单次批量操作评分所有节点。 |
+| `precomputeAllK()` | `(structure, headParams, config) => BatchedScoringCache` | 预计算所有级别所有头的 K 向量。 |
+| `batchedKHeadScoring()` | `(cache, intent, config) => NodeScore[]` | 使用预计算的 K 向量评分。 |
+| `batchedBackwardKHead()` | `(cache, ...) => gradients` | 计算 K-head 参数的梯度。 |
+
+## 消息传递
+
+### MultiLevelOrchestrator
+
+编排 n-SuperHyperGraph 的多级消息传递。支持三个阶段。
+
+<Tabs>
+  <TabItem label="上行（V->E）">
+    通过关联矩阵上的注意力加权求和将工具嵌入聚合到能力嵌入中。
+
+    ```
+    Level 0 (tools) ──attention──> Level 1 (capabilities)
+    Level 1           ──attention──> Level 2 (meta-capabilities)
+    ...
+    ```
+  </TabItem>
+  <TabItem label="下行（E->V）">
+    将丰富的能力上下文向下传播到工具。每个级别接收其父级的上下文。
+
+    ```
+    Level L (root)    ──propagate──> Level L-1
+    Level L-1         ──propagate──> Level L-2
+    ...               ──propagate──> Level 0 (tools)
+    ```
+  </TabItem>
+  <TabItem label="V->V（共现）">
+    使用执行追踪中的共现数据进行可选的顶点到顶点丰富。频繁共现的工具获得相似的嵌入。
+
+    ```typescript
+    model.setCooccurrenceData([
+      { toolI: 0, toolJ: 1, weight: 0.8 },
+      { toolI: 0, toolJ: 2, weight: 0.3 },
+    ]);
+    ```
+  </TabItem>
+</Tabs>
+
+```typescript
+import { MultiLevelOrchestrator, type CooccurrenceEntry, type V2VParams } from "@casys/shgat";
+
+const orchestrator = new MultiLevelOrchestrator(trainingMode, { residualWeight: 0.3 });
+orchestrator.setCooccurrenceData(cooccurrenceEntries);
+```
+
+### 稀疏消息传递
+
+对于大图，稀疏消息传递避免了稠密矩阵的开销。
+
+```typescript
+import {
+  buildSparseConnectivity,
+  sparseMPForward,
+  sparseMPBackward,
+  applySparseMPGradients,
+} from "@casys/shgat";
+
+const connectivity = buildSparseConnectivity(graphBuilder);
+const { enrichedEmbeddings, cache } = sparseMPForward(embeddings, connectivity, params);
+```
+
+## TensorFlow FFI
+
+`@casys/shgat` 通过 Deno FFI 使用 libtensorflow，获得原生 C 性能。没有 WASM，没有 npm TensorFlow 包。
+
+<Aside type="caution">
+  您必须在任何张量操作之前调用 `initTensorFlow()`。这将验证 libtensorflow 是否通过 FFI 可用。请参阅[安装指南](/zh/docs/shgat/installation/)了解如何配置 libtensorflow。
+</Aside>
+
+### initTensorFlow()
+
+初始化 TensorFlow FFI 后端。必须在任何张量操作之前调用一次。
+
+```typescript
+import { initTensorFlow, isInitialized, getBackend } from "@casys/shgat";
+
+const backend = await initTensorFlow(); // "ffi"
+console.log(isInitialized()); // true
+console.log(getBackend());    // "ffi"
+```
+
+### 张量创建
+
+| 函数 | 签名 | 描述 |
+|----------|-----------|-------------|
+| `tensor()` | `(data, shape?) => TFTensor` | 从嵌套数组或扁平数据 + 形状创建张量。 |
+| `zeros()` | `(shape) => TFTensor` | 填充零的张量。 |
+| `ones()` | `(shape) => TFTensor` | 填充一的张量。 |
+| `variable()` | `(tensor, name?) => Variable` | 将张量包装为可训练变量。 |
+
+### 数学运算
+
+| 函数 | 描述 |
+|----------|-------------|
+| `matMul(a, b)` | 矩阵乘法。 |
+| `softmax(t, axis?)` | Softmax 激活。 |
+| `gather(t, indices, axis?)` | 按索引收集切片。 |
+| `unsortedSegmentSum(t, segmentIds, numSegments)` | 分段求和（用于 scatter/gather 梯度）。 |
+| `add(a, b)` / `sub(a, b)` / `mul(a, b)` / `div(a, b)` | 逐元素算术。 |
+| `transpose(t)` | 矩阵转置。 |
+| `reshape(t, shape)` | 重塑张量。 |
+| `concat(tensors, axis)` | 沿轴连接张量。 |
+| `slice(t, begin, size)` | 切片张量。 |
+| `expandDims(t, axis)` | 添加维度。 |
+| `squeeze(t, axis?)` | 移除大小为 1 的维度。 |
+| `clipByValue(t, min, max)` | 将值裁剪到范围内。 |
+
+### 激活函数
+
+| 函数 | 描述 |
+|----------|-------------|
+| `relu(t)` | 修正线性单元。 |
+| `leakyRelu(t, alpha?)` | 带可配置斜率的 Leaky ReLU。 |
+| `elu(t)` | 指数线性单元。 |
+| `sigmoid(t)` | Sigmoid 激活。 |
+| `tanh(t)` | 双曲正切。 |
+
+### 归约
+
+| 函数 | 描述 |
+|----------|-------------|
+| `sum(t, axis?)` | 求和归约。 |
+| `mean(t, axis?)` | 均值归约。 |
+| `max(t, axis?)` | 最大值归约。 |
+| `square(t)` | 逐元素平方。 |
+| `sqrt(t)` | 逐元素平方根。 |
+| `exp(t)` | 逐元素指数。 |
+| `log(t)` | 逐元素自然对数。 |
+| `neg(t)` | 逐元素取反。 |
+
+### 内存管理
+
+| 函数 | 签名 | 描述 |
+|----------|-----------|-------------|
+| `tidy()` | `<T>(fn: () => T) => T` | 执行函数作用域。FFI 张量仍需手动释放。 |
+| `dispose()` | `(t: TFTensor \| TFTensor[]) => void` | 释放张量以释放内存。 |
+| `memory()` | `() => { numTensors, numBytes }` | 内存使用信息。 |
+| `logMemory()` | `() => void` | 在控制台输出内存使用情况。 |
+
+### Variable
+
+将张量包装为可训练变量，通过 `assign()` 进行就地更新。
+
+```typescript
+import { tensor, variable, Variable } from "@casys/shgat";
+
+const W = variable(tensor([[0.1, 0.2], [0.3, 0.4]]), "W_projection");
+console.log(W.shape); // [2, 2]
+
+const current = W.read();  // Get underlying tensor
+W.assign(newTensor);        // Replace with new values (disposes old)
+W.dispose();                // Free memory
+```
+
+### 原始 FFI 绑定
+
+完整的低级 FFI 绑定通过 `tff` 命名空间提供。
+
+```typescript
+import { tff } from "@casys/shgat";
+
+console.log(tff.version());     // libtensorflow version
+console.log(tff.isAvailable()); // true if libtensorflow loaded
+tff.close();                     // Close FFI handle
+```
+
+## 数学工具
+
+纯 TypeScript 数学函数（无 TensorFlow 依赖）。内部使用并可用于自定义计算。
+
+```typescript
+import { math } from "@casys/shgat";
+
+const dot = math.dotProduct(vecA, vecB);
+const cos = math.cosineSimilarity(vecA, vecB);
+const result = math.matVecMul(matrix, vector);
+const product = math.matmul(matA, matB);
+const sm = math.softmax(logits);
+const lrelu = math.leakyRelu(values, 0.2);
+```
+
+`math` 命名空间包含：
+- 向量操作：`dotProduct`、`cosineSimilarity`、`vectorAdd`、`vectorScale`、`vectorNorm`、`normalize`
+- 矩阵操作：`matVecMul`、`matmul`、`matmulTranspose`、`transpose`
+- 激活函数：`softmax`、`leakyRelu`、`sigmoid`、`relu`
+- 统计：`mean`、`variance`、`standardDeviation`
+- BLAS 加速：在模块加载时自动初始化以获得优化的线性代数
+
+## 自定义内核
+
+### registerUnsortedSegmentSumKernel()
+
+为 `UnsortedSegmentSum` 注册自定义 WASM 内核。在 WASM 后端上支持 `gather` 梯度所必需（FFI/libtensorflow 不需要）。
+
+```typescript
+import {
+  registerUnsortedSegmentSumKernel,
+  isUnsortedSegmentSumRegistered,
+} from "@casys/shgat";
+
+if (!isUnsortedSegmentSumRegistered()) {
+  registerUnsortedSegmentSumKernel();
+}
+```
+
+<Aside type="note">
+  此内核仅在使用 TensorFlow.js WASM 后端而非 libtensorflow FFI 后端时才需要。FFI 后端原生支持 `UnsortedSegmentSum`。
+</Aside>
+
+## 参数初始化
+
+| 函数 | 签名 | 描述 |
+|----------|-----------|-------------|
+| `initializeParameters()` | `(config: SHGATConfig) => SHGATParams` | 初始化所有 SHGAT 参数（头参数、融合权重、意图投影）。 |
+| `initializeLevelParameters()` | `(config, embDim, level) => LevelParams` | 初始化单个层次级别的参数。 |
+| `countParameters()` | `(params: SHGATParams) => number` | 统计可训练参数总数。 |
+| `getAdaptiveHeadsByGraphSize()` | `(leaves, composites, maxLevel, preserveDim, embDim) => { numHeads, hiddenDim, headDim }` | 根据图大小计算自适应头数量。 |
+| `seedRng()` | `(seed: number) => void` | 设定随机数种子以实现可重现的参数初始化。 |
+
+```typescript
+import { initializeParameters, countParameters, seedRng, type SHGATParams } from "@casys/shgat";
+
+seedRng(42); // Reproducible initialization
+const params: SHGATParams = initializeParameters(DEFAULT_SHGAT_CONFIG);
+console.log(`Total parameters: ${countParameters(params)}`);
+```

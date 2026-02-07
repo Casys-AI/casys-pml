@@ -1,0 +1,128 @@
+---
+title: Persistence
+description: Export and import model parameters as JSON.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+SHGAT parameters are plain objects. Export as JSON, import as JSON. No binary formats, no framework lock-in, no custom serialization protocols.
+
+## Export
+
+<Steps>
+1. **Train or load your SHGAT instance** (see [Training](/docs/shgat/training/)).
+
+2. **Export parameters to a file**:
+
+    ```typescript
+    import { SHGAT } from "@casys/shgat";
+
+    const shgat = new SHGAT({ numHeads: 16 });
+    // ... register nodes, train, etc.
+
+    const params = shgat.exportParams();
+    const json = JSON.stringify(params);
+    await Deno.writeTextFile("shgat-params.json", json);
+    ```
+
+    That's it. `exportParams()` returns a plain `Record<string, unknown>` -- every value is a number, array of numbers, or nested object of numbers. All JSON-serializable.
+</Steps>
+
+## Import
+
+<Steps>
+1. **Read the params file**:
+
+    ```typescript
+    const json = await Deno.readTextFile("shgat-params.json");
+    const params = JSON.parse(json);
+    ```
+
+2. **Load into a SHGAT instance**:
+
+    ```typescript
+    const shgat = new SHGAT();
+    // ... register the same nodes as the exported model ...
+
+    shgat.importParams(params);
+    ```
+
+    After `importParams()`, the instance is ready to score. No retraining needed.
+</Steps>
+
+<Aside type="caution">
+  The node graph (registered nodes and their hierarchy) is not part of the exported params. You must register the same nodes before importing. The params contain the trained weights -- the projection matrices, attention vectors, and fusion weights that were fitted to your specific graph structure.
+</Aside>
+
+## What's in the params?
+
+The exported object contains all trainable parameters:
+
+| Key | Shape | Description |
+|---|---|---|
+| `headParams` | `[numHeads]` | Per-head W_q, W_k matrices and attention vectors |
+| `W_intent` | `[embDim, hiddenDim]` | Intent projection matrix |
+| `fusionWeights` | `{semantic, structure, temporal}` | Legacy fusion weights |
+| `levelParams` | `{level: {W_child, W_parent, a_upward, a_downward}}` | Per-level message passing parameters |
+| `v2vParams` | `{residualLogit, temperatureLogit}` | Vertex-to-vertex co-occurrence parameters |
+| `config` | `SHGATConfig` | Architecture config (numHeads, embeddingDim, etc.) |
+| `projectionHead` | `{W1, b1, W2, b2}` | Projection head weights (if enabled) |
+
+All values are numbers or nested arrays of numbers. No tensors, no typed arrays, no framework-specific objects.
+
+## Versioning
+
+The exported params include the full `SHGATConfig` as metadata. When importing, SHGAT checks the config for compatibility:
+
+```typescript
+// The config is embedded in the exported params
+const params = shgat.exportParams();
+console.log(params.config);
+// {
+//   numHeads: 16,
+//   hiddenDim: 1024,
+//   headDim: 64,
+//   embeddingDim: 1024,
+//   numLayers: 2,
+//   ...
+// }
+```
+
+If you import params from a model with a different architecture (e.g., 8 heads into a 16-head model), the import will apply what it can and use fresh initialization for the rest. Check that `numHeads` and `embeddingDim` match between export and import to avoid silent dimension mismatches.
+
+<Aside type="tip">
+  Parameters are typically 2-5 MB for a 245-node graph with 16 heads. JSON compresses well -- gzip brings it down to under 1 MB if storage or transfer size matters.
+</Aside>
+
+## Serialization module
+
+For advanced use cases -- migrating between parameter versions, converting between formats, or building custom import/export pipelines -- the serialization module exposes the underlying functions:
+
+```typescript
+import {
+  exportSHGATParams,
+  importSHGATParams,
+} from "@casys/shgat/core/serialization";
+
+// Export with full context
+const exported = exportSHGATParams({
+  config,
+  params,
+  levelParams,
+  v2vParams,
+});
+
+// Import with version migration
+const result = importSHGATParams(serialized, currentParams, currentV2VParams);
+// result.config  -- updated config (or null if compatible)
+// result.params  -- merged parameters
+// result.levelParams -- per-level message passing weights
+// result.v2vParams   -- vertex-to-vertex weights
+```
+
+The import function handles backward compatibility: params exported from older versions are migrated automatically. Fields that do not exist in the serialized data are initialized with defaults. Fields that exist in the serialized data but not in the current version are silently ignored.
+
+## See Also
+
+- [Architecture](/docs/shgat/architecture/) -- What these parameters control
+- [Training](/docs/shgat/training/) -- How to produce trained parameters

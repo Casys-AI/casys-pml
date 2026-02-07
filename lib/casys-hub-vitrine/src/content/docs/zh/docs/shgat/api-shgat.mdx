@@ -1,0 +1,373 @@
+---
+title: SHGAT 类
+description: 核心 SHGAT 类——评分、训练和参数管理。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`SHGAT` 类是超超图注意力网络的主要编排器。它处理图构建、多级消息传递、K-head 评分和参数持久化。发布在 [JSR](https://jsr.io/@casys/shgat)。
+
+## 工厂函数
+
+使用工厂函数而非直接使用构造函数。它们自动处理自适应头选择、图构建和级别计算。
+
+### createSHGAT()
+
+从统一的 `Node` 对象创建 SHGAT 实例。这是推荐的 API。
+
+```typescript
+import { createSHGAT, type Node } from "@casys/shgat";
+
+const nodes: Node[] = [
+  { id: "psql_query", embedding: queryEmb, children: [], level: 0 },
+  { id: "psql_exec",  embedding: execEmb,  children: [], level: 0 },
+  { id: "database",   embedding: dbEmb,    children: ["psql_query", "psql_exec"], level: 1 },
+];
+
+const model = createSHGAT(nodes);
+// or with config overrides:
+const model2 = createSHGAT(nodes, { numHeads: 8, learningRate: 0.01 });
+```
+
+| 参数 | 类型 | 描述 |
+|-----------|------|-------------|
+| `nodes` | `Node[]` | 节点数组。叶子有 `children: []`，复合节点列出其子节点。 |
+| `config` | `Partial<SHGATConfig>` | 可选的配置覆盖。 |
+
+**返回：** `SHGAT` -- 完全初始化的实例，所有节点已注册，级别已计算，索引已构建。
+
+### createSHGATFromCapabilities()
+
+旧版工厂，接受带有 `toolsUsed` 数组的能力记录。自动为提供的映射中不存在的工具生成嵌入。
+
+```typescript
+import { createSHGATFromCapabilities } from "@casys/shgat";
+
+const shgat = createSHGATFromCapabilities(
+  [
+    { id: "cap-1", embedding: capEmb, toolsUsed: ["tool-a", "tool-b"], successRate: 0.85 },
+  ],
+  { numHeads: 16 },
+);
+```
+
+| 参数 | 类型 | 描述 |
+|-----------|------|-------------|
+| `capabilities` | `Array<{ id, embedding, toolsUsed, successRate, ... }>` | 能力记录。 |
+| `configOrToolEmbeddings` | `Partial<SHGATConfig> \| Map<string, number[]>` | 配置覆盖或工具 ID 到嵌入的映射。 |
+| `config` | `Partial<SHGATConfig>` | 配置覆盖（当第二个参数是工具嵌入映射时）。 |
+
+**返回：** `SHGAT`
+
+<Aside type="caution">
+  `createSHGATFromCapabilities()` 已弃用。优先使用 `createSHGAT()` 和统一的 `Node` 对象。
+</Aside>
+
+## SHGAT 类
+
+### 构造函数
+
+```typescript
+import { SHGAT } from "@casys/shgat";
+
+const shgat = new SHGAT(config?: Partial<SHGATConfig>);
+```
+
+创建一个裸 SHGAT 实例。您必须手动注册节点并在评分前调用 `finalizeNodes()`。大多数情况下，请使用 `createSHGAT()`。
+
+### 图管理
+
+| 方法 | 签名 | 描述 |
+|--------|-----------|-------------|
+| `registerNode()` | `(node: Node) => void` | 注册统一节点。所有注册完成后调用 `finalizeNodes()`。 |
+| `finalizeNodes()` | `() => void` | 重建索引并计算层次级别。所有节点注册后调用一次。 |
+| `registerTool()` | `(node: ToolNode) => void` | 注册工具（叶子）。**已弃用** -- 使用 `registerNode()` 配合 `children: []`。 |
+| `registerCapability()` | `(node: CapabilityNode) => void` | 注册能力（超边）。**已弃用** -- 使用带有 children 的 `registerNode()`。 |
+| `buildFromData()` | `(tools, capabilities) => void` | 从原始数据批量注册工具和能力。 |
+| `hasToolNode()` | `(id: string) => boolean` | 检查工具节点是否存在。 |
+| `hasCapabilityNode()` | `(id: string) => boolean` | 检查能力节点是否存在。 |
+| `getToolCount()` | `() => number` | 注册的工具数量。 |
+| `getCapabilityCount()` | `() => number` | 注册的能力数量。 |
+| `getToolIds()` | `() => string[]` | 所有注册的工具 ID。 |
+| `getCapabilityIds()` | `() => string[]` | 所有注册的能力 ID。 |
+
+### 共现
+
+| 方法 | 签名 | 描述 |
+|--------|-----------|-------------|
+| `setCooccurrenceData()` | `(data: CooccurrenceEntry[]) => void` | 设置 V-to-V 共现边用于工具嵌入丰富。 |
+| `getToolIndexMap()` | `() => Map<string, number>` | 获取工具 ID 到索引的映射（供共现加载器使用）。 |
+
+## 评分方法
+
+### scoreNodes()
+
+主要评分函数。运行张量原生前向传递（多级消息传递），然后进行 K-head 注意力评分。所有张量运算在原生后端上进行，直到最终结果转换。
+
+```typescript
+const ranked = model.scoreNodes(intentEmbedding);
+
+// Filter by level
+const toolScores = model.scoreNodes(intentEmbedding, 0);       // leaves only
+const capScores  = model.scoreNodes(intentEmbedding, 1);       // composites only
+```
+
+| 参数 | 类型 | 描述 |
+|-----------|------|-------------|
+| `intentEmbedding` | `number[]` | 用户意图嵌入（1024 维 BGE-M3）。 |
+| `level` | `number \| undefined` | 可选级别过滤。`0` = 叶子，`1` = 复合节点。省略以评分所有。 |
+
+**返回：** `NodeScore[]` -- 按分数降序排列。
+
+```typescript
+interface NodeScore {
+  nodeId: string;
+  score: number;
+  headScores: number[];
+  level: number;
+}
+```
+
+### scoreLeaves() / scoreComposites()
+
+`scoreNodes()` 的便捷包装。
+
+| 方法 | 等价于 | 描述 |
+|--------|------------|-------------|
+| `scoreLeaves(intent)` | `scoreNodes(intent, 0)` | 仅评分叶子节点（工具）。 |
+| `scoreComposites(intent, level?)` | `scoreNodes(intent, level ?? 1)` | 评分给定级别的复合节点。 |
+
+### 旧版评分
+
+| 方法 | 签名 | 描述 |
+|--------|-----------|-------------|
+| `scoreAllCapabilities()` | `(intent: number[], contextToolIds?: string[]) => AttentionResult[]` | **已弃用。** 使用 `scoreNodes(intent, 1)`。 |
+| `scoreAllTools()` | `(intent: number[], contextToolIds?: string[]) => Array<{ toolId, score, headScores }>` | **已弃用。** 使用 `scoreNodes(intent, 0)`。 |
+
+```typescript
+interface AttentionResult {
+  capabilityId: string;
+  score: number;
+  headScores: number[];
+  toolAttention: number[];
+}
+```
+
+### 其他评分
+
+| 方法 | 签名 | 描述 |
+|--------|-----------|-------------|
+| `predictPathSuccess()` | `(intent: number[], path: string[]) => number` | 预测工具执行路径的成功概率。 |
+| `computeAttention()` | `(intent, contextEmbeddings, capId, contextCapIds?) => AttentionResult` | 计算单个能力的详细注意力。 |
+
+## 消息传递
+
+### forward()
+
+执行多级消息传递（V->E->...->V）。结果在图变更前被缓存。
+
+```typescript
+const { H, E, cache } = model.forward();
+// H: number[][] — enriched tool embeddings
+// E: number[][] — enriched capability embeddings
+// cache: ForwardCache — intermediate results
+```
+
+<Aside type="tip">
+  `scoreNodes()` 在内部通过张量原生路径调用 `forward()`。只有当您需要原始的丰富嵌入时才需要直接使用 `forward()`。
+</Aside>
+
+## 训练
+
+### AutogradTrainer（推荐）
+
+SHGAT 类本身不执行训练。使用训练模块中的 `AutogradTrainer`，它提供 TensorFlow.js 自动微分。
+
+```typescript
+import {
+  AutogradTrainer,
+  DEFAULT_TRAINER_CONFIG,
+  type TrainingMetrics,
+} from "@casys/shgat";
+
+const trainer = new AutogradTrainer({
+  ...DEFAULT_TRAINER_CONFIG,
+  numHeads: 16,
+  embeddingDim: 1024,
+  learningRate: 0.05,
+});
+
+// Set embeddings from your SHGAT graph
+trainer.setNodeEmbeddings(embeddings);
+
+// Train on a batch
+const metrics: TrainingMetrics = trainer.trainBatch(examples);
+console.log(`Loss: ${metrics.loss}, Accuracy: ${metrics.accuracy}`);
+```
+
+### 已弃用的训练函数
+
+这些函数为向后兼容而导出，但在运行时会抛出错误。请使用 `AutogradTrainer`。
+
+| 函数 | 状态 |
+|----------|--------|
+| `trainSHGATOnEpisodes()` | 已弃用。抛出错误。 |
+| `trainSHGATOnEpisodesKHead()` | 已弃用。抛出错误。 |
+| `trainSHGATOnExecution()` | 已弃用。抛出错误。 |
+| `shgat.trainBatchV1KHeadBatched()` | 已弃用。抛出错误。 |
+
+### PER 缓冲区
+
+优先经验回放，用于样本高效训练。
+
+```typescript
+import { PERBuffer, annealBeta, annealTemperature } from "@casys/shgat";
+
+const buffer = new PERBuffer(maxSize);
+buffer.add(example, priority);
+
+const { samples, weights } = buffer.sample(batchSize);
+const beta = annealBeta(epoch, maxEpochs);
+```
+
+## 持久化
+
+### exportParams()
+
+将所有学习参数序列化为兼容 JSON 的对象以便存储。
+
+```typescript
+const serialized = model.exportParams();
+// Store in database, file, etc.
+await Deno.writeTextFile("params.json", JSON.stringify(serialized));
+```
+
+**返回：** `Record<string, unknown>` -- 包含配置、头参数、级别参数、V2V 参数和融合权重。
+
+### importParams()
+
+从之前导出的对象恢复参数。
+
+```typescript
+const data = JSON.parse(await Deno.readTextFile("params.json"));
+model.importParams(data);
+```
+
+| 参数 | 类型 | 描述 |
+|-----------|------|-------------|
+| `serialized` | `Record<string, unknown>` | `exportParams()` 的输出。 |
+
+导入参数会使缓存的张量参数失效。它们在下次 `scoreNodes()` 调用时惰性重建。
+
+## 资源管理
+
+### dispose()
+
+释放张量参数使用的 GPU 内存。当 SHGAT 实例不再需要时调用。
+
+```typescript
+model.dispose();
+```
+
+调用 `dispose()` 后，实例仍可使用——张量参数在下次 `scoreNodes()` 调用时惰性重建。但您应该调用 `dispose()` 以避免 GPU 内存泄漏。
+
+## 配置
+
+### SHGATConfig
+
+```typescript
+interface SHGATConfig {
+  // Architecture
+  numHeads: number;           // Attention heads (4-16, adaptive). Default: 16
+  hiddenDim: number;          // Hidden dim for scoring. Default: 1024
+  headDim: number;            // Dim per head (hiddenDim / numHeads). Default: 64
+  embeddingDim: number;       // Embedding dim (BGE-M3: 1024). Default: 1024
+  numLayers: number;          // Message passing layers. Default: 2
+  mlpHiddenDim: number;       // Fusion MLP hidden size. Default: 32
+
+  // Training
+  learningRate: number;       // Default: 0.05
+  batchSize: number;          // Default: 32
+  maxContextLength: number;   // Max recent tools in context. Default: 5
+
+  // Buffer management
+  maxBufferSize: number;      // PER buffer cap. Default: 50_000
+  minTracesForTraining: number; // Cold start threshold. Default: 100
+
+  // Regularization
+  dropout: number;            // Default: 0.1
+  l2Lambda: number;           // L2 weight. Default: 0.0001
+  leakyReluSlope: number;     // Default: 0.2
+  depthDecay: number;         // Recursive depth decay. Default: 0.8
+
+  // Dimension preservation
+  preserveDim?: boolean;      // Keep 1024-dim through MP. Default: true
+  preserveDimResidual?: number; // Residual blend weight. Default: 0.3
+  preserveDimResiduals?: number[]; // Per-level residual weights
+
+  // Multi-location residuals
+  v2vResidual?: number;       // V2V phase residual. Default: 0
+  downwardResidual?: number;  // Downward phase residual. Default: 0
+
+  // Gradient scaling
+  mpLearningRateScale?: number; // LR multiplier for MP params. Default: 1
+
+  // Projection head
+  useProjectionHead?: boolean;    // Default: false
+  projectionHiddenDim?: number;   // Default: 256
+  projectionOutputDim?: number;   // Default: 256
+  projectionBlendAlpha?: number;  // Default: 0.5
+  projectionTemperature?: number; // Default: 0.07
+}
+```
+
+### DEFAULT_SHGAT_CONFIG
+
+默认配置对象。使用 16 个头以获得最佳性能（16 个头 x 64 维 = 1024，匹配 BGE-M3 嵌入）。
+
+```typescript
+import { DEFAULT_SHGAT_CONFIG } from "@casys/shgat";
+```
+
+### getAdaptiveConfig()
+
+根据追踪数量返回自适应配置。已弃用 -- `createSHGAT()` 自动使用 `getAdaptiveHeadsByGraphSize()`。
+
+```typescript
+import { getAdaptiveConfig } from "@casys/shgat";
+
+const overrides = getAdaptiveConfig(traceCount);
+// Always returns { numHeads: 16, hiddenDim: 1024, headDim: 64, mlpHiddenDim: 32 }
+```
+
+## TrainingExample
+
+训练数据的输入格式。
+
+```typescript
+interface TrainingExample {
+  intentEmbedding: number[];       // 1024-dim intent embedding
+  contextTools: string[];          // Active tool IDs in session
+  candidateId: string;             // Positive capability ID (was executed)
+  outcome: number;                 // 1 = success, 0 = failure
+  negativeCapIds?: string[];       // Negative IDs for contrastive learning
+  allNegativesSorted?: string[];   // All negatives sorted hard-to-easy (for curriculum)
+}
+```
+
+## 日志
+
+```typescript
+import { setLogger, resetLogger, getLogger, type Logger } from "@casys/shgat";
+
+// Custom logger
+setLogger({
+  info: (msg) => myLogger.info(msg),
+  warn: (msg) => myLogger.warn(msg),
+  error: (msg) => myLogger.error(msg),
+  debug: (msg) => myLogger.debug(msg),
+});
+
+// Reset to default console logger
+resetLogger();
+```
