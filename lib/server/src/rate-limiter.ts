@@ -31,6 +31,8 @@ export class RateLimiter {
   private requestCounts = new Map<string, number[]>();
   private readonly windowMs: number;
   private readonly maxRequests: number;
+  private operationsSinceLastPurge = 0;
+  private static readonly PURGE_EVERY_N_OPS = 1000;
 
   constructor(options: { maxRequests: number; windowMs: number }) {
     this.maxRequests = options.maxRequests;
@@ -50,6 +52,11 @@ export class RateLimiter {
     // Remove old requests outside the sliding window
     const validRequests = requests.filter((time) => now - time < this.windowMs);
 
+    if (validRequests.length === 0) {
+      // No active requests for this key — remove from map to prevent unbounded growth
+      this.requestCounts.delete(key);
+    }
+
     if (validRequests.length >= this.maxRequests) {
       // Update with cleaned list
       this.requestCounts.set(key, validRequests);
@@ -60,7 +67,33 @@ export class RateLimiter {
     validRequests.push(now);
     this.requestCounts.set(key, validRequests);
 
+    // Periodic full purge to catch keys that haven't been checked recently
+    this.operationsSinceLastPurge++;
+    if (this.operationsSinceLastPurge >= RateLimiter.PURGE_EVERY_N_OPS) {
+      this.purgeExpiredKeys();
+    }
+
     return true;
+  }
+
+  /**
+   * Remove all keys with no active requests in the current window.
+   * Called automatically every PURGE_EVERY_N_OPS operations.
+   */
+  purgeExpiredKeys(): number {
+    const now = Date.now();
+    let purged = 0;
+    for (const [key, requests] of this.requestCounts) {
+      const active = requests.filter((time) => now - time < this.windowMs);
+      if (active.length === 0) {
+        this.requestCounts.delete(key);
+        purged++;
+      } else {
+        this.requestCounts.set(key, active);
+      }
+    }
+    this.operationsSinceLastPurge = 0;
+    return purged;
   }
 
   /**

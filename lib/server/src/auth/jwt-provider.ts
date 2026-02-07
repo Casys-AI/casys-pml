@@ -42,9 +42,23 @@ export interface JwtAuthProviderOptions {
  * });
  * ```
  */
+/**
+ * Cached auth result with expiration
+ */
+interface CachedAuth {
+  authInfo: AuthInfo;
+  expiresAt: number; // ms timestamp
+}
+
 export class JwtAuthProvider extends AuthProvider {
   private jwks: ReturnType<typeof createRemoteJWKSet>;
   private options: JwtAuthProviderOptions;
+
+  // Token verification cache: hash(token) → AuthInfo with TTL
+  // Prevents redundant JWKS fetches (network round-trip per tool call)
+  private tokenCache = new Map<string, CachedAuth>();
+  private static readonly MAX_CACHE_SIZE = 1000;
+  private static readonly DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(options: JwtAuthProviderOptions) {
     super();
@@ -68,13 +82,22 @@ export class JwtAuthProvider extends AuthProvider {
   }
 
   async verifyToken(token: string): Promise<AuthInfo | null> {
+    // Check cache first (avoids JWKS network round-trip)
+    const cacheKey = await this.hashToken(token);
+    const cached = this.tokenCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.authInfo;
+    }
+    // Evict expired entry if present
+    if (cached) this.tokenCache.delete(cacheKey);
+
     try {
       const { payload } = await jwtVerify(token, this.jwks, {
         issuer: this.options.issuer,
         audience: this.options.audience,
       });
 
-      return {
+      const authInfo: AuthInfo = {
         subject: payload.sub ?? "unknown",
         clientId: (payload.azp as string | undefined) ??
           (payload.client_id as string | undefined),
@@ -82,9 +105,38 @@ export class JwtAuthProvider extends AuthProvider {
         claims: payload as Record<string, unknown>,
         expiresAt: payload.exp,
       };
+
+      // Cache with TTL = min(token remaining lifetime, 5 minutes)
+      const tokenExpiresMs = payload.exp ? payload.exp * 1000 : Infinity;
+      const cacheTtl = Math.min(
+        tokenExpiresMs - Date.now(),
+        JwtAuthProvider.DEFAULT_CACHE_TTL_MS,
+      );
+      if (cacheTtl > 0) {
+        // Evict oldest entries if cache is full
+        if (this.tokenCache.size >= JwtAuthProvider.MAX_CACHE_SIZE) {
+          const oldestKey = this.tokenCache.keys().next().value;
+          if (oldestKey) this.tokenCache.delete(oldestKey);
+        }
+        this.tokenCache.set(cacheKey, {
+          authInfo: Object.freeze(authInfo) as AuthInfo,
+          expiresAt: Date.now() + cacheTtl,
+        });
+      }
+
+      return authInfo;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Hash a token for cache key (avoids storing raw tokens in memory)
+   */
+  private async hashToken(token: string): Promise<string> {
+    const data = new TextEncoder().encode(token);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
   getResourceMetadata(): ProtectedResourceMetadata {

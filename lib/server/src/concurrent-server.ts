@@ -41,6 +41,8 @@ import type {
   HttpServerOptions,
 } from "./types.ts";
 import { MCP_APP_MIME_TYPE, MCP_APP_URI_SCHEME } from "./types.ts";
+import { ServerMetrics } from "./observability/metrics.ts";
+import { startToolCallSpan, endToolCallSpan } from "./observability/otel.ts";
 
 /**
  * Tool definition with handler
@@ -118,13 +120,20 @@ export class ConcurrentMCPServer {
   // Auth provider (set from options.auth or auto-configured from env)
   private authProvider: AuthProvider | null = null;
 
+  // Observability
+  private serverMetrics = new ServerMetrics();
+
   // Streamable HTTP session management
   private sessions = new Map<string, { createdAt: number; lastActivity: number }>();
   private sseClients = new Map<string, SSEClient[]>(); // sessionId -> clients
   private sessionCleanupTimer: ReturnType<typeof setInterval> | null = null;
   private static readonly SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
   private static readonly SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  private static readonly SESSION_GRACE_PERIOD_MS = 60 * 1000; // 60s grace for in-flight requests
   private static readonly MAX_SESSIONS = 10_000;
+
+  // Per-IP rate limiter for initialize requests (anti-session-exhaustion)
+  private initRateLimiter = new RateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
   constructor(options: ConcurrentServerOptions) {
     this.options = options;
@@ -400,7 +409,38 @@ export class ConcurrentMCPServer {
       sessionId,
     };
 
-    return this.middlewareRunner(ctx);
+    // OTel span + metrics
+    const span = startToolCallSpan(toolName, {
+      "mcp.tool.name": toolName,
+      "mcp.server.name": this.options.name,
+      "mcp.transport": request ? "http" : "stdio",
+      "mcp.session.id": sessionId,
+    });
+
+    // Update gauges before execution
+    const queueMetrics = this.requestQueue.getMetrics();
+    this.serverMetrics.setGauges({
+      activeRequests: queueMetrics.inFlight,
+      queuedRequests: queueMetrics.queued,
+      activeSessions: this.sessions.size,
+      sseClients: this.getSSEClientCount(),
+      rateLimiterKeys: this.rateLimiter?.getMetrics().keys ?? 0,
+    });
+
+    const start = performance.now();
+    try {
+      const result = await this.middlewareRunner(ctx);
+      const durationMs = performance.now() - start;
+      this.serverMetrics.recordToolCall(toolName, true, durationMs);
+      endToolCallSpan(span, true, durationMs);
+      return result;
+    } catch (error) {
+      const durationMs = performance.now() - start;
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.serverMetrics.recordToolCall(toolName, false, durationMs);
+      endToolCallSpan(span, false, durationMs, errorMsg);
+      throw error;
+    }
   }
 
   // ============================================
@@ -572,9 +612,10 @@ export class ConcurrentMCPServer {
    */
   private cleanupSessions(): void {
     const now = Date.now();
+    const ttlWithGrace = ConcurrentMCPServer.SESSION_TTL_MS + ConcurrentMCPServer.SESSION_GRACE_PERIOD_MS;
     let cleaned = 0;
     for (const [sessionId, session] of this.sessions) {
-      if (now - session.lastActivity > ConcurrentMCPServer.SESSION_TTL_MS) {
+      if (now - session.lastActivity > ttlWithGrace) {
         this.sessions.delete(sessionId);
         // Also clean up SSE clients for this session
         const clients = this.sseClients.get(sessionId);
@@ -588,6 +629,7 @@ export class ConcurrentMCPServer {
       }
     }
     if (cleaned > 0) {
+      this.serverMetrics.recordSessionExpired(cleaned);
       this.log(`Session cleanup: removed ${cleaned} expired sessions (${this.sessions.size} remaining)`);
     }
   }
@@ -691,6 +733,22 @@ export class ConcurrentMCPServer {
 
     // Health check endpoint
     app.get("/health", (c) => c.json({ status: "ok", server: this.options.name, version: this.options.version }));
+
+    // Prometheus metrics endpoint
+    app.get("/metrics", (_c) => {
+      // Update gauges before serving
+      const qm = this.requestQueue.getMetrics();
+      this.serverMetrics.setGauges({
+        activeRequests: qm.inFlight,
+        queuedRequests: qm.queued,
+        activeSessions: this.sessions.size,
+        sseClients: this.getSSEClientCount(),
+        rateLimiterKeys: this.rateLimiter?.getMetrics().keys ?? 0,
+      });
+      return new Response(this.serverMetrics.toPrometheusFormat(), {
+        headers: { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" },
+      });
+    });
 
     // RFC 9728 Protected Resource Metadata endpoint
     // deno-lint-ignore no-explicit-any
@@ -823,6 +881,18 @@ export class ConcurrentMCPServer {
         // Initialize - create session and return session ID
         // Note: initialize is NOT auth-gated (client needs to discover capabilities first)
         if (method === "initialize") {
+          // Per-IP rate limit on initialize to prevent session exhaustion attacks
+          const clientIp = c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
+            ?? c.req.header("x-real-ip")
+            ?? "unknown";
+          if (!this.initRateLimiter.checkLimit(clientIp)) {
+            return c.json({
+              jsonrpc: "2.0",
+              id,
+              error: { code: -32000, message: "Too many initialize requests. Try again later." },
+            }, 429);
+          }
+
           // Guard against session exhaustion
           if (this.sessions.size >= ConcurrentMCPServer.MAX_SESSIONS) {
             this.cleanupSessions();
@@ -837,6 +907,7 @@ export class ConcurrentMCPServer {
           const sessionId = generateSessionId();
           const now = Date.now();
           this.sessions.set(sessionId, { createdAt: now, lastActivity: now });
+          this.serverMetrics.recordSessionCreated();
 
           this.log(`New session created: ${sessionId}`);
 
@@ -1086,13 +1157,22 @@ export class ConcurrentMCPServer {
     const eventId = Date.now();
     const data = `id: ${eventId}\ndata: ${JSON.stringify(message)}\n\n`;
 
-    for (const client of clients) {
+    // Iterate in reverse so splice doesn't shift indices
+    for (let i = clients.length - 1; i >= 0; i--) {
+      const client = clients[i];
       try {
         client.controller.enqueue(encoder.encode(data));
         client.lastEventId = eventId;
       } catch {
-        this.log(`Failed to send to SSE client in session: ${sessionId}`);
+        // Stream is closed/broken — remove zombie client to prevent memory leak
+        clients.splice(i, 1);
+        this.log(`Removed dead SSE client from session: ${sessionId}`);
       }
+    }
+
+    // Clean up empty session entry
+    if (clients.length === 0) {
+      this.sseClients.delete(sessionId);
     }
   }
 
@@ -1137,6 +1217,28 @@ export class ConcurrentMCPServer {
    */
   getMetrics(): QueueMetrics {
     return this.requestQueue.getMetrics();
+  }
+
+  /**
+   * Get full server metrics (counters, histograms, gauges)
+   */
+  getServerMetrics(): import("./observability/metrics.ts").ServerMetricsSnapshot {
+    const qm = this.requestQueue.getMetrics();
+    this.serverMetrics.setGauges({
+      activeRequests: qm.inFlight,
+      queuedRequests: qm.queued,
+      activeSessions: this.sessions.size,
+      sseClients: this.getSSEClientCount(),
+      rateLimiterKeys: this.rateLimiter?.getMetrics().keys ?? 0,
+    });
+    return this.serverMetrics.getSnapshot();
+  }
+
+  /**
+   * Get Prometheus text format metrics
+   */
+  getPrometheusMetrics(): string {
+    return this.serverMetrics.toPrometheusFormat();
   }
 
   /**
