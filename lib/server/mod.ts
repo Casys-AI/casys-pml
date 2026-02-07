@@ -79,3 +79,43 @@ export type {
 
 // MCP Apps constants
 export { MCP_APP_MIME_TYPE, MCP_APP_URI_SCHEME } from "./src/types.ts";
+
+// Middleware pipeline
+export type {
+  Middleware,
+  MiddlewareContext,
+  MiddlewareResult,
+  NextFunction,
+} from "./src/middleware/mod.ts";
+export { createMiddlewareRunner } from "./src/middleware/mod.ts";
+
+// Auth - Core
+export { AuthProvider } from "./src/auth/mod.ts";
+export {
+  AuthError,
+  extractBearerToken,
+  createUnauthorizedResponse,
+  createForbiddenResponse,
+  createAuthMiddleware,
+} from "./src/auth/mod.ts";
+export { createScopeMiddleware } from "./src/auth/mod.ts";
+export type {
+  AuthInfo,
+  AuthOptions,
+  ProtectedResourceMetadata,
+} from "./src/auth/mod.ts";
+
+// Auth - JWT Provider + Presets
+export { JwtAuthProvider } from "./src/auth/mod.ts";
+export type { JwtAuthProviderOptions } from "./src/auth/mod.ts";
+export {
+  createGitHubAuthProvider,
+  createGoogleAuthProvider,
+  createAuth0AuthProvider,
+  createOIDCAuthProvider,
+} from "./src/auth/mod.ts";
+export type { PresetOptions } from "./src/auth/mod.ts";
+
+// Auth - Config (YAML + env)
+export { loadAuthConfig, createAuthProviderFromConfig } from "./src/auth/mod.ts";
+export type { AuthConfig, AuthProviderName } from "./src/auth/mod.ts";

@@ -81,6 +81,13 @@ export interface ConcurrentServerOptions {
 
   /** Custom logger function (default: console.error) */
   logger?: (msg: string) => void;
+
+  /**
+   * OAuth2/Bearer authentication configuration.
+   * When provided, HTTP requests require a valid Bearer token.
+   * STDIO transport is unaffected (local, no auth needed).
+   */
+  auth?: import("./auth/types.ts").AuthOptions;
 }
 
 // ============================================
@@ -218,6 +225,13 @@ export interface MCPTool {
    * @see McpUiToolMeta
    */
   _meta?: MCPToolMeta;
+
+  /**
+   * Required OAuth scopes to call this tool.
+   * Only enforced when auth is configured on the server.
+   * If empty or undefined, no scope check is performed.
+   */
+  requiredScopes?: string[];
 }
 
 /**

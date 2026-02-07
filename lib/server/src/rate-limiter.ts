@@ -67,12 +67,20 @@ export class RateLimiter {
    * Wait until request slot is available (with exponential backoff)
    *
    * @param key - Identifier (client ID, IP, etc.)
+   * @throws Error if max wait time exceeded (defaults to windowMs)
    */
   async waitForSlot(key: string): Promise<void> {
     let retries = 0;
     const baseDelay = 100;
+    const maxWaitMs = this.windowMs;
+    const startTime = Date.now();
 
     while (!this.checkLimit(key)) {
+      if (Date.now() - startTime >= maxWaitMs) {
+        throw new Error(
+          `Rate limit wait timeout: waited ${maxWaitMs}ms for key "${key}"`,
+        );
+      }
       // Exponential backoff: 100ms, 200ms, 400ms, 800ms, cap at 1000ms
       const delay = Math.min(baseDelay * Math.pow(2, retries), 1000);
       await new Promise((resolve) => setTimeout(resolve, delay));
