@@ -1,0 +1,4 @@
+[submodule "lib/casys-hub-vitrine"]
+	path = lib/casys-hub-vitrine
+	url = https://github.com/superWorldSavior/casys-app.git
+	branch = main
