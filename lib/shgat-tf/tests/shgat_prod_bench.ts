@@ -434,7 +434,7 @@ console.log(`  Training:  ${trainExamples.length} examples, ${PROD_CONFIG.epochs
 console.log(`  Test:      ${testQueries.length} external queries + ${heldOutExamples.length} held-out`);
 console.log(`  Build:     ${tBuild.toFixed(0)}ms`);
 console.log(`  Train:     ${(tTrain / 1000).toFixed(1)}s total, ${(tTrain / PROD_CONFIG.epochs / 1000).toFixed(1)}s/epoch`);
-console.log(`  MP:        sparse, maxLevel=${graphStructure.maxLevel}`);
+console.log(`  MP:        dense autograd (CPU/WebGPU), maxLevel=${graphStructure.maxLevel}`);
 console.log();
 
 const col1 = 18, col2 = 14, col3 = 14;

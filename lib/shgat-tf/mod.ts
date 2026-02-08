@@ -13,28 +13,66 @@
  * - Prioritized Experience Replay (PER) for sample efficiency
  * - Automatic differentiation via TensorFlow autograd
  *
- * @example
+ * @example Recommended: Builder API (training + inference)
+ * ```typescript
+ * import { SHGATBuilder } from "@casys/shgat-tf";
+ *
+ * const nodes = [
+ *   { id: "tool-a", embedding: toolAEmb, children: [] },
+ *   { id: "tool-b", embedding: toolBEmb, children: [] },
+ *   { id: "cap-1",  embedding: capEmb,   children: ["tool-a", "tool-b"] },
+ * ];
+ *
+ * const shgat = await SHGATBuilder.create()
+ *   .nodes(nodes)
+ *   .training({ learningRate: 0.05, temperature: 0.10 })
+ *   .build();
+ *
+ * // Score nodes
+ * const scores = shgat.score(intentEmbedding, ["cap-1"]);
+ *
+ * // Train
+ * const metrics = await shgat.trainBatch(examples);
+ *
+ * // Cleanup
+ * shgat.dispose();
+ * ```
+ *
+ * @example Legacy: createSHGAT (inference only)
  * ```typescript
  * import { createSHGAT, type Node } from "@casys/shgat-tf";
  *
- * // Create nodes (leaves have children: [], composites list their children)
  * const nodes: Node[] = [
  *   { id: "tool-a", embedding: toolAEmb, children: [], level: 0 },
- *   { id: "tool-b", embedding: toolBEmb, children: [], level: 0 },
  *   { id: "cap-1",  embedding: capEmb,   children: ["tool-a", "tool-b"], level: 0 },
  * ];
- *
- * // Create SHGAT from unified nodes
  * const shgat = createSHGAT(nodes);
- *
- * // Score nodes for an intent
- * const intentEmbedding = new Array(1024).fill(0).map(() => Math.random());
- * const scores = shgat.scoreNodes(intentEmbedding, 1); // composites only
- * console.log(scores[0]); // { nodeId: "cap-1", score: 0.73, ... }
+ * const scores = shgat.scoreNodes(intentEmbedding, 1);
  * ```
  *
  * @module shgat-tf
  */
+
+// ============================================================================
+// Recommended API: Builder + Ports
+// ============================================================================
+
+// Builder (fluent API for constructing SHGAT instances)
+export { SHGATBuilder } from "./src/core/builder.ts";
+
+// Port interfaces (for dependency injection / hexagonal architecture)
+export type {
+  SHGATScorer,
+  SHGATTrainer,
+  SHGATTrainerScorer,
+  NodeInput,
+  TrainingOptions,
+  ArchitectureOptions,
+} from "./src/core/builder.ts";
+
+// ============================================================================
+// Legacy API (still works, but prefer SHGATBuilder for new code)
+// ============================================================================
 
 // Main SHGAT class and factory functions
 export {

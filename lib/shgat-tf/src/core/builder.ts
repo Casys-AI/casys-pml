@@ -1,0 +1,387 @@
+/**
+ * SHGAT-TF Builder & Ports
+ *
+ * Clean API for constructing and using SHGAT-TF.
+ * Consolidates the scattered constructor parameters into a single builder.
+ *
+ * ## Architecture Ports:
+ * - `SHGATScorer` — Score nodes for an intent (inference)
+ * - `SHGATTrainer` — Train parameters from examples
+ * - `SHGATTrainerScorer` — Full training + inference (combined)
+ *
+ * ## Usage:
+ * ```typescript
+ * import { SHGATBuilder, type SHGATTrainerScorer } from "@casys/shgat-tf";
+ *
+ * const shgat: SHGATTrainerScorer = await SHGATBuilder.create()
+ *   .nodes(myNodes)                        // Nodes with embeddings
+ *   .training({ learningRate: 0.05 })      // Training hyperparams
+ *   .build();
+ *
+ * // Score
+ * const scores = shgat.score(intentEmbedding, capabilityIds);
+ *
+ * // Train
+ * const metrics = await shgat.trainBatch(examples);
+ *
+ * // Dispose when done
+ * shgat.dispose();
+ * ```
+ *
+ * @module shgat-tf/core/builder
+ */
+
+import type { Node, SHGATConfig, TrainingExample } from "./types.ts";
+import { DEFAULT_SHGAT_CONFIG } from "./types.ts";
+import {
+  AutogradTrainer,
+  buildGraphStructure,
+  disposeGraphStructure,
+  type CapabilityInfo,
+  type GraphStructure,
+  type TrainerConfig,
+  type TrainingMetrics,
+  DEFAULT_TRAINER_CONFIG,
+} from "../training/autograd-trainer.ts";
+import { initTensorFlow } from "../tf/backend.ts";
+import type { BackendMode } from "../tf/backend.ts";
+
+// ============================================================================
+// Ports (Interfaces)
+// ============================================================================
+
+/**
+ * Inference port — score nodes for a given intent.
+ *
+ * Implementations may use message passing or direct K-head attention.
+ */
+export interface SHGATScorer {
+  /**
+   * Score nodes for an intent embedding.
+   *
+   * @param intentEmbedding - User intent (e.g. BGE-M3, 1024-dim)
+   * @param nodeIds - IDs of nodes to score
+   * @returns Scores in same order as nodeIds (higher = better match)
+   */
+  score(intentEmbedding: number[], nodeIds: string[]): number[];
+
+  /** Whether message passing is enabled (enriches embeddings before scoring) */
+  readonly hasMessagePassing: boolean;
+
+  /** Release GPU/tensor resources */
+  dispose(): void;
+}
+
+/**
+ * Training port — train SHGAT parameters from contrastive examples.
+ */
+export interface SHGATTrainer {
+  /**
+   * Train on a batch of contrastive examples.
+   *
+   * Each example has a positive candidate + negative candidates.
+   * Uses InfoNCE loss with temperature annealing.
+   *
+   * @param examples - Training batch
+   * @returns Metrics (loss, accuracy, gradient norm)
+   */
+  trainBatch(examples: TrainingExample[]): Promise<TrainingMetrics>;
+
+  /**
+   * Update InfoNCE temperature (for cosine annealing during training).
+   *
+   * @param temperature - New temperature (e.g. 0.10 → 0.06 over epochs)
+   */
+  setTemperature(temperature: number): void;
+
+  /** Release GPU/tensor resources */
+  dispose(): void;
+}
+
+/**
+ * Combined training + inference port.
+ *
+ * This is the main interface for most use cases.
+ */
+export interface SHGATTrainerScorer extends SHGATScorer, SHGATTrainer {}
+
+// ============================================================================
+// Builder Configuration
+// ============================================================================
+
+/**
+ * Node data for the builder.
+ *
+ * Minimal shape: `{ id, embedding, children }`.
+ * The builder computes levels automatically.
+ */
+export type NodeInput = Pick<Node, "id" | "embedding" | "children">;
+
+/**
+ * Training options for the builder.
+ */
+export interface TrainingOptions {
+  /** Learning rate (default: 0.001) */
+  learningRate?: number;
+  /** Batch size (default: 32) */
+  batchSize?: number;
+  /** InfoNCE temperature (default: 0.07) */
+  temperature?: number;
+  /** Max gradient norm (default: 1.0) */
+  gradientClip?: number;
+  /** L2 regularization weight (default: 0.0001) */
+  l2Lambda?: number;
+}
+
+/**
+ * Architecture options for the builder.
+ *
+ * Most users should NOT set these — the defaults are tuned for BGE-M3 (1024-dim).
+ * Only customize if using different embeddings.
+ */
+export interface ArchitectureOptions {
+  /** Embedding dimension (default: 1024 for BGE-M3) */
+  embeddingDim?: number;
+  /** Number of attention heads (default: 16) */
+  numHeads?: number;
+  /** Dimension per head (default: 64) */
+  headDim?: number;
+  /** Hidden dimension for projections (default: 1024) */
+  hiddenDim?: number;
+  /** Preserve embedding dimension through message passing (default: true) */
+  preserveDim?: boolean;
+  /** Enable projection head for fine-grained discrimination (default: false) */
+  useProjectionHead?: boolean;
+}
+
+// ============================================================================
+// Builder Implementation
+// ============================================================================
+
+/**
+ * Fluent builder for SHGAT-TF.
+ *
+ * Consolidates all configuration into a single, discoverable API.
+ * Call `.build()` to get a ready-to-use `SHGATTrainerScorer`.
+ *
+ * @example
+ * ```typescript
+ * // Minimal (inference only)
+ * const scorer = await SHGATBuilder.create()
+ *   .nodes(myNodes)
+ *   .build();
+ *
+ * // Full training setup
+ * const shgat = await SHGATBuilder.create()
+ *   .nodes(myNodes)
+ *   .training({ learningRate: 0.05, temperature: 0.10 })
+ *   .architecture({ numHeads: 16 })
+ *   .backend("training")
+ *   .build();
+ * ```
+ */
+export class SHGATBuilder {
+  private _nodes: NodeInput[] = [];
+  private _trainingOpts: TrainingOptions = {};
+  private _archOpts: ArchitectureOptions = {};
+  private _backendMode: BackendMode | "cpu" | "webgpu" | undefined;
+
+  private constructor() {}
+
+  /** Create a new builder */
+  static create(): SHGATBuilder {
+    return new SHGATBuilder();
+  }
+
+  /**
+   * Set the graph nodes.
+   *
+   * Leaves have `children: []`, composites list their child IDs.
+   * Levels are computed automatically from the structure.
+   *
+   * @param nodes - Array of nodes with embeddings
+   */
+  nodes(nodes: NodeInput[]): this {
+    this._nodes = nodes;
+    return this;
+  }
+
+  /**
+   * Set training hyperparameters.
+   *
+   * If not called, default training config is used.
+   * @param opts - Training options (all optional, merged with defaults)
+   */
+  training(opts: TrainingOptions): this {
+    this._trainingOpts = opts;
+    return this;
+  }
+
+  /**
+   * Set architecture parameters.
+   *
+   * Most users should NOT call this — defaults are tuned for BGE-M3 (1024-dim).
+   *
+   * @param opts - Architecture options (all optional, merged with defaults)
+   */
+  architecture(opts: ArchitectureOptions): this {
+    this._archOpts = opts;
+    return this;
+  }
+
+  /**
+   * Set TensorFlow.js backend mode.
+   *
+   * - `"training"`: WebGPU > CPU (full autograd, never WASM)
+   * - `"inference"`: WebGPU > WASM > CPU (speed priority)
+   * - `"cpu"` / `"webgpu"`: Force specific backend
+   *
+   * Default: `"training"` (safe choice — supports both training and inference).
+   *
+   * @param mode - Backend selection mode
+   */
+  backend(mode: BackendMode | "cpu" | "webgpu"): this {
+    this._backendMode = mode;
+    return this;
+  }
+
+  /**
+   * Build and return a ready-to-use SHGAT instance.
+   *
+   * This:
+   * 1. Initializes the TF.js backend
+   * 2. Separates nodes into tools (leaves) and capabilities (composites)
+   * 3. Builds the graph structure (incidence matrices)
+   * 4. Creates the trainer with all parameters
+   * 5. Returns a `SHGATTrainerScorer` ready for scoring and training
+   *
+   * @throws Error if no nodes are provided
+   */
+  async build(): Promise<SHGATTrainerScorer> {
+    // Validate
+    if (this._nodes.length === 0) {
+      throw new Error(
+        "[SHGATBuilder] No nodes provided. Call .nodes([...]) before .build()."
+      );
+    }
+
+    // 1. Initialize backend
+    const backendMode = this._backendMode ?? "training";
+    await initTensorFlow(backendMode as BackendMode);
+
+    // 2. Build config
+    const config: SHGATConfig = {
+      ...DEFAULT_SHGAT_CONFIG,
+      ...(this._archOpts.embeddingDim !== undefined && { embeddingDim: this._archOpts.embeddingDim }),
+      ...(this._archOpts.numHeads !== undefined && { numHeads: this._archOpts.numHeads }),
+      ...(this._archOpts.headDim !== undefined && { headDim: this._archOpts.headDim }),
+      ...(this._archOpts.hiddenDim !== undefined && { hiddenDim: this._archOpts.hiddenDim }),
+      ...(this._archOpts.preserveDim !== undefined && { preserveDim: this._archOpts.preserveDim }),
+      ...(this._archOpts.useProjectionHead !== undefined && { useProjectionHead: this._archOpts.useProjectionHead }),
+    };
+
+    const trainerConfig: Partial<TrainerConfig> = {
+      ...DEFAULT_TRAINER_CONFIG,
+      ...(this._trainingOpts.learningRate !== undefined && { learningRate: this._trainingOpts.learningRate }),
+      ...(this._trainingOpts.batchSize !== undefined && { batchSize: this._trainingOpts.batchSize }),
+      ...(this._trainingOpts.temperature !== undefined && { temperature: this._trainingOpts.temperature }),
+      ...(this._trainingOpts.gradientClip !== undefined && { gradientClip: this._trainingOpts.gradientClip }),
+      ...(this._trainingOpts.l2Lambda !== undefined && { l2Lambda: this._trainingOpts.l2Lambda }),
+    };
+
+    // 3. Separate tools (leaves) and capabilities (composites)
+    const toolIds: string[] = [];
+    const capInfos: CapabilityInfo[] = [];
+    const embeddings = new Map<string, number[]>();
+
+    // Detect embedding dim from first node
+    const detectedDim = this._nodes[0]?.embedding.length ?? config.embeddingDim;
+    if (detectedDim !== config.embeddingDim) {
+      config.embeddingDim = detectedDim;
+      // Adjust hiddenDim if it was not explicitly set and matches old embeddingDim
+      if (this._archOpts.hiddenDim === undefined) {
+        config.hiddenDim = detectedDim;
+      }
+    }
+
+    const nodeIdSet = new Set(this._nodes.map(n => n.id));
+
+    for (const node of this._nodes) {
+      embeddings.set(node.id, node.embedding);
+
+      // Filter children to only valid node IDs
+      const validChildren = node.children.filter(id => nodeIdSet.has(id));
+
+      if (validChildren.length === 0) {
+        // Leaf (tool)
+        toolIds.push(node.id);
+      } else {
+        // Composite (capability)
+        capInfos.push({
+          id: node.id,
+          toolsUsed: validChildren,
+        });
+      }
+    }
+
+    // 4. Build graph structure
+    const graph = buildGraphStructure(capInfos, toolIds);
+
+    // 5. Create trainer
+    const trainer = new AutogradTrainer(config, trainerConfig, graph.maxLevel);
+    trainer.setNodeEmbeddings(embeddings);
+    trainer.setGraph(graph);
+
+    // 6. Wrap in port implementation
+    return new BuiltSHGAT(trainer, graph);
+  }
+}
+
+// ============================================================================
+// Internal Implementation
+// ============================================================================
+
+/**
+ * Concrete implementation of SHGATTrainerScorer backed by AutogradTrainer.
+ *
+ * @internal
+ */
+class BuiltSHGAT implements SHGATTrainerScorer {
+  private trainer: AutogradTrainer;
+  private graph: GraphStructure;
+  private disposed = false;
+
+  constructor(trainer: AutogradTrainer, graph: GraphStructure) {
+    this.trainer = trainer;
+    this.graph = graph;
+  }
+
+  get hasMessagePassing(): boolean {
+    return this.trainer.hasMessagePassing();
+  }
+
+  score(intentEmbedding: number[], nodeIds: string[]): number[] {
+    if (this.disposed) {
+      throw new Error("[SHGAT] Instance has been disposed. Create a new one via SHGATBuilder.");
+    }
+    return this.trainer.score(intentEmbedding, nodeIds);
+  }
+
+  async trainBatch(examples: TrainingExample[]): Promise<TrainingMetrics> {
+    if (this.disposed) {
+      throw new Error("[SHGAT] Instance has been disposed. Create a new one via SHGATBuilder.");
+    }
+    return this.trainer.trainBatch(examples);
+  }
+
+  setTemperature(temperature: number): void {
+    this.trainer.setTemperature(temperature);
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    disposeGraphStructure(this.graph);
+    this.trainer.dispose();
+  }
+}
