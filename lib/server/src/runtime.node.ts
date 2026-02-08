@@ -47,7 +47,9 @@ export function serve(options: ServeOptions, handler: FetchHandler): ServeHandle
   const server = createServer(async (nodeReq, nodeRes) => {
     try {
       // Convert Node.js IncomingMessage → Web Request
-      const url = `http://${hostname}:${options.port}${nodeReq.url ?? "/"}`;
+      // Prefer Host header (correct behind reverse proxy) over bound hostname
+      const host = nodeReq.headers.host ?? `${hostname}:${options.port}`;
+      const url = `http://${host}${nodeReq.url ?? "/"}`;
       const headers = new Headers();
       for (const [key, value] of Object.entries(nodeReq.headers)) {
         if (value) {
@@ -75,7 +77,19 @@ export function serve(options: ServeOptions, handler: FetchHandler): ServeHandle
       const response = await handler(request);
 
       // Convert Web Response → Node.js ServerResponse
-      nodeRes.writeHead(response.status, Object.fromEntries(response.headers));
+      // Use raw header entries to preserve duplicate Set-Cookie headers
+      const resHeaders: Record<string, string | string[]> = {};
+      response.headers.forEach((value, key) => {
+        const existing = resHeaders[key];
+        if (existing !== undefined) {
+          resHeaders[key] = Array.isArray(existing)
+            ? [...existing, value]
+            : [existing, value];
+        } else {
+          resHeaders[key] = value;
+        }
+      });
+      nodeRes.writeHead(response.status, resHeaders);
 
       if (response.body) {
         const reader = response.body.getReader();
@@ -86,8 +100,7 @@ export function serve(options: ServeOptions, handler: FetchHandler): ServeHandle
         }
         nodeRes.end();
       } else {
-        const text = await response.text();
-        nodeRes.end(text);
+        nodeRes.end();
       }
     } catch (err) {
       console.error("[runtime.node] Request handler error:", err);
@@ -123,13 +136,13 @@ export function unrefTimer(id: number): void {
     if (typeof timer === "object" && timer && typeof timer.unref === "function") {
       timer.unref();
     }
-  } catch {
-    // Best effort — timer unref is non-critical
+  } catch (err) {
+    console.warn("[runtime.node] Failed to unref timer:", err);
   }
 }
 
 /** Compile-time contract check — ensures this module satisfies RuntimePort */
-export const _port = { env, readTextFile, serve, unrefTimer } satisfies RuntimePort;
+const _port = { env, readTextFile, serve, unrefTimer } satisfies RuntimePort;
 
 // ─── Internal helpers ────────────────────────────────────
 

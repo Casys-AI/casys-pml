@@ -23,6 +23,7 @@
     "ajv": "npm:ajv@^8.17.1",
     "hono": "jsr:@hono/hono@^4",
     "jose": "npm:jose@^6.0.0",
+    "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0",
     "@std/yaml": "jsr:@std/yaml@^1"
   }
 }

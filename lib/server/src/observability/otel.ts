@@ -2,8 +2,10 @@
  * OpenTelemetry Integration for @casys/mcp-server
  *
  * Provides tracing for tool calls, auth, and middleware pipeline.
- * Uses Deno's built-in OTEL support (Deno 2.2+).
- * Enable with: OTEL_DENO=true deno run --unstable-otel ...
+ *
+ * Enable with:
+ * - Deno: OTEL_DENO=true deno run --unstable-otel ...
+ * - Node.js: OTEL_ENABLED=true node ...
  *
  * @module lib/server/observability/otel
  */

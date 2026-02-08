@@ -5,7 +5,6 @@
 # 1. Copies src/ and mod.ts to dist-node/
 # 2. Replaces runtime.ts with runtime.node.ts (node:http instead of Deno.serve)
 # 3. Remaps Deno-ecosystem imports to npm equivalents:
-#    - jsr:@hono/hono@^4/cors → hono/cors
 #    - @std/yaml → yaml
 # 4. Strips .ts extensions from relative imports (Node ESM convention)
 #
@@ -38,9 +37,6 @@ cp "$DIST_DIR/src/runtime.node.ts" "$DIST_DIR/src/runtime.ts"
 rm "$DIST_DIR/src/runtime.node.ts"
 
 # Remap Deno-ecosystem imports to npm equivalents
-# jsr:@hono/hono@^4/cors → hono/cors
-find "$DIST_DIR" -name "*.ts" -exec sed -i 's|from "jsr:@hono/hono@[^"]*/cors"|from "hono/cors"|g' {} +
-
 # @std/yaml → yaml (npm yaml package has same parse() API)
 find "$DIST_DIR" -name "*.ts" -exec sed -i 's|from "@std/yaml"|from "yaml"|g' {} +
 

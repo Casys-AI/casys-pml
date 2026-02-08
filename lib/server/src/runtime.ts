@@ -60,4 +60,4 @@ export function unrefTimer(id: number): void {
 }
 
 /** Compile-time contract check — ensures this module satisfies RuntimePort */
-export const _port = { env, readTextFile, serve, unrefTimer } satisfies RuntimePort;
+const _port = { env, readTextFile, serve, unrefTimer } satisfies RuntimePort;

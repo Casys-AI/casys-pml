@@ -17,7 +17,7 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { Hono } from "hono";
-import { cors } from "jsr:@hono/hono@^4/cors";
+import { cors } from "hono/cors";
 import { RequestQueue } from "./request-queue.ts";
 import { SamplingBridge } from "./sampling-bridge.ts";
 import { RateLimiter } from "./rate-limiter.ts";
