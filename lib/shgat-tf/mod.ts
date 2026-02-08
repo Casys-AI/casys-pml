@@ -1,8 +1,12 @@
 /**
- * SHGAT-TF - SuperHyperGraph Attention Networks with TensorFlow FFI
+ * SHGAT-TF - SuperHyperGraph Attention Networks with TensorFlow.js
  *
- * A TypeScript/Deno implementation of SuperHyperGraph Attention Networks using
- * libtensorflow via FFI for high-performance training and inference.
+ * A TypeScript implementation of SuperHyperGraph Attention Networks using
+ * TF.js dense autograd for training and inference.
+ *
+ * Backends:
+ * - Deno: WebGPU > WASM > CPU (see backend.ts)
+ * - Node.js: tfjs-node C++ binding (see backend.node.ts)
  *
  * Key features:
  * - Dense TF.js autograd for training (CPU/WebGPU backends)
@@ -10,7 +14,6 @@
  * - K-head attention (16 heads) with InfoNCE contrastive loss
  * - Multi-level hierarchy support (n-SuperHyperGraph)
  * - Prioritized Experience Replay (PER) for sample efficiency
- * - Optional libtensorflow FFI backend for native performance
  *
  * @example Recommended: Builder API (training + inference)
  * ```typescript
@@ -182,36 +185,16 @@ export * as math from "./src/utils/math.ts";
 export { getLogger, resetLogger, setLogger, type Logger } from "./src/core/logger.ts";
 
 // ============================================================================
-// TensorFlow FFI Backend (libtensorflow - no WASM!)
+// TensorFlow.js Backend
 // ============================================================================
-
-// Core FFI bindings
-export * as tff from "./src/tf/tf-ffi.ts";
-
-// High-level API
-export {
-  initTensorFlow,
-  getBackend,
-  isInitialized,
-  tidy,
-  dispose,
-  tensor,
-  zeros,
-  ones,
-  matMul,
-  softmax,
-  gather,
-  unsortedSegmentSum,
-  Variable,
-  variable,
-  memory,
-  logMemory,
-} from "./src/tf/index.ts";
 
 // Backend mode selection (training vs inference)
 export {
+  initTensorFlow,
   switchBackend,
   supportsAutograd,
+  getBackend,
+  isInitialized,
   type BackendMode,
 } from "./src/tf/backend.ts";
 
@@ -223,9 +206,3 @@ export {
   type LayersTrainerConfig,
   type LayersTrainingMetrics,
 } from "./src/training/layers-trainer.ts";
-
-// Custom kernel for UnsortedSegmentSum (enables gather gradients on WASM)
-export {
-  registerUnsortedSegmentSumKernel,
-  isRegistered as isUnsortedSegmentSumRegistered,
-} from "./src/tf/kernels/unsorted-segment-sum.ts";

@@ -12,15 +12,14 @@
  * The same model code runs on all backends - TF.js abstracts the difference.
  * Users in the browser automatically get WebGPU if available.
  *
+ * For Node.js, use backend.node.ts instead (tfjs-node C++ binding).
+ *
  * @module shgat-tf/tf/backend
  */
 
 import * as tf from "npm:@tensorflow/tfjs@4.22.0";
 // Import WASM backend to register it
 import "npm:@tensorflow/tfjs-backend-wasm@4.22.0";
-
-// FFI backend (requires libtensorflow)
-import * as tff from "./tf-ffi.ts";
 
 // Re-export tf for use throughout the codebase
 export { tf };
@@ -29,7 +28,6 @@ export { tf };
 let initialized = false;
 let currentBackend: string = "cpu";
 let initPromise: Promise<string> | null = null;
-let usingFFI = false;
 
 /** Backend mode determines kernel requirements */
 export type BackendMode = "training" | "inference";
@@ -66,7 +64,6 @@ export async function ensureInitialized(): Promise<void> {
  * @param preferredBackendOrMode - Backend name or mode:
  *   - 'training': Auto-select best backend with full autograd (WebGPU > CPU)
  *   - 'inference': Auto-select fastest backend (WebGPU > WASM > CPU)
- *   - 'ffi': Use libtensorflow via Deno FFI
  *   - 'webgpu': TF.js WebGPU backend
  *   - 'wasm': TF.js WASM backend (fast, but missing some grad kernels)
  *   - 'cpu': TF.js CPU backend (slowest, but all kernels available)
@@ -85,25 +82,9 @@ export async function ensureInitialized(): Promise<void> {
  * ```
  */
 export async function initTensorFlow(
-  preferredBackendOrMode?: "ffi" | "webgpu" | "wasm" | "cpu" | BackendMode,
+  preferredBackendOrMode?: "webgpu" | "wasm" | "cpu" | BackendMode,
 ): Promise<string> {
   if (initialized) {
-    return currentBackend;
-  }
-
-  // Handle FFI backend specially
-  if (preferredBackendOrMode === "ffi") {
-    if (!tff.isAvailable()) {
-      throw new Error(
-        "[TF-FFI] libtensorflow not found. Install with:\n" +
-        "  ./lib/shgat-tf/scripts/install-libtensorflow.sh\n" +
-        "Or use a different backend: initTensorFlow('wasm')"
-      );
-    }
-    initialized = true;
-    currentBackend = "ffi";
-    usingFFI = true;
-    console.error(`[TF] Using FFI backend (libtensorflow ${tff.version()})`);
     return currentBackend;
   }
 
@@ -170,16 +151,14 @@ export async function switchBackend(mode: BackendMode): Promise<string> {
  * Check if current backend supports full autograd (all kernels)
  */
 export function supportsAutograd(): boolean {
-  const backend = getBackend();
   // WASM is the only TF.js backend missing grad kernels
-  return backend !== "wasm";
+  return getBackend() !== "wasm";
 }
 
 /**
  * Get current backend name
  */
 export function getBackend(): string {
-  if (usingFFI) return "ffi";
   return tf.getBackend();
 }
 
@@ -188,21 +167,6 @@ export function getBackend(): string {
  */
 export function isInitialized(): boolean {
   return initialized;
-}
-
-/**
- * Check if using FFI backend (libtensorflow)
- */
-export function isUsingFFI(): boolean {
-  return usingFFI;
-}
-
-/**
- * Get FFI module for direct access to libtensorflow operations
- * Returns null if FFI is not available
- */
-export function getFFI(): typeof tff | null {
-  return tff.isAvailable() ? tff : null;
 }
 
 /**

@@ -6,7 +6,6 @@
 # 2. Replaces backend.ts with backend.node.ts (tfjs-node instead of tfjs + WASM)
 # 3. Strips Deno-specific "npm:" prefixes from imports
 # 4. Removes .ts extensions from imports (Node ESM convention)
-# 5. Removes tf-ffi.ts (Deno FFI, not needed on Node)
 #
 # Usage:
 #   cd lib/shgat-tf && ./scripts/build-node.sh
@@ -32,9 +31,6 @@ cp "$ROOT_DIR/mod.ts" "$DIST_DIR/mod.ts"
 # Replace backend.ts with backend.node.ts
 cp "$DIST_DIR/src/tf/backend.node.ts" "$DIST_DIR/src/tf/backend.ts"
 rm "$DIST_DIR/src/tf/backend.node.ts"
-
-# Remove Deno FFI backend (not needed on Node — tfjs-node is the native binding)
-rm -f "$DIST_DIR/src/tf/tf-ffi.ts"
 
 # Strip "npm:" prefix from any remaining imports (shouldn't be any, but just in case)
 find "$DIST_DIR" -name "*.ts" -exec sed -i 's/from "npm:\(.*\)"/from "\1"/g' {} +

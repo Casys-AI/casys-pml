@@ -1,6 +1,6 @@
 # SHGAT-TF
 
-SuperHyperGraph Attention Networks with TensorFlow FFI for Deno.
+SuperHyperGraph Attention Networks with TensorFlow.js.
 
 Multi-level message passing on hypergraphs with K-head attention scoring,
 designed for tool/capability selection in agentic systems.
@@ -9,65 +9,42 @@ designed for tool/capability selection in agentic systems.
 
 - **Multi-level message passing**: V→E→...→V across hierarchy levels
 - **K-head attention**: 4-16 adaptive heads with InfoNCE contrastive loss
-- **Sparse message passing**: ~10x faster training on large graphs
+- **Dense TF.js autograd**: Automatic differentiation for training
 - **PER training**: Prioritized Experience Replay for sample efficiency
 - **Curriculum learning**: Easy→hard negative sampling with temperature annealing
-- **libtensorflow FFI**: Native C performance via `Deno.dlopen` (no WASM overhead)
+- **Dual runtime**: Deno (WebGPU/WASM/CPU) + Node.js (tfjs-node C++ binding)
 
 ## Requirements
 
-- Deno 2.x+
-- libtensorflow 2.x (see [installation](#tensorflow-installation))
-
-## Installation
-
-```bash
-deno add jsr:@casys/shgat-tf
-```
-
-### TensorFlow Installation
-
-SHGAT-TF uses libtensorflow via Deno FFI. Install the shared library:
-
-```bash
-# Linux (x86_64)
-curl -L https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.16.1.tar.gz | \
-  sudo tar -xz -C /usr/local
-sudo ldconfig
-
-# macOS (arm64)
-curl -L https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-darwin-arm64-2.16.1.tar.gz | \
-  sudo tar -xz -C /usr/local
-```
+- Deno 2.x+ or Node.js 20+
 
 ## Quick Start
 
 ```typescript
-import { createSHGAT, generateDefaultToolEmbedding, type Node } from "@casys/shgat-tf";
+import { SHGATBuilder } from "@casys/shgat-tf";
 
-// Create nodes (leaves have children: [], composites list their children)
-const nodes: Node[] = [
-  { id: "tool-a", embedding: generateDefaultToolEmbedding("tool-a", 1024), children: [], level: 0 },
-  { id: "tool-b", embedding: generateDefaultToolEmbedding("tool-b", 1024), children: [], level: 0 },
-  {
-    id: "cap-1",
-    embedding: new Array(1024).fill(0).map(() => Math.random()),
-    children: ["tool-a", "tool-b"],
-    level: 0, // computed automatically by createSHGAT
-  },
+const nodes = [
+  { id: "tool-a", embedding: toolAEmb, children: [] },
+  { id: "tool-b", embedding: toolBEmb, children: [] },
+  { id: "cap-1",  embedding: capEmb,   children: ["tool-a", "tool-b"] },
 ];
 
-const shgat = createSHGAT(nodes);
+const shgat = await SHGATBuilder.create()
+  .nodes(nodes)
+  .training({ learningRate: 0.05, temperature: 0.10 })
+  .build();
 
-// Score composite nodes for an intent
-const intentEmbedding = new Array(1024).fill(0).map(() => Math.random());
-const scores = shgat.scoreNodes(intentEmbedding, 1); // 1 = composites only
-console.log(scores[0]); // { nodeId: "cap-1", score: 0.73, ... }
+// Score nodes
+const scores = shgat.score(intentEmbedding, ["cap-1"]);
+
+// Train
+const metrics = await shgat.trainBatch(examples);
+
+// Cleanup
+shgat.dispose();
 ```
 
 ## Training
-
-Use `AutogradTrainer` for training with TensorFlow.js automatic differentiation:
 
 ```typescript
 import { AutogradTrainer, type TrainingExample } from "@casys/shgat-tf";
@@ -103,33 +80,24 @@ const { items, weights, indices } = buffer.sample(batchSize, beta);
 
 ## Persistence
 
-SHGAT params are plain objects:
-
 ```typescript
-// Export
 const params = shgat.exportParams();
 await Deno.writeTextFile("model.json", JSON.stringify(params));
 
-// Import
 const loaded = JSON.parse(await Deno.readTextFile("model.json"));
 shgat.importParams(loaded);
 ```
 
-## Configuration
+## Node.js Support
 
-```typescript
-import { SHGAT, DEFAULT_SHGAT_CONFIG } from "@casys/shgat-tf";
+For Node.js, use the build script to generate a distribution with `@tensorflow/tfjs-node`:
 
-const shgat = new SHGAT({
-  ...DEFAULT_SHGAT_CONFIG,
-  embeddingDim: 1024,    // BGE-M3 embeddings
-  numHeads: 16,          // K-head attention
-  headDim: 64,           // Per-head dimension
-  numLayers: 2,          // Message passing layers
-  dropout: 0.1,          // Dropout rate
-  learningRate: 0.05,    // SGD learning rate
-});
+```bash
+cd lib/shgat-tf && ./scripts/build-node.sh
+cd dist-node && npm install && npm test
 ```
+
+This swaps `backend.ts` (Deno: WebGPU/WASM/CPU) with `backend.node.ts` (tfjs-node C++ binding).
 
 ## Architecture
 
@@ -153,39 +121,38 @@ Intent embedding (1024-dim)
 
 ## API Reference
 
+### Recommended: Builder + Ports
+
+| Export | Description |
+|--------|------------|
+| `SHGATBuilder` | Fluent builder for SHGAT instances |
+| `SHGATScorer` | Scoring-only port interface |
+| `SHGATTrainer` | Training-only port interface |
+| `SHGATTrainerScorer` | Combined training + scoring port |
+
 ### Core
 
 | Export | Description |
 |--------|------------|
 | `SHGAT` | Main class with scoring, training, persistence |
-| `createSHGAT()` | Factory from unified `Node[]` (recommended) |
+| `createSHGAT()` | Factory from unified `Node[]` |
 | `DEFAULT_SHGAT_CONFIG` | Default configuration |
 
 ### Training
 
 | Export | Description |
 |--------|------------|
-| `AutogradTrainer` | TF autograd-based trainer |
-| `sparseMPForward()` | Sparse message passing forward |
-| `sparseMPBackward()` | Sparse message passing backward |
+| `AutogradTrainer` | TF.js autograd-based trainer |
 | `PERBuffer` | Prioritized Experience Replay |
 | `annealTemperature()` | Temperature scheduling |
 
-### Graph
+### Backend
 
 | Export | Description |
 |--------|------------|
-| `GraphBuilder` | Hypergraph construction |
-| `computeHierarchyLevels()` | Hierarchy level computation |
-| `buildMultiLevelIncidence()` | Incidence matrix construction |
-
-### TensorFlow FFI
-
-| Export | Description |
-|--------|------------|
-| `initTensorFlow()` | Initialize libtensorflow backend |
-| `tff.*` | Low-level FFI tensor operations |
-| `tensor()`, `matMul()`, `softmax()` | High-level tensor ops |
+| `initTensorFlow()` | Initialize backend (auto on import) |
+| `switchBackend()` | Switch training/inference mode |
+| `supportsAutograd()` | Check backend kernel support |
 
 ## License
 

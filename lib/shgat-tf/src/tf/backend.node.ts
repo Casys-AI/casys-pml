@@ -92,20 +92,6 @@ export function isInitialized(): boolean {
 }
 
 /**
- * Check if using FFI backend — always false on Node.js (uses tfjs-node instead)
- */
-export function isUsingFFI(): boolean {
-  return false;
-}
-
-/**
- * Get FFI module — not available on Node.js (tfjs-node is the native binding)
- */
-export function getFFI(): null {
-  return null;
-}
-
-/**
  * Get memory info (useful for debugging leaks)
  */
 export function getMemoryInfo(): tf.MemoryInfo {
