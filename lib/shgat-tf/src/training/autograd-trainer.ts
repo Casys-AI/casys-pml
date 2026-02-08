@@ -443,9 +443,12 @@ export function kHeadScoring(
     // Uses same W_k for both Q and K (shared projection, matching old SHGAT behavior)
     const Q = tf.squeeze(tf.matMul(intentProj.expandDims(0), params.W_k[h]));
 
-    // Attention: scores = K @ Q / sqrt(headDim)  [numNodes]
-    const rawScores = tf.squeeze(tf.matMul(K, Q.expandDims(1)));
-    const scores = rawScores.div(Math.sqrt(config.headDim));
+    // Cosine similarity: dot(K, Q) / (||K|| * ||Q|| + eps)
+    // Matches production scorer (khead-scorer.ts:scoreNodes)
+    const dotProduct = tf.squeeze(tf.matMul(K, Q.expandDims(1))); // [numNodes]
+    const normK = tf.norm(K, 2, 1); // [numNodes]
+    const normQ = tf.norm(Q); // scalar
+    const scores = dotProduct.div(tf.add(tf.mul(normK, normQ), 1e-8));
 
     headScores.push(scores.expandDims(1) as tf.Tensor2D);
   }
