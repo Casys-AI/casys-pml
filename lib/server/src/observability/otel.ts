@@ -9,6 +9,7 @@
  */
 
 import { type Span, SpanStatusCode, trace, type Tracer } from "@opentelemetry/api";
+import { env } from "../runtime.ts";
 
 let serverTracer: Tracer | null = null;
 
@@ -86,12 +87,9 @@ export function recordAuthEvent(
 }
 
 /**
- * Check if OTEL is enabled (via OTEL_DENO env var)
+ * Check if OTEL is enabled.
+ * Deno: OTEL_DENO=true  |  Node.js: OTEL_ENABLED=true
  */
 export function isOtelEnabled(): boolean {
-  try {
-    return Deno.env.get("OTEL_DENO") === "true";
-  } catch {
-    return false;
-  }
+  return env("OTEL_DENO") === "true" || env("OTEL_ENABLED") === "true";
 }

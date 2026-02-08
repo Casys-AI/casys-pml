@@ -8,6 +8,7 @@
  */
 
 import { parse as parseYaml } from "@std/yaml";
+import { env, readTextFile } from "../runtime.ts";
 import type { AuthProvider } from "./provider.ts";
 import {
   createGitHubAuthProvider,
@@ -81,13 +82,13 @@ export async function loadAuthConfig(
   const yamlAuth = await loadYamlAuth(configPath ?? "mcp-server.yaml");
 
   // 2. Read env vars
-  const envProvider = Deno.env.get("MCP_AUTH_PROVIDER");
-  const envAudience = Deno.env.get("MCP_AUTH_AUDIENCE");
-  const envResource = Deno.env.get("MCP_AUTH_RESOURCE");
-  const envDomain = Deno.env.get("MCP_AUTH_DOMAIN");
-  const envIssuer = Deno.env.get("MCP_AUTH_ISSUER");
-  const envJwksUri = Deno.env.get("MCP_AUTH_JWKS_URI");
-  const envScopes = Deno.env.get("MCP_AUTH_SCOPES");
+  const envProvider = env("MCP_AUTH_PROVIDER");
+  const envAudience = env("MCP_AUTH_AUDIENCE");
+  const envResource = env("MCP_AUTH_RESOURCE");
+  const envDomain = env("MCP_AUTH_DOMAIN");
+  const envIssuer = env("MCP_AUTH_ISSUER");
+  const envJwksUri = env("MCP_AUTH_JWKS_URI");
+  const envScopes = env("MCP_AUTH_SCOPES");
 
   // 3. Merge: env overrides YAML
   const provider = envProvider ?? yamlAuth?.provider;
@@ -187,40 +188,32 @@ export function createAuthProviderFromConfig(config: AuthConfig): AuthProvider {
 async function loadYamlAuth(
   path: string,
 ): Promise<ConfigFile["auth"] | null> {
-  try {
-    const text = await Deno.readTextFile(path);
-    const parsed = parseYaml(text);
+  // readTextFile returns null if file doesn't exist
+  const text = await readTextFile(path);
+  if (text === null) return null;
 
-    // Validate parsed YAML is an object (not string, array, null, etc.)
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return null;
-    }
+  const parsed = parseYaml(text);
 
-    const configFile = parsed as Record<string, unknown>;
-    if (!configFile.auth || typeof configFile.auth !== "object" || Array.isArray(configFile.auth)) {
-      return null;
-    }
-
-    const auth = configFile.auth as Record<string, unknown>;
-    return {
-      provider: typeof auth.provider === "string" ? auth.provider : undefined,
-      audience: typeof auth.audience === "string" ? auth.audience : undefined,
-      resource: typeof auth.resource === "string" ? auth.resource : undefined,
-      domain: typeof auth.domain === "string" ? auth.domain : undefined,
-      issuer: typeof auth.issuer === "string" ? auth.issuer : undefined,
-      jwksUri: typeof auth.jwksUri === "string" ? auth.jwksUri : undefined,
-      scopesSupported: Array.isArray(auth.scopesSupported)
-        ? auth.scopesSupported.filter((s: unknown): s is string => typeof s === "string")
-        : undefined,
-    };
-  } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
-      return null; // File doesn't exist - that's OK
-    }
-    throw new Error(
-      `[AuthConfig] Failed to read config file "${path}": ${
-        err instanceof Error ? err.message : String(err)
-      }`,
-    );
+  // Validate parsed YAML is an object (not string, array, null, etc.)
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return null;
   }
+
+  const configFile = parsed as Record<string, unknown>;
+  if (!configFile.auth || typeof configFile.auth !== "object" || Array.isArray(configFile.auth)) {
+    return null;
+  }
+
+  const auth = configFile.auth as Record<string, unknown>;
+  return {
+    provider: typeof auth.provider === "string" ? auth.provider : undefined,
+    audience: typeof auth.audience === "string" ? auth.audience : undefined,
+    resource: typeof auth.resource === "string" ? auth.resource : undefined,
+    domain: typeof auth.domain === "string" ? auth.domain : undefined,
+    issuer: typeof auth.issuer === "string" ? auth.issuer : undefined,
+    jwksUri: typeof auth.jwksUri === "string" ? auth.jwksUri : undefined,
+    scopesSupported: Array.isArray(auth.scopesSupported)
+      ? auth.scopesSupported.filter((s: unknown): s is string => typeof s === "string")
+      : undefined,
+  };
 }

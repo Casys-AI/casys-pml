@@ -27,6 +27,7 @@ import { createRateLimitMiddleware } from "./middleware/rate-limit.ts";
 import { createValidationMiddleware } from "./middleware/validation.ts";
 import { createBackpressureMiddleware } from "./middleware/backpressure.ts";
 import type { Middleware, MiddlewareContext, MiddlewareResult } from "./middleware/types.ts";
+import { serve, unrefTimer, type ServeHandle } from "./runtime.ts";
 import { createAuthMiddleware, AuthError, extractBearerToken, createUnauthorizedResponse, createForbiddenResponse } from "./auth/middleware.ts";
 import { createScopeMiddleware } from "./auth/scope-middleware.ts";
 import { loadAuthConfig, createAuthProviderFromConfig } from "./auth/config.ts";
@@ -669,7 +670,7 @@ export class ConcurrentMCPServer {
   // HTTP Server Support
   // ============================================
 
-  private httpServer: Deno.HttpServer | null = null;
+  private httpServer: ServeHandle | null = null;
 
   /**
    * Start the MCP server with HTTP transport (Streamable HTTP compatible)
@@ -1098,7 +1099,7 @@ export class ConcurrentMCPServer {
     app.post("/", handleMcpPost as any);
 
     // Start server
-    this.httpServer = Deno.serve(
+    this.httpServer = serve(
       {
         port: options.port,
         hostname,
@@ -1117,7 +1118,7 @@ export class ConcurrentMCPServer {
       ConcurrentMCPServer.SESSION_CLEANUP_INTERVAL_MS,
     );
     // Don't block Deno from exiting because of cleanup timer
-    Deno.unrefTimer(this.sessionCleanupTimer as unknown as number);
+    unrefTimer(this.sessionCleanupTimer as unknown as number);
 
     const rateLimitInfo = this.options.rateLimit
       ? `, rate limit: ${this.options.rateLimit.maxRequests}/${this.options.rateLimit.windowMs}ms`
