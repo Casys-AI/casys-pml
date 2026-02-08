@@ -1,78 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    title: 'Ready to Optimize Your Agentic Architecture?',
-    subtitle: 'Choose how you want to work with us',
-    ctas: [
-      {
-        icon: 'rocket_launch',
-        text: 'Try Casys PML',
-        subtext: 'Join the freemium waitlist',
-        url: '#contact'
-      },
-      {
-        icon: 'mail',
-        text: 'Get in Touch',
-        subtext: 'Questions & architecture help',
-        url: '#contact'
-      }
-    ],
-    trustBadges: [
-      { icon: 'check_circle', text: 'AGPL-3.0 Open Source' },
-      { icon: 'check_circle', text: '10+ years expertise' },
-      { icon: 'check_circle', text: 'Mid-market accessible' }
-    ]
-  },
-  fr: {
-    title: 'Prêt à Optimiser Votre Architecture Agentique?',
-    subtitle: 'Choisissez comment vous voulez travailler avec nous',
-    ctas: [
-      {
-        icon: 'rocket_launch',
-        text: 'Essayer Casys PML',
-        subtext: 'Rejoindre la waitlist freemium',
-        url: '#contact'
-      },
-      {
-        icon: 'mail',
-        text: 'Nous Contacter',
-        subtext: 'Questions & aide architecture',
-        url: '#contact'
-      }
-    ],
-    trustBadges: [
-      { icon: 'check_circle', text: 'AGPL-3.0 Open Source' },
-      { icon: 'check_circle', text: '10+ ans d\'expertise' },
-      { icon: 'check_circle', text: 'Mid-market accessible' }
-    ]
-  },
-  zh: {
-    title: '准备好优化您的智能体架构了吗？',
-    subtitle: '选择您想与我们合作的方式',
-    ctas: [
-      {
-        icon: 'rocket_launch',
-        text: '试用 Casys PML',
-        subtext: '加入免费等候名单',
-        url: '#contact'
-      },
-      {
-        icon: 'mail',
-        text: '联系我们',
-        subtext: '咨询与架构帮助',
-        url: '#contact'
-      }
-    ],
-    trustBadges: [
-      { icon: 'check_circle', text: 'AGPL-3.0 开源' },
-      { icon: 'check_circle', text: '10+ 年经验' },
-      { icon: 'check_circle', text: '中端市场可及' }
-    ]
-  }
-};
-const content = translations[locale] ?? translations.en;
+const content = useTranslations(locale).finalCta;
 ---
 
 <section id="final-cta">
@@ -260,46 +189,46 @@ const content = translations[locale] ?? translations.en;
      ======================================== */
 
   html[data-theme="dark"] #final-cta {
-    background: #0a0908;
+    background: var(--casys-warm-background);
   }
 
   html[data-theme="dark"] #final-cta h2 {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #final-cta .subtitle {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   /* CTA Cards */
   html[data-theme="dark"] #final-cta .cta-card {
-    background: #1a1815;
+    background: var(--casys-warm-surface);
     border-color: rgba(255, 184, 111, 0.1);
   }
 
   html[data-theme="dark"] #final-cta .cta-card:hover {
-    border-color: rgba(255, 184, 111, 0.3);
+    border-color: var(--casys-warm-border-accent-hover);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
   html[data-theme="dark"] #final-cta .cta-icon {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #final-cta .cta-text {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #final-cta .cta-subtext {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   /* Trust Badges */
   html[data-theme="dark"] #final-cta .trust-badge {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   html[data-theme="dark"] #final-cta .trust-badge .material-symbols-rounded {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 </style>

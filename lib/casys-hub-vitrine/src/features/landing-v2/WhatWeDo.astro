@@ -1,166 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-      title: 'What We Do',
-      subtitle: 'Applied AI research combining exploration, open source, and consulting',
-      cards: [
-        {
-          id: 'research',
-          icon: 'school',
-          title: 'Research & Exploration',
-          subtitle: 'Multi-domain AI architectures',
-          description: 'Knowledge Management (2013+) → Graph Databases → Modern Agentic Systems',
-          researchAreas: [
-            {
-              name: 'Knowledge Management',
-              description: '10+ years building KM systems, graphs, semantic search'
-            },
-            {
-              name: 'Agentic Systems',
-              description: 'Context optimization, orchestration, multi-agent architectures'
-            },
-            {
-              name: 'Content Intelligence',
-              description: 'Graph-based content systems, automated relationships'
-            },
-            {
-              name: 'Database Systems',
-              description: 'CasysDB and knowledge storage architectures'
-            }
-          ],
-          philosophy: [
-            { icon: 'vertical_align_bottom', text: 'Depth over breadth - but not afraid to explore new domains' },
-            { icon: 'public', text: 'Open research - we publish what we learn' },
-            { icon: 'rocket_launch', text: 'Practical - research that ships in production systems' }
-          ]
-        },
-        {
-          id: 'opensource',
-          icon: 'code',
-          title: 'Open Source Projects',
-          subtitle: 'MIT licensed tools',
-          projects: ['MCP Gateway: Context management', 'CasysDB: Embedded graph database'],
-          highlights: ['All MIT licensed', 'Production-ready', 'Consulting optional']
-        },
-        {
-          id: 'consulting',
-          icon: 'engineering',
-          title: 'Consulting',
-          subtitle: 'Hands-on help',
-          services: ['Architecture & Strategy', 'Implementation & Deployment', 'Training'],
-          highlights: ['Mid-market accessible', 'No minimum engagement', 'Direct builder access']
-        }
-      ]
-    },
-  fr: {
-      title: 'Ce qu\'on Fait',
-      subtitle: 'Recherche AI appliquée combinant exploration, open source et consulting',
-      cards: [
-        {
-          id: 'research',
-          icon: 'school',
-          title: 'Research & Exploration',
-          subtitle: 'Architectures AI multi-domaines',
-          description: 'Knowledge Management (2013+) → Graph Databases → Systèmes Agentiques modernes',
-          researchAreas: [
-            {
-              name: 'Knowledge Management',
-              description: '10+ ans de systèmes KM, graphes, recherche sémantique'
-            },
-            {
-              name: 'Systèmes Agentiques',
-              description: 'Optimisation contexte, orchestration, architectures multi-agents'
-            },
-            {
-              name: 'Content Intelligence',
-              description: 'Systèmes de contenu graph-based, relations automatisées'
-            },
-            {
-              name: 'Database Systems',
-              description: 'CasysDB et architectures de stockage knowledge'
-            }
-          ],
-          philosophy: [
-            { icon: 'vertical_align_bottom', text: 'Profondeur > largeur - sans peur des nouveaux domaines' },
-            { icon: 'public', text: 'Recherche ouverte - on publie ce qu\'on apprend' },
-            { icon: 'rocket_launch', text: 'Pratique - recherche qui ship en production' }
-          ]
-        },
-        {
-          id: 'opensource',
-          icon: 'code',
-          title: 'Projets Open Source',
-          subtitle: 'Outils MIT licensed',
-          projects: ['MCP Gateway: Context management', 'CasysDB: Graph database embedded'],
-          highlights: ['Tout en MIT', 'Production-ready', 'Consulting optionnel']
-        },
-        {
-          id: 'consulting',
-          icon: 'engineering',
-          title: 'Consulting',
-          subtitle: 'Aide hands-on',
-          services: ['Architecture & Strategy', 'Implémentation & Déploiement', 'Formations'],
-          highlights: ['Mid-market accessible', 'Pas d\'engagement minimum', 'Accès direct builders']
-        }
-      ]
-    },
-  zh: {
-      title: '我们做什么',
-      subtitle: '结合探索、开源和咨询的应用 AI 研究',
-      cards: [
-        {
-          id: 'research',
-          icon: 'school',
-          title: '研究与探索',
-          subtitle: '多领域 AI 架构',
-          description: '知识管理 (2013+) → 图数据库 → 现代智能体系统',
-          researchAreas: [
-            {
-              name: '知识管理',
-              description: '10+ 年 KM 系统、图谱、语义搜索经验'
-            },
-            {
-              name: '智能体系统',
-              description: '上下文优化、编排、多代理架构'
-            },
-            {
-              name: '内容智能',
-              description: '基于图的内容系统、自动化关系'
-            },
-            {
-              name: '数据库系统',
-              description: 'CasysDB 和知识存储架构'
-            }
-          ],
-          philosophy: [
-            { icon: 'vertical_align_bottom', text: '深度优先——但不惧探索新领域' },
-            { icon: 'public', text: '开放研究——我们发布所学' },
-            { icon: 'rocket_launch', text: '实用——研究能在生产中落地' }
-          ]
-        },
-        {
-          id: 'opensource',
-          icon: 'code',
-          title: '开源项目',
-          subtitle: 'MIT 许可工具',
-          projects: ['MCP Gateway: 上下文管理', 'CasysDB: 嵌入式图数据库'],
-          highlights: ['全部 MIT 许可', '生产就绪', '咨询可选']
-        },
-        {
-          id: 'consulting',
-          icon: 'engineering',
-          title: '咨询',
-          subtitle: '实操帮助',
-          services: ['架构与策略', '实施与部署', '培训'],
-          highlights: ['中端市场可及', '无最低承诺', '直接对接开发者']
-        }
-      ]
-    }
-};
-
-const content = translations[locale] ?? translations.en;
+const content = useTranslations(locale).whatWeDo;
 ---
 
 <section id="what-we-do">
@@ -501,60 +342,60 @@ const content = translations[locale] ?? translations.en;
      ======================================== */
 
   html[data-theme="dark"] #what-we-do {
-    background: #0a0908;
+    background: var(--casys-warm-background);
   }
 
   html[data-theme="dark"] #what-we-do h2 {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #what-we-do .section-subtitle {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   /* Cards */
   html[data-theme="dark"] #what-we-do .pillar-card {
-    background: #1a1815;
+    background: var(--casys-warm-surface);
     border-color: rgba(255, 184, 111, 0.1);
   }
 
   html[data-theme="dark"] #what-we-do .pillar-card:hover {
-    border-color: rgba(255, 184, 111, 0.3);
+    border-color: var(--casys-warm-border-accent-hover);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
   html[data-theme="dark"] #what-we-do .pillar-card.research {
-    border-left-color: #FFB86F;
+    border-left-color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #what-we-do .icon {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #what-we-do h3 {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #what-we-do .subtitle {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #what-we-do .description {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   /* Research areas */
   html[data-theme="dark"] #what-we-do .research-area {
     background: rgba(255, 184, 111, 0.08);
-    border-left-color: #FFB86F;
+    border-left-color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #what-we-do .area-name {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #what-we-do .area-description {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   /* Philosophy */
@@ -563,34 +404,34 @@ const content = translations[locale] ?? translations.en;
   }
 
   html[data-theme="dark"] #what-we-do .philosophy-item {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #what-we-do .philosophy-item .material-symbols-rounded {
-    color: #D4A574;
+    color: var(--casys-warm-accent-hover);
   }
 
   /* Projects & Services lists */
   html[data-theme="dark"] #what-we-do .project-item {
     background: rgba(255, 184, 111, 0.08);
     border: 1px solid rgba(255, 184, 111, 0.12);
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #what-we-do .service-item {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #what-we-do .service-item .material-symbols-rounded {
-    color: #D4A574;
+    color: var(--casys-warm-accent-hover);
   }
 
   /* Highlights */
   html[data-theme="dark"] #what-we-do .highlight-item {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   html[data-theme="dark"] #what-we-do .highlight-item .material-symbols-rounded {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 </style>

@@ -1,33 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    title: '3 Lines to',
-    titleAccent: 'Production',
-    subtitle: 'Use it as a standalone MCP server or import individual tools as a library. Your call.',
-    tabServer: 'As MCP Server',
-    tabLibrary: 'As Library',
-    tabCategory: 'By Category',
-  },
-  fr: {
-    title: '3 Lignes vers la',
-    titleAccent: 'Prod',
-    subtitle: 'Utilisez-le comme serveur MCP autonome ou importez les outils individuellement comme librairie. A vous de choisir.',
-    tabServer: 'Serveur MCP',
-    tabLibrary: 'Librairie',
-    tabCategory: 'Par Catégorie',
-  },
-  zh: {
-    title: '3 行代码到',
-    titleAccent: '生产',
-    subtitle: '作为独立 MCP 服务器使用，或作为库导入单个工具。由您决定。',
-    tabServer: 'MCP 服务器',
-    tabLibrary: '库模式',
-    tabCategory: '按类别',
-  },
-} as const;
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).mcpStdQuickStart;
 
 const codeServer = `<span class="c-keyword">import</span> { serve } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-std/server"</span>;
 

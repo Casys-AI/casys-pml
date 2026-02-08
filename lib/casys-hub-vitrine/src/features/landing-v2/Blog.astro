@@ -1,30 +1,9 @@
 ---
 import { getCollection } from 'astro:content';
+import { useTranslations } from '../../i18n';
 
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    title: 'From the Blog',
-    subtitle: 'Insights on AI architecture, tool orchestration, and what we are building',
-    readMore: 'Read',
-    viewAll: 'View all articles',
-  },
-  fr: {
-    title: 'Du Blog',
-    subtitle: 'Perspectives sur l\'architecture AI, l\'orchestration d\'outils, et ce qu\'on construit',
-    readMore: 'Lire',
-    viewAll: 'Voir tous les articles',
-  },
-  zh: {
-    title: '\u535A\u5BA2\u6587\u7AE0',
-    subtitle: '\u5173\u4E8E AI \u67B6\u6784\u3001\u5DE5\u5177\u7F16\u6392\u4EE5\u53CA\u6211\u4EEC\u6B63\u5728\u6784\u5EFA\u7684\u5185\u5BB9',
-    readMore: '\u9605\u8BFB',
-    viewAll: '\u67E5\u770B\u6240\u6709\u6587\u7AE0',
-  },
-};
-
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).blog;
 
 // Load blog posts from content collection
 const allPosts = await getCollection('blog');
@@ -349,62 +328,62 @@ function formatDate(date: Date): string {
   }
 
   html[data-theme="dark"] #blog h2 {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #blog .section-subtitle {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   /* Blog Cards */
   html[data-theme="dark"] #blog .blog-card {
-    background: #1a1815;
+    background: var(--casys-warm-surface);
     border-color: rgba(255, 184, 111, 0.1);
   }
 
   html[data-theme="dark"] #blog .blog-card:hover {
-    border-color: rgba(255, 184, 111, 0.3);
+    border-color: var(--casys-warm-border-accent-hover);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
   /* Meta */
   html[data-theme="dark"] #blog .blog-meta time {
-    color: #a89a8c;
+    color: var(--casys-warm-text-muted);
   }
 
   html[data-theme="dark"] #blog .category-badge {
     background: rgba(255, 184, 111, 0.15);
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   /* Title */
   html[data-theme="dark"] #blog .blog-title {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   /* Snippet */
   html[data-theme="dark"] #blog .blog-snippet {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   /* Read link */
   html[data-theme="dark"] #blog .read-link {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   /* View all link */
   html[data-theme="dark"] #blog .view-all-link {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
     border-color: rgba(255, 184, 111, 0.2);
   }
 
   html[data-theme="dark"] #blog .view-all-link:hover {
-    border-color: #FFB86F;
+    border-color: var(--casys-warm-accent);
     background: rgba(255, 184, 111, 0.1);
   }
 
   /* No posts */
   html[data-theme="dark"] #blog .no-posts {
-    color: #a89a8c;
+    color: var(--casys-warm-text-muted);
   }
 </style>

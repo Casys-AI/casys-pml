@@ -1,27 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    title: 'Ready to try?',
-    description: 'Give your agents procedural memory. Start building smarter workflows today.',
-    primaryCta: 'Get Started',
-    secondaryCta: 'Request Beta Access',
-  },
-  fr: {
-    title: 'Pret a essayer ?',
-    description: 'Donnez a vos agents une memoire procedurale. Commencez a construire des workflows plus intelligents des aujourd\'hui.',
-    primaryCta: 'Commencer',
-    secondaryCta: 'Demander l\'Acces Beta',
-  },
-  zh: {
-    title: '准备好了吗？',
-    description: '为您的代理赋予程序化记忆。立即开始构建更智能的工作流。',
-    primaryCta: '开始使用',
-    secondaryCta: '申请测试版',
-  },
-};
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).pmlCta;
 ---
 
 <section id="cta">

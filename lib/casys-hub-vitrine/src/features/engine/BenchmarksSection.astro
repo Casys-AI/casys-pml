@@ -1,57 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    title: 'Numbers,',
-    titleAccent: 'Not Promises',
-    subtitle: 'Benchmarked on 245 nodes (218 leaves + 26 composites + 1 root). All metrics from production traces.',
-    shgatTitle: 'SHGAT-TF',
-    shgatRows: [
-      ['Hit@1', '56.2%'],
-      ['Hit@3', '86.3%'],
-      ['MRR', '0.705'],
-      ['Leaves (L0)', '218'],
-      ['Composites (L1)', '26'],
-      ['Attention heads', '16 \u00d7 64D'],
-      ['Hierarchy levels', '3 (L0 \u2192 L1 \u2192 L2)'],
-      ['Score latency', '2.3s'],
-    ],
-  },
-  fr: {
-    title: 'Des Chiffres,',
-    titleAccent: 'Pas des Promesses',
-    subtitle: 'Benchmarke sur 245 noeuds (218 leaves + 26 composites + 1 root). Toutes les metriques proviennent de traces de production.',
-    shgatTitle: 'SHGAT-TF',
-    shgatRows: [
-      ['Hit@1', '56.2%'],
-      ['Hit@3', '86.3%'],
-      ['MRR', '0.705'],
-      ['Leaves (L0)', '218'],
-      ['Composites (L1)', '26'],
-      ['Tetes d\'attention', '16 \u00d7 64D'],
-      ['Niveaux hierarchie', '3 (L0 \u2192 L1 \u2192 L2)'],
-      ['Latence scoring', '2.3s'],
-    ],
-  },
-  zh: {
-    title: 'Numbers,',
-    titleAccent: 'Not Promises',
-    subtitle: 'Benchmarked on 245 nodes (218 leaves + 26 composites + 1 root). All metrics from production traces.',
-    shgatTitle: 'SHGAT-TF',
-    shgatRows: [
-      ['Hit@1', '56.2%'],
-      ['Hit@3', '86.3%'],
-      ['MRR', '0.705'],
-      ['Leaves (L0)', '218'],
-      ['Composites (L1)', '26'],
-      ['Attention heads', '16 \u00d7 64D'],
-      ['Hierarchy levels', '3 (L0 \u2192 L1 \u2192 L2)'],
-      ['Score latency', '2.3s'],
-    ],
-  },
-} as const;
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).engineBenchmarks;
 ---
 
 <section id="benchmarks">

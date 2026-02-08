@@ -65,11 +65,11 @@ p {
 .accent-text {
   font-family: 'Instrument Serif', Georgia, serif;
   font-style: italic;
-  color: #FFB86F;
+  color: var(--md-sys-color-primary);
 }
 
 [data-theme="dark"] .accent-text {
-  color: #FFB86F;
+  color: var(--casys-warm-accent);
 }
 
 /* Material Symbols */

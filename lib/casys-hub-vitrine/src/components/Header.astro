@@ -1,29 +1,7 @@
 ---
+import { useTranslations } from '../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-const translations = {
-  en: {
-    projects: 'Projects',
-    whyCasys: 'Why Casys',
-    consulting: 'Consulting',
-    blog: 'Blog',
-    contact: 'Contact',
-  },
-  fr: {
-    projects: 'Projets',
-    whyCasys: 'Pourquoi Casys',
-    consulting: 'Consulting',
-    blog: 'Blog',
-    contact: 'Contact',
-  },
-  zh: {
-    projects: '项目',
-    whyCasys: '为什么选择 Casys',
-    consulting: '咨询服务',
-    blog: 'Blog',
-    contact: '联系我们',
-  },
-} as const;
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).header;
 
 const blogHref = locale === 'en' ? '/blog' : `/${locale}/blog`;
 
@@ -51,12 +29,6 @@ const projects = [
     href: 'https://engine.casys.ai',
     description: 'Graph neural network for tool orchestration',
     icon: 'neurology',
-  },
-  {
-    name: 'CasysDB',
-    href: 'https://github.com/casysai/casysdb',
-    description: 'Embedded graph database with branches',
-    icon: 'database',
   },
 ];
 ---

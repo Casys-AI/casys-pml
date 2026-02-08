@@ -1,54 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    title: 'Your Server,',
-    titleAccent: 'Your Rules',
-    subtitle: 'Every request flows through a composable middleware chain. Need auth? Drop it in. Rate limiting? One line. Custom logic? Slot it anywhere.',
-    steps: [
-      { icon: 'arrow_forward', label: 'Request', type: 'incoming' },
-      { icon: 'timer', label: 'Rate Limit', type: '' },
-      { icon: 'shield', label: 'Auth', type: '' },
-      { icon: 'tune', label: 'Custom', type: 'custom' },
-      { icon: 'verified_user', label: 'Scopes', type: '' },
-      { icon: 'check_circle', label: 'Validation', type: '' },
-      { icon: 'speed', label: 'Backpressure', type: '' },
-      { icon: 'play_arrow', label: 'Handler', type: 'handler' },
-    ],
-  },
-  fr: {
-    title: 'Votre Serveur,',
-    titleAccent: 'Vos Regles',
-    subtitle: 'Chaque requete traverse une chaine middleware composable. Besoin d\'auth ? Ajoutez-la. Rate limiting ? Une ligne. Logique custom ? Glissez-la ou vous voulez.',
-    steps: [
-      { icon: 'arrow_forward', label: 'Requete', type: 'incoming' },
-      { icon: 'timer', label: 'Rate Limit', type: '' },
-      { icon: 'shield', label: 'Auth', type: '' },
-      { icon: 'tune', label: 'Custom', type: 'custom' },
-      { icon: 'verified_user', label: 'Scopes', type: '' },
-      { icon: 'check_circle', label: 'Validation', type: '' },
-      { icon: 'speed', label: 'Backpressure', type: '' },
-      { icon: 'play_arrow', label: 'Handler', type: 'handler' },
-    ],
-  },
-  zh: {
-    title: '你的服务器，',
-    titleAccent: '你的规则',
-    subtitle: '每个请求流经可组合的中间件链。需要认证？加上。限流？一行代码。自定义逻辑？插入任意位置。',
-    steps: [
-      { icon: 'arrow_forward', label: '请求', type: 'incoming' },
-      { icon: 'timer', label: '限流', type: '' },
-      { icon: 'shield', label: '认证', type: '' },
-      { icon: 'tune', label: '自定义', type: 'custom' },
-      { icon: 'verified_user', label: '权限', type: '' },
-      { icon: 'check_circle', label: '验证', type: '' },
-      { icon: 'speed', label: '背压', type: '' },
-      { icon: 'play_arrow', label: '处理器', type: 'handler' },
-    ],
-  },
-} as const;
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).mcpServerPipeline;
 ---
 
 <section id="pipeline">

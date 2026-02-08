@@ -1,57 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    eyebrow: 'Early Access',
-    title: 'Join the Beta',
-    description: 'Be among the first to give your agents procedural memory.',
-    labelName: 'Name',
-    labelEmail: 'Email',
-    labelUseCase: 'How will you use PML?',
-    placeholderName: 'Your name',
-    placeholderEmail: 'you@company.com',
-    placeholderUseCase: 'e.g. I want to give my Claude Code agent long-term memory for recurring DevOps workflows...',
-    submit: 'Request Access',
-    sending: 'Sending...',
-    successMessage: 'You\'re on the list! We\'ll reach out soon.',
-    errorMessage: 'Something went wrong. Please try again.',
-    hiddenSubject: 'PML Beta Access Request',
-  },
-  fr: {
-    eyebrow: 'Acces Anticipe',
-    title: 'Rejoignez la Beta',
-    description: 'Soyez parmi les premiers a donner une memoire procedurale a vos agents.',
-    labelName: 'Nom',
-    labelEmail: 'Email',
-    labelUseCase: 'Comment utiliserez-vous PML ?',
-    placeholderName: 'Votre nom',
-    placeholderEmail: 'vous@entreprise.com',
-    placeholderUseCase: 'ex. Je veux donner a mon agent Claude Code une memoire a long terme pour les workflows DevOps recurrents...',
-    submit: 'Demander l\'Acces',
-    sending: 'Envoi...',
-    successMessage: 'Vous etes sur la liste ! Nous vous contacterons bientot.',
-    errorMessage: 'Une erreur est survenue. Veuillez reessayer.',
-    hiddenSubject: 'Demande d\'acces Beta PML',
-  },
-  zh: {
-    eyebrow: '抢先体验',
-    title: '加入测试版',
-    description: '成为首批为您的代理赋予程序化记忆的用户。',
-    labelName: '姓名',
-    labelEmail: '邮箱',
-    labelUseCase: '您将如何使用 PML？',
-    placeholderName: '您的姓名',
-    placeholderEmail: 'you@company.com',
-    placeholderUseCase: '例如：我想为我的 Claude Code 代理提供长期记忆，用于重复的 DevOps 工作流...',
-    submit: '申请访问',
-    sending: '发送中...',
-    successMessage: '您已在列表中！我们会尽快联系您。',
-    errorMessage: '出错了，请重试。',
-    hiddenSubject: 'PML Beta 访问请求',
-  },
-};
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).pmlBetaSignup;
 ---
 
 <section id="beta">

@@ -1,33 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    title: '5 Lines to',
-    titleAccent: 'Production',
-    subtitle: 'No boilerplate. No config ceremony. Register a tool, call start(), ship it.',
-    tabBasic: 'Basic (STDIO)',
-    tabHttp: 'HTTP + Auth',
-    tabYaml: 'YAML Config',
-  },
-  fr: {
-    title: '5 Lignes vers la',
-    titleAccent: 'Prod',
-    subtitle: 'Pas de boilerplate. Pas de ceremonie de config. Enregistrez un tool, appelez start(), livrez.',
-    tabBasic: 'Basique (STDIO)',
-    tabHttp: 'HTTP + Auth',
-    tabYaml: 'Config YAML',
-  },
-  zh: {
-    title: '5 行代码到',
-    titleAccent: '生产',
-    subtitle: '无样板代码。无配置仪式。注册工具，调用 start()，直接上线。',
-    tabBasic: '基础 (STDIO)',
-    tabHttp: 'HTTP + 认证',
-    tabYaml: 'YAML 配置',
-  },
-} as const;
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).mcpServerQuickStart;
 
 // Code examples stored in frontmatter to avoid Astro JSX expression parsing of curly braces
 const codeBasic = `<span class="c-keyword">import</span> { ConcurrentMCPServer } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-server"</span>;

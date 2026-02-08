@@ -184,7 +184,7 @@ export default function CapabilityDetailPanel({
         /* ━━━━━━━━ Capability Detail Panel ━━━━━━━━ */
         .cdp-panel {
           margin-top: 0.75rem;
-          background: #0f0f12;
+          background: var(--casys-warm-surface-elevated);
           border: 1px solid rgba(74, 222, 128, 0.15);
           border-radius: 10px;
           overflow: hidden;
@@ -212,7 +212,7 @@ export default function CapabilityDetailPanel({
           font-family: 'Geist Mono', monospace;
           font-size: 0.9375rem;
           font-weight: 600;
-          color: #4ade80;
+          color: var(--casys-warm-success);
         }
 
         .cdp-badges {
@@ -234,19 +234,19 @@ export default function CapabilityDetailPanel({
 
         .cdp-badge.cap {
           background: rgba(74, 222, 128, 0.12);
-          color: #4ade80;
+          color: var(--casys-warm-success);
           border: 1px solid rgba(74, 222, 128, 0.25);
         }
 
         .cdp-badge.routing {
           background: rgba(74, 222, 128, 0.08);
-          color: #a8a29e;
+          color: var(--casys-warm-text-muted-alt);
           border: 1px solid rgba(74, 222, 128, 0.12);
         }
 
         .cdp-badge.routing.cloud {
           background: rgba(96, 165, 250, 0.1);
-          color: #60a5fa;
+          color: var(--casys-warm-info);
           border-color: rgba(96, 165, 250, 0.2);
         }
 
@@ -258,7 +258,7 @@ export default function CapabilityDetailPanel({
           justify-content: center;
           background: none;
           border: none;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
           font-size: 1.25rem;
           cursor: pointer;
           border-radius: 4px;
@@ -268,12 +268,12 @@ export default function CapabilityDetailPanel({
 
         .cdp-close:hover {
           background: rgba(74, 222, 128, 0.1);
-          color: #4ade80;
+          color: var(--casys-warm-success);
         }
 
         .cdp-desc {
           font-size: 0.8125rem;
-          color: #a8a29e;
+          color: var(--casys-warm-text-muted-alt);
           line-height: 1.5;
           margin: 0;
         }
@@ -298,13 +298,13 @@ export default function CapabilityDetailPanel({
         }
 
         .cdp-code-section {
-          background: #0f0f12;
+          background: var(--casys-warm-surface-elevated);
           display: flex;
           flex-direction: column;
         }
 
         .cdp-sidebar {
-          background: #0f0f12;
+          background: var(--casys-warm-surface-elevated);
           display: flex;
           flex-direction: column;
         }
@@ -326,13 +326,13 @@ export default function CapabilityDetailPanel({
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
         }
 
         .cdp-section-count {
           font-size: 0.5625rem;
           font-family: 'Geist Mono', monospace;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
           background: rgba(74, 222, 128, 0.06);
           padding: 0.0625rem 0.25rem;
           border-radius: 2px;
@@ -347,7 +347,7 @@ export default function CapabilityDetailPanel({
         .cdp-empty {
           padding: 2rem;
           text-align: center;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
           font-size: 0.75rem;
           display: flex;
           align-items: center;
@@ -359,8 +359,8 @@ export default function CapabilityDetailPanel({
           width: 14px;
           height: 14px;
           border-radius: 50%;
-          border: 2px solid #2a2a2e;
-          border-top-color: #4ade80;
+          border: 2px solid var(--casys-warm-border-dim);
+          border-top-color: var(--casys-warm-success);
           animation: cdpSpin 0.8s linear infinite;
         }
 
@@ -398,7 +398,7 @@ export default function CapabilityDetailPanel({
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #FFB86F;
+          color: var(--casys-warm-accent);
           padding-left: 0.25rem;
         }
 
@@ -419,7 +419,7 @@ export default function CapabilityDetailPanel({
         .cdp-link {
           font-family: 'Geist Mono', monospace;
           font-size: 0.6875rem;
-          color: #4ade80;
+          color: var(--casys-warm-success);
           text-decoration: none;
           padding: 0.375rem 0.75rem;
           border: 1px solid rgba(74, 222, 128, 0.25);

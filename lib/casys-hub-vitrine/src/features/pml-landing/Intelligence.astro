@@ -8,94 +8,9 @@
  * @module features/pml-landing/Intelligence
  */
 
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-/* ------------------------------------------------------------------ */
-/*  i18n                                                               */
-/* ------------------------------------------------------------------ */
-
-const translations: Record<string, {
-  eyebrow: string;
-  titleLine1: string;
-  titleLine2: string;
-  description: string;
-  features: Array<{ icon: string; title: string; desc: string }>;
-}> = {
-  en: {
-    eyebrow: 'Collective Intelligence',
-    titleLine1: 'Every execution',
-    titleLine2: 'makes it smarter.',
-    description:
-      'The more workflows run, the better the system gets. Network effects that compound — impossible to catch up once you start.',
-    features: [
-      {
-        icon: 'hub',
-        title: 'Community Patterns',
-        desc: 'Learn from thousands of workflow executions. The more people use it, the smarter it gets for everyone.',
-      },
-      {
-        icon: 'auto_awesome',
-        title: 'Auto-Optimization',
-        desc: 'Your workflows improve automatically over time. No manual tuning required.',
-      },
-      {
-        icon: 'recommend',
-        title: 'Smart Suggestions',
-        desc: '"Users who ran this also used..." — discover tools you didn\'t know you needed.',
-      },
-    ],
-  },
-  fr: {
-    eyebrow: 'Intelligence Collective',
-    titleLine1: 'Chaque ex\u00e9cution',
-    titleLine2: 'le rend plus intelligent.',
-    description:
-      'Plus il y a de workflows ex\u00e9cut\u00e9s, meilleur devient le syst\u00e8me. Des effets de r\u00e9seau qui s\u2019accumulent \u2014 impossible \u00e0 rattraper une fois lanc\u00e9.',
-    features: [
-      {
-        icon: 'hub',
-        title: 'Patterns Communautaires',
-        desc: 'Apprenez de milliers d\u2019ex\u00e9cutions de workflows. Plus les gens l\u2019utilisent, plus il devient intelligent pour tous.',
-      },
-      {
-        icon: 'auto_awesome',
-        title: 'Auto-Optimisation',
-        desc: 'Vos workflows s\u2019am\u00e9liorent automatiquement au fil du temps. Aucun r\u00e9glage manuel n\u00e9cessaire.',
-      },
-      {
-        icon: 'recommend',
-        title: 'Suggestions Intelligentes',
-        desc: '\u00ab\u00a0Ceux qui ont lanc\u00e9 ceci ont aussi utilis\u00e9\u2026\u00a0\u00bb \u2014 d\u00e9couvrez des outils dont vous ignoriez avoir besoin.',
-      },
-    ],
-  },
-  zh: {
-    eyebrow: '\u96c6\u4f53\u667a\u80fd',
-    titleLine1: '\u6bcf\u6b21\u6267\u884c',
-    titleLine2: '\u90fd\u8ba9\u5b83\u66f4\u667a\u80fd\u3002',
-    description:
-      '\u8fd0\u884c\u7684\u5de5\u4f5c\u6d41\u8d8a\u591a\uff0c\u7cfb\u7edf\u5c31\u8d8a\u597d\u3002\u7f51\u7edc\u6548\u5e94\u4e0d\u65ad\u53e0\u52a0\u2014\u2014\u4e00\u65e6\u5f00\u59cb\uff0c\u5c31\u65e0\u6cd5\u8ffd\u8d76\u3002',
-    features: [
-      {
-        icon: 'hub',
-        title: '\u793e\u533a\u6a21\u5f0f',
-        desc: '\u4ece\u6570\u5343\u6b21\u5de5\u4f5c\u6d41\u6267\u884c\u4e2d\u5b66\u4e60\u3002\u4f7f\u7528\u7684\u4eba\u8d8a\u591a\uff0c\u5bf9\u6bcf\u4e2a\u4eba\u5c31\u8d8a\u667a\u80fd\u3002',
-      },
-      {
-        icon: 'auto_awesome',
-        title: '\u81ea\u52a8\u4f18\u5316',
-        desc: '\u60a8\u7684\u5de5\u4f5c\u6d41\u968f\u65f6\u95f4\u81ea\u52a8\u6539\u8fdb\u3002\u65e0\u9700\u624b\u52a8\u8c03\u4f18\u3002',
-      },
-      {
-        icon: 'recommend',
-        title: '\u667a\u80fd\u5efa\u8bae',
-        desc: '\u201c\u8fd0\u884c\u8fc7\u6b64\u5de5\u4f5c\u6d41\u7684\u7528\u6237\u8fd8\u4f7f\u7528\u4e86\u2026\u201d\u2014\u2014\u53d1\u73b0\u4f60\u4e0d\u77e5\u9053\u81ea\u5df1\u9700\u8981\u7684\u5de5\u5177\u3002',
-      },
-    ],
-  },
-};
-
-const t = translations[locale] ?? translations.en;
+const t = useTranslations(locale).pmlIntelligence;
 
 /* ------------------------------------------------------------------ */
 /*  Isometric projection helpers                                       */

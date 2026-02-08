@@ -1,52 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    eyebrow: 'Procedural Memory for AI Agents',
-    titleLine1: 'One gateway. Any model.',
-    titleAccent: 'Full observability.',
-    description: 'Build AI workflows once, run them with Claude, GPT, Gemini, or your local Ollama. Every tool call traced. Debug in seconds, not hours.',
-    ctaPrimary: 'Get Started',
-    ctaSecondary: 'Read the Docs',
-    pillars: ['Model-Agnostic', 'Full Traceability', 'Learns Patterns'],
-    traceHeader: 'workflow:ci-deploy',
-    traceLive: 'live',
-    traceCalls: '22 calls',
-    traceModels: '3 models',
-    traceCost: '$0.028',
-  },
-  fr: {
-    eyebrow: 'Memoire Procedurale pour Agents AI',
-    titleLine1: 'Un gateway. N\'importe quel modele.',
-    titleAccent: 'Observabilite complete.',
-    description: 'Construisez vos workflows AI une fois, executez-les avec Claude, GPT, Gemini ou votre Ollama local. Chaque appel trace. Deboguez en secondes, pas en heures.',
-    ctaPrimary: 'Commencer',
-    ctaSecondary: 'Lire la Doc',
-    pillars: ['Multi-Modele', 'Tracabilite Totale', 'Apprend les Patterns'],
-    traceHeader: 'workflow:ci-deploy',
-    traceLive: 'live',
-    traceCalls: '22 appels',
-    traceModels: '3 modeles',
-    traceCost: '0.028 $',
-  },
-  zh: {
-    eyebrow: 'AI 代理的程序化记忆',
-    titleLine1: '一个网关。任何模型。',
-    titleAccent: '完整可观测性。',
-    description: '一次构建 AI 工作流，使用 Claude、GPT、Gemini 或本地 Ollama 运行。每次工具调用均可追踪。秒级调试，而非小时。',
-    ctaPrimary: '开始使用',
-    ctaSecondary: '阅读文档',
-    pillars: ['模型无关', '完整可追踪', '学习模式'],
-    traceHeader: 'workflow:ci-deploy',
-    traceLive: 'live',
-    traceCalls: '22 次调用',
-    traceModels: '3 个模型',
-    traceCost: '$0.028',
-  },
-};
-
-const t = translations[locale] ?? translations.en;
+const t = useTranslations(locale).pmlHero;
 
 /* ----- Trace data ----- */
 interface TraceRow {

@@ -8,80 +8,9 @@
  * @module features/engine/ShgatSection
  */
 
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-/* ------------------------------------------------------------------ */
-/*  i18n                                                               */
-/* ------------------------------------------------------------------ */
-
-const translations: Record<string, {
-  eyebrow: string;
-  titleLine1: string;
-  titleLine2: string;
-  description: string;
-  features: Array<{ icon: string; title: string; desc: string }>;
-}> = {
-  en: {
-    eyebrow: 'SHGAT-TF',
-    titleLine1: 'SuperHyperGraph',
-    titleLine2: 'Attention Networks',
-    description:
-      'Why a hypergraph? Regular graphs model pairwise relations (tool A calls tool B). Hypergraphs model N-to-N: one composite groups multiple leaves, one leaf belongs to multiple composites. This captures the real structure of agentic tool ecosystems.',
-    features: [
-      {
-        icon: 'hub',
-        title: 'K-Head Attention (16 \u00d7 64D)',
-        desc: 'Each head captures a different relevance signal \u2014 co-occurrence, recency, error recovery, success rates. Heads are combined via learned fusion weights.',
-      },
-      {
-        icon: 'account_tree',
-        title: 'Multi-Level Message Passing',
-        desc: 'L0: 218 leaves (tools). L1: 26 composites. L2: meta-composites. Context propagates bottom-up then top-down. A leaf inherits relevance from sibling composites it has never been paired with.',
-      },
-      {
-        icon: 'trending_up',
-        title: 'InfoNCE Contrastive Loss',
-        desc: 'Temperature-annealed training (0.10 \u2192 0.06) with hard negatives and prioritized experience replay. Hit@3 reaches 86.3% on 644 nodes.',
-      },
-      {
-        icon: 'model_training',
-        title: 'Training Included',
-        desc: 'SHGAT-TF trains from production traces \u2014 no external service, no GPU required. libtensorflow FFI runs natively via Deno.dlopen. Self-contained.',
-      },
-    ],
-  },
-  fr: {
-    eyebrow: 'SHGAT-TF',
-    titleLine1: 'SuperHyperGraph',
-    titleLine2: 'Attention Networks',
-    description:
-      'Pourquoi un hypergraphe ? Les graphes classiques modelisent des relations par paires (outil A appelle outil B). Les hypergraphes modelisent le N-vers-N : un composite regroupe plusieurs leaves, un leaf appartient a plusieurs composites. Ca capture la vraie structure des ecosystemes d\'outils agentiques.',
-    features: [
-      {
-        icon: 'hub',
-        title: 'Attention K-Head (16 \u00d7 64D)',
-        desc: 'Chaque tete capture un signal de pertinence different \u2014 co-occurrence, recence, recuperation d\'erreur, taux de succes. Les tetes sont combinees via des poids de fusion appris.',
-      },
-      {
-        icon: 'account_tree',
-        title: 'Message Passing Multi-Niveaux',
-        desc: 'L0 : 218 leaves (outils). L1 : 26 composites. L2 : meta-composites. Le contexte propage de bas en haut puis de haut en bas. Un leaf herite de la pertinence de composites soeurs avec lesquels il n\'a jamais ete appaire.',
-      },
-      {
-        icon: 'trending_up',
-        title: 'Perte Contrastive InfoNCE',
-        desc: 'Entrainement avec annealing de temperature (0.10 \u2192 0.06), negatives difficiles et replay d\'experience prioritise. Hit@3 atteint 86.3% sur 644 noeuds.',
-      },
-      {
-        icon: 'model_training',
-        title: 'Entrainement Inclus',
-        desc: 'SHGAT-TF s\'entraine depuis les traces de production \u2014 aucun service externe, aucun GPU requis. libtensorflow FFI tourne nativement via Deno.dlopen. Autonome.',
-      },
-    ],
-  },
-};
-
-const t = translations[locale] ?? translations.en;
+const t = useTranslations(locale).engineShgat;
 ---
 
 <section id="shgat" class="shgat-section">

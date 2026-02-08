@@ -279,7 +279,7 @@ export default function ToolDetailPanel({
         {`
         /* ━━━━━━━━ Tool Detail Panel ━━━━━━━━ */
         .tdp-panel {
-          background: #0f0f12;
+          background: var(--casys-warm-surface-elevated);
           border: 1px solid rgba(255, 184, 111, 0.08);
           border-radius: 10px;
           overflow: hidden;
@@ -324,7 +324,7 @@ export default function ToolDetailPanel({
           font-family: 'Geist Mono', monospace;
           font-size: 0.9375rem;
           font-weight: 600;
-          color: #FFB86F;
+          color: var(--casys-warm-accent);
         }
 
         .tdp-badges {
@@ -348,7 +348,7 @@ export default function ToolDetailPanel({
 
         .tdp-badge.ui {
           background: rgba(78, 205, 196, 0.12);
-          color: #4ECDC4;
+          color: var(--casys-warm-teal);
           border: 1px solid rgba(78, 205, 196, 0.25);
         }
 
@@ -358,7 +358,7 @@ export default function ToolDetailPanel({
 
         .tdp-badge.cloud {
           background: rgba(96, 165, 250, 0.1);
-          color: #60a5fa;
+          color: var(--casys-warm-info);
           border: 1px solid rgba(96, 165, 250, 0.2);
         }
 
@@ -370,7 +370,7 @@ export default function ToolDetailPanel({
           justify-content: center;
           background: none;
           border: none;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
           font-size: 1.25rem;
           cursor: pointer;
           border-radius: 4px;
@@ -380,12 +380,12 @@ export default function ToolDetailPanel({
 
         .tdp-close:hover {
           background: rgba(255, 184, 111, 0.1);
-          color: #FFB86F;
+          color: var(--casys-warm-accent);
         }
 
         .tdp-desc {
           font-size: 0.8125rem;
-          color: #a8a29e;
+          color: var(--casys-warm-text-muted-alt);
           line-height: 1.5;
           margin: 0;
         }
@@ -410,7 +410,7 @@ export default function ToolDetailPanel({
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
         }
 
         .tdp-cap-tags {
@@ -428,12 +428,12 @@ export default function ToolDetailPanel({
 
         .tdp-cap-tag.emit {
           background: rgba(255, 184, 111, 0.1);
-          color: #FFB86F;
+          color: var(--casys-warm-accent);
         }
 
         .tdp-cap-tag.accept {
           background: rgba(74, 222, 128, 0.1);
-          color: #4ade80;
+          color: var(--casys-warm-success);
         }
 
         /* Schema section */
@@ -456,13 +456,13 @@ export default function ToolDetailPanel({
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
         }
 
         .tdp-schema-params {
           font-size: 0.625rem;
           font-family: 'Geist Mono', monospace;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
           background: rgba(255, 184, 111, 0.04);
           padding: 0.125rem 0.375rem;
           border-radius: 3px;
@@ -472,7 +472,7 @@ export default function ToolDetailPanel({
           padding: 1rem;
           text-align: center;
           font-size: 0.75rem;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
           background: rgba(255, 184, 111, 0.02);
           border-radius: 6px;
         }
@@ -484,15 +484,15 @@ export default function ToolDetailPanel({
           gap: 0.5rem;
           padding: 1.5rem;
           font-size: 0.75rem;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
         }
 
         .tdp-spinner {
           width: 14px;
           height: 14px;
           border-radius: 50%;
-          border: 2px solid #2a2a2e;
-          border-top-color: #FFB86F;
+          border: 2px solid var(--casys-warm-border-dim);
+          border-top-color: var(--casys-warm-accent);
           animation: tdpSpin 0.8s linear infinite;
         }
 
@@ -509,7 +509,7 @@ export default function ToolDetailPanel({
         .tdp-link {
           font-family: 'Geist Mono', monospace;
           font-size: 0.6875rem;
-          color: #FFB86F;
+          color: var(--casys-warm-accent);
           text-decoration: none;
           padding: 0.375rem 0.75rem;
           border: 1px solid rgba(255, 184, 111, 0.25);
@@ -544,13 +544,13 @@ export default function ToolDetailPanel({
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #4ECDC4;
+          color: var(--casys-warm-teal);
         }
 
         .tdp-preview-uri {
           font-size: 0.625rem;
           font-family: 'Geist Mono', monospace;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
           background: rgba(0, 0, 0, 0.2);
           padding: 0.125rem 0.375rem;
           border-radius: 3px;
@@ -576,7 +576,7 @@ export default function ToolDetailPanel({
           height: 100%;
           min-height: 280px;
           border: none;
-          background: #1a1a1a;
+          background: var(--casys-warm-surface);
         }
 
         .tdp-preview-status {
@@ -594,8 +594,8 @@ export default function ToolDetailPanel({
           background: rgba(0, 0, 0, 0.8);
         }
 
-        .tdp-preview-status.loading { color: #4ECDC4; }
-        .tdp-preview-status.error { color: #f87171; }
+        .tdp-preview-status.loading { color: var(--casys-warm-teal); }
+        .tdp-preview-status.error { color: var(--casys-warm-error); }
 
         .tdp-status-dot {
           width: 8px;
@@ -623,7 +623,7 @@ export default function ToolDetailPanel({
         .tdp-preview-hint {
           font-size: 0.5625rem;
           font-family: 'Geist Mono', monospace;
-          color: #4a4540;
+          color: var(--casys-warm-text-dim);
           background: rgba(0, 0, 0, 0.6);
           padding: 0.125rem 0.375rem;
           border-radius: 3px;

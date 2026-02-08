@@ -1,0 +1,361 @@
+---
+export interface Props {
+  sectionId: string;
+  tagline: string;
+  title: { line1: string; line2: string };
+  subtitle: string;
+  ctas: Array<{ text: string; href: string; icon: string; variant: 'primary' | 'secondary' | 'outline' }>;
+  stats: Array<{ value: string; label: string }>;
+  terminalTitle?: string;
+  terminalContent: string;
+}
+
+const {
+  sectionId,
+  tagline,
+  title,
+  subtitle,
+  ctas,
+  stats,
+  terminalTitle = 'terminal',
+  terminalContent,
+} = Astro.props;
+---
+
+<section id={sectionId}>
+  <div class="sh-gradient-orb" aria-hidden="true"></div>
+  <div class="sh-container sh-hero-grid">
+    <div class="sh-hero-content">
+      <span class="sh-hero-tagline">{tagline}</span>
+      <h1 class="sh-hero-title">
+        <span class="sh-title-line">{title.line1}</span>
+        <span class="sh-title-line sh-accent">{title.line2}</span>
+      </h1>
+      <p class="sh-hero-subtitle">{subtitle}</p>
+      <div class="sh-cta-group">
+        {ctas.map((cta) => {
+          const isPrimary = cta.variant === 'primary';
+          const cls = isPrimary ? 'sh-cta-primary' : 'sh-cta-secondary';
+          const isExternal = cta.href.startsWith('http');
+          return (
+            <a
+              href={cta.href}
+              class={cls}
+              {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+            >
+              {cta.icon && cta.icon.startsWith('<') ? (
+                <Fragment set:html={cta.icon} />
+              ) : cta.icon ? (
+                <span class="material-symbols-rounded">{cta.icon}</span>
+              ) : null}
+              <span>{cta.text}</span>
+              {isExternal && !isPrimary && (
+                <span class="material-symbols-rounded">arrow_outward</span>
+              )}
+            </a>
+          );
+        })}
+      </div>
+      <div class="sh-stats-row">
+        {stats.map((stat) => (
+          <div class="sh-stat-item">
+            <span class="sh-stat-value">{stat.value}</span>
+            <span class="sh-stat-label">{stat.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+    <div class="sh-hero-visual" aria-hidden="true">
+      <div class="sh-terminal-window">
+        <div class="sh-terminal-header">
+          <span class="sh-terminal-dot red"></span>
+          <span class="sh-terminal-dot yellow"></span>
+          <span class="sh-terminal-dot green"></span>
+          <span class="sh-terminal-title">{terminalTitle}</span>
+        </div>
+        <div class="sh-terminal-body" set:html={terminalContent} />
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     SUBSITE HERO - Shared Component
+     ======================================== */
+
+  section {
+    position: relative;
+    overflow: hidden;
+    padding: 56px 0 40px;
+  }
+
+  .sh-container { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+  .sh-hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: start;
+  }
+
+  .sh-hero-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 8px;
+  }
+
+  .sh-hero-tagline {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--md-sys-color-primary);
+    padding: 5px 12px;
+    background: var(--md-sys-color-primary-container);
+    border-radius: 100px;
+    width: fit-content;
+  }
+
+  .sh-hero-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(2.25rem, 4.5vw, 3.5rem);
+    font-weight: 500;
+    font-optical-sizing: auto;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    margin: 0;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .sh-title-line { display: block; }
+  .sh-title-line.sh-accent { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; color: var(--md-sys-color-primary); }
+
+  .sh-hero-subtitle {
+    font-size: clamp(1rem, 1.4vw, 1.125rem);
+    font-weight: 400;
+    line-height: 1.65;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 480px;
+  }
+
+  .sh-cta-group { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .sh-cta-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 200ms ease-out, transform 100ms ease-out;
+  }
+  .sh-cta-primary:hover { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+  .sh-cta-primary:active { transform: scale(0.98); }
+  .sh-cta-primary:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 4px; }
+  .sh-cta-primary .material-symbols-rounded { font-size: 18px; }
+
+  .sh-cta-secondary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 20px;
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    transition: background 200ms ease-out, border-color 200ms ease-out;
+  }
+  .sh-cta-secondary:hover { background: var(--md-sys-color-surface-container); border-color: var(--md-sys-color-primary); }
+  .sh-cta-secondary:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 4px; }
+  .sh-cta-secondary .material-symbols-rounded { font-size: 16px; }
+
+  .sh-stats-row {
+    display: flex;
+    gap: 28px;
+    padding: 14px 0 0;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .sh-stat-item { display: flex; flex-direction: column; gap: 2px; }
+
+  .sh-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--md-sys-color-primary);
+    line-height: 1;
+  }
+
+  .sh-stat-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Terminal mockup */
+  .sh-hero-visual { display: flex; justify-content: flex-end; }
+
+  .sh-terminal-window {
+    width: 100%;
+    max-width: 500px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-lowest);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  .sh-terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 14px;
+    background: var(--md-sys-color-surface-container-high);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .sh-terminal-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .sh-terminal-dot.red { background: #ff5f57; }
+  .sh-terminal-dot.yellow { background: #febc2e; }
+  .sh-terminal-dot.green { background: #28c840; }
+
+  .sh-terminal-title {
+    margin-left: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    color: var(--md-sys-color-on-surface-variant);
+    font-weight: 500;
+  }
+
+  .sh-terminal-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
+
+  /* Gradient orb */
+  .sh-gradient-orb {
+    position: absolute;
+    top: 40%;
+    left: 65%;
+    transform: translate(-50%, -50%);
+    width: min(800px, 60vw);
+    height: min(600px, 50vh);
+    background:
+      radial-gradient(circle at 30% 40%, rgba(180, 83, 9, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 70% 60%, rgba(20, 184, 166, 0.05) 0%, transparent 50%);
+    filter: blur(80px);
+    opacity: 0.6;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @media (max-width: 1024px) {
+    .sh-container { padding: 0 32px; }
+    .sh-hero-grid { grid-template-columns: 1fr; gap: 32px; }
+    .sh-hero-content { align-items: center; text-align: center; padding-top: 0; }
+    .sh-hero-subtitle { max-width: 560px; }
+    .sh-stats-row { justify-content: center; }
+    .sh-cta-group { justify-content: center; }
+    .sh-hero-visual { justify-content: center; }
+    .sh-terminal-window { max-width: 480px; }
+  }
+
+  @media (max-width: 768px) {
+    section { padding: 48px 0 32px; }
+    .sh-container { padding: 0 20px; }
+    .sh-hero-grid { gap: 24px; }
+    .sh-hero-title { font-size: clamp(1.75rem, 7vw, 2.5rem); }
+    .sh-hero-subtitle { font-size: 0.9375rem; }
+    .sh-stats-row { gap: 20px; flex-wrap: wrap; }
+    .sh-cta-group { flex-direction: column; width: 100%; }
+    .sh-cta-primary, .sh-cta-secondary { width: 100%; justify-content: center; }
+    .sh-terminal-window { max-width: 100%; }
+    .sh-terminal-body { padding: 14px; }
+  }
+
+  @media (max-width: 380px) {
+    .sh-container { padding: 0 14px; }
+    .sh-hero-title { font-size: 1.5rem; }
+    .sh-hero-tagline { font-size: 0.75rem; }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     SUBSITE HERO - Terminal text colors
+     Global because set:html content has no Astro scoped hash
+     ======================================== */
+
+  /* Terminal line base style */
+  .sh-terminal-body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.7;
+    color: var(--md-sys-color-on-surface);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: pre;
+  }
+
+  .sh-terminal-body .t-prompt { color: var(--md-sys-color-primary); font-weight: 700; }
+  .sh-terminal-body .t-dim { color: var(--md-sys-color-on-surface-variant); opacity: 0.6; }
+  .sh-terminal-body .t-ok { color: #22c55e; font-weight: 700; }
+  .sh-terminal-body .t-key { color: var(--md-sys-color-on-surface); font-weight: 600; }
+  .sh-terminal-body .t-check { color: var(--md-sys-color-on-surface-variant); }
+  .sh-terminal-body .t-ready { color: var(--md-sys-color-on-surface); font-weight: 600; }
+  .sh-terminal-body .t-accent { color: var(--md-sys-color-primary); font-weight: 700; }
+
+  /* Hero section backgrounds */
+  [id$="-hero"], [id="engine-hero"] { background: var(--md-sys-color-surface); }
+  html[data-theme="dark"] [id$="-hero"],
+  html[data-theme="dark"] [id="engine-hero"] { background: #0a0908; }
+
+  /* Dark mode overrides for hero content */
+  html[data-theme="dark"] .sh-hero-tagline { background: rgba(255, 184, 111, 0.12); color: #FFB86F; }
+  html[data-theme="dark"] .sh-hero-title { color: #f5f0ea; }
+  html[data-theme="dark"] .sh-title-line.sh-accent { color: #FFB86F; }
+  html[data-theme="dark"] .sh-hero-subtitle { color: #d5c3b5; }
+  html[data-theme="dark"] .sh-stats-row { border-color: rgba(255, 184, 111, 0.15); }
+  html[data-theme="dark"] .sh-stat-value { color: #FFB86F; }
+  html[data-theme="dark"] .sh-stat-label { color: #a89a8c; }
+  html[data-theme="dark"] .sh-cta-primary { background: #FFB86F; color: #1a1815; }
+  html[data-theme="dark"] .sh-cta-primary:hover { background: #D4A574; }
+  html[data-theme="dark"] .sh-cta-secondary { color: #f5f0ea; border-color: rgba(255, 184, 111, 0.2); }
+  html[data-theme="dark"] .sh-cta-secondary:hover { background: rgba(255, 184, 111, 0.1); border-color: #FFB86F; }
+
+  /* Dark mode terminal */
+  html[data-theme="dark"] .sh-terminal-window { background: #111110; border-color: rgba(255, 184, 111, 0.1); box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 184, 111, 0.05); }
+  html[data-theme="dark"] .sh-terminal-header { background: #1a1815; border-bottom-color: rgba(255, 184, 111, 0.08); }
+  html[data-theme="dark"] .sh-terminal-title { color: #6b6560; }
+  html[data-theme="dark"] .sh-terminal-body code { color: #d5c3b5; }
+  html[data-theme="dark"] .sh-terminal-body .t-prompt { color: #FFB86F; }
+  html[data-theme="dark"] .sh-terminal-body .t-dim { color: #6b6560; }
+  html[data-theme="dark"] .sh-terminal-body .t-ok { color: #6ee7b7; }
+  html[data-theme="dark"] .sh-terminal-body .t-key { color: #f5f0ea; }
+  html[data-theme="dark"] .sh-terminal-body .t-check { color: #a89a8c; }
+  html[data-theme="dark"] .sh-terminal-body .t-ready { color: #f5f0ea; }
+  html[data-theme="dark"] .sh-terminal-body .t-accent { color: #FFB86F; }
+
+  html[data-theme="dark"] .sh-gradient-orb {
+    background: radial-gradient(circle at 25% 35%, rgba(255, 184, 111, 0.06) 0%, transparent 50%), radial-gradient(circle at 75% 65%, rgba(212, 165, 116, 0.04) 0%, transparent 50%);
+    filter: blur(100px);
+    opacity: 0.4;
+  }
+
+  /* Responsive terminal text */
+  @media (max-width: 768px) {
+    .sh-terminal-body code { font-size: 0.6875rem; }
+  }
+</style>

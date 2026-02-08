@@ -1,45 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    title: 'From Intent to',
-    titleAccent: 'Ranked Tools',
-    subtitle: 'One model, one pipeline. SHGAT scores tool relevance across the full hierarchy, then the DAG executor runs the top-ranked tools.',
-    steps: [
-      { icon: 'search', label: 'Intent', sublabel: 'user query', type: 'incoming' },
-      { icon: 'text_fields', label: 'Embed', sublabel: 'BGE-M3 1024D', type: '' },
-      { icon: 'hub', label: 'SHGAT Score', sublabel: 'K-head \u00d7 16', type: '' },
-      { icon: 'format_list_numbered', label: 'Rank', sublabel: 'top-K tools', type: '' },
-      { icon: 'play_arrow', label: 'Execute', sublabel: 'DAG runner', type: 'handler' },
-    ],
-  },
-  fr: {
-    title: 'De l\'Intent aux',
-    titleAccent: 'Outils Classes',
-    subtitle: 'Un modele, un pipeline. SHGAT score la pertinence des outils sur toute la hierarchie, puis le DAG executor lance les mieux classes.',
-    steps: [
-      { icon: 'search', label: 'Intent', sublabel: 'requete', type: 'incoming' },
-      { icon: 'text_fields', label: 'Embedding', sublabel: 'BGE-M3 1024D', type: '' },
-      { icon: 'hub', label: 'Score SHGAT', sublabel: 'K-head \u00d7 16', type: '' },
-      { icon: 'format_list_numbered', label: 'Classement', sublabel: 'top-K outils', type: '' },
-      { icon: 'play_arrow', label: 'Executer', sublabel: 'DAG runner', type: 'handler' },
-    ],
-  },
-  zh: {
-    title: 'From Intent to',
-    titleAccent: 'Ranked Tools',
-    subtitle: 'One model, one pipeline. SHGAT scores tool relevance across the full hierarchy, then the DAG executor runs the top-ranked tools.',
-    steps: [
-      { icon: 'search', label: 'Intent', sublabel: 'user query', type: 'incoming' },
-      { icon: 'text_fields', label: 'Embed', sublabel: 'BGE-M3 1024D', type: '' },
-      { icon: 'hub', label: 'SHGAT Score', sublabel: 'K-head \u00d7 16', type: '' },
-      { icon: 'format_list_numbered', label: 'Rank', sublabel: 'top-K tools', type: '' },
-      { icon: 'play_arrow', label: 'Execute', sublabel: 'DAG runner', type: 'handler' },
-    ],
-  },
-} as const;
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).engineHowItWorks;
 ---
 
 <section id="how-it-works">

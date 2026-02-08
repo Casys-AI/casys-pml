@@ -1,396 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-      title: 'Our Projects',
-      subtitle: 'Open-source tools exploring different facets of AI systems',
-      activeProjects: [
-        {
-          id: 'casys-pml',
-          name: 'Casys PML',
-          tagline: 'One gateway. Any model. Full observability.',
-          status: 'Active Development',
-          license: 'AGPL-3.0',
-          featured: true,
-          features: [
-              {
-                icon: 'swap_horiz',
-                name: 'Model-Agnostic',
-                description: 'Claude, GPT, Gemini, Ollama — switch freely'
-              },
-              {
-                icon: 'visibility',
-                name: 'Full Observability',
-                description: 'Every tool call traced: cost, latency, status'
-              },
-              {
-                icon: 'auto_awesome',
-                name: 'Pattern Learning',
-                description: 'Workflows improve automatically over time'
-              }
-          ],
-          results: [
-            {
-              stat: '120+',
-              label: 'Capabilities in catalog'
-            },
-            {
-              stat: '4',
-              label: 'LLM providers supported'
-            },
-            {
-              stat: 'Free',
-              label: 'Open source beta'
-            }
-          ],
-          tech: {
-            stack: 'Deno 2.x, PGlite, Drizzle ORM, Transformers.js'
-          },
-          links: {
-            website: 'https://pml.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml',
-            docs: 'https://pml.casys.ai/docs'
-          }
-        },
-        {
-          id: 'mcp-std',
-          name: '@casys/mcp-std',
-          tagline: '508 MCP Tools. One Import.',
-          status: 'v0.4.0',
-          license: 'MIT',
-          features: [
-            { icon: 'construction', name: '508 Tools', description: 'Docker, Git, DB, crypto, text, network...' },
-            { icon: 'category', name: '32 Categories', description: 'Load only what you need' },
-            { icon: 'terminal', name: 'MCP Server', description: 'Standalone or library mode' }
-          ],
-          tech: { stack: 'Deno, TypeScript, JSR' },
-          links: {
-            website: 'https://mcp-std.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std',
-            jsr: 'https://jsr.io/@casys/mcp-std'
-          }
-        },
-        {
-          id: 'mcp-server',
-          name: '@casys/mcp-server',
-          tagline: 'Production MCP Server Framework',
-          status: 'v0.3.0',
-          license: 'MIT',
-          features: [
-            { icon: 'security', name: 'Auth Built-in', description: 'OAuth2, JWT, API keys' },
-            { icon: 'layers', name: 'Middleware', description: 'Rate limiting, CORS, logging' },
-            { icon: 'speed', name: 'HTTP + SSE', description: 'Concurrent transport layer' }
-          ],
-          tech: { stack: 'Deno, TypeScript, JSR' },
-          links: {
-            website: 'https://mcp-server.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server',
-            jsr: 'https://jsr.io/@casys/mcp-server'
-          }
-        },
-        {
-          id: 'engine',
-          name: 'PML Engine',
-          tagline: 'Graph Neural Network for Tool Orchestration',
-          status: 'Research',
-          license: 'AGPL-3.0',
-          features: [
-            { icon: 'hub', name: 'SHGAT', description: 'Sparse Heterogeneous Graph Attention' },
-            { icon: 'psychology', name: 'Runtime Learning', description: 'Learns from execution traces' },
-            { icon: 'route', name: 'DAG Optimization', description: 'Automatic workflow planning' }
-          ],
-          tech: { stack: 'TensorFlow.js, Deno' },
-          links: {
-            website: 'https://engine.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml'
-          }
-        },
-        {
-          id: 'casysdb',
-          name: 'CasysDB',
-          tagline: 'Embedded Graph Database with Branches',
-          status: 'Active Development',
-          license: 'MIT Open Source',
-          features: [
-            {
-              icon: 'flash_on',
-              name: 'Embedded',
-              description: 'Runs in your process'
-            },
-            {
-              icon: 'language',
-              name: 'ISO GQL',
-              description: 'Standard graph query'
-            },
-            {
-              icon: 'account_tree',
-              name: 'Git-like Branches',
-              description: 'Test changes safely'
-            }
-          ],
-          tech: {
-            stack: 'Rust, Python/TS bindings'
-          },
-          links: {
-            website: 'https://y-wheat-rho-70.vercel.app/',
-            github: 'https://github.com/casysai/casysdb'
-          }
-        }
-      ],
-    },
-  fr: {
-      title: 'Nos Projets',
-      subtitle: 'Outils open-source explorant différentes facettes des systèmes AI',
-      activeProjects: [
-        {
-          id: 'casys-pml',
-          name: 'Casys PML',
-          tagline: 'Un gateway. N\'importe quel modèle. Observabilité totale.',
-          status: 'Développement Actif',
-          license: 'AGPL-3.0',
-          featured: true,
-          features: [
-              {
-                icon: 'swap_horiz',
-                name: 'Model-Agnostic',
-                description: 'Claude, GPT, Gemini, Ollama — changez librement'
-              },
-              {
-                icon: 'visibility',
-                name: 'Observabilité Complète',
-                description: 'Chaque appel tracé : coût, latence, statut'
-              },
-              {
-                icon: 'auto_awesome',
-                name: 'Apprentissage de Patterns',
-                description: 'Les workflows s\'améliorent automatiquement'
-              }
-          ],
-          results: [
-            {
-              stat: '120+',
-              label: 'Capabilities au catalogue'
-            },
-            {
-              stat: '4',
-              label: 'Providers LLM supportés'
-            },
-            {
-              stat: 'Gratuit',
-              label: 'Beta open source'
-            }
-          ],
-          tech: {
-            stack: 'Deno 2.x, PGlite, Drizzle ORM, Transformers.js'
-          },
-          links: {
-            website: 'https://pml.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml',
-            docs: 'https://pml.casys.ai/docs'
-          }
-        },
-        {
-          id: 'mcp-std',
-          name: '@casys/mcp-std',
-          tagline: '508 Outils MCP. Un seul import.',
-          status: 'v0.4.0',
-          license: 'MIT',
-          features: [
-            { icon: 'construction', name: '508 Outils', description: 'Docker, Git, DB, crypto, texte, réseau...' },
-            { icon: 'category', name: '32 Catégories', description: 'Chargez uniquement ce dont vous avez besoin' },
-            { icon: 'terminal', name: 'Serveur MCP', description: 'Mode standalone ou librairie' }
-          ],
-          tech: { stack: 'Deno, TypeScript, JSR' },
-          links: {
-            website: 'https://mcp-std.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std',
-            jsr: 'https://jsr.io/@casys/mcp-std'
-          }
-        },
-        {
-          id: 'mcp-server',
-          name: '@casys/mcp-server',
-          tagline: 'Framework Serveur MCP Production',
-          status: 'v0.3.0',
-          license: 'MIT',
-          features: [
-            { icon: 'security', name: 'Auth intégrée', description: 'OAuth2, JWT, clés API' },
-            { icon: 'layers', name: 'Middleware', description: 'Rate limiting, CORS, logging' },
-            { icon: 'speed', name: 'HTTP + SSE', description: 'Transport concurrent' }
-          ],
-          tech: { stack: 'Deno, TypeScript, JSR' },
-          links: {
-            website: 'https://mcp-server.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server',
-            jsr: 'https://jsr.io/@casys/mcp-server'
-          }
-        },
-        {
-          id: 'engine',
-          name: 'PML Engine',
-          tagline: 'Réseau de neurones graphe pour l\'orchestration d\'outils',
-          status: 'Recherche',
-          license: 'AGPL-3.0',
-          features: [
-            { icon: 'hub', name: 'SHGAT', description: 'Sparse Heterogeneous Graph Attention' },
-            { icon: 'psychology', name: 'Apprentissage Runtime', description: 'Apprend des traces d\'exécution' },
-            { icon: 'route', name: 'Optimisation DAG', description: 'Planification automatique de workflows' }
-          ],
-          tech: { stack: 'TensorFlow.js, Deno' },
-          links: {
-            website: 'https://engine.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml'
-          }
-        },
-        {
-          id: 'casysdb',
-          name: 'CasysDB',
-          tagline: 'Graph Database Embedded avec Branches',
-          status: 'Développement Actif',
-          license: 'MIT Open Source',
-          features: [
-            {
-              icon: 'flash_on',
-              name: 'Embedded',
-              description: 'Tourne dans votre process'
-            },
-            {
-              icon: 'language',
-              name: 'ISO GQL',
-              description: 'Standard graph query'
-            },
-            {
-              icon: 'account_tree',
-              name: 'Branches Git-like',
-              description: 'Tester changements safely'
-            }
-          ],
-          tech: {
-            stack: 'Rust, Python/TS bindings'
-          },
-          links: {
-            website: 'https://y-wheat-rho-70.vercel.app/',
-            github: 'https://github.com/casysai/casysdb'
-          }
-        }
-      ],
-    },
-  zh: {
-      title: '我们的项目',
-      subtitle: '探索 AI 系统不同层面的开源工具',
-      activeProjects: [
-        {
-          id: 'casys-pml',
-          name: 'Casys PML',
-          tagline: '一个网关。任何模型。完整可观测性。',
-          status: '活跃开发中',
-          license: 'AGPL-3.0',
-          featured: true,
-          features: [
-              {
-                icon: 'swap_horiz',
-                name: '模型无关',
-                description: 'Claude、GPT、Gemini、Ollama——自由切换'
-              },
-              {
-                icon: 'visibility',
-                name: '完整可观测性',
-                description: '每次工具调用均可追溯：成本、延迟、状态'
-              },
-              {
-                icon: 'auto_awesome',
-                name: '模式学习',
-                description: '工作流随时间自动改进'
-              }
-          ],
-          results: [
-            { stat: '120+', label: '目录中的能力' },
-            { stat: '4', label: '支持的 LLM 提供商' },
-            { stat: '免费', label: '开源测试版' }
-          ],
-          tech: { stack: 'Deno 2.x, PGlite, Drizzle ORM, Transformers.js' },
-          links: {
-            website: 'https://pml.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml',
-            docs: 'https://pml.casys.ai/docs'
-          }
-        },
-        {
-          id: 'mcp-std',
-          name: '@casys/mcp-std',
-          tagline: '508 个 MCP 工具。一行导入。',
-          status: 'v0.4.0',
-          license: 'MIT',
-          features: [
-            { icon: 'construction', name: '508 工具', description: 'Docker、Git、DB、加密、文本、网络...' },
-            { icon: 'category', name: '32 类别', description: '按需加载' },
-            { icon: 'terminal', name: 'MCP 服务器', description: '独立或库模式' }
-          ],
-          tech: { stack: 'Deno, TypeScript, JSR' },
-          links: {
-            website: 'https://mcp-std.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std',
-            jsr: 'https://jsr.io/@casys/mcp-std'
-          }
-        },
-        {
-          id: 'mcp-server',
-          name: '@casys/mcp-server',
-          tagline: '生产级 MCP 服务器框架',
-          status: 'v0.3.0',
-          license: 'MIT',
-          features: [
-            { icon: 'security', name: '内置认证', description: 'OAuth2、JWT、API 密钥' },
-            { icon: 'layers', name: '中间件', description: '限流、CORS、日志' },
-            { icon: 'speed', name: 'HTTP + SSE', description: '并发传输层' }
-          ],
-          tech: { stack: 'Deno, TypeScript, JSR' },
-          links: {
-            website: 'https://mcp-server.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server',
-            jsr: 'https://jsr.io/@casys/mcp-server'
-          }
-        },
-        {
-          id: 'engine',
-          name: 'PML Engine',
-          tagline: '图神经网络工具编排',
-          status: '研究',
-          license: 'AGPL-3.0',
-          features: [
-            { icon: 'hub', name: 'SHGAT', description: '稀疏异构图注意力' },
-            { icon: 'psychology', name: '运行时学习', description: '从执行轨迹中学习' },
-            { icon: 'route', name: 'DAG 优化', description: '自动工作流规划' }
-          ],
-          tech: { stack: 'TensorFlow.js, Deno' },
-          links: {
-            website: 'https://engine.casys.ai',
-            github: 'https://github.com/Casys-AI/casys-pml'
-          }
-        },
-        {
-          id: 'casysdb',
-          name: 'CasysDB',
-          tagline: '支持分支的嵌入式图数据库',
-          status: '活跃开发中',
-          license: 'MIT 开源',
-          features: [
-            { icon: 'flash_on', name: '嵌入式', description: '在你的进程中运行' },
-            { icon: 'language', name: 'ISO GQL', description: '标准图查询' },
-            { icon: 'account_tree', name: 'Git 式分支', description: '安全测试变更' }
-          ],
-          tech: { stack: 'Rust, Python/TS bindings' },
-          links: {
-            website: 'https://y-wheat-rho-70.vercel.app/',
-            github: 'https://github.com/casysai/casysdb'
-          }
-        }
-      ],
-    }
-} as const;
-
-const content = translations[locale as keyof typeof translations] ?? translations.en;
+const content = useTranslations(locale).projects;
 ---
 
 <section id="projects">
@@ -463,7 +74,7 @@ const content = translations[locale as keyof typeof translations] ?? translation
         </div>
       </div>
 
-      <!-- Sub-projects grid (mcp-std, mcp-server, engine, casysdb) -->
+      <!-- Sub-projects grid (mcp-std, mcp-server, engine) -->
       {content.activeProjects.slice(1).map((project) => (
         <div class={`project-card medium ${project.id}`}>
           <div class="project-header-compact">
@@ -500,7 +111,7 @@ const content = translations[locale as keyof typeof translations] ?? translation
             )}
             {project.links.jsr && (
               <a href={project.links.jsr} class="project-link" target="_blank" rel="noopener">
-                <span class="material-symbols-rounded">package_2</span>
+                <svg class="jsr-inline-icon" width="16" height="16" viewBox="0 -3 64 64" fill="none" aria-hidden="true"><path d="M 0,21.846 H 9.846 V 12 h 34.462 v 4.923 H 64 V 36.616 H 54.155 V 46.462 H 19.693 V 41.539 H 0" fill="#083344"/><g fill="#f7df1e" transform="matrix(4.923,0,0,4.923,0,12)"><path d="M 1,3 H 2 V 4 H 3 V 1 H 4 V 5 H 1"/><path d="M 5,1 H 8 V 2 H 6 V 3 H 8 V 6 H 5 V 5 H 7 V 4 H 5"/><path d="m 9,2 h 3 V 4 H 11 V 3 H 10 V 6 H 9"/></g></svg>
                 <span>JSR</span>
               </a>
             )}
@@ -786,8 +397,7 @@ const content = translations[locale as keyof typeof translations] ?? translation
       grid-template-rows: auto;
     }
 
-    .project-card.featured,
-    .project-card.casysdb {
+    .project-card.featured {
       grid-column: 1 / 2;
       grid-row: auto;
     }
@@ -829,47 +439,47 @@ const content = translations[locale as keyof typeof translations] ?? translation
 <style is:global>
   /* Projects Section Dark Mode */
   html[data-theme="dark"] #projects {
-    background: #0a0908;
+    background: var(--casys-warm-background);
   }
 
   html[data-theme="dark"] #projects h2 {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #projects .section-subtitle {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   html[data-theme="dark"] #projects .project-card {
-    background: #1a1815;
+    background: var(--casys-warm-surface);
     border-color: rgba(255, 184, 111, 0.1);
   }
 
   html[data-theme="dark"] #projects .project-card:hover {
-    border-color: rgba(255, 184, 111, 0.3);
+    border-color: var(--casys-warm-border-accent-hover);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   }
 
   html[data-theme="dark"] #projects .project-card.featured {
-    border-left-color: #FFB86F;
+    border-left-color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #projects .project-name {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #projects .project-tagline {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   html[data-theme="dark"] #projects .status-badge.active {
     background: rgba(255, 184, 111, 0.15);
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #projects .license-badge {
     background: rgba(255, 184, 111, 0.1);
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   html[data-theme="dark"] #projects .feature-card {
@@ -877,15 +487,15 @@ const content = translations[locale as keyof typeof translations] ?? translation
   }
 
   html[data-theme="dark"] #projects .feature-card .material-symbols-rounded {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #projects .feature-name {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #projects .feature-description {
-    color: #a89a8c;
+    color: var(--casys-warm-text-muted);
   }
 
   html[data-theme="dark"] #projects .results-stats {
@@ -893,15 +503,15 @@ const content = translations[locale as keyof typeof translations] ?? translation
   }
 
   html[data-theme="dark"] #projects .stat-value {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #projects .stat-label {
-    color: #a89a8c;
+    color: var(--casys-warm-text-muted);
   }
 
   html[data-theme="dark"] #projects .project-link {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
     border-color: rgba(255, 255, 255, 0.12);
   }
 
@@ -911,7 +521,7 @@ const content = translations[locale as keyof typeof translations] ?? translation
   }
 
   html[data-theme="dark"] #projects .feature-item .material-symbols-rounded {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 </style>
 

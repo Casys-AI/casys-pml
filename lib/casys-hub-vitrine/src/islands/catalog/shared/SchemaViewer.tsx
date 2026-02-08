@@ -175,7 +175,7 @@ export default function SchemaViewer({ schema }: SchemaViewerProps) {
           padding: 1rem;
           text-align: center;
           font-size: 0.75rem;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
           background: rgba(255, 184, 111, 0.02);
           border-radius: 6px;
         }
@@ -210,13 +210,13 @@ export default function SchemaViewer({ schema }: SchemaViewerProps) {
           background: none;
           border: none;
           cursor: pointer;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
           transition: transform 0.12s, color 0.12s;
           flex-shrink: 0;
         }
 
         .schema-prop-expand:hover {
-          color: #FFB86F;
+          color: var(--casys-warm-accent);
         }
 
         .schema-prop-expand.open {
@@ -227,14 +227,14 @@ export default function SchemaViewer({ schema }: SchemaViewerProps) {
           font-family: 'Geist Mono', monospace;
           font-size: 0.75rem;
           font-weight: 500;
-          color: #f0ede8;
+          color: var(--casys-warm-text-primary);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
         .schema-prop-req {
-          color: #f87171;
+          color: var(--casys-warm-error);
           font-weight: 600;
           font-size: 0.75rem;
         }
@@ -252,14 +252,14 @@ export default function SchemaViewer({ schema }: SchemaViewerProps) {
           text-transform: uppercase;
           padding: 0.0625rem 0.25rem;
           background: rgba(74, 222, 128, 0.1);
-          color: #4ade80;
+          color: var(--casys-warm-success);
           border-radius: 2px;
         }
 
         .schema-prop-type {
           font-family: 'Geist Mono', monospace;
           font-size: 0.625rem;
-          color: #FFB86F;
+          color: var(--casys-warm-accent);
           background: rgba(255, 184, 111, 0.06);
           padding: 0.125rem 0.375rem;
           border-radius: 3px;
@@ -269,7 +269,7 @@ export default function SchemaViewer({ schema }: SchemaViewerProps) {
           margin-top: 0.25rem;
           font-size: 0.6875rem;
           line-height: 1.4;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
         }
 
         .schema-prop-enum-vals {
@@ -284,19 +284,19 @@ export default function SchemaViewer({ schema }: SchemaViewerProps) {
           font-size: 0.5625rem;
           padding: 0.0625rem 0.25rem;
           background: rgba(74, 222, 128, 0.06);
-          color: #4ade80;
+          color: var(--casys-warm-success);
           border-radius: 2px;
         }
 
         .schema-prop-default {
           margin-top: 0.25rem;
           font-size: 0.625rem;
-          color: #6b6560;
+          color: var(--casys-warm-text-dim);
         }
 
         .schema-prop-default code {
           font-family: 'Geist Mono', monospace;
-          color: #60a5fa;
+          color: var(--casys-warm-info);
         }
 
         .schema-prop-nested {

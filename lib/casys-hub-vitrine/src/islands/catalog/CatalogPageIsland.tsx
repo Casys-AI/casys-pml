@@ -223,7 +223,8 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
     );
 
     bridge.connect(transport).then(() => {
-      iframe.src = `/api/ui/resource?uri=${encodeURIComponent(item.resourceUri!)}`;
+      const componentName = item.resourceUri!.replace("ui://mcp-std/", "").replace("ui://", "");
+      iframe.src = `/ui/${componentName}/index.html`;
     }).catch(() => {
       setStatus("error");
     });
@@ -263,7 +264,7 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
   return (
     <div
       ref={containerRef}
-      class={`relative bg-[#0a0a0c] border border-[rgba(78,205,196,0.12)] rounded-lg overflow-hidden no-underline cursor-pointer transition-all duration-200 ease-out animate-[bentoIn_0.3s_ease-out_both] hover:border-[rgba(78,205,196,0.5)] hover:-translate-y-[3px] hover:shadow-[0_12px_32px_-8px_rgba(78,205,196,0.25),0_0_0_1px_rgba(78,205,196,0.1)] ${sizeClasses}`}
+      class={`relative bg-[var(--casys-warm-surface-card)] border border-[rgba(78,205,196,0.12)] rounded-lg overflow-hidden no-underline cursor-pointer transition-all duration-200 ease-out animate-[bentoIn_0.3s_ease-out_both] hover:border-[rgba(78,205,196,0.5)] hover:-translate-y-[3px] hover:shadow-[0_12px_32px_-8px_rgba(78,205,196,0.25),0_0_0_1px_rgba(78,205,196,0.1)] ${sizeClasses}`}
       style={{
         minHeight: `${minHeight}px`,
         height: `${actualHeight}px`,
@@ -274,12 +275,12 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
       <div class="absolute inset-0 bottom-9">
         {isVisible && status === "loading" && (
           <div class="flex items-center justify-center bg-gradient-to-br from-[#0c0c0e] to-[#111114] absolute inset-0">
-            <div class="w-6 h-6 rounded-full border-2 border-[#2a2a2e] border-t-[#4ECDC4] animate-spin" />
+            <div class="w-6 h-6 rounded-full border-2 border-[var(--casys-warm-border-dim)] border-t-[var(--casys-warm-teal)] animate-spin" />
           </div>
         )}
 
         {status === "error" && (
-          <div class="absolute inset-0 flex items-center justify-center text-xs text-pml-text-dim bg-[#0a0a0c]">
+          <div class="absolute inset-0 flex items-center justify-center text-xs text-pml-text-dim bg-[var(--casys-warm-surface-card)]">
             <span>Preview unavailable</span>
           </div>
         )}
@@ -289,7 +290,7 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
             ref={iframeRef}
             title={`Preview: ${item.name}`}
             sandbox="allow-scripts allow-same-origin"
-            class="w-full h-full border-none bg-[#0a0a0c] transition-opacity duration-400 ease-out"
+            class="w-full h-full border-none bg-[var(--casys-warm-surface-card)] transition-opacity duration-400 ease-out"
             style={{
               opacity: status === "connected" ? 1 : 0,
             }}
@@ -298,9 +299,9 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
       </div>
 
       {/* Label overlay */}
-      <div class="absolute bottom-0 left-0 right-0 h-9 px-3 bg-[#0f0f12] border-t border-[rgba(78,205,196,0.08)] flex items-center justify-between">
-        <span class="font-mono text-xs font-medium text-pml-text group-hover:text-[#4ECDC4]">{item.name}</span>
-        <span class="text-[0.5625rem] font-semibold text-[#4ECDC4] bg-[rgba(78,205,196,0.12)] px-1.5 py-0.5 rounded border border-[rgba(78,205,196,0.2)]">UI</span>
+      <div class="absolute bottom-0 left-0 right-0 h-9 px-3 bg-[var(--casys-warm-surface-elevated)] border-t border-[rgba(78,205,196,0.08)] flex items-center justify-between">
+        <span class="font-mono text-xs font-medium text-pml-text group-hover:text-[var(--casys-warm-teal)]">{item.name}</span>
+        <span class="text-[0.5625rem] font-semibold text-[var(--casys-warm-teal)] bg-[rgba(78,205,196,0.12)] px-1.5 py-0.5 rounded border border-[rgba(78,205,196,0.2)]">UI</span>
       </div>
     </div>
   );
@@ -402,8 +403,8 @@ function DetailPanel({ item, onClose }: DetailPanelProps) {
   if (item.type === "capability") {
     if (detailLoading) {
       return (
-        <div class="mt-3 bg-[#0f0f12] border border-[rgba(74,222,128,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
-          <div class="w-6 h-6 rounded-full border-2 border-[#2a2a2e] border-t-[#4ade80] animate-spin" />
+        <div class="mt-3 bg-[var(--casys-warm-surface-elevated)] border border-[rgba(74,222,128,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
+          <div class="w-6 h-6 rounded-full border-2 border-[var(--casys-warm-border-dim)] border-t-[var(--casys-warm-success)] animate-spin" />
           <span>Chargement...</span>
         </div>
       );
@@ -411,12 +412,12 @@ function DetailPanel({ item, onClose }: DetailPanelProps) {
 
     if (!capabilityDetail) {
       return (
-        <div class="mt-3 bg-[#0f0f12] border border-[rgba(74,222,128,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
+        <div class="mt-3 bg-[var(--casys-warm-surface-elevated)] border border-[rgba(74,222,128,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
           <span>Impossible de charger les details</span>
           <button
             type="button"
             onClick={onClose}
-            class="font-mono text-[0.6875rem] text-pml-text-dim bg-transparent border border-[rgba(74,222,128,0.2)] px-3 py-1.5 rounded cursor-pointer transition-all duration-150 hover:border-[rgba(74,222,128,0.4)] hover:text-[#4ade80]"
+            class="font-mono text-[0.6875rem] text-pml-text-dim bg-transparent border border-[rgba(74,222,128,0.2)] px-3 py-1.5 rounded cursor-pointer transition-all duration-150 hover:border-[rgba(74,222,128,0.4)] hover:text-[var(--casys-warm-success)]"
           >
             Fermer
           </button>
@@ -445,8 +446,8 @@ function DetailPanel({ item, onClose }: DetailPanelProps) {
   // For tools, use ToolDetailPanel with fetched data
   if (!toolDetail && detailLoading) {
     return (
-      <div class="mt-3 bg-[#0f0f12] border border-[rgba(255,184,111,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
-        <div class="w-6 h-6 rounded-full border-2 border-[#2a2a2e] border-t-pml-accent animate-spin" />
+      <div class="mt-3 bg-[var(--casys-warm-surface-elevated)] border border-[rgba(255,184,111,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
+        <div class="w-6 h-6 rounded-full border-2 border-[var(--casys-warm-border-dim)] border-t-pml-accent animate-spin" />
         <span>Loading tool details...</span>
       </div>
     );
@@ -454,7 +455,7 @@ function DetailPanel({ item, onClose }: DetailPanelProps) {
 
   if (!toolDetail) {
     return (
-      <div class="mt-3 bg-[#0f0f12] border border-[rgba(255,184,111,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
+      <div class="mt-3 bg-[var(--casys-warm-surface-elevated)] border border-[rgba(255,184,111,0.08)] rounded-[10px] p-8 flex flex-col items-center justify-center gap-3 text-xs text-pml-text-dim animate-[slideUp_0.2s_ease-out]">
         <span>Could not load tool details</span>
         <button
           type="button"
@@ -629,7 +630,7 @@ export default function CatalogPageIsland({
     <div class="min-h-screen bg-pml-bg text-pml-text font-sans pt-[60px] flex flex-col">
       <div class="flex flex-1 max-w-[1600px] mx-auto w-full max-md:flex-col">
         {/* Sidebar */}
-        <aside class="w-[200px] flex-shrink-0 bg-[#0f0f12] border-r border-[rgba(255,184,111,0.06)] py-4 sticky top-[60px] h-[calc(100vh-60px)] overflow-y-auto max-md:w-full max-md:relative max-md:top-0 max-md:h-auto max-md:border-r-0 max-md:border-b max-md:border-[rgba(255,184,111,0.06)] max-md:p-2">
+        <aside class="w-[200px] flex-shrink-0 bg-[var(--casys-warm-surface-elevated)] border-r border-[rgba(255,184,111,0.06)] py-4 sticky top-[60px] h-[calc(100vh-60px)] overflow-y-auto max-md:w-full max-md:relative max-md:top-0 max-md:h-auto max-md:border-r-0 max-md:border-b max-md:border-[rgba(255,184,111,0.06)] max-md:p-2">
           <div class="flex items-center justify-between px-3 pb-3 border-b border-[rgba(255,184,111,0.06)] mb-2">
             <h2 class="font-serif text-base font-normal m-0">Catalogue</h2>
             <span class="font-mono text-[0.625rem] text-pml-text-dim bg-[rgba(255,184,111,0.08)] px-1.5 py-0.5 rounded">{totalItems}</span>
@@ -650,7 +651,7 @@ export default function CatalogPageIsland({
               <span class="font-mono text-[0.5625rem] text-pml-text-dim bg-[rgba(255,255,255,0.04)] px-1 py-0.5 rounded-sm">{totalItems}</span>
             </button>
 
-            <div class="py-2.5 px-1.5 text-[0.5625rem] font-mono uppercase tracking-wider text-[#4a4540] max-md:w-full max-md:p-1"><span>UI Components</span></div>
+            <div class="py-2.5 px-1.5 text-[0.5625rem] font-mono uppercase tracking-wider text-[var(--casys-warm-text-dim)] max-md:w-full max-md:p-1"><span>UI Components</span></div>
 
             {categories.filter((c) => c.isUiCategory).map((cat) => (
               <button
@@ -669,7 +670,7 @@ export default function CatalogPageIsland({
               </button>
             ))}
 
-            <div class="py-2.5 px-1.5 text-[0.5625rem] font-mono uppercase tracking-wider text-[#4a4540] max-md:w-full max-md:p-1"><span>MCP Tools</span></div>
+            <div class="py-2.5 px-1.5 text-[0.5625rem] font-mono uppercase tracking-wider text-[var(--casys-warm-text-dim)] max-md:w-full max-md:p-1"><span>MCP Tools</span></div>
 
             {categories.filter((c) => !c.isUiCategory && c.id !== "capabilities").map((cat) => (
               <button
@@ -690,7 +691,7 @@ export default function CatalogPageIsland({
 
             {categories.find((c) => c.id === "capabilities") && (
               <>
-                <div class="py-2.5 px-1.5 text-[0.5625rem] font-mono uppercase tracking-wider text-[#4a4540] max-md:w-full max-md:p-1"><span>Workflows</span></div>
+                <div class="py-2.5 px-1.5 text-[0.5625rem] font-mono uppercase tracking-wider text-[var(--casys-warm-text-dim)] max-md:w-full max-md:p-1"><span>Workflows</span></div>
                 <button
                   type="button"
                   class={`flex items-center gap-1.5 px-2 py-1.5 text-xs bg-transparent border-none rounded cursor-pointer transition-all duration-100 text-left w-full max-md:py-1 max-md:px-1.5 max-md:text-[0.6875rem] ${
@@ -755,7 +756,7 @@ export default function CatalogPageIsland({
           {/* Content */}
           <div class="flex flex-col gap-5">
             {filteredCategories.map((cat) => (
-              <section key={cat.id} class="bg-[#0f0f12] border border-[rgba(255,184,111,0.06)] rounded-md p-3.5">
+              <section key={cat.id} class="bg-[var(--casys-warm-surface-elevated)] border border-[rgba(255,184,111,0.06)] rounded-md p-3.5">
                 <h3 class="flex items-center gap-1.5 m-0 mb-3 text-xs font-medium">
                   <span class="text-sm">{cat.icon}</span>
                   <span class="text-pml-text">{cat.label}</span>
@@ -780,18 +781,18 @@ export default function CatalogPageIsland({
                           class={`inline-flex items-center gap-1 px-2 py-1 font-mono text-[0.625rem] bg-[#141418] border rounded-sm no-underline cursor-pointer transition-all duration-100 animate-[chipIn_0.15s_ease-out_both] ${
                             selectedItem?.id === item.id
                               ? item.type === "capability"
-                                ? "bg-[rgba(74,222,128,0.15)] border-[rgba(74,222,128,0.4)] text-[#4ade80] shadow-[0_0_0_1px_rgba(74,222,128,0.2)]"
+                                ? "bg-[rgba(74,222,128,0.15)] border-[rgba(74,222,128,0.4)] text-[var(--casys-warm-success)] shadow-[0_0_0_1px_rgba(74,222,128,0.2)]"
                                 : "bg-[rgba(255,184,111,0.15)] border-[rgba(255,184,111,0.4)] text-pml-accent shadow-[0_0_0_1px_rgba(255,184,111,0.2)]"
                               : item.type === "capability"
-                                ? "text-stone-400 border-[rgba(74,222,128,0.1)] hover:bg-[rgba(74,222,128,0.08)] hover:border-[rgba(74,222,128,0.3)] hover:text-[#4ade80]"
+                                ? "text-stone-400 border-[rgba(74,222,128,0.1)] hover:bg-[rgba(74,222,128,0.08)] hover:border-[rgba(74,222,128,0.3)] hover:text-[var(--casys-warm-success)]"
                                 : "text-stone-400 border-[rgba(255,184,111,0.06)] hover:bg-[rgba(255,184,111,0.08)] hover:border-[rgba(255,184,111,0.3)] hover:text-pml-accent"
                           }`}
                           style={{ animationDelay: `${Math.min(i * 10, 200)}ms` }}
                           onClick={() => setSelectedItem(selectedItem?.id === item.id ? null : item)}
                         >
                           <span class="whitespace-nowrap overflow-hidden text-ellipsis max-w-[160px]">{item.name}</span>
-                          {item.type === "capability" && <span class="text-[0.5rem] opacity-70 text-[#4ade80]">⚡</span>}
-                          {item.hasUi && item.type === "tool" && <span class="text-[0.5rem] opacity-70 text-[#4ECDC4]">◉</span>}
+                          {item.type === "capability" && <span class="text-[0.5rem] opacity-70 text-[var(--casys-warm-success)]">⚡</span>}
+                          {item.hasUi && item.type === "tool" && <span class="text-[0.5rem] opacity-70 text-[var(--casys-warm-teal)]">◉</span>}
                         </button>
                       ))}
                     </div>
@@ -806,7 +807,7 @@ export default function CatalogPageIsland({
             ))}
 
             {filteredCategories.length === 0 && (
-              <div class="flex flex-col items-center p-8 text-center bg-[#0f0f12] border border-dashed border-[rgba(255,184,111,0.1)] rounded-md">
+              <div class="flex flex-col items-center p-8 text-center bg-[var(--casys-warm-surface-elevated)] border border-dashed border-[rgba(255,184,111,0.1)] rounded-md">
                 <span class="text-2xl opacity-50 mb-2">🔍</span>
                 <p class="text-xs text-pml-text-dim m-0 mb-3">Aucun resultat</p>
                 <button

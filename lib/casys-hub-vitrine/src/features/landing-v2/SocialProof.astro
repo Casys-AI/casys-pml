@@ -1,160 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-      title: 'Building in Public',
-      subtitle: 'Progress and community',
-      items: [
-        {
-          type: 'stat',
-          icon: 'code',
-          stat: 'Active',
-          label: 'In Dev',
-          description: 'Casys PML - MCP Gateway with GraphRAG & DAG',
-          link: {
-            text: 'Follow on GitHub',
-            url: 'https://github.com/Casys-AI/casys-pml'
-          }
-        },
-        {
-          type: 'stat',
-          icon: 'groups',
-          stat: '10+',
-          label: 'Years Expertise',
-          description: 'Context Management → Graph DBs → DAGs → MCP',
-          link: {
-            text: 'Read Our Story',
-            url: '/about'
-          }
-        },
-        {
-          type: 'stat',
-          icon: 'public',
-          stat: 'French Tech',
-          label: 'Taiwan',
-          description: 'Active member of French Tech Taiwan community',
-          link: {
-            text: 'See Our Talks',
-            url: '/blog?tag=talks'
-          }
-        }
-      ],
-      testimonials: {
-        placeholder: {
-          quote: 'More testimonials coming as Casys PML reaches production users',
-          author: 'Early Access Program',
-          role: 'Join the waitlist',
-          cta: {
-            text: 'Join Waitlist',
-            url: '#contact'
-          }
-        }
-      }
-    },
-  fr: {
-      title: 'Building in Public',
-      subtitle: 'Progrès et communauté',
-      items: [
-        {
-          type: 'stat',
-          icon: 'code',
-          stat: 'Actif',
-          label: 'En Dev',
-          description: 'Casys PML - Gateway MCP avec GraphRAG & DAG',
-          link: {
-            text: 'Suivre sur GitHub',
-            url: 'https://github.com/Casys-AI/casys-pml'
-          }
-        },
-        {
-          type: 'stat',
-          icon: 'groups',
-          stat: '10+',
-          label: 'Ans d\'Expertise',
-          description: 'Context Management → Graph DBs → DAGs → MCP',
-          link: {
-            text: 'Lire Notre Histoire',
-            url: '/about'
-          }
-        },
-        {
-          type: 'stat',
-          icon: 'public',
-          stat: 'French Tech',
-          label: 'Taiwan',
-          description: 'Membre actif communauté French Tech Taiwan',
-          link: {
-            text: 'Voir Nos Talks',
-            url: '/blog?tag=talks'
-          }
-        }
-      ],
-      testimonials: {
-        placeholder: {
-          quote: 'Plus de testimonials à venir quand Casys PML atteindra users production',
-          author: 'Programme Early Access',
-          role: 'Rejoindre la waitlist',
-          cta: {
-            text: 'Rejoindre Waitlist',
-            url: '#contact'
-          }
-        }
-      }
-    },
-  zh: {
-      title: 'Building in Public',
-      subtitle: '进展与社区',
-      items: [
-        {
-          type: 'stat',
-          icon: 'code',
-          stat: '活跃',
-          label: '开发中',
-          description: 'Casys PML - 集成 GraphRAG 和 DAG 的 MCP Gateway',
-          link: {
-            text: '在 GitHub 上关注',
-            url: 'https://github.com/Casys-AI/casys-pml'
-          }
-        },
-        {
-          type: 'stat',
-          icon: 'groups',
-          stat: '10+',
-          label: '年经验',
-          description: 'Context Management → Graph DBs → DAGs → MCP',
-          link: {
-            text: '了解我们的故事',
-            url: '/about'
-          }
-        },
-        {
-          type: 'stat',
-          icon: 'public',
-          stat: 'French Tech',
-          label: '台湾',
-          description: 'French Tech Taiwan 社区活跃成员',
-          link: {
-            text: '查看演讲',
-            url: '/blog?tag=talks'
-          }
-        }
-      ],
-      testimonials: {
-        placeholder: {
-          quote: '当 Casys PML 进入生产用户阶段后将有更多评价',
-          author: '早期体验计划',
-          role: '加入等候名单',
-          cta: {
-            text: '加入等候名单',
-            url: '#contact'
-          }
-        }
-      }
-    }
-};
-
-const content = translations[locale] ?? translations.en;
+const content = useTranslations(locale).socialProof;
 ---
 
 <section id="social-proof">
@@ -187,21 +34,24 @@ const content = translations[locale] ?? translations.en;
       ))}
     </div>
 
-    <!-- Testimonial Placeholder -->
-    <div class="testimonial-placeholder">
-      <div class="placeholder-icon">
-        <span class="material-symbols-rounded">reviews</span>
+    <!-- GitHub Open Source Track Record -->
+    <div class="github-proof">
+      <h3>{content.githubTitle}</h3>
+      <div class="repo-cards">
+        {content.repos.map((repo: any) => (
+          <a href={repo.url} class="repo-card" target="_blank" rel="noopener noreferrer">
+            <div class="repo-header">
+              <span class="material-symbols-rounded repo-icon">code</span>
+              <span class="repo-name">{repo.name}</span>
+              <span class="repo-stars">{repo.stars}</span>
+            </div>
+            <span class="repo-desc">{repo.description}</span>
+          </a>
+        ))}
       </div>
-      <blockquote class="placeholder-quote">
-        "{content.testimonials.placeholder.quote}"
-      </blockquote>
-      <div class="placeholder-author">
-        <div class="author-name">{content.testimonials.placeholder.author}</div>
-        <div class="author-role">{content.testimonials.placeholder.role}</div>
-      </div>
-      <a href={content.testimonials.placeholder.cta.url} class="placeholder-cta">
-        <span>{content.testimonials.placeholder.cta.text}</span>
-        <span class="material-symbols-rounded">notifications_active</span>
+      <a href="https://github.com/Casys-AI" class="github-cta" target="_blank" rel="noopener noreferrer">
+        <span>{content.githubCta}</span>
+        <span class="material-symbols-rounded">arrow_forward</span>
       </a>
     </div>
   </div>
@@ -338,85 +188,92 @@ const content = translations[locale] ?? translations.en;
     font-size: 18px;
   }
 
-  /* Testimonial Placeholder - Clean style */
-  .testimonial-placeholder {
-    max-width: 700px;
-    margin: 0 auto;
-    padding: 40px;
-    background: var(--md-sys-color-surface-container-lowest);
-    border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: 16px;
-    text-align: center;
+  /* GitHub Open Source Track Record */
+  .github-proof {
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 20px;
   }
 
-  .placeholder-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    background: var(--md-sys-color-surface-container-high);
-    border-radius: 12px;
+  .github-proof h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    letter-spacing: -0.01em;
   }
 
-  .placeholder-icon .material-symbols-rounded {
-    font-size: 24px;
+  .repo-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .repo-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 20px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+  }
+
+  .repo-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .repo-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .repo-icon {
+    font-size: 18px;
     color: var(--md-sys-color-primary);
   }
 
-  .placeholder-quote {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 1.25rem;
-    font-weight: 400;
-    font-style: italic;
-    color: var(--md-sys-color-on-surface);
-    line-height: 1.6;
-    margin: 0;
-    max-width: 550px;
-  }
-
-  .placeholder-author {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .author-name {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 1rem;
+  .repo-name {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.9rem;
     font-weight: 600;
     color: var(--md-sys-color-on-surface);
+    flex-grow: 1;
   }
 
-  .author-role {
-    font-size: 0.9rem;
+  .repo-stars {
+    font-size: 0.8rem;
+    font-weight: 500;
     color: var(--md-sys-color-on-surface-variant);
   }
 
-  .placeholder-cta {
+  .repo-desc {
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.5;
+  }
+
+  .github-cta {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    background: var(--md-sys-color-primary);
-    color: var(--md-sys-color-on-primary);
-    border-radius: 8px;
-    font-size: 0.95rem;
+    gap: 6px;
+    color: var(--md-sys-color-primary);
+    font-size: 0.9rem;
     font-weight: 600;
     text-decoration: none;
-    transition: background 200ms ease-out;
+    align-self: flex-start;
   }
 
-  .placeholder-cta:hover {
-    background: var(--md-sys-color-primary-container);
-    color: var(--md-sys-color-on-primary-container);
+  .github-cta:hover {
+    text-decoration: underline;
   }
 
-  .placeholder-cta .material-symbols-rounded {
+  .github-cta .material-symbols-rounded {
     font-size: 18px;
   }
 
@@ -457,25 +314,25 @@ const content = translations[locale] ?? translations.en;
      ======================================== */
 
   html[data-theme="dark"] #social-proof {
-    background: #0a0908;
+    background: var(--casys-warm-background);
   }
 
   html[data-theme="dark"] #social-proof h2 {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #social-proof .section-subtitle {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   /* Cards */
   html[data-theme="dark"] #social-proof .stat-card {
-    background: #1a1815;
+    background: var(--casys-warm-surface);
     border-color: rgba(255, 184, 111, 0.1);
   }
 
   html[data-theme="dark"] #social-proof .stat-card:hover {
-    border-color: rgba(255, 184, 111, 0.3);
+    border-color: var(--casys-warm-border-accent-hover);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
@@ -484,57 +341,57 @@ const content = translations[locale] ?? translations.en;
   }
 
   html[data-theme="dark"] #social-proof .stat-icon .material-symbols-rounded {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #social-proof .stat-value {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #social-proof .stat-label {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #social-proof .stat-description {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   html[data-theme="dark"] #social-proof .stat-link {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
-  /* Testimonial */
-  html[data-theme="dark"] #social-proof .testimonial-placeholder {
-    background: #1a1815;
-    border-color: rgba(255, 184, 111, 0.1);
+  /* GitHub Repos */
+  html[data-theme="dark"] #social-proof .github-proof h3 {
+    color: var(--casys-warm-text-primary);
   }
 
-  html[data-theme="dark"] #social-proof .placeholder-icon {
-    background: rgba(255, 184, 111, 0.1);
+  html[data-theme="dark"] #social-proof .repo-card {
+    background: var(--casys-warm-surface);
+    border-color: var(--casys-warm-border-accent);
   }
 
-  html[data-theme="dark"] #social-proof .placeholder-icon .material-symbols-rounded {
-    color: #FFB86F;
+  html[data-theme="dark"] #social-proof .repo-card:hover {
+    border-color: var(--casys-warm-border-accent-hover);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 
-  html[data-theme="dark"] #social-proof .placeholder-quote {
-    color: #f5f0ea;
+  html[data-theme="dark"] #social-proof .repo-icon {
+    color: var(--casys-warm-accent);
   }
 
-  html[data-theme="dark"] #social-proof .author-name {
-    color: #f5f0ea;
+  html[data-theme="dark"] #social-proof .repo-name {
+    color: var(--casys-warm-text-primary);
   }
 
-  html[data-theme="dark"] #social-proof .author-role {
-    color: #d5c3b5;
+  html[data-theme="dark"] #social-proof .repo-stars {
+    color: var(--casys-warm-accent);
   }
 
-  html[data-theme="dark"] #social-proof .placeholder-cta {
-    background: #FFB86F;
-    color: #1a1815;
+  html[data-theme="dark"] #social-proof .repo-desc {
+    color: var(--casys-warm-text-secondary);
   }
 
-  html[data-theme="dark"] #social-proof .placeholder-cta:hover {
-    background: #D4A574;
+  html[data-theme="dark"] #social-proof .github-cta {
+    color: var(--casys-warm-accent);
   }
 </style>

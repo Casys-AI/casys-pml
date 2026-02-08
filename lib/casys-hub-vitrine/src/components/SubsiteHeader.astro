@@ -1,0 +1,473 @@
+---
+export interface Props {
+  logo: { prefix: string; name: string; version: string };
+  navLinks: Array<{ href: string; label: string; icon?: string }>;
+  githubUrl: string;
+  jsrUrl?: string;
+  docsUrl?: string;
+  consultingLabel: string;
+  heroAnchor?: string;
+}
+
+const {
+  logo,
+  navLinks,
+  githubUrl,
+  jsrUrl,
+  docsUrl,
+  consultingLabel,
+  heroAnchor = '#hero',
+} = Astro.props;
+
+// Generate a unique ID prefix based on the logo name to avoid collisions if multiple headers ever exist
+const idPrefix = 'sh';
+---
+
+<header class="sh-header">
+  <div class="sh-header-container">
+    <div class="sh-brand">
+      <a href="https://casys.ai" class="sh-home-link" title="Casys AI">
+        <span class="sh-home-icon">&#9670;</span>
+      </a>
+      <span class="sh-sep" aria-hidden="true">/</span>
+      <a href={heroAnchor} class="sh-logo">
+        <span class="sh-logo-pkg">{logo.prefix}</span><span class="sh-logo-name">{logo.name}</span>
+        <span class="sh-logo-version">{logo.version}</span>
+      </a>
+    </div>
+
+    <nav class="sh-nav-desktop">
+      <div class="sh-nav-links">
+        {navLinks.map((link) => (
+          <a href={link.href} class={`sh-nav-link${link.icon ? ' sh-nav-icon-link' : ''}`}>
+            {link.icon && <span class="material-symbols-rounded" style="font-size:16px">{link.icon}</span>}
+            {link.label}
+          </a>
+        ))}
+      </div>
+      <a href="https://casys.ai/#work-with-us" class="sh-nav-link sh-consulting-link">
+        <span class="material-symbols-rounded" style="font-size:16px">handshake</span>
+        {consultingLabel}
+      </a>
+      <div class="sh-nav-actions">
+        <a href={githubUrl} class="sh-gh-link" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+        {jsrUrl && (
+          <a href={jsrUrl} class="sh-jsr-btn" target="_blank" rel="noopener noreferrer">
+            <svg width="14" height="14" viewBox="0 -3 64 64" fill="none" aria-hidden="true" style="border-radius:2px"><path d="M 0,21.846 H 9.846 V 12 h 34.462 v 4.923 H 64 V 36.616 H 54.155 V 46.462 H 19.693 V 41.539 H 0" fill="#083344"/><g fill="#f7df1e" transform="matrix(4.923,0,0,4.923,0,12)"><path d="M 1,3 H 2 V 4 H 3 V 1 H 4 V 5 H 1"/><path d="M 5,1 H 8 V 2 H 6 V 3 H 8 V 6 H 5 V 5 H 7 V 4 H 5"/><path d="m 9,2 h 3 V 4 H 11 V 3 H 10 V 6 H 9"/></g></svg>
+            <span class="sh-jsr-text">JSR</span>
+            <span class="material-symbols-rounded">arrow_outward</span>
+          </a>
+        )}
+      </div>
+    </nav>
+
+    <button id={`${idPrefix}-mobile-menu-btn`} class="sh-menu-btn" aria-label="Toggle menu" aria-expanded="false">
+      <span class="sh-menu-bar"></span>
+      <span class="sh-menu-bar"></span>
+    </button>
+  </div>
+</header>
+
+<div id={`${idPrefix}-mobile-menu`} class="sh-mobile-menu">
+  <nav class="sh-mobile-nav">
+    {navLinks.map((link) => (
+      <a href={link.href} class="sh-nav-link">
+        {link.icon && <span class="material-symbols-rounded" style="font-size:16px;vertical-align:-2px">{link.icon}</span>}
+        {link.label}
+      </a>
+    ))}
+    <a href="https://casys.ai/#work-with-us" class="sh-nav-link sh-consulting-link">
+      <span class="material-symbols-rounded" style="font-size:16px;vertical-align:-2px">handshake</span>
+      {consultingLabel}
+    </a>
+    <div class="sh-mobile-cta">
+      <a href={githubUrl} class="sh-mobile-gh" target="_blank" rel="noopener noreferrer">
+        GitHub
+        <span class="material-symbols-rounded">arrow_outward</span>
+      </a>
+      {jsrUrl && (
+        <a href={jsrUrl} class="sh-jsr-btn" target="_blank" rel="noopener noreferrer">
+          <svg width="14" height="14" viewBox="0 -3 64 64" fill="none" aria-hidden="true" style="border-radius:2px"><path d="M 0,21.846 H 9.846 V 12 h 34.462 v 4.923 H 64 V 36.616 H 54.155 V 46.462 H 19.693 V 41.539 H 0" fill="#083344"/><g fill="#f7df1e" transform="matrix(4.923,0,0,4.923,0,12)"><path d="M 1,3 H 2 V 4 H 3 V 1 H 4 V 5 H 1"/><path d="M 5,1 H 8 V 2 H 6 V 3 H 8 V 6 H 5 V 5 H 7 V 4 H 5"/><path d="m 9,2 h 3 V 4 H 11 V 3 H 10 V 6 H 9"/></g></svg>
+          <span class="sh-jsr-text">JSR</span>
+          <span class="material-symbols-rounded">arrow_outward</span>
+        </a>
+      )}
+    </div>
+  </nav>
+</div>
+
+<style>
+  /* ========================================
+     SUBSITE HEADER - Shared Component
+     Unified header for all subsites
+     ======================================== */
+
+  .sh-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .sh-header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Brand (home link + separator + logo) */
+  .sh-brand {
+    display: flex;
+    align-items: center;
+  }
+
+  .sh-home-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    transition: color 150ms ease-out;
+  }
+
+  .sh-home-link:hover { opacity: 0.8; }
+
+  .sh-sep {
+    color: var(--md-sys-color-outline-variant);
+    margin: 0 8px;
+    font-size: 0.875rem;
+  }
+
+  /* Logo */
+  .sh-logo {
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .sh-logo-pkg {
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .sh-logo-name {
+    color: var(--md-sys-color-on-surface);
+    font-weight: 700;
+  }
+
+  .sh-logo-version {
+    margin-left: 8px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+    padding: 2px 7px;
+    border-radius: 100px;
+  }
+
+  /* Desktop Nav */
+  .sh-nav-desktop {
+    display: none;
+    align-items: center;
+    gap: 24px;
+  }
+
+  @media (min-width: 768px) {
+    .sh-nav-desktop { display: flex; }
+  }
+
+  .sh-nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .sh-nav-link {
+    position: relative;
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: color 150ms ease-out;
+  }
+
+  .sh-nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 12px;
+    right: 12px;
+    height: 2px;
+    background: var(--md-sys-color-primary);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 200ms ease-out;
+  }
+
+  .sh-nav-link:hover { color: var(--md-sys-color-on-surface); }
+  .sh-nav-link:hover::after,
+  .sh-nav-link.active::after { transform: scaleX(1); transform-origin: left; }
+  .sh-nav-link.active { color: var(--md-sys-color-primary); font-weight: 600; }
+
+  .sh-nav-icon-link { display: inline-flex; align-items: center; gap: 4px; }
+
+  .sh-consulting-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--md-sys-color-primary);
+    font-weight: 600;
+  }
+
+  .sh-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 8px;
+    padding-left: 16px;
+    border-left: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .sh-gh-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    color: var(--md-sys-color-on-surface-variant);
+    border-radius: 8px;
+    transition: background 150ms ease-out, color 150ms ease-out;
+  }
+
+  .sh-gh-link:hover {
+    background: var(--md-sys-color-surface-container);
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .sh-jsr-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background 150ms ease-out;
+  }
+
+  .sh-jsr-btn:hover { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+  .sh-jsr-btn .material-symbols-rounded { font-size: 16px; }
+
+  .sh-jsr-text {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+
+  /* Mobile button */
+  .sh-menu-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 40px;
+    height: 40px;
+    padding: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: transparent;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+
+  .sh-menu-bar {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: var(--md-sys-color-on-surface);
+    border-radius: 1px;
+    transition: transform 200ms ease-out;
+  }
+
+  .sh-menu-btn[aria-expanded="true"] .sh-menu-bar:first-child { transform: rotate(45deg) translateY(5px); }
+  .sh-menu-btn[aria-expanded="true"] .sh-menu-bar:last-child { transform: rotate(-45deg) translateY(-5px); }
+
+  @media (min-width: 768px) {
+    .sh-menu-btn { display: none; }
+  }
+
+  /* Mobile menu */
+  .sh-mobile-menu {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    transform: translateX(100%);
+    transition: transform 250ms ease-out;
+    z-index: 99;
+    overflow-y: auto;
+  }
+
+  .sh-mobile-menu.open { transform: translateX(0); }
+
+  @media (min-width: 768px) {
+    .sh-mobile-menu { display: none; }
+  }
+
+  .sh-mobile-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    gap: 4px;
+  }
+
+  .sh-mobile-nav .sh-nav-link {
+    padding: 14px 0;
+    font-size: 1.125rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 0;
+  }
+
+  .sh-mobile-nav .sh-nav-link::after { display: none; }
+
+  .sh-mobile-cta {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .sh-mobile-gh {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 8px;
+  }
+
+  .sh-mobile-gh .material-symbols-rounded { font-size: 16px; }
+
+  .sh-mobile-cta .sh-jsr-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 12px;
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     SUBSITE HEADER - DARK MODE
+     Warm orange palette (#FFB86F, #D4A574)
+     ======================================== */
+
+  html[data-theme="dark"] .sh-header {
+    background: rgba(0, 0, 0, 0.85) !important;
+    border-bottom-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] .sh-home-link { color: #FFB86F; }
+  html[data-theme="dark"] .sh-sep { color: rgba(255, 184, 111, 0.3); }
+
+  html[data-theme="dark"] .sh-logo-pkg { color: #a89a8c; }
+  html[data-theme="dark"] .sh-logo-name { color: #f5f0ea; }
+  html[data-theme="dark"] .sh-logo-version { background: rgba(255, 184, 111, 0.12); color: #FFB86F; }
+
+  html[data-theme="dark"] .sh-nav-link { color: #d5c3b5; }
+  html[data-theme="dark"] .sh-nav-link:hover { color: #f5f0ea; }
+  html[data-theme="dark"] .sh-nav-link::after { background: #FFB86F; }
+  html[data-theme="dark"] .sh-nav-link.active { color: #FFB86F; }
+
+  html[data-theme="dark"] .sh-nav-actions { border-left-color: rgba(255, 184, 111, 0.12); }
+  html[data-theme="dark"] .sh-gh-link { color: #d5c3b5; }
+  html[data-theme="dark"] .sh-gh-link:hover { background: rgba(255, 184, 111, 0.1); color: #FFB86F; }
+
+  html[data-theme="dark"] .sh-jsr-btn { background: #FFB86F; color: #1a1815; }
+  html[data-theme="dark"] .sh-jsr-btn:hover { background: #D4A574; }
+
+  html[data-theme="dark"] .sh-menu-btn { border-color: rgba(255, 184, 111, 0.08); }
+  html[data-theme="dark"] .sh-menu-bar { background: #f5f0ea; }
+
+  html[data-theme="dark"] .sh-mobile-menu { background: rgba(26, 24, 21, 0.98) !important; }
+  html[data-theme="dark"] .sh-mobile-nav .sh-nav-link { border-bottom-color: rgba(255, 184, 111, 0.06); }
+  html[data-theme="dark"] .sh-mobile-cta { border-top-color: rgba(255, 184, 111, 0.08); }
+  html[data-theme="dark"] .sh-mobile-gh { color: #d5c3b5; border-color: rgba(255, 184, 111, 0.15); }
+  html[data-theme="dark"] .sh-mobile-gh:hover { background: rgba(255, 184, 111, 0.08); color: #f5f0ea; }
+
+  html[data-theme="dark"] .sh-consulting-link {
+    color: var(--casys-warm-accent, #FFB86F);
+  }
+</style>
+
+<script>
+  // Mobile menu toggle
+  const shMenuBtn = document.getElementById('sh-mobile-menu-btn');
+  const shMobileMenu = document.getElementById('sh-mobile-menu');
+
+  shMenuBtn?.addEventListener('click', () => {
+    const isOpen = shMobileMenu?.classList.toggle('open');
+    shMenuBtn?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+
+  shMobileMenu?.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      shMobileMenu.classList.remove('open');
+      shMenuBtn?.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  document.addEventListener('click', (e) => {
+    const target = e.target as Node;
+    if (!shMobileMenu?.contains(target) && !shMenuBtn?.contains(target) && shMobileMenu?.classList.contains('open')) {
+      shMobileMenu.classList.remove('open');
+      shMenuBtn?.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  // Active section highlight
+  const shSections = document.querySelectorAll('section[id]');
+  const shNavLinks = document.querySelectorAll('.sh-nav-link[href^="#"]');
+
+  const shObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        shNavLinks.forEach((link) => {
+          link.classList.toggle('active', link.getAttribute('href') === `#${id}`);
+        });
+      }
+    });
+  }, { threshold: 0.3, rootMargin: '-80px 0px -60% 0px' });
+
+  shSections.forEach((s) => shObserver.observe(s));
+</script>

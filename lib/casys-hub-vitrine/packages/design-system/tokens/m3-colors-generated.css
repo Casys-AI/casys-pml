@@ -130,6 +130,42 @@
   --casys-border-subtle: rgba(250, 194, 255, 0.08);
   --casys-border-medium: rgba(250, 194, 255, 0.15);
   --casys-border-strong: rgba(250, 194, 255, 0.25);
+
+  /* === WARM DARK PALETTE (landing & marketing pages) === */
+  /* Curated warm/amber palette used across casys.ai dark mode */
+  /* These complement the violet M3 tokens with a warm, premium aesthetic */
+
+  /* --- Backgrounds --- */
+  --casys-warm-background: #0a0908;           /* Main page background */
+  --casys-warm-background-alt: #0f0e0c;       /* Alternate section background */
+  --casys-warm-surface: #1a1815;              /* Card / elevated surface */
+  --casys-warm-surface-elevated: #0f0f12;     /* Elevated containers */
+  --casys-warm-surface-card: #0a0a0c;         /* Deep card background */
+
+  /* --- Text hierarchy --- */
+  --casys-warm-text-primary: #f5f0ea;         /* Headings, high-emphasis */
+  --casys-warm-text-secondary: #d5c3b5;       /* Subtitles, medium-emphasis */
+  --casys-warm-text-feature: #c0b0a0;         /* Feature lists */
+  --casys-warm-text-muted: #a89a8c;           /* Low-emphasis, captions */
+  --casys-warm-text-muted-alt: #a8a29e;       /* Neutral muted (less warm) */
+  --casys-warm-text-dim: #78716c;             /* Dimmest text, placeholders */
+
+  /* --- Accent --- */
+  --casys-warm-accent: #FFB86F;               /* Primary brand accent */
+  --casys-warm-accent-hover: #D4A574;         /* Accent hover state */
+
+  /* --- Semantic --- */
+  --casys-warm-teal: #4ECDC4;                 /* Teal highlights */
+  --casys-warm-success: #4ade80;              /* Success / green */
+  --casys-warm-info: #60a5fa;                 /* Info / blue */
+  --casys-warm-error: #f87171;                /* Error / red */
+  --casys-warm-error-text: #ffcccc;           /* Error text (softer) */
+
+  /* --- Borders --- */
+  --casys-warm-border-dim: #2a2a2e;           /* Visible border */
+  --casys-warm-border-subtle: #1a1a1e;        /* Subtle border */
+  --casys-warm-border-accent: rgba(255, 184, 111, 0.15); /* Accent-tinted border */
+  --casys-warm-border-accent-hover: rgba(255, 184, 111, 0.3); /* Accent border hover */
 }
 
 /* ========================================

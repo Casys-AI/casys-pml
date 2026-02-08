@@ -1,238 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-      title: 'Why Casys?',
-      subtitle: 'What makes us different',
-      differentiation: [
-        {
-          id: 'multi-domain',
-          icon: 'hub',
-          title: 'Multi-Domain Expertise',
-          description: 'We connect multiple domains for unique insights',
-          highlights: [
-            'KM Systems (2013+) → Graph DB → AI Agents',
-            'Cross-pollination creates insights',
-            'Expertise compounds through tech waves'
-          ]
-        },
-        {
-          id: 'continuity',
-          icon: 'timeline',
-          title: '10+ Years Continuity',
-          description: 'Not AI newcomers riding the hype wave',
-          highlights: [
-            '10+ years track record',
-            'Deep expertise, not surface-level hype',
-            'Each phase builds on the last'
-          ]
-        },
-        {
-          id: 'opensource',
-          icon: 'code_blocks',
-          title: 'Open Source First',
-          description: 'All MIT licensed. Tools free, consulting optional',
-          highlights: [
-            'All MIT licensed',
-            'No vendor lock-in',
-            'Share the research'
-          ]
-        },
-        {
-          id: 'practical',
-          icon: 'rocket_launch',
-          title: 'Practical Research',
-          description: 'We ship production systems that solve real problems',
-          highlights: [
-            'Production-ready, not just prototypes',
-            'Battle-tested in real environments',
-            'We use our own tools'
-          ]
-        },
-        {
-          id: 'accessible',
-          icon: 'handshake',
-          title: 'Mid-Market Accessible',
-          description: 'No corporate overhead',
-          highlights: [
-            'Mid-market pricing',
-            'No minimum engagement sizes',
-            'Direct access to builders'
-          ]
-        }
-      ],
-      bottomLine: {
-        text: 'A small lab with deep expertise across multiple AI domains. We build real tools, share what we learn, and help teams when needed.',
-        cta: {
-          primary: {
-            text: 'Get in Touch',
-            url: '#contact',
-            icon: 'mail'
-          },
-          secondary: {
-            text: 'Email',
-            url: '#contact',
-            icon: 'email'
-          }
-        }
-      }
-    },
-  fr: {
-      title: 'Pourquoi Casys?',
-      subtitle: 'Ce qui nous rend différents',
-      differentiation: [
-        {
-          id: 'multi-domain',
-          icon: 'hub',
-          title: 'Expertise Multi-Domaine',
-          description: 'On connecte plusieurs domaines pour insights uniques',
-          highlights: [
-            'KM Systems (2013+) → Graph DB → AI Agents',
-            'Cross-pollination crée insights',
-            'Expertise compound à travers vagues tech'
-          ]
-        },
-        {
-          id: 'continuity',
-          icon: 'timeline',
-          title: '10+ Ans Continuité',
-          description: 'Pas des newcomers AI qui surfent la hype',
-          highlights: [
-            'Track record 10+ ans',
-            'Expertise profonde, pas hype superficielle',
-            'Chaque phase build sur la dernière'
-          ]
-        },
-        {
-          id: 'opensource',
-          icon: 'code_blocks',
-          title: 'Open Source First',
-          description: 'Tout MIT licensed. Outils gratuits, consulting optionnel',
-          highlights: [
-            'Tout en MIT',
-            'Pas de vendor lock-in',
-            'Partager la recherche'
-          ]
-        },
-        {
-          id: 'practical',
-          icon: 'rocket_launch',
-          title: 'Recherche Pratique',
-          description: 'On ship systèmes production qui résolvent vrais problèmes',
-          highlights: [
-            'Production-ready, pas juste prototypes',
-            'Battle-tested dans environnements réels',
-            'On utilise nos propres outils'
-          ]
-        },
-        {
-          id: 'accessible',
-          icon: 'handshake',
-          title: 'Mid-Market Accessible',
-          description: 'Pas de corporate overhead',
-          highlights: [
-            'Mid-market pricing',
-            'Pas d\'engagements minimums',
-            'Accès direct aux builders'
-          ]
-        }
-      ],
-      bottomLine: {
-        text: 'Un petit lab avec expertise profonde à travers plusieurs domaines AI. On build vrais outils, partage ce qu\'on apprend, aide équipes si besoin.',
-        cta: {
-          primary: {
-            text: 'Nous Contacter',
-            url: '#contact',
-            icon: 'mail'
-          },
-          secondary: {
-            text: 'Email',
-            url: '#contact',
-            icon: 'email'
-          }
-        }
-      }
-    },
-  zh: {
-      title: '为什么选择 Casys？',
-      subtitle: '我们的不同之处',
-      differentiation: [
-        {
-          id: 'multi-domain',
-          icon: 'hub',
-          title: '多领域专长',
-          description: '我们连接多个领域以获得独特洞察',
-          highlights: [
-            'KM 系统 (2013+) → 图数据库 → AI 代理',
-            '跨领域碰撞产生洞察',
-            '专长跨技术浪潮持续累积'
-          ]
-        },
-        {
-          id: 'continuity',
-          icon: 'timeline',
-          title: '10+ 年持续发展',
-          description: '不是追逐热潮的 AI 新手',
-          highlights: [
-            '10+ 年的实绩',
-            '深度专长，而非表面热潮',
-            '每个阶段都建立在前一个之上'
-          ]
-        },
-        {
-          id: 'opensource',
-          icon: 'code_blocks',
-          title: '开源优先',
-          description: '全部 MIT 许可。工具免费，咨询可选',
-          highlights: [
-            '全部 MIT 许可',
-            '无供应商锁定',
-            '分享研究成果'
-          ]
-        },
-        {
-          id: 'practical',
-          icon: 'rocket_launch',
-          title: '务实研究',
-          description: '我们发布解决实际问题的生产系统',
-          highlights: [
-            '生产就绪，不仅是原型',
-            '在真实环境中经过检验',
-            '我们使用自己的工具'
-          ]
-        },
-        {
-          id: 'accessible',
-          icon: 'handshake',
-          title: '中端市场可及',
-          description: '无企业级开销',
-          highlights: [
-            '中端市场定价',
-            '无最低承诺规模',
-            '直接对接开发者'
-          ]
-        }
-      ],
-      bottomLine: {
-        text: '一个拥有多领域 AI 深度专长的小型实验室。我们构建实用工具，分享所学，在需要时帮助团队。',
-        cta: {
-          primary: {
-            text: '联系我们',
-            url: '#contact',
-            icon: 'mail'
-          },
-          secondary: {
-            text: '发送邮件',
-            url: '#contact',
-            icon: 'email'
-          }
-        }
-      }
-    }
-};
-
-const content = translations[locale] ?? translations.en;
+const content = useTranslations(locale).whyCasys;
 ---
 
 <section id="why-casys">
@@ -618,78 +387,78 @@ const content = translations[locale] ?? translations.en;
      ======================================== */
 
   html[data-theme="dark"] #why-casys {
-    background: #0a0908;
+    background: var(--casys-warm-background);
   }
 
   html[data-theme="dark"] #why-casys h2 {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #why-casys .section-subtitle {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   /* Cards */
   html[data-theme="dark"] #why-casys .diff-card {
-    background: #1a1815;
+    background: var(--casys-warm-surface);
     border-color: rgba(255, 184, 111, 0.1);
   }
 
   html[data-theme="dark"] #why-casys .diff-card:hover {
-    border-color: rgba(255, 184, 111, 0.3);
+    border-color: var(--casys-warm-border-accent-hover);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
   html[data-theme="dark"] #why-casys .diff-card.multi-domain {
-    border-left-color: #FFB86F;
+    border-left-color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #why-casys .icon {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   html[data-theme="dark"] #why-casys h3 {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #why-casys .description {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   html[data-theme="dark"] #why-casys .highlight-item {
-    color: #d5c3b5;
+    color: var(--casys-warm-text-secondary);
   }
 
   html[data-theme="dark"] #why-casys .highlight-item .material-symbols-rounded {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
   }
 
   /* Bottom Line */
   html[data-theme="dark"] #why-casys .bottom-line {
-    background: #1a1815;
+    background: var(--casys-warm-surface);
     border-color: rgba(255, 184, 111, 0.1);
   }
 
   html[data-theme="dark"] #why-casys .bottom-line-text {
-    color: #f5f0ea;
+    color: var(--casys-warm-text-primary);
   }
 
   html[data-theme="dark"] #why-casys .bottom-line-cta.primary {
-    background: #FFB86F;
-    color: #1a1815;
+    background: var(--casys-warm-accent);
+    color: var(--casys-warm-surface);
   }
 
   html[data-theme="dark"] #why-casys .bottom-line-cta.primary:hover {
-    background: #D4A574;
+    background: var(--casys-warm-accent-hover);
   }
 
   html[data-theme="dark"] #why-casys .bottom-line-cta.secondary {
-    color: #FFB86F;
+    color: var(--casys-warm-accent);
     border-color: rgba(255, 184, 111, 0.2);
   }
 
   html[data-theme="dark"] #why-casys .bottom-line-cta.secondary:hover {
-    border-color: #FFB86F;
+    border-color: var(--casys-warm-accent);
     background: rgba(255, 184, 111, 0.1);
   }
 </style>

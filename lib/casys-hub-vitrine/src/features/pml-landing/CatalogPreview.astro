@@ -1,21 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    label: 'Catalog',
-    browseCta: 'Browse Full Catalog',
-  },
-  fr: {
-    label: 'Catalogue',
-    browseCta: 'Parcourir le Catalogue',
-  },
-  zh: {
-    label: '目录',
-    browseCta: '浏览完整目录',
-  },
-} as const;
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).pmlCatalogPreview;
 
 const capabilities = [
   {

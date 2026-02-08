@@ -1,27 +1,7 @@
 ---
+import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
-
-const translations = {
-  en: {
-    title: '29',
-    titleAccent: 'Categories',
-    subtitle: 'From database queries to AI agent orchestration, every tool organized and ready to use.',
-    cta: 'Browse all 508 tools',
-  },
-  fr: {
-    title: '29',
-    titleAccent: 'Categories',
-    subtitle: 'Des requetes base de donnees a l\'orchestration d\'agents IA, chaque outil organise et pret a l\'emploi.',
-    cta: 'Parcourir les 508 outils',
-  },
-  zh: {
-    title: '29 个',
-    titleAccent: '分类',
-    subtitle: '从数据库查询到 AI 智能体编排，每个工具都已分类、随时可用。',
-    cta: '浏览全部 508 个工具',
-  },
-} as const;
-const t = translations[locale as keyof typeof translations] ?? translations.en;
+const t = useTranslations(locale).mcpStdCategories;
 
 const categories = [
   { emoji: '\u{1F433}', name: 'Docker', count: 20 },
