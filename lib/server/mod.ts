@@ -131,3 +131,11 @@ export {
   isOtelEnabled,
   type ToolCallSpanAttributes,
 } from "./src/observability/mod.ts";
+
+// Runtime port (for advanced consumers who need to inspect the adapter contract)
+export type {
+  RuntimePort,
+  ServeOptions,
+  ServeHandle,
+  FetchHandler,
+} from "./src/runtime-types.ts";

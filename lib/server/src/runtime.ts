@@ -1,11 +1,17 @@
 /**
  * Runtime adapter — Deno implementation
  *
- * Abstracts Deno-specific APIs so the library can run on both Deno and Node.js.
- * For Node.js, swap this file with runtime.node.ts via build script.
+ * Implements the RuntimePort contract for Deno.
+ * For Node.js, the build script swaps this file with runtime.node.ts.
  *
+ * @see runtime-types.ts for the port contract
  * @module lib/server/runtime
  */
+
+import type { RuntimePort, ServeOptions, ServeHandle, FetchHandler } from "./runtime-types.ts";
+
+// Re-export types so consumers import from a single module
+export type { ServeOptions, ServeHandle, FetchHandler } from "./runtime-types.ts";
 
 /**
  * Get an environment variable.
@@ -29,29 +35,10 @@ export async function readTextFile(path: string): Promise<string | null> {
   }
 }
 
-/** Options for starting an HTTP server */
-export interface ServeOptions {
-  port: number;
-  hostname?: string;
-  onListen?: (info: { hostname: string; port: number }) => void;
-}
-
-/** Handle returned by serve(), used to shut down the server */
-export interface ServeHandle {
-  shutdown(): Promise<void>;
-}
-
 /**
- * Start an HTTP server.
- *
- * @param options - Port, hostname, onListen callback
- * @param handler - Fetch-style request handler (Request → Response)
- * @returns A handle with a shutdown() method
+ * Start an HTTP server with a fetch-style handler.
  */
-export function serve(
-  options: ServeOptions,
-  handler: (req: Request) => Response | Promise<Response>,
-): ServeHandle {
+export function serve(options: ServeOptions, handler: FetchHandler): ServeHandle {
   const server = Deno.serve(
     {
       port: options.port,
@@ -71,3 +58,6 @@ export function serve(
 export function unrefTimer(id: number): void {
   Deno.unrefTimer(id);
 }
+
+/** Compile-time contract check — ensures this module satisfies RuntimePort */
+export const _port = { env, readTextFile, serve, unrefTimer } satisfies RuntimePort;

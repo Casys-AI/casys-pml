@@ -1,14 +1,19 @@
 /**
  * Runtime adapter — Node.js implementation
  *
- * Drop-in replacement for runtime.ts (Deno) when building for Node.js.
- * Uses node:fs, node:http, and process.env.
+ * Implements the RuntimePort contract for Node.js.
+ * Drop-in replacement for runtime.ts (Deno) — swapped by build script.
  *
+ * @see runtime-types.ts for the port contract
  * @module lib/server/runtime.node
  */
 
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import type { RuntimePort, ServeOptions, ServeHandle, FetchHandler } from "./runtime-types.ts";
+
+// Re-export types so consumers import from a single module
+export type { ServeOptions, ServeHandle, FetchHandler } from "./runtime-types.ts";
 
 /**
  * Get an environment variable.
@@ -32,28 +37,11 @@ export async function readTextFile(path: string): Promise<string | null> {
   }
 }
 
-/** Options for starting an HTTP server */
-export interface ServeOptions {
-  port: number;
-  hostname?: string;
-  onListen?: (info: { hostname: string; port: number }) => void;
-}
-
-/** Handle returned by serve(), used to shut down the server */
-export interface ServeHandle {
-  shutdown(): Promise<void>;
-}
-
 /**
- * Start an HTTP server.
- *
- * Uses node:http with a fetch-style handler adapter.
- * Compatible with Hono's app.fetch.
+ * Start an HTTP server with a fetch-style handler.
+ * Uses node:http with a Request/Response adapter (compatible with Hono).
  */
-export function serve(
-  options: ServeOptions,
-  handler: (req: Request) => Response | Promise<Response>,
-): ServeHandle {
+export function serve(options: ServeOptions, handler: FetchHandler): ServeHandle {
   const hostname = options.hostname ?? "0.0.0.0";
 
   const server = createServer(async (nodeReq, nodeRes) => {
@@ -91,15 +79,12 @@ export function serve(
 
       if (response.body) {
         const reader = response.body.getReader();
-        const pump = async () => {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            nodeRes.write(value);
-          }
-          nodeRes.end();
-        };
-        await pump();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          nodeRes.write(value);
+        }
+        nodeRes.end();
       } else {
         const text = await response.text();
         nodeRes.end(text);
@@ -131,13 +116,9 @@ export function serve(
  * Unref a timer so it doesn't block process exit.
  */
 export function unrefTimer(id: number): void {
-  // In Node.js, setTimeout returns a Timeout object with .unref()
-  // But when called with a numeric ID, we need the original reference.
-  // The caller should pass the timer ID — in Node.js this is handled
-  // by the Timeout object directly, so this is a compatibility shim.
-  // Node.js timers auto-unref when using setTimeout with unref().
+  // In Node.js, setTimeout returns a Timeout object (not a numeric ID).
+  // The caller passes it as `number` for Deno compat — we cast back.
   try {
-    // @ts-ignore: clearTimeout accepts number in some contexts
     const timer = id as unknown as { unref?: () => void };
     if (typeof timer === "object" && timer && typeof timer.unref === "function") {
       timer.unref();
@@ -146,6 +127,11 @@ export function unrefTimer(id: number): void {
     // Best effort — timer unref is non-critical
   }
 }
+
+/** Compile-time contract check — ensures this module satisfies RuntimePort */
+export const _port = { env, readTextFile, serve, unrefTimer } satisfies RuntimePort;
+
+// ─── Internal helpers ────────────────────────────────────
 
 /** Collect request body from Node.js IncomingMessage */
 function collectBody(req: import("node:http").IncomingMessage): Promise<Uint8Array> {
