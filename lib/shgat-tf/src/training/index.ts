@@ -2,12 +2,12 @@
  * SHGAT-TF Training Module
  *
  * Training with TensorFlow.js automatic differentiation.
- * Replaces 3000+ lines of manual backward passes with ~300 lines of autograd.
+ * Replaces 3000+ lines of manual backward passes with autograd.
  *
- * Includes sparse message passing (2026-01-28) for:
- * - WASM backend compatibility (no UnsortedSegmentSum kernel needed)
- * - ~10x faster training on large graphs
- * - Full gradient flow through W_up, W_down, a_up, a_down
+ * Backend selection (2026-02-08):
+ * - Training: WebGPU > CPU (full autograd, all kernels)
+ * - Inference: WebGPU > WASM > CPU (speed priority)
+ * - Dense autograd mode is now the default (sparse deprecated)
  *
  * @module shgat-tf/training
  */

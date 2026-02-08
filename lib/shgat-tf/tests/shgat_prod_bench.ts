@@ -28,6 +28,7 @@ import {
   type CapabilityInfo,
 } from "../src/training/index.ts";
 import { DEFAULT_SHGAT_CONFIG } from "../src/core/types.ts";
+import { initTensorFlow, getBackend } from "../src/tf/backend.ts";
 
 // Cosine similarity between two vectors
 function cosineSim(a: number[], b: number[]): number {
@@ -275,6 +276,10 @@ function printMetrics(label: string, m: { mrr: number; hit1: number; hit3: numbe
 
 console.log("\n========== SETUP ==========");
 
+// Initialize TF.js with training-compatible backend (WebGPU > CPU, never WASM)
+await initTensorFlow("training");
+console.log(`  Backend: ${getBackend()} (training mode - full autograd)`);
+
 const config = {
   ...DEFAULT_SHGAT_CONFIG,
   numHeads: PROD_CONFIG.numHeads,
@@ -290,6 +295,7 @@ const trainer = new AutogradTrainer(config, {
   gradientClip: PROD_CONFIG.gradientClip,
   l2Lambda: PROD_CONFIG.l2Lambda,
 });
+// Dense autograd mode (default) - no need to call setSparseMP(false)
 
 // Set embeddings
 const allEmbeddings = new Map<string, number[]>();
@@ -308,7 +314,7 @@ const graphStructure = buildGraphStructure(capInfos, toolIds);
 trainer.setGraph(graphStructure);
 
 const capIds = validCaps.map((c: { id: string }) => c.id);
-console.log(`  Message passing: sparse MP, maxLevel=${graphStructure.maxLevel}`);
+console.log(`  Message passing: dense autograd (full gradient flow), maxLevel=${graphStructure.maxLevel}`);
 console.log(`  Scoring: trainer.score() (${capIds.length} capabilities)`);
 
 // ============================================================================
@@ -362,7 +368,7 @@ for (let epoch = 0; epoch < PROD_CONFIG.epochs; epoch++) {
   // Multiple batches per epoch (process all training data)
   for (let b = 0; b < numBatchesPerEpoch; b++) {
     const { items, indices } = buffer.sample(PROD_CONFIG.batchSize, beta);
-    const metrics = trainer.trainBatch(items);
+    const metrics = await trainer.trainBatch(items);
 
     // Update PER priorities
     const errors = items.map(() => metrics.loss);

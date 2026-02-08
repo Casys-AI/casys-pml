@@ -170,6 +170,13 @@ export {
   logMemory,
 } from "./src/tf/index.ts";
 
+// Backend mode selection (training vs inference)
+export {
+  switchBackend,
+  supportsAutograd,
+  type BackendMode,
+} from "./src/tf/backend.ts";
+
 // Layers Trainer (tf.layers.* + model.trainOnBatch - recommended!)
 export {
   LayersTrainer,

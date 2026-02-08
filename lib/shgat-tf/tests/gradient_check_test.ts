@@ -418,7 +418,7 @@ Deno.test("Gradient: end-to-end dLoss/dEmb chain rule", () => {
 // Test 5: Training non-regression
 // ============================================================================
 
-Deno.test("Training: must not degrade scoring on training data", () => {
+Deno.test("Training: must not degrade scoring on training data", async () => {
   const { toolIds, capIds, embeddings } = createSmallGraph();
 
   const trainer = new AutogradTrainer(SMALL_CONFIG, {
@@ -458,7 +458,7 @@ Deno.test("Training: must not degrade scoring on training data", () => {
 
     // Train 30 epochs
     for (let epoch = 0; epoch < 30; epoch++) {
-      trainer.trainBatch(examples);
+      await trainer.trainBatch(examples);
     }
 
     // Post-training

@@ -12,7 +12,8 @@
  * @module shgat-tf/training/autograd-trainer
  */
 
-import { tf, tidy } from "../tf/backend.ts";
+import { tf, tidy, supportsAutograd, switchBackend, getBackend } from "../tf/backend.ts";
+import type { BackendMode } from "../tf/backend.ts";
 import * as ops from "../tf/ops.ts";
 import type { SHGATConfig, TrainingExample } from "../core/types.ts";
 import {
@@ -20,7 +21,7 @@ import {
   projectionScore,
 } from "../core/projection-head.ts";
 
-// Sparse message passing imports
+// Sparse message passing imports (DEPRECATED - kept for backward compatibility)
 import {
   sparseMPForward,
   sparseMPBackward,
@@ -611,14 +612,14 @@ export interface MessagePassingContext {
  * If mpContext is provided, message passing is applied to enrich embeddings
  * BEFORE scoring, allowing gradients to flow through W_up, W_down, a_up, a_down.
  *
- * SPARSE MODE (default, recommended):
- * When mpContext.useSparse is true (default), uses sparse JS loops for message passing.
- * This avoids TF.js tf.gather gradient issues on WASM backend and is ~10x faster.
- * K-head scoring still uses TF.js autograd for fast dense operations.
+ * DENSE MODE (default, recommended):
+ * When mpContext.useSparse is false (default), uses dense TF.js autograd for all operations.
+ * Requires CPU or WebGPU backend (WASM lacks UnsortedSegmentSum kernel for tf.gather gradients).
+ * Provides correct gradients for ALL parameters including message passing weights.
  *
- * DENSE MODE (legacy):
- * When mpContext.useSparse is false, uses dense TF.js autograd for all operations.
- * Requires CPU backend (WASM lacks UnsortedSegmentSum kernel for tf.gather gradients).
+ * SPARSE MODE (deprecated):
+ * When mpContext.useSparse is true, uses sparse JS loops for message passing.
+ * Has known gradient bugs (117.9% gradient check error). Kept for backward compatibility.
  *
  * @param examples - Training examples
  * @param nodeEmbeddings - Raw node embeddings
@@ -1028,22 +1029,21 @@ export function disposeGraphStructure(graph: GraphStructure): void {
 }
 
 // ============================================================================
-// Sparse Training Step (Hybrid: Sparse MP + Dense K-head)
+// Sparse Training Step (DEPRECATED - Hybrid: Sparse MP + Dense K-head)
 // ============================================================================
 
 /**
  * Training step with sparse message passing
+ *
+ * @deprecated Use dense autograd mode instead (useSparse=false).
+ * The sparse backward pass has known gradient bugs (117.9% gradient check error).
+ * Dense autograd with CPU/WebGPU backend provides correct gradients automatically.
  *
  * This hybrid approach:
  * 1. Runs sparse MP forward (JS loops, only connected pairs)
  * 2. Computes K-head scoring loss with TF.js autograd (dense, fast)
  * 3. Backprops K-head gradients via autograd
  * 4. Manually computes and applies MP gradients (sparse backward)
- *
- * Benefits:
- * - Works on WASM backend (no UnsortedSegmentSum needed)
- * - ~10x faster than dense MP on large graphs
- * - MP gradients flow correctly to W_up, W_down, a_up, a_down
  */
 function trainStepSparse(
   examples: TrainingExample[],
@@ -1392,7 +1392,7 @@ export class AutogradTrainer {
   private nodeEmbeddings: Map<string, number[]> = new Map();
   private graph: GraphStructure | null = null;
   private useMessagePassing: boolean = false;
-  private useSparseMP: boolean = true; // Use sparse MP by default (WASM compatible)
+  private useSparseMP: boolean = false; // Dense autograd by default (CPU/WebGPU - full autograd support)
 
   constructor(
     config: SHGATConfig,
@@ -1408,9 +1408,10 @@ export class AutogradTrainer {
   /**
    * Enable or disable sparse message passing mode
    *
-   * @param useSparse - true for sparse JS loops (WASM compatible, faster)
-   *                    false for dense TF.js autograd (CPU only, slower)
-   * @default true
+   * @param useSparse - true for sparse JS loops (WASM only, manual backward - DEPRECATED)
+   *                    false for dense TF.js autograd (CPU/WebGPU, full autograd)
+   * @default false (dense autograd is now the default)
+   * @deprecated Sparse mode has known gradient bugs. Use dense autograd with CPU/WebGPU backend.
    */
   setSparseMP(useSparse: boolean): void {
     this.useSparseMP = useSparse;
@@ -1491,10 +1492,19 @@ export class AutogradTrainer {
    * When graph is set via setGraph(), message passing is integrated into training.
    * This allows gradients to flow through W_up, W_down, a_up, a_down parameters.
    *
-   * Uses sparse MP by default (WASM compatible). Call setSparseMP(false) to use
-   * dense TF.js autograd (requires CPU backend).
+   * Uses dense TF.js autograd by default (CPU/WebGPU backend).
+   * The backend is automatically switched to a training-compatible one if needed.
    */
-  trainBatch(examples: TrainingExample[]): TrainingMetrics {
+  async trainBatch(examples: TrainingExample[]): Promise<TrainingMetrics> {
+    // Ensure backend supports autograd for dense mode
+    if (!this.useSparseMP && !supportsAutograd()) {
+      const prevBackend = getBackend();
+      const newBackend = await switchBackend("training" as BackendMode);
+      console.error(
+        `[AutogradTrainer] Switched backend from ${prevBackend} to ${newBackend} for training (autograd required)`
+      );
+    }
+
     // Build message passing context if graph is available
     const mpContext = this.buildMessagePassingContext();
 

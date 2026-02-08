@@ -1,13 +1,16 @@
 /**
  * TensorFlow.js Backend for SHGAT-TF
  *
- * Initializes TensorFlow.js with optimal backend selection:
- * - FFI backend (libtensorflow via Deno FFI - has UnsortedSegmentSum!)
- * - WASM backend (2-10x faster than CPU, works in Deno)
- * - CPU as fallback
+ * Smart backend selection based on usage mode:
  *
- * Note: tfjs-node is not compatible with Deno due to Node.js internals.
- * WASM backend provides good acceleration for Deno environments.
+ * TRAINING mode (requires full autograd / all kernels):
+ *   WebGPU > CPU (never WASM - missing UnsortedSegmentSum, tf.gather grad)
+ *
+ * INFERENCE mode (forward-only, speed priority):
+ *   WebGPU > WASM > CPU
+ *
+ * The same model code runs on all backends - TF.js abstracts the difference.
+ * Users in the browser automatically get WebGPU if available.
  *
  * @module shgat-tf/tf/backend
  */
@@ -28,6 +31,20 @@ let currentBackend: string = "cpu";
 let initPromise: Promise<string> | null = null;
 let usingFFI = false;
 
+/** Backend mode determines kernel requirements */
+export type BackendMode = "training" | "inference";
+
+/**
+ * Backend priority by mode.
+ *
+ * Training needs full autograd (all kernels) so WASM is excluded.
+ * Inference only needs forward ops so WASM is fine and faster than CPU.
+ */
+const BACKEND_PRIORITY: Record<BackendMode, string[]> = {
+  training:  ["webgpu", "cpu"],           // Never WASM: missing UnsortedSegmentSum
+  inference: ["webgpu", "wasm", "cpu"],   // WASM is fast for forward-only
+};
+
 
 /**
  * Ensure TensorFlow.js is initialized before use.
@@ -46,29 +63,36 @@ export async function ensureInitialized(): Promise<void> {
  *
  * Call once at application startup for best performance.
  *
- * @param preferredBackend - Optional preferred backend:
- *   - 'ffi': Use libtensorflow via FFI (has UnsortedSegmentSum for full autograd!)
- *   - 'wasm': TF.js WASM backend (fast, but missing some kernels)
- *   - 'cpu': TF.js CPU backend (slowest, but complete)
- *   - 'webgpu': TF.js WebGPU backend (if available)
+ * @param preferredBackendOrMode - Backend name or mode:
+ *   - 'training': Auto-select best backend with full autograd (WebGPU > CPU)
+ *   - 'inference': Auto-select fastest backend (WebGPU > WASM > CPU)
+ *   - 'ffi': Use libtensorflow via Deno FFI
+ *   - 'webgpu': TF.js WebGPU backend
+ *   - 'wasm': TF.js WASM backend (fast, but missing some grad kernels)
+ *   - 'cpu': TF.js CPU backend (slowest, but all kernels available)
  * @returns The backend that was selected
  *
  * @example
  * ```typescript
- * import { initTensorFlow } from "./tf/backend.ts";
- * const backend = await initTensorFlow("ffi");  // Use libtensorflow FFI
- * console.log(`Using backend: ${backend}`);
+ * // For training (full autograd support):
+ * await initTensorFlow("training");
+ *
+ * // For inference (max speed):
+ * await initTensorFlow("inference");
+ *
+ * // Force specific backend:
+ * await initTensorFlow("cpu");
  * ```
  */
 export async function initTensorFlow(
-  preferredBackend?: "ffi" | "webgpu" | "wasm" | "cpu",
+  preferredBackendOrMode?: "ffi" | "webgpu" | "wasm" | "cpu" | BackendMode,
 ): Promise<string> {
   if (initialized) {
     return currentBackend;
   }
 
   // Handle FFI backend specially
-  if (preferredBackend === "ffi") {
+  if (preferredBackendOrMode === "ffi") {
     if (!tff.isAvailable()) {
       throw new Error(
         "[TF-FFI] libtensorflow not found. Install with:\n" +
@@ -85,11 +109,16 @@ export async function initTensorFlow(
 
   await tf.ready();
 
-  // Try backends in order of preference
-  // WASM is preferred as it works reliably in Deno and is 2-10x faster than CPU
-  const backends = preferredBackend
-    ? [preferredBackend]
-    : ["wasm", "webgpu", "cpu"];
+  // Resolve backend priority list
+  let backends: string[];
+  if (preferredBackendOrMode === "training" || preferredBackendOrMode === "inference") {
+    backends = BACKEND_PRIORITY[preferredBackendOrMode];
+  } else if (preferredBackendOrMode) {
+    backends = [preferredBackendOrMode];
+  } else {
+    // Default: inference mode (backward-compatible, WASM preferred for speed)
+    backends = BACKEND_PRIORITY.inference;
+  }
 
   for (const backend of backends) {
     try {
@@ -107,6 +136,43 @@ export async function initTensorFlow(
   currentBackend = tf.getBackend();
 
   return currentBackend;
+}
+
+/**
+ * Switch backend at runtime (e.g., from inference to training mode)
+ *
+ * Use this to switch between WASM (fast inference) and CPU (full autograd training)
+ * within the same session.
+ *
+ * @param mode - 'training' or 'inference'
+ * @returns The backend that was selected
+ */
+export async function switchBackend(mode: BackendMode): Promise<string> {
+  const backends = BACKEND_PRIORITY[mode];
+
+  for (const backend of backends) {
+    try {
+      await tf.setBackend(backend);
+      currentBackend = tf.getBackend();
+      if (currentBackend === backend) {
+        break;
+      }
+    } catch {
+      // Backend not available, try next
+    }
+  }
+
+  currentBackend = tf.getBackend();
+  return currentBackend;
+}
+
+/**
+ * Check if current backend supports full autograd (all kernels)
+ */
+export function supportsAutograd(): boolean {
+  const backend = getBackend();
+  // WASM is the only TF.js backend missing grad kernels
+  return backend !== "wasm";
 }
 
 /**
