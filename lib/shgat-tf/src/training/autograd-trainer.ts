@@ -15,6 +15,10 @@
 import { tf, tidy } from "../tf/backend.ts";
 import * as ops from "../tf/ops.ts";
 import type { SHGATConfig, TrainingExample } from "../core/types.ts";
+import {
+  initProjectionHeadParams,
+  projectionScore,
+} from "../core/projection-head.ts";
 
 // Sparse message passing imports
 import {
@@ -33,7 +37,7 @@ import {
 export interface TFParams {
   // K-head scoring parameters
   W_k: tf.Variable[];      // [numHeads][embDim, headDim] - Key projection
-  W_q: tf.Variable[];      // [numHeads][embDim, headDim] - Query projection
+  W_q?: tf.Variable[];     // [numHeads][embDim, headDim] - Query projection (DEPRECATED: W_k shared for Q and K)
   W_intent: tf.Variable;   // [embDim, hiddenDim] - Intent projection
 
   // Message passing parameters (per level)
@@ -44,6 +48,9 @@ export interface TFParams {
 
   // Residual weights (learnable)
   residualWeights?: tf.Variable;  // [numLevels]
+
+  // Projection head (optional, enabled by config.useProjectionHead)
+  projectionHead?: import("../core/projection-head.ts").ProjectionHeadTFParams;
 }
 
 /**
@@ -104,12 +111,10 @@ export const DEFAULT_TRAINER_CONFIG: TrainerConfig = {
 export function initTFParams(config: SHGATConfig, maxLevel: number): TFParams {
   const { numHeads, embeddingDim, headDim, hiddenDim } = config;
 
-  // K-head scoring
+  // K-head scoring (W_k is shared for Q and K projections, matching old SHGAT behavior)
   const W_k: tf.Variable[] = [];
-  const W_q: tf.Variable[] = [];
   for (let h = 0; h < numHeads; h++) {
     W_k.push(tf.variable(ops.glorotNormal([embeddingDim, headDim]), true, `W_k_${h}`));
-    W_q.push(tf.variable(ops.glorotNormal([embeddingDim, headDim]), true, `W_q_${h}`));
   }
 
   const W_intent = tf.variable(
@@ -119,12 +124,14 @@ export function initTFParams(config: SHGATConfig, maxLevel: number): TFParams {
   );
 
   // Message passing per level
+  // Always create level 0 (V→E^0) and level 1 (E^0→V, hardcoded in sparseMPForward)
   const W_up = new Map<number, tf.Variable[]>();
   const W_down = new Map<number, tf.Variable[]>();
   const a_up = new Map<number, tf.Variable[]>();
   const a_down = new Map<number, tf.Variable[]>();
 
-  for (let level = 1; level <= maxLevel; level++) {
+  const mpMaxLevel = Math.max(1, maxLevel);
+  for (let level = 0; level <= mpMaxLevel; level++) {
     const W_up_level: tf.Variable[] = [];
     const W_down_level: tf.Variable[] = [];
     const a_up_level: tf.Variable[] = [];
@@ -150,7 +157,16 @@ export function initTFParams(config: SHGATConfig, maxLevel: number): TFParams {
     "residualWeights"
   );
 
-  return { W_k, W_q, W_intent, W_up, W_down, a_up, a_down, residualWeights };
+  // Optional projection head
+  const projectionHead = config.useProjectionHead
+    ? initProjectionHeadParams(
+        embeddingDim,
+        config.projectionHiddenDim ?? 256,
+        config.projectionOutputDim ?? 256,
+      )
+    : undefined;
+
+  return { W_k, W_intent, W_up, W_down, a_up, a_down, residualWeights, projectionHead };
 }
 
 // ============================================================================
@@ -430,12 +446,13 @@ export function kHeadScoring(
     // Project nodes: K = nodeEmbs @ W_k[h]  [numNodes, headDim]
     const K = tf.matMul(nodeEmbs, params.W_k[h]);
 
-    // Project intent: Q = intentProj @ W_q[h]  [headDim]
-    // Note: intentProj is already projected, we use it directly reshaped
-    const Q = intentProj.slice([h * config.headDim], [config.headDim]);
+    // Project intent: Q = intentProj @ W_k[h]  [headDim]
+    // Uses same W_k for both Q and K (shared projection, matching old SHGAT behavior)
+    const Q = tf.squeeze(tf.matMul(intentProj.expandDims(0), params.W_k[h]));
 
-    // Attention: scores = K @ Q  [numNodes]
-    const scores = tf.squeeze(tf.matMul(K, Q.expandDims(1)));
+    // Attention: scores = K @ Q / sqrt(headDim)  [numNodes]
+    const rawScores = tf.squeeze(tf.matMul(K, Q.expandDims(1)));
+    const scores = rawScores.div(Math.sqrt(config.headDim));
 
     headScores.push(scores.expandDims(1) as tf.Tensor2D);
   }
@@ -456,13 +473,37 @@ export function forwardScoring(
   params: TFParams,
   config: SHGATConfig,
 ): tf.Tensor1D {
-  // Project intent
-  const intentProj = tf.squeeze(
-    tf.matMul(intentEmb.expandDims(0), params.W_intent)
-  ) as tf.Tensor1D;
+  // Project intent (skip W_intent when preserveDim=true to preserve BGE-M3 structure)
+  let intentProj: tf.Tensor1D;
+  if (config.preserveDim) {
+    intentProj = intentEmb;
+  } else {
+    intentProj = tf.squeeze(
+      tf.matMul(intentEmb.expandDims(0), params.W_intent)
+    ) as tf.Tensor1D;
+  }
 
   // K-head scoring
-  return kHeadScoring(intentProj, nodeEmbs, params, config);
+  const kheadScores = kHeadScoring(intentProj, nodeEmbs, params, config);
+
+  // Blend with projection head if enabled
+  if (config.useProjectionHead && params.projectionHead) {
+    const alpha = config.projectionBlendAlpha ?? 0.5;
+    const temp = config.projectionTemperature ?? 0.07;
+    const projScores = projectionScore(
+      intentEmb.expandDims(0) as tf.Tensor2D,
+      nodeEmbs,
+      params.projectionHead,
+      temp,
+    );
+    // final = (1-alpha) * khead + alpha * projection
+    return tf.add(
+      tf.mul(1 - alpha, kheadScores),
+      tf.mul(alpha, projScores),
+    ) as tf.Tensor1D;
+  }
+
+  return kheadScores;
 }
 
 // ============================================================================
@@ -776,11 +817,8 @@ export function trainStep(
     // L2 regularization on ALL parameters including message passing
     let l2Loss = tf.scalar(0);
 
-    // K-head scoring parameters
+    // K-head scoring parameters (W_k shared for Q and K)
     for (const W of params.W_k) {
-      l2Loss = l2Loss.add(tf.sum(tf.square(W)));
-    }
-    for (const W of params.W_q) {
       l2Loss = l2Loss.add(tf.sum(tf.square(W)));
     }
     l2Loss = l2Loss.add(tf.sum(tf.square(params.W_intent)));
@@ -809,6 +847,13 @@ export function trainStep(
       }
     }
 
+    // Projection head parameters (stronger L2 to prevent overfitting)
+    if (params.projectionHead) {
+      const projL2Scale = 10;
+      l2Loss = l2Loss.add(tf.sum(tf.square(params.projectionHead.W1)).mul(projL2Scale));
+      l2Loss = l2Loss.add(tf.sum(tf.square(params.projectionHead.W2)).mul(projL2Scale));
+    }
+
     l2Loss = l2Loss.mul(trainerConfig.l2Lambda);
 
     totalLoss = avgLoss.add(l2Loss).arraySync() as number;
@@ -816,18 +861,24 @@ export function trainStep(
     return avgLoss.add(l2Loss) as tf.Scalar;
   });
 
-  // Compute gradient norm
+  // Compute gradient norm (dispose intermediates to prevent WASM OOM)
   let gradNormSquared = 0;
   for (const g of Object.values(grads)) {
-    gradNormSquared += (tf.sum(tf.square(g)).arraySync() as number);
+    const sq = tf.square(g);
+    const s = tf.sum(sq);
+    gradNormSquared += s.arraySync() as number;
+    sq.dispose();
+    s.dispose();
   }
   const gradientNorm = Math.sqrt(gradNormSquared);
 
-  // Clip gradients if needed
+  // Clip gradients if needed (dispose old tensor before replacing)
   if (gradientNorm > trainerConfig.gradientClip) {
     const scale = trainerConfig.gradientClip / gradientNorm;
     for (const key of Object.keys(grads)) {
-      grads[key] = grads[key].mul(scale);
+      const old = grads[key];
+      grads[key] = old.mul(scale);
+      old.dispose();
     }
   }
 
@@ -1042,7 +1093,7 @@ function trainStepSparse(
   }
 
   // ========================================================================
-  // STEP 2: K-head scoring with TF.js autograd (for W_k, W_q, W_intent)
+  // STEP 2: K-head scoring with TF.js autograd (for W_k, W_intent)
   // ========================================================================
 
   let totalLoss = 0;
@@ -1053,6 +1104,25 @@ function trainStepSparse(
   const dE_accum = new Map<number, number[][]>();
   for (const [level, embs] of E_enriched) {
     dE_accum.set(level, embs.map(row => new Array(row.length).fill(0)));
+  }
+
+  // Pre-extract K-head weights as JS arrays for proper d(score)/d(emb) chain rule.
+  // score_i = (1/H) * Σ_h (emb_i @ W_k[h]) · Q_h
+  // => d(score_i)/d(emb_i) = (1/H) * Σ_h W_k[h] @ Q_h   (vector, not scalar!)
+  const W_k_arrays: number[][][] = params.W_k.map(w => w.arraySync() as number[][]);
+  const W_intent_array: number[][] = params.W_intent.arraySync() as number[][];
+  const { numHeads, headDim, embeddingDim } = config;
+
+  // Build tool/cap index lookup once (avoid indexOf per node per example)
+  const toolIdToIdx = new Map<string, number>();
+  for (let i = 0; i < mpContext.graph.toolIds.length; i++) {
+    toolIdToIdx.set(mpContext.graph.toolIds[i], i);
+  }
+  const capIdToLevelIdx = new Map<string, { level: number; idx: number }>();
+  for (const [level, capIds] of mpContext.graph.capIdsByLevel) {
+    for (let i = 0; i < capIds.length; i++) {
+      capIdToLevelIdx.set(capIds[i], { level, idx: i });
+    }
   }
 
   const { grads: kheadGrads, value: batchLoss } = tf.variableGrads(() => {
@@ -1071,7 +1141,7 @@ function trainStepSparse(
 
       // Build embeddings tensor from enriched embeddings
       const nodeEmbs: number[][] = nodeIds.map(id =>
-        enrichedEmbeddings.get(id) || nodeEmbeddings.get(id) || new Array(config.embeddingDim).fill(0)
+        enrichedEmbeddings.get(id) || nodeEmbeddings.get(id) || new Array(embeddingDim).fill(0)
       );
       const nodeEmbsTensor = ops.toTensor(nodeEmbs);
 
@@ -1095,88 +1165,174 @@ function trainStepSparse(
       if (maxIdx === 0) totalCorrect++;
 
       // ====================================================================
-      // ACCUMULATE dEnrichedEmb for MP backward
-      // We need d(loss)/d(enrichedEmb) to backprop through MP
-      // Approximation: use the logit gradient as a proxy
+      // ACCUMULATE dEnrichedEmb for MP backward — proper K-head chain rule
+      //
+      // d(loss)/d(emb_i) = dLogit_i * d(score_i)/d(emb_i)
+      //
+      // K-head forward: score_i = (1/H) * Σ_h (emb_i @ W_k[h]) · Q_h
+      // K-head backward: d(score_i)/d(emb_i) = (1/H) * Σ_h W_k[h] @ Q_h
+      //
+      // This is the same for all nodes (depends on intent + W_k, not emb_i).
+      // So we compute gradBase once per example, then scale by dLogit per node.
       // ====================================================================
+
+      // Compute softmax gradient: dLogit[i] = (softmax[i] - target[i]) / temperature
       const softmaxLogits = allScoresArr.map(s => s / trainerConfig.temperature);
       const maxLogit = Math.max(...softmaxLogits);
       const expLogits = softmaxLogits.map(s => Math.exp(s - maxLogit));
       const sumExp = expLogits.reduce((a, b) => a + b, 0);
       const softmaxProbs = expLogits.map(e => e / sumExp);
-
-      // dLogit[i] = softmax[i] - (1 if i==0 else 0)
       const dLogits = softmaxProbs.map((p, i) => (i === 0 ? p - 1 : p) / trainerConfig.temperature);
 
-      // Propagate to embeddings
-      // Use full gradient magnitude - gradient clipping handles explosion prevention
+      // Compute intentProj (skip W_intent when preserveDim=true)
+      const intentArr = ex.intentEmbedding;
+      let intentProj: number[];
+      if (config.preserveDim) {
+        // Use raw intent directly (matches forwardScoring preserveDim bypass)
+        intentProj = intentArr;
+      } else {
+        const hiddenDim = W_intent_array[0].length;
+        intentProj = new Array(hiddenDim).fill(0);
+        for (let i = 0; i < embeddingDim; i++) {
+          for (let j = 0; j < hiddenDim; j++) {
+            intentProj[j] += intentArr[i] * W_intent_array[i][j];
+          }
+        }
+      }
+
+      // Compute gradBase = (1/numHeads) * Σ_h (W_k[h] @ Q_h) / sqrt(headDim) → [embeddingDim]
+      // Where Q_h = intentProj @ W_k[h] (shared W_k for both Q and K)
+      // The /sqrt(headDim) matches the scaling applied in kHeadScoring forward pass
+      const sqrtHeadDim = Math.sqrt(headDim);
+      const gradBase = new Array(embeddingDim).fill(0);
+      for (let h = 0; h < numHeads; h++) {
+        const W_k_h = W_k_arrays[h]; // [embeddingDim, headDim]
+        // Compute Q_h = intentProj @ W_k[h] → [headDim]
+        const Q_h = new Array(headDim).fill(0);
+        for (let j = 0; j < headDim; j++) {
+          for (let d = 0; d < embeddingDim; d++) {
+            Q_h[j] += intentProj[d] * W_k_h[d][j];
+          }
+        }
+        // gradBase[d] += Σ_j W_k_h[d][j] * Q_h[j] / (numHeads * sqrt(headDim))
+        for (let i = 0; i < embeddingDim; i++) {
+          let dot = 0;
+          for (let j = 0; j < headDim; j++) {
+            dot += W_k_h[i][j] * Q_h[j];
+          }
+          gradBase[i] += dot / (numHeads * sqrtHeadDim);
+        }
+      }
+
+      // Propagate to embeddings: dEmb_i = dLogit_i * gradBase (element-wise)
       for (let idx = 0; idx < nodeIds.length; idx++) {
         const nodeId = nodeIds[idx];
         const dLogit = dLogits[idx];
 
-        // Find where this node lives (tool or cap at which level)
-        const toolIdx = mpContext.graph.toolIds.indexOf(nodeId);
-        if (toolIdx >= 0) {
-          for (let j = 0; j < dH_accum[toolIdx].length; j++) {
-            dH_accum[toolIdx][j] += dLogit;
+        const toolIdx = toolIdToIdx.get(nodeId);
+        if (toolIdx !== undefined) {
+          for (let j = 0; j < embeddingDim; j++) {
+            dH_accum[toolIdx][j] += dLogit * gradBase[j];
           }
         } else {
-          for (const [level, capIds] of mpContext.graph.capIdsByLevel) {
-            const capIdx = capIds.indexOf(nodeId);
-            if (capIdx >= 0) {
-              const dE_level = dE_accum.get(level);
-              if (dE_level) {
-                for (let j = 0; j < dE_level[capIdx].length; j++) {
-                  dE_level[capIdx][j] += dLogit;
-                }
+          const capInfo = capIdToLevelIdx.get(nodeId);
+          if (capInfo) {
+            const dE_level = dE_accum.get(capInfo.level);
+            if (dE_level) {
+              for (let j = 0; j < embeddingDim; j++) {
+                dE_level[capInfo.idx][j] += dLogit * gradBase[j];
               }
-              break;
             }
           }
         }
       }
     }
 
-    // Average loss
-    const avgLoss = loss.div(examples.length);
+    // FIX C1: Do NOT divide loss by batchSize here — the manual SGD step already
+    // divides lr by batchSize. Dividing here AND in SGD = double batch-averaging
+    // (effective lr was 32x too small: lr/batchSize^2 instead of lr/batchSize).
+    // The raw loss (batch-sum) goes to autograd; we divide only for logging.
 
-    // L2 regularization on K-head parameters only (MP params regularized separately)
+    // L2 regularization on K-head parameters only
+    // NOTE (M8): MP params have NO L2 regularization in sparse mode
     let l2Loss = tf.scalar(0);
     for (const W of params.W_k) {
       l2Loss = l2Loss.add(tf.sum(tf.square(W)));
     }
-    for (const W of params.W_q) {
-      l2Loss = l2Loss.add(tf.sum(tf.square(W)));
-    }
     l2Loss = l2Loss.add(tf.sum(tf.square(params.W_intent)));
+
+    // Projection head L2 (stronger to prevent overfitting with few examples)
+    if (params.projectionHead) {
+      const projL2Scale = 10;
+      l2Loss = l2Loss.add(tf.sum(tf.square(params.projectionHead.W1)).mul(projL2Scale));
+      l2Loss = l2Loss.add(tf.sum(tf.square(params.projectionHead.W2)).mul(projL2Scale));
+    }
+
     l2Loss = l2Loss.mul(trainerConfig.l2Lambda);
 
-    totalLoss = avgLoss.add(l2Loss).arraySync() as number;
+    // totalLoss for logging only — divide by batchSize for human-readable average
+    totalLoss = (loss.add(l2Loss).arraySync() as number) / examples.length;
 
-    return avgLoss.add(l2Loss) as tf.Scalar;
+    return loss.add(l2Loss) as tf.Scalar;
   });
 
   // ========================================================================
   // STEP 3: Apply K-head gradients via TF.js optimizer
   // ========================================================================
 
-  // Compute gradient norm (K-head only)
+  // Compute gradient norm (K-head only — dispose intermediates to prevent WASM OOM)
   let kheadGradNormSq = 0;
   for (const g of Object.values(kheadGrads)) {
-    kheadGradNormSq += (tf.sum(tf.square(g)).arraySync() as number);
+    const sq = tf.square(g);
+    const s = tf.sum(sq);
+    kheadGradNormSq += s.arraySync() as number;
+    sq.dispose();
+    s.dispose();
   }
   const kheadGradNorm = Math.sqrt(kheadGradNormSq);
 
-  // Clip K-head gradients if needed
-  if (kheadGradNorm > trainerConfig.gradientClip) {
-    const scale = trainerConfig.gradientClip / kheadGradNorm;
-    for (const key of Object.keys(kheadGrads)) {
-      kheadGrads[key] = kheadGrads[key].mul(scale);
+  // Apply K-head gradients with manual SGD + per-element clip
+  // (matches old SHGAT's applyKHeadGradients: lr/batchSize, clip per element to [-1, 1])
+  const kheadLr = trainerConfig.learningRate / examples.length;
+  const kheadMaxGrad = 1.0; // Per-element gradient clipping threshold
+  const l2Lambda = trainerConfig.l2Lambda ?? 0;
+
+  for (const [varName, gradTensor] of Object.entries(kheadGrads)) {
+    // Find the corresponding variable
+    const variable = tf.engine().registeredVariables[varName] as tf.Variable | undefined;
+    if (!variable) continue;
+
+    const gradArr = gradTensor.arraySync();
+    const varArr = variable.arraySync();
+
+    if (Array.isArray(varArr) && Array.isArray(varArr[0])) {
+      // 2D tensor (W_k: [embDim, headDim])
+      const W = varArr as number[][];
+      const dW = gradArr as number[][];
+      for (let i = 0; i < W.length; i++) {
+        for (let j = 0; j < W[i].length; j++) {
+          let g = (dW[i]?.[j] ?? 0) + l2Lambda * W[i][j];
+          g = Math.max(-kheadMaxGrad, Math.min(kheadMaxGrad, g));
+          W[i][j] -= kheadLr * g;
+        }
+      }
+      const newW = tf.tensor2d(W);
+      variable.assign(newW);
+      newW.dispose(); // Prevent WASM tensor leak
+    } else if (Array.isArray(varArr)) {
+      // 1D tensor (biases, etc.)
+      const V = varArr as number[];
+      const dV = gradArr as number[];
+      for (let i = 0; i < V.length; i++) {
+        let g = (dV[i] ?? 0) + l2Lambda * V[i];
+        g = Math.max(-kheadMaxGrad, Math.min(kheadMaxGrad, g));
+        V[i] -= kheadLr * g;
+      }
+      const newV = tf.tensor1d(V);
+      variable.assign(newV);
+      newV.dispose(); // Prevent WASM tensor leak
     }
   }
-
-  // Apply K-head gradients
-  optimizer.applyGradients(kheadGrads);
 
   // Cleanup K-head gradients
   Object.values(kheadGrads).forEach((g) => g.dispose());
@@ -1258,6 +1414,13 @@ export class AutogradTrainer {
    */
   setSparseMP(useSparse: boolean): void {
     this.useSparseMP = useSparse;
+  }
+
+  /**
+   * Update temperature for InfoNCE loss (for annealing during training)
+   */
+  setTemperature(temperature: number): void {
+    this.trainerConfig.temperature = temperature;
   }
 
   /**
@@ -1478,11 +1641,27 @@ export class AutogradTrainer {
   }
 
   /**
+   * Export projection head parameters as arrays for persistence.
+   * Returns undefined if projection head is not enabled.
+   */
+  exportProjectionHeadToArray(): import("../core/projection-head.ts").ProjectionHeadArrayParams | undefined {
+    if (!this.params.projectionHead) return undefined;
+    return {
+      W1: this.params.projectionHead.W1.arraySync() as number[][],
+      b1: this.params.projectionHead.b1.arraySync() as number[],
+      W2: this.params.projectionHead.W2.arraySync() as number[][],
+      b2: this.params.projectionHead.b2.arraySync() as number[],
+    };
+  }
+
+  /**
    * Dispose all tensors
    */
   dispose(): void {
     for (const W of this.params.W_k) W.dispose();
-    for (const W of this.params.W_q) W.dispose();
+    if (this.params.W_q) {
+      for (const W of this.params.W_q) W.dispose();
+    }
     this.params.W_intent.dispose();
     this.params.residualWeights?.dispose();
 
@@ -1497,6 +1676,13 @@ export class AutogradTrainer {
     }
     for (const [_, weights] of this.params.a_down) {
       weights.forEach((w) => w.dispose());
+    }
+
+    if (this.params.projectionHead) {
+      this.params.projectionHead.W1.dispose();
+      this.params.projectionHead.b1.dispose();
+      this.params.projectionHead.W2.dispose();
+      this.params.projectionHead.b2.dispose();
     }
   }
 }

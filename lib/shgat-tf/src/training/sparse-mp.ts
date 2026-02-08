@@ -73,6 +73,8 @@ export interface SparseMPForwardCache {
   /** Projected E and H for E→V phase */
   E_proj_EV: number[][][];  // [head][capIdx][headDim]
   H_proj_EV: number[][][];  // [head][toolIdx][headDim]
+  /** Enriched E (after V→E forward) needed by E→V backward for correct dW */
+  E_enriched_for_EV: Map<number, number[][]>;
   /** Connectivity */
   connectivity: SparseConnectivity;
   /** Config for backward pass */
@@ -268,6 +270,7 @@ export function sparseMPForward(
     E_proj_downward: new Map(),
     E_proj_EV: [],
     H_proj_EV: [],
+    E_enriched_for_EV: new Map(),
     connectivity,
     config: { leakyReluSlope: config.leakyReluSlope, headDim, numHeads },
   };
@@ -366,6 +369,11 @@ export function sparseMPForward(
   }
 
   // Final: E^0 → V
+  // Cache enriched E (after V→E) for correct E→V backward dW computation
+  for (const [level, embs] of E) {
+    cache.E_enriched_for_EV.set(level, embs.map((row) => [...row]));
+  }
+
   const E_level0 = E.get(0);
   const W_down = params.W_down.get(1);
   const a_down = params.a_down.get(1);
@@ -397,6 +405,12 @@ export function sparseMPForward(
         H[i][j] = (1 - alpha) * H[i][j] + alpha * H_init[i][j];
       }
     }
+
+    // FIX C3: Removed L2 normalization post-residual.
+    // Old SHGAT uses simple additive residual without L2 norm.
+    // L2 norm was destroying magnitude information and its Jacobian was missing
+    // from the backward pass, causing systematically incorrect MP gradients.
+
     for (const [level, E_tensor] of E) {
       const E_initLevel = E_init.get(level);
       if (E_initLevel) {
@@ -994,17 +1008,30 @@ function backwardVertexToEdge(
           return dScore * a_h[j] * deriv;
         });
 
-        // Split dConcat: first half is dH_proj, second half is dE_proj
-        // dH_proj contribution to dW and dH
+        // Split dConcat: first half is dH_proj (tool), second half is dE_proj (cap)
+        // --- First half: dH_proj contribution to dW and dH ---
         for (let d = 0; d < headDim; d++) {
-          // dW_h contribution: dH_proj @ H^T
           const dH_proj_d = dConcat[d];
           for (let e = 0; e < cache.H_init[t].length; e++) {
             dW[h][d][e] += dH_proj_d * cache.H_init[t][e];
           }
-          // dH contribution: dH_proj @ W_h
           for (let e = 0; e < W_h[d].length; e++) {
             dH[t][e] += dH_proj_d * W_h[d][e];
+          }
+        }
+
+        // --- FIX C2: Second half: dE_proj contribution to dW ---
+        // Forward: concat = [H_proj[t], E_proj[c]], E_proj = E_init @ W
+        // dConcat[headDim:] is gradient for E_proj[c]
+        // dW += dE_proj @ E_init[c]^T (outer product contribution)
+        const E_level0 = cache.E_init.get(0);
+        const E_cap_init_VE = E_level0?.[c];
+        if (E_cap_init_VE) {
+          for (let d = 0; d < headDim; d++) {
+            const dE_proj_d = dConcat[headDim + d];
+            for (let e = 0; e < E_cap_init_VE.length; e++) {
+              dW[h][d][e] += dE_proj_d * E_cap_init_VE[e];
+            }
           }
         }
 
@@ -1144,13 +1171,28 @@ function backwardEdgeToEdge(
         });
 
         // Split dConcat: first half is dSrc_proj, second half is dTgt_proj
-        // dSrc_proj contribution to dW
+        // --- First half: dSrc_proj contribution to dW ---
         const E_src_init = E_init_source?.[src];
         if (E_src_init) {
           for (let d = 0; d < headDim; d++) {
             const dSrc_proj_d = dConcat[d];
             for (let e = 0; e < E_src_init.length; e++) {
               dW[h][d][e] += dSrc_proj_d * E_src_init[e];
+            }
+          }
+        }
+
+        // --- FIX C2: Second half: dTgt_proj contribution to dW ---
+        // Forward: concat = [src_proj, tgt_proj], tgt_proj = E_tgt_init @ W
+        // dConcat[headDim:] is gradient for tgt_proj
+        // For E→E, target init is at the current level
+        const E_init_target = cache.E_init.get(level);
+        const E_tgt_init = E_init_target?.[tgt];
+        if (E_tgt_init) {
+          for (let d = 0; d < headDim; d++) {
+            const dTgt_proj_d = dConcat[headDim + d];
+            for (let e = 0; e < E_tgt_init.length; e++) {
+              dW[h][d][e] += dTgt_proj_d * E_tgt_init[e];
             }
           }
         }
@@ -1204,7 +1246,9 @@ function backwardEdgeToVertex(
 
   // Get cached projections
   const E_proj = cache.E_proj_EV;
-  const E_init_0 = cache.E_init.get(0);
+  // BUG FIX: E→V forward projects ENRICHED E (after V→E), not E_init.
+  // Use E_enriched for correct dW gradient computation.
+  const E_enriched_0 = cache.E_enriched_for_EV.get(0) ?? cache.E_init.get(0);
 
   for (let h = 0; h < numHeads; h++) {
     const W_h = W_arrays[h];
@@ -1275,26 +1319,46 @@ function backwardEdgeToVertex(
         });
 
         // Split dConcat: first half is dE_proj (cap), second half is dH_proj (tool)
-        // dE_proj contribution to dW
-        const E_cap_init = E_init_0?.[c];
-        if (E_cap_init) {
+        // --- First half: dE_proj contribution to dW ---
+        // BUG FIX: Use E_enriched (after V→E), not E_init
+        const E_cap_enriched = E_enriched_0?.[c];
+        if (E_cap_enriched) {
           for (let d = 0; d < headDim; d++) {
             const dE_proj_d = dConcat[d];
-            for (let e = 0; e < E_cap_init.length; e++) {
-              dW[h][d][e] += dE_proj_d * E_cap_init[e];
+            for (let e = 0; e < E_cap_enriched.length; e++) {
+              dW[h][d][e] += dE_proj_d * E_cap_enriched[e];
+            }
+          }
+        }
+
+        // --- FIX C2: Second half: dH_proj contribution to dW and dH ---
+        // Forward: concat = [E_proj[c], H_proj[t]], H_proj = H_init @ W
+        // dConcat[headDim:] is gradient for H_proj[t]
+        // dW += dH_proj @ H_init[t]^T (outer product)
+        // dH[t] += dH_proj @ W (backprop through projection to tool embedding)
+        const H_tool_init = cache.H_init[t];
+        if (H_tool_init) {
+          for (let d = 0; d < headDim; d++) {
+            const dH_proj_d = dConcat[headDim + d];
+            for (let e = 0; e < H_tool_init.length; e++) {
+              dW[h][d][e] += dH_proj_d * H_tool_init[e];
+            }
+            for (let e = 0; e < W_h[d].length; e++) {
+              dH_new[t][e] += dH_proj_d * W_h[d][e];
             }
           }
         }
 
         // Aggregation gradient: dE_proj = attention * dAgg
         // This contributes to BOTH dW and dE
-        if (E_cap_init) {
+        // BUG FIX: Use E_enriched for dW (matches forward which projects enriched E)
+        if (E_cap_enriched) {
           for (let d = 0; d < headDim; d++) {
             const dE_proj_agg_d = attentionWeights[i] * dAgg[d];
 
-            // dW from aggregation path: dW += dE_proj^T @ E_cap_init
-            for (let e = 0; e < E_cap_init.length; e++) {
-              dW[h][d][e] += dE_proj_agg_d * E_cap_init[e];
+            // dW from aggregation path: dW += dE_proj^T @ E_enriched
+            for (let e = 0; e < E_cap_enriched.length; e++) {
+              dW[h][d][e] += dE_proj_agg_d * E_cap_enriched[e];
             }
 
             // dE from aggregation path: dE += dE_proj @ W
@@ -1326,6 +1390,7 @@ export function applySparseMPGradients(
   const scale = learningRate / batchSize;
 
   // Apply W_up gradients
+  // W shape: [embDim][headDim], dW shape: [headDim][embDim] — read transposed
   for (const [level, dW_level] of grads.dW_up) {
     const W_up = params.W_up.get(level);
     if (!W_up) continue;
@@ -1337,15 +1402,18 @@ export function applySparseMPGradients(
 
       for (let i = 0; i < W_data.length; i++) {
         for (let j = 0; j < W_data[i].length; j++) {
-          W_data[i][j] -= scale * (dW_h[i]?.[j] ?? 0);
+          W_data[i][j] -= scale * (dW_h[j]?.[i] ?? 0);
         }
       }
 
-      W_h.assign(tf.tensor2d(W_data));
+      const newW = tf.tensor2d(W_data);
+      W_h.assign(newW);
+      newW.dispose();
     }
   }
 
   // Apply W_down gradients
+  // W shape: [embDim][headDim], dW shape: [headDim][embDim] — read transposed
   for (const [level, dW_level] of grads.dW_down) {
     const W_down = params.W_down.get(level);
     if (!W_down) continue;
@@ -1357,11 +1425,13 @@ export function applySparseMPGradients(
 
       for (let i = 0; i < W_data.length; i++) {
         for (let j = 0; j < W_data[i].length; j++) {
-          W_data[i][j] -= scale * (dW_h[i]?.[j] ?? 0);
+          W_data[i][j] -= scale * (dW_h[j]?.[i] ?? 0);
         }
       }
 
-      W_h.assign(tf.tensor2d(W_data));
+      const newW = tf.tensor2d(W_data);
+      W_h.assign(newW);
+      newW.dispose();
     }
   }
 
@@ -1379,7 +1449,9 @@ export function applySparseMPGradients(
         a_data[i] -= scale * (da_h[i] ?? 0);
       }
 
-      a_h.assign(tf.tensor1d(a_data));
+      const newA = tf.tensor1d(a_data);
+      a_h.assign(newA);
+      newA.dispose();
     }
   }
 
@@ -1397,7 +1469,9 @@ export function applySparseMPGradients(
         a_data[i] -= scale * (da_h[i] ?? 0);
       }
 
-      a_h.assign(tf.tensor1d(a_data));
+      const newA = tf.tensor1d(a_data);
+      a_h.assign(newA);
+      newA.dispose();
     }
   }
 }
