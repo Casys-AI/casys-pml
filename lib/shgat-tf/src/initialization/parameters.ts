@@ -88,8 +88,9 @@ export interface HeadParams {
   a: number[];
 }
 
-// Import TensorFlow types (must use same package as backend.ts)
-import type { Variable } from "npm:@tensorflow/tfjs@4.22.0";
+// Import TensorFlow via centralized backend (single source of truth for tf)
+import { tf } from "../tf/backend.ts";
+type Variable = tf.Variable;
 
 /**
  * Per-head attention parameters (tensor-based, for GPU-accelerated scoring)
@@ -781,14 +782,7 @@ export function countParameters(config: SHGATConfig): {
 // Tensor-Based Parameter Management (GPU-accelerated scoring)
 // ============================================================================
 
-// Dynamic import to avoid circular dependency with backend.ts
-let _tf: typeof import("npm:@tensorflow/tfjs@4.22.0") | null = null;
-async function getTf() {
-  if (!_tf) {
-    _tf = await import("npm:@tensorflow/tfjs@4.22.0");
-  }
-  return _tf;
-}
+// tf is imported at module level from backend.ts (single source of truth)
 
 /**
  * Create tensor-based scoring parameters from array-based params.
@@ -810,10 +804,9 @@ async function getTf() {
  * disposeTensorScoringParams(tensorParams);
  * ```
  */
-export async function createTensorScoringParams(
+export function createTensorScoringParams(
   params: SHGATParams,
-): Promise<TensorScoringParams> {
-  const tf = await getTf();
+): TensorScoringParams {
   const instanceId = tensorParamsCounter++;
 
   const headParams: TensorHeadParams[] = params.headParams.map((hp, i) => ({
@@ -844,10 +837,8 @@ export async function createTensorScoringParams(
 /**
  * Create tensor-based scoring parameters synchronously.
  *
- * Use this when TensorFlow.js is already loaded (e.g., after initTensorFlow()).
- *
  * @param params Array-based SHGAT parameters
- * @param tf TensorFlow.js module reference
+ * @param _tf Deprecated - tf is now imported from backend.ts. Parameter kept for backward compat.
  * @returns Tensor-based scoring parameters
  */
 // Counter for unique variable names across instances
@@ -855,7 +846,7 @@ let tensorParamsCounter = 0;
 
 export function createTensorScoringParamsSync(
   params: SHGATParams,
-  tf: typeof import("npm:@tensorflow/tfjs@4.22.0"),
+  _tf?: unknown,
 ): TensorScoringParams {
   const instanceId = tensorParamsCounter++;
 
@@ -914,12 +905,12 @@ export function disposeTensorScoringParams(tensorParams: TensorScoringParams): v
  *
  * @param tensorParams Tensor parameters to update
  * @param params Source array-based parameters
- * @param tf TensorFlow.js module reference
+ * @param _tf Deprecated - tf is now imported from backend.ts. Parameter kept for backward compat.
  */
 export function updateTensorScoringParams(
   tensorParams: TensorScoringParams,
   params: SHGATParams,
-  tf: typeof import("npm:@tensorflow/tfjs@4.22.0"),
+  _tf?: unknown,
 ): void {
   for (let i = 0; i < params.headParams.length; i++) {
     const hp = params.headParams[i];

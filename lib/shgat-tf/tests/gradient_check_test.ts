@@ -11,7 +11,7 @@
  */
 
 import { assertGreater, assertLess } from "@std/assert";
-import * as tf from "npm:@tensorflow/tfjs@4.22.0";
+import { tf } from "../src/tf/backend.ts";
 import {
   AutogradTrainer,
   forwardScoring,

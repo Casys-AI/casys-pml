@@ -9,8 +9,8 @@
  * @module shgat-tf/training/layers-trainer
  */
 
-import * as tf from "npm:@tensorflow/tfjs@4.22.0";
-import "npm:@tensorflow/tfjs-backend-wasm@4.22.0";
+import { tf } from "../tf/backend.ts";
+// WASM backend is registered via backend.ts
 import { registerUnsortedSegmentSumKernel } from "../tf/kernels/unsorted-segment-sum.ts";
 import type { SHGATConfig, TrainingExample } from "../core/types.ts";
 

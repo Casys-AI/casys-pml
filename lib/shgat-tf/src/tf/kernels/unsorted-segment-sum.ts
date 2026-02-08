@@ -7,7 +7,7 @@
  * @module shgat-tf/tf/kernels/unsorted-segment-sum
  */
 
-import * as tf from "npm:@tensorflow/tfjs@4.22.0";
+import { tf } from "../backend.ts";
 import * as tff from "../tf-ffi.ts";
 
 let registered = false;
