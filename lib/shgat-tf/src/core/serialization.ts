@@ -56,11 +56,14 @@ export function exportSHGATParams(ctx: SerializationContext): Record<string, unk
   }
 
   // ADR-057: Export V2V trainable params
-  return {
+  const result: Record<string, unknown> = {
     ...base,
     levelParams: levelParamsObj,
     v2vParams: { ...ctx.v2vParams },
   };
+
+  // Projection head params are already included in base (from SHGATParams.projectionHead)
+  return result;
 }
 
 // ==========================================================================

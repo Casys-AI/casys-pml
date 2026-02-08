@@ -77,7 +77,7 @@ export const DEFAULT_TRACE_STATS: TraceStats = {
  * Number of scalar features in TraceStats (derived from DEFAULT_TRACE_STATS)
  * = 11 scalar fields + 6 errorTypeAffinity values = 17
  */
-export const NUM_TRACE_STATS = Object.keys(DEFAULT_TRACE_STATS).length - 1 +
+export const NUM_TRACE_STATS: number = Object.keys(DEFAULT_TRACE_STATS).length - 1 +
   DEFAULT_TRACE_STATS.errorTypeAffinity.length;
 // -1 because errorTypeAffinity is counted as array length, not as 1 key
 
@@ -261,6 +261,27 @@ export interface SHGATConfig {
    */
   mpLearningRateScale?: number;
 
+  // === Projection Head (contrastive discrimination) ===
+  /**
+   * Enable learned projection head for fine-grained tool discrimination.
+   * Maps enriched embeddings to a compact contrastive space where
+   * semantically similar but functionally distinct tools are separated.
+   * @default false (pure K-head scoring)
+   */
+  useProjectionHead?: boolean;
+
+  /** Projection head hidden dimension (bottleneck) @default 256 */
+  projectionHiddenDim?: number;
+
+  /** Projection head output dimension (contrastive space) @default 256 */
+  projectionOutputDim?: number;
+
+  /** Blend weight: final = (1-α)*khead + α*projection. @default 0.5 */
+  projectionBlendAlpha?: number;
+
+  /** Temperature for projection scoring dot product. @default 0.07 */
+  projectionTemperature?: number;
+
   // === Legacy (kept for backward compatibility) ===
   /** @deprecated Which heads are active - all heads active in v2 */
   activeHeads?: number[];
@@ -316,7 +337,7 @@ export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
 
 /**
  * @deprecated Use getAdaptiveHeadsByGraphSize() from initialization/parameters.ts instead.
- * That function is now called automatically in createSHGATFromCapabilities().
+ * That function is now called automatically in createSHGAT().
  *
  * This function was based on trace count, but graph size is available at init time
  * while trace count requires async DB query and changes over time.

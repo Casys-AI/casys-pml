@@ -28,6 +28,7 @@ let currentBackend: string = "cpu";
 let initPromise: Promise<string> | null = null;
 let usingFFI = false;
 
+
 /**
  * Ensure TensorFlow.js is initialized before use.
  * This is called automatically when needed.
@@ -183,3 +184,7 @@ export function dispose(tensors: tf.Tensor | tf.Tensor[] | null | undefined): vo
     tensors.dispose();
   }
 }
+
+// Auto-initialize TF.js backend on module load.
+// This ensures tf.ready() + tf.setBackend() are called before any tensor operations.
+await initTensorFlow();

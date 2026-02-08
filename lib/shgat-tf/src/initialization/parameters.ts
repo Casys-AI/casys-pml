@@ -15,6 +15,7 @@
 import type { LevelParams, SHGATConfig } from "../core/types.ts";
 import { DEFAULT_FEATURE_WEIGHTS, DEFAULT_FUSION_WEIGHTS, NUM_TRACE_STATS } from "../core/types.ts";
 import type { FeatureWeights, FusionWeights } from "../core/types.ts";
+import type { ProjectionHeadArrayParams, ProjectionHeadTFParams } from "../core/projection-head.ts";
 
 // ============================================================================
 // Seeded PRNG for Reproducibility (mulberry32)
@@ -32,7 +33,7 @@ let rngState = Date.now(); // Default: use current time (non-reproducible)
  * ```typescript
  * import { seedRng } from "./shgat/initialization/parameters.ts";
  * seedRng(42); // Set seed for reproducibility
- * const shgat = createSHGATFromCapabilities(caps);
+ * const shgat = createSHGAT(nodes);
  * ```
  */
 export function seedRng(seed: number): void {
@@ -114,6 +115,8 @@ export interface TensorScoringParams {
   headParams: TensorHeadParams[];
   /** Intent projection matrix [hiddenDim, embeddingDim] */
   W_intent: Variable;
+  /** Optional projection head for contrastive discrimination */
+  projectionHead?: ProjectionHeadTFParams;
 }
 
 /**
@@ -150,6 +153,9 @@ export interface SHGATParams {
   // sigmoid(residualLogits[level]) = α for that level
   // Initialized to logit(0.3) ≈ -0.847 so sigmoid gives ~0.3
   residualLogits: number[];
+
+  // Optional projection head for contrastive discrimination
+  projectionHead?: ProjectionHeadArrayParams;
 }
 
 /**
@@ -655,7 +661,7 @@ export function exportParams(
   config: SHGATConfig,
   params: SHGATParams,
 ): Record<string, unknown> {
-  return {
+  const result: Record<string, unknown> = {
     config,
     layerParams: params.layerParams,
     headParams: params.headParams,
@@ -668,6 +674,12 @@ export function exportParams(
     W_stats: params.W_stats,
     b_stats: params.b_stats,
   };
+
+  if (params.projectionHead) {
+    result.projectionHead = params.projectionHead;
+  }
+
+  return result;
 }
 
 /**
@@ -712,6 +724,9 @@ export function importParams(
   }
   if (data.b_stats) {
     params.b_stats = data.b_stats as number[];
+  }
+  if (data.projectionHead) {
+    params.projectionHead = data.projectionHead as ProjectionHeadArrayParams;
   }
 
   return { config, params };
@@ -814,7 +829,16 @@ export async function createTensorScoringParams(
     `W_intent_${instanceId}`,
   );
 
-  return { headParams, W_intent };
+  const projectionHead = params.projectionHead
+    ? {
+        W1: tf.variable(tf.tensor2d(params.projectionHead.W1), true, `proj_W1_${instanceId}`),
+        b1: tf.variable(tf.tensor1d(params.projectionHead.b1), true, `proj_b1_${instanceId}`),
+        W2: tf.variable(tf.tensor2d(params.projectionHead.W2), true, `proj_W2_${instanceId}`),
+        b2: tf.variable(tf.tensor1d(params.projectionHead.b2), true, `proj_b2_${instanceId}`),
+      } as ProjectionHeadTFParams
+    : undefined;
+
+  return { headParams, W_intent, projectionHead };
 }
 
 /**
@@ -848,7 +872,16 @@ export function createTensorScoringParamsSync(
     `W_intent_${instanceId}`,
   );
 
-  return { headParams, W_intent };
+  const projectionHead = params.projectionHead
+    ? {
+        W1: tf.variable(tf.tensor2d(params.projectionHead.W1), true, `proj_W1_${instanceId}`),
+        b1: tf.variable(tf.tensor1d(params.projectionHead.b1), true, `proj_b1_${instanceId}`),
+        W2: tf.variable(tf.tensor2d(params.projectionHead.W2), true, `proj_W2_${instanceId}`),
+        b2: tf.variable(tf.tensor1d(params.projectionHead.b2), true, `proj_b2_${instanceId}`),
+      } as ProjectionHeadTFParams
+    : undefined;
+
+  return { headParams, W_intent, projectionHead };
 }
 
 /**
@@ -866,6 +899,12 @@ export function disposeTensorScoringParams(tensorParams: TensorScoringParams): v
     hp.a.dispose();
   }
   tensorParams.W_intent.dispose();
+  if (tensorParams.projectionHead) {
+    tensorParams.projectionHead.W1.dispose();
+    tensorParams.projectionHead.b1.dispose();
+    tensorParams.projectionHead.W2.dispose();
+    tensorParams.projectionHead.b2.dispose();
+  }
 }
 
 /**
@@ -890,4 +929,12 @@ export function updateTensorScoringParams(
     tensorParams.headParams[i].a.assign(tf.tensor1d(hp.a));
   }
   tensorParams.W_intent.assign(tf.tensor2d(params.W_intent));
+
+  // Update projection head if present in both source and target
+  if (params.projectionHead && tensorParams.projectionHead) {
+    tensorParams.projectionHead.W1.assign(tf.tensor2d(params.projectionHead.W1));
+    tensorParams.projectionHead.b1.assign(tf.tensor1d(params.projectionHead.b1));
+    tensorParams.projectionHead.W2.assign(tf.tensor2d(params.projectionHead.W2));
+    tensorParams.projectionHead.b2.assign(tf.tensor1d(params.projectionHead.b2));
+  }
 }

@@ -137,9 +137,7 @@ import {
   type TrainingExample,
 } from "./types.ts";
 
-// Auto-initialize BLAS acceleration on module load
-import { initBlasAcceleration } from "../utils/math.ts";
-await initBlasAcceleration();
+// TF.js backend is auto-initialized on import via ../tf/backend.ts
 
 const log = getLogger();
 

@@ -14,6 +14,8 @@ import { tf, tidy } from "../tf/backend.ts";
 import * as ops from "../tf/ops.ts";
 import type { SHGATConfig, AttentionResult, CapabilityNode } from "../core/types.ts";
 import type { HeadParams, TensorScoringParams } from "../initialization/index.ts";
+import type { ProjectionHeadTFParams } from "../core/projection-head.ts";
+import { projectionForward } from "../core/projection-head.ts";
 
 // ==========================================================================
 // Intent Projection
@@ -568,10 +570,14 @@ export function scoreNodesTensorDirect(
   intentEmbedding: number[],
   tensorParams: TensorScoringParams,
   config: SHGATConfig,
+  projectionParams?: ProjectionHeadTFParams,
 ): NodeScore[] {
   if (nodeIds.length === 0) return [];
 
   const { numHeads } = config;
+  const useProj = config.useProjectionHead && projectionParams;
+  const alpha = config.projectionBlendAlpha ?? 0.5;
+  const projTemp = config.projectionTemperature ?? 0.07;
 
   // All computation inside tidy() for automatic tensor cleanup
   const allScores = tidy(() => {
@@ -610,18 +616,47 @@ export function scoreNodesTensorDirect(
     );
     const scoresPerHead = tf.transpose(similarity) as tf.Tensor2D;
 
-    return scoresPerHead.arraySync() as number[][];
+    // 6. Compute mean K-head score per node → [numNodes]
+    const kheadMean = tf.mean(scoresPerHead, 1) as tf.Tensor1D;
+
+    // 7. Optionally blend with projection head scores
+    if (useProj) {
+      const intentForProj = intentTensor.expandDims(0) as tf.Tensor2D; // [1, embDim]
+      const z_intent = projectionForward(intentForProj, projectionParams!);
+      const z_nodes = projectionForward(embeddingsTensor, projectionParams!);
+      // dot(z_intent, z_nodes.T) / temperature → [1, N] → squeeze → [N]
+      const projScores = tf.div(
+        tf.matMul(z_intent, z_nodes, false, true),
+        projTemp,
+      ).squeeze([0]) as tf.Tensor1D;
+
+      // Blend: (1-alpha) * khead + alpha * projection
+      const blended = tf.add(
+        tf.mul(1 - alpha, kheadMean),
+        tf.mul(alpha, projScores),
+      ) as tf.Tensor1D;
+
+      // Return [numNodes, numHeads+1] where last col is blended score
+      // But for compatibility, return [numNodes, numHeads] (head scores) + blended as separate
+      return {
+        headScores: scoresPerHead.arraySync() as number[][],
+        finalScores: blended.arraySync() as number[],
+      };
+    }
+
+    return {
+      headScores: scoresPerHead.arraySync() as number[][],
+      finalScores: kheadMean.arraySync() as number[],
+    };
   });
 
-  // 6. Build results with metadata
+  // Build results with metadata
   const results: NodeScore[] = [];
   for (let i = 0; i < nodeIds.length; i++) {
-    const headScores = allScores[i];
-    const avgScore = headScores.reduce((a, b) => a + b, 0) / numHeads;
     results.push({
       nodeId: nodeIds[i],
-      score: avgScore,
-      headScores,
+      score: allScores.finalScores[i],
+      headScores: allScores.headScores[i],
       level: levels[i],
     });
   }

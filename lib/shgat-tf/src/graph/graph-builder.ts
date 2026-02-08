@@ -168,7 +168,7 @@ export class GraphBuilder {
   /**
    * Get all descendant IDs of a node (transitive)
    */
-  getDescendants(id: string, visited = new Set<string>()): string[] {
+  getDescendants(id: string, visited: Set<string> = new Set<string>()): string[] {
     if (visited.has(id)) return [];
     visited.add(id);
 
