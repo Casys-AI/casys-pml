@@ -4,11 +4,18 @@
  * @module lib/std/types
  */
 
+// Import MCP Apps types from lib/server
+import type { McpUiToolMeta, MCPToolMeta } from "@casys/mcp-server";
+
+// Re-export for convenience
+export type { McpUiToolMeta, MCPToolMeta };
+
 /** MCP Tool definition */
 export interface MCPTool {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  _meta?: MCPToolMeta;
 }
 
 /** MCP Client interface */
@@ -19,6 +26,21 @@ export interface MCPClientBase {
   listTools(): Promise<MCPTool[]>;
   callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
   disconnect(): Promise<void>;
+}
+
+/** MCP Tool in wire format (with optional UI metadata) */
+export interface MCPToolWireFormat {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  _meta?: {
+    ui?: {
+      resourceUri: string;
+      visibility?: Array<"model" | "app">;
+      emits?: string[];
+      accepts?: string[];
+    };
+  };
 }
 
 /** Tool category identifier */
@@ -90,6 +112,8 @@ export interface MiniTool {
   category: ToolCategory;
   inputSchema: Record<string, unknown>;
   handler: MiniToolHandler;
+  /** MCP Apps metadata for UI association (SEP-1865) */
+  _meta?: MCPToolMeta;
 }
 
 /** Helper to create a tool with type safety */
@@ -99,6 +123,11 @@ export function defineTool(
   category: ToolCategory,
   inputSchema: Record<string, unknown>,
   handler: (args: Record<string, unknown>) => Promise<unknown> | unknown,
+  meta?: MCPToolMeta,
 ): MiniTool {
-  return { name, description, category, inputSchema, handler };
+  const tool: MiniTool = { name, description, category, inputSchema, handler };
+  if (meta) {
+    tool._meta = meta;
+  }
+  return tool;
 }

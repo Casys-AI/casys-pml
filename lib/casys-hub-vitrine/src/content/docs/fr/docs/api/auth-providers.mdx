@@ -1,0 +1,134 @@
+---
+title: Auth Providers
+description: Reference API des presets d'authentification et de JwtAuthProvider.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Fonctions factory pour les fournisseurs d'identite courants, plus le `JwtAuthProvider` bas niveau pour un controle total. Toutes retournent un `AuthProvider` compatible avec `ConcurrentServerOptions.auth.provider`.
+
+## Fonctions factory (presets)
+
+### createGoogleAuthProvider
+
+```typescript
+import { createGoogleAuthProvider } from "@casys/mcp-server";
+
+const provider = createGoogleAuthProvider({
+  audience: string;    // Your server's audience URL
+  resource: string;    // Your server's resource URL
+});
+```
+
+Utilise l'issuer OIDC de Google (`https://accounts.google.com`) et l'endpoint JWKS public.
+
+### createAuth0AuthProvider
+
+```typescript
+import { createAuth0AuthProvider } from "@casys/mcp-server";
+
+const provider = createAuth0AuthProvider({
+  domain: string;              // Auth0 tenant domain (e.g., "my-tenant.auth0.com")
+  audience: string;
+  resource: string;
+  scopesSupported?: string[];  // Scopes your server recognizes
+});
+```
+
+### createGitHubAuthProvider
+
+```typescript
+import { createGitHubAuthProvider } from "@casys/mcp-server";
+
+const provider = createGitHubAuthProvider({
+  audience: string;
+  resource: string;
+});
+```
+
+Pour les tokens OIDC de GitHub Actions. Utilise `https://token.actions.githubusercontent.com` comme issuer.
+
+### createOIDCAuthProvider
+
+```typescript
+import { createOIDCAuthProvider } from "@casys/mcp-server";
+
+const provider = createOIDCAuthProvider({
+  issuer: string;                      // OIDC issuer URL
+  audience: string;
+  resource: string;
+  authorizationServers?: string[];     // Default: [issuer]
+  scopesSupported?: string[];
+});
+```
+
+Fournisseur OIDC generique. L'URI JWKS est derivee automatiquement du `.well-known/openid-configuration` de l'issuer.
+
+<Aside type="tip">
+  Pas sur de quel preset utiliser ? Consultez le [Guide d'authentification](/fr/docs/guides/auth/) pour des exemples d'utilisation avec chaque fournisseur.
+</Aside>
+
+## JwtAuthProvider
+
+Pour un controle total sur la validation JWT. A utiliser quand les presets ne couvrent pas votre fournisseur d'identite :
+
+```typescript
+import { JwtAuthProvider } from "@casys/mcp-server";
+
+const provider = new JwtAuthProvider({
+  issuer: string;
+  audience: string;
+  resource: string;
+  authorizationServers: string[];
+  jwksUri?: string;            // Derived from issuer if omitted
+  scopesSupported?: string[];
+});
+```
+
+### verifyToken
+
+```typescript
+const authInfo = await provider.verifyToken(token: string);
+```
+
+Retourne un objet `AuthInfo` en cas de succes, ou `null` si le token est invalide :
+
+```typescript
+interface AuthInfo {
+  subject: string;                     // Token "sub" claim
+  clientId?: string;                   // Token "client_id" or "azp" claim
+  scopes: string[];                    // Parsed from "scope" claim (space-separated)
+  claims: Record<string, unknown>;     // All token claims
+  expiresAt: Date;                     // Token expiry
+}
+```
+
+## Chargeur de config
+
+Pour la distribution binaire — charge la config d'auth depuis des fichiers YAML et des variables d'environnement au runtime.
+
+### loadAuthConfig
+
+```typescript
+import { loadAuthConfig } from "@casys/mcp-server";
+
+const config = await loadAuthConfig();
+// AuthConfig | null
+```
+
+Charge automatiquement depuis `mcp-server.yaml` + variables `MCP_AUTH_*`. Retourne `null` si aucune configuration n'est trouvee (l'auth reste desactivee).
+
+### createAuthProviderFromConfig
+
+```typescript
+import { createAuthProviderFromConfig } from "@casys/mcp-server";
+
+const provider = createAuthProviderFromConfig(config: AuthConfig);
+// Returns the appropriate AuthProvider based on config.provider
+```
+
+## Voir aussi
+
+- [Authentification (OAuth2)](/fr/docs/guides/auth/) — Guide d'utilisation avec presets, verification des scopes, et RFC 9728
+- [Configuration (YAML)](/fr/docs/guides/configuration/) — Config d'auth par fichier avec surcharge env
+- [API ConcurrentMCPServer](/fr/docs/api/concurrent-mcp-server/) — `AuthOptions` dans le constructeur

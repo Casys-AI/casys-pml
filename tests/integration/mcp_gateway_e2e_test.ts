@@ -139,7 +139,7 @@ Deno.test({
       assert(listResult.tools.length > 0);
 
       // Verify workflow tool is present (renamed in Story 2.5-4)
-      const workflowTool = listResult.tools.find((t: MCPTool) => t.name === "pml:execute_dag");
+      const workflowTool = listResult.tools.find((t: MCPTool) => t.name === "execute_dag");
       assertExists(workflowTool);
 
       // 5. Test call_tool for single tool (simulating Claude Code calling a tool)
@@ -161,7 +161,7 @@ Deno.test({
       // 6. Test workflow execution (renamed in Story 2.5-4)
       const workflowResult = await handleCallTool({
         params: {
-          name: "pml:execute_dag",
+          name: "execute_dag",
           arguments: {
             workflow: {
               tasks: [
@@ -253,11 +253,11 @@ Deno.test({
 });
 
 // =============================================================================
-// Story 10.6: pml:discover Integration Tests (AC11)
+// Story 10.6: discover Integration Tests (AC11)
 // =============================================================================
 
 Deno.test({
-  name: "MCP Gateway E2E - pml:discover via gateway (Story 10.6 AC11)",
+  name: "MCP Gateway E2E - discover via gateway (Story 10.6 AC11)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -292,11 +292,11 @@ Deno.test({
         mcpClients,
       );
 
-      // Test pml:discover tool via handleCallTool
+      // Test discover tool via handleCallTool
       const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
       const discoverResult = await handleCallTool({
         params: {
-          name: "pml:discover",
+          name: "discover",
           arguments: {
             intent: "test tool for testing",
             limit: 5,
@@ -327,7 +327,7 @@ Deno.test({
         assert(firstResult.score >= 0 && firstResult.score <= 1);
       }
 
-      console.log("✓ pml:discover E2E test completed successfully");
+      console.log("✓ discover E2E test completed successfully");
     } finally {
       await db.close();
     }
@@ -337,7 +337,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "MCP Gateway E2E - pml:discover with filter type (Story 10.6 AC11)",
+  name: "MCP Gateway E2E - discover with filter type (Story 10.6 AC11)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -376,7 +376,7 @@ Deno.test({
       // Test filter type = "tool"
       const toolOnlyResult = await handleCallTool({
         params: {
-          name: "pml:discover",
+          name: "discover",
           arguments: {
             intent: "test",
             filter: { type: "tool" },
@@ -392,7 +392,7 @@ Deno.test({
         assertEquals(result.type, "tool");
       }
 
-      console.log("✓ pml:discover filter test completed successfully");
+      console.log("✓ discover filter test completed successfully");
     } finally {
       await db.close();
     }
@@ -403,7 +403,7 @@ Deno.test({
 
 Deno.test({
   name:
-    "MCP Gateway E2E - deprecated pml:search_tools still works (Story 10.6 AC11 backward compat)",
+    "MCP Gateway E2E - deprecated search_tools still works (Story 10.6 AC11 backward compat)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -439,10 +439,10 @@ Deno.test({
 
       const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
 
-      // Test deprecated pml:search_tools still works (backward compatibility)
+      // Test deprecated search_tools still works (backward compatibility)
       const searchResult = await handleCallTool({
         params: {
-          name: "pml:search_tools",
+          name: "search_tools",
           arguments: {
             query: "test tool",
             limit: 5,
@@ -460,7 +460,7 @@ Deno.test({
       assertExists(response.tools);
       assert(Array.isArray(response.tools));
 
-      console.log("✓ Deprecated pml:search_tools backward compat test completed");
+      console.log("✓ Deprecated search_tools backward compat test completed");
     } finally {
       await db.close();
     }
@@ -471,7 +471,7 @@ Deno.test({
 
 Deno.test({
   name:
-    "MCP Gateway E2E - deprecated pml:search_capabilities still works (Story 10.6 AC11 backward compat)",
+    "MCP Gateway E2E - deprecated search_capabilities still works (Story 10.6 AC11 backward compat)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -504,10 +504,10 @@ Deno.test({
 
       const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
 
-      // Test deprecated pml:search_capabilities still works
+      // Test deprecated search_capabilities still works
       const searchResult = await handleCallTool({
         params: {
-          name: "pml:search_capabilities",
+          name: "search_capabilities",
           arguments: {
             intent: "create an issue",
           },
@@ -524,7 +524,7 @@ Deno.test({
       assertExists(response.capabilities);
       assert(Array.isArray(response.capabilities));
 
-      console.log("✓ Deprecated pml:search_capabilities backward compat test completed");
+      console.log("✓ Deprecated search_capabilities backward compat test completed");
     } finally {
       await db.close();
     }
@@ -534,7 +534,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "MCP Gateway E2E - pml:discover returns error for missing intent (Story 10.6 AC11)",
+  name: "MCP Gateway E2E - discover returns error for missing intent (Story 10.6 AC11)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -563,10 +563,10 @@ Deno.test({
 
       const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
 
-      // Test pml:discover without intent parameter
+      // Test discover without intent parameter
       const errorResult = await handleCallTool({
         params: {
-          name: "pml:discover",
+          name: "discover",
           arguments: {},
         },
       });
@@ -577,7 +577,7 @@ Deno.test({
       assertExists(response.error);
       assert(response.error.includes("intent"));
 
-      console.log("✓ pml:discover error handling test completed");
+      console.log("✓ discover error handling test completed");
     } finally {
       await db.close();
     }
@@ -587,11 +587,11 @@ Deno.test({
 });
 
 // =============================================================================
-// Story 10.7: pml:execute Integration Tests (AC11)
+// Story 10.7: execute Integration Tests (AC11)
 // =============================================================================
 
 Deno.test({
-  name: "MCP Gateway E2E - pml:execute Mode Direct via gateway (Story 10.7 AC11)",
+  name: "MCP Gateway E2E - execute Mode Direct via gateway (Story 10.7 AC11)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -645,7 +645,7 @@ Deno.test({
       // Test Mode Direct: intent + code
       const directResult = await handleCallTool({
         params: {
-          name: "pml:execute",
+          name: "execute",
           arguments: {
             intent: "Read a test file and return its content",
             code: `
@@ -674,7 +674,7 @@ Deno.test({
         assertExists(response.status);
       }
 
-      console.log("✓ pml:execute Mode Direct E2E test completed");
+      console.log("✓ execute Mode Direct E2E test completed");
     } finally {
       await db.close();
     }
@@ -684,7 +684,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "MCP Gateway E2E - pml:execute Mode Suggestion returns suggestions (Story 10.7 AC11)",
+  name: "MCP Gateway E2E - execute Mode Suggestion returns suggestions (Story 10.7 AC11)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -736,7 +736,7 @@ Deno.test({
       // Test Mode Suggestion: intent only (no code)
       const suggestionResult = await handleCallTool({
         params: {
-          name: "pml:execute",
+          name: "execute",
           arguments: {
             intent: "test something with a tool",
           },
@@ -761,7 +761,7 @@ Deno.test({
       assertExists(response.executionTimeMs);
       assert(typeof response.executionTimeMs === "number");
 
-      console.log("✓ pml:execute Mode Suggestion E2E test completed");
+      console.log("✓ execute Mode Suggestion E2E test completed");
     } finally {
       await db.close();
     }
@@ -771,7 +771,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "MCP Gateway E2E - pml:execute returns error for missing intent (Story 10.7 AC11)",
+  name: "MCP Gateway E2E - execute returns error for missing intent (Story 10.7 AC11)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -800,10 +800,10 @@ Deno.test({
 
       const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
 
-      // Test pml:execute without intent parameter
+      // Test execute without intent parameter
       const errorResult = await handleCallTool({
         params: {
-          name: "pml:execute",
+          name: "execute",
           arguments: {},
         },
       });
@@ -814,7 +814,7 @@ Deno.test({
       assertExists(response.error);
       assert(response.error.includes("intent"));
 
-      console.log("✓ pml:execute error handling test completed");
+      console.log("✓ execute error handling test completed");
     } finally {
       await db.close();
     }
@@ -824,7 +824,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "MCP Gateway E2E - deprecated pml:execute_dag still works (Story 10.7 backward compat)",
+  name: "MCP Gateway E2E - deprecated execute_dag still works (Story 10.7 backward compat)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -860,11 +860,11 @@ Deno.test({
 
       const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
 
-      // Test deprecated pml:execute_dag still works
+      // Test deprecated execute_dag still works
       // Note: per_layer_validation: false to get immediate completion (not layer_complete)
       const dagResult = await handleCallTool({
         params: {
-          name: "pml:execute_dag",
+          name: "execute_dag",
           arguments: {
             workflow: {
               tasks: [
@@ -900,7 +900,7 @@ Deno.test({
         assertExists(response.results);
       }
 
-      console.log("✓ Deprecated pml:execute_dag backward compat test completed");
+      console.log("✓ Deprecated execute_dag backward compat test completed");
     } finally {
       await db.close();
     }
@@ -910,7 +910,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "MCP Gateway E2E - deprecated pml:execute_code still works (Story 10.7 backward compat)",
+  name: "MCP Gateway E2E - deprecated execute_code still works (Story 10.7 backward compat)",
   async fn() {
     const db = createDefaultClient();
     await db.connect();
@@ -939,10 +939,10 @@ Deno.test({
 
       const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
 
-      // Test deprecated pml:execute_code still works
+      // Test deprecated execute_code still works
       const codeResult = await handleCallTool({
         params: {
-          name: "pml:execute_code",
+          name: "execute_code",
           arguments: {
             code: "return 42;",
           },
@@ -958,7 +958,7 @@ Deno.test({
       const response = JSON.parse(codeResult.content[0].text);
       assertExists(response);
 
-      console.log("✓ Deprecated pml:execute_code backward compat test completed");
+      console.log("✓ Deprecated execute_code backward compat test completed");
     } finally {
       await db.close();
     }

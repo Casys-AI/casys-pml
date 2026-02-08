@@ -43,6 +43,13 @@ async function setupTestDb(): Promise<PGliteClient> {
   const runner = new MigrationRunner(db);
   await runner.runUp(getAllMigrations());
 
+  // Insert test users required by fk_execution_trace_user FK constraint (migration 039)
+  for (const userId of [TEST_USER_ID, USER_ALICE_ID, USER_BOB_ID, USER_TO_DELETE_ID, OTHER_USER_ID]) {
+    await db.exec(
+      `INSERT INTO users (id, username) VALUES ('${userId}', 'test-user') ON CONFLICT (id) DO NOTHING`,
+    );
+  }
+
   return db;
 }
 

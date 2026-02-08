@@ -27,6 +27,7 @@ import {
 // Import REST API route handlers
 import {
   handleCapabilitiesRoutes,
+  handleCatalogRoutes,
   handleEmergenceRoutes,
   handleGraphRoutes,
   handleMcpRegistryRoutes,
@@ -34,6 +35,7 @@ import {
   handleRoutingRoutes,
   handleToolsRoutes,
   handleTracesRoutes,
+  handleUiResourcesRoutes,
 } from "../../api/mod.ts";
 
 // Package session management
@@ -414,6 +416,40 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
     const corsHdrs = c.get("corsHeaders");
     const url = new URL(c.req.raw.url);
     const response = await handleTracesRoutes(c.req.raw, url, routeCtx, corsHdrs);
+    return response || c.json({ error: "Not found" }, 404);
+  });
+
+  // UI Resources API (Story 16.6: MCP Apps UI fetching)
+  app.get("/api/ui/resource", async (c) => {
+    const routeCtx = c.get("routeCtx");
+    const corsHdrs = c.get("corsHeaders");
+    const url = new URL(c.req.raw.url);
+    const response = await handleUiResourcesRoutes(c.req.raw, url, routeCtx, corsHdrs);
+    return response || c.json({ error: "Not found" }, 404);
+  });
+
+  // Catalog API (public catalog entries, tool detail, capability detail)
+  app.get("/api/catalog/entries", async (c) => {
+    const routeCtx = c.get("routeCtx");
+    const corsHdrs = c.get("corsHeaders");
+    const url = new URL(c.req.raw.url);
+    const response = await handleCatalogRoutes(c.req.raw, url, routeCtx, corsHdrs);
+    return response || c.json({ error: "Not found" }, 404);
+  });
+
+  app.get("/api/catalog/tool/*", async (c) => {
+    const routeCtx = c.get("routeCtx");
+    const corsHdrs = c.get("corsHeaders");
+    const url = new URL(c.req.raw.url);
+    const response = await handleCatalogRoutes(c.req.raw, url, routeCtx, corsHdrs);
+    return response || c.json({ error: "Not found" }, 404);
+  });
+
+  app.get("/api/catalog/capability/*", async (c) => {
+    const routeCtx = c.get("routeCtx");
+    const corsHdrs = c.get("corsHeaders");
+    const url = new URL(c.req.raw.url);
+    const response = await handleCatalogRoutes(c.req.raw, url, routeCtx, corsHdrs);
     return response || c.json({ error: "Not found" }, 404);
   });
 

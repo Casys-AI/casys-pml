@@ -1,0 +1,200 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    title: 'Batteries',
+    titleAccent: 'Included',
+    subtitle: 'Everything between the request and your handler -- handled.',
+    features: [
+      { icon: 'swap_horiz', name: 'Dual Transport', desc: 'STDIO + Streamable HTTP. Same code.' },
+      { icon: 'layers', name: 'Middleware Pipeline', desc: 'Composable onion model, like Koa.' },
+      { icon: 'shield', name: 'OAuth2 Auth', desc: 'JWT/Bearer + RFC 9728 metadata.' },
+      { icon: 'key', name: 'OIDC Presets', desc: 'GitHub, Google, Auth0 -- one line.' },
+      { icon: 'settings', name: 'YAML + Env Config', desc: 'File config, env overrides at deploy.' },
+      { icon: 'speed', name: 'Concurrency', desc: 'Backpressure: sleep, queue, or reject.' },
+      { icon: 'timer', name: 'Rate Limiting', desc: 'Sliding window, per-client isolation.' },
+      { icon: 'check_circle', name: 'Schema Validation', desc: 'JSON Schema via ajv at registration.' },
+      { icon: 'monitoring', name: 'Observability', desc: 'OTel spans + Prometheus /metrics.' },
+      { icon: 'widgets', name: 'MCP Apps', desc: 'Serve interactive UIs via ui:// scheme.' },
+    ],
+  },
+  fr: {
+    title: 'Tout',
+    titleAccent: 'Inclus',
+    subtitle: 'Tout ce qui se passe entre la requete et votre handler -- c\'est gere.',
+    features: [
+      { icon: 'swap_horiz', name: 'Double Transport', desc: 'STDIO + HTTP Streamable. Meme code.' },
+      { icon: 'layers', name: 'Pipeline Middleware', desc: 'Modele onion composable, a la Koa.' },
+      { icon: 'shield', name: 'Auth OAuth2', desc: 'JWT/Bearer + metadonnees RFC 9728.' },
+      { icon: 'key', name: 'Presets OIDC', desc: 'GitHub, Google, Auth0 -- une ligne.' },
+      { icon: 'settings', name: 'Config YAML + Env', desc: 'Fichier config, override env au deploy.' },
+      { icon: 'speed', name: 'Concurrence', desc: 'Backpressure : sleep, queue ou reject.' },
+      { icon: 'timer', name: 'Rate Limiting', desc: 'Fenetre glissante, isolation par client.' },
+      { icon: 'check_circle', name: 'Validation Schema', desc: 'JSON Schema via ajv a l\'enregistrement.' },
+      { icon: 'monitoring', name: 'Observabilite', desc: 'Spans OTel + Prometheus /metrics.' },
+      { icon: 'widgets', name: 'MCP Apps', desc: 'UIs interactives via le scheme ui://.' },
+    ],
+  },
+  zh: {
+    title: '开箱',
+    titleAccent: '即用',
+    subtitle: '请求到处理器之间的一切——都已搞定。',
+    features: [
+      { icon: 'swap_horiz', name: '双传输', desc: 'STDIO + Streamable HTTP，同一代码。' },
+      { icon: 'layers', name: '中间件管道', desc: '类似 Koa 的洋葱模型。' },
+      { icon: 'shield', name: 'OAuth2 认证', desc: 'JWT/Bearer + RFC 9728 元数据。' },
+      { icon: 'key', name: 'OIDC 预设', desc: 'GitHub、Google、Auth0——一行代码。' },
+      { icon: 'settings', name: 'YAML + 环境变量', desc: '文件配置，部署时环境变量覆盖。' },
+      { icon: 'speed', name: '并发控制', desc: '背压策略：sleep、queue 或 reject。' },
+      { icon: 'timer', name: '速率限制', desc: '滑动窗口，按客户端隔离。' },
+      { icon: 'check_circle', name: 'Schema 验证', desc: '注册时通过 ajv 编译 JSON Schema。' },
+      { icon: 'monitoring', name: '可观测性', desc: 'OTel span + Prometheus /metrics。' },
+      { icon: 'widgets', name: 'MCP Apps', desc: '通过 ui:// scheme 提供交互式 UI。' },
+    ],
+  },
+} as const;
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="features">
+  <div class="container">
+    <div class="section-header">
+      <h2>{t.title} <span class="accent-text">{t.titleAccent}</span></h2>
+      <p class="section-subtitle">{t.subtitle}</p>
+    </div>
+    <ul class="features-list">
+      {t.features.map((f) => (
+        <li class="feature-item">
+          <span class="material-symbols-rounded feature-icon">{f.icon}</span>
+          <span class="feature-name">{f.name}</span>
+          <span class="feature-desc">{f.desc}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  #features {
+    position: relative;
+    padding: 56px 0 64px;
+    overflow: hidden;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+
+  .section-header {
+    margin-bottom: 28px;
+    max-width: 600px;
+  }
+
+  .section-header h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .features-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--md-sys-color-outline-variant);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .feature-item {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    row-gap: 2px;
+    padding: 16px 20px;
+    background: var(--md-sys-color-surface-container-lowest);
+    transition: background 150ms ease-out;
+  }
+
+  .feature-item:hover {
+    background: var(--md-sys-color-surface-container);
+  }
+
+  .feature-icon {
+    grid-row: 1 / 3;
+    align-self: center;
+    font-size: 22px;
+    color: var(--md-sys-color-primary);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .feature-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    line-height: 1.3;
+  }
+
+  .feature-desc {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.4;
+  }
+
+  @media (max-width: 768px) {
+    #features { padding: 48px 0; }
+    .container { padding: 0 20px; }
+    .features-list { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 380px) {
+    .container { padding: 0 14px; }
+  }
+</style>
+
+<style is:global>
+  #features { background: var(--md-sys-color-surface); }
+  html[data-theme="dark"] #features { background: #0d0c0a; }
+
+  html[data-theme="dark"] #features .section-header h2 { color: #f5f0ea; }
+  html[data-theme="dark"] #features .section-subtitle { color: #d5c3b5; }
+
+  html[data-theme="dark"] #features .features-list {
+    background: rgba(255, 184, 111, 0.06);
+    border-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] #features .feature-item {
+    background: #0d0c0a;
+  }
+
+  html[data-theme="dark"] #features .feature-item:hover {
+    background: #1a1815;
+  }
+
+  html[data-theme="dark"] #features .feature-icon { color: #FFB86F; }
+  html[data-theme="dark"] #features .feature-name { color: #f5f0ea; }
+  html[data-theme="dark"] #features .feature-desc { color: #a89a8c; }
+</style>

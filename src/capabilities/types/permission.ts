@@ -67,11 +67,8 @@ export type PermissionSet =
  */
 export function permissionSetToConfig(set: PermissionSet): PermissionConfig {
   // 'trusted' maps to mcp-standard with auto approval
-  const scope: PermissionScope = set === "trusted" ? "mcp-standard" : set;
-  return {
-    scope,
-    approvalMode: "auto",
-  };
+  const scope: PermissionScope = set === "trusted" ? "mcp-standard" : set as PermissionScope;
+  return { scope, approvalMode: "auto" };
 }
 
 /**

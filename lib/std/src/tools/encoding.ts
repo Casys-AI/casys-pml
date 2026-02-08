@@ -54,6 +54,13 @@ export const encodingTools: MiniTool[] = [
       },
       required: ["text"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ text }) => {
       const result = (text as string).replace(/[a-zA-Z]/g, (char) => {
         const code = char.charCodeAt(0);
@@ -75,6 +82,13 @@ export const encodingTools: MiniTool[] = [
         shift: { type: "number", description: "Shift amount (1-25, negative to decode)" },
       },
       required: ["text", "shift"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ text, shift }) => {
       const s = ((shift as number) % 26 + 26) % 26; // Normalize to 0-25
@@ -130,6 +144,13 @@ export const encodingTools: MiniTool[] = [
 
       return { text: input, morse };
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
   },
   {
     name: "encode_nato",
@@ -179,6 +200,13 @@ export const encodingTools: MiniTool[] = [
 
       return { text: input, nato };
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
   },
   {
     name: "encode_binary",
@@ -215,6 +243,13 @@ export const encodingTools: MiniTool[] = [
         .join(sep);
 
       return { text: input, binary };
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
   },
   {
@@ -262,6 +297,13 @@ export const encodingTools: MiniTool[] = [
 
       return { text: input, hex };
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
   },
   {
     name: "encode_punycode",
@@ -303,6 +345,13 @@ export const encodingTools: MiniTool[] = [
       } catch (e) {
         return { error: (e as Error).message };
       }
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
   },
   {
@@ -384,6 +433,13 @@ export const encodingTools: MiniTool[] = [
 
       return { text: input, base32 };
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
   },
   {
     name: "encode_url",
@@ -433,6 +489,13 @@ export const encodingTools: MiniTool[] = [
       }
 
       return { original: input, encoded, mode };
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
   },
   {
@@ -535,5 +598,201 @@ export const encodingTools: MiniTool[] = [
 
       return { original: input, encoded, mode };
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
+  },
+  {
+    name: "base64_image_preview",
+    description:
+      "Decode and analyze a base64-encoded image. Detects MIME type from magic bytes (PNG, JPEG, GIF, WebP), validates the image, extracts dimensions, and returns a data URI for display. Keywords: base64 image, decode image, image preview, image metadata, base64 decode, image analyze.",
+    category: "encoding",
+    inputSchema: {
+      type: "object",
+      properties: {
+        data: {
+          type: "string",
+          description: "Base64 string (with or without data URI prefix like 'data:image/png;base64,')",
+        },
+      },
+      required: ["data"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/image-preview",
+        emits: ["download", "zoom"],
+        accepts: [],
+      },
+    },
+    handler: ({ data }) => {
+      const input = data as string;
+
+      try {
+        // Strip data URI prefix if present
+        let base64Data = input;
+        let declaredMimeType: string | null = null;
+
+        const dataUriMatch = input.match(/^data:([^;]+);base64,(.+)$/);
+        if (dataUriMatch) {
+          declaredMimeType = dataUriMatch[1];
+          base64Data = dataUriMatch[2];
+        }
+
+        // Decode base64 to binary
+        let binaryData: Uint8Array;
+        try {
+          // Use atob in browser/Deno
+          const binaryString = atob(base64Data);
+          binaryData = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            binaryData[i] = binaryString.charCodeAt(i);
+          }
+        } catch {
+          return {
+            valid: false,
+            mimeType: "",
+            size: 0,
+            dataUri: "",
+            error: "Invalid base64 encoding",
+          };
+        }
+
+        // Detect MIME type from magic bytes
+        const detectedMimeType = detectImageMimeType(binaryData);
+        if (!detectedMimeType) {
+          return {
+            valid: false,
+            mimeType: declaredMimeType || "unknown",
+            size: binaryData.length,
+            dataUri: "",
+            error: "Not a recognized image format (PNG, JPEG, GIF, WebP)",
+          };
+        }
+
+        // Use detected MIME type (more reliable than declared)
+        const mimeType = detectedMimeType;
+
+        // Try to extract dimensions
+        const dimensions = extractImageDimensions(binaryData, mimeType);
+
+        // Build data URI for display
+        const dataUri = `data:${mimeType};base64,${base64Data}`;
+
+        return {
+          valid: true,
+          mimeType,
+          ...(dimensions.width ? { width: dimensions.width } : {}),
+          ...(dimensions.height ? { height: dimensions.height } : {}),
+          size: binaryData.length,
+          dataUri,
+        };
+      } catch (e) {
+        return {
+          valid: false,
+          mimeType: "",
+          size: 0,
+          dataUri: "",
+          error: (e as Error).message,
+        };
+      }
+    },
   },
 ];
+
+/**
+ * Detect image MIME type from magic bytes
+ */
+function detectImageMimeType(data: Uint8Array): string | null {
+  if (data.length < 4) return null;
+
+  // PNG: \x89PNG (89 50 4E 47)
+  if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4E && data[3] === 0x47) {
+    return "image/png";
+  }
+
+  // JPEG: \xFF\xD8\xFF
+  if (data[0] === 0xFF && data[1] === 0xD8 && data[2] === 0xFF) {
+    return "image/jpeg";
+  }
+
+  // GIF: GIF89a or GIF87a
+  if (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46 &&
+      data[3] === 0x38 && (data[4] === 0x39 || data[4] === 0x37) && data[5] === 0x61) {
+    return "image/gif";
+  }
+
+  // WebP: RIFF....WEBP
+  if (data.length >= 12 &&
+      data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46 &&
+      data[8] === 0x57 && data[9] === 0x45 && data[10] === 0x42 && data[11] === 0x50) {
+    return "image/webp";
+  }
+
+  return null;
+}
+
+/**
+ * Extract image dimensions from binary data
+ */
+function extractImageDimensions(data: Uint8Array, mimeType: string): { width?: number; height?: number } {
+  try {
+    if (mimeType === "image/png" && data.length >= 24) {
+      // PNG: IHDR chunk at offset 16, width at 16-19, height at 20-23 (big-endian)
+      const width = (data[16] << 24) | (data[17] << 16) | (data[18] << 8) | data[19];
+      const height = (data[20] << 24) | (data[21] << 16) | (data[22] << 8) | data[23];
+      return { width, height };
+    }
+
+    if (mimeType === "image/jpeg") {
+      // JPEG: Find SOF0/SOF2 marker (FF C0 or FF C2), dimensions follow
+      for (let i = 0; i < data.length - 9; i++) {
+        if (data[i] === 0xFF && (data[i + 1] === 0xC0 || data[i + 1] === 0xC2)) {
+          const height = (data[i + 5] << 8) | data[i + 6];
+          const width = (data[i + 7] << 8) | data[i + 8];
+          return { width, height };
+        }
+      }
+    }
+
+    if (mimeType === "image/gif" && data.length >= 10) {
+      // GIF: Width at 6-7, height at 8-9 (little-endian)
+      const width = data[6] | (data[7] << 8);
+      const height = data[8] | (data[9] << 8);
+      return { width, height };
+    }
+
+    if (mimeType === "image/webp" && data.length >= 30) {
+      // WebP VP8: dimensions at different offsets depending on format
+      // Simple approach: look for VP8 chunk
+      for (let i = 12; i < data.length - 10; i++) {
+        if (data[i] === 0x56 && data[i + 1] === 0x50 && data[i + 2] === 0x38) {
+          // VP8 (lossy) - at offset +10 from VP8, width and height are 14-bit values
+          if (data[i + 3] === 0x20 && data.length > i + 14) {
+            // VP8 bitstream
+            const w = ((data[i + 10] | (data[i + 11] << 8)) & 0x3FFF);
+            const h = ((data[i + 12] | (data[i + 13] << 8)) & 0x3FFF);
+            if (w > 0 && h > 0) return { width: w, height: h };
+          }
+          // VP8L (lossless) - signature 0x2F, then width-1 and height-1
+          if (data[i + 3] === 0x4C && data.length > i + 9) {
+            const b0 = data[i + 5];
+            const b1 = data[i + 6];
+            const b2 = data[i + 7];
+            const b3 = data[i + 8];
+            const width = 1 + ((b1 & 0x3F) << 8 | b0);
+            const height = 1 + ((b3 & 0xF) << 10 | b2 << 2 | (b1 >> 6));
+            if (width > 0 && height > 0) return { width, height };
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore dimension extraction errors
+  }
+
+  return {};
+}

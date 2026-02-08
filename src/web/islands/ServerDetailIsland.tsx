@@ -1,15 +1,22 @@
 /**
- * ServerDetailIsland - Server tools explorer
+ * ServerDetailIsland - Node detail explorer
  *
- * Split-pane layout:
- * - Left: tools list (searchable)
- * - Right: selected tool schema viewer (Swagger-like)
+ * New compact design:
+ * - Top: breadcrumb + node info + search
+ * - Middle: horizontal chip grid for tools (grouped by prefix)
+ * - Bottom: selected tool schema viewer
  *
  * @module web/islands/ServerDetailIsland
  */
 
-import { useMemo, useState } from "preact/hooks";
-import CatalogLayout from "../components/layout/CatalogLayout.tsx";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import VitrineHeader from "../components/layout/VitrineHeader.tsx";
+import {
+  AppBridge,
+  PostMessageTransport,
+} from "@modelcontextprotocol/ext-apps/app-bridge";
+import { getMockData } from "../data/ui-mock-data.ts";
+import SchemaViewer from "../components/shared/SchemaViewer.tsx";
 
 interface ToolEntry {
   id: string;
@@ -17,6 +24,18 @@ interface ToolEntry {
   description: string | null;
   routing: "local" | "cloud";
   inputSchema: Record<string, unknown> | null;
+  uiMeta: {
+    resourceUri: string;
+    emits?: string[];
+    accepts?: string[];
+  } | null;
+}
+
+interface NodeNavItem {
+  id: string;
+  name: string;
+  icon: string;
+  toolCount: number;
 }
 
 interface ServerDetailIslandProps {
@@ -29,10 +48,11 @@ interface ServerDetailIslandProps {
     avatarUrl?: string;
   } | null;
   isCloudMode?: boolean;
+  allNodes?: NodeNavItem[];
 }
 
-/** Icon for server category */
-function getServerIcon(displayName: string): string {
+/** Icon for node category */
+function getNodeIcon(displayName: string): string {
   const icons: Record<string, string> = {
     Docker: "🐳",
     Git: "📦",
@@ -75,418 +95,492 @@ function getServerIcon(displayName: string): string {
   return icons[displayName] || "🔧";
 }
 
+/** Extract prefix groups from tools (e.g., docker_compose_*, docker_container_*) */
+function extractPrefixGroups(tools: ToolEntry[]): Map<string, ToolEntry[]> {
+  const groups = new Map<string, ToolEntry[]>();
+
+  for (const tool of tools) {
+    // Extract prefix: take first two parts if underscore-separated
+    const parts = tool.name.split("_");
+    const prefix = parts.length >= 2 ? `${parts[0]}_${parts[1]}` : parts[0];
+
+    if (!groups.has(prefix)) {
+      groups.set(prefix, []);
+    }
+    groups.get(prefix)!.push(tool);
+  }
+
+  // Sort groups by size (largest first), then alphabetically
+  return new Map(
+    [...groups.entries()].sort((a, b) => {
+      if (b[1].length !== a[1].length) return b[1].length - a[1].length;
+      return a[0].localeCompare(b[0]);
+    })
+  );
+}
+
 export default function ServerDetailIsland({
-  serverId: _serverId,
+  serverId,
   displayName,
-  description: _description,
+  description,
   tools,
-  user,
-  isCloudMode,
+  user: _user,
+  isCloudMode: _isCloudMode,
+  allNodes = [],
 }: ServerDetailIslandProps) {
-  // Note: serverId and description are passed for future use (breadcrumbs, SEO)
-  void _serverId;
-  void _description;
+  void _user;
+  void _isCloudMode;
 
   const [search, setSearch] = useState("");
   const [selectedTool, setSelectedTool] = useState<ToolEntry | null>(tools[0] || null);
+  const [activePrefix, setActivePrefix] = useState<string | null>(null);
+  const [showNodeNav, setShowNodeNav] = useState(false);
 
-  // Filter tools by search
+  const icon = getNodeIcon(displayName);
+
+  // Find prev/next nodes
+  const currentIndex = allNodes.findIndex((n) => n.id === serverId);
+  const prevNode = currentIndex > 0 ? allNodes[currentIndex - 1] : null;
+  const nextNode = currentIndex < allNodes.length - 1 ? allNodes[currentIndex + 1] : null;
+
+  // Compute prefix groups
+  const prefixGroups = useMemo(() => extractPrefixGroups(tools), [tools]);
+  const prefixes = useMemo(() => [...prefixGroups.keys()], [prefixGroups]);
+
+  // Filter tools by search and active prefix
   const filteredTools = useMemo(() => {
-    if (!search) return tools;
-    const searchLower = search.toLowerCase();
-    return tools.filter(
-      (t) =>
-        t.name.toLowerCase().includes(searchLower) ||
-        (t.description?.toLowerCase().includes(searchLower) ?? false)
-    );
-  }, [tools, search]);
+    let result = tools;
 
-  const icon = getServerIcon(displayName);
+    if (activePrefix) {
+      result = prefixGroups.get(activePrefix) || [];
+    }
 
-  // Sidebar: tools list
-  const sidebar = (
-    <div class="server-sidebar">
-      {/* Server header */}
-      <div class="server-sidebar-header">
-        <a href="/catalog" class="server-back-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
-          </svg>
-          Catalog
-        </a>
-        <div class="server-info">
-          <span class="server-icon">{icon}</span>
-          <div>
-            <h2 class="server-name">{displayName}</h2>
-            <span class="server-count">{tools.length} tools</span>
+    if (search) {
+      const searchLower = search.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.name.toLowerCase().includes(searchLower) ||
+          (t.description?.toLowerCase().includes(searchLower) ?? false)
+      );
+    }
+
+    return result;
+  }, [tools, search, activePrefix, prefixGroups]);
+
+  // Auto-select first tool when filter changes
+  useEffect(() => {
+    if (filteredTools.length > 0) {
+      // Check if current selection is still in filtered list
+      const stillVisible = selectedTool && filteredTools.some(t => t.id === selectedTool.id);
+      if (!stillVisible) {
+        setSelectedTool(filteredTools[0]);
+      }
+    } else {
+      setSelectedTool(null);
+    }
+  }, [activePrefix, search]);
+
+  // Get short name (remove common prefix when prefix is active)
+  const getShortName = (tool: ToolEntry): string => {
+    if (!activePrefix) return tool.name;
+    if (tool.name.startsWith(activePrefix + "_")) {
+      return tool.name.slice(activePrefix.length + 1);
+    }
+    return tool.name;
+  };
+
+  return (
+    <div class="min-h-screen bg-[#0a0908] text-[#f0ede8] font-['Inter',-apple-system,sans-serif] pt-[60px] flex flex-col">
+      {/* Site header */}
+      <VitrineHeader activePage="catalog" />
+
+      {/* Node header bar */}
+      <header class="flex items-center justify-between px-6 py-3 bg-[rgba(15,15,18,0.95)] border-b border-pml-accent/[0.06] sticky top-[60px] z-[90] backdrop-blur-[12px]">
+        <div class="flex items-center gap-2">
+          <a
+            href="/catalog"
+            class="flex items-center justify-center w-7 h-7 rounded-md text-stone-500 no-underline transition-all duration-150 hover:bg-pml-accent/[0.08] hover:text-pml-accent"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+              <path strokeWidth="2" strokeLinecap="round" d="M15 18l-6-6 6-6" />
+            </svg>
+          </a>
+          <div class="flex items-center gap-2 text-[0.8125rem]">
+            <a href="/catalog" class="text-stone-500 no-underline transition-colors duration-150 hover:text-pml-accent">
+              Catalog
+            </a>
+            <span class="text-[#3a3835]">/</span>
+            <button
+              type="button"
+              class="flex items-center gap-1.5 text-[#f0ede8] font-medium bg-transparent border-none cursor-pointer px-2 py-1 -mx-2 -my-1 rounded transition-colors duration-150 hover:bg-pml-accent/[0.08]"
+              onClick={() => setShowNodeNav(!showNodeNav)}
+            >
+              <span class="text-base">{icon}</span>
+              {displayName}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="12" height="12" class="opacity-50">
+                <path strokeWidth="2" strokeLinecap="round" d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
           </div>
+        </div>
+        <div class="flex items-center gap-4">
+          {/* Prev/Next navigation */}
+          <div class="flex items-center gap-2 bg-pml-accent/[0.04] border border-pml-accent/10 rounded-lg p-1">
+            {prevNode ? (
+              <a
+                href={`/catalog/${prevNode.id}`}
+                class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-stone-400 no-underline transition-all duration-150 text-xs hover:bg-pml-accent/[0.12] hover:text-pml-accent"
+                title={prevNode.name}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+                  <path strokeWidth="2.5" strokeLinecap="round" d="M15 18l-6-6 6-6" />
+                </svg>
+                <span class="font-['Geist_Mono',monospace] font-medium max-w-[80px] overflow-hidden text-ellipsis whitespace-nowrap">
+                  {prevNode.name}
+                </span>
+              </a>
+            ) : (
+              <span class="flex items-center gap-1.5 p-1.5 rounded-md text-stone-400 opacity-25 pointer-events-none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+                  <path strokeWidth="2.5" strokeLinecap="round" d="M15 18l-6-6 6-6" />
+                </svg>
+              </span>
+            )}
+            <span class="text-[0.8125rem] font-['Geist_Mono',monospace] font-semibold text-[#f0ede8] px-2 py-1 min-w-[48px] text-center">
+              {currentIndex + 1}<span class="text-stone-500 mx-0.5">/</span>{allNodes.length}
+            </span>
+            {nextNode ? (
+              <a
+                href={`/catalog/${nextNode.id}`}
+                class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-stone-400 no-underline transition-all duration-150 text-xs hover:bg-pml-accent/[0.12] hover:text-pml-accent"
+                title={nextNode.name}
+              >
+                <span class="font-['Geist_Mono',monospace] font-medium max-w-[80px] overflow-hidden text-ellipsis whitespace-nowrap">
+                  {nextNode.name}
+                </span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+                  <path strokeWidth="2.5" strokeLinecap="round" d="M9 6l6 6-6 6" />
+                </svg>
+              </a>
+            ) : (
+              <span class="flex items-center gap-1.5 p-1.5 rounded-md text-stone-400 opacity-25 pointer-events-none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+                  <path strokeWidth="2.5" strokeLinecap="round" d="M9 6l6 6-6 6" />
+                </svg>
+              </span>
+            )}
+          </div>
+          <span class="text-xs font-['Geist_Mono',monospace] text-stone-500 bg-pml-accent/[0.06] px-2.5 py-1 rounded">
+            {tools.length} tools
+          </span>
+        </div>
+      </header>
+
+      {/* Node dropdown navigation */}
+      {showNodeNav && (
+        <div class="fixed top-[108px] left-0 right-0 bg-[#0f0f12] border-b border-pml-accent/10 p-6 z-[89] max-h-[50vh] overflow-y-auto animate-[dropIn_0.15s_ease-out]">
+          <div class="flex flex-wrap gap-1.5">
+            {allNodes.map((node) => (
+              <a
+                key={node.id}
+                href={`/catalog/${node.id}`}
+                class={`inline-flex items-center gap-1 px-2 py-1 text-[0.6875rem] no-underline bg-[#141418] border rounded transition-all duration-[120ms] ${
+                  node.id === serverId
+                    ? "bg-pml-accent/[0.12] border-pml-accent text-pml-accent"
+                    : "text-stone-400 border-pml-accent/[0.06] hover:bg-pml-accent/[0.08] hover:border-pml-accent/20 hover:text-[#f0ede8]"
+                }`}
+              >
+                <span class="text-xs">{node.icon}</span>
+                <span class="font-['Geist_Mono',monospace]">{node.name}</span>
+                <span class="font-['Geist_Mono',monospace] text-[0.5625rem] text-stone-500 bg-pml-accent/[0.06] px-1 py-px rounded-sm">
+                  {node.toolCount}
+                </span>
+              </a>
+            ))}
+          </div>
+          <button
+            type="button"
+            class="block mx-auto mt-3 px-4 py-1.5 text-[0.6875rem] text-stone-500 bg-transparent border border-pml-accent/10 rounded cursor-pointer transition-all duration-150 hover:border-pml-accent/30 hover:text-stone-400"
+            onClick={() => setShowNodeNav(false)}
+          >
+            Close
+          </button>
+        </div>
+      )}
+
+      {/* Node info + search */}
+      <div class="flex items-center justify-between gap-8 px-6 py-4 border-b border-pml-accent/[0.04]">
+        <p class="text-sm text-stone-400 flex-1 leading-relaxed">
+          {description || `Tools for ${displayName.toLowerCase()} operations`}
+        </p>
+        <div class="relative w-[220px] flex-shrink-0">
+          <svg
+            class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500 pointer-events-none"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <circle cx="11" cy="11" r="8" strokeWidth="2" />
+            <path strokeWidth="2" d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+            placeholder="Filter tools..."
+            class="w-full py-1.5 pl-8 pr-2.5 text-xs text-[#f0ede8] bg-[#141418] border border-pml-accent/[0.08] rounded-md outline-none transition-colors duration-150 placeholder:text-stone-500 focus:border-pml-accent/25"
+          />
         </div>
       </div>
 
-      {/* Search */}
-      <div class="server-search-wrapper">
-        <svg class="server-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="11" cy="11" r="8" strokeWidth="2" />
-          <path strokeWidth="2" d="m21 21-4.35-4.35" />
-        </svg>
-        <input
-          type="text"
-          value={search}
-          onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-          placeholder="Search tools..."
-          class="server-search-input"
-        />
-      </div>
+      {/* Prefix filter pills */}
+      {prefixes.length > 1 && (
+        <div class="flex flex-wrap gap-1.5 px-6 py-3 border-b border-pml-accent/[0.04]">
+          <button
+            type="button"
+            class={`px-2.5 py-1 text-[0.6875rem] font-['Geist_Mono',monospace] bg-transparent border rounded cursor-pointer transition-all duration-150 ${
+              !activePrefix
+                ? "bg-pml-accent/10 border-pml-accent text-pml-accent"
+                : "text-stone-500 border-pml-accent/[0.08] hover:border-pml-accent/20 hover:text-stone-400"
+            }`}
+            onClick={() => setActivePrefix(null)}
+          >
+            All ({tools.length})
+          </button>
+          {prefixes.slice(0, 8).map((prefix) => (
+            <button
+              key={prefix}
+              type="button"
+              class={`px-2.5 py-1 text-[0.6875rem] font-['Geist_Mono',monospace] bg-transparent border rounded cursor-pointer transition-all duration-150 ${
+                activePrefix === prefix
+                  ? "bg-pml-accent/10 border-pml-accent text-pml-accent"
+                  : "text-stone-500 border-pml-accent/[0.08] hover:border-pml-accent/20 hover:text-stone-400"
+              }`}
+              onClick={() => setActivePrefix(activePrefix === prefix ? null : prefix)}
+            >
+              {prefix.replace(/_/g, " ")} ({prefixGroups.get(prefix)?.length})
+            </button>
+          ))}
+          {prefixes.length > 8 && (
+            <span class="px-2 py-1 text-[0.6875rem] text-stone-500">
+              +{prefixes.length - 8} more
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Tools list */}
-      <div class="server-tools-list">
+      {/* Tools grid (compact chips) */}
+      <div class="flex flex-wrap gap-1.5 px-6 py-4 min-h-[80px]">
         {filteredTools.map((tool) => (
           <button
             key={tool.id}
             type="button"
-            class={`server-tool-item ${selectedTool?.id === tool.id ? "active" : ""}`}
-            onClick={() => setSelectedTool(tool)}
+            class={`inline-flex items-center gap-1 px-2 py-1 text-[0.6875rem] font-['Geist_Mono',monospace] border rounded cursor-pointer transition-all duration-[120ms] max-w-[180px] whitespace-nowrap overflow-hidden text-ellipsis ${
+              selectedTool?.id === tool.id
+                ? tool.uiMeta?.resourceUri
+                  ? "bg-pml-accent/[0.12] border-cyan-400 text-pml-accent shadow-[0_0_0_1px_rgba(78,205,196,0.2)]"
+                  : "bg-pml-accent/[0.12] border-pml-accent text-pml-accent"
+                : tool.uiMeta?.resourceUri
+                  ? "text-stone-400 bg-[#141418] border-cyan-400/15 hover:bg-pml-accent/[0.06] hover:border-cyan-400/30 hover:text-[#f0ede8]"
+                  : "text-stone-400 bg-[#141418] border-pml-accent/[0.06] hover:bg-pml-accent/[0.06] hover:border-pml-accent/15 hover:text-[#f0ede8]"
+            }`}
+            onClick={() => setSelectedTool(selectedTool?.id === tool.id ? null : tool)}
+            title={tool.description || tool.name}
           >
-            <span class="server-tool-name">{tool.name}</span>
-            <span class="server-tool-routing">
-              {tool.routing === "cloud" ? "☁️" : "💻"}
-            </span>
+            <span class="overflow-hidden text-ellipsis">{getShortName(tool)}</span>
+            {tool.uiMeta?.resourceUri && <span class="text-[0.5rem] text-cyan-400 -ml-px">◉</span>}
+            {tool.routing === "cloud" && <span class="text-[0.625rem] opacity-60">☁</span>}
           </button>
         ))}
         {filteredTools.length === 0 && (
-          <div class="server-tools-empty">No tools match your search</div>
+          <div class="w-full py-8 text-center text-[0.8125rem] text-stone-500">
+            No tools match "{search}"
+          </div>
         )}
       </div>
 
-      <style>
-        {`
-        .server-sidebar {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-        }
-
-        .server-sidebar-header {
-          padding-bottom: 1rem;
-          border-bottom: 1px solid rgba(255, 184, 111, 0.08);
-          margin-bottom: 1rem;
-        }
-
-        .server-back-link {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.375rem;
-          font-size: 0.75rem;
-          color: #6b6560;
-          text-decoration: none;
-          margin-bottom: 1rem;
-          transition: color 0.2s;
-        }
-
-        .server-back-link:hover {
-          color: #FFB86F;
-        }
-
-        .server-back-link svg {
-          width: 14px;
-          height: 14px;
-        }
-
-        .server-info {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .server-icon {
-          font-size: 2rem;
-        }
-
-        .server-name {
-          font-size: 1.125rem;
-          font-weight: 600;
-          color: #f0ede8;
-        }
-
-        .server-count {
-          font-size: 0.75rem;
-          font-family: 'Geist Mono', monospace;
-          color: #6b6560;
-        }
-
-        .server-search-wrapper {
-          position: relative;
-          margin-bottom: 1rem;
-        }
-
-        .server-search-icon {
-          position: absolute;
-          left: 0.75rem;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 14px;
-          height: 14px;
-          color: #6b6560;
-          pointer-events: none;
-        }
-
-        .server-search-input {
-          width: 100%;
-          padding: 0.5rem 0.75rem 0.5rem 2rem;
-          font-size: 0.8125rem;
-          color: #f0ede8;
-          background: #141418;
-          border: 1px solid rgba(255, 184, 111, 0.1);
-          border-radius: 6px;
-          outline: none;
-          transition: border-color 0.2s;
-        }
-
-        .server-search-input::placeholder {
-          color: #6b6560;
-        }
-
-        .server-search-input:focus {
-          border-color: rgba(255, 184, 111, 0.3);
-        }
-
-        .server-tools-list {
-          flex: 1;
-          overflow-y: auto;
-          margin: 0 -1.5rem;
-          padding: 0 0.5rem;
-        }
-
-        .server-tool-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-          padding: 0.625rem 1rem;
-          background: none;
-          border: none;
-          border-left: 2px solid transparent;
-          cursor: pointer;
-          text-align: left;
-          transition: all 0.15s;
-        }
-
-        .server-tool-item:hover {
-          background: rgba(255, 184, 111, 0.03);
-        }
-
-        .server-tool-item.active {
-          background: rgba(255, 184, 111, 0.08);
-          border-left-color: #FFB86F;
-        }
-
-        .server-tool-name {
-          font-size: 0.8125rem;
-          font-family: 'Geist Mono', monospace;
-          color: #a8a29e;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          transition: color 0.15s;
-        }
-
-        .server-tool-item.active .server-tool-name {
-          color: #FFB86F;
-        }
-
-        .server-tool-routing {
-          font-size: 0.75rem;
-          opacity: 0.5;
-        }
-
-        .server-tools-empty {
-          padding: 1rem;
-          text-align: center;
-          font-size: 0.8125rem;
-          color: #6b6560;
-        }
-
-        .server-tools-list::-webkit-scrollbar {
-          width: 4px;
-        }
-
-        .server-tools-list::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .server-tools-list::-webkit-scrollbar-thumb {
-          background: rgba(255, 184, 111, 0.15);
-          border-radius: 2px;
-        }
-        `}
-      </style>
-    </div>
-  );
-
-  return (
-    <CatalogLayout sidebar={sidebar} user={user} isCloudMode={isCloudMode}>
-      {/* Tool detail / schema viewer */}
-      {selectedTool ? (
-        <div class="tool-detail">
-          {/* Tool header */}
-          <div class="tool-header">
-            <div class="tool-header-main">
-              <h1 class="tool-title">{selectedTool.name}</h1>
-              <span class={`tool-routing-badge ${selectedTool.routing}`}>
-                {selectedTool.routing === "cloud" ? "☁️ Cloud" : "💻 Local"}
-              </span>
+      {/* Selected tool detail - Split layout with UI preview */}
+      {selectedTool && (
+        <div
+          class={`mx-6 mb-6 bg-[#0f0f12] border rounded-[10px] overflow-hidden animate-[slideUp_0.2s_ease-out] ${
+            selectedTool.uiMeta?.resourceUri
+              ? "grid grid-cols-2 max-[900px]:grid-cols-1 border-cyan-400/15"
+              : "border-pml-accent/[0.08]"
+          }`}
+        >
+          {/* Left column: Info + Schema */}
+          <div class="flex flex-col">
+            <div class="px-5 py-4 border-b border-pml-accent/[0.06]">
+              <div class="flex items-center gap-3 mb-2">
+                <code class="font-['Geist_Mono',monospace] text-[0.9375rem] font-semibold text-pml-accent">
+                  {selectedTool.name}
+                </code>
+                <div class="flex gap-1.5 flex-1">
+                  {selectedTool.uiMeta?.resourceUri && (
+                    <span
+                      class="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-['Geist_Mono',monospace] font-medium rounded bg-cyan-400/[0.12] text-cyan-400 border border-cyan-400/25 uppercase tracking-wide"
+                      title="Has UI Component"
+                    >
+                      <span class="text-[0.5rem]">◉</span> UI
+                    </span>
+                  )}
+                  {selectedTool.routing === "cloud" && (
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-['Geist_Mono',monospace] font-medium rounded bg-blue-400/10 text-blue-400 uppercase tracking-wide">
+                      ☁ Cloud
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  class="w-6 h-6 flex items-center justify-center bg-transparent border-none text-stone-500 text-xl cursor-pointer rounded transition-all duration-150 ml-auto hover:bg-pml-accent/10 hover:text-pml-accent"
+                  onClick={() => setSelectedTool(null)}
+                >
+                  ×
+                </button>
+              </div>
+              <p class="text-[0.8125rem] text-stone-400 leading-normal">
+                {selectedTool.description || "No description"}
+              </p>
             </div>
-            <p class="tool-description">
-              {selectedTool.description || "No description available"}
-            </p>
-          </div>
 
-          {/* Schema viewer */}
-          <div class="tool-schema">
-            <h2 class="schema-title">Input Schema</h2>
-            {selectedTool.inputSchema ? (
-              <SchemaViewer schema={selectedTool.inputSchema} />
-            ) : (
-              <div class="schema-empty">No input schema defined</div>
+            {/* UI Capabilities (emits/accepts) */}
+            {selectedTool.uiMeta && (selectedTool.uiMeta.emits?.length || selectedTool.uiMeta.accepts?.length) && (
+              <div class="flex gap-6 px-5 py-3 bg-cyan-400/[0.03] border-b border-cyan-400/[0.08]">
+                {selectedTool.uiMeta.emits && selectedTool.uiMeta.emits.length > 0 && (
+                  <div class="flex items-center gap-2">
+                    <span class="text-[0.625rem] font-semibold uppercase tracking-wider text-stone-500">
+                      Emits
+                    </span>
+                    <div class="flex flex-wrap gap-1">
+                      {selectedTool.uiMeta.emits.map((e) => (
+                        <span
+                          key={e}
+                          class="text-[0.625rem] font-['Geist_Mono',monospace] px-1.5 py-0.5 rounded-sm bg-pml-accent/10 text-pml-accent"
+                        >
+                          {e}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedTool.uiMeta.accepts && selectedTool.uiMeta.accepts.length > 0 && (
+                  <div class="flex items-center gap-2">
+                    <span class="text-[0.625rem] font-semibold uppercase tracking-wider text-stone-500">
+                      Accepts
+                    </span>
+                    <div class="flex flex-wrap gap-1">
+                      {selectedTool.uiMeta.accepts.map((a) => (
+                        <span
+                          key={a}
+                          class="text-[0.625rem] font-['Geist_Mono',monospace] px-1.5 py-0.5 rounded-sm bg-green-400/10 text-green-400"
+                        >
+                          {a}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
+
+            {/* Schema */}
+            <div class="p-5 flex-1 overflow-y-auto max-h-[350px]">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-[0.6875rem] font-semibold uppercase tracking-wider text-stone-500">
+                  Input Schema
+                </span>
+                {selectedTool.inputSchema && (
+                  <span class="text-[0.625rem] font-['Geist_Mono',monospace] text-stone-500 bg-pml-accent/[0.04] px-1.5 py-0.5 rounded-sm">
+                    {Object.keys((selectedTool.inputSchema as any).properties || {}).length} params
+                  </span>
+                )}
+              </div>
+              {selectedTool.inputSchema ? (
+                <SchemaViewer schema={selectedTool.inputSchema} />
+              ) : (
+                <div class="text-[0.8125rem] text-stone-500">No parameters required</div>
+              )}
+            </div>
+          </div>
+
+          {/* Right column: UI Preview - Uses real component with AppBridge */}
+          {selectedTool.uiMeta?.resourceUri && (
+            <div class="flex flex-col bg-gradient-to-br from-cyan-400/[0.03] to-cyan-400/[0.01] border-l border-cyan-400/10">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-cyan-400/[0.08] bg-cyan-400/[0.04]">
+                <span class="text-[0.6875rem] font-semibold uppercase tracking-wider text-cyan-400">
+                  Component Preview
+                </span>
+                <code class="text-[0.625rem] font-['Geist_Mono',monospace] text-stone-500 bg-black/20 px-1.5 py-0.5 rounded-sm">
+                  {selectedTool.uiMeta.resourceUri.replace("ui://mcp-std/", "")}
+                </code>
+              </div>
+              <div class="flex-1 relative min-h-[280px] flex items-stretch">
+                <UiPreviewWithBridge
+                  resourceUri={selectedTool.uiMeta.resourceUri}
+                  toolName={selectedTool.name}
+                />
+                <div class="absolute bottom-2 right-2 pointer-events-none">
+                  <span class="text-[0.5625rem] font-['Geist_Mono',monospace] text-[#4a4540] bg-black/60 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                    Live component preview
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Vitrine Footer */}
+      <footer class="mt-auto p-8 bg-[#08080a] border-t border-pml-accent/[0.08]">
+        <div class="max-w-[1200px] mx-auto flex justify-between items-center max-[768px]:flex-col max-[768px]:gap-6 max-[768px]:text-center">
+          <div class="flex items-center gap-4">
+            <span class="font-['Instrument_Serif',Georgia,serif] text-[1.375rem] text-pml-accent">
+              Casys PML
+            </span>
+            <span class="text-xs text-stone-500 uppercase tracking-widest">
+              Procedural Memory Layer
+            </span>
+          </div>
+          <div class="flex gap-8">
+            <a href="https://casys.ai" target="_blank" rel="noopener" class="text-stone-400 no-underline text-sm transition-colors duration-200 hover:text-pml-accent">
+              Casys.ai
+            </a>
+            <a href="https://github.com/Casys-AI/casys-pml" target="_blank" rel="noopener" class="text-stone-400 no-underline text-sm transition-colors duration-200 hover:text-pml-accent">
+              GitHub
+            </a>
+            <a href="/docs" class="text-stone-400 no-underline text-sm transition-colors duration-200 hover:text-pml-accent">
+              Docs
+            </a>
+            <a href="/catalog" class="text-stone-400 no-underline text-sm transition-colors duration-200 hover:text-pml-accent">
+              Catalog
+            </a>
           </div>
         </div>
-      ) : (
-        <div class="tool-empty">
-          <div class="tool-empty-icon">📋</div>
-          <h2 class="tool-empty-title">Select a tool</h2>
-          <p class="tool-empty-text">Choose a tool from the list to view its schema</p>
-        </div>
-      )}
+      </footer>
 
+      {/* Minimal style block for keyframe animations only */}
       <style>
         {`
-        .tool-detail {
-          max-width: 800px;
+        @keyframes dropIn {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
-        .tool-header {
-          margin-bottom: 2rem;
-          padding-bottom: 1.5rem;
-          border-bottom: 1px solid rgba(255, 184, 111, 0.08);
-        }
-
-        .tool-header-main {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          margin-bottom: 0.75rem;
-        }
-
-        .tool-title {
-          font-family: 'Geist Mono', monospace;
-          font-size: 1.5rem;
-          font-weight: 600;
-          color: #f0ede8;
-        }
-
-        .tool-routing-badge {
-          font-size: 0.75rem;
-          padding: 0.25rem 0.625rem;
-          border-radius: 4px;
-          background: rgba(255, 184, 111, 0.1);
-          color: #FFB86F;
-        }
-
-        .tool-routing-badge.cloud {
-          background: rgba(96, 165, 250, 0.1);
-          color: #60a5fa;
-        }
-
-        .tool-description {
-          font-size: 1rem;
-          line-height: 1.6;
-          color: #a8a29e;
-        }
-
-        .tool-schema {
-          background: #0f0f12;
-          border: 1px solid rgba(255, 184, 111, 0.08);
-          border-radius: 12px;
-          padding: 1.5rem;
-        }
-
-        .schema-title {
-          font-size: 0.875rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #6b6560;
-          margin-bottom: 1.25rem;
-        }
-
-        .schema-empty {
-          padding: 2rem;
-          text-align: center;
-          color: #6b6560;
-          font-size: 0.875rem;
-        }
-
-        .tool-empty {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: 400px;
-          text-align: center;
-          color: #6b6560;
-        }
-
-        .tool-empty-icon {
-          font-size: 3rem;
-          margin-bottom: 1rem;
-          opacity: 0.5;
-        }
-
-        .tool-empty-title {
-          font-size: 1.25rem;
-          color: #a8a29e;
-          margin-bottom: 0.5rem;
-        }
-
-        .tool-empty-text {
-          font-size: 0.875rem;
-        }
-        `}
-      </style>
-    </CatalogLayout>
-  );
-}
-
-// Schema viewer component (Swagger-like)
-function SchemaViewer({ schema }: { schema: Record<string, unknown> }) {
-  const properties = (schema.properties || {}) as Record<string, SchemaProperty>;
-  const required = (schema.required || []) as string[];
-
-  if (Object.keys(properties).length === 0) {
-    return <div class="schema-empty">No parameters</div>;
-  }
-
-  return (
-    <div class="schema-properties">
-      {Object.entries(properties).map(([name, prop]) => (
-        <PropertyRow
-          key={name}
-          name={name}
-          property={prop}
-          required={required.includes(name)}
-        />
-      ))}
-
-      <style>
-        {`
-        .schema-properties {
-          display: flex;
-          flex-direction: column;
-          gap: 1px;
-          background: rgba(255, 184, 111, 0.04);
-          border-radius: 8px;
-          overflow: hidden;
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
         `}
       </style>
@@ -494,249 +588,130 @@ function SchemaViewer({ schema }: { schema: Record<string, unknown> }) {
   );
 }
 
-interface SchemaProperty {
-  type?: string;
-  description?: string;
-  default?: unknown;
-  enum?: unknown[];
-  items?: SchemaProperty;
-  properties?: Record<string, SchemaProperty>;
-  required?: string[];
-  oneOf?: SchemaProperty[];
-  anyOf?: SchemaProperty[];
-}
-
-function PropertyRow({
-  name,
-  property,
-  required,
-  depth = 0,
+/**
+ * UI Preview component that loads the real MCP Apps component
+ * and sends mock data via AppBridge protocol
+ */
+function UiPreviewWithBridge({
+  resourceUri,
+  toolName,
 }: {
-  name: string;
-  property: SchemaProperty;
-  required: boolean;
-  depth?: number;
+  resourceUri: string;
+  toolName: string;
 }) {
-  const [expanded, setExpanded] = useState(depth < 2);
-  const hasNested =
-    property.properties ||
-    property.items?.properties ||
-    property.oneOf ||
-    property.anyOf;
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const bridgeRef = useRef<AppBridge | null>(null);
+  const [status, setStatus] = useState<"loading" | "connected" | "error">("loading");
 
-  const typeLabel = getTypeLabel(property);
+  // Convert mock data to MCP content format
+  const resultToMcpContent = useCallback((result: unknown): Array<{ type: "text"; text: string }> => {
+    if (result === null || result === undefined) {
+      return [{ type: "text", text: "null" }];
+    }
+    if (typeof result === "string") {
+      return [{ type: "text", text: result }];
+    }
+    return [{ type: "text", text: JSON.stringify(result, null, 2) }];
+  }, []);
+
+  // Setup bridge when iframe loads
+  const setupBridge = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) {
+      console.warn("[UiPreviewWithBridge] No contentWindow");
+      return;
+    }
+
+    // Clean up existing bridge
+    if (bridgeRef.current) {
+      bridgeRef.current.close().catch(() => {});
+    }
+
+    // Create new bridge
+    const bridge = new AppBridge(
+      null, // No MCP client - we're not proxying to a server
+      { name: "Catalog Preview", version: "1.0.0" },
+      { openLinks: {}, logging: {} },
+      { hostContext: { theme: "dark", displayMode: "inline" } },
+    );
+
+    // Get mock data for this component
+    const mockData = getMockData(resourceUri);
+
+    // When UI initializes, send mock data
+    bridge.oninitialized = () => {
+      console.log(`[UiPreviewWithBridge] UI initialized: ${toolName}`);
+      setStatus("connected");
+
+      // Send mock data as tool result
+      bridge.sendToolResult({
+        content: resultToMcpContent(mockData),
+        isError: false,
+      });
+    };
+
+    bridgeRef.current = bridge;
+
+    // Create transport and connect
+    const transport = new PostMessageTransport(
+      iframe.contentWindow,
+      iframe.contentWindow,
+    );
+
+    bridge.connect(transport).then(() => {
+      console.log(`[UiPreviewWithBridge] Bridge connected, loading iframe`);
+      // Set iframe src after bridge is ready
+      iframe.src = `/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`;
+    }).catch((err) => {
+      console.error(`[UiPreviewWithBridge] Bridge error:`, err);
+      setStatus("error");
+    });
+  }, [resourceUri, toolName, resultToMcpContent]);
+
+  // Initialize on mount
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (iframe) {
+      setupBridge();
+    }
+
+    return () => {
+      if (bridgeRef.current) {
+        bridgeRef.current.close().catch(() => {});
+        bridgeRef.current = null;
+      }
+    };
+  }, [resourceUri]);
 
   return (
-    <div class="property-row" style={{ "--depth": depth } as any}>
-      <div class="property-header">
-        <div class="property-name-section">
-          {hasNested && (
-            <button
-              type="button"
-              class={`property-expand ${expanded ? "expanded" : ""}`}
-              onClick={() => setExpanded(!expanded)}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeWidth="2" strokeLinecap="round" d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
-          )}
-          <span class="property-name">{name}</span>
-          {required && <span class="property-required">required</span>}
+    <div class="relative w-full h-full min-h-[280px]">
+      <iframe
+        ref={iframeRef}
+        title={`UI Preview: ${toolName}`}
+        sandbox="allow-scripts allow-same-origin"
+        class="w-full h-full min-h-[280px] border-none bg-[#1a1a1a]"
+      />
+      {status === "loading" && (
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-['Geist_Mono',monospace] flex items-center gap-2 px-4 py-2 rounded-md bg-black/80 text-cyan-400">
+          <span class="w-2 h-2 rounded-full bg-current animate-[pulse_1.5s_ease-in-out_infinite]" />
+          Connecting...
         </div>
-        <span class="property-type">{typeLabel}</span>
-      </div>
-
-      {property.description && (
-        <p class="property-desc">{property.description}</p>
       )}
-
-      {property.enum && (
-        <div class="property-enum">
-          <span class="property-enum-label">Enum:</span>
-          {property.enum.map((v, i) => (
-            <span key={i} class="property-enum-value">
-              {JSON.stringify(v)}
-            </span>
-          ))}
+      {status === "error" && (
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-['Geist_Mono',monospace] flex items-center gap-2 px-4 py-2 rounded-md bg-black/80 text-red-400">
+          Connection failed
         </div>
       )}
 
-      {property.default !== undefined && (
-        <div class="property-default">
-          <span class="property-default-label">Default:</span>
-          <code class="property-default-value">{JSON.stringify(property.default)}</code>
-        </div>
-      )}
-
-      {/* Nested properties */}
-      {expanded && hasNested && (
-        <div class="property-nested">
-          {property.properties &&
-            Object.entries(property.properties).map(([n, p]) => (
-              <PropertyRow
-                key={n}
-                name={n}
-                property={p}
-                required={(property.required || []).includes(n)}
-                depth={depth + 1}
-              />
-            ))}
-          {property.items?.properties &&
-            Object.entries(property.items.properties).map(([n, p]) => (
-              <PropertyRow
-                key={n}
-                name={`[].${n}`}
-                property={p}
-                required={(property.items?.required || []).includes(n)}
-                depth={depth + 1}
-              />
-            ))}
-        </div>
-      )}
-
+      {/* Minimal style block for pulse animation */}
       <style>
         {`
-        .property-row {
-          background: #141418;
-          padding: 1rem 1.25rem;
-          padding-left: calc(1.25rem + var(--depth) * 1.5rem);
-        }
-
-        .property-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 1rem;
-        }
-
-        .property-name-section {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .property-expand {
-          width: 18px;
-          height: 18px;
-          padding: 0;
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #6b6560;
-          transition: transform 0.15s, color 0.15s;
-        }
-
-        .property-expand:hover {
-          color: #FFB86F;
-        }
-
-        .property-expand.expanded {
-          transform: rotate(90deg);
-        }
-
-        .property-expand svg {
-          width: 14px;
-          height: 14px;
-        }
-
-        .property-name {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: #f0ede8;
-        }
-
-        .property-required {
-          font-size: 0.625rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          padding: 0.125rem 0.375rem;
-          background: rgba(239, 68, 68, 0.15);
-          color: #f87171;
-          border-radius: 3px;
-        }
-
-        .property-type {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.75rem;
-          color: #FFB86F;
-          background: rgba(255, 184, 111, 0.08);
-          padding: 0.125rem 0.5rem;
-          border-radius: 4px;
-        }
-
-        .property-desc {
-          margin-top: 0.5rem;
-          font-size: 0.8125rem;
-          line-height: 1.5;
-          color: #a8a29e;
-        }
-
-        .property-enum {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 0.375rem;
-          margin-top: 0.5rem;
-        }
-
-        .property-enum-label {
-          font-size: 0.6875rem;
-          font-weight: 500;
-          text-transform: uppercase;
-          color: #6b6560;
-        }
-
-        .property-enum-value {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.6875rem;
-          padding: 0.125rem 0.375rem;
-          background: rgba(74, 222, 128, 0.08);
-          color: #4ade80;
-          border-radius: 3px;
-        }
-
-        .property-default {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-top: 0.5rem;
-        }
-
-        .property-default-label {
-          font-size: 0.6875rem;
-          font-weight: 500;
-          text-transform: uppercase;
-          color: #6b6560;
-        }
-
-        .property-default-value {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.75rem;
-          color: #60a5fa;
-        }
-
-        .property-nested {
-          margin-top: 0.5rem;
-          margin-left: -1.25rem;
-          margin-right: -1.25rem;
-          margin-bottom: -1rem;
-          border-top: 1px solid rgba(255, 184, 111, 0.04);
+        @keyframes pulse {
+          0%, 100% { opacity: 0.4; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1); }
         }
         `}
       </style>
     </div>
   );
-}
-
-function getTypeLabel(property: SchemaProperty): string {
-  if (property.oneOf || property.anyOf) {
-    return "oneOf";
-  }
-  if (property.type === "array") {
-    const itemType = property.items?.type || "any";
-    return `${itemType}[]`;
-  }
-  return property.type || "any";
 }

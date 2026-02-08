@@ -18,6 +18,7 @@ import type {
   WorkflowTaskResult,
 } from "../../../../domain/interfaces/workflow-repository.ts";
 import type { DAGStructure } from "../../../../graphrag/types.ts";
+import { uuidv7 } from "../../../../utils/uuid.ts";
 
 /**
  * In-memory workflow storage
@@ -59,7 +60,7 @@ export class WorkflowRepositoryAdapter implements IWorkflowRepository {
    * Create a new workflow
    */
   async create(input: CreateWorkflowInput): Promise<WorkflowState> {
-    const workflowId = input.workflowId ?? crypto.randomUUID();
+    const workflowId = input.workflowId ?? uuidv7();
     const now = new Date();
 
     const workflow: WorkflowState = {
@@ -170,49 +171,42 @@ export class WorkflowRepositoryAdapter implements IWorkflowRepository {
   }
 
   /**
-   * List active workflows (for monitoring)
+   * List active workflows (for monitoring).
    */
   async listActive(): Promise<WorkflowState[]> {
-    const active: WorkflowState[] = [];
-    const ttl = this.deps.workflowTTL ?? DEFAULT_WORKFLOW_TTL;
-    const now = Date.now();
-
-    for (const [id, workflow] of workflowStore) {
-      // Skip expired workflows
-      if (now - workflow.createdAt.getTime() > ttl) {
-        workflowStore.delete(id);
-        continue;
-      }
-
-      if (workflow.status === "running" || workflow.status === "paused") {
-        active.push(workflow);
-      }
-    }
-
-    return active;
+    return this.filterWorkflows((workflow) =>
+      workflow.status === "running" || workflow.status === "paused"
+    );
   }
 
   /**
-   * Get workflows awaiting approval
+   * Get workflows awaiting approval.
    */
   async listAwaitingApproval(): Promise<WorkflowState[]> {
-    const awaiting: WorkflowState[] = [];
+    return this.filterWorkflows((workflow) =>
+      workflow.status === "paused" || workflow.status === "awaiting_approval"
+    );
+  }
+
+  /**
+   * Filter workflows by predicate, removing expired ones.
+   */
+  private filterWorkflows(predicate: (workflow: WorkflowState) => boolean): WorkflowState[] {
+    const result: WorkflowState[] = [];
     const ttl = this.deps.workflowTTL ?? DEFAULT_WORKFLOW_TTL;
     const now = Date.now();
 
     for (const [id, workflow] of workflowStore) {
-      // Skip expired workflows
       if (now - workflow.createdAt.getTime() > ttl) {
         workflowStore.delete(id);
         continue;
       }
-
-      if (workflow.status === "paused" || workflow.status === "awaiting_approval") {
-        awaiting.push(workflow);
+      if (predicate(workflow)) {
+        result.push(workflow);
       }
     }
 
-    return awaiting;
+    return result;
   }
 
   /**

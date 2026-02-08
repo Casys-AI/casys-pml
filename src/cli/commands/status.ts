@@ -18,7 +18,26 @@ import {
 import type { MCPClientBase, MCPServer } from "../../mcp/types.ts";
 
 /**
- * Default MCP config path
+ * Health summary statistics
+ */
+interface HealthSummary {
+  total: number;
+  healthy: number;
+  degraded: number;
+  down: number;
+}
+
+/**
+ * Status command options
+ */
+interface StatusOptions {
+  json?: boolean;
+  watch?: boolean;
+  config?: string;
+}
+
+/**
+ * Default MCP config paths to check
  */
 const DEFAULT_CONFIG_PATHS = [
   `${Deno.env.get("HOME")}/.pml/config.yaml`,
@@ -76,10 +95,7 @@ async function connectToServers(
 /**
  * Display health status in human-readable format
  */
-function displayHealthStatus(
-  allHealth: ServerHealth[],
-  summary: { total: number; healthy: number; degraded: number; down: number },
-): void {
+function displayHealthStatus(allHealth: ServerHealth[], summary: HealthSummary): void {
   console.log("╔════════════════════════════════════════════════╗");
   console.log("║         Casys PML Health Status              ║");
   console.log("╚════════════════════════════════════════════════╝\n");
@@ -119,23 +135,30 @@ function displayHealthStatus(
 /**
  * Display health status in JSON format
  */
-function displayHealthStatusJSON(
-  allHealth: ServerHealth[],
-  summary: { total: number; healthy: number; degraded: number; down: number },
-): void {
+function displayHealthStatusJSON(allHealth: ServerHealth[], summary: HealthSummary): void {
   console.log(JSON.stringify({ summary, servers: allHealth }, null, 2));
 }
 
 function getStatusIcon(status: HealthStatus): string {
-  return status === "healthy" ? "✓" : status === "degraded" ? "⚠️ " : "✗";
+  switch (status) {
+    case "healthy":
+      return "✓";
+    case "degraded":
+      return "⚠️ ";
+    default:
+      return "✗";
+  }
 }
 
 function getStatusColor(status: HealthStatus): (text: string) => string {
-  return status === "healthy"
-    ? (text) => `\x1b[32m${text}\x1b[0m` // Green
-    : status === "degraded"
-    ? (text) => `\x1b[33m${text}\x1b[0m` // Yellow
-    : (text) => `\x1b[31m${text}\x1b[0m`; // Red
+  switch (status) {
+    case "healthy":
+      return (text) => `\x1b[32m${text}\x1b[0m`; // Green
+    case "degraded":
+      return (text) => `\x1b[33m${text}\x1b[0m`; // Yellow
+    default:
+      return (text) => `\x1b[31m${text}\x1b[0m`; // Red
+  }
 }
 
 function formatDate(date: Date): string {
@@ -143,6 +166,74 @@ function formatDate(date: Date): string {
     dateStyle: "short",
     timeStyle: "medium",
   }).format(date);
+}
+
+/**
+ * Perform health check and display results
+ */
+async function performHealthCheck(healthChecker: HealthChecker, useJson: boolean): Promise<void> {
+  await healthChecker.initialHealthCheck();
+  const allHealth = healthChecker.getAllHealth();
+  const summary = healthChecker.getHealthSummary();
+
+  if (useJson) {
+    displayHealthStatusJSON(allHealth, summary);
+  } else {
+    displayHealthStatus(allHealth, summary);
+  }
+}
+
+/**
+ * Disconnect all MCP clients, ignoring errors
+ */
+async function disconnectClients(clients: Map<string, MCPClientBase>): Promise<void> {
+  for (const client of clients.values()) {
+    try {
+      await client.disconnect();
+    } catch {
+      // Ignore disconnect errors
+    }
+  }
+}
+
+/**
+ * Execute the status command logic
+ */
+async function executeStatusCommand(options: StatusOptions): Promise<void> {
+  const configPath = await findConfigFile(options.config);
+
+  const discovery = new MCPServerDiscovery(configPath);
+  const config = await discovery.loadConfig();
+  const servers = config.servers;
+
+  if (servers.length === 0) {
+    console.log("No MCP servers configured.");
+    console.log("Run 'pml init' to configure servers.");
+    return;
+  }
+
+  const mcpClients = await connectToServers(servers);
+
+  if (mcpClients.size === 0) {
+    console.error("Failed to connect to any MCP servers.");
+    Deno.exit(1);
+  }
+
+  const healthChecker = new HealthChecker(mcpClients);
+  const useJson = options.json ?? false;
+
+  if (options.watch) {
+    while (true) {
+      console.clear();
+      await performHealthCheck(healthChecker, useJson);
+      console.log("\n🔄 Refreshing in 30 seconds... (Ctrl+C to exit)");
+      await new Promise((resolve) => setTimeout(resolve, 30000));
+    }
+  } else {
+    await performHealthCheck(healthChecker, useJson);
+  }
+
+  await disconnectClients(mcpClients);
 }
 
 /**
@@ -161,73 +252,9 @@ export function createStatusCommand() {
     .option("--json", "Output in JSON format")
     .option("--watch", "Watch mode (refresh every 30s)")
     .option("--config <path:string>", "Path to MCP config file")
-    .action(async (options) => {
+    .action(async (options: StatusOptions) => {
       try {
-        // Find config file
-        const configPath = await findConfigFile(options.config);
-
-        // Discover servers
-        const discovery = new MCPServerDiscovery(configPath);
-        const config = await discovery.loadConfig();
-        const servers = config.servers;
-
-        if (servers.length === 0) {
-          console.log("No MCP servers configured.");
-          console.log("Run 'pml init' to configure servers.");
-          return;
-        }
-
-        // Connect to servers
-        const mcpClients = await connectToServers(servers);
-
-        if (mcpClients.size === 0) {
-          console.error("Failed to connect to any MCP servers.");
-          Deno.exit(1);
-        }
-
-        // Create health checker
-        const healthChecker = new HealthChecker(mcpClients);
-
-        if (options.watch) {
-          // Watch mode - continuous updates
-          while (true) {
-            console.clear();
-            await healthChecker.initialHealthCheck();
-
-            const allHealth = healthChecker.getAllHealth();
-            const summary = healthChecker.getHealthSummary();
-
-            if (options.json) {
-              displayHealthStatusJSON(allHealth, summary);
-            } else {
-              displayHealthStatus(allHealth, summary);
-            }
-
-            console.log("\n🔄 Refreshing in 30 seconds... (Ctrl+C to exit)");
-            await new Promise((resolve) => setTimeout(resolve, 30000));
-          }
-        } else {
-          // One-time check
-          await healthChecker.initialHealthCheck();
-
-          const allHealth = healthChecker.getAllHealth();
-          const summary = healthChecker.getHealthSummary();
-
-          if (options.json) {
-            displayHealthStatusJSON(allHealth, summary);
-          } else {
-            displayHealthStatus(allHealth, summary);
-          }
-        }
-
-        // Cleanup connections
-        for (const client of mcpClients.values()) {
-          try {
-            await client.disconnect();
-          } catch {
-            // Ignore disconnect errors
-          }
-        }
+        await executeStatusCommand(options);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         log.error(`Status check failed: ${error}`);

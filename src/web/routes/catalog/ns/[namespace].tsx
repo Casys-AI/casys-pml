@@ -38,11 +38,96 @@ interface CapabilityEntry {
   inputSchema: ParametersSchema | null;
 }
 
+interface NodeNavItem {
+  id: string;
+  name: string;
+  icon: string;
+  toolCount: number;
+}
+
 interface NamespaceDetailData {
   namespace: string;
   capabilities: CapabilityEntry[];
   isCloudMode: boolean;
   user: AuthState["user"];
+  allNodes: NodeNavItem[];
+}
+
+/** Icons for nodes */
+const NODE_ICONS: Record<string, string> = {
+  docker: "🐳", git: "📦", database: "🗄️", network: "🌐", process: "⚙️",
+  archive: "📁", ssh: "🔐", kubernetes: "☸️", media: "🎬", cloud: "☁️",
+  sysinfo: "💻", packages: "📦", text: "📝", json: "{ }", math: "🔢",
+  datetime: "📅", crypto: "🔒", collections: "📚", vfs: "💾", http: "🌍",
+  validation: "✓", format: "📋", transform: "🔄", algo: "🧮", color: "🎨",
+  string: "🔤", path: "📂", faker: "🎭", geo: "🌍", qrcode: "📱",
+  resilience: "🛡️", schema: "📐", diff: "↔️", agent: "🤖", pml: "⚡",
+  python: "🐍", pglite: "🐘", memory: "🧠", filesystem: "📁", playwright: "🎭",
+  "chrome-devtools": "🔧", exa: "🔍", fetch: "🌐",
+  // Capability namespaces
+  fake: "⚡", fs: "⚡", meta: "⚡", db: "⚡",
+};
+
+function getNodeIcon(name: string): string {
+  const lower = name.toLowerCase();
+  return NODE_ICONS[lower] || "⚡";
+}
+
+/**
+ * Load all nodes for navigation (tools + capabilities)
+ */
+async function loadAllNodes(): Promise<NodeNavItem[]> {
+  try {
+    const db = await getRawDb();
+
+    // Query both tool servers AND capability namespaces
+    const rows = await db.query<{
+      node_id: string;
+      node_name: string;
+      tool_count: number;
+      node_type: "tool" | "capability";
+    }>(`
+      -- Tool servers
+      SELECT
+        CASE
+          WHEN server_id = 'std' THEN 'std-' || split_part(name, '_', 1)
+          ELSE server_id
+        END as node_id,
+        CASE
+          WHEN server_id = 'std' THEN initcap(split_part(name, '_', 1))
+          ELSE server_id
+        END as node_name,
+        COUNT(*) as tool_count,
+        'tool'::text as node_type
+      FROM tool_schema
+      GROUP BY node_id, node_name
+
+      UNION ALL
+
+      -- Capability namespaces
+      SELECT
+        'ns/' || namespace as node_id,
+        namespace as node_name,
+        COUNT(*) as tool_count,
+        'capability'::text as node_type
+      FROM pml_registry
+      WHERE record_type = 'capability'
+        AND visibility = 'public'
+      GROUP BY namespace
+
+      ORDER BY tool_count DESC, node_name
+    `);
+
+    return rows.map((row) => ({
+      id: row.node_id,
+      name: row.node_name,
+      icon: row.node_type === "capability" ? "⚡" : getNodeIcon(row.node_name),
+      toolCount: Number(row.tool_count),
+    }));
+  } catch (error) {
+    console.error("Error loading nodes:", error);
+    return [];
+  }
 }
 
 /**
@@ -99,19 +184,24 @@ async function loadNamespaceCapabilities(namespace: string): Promise<CapabilityE
 export const handler = {
   async GET(ctx: FreshContext<AuthState>) {
     const namespace = ctx.params.namespace;
-    const capabilities = await loadNamespaceCapabilities(namespace);
+
+    const [capabilities, allNodes] = await Promise.all([
+      loadNamespaceCapabilities(namespace),
+      loadAllNodes(),
+    ]);
 
     return page({
       namespace,
       capabilities,
       isCloudMode: ctx.state.isCloudMode,
       user: ctx.state.user,
+      allNodes,
     });
   },
 };
 
 export default function NamespaceDetailPage({ data }: { data: NamespaceDetailData }) {
-  const { namespace, capabilities, isCloudMode, user } = data;
+  const { namespace, capabilities, isCloudMode, user, allNodes } = data;
 
   return (
     <>
@@ -136,6 +226,7 @@ export default function NamespaceDetailPage({ data }: { data: NamespaceDetailDat
         capabilities={capabilities}
         user={user}
         isCloudMode={isCloudMode}
+        allNodes={allNodes}
       />
     </>
   );

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "astro",
+  "outputDirectory": ".vercel/output",
+  "rewrites": [
+    {
+      "source": "/:path((?!_astro|_vercel|api|ui|icons|fonts|images|pagefind|docs|mcp-server).*)",
+      "has": [{ "type": "host", "value": "mcp-server.casys.ai" }],
+      "destination": "/mcp-server/:path"
+    },
+    {
+      "source": "/:path((?!_astro|_vercel|api|ui|icons|fonts|images|pagefind|docs|mcp-std).*)",
+      "has": [{ "type": "host", "value": "mcp-std.casys.ai" }],
+      "destination": "/mcp-std/:path"
+    },
+    {
+      "source": "/:path((?!_astro|_vercel|api|ui|icons|fonts|images|pagefind|docs|engine).*)",
+      "has": [{ "type": "host", "value": "engine.casys.ai" }],
+      "destination": "/engine/:path"
+    }
+  ]
+}

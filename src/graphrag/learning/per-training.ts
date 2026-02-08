@@ -48,6 +48,85 @@ export const DEFAULT_MIN_PRIORITY = 0.1;
 /** Default PER alpha exponent */
 export const DEFAULT_PER_ALPHA = 0.6;
 
+/** UUID pattern for distinguishing capability IDs from tool IDs */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Compute cosine similarity between two vectors
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+  const len = Math.min(a.length, b.length);
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < len; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom > 0 ? dot / denom : 0;
+}
+
+/**
+ * Check if a string is a UUID (capability ID) vs tool ID (has colon like "code:filter")
+ */
+function isUUID(s: string): boolean {
+  return UUID_PATTERN.test(s);
+}
+
+/**
+ * Select negatives from the middle tier for semi-hard negative mining
+ *
+ * Divides candidates into 3 tiers (hard/medium/easy) and selects from middle.
+ * Falls back gracefully when insufficient candidates available.
+ */
+function selectMiddleTierNegatives(sortedIds: string[], count: number): string[] {
+  const total = sortedIds.length;
+
+  // Not enough negatives: use all available
+  if (total < count) {
+    return sortedIds;
+  }
+
+  // Not enough for 3 tiers: use middle slice
+  if (total < count * 3) {
+    const start = Math.floor((total - count) / 2);
+    return sortedIds.slice(start, start + count);
+  }
+
+  // Enough for 3 tiers: use middle third
+  const tierSize = Math.floor(total / 3);
+  return sortedIds.slice(tierSize, tierSize + count);
+}
+
+/**
+ * Parse embedding from database row (handles array, string, or pgvector format)
+ *
+ * @returns Parsed embedding array, or null if parsing fails
+ */
+function parseEmbeddingFromRow(embedding: number[] | string): number[] | null {
+  if (Array.isArray(embedding)) {
+    return embedding;
+  }
+
+  if (typeof embedding === "string") {
+    try {
+      return JSON.parse(embedding);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -223,18 +302,6 @@ export function traceToTrainingExamples(
   // Curriculum learning now uses allNegativesSorted sorted by similarity (hard → easy)
   // train-worker selects slice based on accuracy instead of filtering by thresholds
 
-  // Helper: cosine similarity
-  const cosineSim = (a: number[], b: number[]): number => {
-    let dot = 0, normA = 0, normB = 0;
-    for (let i = 0; i < Math.min(a.length, b.length); i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    const denom = Math.sqrt(normA) * Math.sqrt(normB);
-    return denom > 0 ? dot / denom : 0;
-  };
-
   // Pre-compute negatives for the whole trace (same intent for all examples)
   // Curriculum learning: store 24 sorted negatives, select 8 based on accuracy
   let semiHardNegativeCapIds: string[] | undefined;
@@ -262,7 +329,7 @@ export function traceToTrainingExamples(
       if (flatPath.includes(itemId)) continue;
       // Skip tools in the exclusion cluster (anchor's tools + community members)
       if (excludedTools.has(itemId)) continue;
-      const sim = cosineSim(intentEmbedding, emb);
+      const sim = cosineSimilarity(intentEmbedding, emb);
       candidatesWithSim.push({ id: itemId, sim });
     }
 
@@ -271,21 +338,8 @@ export function traceToTrainingExamples(
     const allSorted = [...candidatesWithSim].sort((a, b) => b.sim - a.sim);
     allNegativesSortedIds = allSorted.map(c => c.id);
 
-    // Default negativeCapIds: sample from middle third for backward compatibility
-    const total = allNegativesSortedIds.length;
-    if (total >= NUM_NEGATIVES * 3) {
-      // Enough for 3 tiers: use middle third
-      const tierSize = Math.floor(total / 3);
-      const middleStart = tierSize;
-      semiHardNegativeCapIds = allNegativesSortedIds.slice(middleStart, middleStart + NUM_NEGATIVES);
-    } else if (total >= NUM_NEGATIVES) {
-      // Not enough for tiers: use middle slice
-      const start = Math.floor((total - NUM_NEGATIVES) / 2);
-      semiHardNegativeCapIds = allNegativesSortedIds.slice(start, start + NUM_NEGATIVES);
-    } else {
-      // Not enough negatives: use all available
-      semiHardNegativeCapIds = allNegativesSortedIds;
-    }
+    // Select semi-hard negatives from middle tier for backward compatibility
+    semiHardNegativeCapIds = selectMiddleTierNegatives(allNegativesSortedIds, NUM_NEGATIVES);
   }
 
   // Generate one example per node in the path
@@ -364,6 +418,10 @@ interface CapabilityForTraining {
   embedding: number[];
   toolsUsed: string[];
   successRate: number;
+  /** Parent capability IDs (for multi-level hierarchy) */
+  parents?: string[];
+  /** Child capability IDs (for multi-level hierarchy) */
+  children?: string[];
 }
 
 /**
@@ -525,9 +583,6 @@ export async function trainSHGATOnPathTracesSubprocess(
     }
   }
 
-  // Helper: check if string is a UUID (capability ID) vs tool ID (has colon like "code:filter")
-  const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-
   const additionalToolIds: string[] = [];
   for (const ex of allExamples) {
     for (const tool of ex.contextTools) {
@@ -553,20 +608,9 @@ export async function trainSHGATOnPathTracesSubprocess(
         [additionalToolIds],
       ) as Array<{ tool_id: string; embedding: number[] | string }>;
       for (const row of rows) {
-        // Handle array, string, or pgvector format (PGlite vs PostgreSQL)
-        let emb: number[];
-        if (Array.isArray(row.embedding)) {
-          emb = row.embedding;
-        } else if (typeof row.embedding === 'string') {
-          // pgvector returns "[1,2,3]" format, parse it
-          try {
-            emb = JSON.parse(row.embedding);
-          } catch (parseErr) {
-            log.warn(`[PER-Subprocess] Failed to parse embedding for ${row.tool_id}: ${parseErr}`);
-            continue;
-          }
-        } else {
-          log.warn(`[PER-Subprocess] Invalid embedding type for ${row.tool_id}: ${typeof row.embedding}`);
+        const emb = parseEmbeddingFromRow(row.embedding);
+        if (emb === null) {
+          log.warn(`[PER-Subprocess] Failed to parse embedding for ${row.tool_id}`);
           continue;
         }
         toolEmbeddingsMap.set(row.tool_id, emb);
@@ -586,11 +630,14 @@ export async function trainSHGATOnPathTracesSubprocess(
   }));
 
   // Capabilities keep their original toolsUsed (no hack)
+  // Include parents/children for multi-level hierarchy training
   const capsForWorker = capabilities.map((c) => ({
     id: c.id,
     embedding: c.embedding,
     toolsUsed: c.toolsUsed,
     successRate: c.successRate,
+    parents: c.parents,
+    children: c.children,
   }));
 
   // Step 6: Train in subprocess

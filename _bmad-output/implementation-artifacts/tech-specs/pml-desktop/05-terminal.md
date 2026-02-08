@@ -2,7 +2,7 @@
 title: 'PML Desktop - Increment 5: Terminal Integration'
 slug: 'pml-desktop-05-terminal'
 created: '2026-01-26'
-status: 'ready-for-dev'
+status: 'completed'
 parent_spec: '../tech-spec-pml-desktop.md'
 increment: 5
 estimated_tasks: 4
@@ -20,7 +20,7 @@ depends_on: ['04-sliding-sidebar.md']
 
 ## Tasks
 
-- [ ] **Task 5.1: Setup xterm.js component**
+- [x] **Task 5.1: Setup xterm.js component**
   - File: `apps/desktop/src/components/Terminal.tsx`
   - Action: Preact component wrapping xterm.js
   - Code:
@@ -62,7 +62,7 @@ depends_on: ['04-sliding-sidebar.md']
     }
     ```
 
-- [ ] **Task 5.2: Implement PTY backend in Rust**
+- [x] **Task 5.2: Implement PTY backend in Rust**
   - File: `apps/desktop/src-tauri/src/terminal/pty.rs`
   - Action: Use `portable-pty` to spawn shell
   - Code:
@@ -107,7 +107,7 @@ depends_on: ['04-sliding-sidebar.md']
     }
     ```
 
-- [ ] **Task 5.3: Create Tauri commands for terminal**
+- [x] **Task 5.3: Create Tauri commands for terminal**
   - File: `apps/desktop/src-tauri/src/commands/terminal.rs`
   - Action: Expose spawn, write, resize commands
   - Code:
@@ -130,7 +130,7 @@ depends_on: ['04-sliding-sidebar.md']
     }
     ```
 
-- [ ] **Task 5.4: Handle terminal resize**
+- [x] **Task 5.4: Handle terminal resize**
   - File: `apps/desktop/src/components/Terminal.tsx`
   - Action: Resize PTY when panel resizes
   - Code:
@@ -150,10 +150,10 @@ depends_on: ['04-sliding-sidebar.md']
 
 ## Acceptance Criteria
 
-- [ ] **AC1:** Given app launches, when terminal panel is visible, then a shell prompt appears
-- [ ] **AC2:** Given terminal is active, when user types `ls`, then directory listing appears
-- [ ] **AC3:** Given terminal is running, when panel is resized, then PTY adjusts and content reflows
-- [ ] **AC4:** Given terminal, when user runs `claude --help`, then Claude CLI output appears
+- [x] **AC1:** Given app launches, when terminal panel is visible, then a shell prompt appears
+- [x] **AC2:** Given terminal is active, when user types `ls`, then directory listing appears
+- [x] **AC3:** Given terminal is running, when panel is resized, then PTY adjusts and content reflows
+- [x] **AC4:** Given terminal, when user runs `claude --help`, then Claude CLI output appears
 
 ## Layout Update
 
@@ -170,6 +170,37 @@ depends_on: ['04-sliding-sidebar.md']
 ## Deliverable
 
 Three-panel layout with working terminal. No MCP integration yet.
+
+## Review Notes
+
+- Adversarial review completed: 2026-02-05
+- Findings: 17 total, 0 fixed, 17 noted as action items
+- Resolution approach: Skip (noted for future)
+
+### Action Items (Post-MVP)
+
+#### Critical
+- [ ] **F1:** Sanitize/whitelist `cmd` parameter to prevent command injection
+
+#### High Priority
+- [ ] **F2:** Clear TerminalState.handle when process exits
+- [ ] **F3:** Fix TOCTOU race condition in terminal_spawn (atomic check+set)
+- [ ] **F4:** Add mechanism to cancel reader thread on component unmount
+- [ ] **F5:** Implement proper child process cleanup (kill on drop)
+
+#### Medium Priority
+- [ ] **F6:** Add `terminal:exit` event listener in frontend
+- [ ] **F7:** Debounce resize events (100-200ms)
+- [ ] **F8:** Consider base64 encoding for binary-safe transfer
+- [ ] **F9:** Remove `cmd` from useEffect deps or handle changes properly
+- [ ] **F10:** Validate resize dimensions (min 1, max reasonable)
+
+#### Low Priority
+- [ ] **F11:** Add Drop impl for PtyHandle
+- [ ] **F12:** Replace isInitializedRef with more robust pattern
+- [ ] **F13:** Detect user's preferred shell on Windows
+- [ ] **F14:** Surface IPC errors to UI
+- [ ] **F15:** Add terminal_close command
 
 ## Next Increment
 

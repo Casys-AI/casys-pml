@@ -22,17 +22,27 @@ import { RequestQueue } from "./request-queue.ts";
 import { SamplingBridge } from "./sampling-bridge.ts";
 import { RateLimiter } from "./rate-limiter.ts";
 import { SchemaValidator } from "./schema-validator.ts";
+import { createMiddlewareRunner } from "./middleware/runner.ts";
+import { createRateLimitMiddleware } from "./middleware/rate-limit.ts";
+import { createValidationMiddleware } from "./middleware/validation.ts";
+import { createBackpressureMiddleware } from "./middleware/backpressure.ts";
+import type { Middleware, MiddlewareContext, MiddlewareResult } from "./middleware/types.ts";
+import { createAuthMiddleware, AuthError, extractBearerToken, createUnauthorizedResponse, createForbiddenResponse } from "./auth/middleware.ts";
+import { createScopeMiddleware } from "./auth/scope-middleware.ts";
+import { loadAuthConfig, createAuthProviderFromConfig } from "./auth/config.ts";
+import type { AuthProvider } from "./auth/provider.ts";
 import type {
   ConcurrentServerOptions,
   MCPTool,
   ToolHandler,
   QueueMetrics,
-  RateLimitContext,
   MCPResource,
   ResourceHandler,
   HttpServerOptions,
 } from "./types.ts";
 import { MCP_APP_MIME_TYPE, MCP_APP_URI_SCHEME } from "./types.ts";
+import { ServerMetrics } from "./observability/metrics.ts";
+import { startToolCallSpan, endToolCallSpan } from "./observability/otel.ts";
 
 /**
  * Tool definition with handler
@@ -47,6 +57,25 @@ interface ToolWithHandler extends MCPTool {
 interface RegisteredResourceInfo {
   resource: MCPResource;
   handler: ResourceHandler;
+}
+
+/**
+ * SSE client connection for Streamable HTTP
+ */
+interface SSEClient {
+  sessionId: string;
+  controller: ReadableStreamDefaultController<Uint8Array>;
+  createdAt: number;
+  lastEventId: number;
+}
+
+/**
+ * Generate a cryptographically secure session ID
+ */
+function generateSessionId(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -83,6 +112,28 @@ export class ConcurrentMCPServer {
   private resources = new Map<string, RegisteredResourceInfo>();
   private options: ConcurrentServerOptions;
   private started = false;
+
+  // Middleware pipeline
+  private customMiddlewares: Middleware[] = [];
+  private middlewareRunner: ((ctx: MiddlewareContext) => Promise<MiddlewareResult>) | null = null;
+
+  // Auth provider (set from options.auth or auto-configured from env)
+  private authProvider: AuthProvider | null = null;
+
+  // Observability
+  private serverMetrics = new ServerMetrics();
+
+  // Streamable HTTP session management
+  private sessions = new Map<string, { createdAt: number; lastActivity: number }>();
+  private sseClients = new Map<string, SSEClient[]>(); // sessionId -> clients
+  private sessionCleanupTimer: ReturnType<typeof setInterval> | null = null;
+  private static readonly SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
+  private static readonly SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  private static readonly SESSION_GRACE_PERIOD_MS = 60 * 1000; // 60s grace for in-flight requests
+  private static readonly MAX_SESSIONS = 10_000;
+
+  // Per-IP rate limiter for initialize requests (anti-session-exhaustion)
+  private initRateLimiter = new RateLimiter({ maxRequests: 10, windowMs: 60_000 });
 
   constructor(options: ConcurrentServerOptions) {
     this.options = options;
@@ -147,50 +198,17 @@ export class ConcurrentMCPServer {
       };
     });
 
-    // tools/call handler (with concurrency control and rate limiting)
+    // tools/call handler (delegates to middleware pipeline)
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const toolName = request.params.name;
       const args = request.params.arguments || {};
 
-      // Apply rate limiting if configured
-      if (this.rateLimiter && this.options.rateLimit) {
-        const context: RateLimitContext = { toolName, args };
-        const key = this.options.rateLimit.keyExtractor?.(context) ?? "default";
-
-        if (this.options.rateLimit.onLimitExceeded === "reject") {
-          // Reject immediately if rate limited
-          if (!this.rateLimiter.checkLimit(key)) {
-            const waitTime = this.rateLimiter.getTimeUntilSlot(key);
-            throw new Error(
-              `Rate limit exceeded. Retry after ${Math.ceil(waitTime / 1000)}s`
-            );
-          }
-        } else {
-          // Wait for slot (default behavior)
-          await this.rateLimiter.waitForSlot(key);
-        }
-      }
-
-      // Validate arguments if schema validation is enabled
-      if (this.schemaValidator) {
-        this.schemaValidator.validateOrThrow(toolName, args);
-      }
-
-      // Apply backpressure before execution
-      await this.requestQueue.acquire();
-
       try {
-        const tool = this.tools.get(toolName);
-
-        if (!tool) {
-          throw new Error(`Unknown tool: ${toolName}`);
-        }
-
-        // Execute tool handler
-        const result = await tool.handler(args);
+        const result = await this.executeToolCall(toolName, args);
 
         // Format response according to MCP protocol
-        return {
+        const tool = this.tools.get(toolName);
+        const response: { content: Array<{ type: "text"; text: string }>; _meta?: Record<string, unknown> } = {
           content: [
             {
               type: "text",
@@ -200,17 +218,17 @@ export class ConcurrentMCPServer {
             },
           ],
         };
+        if (tool?._meta) {
+          response._meta = tool._meta as Record<string, unknown>;
+        }
+        return response;
       } catch (error) {
-        // Log error and re-throw for MCP error response
         this.log(
           `Error executing tool ${request.params.name}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
         throw error;
-      } finally {
-        // Always release slot
-        this.requestQueue.release();
       }
     });
   }
@@ -225,6 +243,12 @@ export class ConcurrentMCPServer {
     tools: MCPTool[],
     handlers: Map<string, ToolHandler>,
   ): void {
+    if (this.started) {
+      throw new Error(
+        "[ConcurrentMCPServer] Cannot register tools after server started. " +
+        "Call registerTools() before start() or startHttp().",
+      );
+    }
     for (const tool of tools) {
       const handler = handlers.get(tool.name);
       if (!handler) {
@@ -252,6 +276,12 @@ export class ConcurrentMCPServer {
    * @param handler - Tool handler function
    */
   registerTool(tool: MCPTool, handler: ToolHandler): void {
+    if (this.started) {
+      throw new Error(
+        "[ConcurrentMCPServer] Cannot register tools after server started. " +
+        "Call registerTool() before start() or startHttp().",
+      );
+    }
     this.tools.set(tool.name, {
       ...tool,
       handler,
@@ -263,6 +293,154 @@ export class ConcurrentMCPServer {
     }
 
     this.log(`Registered tool: ${tool.name}`);
+  }
+
+  // ============================================
+  // Middleware Pipeline
+  // ============================================
+
+  /**
+   * Add a custom middleware to the pipeline.
+   * Must be called before start()/startHttp().
+   *
+   * Custom middlewares execute between rate-limit and validation:
+   * rate-limit → **custom middlewares** → validation → backpressure → handler
+   *
+   * @param middleware - Middleware function
+   * @returns this (for chaining)
+   *
+   * @example
+   * ```typescript
+   * server.use(async (ctx, next) => {
+   *   console.log(`Calling ${ctx.toolName}`);
+   *   const result = await next();
+   *   console.log(`Done ${ctx.toolName}`);
+   *   return result;
+   * });
+   * ```
+   */
+  use(middleware: Middleware): this {
+    if (this.started) {
+      throw new Error(
+        "[ConcurrentMCPServer] Cannot add middleware after server started. " +
+        "Call use() before start() or startHttp().",
+      );
+    }
+    this.customMiddlewares.push(middleware);
+    this.middlewareRunner = null; // Invalidate cached runner
+    return this;
+  }
+
+  /**
+   * Build the middleware pipeline from config + custom middlewares.
+   * Called once at start()/startHttp() time.
+   *
+   * Pipeline order:
+   * rate-limit → auth → custom middlewares → scope-check → validation → backpressure → handler
+   */
+  private buildPipeline(): void {
+    const pipeline: Middleware[] = [];
+
+    // 1. Rate limiting (if configured)
+    if (this.rateLimiter && this.options.rateLimit) {
+      pipeline.push(createRateLimitMiddleware(this.rateLimiter, this.options.rateLimit));
+    }
+
+    // 2. Auth middleware (if auth provider is set)
+    if (this.authProvider) {
+      pipeline.push(createAuthMiddleware(this.authProvider));
+    }
+
+    // 3. Custom middlewares (logging, tracing, etc.)
+    pipeline.push(...this.customMiddlewares);
+
+    // 4. Scope enforcement (if any tool has requiredScopes)
+    const toolScopes = new Map<string, string[]>();
+    for (const [name, tool] of this.tools) {
+      if (tool.requiredScopes?.length) {
+        toolScopes.set(name, tool.requiredScopes);
+      }
+    }
+    if (toolScopes.size > 0) {
+      pipeline.push(createScopeMiddleware(toolScopes));
+    }
+
+    // 5. Schema validation (if enabled)
+    if (this.schemaValidator) {
+      pipeline.push(createValidationMiddleware(this.schemaValidator));
+    }
+
+    // 6. Backpressure (always)
+    pipeline.push(createBackpressureMiddleware(this.requestQueue));
+
+    this.middlewareRunner = createMiddlewareRunner(pipeline, async (ctx) => {
+      const tool = this.tools.get(ctx.toolName);
+      if (!tool) {
+        throw new Error(`Unknown tool: ${ctx.toolName}`);
+      }
+      return tool.handler(ctx.args);
+    });
+  }
+
+  /**
+   * Execute a tool call through the middleware pipeline.
+   * Unified entry point for both STDIO and HTTP transports.
+   *
+   * @param toolName - Name of the tool to call
+   * @param args - Tool arguments
+   * @param request - HTTP request (undefined for STDIO)
+   * @param sessionId - HTTP session ID (undefined for STDIO)
+   * @returns Tool execution result
+   */
+  private async executeToolCall(
+    toolName: string,
+    args: Record<string, unknown>,
+    request?: Request,
+    sessionId?: string,
+  ): Promise<MiddlewareResult> {
+    if (!this.middlewareRunner) {
+      throw new Error("[ConcurrentMCPServer] Pipeline not built. Call start() or startHttp() first.");
+    }
+
+    const ctx: MiddlewareContext = {
+      toolName,
+      args,
+      request,
+      sessionId,
+    };
+
+    // OTel span + metrics
+    const span = startToolCallSpan(toolName, {
+      "mcp.tool.name": toolName,
+      "mcp.server.name": this.options.name,
+      "mcp.transport": request ? "http" : "stdio",
+      "mcp.session.id": sessionId,
+    });
+
+    // Update gauges before execution
+    const queueMetrics = this.requestQueue.getMetrics();
+    this.serverMetrics.setGauges({
+      activeRequests: queueMetrics.inFlight,
+      queuedRequests: queueMetrics.queued,
+      activeSessions: this.sessions.size,
+      sseClients: this.getSSEClientCount(),
+      rateLimiterKeys: this.rateLimiter?.getMetrics().keys ?? 0,
+    });
+
+    const start = performance.now();
+    try {
+      const result = await this.middlewareRunner(ctx);
+      const durationMs = performance.now() - start;
+      this.serverMetrics.recordToolCall(toolName, true, durationMs);
+      endToolCallSpan(span, true, durationMs);
+      return result;
+    } catch (error) {
+      const durationMs = performance.now() - start;
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.serverMetrics.recordToolCall(toolName, false, durationMs);
+      endToolCallSpan(span, false, durationMs, errorMsg);
+      throw error;
+    }
   }
 
   // ============================================
@@ -407,6 +585,9 @@ export class ConcurrentMCPServer {
       throw new Error("Server already started");
     }
 
+    // Build middleware pipeline before connecting transport
+    this.buildPipeline();
+
     const transport = new StdioServerTransport();
     await this.mcpServer.server.connect(transport);
 
@@ -426,11 +607,45 @@ export class ConcurrentMCPServer {
   }
 
   /**
+   * Clean up expired sessions to prevent memory leaks.
+   * Removes sessions that haven't had activity within SESSION_TTL_MS.
+   */
+  private cleanupSessions(): void {
+    const now = Date.now();
+    const ttlWithGrace = ConcurrentMCPServer.SESSION_TTL_MS + ConcurrentMCPServer.SESSION_GRACE_PERIOD_MS;
+    let cleaned = 0;
+    for (const [sessionId, session] of this.sessions) {
+      if (now - session.lastActivity > ttlWithGrace) {
+        this.sessions.delete(sessionId);
+        // Also clean up SSE clients for this session
+        const clients = this.sseClients.get(sessionId);
+        if (clients) {
+          for (const client of clients) {
+            try { client.controller.close(); } catch { /* already closed */ }
+          }
+          this.sseClients.delete(sessionId);
+        }
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) {
+      this.serverMetrics.recordSessionExpired(cleaned);
+      this.log(`Session cleanup: removed ${cleaned} expired sessions (${this.sessions.size} remaining)`);
+    }
+  }
+
+  /**
    * Stop the server gracefully
    */
   async stop(): Promise<void> {
     if (!this.started) {
       return;
+    }
+
+    // Stop session cleanup timer
+    if (this.sessionCleanupTimer) {
+      clearInterval(this.sessionCleanupTimer);
+      this.sessionCleanupTimer = null;
     }
 
     // Cancel pending sampling requests
@@ -482,6 +697,23 @@ export class ConcurrentMCPServer {
       throw new Error("Server already started");
     }
 
+    // Configure auth provider:
+    // 1. Programmatic (options.auth.provider) takes priority
+    // 2. Otherwise, auto-load from YAML + env vars
+    if (this.options.auth?.provider) {
+      this.authProvider = this.options.auth.provider;
+      this.log(`Auth configured: provider=${this.authProvider.constructor.name}`);
+    } else {
+      const authConfig = await loadAuthConfig();
+      if (authConfig) {
+        this.authProvider = createAuthProviderFromConfig(authConfig);
+        this.log(`Auth auto-configured from config: provider=${authConfig.provider}`);
+      }
+    }
+
+    // Build middleware pipeline (includes auth if configured)
+    this.buildPipeline();
+
     const hostname = options.hostname ?? "0.0.0.0";
     const enableCors = options.cors ?? true;
 
@@ -493,7 +725,7 @@ export class ConcurrentMCPServer {
       app.use("*", cors({
         origin: "*",
         allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-        allowHeaders: ["Content-Type", "Accept", "mcp-session-id", "last-event-id"],
+        allowHeaders: ["Content-Type", "Accept", "Authorization", "mcp-session-id", "last-event-id"],
         exposeHeaders: ["Content-Length", "mcp-session-id"],
         maxAge: 600,
       }));
@@ -502,23 +734,188 @@ export class ConcurrentMCPServer {
     // Health check endpoint
     app.get("/health", (c) => c.json({ status: "ok", server: this.options.name, version: this.options.version }));
 
-    // MCP endpoint - GET returns 405 (Streamable HTTP spec)
-    app.get("/mcp", (c) => c.text("Method Not Allowed", 405));
-    app.get("/", (c) => c.text("Method Not Allowed", 405));
+    // Prometheus metrics endpoint
+    app.get("/metrics", (_c) => {
+      // Update gauges before serving
+      const qm = this.requestQueue.getMetrics();
+      this.serverMetrics.setGauges({
+        activeRequests: qm.inFlight,
+        queuedRequests: qm.queued,
+        activeSessions: this.sessions.size,
+        sseClients: this.getSSEClientCount(),
+        rateLimiterKeys: this.rateLimiter?.getMetrics().keys ?? 0,
+      });
+      return new Response(this.serverMetrics.toPrometheusFormat(), {
+        headers: { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" },
+      });
+    });
+
+    // RFC 9728 Protected Resource Metadata endpoint
+    // deno-lint-ignore no-explicit-any
+    app.get("/.well-known/oauth-protected-resource", ((c: any) => {
+      if (!this.authProvider) {
+        return c.text("Not Found", 404);
+      }
+      return c.json(this.authProvider.getResourceMetadata());
+    }) as any);
+
+    // Helper: build resource metadata URL safely (avoid double slash)
+    const buildMetadataUrl = (resource: string): string => {
+      const base = resource.endsWith("/") ? resource.slice(0, -1) : resource;
+      return `${base}/.well-known/oauth-protected-resource`;
+    };
+
+    // Auth verification helper for HTTP endpoints.
+    // Returns an error Response if auth is required but token is missing/invalid.
+    // Returns null if auth passes or is not configured.
+    const verifyHttpAuth = async (request: Request): Promise<Response | null> => {
+      if (!this.authProvider) return null;
+
+      const token = extractBearerToken(request);
+      if (!token) {
+        const metadata = this.authProvider.getResourceMetadata();
+        return createUnauthorizedResponse(
+          buildMetadataUrl(metadata.resource),
+          "missing_token",
+          "Authorization header with Bearer token required",
+        );
+      }
+
+      const authInfo = await this.authProvider.verifyToken(token);
+      if (!authInfo) {
+        const metadata = this.authProvider.getResourceMetadata();
+        return createUnauthorizedResponse(
+          buildMetadataUrl(metadata.resource),
+          "invalid_token",
+          "Invalid or expired token",
+        );
+      }
+
+      return null;
+    };
+
+    // MCP endpoint - GET opens SSE stream for server→client messages (Streamable HTTP spec)
+    // deno-lint-ignore no-explicit-any
+    const handleMcpGet = async (c: any) => {
+      const accept = c.req.header("accept") ?? "";
+      const sessionId = c.req.header("mcp-session-id");
+      const lastEventId = c.req.header("last-event-id");
+
+      // Check if client accepts SSE
+      if (!accept.includes("text/event-stream")) {
+        return c.text("Method Not Allowed", 405);
+      }
+
+      // Auth gate: SSE connections require valid token when auth is configured
+      const authDeniedSse = await verifyHttpAuth(c.req.raw);
+      if (authDeniedSse) return authDeniedSse;
+
+      // Validate session if provided
+      if (sessionId && !this.sessions.has(sessionId)) {
+        return c.text("Session not found", 404);
+      }
+
+      // Create SSE stream
+      const encoder = new TextEncoder();
+      let sseClient: SSEClient | null = null;
+
+      const stream = new ReadableStream<Uint8Array>({
+        start: (controller) => {
+          const clientSessionId = sessionId ?? "anonymous";
+          const parsedEventId = lastEventId ? parseInt(lastEventId, 10) : 0;
+          sseClient = {
+            sessionId: clientSessionId,
+            controller,
+            createdAt: Date.now(),
+            lastEventId: Number.isNaN(parsedEventId) ? 0 : parsedEventId,
+          };
+
+          // Register client
+          if (!this.sseClients.has(clientSessionId)) {
+            this.sseClients.set(clientSessionId, []);
+          }
+          this.sseClients.get(clientSessionId)!.push(sseClient);
+
+          this.log(`SSE client connected (session: ${clientSessionId})`);
+
+          // Send initial comment to establish connection
+          controller.enqueue(encoder.encode(": connected\n\n"));
+        },
+        cancel: () => {
+          // Remove client on disconnect
+          if (sseClient) {
+            const clients = this.sseClients.get(sseClient.sessionId);
+            if (clients) {
+              const idx = clients.indexOf(sseClient);
+              if (idx !== -1) clients.splice(idx, 1);
+              if (clients.length === 0) this.sseClients.delete(sseClient.sessionId);
+            }
+            this.log(`SSE client disconnected (session: ${sseClient.sessionId})`);
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          ...(sessionId ? { "Mcp-Session-Id": sessionId } : {}),
+        },
+      });
+    };
+
+    // deno-lint-ignore no-explicit-any
+    app.get("/mcp", handleMcpGet as any);
+    // deno-lint-ignore no-explicit-any
+    app.get("/", handleMcpGet as any);
 
     // MCP endpoint - POST handles JSON-RPC
-    const handleMcpPost = async (c: { req: { json: () => Promise<unknown> }; json: (data: unknown, status?: number) => Response }) => {
+    const handleMcpPost = async (c: { req: { json: () => Promise<unknown>; raw: Request; header: (name: string) => string | undefined }; json: (data: unknown, status?: number) => Response }) => {
+      let requestId: string | number | null = null;
       try {
         const body = await c.req.json() as { id?: string | number; method?: string; params?: Record<string, unknown> };
         const { id, method, params } = body;
+        requestId = id ?? null;
 
-        // Initialize
+        // Initialize - create session and return session ID
+        // Note: initialize is NOT auth-gated (client needs to discover capabilities first)
         if (method === "initialize") {
-          return c.json({
+          // Per-IP rate limit on initialize to prevent session exhaustion attacks
+          const clientIp = c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
+            ?? c.req.header("x-real-ip")
+            ?? "unknown";
+          if (!this.initRateLimiter.checkLimit(clientIp)) {
+            return c.json({
+              jsonrpc: "2.0",
+              id,
+              error: { code: -32000, message: "Too many initialize requests. Try again later." },
+            }, 429);
+          }
+
+          // Guard against session exhaustion
+          if (this.sessions.size >= ConcurrentMCPServer.MAX_SESSIONS) {
+            this.cleanupSessions();
+            if (this.sessions.size >= ConcurrentMCPServer.MAX_SESSIONS) {
+              return c.json({
+                jsonrpc: "2.0",
+                id,
+                error: { code: -32000, message: "Too many active sessions" },
+              }, 503);
+            }
+          }
+          const sessionId = generateSessionId();
+          const now = Date.now();
+          this.sessions.set(sessionId, { createdAt: now, lastActivity: now });
+          this.serverMetrics.recordSessionCreated();
+
+          this.log(`New session created: ${sessionId}`);
+
+          return new Response(JSON.stringify({
             jsonrpc: "2.0",
             id,
             result: {
-              protocolVersion: "2024-11-05",
+              protocolVersion: "2025-03-26",
               capabilities: {
                 tools: {},
                 resources: this.resources.size > 0 ? {} : undefined,
@@ -528,8 +925,80 @@ export class ConcurrentMCPServer {
                 version: this.options.version,
               },
             },
+          }), {
+            headers: {
+              "Content-Type": "application/json",
+              "Mcp-Session-Id": sessionId,
+            },
           });
         }
+
+        // Session validation: all methods after initialize must provide a valid session
+        const reqSessionId = c.req.header("mcp-session-id");
+        if (reqSessionId) {
+          const session = this.sessions.get(reqSessionId);
+          if (!session) {
+            return c.json({
+              jsonrpc: "2.0",
+              id,
+              error: { code: -32001, message: "Session not found or expired" },
+            }, 404);
+          }
+          // Update last activity to prevent premature cleanup
+          session.lastActivity = Date.now();
+        }
+
+        // Tools call (delegates to middleware pipeline, which handles auth internally)
+        if (method === "tools/call" && params?.name) {
+          const toolName = params.name as string;
+          const args = (params.arguments as Record<string, unknown>) || {};
+
+          try {
+            const result = await this.executeToolCall(toolName, args, c.req.raw, undefined);
+            const tool = this.tools.get(toolName);
+            return c.json({
+              jsonrpc: "2.0",
+              id,
+              result: {
+                content: [{
+                  type: "text",
+                  text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
+                }],
+                ...(tool?._meta && { _meta: tool._meta }),
+              },
+            });
+          } catch (error) {
+            // Handle AuthError with proper HTTP status codes
+            if (error instanceof AuthError) {
+              if (error.code === "missing_token" || error.code === "invalid_token") {
+                return createUnauthorizedResponse(
+                  error.resourceMetadataUrl,
+                  error.code,
+                  error.message,
+                );
+              }
+              if (error.code === "insufficient_scope") {
+                return createForbiddenResponse(error.requiredScopes ?? []);
+              }
+            }
+
+            this.log(`Error executing tool ${toolName}: ${error instanceof Error ? error.message : String(error)}`);
+            const errorMessage = error instanceof Error ? error.message : "Tool execution failed";
+            const errorCode = errorMessage.startsWith("Unknown tool") ? -32602
+              : errorMessage.startsWith("Rate limit") ? -32000
+              : -32603;
+            return c.json({
+              jsonrpc: "2.0",
+              id,
+              error: { code: errorCode, message: errorMessage },
+            });
+          }
+        }
+
+        // Auth gate: all other methods after initialize require valid token (if auth configured)
+        // (tools/call is handled above via the middleware pipeline which includes auth)
+        const authDenied = await verifyHttpAuth(c.req.raw);
+        if (authDenied) return authDenied;
 
         // Tools list
         if (method === "tools/list") {
@@ -545,79 +1014,6 @@ export class ConcurrentMCPServer {
               })),
             },
           });
-        }
-
-        // Tools call
-        if (method === "tools/call" && params?.name) {
-          const toolName = params.name as string;
-          const args = (params.arguments as Record<string, unknown>) || {};
-
-          const tool = this.tools.get(toolName);
-          if (!tool) {
-            return c.json({
-              jsonrpc: "2.0",
-              id,
-              error: { code: -32602, message: `Unknown tool: ${toolName}` },
-            });
-          }
-
-          // Apply rate limiting if configured
-          if (this.rateLimiter && this.options.rateLimit) {
-            const context: RateLimitContext = { toolName, args };
-            const key = this.options.rateLimit.keyExtractor?.(context) ?? "default";
-
-            if (this.options.rateLimit.onLimitExceeded === "reject") {
-              if (!this.rateLimiter.checkLimit(key)) {
-                const waitTime = this.rateLimiter.getTimeUntilSlot(key);
-                return c.json({
-                  jsonrpc: "2.0",
-                  id,
-                  error: { code: -32000, message: `Rate limit exceeded. Retry after ${Math.ceil(waitTime / 1000)}s` },
-                });
-              }
-            } else {
-              await this.rateLimiter.waitForSlot(key);
-            }
-          }
-
-          // Validate arguments if schema validation is enabled
-          if (this.schemaValidator) {
-            try {
-              this.schemaValidator.validateOrThrow(toolName, args);
-            } catch (error) {
-              return c.json({
-                jsonrpc: "2.0",
-                id,
-                error: { code: -32602, message: error instanceof Error ? error.message : "Validation failed" },
-              });
-            }
-          }
-
-          // Apply backpressure
-          await this.requestQueue.acquire();
-
-          try {
-            const result = await tool.handler(args);
-            return c.json({
-              jsonrpc: "2.0",
-              id,
-              result: {
-                content: [{
-                  type: "text",
-                  text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
-                }],
-              },
-            });
-          } catch (error) {
-            this.log(`Error executing tool ${toolName}: ${error instanceof Error ? error.message : String(error)}`);
-            return c.json({
-              jsonrpc: "2.0",
-              id,
-              error: { code: -32603, message: error instanceof Error ? error.message : "Tool execution failed" },
-            });
-          } finally {
-            this.requestQueue.release();
-          }
         }
 
         // Resources list
@@ -666,6 +1062,20 @@ export class ConcurrentMCPServer {
           }
         }
 
+        // Handle notifications: must have a method and no id (JSON-RPC 2.0 notification)
+        if (method && !id) {
+          return new Response(null, { status: 202 });
+        }
+
+        // Malformed request: no method at all
+        if (!method) {
+          return c.json({
+            jsonrpc: "2.0",
+            id: id ?? null,
+            error: { code: -32600, message: "Invalid Request: missing 'method' field" },
+          });
+        }
+
         // Method not found
         return c.json({
           jsonrpc: "2.0",
@@ -676,7 +1086,7 @@ export class ConcurrentMCPServer {
         this.log(`HTTP request error: ${error instanceof Error ? error.message : String(error)}`);
         return c.json({
           jsonrpc: "2.0",
-          id: null,
+          id: requestId,
           error: { code: -32700, message: "Parse error" },
         });
       }
@@ -701,6 +1111,14 @@ export class ConcurrentMCPServer {
 
     this.started = true;
 
+    // Start session cleanup timer (prevents unbounded memory growth)
+    this.sessionCleanupTimer = setInterval(
+      () => this.cleanupSessions(),
+      ConcurrentMCPServer.SESSION_CLEANUP_INTERVAL_MS,
+    );
+    // Don't block Deno from exiting because of cleanup timer
+    Deno.unrefTimer(this.sessionCleanupTimer as unknown as number);
+
     const rateLimitInfo = this.options.rateLimit
       ? `, rate limit: ${this.options.rateLimit.maxRequests}/${this.options.rateLimit.windowMs}ms`
       : "";
@@ -722,6 +1140,72 @@ export class ConcurrentMCPServer {
   }
 
   /**
+   * Send a JSON-RPC message to all SSE clients in a session
+   * Used for server-initiated notifications and requests
+   *
+   * @param sessionId - Session ID (or "anonymous" for clients without session)
+   * @param message - JSON-RPC message to send
+   */
+  sendToSession(sessionId: string, message: Record<string, unknown>): void {
+    const clients = this.sseClients.get(sessionId);
+    if (!clients || clients.length === 0) {
+      this.log(`No SSE clients for session: ${sessionId}`);
+      return;
+    }
+
+    const encoder = new TextEncoder();
+    const eventId = Date.now();
+    const data = `id: ${eventId}\ndata: ${JSON.stringify(message)}\n\n`;
+
+    // Iterate in reverse so splice doesn't shift indices
+    for (let i = clients.length - 1; i >= 0; i--) {
+      const client = clients[i];
+      try {
+        client.controller.enqueue(encoder.encode(data));
+        client.lastEventId = eventId;
+      } catch {
+        // Stream is closed/broken — remove zombie client to prevent memory leak
+        clients.splice(i, 1);
+        this.log(`Removed dead SSE client from session: ${sessionId}`);
+      }
+    }
+
+    // Clean up empty session entry
+    if (clients.length === 0) {
+      this.sseClients.delete(sessionId);
+    }
+  }
+
+  /**
+   * Send a notification to all connected SSE clients
+   *
+   * @param method - Notification method name
+   * @param params - Notification parameters
+   */
+  broadcastNotification(method: string, params?: Record<string, unknown>): void {
+    const message = {
+      jsonrpc: "2.0",
+      method,
+      params,
+    };
+
+    for (const sessionId of this.sseClients.keys()) {
+      this.sendToSession(sessionId, message);
+    }
+  }
+
+  /**
+   * Get number of active SSE connections
+   */
+  getSSEClientCount(): number {
+    let count = 0;
+    for (const clients of this.sseClients.values()) {
+      count += clients.length;
+    }
+    return count;
+  }
+
+  /**
    * Get sampling bridge (if enabled)
    */
   getSamplingBridge(): SamplingBridge | null {
@@ -733,6 +1217,28 @@ export class ConcurrentMCPServer {
    */
   getMetrics(): QueueMetrics {
     return this.requestQueue.getMetrics();
+  }
+
+  /**
+   * Get full server metrics (counters, histograms, gauges)
+   */
+  getServerMetrics(): import("./observability/metrics.ts").ServerMetricsSnapshot {
+    const qm = this.requestQueue.getMetrics();
+    this.serverMetrics.setGauges({
+      activeRequests: qm.inFlight,
+      queuedRequests: qm.queued,
+      activeSessions: this.sessions.size,
+      sseClients: this.getSSEClientCount(),
+      rateLimiterKeys: this.rateLimiter?.getMetrics().keys ?? 0,
+    });
+    return this.serverMetrics.getSnapshot();
+  }
+
+  /**
+   * Get Prometheus text format metrics
+   */
+  getPrometheusMetrics(): string {
+    return this.serverMetrics.toPrometheusFormat();
   }
 
   /**

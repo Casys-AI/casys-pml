@@ -538,6 +538,22 @@ export class StaticStructureBuilder {
         // For single calls: nums.map() → includes nums
         const code = this.extractCodeFromSpan(this.extractFullChainSpan(n));
 
+        // Story 10.5-fix: Extract input argument for sequence edge generation
+        // For chained calls (chainedInputNodeId set), reference the chained node directly.
+        // For variable-based calls (e.g., users.filter()), resolve callee.object via variableToNodeId.
+        const codeArguments: ArgumentsStructure = {};
+        if (chainedInputNodeId) {
+          codeArguments.input = { type: "reference", expression: chainedInputNodeId };
+        } else {
+          const calleeObj = (callee as Record<string, unknown>).object as Record<string, unknown>;
+          if (calleeObj) {
+            const inputArg = this.extractArgumentValue(calleeObj);
+            if (inputArg) {
+              codeArguments.input = inputArg;
+            }
+          }
+        }
+
         nodes.push({
           id: nodeId,
           type: "task",
@@ -545,6 +561,7 @@ export class StaticStructureBuilder {
           position,
           parentScope,
           code,
+          ...(Object.keys(codeArguments).length > 0 ? { arguments: codeArguments } : {}),
           // Option B: Add execution metadata
           metadata: {
             executable: isExecutable,
@@ -636,6 +653,20 @@ export class StaticStructureBuilder {
         // Story 10.2c fix: Always extract full code including the object reference
         const code = this.extractCodeFromSpan(this.extractFullChainSpan(n));
 
+        // Story 10.5-fix: Extract input argument for sequence edge generation
+        const stringCodeArgs: ArgumentsStructure = {};
+        if (chainedInputNodeId) {
+          stringCodeArgs.input = { type: "reference", expression: chainedInputNodeId };
+        } else {
+          const calleeObj = (callee as Record<string, unknown>).object as Record<string, unknown>;
+          if (calleeObj) {
+            const inputArg = this.extractArgumentValue(calleeObj);
+            if (inputArg) {
+              stringCodeArgs.input = inputArg;
+            }
+          }
+        }
+
         nodes.push({
           id: nodeId,
           type: "task",
@@ -643,6 +674,7 @@ export class StaticStructureBuilder {
           position,
           parentScope,
           code,
+          ...(Object.keys(stringCodeArgs).length > 0 ? { arguments: stringCodeArgs } : {}),
           metadata: {
             executable: isExecutable,
             nestingLevel,
@@ -693,6 +725,18 @@ export class StaticStructureBuilder {
         const code = span ? this.extractCodeFromSpan(span) : undefined;
         const isExecutable = nestingLevel === 0;
 
+        // Story 10.5-fix: Extract first function argument as input for sequence edges
+        const objCodeArgs: ArgumentsStructure = {};
+        const objFnArgs = n.arguments as Array<Record<string, unknown>> | undefined;
+        const objFirstArg = objFnArgs?.[0];
+        const objFirstArgExpr = (objFirstArg?.expression as Record<string, unknown>) ?? objFirstArg;
+        if (objFirstArgExpr) {
+          const inputArg = this.extractArgumentValue(objFirstArgExpr);
+          if (inputArg) {
+            objCodeArgs.input = inputArg;
+          }
+        }
+
         nodes.push({
           id: nodeId,
           type: "task",
@@ -700,6 +744,7 @@ export class StaticStructureBuilder {
           position,
           parentScope,
           code,
+          ...(Object.keys(objCodeArgs).length > 0 ? { arguments: objCodeArgs } : {}),
           metadata: { executable: isExecutable, nestingLevel, parentOperation: currentParentOp },
         });
 
@@ -725,6 +770,22 @@ export class StaticStructureBuilder {
         const code = span ? this.extractCodeFromSpan(span) : undefined;
         const isExecutable = nestingLevel === 0;
 
+        // Story 10.5-fix: Extract function arguments as input for sequence edges
+        const mathCodeArgs: ArgumentsStructure = {};
+        const mathFnArgs = n.arguments as Array<Record<string, unknown>> | undefined;
+        if (mathFnArgs) {
+          for (let argIdx = 0; argIdx < mathFnArgs.length; argIdx++) {
+            const argNode = mathFnArgs[argIdx];
+            const argExpr = (argNode?.expression as Record<string, unknown>) ?? argNode;
+            if (argExpr) {
+              const argValue = this.extractArgumentValue(argExpr);
+              if (argValue) {
+                mathCodeArgs[argIdx === 0 ? "input" : `arg${argIdx}`] = argValue;
+              }
+            }
+          }
+        }
+
         nodes.push({
           id: nodeId,
           type: "task",
@@ -732,6 +793,7 @@ export class StaticStructureBuilder {
           position,
           parentScope,
           code,
+          ...(Object.keys(mathCodeArgs).length > 0 ? { arguments: mathCodeArgs } : {}),
           metadata: { executable: isExecutable, nestingLevel, parentOperation: currentParentOp },
         });
 
@@ -755,6 +817,18 @@ export class StaticStructureBuilder {
         const code = span ? this.extractCodeFromSpan(span) : undefined;
         const isExecutable = nestingLevel === 0;
 
+        // Story 10.5-fix: Extract first function argument as input for sequence edges
+        const jsonCodeArgs: ArgumentsStructure = {};
+        const jsonFnArgs = n.arguments as Array<Record<string, unknown>> | undefined;
+        const jsonFirstArg = jsonFnArgs?.[0];
+        const jsonFirstArgExpr = (jsonFirstArg?.expression as Record<string, unknown>) ?? jsonFirstArg;
+        if (jsonFirstArgExpr) {
+          const inputArg = this.extractArgumentValue(jsonFirstArgExpr);
+          if (inputArg) {
+            jsonCodeArgs.input = inputArg;
+          }
+        }
+
         nodes.push({
           id: nodeId,
           type: "task",
@@ -762,6 +836,7 @@ export class StaticStructureBuilder {
           position,
           parentScope,
           code,
+          ...(Object.keys(jsonCodeArgs).length > 0 ? { arguments: jsonCodeArgs } : {}),
           metadata: { executable: isExecutable, nestingLevel, parentOperation: currentParentOp },
         });
 
@@ -884,10 +959,25 @@ export class StaticStructureBuilder {
     // If a new task node was created, map the variable to it
     const nodeCountAfter = this.nodeCounters.task;
     if (variableName && nodeCountAfter > nodeCountBefore) {
-      // The most recently created node is the one assigned to this variable
-      const nodeId = `n${nodeCountAfter}`;
-      this.variableToNodeId.set(variableName, nodeId);
-      logger.debug("Tracked variable to node mapping", { variableName, nodeId });
+      // Story 10.5-fix: Find the primary result node, not the last created node.
+      // For operations with callbacks (e.g., filter(n => n > 5)), nested nodes like
+      // greaterThan are created AFTER the main operation but are executable: false.
+      // For chains (e.g., filter().map()), the last executable node is the final result.
+      // In both cases, we want the LAST executable node created during this init processing.
+      let mappedNodeId: string | undefined;
+      for (let i = nodeCountAfter; i >= nodeCountBefore + 1; i--) {
+        const candidate = nodes.find((n) => n.id === `n${i}`);
+        if (candidate?.type === "task" && candidate.metadata?.executable !== false) {
+          mappedNodeId = candidate.id;
+          break;
+        }
+      }
+      // Fallback to first created node if no executable found (shouldn't happen)
+      if (!mappedNodeId) {
+        mappedNodeId = `n${nodeCountBefore + 1}`;
+      }
+      this.variableToNodeId.set(variableName, mappedNodeId);
+      logger.debug("Tracked variable to node mapping", { variableName, nodeId: mappedNodeId });
     }
   }
 
@@ -1247,7 +1337,7 @@ export class StaticStructureBuilder {
    * @param node AST node representing the argument value
    * @returns ArgumentValue with resolution strategy, or undefined if unhandled
    */
-  private extractArgumentValue(node: Record<string, unknown>): ArgumentValue | undefined {
+  public extractArgumentValue(node: Record<string, unknown>): ArgumentValue | undefined {
     if (!node || !node.type) {
       return undefined;
     }

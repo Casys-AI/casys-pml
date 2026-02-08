@@ -12,7 +12,7 @@ import type { DAGStructure, Task } from "../../../src/graphrag/types.ts";
 // Test: canFuseTasks
 // =============================================================================
 
-Deno.test("canFuseTasks - returns true for fusible tasks", () => {
+Deno.test("canFuseTasks - returns true for method chain tasks (chainedFrom)", () => {
   const tasks: Task[] = [
     {
       id: "task_c1",
@@ -28,7 +28,34 @@ Deno.test("canFuseTasks - returns true for fusible tasks", () => {
       id: "task_c2",
       type: "code_execution",
       tool: "code:map",
-      code: "data.map(x => x.name)",
+      code: "data.filter(x => x.active).map(x => x.name)",
+      arguments: {},
+      dependsOn: ["task_c1"],
+      sandboxConfig: { permissionSet: "minimal" },
+      metadata: { pure: true, chainedFrom: "task_c1" },
+    },
+  ];
+
+  assert(canFuseTasks(tasks), "Should be able to fuse method chain tasks");
+});
+
+Deno.test("canFuseTasks - returns false for variable-based sequences (no chainedFrom)", () => {
+  const tasks: Task[] = [
+    {
+      id: "task_c1",
+      type: "code_execution",
+      tool: "code:filter",
+      code: "nums.filter(x => x > 5)",
+      arguments: {},
+      dependsOn: [],
+      sandboxConfig: { permissionSet: "minimal" },
+      metadata: { pure: true },
+    },
+    {
+      id: "task_c2",
+      type: "code_execution",
+      tool: "code:map",
+      code: "filtered.map(x => x * 2)",
       arguments: {},
       dependsOn: ["task_c1"],
       sandboxConfig: { permissionSet: "minimal" },
@@ -36,7 +63,7 @@ Deno.test("canFuseTasks - returns true for fusible tasks", () => {
     },
   ];
 
-  assert(canFuseTasks(tasks), "Should be able to fuse pure code tasks");
+  assert(!canFuseTasks(tasks), "Should NOT fuse variable-based sequences");
 });
 
 Deno.test("canFuseTasks - returns false for MCP tasks", () => {
@@ -181,7 +208,7 @@ Deno.test("fuseTasks - preserves external dependencies", () => {
 // Test: optimizeDAG
 // =============================================================================
 
-Deno.test("optimizeDAG - fuses sequential code tasks", () => {
+Deno.test("optimizeDAG - fuses sequential method chain code tasks", () => {
   const logicalDAG: DAGStructure = {
     tasks: [
       {
@@ -205,21 +232,21 @@ Deno.test("optimizeDAG - fuses sequential code tasks", () => {
         id: "task_c2",
         type: "code_execution",
         tool: "code:map",
-        code: "data.map(x => x.name)",
+        code: "data.filter(x => x.active).map(x => x.name)",
         arguments: {},
         dependsOn: ["task_c1"],
         sandboxConfig: { permissionSet: "minimal" },
-        metadata: { pure: true },
+        metadata: { pure: true, chainedFrom: "task_c1" },
       },
       {
         id: "task_c3",
         type: "code_execution",
         tool: "code:sort",
-        code: "data.sort()",
+        code: "data.filter(x => x.active).map(x => x.name).sort()",
         arguments: {},
         dependsOn: ["task_c2"],
         sandboxConfig: { permissionSet: "minimal" },
-        metadata: { pure: true },
+        metadata: { pure: true, chainedFrom: "task_c2" },
       },
     ],
   };
@@ -244,6 +271,40 @@ Deno.test("optimizeDAG - fuses sequential code tasks", () => {
   assertEquals(optimized.logicalToPhysical.get("task_c3"), "fused_task_c1");
 
   assertEquals(optimized.physicalToLogical.get("fused_task_c1"), ["task_c1", "task_c2", "task_c3"]);
+});
+
+Deno.test("optimizeDAG - does NOT fuse variable-based sequential tasks", () => {
+  const logicalDAG: DAGStructure = {
+    tasks: [
+      {
+        id: "task_c1",
+        type: "code_execution",
+        tool: "code:JSON.parse",
+        code: "JSON.parse(content)",
+        arguments: {},
+        dependsOn: [],
+        sandboxConfig: { permissionSet: "minimal" },
+        metadata: { pure: true },
+      },
+      {
+        id: "task_c2",
+        type: "code_execution",
+        tool: "code:Object.keys",
+        code: "Object.keys(parsed)",
+        arguments: {},
+        dependsOn: ["task_c1"],
+        sandboxConfig: { permissionSet: "minimal" },
+        metadata: { pure: true }, // No chainedFrom → variable-based sequence
+      },
+    ],
+  };
+
+  const optimized = optimizeDAG(logicalDAG);
+
+  // Should have 2 separate physical tasks (no fusion for variable sequences)
+  assertEquals(optimized.tasks.length, 2);
+  assertEquals(optimized.tasks[0].id, "task_c1");
+  assertEquals(optimized.tasks[1].id, "task_c2");
 });
 
 Deno.test("optimizeDAG - keeps MCP tasks separate", () => {
@@ -346,7 +407,7 @@ Deno.test("optimizeDAG - disabled optimization returns logical DAG", () => {
   assertEquals(optimized.logicalToPhysical.get("task_c1"), "task_c1");
 });
 
-Deno.test("optimizeDAG - respects maxFusionSize", () => {
+Deno.test("optimizeDAG - respects maxFusionSize for method chains", () => {
   const logicalDAG: DAGStructure = {
     tasks: Array.from({ length: 20 }, (_, i) => ({
       id: `task_c${i + 1}`,
@@ -356,7 +417,7 @@ Deno.test("optimizeDAG - respects maxFusionSize", () => {
       arguments: {},
       dependsOn: i === 0 ? [] : [`task_c${i}`],
       sandboxConfig: { permissionSet: "minimal" as const },
-      metadata: { pure: true },
+      metadata: { pure: true, ...(i > 0 ? { chainedFrom: `task_c${i}` } : {}) },
     })),
   };
 

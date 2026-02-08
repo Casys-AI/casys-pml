@@ -8,6 +8,7 @@
  * Purpose: Ensure metrics table exists for telemetry tracking
  */
 
+import * as log from "@std/log";
 import type { DbClient } from "../types.ts";
 import type { Migration } from "../migrations.ts";
 
@@ -51,7 +52,7 @@ ON metrics (metric_name, timestamp DESC);
         } catch (error) {
           // If table already exists, that's okay - log and continue
           if (error instanceof Error && error.message.includes("already exists")) {
-            console.warn(`Table or index already exists (expected): ${error.message}`);
+            log.warn(`Table or index already exists (expected): ${error.message}`);
           } else {
             throw error;
           }

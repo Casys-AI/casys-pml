@@ -13,7 +13,7 @@ import {
   getToolsByCategory,
   toolsByCategory,
 } from "./tools/mod.ts";
-import type { MiniTool } from "./tools/types.ts";
+import type { MCPClientBase, MCPTool, MCPToolWireFormat, MiniTool } from "./tools/types.ts";
 
 // Re-export from tools
 export {
@@ -24,7 +24,16 @@ export {
   toolsByCategory,
 };
 export type { MiniTool };
-export type { MiniToolHandler, MiniToolResult, ToolCategory } from "./tools/types.ts";
+export type {
+  MCPClientBase,
+  MCPTool,
+  MCPToolWireFormat,
+  McpUiToolMeta,
+  MCPToolMeta,
+  MiniToolHandler,
+  MiniToolResult,
+  ToolCategory,
+} from "./tools/types.ts";
 
 // ============================================================================
 // MiniToolsClient Class
@@ -56,15 +65,14 @@ export class MiniToolsClient {
   }
 
   /**
-   * Convert tools to MCP format
+   * Convert tools to MCP format (includes _meta for MCP Apps UI support)
    */
-  toMCPFormat(): Array<
-    { name: string; description: string; inputSchema: Record<string, unknown> }
-  > {
+  toMCPFormat(): MCPToolWireFormat[] {
     return this.tools.map((t) => ({
       name: t.name,
       description: t.description,
       inputSchema: t.inputSchema,
+      ...(t._meta && { _meta: t._meta }),
     }));
   }
 
@@ -91,25 +99,8 @@ export class MiniToolsClient {
 export const defaultClient: MiniToolsClient = new MiniToolsClient();
 
 // ============================================================================
-// Legacy Types (for backward compatibility)
+// MCP Client Implementation
 // ============================================================================
-
-/** MCP Tool definition */
-export interface MCPTool {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-}
-
-/** MCP Client interface */
-export interface MCPClientBase {
-  readonly serverId: string;
-  readonly serverName: string;
-  connect(): Promise<void>;
-  listTools(): Promise<MCPTool[]>;
-  callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
-  disconnect(): Promise<void>;
-}
 
 /**
  * MiniTools MCP Client - Implements MCPClientBase interface

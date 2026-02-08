@@ -247,22 +247,16 @@ function extractIntermediateResult(
 /**
  * Check if a physical task is fused
  */
-export function isFusedTask(
-  taskId: string,
-  optimizedDAG: OptimizedDAGStructure,
-): boolean {
+export function isFusedTask(taskId: string, optimizedDAG: OptimizedDAGStructure): boolean {
   const logicalTasks = optimizedDAG.physicalToLogical.get(taskId);
-  return logicalTasks !== undefined && logicalTasks.length > 1;
+  return (logicalTasks?.length ?? 0) > 1;
 }
 
 /**
  * Get logical tasks for a physical task
  */
-export function getLogicalTasks(
-  physicalTaskId: string,
-  optimizedDAG: OptimizedDAGStructure,
-): string[] {
-  return optimizedDAG.physicalToLogical.get(physicalTaskId) || [];
+export function getLogicalTasks(physicalTaskId: string, optimizedDAG: OptimizedDAGStructure): string[] {
+  return optimizedDAG.physicalToLogical.get(physicalTaskId) ?? [];
 }
 
 /**

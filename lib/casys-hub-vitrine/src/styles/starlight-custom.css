@@ -1,0 +1,50 @@
+/* Starlight custom theme for @casys/mcp-server */
+
+/* Warm amber brand colors */
+:root {
+  --sl-color-accent-low: #451a03;
+  --sl-color-accent: #b45309;
+  --sl-color-accent-high: #fef3c7;
+  --sl-color-white: #f5f0ea;
+  --sl-color-gray-1: #d5c3b5;
+  --sl-color-gray-2: #a89a8c;
+  --sl-color-gray-3: #6b5c4f;
+  --sl-color-gray-4: #3d332a;
+  --sl-color-gray-5: #1a1815;
+  --sl-color-gray-6: #111110;
+  --sl-color-black: #0a0908;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #fef3c7;
+  --sl-color-accent: #b45309;
+  --sl-color-accent-high: #451a03;
+  --sl-color-white: #0a0908;
+  --sl-color-gray-1: #3d332a;
+  --sl-color-gray-2: #6b5c4f;
+  --sl-color-gray-3: #a89a8c;
+  --sl-color-gray-4: #d5c3b5;
+  --sl-color-gray-5: #f5f0ea;
+  --sl-color-gray-6: #faf8f5;
+  --sl-color-black: #ffffff;
+}
+
+/* Typography */
+:root {
+  --sl-font: 'Inter', system-ui, sans-serif;
+  --sl-font-system-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Code blocks */
+.expressive-code .frame {
+  border-radius: 10px;
+}
+
+/* Subdomain sidebar filtering — FOUC prevention.
+   Hide sidebar groups until the head script sets data-sidebar-ready. */
+.top-level > li {
+  display: none;
+}
+html[data-sidebar-ready] .top-level > li:not([hidden]) {
+  display: list-item;
+}

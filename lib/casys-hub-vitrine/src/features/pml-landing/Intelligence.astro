@@ -1,0 +1,800 @@
+---
+/**
+ * Intelligence Section - Collective Intelligence visualization
+ *
+ * Ported from Fresh IntelligenceSection.tsx + HyperGraphViz.tsx
+ * 2-column grid: left content, right isometric 3D knowledge graph SVG
+ *
+ * @module features/pml-landing/Intelligence
+ */
+
+const locale = (Astro as any).currentLocale ?? 'en';
+
+/* ------------------------------------------------------------------ */
+/*  i18n                                                               */
+/* ------------------------------------------------------------------ */
+
+const translations: Record<string, {
+  eyebrow: string;
+  titleLine1: string;
+  titleLine2: string;
+  description: string;
+  features: Array<{ icon: string; title: string; desc: string }>;
+}> = {
+  en: {
+    eyebrow: 'Collective Intelligence',
+    titleLine1: 'Every execution',
+    titleLine2: 'makes it smarter.',
+    description:
+      'The more workflows run, the better the system gets. Network effects that compound — impossible to catch up once you start.',
+    features: [
+      {
+        icon: 'hub',
+        title: 'Community Patterns',
+        desc: 'Learn from thousands of workflow executions. The more people use it, the smarter it gets for everyone.',
+      },
+      {
+        icon: 'auto_awesome',
+        title: 'Auto-Optimization',
+        desc: 'Your workflows improve automatically over time. No manual tuning required.',
+      },
+      {
+        icon: 'recommend',
+        title: 'Smart Suggestions',
+        desc: '"Users who ran this also used..." — discover tools you didn\'t know you needed.',
+      },
+    ],
+  },
+  fr: {
+    eyebrow: 'Intelligence Collective',
+    titleLine1: 'Chaque ex\u00e9cution',
+    titleLine2: 'le rend plus intelligent.',
+    description:
+      'Plus il y a de workflows ex\u00e9cut\u00e9s, meilleur devient le syst\u00e8me. Des effets de r\u00e9seau qui s\u2019accumulent \u2014 impossible \u00e0 rattraper une fois lanc\u00e9.',
+    features: [
+      {
+        icon: 'hub',
+        title: 'Patterns Communautaires',
+        desc: 'Apprenez de milliers d\u2019ex\u00e9cutions de workflows. Plus les gens l\u2019utilisent, plus il devient intelligent pour tous.',
+      },
+      {
+        icon: 'auto_awesome',
+        title: 'Auto-Optimisation',
+        desc: 'Vos workflows s\u2019am\u00e9liorent automatiquement au fil du temps. Aucun r\u00e9glage manuel n\u00e9cessaire.',
+      },
+      {
+        icon: 'recommend',
+        title: 'Suggestions Intelligentes',
+        desc: '\u00ab\u00a0Ceux qui ont lanc\u00e9 ceci ont aussi utilis\u00e9\u2026\u00a0\u00bb \u2014 d\u00e9couvrez des outils dont vous ignoriez avoir besoin.',
+      },
+    ],
+  },
+  zh: {
+    eyebrow: '\u96c6\u4f53\u667a\u80fd',
+    titleLine1: '\u6bcf\u6b21\u6267\u884c',
+    titleLine2: '\u90fd\u8ba9\u5b83\u66f4\u667a\u80fd\u3002',
+    description:
+      '\u8fd0\u884c\u7684\u5de5\u4f5c\u6d41\u8d8a\u591a\uff0c\u7cfb\u7edf\u5c31\u8d8a\u597d\u3002\u7f51\u7edc\u6548\u5e94\u4e0d\u65ad\u53e0\u52a0\u2014\u2014\u4e00\u65e6\u5f00\u59cb\uff0c\u5c31\u65e0\u6cd5\u8ffd\u8d76\u3002',
+    features: [
+      {
+        icon: 'hub',
+        title: '\u793e\u533a\u6a21\u5f0f',
+        desc: '\u4ece\u6570\u5343\u6b21\u5de5\u4f5c\u6d41\u6267\u884c\u4e2d\u5b66\u4e60\u3002\u4f7f\u7528\u7684\u4eba\u8d8a\u591a\uff0c\u5bf9\u6bcf\u4e2a\u4eba\u5c31\u8d8a\u667a\u80fd\u3002',
+      },
+      {
+        icon: 'auto_awesome',
+        title: '\u81ea\u52a8\u4f18\u5316',
+        desc: '\u60a8\u7684\u5de5\u4f5c\u6d41\u968f\u65f6\u95f4\u81ea\u52a8\u6539\u8fdb\u3002\u65e0\u9700\u624b\u52a8\u8c03\u4f18\u3002',
+      },
+      {
+        icon: 'recommend',
+        title: '\u667a\u80fd\u5efa\u8bae',
+        desc: '\u201c\u8fd0\u884c\u8fc7\u6b64\u5de5\u4f5c\u6d41\u7684\u7528\u6237\u8fd8\u4f7f\u7528\u4e86\u2026\u201d\u2014\u2014\u53d1\u73b0\u4f60\u4e0d\u77e5\u9053\u81ea\u5df1\u9700\u8981\u7684\u5de5\u5177\u3002',
+      },
+    ],
+  },
+};
+
+const t = translations[locale] ?? translations.en;
+
+/* ------------------------------------------------------------------ */
+/*  Isometric projection helpers                                       */
+/* ------------------------------------------------------------------ */
+
+const ISO_ANGLE = Math.PI / 6;
+const ISO_SCALE = 0.8;
+
+function toIso(x: number, y: number, z: number) {
+  return {
+    x: (x - z) * Math.cos(ISO_ANGLE) * ISO_SCALE,
+    y: (x + z) * Math.sin(ISO_ANGLE) * ISO_SCALE - y * ISO_SCALE,
+  };
+}
+
+const CENTER = { x: 260, y: 240 };
+
+function project(x: number, y: number, z: number) {
+  const iso = toIso(x, y, z);
+  return { x: CENTER.x + iso.x, y: CENTER.y + iso.y };
+}
+
+/* Seeded random for consistent SSR rendering */
+function seededRandom(seed: number) {
+  const v = Math.sin(seed) * 10000;
+  return v - Math.floor(v);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Graph data                                                         */
+/* ------------------------------------------------------------------ */
+
+const metaMetaNode = { color: '#06b6d4', pos: { x: 0, y: 130, z: 0 } };
+
+const metaNodes = [
+  { color: '#8b5cf6', pos: { x: -80, y: 95, z: -90 } },
+  { color: '#f97316', pos: { x: 85, y: 75, z: -100 } },
+  { color: '#ec4899', pos: { x: -95, y: 60, z: 85 } },
+  { color: '#FFB86F', pos: { x: 80, y: 85, z: 80 } },
+  { color: '#10b981', pos: { x: -15, y: 45, z: -110 } },
+  { color: '#6366f1', pos: { x: 10, y: 55, z: 100 } },
+  { color: '#ef4444', pos: { x: -85, y: 105, z: 0 } },
+  { color: '#14b8a6', pos: { x: 90, y: 40, z: -5 } },
+  { color: '#a855f7', pos: { x: 0, y: 70, z: -95 } },
+  { color: '#eab308', pos: { x: -50, y: 30, z: 95 } },
+];
+
+/* 150 small points scattered in 3D */
+const POINT_COUNT = 150;
+const BOUNDS = { x: [-120, 120] as const, y: [5, 80] as const, z: [-120, 120] as const };
+const SEED = 42;
+
+interface SmallPoint {
+  x: number;
+  y: number;
+  z: number;
+  metaIndex: number;
+  size: number;
+  id: number;
+}
+
+const smallPoints: SmallPoint[] = [];
+for (let i = 0; i < POINT_COUNT; i++) {
+  const px = BOUNDS.x[0] + seededRandom(SEED + i * 3) * (BOUNDS.x[1] - BOUNDS.x[0]);
+  const py = BOUNDS.y[0] + seededRandom(SEED + i * 3 + 1) * (BOUNDS.y[1] - BOUNDS.y[0]);
+  const pz = BOUNDS.z[0] + seededRandom(SEED + i * 3 + 2) * (BOUNDS.z[1] - BOUNDS.z[0]);
+
+  /* Find nearest meta node */
+  let minDist = Infinity;
+  let nearest = 0;
+  for (let mi = 0; mi < metaNodes.length; mi++) {
+    const m = metaNodes[mi];
+    const d = Math.sqrt((px - m.pos.x) ** 2 + (py - m.pos.y) ** 2 + (pz - m.pos.z) ** 2);
+    if (d < minDist) { minDist = d; nearest = mi; }
+  }
+
+  smallPoints.push({ x: px, y: py, z: pz, metaIndex: nearest, size: 1.5 + seededRandom(i * 7) * 2, id: i });
+}
+
+/* Group points by meta for hyper-edge ghost activation */
+const pointsByMeta: Record<number, number[]> = {};
+smallPoints.forEach((pt, i) => {
+  if (!pointsByMeta[pt.metaIndex]) pointsByMeta[pt.metaIndex] = [];
+  pointsByMeta[pt.metaIndex].push(i);
+});
+
+/* ------------------------------------------------------------------ */
+/*  Grid lines (floor, back wall, side wall)                           */
+/* ------------------------------------------------------------------ */
+
+const gridSize = 130;
+const gridStep = 30;
+const gridHeight = 140;
+
+interface Line2D { x1: number; y1: number; x2: number; y2: number }
+
+/* Floor grid (XZ plane at y=0) */
+const floorLines: Line2D[] = [];
+for (let i = -gridSize; i <= gridSize; i += gridStep) {
+  const xs = toIso(i, 0, -gridSize);
+  const xe = toIso(i, 0, gridSize);
+  floorLines.push({ x1: CENTER.x + xs.x, y1: CENTER.y + xs.y, x2: CENTER.x + xe.x, y2: CENTER.y + xe.y });
+  const zs = toIso(-gridSize, 0, i);
+  const ze = toIso(gridSize, 0, i);
+  floorLines.push({ x1: CENTER.x + zs.x, y1: CENTER.y + zs.y, x2: CENTER.x + ze.x, y2: CENTER.y + ze.y });
+}
+
+/* Back wall (XY plane at z=-gridSize) */
+const backWallLines: Line2D[] = [];
+for (let i = -gridSize; i <= gridSize; i += gridStep) {
+  const vs = toIso(i, 0, -gridSize);
+  const ve = toIso(i, gridHeight, -gridSize);
+  backWallLines.push({ x1: CENTER.x + vs.x, y1: CENTER.y + vs.y, x2: CENTER.x + ve.x, y2: CENTER.y + ve.y });
+}
+for (let y = 0; y <= gridHeight; y += gridStep) {
+  const hs = toIso(-gridSize, y, -gridSize);
+  const he = toIso(gridSize, y, -gridSize);
+  backWallLines.push({ x1: CENTER.x + hs.x, y1: CENTER.y + hs.y, x2: CENTER.x + he.x, y2: CENTER.y + he.y });
+}
+
+/* Side wall (YZ plane at x=-gridSize) */
+const sideWallLines: Line2D[] = [];
+for (let i = -gridSize; i <= gridSize; i += gridStep) {
+  const vs = toIso(-gridSize, 0, i);
+  const ve = toIso(-gridSize, gridHeight, i);
+  sideWallLines.push({ x1: CENTER.x + vs.x, y1: CENTER.y + vs.y, x2: CENTER.x + ve.x, y2: CENTER.y + ve.y });
+}
+for (let y = 0; y <= gridHeight; y += gridStep) {
+  const hs = toIso(-gridSize, y, -gridSize);
+  const he = toIso(-gridSize, y, gridSize);
+  sideWallLines.push({ x1: CENTER.x + hs.x, y1: CENTER.y + hs.y, x2: CENTER.x + he.x, y2: CENTER.y + he.y });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Pre-project all node positions for the SVG template                */
+/* ------------------------------------------------------------------ */
+
+const metaMetaProj = project(metaMetaNode.pos.x, metaMetaNode.pos.y, metaMetaNode.pos.z);
+
+const metaProjs = metaNodes.map((m) => ({
+  ...project(m.pos.x, m.pos.y, m.pos.z),
+  color: m.color,
+}));
+
+const pointProjs = smallPoints.map((pt) => ({
+  ...project(pt.x, pt.y, pt.z),
+  color: metaNodes[pt.metaIndex].color,
+  size: pt.size,
+  metaIndex: pt.metaIndex,
+}));
+
+/* ------------------------------------------------------------------ */
+/*  Workflow lightning paths                                            */
+/* ------------------------------------------------------------------ */
+
+const LIGHTNING_COLOR = '#67e8f9';
+
+interface WfEdge {
+  from: 'tool' | 'meta' | 'registry';
+  fromMeta?: number;
+  fromTool?: number;
+  to: 'tool' | 'meta' | 'registry';
+  toMeta?: number;
+  toTool?: number;
+  delay: number;
+}
+interface Workflow { id: string; delay: number; duration: number; edges: WfEdge[] }
+
+const workflowPaths: Workflow[] = [
+  { id: 'wf1', delay: 0, duration: 10, edges: [
+    { from: 'tool', fromMeta: 2, fromTool: 1, to: 'meta', toMeta: 2, delay: 0 },
+    { from: 'meta', fromMeta: 2, to: 'tool', toMeta: 2, toTool: 5, delay: 0.1 },
+  ]},
+  { id: 'wf2', delay: 0.8, duration: 10, edges: [
+    { from: 'tool', fromMeta: 0, fromTool: 3, to: 'meta', toMeta: 0, delay: 0 },
+    { from: 'meta', fromMeta: 0, to: 'meta', toMeta: 7, delay: 0.1 },
+    { from: 'meta', fromMeta: 7, to: 'tool', toMeta: 7, toTool: 2, delay: 0.2 },
+  ]},
+  { id: 'wf3', delay: 1.6, duration: 10, edges: [
+    { from: 'tool', fromMeta: 5, fromTool: 0, to: 'meta', toMeta: 5, delay: 0 },
+    { from: 'meta', fromMeta: 5, to: 'meta', toMeta: 9, delay: 0.1 },
+    { from: 'meta', fromMeta: 9, to: 'meta', toMeta: 3, delay: 0.2 },
+    { from: 'meta', fromMeta: 3, to: 'tool', toMeta: 3, toTool: 4, delay: 0.3 },
+  ]},
+  { id: 'wf4', delay: 2.4, duration: 10, edges: [
+    { from: 'tool', fromMeta: 8, fromTool: 2, to: 'meta', toMeta: 8, delay: 0 },
+    { from: 'meta', fromMeta: 8, to: 'tool', toMeta: 8, toTool: 6, delay: 0.1 },
+  ]},
+  { id: 'wf5', delay: 3.2, duration: 10, edges: [
+    { from: 'tool', fromMeta: 4, fromTool: 1, to: 'meta', toMeta: 4, delay: 0 },
+    { from: 'meta', fromMeta: 4, to: 'meta', toMeta: 1, delay: 0.1 },
+    { from: 'meta', fromMeta: 1, to: 'tool', toMeta: 1, toTool: 3, delay: 0.2 },
+  ]},
+  { id: 'wf6', delay: 4, duration: 10, edges: [
+    { from: 'tool', fromMeta: 6, fromTool: 0, to: 'meta', toMeta: 6, delay: 0 },
+    { from: 'meta', fromMeta: 6, to: 'registry', delay: 0.1 },
+    { from: 'registry', to: 'meta', toMeta: 2, delay: 0.2 },
+    { from: 'meta', fromMeta: 2, to: 'tool', toMeta: 2, toTool: 2, delay: 0.3 },
+  ]},
+  { id: 'wf7', delay: 4.8, duration: 10, edges: [
+    { from: 'tool', fromMeta: 1, fromTool: 5, to: 'meta', toMeta: 1, delay: 0 },
+    { from: 'meta', fromMeta: 1, to: 'registry', delay: 0.1 },
+    { from: 'registry', to: 'meta', toMeta: 9, delay: 0.2 },
+    { from: 'meta', fromMeta: 9, to: 'tool', toMeta: 9, toTool: 1, delay: 0.3 },
+  ]},
+  { id: 'wf8', delay: 5.6, duration: 10, edges: [
+    { from: 'tool', fromMeta: 3, fromTool: 2, to: 'meta', toMeta: 3, delay: 0 },
+    { from: 'meta', fromMeta: 3, to: 'meta', toMeta: 0, delay: 0.1 },
+    { from: 'meta', fromMeta: 0, to: 'meta', toMeta: 6, delay: 0.2 },
+    { from: 'meta', fromMeta: 6, to: 'tool', toMeta: 6, toTool: 3, delay: 0.3 },
+  ]},
+  { id: 'wf9', delay: 6.4, duration: 10, edges: [
+    { from: 'tool', fromMeta: 7, fromTool: 4, to: 'meta', toMeta: 7, delay: 0 },
+    { from: 'meta', fromMeta: 7, to: 'meta', toMeta: 4, delay: 0.1 },
+    { from: 'meta', fromMeta: 4, to: 'tool', toMeta: 4, toTool: 2, delay: 0.2 },
+  ]},
+  { id: 'wf10', delay: 7.2, duration: 10, edges: [
+    { from: 'tool', fromMeta: 9, fromTool: 3, to: 'meta', toMeta: 9, delay: 0 },
+    { from: 'meta', fromMeta: 9, to: 'meta', toMeta: 5, delay: 0.1 },
+    { from: 'meta', fromMeta: 5, to: 'meta', toMeta: 1, delay: 0.2 },
+    { from: 'meta', fromMeta: 1, to: 'meta', toMeta: 8, delay: 0.3 },
+    { from: 'meta', fromMeta: 8, to: 'tool', toMeta: 8, toTool: 0, delay: 0.4 },
+  ]},
+  { id: 'wf11', delay: 8, duration: 10, edges: [
+    { from: 'tool', fromMeta: 2, fromTool: 4, to: 'meta', toMeta: 2, delay: 0 },
+    { from: 'meta', fromMeta: 2, to: 'meta', toMeta: 6, delay: 0.1 },
+    { from: 'meta', fromMeta: 6, to: 'tool', toMeta: 6, toTool: 5, delay: 0.2 },
+  ]},
+  { id: 'wf12', delay: 8.8, duration: 10, edges: [
+    { from: 'tool', fromMeta: 0, fromTool: 6, to: 'meta', toMeta: 0, delay: 0 },
+    { from: 'meta', fromMeta: 0, to: 'meta', toMeta: 3, delay: 0.1 },
+    { from: 'meta', fromMeta: 3, to: 'tool', toMeta: 3, toTool: 0, delay: 0.2 },
+  ]},
+];
+
+/* Resolve edge endpoints to 2D coordinates */
+function resolvePos(
+  type: 'tool' | 'meta' | 'registry',
+  metaIdx?: number,
+  toolIdx?: number,
+): { x: number; y: number } {
+  if (type === 'registry') return metaMetaProj;
+  if (type === 'meta' && metaIdx !== undefined) return metaProjs[metaIdx];
+  if (type === 'tool' && metaIdx !== undefined) {
+    const indices = pointsByMeta[metaIdx] || [];
+    const idx = indices[toolIdx ?? 0];
+    if (idx !== undefined) return pointProjs[idx];
+  }
+  return metaMetaProj;
+}
+
+/* Pre-build lightning SVG line data */
+interface LightningLine {
+  x1: number; y1: number; x2: number; y2: number;
+  delay: number; duration: number;
+  anim: 'lightning' | 'ghostFlash';
+  strokeWidth: number;
+}
+
+const lightningLines: LightningLine[] = [];
+
+for (const wf of workflowPaths) {
+  for (const edge of wf.edges) {
+    const edgeDelay = wf.delay + edge.delay;
+    const startPos = resolvePos(edge.from, edge.fromMeta, edge.fromTool);
+    const endPos = resolvePos(edge.to, edge.toMeta, edge.toTool);
+
+    /* Main lightning edge */
+    lightningLines.push({
+      x1: startPos.x, y1: startPos.y,
+      x2: endPos.x, y2: endPos.y,
+      delay: edgeDelay, duration: wf.duration,
+      anim: 'lightning', strokeWidth: 1,
+    });
+
+    /* Hyper-edge ghost: when going from meta to a specific tool,
+       briefly flash all sibling tools of that meta */
+    if (edge.from === 'meta' && edge.to === 'tool' && edge.fromMeta !== undefined) {
+      const siblings = pointsByMeta[edge.fromMeta] || [];
+      const chosenIdx = siblings[edge.toTool ?? 0];
+      const metaPos = metaProjs[edge.fromMeta];
+
+      for (const sibIdx of siblings) {
+        if (sibIdx === chosenIdx) continue;
+        const sp = pointProjs[sibIdx];
+        lightningLines.push({
+          x1: metaPos.x, y1: metaPos.y,
+          x2: sp.x, y2: sp.y,
+          delay: edgeDelay, duration: wf.duration,
+          anim: 'ghostFlash', strokeWidth: 0.5,
+        });
+      }
+    }
+  }
+}
+---
+
+<section id="intelligence" class="intelligence-section">
+  <div class="intelligence-container">
+
+    <!-- Right: HyperGraphViz SVG -->
+    <div class="intelligence-viz" aria-hidden="true">
+      <svg
+        class="hypergraph-svg"
+        viewBox="0 0 520 480"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label={t.eyebrow}
+      >
+        <defs>
+          <filter id="lightning-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="0.8" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="node-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="1.2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <!-- Layer 0: Isometric grids -->
+        <g>
+          <!-- Back wall -->
+          {backWallLines.map((l) => (
+            <line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              stroke="rgba(139,92,246,0.08)" stroke-width="0.5" />
+          ))}
+          <!-- Side wall -->
+          {sideWallLines.map((l) => (
+            <line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              stroke="rgba(139,92,246,0.15)" stroke-width="0.5" />
+          ))}
+          <!-- Floor -->
+          {floorLines.map((l) => (
+            <line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              stroke="rgba(139,92,246,0.35)" stroke-width="0.8" />
+          ))}
+        </g>
+
+        <!-- Layer 1: Links meta-meta -> meta nodes -->
+        <g>
+          {metaProjs.map((mp) => (
+            <line
+              x1={metaMetaProj.x} y1={metaMetaProj.y}
+              x2={mp.x} y2={mp.y}
+              stroke="#444" stroke-width="1" opacity="0.4"
+            />
+          ))}
+        </g>
+
+        <!-- Layer 2: Links meta -> small points -->
+        <g>
+          {pointProjs.map((pp) => {
+            const mp = metaProjs[pp.metaIndex];
+            return (
+              <line
+                x1={mp.x} y1={mp.y}
+                x2={pp.x} y2={pp.y}
+                stroke="#555" stroke-width="0.5" opacity="0.3"
+              />
+            );
+          })}
+        </g>
+
+        <!-- Layer 3: Small points -->
+        <g>
+          {pointProjs.map((pp) => (
+            <circle cx={pp.x} cy={pp.y} r={pp.size} fill={pp.color} opacity="0.7" />
+          ))}
+        </g>
+
+        <!-- Layer 4: Meta nodes -->
+        <g>
+          {metaProjs.map((mp) => (
+            <circle cx={mp.x} cy={mp.y} r="5" fill={mp.color} />
+          ))}
+        </g>
+
+        <!-- Layer 5: Meta-meta node -->
+        <g>
+          <circle cx={metaMetaProj.x} cy={metaMetaProj.y} r="7" fill={metaMetaNode.color} />
+        </g>
+
+        <!-- Layer 6: Lightning workflow paths -->
+        <g filter="url(#lightning-glow)">
+          {lightningLines.map((ll) => (
+            <line
+              x1={ll.x1} y1={ll.y1}
+              x2={ll.x2} y2={ll.y2}
+              stroke={LIGHTNING_COLOR}
+              stroke-width={ll.strokeWidth}
+              class={ll.anim === 'lightning' ? 'lightning-edge' : 'ghost-edge'}
+              style={`animation-delay:${ll.delay}s;animation-duration:${ll.duration}s`}
+            />
+          ))}
+        </g>
+      </svg>
+    </div>
+
+    <!-- Left: Content -->
+    <div class="intelligence-content">
+      <p class="intelligence-eyebrow">{t.eyebrow}</p>
+
+      <h2 class="intelligence-title">
+        <span class="intelligence-title-line1">{t.titleLine1}</span>
+        <span class="intelligence-title-line2">{t.titleLine2}</span>
+      </h2>
+
+      <p class="intelligence-description">{t.description}</p>
+
+      <div class="intelligence-features">
+        {t.features.map((f) => (
+          <div class="intelligence-feature">
+            <div class="intelligence-feature-icon">
+              <span class="material-symbols-rounded">{f.icon}</span>
+            </div>
+            <div class="intelligence-feature-body">
+              <h3 class="intelligence-feature-title">{f.title}</h3>
+              <p class="intelligence-feature-desc">{f.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Scoped styles (light mode default) -->
+<style>
+  /* ========================================
+     INTELLIGENCE SECTION - Light Mode
+     Fonts: Instrument Serif / JetBrains Mono / Inter
+     ======================================== */
+
+  .intelligence-section {
+    position: relative;
+    padding: 80px 32px;
+    background: #fafafa;
+  }
+
+  .intelligence-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  /* Content is visually on the left (order 1), SVG on the right (order 2) */
+  .intelligence-content {
+    order: 1;
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .intelligence-viz {
+    order: 2;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: hgvFadeIn 0.6s ease 0.3s forwards;
+  }
+
+  .hypergraph-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Eyebrow */
+  .intelligence-eyebrow {
+    font-family: 'JetBrains Mono', 'Geist Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: #b07d3a;
+    margin: 0 0 16px;
+  }
+
+  /* Title */
+  .intelligence-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: clamp(1.5rem, 3.5vw, 2.5rem);
+    font-weight: 400;
+    line-height: 1.15;
+    margin: 0 0 16px;
+  }
+
+  .intelligence-title-line1 {
+    display: block;
+    color: #1a1a1a;
+  }
+
+  .intelligence-title-line2 {
+    display: block;
+    color: #b07d3a;
+    font-style: italic;
+  }
+
+  /* Description */
+  .intelligence-description {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #666;
+    margin: 0 0 32px;
+  }
+
+  /* Feature list */
+  .intelligence-features {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .intelligence-feature {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .intelligence-feature-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(176, 125, 58, 0.1);
+    border-radius: 6px;
+  }
+
+  .intelligence-feature-icon .material-symbols-rounded {
+    font-size: 14px;
+    color: #b07d3a;
+  }
+
+  .intelligence-feature-body {
+    flex: 1;
+    padding-top: 2px;
+  }
+
+  .intelligence-feature-title {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 2px;
+  }
+
+  .intelligence-feature-desc {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: #888;
+    margin: 0;
+  }
+
+  /* Lightning animation classes */
+  .lightning-edge {
+    opacity: 0;
+    animation: lightning 10s linear infinite;
+  }
+
+  .ghost-edge {
+    opacity: 0;
+    animation: ghostFlash 10s linear infinite;
+  }
+
+  /* Keyframes */
+  @keyframes hgvFadeIn {
+    to { opacity: 1; }
+  }
+
+  @keyframes lightning {
+    0% { opacity: 0; }
+    1.5% { opacity: 1; }
+    4% { opacity: 1; }
+    6% { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes ghostFlash {
+    0% { opacity: 0; }
+    1.5% { opacity: 0.25; }
+    2.5% { opacity: 0.15; }
+    3.5% { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  /* Responsive: tablet */
+  @media (max-width: 1024px) {
+    .intelligence-section {
+      padding: 60px 24px;
+    }
+
+    .intelligence-container {
+      gap: 40px;
+    }
+  }
+
+  /* Responsive: mobile - stack vertically */
+  @media (max-width: 768px) {
+    .intelligence-section {
+      padding: 48px 20px;
+    }
+
+    .intelligence-container {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+
+    .intelligence-content {
+      order: 2;
+      text-align: center;
+    }
+
+    .intelligence-viz {
+      order: 1;
+    }
+
+    .intelligence-eyebrow {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+    }
+
+    .intelligence-features {
+      text-align: left;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .intelligence-viz {
+      animation: none;
+      opacity: 1;
+    }
+
+    .lightning-edge,
+    .ghost-edge {
+      animation: none;
+      opacity: 0;
+    }
+  }
+</style>
+
+<!-- Global styles for dark mode -->
+<style is:global>
+  /* ========================================
+     INTELLIGENCE SECTION - Dark Mode
+     bg: #08080a, accent: #FFB86F
+     ======================================== */
+
+  html[data-theme="dark"] #intelligence {
+    background: #08080a;
+  }
+
+  html[data-theme="dark"] #intelligence .intelligence-eyebrow {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #intelligence .intelligence-title-line1 {
+    color: #e7e5e4;
+  }
+
+  html[data-theme="dark"] #intelligence .intelligence-title-line2 {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #intelligence .intelligence-description {
+    color: #78716c;
+  }
+
+  html[data-theme="dark"] #intelligence .intelligence-feature-icon {
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #intelligence .intelligence-feature-icon .material-symbols-rounded {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #intelligence .intelligence-feature-title {
+    color: #d6d3d1;
+  }
+
+  html[data-theme="dark"] #intelligence .intelligence-feature-desc {
+    color: #78716c;
+  }
+</style>

@@ -83,8 +83,18 @@ export async function executeCodeTask(
       const taskId = `task_${nodeId}`;
       const depResult = previousResults.get(taskId);
       if (depResult?.output !== undefined) {
-        executionContext[varName] = depResult.output;
-        log.debug(`Injected variable binding: ${varName} from ${taskId}`);
+        // Code tasks wrap output as { result, state, executionTimeMs }
+        // Extract the actual computed value for variable injection
+        const rawOutput = depResult.output;
+        const actualValue =
+          rawOutput && typeof rawOutput === "object" && "result" in (rawOutput as Record<string, unknown>)
+            ? (rawOutput as Record<string, unknown>).result
+            : rawOutput;
+        executionContext[varName] = actualValue;
+        log.debug(`Injected variable binding: ${varName} from ${taskId}`, {
+          outputType: typeof actualValue,
+          isWrapped: rawOutput !== actualValue,
+        });
       }
     }
   }

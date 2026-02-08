@@ -1,0 +1,492 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+      title: 'Frequently Asked Questions',
+      subtitle: 'Everything you need to know about our projects and Casys',
+      categories: ['Projects', 'Consulting', 'Training', 'General'],
+      faqs: [
+        {
+          category: 'Projects',
+          q: 'What is Casys PML exactly?',
+          a: 'Casys PML is a model-agnostic MCP gateway. Build your AI workflows once, run them on Claude, GPT, Gemini, or your local Ollama. Every tool call is traced (cost, latency, status) and the system learns from your usage patterns to improve automatically.'
+        },
+        {
+          category: 'Projects',
+          q: 'How is Casys PML different from other MCP tools?',
+          a: 'Casys PML is a unified gateway, not just an MCP client. It offers: (1) Switch LLM providers on the fly (no vendor lock-in), (2) Full observability on every tool call with cost and latency tracking, (3) Automatic pattern learning — your workflows optimize over time. It\'s the only MCP gateway combining model-agnostic + observability + learning.'
+        },
+        {
+          category: 'Projects',
+          q: 'Which LLM models are supported?',
+          a: 'Claude (Anthropic), GPT (OpenAI), Gemini (Google), and Ollama (local/self-hosted). PML acts as a gateway: switch providers without rewriting your workflows. The catalog contains 120+ ready-to-use capabilities.'
+        },
+        {
+          category: 'Projects',
+          q: 'Is Casys PML open source?',
+          a: 'Yes. AGPL-3.0 license. You can self-host for free forever, read the code, modify it, contribute. Managed service is optional for teams that want cloud sync and collaboration.'
+        },
+        {
+          category: 'Projects',
+          q: 'What\'s the status of Casys PML?',
+          a: 'Active development. Core is functional: GraphRAG discovery, DAG orchestration with parallel execution, isolated TypeScript sandbox, real-time observability. Deno 2.x + PGlite architecture. Follow progress on GitHub.'
+        },
+        {
+          category: 'Consulting',
+          q: 'What does consulting include?',
+          a: 'Architecture review, deployment help, custom MCP integrations, context strategy design, team training. We work hands-on with your codebase. Flexible options: short workshops, custom projects, ongoing partnerships, and custom enterprise programs.'
+        },
+        {
+          category: 'Consulting',
+          q: 'Why should I hire Casys AI vs big consultancies?',
+          a: 'We\'re the people who build Casys PML. We code the systems we recommend. You get direct access to technical experts, not account managers. Faster iteration, accessible mid-market entry points, no heavy minimum engagements like big consultancies.'
+        },
+        {
+          category: 'Consulting',
+          q: 'Do you only work with Casys PML or other architectures too?',
+          a: 'We work with any agentic architecture. If you\'re not using Casys PML, that\'s fine. Our expertise is Context Management, Graph DBs, DAG orchestration. We help you design the best solution for your use case.'
+        },
+        {
+          category: 'Training',
+          q: 'What training do you offer?',
+          a: 'Agentic Architecture Workshop (2-3 days), Casys PML Hands-On Training (1 day), Context Management Fundamentals (1/2 day). All programs are customized to your tech stack and use cases.'
+        },
+        {
+          category: 'Training',
+          q: 'Where do you deliver training?',
+          a: 'On-site (Taiwan, Asia-Pacific), Remote (worldwide), or Hybrid. We partner with Alegria Group for regular workshops in Taiwan and participate in French Tech Taiwan events.'
+        },
+        {
+          category: 'General',
+          q: 'What\'s the Casys AI business model?',
+          a: 'Hybrid: (1) Casys PML SaaS (freemium), (2) Consulting (workshops → projects → partnerships → enterprise), (3) Training (custom programs). You choose how to work with us based on your needs.'
+        },
+        {
+          category: 'General',
+          q: 'Who is Casys AI for?',
+          a: 'CTOs, Tech Leads, Engineering Managers at mid-market companies building AI agents and MCP-based systems. If you\'re dealing with context management challenges, we can help.'
+        },
+        {
+          category: 'General',
+          q: 'What\'s your expertise background?',
+          a: '10+ years Context Management, from Knowledge Management (2013+) to Graph Databases to DAG architectures to MCP ecosystems. We\'ve been doing this since before it was called "Context Management for AI agents".'
+        },
+        {
+          category: 'General',
+          q: 'How are your engagements structured?',
+          a: 'We offer several flexible options: focused workshops (1 day), custom projects (full deployment), or ongoing partnerships (direct builder access). No heavy minimum engagements. We optimize for iteration speed and mid-market access, not margin maximization. Our business model is hybrid: open source (Casys PML), consulting, training. Contact us to discuss your specific needs.'
+        }
+      ]
+    },
+  fr: {
+      title: 'Questions Fréquentes',
+      subtitle: 'Tout ce qu\'il faut savoir sur nos projets et Casys',
+      categories: ['Projects', 'Consulting', 'Training', 'General'],
+      faqs: [
+        {
+          category: 'Projects',
+          q: 'C\'est quoi Casys PML exactement?',
+          a: 'Casys PML est un MCP gateway model-agnostic. Vous écrivez vos workflows AI une fois, et ils tournent sur Claude, GPT, Gemini ou Ollama en local. Chaque appel d\'outil est tracé (coût, latence, statut) et le système apprend de vos patterns d\'utilisation pour s\'améliorer automatiquement.'
+        },
+        {
+          category: 'Projects',
+          q: 'En quoi Casys PML est différent des autres outils MCP?',
+          a: 'Casys PML est un gateway unifié, pas juste un client MCP. Il offre: (1) Changement de provider LLM à la volée (pas de vendor lock-in), (2) Observabilité complète de chaque tool call avec coût et latence, (3) Apprentissage automatique de patterns — vos workflows s\'optimisent au fil du temps. C\'est le seul MCP gateway qui combine model-agnostic + observabilité + apprentissage.'
+        },
+        {
+          category: 'Projects',
+          q: 'Quels modèles LLM sont supportés?',
+          a: 'Claude (Anthropic), GPT (OpenAI), Gemini (Google), et Ollama (local/self-hosted). PML agit comme gateway: vous changez de provider sans réécrire vos workflows. Le catalogue contient 120+ capabilities prêtes à l\'emploi.'
+        },
+        {
+          category: 'Projects',
+          q: 'Casys PML est open source?',
+          a: 'Oui. Licence AGPL-3.0. Vous pouvez auto-héberger gratuitement pour toujours, lire le code, le modifier, contribuer. Service managé optionnel pour équipes qui veulent sync cloud et collaboration.'
+        },
+        {
+          category: 'Projects',
+          q: 'Quel est le statut de Casys PML?',
+          a: 'Développement actif. Core fonctionnel: GraphRAG discovery, DAG orchestration avec exécution parallèle, sandbox TypeScript isolé, observabilité temps réel. Architecture Deno 2.x + PGlite. Suivez le progrès sur GitHub.'
+        },
+        {
+          category: 'Consulting',
+          q: 'Qu\'est-ce qui est inclus dans consulting?',
+          a: 'Architecture review, aide déploiement, intégrations MCP custom, design stratégie contexte, formation équipe. On travaille hands-on avec votre codebase. Options flexibles: workshops courts, projets sur mesure, partnerships ongoing, et programmes enterprise custom.'
+        },
+        {
+          category: 'Consulting',
+          q: 'Pourquoi embaucher Casys AI vs grandes consultances?',
+          a: 'On est les gens qui construisent Casys PML. On code les systèmes qu\'on recommande. Vous avez accès direct aux experts techniques, pas account managers. Itération plus rapide, entry points accessibles mid-market, pas d\'engagements minimums lourds comme les grandes consultances.'
+        },
+        {
+          category: 'Consulting',
+          q: 'Vous travaillez uniquement avec Casys PML ou autres architectures aussi?',
+          a: 'On travaille avec n\'importe quelle architecture agentique. Si vous n\'utilisez pas Casys PML, pas grave. Notre expertise c\'est Context Management, Graph DBs, orchestration DAG. On vous aide designer la meilleure solution pour votre use case.'
+        },
+        {
+          category: 'Training',
+          q: 'Quelles formations vous offrez?',
+          a: 'Workshop Architecture Agentique (2-3 jours), Training Hands-On Casys PML (1 jour), Fondamentaux Context Management (1/2 jour). Tous programmes customisés à votre tech stack et use cases.'
+        },
+        {
+          category: 'Training',
+          q: 'Où vous livrez formations?',
+          a: 'Sur site (Taiwan, Asia-Pacific), Remote (worldwide), ou Hybride. On est partenaires Alegria Group pour workshops réguliers à Taiwan et participe événements French Tech Taiwan.'
+        },
+        {
+          category: 'General',
+          q: 'C\'est quoi le business model Casys AI?',
+          a: 'Hybrid: (1) Casys PML SaaS (freemium), (2) Consulting (workshops → projets → partnerships → enterprise), (3) Formations (programmes custom). Vous choisissez comment travailler avec nous selon vos besoins.'
+        },
+        {
+          category: 'General',
+          q: 'Casys AI c\'est pour qui?',
+          a: 'CTOs, Tech Leads, Engineering Managers dans companies mid-market qui construisent agents AI et systèmes MCP. Si vous gérez des challenges context management, on peut aider.'
+        },
+        {
+          category: 'General',
+          q: 'C\'est quoi votre background expertise?',
+          a: '10+ ans Context Management, de Knowledge Management (2013+) aux Graph Databases aux architectures DAG aux écosystèmes MCP. On fait ça depuis avant que ça s\'appelle "Context Management pour agents AI".'
+        },
+        {
+          category: 'General',
+          q: 'Comment sont structurés vos engagements?',
+          a: 'On offre plusieurs options flexibles: workshops focused (1 jour), projets custom (déploiement complet), ou partnerships ongoing (accès direct aux builders). Pas d\'engagements minimums lourds. On optimise pour vitesse itération et accès mid-market, pas maximisation marges. Notre business model est hybrid: open source (Casys PML), consulting, formations. Contactez-nous pour discuter de votre besoin spécifique.'
+        }
+      ]
+    },
+  zh: {
+      title: '常见问题',
+      subtitle: '关于我们项目和 Casys 的一切',
+      categories: ['项目', '咨询', '培训', '通用'],
+      faqs: [
+        { category: '项目', q: 'Casys PML 到底是什么？', a: 'Casys PML 是一个模型无关的 MCP 网关。一次构建 AI 工作流，在 Claude、GPT、Gemini 或本地 Ollama 上运行。每次工具调用都被追踪（成本、延迟、状态），系统从使用模式中学习自动改进。' },
+        { category: '项目', q: 'Casys PML 与其他 MCP 工具有什么不同？', a: 'Casys PML 是统一网关，而非仅仅是 MCP 客户端。它提供：(1) 动态切换 LLM 提供商（无供应商锁定）；(2) 对每次工具调用的完整可观测性，包括成本和延迟追踪；(3) 自动模式学习——工作流随时间优化。它是唯一结合模型无关+可观测性+学习的 MCP 网关。' },
+        { category: '项目', q: '支持哪些 LLM 模型？', a: 'Claude (Anthropic)、GPT (OpenAI)、Gemini (Google) 和 Ollama（本地/自托管）。PML 作为网关：无需重写工作流即可切换提供商。目录包含 120+ 个即用能力。' },
+        { category: '项目', q: 'Casys PML 是开源的吗？', a: '是的。AGPL-3.0 许可证。您可以永久免费自托管、阅读代码、修改和贡献。托管服务为需要云同步和协作的团队可选。' },
+        { category: '项目', q: 'Casys PML 目前处于什么状态？', a: '活跃开发中。核心功能已就绪：GraphRAG 发现、DAG 编排与并行执行、隔离 TypeScript 沙箱、实时可观测性。Deno 2.x + PGlite 架构。在 GitHub 上关注进展。' },
+        { category: '咨询', q: '咨询包括什么？', a: '架构评审、部署帮助、定制 MCP 集成、上下文策略设计、团队培训。我们与您的代码库进行实操合作。灵活选项：短期工作坊、定制项目、持续合作伙伴关系和定制企业方案。' },
+        { category: '咨询', q: '为什么选择 Casys AI 而不是大型咨询公司？', a: '我们是构建 Casys PML 的团队。我们为自己推荐的系统编写代码。您直接对接技术专家，而非客户经理。更快的迭代、中端市场可及的入口、没有大型咨询公司那样的高额最低承诺。' },
+        { category: '咨询', q: '你们只做 Casys PML 还是也做其他架构？', a: '我们服务任何智能体架构。如果您没有使用 Casys PML，没关系。我们的专长是 Context Management、图数据库、DAG 编排。我们帮您设计最佳方案。' },
+        { category: '培训', q: '你们提供哪些培训？', a: '智能体架构工作坊 (2-3天)、Casys PML 实操培训 (1天)、Context Management 基础 (半天)。所有课程根据您的技术栈和用例定制。' },
+        { category: '培训', q: '培训在哪里进行？', a: '现场（台湾、亚太地区）、远程（全球）或混合模式。我们与 Alegria Group 合作在台湾举办定期工作坊，并参与 French Tech Taiwan 活动。' },
+        { category: '通用', q: 'Casys AI 的商业模式是什么？', a: '混合模式：(1) Casys PML SaaS（免费增值）；(2) 咨询（工作坊 → 项目 → 合作伙伴关系 → 企业级）；(3) 培训（定制课程）。您根据需求选择合作方式。' },
+        { category: '通用', q: 'Casys AI 适合谁？', a: '正在构建 AI 代理和基于 MCP 系统的中端市场公司的 CTO、技术负责人和工程经理。如果您面临上下文管理挑战，我们可以提供帮助。' },
+        { category: '通用', q: '你们的专业背景是什么？', a: '10+ 年 Context Management 经验，从知识管理 (2013+) 到图数据库到 DAG 架构到 MCP 生态系统。在这个领域被叫做"AI 代理的 Context Management"之前，我们就已经在做了。' },
+        { category: '通用', q: '你们的合作方式是怎样的？', a: '我们提供多种灵活选项：专项工作坊 (1天)、定制项目（完整部署）或持续合作（直接对接开发者）。没有高额最低承诺。我们优化迭代速度和中端市场可及性，而非利润最大化。商业模式为混合型：开源 (Casys PML)、咨询、培训。联系我们讨论您的具体需求。' }
+      ]
+    }
+} as const;
+
+const content = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="faq">
+  <div class="container">
+    <!-- Section Header -->
+    <div class="section-header">
+      <h2>{content.title}</h2>
+      <p class="section-subtitle">{content.subtitle}</p>
+    </div>
+
+    <!-- Category Filter -->
+    <div class="category-filter">
+      <button class="category-btn active" data-category="all">
+        <span>{locale === 'fr' ? 'Tout' : locale === 'zh' ? '全部' : 'All'}</span>
+      </button>
+      {content.categories.map((category) => (
+        <button class="category-btn" data-category={category}>
+          <span>{category}</span>
+        </button>
+      ))}
+    </div>
+
+    <!-- FAQ List -->
+    <div class="faq-list">
+      {content.faqs.map((faq) => (
+        <details class="faq-item" data-category={faq.category}>
+          <summary class="faq-question">
+            <div class="question-content">
+              <span class="category-tag">{faq.category}</span>
+              <span class="question-text">{faq.q}</span>
+            </div>
+            <span class="material-symbols-rounded expand-icon">expand_more</span>
+          </summary>
+          <p class="faq-answer">{faq.a}</p>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     FAQ - Editorial/Refined Aesthetic
+     Font: Fraunces for headlines
+     Palette: Warm orange for dark mode
+     ======================================== */
+
+  section {
+    padding: 80px 0;
+    background: var(--md-sys-color-surface-container-low);
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Left-aligned header - editorial style */
+  .section-header {
+    text-align: left;
+    margin-bottom: 48px;
+    max-width: 600px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  /* Category Filter - Clean style */
+  .category-filter {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+
+  .category-btn {
+    padding: 8px 16px;
+    background: var(--md-sys-color-surface-container-lowest);
+    color: var(--md-sys-color-on-surface-variant);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 200ms ease-out, background 200ms ease-out;
+    font-family: inherit;
+  }
+
+  .category-btn:hover {
+    border-color: var(--md-sys-color-primary);
+  }
+
+  .category-btn.active {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border-color: var(--md-sys-color-primary);
+  }
+
+  /* FAQ List - Clean style */
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .faq-item {
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    padding: 20px 24px;
+    cursor: pointer;
+    transition: border-color 200ms ease-out;
+  }
+
+  .faq-item:hover {
+    border-color: var(--md-sys-color-primary);
+  }
+
+  .faq-item.hidden {
+    display: none;
+  }
+
+  .faq-question {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    list-style: none;
+  }
+
+  .faq-question::-webkit-details-marker {
+    display: none;
+  }
+
+  .question-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .category-tag {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-primary);
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    width: fit-content;
+  }
+
+  .question-text {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .expand-icon {
+    transition: transform 200ms ease-out;
+    font-size: 24px;
+    color: var(--md-sys-color-primary);
+    flex-shrink: 0;
+  }
+
+  .faq-item[open] .expand-icon {
+    transform: rotate(180deg);
+  }
+
+  .faq-answer {
+    font-size: 0.95rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.7;
+    margin: 16px 0 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  /* Mobile Responsiveness */
+  @media (max-width: 768px) {
+    section {
+      padding: 60px 0;
+    }
+
+    .category-filter {
+      margin-bottom: 24px;
+    }
+
+    .faq-item {
+      padding: 16px 20px;
+    }
+
+    .question-text {
+      font-size: 1rem;
+    }
+
+    .faq-answer {
+      font-size: 0.9rem;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     FAQ - DARK MODE
+     Warm orange palette (#FFB86F, #D4A574)
+     ======================================== */
+
+  html[data-theme="dark"] #faq {
+    background: #0a0908;
+  }
+
+  html[data-theme="dark"] #faq h2 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #faq .section-subtitle {
+    color: #d5c3b5;
+  }
+
+  /* Category Buttons */
+  html[data-theme="dark"] #faq .category-btn {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #faq .category-btn:hover {
+    border-color: rgba(255, 184, 111, 0.3);
+  }
+
+  html[data-theme="dark"] #faq .category-btn.active {
+    background: #FFB86F;
+    color: #1a1815;
+    border-color: #FFB86F;
+  }
+
+  /* FAQ Items */
+  html[data-theme="dark"] #faq .faq-item {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #faq .faq-item:hover {
+    border-color: rgba(255, 184, 111, 0.3);
+  }
+
+  html[data-theme="dark"] #faq .question-text {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #faq .category-tag {
+    background: rgba(255, 184, 111, 0.1);
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #faq .expand-icon {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #faq .faq-answer {
+    color: #d5c3b5;
+    border-top-color: rgba(255, 184, 111, 0.1);
+  }
+</style>
+
+<script>
+  // Category filter functionality
+  const categoryButtons = document.querySelectorAll('.category-btn');
+  const faqItems = document.querySelectorAll('.faq-item');
+
+  categoryButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const selectedCategory = button.getAttribute('data-category');
+
+      // Update active button
+      categoryButtons.forEach((btn) => btn.classList.remove('active'));
+      button.classList.add('active');
+
+      // Filter FAQ items
+      faqItems.forEach((item) => {
+        const itemCategory = item.getAttribute('data-category');
+
+        if (selectedCategory === 'all' || itemCategory === selectedCategory) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    });
+  });
+</script>

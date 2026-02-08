@@ -1,0 +1,111 @@
+---
+title: Configuration (YAML + Env)
+description: Configure your MCP server via YAML files and environment variables.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+When you ship your MCP server as a compiled binary, your users need to configure auth and settings without modifying code. `@casys/mcp-server` supports file-based configuration with environment variable overrides — the same pattern used by Docker, Kubernetes, and every serious deployment tool.
+
+## Priority order
+
+```
+programmatic (code) > environment variables > YAML file > defaults (no auth)
+```
+
+Higher priority wins. This means you can ship sane defaults in YAML and override specific values per environment with env vars.
+
+## YAML configuration
+
+Create a `mcp-server.yaml` in the working directory:
+
+```yaml
+# mcp-server.yaml
+auth:
+  provider: auth0
+  audience: https://my-mcp.example.com
+  resource: https://my-mcp.example.com
+  domain: my-tenant.auth0.com
+  scopesSupported:
+    - read
+    - write
+    - admin
+```
+
+### Supported providers
+
+| Provider | Required Fields |
+|----------|----------------|
+| `google` | `audience`, `resource` |
+| `auth0` | `domain`, `audience`, `resource` |
+| `github` | `audience`, `resource` |
+| `oidc` | `issuer`, `audience`, `resource` |
+
+## Environment variables
+
+Every YAML field can be overridden with `MCP_AUTH_*` environment variables:
+
+| Variable | YAML Field | Example |
+|----------|------------|---------|
+| `MCP_AUTH_PROVIDER` | `auth.provider` | `google`, `auth0`, `github`, `oidc` |
+| `MCP_AUTH_AUDIENCE` | `auth.audience` | `https://my-mcp.example.com` |
+| `MCP_AUTH_RESOURCE` | `auth.resource` | `https://my-mcp.example.com` |
+| `MCP_AUTH_DOMAIN` | `auth.domain` | `my-tenant.auth0.com` |
+| `MCP_AUTH_ISSUER` | `auth.issuer` | `https://my-idp.example.com` |
+| `MCP_AUTH_JWKS_URI` | `auth.jwksUri` | `https://.../.well-known/jwks.json` |
+| `MCP_AUTH_SCOPES` | `auth.scopesSupported` | `read write admin` (space-separated) |
+
+### Override for production
+
+```bash
+# Ship with staging config in YAML, override audience for production
+MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
+```
+
+## Loading config in code
+
+If you need programmatic access to the loaded configuration:
+
+```typescript
+import {
+  loadAuthConfig,
+  createAuthProviderFromConfig,
+} from "@casys/mcp-server";
+
+// Auto-loads from mcp-server.yaml + MCP_AUTH_* env vars
+const config = await loadAuthConfig();
+
+if (config) {
+  const provider = createAuthProviderFromConfig(config);
+  // Pass to ConcurrentMCPServer options
+}
+```
+
+<Aside type="tip">
+  `loadAuthConfig()` returns `null` if no YAML file exists and no env vars are set. Auth is opt-in — your server works without any configuration.
+</Aside>
+
+## Docker example
+
+```dockerfile
+FROM denoland/deno:2.0
+
+COPY . .
+RUN deno compile --allow-net --allow-read --allow-env -o server main.ts
+
+ENV MCP_AUTH_PROVIDER=google
+ENV MCP_AUTH_AUDIENCE=https://my-mcp.example.com
+ENV MCP_AUTH_RESOURCE=https://my-mcp.example.com
+
+CMD ["./server", "--http", "--port", "3000"]
+```
+
+<Aside>
+  Compile once, configure anywhere. The binary reads `mcp-server.yaml` and `MCP_AUTH_*` env vars at startup.
+</Aside>
+
+## See Also
+
+- [Authentication (OAuth2)](/docs/guides/auth/) — Programmatic auth setup with presets
+- [Auth Providers API](/docs/api/auth-providers/) — `loadAuthConfig` and `createAuthProviderFromConfig` reference
+- [Quick Start](/docs/getting-started/quickstart/) — YAML config example in context

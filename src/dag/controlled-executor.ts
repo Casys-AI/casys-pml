@@ -33,6 +33,7 @@ import type { PermissionEscalationRequest, PermissionSet } from "../capabilities
 import type { PermissionAuditStore } from "../capabilities/permission-audit-store.ts";
 import { formatEscalationRequest, PermissionEscalationHandler } from "../capabilities/permission-escalation-handler.ts";
 import { suggestEscalation } from "../capabilities/permission-escalation.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 import type { CapabilityStore } from "../capabilities/capability-store.ts";
 import type { GraphRAGEngine } from "../graphrag/graph-engine.ts";
 import type { Command } from "./types.ts";
@@ -154,7 +155,7 @@ export class ControlledExecutor extends ParallelExecutor {
 
   captureSpeculationStart(workflowId: string, toolId: string, confidence: number, reasoning: string): string | null {
     if (!this.episodicMemory) return null;
-    const eventId = crypto.randomUUID();
+    const eventId = uuidv7();
     captureSpeculationStart(this.getCaptureContext(), workflowId, toolId, confidence, reasoning);
     return eventId;
   }

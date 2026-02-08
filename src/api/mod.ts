@@ -7,6 +7,7 @@
  * @module api
  */
 
+// Route handlers
 export { handleGraphRoutes } from "./graph.ts";
 export { handleCapabilitiesRoutes } from "./capabilities.ts";
 export { handleMetricsRoutes, handlePrometheusMetrics } from "./metrics.ts";
@@ -16,6 +17,8 @@ export { handleHealthRoutes } from "./health.ts";
 export { handleTracesRoutes } from "./traces.ts";
 export { handleRoutingRoutes } from "./routing.ts";
 export { handleMcpRegistryRoutes } from "./mcp-registry.ts";
+export { handleUiResourcesRoutes } from "./ui-resources.ts";
+export { handleCatalogRoutes } from "./catalog.ts";
 
 // Algorithm API (core logic, called by Fresh thin wrappers)
 export {
@@ -26,9 +29,18 @@ export {
   isValidUserAction,
   isValidUUID,
   recordFeedback,
-  type AlphaStatsResult,
-  type FeedbackRequest,
-  type FeedbackResult,
-  type MetricsResult,
-  type TracesResult,
 } from "./algorithm.ts";
+
+// Re-export types from centralized types module
+export type {
+  AlgorithmMode,
+  AlgorithmScore,
+  AlphaStatsResult,
+  FeedbackRequest,
+  FeedbackResult,
+  InsightItem,
+  InsightsResponse,
+  MetricsResult,
+  RoutingResponse,
+  TracesResult,
+} from "./types.ts";

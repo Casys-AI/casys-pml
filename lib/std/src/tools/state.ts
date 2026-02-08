@@ -134,6 +134,13 @@ export const stateTools: MiniTool[] = [
         pattern: { type: "string", description: "Glob pattern to filter keys" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "delete"],
+        accepts: ["filter"],
+      },
+    },
     handler: ({ pattern }) => {
       const now = new Date();
       let keys: string[] = [];
@@ -310,6 +317,13 @@ export const stateTools: MiniTool[] = [
     inputSchema: {
       type: "object",
       properties: {},
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/metrics-panel",
+        emits: ["refresh"],
+        accepts: ["refresh"],
+      },
     },
     handler: () => {
       const now = new Date();

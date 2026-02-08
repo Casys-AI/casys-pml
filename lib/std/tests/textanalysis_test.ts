@@ -76,10 +76,10 @@ Deno.test("text_statistics - counts words", () => {
 Deno.test("text_statistics - counts sentences", () => {
   const handler = getHandler("text_statistics");
   const result = handler({ text: "First sentence. Second sentence! Third?" }) as {
-    sentences: number;
+    sentences: { total: number };
   };
 
-  assertEquals(result.sentences, 3);
+  assertEquals(result.sentences.total, 3);
 });
 
 Deno.test("text_statistics - calculates reading time", () => {
@@ -100,6 +100,96 @@ Deno.test("text_statistics - counts paragraphs", () => {
   }) as { paragraphs: number };
 
   assertEquals(result.paragraphs, 3);
+});
+
+Deno.test("text_statistics - calculates readability scores", () => {
+  const handler = getHandler("text_statistics");
+  const result = handler({
+    text: "The quick brown fox jumps over the lazy dog. This is a simple sentence with easy words.",
+  }) as {
+    readability: {
+      fleschReadingEase: number;
+      fleschKincaidGrade: number;
+      interpretation: string;
+      syllables: number;
+      avgSyllablesPerWord: number;
+      avgWordsPerSentence: number;
+    };
+  };
+
+  assertEquals(typeof result.readability.fleschReadingEase, "number");
+  assertEquals(typeof result.readability.fleschKincaidGrade, "number");
+  assertEquals(typeof result.readability.interpretation, "string");
+  assertEquals(result.readability.syllables > 0, true);
+  assertEquals(result.readability.avgSyllablesPerWord > 0, true);
+  assertEquals(result.readability.avgWordsPerSentence > 0, true);
+});
+
+Deno.test("text_statistics - simple text has high readability ease", () => {
+  const handler = getHandler("text_statistics");
+  const result = handler({
+    text: "I like cats. Cats are fun. They play a lot. Dogs are nice too.",
+  }) as {
+    readability: { fleschReadingEase: number };
+  };
+
+  // Simple short sentences should have high Flesch Reading Ease (> 60)
+  assertEquals(result.readability.fleschReadingEase > 60, true);
+});
+
+Deno.test("text_statistics - returns word frequency for word cloud", () => {
+  const handler = getHandler("text_statistics");
+  const result = handler({
+    text: "apple banana apple cherry apple banana orange apple cherry apple",
+    wordFrequencyLimit: 5,
+  }) as {
+    wordFrequency: {
+      topWords: Array<{ word: string; count: number; percentage: number }>;
+      totalAnalyzed: number;
+      uniqueAnalyzed: number;
+    };
+  };
+
+  // apple appears 5 times, should be first
+  assertEquals(result.wordFrequency.topWords[0].word, "apple");
+  assertEquals(result.wordFrequency.topWords[0].count, 5);
+  assertEquals(result.wordFrequency.topWords.length <= 5, true);
+  assertEquals(result.wordFrequency.uniqueAnalyzed, 4); // apple, banana, cherry, orange
+});
+
+Deno.test("text_statistics - sentence analysis returns avg length", () => {
+  const handler = getHandler("text_statistics");
+  const result = handler({
+    text: "Short one. This is a medium length sentence here. This is a much longer sentence with many more words in it.",
+  }) as {
+    sentences: {
+      total: number;
+      avgLength: number;
+      longest: Array<{ text: string; wordCount: number; position: number }>;
+      shortest: Array<{ text: string; wordCount: number; position: number }>;
+    };
+  };
+
+  assertEquals(result.sentences.total, 3);
+  assertEquals(typeof result.sentences.avgLength, "number");
+  assertEquals(result.sentences.avgLength > 0, true);
+  // Longest sentence should have the most words
+  assertEquals(result.sentences.longest[0].wordCount > result.sentences.shortest[0].wordCount, true);
+});
+
+Deno.test("text_statistics - longest sentences are correctly identified", () => {
+  const handler = getHandler("text_statistics");
+  const result = handler({
+    text: "Hi. This is a longer sentence with more words. Bye.",
+  }) as {
+    sentences: {
+      longest: Array<{ wordCount: number; position: number }>;
+    };
+  };
+
+  // The middle sentence (position 2) should be the longest
+  assertEquals(result.sentences.longest[0].position, 2);
+  assertEquals(result.sentences.longest[0].wordCount, 8);
 });
 
 // Word frequency tests

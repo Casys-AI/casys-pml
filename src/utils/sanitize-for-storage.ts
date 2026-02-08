@@ -71,6 +71,40 @@ function truncateIfNeeded(value: string): string {
 }
 
 /**
+ * Sanitize a primitive value for storage
+ */
+function sanitizePrimitive(data: unknown): JsonValue | undefined {
+  if (data === null || data === undefined) return null;
+  if (typeof data === "string") return truncateIfNeeded(data);
+  if (typeof data === "boolean") return data;
+  if (typeof data === "number") {
+    return Number.isFinite(data) ? data : null;
+  }
+  if (typeof data === "bigint") return data.toString();
+  if (typeof data === "function") return "[FUNCTION]";
+  if (typeof data === "symbol") return "[SYMBOL]";
+  return undefined;
+}
+
+/**
+ * Sanitize an object for storage, redacting sensitive keys
+ */
+function sanitizeObject(
+  data: Record<string, unknown>,
+  depth: number,
+): Record<string, JsonValue> {
+  const result: Record<string, JsonValue> = {};
+
+  for (const [key, value] of Object.entries(data)) {
+    result[key] = isSensitiveKey(key)
+      ? REDACTED_MARKER
+      : sanitizeForStorage(value, depth + 1);
+  }
+
+  return result;
+}
+
+/**
  * Sanitize data for safe storage in the database
  *
  * Performs:
@@ -100,72 +134,19 @@ function truncateIfNeeded(value: string): string {
  * ```
  */
 export function sanitizeForStorage(data: unknown, depth = 0): JsonValue {
-  // Prevent stack overflow from deeply nested structures
-  if (depth > MAX_DEPTH) {
-    return "[MAX_DEPTH_EXCEEDED]";
-  }
+  if (depth > MAX_DEPTH) return "[MAX_DEPTH_EXCEEDED]";
 
-  // Handle null/undefined
-  if (data === null || data === undefined) {
-    return null;
-  }
+  const primitive = sanitizePrimitive(data);
+  if (primitive !== undefined) return primitive;
 
-  // Handle primitives
-  if (typeof data === "string") {
-    return truncateIfNeeded(data);
-  }
-
-  if (typeof data === "number") {
-    // Handle special number values
-    if (Number.isNaN(data)) return null;
-    if (!Number.isFinite(data)) return null;
-    return data;
-  }
-
-  if (typeof data === "boolean") {
-    return data;
-  }
-
-  // Handle arrays
+  if (data instanceof Date) return data.toISOString();
   if (Array.isArray(data)) {
     return data.map((item) => sanitizeForStorage(item, depth + 1));
   }
-
-  // Handle Date objects (convert to ISO string)
-  if (data instanceof Date) {
-    return data.toISOString();
+  if (typeof data === "object" && data !== null) {
+    return sanitizeObject(data as Record<string, unknown>, depth);
   }
 
-  // Handle objects
-  if (typeof data === "object") {
-    const result: Record<string, JsonValue> = {};
-
-    for (const [key, value] of Object.entries(data)) {
-      // Redact sensitive keys
-      if (isSensitiveKey(key)) {
-        result[key] = REDACTED_MARKER;
-      } else {
-        result[key] = sanitizeForStorage(value, depth + 1);
-      }
-    }
-
-    return result;
-  }
-
-  // Handle functions, symbols, and other non-serializable types
-  if (typeof data === "function") {
-    return "[FUNCTION]";
-  }
-
-  if (typeof data === "symbol") {
-    return "[SYMBOL]";
-  }
-
-  if (typeof data === "bigint") {
-    return data.toString();
-  }
-
-  // Fallback: convert to string
   return String(data);
 }
 
@@ -178,30 +159,17 @@ export function sanitizeForStorage(data: unknown, depth = 0): JsonValue {
  * @returns true if any sensitive patterns are detected
  */
 export function containsSensitiveData(data: unknown): boolean {
-  if (data === null || data === undefined) {
-    return false;
-  }
+  if (data === null || data === undefined) return false;
+  if (Array.isArray(data)) return data.some(containsSensitiveData);
 
-  if (typeof data === "object" && !Array.isArray(data)) {
-    for (const key of Object.keys(data)) {
-      if (isSensitiveKey(key)) {
-        return true;
-      }
-    }
+  if (typeof data !== "object") return false;
 
-    // Recursively check nested objects
-    for (const value of Object.values(data)) {
-      if (containsSensitiveData(value)) {
-        return true;
-      }
-    }
-  }
+  const obj = data as Record<string, unknown>;
+  const keys = Object.keys(obj);
 
-  if (Array.isArray(data)) {
-    return data.some(containsSensitiveData);
-  }
+  if (keys.some(isSensitiveKey)) return true;
 
-  return false;
+  return Object.values(obj).some(containsSensitiveData);
 }
 
 /**

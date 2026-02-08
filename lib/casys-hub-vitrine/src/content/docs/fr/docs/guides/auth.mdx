@@ -1,0 +1,180 @@
+---
+title: Authentification (OAuth2)
+description: Securisez votre serveur MCP avec l'authentification JWT/Bearer et les presets OIDC.
+---
+
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+
+Ajouter l'auth a un serveur MCP signifie generalement brancher la recuperation JWKS, la validation de tokens, la rotation de cles, la verification des scopes, et les endpoints de metadonnees soi-meme. Avec `@casys/mcp-server`, c'est une seule ligne.
+
+<img src="/diagrams/mcp-server/mcp-auth-flow.svg" alt="Flux d'authentification MCP" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
+
+## Presets d'auth
+
+Choisissez votre fournisseur d'identite. Chaque preset gere automatiquement les URLs d'issuer, les endpoints JWKS, et la rotation de cles :
+
+<Tabs>
+  <TabItem label="Google">
+    ```typescript
+    import {
+      ConcurrentMCPServer,
+      createGoogleAuthProvider,
+    } from "@casys/mcp-server";
+
+    const server = new ConcurrentMCPServer({
+      name: "my-api",
+      version: "1.0.0",
+      auth: {
+        provider: createGoogleAuthProvider({
+          audience: "https://my-mcp.example.com",
+          resource: "https://my-mcp.example.com",
+        }),
+      },
+    });
+    ```
+  </TabItem>
+  <TabItem label="Auth0">
+    ```typescript
+    import {
+      ConcurrentMCPServer,
+      createAuth0AuthProvider,
+    } from "@casys/mcp-server";
+
+    const server = new ConcurrentMCPServer({
+      name: "my-api",
+      version: "1.0.0",
+      auth: {
+        provider: createAuth0AuthProvider({
+          domain: "my-tenant.auth0.com",
+          audience: "https://my-mcp.example.com",
+          resource: "https://my-mcp.example.com",
+          scopesSupported: ["read", "write"],
+        }),
+      },
+    });
+    ```
+  </TabItem>
+  <TabItem label="GitHub Actions">
+    ```typescript
+    import {
+      ConcurrentMCPServer,
+      createGitHubAuthProvider,
+    } from "@casys/mcp-server";
+
+    const server = new ConcurrentMCPServer({
+      name: "my-api",
+      version: "1.0.0",
+      auth: {
+        provider: createGitHubAuthProvider({
+          audience: "https://my-mcp.example.com",
+          resource: "https://my-mcp.example.com",
+        }),
+      },
+    });
+    ```
+
+    <Aside type="tip">
+      Parfait pour les pipelines CI/CD. GitHub Actions fournit automatiquement des tokens OIDC — aucun secret a gerer.
+    </Aside>
+  </TabItem>
+  <TabItem label="OIDC generique">
+    ```typescript
+    import {
+      ConcurrentMCPServer,
+      createOIDCAuthProvider,
+    } from "@casys/mcp-server";
+
+    const server = new ConcurrentMCPServer({
+      name: "my-api",
+      version: "1.0.0",
+      auth: {
+        provider: createOIDCAuthProvider({
+          issuer: "https://my-idp.example.com",
+          audience: "https://my-mcp.example.com",
+          resource: "https://my-mcp.example.com",
+          authorizationServers: ["https://my-idp.example.com"],
+        }),
+      },
+    });
+    ```
+  </TabItem>
+</Tabs>
+
+## Verification des scopes
+
+Les outils peuvent declarer des scopes requis. Le framework verifie automatiquement le token avant l'execution du handler :
+
+```typescript
+server.registerTool(
+  {
+    name: "delete_user",
+    description: "Delete a user account",
+    inputSchema: {
+      type: "object",
+      properties: { userId: { type: "string" } },
+      required: ["userId"],
+    },
+    requiredScopes: ["admin", "users:delete"],
+  },
+  async ({ userId }) => {
+    // This code only runs if the token has BOTH admin AND users:delete
+    await deleteUser(userId);
+    return { deleted: true };
+  },
+);
+```
+
+<Aside>
+  La verification des scopes est **basee sur le AND** — le token doit posseder *tous* les scopes listes. Besoin d'une logique OR ? Implementez-la dans un [middleware personnalise](/fr/docs/guides/middleware/).
+</Aside>
+
+## Avance : JwtAuthProvider
+
+Pour un controle total sur les parametres de validation, utilisez `JwtAuthProvider` directement :
+
+```typescript
+import { JwtAuthProvider } from "@casys/mcp-server";
+
+const provider = new JwtAuthProvider({
+  issuer: "https://accounts.google.com",
+  audience: "https://my-mcp.example.com",
+  resource: "https://my-mcp.example.com",
+  authorizationServers: ["https://accounts.google.com"],
+  jwksUri: "https://www.googleapis.com/oauth2/v3/certs",
+  scopesSupported: ["read", "write"],
+});
+
+const authInfo = await provider.verifyToken(token);
+// { subject, clientId, scopes, claims, expiresAt } — or null if invalid
+```
+
+## Decouverte automatique (RFC 9728)
+
+Quand l'auth est configuree sur un serveur HTTP, le framework sert automatiquement un endpoint de decouverte. Les clients MCP l'utilisent pour savoir comment s'authentifier :
+
+```
+GET /.well-known/oauth-protected-resource
+```
+
+```json
+{
+  "resource": "https://my-mcp.example.com",
+  "authorization_servers": ["https://accounts.google.com"],
+  "scopes_supported": ["read", "write"],
+  "bearer_methods_supported": ["header"]
+}
+```
+
+<Aside type="tip">
+  Pas besoin de configurer cela manuellement. C'est derive de votre configuration d'auth provider et servi automatiquement.
+</Aside>
+
+## Auth via YAML
+
+Vous livrez un binaire compile ? Vos utilisateurs peuvent configurer l'auth sans toucher au code — voir le [Guide de configuration](/fr/docs/guides/configuration/).
+
+## Voir aussi
+
+- [API Auth Providers](/fr/docs/api/auth-providers/) — Reference complete des presets et de `JwtAuthProvider`
+- [Pipeline Middleware](/fr/docs/guides/middleware/) — Comment l'auth s'integre dans la chaine middleware
+- [Configuration (YAML)](/fr/docs/guides/configuration/) — Configuration d'auth par fichier pour la distribution binaire

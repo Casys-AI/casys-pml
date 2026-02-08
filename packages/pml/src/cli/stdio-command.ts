@@ -10,6 +10,8 @@
 
 import { Command } from "@cliffy/command";
 import type { PmlConfig } from "../types.ts";
+import type { MCPResource, ResourceContent } from "@casys/mcp-server";
+import { MCP_APP_MIME_TYPE } from "@casys/mcp-server";
 import {
   getWorkspaceSourceDescription,
   isValidWorkspace,
@@ -58,6 +60,37 @@ let traceSyncer: TraceSyncer | null = null;
 
 /** Pending workflow store for local approval flows */
 const pendingWorkflowStore = new PendingWorkflowStore();
+
+/** Resource store for MCP Apps (Story 16.2) */
+type ResourceHandler = (uri: URL) => Promise<ResourceContent> | ResourceContent;
+const resourceStore = new Map<string, { resource: MCPResource; handler: ResourceHandler }>();
+
+/**
+ * Register a resource for MCP Apps
+ * @public - Will be used by Story 16.3 (UI Collection)
+ */
+export function registerResource(resource: MCPResource, handler: ResourceHandler): void {
+  resourceStore.set(resource.uri, { resource, handler });
+}
+
+/**
+ * Get all registered resources
+ */
+function getResources(): MCPResource[] {
+  return Array.from(resourceStore.values()).map(r => ({
+    ...r.resource,
+    mimeType: r.resource.mimeType ?? MCP_APP_MIME_TYPE,
+  }));
+}
+
+/**
+ * Read a resource by URI
+ */
+async function readResource(uri: string): Promise<ResourceContent | null> {
+  const entry = resourceStore.get(uri);
+  if (!entry) return null;
+  return await entry.handler(new URL(uri));
+}
 
 /** Logger adapter for shared utilities */
 const stdioLogger = {
@@ -133,7 +166,10 @@ function handleInitialize(id: string | number): void {
     id,
     result: {
       protocolVersion: "2024-11-05",
-      capabilities: { tools: {} },
+      capabilities: {
+        tools: {},
+        resources: resourceStore.size > 0 ? {} : undefined,
+      },
       serverInfo: { name: "pml", version: PACKAGE_VERSION },
     },
   });
@@ -151,6 +187,33 @@ function handleToolsList(id: string | number): void {
 }
 
 /**
+ * Handle MCP resources/list request (Story 16.2)
+ */
+function handleResourcesList(id: string | number): void {
+  sendResponse({
+    jsonrpc: "2.0",
+    id,
+    result: { resources: getResources() },
+  });
+}
+
+/**
+ * Handle MCP resources/read request (Story 16.2)
+ */
+async function handleResourcesRead(id: string | number, uri: string): Promise<void> {
+  const content = await readResource(uri);
+  if (!content) {
+    sendError(id, -32602, `Resource not found: ${uri}`);
+    return;
+  }
+  sendResponse({
+    jsonrpc: "2.0",
+    id,
+    result: { contents: [content] },
+  });
+}
+
+/**
  * Handle MCP tools/call request
  */
 async function handleToolsCall(
@@ -163,8 +226,8 @@ async function handleToolsCall(
 ): Promise<void> {
   const { name, arguments: args } = params;
 
-  // Handle pml:discover - always forward to cloud
-  if (name === "pml:discover") {
+  // Handle discover - always forward to cloud
+  if (name === "discover") {
     const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
@@ -174,8 +237,8 @@ async function handleToolsCall(
     return;
   }
 
-  // Handle pml:admin - always forward to cloud (MCP Tools Consolidation)
-  if (name === "pml:admin") {
+  // Handle admin - always forward to cloud (MCP Tools Consolidation)
+  if (name === "admin") {
     const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
@@ -185,8 +248,8 @@ async function handleToolsCall(
     return;
   }
 
-  // Handle pml:abort - always forward to cloud
-  if (name === "pml:abort") {
+  // Handle abort - always forward to cloud
+  if (name === "abort") {
     const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
@@ -196,8 +259,8 @@ async function handleToolsCall(
     return;
   }
 
-  // Handle pml:replan - always forward to cloud
-  if (name === "pml:replan") {
+  // Handle replan - always forward to cloud
+  if (name === "replan") {
     const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
@@ -207,12 +270,12 @@ async function handleToolsCall(
     return;
   }
 
-  // Handle pml:execute with hybrid routing support
-  if (name === "pml:execute") {
+  // Handle execute with hybrid routing support
+  if (name === "execute") {
     const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
 
     if (continueWorkflow) {
-      stdioLog.debug(`pml:execute with continue_workflow: approved=${continueWorkflow.approved}`);
+      stdioLog.debug(`execute with continue_workflow: approved=${continueWorkflow.approved}`);
 
       // Check if this is a LOCAL workflow (stored in our pending store)
       const pendingWorkflow = continueWorkflow.workflowId
@@ -531,6 +594,14 @@ async function processRequest(
     case "tools/list":
       if (id !== null) handleToolsList(id);
       break;
+    case "resources/list":
+      if (id !== null) handleResourcesList(id);
+      break;
+    case "resources/read":
+      if (id !== null && params?.uri) {
+        await handleResourcesRead(id, params.uri as string);
+      }
+      break;
     case "tools/call":
       if (id !== null && params) {
         await handleToolsCall(
@@ -703,7 +774,8 @@ export function createStdioCommand(): Command<any> {
 
             stdioLog.debug(
               `MCP Discovery: ${summary.successfulServers}/${summary.totalServers} servers, ` +
-              `${summary.totalTools} tools found`
+              `${summary.totalTools} tools found` +
+              (summary.uiTools > 0 ? `, ${summary.uiTools} with UI` : "")
             );
 
             // F11 Fix: Send MCP notification for failures (visible to user in Claude Code)

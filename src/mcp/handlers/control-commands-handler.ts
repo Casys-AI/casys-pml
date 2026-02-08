@@ -46,34 +46,8 @@ import {
   type ActiveWorkflowState as ReplanActiveWorkflowState,
 } from "../../application/use-cases/workflows/replan-workflow.ts";
 import { eventBus } from "../../events/mod.ts";
-// Story 10.5 AC10: WorkerBridge-based executor for 100% traceability
-import {
-  createToolExecutorViaWorker,
-  type ExecutorContext,
-} from "../../dag/execution/workerbridge-executor.ts";
-import type { ToolDefinition } from "../../sandbox/types.ts";
-import { buildToolDefinitionsFromDAG } from "./shared/tool-definitions.ts";
-
-/**
- * Create tool executor using WorkerBridge for 100% traceability
- *
- * Story 10.5 AC10: All MCP tool calls go through WorkerBridge RPC.
- */
-function createToolExecutorWithTracing(
-  deps: WorkflowHandlerDependencies,
-  toolDefs: ToolDefinition[],
-): { executor: import("../../dag/types.ts").ToolExecutor; context: ExecutorContext } {
-  const [executor, context] = createToolExecutorViaWorker({
-    mcpClients: deps.mcpClients,
-    toolDefinitions: toolDefs,
-    capabilityStore: deps.capabilityStore,
-    graphRAG: deps.graphEngine,
-    capabilityRegistry: deps.capabilityRegistry,
-    capModule: deps.capModule,
-  });
-
-  return { executor, context };
-}
+// Story 10.5 AC10: WorkerBridge-based executor via shared factory
+import { buildToolDefinitionsFromDAG, createTracingExecutor } from "./shared/mod.ts";
 
 /**
  * Handle continue command (Story 2.5-4)
@@ -123,7 +97,7 @@ export async function handleContinue(
 
   // Story 10.5 AC10: Build tool definitions and create WorkerBridge executor
   const toolDefs = await buildToolDefinitionsFromDAG(dag, deps);
-  const { executor, context } = createToolExecutorWithTracing(deps, toolDefs);
+  const { executor, context } = createTracingExecutor(deps, toolDefs);
 
   // Create new executor and resume from checkpoint
   const controlledExecutor = new ControlledExecutor(executor, {

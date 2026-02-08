@@ -14,6 +14,8 @@ import { join } from "@std/path";
 import { Hono } from "hono";
 import { cors } from "jsr:@hono/hono@^4/cors";
 import type { PmlConfig } from "../types.ts";
+import type { MCPResource, ResourceContent } from "@casys/mcp-server";
+import { MCP_APP_MIME_TYPE } from "@casys/mcp-server";
 import {
   isValidWorkspace,
   resolveWorkspaceWithDetails,
@@ -63,6 +65,37 @@ let configWatcher: ConfigWatcher | null = null;
 /** Pending workflow store for HIL flows */
 const pendingWorkflowStore = new PendingWorkflowStore();
 
+/** Resource store for MCP Apps (Story 16.2) */
+type ResourceHandler = (uri: URL) => Promise<ResourceContent> | ResourceContent;
+const resourceStore = new Map<string, { resource: MCPResource; handler: ResourceHandler }>();
+
+/**
+ * Register a resource for MCP Apps
+ * @public - Will be used by Story 16.3 (UI Collection)
+ */
+export function registerResource(resource: MCPResource, handler: ResourceHandler): void {
+  resourceStore.set(resource.uri, { resource, handler });
+}
+
+/**
+ * Get all registered resources
+ */
+function getResources(): MCPResource[] {
+  return Array.from(resourceStore.values()).map(r => ({
+    ...r.resource,
+    mimeType: r.resource.mimeType ?? MCP_APP_MIME_TYPE,
+  }));
+}
+
+/**
+ * Read a resource by URI
+ */
+async function readResource(uri: string): Promise<ResourceContent | null> {
+  const entry = resourceStore.get(uri);
+  if (!entry) return null;
+  return await entry.handler(new URL(uri));
+}
+
 /** HTTP-specific colored logger */
 function log(message: string): void {
   console.log(`${colors.dim(new Date().toISOString())} ${message}`);
@@ -87,7 +120,10 @@ export function createServeCommand(): Command<any> {
       if (!Deno.env.get("PML_API_KEY")) {
         try {
           await reloadEnv(workspace);
-        } catch { /* ignore */ }
+        } catch (e) {
+          // .env loading failure is non-fatal - API key check below will catch missing key
+          console.warn(colors.yellow(`Warning: Failed to load .env: ${e instanceof Error ? e.message : e}`));
+        }
       }
 
       const apiKey = Deno.env.get("PML_API_KEY");
@@ -112,7 +148,10 @@ export function createServeCommand(): Command<any> {
       if (await exists(configPath)) {
         try {
           config = { ...config, ...JSON.parse(await Deno.readTextFile(configPath)) };
-        } catch { /* ignore */ }
+        } catch (e) {
+          console.warn(colors.yellow(`Warning: Failed to parse ${PML_CONFIG_FILE}: ${e instanceof Error ? e.message : e}`));
+          console.warn(colors.yellow("Using default configuration."));
+        }
       }
 
       // Load permissions
@@ -279,7 +318,10 @@ export function createServeCommand(): Command<any> {
               id,
               result: {
                 protocolVersion: "2024-11-05",
-                capabilities: { tools: {} },
+                capabilities: {
+                  tools: {},
+                  resources: resourceStore.size > 0 ? {} : undefined,
+                },
                 serverInfo: { name: "pml", version: PACKAGE_VERSION },
               },
             });
@@ -291,6 +333,33 @@ export function createServeCommand(): Command<any> {
               jsonrpc: "2.0",
               id,
               result: { tools: PML_TOOLS },
+            });
+          }
+
+          // Resources list (MCP Apps - Story 16.2)
+          if (method === "resources/list") {
+            return c.json({
+              jsonrpc: "2.0",
+              id,
+              result: { resources: getResources() },
+            });
+          }
+
+          // Resources read (MCP Apps - Story 16.2)
+          if (method === "resources/read" && params?.uri) {
+            const uri = params.uri as string;
+            const content = await readResource(uri);
+            if (!content) {
+              return c.json({
+                jsonrpc: "2.0",
+                id,
+                error: { code: -32602, message: `Resource not found: ${uri}` },
+              });
+            }
+            return c.json({
+              jsonrpc: "2.0",
+              id,
+              result: { contents: [content] },
             });
           }
 
@@ -322,6 +391,11 @@ export function createServeCommand(): Command<any> {
                   loader.approveToolForSession(pending.toolId);
                 } else if (pending.approvalType === "api_key_required") {
                   await reloadEnv(workspace);
+                } else if (pending.approvalType === "integrity" && loader) {
+                  // Use fqdnBase (e.g., "pml.mcp.std.data_address") not toolId (e.g., "fake:address")
+                  // toolId is the capability being loaded, fqdnBase is the actual tool with integrity change
+                  const integrityTarget = pending.integrityInfo?.fqdnBase ?? pending.toolId;
+                  await loader.approveIntegrityForSession(integrityTarget);
                 }
 
                 const fqdnMap = new Map(Object.entries(pending.fqdnMap ?? {}));

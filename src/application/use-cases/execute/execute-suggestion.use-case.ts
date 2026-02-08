@@ -10,6 +10,7 @@
  */
 
 import * as log from "@std/log";
+import { uuidv7 } from "../../../utils/uuid.ts";
 import type { IDAGSuggester, CapabilityMatch, SuggestionResult } from "../../../domain/interfaces/dag-suggester.ts";
 import type { ICapabilityRepository } from "../../../domain/interfaces/capability-repository.ts";
 import type { UseCaseResult } from "../shared/types.ts";
@@ -139,7 +140,7 @@ export class ExecuteSuggestionUseCase {
   ): Promise<UseCaseResult<ExecuteSuggestionResult>> {
     const { intent } = request;
     const startTime = performance.now();
-    const correlationId = crypto.randomUUID();
+    const correlationId = uuidv7();
 
     log.info("[ExecuteSuggestionUseCase] Starting suggestion mode", {
       correlationId,
@@ -505,10 +506,9 @@ export class ExecuteSuggestionUseCase {
     const tasks: Array<{ id: string; callName: string; type: "tool" | "capability"; inputSchema?: unknown; dependsOn: string[] }> = [];
     const addedItems = new Set<string>();
 
-    // Helper to check if ID is a hyperedge (not a real node)
-    const isHyperedgeId = (id: string) =>
-      id.startsWith("seq:") || id.startsWith("contains:") || id.startsWith("provides:") ||
-      id.startsWith("invokes:") || id.startsWith("child:");
+    const hyperedgePrefixes = ["seq:", "contains:", "provides:", "invokes:", "child:"];
+    const isHyperedgeId = (id: string): boolean =>
+      hyperedgePrefixes.some((prefix) => id.startsWith(prefix));
 
     for (const nodeId of pathResult.nodeSequence) {
       if (isHyperedgeId(nodeId)) continue;

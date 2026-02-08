@@ -29,6 +29,7 @@ import type { CapModule } from "../mcp/handlers/cap-handler.ts";
 import { getCapabilityFqdn } from "../capabilities/capability-registry.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import { getUserScope } from "../lib/user.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 const logger = getLogger("default");
 
@@ -333,7 +334,7 @@ export class RpcRouter {
 
     try {
       // Generate child traceId for this nested capability
-      const childTraceId = crypto.randomUUID();
+      const childTraceId = uuidv7();
       const capResult = await bridge.execute(
         code,
         [],

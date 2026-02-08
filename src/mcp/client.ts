@@ -565,6 +565,7 @@ export class MCPClient implements MCPClientBase {
       description: String(tool.description || ""),
       inputSchema: tool.inputSchema as Record<string, unknown> || {},
       outputSchema: tool.outputSchema as Record<string, unknown> | undefined,
+      _meta: tool._meta as { ui?: { resourceUri?: string; emits?: string[]; accepts?: string[] } } | undefined,
     }));
   }
 
@@ -616,6 +617,47 @@ export class MCPClient implements MCPClientBase {
         }`,
         error instanceof Error ? error : undefined,
       );
+    }
+  }
+
+  /**
+   * Read a resource by URI (MCP resources/read)
+   *
+   * @param uri - The resource URI (e.g., "ui://mcp-std/table-viewer")
+   * @returns Resource content or null if not found/not supported
+   */
+  async readResource(uri: string): Promise<{ uri: string; mimeType?: string; text?: string } | null> {
+    try {
+      const request = {
+        jsonrpc: "2.0",
+        id: this.requestId++,
+        method: "resources/read",
+        params: { uri },
+      };
+
+      const response = await this.sendRequest(request);
+
+      if (response.error) {
+        log.debug(
+          `resources/read failed for ${uri} on ${this.server.id}: ${response.error.message}`,
+        );
+        return null;
+      }
+
+      // Response format: { contents: [{ uri, mimeType?, text?, blob? }] }
+      const result = response.result as { contents?: Array<{ uri: string; mimeType?: string; text?: string }> };
+      if (!result?.contents || result.contents.length === 0) {
+        return null;
+      }
+
+      // Return first matching content
+      const content = result.contents.find((c) => c.uri === uri) || result.contents[0];
+      return content || null;
+    } catch (error) {
+      log.debug(
+        `Failed to read resource ${uri} on ${this.server.id}: ${error}`,
+      );
+      return null;
     }
   }
 

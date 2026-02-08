@@ -22,7 +22,31 @@ import type { DRDSP } from "../../graphrag/algorithms/dr-dsp.ts";
 import type { CheckpointManager } from "../../dag/checkpoint-manager.ts";
 import type { CapabilityRegistry } from "../../capabilities/capability-registry.ts";
 
-import { buildContainer, type AppConfig } from "./container.ts";
+import { buildContainer, type AppConfig, type EventBus } from "./container.ts";
+
+/**
+ * Create an in-memory event bus implementation.
+ * Extracted as a reusable factory function.
+ */
+function createInMemoryEventBus(): EventBus {
+  const subscribers: Array<(event: unknown) => void> = [];
+  return {
+    emit(event: unknown): void {
+      for (const fn of subscribers) {
+        fn(event);
+      }
+    },
+    subscribe(handler: (event: unknown) => void): () => void {
+      subscribers.push(handler);
+      return () => {
+        const idx = subscribers.indexOf(handler);
+        if (idx >= 0) {
+          subscribers.splice(idx, 1);
+        }
+      };
+    },
+  } as EventBus;
+}
 import {
   GraphEngineAdapter,
   CapabilityRepositoryAdapter,
@@ -202,21 +226,7 @@ export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
       }),
 
       // Event bus - simple in-memory implementation
-      createEventBus: () => {
-        const subscribers: Array<(event: unknown) => void> = [];
-        return {
-          emit: (event: unknown) => {
-            subscribers.forEach((fn) => fn(event));
-          },
-          subscribe: (handler: (event: unknown) => void) => {
-            subscribers.push(handler);
-            return () => {
-              const idx = subscribers.indexOf(handler);
-              if (idx >= 0) subscribers.splice(idx, 1);
-            };
-          },
-        };
-      },
+      createEventBus: createInMemoryEventBus,
 
       // Domain services - use adapters
       createGraphEngine: () => graphEngineAdapter,

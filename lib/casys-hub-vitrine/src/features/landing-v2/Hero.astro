@@ -1,0 +1,752 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    title: 'Applied AI Research',
+    subtitle: 'We explore AI architectures, build open-source tools, and share what we learn.',
+    currentProjects: {
+      label: 'Current Projects',
+      projects: [
+        { name: 'MCP Gateway', description: 'Context management for AI agents' },
+        { name: 'CasysDB', description: 'Embedded graph database with branches' },
+        { name: 'Content Intelligence', description: 'Archived research & insights' }
+      ]
+    },
+    researchAreas: {
+      label: 'Research Areas',
+      areas: ['Knowledge Management', 'Agentic Systems', 'Graph Databases', 'Context Optimization', 'Content Intelligence']
+    },
+    cta: {
+      primary: {
+        text: 'Explore Our Projects',
+        icon: 'rocket_launch',
+        url: '#projects'
+      },
+      secondary: {
+        text: 'Need help? We consult.',
+        icon: 'engineering',
+        url: '#contact'
+      }
+    },
+    stats: [
+      { value: '10+', label: 'Years Expertise', sublabel: 'KM → Graph → AI' },
+      { value: '2', label: 'Active Projects', sublabel: 'Open Source' },
+      { value: '15+', label: 'MCP Servers', sublabel: 'Via Gateway' }
+    ],
+    openSourceCard: { title: 'Open Source', text: 'MIT licensed • Production-ready' },
+    consultingCard: { title: 'Consulting', text: 'Direct access to builders' }
+  },
+  fr: {
+    title: 'Applied AI Research',
+    subtitle: 'On explore les architectures AI, on build des outils open-source, on partage ce qu\'on apprend.',
+    currentProjects: {
+      label: 'Projets Actuels',
+      projects: [
+        { name: 'MCP Gateway', description: 'Context management pour agents AI' },
+        { name: 'CasysDB', description: 'Graph database embedded avec branches' },
+        { name: 'Content Intelligence', description: 'Recherche archives & insights' }
+      ]
+    },
+    researchAreas: {
+      label: 'Domaines de Recherche',
+      areas: ['Knowledge Management', 'Systèmes Agentiques', 'Graph Databases', 'Context Optimization', 'Content Intelligence']
+    },
+    cta: {
+      primary: {
+        text: 'Explorer Nos Projets',
+        icon: 'rocket_launch',
+        url: '#projects'
+      },
+      secondary: {
+        text: 'Besoin d\'aide? On consulte.',
+        icon: 'engineering',
+        url: '#contact'
+      }
+    },
+    stats: [
+      { value: '10+', label: 'Ans Expertise', sublabel: 'KM → Graph → AI' },
+      { value: '2', label: 'Projets Actifs', sublabel: 'Open Source' },
+      { value: '15+', label: 'MCP Servers', sublabel: 'Via Gateway' }
+    ],
+    openSourceCard: { title: 'Open Source', text: 'MIT licensed • Production-ready' },
+    consultingCard: { title: 'Consulting', text: 'Accès direct aux builders' }
+  },
+  zh: {
+    title: 'Applied AI Research',
+    subtitle: '我们探索 AI 架构，构建开源工具，并分享所学。',
+    currentProjects: {
+      label: '当前项目',
+      projects: [
+        { name: 'MCP Gateway', description: 'AI 代理的上下文管理' },
+        { name: 'CasysDB', description: '支持分支的嵌入式图数据库' },
+        { name: 'Content Intelligence', description: '存档研究与洞察' }
+      ]
+    },
+    researchAreas: {
+      label: '研究领域',
+      areas: ['知识管理', '智能体系统', '图数据库', '上下文优化', '内容智能']
+    },
+    cta: {
+      primary: {
+        text: '探索我们的项目',
+        icon: 'rocket_launch',
+        url: '#projects'
+      },
+      secondary: {
+        text: '需要帮助？我们提供咨询。',
+        icon: 'engineering',
+        url: '#contact'
+      }
+    },
+    stats: [
+      { value: '10+', label: '年经验', sublabel: 'KM → Graph → AI' },
+      { value: '2', label: '活跃项目', sublabel: '开源' },
+      { value: '15+', label: 'MCP 服务器', sublabel: '通过 Gateway' }
+    ],
+    openSourceCard: { title: 'Open Source', text: 'MIT 开源 • 生产就绪' },
+    consultingCard: { title: 'Consulting', text: '直接对接开发者' }
+  }
+};
+const t = translations[locale] ?? translations.en;
+---
+
+<section id="hero">
+  <!-- Signature Element: Knowledge Graph -->
+  <div class="signature-shape" aria-hidden="true">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <!-- Edges (connections) -->
+      <line x1="100" y1="50" x2="50" y2="100" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+      <line x1="100" y1="50" x2="150" y2="100" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+      <line x1="50" y1="100" x2="70" y2="160" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+      <line x1="150" y1="100" x2="130" y2="160" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+      <line x1="70" y1="160" x2="130" y2="160" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+      <line x1="50" y1="100" x2="150" y2="100" stroke="currentColor" stroke-width="0.5" opacity="0.3" stroke-dasharray="4 4"/>
+      <!-- Nodes -->
+      <circle cx="100" cy="50" r="8" fill="currentColor" opacity="0.8"/>
+      <circle cx="50" cy="100" r="6" fill="currentColor" opacity="0.6"/>
+      <circle cx="150" cy="100" r="6" fill="currentColor" opacity="0.6"/>
+      <circle cx="70" cy="160" r="5" fill="currentColor" opacity="0.5"/>
+      <circle cx="130" cy="160" r="5" fill="currentColor" opacity="0.5"/>
+      <!-- Center node -->
+      <circle cx="100" cy="110" r="4" fill="currentColor" opacity="0.9"/>
+    </svg>
+  </div>
+
+  <div class="container">
+    <!-- HERO CONTENT - Asymmetric Layout -->
+    <div class="hero-content">
+
+      <!-- Title - Editorial Typography -->
+      <h1 class="hero-title">
+        <span class="title-line">{t.title.split(' ')[0]}</span>
+        <span class="title-line accent">{t.title.split(' ').slice(1).join(' ')}</span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="hero-subtitle">{t.subtitle}</p>
+
+      <!-- Stats Row - Inline -->
+      <div class="stats-row">
+        {t.stats.map((stat: { value: string; label: string; sublabel: string }) => (
+          <div class="stat-item">
+            <span class="stat-value">{stat.value}</span>
+            <span class="stat-label">{stat.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <!-- CTAs -->
+      <div class="cta-group">
+        <a href={t.cta.primary.url} class="cta-primary">
+          <span class="material-symbols-rounded">{t.cta.primary.icon}</span>
+          <span>{t.cta.primary.text}</span>
+        </a>
+        <a href={t.cta.secondary.url} class="cta-secondary" target="_blank" rel="noopener noreferrer">
+          <span>{t.cta.secondary.text}</span>
+          <span class="material-symbols-rounded">arrow_outward</span>
+        </a>
+      </div>
+
+    </div>
+
+    <!-- Preview Cards - Offset Grid -->
+    <div class="preview-cards">
+      <a href="#what-we-do" class="preview-card">
+        <span class="card-icon material-symbols-rounded">school</span>
+        <div class="card-content">
+          <h3 class="card-title">{t.researchAreas.label}</h3>
+          <p class="card-text">{t.researchAreas.areas.slice(0, 3).join(' • ')}</p>
+        </div>
+        <span class="card-arrow material-symbols-rounded">east</span>
+      </a>
+      <a href="#projects" class="preview-card">
+        <span class="card-icon material-symbols-rounded">code</span>
+        <div class="card-content">
+          <h3 class="card-title">{t.openSourceCard.title}</h3>
+          <p class="card-text">{t.openSourceCard.text}</p>
+        </div>
+        <span class="card-arrow material-symbols-rounded">east</span>
+      </a>
+      <a href="#work-with-us" class="preview-card">
+        <span class="card-icon material-symbols-rounded">handshake</span>
+        <div class="card-content">
+          <h3 class="card-title">{t.consultingCard.title}</h3>
+          <p class="card-text">{t.consultingCard.text}</p>
+        </div>
+        <span class="card-arrow material-symbols-rounded">east</span>
+      </a>
+    </div>
+
+    <!-- Subtle Background Gradient -->
+    <div class="gradient-orb" id="mesh-gradient"></div>
+  </div>
+</section>
+
+<style>
+  /* ============================================
+     HERO SECTION - Editorial/Refined Aesthetic
+     Font: Fraunces for headlines
+     Palette: Warm orange for dark mode
+     ============================================ */
+
+  section {
+    position: relative;
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    padding: 0;
+    background: var(--md-sys-color-surface);
+    overflow: hidden;
+  }
+
+  /* Signature Element: Knowledge Graph */
+  .signature-shape {
+    position: absolute;
+    top: 50%;
+    right: 10%;
+    transform: translate(0, -50%);
+    width: clamp(280px, 30vw, 420px);
+    height: clamp(280px, 30vw, 420px);
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.12;
+    color: var(--md-sys-color-primary);
+  }
+
+  .container {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 120px 48px 80px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  /* HERO CONTENT - Left Aligned (Asymmetric) */
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 24px;
+  }
+
+  /* Title - Editorial Typography with Fraunces */
+  .hero-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(3rem, 6vw, 4.5rem);
+    font-weight: 500;
+    font-optical-sizing: auto;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin: 0;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .title-line {
+    display: block;
+  }
+
+  .title-line.accent {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    color: var(--md-sys-color-primary);
+  }
+
+  /* Subtitle */
+  .hero-subtitle {
+    font-size: clamp(1.125rem, 2vw, 1.375rem);
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 480px;
+  }
+
+  /* Stats Row */
+  .stats-row {
+    display: flex;
+    gap: 32px;
+    padding: 24px 0;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* CTAs */
+  .cta-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .cta-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 32px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 200ms ease-out;
+  }
+
+  .cta-primary:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .cta-primary:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  .cta-primary .material-symbols-rounded {
+    font-size: 22px;
+  }
+
+  .cta-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 24px;
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 200ms ease-out, border-color 200ms ease-out;
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .cta-secondary:hover {
+    background: var(--md-sys-color-surface-container);
+    border-color: var(--md-sys-color-primary);
+  }
+
+  .cta-secondary:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  .cta-secondary .material-symbols-rounded {
+    font-size: 18px;
+  }
+
+  /* Preview Cards - Right Side Offset Grid */
+  .preview-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-left: 32px;
+  }
+
+  .preview-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 16px;
+    text-decoration: none;
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+  }
+
+  .preview-card:nth-child(2) { margin-left: 24px; }
+  .preview-card:nth-child(3) { margin-left: 48px; }
+
+  .preview-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .preview-card:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  .card-icon {
+    font-size: 28px;
+    color: var(--md-sys-color-primary);
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 12px;
+  }
+
+  .card-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .card-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 4px;
+  }
+
+  .card-text {
+    font-size: 0.875rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-arrow {
+    font-size: 20px;
+    color: var(--md-sys-color-on-surface-variant);
+    transition: color 200ms ease-out;
+    opacity: 0;
+  }
+
+  .preview-card:hover .card-arrow {
+    opacity: 1;
+    color: var(--md-sys-color-primary);
+  }
+
+  /* Subtle Background Gradient */
+  .gradient-orb {
+    position: absolute;
+    top: 50%;
+    left: 60%;
+    transform: translate(-50%, -50%);
+    width: min(1200px, 80vw);
+    height: min(1200px, 80vh);
+    background:
+      radial-gradient(circle at 25% 35%, rgba(245, 158, 11, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 75% 65%, rgba(20, 184, 166, 0.12) 0%, transparent 50%);
+    filter: blur(80px);
+    opacity: 0.5;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ============================================
+     RESPONSIVE - Tablet
+     ============================================ */
+  @media (max-width: 1024px) {
+    .container {
+      grid-template-columns: 1fr;
+      gap: 48px;
+      padding: 100px 32px 60px;
+    }
+
+    .hero-content {
+      align-items: center;
+      text-align: center;
+    }
+
+    .hero-subtitle {
+      max-width: 600px;
+    }
+
+    .stats-row {
+      justify-content: center;
+    }
+
+    .cta-group {
+      justify-content: center;
+    }
+
+    .preview-cards {
+      padding-left: 0;
+      align-items: center;
+    }
+
+    .preview-card:nth-child(2),
+    .preview-card:nth-child(3) {
+      margin-left: 0;
+    }
+
+    .signature-shape {
+      right: -10%;
+      opacity: 0.05;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE - Mobile
+     ============================================ */
+  @media (max-width: 768px) {
+    section {
+      min-height: 100svh;
+    }
+
+    .container {
+      padding: 88px 16px 40px;
+      gap: 32px;
+      overflow-x: hidden;
+    }
+
+    .hero-content {
+      width: 100%;
+      overflow-x: hidden;
+    }
+
+    .hero-title {
+      font-size: clamp(1.875rem, 7vw, 2.5rem);
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+    }
+
+    .hero-subtitle {
+      font-size: 0.9375rem;
+      line-height: 1.5;
+    }
+
+    .stats-row {
+      flex-wrap: wrap;
+      gap: 16px 24px;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .stat-item {
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.375rem;
+    }
+
+    .stat-label {
+      font-size: 0.6875rem;
+      white-space: nowrap;
+    }
+
+    .cta-group {
+      flex-direction: column;
+      width: 100%;
+      gap: 12px;
+    }
+
+    .cta-primary,
+    .cta-secondary {
+      width: 100%;
+      justify-content: center;
+      padding: 14px 20px;
+      font-size: 0.9375rem;
+    }
+
+    .cta-primary .material-symbols-rounded {
+      font-size: 20px;
+    }
+
+    .preview-cards {
+      width: 100%;
+    }
+
+    .preview-card {
+      width: 100%;
+      padding: 16px;
+    }
+
+    .card-text {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+    }
+
+    .signature-shape {
+      display: none;
+    }
+
+    .gradient-orb {
+      left: 50%;
+      width: min(500px, 90vw);
+      height: min(500px, 90vh);
+      filter: blur(60px);
+    }
+  }
+
+  /* Extra small mobile */
+  @media (max-width: 380px) {
+    .container {
+      padding: 80px 12px 32px;
+    }
+
+    .hero-title {
+      font-size: 1.75rem;
+    }
+
+    .stats-row {
+      gap: 12px 16px;
+    }
+
+    .stat-item {
+      min-width: 70px;
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+    }
+
+    .stat-label {
+      font-size: 0.625rem;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ============================================
+     HERO - DARK MODE
+     Warm orange palette (#FFB86F, #D4A574)
+     ============================================ */
+
+  html[data-theme="dark"] #hero {
+    background: #0a0908;
+  }
+
+  html[data-theme="dark"] #hero .signature-shape {
+    color: #FFB86F;
+    opacity: 0.06;
+  }
+
+  html[data-theme="dark"] #hero .hero-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #hero .title-line.accent {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #hero .hero-subtitle {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #hero .stats-row {
+    border-color: rgba(255, 184, 111, 0.15);
+  }
+
+  html[data-theme="dark"] #hero .stat-value {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #hero .stat-label {
+    color: #d5c3b5;
+  }
+
+  /* CTAs */
+  html[data-theme="dark"] #hero .cta-primary {
+    background: #FFB86F;
+    color: #1a1815;
+  }
+
+  html[data-theme="dark"] #hero .cta-primary:hover {
+    background: #D4A574;
+  }
+
+  html[data-theme="dark"] #hero .cta-secondary {
+    color: #f5f0ea;
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #hero .cta-secondary:hover {
+    background: rgba(255, 184, 111, 0.1);
+    border-color: #FFB86F;
+  }
+
+  /* Preview Cards */
+  html[data-theme="dark"] #hero .preview-card {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #hero .preview-card:hover {
+    border-color: rgba(255, 184, 111, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] #hero .card-icon {
+    background: rgba(255, 184, 111, 0.1);
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #hero .card-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #hero .card-text {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #hero .card-arrow {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #hero .preview-card:hover .card-arrow {
+    color: #FFB86F;
+  }
+
+  /* Background Gradient */
+  html[data-theme="dark"] #hero .gradient-orb {
+    background:
+      radial-gradient(circle at 25% 35%, rgba(255, 184, 111, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 75% 65%, rgba(212, 165, 116, 0.06) 0%, transparent 50%);
+    filter: blur(100px);
+    opacity: 0.4;
+  }
+</style>

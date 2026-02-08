@@ -131,6 +131,10 @@ export class DiscoverToolsUseCase {
     for (const shgatResult of shgatResults.slice(0, limit)) {
       const metadata = toolsMetadata.get(shgatResult.toolId);
       const toolName = extractToolName(shgatResult.toolId);
+      const headScores = shgatResult.headScores ?? [];
+      const avgHeadScore = headScores.length > 0
+        ? headScores.reduce((a, b) => a + b, 0) / headScores.length
+        : 0;
 
       // Log decision with name for TracingPanel display
       decisionLogger?.logDecision({
@@ -145,17 +149,16 @@ export class DiscoverToolsUseCase {
         targetName: toolName,
         correlationId,
         signals: {
-          numHeads: shgatResult.headScores?.length ?? 0,
-          avgHeadScore: shgatResult.headScores
-            ? shgatResult.headScores.reduce((a, b) => a + b, 0) / shgatResult.headScores.length
-            : 0,
+          numHeads: headScores.length,
+          avgHeadScore,
         },
       });
+
       tools.push({
         type: "tool",
         record_type: "mcp-tool",
         id: shgatResult.toolId,
-        name: extractToolName(shgatResult.toolId),
+        name: toolName,
         description: metadata?.description ?? shgatResult.toolId,
         score: shgatResult.score,
         server_id: metadata?.serverId,
@@ -242,6 +245,6 @@ export class DiscoverToolsUseCase {
  * @example "filesystem:read_file" → "read_file"
  */
 function extractToolName(toolId: string): string {
-  const parts = toolId.split(":");
-  return parts.length > 1 ? parts.slice(1).join(":") : toolId;
+  const colonIndex = toolId.indexOf(":");
+  return colonIndex !== -1 ? toolId.slice(colonIndex + 1) : toolId;
 }

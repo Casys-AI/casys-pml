@@ -1,0 +1,71 @@
+---
+title: Installation
+description: Installer @casys/mcp-server via JSR pour Deno ou npm.
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+Une seule commande pour installer. Pas de build, pas de configuration, pas de peer dependencies.
+
+## Installer
+
+<Tabs>
+  <TabItem label="Deno (recommande)">
+    ```bash
+    deno add jsr:@casys/mcp-server
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npx jsr add @casys/mcp-server
+    ```
+  </TabItem>
+</Tabs>
+
+Publie sur [JSR](https://jsr.io/@casys/mcp-server), le registre JavaScript moderne. Compatible Deno et Node.js.
+
+## Pre-requis
+
+| Runtime | Version Minimum |
+|---------|----------------|
+| **Deno** | 2.0+ |
+| **Node.js** | 22+ |
+| **TypeScript** | 5.0+ (recommande) |
+
+## Verifier que ca marche
+
+Creez un fichier `server.ts` :
+
+```typescript
+import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "test",
+  version: "0.0.1",
+});
+
+console.log("Ready — 0 tools registered, all systems go.");
+```
+
+Lancez-le :
+
+<Tabs>
+  <TabItem label="Deno">
+    ```bash
+    deno run --allow-net server.ts
+    ```
+  </TabItem>
+  <TabItem label="Node.js">
+    ```bash
+    npx tsx server.ts
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="tip">
+  Si vous voyez le message "Ready", tout est pret. Passez au Demarrage rapide pour construire quelque chose de concret.
+</Aside>
+
+## Et ensuite
+
+Construisez votre premier serveur MCP avec un outil fonctionnel en moins d'une minute : **[Demarrage rapide](/fr/docs/getting-started/quickstart/)**.

@@ -38,16 +38,9 @@ export function getTaskType(task: Task): TaskType {
  * @returns true if task can fail safely
  */
 export function isSafeToFail(task: Task): boolean {
-  // Phase 2a: Pure operations are always safe-to-fail (checked via metadata)
-  if (task.metadata?.pure === true) {
-    return true;
-  }
+  if (task.metadata?.pure === true) return true;
+  if (task.type !== "code_execution") return false;
 
-  // Only code_execution tasks with minimal permissions are safe-to-fail
-  if (task.type !== "code_execution") {
-    return false;
-  }
-  // Check permissionSet directly - minimal means no external access
   const permSet = task.sandboxConfig?.permissionSet ?? "minimal";
   return permSet === "minimal";
 }

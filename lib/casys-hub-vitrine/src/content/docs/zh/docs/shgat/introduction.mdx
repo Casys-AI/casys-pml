@@ -1,0 +1,78 @@
+---
+title: 简介
+description: 用于工具相关性评分的超超图注意力网络。基于超图的多层消息传递与 K-Head 注意力机制。
+prev: false
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+跨超图层级对工具相关性进行评分 -- 无需 LLM 调用，无需外部 API，完全确定性。
+
+基于 [libtensorflow](https://www.tensorflow.org/install/lang_c)，通过 Deno FFI 实现原生 C 性能。已发布至 [JSR](https://jsr.io/@casys/shgat)。
+
+## 问题
+
+工具以层级结构组织。一个 "database" 组合包含 `psql_query`、`psql_exec`、`pg_dump`。一个 "data-pipeline" 组合包含 "database" 组合以及 `csv_parse` 和 `json_transform`。传统的评分方法将这种结构展平为一个单一列表，丢失了节点之间的 N 对 N 关系。
+
+当用户说"将我的数据导出为 CSV"时，你需要一种能够**跨层级**传播相关性的评分方式 -- 从叶节点到组合节点 -- 而不仅仅是在扁平列表上计算余弦相似度。
+
+## 解决方案
+
+`@casys/shgat` 使用超图注意力机制在完整层级结构中传播相关性。多层消息传递 (V->E->...->V) 在 K-Head 注意力对用户意图进行评分之前，在每一层丰富嵌入表示。单一模型，自包含，在你自己的硬件上运行。
+
+```typescript
+import { createSHGAT, type Node } from "@casys/shgat";
+
+// Define your tool hierarchy
+const nodes: Node[] = [
+  { id: "psql_query",  embedding: queryEmb,  children: [], level: 0 },
+  { id: "psql_exec",   embedding: execEmb,   children: [], level: 0 },
+  { id: "csv_parse",   embedding: csvEmb,    children: [], level: 0 },
+  { id: "database",    embedding: dbEmb,     children: ["psql_query", "psql_exec"], level: 1 },
+  { id: "data-pipeline", embedding: pipeEmb, children: ["database", "csv_parse"],  level: 2 },
+];
+
+// Create model and score
+const model = createSHGAT(nodes);
+const ranked = model.scoreNodes(intentEmbedding);
+
+for (const { nodeId, score, level } of ranked.slice(0, 5)) {
+  console.log(`${nodeId} (L${level}): ${score.toFixed(4)}`);
+}
+
+model.dispose();
+```
+
+<Aside type="tip">
+  `scoreNodes()` 在一次调用中完成多层消息传递和 K-Head 注意力计算。所有张量运算在最终结果转换之前始终保持在原生后端上。
+</Aside>
+
+## 包含内容
+
+<CardGrid>
+  <Card title="K-Head 注意力" icon="star">
+    16 头注意力（自适应 4-16 头），每个头具有独立的 key/query 投影。各头独立评分，然后融合。确定性 -- 相同输入，相同输出。
+  </Card>
+  <Card title="多层消息传递" icon="random">
+    上行传播 (V->E^0->E^1->...->E^L)，然后下行传播 (E^L->...->E^0->V)。组合节点聚合其子节点信息，再将上下文向下传播。
+  </Card>
+  <Card title="InfoNCE 对比损失" icon="approve-check">
+    基于温度缩放交叉熵的对比训练。正样本 = 实际执行的工具。负样本 = 从课程分层（简单->困难）中采样。
+  </Card>
+  <Card title="稀疏消息传递" icon="list-format">
+    使用稀疏关联矩阵实现高效传播。可扩展至数千个节点，无需承担稠密矩阵的开销。
+  </Card>
+  <Card title="PER 训练" icon="rocket">
+    带有课程学习的优先经验回放缓冲区。随着准确率提升，困难负样本被更频繁地采样。
+  </Card>
+  <Card title="libtensorflow FFI" icon="setting">
+    通过 `Deno.dlopen` 调用原生 C TensorFlow。无 WASM，无 npm tf 包。支持 CUDA GPU 加速。
+  </Card>
+</CardGrid>
+
+## 开始使用
+
+<CardGrid>
+  <LinkCard title="安装" href="/zh/docs/shgat/installation/" description="通过 JSR 安装并配置 libtensorflow。" />
+  <LinkCard title="快速上手" href="/zh/docs/shgat/quickstart/" description="一分钟内完成你的首次节点评分。" />
+</CardGrid>

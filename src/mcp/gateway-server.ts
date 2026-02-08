@@ -560,7 +560,7 @@ export class PMLGatewayServer {
         // Emit capability.merged event for graph invalidation
         eventBus.emit({
           type: "capability.merged",
-          source: "pml:admin",
+          source: "admin",
           timestamp: Date.now(),
           payload: {
             sourceId: response.deletedSourceId,
@@ -835,45 +835,45 @@ export class PMLGatewayServer {
     getTelemetryAdapter().setUserId(userId ?? null);
 
     // DAG execution
-    if (name === "pml:execute_dag") {
+    if (name === "execute_dag") {
       return await handleWorkflowExecution(args, this.getWorkflowDeps(), userId);
     }
 
     // Control tools
-    if (name === "pml:continue") {
+    if (name === "continue") {
       return await handleContinue(args, this.getWorkflowDeps());
     }
 
-    if (name === "pml:abort") {
+    if (name === "abort") {
       return await handleAbort(args, this.getWorkflowDeps());
     }
 
-    if (name === "pml:replan") {
+    if (name === "replan") {
       return await handleReplan(args, this.getWorkflowDeps());
     }
 
-    if (name === "pml:approval_response") {
+    if (name === "approval_response") {
       return await handleApprovalResponse(args, this.getWorkflowDeps());
     }
 
     // Code execution
-    if (name === "pml:execute_code") {
+    if (name === "execute_code") {
       return await handleExecuteCode(args, this.getCodeExecutionDeps(isPackageClient, userId));
     }
 
     // Search tools
-    if (name === "pml:search_tools") {
+    if (name === "search_tools") {
       return await handleSearchTools(args, this.graphEngine, this.vectorSearch);
     }
 
-    if (name === "pml:search_capabilities") {
+    if (name === "search_capabilities") {
       return await handleSearchCapabilities(args, this.dagSuggester);
     }
 
     // Unified discover (Story 10.6, Phase 3.2 optimization)
     // Uses SHGAT K-head with shared embedding generation
     // MCP Tools Consolidation: Extended with pattern, name, id modes
-    if (name === "pml:discover") {
+    if (name === "discover") {
       if (!this.discoverHandlerFacade) {
         throw new Error("[Gateway] DiscoverHandlerFacade not initialized");
       }
@@ -882,7 +882,7 @@ export class PMLGatewayServer {
 
     // Admin operations (MCP Tools Consolidation)
     // Handles rename, merge capability operations
-    if (name === "pml:admin") {
+    if (name === "admin") {
       if (!this.adminHandlerFacade) {
         throw new Error("[Gateway] AdminHandlerFacade not initialized");
       }
@@ -891,7 +891,7 @@ export class PMLGatewayServer {
 
     // Unified execute (Story 10.7)
     // Phase 3.1: Use ExecuteHandlerFacade (fail-fast, no legacy fallback)
-    if (name === "pml:execute") {
+    if (name === "execute") {
       if (!this.executeHandlerFacade) {
         throw new Error("[Gateway] ExecuteHandlerFacade not initialized. Ensure setExecuteAdapters() was called.");
       }

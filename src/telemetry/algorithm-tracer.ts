@@ -6,6 +6,8 @@
  *
  * Usage:
  * ```typescript
+ * import { uuidv7 } from "../utils/uuid.ts";
+ *
  * const tracer = new AlgorithmTracer(db);
  * const traceId = await tracer.logTrace({
  *   algorithmMode: "active_search",
@@ -32,6 +34,7 @@ import type { DbClient } from "../db/types.ts";
 import { getLogger } from "./logger.ts";
 import { eventBus } from "../events/mod.ts";
 import { isPureOperation } from "../capabilities/pure-operations.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 const logger = getLogger("default");
 
@@ -283,7 +286,7 @@ export class AlgorithmTracer {
    * @returns Trace ID for later outcome update
    */
   async logTrace(record: TraceInput): Promise<string> {
-    const traceId = crypto.randomUUID();
+    const traceId = uuidv7();
 
     // Auto-detect pure flag from targetId if not explicitly set
     const signals = { ...record.signals };

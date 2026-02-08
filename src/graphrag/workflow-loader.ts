@@ -60,6 +60,44 @@ export interface WorkflowEdge {
 }
 
 // =============================================================================
+// Validation Types and Helpers
+// =============================================================================
+
+/**
+ * Tool validation result
+ */
+interface ToolValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+/**
+ * Validate a tool ID string
+ */
+function validateToolId(
+  toolId: unknown,
+  context: string,
+  workflowName: string,
+  knownTools: Set<string>,
+): ToolValidationResult {
+  if (!toolId || typeof toolId !== "string") {
+    return {
+      valid: false,
+      error: `${context} in workflow '${workflowName}' is not a valid string`,
+    };
+  }
+
+  if (knownTools.size > 0 && !knownTools.has(toolId)) {
+    return {
+      valid: false,
+      error: `Unknown tool ID '${toolId}' in workflow '${workflowName}'. Tool must exist in tool_schema.`,
+    };
+  }
+
+  return { valid: true };
+}
+
+// =============================================================================
 // WorkflowLoader Class
 // =============================================================================
 
@@ -191,14 +229,14 @@ export class WorkflowLoader {
 
     // Validate step strings
     for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
-      if (!step || typeof step !== "string") {
-        errors.push(`Step ${i} in workflow '${workflow.name}' is not a valid string`);
-      } else if (this.knownTools.size > 0 && !this.knownTools.has(step)) {
-        // Strict validation: unknown tools are errors (ADR-021)
-        errors.push(
-          `Unknown tool ID '${step}' in workflow '${workflow.name}'. Tool must exist in tool_schema.`,
-        );
+      const result = validateToolId(
+        steps[i],
+        `Step ${i}`,
+        workflow.name,
+        this.knownTools,
+      );
+      if (!result.valid && result.error) {
+        errors.push(result.error);
       }
     }
   }
@@ -227,22 +265,25 @@ export class WorkflowLoader {
       }
 
       const [from, to] = edge;
-      if (!from || typeof from !== "string") {
-        errors.push(`Edge ${i} 'from' in workflow '${workflow.name}' is not a valid string`);
-      } else if (this.knownTools.size > 0 && !this.knownTools.has(from)) {
-        // Strict validation: unknown tools are errors (ADR-021)
-        errors.push(
-          `Unknown tool ID '${from}' in workflow '${workflow.name}'. Tool must exist in tool_schema.`,
-        );
+
+      const fromResult = validateToolId(
+        from,
+        `Edge ${i} 'from'`,
+        workflow.name,
+        this.knownTools,
+      );
+      if (!fromResult.valid && fromResult.error) {
+        errors.push(fromResult.error);
       }
 
-      if (!to || typeof to !== "string") {
-        errors.push(`Edge ${i} 'to' in workflow '${workflow.name}' is not a valid string`);
-      } else if (this.knownTools.size > 0 && !this.knownTools.has(to)) {
-        // Strict validation: unknown tools are errors (ADR-021)
-        errors.push(
-          `Unknown tool ID '${to}' in workflow '${workflow.name}'. Tool must exist in tool_schema.`,
-        );
+      const toResult = validateToolId(
+        to,
+        `Edge ${i} 'to'`,
+        workflow.name,
+        this.knownTools,
+      );
+      if (!toResult.valid && toResult.error) {
+        errors.push(toResult.error);
       }
     }
   }

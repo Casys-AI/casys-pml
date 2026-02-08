@@ -3,12 +3,24 @@
  * Used for: Trace timeline task visualization (Story 11.4)
  */
 
-interface TaskCardProps {
+import type { JSX } from "preact";
+
+export interface TaskCardProps {
   toolName: string;
   server: string;
   durationMs: number;
   success: boolean;
   color: string;
+}
+
+const MAX_DISPLAY_LENGTH = 15;
+const TRUNCATE_LENGTH = 13;
+
+function truncateName(name: string): string {
+  if (name.length <= MAX_DISPLAY_LENGTH) {
+    return name;
+  }
+  return name.slice(0, TRUNCATE_LENGTH) + "..";
 }
 
 export default function TaskCard({
@@ -17,8 +29,10 @@ export default function TaskCard({
   durationMs,
   success,
   color,
-}: TaskCardProps) {
-  const displayName = toolName.length > 15 ? toolName.slice(0, 13) + ".." : toolName;
+}: TaskCardProps): JSX.Element {
+  const displayName = truncateName(toolName);
+  const statusColor = success ? "var(--success, #22c55e)" : "var(--error, #ef4444)";
+  const statusSymbol = success ? "\u2713" : "\u2717";
 
   return (
     <div
@@ -32,9 +46,7 @@ export default function TaskCard({
         border: `1px solid ${color}40`,
       }}
     >
-      <span style={{ color: success ? "var(--success, #22c55e)" : "var(--error, #ef4444)" }}>
-        {success ? "✓" : "✗"}
-      </span>
+      <span style={{ color: statusColor }}>{statusSymbol}</span>
       <span
         style={{
           width: "6px",
@@ -43,21 +55,10 @@ export default function TaskCard({
           background: color,
         }}
       />
-      <span
-        style={{
-          color,
-          fontWeight: 500,
-          fontSize: "0.8125rem",
-        }}
-      >
+      <span style={{ color, fontWeight: 500, fontSize: "0.8125rem" }}>
         {displayName}
       </span>
-      <span
-        style={{
-          color: "var(--text-dim, #8a8078)",
-          fontSize: "0.75rem",
-        }}
-      >
+      <span style={{ color: "var(--text-dim, #8a8078)", fontSize: "0.75rem" }}>
         {Math.round(durationMs)}ms
       </span>
     </div>

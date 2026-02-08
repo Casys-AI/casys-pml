@@ -22,6 +22,7 @@ import { RateLimiter } from "@casys/mcp-server";
 import { eventBus } from "../events/mod.ts";
 // Story 11.4: Extracted topological sort for reuse
 import { topologicalSortTasks, CircularDependencyError } from "./topological-sort.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 const log = getLogger("default");
 
@@ -77,7 +78,7 @@ export class ParallelExecutor {
    */
   async execute(dag: DAGStructure): Promise<DAGExecutionResult> {
     const startTime = performance.now();
-    const executionId = crypto.randomUUID();
+    const executionId = uuidv7();
 
     if (this.config.verbose) {
       log.info(`Starting DAG execution with ${dag.tasks.length} tasks`);

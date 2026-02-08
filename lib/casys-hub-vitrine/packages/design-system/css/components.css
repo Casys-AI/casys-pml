@@ -1,0 +1,174 @@
+/**
+ * Material 3 Expressive - Component Patterns
+ * Shared between Astro & Angular
+ */
+
+/* ==========================================================================
+   BUTTONS - Material 3
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  border: none;
+  cursor: pointer;
+  transition: all 250ms var(--md-sys-motion-easing-emphasized);
+  text-decoration: none;
+  font-family: inherit;
+}
+
+/* Filled Button - Primary */
+.btn-filled {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border-radius: var(--md-sys-shape-corner-full);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-filled:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.btn-filled:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.btn-filled:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Outlined Button */
+.btn-outlined {
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+}
+
+.btn-outlined:hover {
+  background: var(--md-sys-color-surface-variant);
+}
+
+/* Text Button */
+.btn-text {
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  border-radius: var(--md-sys-shape-corner-full);
+  padding: 10px 12px;
+}
+
+.btn-text:hover {
+  background: var(--md-sys-color-surface-variant);
+}
+
+/* ==========================================================================
+   CARDS - Material 3
+   ========================================================================== */
+
+.card {
+  background: var(--md-sys-color-surface-container);
+  border-radius: var(--md-sys-shape-corner-large);
+  padding: 24px;
+  transition: all 250ms var(--md-sys-motion-easing-emphasized);
+}
+
+/* Elevated Card */
+.card-elevated {
+  background: var(--md-sys-color-surface-container-low);
+  box-shadow: var(--md-sys-elevation-level1);
+}
+
+.card-elevated:hover {
+  box-shadow: var(--md-sys-elevation-level2);
+}
+
+/* Filled Card */
+.card-filled {
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+/* Outlined Card */
+.card-outlined {
+  background: var(--md-sys-color-surface);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* ==========================================================================
+   BADGES - Material 3
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+}
+
+.badge-elevated {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.badge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border-radius: 50%;
+}
+
+/* ==========================================================================
+   FORMS - Material 3
+   ========================================================================== */
+
+.input-filled {
+  width: 100%;
+  padding: 16px;
+  font-size: var(--md-sys-typescale-body-large-size);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-sys-color-surface-container-highest);
+  border: 2px solid transparent;
+  border-radius: var(--md-sys-shape-corner-medium);
+  outline: none;
+  transition: all 250ms var(--md-sys-motion-easing-emphasized);
+  font-family: inherit;
+}
+
+.input-filled:focus {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-surface);
+}
+
+.input-filled::placeholder {
+  color: var(--md-sys-color-on-surface-variant);
+  opacity: 0.7;
+}
+
+/* ==========================================================================
+   CONTAINERS - Material 3
+   ========================================================================== */
+
+.container-elevated {
+  background: var(--md-sys-color-surface-container-high);
+  padding: 32px;
+  border-radius: var(--md-sys-shape-corner-extra-large);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    0 4px 8px rgba(0, 0, 0, 0.02);
+}

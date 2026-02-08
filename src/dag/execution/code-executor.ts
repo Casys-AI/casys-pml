@@ -19,29 +19,25 @@ import { isPermissionError } from "../permissions/escalation-integration.ts";
 
 const log = getLogger("default");
 
+/** Patterns indicating deterministic errors that won't change on retry */
+const DETERMINISTIC_ERROR_PATTERNS = [
+  /is not defined/i,
+  /SyntaxError/i,
+  /TypeError/i,
+  /ReferenceError/i,
+  /Cannot read propert/i,
+  /is not a function/i,
+  /Unexpected token/i,
+];
+
 /**
  * Check if an error is deterministic (won't change on retry)
  *
- * Deterministic errors include:
- * - Variable not defined (scope/context issue)
- * - Syntax errors
- * - Type errors
- *
- * These errors indicate bugs in code or missing context,
+ * Deterministic errors indicate bugs in code or missing context,
  * not transient failures that could succeed on retry.
  */
 function isDeterministicError(message: string): boolean {
-  const deterministicPatterns = [
-    /is not defined/i, // Variable/function not in scope
-    /SyntaxError/i, // Invalid code syntax
-    /TypeError/i, // Type mismatch
-    /ReferenceError/i, // Reference to undefined variable
-    /Cannot read propert/i, // Property access on undefined
-    /is not a function/i, // Calling non-function
-    /Unexpected token/i, // Parse error
-  ];
-
-  return deterministicPatterns.some((pattern) => pattern.test(message));
+  return DETERMINISTIC_ERROR_PATTERNS.some((pattern) => pattern.test(message));
 }
 
 /**

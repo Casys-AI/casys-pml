@@ -1,0 +1,25 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "q", "type": "rectangle", "x": 20, "y": 40, "width": 120, "height": 40, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "q-text", "type": "text", "x": 30, "y": 50, "width": 100, "height": 20, "text": "Query: Deploy to AWS", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "e", "type": "rectangle", "x": 180, "y": 40, "width": 80, "height": 40, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "e-text", "type": "text", "x": 195, "y": 52, "width": 50, "height": 16, "text": "Embedding", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "s", "type": "rectangle", "x": 300, "y": 40, "width": 100, "height": 40, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "s-text", "type": "text", "x": 310, "y": 52, "width": 80, "height": 16, "text": "Similarity Search", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "r1", "type": "rectangle", "x": 440, "y": 10, "width": 110, "height": 30, "strokeColor": "#a78bfa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "r1-text", "type": "text", "x": 450, "y": 18, "width": 90, "height": 14, "text": "aws_deploy: 0.92", "fontSize": 10, "fontFamily": 3, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+    {"id": "r2", "type": "rectangle", "x": 440, "y": 50, "width": 110, "height": 30, "strokeColor": "#a78bfa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "r2-text", "type": "text", "x": 450, "y": 58, "width": 90, "height": 14, "text": "aws_config: 0.87", "fontSize": 10, "fontFamily": 3, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "r3", "type": "rectangle", "x": 440, "y": 90, "width": 110, "height": 30, "strokeColor": "#a78bfa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "r3-text", "type": "text", "x": 450, "y": 98, "width": 90, "height": 14, "text": "docker_push: 0.71", "fontSize": 10, "fontFamily": 3, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#666666"},
+    {"id": "a1", "type": "arrow", "x": 145, "y": 60, "width": 30, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [30, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "a2", "type": "arrow", "x": 265, "y": 60, "width": 30, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [30, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "a3", "type": "arrow", "x": 405, "y": 55, "width": 30, "height": -30, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [30, -30]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "a4", "type": "arrow", "x": 405, "y": 60, "width": 30, "height": 5, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [30, 5]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "a5", "type": "arrow", "x": 405, "y": 65, "width": 30, "height": 40, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [30, 40]], "startArrowhead": null, "endArrowhead": "arrow"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

@@ -13,29 +13,39 @@ interface ToggleChipProps {
 export default function ToggleChip({
   label,
   active,
-  color = "var(--accent)",
+  color,
   onClick,
 }: ToggleChipProps) {
+  // Use amber-500 as default accent color
+  const accentColor = color || "#f59e0b";
+
+  // When active: tinted background with accent border and text
+  // When inactive: elevated bg with muted border and text, hover shows accent tint
+  const baseClasses =
+    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200";
+
+  if (active) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        class={baseClasses}
+        style={{
+          backgroundColor: `${accentColor}20`,
+          border: `1px solid ${accentColor}`,
+          color: accentColor,
+        }}
+      >
+        {label}
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
       onClick={onClick}
-      class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-      style={{
-        background: active ? `${color}20` : "var(--bg-elevated)",
-        border: `1px solid ${active ? color : "var(--border)"}`,
-        color: active ? color : "var(--text-muted)",
-      }}
-      onMouseOver={(e) => {
-        if (!active) {
-          e.currentTarget.style.borderColor = `${color}60`;
-        }
-      }}
-      onMouseOut={(e) => {
-        if (!active) {
-          e.currentTarget.style.borderColor = "var(--border)";
-        }
-      }}
+      class={`${baseClasses} bg-stone-800 border border-stone-700 text-stone-400 hover:border-amber-500/60`}
     >
       {label}
     </button>

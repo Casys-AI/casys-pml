@@ -41,59 +41,21 @@ export default function ToolBadge({ tool, onClick, class: className }: ToolBadge
   const icon = getServerIcon(server);
   const isClickable = !!onClick;
 
+  const baseClasses =
+    "inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-500/[0.08] border border-amber-500/15 rounded-md font-mono text-xs transition-all duration-200";
+  const clickableClasses = isClickable
+    ? "cursor-pointer hover:bg-amber-500/15 hover:border-amber-500/30 hover:-translate-y-px"
+    : "";
+
   return (
     <div
-      class={`tool-badge ${isClickable ? "clickable" : ""} ${className || ""}`}
+      class={`${baseClasses} ${clickableClasses} ${className || ""}`.trim()}
       onClick={onClick}
     >
-      <span class="tool-badge-icon">{icon}</span>
-      <span class="tool-badge-server">{server}</span>
-      <span class="tool-badge-sep">:</span>
-      <span class="tool-badge-action">{action}</span>
-
-      <style>
-        {`
-        .tool-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.25rem;
-          padding: 0.375rem 0.625rem;
-          background: rgba(255, 184, 111, 0.08);
-          border: 1px solid rgba(255, 184, 111, 0.15);
-          border-radius: 6px;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.75rem;
-          transition: all 0.2s;
-        }
-
-        .tool-badge.clickable {
-          cursor: pointer;
-        }
-
-        .tool-badge.clickable:hover {
-          background: rgba(255, 184, 111, 0.15);
-          border-color: rgba(255, 184, 111, 0.3);
-          transform: translateY(-1px);
-        }
-
-        .tool-badge-icon {
-          font-size: 0.875rem;
-        }
-
-        .tool-badge-server {
-          color: #FFB86F;
-          font-weight: 600;
-        }
-
-        .tool-badge-sep {
-          color: #6b6560;
-        }
-
-        .tool-badge-action {
-          color: #a8a29e;
-        }
-        `}
-      </style>
+      <span class="text-sm">{icon}</span>
+      <span class="text-amber-500 font-semibold">{server}</span>
+      <span class="text-stone-500">:</span>
+      <span class="text-stone-400">{action}</span>
     </div>
   );
 }

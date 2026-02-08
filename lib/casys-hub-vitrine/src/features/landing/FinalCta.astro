@@ -1,0 +1,524 @@
+---
+
+// i18n support
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const t = locale === 'fr'
+  ? {
+      title: 'Prêt à Construire Votre Écosystème de Contenu Vivant ?',
+      subtitle: "Rejoignez la beta. Verrouillez 129$/mois pour toujours. Annulez à tout moment.",
+      ctaPrimary: 'Rejoindre la Beta Maintenant',
+      ctaSecondary: 'Réserver une Démo',
+      trustSignals: [
+        'Aucune carte de crédit requise',
+        '30 jours de garantie de remboursement',
+        'Support beta prioritaire'
+      ]
+    }
+  : {
+      title: 'Ready to Build Your Living Content Ecosystem?',
+      subtitle: 'Join the beta. Lock in $129/mo forever. Cancel anytime.',
+      ctaPrimary: 'Join the Beta Now',
+      ctaSecondary: 'Book a Demo',
+      trustSignals: [
+        'No credit card required',
+        '30-day money back guarantee',
+        'Priority beta support'
+      ]
+    };
+
+---
+
+<section id="final-cta" class="final-cta">
+  <!-- Animated mesh gradient background -->
+  <div class="mesh-gradient-orb"></div>
+  <div class="mesh-gradient-orb secondary"></div>
+
+  <!-- Particles -->
+  <div class="particles-background">
+    <div class="particles-container"></div>
+  </div>
+
+  <!-- Content -->
+  <div class="container">
+    <div class="content">
+      <!-- Headline -->
+      <h2 class="title">{t.title}</h2>
+
+      <!-- Subtitle -->
+      <p class="subtitle">{t.subtitle}</p>
+
+      <!-- CTAs -->
+      <div class="cta-container">
+        <a href="#contact" class="cta-primary">
+          <span class="material-symbols-rounded">rocket_launch</span>
+          {t.ctaPrimary}
+        </a>
+        <a href="#hero" class="cta-secondary">
+          <span class="material-symbols-rounded">calendar_today</span>
+          {t.ctaSecondary}
+        </a>
+      </div>
+
+      <!-- Trust Signals -->
+      <div class="trust-signals">
+        {t.trustSignals.map((signal, index) => (
+          <div class="trust-signal" style={`animation-delay: ${index * 150}ms`}>
+            <span class="material-symbols-rounded">check_circle</span>
+            <span>{signal}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .final-cta {
+    padding: 160px 0;
+    background: linear-gradient(135deg,
+      var(--md-sys-color-primary) 0%,
+      var(--md-sys-color-tertiary) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Mesh gradient orbs */
+  .mesh-gradient-orb {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0.25) 0%,
+      rgba(255, 255, 255, 0.15) 25%,
+      transparent 60%
+    );
+    filter: blur(80px);
+    pointer-events: none;
+    animation: float-orb 20s ease-in-out infinite;
+    top: -200px;
+    left: -100px;
+  }
+
+  .mesh-gradient-orb.secondary {
+    width: 800px;
+    height: 800px;
+    top: auto;
+    bottom: -300px;
+    right: -200px;
+    left: auto;
+    background: radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0.2) 0%,
+      rgba(255, 255, 255, 0.1) 25%,
+      transparent 60%
+    );
+    animation: float-orb-reverse 25s ease-in-out infinite;
+  }
+
+  @keyframes float-orb {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    33% {
+      transform: translate(100px, 50px) scale(1.1);
+    }
+    66% {
+      transform: translate(-50px, 100px) scale(0.95);
+    }
+  }
+
+  @keyframes float-orb-reverse {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    33% {
+      transform: translate(-80px, -60px) scale(1.05);
+    }
+    66% {
+      transform: translate(60px, -100px) scale(0.9);
+    }
+  }
+
+  /* Animated Particles Background */
+  .particles-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+  }
+
+  .particles-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .particle {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    animation: float-up 15s infinite linear;
+  }
+
+  @keyframes float-up {
+    0% {
+      transform: translateY(100vh) rotate(0deg);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.6;
+    }
+    90% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateY(-100vh) rotate(360deg);
+      opacity: 0;
+    }
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .content {
+    text-align: center;
+    opacity: 0;
+    transform: translateY(30px) scale(0.98);
+  }
+
+  .content.animate-in {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition: all 800ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .title {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 900;
+    color: var(--md-sys-color-on-primary);
+    margin: 0 0 24px;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .subtitle {
+    font-size: clamp(1.125rem, 3vw, 1.5rem);
+    font-weight: 500;
+    color: var(--md-sys-color-on-primary);
+    opacity: 0.95;
+    margin: 0 0 48px;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.4;
+  }
+
+  /* CTAs */
+  .cta-container {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 56px;
+    flex-wrap: wrap;
+  }
+
+  .cta-primary,
+  .cta-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 40px;
+    border-radius: 100px;
+    text-decoration: none;
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: 600;
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .cta-primary {
+    background: var(--md-sys-color-on-primary);
+    color: var(--md-sys-color-primary);
+  }
+
+  .cta-primary:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+
+  .cta-secondary {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--md-sys-color-on-primary);
+    border: 2px solid var(--md-sys-color-on-primary);
+    /* Glassmorphism */
+    backdrop-filter: blur(12px) saturate(180%);
+  }
+
+  .cta-secondary:hover {
+    background: var(--md-sys-color-on-primary);
+    color: var(--md-sys-color-primary);
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Focus-visible states */
+  .cta-primary:focus-visible,
+  .cta-secondary:focus-visible {
+    outline: 3px solid var(--md-sys-color-on-primary);
+    outline-offset: 4px;
+  }
+
+  .cta-primary .material-symbols-rounded,
+  .cta-secondary .material-symbols-rounded {
+    font-size: 24px;
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  /* Icon micro-interactions */
+  .cta-primary:hover .material-symbols-rounded,
+  .cta-secondary:hover .material-symbols-rounded {
+    transform: scale(1.05) rotate(3deg);
+  }
+
+  /* Trust Signals */
+  .trust-signals {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+
+  .trust-signal {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
+    color: var(--md-sys-color-on-primary);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+  }
+
+  .trust-signal.animate-in {
+    opacity: 0.9;
+    visibility: visible;
+    transform: translateY(0);
+    transition: all 600ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .trust-signal .material-symbols-rounded {
+    font-size: 22px;
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .trust-signal:hover .material-symbols-rounded {
+    transform: scale(1.05) rotate(3deg);
+  }
+
+  /* Dark mode enhancements */
+  html[data-theme="dark"] .final-cta {
+    background: linear-gradient(135deg,
+      rgba(250, 194, 255, 0.25) 0%,
+      rgba(255, 184, 111, 0.2) 100%);
+  }
+
+  html[data-theme="dark"] .mesh-gradient-orb {
+    background: radial-gradient(
+      circle at center,
+      rgba(250, 194, 255, 0.3) 0%,
+      rgba(250, 194, 255, 0.15) 25%,
+      transparent 60%
+    );
+  }
+
+  html[data-theme="dark"] .mesh-gradient-orb.secondary {
+    background: radial-gradient(
+      circle at center,
+      rgba(255, 184, 111, 0.25) 0%,
+      rgba(255, 184, 111, 0.12) 25%,
+      transparent 60%
+    );
+  }
+
+  html[data-theme="dark"] .title {
+    background: linear-gradient(135deg,
+      var(--casys-gradient-start) 0%,
+      var(--casys-gradient-mid) 50%,
+      var(--casys-gradient-end) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+  }
+
+  html[data-theme="dark"] .subtitle {
+    color: var(--casys-text-primary);
+  }
+
+  html[data-theme="dark"] .trust-signal {
+    color: var(--casys-text-primary);
+  }
+
+  html[data-theme="dark"] .particle {
+    background: rgba(250, 194, 255, 0.5);
+  }
+
+  /* Touch optimizations */
+  @media (pointer: coarse) {
+    .cta-primary,
+    .cta-secondary {
+      min-height: 56px;
+      padding: 20px 32px;
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .content,
+    .trust-signal,
+    .cta-primary,
+    .cta-secondary,
+    .particle,
+    .mesh-gradient-orb {
+      animation: none;
+      transition: none;
+    }
+
+    .cta-primary:hover,
+    .cta-secondary:hover {
+      transform: none;
+    }
+
+    .mesh-gradient-orb {
+      display: none;
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .final-cta {
+      padding: 100px 0;
+    }
+
+    .title {
+      font-size: clamp(2rem, 6vw, 2.5rem);
+      margin-bottom: 20px;
+    }
+
+    .subtitle {
+      font-size: var(--md-sys-typescale-title-large-size);
+      margin-bottom: 40px;
+    }
+
+    .cta-container {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 16px;
+      max-width: 360px;
+      margin-left: auto;
+      margin-right: auto;
+      margin-bottom: 48px;
+    }
+
+    .cta-primary,
+    .cta-secondary {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .trust-signals {
+      flex-direction: column;
+      gap: 20px;
+      align-items: center;
+    }
+  }
+</style>
+
+<script>
+  function initFinalCta() {
+    // Create floating particles
+    const particlesContainer = document.querySelector('.particles-container');
+    if (particlesContainer) {
+      const particleCount = 30;
+
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+
+        // Random size between 2-8px
+        const size = Math.random() * 6 + 2;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+
+        // Random horizontal position
+        particle.style.left = `${Math.random() * 100}%`;
+
+        // Random animation duration and delay
+        const duration = Math.random() * 10 + 12; // 12-22s
+        const delay = Math.random() * 15; // 0-15s
+
+        particle.style.animationDuration = `${duration}s`;
+        particle.style.animationDelay = `${delay}s`;
+
+        // Random opacity
+        particle.style.opacity = `${Math.random() * 0.4 + 0.2}`;
+
+        particlesContainer.appendChild(particle);
+      }
+    }
+
+    // Animate content on scroll
+    const content = document.querySelector('.content');
+    const trustSignals = document.querySelectorAll('.trust-signal');
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Animate content
+            if (entry.target.classList.contains('content')) {
+              entry.target.classList.add('animate-in');
+
+              // Then animate trust signals with stagger
+              trustSignals.forEach((signal, index) => {
+                setTimeout(() => {
+                  signal.classList.add('animate-in');
+                }, 400 + index * 150);
+              });
+            }
+
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '-50px' }
+    );
+
+    if (content) {
+      observer.observe(content);
+    }
+  }
+
+  // Initialize on DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFinalCta);
+  } else {
+    initFinalCta();
+  }
+</script>

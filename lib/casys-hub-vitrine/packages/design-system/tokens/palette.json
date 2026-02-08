@@ -1,0 +1,330 @@
+{
+  "md.ref.palette.error0": {
+    "type": "color",
+    "description": "Error 0",
+    "value": "#000000"
+  },
+  "md.ref.palette.error10": {
+    "description": "Error 10",
+    "value": "#410E0B"
+  },
+  "md.ref.palette.error20": {
+    "description": "Error 20",
+    "value": "#601410"
+  },
+  "md.ref.palette.error30": {
+    "description": "Error 30",
+    "value": "#8C1D18"
+  },
+  "md.ref.palette.error40": {
+    "description": "Error 40",
+    "value": "#B3261E"
+  },
+  "md.ref.palette.error50": {
+    "description": "Error 50",
+    "value": "#DC362E"
+  },
+  "md.ref.palette.error60": {
+    "description": "Error 60",
+    "value": "#E46962"
+  },
+  "md.ref.palette.error70": {
+    "description": "Error 70",
+    "value": "#EC928E"
+  },
+  "md.ref.palette.error80": {
+    "description": "Error 80",
+    "value": "#F2B8B5"
+  },
+  "md.ref.palette.error90": {
+    "description": "Error 90",
+    "value": "#F9DEDC"
+  },
+  "md.ref.palette.error95": {
+    "description": "Error 95",
+    "value": "#FCEEEE"
+  },
+  "md.ref.palette.error99": {
+    "description": "Error 99",
+    "value": "#FFFBF9"
+  },
+  "md.ref.palette.error100": {
+    "description": "Error 100",
+    "value": "#FFFFFF"
+  },
+  "md.ref.palette.tertiary0": {
+    "type": "color",
+    "description": "Tertiary 0",
+    "value": "#000000"
+  },
+  "md.ref.palette.tertiary10": {
+    "description": "Tertiary 10",
+    "value": "#31111D"
+  },
+  "md.ref.palette.tertiary20": {
+    "description": "Tertiary 20",
+    "value": "#492532"
+  },
+  "md.ref.palette.tertiary30": {
+    "description": "Tertiary 30",
+    "value": "#633B48"
+  },
+  "md.ref.palette.tertiary40": {
+    "description": "Tertiary 40",
+    "value": "#7D5260"
+  },
+  "md.ref.palette.tertiary50": {
+    "description": "Tertiary 50",
+    "value": "#986977"
+  },
+  "md.ref.palette.tertiary60": {
+    "description": "Tertiary 60",
+    "value": "#B58392"
+  },
+  "md.ref.palette.tertiary70": {
+    "description": "Tertiary 70",
+    "value": "#D29DAC"
+  },
+  "md.ref.palette.tertiary80": {
+    "description": "Tertiary 80",
+    "value": "#EFB8C8"
+  },
+  "md.ref.palette.tertiary90": {
+    "description": "Tertiary 90",
+    "value": "#FFD8E4"
+  },
+  "md.ref.palette.tertiary95": {
+    "description": "Tertiary 95",
+    "value": "#FFECF1"
+  },
+  "md.ref.palette.tertiary99": {
+    "description": "Tertiary 99",
+    "value": "#FFFBFA"
+  },
+  "md.ref.palette.tertiary100": {
+    "description": "Tertiary 100",
+    "value": "#FFFFFF"
+  },
+  "md.ref.palette.secondary0": {
+    "type": "color",
+    "description": "Secondary 0",
+    "value": "#000000"
+  },
+  "md.ref.palette.secondary10": {
+    "description": "Secondary 10",
+    "value": "#1D192B"
+  },
+  "md.ref.palette.secondary20": {
+    "description": "Secondary 20",
+    "value": "#332D41"
+  },
+  "md.ref.palette.secondary30": {
+    "description": "Secondary 30",
+    "value": "#4A4458"
+  },
+  "md.ref.palette.secondary40": {
+    "description": "Secondary 40",
+    "value": "#625B71"
+  },
+  "md.ref.palette.secondary50": {
+    "description": "Secondary 50",
+    "value": "#7A7289"
+  },
+  "md.ref.palette.secondary60": {
+    "description": "Secondary 60",
+    "value": "#958DA5"
+  },
+  "md.ref.palette.secondary70": {
+    "description": "Secondary 70",
+    "value": "#B0A7C0"
+  },
+  "md.ref.palette.secondary80": {
+    "description": "Secondary 80",
+    "value": "#CCC2DC"
+  },
+  "md.ref.palette.secondary90": {
+    "description": "Secondary 90",
+    "value": "#E8DEF8"
+  },
+  "md.ref.palette.secondary95": {
+    "description": "Secondary 95",
+    "value": "#F6EDFF"
+  },
+  "md.ref.palette.secondary99": {
+    "description": "Secondary 99",
+    "value": "#FFFBFE"
+  },
+  "md.ref.palette.secondary100": {
+    "description": "Secondary 100",
+    "value": "#FFFFFF"
+  },
+  "md.ref.palette.primary0": {
+    "type": "color",
+    "description": "Primary 0",
+    "value": "#000000"
+  },
+  "md.ref.palette.primary10": {
+    "type": "color",
+    "description": "Primary 10",
+    "value": "#21005D"
+  },
+  "md.ref.palette.primary20": {
+    "description": "Primary 20",
+    "value": "#381E72"
+  },
+  "md.ref.palette.primary30": {
+    "description": "Primary 30",
+    "value": "#4F378B"
+  },
+  "md.ref.palette.primary40": {
+    "description": "Primary 40",
+    "value": "#6750A4"
+  },
+  "md.ref.palette.primary50": {
+    "description": "Primary 50",
+    "value": "#7F67BE"
+  },
+  "md.ref.palette.primary60": {
+    "description": "Primary 60",
+    "value": "#9A82DB"
+  },
+  "md.ref.palette.primary70": {
+    "description": "Primary 70",
+    "value": "#B69DF8"
+  },
+  "md.ref.palette.primary80": {
+    "description": "Primary 80",
+    "value": "#D0BCFF"
+  },
+  "md.ref.palette.primary90": {
+    "description": "Primary 90",
+    "value": "#EADDFF"
+  },
+  "md.ref.palette.primary95": {
+    "description": "Primary 95",
+    "value": "#F6EDFF"
+  },
+  "md.ref.palette.primary99": {
+    "description": "Primary 99",
+    "value": "#FFFBFE"
+  },
+  "md.ref.palette.primary100": {
+    "description": "Primary 100",
+    "value": "#FFFFFF"
+  },
+  "md.ref.palette.neutral-variant0": {
+    "type": "color",
+    "description": "Neutral Variant 0",
+    "value": "#000000"
+  },
+  "md.ref.palette.neutral-variant10": {
+    "description": "Neutral Variant 10",
+    "value": "#1D1A22"
+  },
+  "md.ref.palette.neutral-variant20": {
+    "description": "Neutral Variant 20",
+    "value": "#322F37"
+  },
+  "md.ref.palette.neutral-variant30": {
+    "description": "Neutral Variant 30",
+    "value": "#49454F"
+  },
+  "md.ref.palette.neutral-variant40": {
+    "description": "Neutral Variant 40",
+    "value": "#605D66"
+  },
+  "md.ref.palette.neutral-variant50": {
+    "description": "Neutral Variant 50",
+    "value": "#79747E"
+  },
+  "md.ref.palette.neutral-variant60": {
+    "description": "Neutral Variant 60",
+    "value": "#938F99"
+  },
+  "md.ref.palette.neutral-variant70": {
+    "description": "Neutral Variant 70",
+    "value": "#AEA9B4"
+  },
+  "md.ref.palette.neutral-variant80": {
+    "description": "Neutral Variant 80",
+    "value": "#CAC4D0"
+  },
+  "md.ref.palette.neutral-variant90": {
+    "description": "Neutral Variant 90",
+    "value": "#E7E0EC"
+  },
+  "md.ref.palette.neutral-variant95": {
+    "description": "Neutral Variant 95",
+    "value": "#F5EEFA"
+  },
+  "md.ref.palette.neutral-variant99": {
+    "description": "Neutral Variant 99",
+    "value": "#FFFBFE"
+  },
+  "md.ref.palette.neutral-variant100": {
+    "description": "Neutral Variant 100",
+    "value": "#FFFFFF"
+  },
+  "md.ref.palette.neutral0": {
+    "type": "color",
+    "description": "Neutral 0",
+    "value": "#000000"
+  },
+  "md.ref.palette.neutral10": {
+    "description": "Neutral 10",
+    "value": "#1C1B1F"
+  },
+  "md.ref.palette.neutral20": {
+    "description": "Neutral 20",
+    "value": "#313033"
+  },
+  "md.ref.palette.neutral30": {
+    "description": "Neutral 30",
+    "value": "#484649"
+  },
+  "md.ref.palette.neutral40": {
+    "description": "Neutral 40",
+    "value": "#605D62"
+  },
+  "md.ref.palette.neutral50": {
+    "description": "Neutral 50",
+    "value": "#787579"
+  },
+  "md.ref.palette.neutral60": {
+    "description": "Neutral 60",
+    "value": "#939094"
+  },
+  "md.ref.palette.neutral70": {
+    "description": "Neutral 70",
+    "value": "#AEAAAE"
+  },
+  "md.ref.palette.neutral80": {
+    "description": "Neutral 80",
+    "value": "#C9C5CA"
+  },
+  "md.ref.palette.neutral90": {
+    "description": "Neutral 90",
+    "value": "#E6E1E5"
+  },
+  "md.ref.palette.neutral95": {
+    "description": "Neutral 95",
+    "value": "#F4EFF4"
+  },
+  "md.ref.palette.neutral99": {
+    "description": "Neutral 99",
+    "value": "#FFFBFE"
+  },
+  "md.ref.palette.neutral100": {
+    "description": "Neutral 100",
+    "value": "#FFFFFF"
+  },
+  "md.ref.palette.black": {
+    "type": "color",
+    "description": "Black",
+    "value": "#000000"
+  },
+  "md.ref.palette.white": {
+    "description": "White",
+    "value": "#FFFFFF"
+  }
+}

@@ -27,12 +27,12 @@ interface TraceNodeProps {
   isLast?: boolean;
 }
 
-const typeConfig: Record<TraceNodeType, { color: string; icon: string }> = {
-  tool: { color: "#4ade80", icon: "›" },
-  capability: { color: "#FFB86F", icon: "◆" },
-  loop: { color: "#60a5fa", icon: "↻" },
-  agent: { color: "#a78bfa", icon: "◎" },
-  llm: { color: "#f472b6", icon: "●" },
+const typeConfig: Record<TraceNodeType, { color: string; bgColor: string; icon: string }> = {
+  tool: { color: "text-green-400", bgColor: "bg-green-400", icon: ">" },
+  capability: { color: "text-pml-accent", bgColor: "bg-pml-accent", icon: "◆" },
+  loop: { color: "text-blue-400", bgColor: "bg-blue-400", icon: "↻" },
+  agent: { color: "text-violet-400", bgColor: "bg-violet-400", icon: "◎" },
+  llm: { color: "text-pink-400", bgColor: "bg-pink-400", icon: "●" },
 };
 
 export function TraceNode({ node, depth = 0, isLast = false }: TraceNodeProps) {
@@ -40,45 +40,55 @@ export function TraceNode({ node, depth = 0, isLast = false }: TraceNodeProps) {
   const hasChildren = node.children && node.children.length > 0;
 
   return (
-    <div class="tn" style={{ "--c": config.color } as any}>
+    <div class="font-mono text-[0.72rem] leading-none">
       {/* Single line */}
-      <div class="tn__row">
+      <div class="flex items-center gap-1.5 py-1.5 border-b border-white/[0.03] hover:bg-white/[0.02]">
         {/* Indent */}
-        {depth > 0 && <span class="tn__indent" style={{ width: `${depth * 12}px` }} />}
+        {depth > 0 && <span class="shrink-0" style={{ width: `${depth * 12}px` }} />}
 
         {/* Vertical line connector */}
-        <span class="tn__line" />
+        <span class={`w-0.5 h-3 ${config.bgColor} opacity-50 rounded-sm shrink-0`} />
 
         {/* Icon */}
-        <span class="tn__icon">{config.icon}</span>
+        <span class={`${config.color} text-[0.65rem] w-2.5 shrink-0`}>{config.icon}</span>
 
         {/* Name */}
-        <span class="tn__name">
-          {node.type === "loop" && <span class="tn__iter">×{node.iterations}</span>}
+        <span class={`${config.color} font-medium shrink-0`}>
+          {node.type === "loop" && <span class="text-blue-400 mr-0.5 text-[0.65rem]">x{node.iterations}</span>}
           {node.name}
         </span>
 
         {/* Model badge */}
-        {node.model && <span class="tn__model">{node.model}</span>}
+        {node.model && (
+          <span class="text-neutral-600 text-[0.6rem] px-1 py-px border border-neutral-700 rounded-sm shrink-0">
+            {node.model}
+          </span>
+        )}
 
         {/* Args */}
-        {node.args && <span class="tn__args">{node.args}</span>}
+        {node.args && <span class="text-neutral-500 text-[0.65rem] shrink-0">{node.args}</span>}
 
         {/* Result */}
-        {node.result && <span class="tn__result">→ {node.result}</span>}
+        {node.result && (
+          <span class="text-green-400 text-[0.65rem] opacity-80 ml-auto text-right whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">
+            → {node.result}
+          </span>
+        )}
 
         {/* Time */}
-        <span class="tn__time">{node.time >= 1000 ? `${(node.time/1000).toFixed(1)}s` : `${node.time}ms`}</span>
+        <span class="text-neutral-600 text-[0.6rem] shrink-0 min-w-[40px] text-right">
+          {node.time >= 1000 ? `${(node.time/1000).toFixed(1)}s` : `${node.time}ms`}
+        </span>
 
         {/* Status */}
-        <span class={`tn__status ${node.success ? "" : "tn__status--err"}`}>
+        <span class={`text-[0.6rem] shrink-0 opacity-60 ${node.success ? "text-green-400" : "text-red-400"}`}>
           {node.success ? "✓" : "✗"}
         </span>
       </div>
 
       {/* Children */}
       {hasChildren && (
-        <div class="tn__children">
+        <div class="relative">
           {node.children!.map((child, i) => (
             <TraceNode
               key={`${child.name}-${i}`}
@@ -89,121 +99,6 @@ export function TraceNode({ node, depth = 0, isLast = false }: TraceNodeProps) {
           ))}
         </div>
       )}
-
-      <style>
-        {`
-        .tn {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.72rem;
-          line-height: 1;
-        }
-
-        .tn__row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 5px 0;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-        }
-
-        .tn__row:hover {
-          background: rgba(255, 255, 255, 0.02);
-        }
-
-        .tn__indent {
-          flex-shrink: 0;
-        }
-
-        .tn__line {
-          width: 2px;
-          height: 12px;
-          background: var(--c);
-          opacity: 0.5;
-          border-radius: 1px;
-          flex-shrink: 0;
-        }
-
-        .tn__icon {
-          color: var(--c);
-          font-size: 0.65rem;
-          width: 10px;
-          flex-shrink: 0;
-        }
-
-        .tn__name {
-          color: var(--c);
-          font-weight: 500;
-          flex-shrink: 0;
-        }
-
-        .tn__iter {
-          color: #60a5fa;
-          margin-right: 3px;
-          font-size: 0.65rem;
-        }
-
-        .tn__model {
-          color: #444;
-          font-size: 0.6rem;
-          padding: 1px 4px;
-          border: 1px solid #333;
-          border-radius: 2px;
-          flex-shrink: 0;
-        }
-
-        .tn__args {
-          color: #555;
-          font-size: 0.65rem;
-          flex-shrink: 0;
-        }
-
-        .tn__result {
-          color: #4ade80;
-          font-size: 0.65rem;
-          opacity: 0.8;
-          margin-left: auto;
-          text-align: right;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 120px;
-        }
-
-        .tn__time {
-          color: #444;
-          font-size: 0.6rem;
-          flex-shrink: 0;
-          min-width: 40px;
-          text-align: right;
-        }
-
-        .tn__status {
-          color: #4ade80;
-          font-size: 0.6rem;
-          flex-shrink: 0;
-          opacity: 0.6;
-        }
-
-        .tn__status--err {
-          color: #f87171;
-        }
-
-        .tn__children {
-          position: relative;
-        }
-
-        @media (max-width: 600px) {
-          .tn__args,
-          .tn__result {
-            display: none;
-          }
-
-          .tn__model {
-            display: none;
-          }
-        }
-        `}
-      </style>
     </div>
   );
 }

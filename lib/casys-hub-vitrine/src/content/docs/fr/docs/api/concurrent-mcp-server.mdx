@@ -1,0 +1,229 @@
+---
+title: ConcurrentMCPServer
+description: Reference complete de l'API de la classe ConcurrentMCPServer.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Le point d'entree principal du framework. `ConcurrentMCPServer` gere l'enregistrement des outils, la composition de middleware, la selection du transport, et la gestion du cycle de vie.
+
+## Constructeur
+
+```typescript
+import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer(options: ConcurrentServerOptions);
+```
+
+### ConcurrentServerOptions
+
+```typescript
+interface ConcurrentServerOptions {
+  name: string;                          // Server name (shown to clients)
+  version: string;                       // Semver version
+  maxConcurrent?: number;                // Default: 10
+  backpressureStrategy?: "sleep" | "queue" | "reject";  // Default: "sleep"
+  backpressureSleepMs?: number;          // Default: 10
+  rateLimit?: RateLimitOptions;          // Optional rate limiting
+  validateSchema?: boolean;              // Default: false
+  enableSampling?: boolean;              // Enable LLM sampling bridge
+  samplingClient?: SamplingClient;       // Custom sampling client
+  logger?: (msg: string) => void;        // Default: console.error
+  auth?: AuthOptions;                    // OAuth2/Bearer config
+}
+```
+
+### RateLimitOptions
+
+```typescript
+interface RateLimitOptions {
+  maxRequests: number;    // Max requests per window
+  windowMs: number;       // Window size in milliseconds
+}
+```
+
+### AuthOptions
+
+```typescript
+interface AuthOptions {
+  provider: AuthProvider;   // Use presets (createGoogleAuthProvider, etc.) or JwtAuthProvider
+}
+```
+
+## Methodes d'enregistrement
+
+Tout enregistrement doit se faire **avant** d'appeler `start()` ou `startHttp()`.
+
+### registerTool
+
+```typescript
+server.registerTool(tool: MCPTool, handler: ToolHandler): void;
+```
+
+Enregistre un outil avec son handler :
+
+```typescript
+server.registerTool(
+  {
+    name: "greet",
+    description: "Greet someone",
+    inputSchema: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    },
+    requiredScopes: ["read"],  // Optional — requires this scope if auth is configured
+  },
+  ({ name }) => `Hello, ${name}!`,
+);
+```
+
+<Aside type="tip">
+  Le handler peut retourner n'importe quelle valeur serialisable en JSON. Chaines, objets, tableaux — tout fonctionne.
+</Aside>
+
+### registerTools
+
+```typescript
+server.registerTools(tools: MCPTool[], handlers: Map<string, ToolHandler>): void;
+```
+
+Enregistrement en masse des outils. Les cles du Map doivent correspondre exactement aux noms des outils.
+
+### registerResource
+
+```typescript
+server.registerResource(resource: MCPResource, handler: ResourceHandler): void;
+```
+
+Enregistre une ressource. Voir [MCP Apps](/fr/docs/guides/mcp-apps/) pour les ressources `ui://`.
+
+### registerResources
+
+```typescript
+server.registerResources(
+  resources: MCPResource[],
+  handlers: Map<string, ResourceHandler>,
+): void;
+```
+
+Enregistrement en masse des ressources.
+
+### use
+
+```typescript
+server.use(middleware: Middleware): this;
+```
+
+Ajoute un middleware personnalise au pipeline. Retourne `this` pour le chainage :
+
+```typescript
+server
+  .use(logging)
+  .use(metrics)
+  .use(caching);
+```
+
+<Aside type="caution">
+  Lance une erreur si appele apres `start()` ou `startHttp()`. Le pipeline est compile au demarrage.
+</Aside>
+
+Voir le [Guide Pipeline Middleware](/fr/docs/guides/middleware/) pour les patterns et recettes.
+
+## Methodes de transport
+
+### start
+
+```typescript
+await server.start(): Promise<void>;
+```
+
+Demarre avec le transport STDIO. A utiliser pour les outils locaux (Claude Desktop, Cursor, etc.). Bloque jusqu'a l'arret du serveur.
+
+### startHttp
+
+```typescript
+await server.startHttp(options: HttpServerOptions): Promise<void>;
+```
+
+Demarre avec le transport Streamable HTTP. Inclut le streaming SSE, la gestion de sessions, et la decouverte RFC 9728.
+
+```typescript
+interface HttpServerOptions {
+  port: number;
+  hostname?: string;  // Default: "0.0.0.0"
+}
+```
+
+### stop
+
+```typescript
+await server.stop(): Promise<void>;
+```
+
+Arret gracieux. Attend la fin des requetes en cours avant de fermer.
+
+## Methodes de monitoring
+
+### getMetrics
+
+```typescript
+server.getMetrics(): QueueMetrics;
+// { inFlight: number, queued: number }
+```
+
+### getRateLimitMetrics
+
+```typescript
+server.getRateLimitMetrics(): { keys: number, totalRequests: number } | null;
+```
+
+Retourne `null` si le rate limiting n'est pas configure.
+
+### getToolCount / getToolNames
+
+```typescript
+server.getToolCount(): number;
+server.getToolNames(): string[];
+```
+
+### getResourceCount / getResourceUris
+
+```typescript
+server.getResourceCount(): number;
+server.getResourceUris(): string[];
+```
+
+## Methodes SSE (transport HTTP uniquement)
+
+### sendToSession
+
+```typescript
+server.sendToSession(sessionId: string, message: Record<string, unknown>): void;
+```
+
+Envoie un message a une session SSE specifique.
+
+### broadcastNotification
+
+```typescript
+server.broadcastNotification(
+  method: string,
+  params?: Record<string, unknown>,
+): void;
+```
+
+Envoie une notification a **tous** les clients SSE connectes.
+
+### getSSEClientCount
+
+```typescript
+server.getSSEClientCount(): number;
+```
+
+## Voir aussi
+
+- [Demarrage rapide](/fr/docs/getting-started/quickstart/) — Configuration du serveur avec les deux transports
+- [Pipeline Middleware](/fr/docs/guides/middleware/) — Guide `use()` et ordre du pipeline
+- [Authentification (OAuth2)](/fr/docs/guides/auth/) — Option `auth` et verification des scopes
+- [Composants Standalone](/fr/docs/api/standalone-components/) — Utiliser RateLimiter, RequestQueue independamment

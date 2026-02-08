@@ -74,6 +74,13 @@ export const schemaTools: MiniTool[] = [
       },
       required: ["data"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "expand", "collapse", "copy"],
+        accepts: ["highlight", "expandPath"],
+      },
+    },
     handler: ({ data, detectFormats = true, includeExamples = false }) => {
       const infer = (value: unknown, path: string[] = []): JSONSchema => {
         const type = inferType(value);

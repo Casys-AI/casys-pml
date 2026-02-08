@@ -1,0 +1,32 @@
+{
+  "name": "@casys/design-system",
+  "version": "1.0.0",
+  "description": "Casys design system with Material 3 Expressive tokens",
+  "type": "module",
+  "main": "./dist/tokens.js",
+  "types": "./dist/tokens.d.ts",
+  "exports": {
+    ".": "./dist/tokens.js",
+    "./tokens.css": "./dist/tokens.css",
+    "./tokens.scss": "./dist/tokens.scss",
+    "./tokens.js": "./dist/tokens.js",
+    "./utilities.css": "./dist/utilities.css",
+    "./components.css": "./dist/components.css",
+    "./patterns.css": "./dist/patterns.css",
+    "./widgets.css": "./dist/patterns/widgets.css",
+    "./m3.css": "./dist/m3.css",
+    "./tokens/m3-dark-mode-enhancements.css": "./tokens/m3-dark-mode-enhancements.css"
+  },
+  "scripts": {
+    "generate-m3": "node generate-m3-tokens.js",
+    "build": "node generate-m3-tokens.js && node build.js",
+    "dev": "node --watch --watch-path=css --watch-path=tokens build.js"
+  },
+  "dependencies": {
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@material/material-color-utilities": "^0.3.0",
+    "@types/node": "^22.18.8"
+  }
+}

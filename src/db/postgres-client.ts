@@ -19,6 +19,9 @@ import type { DbClient, Row, Transaction } from "./types.ts";
 // Re-export types for backward compatibility
 export type { DbClient, Row, Transaction } from "./types.ts";
 
+/** Cloud provider patterns for SSL detection */
+const CLOUD_PROVIDERS = ["sslmode=require", "supabase", "neon", "railway"] as const;
+
 /**
  * PostgreSQL client wrapper with same interface as PGliteClient
  *
@@ -33,29 +36,39 @@ export class PostgresClient implements DbClient {
   }
 
   /**
+   * Get connected sql or throw
+   */
+  private getSql(): ReturnType<typeof postgres> {
+    if (!this.sql) {
+      throw new Error("Database not connected");
+    }
+    return this.sql;
+  }
+
+  /**
+   * Detect if connection string is for a cloud provider
+   */
+  private isCloudProvider(): boolean {
+    return CLOUD_PROVIDERS.some((pattern) => this.connectionString.includes(pattern));
+  }
+
+  /**
    * Initialize and connect to the database
    * Creates connection pool with SSL if needed
    */
   async connect(): Promise<void> {
     try {
-      // Parse connection string for SSL detection
-      const isCloud = this.connectionString.includes("sslmode=require") ||
-        this.connectionString.includes("supabase") ||
-        this.connectionString.includes("neon") ||
-        this.connectionString.includes("railway");
-
       this.sql = postgres(this.connectionString, {
-        max: 10, // Connection pool size
+        max: 10,
         idle_timeout: 20,
         connect_timeout: 10,
-        ssl: isCloud ? "require" : false,
+        ssl: this.isCloudProvider() ? "require" : false,
       });
 
-      // Test connection and ensure pgvector extension
       await this.sql`SELECT 1`;
       await this.sql`CREATE EXTENSION IF NOT EXISTS vector`;
 
-      log.info(`PostgreSQL connected (cloud mode)`);
+      log.info("PostgreSQL connected (cloud mode)");
     } catch (error) {
       log.error(`Failed to connect to PostgreSQL: ${error}`);
       throw error;
@@ -66,14 +79,12 @@ export class PostgresClient implements DbClient {
    * Execute SQL statement without returning results
    */
   async exec(sql: string, params?: unknown[]): Promise<void> {
-    if (!this.sql) {
-      throw new Error("Database not connected");
-    }
+    const db = this.getSql();
     try {
       if (params && params.length > 0) {
-        await this.sql.unsafe(sql, params as any[]);
+        await db.unsafe(sql, params as any[]);
       } else {
-        await this.sql.unsafe(sql);
+        await db.unsafe(sql);
       }
     } catch (error) {
       log.error(`SQL execution failed: ${error}`);
@@ -85,13 +96,11 @@ export class PostgresClient implements DbClient {
    * Execute query and return results
    */
   async query(sql: string, params?: unknown[]): Promise<Row[]> {
-    if (!this.sql) {
-      throw new Error("Database not connected");
-    }
+    const db = this.getSql();
     try {
-      const result = params && params.length > 0
-        ? await this.sql.unsafe(sql, params as any[])
-        : await this.sql.unsafe(sql);
+      const result = (params && params.length > 0)
+        ? await db.unsafe(sql, params as any[])
+        : await db.unsafe(sql);
       return result as unknown as Row[];
     } catch (error) {
       log.error(`SQL query failed: ${error}`);
@@ -116,7 +125,7 @@ export class PostgresClient implements DbClient {
       return null;
     }
     try {
-      const result = params && params.length > 0
+      const result = (params && params.length > 0)
         ? await this.sql.unsafe(sql, params as any[])
         : await this.sql.unsafe(sql);
       return result as unknown as Row[];
@@ -136,14 +145,10 @@ export class PostgresClient implements DbClient {
   /**
    * Run a transaction
    */
-  async transaction<T>(
-    fn: (tx: Transaction) => Promise<T>,
-  ): Promise<T> {
-    if (!this.sql) {
-      throw new Error("Database not connected");
-    }
+  async transaction<T>(fn: (tx: Transaction) => Promise<T>): Promise<T> {
+    const db = this.getSql();
 
-    const result = await this.sql.begin(async (sqlTx) => {
+    const result = await db.begin(async (sqlTx: ReturnType<typeof postgres>) => {
       const tx: Transaction = {
         exec: async (sql: string, params?: unknown[]) => {
           if (params && params.length > 0) {
@@ -153,14 +158,14 @@ export class PostgresClient implements DbClient {
           }
         },
         query: async (sql: string, params?: unknown[]) => {
-          const queryResult = params && params.length > 0
+          const queryResult = (params && params.length > 0)
             ? await sqlTx.unsafe(sql, params as any[])
             : await sqlTx.unsafe(sql);
           return queryResult as unknown as Row[];
         },
       };
 
-      return await fn(tx);
+      return fn(tx);
     });
     return result as T;
   }

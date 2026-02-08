@@ -41,14 +41,14 @@ export class ErrorHandler {
 
       // Show user-friendly message
       if (error.recoverable) {
-        console.warn(`⚠️  ${error.message}`);
+        log.warn(`⚠️  ${error.message}`);
       } else {
-        console.error(`❌ ${error.message}`);
+        log.error(`❌ ${error.message}`);
       }
 
       // Show suggestion if available
       if (error.suggestion) {
-        console.log(`💡 Suggestion: ${error.suggestion}`);
+        log.info(`💡 Suggestion: ${error.suggestion}`);
       }
     } else {
       // Unknown error - log full stack
@@ -57,8 +57,8 @@ export class ErrorHandler {
         context,
       });
 
-      console.error(`❌ Unexpected error: ${error.message}`);
-      console.log(
+      log.error(`❌ Unexpected error: ${error.message}`);
+      log.info(
         `💡 Please report this issue with logs from ~/.pml/logs/`,
       );
     }
@@ -135,7 +135,7 @@ export class ErrorHandler {
     } catch (dbError) {
       // If database logging fails, just log to console
       // Don't throw to prevent cascading failures
-      console.error("Failed to log error to database:", dbError);
+      log.error("Failed to log error to database:", dbError);
     }
   }
 }

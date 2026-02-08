@@ -9,20 +9,75 @@
 
 import { useSignal } from "@preact/signals";
 
-export default function DangerZoneIsland() {
+const DELETE_CONFIRMATION_TEXT = "DELETE";
+
+interface ModalProps {
+  title: string;
+  children: JSX.Element | JSX.Element[];
+  onClose: () => void;
+  actions: JSX.Element;
+}
+
+function Modal({ title, children, onClose, actions }: ModalProps): JSX.Element {
+  function handleOverlayClick(): void {
+    onClose();
+  }
+
+  function handleContentClick(e: MouseEvent): void {
+    e.stopPropagation();
+  }
+
+  return (
+    <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[1000]" onClick={handleOverlayClick}>
+      <div class="bg-stone-900 rounded-xl p-6 max-w-[450px] w-[90%]" onClick={handleContentClick}>
+        <h2 class="text-xl font-semibold mb-4 text-stone-100">{title}</h2>
+        {children}
+        <div class="flex justify-end gap-3">{actions}</div>
+      </div>
+    </div>
+  );
+}
+
+interface DangerItemProps {
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonClass: string;
+  onClick: () => void;
+}
+
+function DangerItem({
+  title,
+  description,
+  buttonText,
+  buttonClass,
+  onClick,
+}: DangerItemProps): JSX.Element {
+  return (
+    <div class="flex justify-between items-center gap-4 p-4 bg-stone-950 border border-red-400/10 rounded-lg max-sm:flex-col max-sm:items-start">
+      <div>
+        <h3 class="text-[0.9rem] font-semibold mb-1 text-stone-100">{title}</h3>
+        <p class="text-[0.8rem] text-stone-400 m-0">{description}</p>
+      </div>
+      <button type="button" class={buttonClass} onClick={onClick}>
+        {buttonText}
+      </button>
+    </div>
+  );
+}
+
+export default function DangerZoneIsland(): JSX.Element {
   const showRegenerateModal = useSignal(false);
   const showDeleteModal = useSignal(false);
   const deleteConfirmText = useSignal("");
   const isLoading = useSignal(false);
 
-  const handleRegenerate = async () => {
+  async function handleRegenerate(): Promise<void> {
     isLoading.value = true;
     try {
       const res = await fetch("/auth/regenerate", { method: "POST" });
       const data = await res.json();
       if (data.key) {
-        // Reload page - the new key will be displayed via flash session
-        // This is more secure than showing in an alert (no screenshot risk)
         showRegenerateModal.value = false;
         location.reload();
       } else {
@@ -34,11 +89,11 @@ export default function DangerZoneIsland() {
       isLoading.value = false;
       showRegenerateModal.value = false;
     }
-  };
+  }
 
-  const handleDelete = async () => {
-    if (deleteConfirmText.value !== "DELETE") {
-      alert("Please type DELETE to confirm");
+  async function handleDelete(): Promise<void> {
+    if (deleteConfirmText.value !== DELETE_CONFIRMATION_TEXT) {
+      alert(`Please type ${DELETE_CONFIRMATION_TEXT} to confirm`);
       return;
     }
 
@@ -61,275 +116,103 @@ export default function DangerZoneIsland() {
       isLoading.value = false;
       showDeleteModal.value = false;
     }
-  };
+  }
+
+  function closeDeleteModal(): void {
+    showDeleteModal.value = false;
+    deleteConfirmText.value = "";
+  }
+
+  function handleConfirmInput(e: Event): void {
+    deleteConfirmText.value = (e.target as HTMLInputElement).value;
+  }
 
   return (
-    <div class="danger-zone-island">
-      {/* Danger Zone Content */}
-      <div class="danger-content">
-        <div class="danger-item">
-          <div class="danger-info">
-            <h3>Regenerate API Key</h3>
-            <p>
-              This will invalidate your current API key. Any applications using the old key will
-              stop working.
-            </p>
-          </div>
-          <button
-            type="button"
-            class="btn btn-danger"
-            onClick={() => (showRegenerateModal.value = true)}
-          >
-            Regenerate Key
-          </button>
-        </div>
-        <div class="danger-item">
-          <div class="danger-info">
-            <h3>Delete Account</h3>
-            <p>
-              Permanently delete your account and all associated data. This action cannot be undone.
-            </p>
-          </div>
-          <button
-            type="button"
-            class="btn btn-danger-outline"
-            onClick={() => (showDeleteModal.value = true)}
-          >
-            Delete Account
-          </button>
-        </div>
+    <div>
+      <div class="flex flex-col gap-4">
+        <DangerItem
+          title="Regenerate API Key"
+          description="This will invalidate your current API key. Any applications using the old key will stop working."
+          buttonText="Regenerate Key"
+          buttonClass="py-2.5 px-5 text-sm font-semibold rounded-lg cursor-pointer transition-all duration-200 whitespace-nowrap bg-red-400 text-white border-none hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed max-sm:w-full"
+          onClick={() => (showRegenerateModal.value = true)}
+        />
+        <DangerItem
+          title="Delete Account"
+          description="Permanently delete your account and all associated data. This action cannot be undone."
+          buttonText="Delete Account"
+          buttonClass="py-2.5 px-5 text-sm font-semibold rounded-lg cursor-pointer transition-all duration-200 whitespace-nowrap bg-transparent text-red-400 border border-red-400 hover:bg-red-400/10 max-sm:w-full"
+          onClick={() => (showDeleteModal.value = true)}
+        />
       </div>
 
-      {/* Regenerate Modal */}
       {showRegenerateModal.value && (
-        <div class="modal-overlay" onClick={() => (showRegenerateModal.value = false)}>
-          <div
-            class="modal-content"
-            onClick={(e) =>
-              e.stopPropagation()}
-          >
-            <h2>Regenerate API Key?</h2>
-            <p>
-              Your current API key will be permanently invalidated. Any applications using the old
-              key will stop working immediately.
-            </p>
-            <div class="modal-actions">
+        <Modal
+          title="Regenerate API Key?"
+          onClose={() => (showRegenerateModal.value = false)}
+          actions={
+            <>
               <button
                 type="button"
-                class="btn btn-ghost"
+                class="py-2.5 px-5 text-sm font-semibold rounded-lg cursor-pointer transition-all duration-200 whitespace-nowrap bg-transparent text-stone-400 border border-amber-500/10 hover:border-stone-400"
                 onClick={() => (showRegenerateModal.value = false)}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                class="btn btn-danger"
+                class="py-2.5 px-5 text-sm font-semibold rounded-lg cursor-pointer transition-all duration-200 whitespace-nowrap bg-red-400 text-white border-none hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleRegenerate}
                 disabled={isLoading.value}
               >
                 {isLoading.value ? "..." : "Regenerate"}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <p class="text-stone-400 text-[0.9rem] mb-4">
+            Your current API key will be permanently invalidated. Any applications using the old
+            key will stop working immediately.
+          </p>
+        </Modal>
       )}
 
-      {/* Delete Modal */}
       {showDeleteModal.value && (
-        <div class="modal-overlay" onClick={() => (showDeleteModal.value = false)}>
-          <div
-            class="modal-content"
-            onClick={(e) =>
-              e.stopPropagation()}
-          >
-            <h2>Delete Account?</h2>
-            <p>
-              This will permanently delete your account and anonymize all associated data. This
-              action cannot be undone.
-            </p>
-            <p class="confirm-text">
-              Type <strong>DELETE</strong> to confirm:
-            </p>
-            <input
-              type="text"
-              class="confirm-input"
-              placeholder="DELETE"
-              value={deleteConfirmText.value}
-              onInput={(e) => (deleteConfirmText.value = (e.target as HTMLInputElement).value)}
-            />
-            <div class="modal-actions">
-              <button
-                type="button"
-                class="btn btn-ghost"
-                onClick={() => {
-                  showDeleteModal.value = false;
-                  deleteConfirmText.value = "";
-                }}
-              >
+        <Modal
+          title="Delete Account?"
+          onClose={closeDeleteModal}
+          actions={
+            <>
+              <button type="button" class="py-2.5 px-5 text-sm font-semibold rounded-lg cursor-pointer transition-all duration-200 whitespace-nowrap bg-transparent text-stone-400 border border-amber-500/10 hover:border-stone-400" onClick={closeDeleteModal}>
                 Cancel
               </button>
               <button
                 type="button"
-                class="btn btn-danger"
+                class="py-2.5 px-5 text-sm font-semibold rounded-lg cursor-pointer transition-all duration-200 whitespace-nowrap bg-red-400 text-white border-none hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleDelete}
                 disabled={isLoading.value}
               >
                 {isLoading.value ? "..." : "Delete Account"}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <p class="text-stone-400 text-[0.9rem] mb-4">
+            This will permanently delete your account and anonymize all associated data. This
+            action cannot be undone.
+          </p>
+          <p class="font-medium text-stone-100 mb-4">
+            Type <strong>{DELETE_CONFIRMATION_TEXT}</strong> to confirm:
+          </p>
+          <input
+            type="text"
+            class="w-full p-3 font-mono text-[0.9rem] bg-stone-950 border border-amber-500/10 rounded-lg text-stone-100 mb-4 outline-none focus:border-red-400"
+            placeholder={DELETE_CONFIRMATION_TEXT}
+            value={deleteConfirmText.value}
+            onInput={handleConfirmInput}
+          />
+        </Modal>
       )}
-
-      <style>
-        {`
-          .danger-content {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-          }
-
-          .danger-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            background: #08080a;
-            border: 1px solid rgba(248, 113, 113, 0.1);
-            border-radius: 8px;
-          }
-
-          .danger-info h3 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-            color: #f0ede8;
-          }
-
-          .danger-info p {
-            font-size: 0.8rem;
-            color: #a8a29e;
-            margin: 0;
-          }
-
-          .btn {
-            padding: 0.625rem 1.25rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-            font-family: 'Geist', sans-serif;
-          }
-
-          .btn-danger {
-            background: #f87171;
-            color: white;
-            border: none;
-          }
-
-          .btn-danger:hover:not(:disabled) {
-            filter: brightness(1.1);
-          }
-
-          .btn-danger:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-          }
-
-          .btn-danger-outline {
-            background: transparent;
-            color: #f87171;
-            border: 1px solid #f87171;
-          }
-
-          .btn-danger-outline:hover {
-            background: rgba(248, 113, 113, 0.1);
-          }
-
-          .btn-ghost {
-            background: transparent;
-            color: #a8a29e;
-            border: 1px solid rgba(255, 184, 111, 0.08);
-          }
-
-          .btn-ghost:hover {
-            border-color: #a8a29e;
-          }
-
-          .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-          }
-
-          .modal-content {
-            background: #141418;
-            border-radius: 12px;
-            padding: 1.5rem;
-            max-width: 450px;
-            width: 90%;
-          }
-
-          .modal-content h2 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: #f0ede8;
-          }
-
-          .modal-content p {
-            color: #a8a29e;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-          }
-
-          .confirm-text {
-            font-weight: 500;
-            color: #f0ede8;
-          }
-
-          .confirm-input {
-            width: 100%;
-            padding: 0.75rem;
-            font-family: 'Geist Mono', monospace;
-            font-size: 0.9rem;
-            background: #08080a;
-            border: 1px solid rgba(255, 184, 111, 0.08);
-            border-radius: 8px;
-            color: #f0ede8;
-            margin-bottom: 1rem;
-          }
-
-          .confirm-input:focus {
-            outline: none;
-            border-color: #f87171;
-          }
-
-          .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-          }
-
-          @media (max-width: 640px) {
-            .danger-item {
-              flex-direction: column;
-              align-items: flex-start;
-            }
-
-            .danger-item .btn {
-              width: 100%;
-            }
-          }
-        `}
-      </style>
     </div>
   );
 }

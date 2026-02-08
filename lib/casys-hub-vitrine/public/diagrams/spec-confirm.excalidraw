@@ -1,0 +1,21 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "s", "type": "rectangle", "x": 20, "y": 50, "width": 120, "height": 40, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "s-text", "type": "text", "x": 30, "y": 62, "width": 100, "height": 16, "text": "Speculative Result", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "c", "type": "diamond", "x": 195, "y": 40, "width": 70, "height": 60, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0},
+    {"id": "c-text", "type": "text", "x": 200, "y": 60, "width": 60, "height": 20, "text": "Prediction\nCorrect?", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "a", "type": "rectangle", "x": 320, "y": 20, "width": 100, "height": 35, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "a-text", "type": "text", "x": 330, "y": 30, "width": 80, "height": 14, "text": "Apply result", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+    {"id": "d", "type": "rectangle", "x": 320, "y": 85, "width": 100, "height": 35, "strokeColor": "#ef4444", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "d-text", "type": "text", "x": 330, "y": 95, "width": 80, "height": 14, "text": "Discard silently", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#ef4444"},
+    {"id": "arr1", "type": "arrow", "x": 145, "y": 70, "width": 45, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [45, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arr2", "type": "arrow", "x": 265, "y": 55, "width": 50, "height": -15, "strokeColor": "#4ade80", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [50, -15]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arr3", "type": "arrow", "x": 265, "y": 85, "width": 50, "height": 15, "strokeColor": "#ef4444", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [50, 15]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-yes", "type": "text", "x": 275, "y": 35, "width": 25, "height": 12, "text": "Yes", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+    {"id": "label-no", "type": "text", "x": 275, "y": 95, "width": 20, "height": 12, "text": "No", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#ef4444"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

@@ -1,0 +1,64 @@
+{
+  "spacing": {
+    "0": {
+      "value": "0px",
+      "description": "No spacing"
+    },
+    "1": {
+      "value": "4px",
+      "description": "Spacing unit 1 (4px base)"
+    },
+    "2": {
+      "value": "8px",
+      "description": "Spacing unit 2"
+    },
+    "3": {
+      "value": "12px",
+      "description": "Spacing unit 3"
+    },
+    "4": {
+      "value": "16px",
+      "description": "Spacing unit 4 - Base spacing"
+    },
+    "5": {
+      "value": "20px",
+      "description": "Spacing unit 5"
+    },
+    "6": {
+      "value": "24px",
+      "description": "Spacing unit 6"
+    },
+    "7": {
+      "value": "28px",
+      "description": "Spacing unit 7"
+    },
+    "8": {
+      "value": "32px",
+      "description": "Spacing unit 8"
+    },
+    "9": {
+      "value": "36px",
+      "description": "Spacing unit 9"
+    },
+    "10": {
+      "value": "40px",
+      "description": "Spacing unit 10"
+    },
+    "12": {
+      "value": "48px",
+      "description": "Spacing unit 12"
+    },
+    "16": {
+      "value": "64px",
+      "description": "Spacing unit 16"
+    },
+    "20": {
+      "value": "80px",
+      "description": "Spacing unit 20"
+    },
+    "24": {
+      "value": "96px",
+      "description": "Spacing unit 24 - Large spacing"
+    }
+  }
+}

@@ -304,6 +304,13 @@ export const fakerTools: MiniTool[] = [
         includeJob: { type: "boolean", description: "Include job info (default: false)" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "export"],
+        accepts: ["filter", "sort"],
+      },
+    },
     handler: ({ count = 1, includeAddress = false, includeJob = false }) => {
       const people = [];
       for (let i = 0; i < (count as number); i++) {
@@ -487,6 +494,13 @@ export const fakerTools: MiniTool[] = [
       type: "object",
       properties: {
         count: { type: "number", description: "Number of companies (default: 1)" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "export"],
+        accepts: ["filter", "sort"],
       },
     },
     handler: ({ count = 1 }) => {

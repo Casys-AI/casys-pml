@@ -1,0 +1,184 @@
+---
+title: 架构
+description: K-head 注意力、多级消息传递和超图层次结构。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import ExcalidrawDiagram from '../../../../../components/ExcalidrawDiagram.astro';
+
+`@casys/shgat` 是一个超超图注意力网络。它接受一组组织在超图层次结构中的节点，运行多级消息传递以传播结构信息，然后使用 K-head 注意力机制对每个节点相对于用户意图进行评分。输出是一个带有分数的排名节点列表。
+
+发布在 [JSR](https://jsr.io/@casys/shgat)。源代码在 [GitHub](https://github.com/Casys-AI/shgat)。
+
+## 为什么使用超图？
+
+普通图建模的是成对关系：A 连接到 B。这对简单情况有效，但工具目录并不简单。一个复合节点包含多个叶子。一个叶子属于多个复合节点。一个复合节点可以包含其他复合节点。
+
+超图原生支持这种结构。一条超边一次连接任意数量的顶点——无需人为展平，无需重复边。图结构与目录的真实结构一致。
+
+```
+Regular graph:                Hypergraph:
+  A --- B                     ┌─────────────────┐
+  |     |                     │  composite "db"  │
+  C --- D                     │  ┌───┐ ┌───┐    │
+                              │  │ A │ │ B │    │
+(pairwise only)               │  └───┘ └───┘    │
+                              └─────────────────┘
+                              ┌─────────────────────┐
+                              │  composite "io"      │
+                              │  ┌───┐ ┌───┐ ┌───┐  │
+                              │  │ B │ │ C │ │ D │  │
+                              │  └───┘ └───┘ └───┘  │
+                              └─────────────────────┘
+
+                              B belongs to both "db" and "io".
+                              No duplication needed.
+```
+
+## 层次级别
+
+<ExcalidrawDiagram src="shgat/shgat-hierarchy" alt="SHGAT 层次结构" />
+
+节点按级别组织。级别由结构决定，而非标签：
+
+- **L0（叶子）**：没有子节点的节点。这些是独立工具。
+- **L1+（复合节点）**：子节点是较低级别节点的节点。级别 = 1 + 最大子节点级别。
+
+典型的生产目录：
+
+```
+Level 2 (meta):       3 nodes  ─── composites of composites (e.g. data-pipeline)
+                              │
+Level 1 (composites): 26 nodes ─── groups of tools (e.g. database, io)
+                              │
+Level 0 (leaves):   218 nodes  ─── individual tools (e.g. psql_query)
+```
+
+不要求单一根节点。图可以有多个 L2 复合节点，或仅到 L1。深度取决于目录结构。
+
+级别在图构建时通过 DFS 自动计算。您注册带有子节点的节点；SHGAT 计算其余部分。
+
+```typescript
+import { SHGAT } from "@casys/shgat";
+
+const shgat = new SHGAT();
+
+// Leaves: children = []
+shgat.registerNode({ id: "psql_query", embedding: [...], children: [], level: 0 });
+shgat.registerNode({ id: "psql_exec",  embedding: [...], children: [], level: 0 });
+
+// Composite: children = leaf IDs
+shgat.registerNode({
+  id: "database",
+  embedding: [...],
+  children: ["psql_query", "psql_exec"],
+  level: 1,  // Computed: 1 + max(0, 0) = 1
+});
+
+shgat.finalizeNodes();
+```
+
+## 消息传递阶段
+
+<ExcalidrawDiagram src="shgat/shgat-message-passing" alt="SHGAT 消息传递" />
+
+在评分之前，SHGAT 执行多级消息传递。这将结构信息在整个层次结构中传播，使每个节点的嵌入向量反映其邻域——而不仅仅是自身描述。
+
+消息传递有两个阶段：
+
+**1. 上行传递（L0 -> L1 -> L2）**
+
+叶子嵌入聚合到其父复合节点中。每个复合节点接收其子节点嵌入的加权组合，通过注意力计算。注意力权重决定每个子节点的贡献程度。
+
+```
+L0 tools:      [psql_query] [psql_exec] [csv_parse] [json_transform]
+                    ↓             ↓           ↓            ↓
+L1 composites:     [── database ──]         [──── io ─────]
+                           ↓                       ↓
+L2 meta:           [────── data-pipeline ─────────]
+```
+
+**2. 下行传递（L2 -> L1 -> L0）**
+
+复合节点嵌入向下传播到其子节点。这就是叶子如何继承其兄弟节点和父复合节点的上下文。下行传递后，`psql_query` 了解 `psql_exec`，即使它们从未一起使用过。
+
+```
+L2 meta:           [────── data-pipeline ─────────]
+                           ↓                       ↓
+L1 composites:     [── database ──]         [──── io ─────]
+                    ↓             ↓           ↓            ↓
+L0 tools:      [psql_query] [psql_exec] [csv_parse] [json_transform]
+```
+
+每个阶段在每个级别转换时内部执行三个子步骤：
+
+1. **Vertex -> Edge**：投影节点嵌入用于注意力计算
+2. **Edge -> Edge**：计算连接节点之间的注意力权重
+3. **Edge -> Vertex**：将加权嵌入聚合回节点
+
+所有消息传递参数（投影矩阵、注意力向量）按级别和按头分配。它们是可训练的。
+
+<Aside type="tip">
+  消息传递后，叶子继承了其所属复合节点的相关性——包括从未直接配对过的兄弟叶子。如果 `psql_query` 和 `redis_get` 都属于一个 "data-access" 复合节点，即使没有共现历史，它们也会通过复合节点相互丰富嵌入。
+</Aside>
+
+## K-Head 注意力（16 x 64D）
+
+评分使用 16 个注意力头，每个在 1024D 嵌入的 64 维投影上操作。16 * 64 = 1024，完全匹配 BGE-M3 嵌入维度——没有信息丢失。
+
+每个头计算意图和每个节点之间的独立注意力分数。不同的头从数据中捕获不同的信号：
+
+| 信号类型 | 头捕获的内容 |
+|---|---|
+| 共现 | 在追踪中频繁一起出现的工具 |
+| 近期性 | 在类似上下文中最近使用的工具 |
+| 错误恢复 | 在其他工具失败后成功的工具 |
+| 成功率 | 对类似意图具有高历史成功率的工具 |
+| 序列位置 | 通常出现在工作流程早期或晚期的工具 |
+| 结构相似性 | 在相同复合节点邻域中的工具 |
+
+头不会被手动分配到信号类型。所有追踪特征都提供给所有头。每个头通过训练发现自己的专长。
+
+每个节点的最终分数是所有 16 个头分数的加权组合。融合权重是可训练参数的一部分。
+
+## 评分流水线
+
+从意图到排名结果的完整评分流水线：
+
+```
+Intent string
+    ↓
+BGE-M3 encoder (1024D embedding)
+    ↓
+Intent projection (W_intent: 1024 -> 1024)
+    ↓
+K-head attention (16 heads, 64D each)
+  - Q = W_q[h] @ intent    (query, per head)
+  - K = W_k[h] @ node      (key, per head)
+  - score[h] = Q . K / sqrt(64)
+    ↓
+Fusion (weighted combination of 16 head scores)
+    ↓
+Sorted node scores
+```
+
+`scoreNodes()` 方法执行整个流水线：
+
+```typescript
+// Score all nodes
+const scores = shgat.scoreNodes(intentEmbedding);
+// Returns: [{ nodeId, score, level, headScores }, ...]
+
+// Score only leaves (L0)
+const leafScores = shgat.scoreLeaves(intentEmbedding);
+
+// Score only composites (L1+)
+const compositeScores = shgat.scoreComposites(intentEmbedding);
+```
+
+整个前向传递和评分流水线在 GPU 上通过 TensorFlow.js 运行（如果可用）。数组转换仅在最终输出步骤发生。
+
+## 另请参阅
+
+- [训练](/zh/docs/shgat/training/) -- InfoNCE 损失、温度退火和经验回放
+- [持久化](/zh/docs/shgat/persistence/) -- 导出和导入模型参数

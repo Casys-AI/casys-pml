@@ -1,0 +1,448 @@
+---
+title: Graph & TensorFlow
+description: Construction de graphe, calcul de hierarchie et backend TensorFlow FFI.
+next: false
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Construction de graphe, operations par lot, propagation de messages et backend TensorFlow FFI pour `@casys/shgat`. Publie sur [JSR](https://jsr.io/@casys/shgat).
+
+## Construction de graphe
+
+### GraphBuilder
+
+Gere la structure de l'hypergraphe. Gere l'enregistrement unifie des noeuds, les noeuds tool/capability legacy, la construction de matrices d'incidence et la gestion des index.
+
+```typescript
+import { GraphBuilder } from "@casys/shgat";
+
+const builder = new GraphBuilder();
+
+// Register unified nodes
+builder.registerNode({ id: "tool-a", embedding: embA, children: [], level: 0 });
+builder.registerNode({ id: "tool-b", embedding: embB, children: [], level: 0 });
+builder.registerNode({ id: "cap-1",  embedding: embC, children: ["tool-a", "tool-b"], level: 0 });
+
+// Finalize: recompute levels and rebuild indices
+builder.finalizeNodes();
+```
+
+| Methode | Signature | Description |
+|--------|-----------|-------------|
+| `registerNode()` | `(node: Node) => void` | Enregistre un noeud unifie. Remplit aussi les maps legacy pour la compatibilite ascendante. |
+| `finalizeNodes()` | `() => void` | Recalcule les niveaux par DFS et reconstruit les index. Appelez une seule fois apres toutes les inscriptions. |
+| `getNode()` | `(id: string) => Node \| undefined` | Obtient un noeud unifie par ID. |
+| `getNodes()` | `() => Map<string, Node>` | Obtient tous les noeuds unifies. |
+| `getNodesByLevel()` | `(level: number) => Node[]` | Obtient les noeuds a un niveau hierarchique specifique. |
+| `getMaxLevel()` | `() => number` | Niveau hierarchique maximum des noeuds unifies. |
+| `getNodeIdsByLevel()` | `() => Map<number, Set<string>>` | ID de noeuds regroupes par niveau. |
+| `getDescendants()` | `(id: string) => string[]` | Tous les ID descendants transitifs d'un noeud. |
+| `hasNode()` | `(id: string) => boolean` | Verifie si un noeud unifie existe. |
+| `getNodeCount()` | `() => number` | Nombre de noeuds unifies. |
+| `getNodeIds()` | `() => string[]` | Tous les ID de noeuds unifies. |
+| `clearNodes()` | `() => void` | Efface tous les noeuds unifies. |
+
+### buildMultiLevelIncidence()
+
+Construit les structures d'incidence pour tous les niveaux d'un n-SuperHyperGraphe.
+
+```typescript
+import { buildMultiLevelIncidence, type MultiLevelIncidence } from "@casys/shgat";
+
+const incidence: MultiLevelIncidence = buildMultiLevelIncidence(graphBuilder);
+```
+
+**Retourne :** `MultiLevelIncidence` -- contient les matrices d'incidence pour chaque transition de niveau, les mappings tool-to-capability et les relations parent/enfant capability-to-capability.
+
+### computeHierarchyLevels()
+
+Calcule les niveaux hierarchiques pour les capacites par tri topologique. Detecte les cycles.
+
+```typescript
+import { computeHierarchyLevels, HierarchyCycleError, type HierarchyResult } from "@casys/shgat";
+
+try {
+  const result: HierarchyResult = computeHierarchyLevels(graphBuilder);
+  console.log(`Max level: ${result.maxHierarchyLevel}`);
+  console.log(`Levels: ${[...result.hierarchyLevels.entries()]}`);
+} catch (e) {
+  if (e instanceof HierarchyCycleError) {
+    console.error("Cycle detected in capability hierarchy");
+  }
+}
+```
+
+### generateDefaultToolEmbedding()
+
+Genere un embedding par defaut deterministe pour un ID d'outil (utilise quand aucun embedding n'est fourni).
+
+```typescript
+import { generateDefaultToolEmbedding } from "@casys/shgat";
+
+const embedding = generateDefaultToolEmbedding("psql_query", 1024);
+```
+
+## Types de noeuds
+
+### Node (unifie)
+
+Le type de noeud recommande. La hierarchie est implicite depuis la structure.
+
+```typescript
+interface Node {
+  id: string;           // Unique identifier
+  embedding: number[];  // Embedding vector (e.g., BGE-M3 1024-dim)
+  children: string[];   // Child node IDs. Empty = leaf (level 0)
+  level: number;        // Hierarchy level. Computed at graph construction.
+}
+```
+
+- `children.length === 0` -- noeud feuille (niveau 0)
+- `children.length > 0` -- noeud composite (niveau = 1 + max niveau enfant)
+
+### ToolNode (legacy)
+
+```typescript
+/** @deprecated Use Node with children: [] */
+interface ToolNode {
+  id: string;
+  embedding: number[];
+  toolFeatures?: ToolGraphFeatures;
+}
+```
+
+### CapabilityNode (legacy)
+
+```typescript
+/** @deprecated Use Node with children: [...] */
+interface CapabilityNode {
+  id: string;
+  embedding: number[];
+  members: Member[];
+  hierarchyLevel: number;
+  successRate: number;
+  toolsUsed?: string[];
+  children?: string[];
+  parents?: string[];
+  hypergraphFeatures?: HypergraphFeatures;
+}
+```
+
+### Member (legacy)
+
+```typescript
+type Member =
+  | { type: "tool"; id: string }
+  | { type: "capability"; id: string };
+```
+
+<Aside type="tip">
+  Utilisez `Node` avec des tableaux `children` au lieu de `CapabilityNode` avec des tableaux `Member`. L'API unifiee est plus simple, et `createSHGAT()` gere automatiquement le calcul des niveaux.
+</Aside>
+
+## Utilitaires de graphe
+
+Fonctions helper pour travailler avec des maps de `Node` directement (sans `GraphBuilder`).
+
+| Fonction | Signature | Description |
+|----------|-----------|-------------|
+| `buildGraph()` | `(nodes: Node[]) => Map<string, Node>` | Construit une map de graphe depuis un tableau, en calculant les niveaux par DFS. |
+| `computeAllLevels()` | `(nodes: Map<string, Node>) => void` | Calcule les niveaux pour tous les noeuds in-place avec memoisation DFS. |
+| `groupNodesByLevel()` | `(nodes: Map<string, Node>) => Map<number, Node[]>` | Regroupe les noeuds par leur niveau hierarchique. |
+
+### Matrices d'incidence
+
+| Fonction | Signature | Description |
+|----------|-----------|-------------|
+| `buildIncidenceMatrix()` | `(nodes, childLevel, parentLevel) => { matrix, childIndex, parentIndex }` | Construit la matrice d'incidence entre deux niveaux. `A[child][parent] = 1` si l'enfant est dans le parent. |
+| `buildAllIncidenceMatrices()` | `(nodes) => Map<number, { matrix, childIndex, parentIndex }>` | Construit les matrices pour toutes les transitions de niveaux (0-vers-1, 1-vers-2, etc.). |
+
+## Operations par lot
+
+Operations optimisees BLAS pour le type `Node` unifie. Pre-calculez la structure du graphe une fois, reutilisez pour toutes les passes forward.
+
+### precomputeGraphStructure()
+
+```typescript
+import { precomputeGraphStructure, type BatchedGraphStructure } from "@casys/shgat";
+
+const structure: BatchedGraphStructure = precomputeGraphStructure(nodeMap);
+```
+
+```typescript
+interface BatchedGraphStructure {
+  nodesByLevel: Map<number, Node[]>;
+  embeddingsByLevel: Map<number, BatchedEmbeddings>;
+  incidenceMatrices: Map<number, { matrix, childIndex, parentIndex }>;
+  maxLevel: number;
+  embDim: number;
+}
+```
+
+### Lookups d'embeddings par lot
+
+| Fonction | Signature | Description |
+|----------|-----------|-------------|
+| `batchGetEmbeddings()` | `(nodes, ids?) => BatchedEmbeddings` | Obtient les embeddings en matrice `[N x dim]` pour les operations BLAS par lot. |
+| `batchGetEmbeddingsByLevel()` | `(nodes, level) => BatchedEmbeddings` | Obtient les embeddings pour les noeuds a un niveau specifique uniquement. |
+| `batchGetNodes()` | `(nodes, ids) => Node[]` | Obtient plusieurs noeuds par ID en un seul passage. |
+
+```typescript
+interface BatchedEmbeddings {
+  matrix: number[][];              // [N x dim] embedding matrix
+  ids: string[];                   // Node IDs in row order
+  indexMap: Map<string, number>;   // ID to row index
+}
+```
+
+### Passe forward par lot
+
+| Fonction | Signature | Description |
+|----------|-----------|-------------|
+| `batchedForward()` | `(structure, W_up, W_down, ...) => BatchedForwardResult` | Propagation de messages multi-niveaux via operations matricielles. |
+| `batchedUpwardPass()` | `(structure, ...) => Map<number, number[][]>` | Agregation ascendante : enfants vers parents via matrices d'incidence. |
+| `batchedDownwardPass()` | `(structure, ...) => Map<number, number[][]>` | Propagation descendante : parents vers enfants. |
+
+```typescript
+interface BatchedForwardResult {
+  E: Map<number, number[][]>;                // Final embeddings per level
+  attentionUp: Map<number, number[][]>;      // Upward attention weights
+  attentionDown: Map<number, number[][]>;    // Downward attention weights
+}
+```
+
+### Scoring par lot
+
+| Fonction | Signature | Description |
+|----------|-----------|-------------|
+| `batchScoreAllNodes()` | `(structure, intent, headParams, config) => NodeScore[]` | Score tous les noeuds en une seule operation par lot. |
+| `precomputeAllK()` | `(structure, headParams, config) => BatchedScoringCache` | Pre-calcule les vecteurs K pour toutes les tetes a tous les niveaux. |
+| `batchedKHeadScoring()` | `(cache, intent, config) => NodeScore[]` | Score avec les vecteurs K pre-calcules. |
+| `batchedBackwardKHead()` | `(cache, ...) => gradients` | Calcule les gradients pour les parametres K-head. |
+
+## Propagation de messages
+
+### MultiLevelOrchestrator
+
+Orchestre la propagation de messages multi-niveaux pour les n-SuperHyperGraphes. Supporte trois phases.
+
+<Tabs>
+  <TabItem label="Ascendante (V->E)">
+    Agrege les embeddings d'outils dans les embeddings de capacites via une somme ponderee par attention sur la matrice d'incidence.
+
+    ```
+    Level 0 (tools) ──attention──> Level 1 (capabilities)
+    Level 1           ──attention──> Level 2 (meta-capabilities)
+    ...
+    ```
+  </TabItem>
+  <TabItem label="Descendante (E->V)">
+    Propage le contexte enrichi des capacites vers les outils. Chaque niveau recoit le contexte de ses parents.
+
+    ```
+    Level L (root)    ──propagate──> Level L-1
+    Level L-1         ──propagate──> Level L-2
+    ...               ──propagate──> Level 0 (tools)
+    ```
+  </TabItem>
+  <TabItem label="V->V (co-occurrence)">
+    Enrichissement optionnel vertex-to-vertex utilisant les donnees de co-occurrence des traces d'execution. Les outils qui co-occurrent frequemment obtiennent des embeddings similaires.
+
+    ```typescript
+    model.setCooccurrenceData([
+      { toolI: 0, toolJ: 1, weight: 0.8 },
+      { toolI: 0, toolJ: 2, weight: 0.3 },
+    ]);
+    ```
+  </TabItem>
+</Tabs>
+
+```typescript
+import { MultiLevelOrchestrator, type CooccurrenceEntry, type V2VParams } from "@casys/shgat";
+
+const orchestrator = new MultiLevelOrchestrator(trainingMode, { residualWeight: 0.3 });
+orchestrator.setCooccurrenceData(cooccurrenceEntries);
+```
+
+### Propagation sparse
+
+Pour les grands graphes, la propagation sparse evite le cout des matrices denses.
+
+```typescript
+import {
+  buildSparseConnectivity,
+  sparseMPForward,
+  sparseMPBackward,
+  applySparseMPGradients,
+} from "@casys/shgat";
+
+const connectivity = buildSparseConnectivity(graphBuilder);
+const { enrichedEmbeddings, cache } = sparseMPForward(embeddings, connectivity, params);
+```
+
+## TensorFlow FFI
+
+`@casys/shgat` utilise libtensorflow via Deno FFI pour des performances C natives. Pas de WASM, pas de packages TensorFlow npm.
+
+<Aside type="caution">
+  Vous devez appeler `initTensorFlow()` avant toute operation tensorielle. Cela verifie que libtensorflow est disponible via FFI. Voir le [guide d'installation](/fr/docs/shgat/installation/) pour configurer libtensorflow.
+</Aside>
+
+### initTensorFlow()
+
+Initialise le backend TensorFlow FFI. Doit etre appele une fois avant toute operation tensorielle.
+
+```typescript
+import { initTensorFlow, isInitialized, getBackend } from "@casys/shgat";
+
+const backend = await initTensorFlow(); // "ffi"
+console.log(isInitialized()); // true
+console.log(getBackend());    // "ffi"
+```
+
+### Creation de tenseurs
+
+| Fonction | Signature | Description |
+|----------|-----------|-------------|
+| `tensor()` | `(data, shape?) => TFTensor` | Cree un tenseur depuis des tableaux imbriques ou donnees plates + forme. |
+| `zeros()` | `(shape) => TFTensor` | Tenseur rempli de zeros. |
+| `ones()` | `(shape) => TFTensor` | Tenseur rempli de uns. |
+| `variable()` | `(tensor, name?) => Variable` | Enveloppe un tenseur comme variable entrainable. |
+
+### Operations mathematiques
+
+| Fonction | Description |
+|----------|-------------|
+| `matMul(a, b)` | Multiplication matricielle. |
+| `softmax(t, axis?)` | Activation softmax. |
+| `gather(t, indices, axis?)` | Rassemble des tranches par index. |
+| `unsortedSegmentSum(t, segmentIds, numSegments)` | Somme par segment (utilise pour les gradients scatter/gather). |
+| `add(a, b)` / `sub(a, b)` / `mul(a, b)` / `div(a, b)` | Arithmetique element par element. |
+| `transpose(t)` | Transposee matricielle. |
+| `reshape(t, shape)` | Redimensionne le tenseur. |
+| `concat(tensors, axis)` | Concatene les tenseurs le long d'un axe. |
+| `slice(t, begin, size)` | Tranche un tenseur. |
+| `expandDims(t, axis)` | Ajoute une dimension. |
+| `squeeze(t, axis?)` | Supprime les dimensions de taille 1. |
+| `clipByValue(t, min, max)` | Borne les valeurs dans un intervalle. |
+
+### Activations
+
+| Fonction | Description |
+|----------|-------------|
+| `relu(t)` | Unite lineaire rectifiee. |
+| `leakyRelu(t, alpha?)` | Leaky ReLU avec pente configurable. |
+| `elu(t)` | Unite lineaire exponentielle. |
+| `sigmoid(t)` | Activation sigmoide. |
+| `tanh(t)` | Tangente hyperbolique. |
+
+### Reductions
+
+| Fonction | Description |
+|----------|-------------|
+| `sum(t, axis?)` | Reduction par somme. |
+| `mean(t, axis?)` | Reduction par moyenne. |
+| `max(t, axis?)` | Reduction par maximum. |
+| `square(t)` | Carre element par element. |
+| `sqrt(t)` | Racine carree element par element. |
+| `exp(t)` | Exponentielle element par element. |
+| `log(t)` | Logarithme naturel element par element. |
+| `neg(t)` | Negation element par element. |
+
+### Gestion memoire
+
+| Fonction | Signature | Description |
+|----------|-----------|-------------|
+| `tidy()` | `<T>(fn: () => T) => T` | Execute une portee de fonction. Les tenseurs FFI doivent toujours etre disposes manuellement. |
+| `dispose()` | `(t: TFTensor \| TFTensor[]) => void` | Dispose le(s) tenseur(s) pour liberer la memoire. |
+| `memory()` | `() => { numTensors, numBytes }` | Informations sur l'utilisation memoire. |
+| `logMemory()` | `() => void` | Affiche l'utilisation memoire dans la console. |
+
+### Variable
+
+Enveloppe un tenseur comme variable entrainable avec `assign()` pour les mises a jour in-place.
+
+```typescript
+import { tensor, variable, Variable } from "@casys/shgat";
+
+const W = variable(tensor([[0.1, 0.2], [0.3, 0.4]]), "W_projection");
+console.log(W.shape); // [2, 2]
+
+const current = W.read();  // Get underlying tensor
+W.assign(newTensor);        // Replace with new values (disposes old)
+W.dispose();                // Free memory
+```
+
+### Bindings FFI bruts
+
+Les bindings FFI bas niveau complets sont disponibles via le namespace `tff`.
+
+```typescript
+import { tff } from "@casys/shgat";
+
+console.log(tff.version());     // libtensorflow version
+console.log(tff.isAvailable()); // true if libtensorflow loaded
+tff.close();                     // Close FFI handle
+```
+
+## Utilitaires mathematiques
+
+Fonctions mathematiques TypeScript pures (sans dependance TensorFlow). Utilisees en interne et disponibles pour les calculs custom.
+
+```typescript
+import { math } from "@casys/shgat";
+
+const dot = math.dotProduct(vecA, vecB);
+const cos = math.cosineSimilarity(vecA, vecB);
+const result = math.matVecMul(matrix, vector);
+const product = math.matmul(matA, matB);
+const sm = math.softmax(logits);
+const lrelu = math.leakyRelu(values, 0.2);
+```
+
+Le namespace `math` inclut :
+- Operations vectorielles : `dotProduct`, `cosineSimilarity`, `vectorAdd`, `vectorScale`, `vectorNorm`, `normalize`
+- Operations matricielles : `matVecMul`, `matmul`, `matmulTranspose`, `transpose`
+- Activations : `softmax`, `leakyRelu`, `sigmoid`, `relu`
+- Statistiques : `mean`, `variance`, `standardDeviation`
+- Acceleration BLAS : automatiquement initialisee au chargement du module pour une algebre lineaire optimisee
+
+## Kernels custom
+
+### registerUnsortedSegmentSumKernel()
+
+Enregistre un kernel WASM custom pour `UnsortedSegmentSum`. Necessaire pour le support des gradients de `gather` sur le backend WASM (pas necessaire avec FFI/libtensorflow).
+
+```typescript
+import {
+  registerUnsortedSegmentSumKernel,
+  isUnsortedSegmentSumRegistered,
+} from "@casys/shgat";
+
+if (!isUnsortedSegmentSumRegistered()) {
+  registerUnsortedSegmentSumKernel();
+}
+```
+
+<Aside type="note">
+  Ce kernel n'est necessaire que si vous utilisez le backend WASM de TensorFlow.js au lieu du backend FFI libtensorflow. Le backend FFI a le support natif de `UnsortedSegmentSum`.
+</Aside>
+
+## Initialisation des parametres
+
+| Fonction | Signature | Description |
+|----------|-----------|-------------|
+| `initializeParameters()` | `(config: SHGATConfig) => SHGATParams` | Initialise tous les parametres SHGAT (parametres de tetes, poids de fusion, projection d'intention). |
+| `initializeLevelParameters()` | `(config, embDim, level) => LevelParams` | Initialise les parametres pour un seul niveau hierarchique. |
+| `countParameters()` | `(params: SHGATParams) => number` | Compte le nombre total de parametres entrainables. |
+| `getAdaptiveHeadsByGraphSize()` | `(leaves, composites, maxLevel, preserveDim, embDim) => { numHeads, hiddenDim, headDim }` | Calcule le nombre adaptatif de tetes selon la taille du graphe. |
+| `seedRng()` | `(seed: number) => void` | Initialise le generateur aleatoire pour une initialisation reproductible. |
+
+```typescript
+import { initializeParameters, countParameters, seedRng, type SHGATParams } from "@casys/shgat";
+
+seedRng(42); // Reproducible initialization
+const params: SHGATParams = initializeParameters(DEFAULT_SHGAT_CONFIG);
+console.log(`Total parameters: ${countParameters(params)}`);
+```

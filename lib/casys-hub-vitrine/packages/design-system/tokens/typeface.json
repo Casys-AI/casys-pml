@@ -1,0 +1,24 @@
+{
+  "md.ref.typeface.plain": {
+    "type": "font",
+    "description": "Plain typeface",
+    "value": ["Roboto"]
+  },
+  "md.ref.typeface.brand": {
+    "type": "font",
+    "description": "Brand typeface",
+    "value": ["Roboto"]
+  },
+  "md.ref.typeface.weight-bold": {
+    "description": "Bold weight",
+    "value": 700
+  },
+  "md.ref.typeface.weight-medium": {
+    "description": "Medium weight",
+    "value": 500
+  },
+  "md.ref.typeface.weight-regular": {
+    "description": "Regular weight",
+    "value": 400
+  }
+}

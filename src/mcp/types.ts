@@ -73,6 +73,33 @@ export interface MCPClientBase {
   close(): Promise<void>;
   /** Set handler for sampling requests from child server (optional, for relay) */
   setSamplingHandler?(handler: SamplingRequestHandler): void;
+  /** Read a resource by URI (MCP resources/read) */
+  readResource?(uri: string): Promise<MCPResourceContent | null>;
+}
+
+/**
+ * MCP Resource content from resources/read response
+ */
+export interface MCPResourceContent {
+  uri: string;
+  mimeType?: string;
+  text?: string;
+  blob?: string; // base64-encoded binary
+}
+
+/**
+ * UI metadata for MCP Apps (SEP-1865)
+ * Stored in `_meta.ui` of tool responses
+ */
+export interface McpUiToolMeta {
+  /** URI of the UI resource to display */
+  resourceUri?: string;
+  /** Visibility settings: "model" for LLM, "app" for user application */
+  visibility?: Array<"model" | "app">;
+  /** Events this UI emits (PML extension for sync rules) */
+  emits?: string[];
+  /** Events this UI can accept (PML extension for sync rules) */
+  accepts?: string[];
 }
 
 /**
@@ -83,6 +110,10 @@ export interface MCPTool {
   description: string;
   inputSchema: Record<string, unknown>;
   outputSchema?: Record<string, unknown>;
+  /** MCP Apps metadata (SEP-1865) - UI resource association */
+  _meta?: {
+    ui?: McpUiToolMeta;
+  };
 }
 
 /**

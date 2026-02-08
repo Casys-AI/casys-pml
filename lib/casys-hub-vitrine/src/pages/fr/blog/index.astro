@@ -1,0 +1,543 @@
+---
+import { getCollection } from 'astro:content';
+import BlogLayout from '../../../layouts/BlogLayout.astro';
+
+const locale = 'fr';
+
+const labels = {
+  blogTitle: 'Blog CASYS',
+  description: 'Découvrez les dernières actualités, guides techniques et insights sur le développement de CASYS.',
+  featured: 'En vedette',
+  allArticles: 'Tous les articles',
+  readMore: 'Lire la suite',
+  read: 'Lire',
+  general: 'Général',
+};
+
+// Récupérer les articles FR
+const blogPosts = await getCollection('blog', ({ data, id }) => {
+  return !data.draft && id.startsWith(`${locale}/`);
+});
+
+// Trier par date (plus récent en premier)
+const sortedPosts = blogPosts.sort((a, b) =>
+  new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
+);
+
+// Grouper par catégorie
+const postsByCategory = sortedPosts.reduce((acc, post) => {
+  const category = post.data.category || labels.general;
+  if (!acc[category]) acc[category] = [];
+  acc[category].push(post);
+  return acc;
+}, {} as Record<string, typeof sortedPosts>);
+
+// Articles en vedette
+const featuredPosts = sortedPosts.filter(post => post.data.featured);
+
+function getPostSlug(post: typeof sortedPosts[0]) {
+  return post.slug.replace(`${locale}/`, '');
+}
+---
+
+<BlogLayout title={labels.blogTitle} locale={locale}>
+  <!-- En-tête du blog -->
+  <div class="blog-header">
+    <h1 class="blog-title">{labels.blogTitle}</h1>
+    <p class="blog-description">
+      {labels.description}
+    </p>
+  </div>
+
+  <!-- Articles en vedette -->
+  {featuredPosts.length > 0 && (
+    <section class="featured-section">
+      <h2 class="section-heading">
+        {labels.featured}
+      </h2>
+      <div class="featured-grid">
+        {featuredPosts.slice(0, 2).map((post) => (
+          <article class="featured-card">
+            <div class="card-meta">
+              <time datetime={post.data.date.toISOString()}>
+                {post.data.date.toLocaleDateString('fr-FR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </time>
+              {post.data.category && (
+                <>
+                  <span class="meta-separator">&middot;</span>
+                  <span class="card-category">{post.data.category}</span>
+                </>
+              )}
+            </div>
+            <h3 class="featured-card-title">
+              <a href={`/fr/blog/${getPostSlug(post)}`}>
+                {post.data.title}
+              </a>
+            </h3>
+            {post.data.description && (
+              <p class="card-description">{post.data.description}</p>
+            )}
+            <div class="card-footer">
+              <div class="tag-list">
+                {post.data.tags.slice(0, 3).map((tag) => (
+                  <span class="tag-pill">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <a
+                href={`/fr/blog/${getPostSlug(post)}`}
+                class="read-more-link"
+              >
+                {labels.readMore} &rarr;
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <!-- Articles par catégorie -->
+  <section>
+    <h2 class="section-heading">{labels.allArticles}</h2>
+
+    {Object.entries(postsByCategory).map(([category, posts]) => (
+      <div class="category-group">
+        <h3 class="category-heading">
+          {category}
+          <span class="category-count">({posts.length})</span>
+        </h3>
+
+        <div class="article-list">
+          {posts.map((post) => (
+            <article class="article-card">
+              <div class="article-card-inner">
+                <div class="article-card-content">
+                  <h4 class="article-card-title">
+                    <a href={`/fr/blog/${getPostSlug(post)}`}>
+                      {post.data.title}
+                    </a>
+                  </h4>
+
+                  <div class="card-meta">
+                    <time datetime={post.data.date.toISOString()}>
+                      {post.data.date.toLocaleDateString('fr-FR')}
+                    </time>
+                    <span class="meta-separator">&middot;</span>
+                    <span>{post.data.author}</span>
+                  </div>
+
+                  {post.data.description && (
+                    <p class="article-card-description">{post.data.description}</p>
+                  )}
+
+                  <div class="tag-list tag-list--compact">
+                    {post.data.tags.slice(0, 4).map((tag) => (
+                      <span class="tag-pill tag-pill--small">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div class="article-card-action">
+                  <a
+                    href={`/fr/blog/${getPostSlug(post)}`}
+                    class="read-button"
+                  >
+                    {labels.read}
+                  </a>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    ))}
+  </section>
+</BlogLayout>
+
+<style>
+  /* ── Blog Header ── */
+  .blog-header {
+    margin-bottom: 2rem;
+  }
+
+  .blog-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--md-sys-color-on-surface, #1a1a1a);
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .blog-description {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.125rem;
+    line-height: 1.7;
+    color: var(--md-sys-color-on-surface-variant, #555);
+  }
+
+  /* ── Section Headings ── */
+  .section-heading {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface, #1a1a1a);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── Featured Section ── */
+  .featured-section {
+    margin-bottom: 3rem;
+  }
+
+  .featured-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 768px) {
+    .featured-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* ── Featured Card ── */
+  .featured-card {
+    background-color: var(--md-sys-color-surface, #fff);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--md-sys-color-outline-variant, #e0e0e0);
+    padding: 1.75rem;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  .featured-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    border-color: var(--md-sys-color-primary, #FFB86F);
+  }
+
+  /* ── Card Meta (date, category) ── */
+  .card-meta {
+    display: flex;
+    align-items: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: var(--md-sys-color-on-surface-variant, #777);
+    margin-bottom: 0.75rem;
+  }
+
+  .meta-separator {
+    margin: 0 0.5rem;
+  }
+
+  .card-category {
+    color: var(--md-sys-color-primary, #b87a2a);
+    font-weight: 500;
+  }
+
+  /* ── Featured Card Title ── */
+  .featured-card-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface, #1a1a1a);
+    margin-bottom: 0.75rem;
+    line-height: 1.35;
+  }
+
+  .featured-card-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .featured-card-title a:hover {
+    color: var(--md-sys-color-primary, #b87a2a);
+  }
+
+  /* ── Card Description ── */
+  .card-description {
+    font-family: 'Inter', sans-serif;
+    color: var(--md-sys-color-on-surface-variant, #555);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+    font-size: 0.9375rem;
+  }
+
+  /* ── Card Footer ── */
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* ── Tag Pills ── */
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .tag-list--compact {
+    gap: 0.375rem;
+  }
+
+  .tag-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: 9999px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    background-color: var(--md-sys-color-secondary-container, #f0e6d9);
+    color: var(--md-sys-color-on-secondary-container, #5a4a32);
+    letter-spacing: 0.01em;
+    line-height: 1.5;
+  }
+
+  .tag-pill--small {
+    padding: 0.15rem 0.5rem;
+    font-size: 0.625rem;
+  }
+
+  /* ── Read More Link ── */
+  .read-more-link {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--md-sys-color-primary, #b87a2a);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .read-more-link:hover {
+    color: var(--md-sys-color-on-primary-container, #8a5a1a);
+  }
+
+  /* ── Category Groups ── */
+  .category-group {
+    margin-bottom: 2.5rem;
+  }
+
+  .category-heading {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface, #1a1a1a);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    letter-spacing: -0.01em;
+  }
+
+  .category-count {
+    margin-left: 0.5rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: var(--md-sys-color-on-surface-variant, #777);
+    font-weight: 400;
+  }
+
+  /* ── Article List ── */
+  .article-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ── Article Card ── */
+  .article-card {
+    background-color: var(--md-sys-color-surface, #fff);
+    border-radius: 10px;
+    border: 1px solid var(--md-sys-color-outline-variant, #e0e0e0);
+    padding: 1.25rem;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  .article-card:hover {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    border-color: var(--md-sys-color-primary, #FFB86F);
+  }
+
+  .article-card-inner {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .article-card-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .article-card-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.0625rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface, #1a1a1a);
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+  }
+
+  .article-card-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .article-card-title a:hover {
+    color: var(--md-sys-color-primary, #b87a2a);
+  }
+
+  .article-card-description {
+    font-family: 'Inter', sans-serif;
+    color: var(--md-sys-color-on-surface-variant, #555);
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+  }
+
+  /* ── Read Button ── */
+  .article-card-action {
+    flex-shrink: 0;
+  }
+
+  .read-button {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--md-sys-color-outline-variant, #d0d0d0);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border-radius: 8px;
+    color: var(--md-sys-color-on-surface, #444);
+    background-color: var(--md-sys-color-surface, #fff);
+    text-decoration: none;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .read-button:hover {
+    background-color: var(--md-sys-color-surface-variant, #f5f5f5);
+    border-color: var(--md-sys-color-primary, #FFB86F);
+    color: var(--md-sys-color-primary, #b87a2a);
+  }
+</style>
+
+<style is:global>
+  /* ── Dark Mode Overrides ── */
+  html[data-theme="dark"] .blog-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .blog-description {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .section-heading {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .featured-card {
+    background-color: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] .featured-card:hover {
+    box-shadow: 0 4px 20px rgba(255, 184, 111, 0.1);
+    border-color: rgba(255, 184, 111, 0.3);
+  }
+
+  html[data-theme="dark"] .card-meta {
+    color: #a0937f;
+  }
+
+  html[data-theme="dark"] .card-category {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .featured-card-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .featured-card-title a:hover {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .card-description {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .tag-pill {
+    background-color: rgba(255, 184, 111, 0.12);
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .read-more-link {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .read-more-link:hover {
+    color: #ffd4a3;
+  }
+
+  html[data-theme="dark"] .category-heading {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .category-count {
+    color: #a0937f;
+  }
+
+  html[data-theme="dark"] .article-card {
+    background-color: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] .article-card:hover {
+    box-shadow: 0 2px 12px rgba(255, 184, 111, 0.08);
+    border-color: rgba(255, 184, 111, 0.25);
+  }
+
+  html[data-theme="dark"] .article-card-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] .article-card-title a:hover {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .article-card-description {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .read-button {
+    background-color: rgba(255, 184, 111, 0.06);
+    border-color: rgba(255, 184, 111, 0.15);
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .read-button:hover {
+    background-color: rgba(255, 184, 111, 0.12);
+    border-color: rgba(255, 184, 111, 0.35);
+    color: #FFB86F;
+  }
+</style>

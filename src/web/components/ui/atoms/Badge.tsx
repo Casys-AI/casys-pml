@@ -3,7 +3,9 @@
  * Used for: MCP server indicators, status badges
  */
 
-interface BadgeProps {
+import type { JSX } from "preact";
+
+export interface BadgeProps {
   color: string;
   label?: string;
   active?: boolean;
@@ -11,29 +13,29 @@ interface BadgeProps {
   class?: string;
 }
 
-export default function Badge(
-  { color, label, active = true, onClick, class: className }: BadgeProps,
-) {
-  const isClickable = !!onClick;
+export default function Badge({
+  color,
+  label,
+  active = true,
+  onClick,
+  class: className,
+}: BadgeProps): JSX.Element {
+  const isClickable = Boolean(onClick);
+
+  const baseClasses =
+    "flex items-center gap-2.5 py-2 px-3 -mx-3 rounded-lg transition-all duration-200";
+  const activeClass = active ? "" : "opacity-35";
+  const clickableClass = isClickable ? "cursor-pointer hover:bg-amber-500/20" : "";
+  const combinedClasses =
+    `${baseClasses} ${activeClass} ${clickableClass} ${className || ""}`.trim();
 
   return (
-    <div
-      class={`flex items-center gap-2.5 py-2 px-3 -mx-3 rounded-lg transition-all duration-200 ${
-        !active ? "opacity-35" : ""
-      } ${isClickable ? "cursor-pointer" : ""} ${className || ""}`}
-      onClick={onClick}
-      onMouseOver={(e) => isClickable && (e.currentTarget.style.background = "var(--accent-dim)")}
-      onMouseOut={(e) => isClickable && (e.currentTarget.style.background = "transparent")}
-    >
+    <div class={combinedClasses} onClick={onClick}>
       <div
         class="w-3 h-3 rounded-full transition-all duration-200 hover:scale-125 flex-shrink-0"
         style={{ backgroundColor: color }}
       />
-      {label && (
-        <span class="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-          {label}
-        </span>
-      )}
+      {label && <span class="text-sm font-medium text-stone-400">{label}</span>}
     </div>
   );
 }

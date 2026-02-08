@@ -177,7 +177,7 @@ function createMockCapability(overrides: Partial<MockCapRecord> = {}): MockCapRe
     action: "read_json",
     hash: "a7f3",
     workflowPatternId: "pattern-123",
-    userId: null,
+    userId: undefined,
     createdAt: new Date("2025-01-01"),
     version: 1,
     verified: false,
@@ -464,7 +464,7 @@ Deno.test("PmlStdServer - isCapManagementTool", () => {
   assertEquals(server.isCapManagementTool("cap:list"), true);
   assertEquals(server.isCapManagementTool("cap:rename"), true);
   assertEquals(server.isCapManagementTool("mcp__fs__read"), false);
-  assertEquals(server.isCapManagementTool("pml:execute"), false);
+  assertEquals(server.isCapManagementTool("execute"), false);
 });
 
 Deno.test("PmlStdServer - rejects non-cap tools", async () => {

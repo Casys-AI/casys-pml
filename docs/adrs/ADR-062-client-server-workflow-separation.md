@@ -247,6 +247,45 @@ requires **server-side storage** because:
 | Execution fails on client | Trace with `success: false`, no capability created |
 | Duplicate traces (same workflowId) | First creates capability, second logs warning (hash-based UPSERT prevents duplicates) |
 | Missing workflowId in response | **BUG** - facade dropped it, client can't correlate trace |
+| Integrity approval during execute_locally | **Fixed 2026-02-02** - serverWorkflowId propagated to preserve LearningContext correlation |
+
+### Integrity Approval During execute_locally (Fix 2026-02-02)
+
+**Problem:** When an integrity approval (hash mismatch in lockfile) occurred during local execution,
+`lockfile-manager.ts` generated a **new** `workflowId` instead of reusing the server's `workflowId`.
+This broke the LearningContext correlation:
+
+```
+Server returns execute_locally + workflowId + stores LearningContext
+    ↓
+Client executes code locally
+    ↓
+Tool call triggers integrity approval → NEW workflowId generated ← BUG
+    ↓
+Trace sent with NEW workflowId → Server can't find LearningContext
+```
+
+**Solution:** Propagate `serverWorkflowId` through the call chain:
+
+```
+local-executor.ts (has serverWorkflowId)
+    ↓
+loader.callWithFqdn(..., serverWorkflowId)
+    ↓
+loadByFqdn(..., serverWorkflowId)
+    ↓
+registryClient.fetchWithIntegrity(..., serverWorkflowId)
+    ↓
+lockfileManager.validateIntegrity(..., existingWorkflowId)
+    ↓
+workflowId: existingWorkflowId ?? crypto.randomUUID()
+```
+
+**Files modified:**
+- `packages/pml/src/lockfile/lockfile-manager.ts` - Added `existingWorkflowId` param
+- `packages/pml/src/loader/registry-client.ts` - Propagate param
+- `packages/pml/src/loader/capability-loader.ts` - Propagate param to `callWithFqdn()` and `loadByFqdn()`
+- `packages/pml/src/cli/shared/local-executor.ts` - Pass `workflowId` to `callWithFqdn()`
 
 **See also:** `docs/spikes/2026-01-13-client-routed-capability-creation.md` for implementation details
 

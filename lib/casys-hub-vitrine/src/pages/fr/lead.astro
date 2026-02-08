@@ -1,0 +1,27 @@
+---
+import LandingLayout from '../../layouts/LandingLayout.astro';
+
+// Force SSR for dynamic query params
+export const prerender = false;
+
+const title = 'Analyse Lead';
+const presetDomain = Astro.url.searchParams.get('domain')?.toString().toLowerCase() ?? '';
+const lang = 'fr';
+
+// Redirect to Angular dashboard
+if (presetDomain) {
+  return Astro.redirect(`http://localhost:4200/preview/${presetDomain}`);
+}
+---
+
+<LandingLayout title={title}>
+  <section class="minHeight-screen display-flex alignItems-center justifyContent-center paddingBlock-16">
+    <div class="textAlign-center">
+      <h1 class="fontSize-3xl fontWeight-bold marginBottom-4">Analyse Lead</h1>
+      <p class="fontSize-lg color-gray.600 marginBottom-8">Veuillez spécifier un domaine à analyser.</p>
+      <a href="/" class="display-inline-block paddingInline-6 paddingBlock-3 backgroundColor-brand.600 color-white borderRadius-lg textDecoration-none _hover:backgroundColor-brand.700 transition-colors">
+        Retour à l'accueil
+      </a>
+    </div>
+  </section>
+</LandingLayout>

@@ -38,7 +38,7 @@ export async function handleSearchTools(
 ): Promise<MCPToolResponse> {
   // Deprecation warning (Story 10.6)
   log.warn(
-    "[DEPRECATED] pml:search_tools is deprecated. Use pml:discover instead for unified search.",
+    "[DEPRECATED] search_tools is deprecated. Use discover instead for unified search.",
   );
 
   const params = args as SearchToolsArgs;
@@ -145,7 +145,7 @@ export async function handleSearchCapabilities(
 ): Promise<MCPToolResponse | MCPErrorResponse> {
   // Deprecation warning (Story 10.6)
   log.warn(
-    "[DEPRECATED] pml:search_capabilities is deprecated. Use pml:discover instead for unified search.",
+    "[DEPRECATED] search_capabilities is deprecated. Use discover instead for unified search.",
   );
 
   const transaction = startTransaction("mcp.capabilities.search", "mcp");

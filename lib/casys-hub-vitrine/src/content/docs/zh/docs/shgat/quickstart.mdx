@@ -1,0 +1,161 @@
+---
+title: 快速入门
+description: 一分钟内对您的第一批节点进行评分。
+---
+
+import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+评估工具在超图层次结构中的相关性。在本页结束时，您将拥有一个模型，能够根据用户意图对叶子节点和复合节点进行排名。
+
+## 对第一批节点评分
+
+<Steps>
+1. **定义节点层次结构**
+
+    叶子节点（L0）是独立工具。复合节点（L1+）将叶子或其他复合节点分组。`children` 数组定义了超图结构。
+
+    ```typescript
+    import { createSHGAT, type Node } from "@casys/shgat";
+
+    // Leaves (L0) — individual tools
+    const nodes: Node[] = [
+      { id: "psql_query",     embedding: psqlQueryEmb,   children: [], level: 0 },
+      { id: "psql_exec",      embedding: psqlExecEmb,    children: [], level: 0 },
+      { id: "redis_get",      embedding: redisGetEmb,    children: [], level: 0 },
+      { id: "redis_set",      embedding: redisSetEmb,    children: [], level: 0 },
+      { id: "csv_parse",      embedding: csvParseEmb,    children: [], level: 0 },
+      { id: "json_transform", embedding: jsonTransEmb,   children: [], level: 0 },
+
+      // Composites (L1) — groups of leaves
+      { id: "database",   embedding: dbEmb,    children: ["psql_query", "psql_exec"], level: 1 },
+      { id: "cache",      embedding: cacheEmb, children: ["redis_get", "redis_set"],  level: 1 },
+
+      // Composites (L2) — groups of composites
+      { id: "data-layer", embedding: dataEmb,  children: ["database", "cache", "csv_parse", "json_transform"], level: 2 },
+    ];
+    ```
+
+2. **创建模型并评分**
+
+    `createSHGAT` 是工厂函数。它注册所有节点、计算层次结构，并初始化 K-head 注意力参数。
+
+    ```typescript
+    const model = createSHGAT(nodes);
+
+    // intentEmbedding: 1024-dim vector from your embedding model (e.g. BGE-M3)
+    const ranked = model.scoreNodes(intentEmbedding);
+    ```
+
+3. **打印排名结果**
+
+    结果按分数排序（最高优先）。每个结果包含节点 ID、分数、各头分数和层次级别。
+
+    ```typescript
+    console.log("Ranked nodes:");
+    for (const { nodeId, score, level } of ranked) {
+      const tag = level === 0 ? "leaf" : `L${level}`;
+      console.log(`  [${tag}] ${nodeId}: ${score.toFixed(4)}`);
+    }
+
+    // Filter by level
+    const leaves     = model.scoreLeaves(intentEmbedding);      // L0 only
+    const composites = model.scoreComposites(intentEmbedding);   // L1+ only
+
+    // Clean up native resources
+    model.dispose();
+    ```
+</Steps>
+
+<Aside type="tip">
+  `scoreNodes()` 返回所有级别的合并排序结果。当您只需要一个级别时，使用 `scoreLeaves()` 或 `scoreComposites()`。三种方法在内部执行相同的前向传播。
+</Aside>
+
+## 完整示例
+
+```typescript
+import { createSHGAT, type Node } from "@casys/shgat";
+
+// 1024-dim embeddings (from BGE-M3 or any embedding model)
+const dim = 1024;
+const embed = (seed: number) => Array.from({ length: dim }, (_, i) => Math.sin(seed * (i + 1)));
+
+const nodes: Node[] = [
+  { id: "psql_query",  embedding: embed(1), children: [], level: 0 },
+  { id: "psql_exec",   embedding: embed(2), children: [], level: 0 },
+  { id: "redis_get",   embedding: embed(3), children: [], level: 0 },
+  { id: "database",    embedding: embed(4), children: ["psql_query", "psql_exec"], level: 1 },
+  { id: "cache",       embedding: embed(5), children: ["redis_get"], level: 1 },
+  { id: "data-layer",  embedding: embed(6), children: ["database", "cache"], level: 2 },
+];
+
+const model = createSHGAT(nodes);
+
+const intent = embed(1.1); // Close to psql_query
+const results = model.scoreNodes(intent);
+
+console.log("Top 5:");
+for (const { nodeId, score, headScores, level } of results.slice(0, 5)) {
+  const heads = headScores.map((h) => h.toFixed(3)).join(", ");
+  console.log(`  ${nodeId} (L${level}): ${score.toFixed(4)}  heads=[${heads}]`);
+}
+
+model.dispose();
+```
+
+运行：
+
+```bash
+deno run --unstable-ffi --allow-ffi example.ts
+```
+
+## 进阶：使用生产追踪数据训练
+
+开箱即用，SHGAT 使用初始化参数进行评分。要提高排名质量，请使用 `AutogradTrainer` 在您的生产执行追踪上进行训练：
+
+```typescript
+import { createSHGAT, type Node, type TrainingExample } from "@casys/shgat";
+import { AutogradTrainer } from "@casys/shgat/training";
+
+// 1. Build the model (same as above)
+const model = createSHGAT(nodes);
+
+// 2. Create the trainer
+const trainer = new AutogradTrainer({
+  numHeads: 16,
+  embeddingDim: 1024,
+  hiddenDim: 1024,
+  headDim: 64,
+  learningRate: 0.001,
+});
+
+// 3. Set node embeddings from the model
+trainer.setNodeEmbeddings(/* embeddings from your graph */);
+
+// 4. Train on execution traces
+const examples: TrainingExample[] = [
+  {
+    intentEmbedding: userIntentEmb,
+    contextTools: ["psql_query"],
+    candidateId: "database",         // Positive: what was actually executed
+    outcome: 1,
+    negativeCapIds: ["cache"],       // Negatives: other options
+  },
+];
+
+const metrics = trainer.trainBatch(examples);
+console.log(`Loss: ${metrics.loss.toFixed(4)}, Accuracy: ${metrics.accuracy.toFixed(2)}`);
+
+// 5. Export trained parameters
+const params = model.exportParams();
+// Save to disk, load on next startup with model.importParams(params)
+```
+
+<Aside>
+  训练使用 InfoNCE 对比损失和课程学习。从简单负样本（不相似的工具）开始，随着准确率提高逐步增加难度。PER 缓冲区优先处理模型预测错误的样本。
+</Aside>
+
+## 更多资源
+
+- **[安装](/zh/docs/shgat/installation/)** -- 完整的安装指南，包含 libtensorflow 和特定平台说明
+- **[@casys/shgat on JSR](https://jsr.io/@casys/shgat)** -- API 参考和版本历史
+- **[GitHub](https://github.com/Casys-AI/shgat)** -- 源代码、问题和贡献

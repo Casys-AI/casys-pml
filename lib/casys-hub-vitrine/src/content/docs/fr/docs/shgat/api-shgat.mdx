@@ -1,0 +1,373 @@
+---
+title: Classe SHGAT
+description: Classe SHGAT principale -- scoring, entrainement et gestion des parametres.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+La classe `SHGAT` est l'orchestrateur principal des reseaux d'attention sur SuperHyperGraphe. Elle gere la construction du graphe, la propagation de messages multi-niveaux, le scoring K-head et la persistence des parametres. Publiee sur [JSR](https://jsr.io/@casys/shgat).
+
+## Fonctions factory
+
+Utilisez les fonctions factory plutot que le constructeur directement. Elles gerent automatiquement la selection adaptative des tetes, la construction du graphe et le calcul des niveaux.
+
+### createSHGAT()
+
+Cree une instance SHGAT a partir d'objets `Node` unifies. C'est l'API recommandee.
+
+```typescript
+import { createSHGAT, type Node } from "@casys/shgat";
+
+const nodes: Node[] = [
+  { id: "psql_query", embedding: queryEmb, children: [], level: 0 },
+  { id: "psql_exec",  embedding: execEmb,  children: [], level: 0 },
+  { id: "database",   embedding: dbEmb,    children: ["psql_query", "psql_exec"], level: 1 },
+];
+
+const model = createSHGAT(nodes);
+// or with config overrides:
+const model2 = createSHGAT(nodes, { numHeads: 8, learningRate: 0.01 });
+```
+
+| Parametre | Type | Description |
+|-----------|------|-------------|
+| `nodes` | `Node[]` | Tableau de noeuds. Les feuilles ont `children: []`, les composites listent leurs enfants. |
+| `config` | `Partial<SHGATConfig>` | Surcharges de configuration optionnelles. |
+
+**Retourne :** `SHGAT` -- une instance entierement initialisee avec tous les noeuds enregistres, les niveaux calcules et les index construits.
+
+### createSHGATFromCapabilities()
+
+Factory legacy qui accepte des enregistrements de capacites avec des tableaux `toolsUsed`. Genere automatiquement les embeddings d'outils pour ceux absents de la map fournie.
+
+```typescript
+import { createSHGATFromCapabilities } from "@casys/shgat";
+
+const shgat = createSHGATFromCapabilities(
+  [
+    { id: "cap-1", embedding: capEmb, toolsUsed: ["tool-a", "tool-b"], successRate: 0.85 },
+  ],
+  { numHeads: 16 },
+);
+```
+
+| Parametre | Type | Description |
+|-----------|------|-------------|
+| `capabilities` | `Array<{ id, embedding, toolsUsed, successRate, ... }>` | Enregistrements de capacites. |
+| `configOrToolEmbeddings` | `Partial<SHGATConfig> \| Map<string, number[]>` | Surcharges de config ou map d'ID d'outil vers embedding. |
+| `config` | `Partial<SHGATConfig>` | Surcharges de config (quand le 2e param est une map d'embeddings). |
+
+**Retourne :** `SHGAT`
+
+<Aside type="caution">
+  `createSHGATFromCapabilities()` est deprecie. Preferez `createSHGAT()` avec des objets `Node` unifies.
+</Aside>
+
+## Classe SHGAT
+
+### Constructeur
+
+```typescript
+import { SHGAT } from "@casys/shgat";
+
+const shgat = new SHGAT(config?: Partial<SHGATConfig>);
+```
+
+Cree une instance SHGAT nue. Vous devez enregistrer les noeuds manuellement et appeler `finalizeNodes()` avant le scoring. Dans la plupart des cas, utilisez `createSHGAT()` a la place.
+
+### Gestion du graphe
+
+| Methode | Signature | Description |
+|--------|-----------|-------------|
+| `registerNode()` | `(node: Node) => void` | Enregistre un noeud unifie. Appelez `finalizeNodes()` apres toutes les inscriptions. |
+| `finalizeNodes()` | `() => void` | Reconstruit les index et calcule les niveaux hierarchiques. Appelez une seule fois apres l'enregistrement de tous les noeuds. |
+| `registerTool()` | `(node: ToolNode) => void` | Enregistre un outil (feuille). **Deprecie** -- utilisez `registerNode()` avec `children: []`. |
+| `registerCapability()` | `(node: CapabilityNode) => void` | Enregistre une capacite (hyperarete). **Deprecie** -- utilisez `registerNode()` avec children. |
+| `buildFromData()` | `(tools, capabilities) => void` | Enregistrement par lot d'outils et capacites depuis des donnees brutes. |
+| `hasToolNode()` | `(id: string) => boolean` | Verifie si un noeud outil existe. |
+| `hasCapabilityNode()` | `(id: string) => boolean` | Verifie si un noeud capacite existe. |
+| `getToolCount()` | `() => number` | Nombre d'outils enregistres. |
+| `getCapabilityCount()` | `() => number` | Nombre de capacites enregistrees. |
+| `getToolIds()` | `() => string[]` | Tous les ID d'outils enregistres. |
+| `getCapabilityIds()` | `() => string[]` | Tous les ID de capacites enregistrees. |
+
+### Co-occurrence
+
+| Methode | Signature | Description |
+|--------|-----------|-------------|
+| `setCooccurrenceData()` | `(data: CooccurrenceEntry[]) => void` | Definit les aretes de co-occurrence V-to-V pour l'enrichissement des embeddings d'outils. |
+| `getToolIndexMap()` | `() => Map<string, number>` | Obtient le mapping ID d'outil vers index (utilise par le chargeur de co-occurrence). |
+
+## Methodes de scoring
+
+### scoreNodes()
+
+La fonction de scoring principale. Execute la passe forward tensor-native (propagation de messages multi-niveaux) puis le scoring par attention K-head. Toutes les operations tensorielles restent sur le backend natif jusqu'a la conversion finale.
+
+```typescript
+const ranked = model.scoreNodes(intentEmbedding);
+
+// Filter by level
+const toolScores = model.scoreNodes(intentEmbedding, 0);       // leaves only
+const capScores  = model.scoreNodes(intentEmbedding, 1);       // composites only
+```
+
+| Parametre | Type | Description |
+|-----------|------|-------------|
+| `intentEmbedding` | `number[]` | Embedding de l'intention utilisateur (1024-dim BGE-M3). |
+| `level` | `number \| undefined` | Filtre de niveau optionnel. `0` = feuilles, `1` = composites. Omettez pour scorer tout. |
+
+**Retourne :** `NodeScore[]` -- trie par score decroissant.
+
+```typescript
+interface NodeScore {
+  nodeId: string;
+  score: number;
+  headScores: number[];
+  level: number;
+}
+```
+
+### scoreLeaves() / scoreComposites()
+
+Raccourcis autour de `scoreNodes()`.
+
+| Methode | Equivalent | Description |
+|--------|------------|-------------|
+| `scoreLeaves(intent)` | `scoreNodes(intent, 0)` | Score les noeuds feuilles (outils) uniquement. |
+| `scoreComposites(intent, level?)` | `scoreNodes(intent, level ?? 1)` | Score les noeuds composites a un niveau donne. |
+
+### Scoring legacy
+
+| Methode | Signature | Description |
+|--------|-----------|-------------|
+| `scoreAllCapabilities()` | `(intent: number[], contextToolIds?: string[]) => AttentionResult[]` | **Deprecie.** Utilisez `scoreNodes(intent, 1)`. |
+| `scoreAllTools()` | `(intent: number[], contextToolIds?: string[]) => Array<{ toolId, score, headScores }>` | **Deprecie.** Utilisez `scoreNodes(intent, 0)`. |
+
+```typescript
+interface AttentionResult {
+  capabilityId: string;
+  score: number;
+  headScores: number[];
+  toolAttention: number[];
+}
+```
+
+### Autre scoring
+
+| Methode | Signature | Description |
+|--------|-----------|-------------|
+| `predictPathSuccess()` | `(intent: number[], path: string[]) => number` | Predit la probabilite de succes d'un chemin d'execution d'outils. |
+| `computeAttention()` | `(intent, contextEmbeddings, capId, contextCapIds?) => AttentionResult` | Calcule l'attention detaillee pour une seule capacite. |
+
+## Propagation de messages
+
+### forward()
+
+Execute la propagation de messages multi-niveaux (V->E->...->V). Les resultats sont mis en cache jusqu'a ce que le graphe change.
+
+```typescript
+const { H, E, cache } = model.forward();
+// H: number[][] — enriched tool embeddings
+// E: number[][] — enriched capability embeddings
+// cache: ForwardCache — intermediate results
+```
+
+<Aside type="tip">
+  `scoreNodes()` appelle `forward()` en interne via le chemin tensor-natif. Vous n'avez besoin de `forward()` directement que si vous voulez les embeddings enrichis bruts.
+</Aside>
+
+## Entrainement
+
+### AutogradTrainer (recommande)
+
+La classe SHGAT elle-meme n'effectue pas d'entrainement. Utilisez `AutogradTrainer` du module d'entrainement, qui fournit la differentiation automatique TensorFlow.js.
+
+```typescript
+import {
+  AutogradTrainer,
+  DEFAULT_TRAINER_CONFIG,
+  type TrainingMetrics,
+} from "@casys/shgat";
+
+const trainer = new AutogradTrainer({
+  ...DEFAULT_TRAINER_CONFIG,
+  numHeads: 16,
+  embeddingDim: 1024,
+  learningRate: 0.05,
+});
+
+// Set embeddings from your SHGAT graph
+trainer.setNodeEmbeddings(embeddings);
+
+// Train on a batch
+const metrics: TrainingMetrics = trainer.trainBatch(examples);
+console.log(`Loss: ${metrics.loss}, Accuracy: ${metrics.accuracy}`);
+```
+
+### Fonctions d'entrainement depreciees
+
+Ces fonctions sont exportees pour la compatibilite ascendante mais levent des erreurs a l'execution. Utilisez `AutogradTrainer` a la place.
+
+| Fonction | Statut |
+|----------|--------|
+| `trainSHGATOnEpisodes()` | Deprecie. Leve une erreur. |
+| `trainSHGATOnEpisodesKHead()` | Deprecie. Leve une erreur. |
+| `trainSHGATOnExecution()` | Deprecie. Leve une erreur. |
+| `shgat.trainBatchV1KHeadBatched()` | Deprecie. Leve une erreur. |
+
+### Buffer PER
+
+Experience Replay Priorisee pour un entrainement efficace en echantillons.
+
+```typescript
+import { PERBuffer, annealBeta, annealTemperature } from "@casys/shgat";
+
+const buffer = new PERBuffer(maxSize);
+buffer.add(example, priority);
+
+const { samples, weights } = buffer.sample(batchSize);
+const beta = annealBeta(epoch, maxEpochs);
+```
+
+## Persistence
+
+### exportParams()
+
+Serialise tous les parametres appris dans un objet compatible JSON pour le stockage.
+
+```typescript
+const serialized = model.exportParams();
+// Store in database, file, etc.
+await Deno.writeTextFile("params.json", JSON.stringify(serialized));
+```
+
+**Retourne :** `Record<string, unknown>` -- contient la config, les parametres de tetes, les parametres de niveaux, les parametres V2V et les poids de fusion.
+
+### importParams()
+
+Restaure les parametres depuis un objet precedemment exporte.
+
+```typescript
+const data = JSON.parse(await Deno.readTextFile("params.json"));
+model.importParams(data);
+```
+
+| Parametre | Type | Description |
+|-----------|------|-------------|
+| `serialized` | `Record<string, unknown>` | Sortie de `exportParams()`. |
+
+L'import des parametres invalide les parametres tensoriels mis en cache. Ils sont recrees paresseusement au prochain appel `scoreNodes()`.
+
+## Gestion des ressources
+
+### dispose()
+
+Libere la memoire GPU utilisee par les parametres tensoriels. Appelez quand l'instance SHGAT n'est plus necessaire.
+
+```typescript
+model.dispose();
+```
+
+Apres `dispose()`, l'instance peut toujours etre utilisee -- les parametres tensoriels sont recrees paresseusement au prochain appel `scoreNodes()`. Mais vous devriez appeler `dispose()` pour eviter les fuites de memoire GPU.
+
+## Configuration
+
+### SHGATConfig
+
+```typescript
+interface SHGATConfig {
+  // Architecture
+  numHeads: number;           // Attention heads (4-16, adaptive). Default: 16
+  hiddenDim: number;          // Hidden dim for scoring. Default: 1024
+  headDim: number;            // Dim per head (hiddenDim / numHeads). Default: 64
+  embeddingDim: number;       // Embedding dim (BGE-M3: 1024). Default: 1024
+  numLayers: number;          // Message passing layers. Default: 2
+  mlpHiddenDim: number;       // Fusion MLP hidden size. Default: 32
+
+  // Training
+  learningRate: number;       // Default: 0.05
+  batchSize: number;          // Default: 32
+  maxContextLength: number;   // Max recent tools in context. Default: 5
+
+  // Buffer management
+  maxBufferSize: number;      // PER buffer cap. Default: 50_000
+  minTracesForTraining: number; // Cold start threshold. Default: 100
+
+  // Regularization
+  dropout: number;            // Default: 0.1
+  l2Lambda: number;           // L2 weight. Default: 0.0001
+  leakyReluSlope: number;     // Default: 0.2
+  depthDecay: number;         // Recursive depth decay. Default: 0.8
+
+  // Dimension preservation
+  preserveDim?: boolean;      // Keep 1024-dim through MP. Default: true
+  preserveDimResidual?: number; // Residual blend weight. Default: 0.3
+  preserveDimResiduals?: number[]; // Per-level residual weights
+
+  // Multi-location residuals
+  v2vResidual?: number;       // V2V phase residual. Default: 0
+  downwardResidual?: number;  // Downward phase residual. Default: 0
+
+  // Gradient scaling
+  mpLearningRateScale?: number; // LR multiplier for MP params. Default: 1
+
+  // Projection head
+  useProjectionHead?: boolean;    // Default: false
+  projectionHiddenDim?: number;   // Default: 256
+  projectionOutputDim?: number;   // Default: 256
+  projectionBlendAlpha?: number;  // Default: 0.5
+  projectionTemperature?: number; // Default: 0.07
+}
+```
+
+### DEFAULT_SHGAT_CONFIG
+
+L'objet de configuration par defaut. Utilise 16 tetes pour des performances optimales (16 tetes x 64 dim = 1024, correspondant aux embeddings BGE-M3).
+
+```typescript
+import { DEFAULT_SHGAT_CONFIG } from "@casys/shgat";
+```
+
+### getAdaptiveConfig()
+
+Retourne une configuration adaptative basee sur le nombre de traces. Deprecie -- `createSHGAT()` utilise `getAdaptiveHeadsByGraphSize()` automatiquement.
+
+```typescript
+import { getAdaptiveConfig } from "@casys/shgat";
+
+const overrides = getAdaptiveConfig(traceCount);
+// Always returns { numHeads: 16, hiddenDim: 1024, headDim: 64, mlpHiddenDim: 32 }
+```
+
+## TrainingExample
+
+Le format d'entree pour les donnees d'entrainement.
+
+```typescript
+interface TrainingExample {
+  intentEmbedding: number[];       // 1024-dim intent embedding
+  contextTools: string[];          // Active tool IDs in session
+  candidateId: string;             // Positive capability ID (was executed)
+  outcome: number;                 // 1 = success, 0 = failure
+  negativeCapIds?: string[];       // Negative IDs for contrastive learning
+  allNegativesSorted?: string[];   // All negatives sorted hard-to-easy (for curriculum)
+}
+```
+
+## Logging
+
+```typescript
+import { setLogger, resetLogger, getLogger, type Logger } from "@casys/shgat";
+
+// Custom logger
+setLogger({
+  info: (msg) => myLogger.info(msg),
+  warn: (msg) => myLogger.warn(msg),
+  error: (msg) => myLogger.error(msg),
+  debug: (msg) => myLogger.debug(msg),
+});
+
+// Reset to default console logger
+resetLogger();
+```

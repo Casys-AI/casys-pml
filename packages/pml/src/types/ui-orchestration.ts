@@ -127,6 +127,18 @@ export interface UiOrchestration {
    * When omitted, UIs operate independently.
    */
   sync?: UiSyncRule[];
+
+  /**
+   * Optional keys to extract from collected UI contexts for shared injection.
+   * These values are extracted from each UI's context and merged into a
+   * shared context object that is injected into all child UIs.
+   *
+   * @example
+   * ```typescript
+   * sharedContext: ["workflowId", "userId", "sessionId"]
+   * ```
+   */
+  sharedContext?: string[];
 }
 
 // ============================================================================
@@ -258,6 +270,12 @@ export interface CompositeUiDescriptor {
    * Tool names from `UiSyncRule` are resolved to slot numbers.
    */
   sync: ResolvedSyncRule[];
+
+  /**
+   * Shared context to inject into all child UIs.
+   * Extracted from collected UI contexts based on `UiOrchestration.sharedContext` keys.
+   */
+  sharedContext?: Record<string, unknown>;
 }
 
 // ============================================================================

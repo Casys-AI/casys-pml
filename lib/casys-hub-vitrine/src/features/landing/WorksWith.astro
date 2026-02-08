@@ -1,0 +1,363 @@
+---
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = locale === 'fr'
+  ? {
+      title: 'Fonctionne avec tout ce que vous utilisez',
+      subtitle: 'CMS, outils statiques et plateformes sociales',
+      items: [
+        { name: 'GitHub', slug: 'github', color: '000000' },
+        { name: 'Lovable', slug: 'lovable', color: 'FF4D4D' },
+        { name: 'Astro', slug: 'astro', color: 'BC52EE' },
+        { name: 'Hugo', slug: 'hugo', color: 'FF4088' },
+        { name: 'WordPress', slug: 'wordpress', color: '21759B' },
+        { name: 'Medium', slug: 'medium', color: '12100E' },
+        { name: 'Substack', slug: 'substack', color: 'FF6719' },
+        { name: 'X (Twitter)', slug: 'x', color: '000000' },
+        { name: 'LinkedIn', slug: 'linkedin', color: '0A66C2' },
+        { name: 'Facebook', slug: 'facebook', color: '0866FF' },
+      ],
+    }
+  : {
+      title: 'Works with everything you use',
+      subtitle: 'CMS, static site tools, and social platforms',
+      items: [
+        { name: 'GitHub', slug: 'github', color: '000000' },
+        { name: 'Lovable', slug: 'lovable', color: 'FF4D4D' },
+        { name: 'Astro', slug: 'astro', color: 'BC52EE' },
+        { name: 'Hugo', slug: 'hugo', color: 'FF4088' },
+        { name: 'WordPress', slug: 'wordpress', color: '21759B' },
+        { name: 'Medium', slug: 'medium', color: '12100E' },
+        { name: 'Substack', slug: 'substack', color: 'FF6719' },
+        { name: 'X (Twitter)', slug: 'x', color: '000000' },
+        { name: 'LinkedIn', slug: 'linkedin', color: '0A66C2' },
+        { name: 'Facebook', slug: 'facebook', color: '0866FF' },
+      ],
+    };
+
+// Helper to build Simple Icons CDN URL
+type Item = { name: string; slug: string; color: string };
+const iconUrl = (i: Item) => `https://cdn.simpleicons.org/${encodeURIComponent(i.slug)}/${i.color}`;
+
+---
+
+<section id="works-with" class="works-with">
+  <div class="container">
+    <!-- Section Header -->
+    <div class="header">
+      <h2 class="title">{t.title}</h2>
+      <p class="subtitle">{t.subtitle}</p>
+    </div>
+
+    <!-- Platform Grid -->
+    <div class="platforms-grid">
+      {t.items.map((item, index) => (
+        <div
+          class="platform-item"
+          style={`animation-delay: ${index * 80}ms`}
+          aria-label={item.name}
+        >
+          <div class="platform-icon">
+            <img
+              src={iconUrl(item)}
+              alt={item.name}
+              width={32}
+              height={32}
+              loading="lazy"
+            />
+          </div>
+          <span class="platform-name">{item.name}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .works-with {
+    padding: 120px 0;
+    background: linear-gradient(135deg,
+      var(--md-sys-color-surface) 0%,
+      var(--md-sys-color-surface-container) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 80px;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .header.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 600ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Platforms Grid */
+  .platforms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+  }
+
+  .platform-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 24px;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 8px rgba(0, 0, 0, 0.02);
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(30px) scale(0.95);
+    cursor: pointer;
+    position: relative;
+    /* Glassmorphism */
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .platform-item.animate-in {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    animation: fadeInUp 600ms var(--md-sys-motion-easing-emphasized) forwards;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .platform-item:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow:
+      0 12px 24px rgba(0, 0, 0, 0.12),
+      0 20px 40px rgba(0, 0, 0, 0.08);
+    background: var(--md-sys-color-primary-container);
+  }
+
+  .platform-item:hover .platform-name {
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  /* Focus-visible state */
+  .platform-item:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  .platform-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    background: var(--md-sys-color-surface);
+    border-radius: 20px;
+    margin-bottom: 16px;
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .platform-item:hover .platform-icon {
+    background: var(--md-sys-color-on-primary-container);
+    transform: scale(1.05) rotate(3deg);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  .platform-icon img {
+    width: 36px;
+    height: 36px;
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .platform-item:hover .platform-icon img {
+    filter: brightness(1.2);
+  }
+
+  .platform-name {
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    text-align: center;
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  /* Dark mode brand gradients */
+  html[data-theme="dark"] .works-with {
+    background: linear-gradient(135deg,
+      var(--casys-background-dark) 0%,
+      rgba(0, 0, 0, 0.95) 100%);
+  }
+
+  html[data-theme="dark"] .platform-item {
+    background: linear-gradient(135deg,
+      rgba(250, 194, 255, 0.08) 0%,
+      rgba(255, 184, 111, 0.05) 100%);
+    border: 1px solid rgba(250, 194, 255, 0.12);
+  }
+
+  html[data-theme="dark"] .platform-item:hover {
+    background: linear-gradient(135deg,
+      rgba(250, 194, 255, 0.15) 0%,
+      rgba(255, 184, 111, 0.12) 100%);
+    box-shadow:
+      0 12px 24px rgba(0, 0, 0, 0.3),
+      0 20px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  html[data-theme="dark"] .title {
+    color: var(--casys-text-primary);
+  }
+
+  html[data-theme="dark"] .subtitle {
+    color: var(--casys-text-secondary);
+  }
+
+  html[data-theme="dark"] .platform-name {
+    color: var(--casys-text-primary);
+  }
+
+  html[data-theme="dark"] .platform-item:hover .platform-name {
+    color: var(--casys-gradient-start);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .works-with {
+      padding: 80px 0;
+    }
+
+    .platforms-grid {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+    }
+
+    .platform-item {
+      padding: 24px 16px;
+    }
+
+    .platform-icon {
+      width: 56px;
+      height: 56px;
+      margin-bottom: 12px;
+    }
+
+    .platform-icon img {
+      width: 28px;
+      height: 28px;
+    }
+
+    .platform-name {
+      font-size: var(--md-sys-typescale-body-medium-size);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .platforms-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+  }
+
+  /* Touch optimizations */
+  @media (pointer: coarse) {
+    .platform-item {
+      padding: 28px 20px;
+    }
+
+    .platform-item:hover {
+      transform: translateY(-4px) scale(1.01);
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .platform-item,
+    .platform-icon,
+    .platform-icon img,
+    .header {
+      animation: none;
+      transition: none;
+    }
+
+    .platform-item:hover {
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  // Intersection Observer for scroll-triggered animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          // Animate header first
+          const header = entry.target.querySelector('.header');
+          if (header) {
+            header.classList.add('animate-in');
+          }
+
+          // Then stagger platform items
+          const platformItems = entry.target.querySelectorAll('.platform-item');
+          platformItems.forEach((item, index) => {
+            setTimeout(() => {
+              item.classList.add('animate-in');
+            }, 200 + index * 80);
+          });
+
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.1, rootMargin: '-50px' }
+  );
+
+  // Observe the section
+  const section = document.querySelector('.works-with');
+  if (section) {
+    observer.observe(section);
+  }
+</script>

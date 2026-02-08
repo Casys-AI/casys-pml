@@ -1,0 +1,234 @@
+---
+title: Entrainement
+description: Perte contrastive InfoNCE, recuit de temperature et experience replay priorisee.
+---
+
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+import ExcalidrawDiagram from '../../../../../components/ExcalidrawDiagram.astro';
+
+SHGAT s'entraine sur des traces d'execution de production. A chaque fois qu'un outil est selectionne et execute, le resultat alimente le modele. Pas de donnees synthetiques, pas de datasets curates manuellement -- le signal d'entrainement provient de l'utilisation reelle.
+
+## Entrainement a partir de traces de production
+
+Chaque exemple d'entrainement est un tuple `(intent, chosen_tool, outcome)` extrait d'executions reelles :
+
+```typescript
+interface TrainingExample {
+  intentEmbedding: number[];     // 1024D BGE-M3 embedding of the user intent
+  candidateId: string;           // The tool that was actually selected (positive)
+  outcome: number;               // 1 = success, 0 = failure
+  contextTools: string[];        // Tools active in the current session
+  negativeCapIds?: string[];     // Other tools (negatives for contrastive loss)
+  allNegativesSorted?: string[]; // All negatives sorted by similarity (hard -> easy)
+}
+```
+
+Le modele n'a pas besoin de milliers d'exemples pour produire des classements utiles. La config `minTracesForTraining` (defaut : 100) definit le seuil de demarrage a froid. En dessous, le modele se rabat sur la similarite d'embedding pure.
+
+## Perte contrastive InfoNCE
+
+SHGAT utilise InfoNCE (Noise-Contrastive Estimation) comme objectif d'entrainement. L'idee est simple : rapprocher la paire positive (intent, chosen_tool) dans l'espace d'embedding, et eloigner les paires negatives.
+
+Pour un batch avec un positif et N negatifs :
+
+```
+L = -log( exp(sim(q, k+) / tau) / (exp(sim(q, k+) / tau) + sum_i exp(sim(q, k_i-) / tau)) )
+```
+
+Ou :
+- `q` = embedding d'intention projete
+- `k+` = embedding de l'outil positif (celui qui a ete selectionne)
+- `k_i-` = embeddings des outils negatifs (outils non selectionnes)
+- `tau` = parametre de temperature (controle la nettete de la distribution)
+- `sim` = similarite par produit scalaire apres attention K-head
+
+Une temperature basse rend la distribution plus nette -- le modele doit etre plus confiant pour scorer le positif plus haut que les negatifs proches. Une temperature elevee est plus indulgente.
+
+## Recuit de temperature
+
+<ExcalidrawDiagram src="shgat/shgat-training" alt="Boucle d'entrainement SHGAT" />
+
+La temperature commence chaude et refroidit au cours de l'entrainement. Au debut, le modele explore largement (haute temperature = probabilites douces). Plus tard, il se concentre sur les distinctions fines (basse temperature = probabilites nettes).
+
+SHGAT utilise un recuit cosinus :
+
+```
+tau(t) = tau_end + (tau_start - tau_end) * 0.5 * (1 + cos(pi * t / T))
+```
+
+<Tabs>
+  <TabItem label="Fonction de recuit">
+    ```typescript
+    import { annealTemperature } from "@casys/shgat";
+
+    const totalEpochs = 25;
+    const tauStart = 0.10;  // Warm: soft probabilities
+    const tauEnd = 0.06;    // Cool: sharp distinctions
+
+    for (let epoch = 0; epoch < totalEpochs; epoch++) {
+      const tau = annealTemperature(epoch, totalEpochs, tauStart, tauEnd);
+      // epoch 0:  tau = 0.100
+      // epoch 12: tau = 0.080
+      // epoch 24: tau = 0.060
+    }
+    ```
+  </TabItem>
+  <TabItem label="Visualisation de la courbe">
+    ```
+    tau
+    0.10 |*
+         | **
+         |   ***
+    0.08 |      ****
+         |          ****
+         |              ****
+    0.06 |                  *****
+         +-------------------------
+         0        12        24
+                epoch
+    ```
+  </TabItem>
+</Tabs>
+
+Le recuit cosinus ralentit en fin de parcours, laissant au modele le temps de se stabiliser dans un minimum stable plutot que de le depasser.
+
+## Minage de negatifs difficiles
+
+Tous les negatifs ne sont pas egalement utiles. Un negatif manifestement non pertinent (par ex. `git_commit` quand l'intention porte sur des requetes base de donnees) fournit un signal de gradient quasi nul. Le modele le score deja bas.
+
+Les negatifs difficiles sont des outils semantiquement proches du positif mais fonctionnellement differents. Ce sont les cas ou le modele doit developper une discrimination fine.
+
+SHGAT pre-trie tous les negatifs par similarite avec le positif :
+
+```typescript
+interface TrainingExample {
+  // ...
+  allNegativesSorted?: string[];  // Hard -> easy order
+}
+```
+
+Pendant l'entrainement, l'apprentissage par curriculum selectionne les negatifs de differents paliers de difficulte selon la precision actuelle du modele :
+
+| Precision | Palier | Negatifs echantillonnes depuis |
+|---|---|---|
+| < 0.35 | Facile | Dernier tiers (les plus dissimilaires) |
+| 0.35 - 0.55 | Moyen | Tiers central |
+| > 0.55 | Difficile | Premier tiers (les plus similaires) |
+
+Cela empeche le modele de rester bloque sur des exemples qu'il ne peut pas encore gerer, tout en augmentant progressivement la difficulte a mesure que la precision s'ameliore.
+
+## Experience Replay Priorisee (PER)
+
+Tous les exemples d'entrainement ne meritent pas une attention egale. Les exemples ou le modele fait de grosses erreurs sont plus informatifs que ceux qu'il gere deja correctement. PER echantillonne les exemples proportionnellement a l'ampleur de leur erreur.
+
+```typescript
+import { PERBuffer, annealBeta } from "@casys/shgat";
+
+// Wrap your training examples in a PER buffer
+const buffer = new PERBuffer(trainingExamples, {
+  alpha: 0.6,        // Priority exponent (0 = uniform, 1 = full prioritization)
+  beta: 0.4,         // IS weight correction (annealed to 1.0)
+  epsilon: 0.01,     // Floor to prevent starvation
+  maxPriority: 1.0,  // Initial priority for new examples
+});
+
+// Sample a batch -- high-error examples are sampled more often
+const { items, indices, weights } = buffer.sample(batchSize);
+
+// After training, update priorities with the new errors
+const tdErrors = items.map((ex) => computeError(ex));
+buffer.updatePriorities(indices, tdErrors);
+
+// Decay priorities periodically to prevent stale high-priority examples
+buffer.decayPriorities(0.9);
+```
+
+Les poids d'importance sampling (`weights`) corrigent le biais d'echantillonnage. Sans eux, le modele sur-apprendrait sur les exemples difficiles. Beta est recuit de 0.4 a 1.0 au cours de l'entrainement -- correction partielle au debut, correction complete a convergence.
+
+## Boucle d'entrainement
+
+Une boucle d'entrainement complete avec recuit de temperature, PER et apprentissage par curriculum :
+
+<Steps>
+1. **Collectez les traces** depuis les executions de production dans `TrainingExample[]`.
+
+2. **Initialisez le buffer et le trainer** :
+
+    ```typescript
+    import { SHGAT, PERBuffer, annealTemperature, annealBeta } from "@casys/shgat";
+    import { AutogradTrainer } from "@casys/shgat/training";
+
+    const shgat = new SHGAT({ numHeads: 16 });
+    // ... register nodes, finalize ...
+
+    const buffer = new PERBuffer(trainingExamples);
+    const trainer = new AutogradTrainer({
+      learningRate: 0.001,
+      batchSize: 32,
+      temperature: 0.07,
+      gradientClip: 1.0,
+      l2Lambda: 0.0001,
+    });
+    ```
+
+3. **Executez la boucle d'entrainement** :
+
+    ```typescript
+    const totalEpochs = 25;
+
+    for (let epoch = 0; epoch < totalEpochs; epoch++) {
+      // Anneal temperature: 0.10 -> 0.06
+      const tau = annealTemperature(epoch, totalEpochs, 0.10, 0.06);
+
+      // Anneal beta for IS correction: 0.4 -> 1.0
+      const beta = annealBeta(epoch, totalEpochs, 0.4);
+
+      // Sample batch with PER
+      const { items, indices, weights } = buffer.sample(32, beta);
+
+      // Train on batch
+      const metrics = trainer.trainBatch(items, {
+        temperature: tau,
+        isWeights: weights,
+      });
+
+      // Update priorities from training errors
+      const errors = items.map((_, i) => metrics.perExampleLoss?.[i] ?? metrics.loss);
+      buffer.updatePriorities(indices, errors);
+
+      // Decay stale priorities every 5 epochs
+      if (epoch % 5 === 0) {
+        buffer.decayPriorities(0.9);
+      }
+
+      console.log(
+        `Epoch ${epoch}: loss=${metrics.loss.toFixed(4)} ` +
+        `acc=${metrics.accuracy.toFixed(3)} tau=${tau.toFixed(3)}`
+      );
+    }
+    ```
+
+4. **Exportez les parametres entraines** :
+
+    ```typescript
+    const params = shgat.exportParams();
+    await Deno.writeTextFile("shgat-params.json", JSON.stringify(params));
+    ```
+</Steps>
+
+<Aside type="note" title="Benchmarks">
+  Sur un catalogue de production de 245 noeuds (218 feuilles + 26 composites + 1 racine) avec 16 tetes et 25 epoques d'entrainement :
+
+  | Metrique | Valeur |
+  |---|---|
+  | Hit@1 | 56.2% |
+  | Hit@3 | 86.3% |
+  | MRR | 0.705 |
+
+  Hit@1 = l'outil correct est classe premier. Hit@3 = l'outil correct est dans le top 3. MRR = rang reciproque moyen sur toutes les requetes.
+</Aside>
+
+## Voir aussi
+
+- [Architecture](/fr/docs/shgat/architecture/) -- Attention K-head et propagation de messages
+- [Persistence](/fr/docs/shgat/persistence/) -- Sauvegarde et chargement des parametres entraines

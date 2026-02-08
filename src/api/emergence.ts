@@ -49,16 +49,10 @@ export type {
   Trend,
 } from "../shared/emergence.types.ts";
 
+import type { EmergenceSnapshot } from "./types.ts";
+
 // History for phase transition detection and trend computation (in-memory, resets on restart)
 // CR-2: TODO - Persist to database for real historical data across restarts
-interface EmergenceSnapshot {
-  timestamp: number;
-  entropy: number;
-  stability: number;
-  diversity: number;
-  velocity: number;
-  accuracy: number;
-}
 const emergenceHistory: EmergenceSnapshot[] = [];
 const MAX_HISTORY_SIZE = 20;
 
@@ -264,9 +258,69 @@ function generateRecommendations(
 }
 
 /**
- * Fetch real timeseries data from database
- * Uses execution_trace for velocity and algorithm_traces for accuracy
- * Story 9.8: Respects scope filter (user vs system)
+ * Get interval hours for time range.
+ */
+function getIntervalHours(range: EmergenceTimeRange): number {
+  switch (range) {
+    case "1h": return 1;
+    case "24h": return 24;
+    case "7d": return 168;
+    case "30d": return 720;
+  }
+}
+
+/**
+ * Get bucket minutes for time range.
+ */
+function getBucketMinutes(range: EmergenceTimeRange): number {
+  switch (range) {
+    case "1h": return 5;
+    case "24h": return 60;
+    case "7d": return 360;
+    case "30d": return 1440;
+  }
+}
+
+/**
+ * Get entropy limit for time range.
+ */
+function getEntropyLimit(range: EmergenceTimeRange): number {
+  switch (range) {
+    case "1h": return 50;
+    case "24h": return 200;
+    case "7d": return 1000;
+    case "30d": return 3000;
+  }
+}
+
+/**
+ * Get number of points for flat timeseries generation.
+ */
+function getTimeseriesPoints(range: EmergenceTimeRange): number {
+  switch (range) {
+    case "1h": return 12;
+    case "24h": return 24;
+    case "7d": return 28;
+    case "30d": return 30;
+  }
+}
+
+/**
+ * Get interval in ms for flat timeseries generation.
+ */
+function getTimeseriesInterval(range: EmergenceTimeRange): number {
+  switch (range) {
+    case "1h": return 5 * 60 * 1000;      // 5 minutes
+    case "24h": return 60 * 60 * 1000;    // 1 hour
+    case "7d": return 6 * 60 * 60 * 1000; // 6 hours
+    case "30d": return 24 * 60 * 60 * 1000; // 24 hours
+  }
+}
+
+/**
+ * Fetch real timeseries data from database.
+ * Uses execution_trace for velocity and algorithm_traces for accuracy.
+ * Story 9.8: Respects scope filter (user vs system).
  */
 async function fetchRealTimeseries(
   db: DbClient | undefined,
@@ -281,8 +335,8 @@ async function fetchRealTimeseries(
     return generateFlatTimeseries(range, currentEntropy, currentStability, 0);
   }
 
-  const intervalHours = range === "1h" ? 1 : range === "24h" ? 24 : range === "7d" ? 168 : 720;
-  const bucketMinutes = range === "1h" ? 5 : range === "24h" ? 60 : range === "7d" ? 360 : 1440;
+  const intervalHours = getIntervalHours(range);
+  const bucketMinutes = getBucketMinutes(range);
   const startDate = new Date(Date.now() - intervalHours * 60 * 60 * 1000);
 
   try {
@@ -337,7 +391,7 @@ async function fetchRealTimeseries(
     // Story 6.6: Now includes semantic and dual entropy timeseries
     // Calculate appropriate limit based on range
     // ~60 records/day, so: 1h=10, 24h=100, 7d=500, 30d=2000
-    const entropyLimit = range === "1h" ? 50 : range === "24h" ? 200 : range === "7d" ? 1000 : 3000;
+    const entropyLimit = getEntropyLimit(range);
 
     const entropyHistory = await getEntropyHistory(db, {
       limit: entropyLimit,
@@ -410,15 +464,8 @@ function generateFlatTimeseries(
   currentVelocity: number,
 ): EmergenceMetricsResponse["timeseries"] {
   const now = Date.now();
-  const points = range === "1h" ? 12 : range === "24h" ? 24 : range === "7d" ? 28 : 30;
-  const interval =
-    range === "1h"
-      ? 5 * 60 * 1000
-      : range === "24h"
-        ? 60 * 60 * 1000
-        : range === "7d"
-          ? 6 * 60 * 60 * 1000
-          : 24 * 60 * 60 * 1000;
+  const points = getTimeseriesPoints(range);
+  const interval = getTimeseriesInterval(range);
 
   const entropy: Array<{ timestamp: string; value: number }> = [];
   const stability: Array<{ timestamp: string; value: number }> = [];

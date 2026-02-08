@@ -11,25 +11,9 @@
 import type { EventType, PmlEvent } from "../events/types.ts";
 import { eventBus } from "../events/mod.ts";
 import { getLogger } from "./logger.ts";
+import type { LatencyHistogram } from "./types.ts";
 
 const logger = getLogger("default");
-
-/**
- * Histogram bucket for latency distribution
- */
-interface HistogramBucket {
-  le: number; // Less than or equal
-  count: number;
-}
-
-/**
- * Latency histogram with predefined buckets
- */
-interface LatencyHistogram {
-  buckets: HistogramBucket[];
-  sum: number;
-  count: number;
-}
 
 /**
  * Aggregated metrics snapshot
@@ -198,23 +182,14 @@ export class MetricsCollector {
     const payload = event.payload as Record<string, unknown>;
 
     switch (eventType) {
-      // Tool events
       case "tool.start":
         this.toolCallsTotal++;
         break;
 
       case "tool.end":
-        if (payload.success) {
-          this.toolCallsSuccess++;
-        } else {
-          this.toolCallsFailed++;
-        }
-        if (typeof payload.durationMs === "number") {
-          observeHistogram(this.toolCallDuration, payload.durationMs);
-        }
+        this.handleToolEnd(payload);
         break;
 
-      // Capability events
       case "capability.start":
         this.capabilityExecutionsTotal++;
         break;
@@ -227,20 +202,12 @@ export class MetricsCollector {
         this.capabilityMatchedTotal++;
         break;
 
-      // DAG events
       case "dag.started":
-        this.dagExecutionsTotal++;
-        if (typeof payload.executionId === "string") {
-          this.activeDags.add(payload.executionId);
-          this.activeDagExecutions = this.activeDags.size;
-        }
+        this.handleDagStarted(payload);
         break;
 
       case "dag.task.completed":
-        this.dagTasksCompleted++;
-        if (typeof payload.durationMs === "number") {
-          observeHistogram(this.dagTaskDuration, payload.durationMs);
-        }
+        this.handleDagTaskCompleted(payload);
         break;
 
       case "dag.task.failed":
@@ -248,16 +215,9 @@ export class MetricsCollector {
         break;
 
       case "dag.completed":
-        if (typeof payload.executionId === "string") {
-          this.activeDags.delete(payload.executionId);
-          this.activeDagExecutions = this.activeDags.size;
-        }
-        if (typeof payload.totalDurationMs === "number") {
-          observeHistogram(this.dagExecutionDuration, payload.totalDurationMs);
-        }
+        this.handleDagCompleted(payload);
         break;
 
-      // Graph events
       case "graph.edge.created":
         this.graphEdgesCreated++;
         break;
@@ -270,33 +230,9 @@ export class MetricsCollector {
         this.graphSyncsTotal++;
         break;
 
-      // Algorithm events
-      case "algorithm.scored": {
-        this.algoScoredTotal++;
-        const algoName = String(payload.algorithm || "unknown");
-        const score = typeof payload.finalScore === "number" ? payload.finalScore : 0;
-        const decision = String(payload.decision || "");
-
-        // Track by algorithm name
-        if (!this.algoByName[algoName]) {
-          this.algoByName[algoName] = { scored: 0, accepted: 0, rejected: 0, scoreSum: 0 };
-        }
-        this.algoByName[algoName].scored++;
-        this.algoByName[algoName].scoreSum += score;
-
-        // Track decisions
-        if (decision === "accepted") {
-          this.algoAcceptedTotal++;
-          this.algoByName[algoName].accepted++;
-        } else if (decision === "rejected" || decision === "rejected_by_threshold") {
-          this.algoRejectedTotal++;
-          this.algoByName[algoName].rejected++;
-        }
-
-        // Score histogram (0-1 scaled to 0-100)
-        observeHistogram(this.algoScoreDistribution, score * 100);
+      case "algorithm.scored":
+        this.handleAlgorithmScored(payload);
         break;
-      }
 
       case "algorithm.filtered":
         this.algoFilteredTotal++;
@@ -314,17 +250,71 @@ export class MetricsCollector {
         this.algoFeedbackRejected++;
         break;
 
-      // System events
       case "heartbeat":
         if (typeof payload.connectedClients === "number") {
           this.connectedSseClients = payload.connectedClients;
         }
         break;
-
-      default:
-        // Ignore other events
-        break;
     }
+  }
+
+  private handleToolEnd(payload: Record<string, unknown>): void {
+    if (payload.success) {
+      this.toolCallsSuccess++;
+    } else {
+      this.toolCallsFailed++;
+    }
+    if (typeof payload.durationMs === "number") {
+      observeHistogram(this.toolCallDuration, payload.durationMs);
+    }
+  }
+
+  private handleDagStarted(payload: Record<string, unknown>): void {
+    this.dagExecutionsTotal++;
+    if (typeof payload.executionId === "string") {
+      this.activeDags.add(payload.executionId);
+      this.activeDagExecutions = this.activeDags.size;
+    }
+  }
+
+  private handleDagTaskCompleted(payload: Record<string, unknown>): void {
+    this.dagTasksCompleted++;
+    if (typeof payload.durationMs === "number") {
+      observeHistogram(this.dagTaskDuration, payload.durationMs);
+    }
+  }
+
+  private handleDagCompleted(payload: Record<string, unknown>): void {
+    if (typeof payload.executionId === "string") {
+      this.activeDags.delete(payload.executionId);
+      this.activeDagExecutions = this.activeDags.size;
+    }
+    if (typeof payload.totalDurationMs === "number") {
+      observeHistogram(this.dagExecutionDuration, payload.totalDurationMs);
+    }
+  }
+
+  private handleAlgorithmScored(payload: Record<string, unknown>): void {
+    this.algoScoredTotal++;
+    const algoName = String(payload.algorithm || "unknown");
+    const score = typeof payload.finalScore === "number" ? payload.finalScore : 0;
+    const decision = String(payload.decision || "");
+
+    if (!this.algoByName[algoName]) {
+      this.algoByName[algoName] = { scored: 0, accepted: 0, rejected: 0, scoreSum: 0 };
+    }
+    this.algoByName[algoName].scored++;
+    this.algoByName[algoName].scoreSum += score;
+
+    if (decision === "accepted") {
+      this.algoAcceptedTotal++;
+      this.algoByName[algoName].accepted++;
+    } else if (decision === "rejected" || decision === "rejected_by_threshold") {
+      this.algoRejectedTotal++;
+      this.algoByName[algoName].rejected++;
+    }
+
+    observeHistogram(this.algoScoreDistribution, score * 100);
   }
 
   /**

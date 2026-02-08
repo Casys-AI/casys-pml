@@ -10,74 +10,25 @@
 import * as log from "@std/log";
 import type { RouteContext } from "../mcp/routing/types.ts";
 import { errorResponse, jsonResponse } from "../mcp/routing/types.ts";
+import {
+  MAX_NAME_LENGTH,
+  type ToolsSyncRequest,
+  UUID_REGEX,
+  VALID_NAME_PATTERN,
+} from "./types.ts";
+import { ensureUiCacheReady } from "../services/ui-cache-service.ts";
 
 /**
  * Normalize userId to valid UUID.
  * Maps "local" and other non-UUID values to LOCAL_DEV_USER_ID from env.
  */
 function normalizeUserId(userId: string): string | null {
-  // Check if already valid UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (uuidRegex.test(userId)) {
+  if (UUID_REGEX.test(userId)) {
     return userId;
   }
-  // Map non-UUID values to dev UUID from env
   const devUserId = Deno.env.get("LOCAL_DEV_USER_ID");
   log.debug(`[tools/sync] normalizeUserId: "${userId}" → devUserId=${devUserId ?? "NOT SET"}`);
   return devUserId ?? null;
-}
-
-/**
- * Input for a discovered tool from client.
- */
-interface DiscoveredToolInput {
-  name: string;
-  description?: string;
-  inputSchema?: Record<string, unknown>;
-}
-
-/**
- * Discovery result for a single MCP server.
- */
-interface DiscoveryResultInput {
-  serverName: string;
-  tools: DiscoveredToolInput[];
-  error?: string;
-}
-
-/**
- * Request body for POST /api/tools/sync.
- */
-interface ToolsSyncRequest {
-  tools: DiscoveryResultInput[];
-  observedArgs?: Record<string, string[]>;
-}
-
-// F1 Fix: Server-side validation for tool names and server names
-// Must match client-side validation in mcp-discovery.ts (F10)
-const MAX_NAME_LENGTH = 256;
-const VALID_NAME_PATTERN = /^[a-zA-Z0-9_\-\.]+$/;
-
-/**
- * F9 Fix: Convert JS string[] to PostgreSQL TEXT[] literal format.
- * Works with both postgres.js (.unsafe()) and PGlite (.exec()).
- *
- * Format: {val1,val2} or {"val with space","another"}
- */
-function toPostgresArray(arr: string[]): string {
-  if (arr.length === 0) return "{}";
-
-  const escaped = arr.map((val) => {
-    // Escape backslashes and double quotes
-    const esc = val.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    // Quote if contains special chars (comma, space, brace, quote, backslash)
-    if (/[,\s{}"\\ ]/.test(val)) {
-      return `"${esc}"`;
-    }
-    return esc;
-  });
-
-  return `{${escaped.join(",")}}`;
 }
 
 /**
@@ -154,7 +105,7 @@ export async function handleToolsSync(
 
   try {
     const body = await req.json() as ToolsSyncRequest;
-    const { tools, observedArgs = {} } = body;
+    const { tools, observedConfig = {} } = body;
 
     if (!Array.isArray(tools)) {
       return errorResponse("Invalid request: 'tools' must be an array", 400, corsHeaders);
@@ -162,6 +113,8 @@ export async function handleToolsSync(
 
     let syncedTools = 0;
     let syncedObservations = 0;
+    // Track first tool_id per server for FK compliance in tool_observations
+    const serverFirstToolId = new Map<string, string>();
 
     for (const result of tools) {
       // Skip servers with errors
@@ -176,8 +129,6 @@ export async function handleToolsSync(
         continue;
       }
 
-      const args = observedArgs[result.serverName] || [];
-
       for (const tool of result.tools) {
         // F1 Fix: Validate tool.name to prevent injection/malformed data
         if (!isValidName(tool.name)) {
@@ -187,44 +138,97 @@ export async function handleToolsSync(
 
         const toolId = `${result.serverName}:${tool.name}`;
 
-        // F15 Fix: Wrap both inserts in transaction for atomicity
+        // F15 Fix: Wrap in transaction for atomicity
         try {
           await db.transaction(async (tx) => {
-            // 1. Upsert tool_schema (global, not multi-tenant)
+            // Upsert tool_schema (global, not multi-tenant)
+            // Story 16.6: Include ui_meta for MCP Apps UI support
+            // Note: Pass objects directly - postgres.js handles JSONB serialization
+            // Do NOT use JSON.stringify() as it causes double-encoding
             await tx.exec(`
-              INSERT INTO tool_schema (tool_id, server_id, name, description, input_schema)
-              VALUES ($1, $2, $3, $4, $5)
+              INSERT INTO tool_schema (tool_id, server_id, name, description, input_schema, ui_meta)
+              VALUES ($1, $2, $3, $4, $5, $6)
               ON CONFLICT (tool_id) DO UPDATE SET
                 description = EXCLUDED.description,
                 input_schema = EXCLUDED.input_schema,
+                ui_meta = EXCLUDED.ui_meta,
                 cached_at = NOW()
-            `, [toolId, result.serverName, tool.name, tool.description || null, JSON.stringify(tool.inputSchema || {})]);
-
-            // 2. Insert observation (multi-tenant) - skip if no valid userId
-            // F9 Fix: Serialize args to PostgreSQL array literal for cross-driver compatibility
-            if (userId) {
-              await tx.exec(`
-                INSERT INTO tool_observations (user_id, tool_id, server_namespace, observed_args)
-                VALUES ($1, $2, $3, $4::text[])
-                ON CONFLICT (user_id, tool_id, observed_args) DO UPDATE SET
-                  observed_at = NOW()
-              `, [userId, toolId, result.serverName, toPostgresArray(args)]);
-              syncedObservations++;
-            }
+            `, [toolId, result.serverName, tool.name, tool.description || null, tool.inputSchema || {}, tool.uiMeta ?? null]);
           });
 
           syncedTools++;
+          // Track first tool_id for this server (for FK in tool_observations)
+          if (!serverFirstToolId.has(result.serverName)) {
+            serverFirstToolId.set(result.serverName, toolId);
+          }
         } catch (error) {
           log.warn(`[tools/sync] Failed to sync tool ${toolId}: ${error}`);
         }
       }
     }
 
-    log.info(`[tools/sync] User ${userId?.slice(0, 8) ?? rawUserId}: synced ${syncedTools} tools, ${syncedObservations} observations`);
+    // Tech-spec 01.5: Store server spawn configs in tool_observations
+    // One observation per server (not per tool) with full config JSONB
+    if (userId) {
+      for (const [serverName, config] of Object.entries(observedConfig)) {
+        if (!isValidName(serverName)) {
+          log.warn(`[tools/sync] Invalid serverName in observedConfig, skipping: ${JSON.stringify(serverName).slice(0, 50)}`);
+          continue;
+        }
+
+        // Get a real tool_id for FK compliance (use first tool synced for this server)
+        const representativeToolId = serverFirstToolId.get(serverName);
+        if (!representativeToolId) {
+          log.debug(`[tools/sync] No tools synced for ${serverName}, skipping config observation`);
+          continue;
+        }
+
+        try {
+          await db.exec(`
+            INSERT INTO tool_observations (user_id, tool_id, server_namespace, observed_config)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id, server_namespace) DO UPDATE SET
+              observed_config = EXCLUDED.observed_config,
+              observed_at = NOW()
+          `, [userId, representativeToolId, serverName, config]);
+          syncedObservations++;
+        } catch (error) {
+          log.warn(`[tools/sync] Failed to sync config for ${serverName}: ${error}`);
+        }
+      }
+    }
+
+    // Story 16.6: Store UI HTML in KV cache
+    let cachedUis = 0;
+    for (const result of tools) {
+      if (result.uiHtml && Array.isArray(result.uiHtml)) {
+        try {
+          const cacheService = await ensureUiCacheReady();
+
+          for (const ui of result.uiHtml) {
+            if (ui.resourceUri && ui.content) {
+              await cacheService.set(
+                ui.resourceUri,
+                ui.content,
+                ui.mimeType || "text/html",
+                result.serverName,
+              );
+              cachedUis++;
+              log.debug(`[tools/sync] Cached UI: ${ui.resourceUri} from ${result.serverName}`);
+            }
+          }
+        } catch (error) {
+          log.warn(`[tools/sync] Failed to cache UIs from ${result.serverName}: ${error}`);
+        }
+      }
+    }
+
+    log.info(`[tools/sync] User ${userId?.slice(0, 8) ?? rawUserId}: synced ${syncedTools} tools, ${syncedObservations} observations, ${cachedUis} UIs`);
 
     return jsonResponse({
       synced: syncedTools,
       observations: syncedObservations,
+      cachedUis,
     }, 200, corsHeaders);
   } catch (error) {
     // F13 Fix: Log full error server-side, return generic message to client

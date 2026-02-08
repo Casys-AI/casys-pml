@@ -55,20 +55,26 @@ export class MCPClientRegistryAdapter extends MCPClientRegistry {
    */
   async refreshTools(): Promise<void> {
     const tools: MCPTool[] = [];
-    for (const [serverId, client] of this.clients) {
-      try {
-        const clientTools = await client.listTools();
-        for (const tool of clientTools) {
-          tools.push({
+
+    const refreshPromises = Array.from(this.clients.entries()).map(
+      async ([serverId, client]) => {
+        try {
+          const clientTools = await client.listTools();
+          return clientTools.map((tool) => ({
             ...tool,
-            // Prefix tool name with server ID for routing
             name: `${serverId}:${tool.name}`,
-          });
+          }));
+        } catch {
+          return [];
         }
-      } catch {
-        // Skip clients that fail to list tools
-      }
+      },
+    );
+
+    const results = await Promise.all(refreshPromises);
+    for (const clientTools of results) {
+      tools.push(...clientTools);
     }
+
     this.toolsCache = tools;
   }
 

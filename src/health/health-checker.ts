@@ -22,6 +22,13 @@ export interface ServerHealth {
   errorMessage: string | null;
 }
 
+export interface HealthSummary {
+  total: number;
+  healthy: number;
+  degraded: number;
+  down: number;
+}
+
 /**
  * Health checker for MCP servers
  *
@@ -45,31 +52,38 @@ export class HealthChecker {
    * Perform initial health check at startup
    */
   async initialHealthCheck(): Promise<void> {
-    console.error("🏥 Performing initial health check...\n");
+    log.info("Performing initial health check...");
 
     // Check all servers in parallel for faster startup
-    const checks = Array.from(this.mcpClients.entries()).map(
-      async ([serverId, client]) => {
-        const health = await this.checkServer(serverId, client);
-        this.healthMap.set(serverId, health);
-        return health;
-      },
-    );
+    const checks = Array.from(this.mcpClients.entries()).map(async ([serverId, client]) => {
+      const health = await this.checkServer(serverId, client);
+      this.healthMap.set(serverId, health);
+      return health;
+    });
 
     const results = await Promise.all(checks);
+    this.logHealthResults(results);
 
-    // Log results
+    const summary = this.getHealthSummary();
+    log.info(`Health summary: ${summary.healthy}/${summary.total} servers healthy`);
+
+    if (summary.down > 0) {
+      log.warn(`Warning: ${summary.down} server(s) are down. Some tools may be unavailable.`);
+    }
+  }
+
+  /**
+   * Log health check results for each server
+   */
+  private logHealthResults(results: ServerHealth[]): void {
     for (const health of results) {
       const icon = this.getStatusIcon(health.status);
-      console.error(
-        `${icon} ${health.serverName} (${health.serverId}): ${health.status}`,
-      );
+      log.info(`${icon} ${health.serverName} (${health.serverId}): ${health.status}`);
 
       if (health.errorMessage) {
-        console.error(`   └─ ${health.errorMessage}`);
+        log.info(`   └─ ${health.errorMessage}`);
       }
 
-      // Structured logging
       log.info("Health check completed", {
         server_id: health.serverId,
         server_name: health.serverName,
@@ -79,25 +93,16 @@ export class HealthChecker {
         error: health.errorMessage,
       });
     }
-
-    const summary = this.getHealthSummary();
-    console.error(`\n📊 Health summary: ${summary.healthy}/${summary.total} servers healthy\n`);
-
-    if (summary.down > 0) {
-      console.warn(
-        `⚠️  Warning: ${summary.down} server(s) are down. Some tools may be unavailable.`,
-      );
-    }
   }
 
   /**
    * Start periodic health checks
    */
   startPeriodicChecks(): void {
-    console.error("🔄 Starting periodic health checks (every 5 minutes)");
+    log.info("Starting periodic health checks (every 5 minutes)");
 
-    this.checkInterval = setInterval(async () => {
-      await this.performHealthCheck();
+    this.checkInterval = setInterval(() => {
+      this.performHealthCheck();
     }, this.CHECK_INTERVAL_MS);
   }
 
@@ -105,10 +110,10 @@ export class HealthChecker {
    * Stop periodic health checks
    */
   stopPeriodicChecks(): void {
-    if (this.checkInterval !== null) {
-      clearInterval(this.checkInterval);
-      this.checkInterval = null;
-    }
+    if (this.checkInterval === null) return;
+
+    clearInterval(this.checkInterval);
+    this.checkInterval = null;
   }
 
   /**
@@ -141,29 +146,20 @@ export class HealthChecker {
   /**
    * Check individual server with retries
    */
-  private async checkServer(
-    serverId: string,
-    client: MCPClientBase,
-  ): Promise<ServerHealth> {
+  private async checkServer(serverId: string, client: MCPClientBase): Promise<ServerHealth> {
     const serverName = client.serverName || serverId;
-    let consecutiveFailures = 0;
     let lastError: string | null = null;
-    let retriesNeeded = 0;
 
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
         const startTime = performance.now();
-
-        // Ping server (list_tools is a good health check)
         await client.listTools();
-
         const latency = performance.now() - startTime;
 
-        // Determine status based on latency and retries needed
-        let status: HealthStatus = "healthy";
-        if (latency > this.DEGRADED_LATENCY_THRESHOLD || retriesNeeded > 0) {
-          status = "degraded";
-        }
+        // Degraded if high latency or needed retries
+        const status: HealthStatus = latency > this.DEGRADED_LATENCY_THRESHOLD || attempt > 1
+          ? "degraded"
+          : "healthy";
 
         return {
           serverId,
@@ -176,15 +172,12 @@ export class HealthChecker {
           errorMessage: null,
         };
       } catch (error) {
-        consecutiveFailures++;
-        retriesNeeded = attempt;
         lastError = error instanceof Error ? error.message : String(error);
 
         // Retry with exponential backoff
         if (attempt < this.MAX_RETRIES) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, this.RETRY_DELAY_MS * Math.pow(2, attempt - 1))
-          );
+          const delay = this.RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     }
@@ -197,8 +190,8 @@ export class HealthChecker {
       serverName,
       status: "down",
       lastCheck: new Date(),
-      lastSuccess: previousHealth?.lastSuccess || null,
-      consecutiveFailures: (previousHealth?.consecutiveFailures || 0) + 1,
+      lastSuccess: previousHealth?.lastSuccess ?? null,
+      consecutiveFailures: (previousHealth?.consecutiveFailures ?? 0) + 1,
       latencyMs: null,
       errorMessage: lastError,
     };
@@ -221,20 +214,15 @@ export class HealthChecker {
   /**
    * Get health summary
    */
-  getHealthSummary(): {
-    total: number;
-    healthy: number;
-    degraded: number;
-    down: number;
-  } {
+  getHealthSummary(): HealthSummary {
     const statuses = Array.from(this.healthMap.values());
+    const summary: HealthSummary = { total: statuses.length, healthy: 0, degraded: 0, down: 0 };
 
-    return {
-      total: statuses.length,
-      healthy: statuses.filter((s) => s.status === "healthy").length,
-      degraded: statuses.filter((s) => s.status === "degraded").length,
-      down: statuses.filter((s) => s.status === "down").length,
-    };
+    for (const s of statuses) {
+      summary[s.status]++;
+    }
+
+    return summary;
   }
 
   private getStatusIcon(status: HealthStatus): string {
@@ -253,12 +241,10 @@ export class HealthChecker {
     current: ServerHealth,
   ): void {
     const icon = this.getStatusIcon(current.status);
-    console.warn(
-      `${icon} ${current.serverName}: ${previous.status} → ${current.status}`,
-    );
+    log.warn(`${icon} ${current.serverName}: ${previous.status} → ${current.status}`);
 
     if (current.errorMessage) {
-      console.warn(`   └─ ${current.errorMessage}`);
+      log.warn(`   └─ ${current.errorMessage}`);
     }
 
     log.warn("Server status changed", {

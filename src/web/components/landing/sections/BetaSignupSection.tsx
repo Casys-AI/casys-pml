@@ -9,235 +9,79 @@
 
 export function BetaSignupSection() {
   return (
-    <section id="beta" class="beta">
-      {/* Label */}
-      <div class="beta__label">Early Access</div>
-
-      {/* Title */}
-      <h2 class="beta__title">Join the Beta</h2>
-      <p class="beta__subtitle">
-        Be among the first to give your agents procedural memory.
-        <br />
-        We'll reach out with access details.
+    <section
+      id="beta"
+      class="relative py-16 px-8 sm:py-12 sm:px-5 bg-[#08080a] border-t border-white/[0.04]"
+    >
+      <p class="text-center font-mono text-[0.7rem] uppercase tracking-[0.2em] text-pml-accent mb-4">
+        Early Access
       </p>
 
-      {/* Form */}
+      <h2 class="font-serif text-[clamp(1.5rem,3vw,2.25rem)] font-normal text-stone-100 text-center mb-2">
+        Join the Beta
+      </h2>
+      <p class="font-sans text-[0.95rem] text-stone-500 text-center mb-8 leading-relaxed">
+        Be among the first to give your agents procedural memory.
+      </p>
+
       <form
-        class="beta__form"
+        class="max-w-full sm:max-w-[360px] mx-auto"
         action="https://formspree.io/f/movnynen"
         method="POST"
       >
-        <div class="beta__fields">
-          <div class="beta__field">
-            <label class="beta__field-label" for="beta-name">Name</label>
+        <div class="flex flex-col gap-4 mb-5">
+          <div class="flex flex-col gap-1.5">
+            <label class="font-mono text-[0.65rem] font-medium text-stone-500 uppercase tracking-wide" for="beta-name">
+              Name
+            </label>
             <input
               type="text"
               id="beta-name"
               name="name"
-              class="beta__input"
+              class="font-sans text-[0.9rem] text-stone-100 bg-white/[0.03] border border-white/[0.08] rounded-md py-2.5 px-3.5 transition-all duration-200 placeholder:text-stone-700 focus:outline-none focus:border-pml-accent/40 focus:bg-pml-accent/[0.03]"
               placeholder="Your name"
               required
             />
           </div>
 
-          <div class="beta__field">
-            <label class="beta__field-label" for="beta-email">Email</label>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-mono text-[0.65rem] font-medium text-stone-500 uppercase tracking-wide" for="beta-email">
+              Email
+            </label>
             <input
               type="email"
               id="beta-email"
               name="email"
-              class="beta__input"
+              class="font-sans text-[0.9rem] text-stone-100 bg-white/[0.03] border border-white/[0.08] rounded-md py-2.5 px-3.5 transition-all duration-200 placeholder:text-stone-700 focus:outline-none focus:border-pml-accent/40 focus:bg-pml-accent/[0.03]"
               placeholder="you@company.com"
               required
             />
           </div>
 
-          <div class="beta__field beta__field--wide">
-            <label class="beta__field-label" for="beta-use-case">
-              How will you use PML? <span class="beta__optional">(optional)</span>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-mono text-[0.65rem] font-medium text-stone-500 uppercase tracking-wide" for="beta-use-case">
+              How will you use PML? <span class="font-normal text-stone-600 normal-case">(optional)</span>
             </label>
             <textarea
               id="beta-use-case"
               name="use_case"
-              class="beta__textarea"
-              placeholder="Tell us about your agents and what you'd like them to learn..."
-              rows={3}
+              class="font-sans text-[0.9rem] text-stone-100 bg-white/[0.03] border border-white/[0.08] rounded-md py-2.5 px-3.5 transition-all duration-200 placeholder:text-stone-700 focus:outline-none focus:border-pml-accent/40 focus:bg-pml-accent/[0.03] resize-y min-h-[70px]"
+              placeholder="Tell us about your agents..."
+              rows={2}
             />
           </div>
         </div>
 
-        <button type="submit" class="beta__submit">
+        <button
+          type="submit"
+          class="inline-flex items-center justify-center gap-2 w-full py-2.5 px-5 font-sans text-sm font-semibold text-[#08080a] bg-pml-accent rounded-md cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(255,184,111,0.25)]"
+        >
           Request Access
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </button>
       </form>
-
-      <style>
-        {`
-        .beta {
-          padding: 5rem 2rem;
-          background: linear-gradient(180deg, #08080a 0%, #0a0a0d 50%, #08080a 100%);
-          position: relative;
-        }
-
-        .beta::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 60%;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(255, 184, 111, 0.2), transparent);
-        }
-
-        .beta__label {
-          text-align: center;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.65rem;
-          text-transform: uppercase;
-          letter-spacing: 0.2em;
-          color: #FFB86F;
-          margin-bottom: 1.5rem;
-        }
-
-        .beta__title {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: clamp(1.75rem, 3vw, 2.25rem);
-          font-weight: 400;
-          color: #f0ede8;
-          text-align: center;
-          margin: 0 0 0.75rem;
-        }
-
-        .beta__subtitle {
-          font-family: 'Geist', sans-serif;
-          font-size: 1rem;
-          color: #666;
-          text-align: center;
-          margin: 0 0 2.5rem;
-          line-height: 1.6;
-        }
-
-        /* Form */
-        .beta__form {
-          max-width: 480px;
-          margin: 0 auto;
-        }
-
-        .beta__fields {
-          display: flex;
-          flex-direction: column;
-          gap: 1.25rem;
-          margin-bottom: 1.5rem;
-        }
-
-        .beta__field {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-
-        .beta__field--wide {
-          grid-column: 1 / -1;
-        }
-
-        .beta__field-label {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.75rem;
-          font-weight: 500;
-          color: #888;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .beta__optional {
-          font-weight: 400;
-          color: #555;
-          text-transform: none;
-          letter-spacing: 0;
-        }
-
-        .beta__input,
-        .beta__textarea {
-          font-family: 'Geist', sans-serif;
-          font-size: 0.95rem;
-          color: #f0ede8;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 184, 111, 0.15);
-          border-radius: 8px;
-          padding: 0.875rem 1rem;
-          transition: all 0.2s;
-        }
-
-        .beta__input::placeholder,
-        .beta__textarea::placeholder {
-          color: #444;
-        }
-
-        .beta__input:focus,
-        .beta__textarea:focus {
-          outline: none;
-          border-color: rgba(255, 184, 111, 0.5);
-          background: rgba(255, 184, 111, 0.05);
-          box-shadow: 0 0 0 3px rgba(255, 184, 111, 0.1);
-        }
-
-        .beta__textarea {
-          resize: vertical;
-          min-height: 80px;
-        }
-
-        .beta__submit {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          width: 100%;
-          padding: 1rem 1.5rem;
-          font-family: 'Geist', sans-serif;
-          font-size: 0.95rem;
-          font-weight: 600;
-          color: #08080a;
-          background: #FFB86F;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .beta__submit:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(255, 184, 111, 0.3);
-        }
-
-        .beta__submit:active {
-          transform: translateY(0);
-        }
-
-        /* Responsive */
-        @media (max-width: 640px) {
-          .beta {
-            padding: 4rem 1.25rem;
-          }
-
-          .beta__subtitle br {
-            display: none;
-          }
-
-          .beta__form {
-            max-width: 100%;
-          }
-
-          .beta__input,
-          .beta__textarea {
-            font-size: 16px; /* Prevent iOS zoom */
-          }
-        }
-        `}
-      </style>
     </section>
   );
 }

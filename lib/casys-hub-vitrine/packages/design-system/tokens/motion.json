@@ -1,0 +1,117 @@
+{
+  "md.sys.motion.path": {
+    "description": "Motion path",
+    "value": {
+      "standardPath": 1
+    }
+  },
+  "md.sys.motion.easing.linear": {
+    "type": "cubic-bezier",
+    "description": "Linear",
+    "value": [0, 0, 1, 1]
+  },
+  "md.sys.motion.easing.standard": {
+    "type": "cubic-bezier",
+    "description": "Standard",
+    "value": [0.20000000298023224, 0, 0, 1]
+  },
+  "md.sys.motion.duration.short1": {
+    "description": "Short 1",
+    "value": 50
+  },
+  "md.sys.motion.duration.short2": {
+    "description": "Short 2",
+    "value": 100
+  },
+  "md.sys.motion.duration.short3": {
+    "description": "Short 3",
+    "value": 150
+  },
+  "md.sys.motion.duration.short4": {
+    "description": "Short 4",
+    "value": 200
+  },
+  "md.sys.motion.duration.medium1": {
+    "description": "Medium 1",
+    "value": 250
+  },
+  "md.sys.motion.duration.medium2": {
+    "description": "Medium 2",
+    "value": 350
+  },
+  "md.sys.motion.duration.medium3": {
+    "description": "Medium 3",
+    "value": 400
+  },
+  "md.sys.motion.duration.medium4": {
+    "description": "Medium 4",
+    "value": 400
+  },
+  "md.sys.motion.duration.long1": {
+    "description": "Long 1",
+    "value": 450
+  },
+  "md.sys.motion.duration.long2": {
+    "description": "Long 2",
+    "value": 550
+  },
+  "md.sys.motion.duration.long3": {
+    "description": "Long 3",
+    "value": 650
+  },
+  "md.sys.motion.duration.long4": {
+    "description": "Long 4",
+    "value": 800
+  },
+  "md.sys.motion.duration.extra-long1": {
+    "description": "Extra long 1",
+    "value": 700
+  },
+  "md.sys.motion.duration.extra-long2": {
+    "description": "Extra long 2",
+    "value": 800
+  },
+  "md.sys.motion.duration.extra-long3": {
+    "description": "Extra long 3",
+    "value": 900
+  },
+  "md.sys.motion.duration.extra-long4": {
+    "description": "Extra long 4",
+    "value": 1000
+  },
+  "md.sys.motion.easing.standard.accelerate": {
+    "type": "cubic-bezier",
+    "description": "Standard accelerate",
+    "value": [0.30000001192092896, 0, 1, 1]
+  },
+  "md.sys.motion.easing.standard.decelerate": {
+    "type": "cubic-bezier",
+    "description": "Standard decelerate",
+    "value": [0, 0, 0, 1]
+  },
+  "md.sys.motion.easing.emphasized.accelerate": {
+    "type": "cubic-bezier",
+    "description": "Emphasized accelerate",
+    "value": [0.30000001192092896, 0, 0.800000011920929, 0.15000000596046448]
+  },
+  "md.sys.motion.easing.emphasized.decelerate": {
+    "type": "cubic-bezier",
+    "description": "Emphasized decelerate",
+    "value": [0.05000000074505806, 0.699999988079071, 0.10000000149011612, 1]
+  },
+  "md.sys.motion.easing.legacy": {
+    "type": "cubic-bezier",
+    "description": "Legacy",
+    "value": [0.4000000059604645, 0, 0.20000000298023224, 1]
+  },
+  "md.sys.motion.easing.legacy.accelerate": {
+    "type": "cubic-bezier",
+    "description": "Legacy accelerate",
+    "value": [0.4000000059604645, 0, 1, 1]
+  },
+  "md.sys.motion.easing.legacy.decelerate": {
+    "type": "cubic-bezier",
+    "description": "Legacy decelerate",
+    "value": [0, 0, 0.20000000298023224, 1]
+  }
+}

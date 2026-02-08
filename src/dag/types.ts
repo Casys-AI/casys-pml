@@ -289,7 +289,7 @@ export type ExecutionEvent =
  * Performance target: Save <50ms P95 (async, non-blocking).
  */
 export interface Checkpoint {
-  /** UUID v4 identifier (generated via crypto.randomUUID()) */
+  /** UUID v7 identifier (generated via uuidv7()) */
   id: string;
 
   /** Workflow instance this checkpoint belongs to */

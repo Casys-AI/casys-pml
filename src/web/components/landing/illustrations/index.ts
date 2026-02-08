@@ -6,5 +6,6 @@
  * @module web/components/landing/illustrations
  */
 
+export { IsolationIllustration } from "./IsolationIllustration.tsx";
 export { ParadigmShiftIllustration } from "./ParadigmShiftIllustration.tsx";
 export { WorkflowCrystallizationIllustration } from "./WorkflowCrystallizationIllustration.tsx";

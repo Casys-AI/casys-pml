@@ -12,9 +12,11 @@ import * as log from "@std/log";
 import type { DbClient } from "../db/types.ts";
 import type { VectorSearch } from "../vector/search.ts";
 import type { MCPTool } from "../mcp/types.ts";
+import type { CacheStats } from "./cache.ts";
 import { SchemaCache } from "./cache.ts";
 import {
   compareContextUsage,
+  type ContextUsage,
   displayContextComparison,
   logCacheHitRate,
   logContextUsage,
@@ -93,84 +95,79 @@ export class ContextOptimizer {
     minScore: number = 0.7,
   ): Promise<RelevantSchemasResult> {
     const startTime = performance.now();
-
-    log.info(`🔍 Finding relevant schemas for: "${userQuery}" (topK=${topK})`);
+    log.info(`Finding relevant schemas for: "${userQuery}" (topK=${topK})`);
 
     try {
-      // AC2: Step 1 - Semantic search for relevant tools
-      const searchStart = performance.now();
-      const searchResults = await this.vectorSearch.searchTools(
-        userQuery,
-        topK,
-        minScore,
-      );
-      const searchTime = performance.now() - searchStart;
+      const searchResults = await this.vectorSearch.searchTools(userQuery, topK, minScore);
+      log.debug(`Vector search found ${searchResults.length} results`);
 
-      log.debug(
-        `Vector search completed in ${
-          searchTime.toFixed(2)
-        }ms, found ${searchResults.length} results`,
-      );
-
-      // AC2: Step 2 - Load only matched schemas (AC3: not all-at-once)
-      const schemas: MCPTool[] = [];
-      let cacheHits = 0;
-      let cacheMisses = 0;
-
-      for (const result of searchResults) {
-        // AC6: Check cache first
-        const cached = this.schemaCache.get(result.toolId);
-
-        if (cached) {
-          cacheHits++;
-          schemas.push(cached);
-          log.debug(`Cache HIT: ${result.toolName} (${result.toolId})`);
-        } else {
-          cacheMisses++;
-          // Use schema from search result (already loaded from DB by VectorSearch)
-          schemas.push(result.schema);
-          // Add to cache for future queries
-          this.schemaCache.set(result.toolId, result.schema);
-          log.debug(`Cache MISS: ${result.toolName} (${result.toolId})`);
-        }
-      }
-
-      // AC4: Measure context usage
+      const { schemas, cacheHits, cacheMisses } = this.loadSchemasFromResults(searchResults);
       const usage = measureContextUsage(schemas);
+      const latencyMs = performance.now() - startTime;
 
-      // AC7: Calculate total latency
-      const totalLatency = performance.now() - startTime;
-
-      // Log metrics to database
-      await this.logMetrics(usage, totalLatency, cacheHits, cacheMisses, userQuery);
-
-      // Display summary
-      log.info(
-        `✓ Loaded ${schemas.length} schemas in ${
-          totalLatency.toFixed(2)
-        }ms (cache: ${cacheHits} hits, ${cacheMisses} misses)`,
-      );
-      log.info(
-        `  Context usage: ${usage.usagePercent.toFixed(2)}% (${usage.estimatedTokens} tokens)`,
-      );
-
-      // AC4: Warn if usage exceeds target
-      if (usage.usagePercent >= 5) {
-        log.warn(
-          `⚠ Context usage above target: ${usage.usagePercent.toFixed(2)}% (target: <5%)`,
-        );
-      }
+      await this.logMetrics(usage, latencyMs, cacheHits, cacheMisses, userQuery);
+      this.logSchemaSummary(schemas.length, latencyMs, cacheHits, cacheMisses, usage);
 
       return {
         schemas,
         cacheHits,
         cacheMisses,
-        latencyMs: totalLatency,
+        latencyMs,
         contextUsagePercent: usage.usagePercent,
       };
     } catch (error) {
       log.error(`Failed to get relevant schemas: ${error}`);
       throw new Error(`Context optimization failed: ${error}`);
+    }
+  }
+
+  /**
+   * Load schemas from search results, using cache when available
+   */
+  private loadSchemasFromResults(
+    searchResults: Awaited<ReturnType<VectorSearch["searchTools"]>>,
+  ): { schemas: MCPTool[]; cacheHits: number; cacheMisses: number } {
+    const schemas: MCPTool[] = [];
+    let cacheHits = 0;
+    let cacheMisses = 0;
+
+    for (const result of searchResults) {
+      const cached = this.schemaCache.get(result.toolId);
+
+      if (cached) {
+        cacheHits++;
+        schemas.push(cached);
+        log.debug(`Cache HIT: ${result.toolName} (${result.toolId})`);
+        continue;
+      }
+
+      cacheMisses++;
+      schemas.push(result.schema);
+      this.schemaCache.set(result.toolId, result.schema);
+      log.debug(`Cache MISS: ${result.toolName} (${result.toolId})`);
+    }
+
+    return { schemas, cacheHits, cacheMisses };
+  }
+
+  /**
+   * Log schema loading summary
+   */
+  private logSchemaSummary(
+    schemaCount: number,
+    latencyMs: number,
+    cacheHits: number,
+    cacheMisses: number,
+    usage: ContextUsage,
+  ): void {
+    log.info(
+      `Loaded ${schemaCount} schemas in ${latencyMs.toFixed(2)}ms ` +
+        `(cache: ${cacheHits} hits, ${cacheMisses} misses)`,
+    );
+    log.info(`Context usage: ${usage.usagePercent.toFixed(2)}% (${usage.estimatedTokens} tokens)`);
+
+    if (usage.usagePercent >= 5) {
+      log.warn(`Context usage above target: ${usage.usagePercent.toFixed(2)}% (target: <5%)`);
     }
   }
 
@@ -231,12 +228,8 @@ export class ContextOptimizer {
 
   /**
    * Get cache statistics
-   *
-   * Useful for monitoring cache performance and tuning
-   *
-   * @returns Cache stats including hit rate
    */
-  getCacheStats(): ReturnType<SchemaCache["getStats"]> {
+  getCacheStats(): CacheStats {
     return this.schemaCache.getStats();
   }
 
@@ -252,42 +245,37 @@ export class ContextOptimizer {
 
   /**
    * Log performance and usage metrics to database
-   *
-   * @private
    */
   private async logMetrics(
-    usage: ReturnType<typeof measureContextUsage>,
+    usage: ContextUsage,
     latencyMs: number,
     cacheHits: number,
     cacheMisses: number,
     query: string,
   ): Promise<void> {
+    const truncatedQuery = query.substring(0, 100);
+
     try {
-      // Log context usage (AC4)
       await logContextUsage(this.db, usage, {
-        query: query.substring(0, 100), // Truncate long queries
+        query: truncatedQuery,
         cache_hits: cacheHits,
         cache_misses: cacheMisses,
       });
 
-      // Log query latency (AC7)
       await logQueryLatency(this.db, latencyMs, {
-        query: query.substring(0, 100),
+        query: truncatedQuery,
         schema_count: usage.schemaCount,
         cache_hits: cacheHits,
       });
 
-      // Log cache hit rate (AC6)
       const totalAccesses = cacheHits + cacheMisses;
       if (totalAccesses > 0) {
-        const hitRate = cacheHits / totalAccesses;
-        await logCacheHitRate(this.db, hitRate, {
+        await logCacheHitRate(this.db, cacheHits / totalAccesses, {
           hits: cacheHits,
           misses: cacheMisses,
         });
       }
     } catch (error) {
-      // Don't fail the operation if metric logging fails
       log.error(`Metric logging failed: ${error}`);
     }
   }

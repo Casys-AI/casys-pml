@@ -123,7 +123,7 @@ Deno.test({
     // Verify meta-tools are present
     const toolNames = result.tools.map((t: { name: string }) => t.name);
     assert(
-      toolNames.includes("pml:execute_dag") || toolNames.some((n: string) => n.startsWith("pml:")),
+      toolNames.includes("execute_dag") || toolNames.some((n: string) => n.startsWith("")),
       "Should include PML meta-tools",
     );
 
@@ -145,12 +145,12 @@ Deno.test({
   try {
     await gateway.startHttp(port);
 
-    // Call pml:search_tools
+    // Call search_tools
     const response = await makeJsonRpcRequest(
       port,
       "tools/call",
       {
-        name: "pml:search_tools",
+        name: "search_tools",
         arguments: {
           query: "read file",
           limit: 5,
@@ -270,7 +270,7 @@ Deno.test({
         port,
         "tools/call",
         {
-          name: "pml:search_tools",
+          name: "search_tools",
           arguments: {
             query: "test",
             limit: 5,

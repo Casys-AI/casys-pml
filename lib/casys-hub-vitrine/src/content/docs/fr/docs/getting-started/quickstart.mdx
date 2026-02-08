@@ -1,0 +1,129 @@
+---
+title: Demarrage rapide
+description: Construisez votre premier serveur MCP en moins d'une minute.
+---
+
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+
+Construisons un serveur MCP fonctionnel. A la fin de cette page, vous aurez un serveur en transport STDIO, puis vous le ferez evoluer vers HTTP avec auth, rate limiting, et controle de concurrence.
+
+## Votre premier serveur
+
+<Steps>
+1. **Creez `server.ts`** :
+
+    ```typescript
+    import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+    const server = new ConcurrentMCPServer({
+      name: "my-server",
+      version: "1.0.0",
+    });
+
+    server.registerTool(
+      {
+        name: "greet",
+        description: "Greet a user",
+        inputSchema: {
+          type: "object",
+          properties: { name: { type: "string" } },
+          required: ["name"],
+        },
+      },
+      ({ name }) => `Hello, ${name}!`,
+    );
+
+    await server.start(); // STDIO transport
+    ```
+
+2. **Lancez-le** :
+
+    ```bash
+    deno run --allow-net server.ts
+    ```
+
+3. **Connectez-vous** avec n'importe quel client MCP — Claude Desktop, Cursor, VS Code, etc.
+</Steps>
+
+<Aside type="tip">
+  5 lignes de code significatif. Vous obtenez le transport STDIO, le protocole MCP complet, et un arret gracieux — le tout nativement.
+</Aside>
+
+## Niveau superieur : HTTP + Auth + Tout le reste
+
+Pour un deploiement distant, remplacez `start()` par `startHttp()` et activez les fonctionnalites dont vous avez besoin :
+
+```typescript
+import {
+  ConcurrentMCPServer,
+  createGoogleAuthProvider,
+} from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "my-api",
+  version: "1.0.0",
+  maxConcurrent: 10,                                    // 10 concurrent tool calls
+  backpressureStrategy: "queue",                         // FIFO queue when at capacity
+  validateSchema: true,                                  // Reject bad input automatically
+  rateLimit: { maxRequests: 100, windowMs: 60_000 },    // 100 req/min per client
+  auth: {
+    provider: createGoogleAuthProvider({
+      audience: "https://my-mcp.example.com",
+      resource: "https://my-mcp.example.com",
+    }),
+  },
+});
+
+server.registerTool(
+  {
+    name: "query",
+    description: "Query the database",
+    inputSchema: {
+      type: "object",
+      properties: { sql: { type: "string" } },
+    },
+    requiredScopes: ["db:read"],  // Token must have this scope
+  },
+  async ({ sql }) => ({ rows: await db.query(sql) }),
+);
+
+await server.startHttp({ port: 3000 });
+```
+
+<Aside>
+  Avec le transport HTTP, vous obtenez automatiquement : la decouverte de metadonnees RFC 9728 a `/.well-known/oauth-protected-resource`, le streaming SSE, et la gestion de sessions. Aucun code supplementaire.
+</Aside>
+
+## Livrer en binaire avec config YAML
+
+Quand vous distribuez un binaire compile, vos utilisateurs configurent l'auth via un fichier `mcp-server.yaml` — zero modification de code :
+
+```yaml
+# mcp-server.yaml
+auth:
+  provider: auth0
+  audience: https://my-mcp.example.com
+  resource: https://my-mcp.example.com
+  domain: my-tenant.auth0.com
+  scopesSupported:
+    - read
+    - write
+    - admin
+```
+
+Les variables d'environnement surchargent le YAML pour la flexibilite de deploiement :
+
+```bash
+MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
+```
+
+Priorite : `programmatique > variables d'env > YAML > pas d'auth`
+
+## Et maintenant
+
+Vous avez un serveur fonctionnel. Personnalisez-le :
+
+- **[Pipeline Middleware](/fr/docs/guides/middleware/)** — Ajoutez logging, cache, metriques, ou toute logique personnalisee a la chaine de requetes
+- **[Authentification](/fr/docs/guides/auth/)** — Plongee dans les presets OAuth2 pour Google, Auth0, GitHub, et OIDC
+- **[Configuration](/fr/docs/guides/configuration/)** — Configuration YAML + variables d'env pour la distribution binaire
+- **[Reference API](/fr/docs/api/concurrent-mcp-server/)** — Chaque methode et option, documentee

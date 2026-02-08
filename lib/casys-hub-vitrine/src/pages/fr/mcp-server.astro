@@ -1,0 +1,13 @@
+---
+import McpServerLayout from '../../features/mcp-server/McpServerLayout.astro';
+import McpServerContent from '../../features/mcp-server/McpServerContent.astro';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const pageTitle = locale === 'fr'
+  ? '@casys/mcp-server - Framework MCP Production-Grade'
+  : '@casys/mcp-server - Production-Grade MCP Server Framework';
+---
+
+<McpServerLayout title={pageTitle}>
+  <McpServerContent />
+</McpServerLayout>

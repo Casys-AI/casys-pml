@@ -59,6 +59,8 @@ export interface SessionClientOptions {
   workspace?: string;
 }
 
+import { uuidv7 } from "../utils/uuid.ts";
+
 /**
  * Persistent client ID storage path.
  * Stored in .pml/ folder alongside lockfile and deps.
@@ -94,7 +96,7 @@ async function getOrCreateClientId(workspace: string): Promise<string> {
     // File doesn't exist, create new
   }
 
-  const newId = crypto.randomUUID();
+  const newId = uuidv7();
   try {
     // Ensure .pml directory exists
     await ensureDir(join(workspace, ".pml"));

@@ -3,6 +3,7 @@ use casys_engine::Engine;
 use std::fs;
 
 mod commands;
+mod terminal;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -32,11 +33,15 @@ fn engine_status() -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(terminal::TerminalState::new())
         .invoke_handler(tauri::generate_handler![
             greet,
             engine_status,
             commands::compute_layout,
-            commands::update_layout_incremental
+            commands::update_layout_incremental,
+            commands::terminal_spawn,
+            commands::terminal_write,
+            commands::terminal_resize
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

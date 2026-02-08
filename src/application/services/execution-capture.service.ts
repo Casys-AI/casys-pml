@@ -454,11 +454,10 @@ export class ExecutionCaptureService {
 
   /**
    * Generate a human-readable name from intent
-   * Takes first 3-5 words and capitalizes first letter
+   * Takes first 5 words and capitalizes first letter
    */
   private generateCapabilityName(intent: string): string {
-    const words = intent.split(/\s+/).slice(0, 5);
-    const name = words.join(" ");
+    const name = intent.split(/\s+/).slice(0, 5).join(" ");
     return name.charAt(0).toUpperCase() + name.slice(1);
   }
 

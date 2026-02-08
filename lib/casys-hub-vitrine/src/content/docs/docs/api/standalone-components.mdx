@@ -1,0 +1,162 @@
+---
+title: Standalone Components
+description: Use RateLimiter, RequestQueue, and SchemaValidator independently.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The building blocks of `@casys/mcp-server` are useful on their own. Rate limiting, concurrency control, and schema validation — all usable in any Deno or Node.js project, no MCP required.
+
+## RateLimiter
+
+Sliding-window rate limiter with per-key tracking. Lightweight, no external dependencies.
+
+```typescript
+import { RateLimiter } from "@casys/mcp-server";
+
+const limiter = new RateLimiter({
+  maxRequests: 10,   // 10 requests
+  windowMs: 1000,    // per 1 second
+});
+```
+
+### checkLimit
+
+```typescript
+limiter.checkLimit(key: string): boolean;
+```
+
+Returns `true` if within limits, `false` if rate-limited. Non-blocking — never waits.
+
+```typescript
+if (limiter.checkLimit("client-123")) {
+  // Process request
+} else {
+  // Rate limited
+}
+```
+
+### waitForSlot
+
+```typescript
+await limiter.waitForSlot(key: string): Promise<void>;
+```
+
+Blocks until a slot opens. Timeout equals `windowMs`.
+
+```typescript
+await limiter.waitForSlot("client-123");
+// Guaranteed to have a slot
+```
+
+### getMetrics
+
+```typescript
+limiter.getMetrics(): { keys: number, totalRequests: number };
+```
+
+## RequestQueue
+
+Concurrency control with configurable backpressure. Protects downstream services from overload.
+
+```typescript
+import { RequestQueue } from "@casys/mcp-server";
+
+const queue = new RequestQueue({
+  maxConcurrent: 5,
+  strategy: "queue",     // "sleep" | "queue" | "reject"
+  sleepMs: 10,           // For "sleep" strategy only
+});
+```
+
+### Strategies
+
+| Strategy | Behavior | Best for |
+|----------|----------|----------|
+| `sleep` | Spin-wait with `sleepMs` delay until a slot opens | Low-latency, CPU-tolerant |
+| `queue` | FIFO queue — requests wait in order | Fair ordering, predictable |
+| `reject` | Immediately reject if at capacity | Fail-fast, circuit-breaker style |
+
+### acquire / release
+
+```typescript
+await queue.acquire(): Promise<void>;
+queue.release(): void;
+```
+
+Always use try/finally to prevent slot leaks:
+
+```typescript
+await queue.acquire();
+try {
+  await processRequest();  // 1 of maxConcurrent
+} finally {
+  queue.release();
+}
+```
+
+### getMetrics
+
+```typescript
+queue.getMetrics(): { inFlight: number, queued: number };
+```
+
+## SchemaValidator
+
+JSON Schema validation powered by ajv. Schemas are compiled once at registration time — validation is fast.
+
+```typescript
+import { SchemaValidator } from "@casys/mcp-server";
+
+const validator = new SchemaValidator();
+```
+
+### addSchema
+
+```typescript
+validator.addSchema(toolName: string, schema: object): void;
+```
+
+Compiles and caches the schema. Call once per tool at startup:
+
+```typescript
+validator.addSchema("my_tool", {
+  type: "object",
+  properties: {
+    count: { type: "number", minimum: 0 },
+    label: { type: "string", maxLength: 100 },
+  },
+  required: ["count"],
+});
+```
+
+### validate
+
+```typescript
+validator.validate(toolName: string, args: unknown): ValidationResult;
+```
+
+```typescript
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];  // Human-readable error messages
+}
+```
+
+```typescript
+validator.validate("my_tool", { count: -1 });
+// { valid: false, errors: ["count must be >= 0"] }
+
+validator.validate("my_tool", { count: 5 });
+// { valid: true, errors: [] }
+```
+
+<Aside type="tip">
+  Inside `ConcurrentMCPServer`, these components are wired up automatically based on your options. You only need standalone usage when building custom infrastructure outside the framework.
+</Aside>
+
+## See Also
+
+- [ConcurrentMCPServer API](/docs/api/concurrent-mcp-server/) — How these components are used internally
+- [Middleware Pipeline](/docs/guides/middleware/) — Rate limiting, validation, and backpressure in the pipeline

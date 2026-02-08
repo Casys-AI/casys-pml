@@ -135,13 +135,7 @@ export default function NeuralGraph() {
   return (
     <canvas
       ref={canvasRef}
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-      }}
+      class="absolute top-0 left-0 w-full h-full"
     />
   );
 }

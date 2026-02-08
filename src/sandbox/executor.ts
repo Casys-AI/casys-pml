@@ -256,34 +256,21 @@ export class DenoSandboxExecutor {
   // === Helper methods ===
 
   private validateSecurity(code: string, context?: Record<string, unknown>): void {
-    try {
-      this.securityValidator.validate(code, context);
-    } catch (error) {
-      if (error instanceof SecurityValidationError) {
-        throw error;
-      }
-      throw error;
-    }
+    this.securityValidator.validate(code, context);
   }
 
   private async acquireResources(): Promise<ExecutionToken> {
-    try {
-      return await this.resourceLimiter.acquire(this.memoryLimit);
-    } catch (error) {
-      if (error instanceof ResourceLimitError) {
-        throw error;
-      }
-      throw error;
-    }
+    return this.resourceLimiter.acquire(this.memoryLimit);
   }
 
   private handleExecutionError(error: unknown, startTime: number): ExecutionResult {
     const executionTimeMs = performance.now() - startTime;
+    const message = error instanceof Error ? error.message : String(error);
 
     if (error instanceof SecurityValidationError) {
       return {
         success: false,
-        error: { type: "SecurityError", message: error.message },
+        error: { type: "SecurityError", message },
         executionTimeMs,
       };
     }
@@ -291,14 +278,14 @@ export class DenoSandboxExecutor {
     if (error instanceof ResourceLimitError) {
       return {
         success: false,
-        error: { type: "ResourceLimitError", message: error.message },
+        error: { type: "ResourceLimitError", message },
         executionTimeMs,
       };
     }
 
     return {
       success: false,
-      error: { type: "RuntimeError", message: error instanceof Error ? error.message : String(error) },
+      error: { type: "RuntimeError", message },
       executionTimeMs,
     };
   }

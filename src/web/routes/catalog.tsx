@@ -37,19 +37,22 @@ async function loadCatalogEntries(): Promise<CatalogEntry[]> {
       server_id: string | null;
       namespace: string | null;
       action: string | null;
+      has_ui: boolean;
     }>(`
       SELECT
-        record_type,
-        id,
-        name,
-        description,
-        routing,
-        server_id,
-        namespace,
-        action
-      FROM pml_registry
-      WHERE visibility = 'public'
-      ORDER BY record_type, name
+        r.record_type,
+        r.id,
+        r.name,
+        r.description,
+        r.routing,
+        r.server_id,
+        r.namespace,
+        r.action,
+        COALESCE(ts.ui_meta IS NOT NULL, false) as has_ui
+      FROM pml_registry r
+      LEFT JOIN tool_schema ts ON r.record_type = 'mcp-tool' AND r.id = ts.tool_id
+      WHERE r.visibility = 'public'
+      ORDER BY r.record_type, r.name
       LIMIT 500
     `);
 
@@ -62,6 +65,7 @@ async function loadCatalogEntries(): Promise<CatalogEntry[]> {
       serverId: row.server_id,
       namespace: row.namespace,
       action: row.action,
+      hasUi: row.has_ui,
     }));
   } catch (error) {
     console.error("Error loading catalog entries:", error);

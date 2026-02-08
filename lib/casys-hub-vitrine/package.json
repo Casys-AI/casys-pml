@@ -1,0 +1,48 @@
+{
+  "name": "casys-app",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": "22.x"
+  },
+  "packageManager": "pnpm@10.16.1",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "vercel": "vercel",
+    "vercel:login": "vercel login",
+    "vercel:link": "vercel link",
+    "vercel:deploy": "vercel deploy --prebuilt --prod --archive=tgz",
+    "deploy": "pnpm run build && node scripts/post-build.mjs && vercel deploy --prebuilt --prod --archive=tgz",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "*",
+    "@astrojs/preact": "*",
+    "@astrojs/starlight": "^0.37.6",
+    "@astrojs/vercel": "*",
+    "@casys/design-system": "workspace:*",
+    "@material/web": "^2.4.0",
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "@types/d3": "^7.4.3",
+    "@vercel/analytics": "^1.5.0",
+    "@vercel/functions": "^3.4.1",
+    "astro": "^5.11.2",
+    "astro-icon": "^1.1.5",
+    "d3": "^7.9.0",
+    "mermaid": "^11.12.0",
+    "preact": "^10.25.0",
+    "sass": "^1.83.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.17.1",
+    "@vitest/ui": "^3.2.4",
+    "glob": "^11.0.3",
+    "vercel": "^47.0.5",
+    "vitest": "^3.2.4"
+  }
+}

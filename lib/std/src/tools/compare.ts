@@ -35,6 +35,13 @@ export const compareTools: MiniTool[] = [
       },
       required: ["oldText", "newText"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/diff-viewer",
+        emits: ["hunkSelect", "toggleView"],
+        accepts: ["scrollToHunk"],
+      },
+    },
     handler: ({ oldText, newText, format = "unified", context = 3 }) => {
       const old = oldText as string;
       const newStr = newText as string;
@@ -68,6 +75,13 @@ export const compareTools: MiniTool[] = [
       },
       required: ["oldJson", "newJson"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "copy"],
+        accepts: ["expandPath"],
+      },
+    },
     handler: ({ oldJson, newJson }) => {
       const old = typeof oldJson === "string" ? JSON.parse(oldJson as string) : oldJson;
       const newObj = typeof newJson === "string" ? JSON.parse(newJson as string) : newJson;
@@ -92,6 +106,13 @@ export const compareTools: MiniTool[] = [
         newArray: { type: "array", description: "New array" },
       },
       required: ["oldArray", "newArray"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "copy"],
+        accepts: ["highlight"],
+      },
     },
     handler: ({ oldArray, newArray }) => {
       const old = oldArray as unknown[];
@@ -241,6 +262,13 @@ export const compareTools: MiniTool[] = [
         strict: { type: "boolean", description: "Strict mode (type coercion off)" },
       },
       required: ["a", "b"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: ({ a, b, strict = true }) => {
       const deepEqual = (x: unknown, y: unknown): boolean => {

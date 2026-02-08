@@ -8,6 +8,7 @@
  */
 
 import type { ASTVisitor, DefaultHandler } from "../../infrastructure/patterns/visitor/mod.ts";
+import type { ArgumentsStructure, ArgumentValue } from "../types.ts";
 import type { InternalNode, NodeMetadata } from "./types.ts";
 import { ARRAY_METHOD_NAMES } from "../pure-operations.ts";
 
@@ -60,6 +61,9 @@ export interface HandlerContext {
     nestingLevel?: number,
     currentParentOp?: string,
   ) => void;
+
+  // Argument extraction for sequence edge generation (Story 10.5-fix)
+  extractArgumentValue?: (node: Record<string, unknown>) => ArgumentValue | undefined;
 
   // State access
   processedSpans: Map<string, string>;
@@ -568,6 +572,21 @@ export function handleBinaryExpression(
   const span = n.span as { start: number; end: number } | undefined;
   const code = ctx.extractCodeFromSpan(span);
 
+  // Story 10.5-fix: Extract left/right operands as arguments for sequence edge generation
+  const binArgs: ArgumentsStructure = {};
+  if (ctx.extractArgumentValue) {
+    const left = n.left as Record<string, unknown> | undefined;
+    const right = n.right as Record<string, unknown> | undefined;
+    if (left) {
+      const leftArg = ctx.extractArgumentValue(left);
+      if (leftArg) binArgs.left = leftArg;
+    }
+    if (right) {
+      const rightArg = ctx.extractArgumentValue(right);
+      if (rightArg) binArgs.right = rightArg;
+    }
+  }
+
   ctx.nodes.push({
     id: nodeId,
     type: "task",
@@ -575,6 +594,7 @@ export function handleBinaryExpression(
     position: ctx.position,
     parentScope: ctx.parentScope,
     code,
+    ...(Object.keys(binArgs).length > 0 ? { arguments: binArgs } : {}),
     metadata,
   });
 

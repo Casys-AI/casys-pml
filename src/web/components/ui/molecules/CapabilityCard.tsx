@@ -22,87 +22,56 @@ export interface ToolInfo {
   color: string;
 }
 
-/** Simplified trace info for sparkline */
 export interface TraceInfo {
   success: boolean;
   durationMs?: number;
 }
 
-/** Tool info with layer for flow visualization */
 export interface LayeredToolInfo extends ToolInfo {
   layerIndex: number;
 }
 
-/** Nested capability (child of a compound capability) */
 export interface ChildCapabilityInfo {
   id: string;
   name: string;
   successRate: number;
   usageCount: number;
   tools: ToolInfo[];
-  /** Tools organized by execution layer for flow visualization */
   toolsByLayer?: Map<number, ToolInfo[]>;
   color: string;
   traces?: TraceInfo[];
 }
 
-/** Card density mode */
 export type CardDensity = "compact" | "normal" | "extended";
 
-/** Trend direction */
 export type TrendDirection = "up" | "stable" | "down";
 
 export interface CapabilityCardProps {
-  /** Capability ID */
   id: string;
-  /** Capability display name */
   name: string;
-  /** Success rate (0-1) */
   successRate: number;
-  /** Number of times used */
   usageCount: number;
-  /** Last used timestamp (ISO string) */
   lastUsed?: string;
-  /** Tools contained in this capability */
   tools: ToolInfo[];
-  /** Tools organized by execution layer for flow visualization */
   toolsByLayer?: Map<number, ToolInfo[]>;
-  /** Recent execution traces for sparkline */
   traces?: TraceInfo[];
-  /** Child capabilities (nested/compound) */
   children?: ChildCapabilityInfo[];
-  /** Border/accent color */
   color: string;
-  /** Whether this card is currently selected */
   isSelected?: boolean;
-  /** Whether this card is newly added (for animation) */
   isNew?: boolean;
-  /** Nesting depth (for extended mode tree) */
   depth?: number;
-  /** Is this the last child in its parent? (for tree lines) */
   isLastChild?: boolean;
-  /** Click handler for the card */
   onClick?: () => void;
-  /** Click handler for a tool */
   onToolClick?: (toolId: string) => void;
-  /** Click handler for a child capability */
   onChildClick?: (childId: string) => void;
-  /** Card density mode */
   density?: CardDensity;
-  /** Fully qualified domain name (Extended mode) */
   fqdn?: string;
-  /** PageRank score 0-1 (Extended mode) */
   pagerank?: number;
-  /** Community/cluster ID (Extended mode) */
   communityId?: number;
-  /** Description/intent of the capability (Extended mode) */
   description?: string;
-  /** Story 10.1: 0=leaf, 1+=meta-capability */
   hierarchyLevel?: number;
 }
 
-// Format full date + time for last used display
-// compact: always show date (no "Aujourd'hui"/"Hier")
 function formatFullDateTime(iso: string | undefined, compact = false): string {
   if (!iso) return "—";
   const date = new Date(iso);
@@ -127,22 +96,16 @@ function formatFullDateTime(iso: string | undefined, compact = false): string {
   return `${dateStr} ${timeStr}`;
 }
 
-// Success rate color
 function getSuccessColor(rate: number): { bg: string; text: string } {
-  if (rate >= 0.8) return { bg: "#22c55e20", text: "#22c55e" };
-  if (rate >= 0.5) return { bg: "#f59e0b20", text: "#f59e0b" };
-  return { bg: "#ef444420", text: "#ef4444" };
+  if (rate >= 0.8) return { bg: "bg-green-500/20", text: "text-green-500" };
+  if (rate >= 0.5) return { bg: "bg-amber-500/20", text: "text-amber-500" };
+  return { bg: "bg-red-500/20", text: "text-red-500" };
 }
 
-/**
- * Calculate trend from traces
- * Compares first half vs second half success rate
- */
 function calculateTrend(traces: TraceInfo[] | undefined): TrendDirection {
   if (!traces || traces.length < 4) return "stable";
 
   const mid = Math.floor(traces.length / 2);
-  // traces[0] is most recent, so first half = recent, second half = older
   const recentHalf = traces.slice(0, mid);
   const olderHalf = traces.slice(mid);
 
@@ -155,9 +118,6 @@ function calculateTrend(traces: TraceInfo[] | undefined): TrendDirection {
   return "stable";
 }
 
-/**
- * Sparkline component - mini bar chart of recent executions
- */
 function Sparkline({
   traces,
   maxBars = 8,
@@ -171,7 +131,6 @@ function Sparkline({
   barGap?: number;
   height?: number;
 }) {
-  // Take last N traces (reversed so oldest is first visually)
   const displayTraces = traces.slice(0, maxBars).reverse();
   const width = displayTraces.length * (barWidth + barGap) - barGap;
 
@@ -198,9 +157,6 @@ function Sparkline({
   );
 }
 
-/**
- * Trend indicator component
- */
 function TrendIndicator({ trend, size = 14 }: { trend: TrendDirection; size?: number }) {
   if (trend === "stable") return null;
 
@@ -227,10 +183,6 @@ function TrendIndicator({ trend, size = 14 }: { trend: TrendDirection; size?: nu
   );
 }
 
-/**
- * COMPACT MODE - Table row with dot flow visualization
- * Minimal: ●● → [●→●] → ●●● with metrics
- */
 function CompactRow({
   name,
   successRate,
@@ -250,12 +202,10 @@ function CompactRow({
   const successColors = getSuccessColor(successRate);
   const trend = calculateTrend(traces);
 
-  // Build tree prefix for nested items
   const treePrefix = depth > 0
     ? Array(depth - 1).fill("│  ").join("") + (isLastChild ? "└─ " : "├─ ")
     : "";
 
-  // Get sorted layers
   const layers = toolsByLayer && toolsByLayer.size > 0
     ? Array.from(toolsByLayer.entries()).sort((a, b) => a[0] - b[0])
     : tools.length > 0
@@ -265,36 +215,24 @@ function CompactRow({
   return (
     <>
       <div
-        class={`
-          flex items-center gap-3 px-3 py-1.5 cursor-pointer
-          transition-all duration-150 hover:bg-white/5
-          ${isSelected ? "bg-white/8" : ""}
-        `}
-        style={{
-          fontFamily: "'JetBrains Mono', 'Fira Code', 'SF Mono', monospace",
-          fontSize: "11px",
-          animation: isNew ? "rowFlash 0.5s ease-out" : undefined,
-          borderLeft: isSelected ? "3px solid var(--accent, #FFB86F)" : "3px solid transparent",
-        }}
+        class={`flex items-center gap-3 px-3 py-1.5 cursor-pointer transition-all duration-150 hover:bg-white/5 font-mono text-[11px] ${
+          isSelected ? "bg-white/[0.08] border-l-[3px] border-l-pml-accent" : "border-l-[3px] border-l-transparent"
+        } ${isNew ? "animate-pulse" : ""}`}
         onClick={onClick}
       >
-        {/* Tree prefix */}
         {depth > 0 && (
-          <span style={{ color: "var(--text-dim, #4a4540)", whiteSpace: "pre" }}>
+          <span class="text-stone-600 whitespace-pre">
             {treePrefix}
           </span>
         )}
 
-        {/* Name */}
         <span
-          class="w-40 truncate font-medium shrink-0"
-          style={{ color: isSelected ? "var(--accent, #FFB86F)" : "var(--text, #f5f0ea)" }}
+          class={`w-40 truncate font-medium shrink-0 ${isSelected ? "text-pml-accent" : "text-stone-100"}`}
           title={name}
         >
           {name}
         </span>
 
-        {/* Flow as dots: ●● → [●→●] → ●●● */}
         <div class="flex items-center gap-1 flex-1 min-w-0 overflow-hidden">
           {layers.map(([layerIndex, layerTools], i) => (
             <div key={`l-${layerIndex}`} class="flex items-center gap-1">
@@ -308,18 +246,17 @@ function CompactRow({
                   />
                 ))}
                 {layerTools.length > 4 && (
-                  <span class="text-[9px]" style={{ color: "var(--text-dim)" }}>
+                  <span class="text-[9px] text-stone-500">
                     +{layerTools.length - 4}
                   </span>
                 )}
               </div>
               {(i < layers.length - 1 || hasChildren) && (
-                <span style={{ color: "var(--text-dim, #6a6560)" }}>→</span>
+                <span class="text-stone-500">→</span>
               )}
             </div>
           ))}
 
-          {/* Children inline as bracketed mini-flows */}
           {children.slice(0, 2).map((child, ci) => {
             const childLayers = child.toolsByLayer && child.toolsByLayer.size > 0
               ? Array.from(child.toolsByLayer.entries()).sort((a, b) => a[0] - b[0])
@@ -343,37 +280,33 @@ function CompactRow({
                         />
                       ))}
                       {idx < childLayers.length - 1 && (
-                        <span class="text-[8px]" style={{ color: "var(--text-dim)" }}>→</span>
+                        <span class="text-[8px] text-stone-500">→</span>
                       )}
                     </div>
                   ))}
                 </div>
-                {ci < children.length - 1 && <span style={{ color: "var(--text-dim)" }}>→</span>}
+                {ci < children.length - 1 && <span class="text-stone-500">→</span>}
               </div>
             );
           })}
           {children.length > 2 && (
-            <span class="text-[9px]" style={{ color: "var(--text-dim)" }}>
+            <span class="text-[9px] text-stone-500">
               +{children.length - 2}
             </span>
           )}
         </div>
 
-        {/* Trend */}
         <TrendIndicator trend={trend} size={12} />
 
-        {/* Success rate */}
-        <span class="w-10 text-right tabular-nums shrink-0" style={{ color: successColors.text }}>
+        <span class={`w-10 text-right tabular-nums shrink-0 ${successColors.text}`}>
           {Math.round(successRate * 100)}%
         </span>
 
-        {/* Usage */}
-        <span class="w-10 text-right tabular-nums shrink-0" style={{ color: "var(--text-muted)" }}>
+        <span class="w-10 text-right tabular-nums shrink-0 text-stone-400">
           {usageCount}×
         </span>
 
-        {/* Last used date/time (compact: no "Aujourd'hui") */}
-        <span class="w-28 text-right tabular-nums shrink-0 truncate" style={{ color: "var(--text-dim)" }} title={lastUsed}>
+        <span class="w-28 text-right tabular-nums shrink-0 truncate text-stone-500" title={lastUsed}>
           {formatFullDateTime(lastUsed, true)}
         </span>
       </div>
@@ -381,9 +314,6 @@ function CompactRow({
   );
 }
 
-/**
- * Compute health status from success rate, trend, and recency
- */
 function computeHealthStatus(
   successRate: number,
   trend: TrendDirection,
@@ -395,21 +325,17 @@ function computeHealthStatus(
   const isDormant = daysSinceUse > 7;
 
   if (isDormant) {
-    return { label: "Dormant", color: "#6b7280", bg: "#6b728020" };
+    return { label: "Dormant", color: "text-gray-500", bg: "bg-gray-500/20" };
   }
   if (successRate >= 0.8 && trend !== "down") {
-    return { label: "Healthy", color: "#22c55e", bg: "#22c55e20" };
+    return { label: "Healthy", color: "text-green-500", bg: "bg-green-500/20" };
   }
   if (successRate >= 0.5 || trend === "up") {
-    return { label: "Warning", color: "#f59e0b", bg: "#f59e0b20" };
+    return { label: "Warning", color: "text-amber-500", bg: "bg-amber-500/20" };
   }
-  return { label: "Failing", color: "#ef4444", bg: "#ef444420" };
+  return { label: "Failing", color: "text-red-500", bg: "bg-red-500/20" };
 }
 
-/**
- * NORMAL MODE - Visual flow card
- * Focus on workflow visualization, not metrics
- */
 function NormalCard({
   name,
   successRate,
@@ -431,7 +357,6 @@ function NormalCard({
   const trend = calculateTrend(traces);
   const health = computeHealthStatus(successRate, trend, lastUsed);
 
-  // Get sorted layers (fallback to tools if no layer info)
   const layers = toolsByLayer && toolsByLayer.size > 0
     ? Array.from(toolsByLayer.entries()).sort((a, b) => a[0] - b[0])
     : tools.length > 0
@@ -440,11 +365,9 @@ function NormalCard({
 
   return (
     <div
-      class={`
-        w-full text-left rounded-lg
-        border transition-all duration-200 cursor-pointer
-        ${isSelected ? "ring-2 ring-offset-1" : ""}
-      `}
+      class={`w-full text-left rounded-lg border transition-all duration-200 cursor-pointer ${
+        isSelected ? "ring-2 ring-offset-1" : ""
+      } ${isNew ? "animate-[slideInFade_0.4s_ease-out]" : ""}`}
       style={{
         background: isSelected
           ? `linear-gradient(135deg, ${color}15 0%, ${color}08 100%)`
@@ -456,16 +379,14 @@ function NormalCard({
           ? `0 4px 12px ${color}10`
           : "none",
         transform: isHovered && !isSelected ? "translateY(-1px)" : "translateY(0)",
-        animation: isNew ? "slideInFade 0.4s ease-out" : undefined,
-        ringColor: color,
-        ringOffsetColor: "var(--bg, #0a0908)",
-      }}
+        "--tw-ring-color": color,
+        "--tw-ring-offset-color": "#0a0908",
+      } as React.CSSProperties}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
     >
       <div class="p-3">
-        {/* Header: Name + Health badge */}
         <div class="flex items-center gap-2 mb-3">
           <h4
             class="font-semibold text-sm leading-tight truncate flex-1 min-w-0"
@@ -476,36 +397,28 @@ function NormalCard({
           </h4>
 
           {hierarchyLevel > 0 && (
-            <span
-              class="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide shrink-0"
-              style={{ background: "#8b5cf620", color: "#8b5cf6" }}
-            >
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide shrink-0 bg-purple-500/20 text-purple-500">
               {hierarchyLevel}
             </span>
           )}
           <span
-            class="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide shrink-0"
-            style={{ background: health.bg, color: health.color }}
+            class={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide shrink-0 ${health.bg} ${health.color}`}
           >
             {health.label}
           </span>
         </div>
 
-        {/* Description / Intent */}
         {description && (
           <p
-            class="text-xs mb-3 line-clamp-2"
-            style={{ color: "var(--text-dim, #6a6560)" }}
+            class="text-xs mb-3 line-clamp-2 text-stone-500"
             title={description}
           >
             {description}
           </p>
         )}
 
-        {/* Flow with tool names: [toolA, toolB] → [child: toolC→toolD] → [toolE] */}
         {(layers.length > 0 || hasChildren) && (
           <div class="flex items-center gap-1.5 mb-3 flex-wrap">
-            {/* Parent layers with names */}
             {layers.map(([layerIndex, layerTools], i) => (
               <div key={`layer-${layerIndex}`} class="flex items-center gap-1.5">
                 <div class="flex items-center gap-1">
@@ -527,18 +440,17 @@ function NormalCard({
                     </span>
                   ))}
                   {layerTools.length > 3 && (
-                    <span class="text-[9px]" style={{ color: "var(--text-dim)" }}>
+                    <span class="text-[9px] text-stone-500">
                       +{layerTools.length - 3}
                     </span>
                   )}
                 </div>
                 {(i < layers.length - 1 || hasChildren) && (
-                  <span style={{ color: "var(--text-dim, #6a6560)" }}>→</span>
+                  <span class="text-stone-500">→</span>
                 )}
               </div>
             ))}
 
-            {/* Children with names in brackets */}
             {children.slice(0, 2).map((child, ci) => {
               const childLayers = child.toolsByLayer && child.toolsByLayer.size > 0
                 ? Array.from(child.toolsByLayer.entries()).sort((a, b) => a[0] - b[0])
@@ -569,30 +481,26 @@ function NormalCard({
                           </span>
                         ))}
                         {li < childLayers.length - 1 && (
-                          <span class="text-[8px]" style={{ color: "var(--text-dim)" }}>→</span>
+                          <span class="text-[8px] text-stone-500">→</span>
                         )}
                       </div>
                     ))}
                   </div>
                   {ci < children.length - 1 && (
-                    <span style={{ color: "var(--text-dim, #6a6560)" }}>→</span>
+                    <span class="text-stone-500">→</span>
                   )}
                 </div>
               );
             })}
             {children.length > 2 && (
-              <span class="text-[10px]" style={{ color: "var(--text-dim)" }}>
+              <span class="text-[10px] text-stone-500">
                 +{children.length - 2}
               </span>
             )}
           </div>
         )}
 
-        {/* Footer: usage count + last used date */}
-        <div
-          class="flex items-center gap-2 text-[10px]"
-          style={{ color: "var(--text-dim, #6a6560)" }}
-        >
+        <div class="flex items-center gap-2 text-[10px] text-stone-500">
           <span>{usageCount} runs</span>
           <span>•</span>
           <span title={lastUsed}>{formatFullDateTime(lastUsed)}</span>
@@ -602,10 +510,6 @@ function NormalCard({
   );
 }
 
-/**
- * EXTENDED MODE - Investigation/Debugging panel
- * Full layer breakdown, timing info, tools by server
- */
 function ExtendedPanel({
   name,
   successRate,
@@ -634,14 +538,12 @@ function ExtendedPanel({
 
   const indentPx = depth * 24;
 
-  // Get sorted layers
   const layers = toolsByLayer && toolsByLayer.size > 0
     ? Array.from(toolsByLayer.entries()).sort((a, b) => a[0] - b[0])
     : tools.length > 0
     ? [[0, tools] as [number, ToolInfo[]]]
     : [];
 
-  // Group tools by server
   const toolsByServer = new Map<string, ToolInfo[]>();
   for (const tool of tools) {
     const existing = toolsByServer.get(tool.server) || [];
@@ -649,7 +551,6 @@ function ExtendedPanel({
     toolsByServer.set(tool.server, existing);
   }
 
-  // Average duration from traces
   const avgDuration = traces.length > 0
     ? traces.reduce((sum, t) => sum + (t.durationMs || 0), 0) /
       traces.filter((t) => t.durationMs).length
@@ -657,13 +558,9 @@ function ExtendedPanel({
 
   return (
     <div
-      class="relative"
-      style={{
-        marginLeft: `${indentPx}px`,
-        animation: isNew ? "slideInFade 0.4s ease-out" : undefined,
-      }}
+      class={`relative ${isNew ? "animate-[slideInFade_0.4s_ease-out]" : ""}`}
+      style={{ marginLeft: `${indentPx}px` }}
     >
-      {/* Tree connector line */}
       {depth > 0 && (
         <div
           class="absolute top-0 bottom-0 w-px"
@@ -674,24 +571,20 @@ function ExtendedPanel({
         />
       )}
 
-      {/* Main panel */}
       <div
-        class={`
-          rounded-xl border transition-all duration-200 cursor-pointer mb-2
-          ${isSelected ? "ring-2" : ""}
-        `}
+        class={`rounded-xl border transition-all duration-200 cursor-pointer mb-2 ${
+          isSelected ? "ring-2" : ""
+        }`}
         style={{
-          background: `linear-gradient(135deg, ${color}08 0%, var(--bg-elevated, #12110f) 100%)`,
+          background: `linear-gradient(135deg, ${color}08 0%, #12110f 100%)`,
           borderColor: isSelected ? color : `${color}30`,
           boxShadow: isSelected ? `0 4px 24px ${color}20` : "0 2px 8px rgba(0,0,0,0.2)",
-          ringColor: color,
-        }}
+          "--tw-ring-color": color,
+        } as React.CSSProperties}
         onClick={onClick}
       >
         <div class="p-4">
-          {/* Header with expand toggle */}
           <div class="flex items-start gap-3 mb-3">
-            {/* Expand toggle */}
             {hasChildren && (
               <button
                 type="button"
@@ -709,33 +602,24 @@ function ExtendedPanel({
               </button>
             )}
 
-            {/* Name + Health */}
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
                 <h3 class="font-bold text-base leading-tight" style={{ color }}>
                   {name}
                 </h3>
                 <span
-                  class="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide"
-                  style={{ background: health.bg, color: health.color }}
+                  class={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${health.bg} ${health.color}`}
                 >
                   {health.label}
                 </span>
                 <TrendIndicator trend={trend} size={16} />
               </div>
-              {/* Description/Intent */}
               {description && (
-                <p
-                  class="text-xs mb-1 italic leading-snug"
-                  style={{ color: "var(--text-muted, #8a8078)" }}
-                >
+                <p class="text-xs mb-1 italic leading-snug text-stone-400">
                   "{description}"
                 </p>
               )}
-              <div
-                class="text-xs flex items-center gap-2"
-                style={{ color: "var(--text-dim, #6a6560)" }}
-              >
+              <div class="text-xs flex items-center gap-2 text-stone-500">
                 <span>{formatFullDateTime(lastUsed)}</span>
                 {hasChildren && (
                   <span class="px-1.5 py-0.5 rounded" style={{ background: `${color}15` }}>
@@ -745,42 +629,29 @@ function ExtendedPanel({
               </div>
             </div>
 
-            {/* Stats block */}
             <div class="flex items-center gap-4 shrink-0">
               <div class="text-center">
                 <div class="text-lg font-bold tabular-nums" style={{ color }}>{usageCount}</div>
-                <div
-                  class="text-[10px] uppercase tracking-wide"
-                  style={{ color: "var(--text-dim)" }}
-                >
+                <div class="text-[10px] uppercase tracking-wide text-stone-500">
                   runs
                 </div>
               </div>
               <div class="text-center">
-                <div class="text-lg font-bold tabular-nums" style={{ color: successColors.text }}>
+                <div class={`text-lg font-bold tabular-nums ${successColors.text}`}>
                   {Math.round(successRate * 100)}%
                 </div>
-                <div
-                  class="text-[10px] uppercase tracking-wide"
-                  style={{ color: "var(--text-dim)" }}
-                >
+                <div class="text-[10px] uppercase tracking-wide text-stone-500">
                   success
                 </div>
               </div>
               {avgDuration && avgDuration > 0 && (
                 <div class="text-center">
-                  <div
-                    class="text-lg font-bold tabular-nums"
-                    style={{ color: "var(--text-muted)" }}
-                  >
+                  <div class="text-lg font-bold tabular-nums text-stone-400">
                     {avgDuration >= 1000
                       ? `${(avgDuration / 1000).toFixed(1)}s`
                       : `${Math.round(avgDuration)}ms`}
                   </div>
-                  <div
-                    class="text-[10px] uppercase tracking-wide"
-                    style={{ color: "var(--text-dim)" }}
-                  >
+                  <div class="text-[10px] uppercase tracking-wide text-stone-500">
                     avg
                   </div>
                 </div>
@@ -788,26 +659,18 @@ function ExtendedPanel({
             </div>
           </div>
 
-          {/* Execution History with expanded sparkline */}
           {traces.length > 0 && (
             <div class="mb-4">
-              <div
-                class="text-[10px] uppercase tracking-wide mb-1.5"
-                style={{ color: "var(--text-dim)" }}
-              >
+              <div class="text-[10px] uppercase tracking-wide mb-1.5 text-stone-500">
                 Execution History ({traces.length} traces)
               </div>
               <Sparkline traces={traces} maxBars={24} barWidth={8} barGap={2} height={24} />
             </div>
           )}
 
-          {/* Execution Flow - full width */}
           {layers.length > 0 && (
             <div class="mb-4 pt-3 border-t" style={{ borderColor: `${color}15` }}>
-              <div
-                class="text-[10px] uppercase tracking-wide mb-2"
-                style={{ color: "var(--text-dim)" }}
-              >
+              <div class="text-[10px] uppercase tracking-wide mb-2 text-stone-500">
                 Execution Flow ({layers.length} layer{layers.length > 1 ? "s" : ""})
               </div>
               <div class="flex items-start gap-2 flex-wrap">
@@ -817,7 +680,7 @@ function ExtendedPanel({
                       class="rounded-lg p-2"
                       style={{ background: `${color}08`, border: `1px solid ${color}20` }}
                     >
-                      <div class="text-[9px] uppercase mb-1.5" style={{ color: "var(--text-dim)" }}>
+                      <div class="text-[9px] uppercase mb-1.5 text-stone-500">
                         L{layerIndex}
                       </div>
                       <div class="flex flex-col gap-1">
@@ -832,7 +695,7 @@ function ExtendedPanel({
                               style={{ background: tool.color || "#FFB86F" }}
                             />
                             <span>{tool.name}</span>
-                            <span class="text-[9px]" style={{ color: "var(--text-dim)" }}>
+                            <span class="text-[9px] text-stone-500">
                               ({tool.server})
                             </span>
                           </div>
@@ -844,7 +707,6 @@ function ExtendedPanel({
                     )}
                   </div>
                 ))}
-                {/* Children as nested flows */}
                 {children.slice(0, 2).map((child, ci) => {
                   const childLayers = child.toolsByLayer && child.toolsByLayer.size > 0
                     ? Array.from(child.toolsByLayer.entries()).sort((a, b) =>
@@ -876,7 +738,7 @@ function ExtendedPanel({
                                 />
                               ))}
                               {idx < childLayers.length - 1 && (
-                                <span class="text-[10px]" style={{ color: "var(--text-dim)" }}>
+                                <span class="text-[10px] text-stone-500">
                                   →
                                 </span>
                               )}
@@ -894,13 +756,9 @@ function ExtendedPanel({
             </div>
           )}
 
-          {/* Tools by Server */}
           {toolsByServer.size > 0 && (
             <div class="pt-3 border-t" style={{ borderColor: `${color}15` }}>
-              <div
-                class="text-[10px] uppercase tracking-wide mb-2"
-                style={{ color: "var(--text-dim)" }}
-              >
+              <div class="text-[10px] uppercase tracking-wide mb-2 text-stone-500">
                 Tools by Server ({tools.length} tools)
               </div>
               <div class="grid grid-cols-2 gap-2">
@@ -937,17 +795,12 @@ function ExtendedPanel({
             </div>
           )}
 
-          {/* Graph Position - PageRank, Community, FQDN */}
           {(pagerank !== undefined || communityId !== undefined || fqdn) && (
             <div class="pt-3 border-t" style={{ borderColor: `${color}15` }}>
-              <div
-                class="text-[10px] uppercase tracking-wide mb-2"
-                style={{ color: "var(--text-dim)" }}
-              >
+              <div class="text-[10px] uppercase tracking-wide mb-2 text-stone-500">
                 Graph Position
               </div>
               <div class="flex flex-wrap items-center gap-3">
-                {/* PageRank gauge */}
                 {pagerank !== undefined && (
                   <div class="flex items-center gap-2">
                     <div class="flex gap-0.5">
@@ -967,7 +820,6 @@ function ExtendedPanel({
                   </div>
                 )}
 
-                {/* Community badge */}
                 {communityId !== undefined && (
                   <span
                     class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
@@ -978,11 +830,9 @@ function ExtendedPanel({
                 )}
               </div>
 
-              {/* FQDN */}
               {fqdn && (
                 <div
-                  class="mt-2 text-[10px] truncate font-mono"
-                  style={{ color: "var(--text-dim)" }}
+                  class="mt-2 text-[10px] truncate font-mono text-stone-500"
                   title={fqdn}
                 >
                   {fqdn}
@@ -993,7 +843,6 @@ function ExtendedPanel({
         </div>
       </div>
 
-      {/* Children (recursive) */}
       {expanded && hasChildren && (
         <div class="relative">
           {children.map((child, idx) => (
@@ -1020,9 +869,6 @@ function ExtendedPanel({
   );
 }
 
-/**
- * Main CapabilityCard component - delegates to mode-specific renderers
- */
 export function CapabilityCard(props: CapabilityCardProps) {
   const { density = "normal" } = props;
 

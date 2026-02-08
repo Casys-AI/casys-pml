@@ -1,0 +1,224 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    title: 'Ready to try?',
+    description: 'Give your agents procedural memory. Start building smarter workflows today.',
+    primaryCta: 'Get Started',
+    secondaryCta: 'Request Beta Access',
+  },
+  fr: {
+    title: 'Pret a essayer ?',
+    description: 'Donnez a vos agents une memoire procedurale. Commencez a construire des workflows plus intelligents des aujourd\'hui.',
+    primaryCta: 'Commencer',
+    secondaryCta: 'Demander l\'Acces Beta',
+  },
+  zh: {
+    title: '准备好了吗？',
+    description: '为您的代理赋予程序化记忆。立即开始构建更智能的工作流。',
+    primaryCta: '开始使用',
+    secondaryCta: '申请测试版',
+  },
+};
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="cta">
+  <div class="container">
+    <div class="content">
+      <h2>{t.title}</h2>
+      <p class="cta-desc">{t.description}</p>
+
+      <div class="cta-buttons">
+        <a href="#quickstart" class="btn-primary">
+          {t.primaryCta}
+        </a>
+        <a href="#beta" class="btn-secondary">
+          {t.secondaryCta}
+          <svg class="arrow-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <path d="M4 9h10M10 5l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     CTA SECTION - Light mode (scoped)
+     Fonts: Instrument Serif headings,
+            Inter body
+     ======================================== */
+
+  section {
+    padding: 100px 0;
+    background: var(--md-sys-color-surface);
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 24px;
+  }
+
+  h2 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: clamp(2.25rem, 5vw, 3.5rem);
+    font-weight: 400;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .cta-desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.15rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+    max-width: 540px;
+  }
+
+  /* ---- Buttons ---- */
+  .cta-buttons {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 36px;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-primary);
+    background: var(--md-sys-color-primary);
+    border-radius: 10px;
+    text-decoration: none;
+    transition: background 200ms ease-out;
+  }
+
+  .btn-primary:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .btn-primary:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 28px;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    background: transparent;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 10px;
+    text-decoration: none;
+    transition: background 200ms ease-out, border-color 200ms ease-out;
+  }
+
+  .btn-secondary:hover {
+    background: var(--md-sys-color-surface-container);
+    border-color: var(--md-sys-color-primary);
+  }
+
+  .btn-secondary:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 4px;
+  }
+
+  .arrow-icon {
+    flex-shrink: 0;
+    transition: transform 200ms ease-out;
+  }
+
+  .btn-secondary:hover .arrow-icon {
+    transform: translateX(3px);
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    section {
+      padding: 60px 0;
+    }
+
+    h2 {
+      font-size: 2.25rem;
+    }
+
+    .cta-buttons {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      width: 100%;
+      padding: 14px 24px;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     CTA SECTION - Dark mode
+     Warm orange palette (#FFB86F)
+     ======================================== */
+
+  html[data-theme="dark"] #cta {
+    background: #08080a;
+  }
+
+  html[data-theme="dark"] #cta h2 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #cta .cta-desc {
+    color: #d5c3b5;
+  }
+
+  /* Primary button */
+  html[data-theme="dark"] #cta .btn-primary {
+    background: #FFB86F;
+    color: #1a1815;
+  }
+
+  html[data-theme="dark"] #cta .btn-primary:hover {
+    background: #D4A574;
+  }
+
+  /* Secondary button */
+  html[data-theme="dark"] #cta .btn-secondary {
+    color: #f5f0ea;
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #cta .btn-secondary:hover {
+    background: rgba(255, 184, 111, 0.08);
+    border-color: #FFB86F;
+  }
+</style>

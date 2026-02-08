@@ -179,6 +179,33 @@ Deno.test("LockfileManager - validateIntegrity returns approval required for has
   assertExists(approval.workflowId);
 });
 
+Deno.test("LockfileManager - validateIntegrity uses existingWorkflowId when provided", async () => {
+  const manager = await createTestManager();
+
+  // Add entry with old hash
+  await manager.addEntry({
+    fqdn: "pml.mcp.test.server.abc1",
+    integrity: "sha256-oldHash",
+    type: "stdio",
+  });
+
+  const existingId = "server-workflow-12345";
+
+  // Validate with different hash and existingWorkflowId
+  const result = await manager.validateIntegrity(
+    "pml.mcp.test.server.def2",
+    "sha256-newHash",
+    "stdio",
+    existingId,
+  );
+
+  // Should require approval with the provided workflowId
+  assertEquals("approvalRequired" in result && result.approvalRequired, true);
+
+  const approval = result as IntegrityApprovalRequired;
+  assertEquals(approval.workflowId, existingId);
+});
+
 Deno.test("LockfileManager - approveIntegrityChange updates entry", async () => {
   const manager = await createTestManager();
 

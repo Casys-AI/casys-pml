@@ -1,0 +1,26 @@
+{
+  "md.sys.elevation.level0": {
+    "description": "0",
+    "value": "0px"
+  },
+  "md.sys.elevation.level1": {
+    "description": "+1",
+    "value": "1px"
+  },
+  "md.sys.elevation.level2": {
+    "description": "+2",
+    "value": "4px"
+  },
+  "md.sys.elevation.level3": {
+    "description": "+3",
+    "value": "8px"
+  },
+  "md.sys.elevation.level4": {
+    "description": "+4",
+    "value": "12px"
+  },
+  "md.sys.elevation.level5": {
+    "description": "+5",
+    "value": "16px"
+  }
+}

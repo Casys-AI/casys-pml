@@ -92,11 +92,10 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
         />
       </Head>
 
-      <div class="settings-page">
-        {/* Header */}
-        <header class="settings-header">
-          <div class="header-left">
-            <a href="/dashboard" class="back-link">
+      <div class="min-h-screen bg-[#08080a] text-stone-100 font-[Geist,_-apple-system,_system-ui,_sans-serif]">
+        <header class="flex justify-between items-center px-8 py-4 bg-[#0f0f12] border-b border-pml-accent/8 max-sm:flex-col max-sm:gap-4">
+          <div>
+            <a href="/dashboard" class="flex items-center gap-2 text-stone-400 no-underline text-sm font-medium px-4 py-2 rounded-lg bg-[#08080a] border border-pml-accent/8 transition-all duration-200 hover:text-pml-accent hover:border-pml-accent/20">
               <svg
                 width="16"
                 height="16"
@@ -110,19 +109,19 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
               Back to Dashboard
             </a>
           </div>
-          <div class="header-right">
-            <div class="user-info">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
               <img
                 src={user.avatarUrl || "/default-avatar.svg"}
                 alt={user.username}
-                class="avatar"
+                class="w-7 h-7 rounded-full border border-pml-accent/8"
               />
-              <span class="username">
+              <span class="text-sm font-medium">
                 {user.username === "local" ? "Local User" : user.username}
               </span>
             </div>
             {!isCloudMode && (
-              <span class="badge-local">
+              <span class="flex items-center gap-1 px-2 py-1 text-xs font-[Geist_Mono,_monospace] text-green-400 bg-green-400/10 border border-green-400/20 rounded">
                 <svg
                   width="12"
                   height="12"
@@ -140,14 +139,12 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
           </div>
         </header>
 
-        {/* Main Content */}
-        <main class="settings-content">
-          <h1 class="page-title">Settings</h1>
+        <main class="max-w-[800px] mx-auto p-8">
+          <h1 class="font-[Instrument_Serif,_Georgia,_serif] text-3xl font-normal mb-8">Settings</h1>
 
-          {/* API Key Section (Cloud Mode Only) */}
           {isCloudMode && (
-            <section class="settings-section">
-              <h2 class="section-title">
+            <section class="bg-[#141418] border border-pml-accent/8 rounded-xl mb-6 overflow-hidden">
+              <h2 class="flex items-center gap-3 px-6 py-4 text-base font-semibold bg-[#0f0f12] border-b border-pml-accent/8">
                 <svg
                   width="20"
                   height="20"
@@ -160,26 +157,25 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
                 </svg>
                 Your API Key
               </h2>
-              <div class="section-content">
+              <div class="p-6">
                 <SettingsIsland
                   flashApiKey={flashApiKey}
                   apiKeyPrefix={apiKeyPrefix}
                 />
 
-                <div class="setup-instructions">
-                  <h3>Setup</h3>
-                  <p>Set your API key as an environment variable:</p>
-                  <pre><code>export PML_API_KEY="your_api_key_here"</code></pre>
+                <div class="mt-6 p-4 bg-[#08080a] border border-pml-accent/8 rounded-lg">
+                  <h3 class="text-sm font-semibold mb-2">Setup</h3>
+                  <p class="text-[0.8rem] text-stone-400 mb-2">Set your API key as an environment variable:</p>
+                  <pre class="m-0 px-3 py-2 bg-[#0f0f12] rounded overflow-x-auto"><code class="font-[Geist_Mono,_monospace] text-[0.8rem] text-pml-accent">export PML_API_KEY="your_api_key_here"</code></pre>
                 </div>
               </div>
             </section>
           )}
 
 
-          {/* Danger Zone (Cloud Mode Only) */}
           {isCloudMode && (
-            <section class="settings-section danger-zone">
-              <h2 class="section-title danger">
+            <section class="bg-[#141418] border border-red-400/20 rounded-xl mb-6 overflow-hidden">
+              <h2 class="flex items-center gap-3 px-6 py-4 text-base font-semibold bg-[#0f0f12] border-b border-pml-accent/8 text-red-400">
                 <svg
                   width="20"
                   height="20"
@@ -194,567 +190,20 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
                 </svg>
                 Danger Zone
               </h2>
-              <div class="section-content">
+              <div class="p-6">
                 <DangerZoneIsland />
               </div>
             </section>
           )}
 
-          {/* Footer */}
-          <footer class="settings-footer">
-            <span class="mode-indicator">
+          <footer class="text-center p-8 text-stone-500 text-[0.8rem]">
+            <span class="px-4 py-2 bg-[#0f0f12] rounded-full">
               {isCloudMode
                 ? "Running in cloud mode"
                 : "Running in local mode - no authentication required"}
             </span>
           </footer>
         </main>
-
-        <style>
-          {`
-          :root {
-            --bg: #08080a;
-            --bg-elevated: #0f0f12;
-            --bg-card: #141418;
-            --accent: #FFB86F;
-            --accent-dim: rgba(255, 184, 111, 0.1);
-            --accent-medium: rgba(255, 184, 111, 0.2);
-            --green: #4ade80;
-            --red: #f87171;
-            --text: #f0ede8;
-            --text-muted: #a8a29e;
-            --text-dim: #6b6560;
-            --border: rgba(255, 184, 111, 0.08);
-            --border-strong: rgba(255, 184, 111, 0.15);
-            --font-display: 'Instrument Serif', Georgia, serif;
-            --font-sans: 'Geist', -apple-system, system-ui, sans-serif;
-            --font-mono: 'Geist Mono', monospace;
-          }
-
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-
-          .settings-page {
-            min-height: 100vh;
-            background: var(--bg);
-            color: var(--text);
-            font-family: var(--font-sans);
-          }
-
-          /* Header */
-          .settings-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 2rem;
-            background: var(--bg-elevated);
-            border-bottom: 1px solid var(--border);
-          }
-
-          .back-link {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            transition: all 0.2s;
-          }
-
-          .back-link:hover {
-            color: var(--accent);
-            border-color: var(--accent-medium);
-          }
-
-          .header-right {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-          }
-
-          .user-info {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-          }
-
-          .avatar {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: 1px solid var(--border);
-          }
-
-          .username {
-            font-size: 0.875rem;
-            font-weight: 500;
-          }
-
-          .badge-local {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            font-family: var(--font-mono);
-            color: var(--green);
-            background: rgba(74, 222, 128, 0.1);
-            border: 1px solid rgba(74, 222, 128, 0.2);
-            border-radius: 4px;
-          }
-
-          /* Content */
-          .settings-content {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem;
-          }
-
-          .page-title {
-            font-family: var(--font-display);
-            font-size: 2rem;
-            font-weight: 400;
-            margin-bottom: 2rem;
-          }
-
-          /* Sections */
-          .settings-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            overflow: hidden;
-          }
-
-          .section-title {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 1rem 1.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-            background: var(--bg-elevated);
-            border-bottom: 1px solid var(--border);
-          }
-
-          .section-title.danger {
-            color: var(--red);
-          }
-
-          .section-content {
-            padding: 1.5rem;
-          }
-
-          /* API Key Display */
-          .api-key-display {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-bottom: 1rem;
-          }
-
-          .api-key-value {
-            flex: 1;
-            font-family: var(--font-mono);
-            font-size: 0.875rem;
-            color: var(--text-muted);
-          }
-
-          .api-key-actions {
-            display: flex;
-            gap: 0.5rem;
-          }
-
-          .btn-sm {
-            padding: 0.375rem 0.75rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: var(--bg-elevated);
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: all 0.2s;
-          }
-
-          .btn-sm:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-          }
-
-          .api-key-note {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-          }
-
-          .setup-instructions {
-            margin-top: 1.5rem;
-            padding: 1rem;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-          }
-
-          .setup-instructions h3 {
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-          }
-
-          .setup-instructions p {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-bottom: 0.5rem;
-          }
-
-          .setup-instructions pre {
-            margin: 0;
-            padding: 0.5rem 0.75rem;
-            background: var(--bg-elevated);
-            border-radius: 4px;
-            overflow-x: auto;
-          }
-
-          .setup-instructions code {
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            color: var(--accent);
-          }
-
-          .flash-key-alert {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 1rem;
-            background: rgba(74, 222, 128, 0.1);
-            border: 1px solid rgba(74, 222, 128, 0.2);
-            border-radius: 8px;
-            margin-bottom: 1rem;
-          }
-
-          .flash-key-alert svg {
-            color: var(--green);
-            flex-shrink: 0;
-          }
-
-          .flash-key-text {
-            flex: 1;
-          }
-
-          .flash-key-text strong {
-            display: block;
-            color: var(--green);
-            margin-bottom: 0.25rem;
-          }
-
-          .flash-key-text code {
-            font-family: var(--font-mono);
-            font-size: 0.875rem;
-            color: var(--text);
-            background: var(--bg);
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-          }
-
-          /* Config Block */
-          .config-description {
-            color: var(--text-muted);
-            margin-bottom: 1rem;
-          }
-
-          .config-block {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 1.5rem;
-          }
-
-          .config-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            background: var(--bg-elevated);
-            border-bottom: 1px solid var(--border);
-          }
-
-          .config-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-          }
-
-          .btn-copy {
-            padding: 0.25rem 0.75rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            border-radius: 4px;
-            border: 1px solid var(--border);
-            background: var(--bg);
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: all 0.2s;
-          }
-
-          .btn-copy:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-          }
-
-          .config-code {
-            padding: 1rem;
-            margin: 0;
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            line-height: 1.6;
-            color: var(--text-muted);
-            overflow-x: auto;
-          }
-
-          .config-instructions {
-            padding: 1rem;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-          }
-
-          .config-instructions h3 {
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-          }
-
-          .config-instructions ol {
-            padding-left: 1.25rem;
-            margin-bottom: 1rem;
-          }
-
-          .config-instructions li {
-            color: var(--text-muted);
-            font-size: 0.875rem;
-            margin-bottom: 0.5rem;
-          }
-
-          .config-instructions code {
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            background: var(--bg-elevated);
-            padding: 0.125rem 0.375rem;
-            border-radius: 4px;
-          }
-
-          .config-instructions pre {
-            margin: 0.5rem 0;
-            padding: 0.5rem;
-            background: var(--bg-elevated);
-            border-radius: 4px;
-            overflow-x: auto;
-          }
-
-          .security-note, .local-note {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.5rem;
-            padding: 0.75rem;
-            background: rgba(255, 184, 111, 0.05);
-            border: 1px solid rgba(255, 184, 111, 0.1);
-            border-radius: 6px;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-          }
-
-          .local-note {
-            background: rgba(74, 222, 128, 0.05);
-            border-color: rgba(74, 222, 128, 0.1);
-          }
-
-          .security-note svg, .local-note svg {
-            flex-shrink: 0;
-            margin-top: 0.125rem;
-            color: var(--accent);
-          }
-
-          .local-note svg {
-            color: var(--green);
-          }
-
-          /* Danger Zone */
-          .danger-zone {
-            border-color: rgba(248, 113, 113, 0.2);
-          }
-
-          .danger-content {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-          }
-
-          .danger-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            background: var(--bg);
-            border: 1px solid rgba(248, 113, 113, 0.1);
-            border-radius: 8px;
-          }
-
-          .danger-info h3 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-          }
-
-          .danger-info p {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-          }
-
-          .btn {
-            padding: 0.625rem 1.25rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-          }
-
-          .btn-danger {
-            background: var(--red);
-            color: white;
-            border: none;
-          }
-
-          .btn-danger:hover {
-            filter: brightness(1.1);
-          }
-
-          .btn-danger-outline {
-            background: transparent;
-            color: var(--red);
-            border: 1px solid var(--red);
-          }
-
-          .btn-danger-outline:hover {
-            background: rgba(248, 113, 113, 0.1);
-          }
-
-          .btn-ghost {
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--border);
-          }
-
-          .btn-ghost:hover {
-            border-color: var(--text-muted);
-          }
-
-          /* Footer */
-          .settings-footer {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-dim);
-            font-size: 0.8rem;
-          }
-
-          .mode-indicator {
-            padding: 0.5rem 1rem;
-            background: var(--bg-elevated);
-            border-radius: 20px;
-          }
-
-          /* Modal */
-          .modal {
-            padding: 0;
-            border: none;
-            border-radius: 12px;
-            background: var(--bg-card);
-            max-width: 450px;
-            width: 90%;
-          }
-
-          .modal::backdrop {
-            background: rgba(0, 0, 0, 0.8);
-          }
-
-          .modal-content {
-            padding: 1.5rem;
-          }
-
-          .modal-content h2 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-          }
-
-          .modal-content p {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-          }
-
-          .confirm-text {
-            font-weight: 500;
-            color: var(--text);
-          }
-
-          .confirm-input {
-            width: 100%;
-            padding: 0.75rem;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            margin-bottom: 1rem;
-          }
-
-          .confirm-input:focus {
-            outline: none;
-            border-color: var(--red);
-          }
-
-          .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-          }
-
-          @media (max-width: 640px) {
-            .settings-header {
-              flex-direction: column;
-              gap: 1rem;
-            }
-
-            .danger-item {
-              flex-direction: column;
-              align-items: flex-start;
-            }
-
-            .danger-item .btn {
-              width: 100%;
-            }
-          }
-          `}
-        </style>
       </div>
     </>
   );

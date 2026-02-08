@@ -189,12 +189,8 @@ Deno.test("resolveToolRouting - MCP SDK format routes correctly", () => {
   assertEquals(resolveToolRouting("mcp__github__pr"), "server");
 });
 
-Deno.test("resolveToolRouting - pml namespace → 'server'", () => {
-  setupRouting();
-  // PML meta-tools route to server
-  assertEquals(resolveToolRouting("pml:discover"), "server");
-  assertEquals(resolveToolRouting("pml:execute"), "server");
-});
+// Note: PML meta-tools (discover, execute, admin) are handled directly by the PML server,
+// not via routing. They don't need namespace routing - the server handles them internally.
 
 // ============================================================================
 // isClientTool / isServerTool Tests
@@ -305,7 +301,7 @@ Deno.test("resolveToolRouting - respects defaultRouting=server", () => {
   // Explicit client
   assertEquals(resolveToolRouting("filesystem:read"), "client");
   // Explicit server
-  assertEquals(resolveToolRouting("pml:execute"), "server");
+  assertEquals(resolveToolRouting("execute"), "server");
   // Unknown → default (server in this config)
   assertEquals(resolveToolRouting("unknown:tool"), "server");
 });

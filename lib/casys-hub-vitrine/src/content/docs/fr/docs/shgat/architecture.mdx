@@ -1,0 +1,184 @@
+---
+title: Architecture
+description: Attention K-head, propagation de messages multi-niveaux et hierarchie d'hypergraphe.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import ExcalidrawDiagram from '../../../../../components/ExcalidrawDiagram.astro';
+
+`@casys/shgat` est un reseau d'attention sur SuperHyperGraphe. Il prend un ensemble de noeuds organises dans une hierarchie d'hypergraphe, execute une propagation de messages multi-niveaux pour diffuser l'information structurelle, puis score chaque noeud par rapport a une intention utilisateur via l'attention K-head. Le resultat est une liste classee de noeuds avec leurs scores.
+
+Publie sur [JSR](https://jsr.io/@casys/shgat). Source sur [GitHub](https://github.com/Casys-AI/shgat).
+
+## Pourquoi un hypergraphe ?
+
+Les graphes classiques modelisent des relations par paires : A est connecte a B. Cela fonctionne pour les cas simples, mais les catalogues d'outils ne sont pas simples. Un composite regroupe plusieurs feuilles. Une feuille appartient a plusieurs composites. Un composite peut contenir d'autres composites.
+
+Un hypergraphe gere cela nativement. Une hyperarete connecte n'importe quel nombre de sommets a la fois -- pas d'aplatissement artificiel, pas d'aretes dupliquees. La structure du graphe correspond a la structure reelle du catalogue.
+
+```
+Regular graph:                Hypergraph:
+  A --- B                     ┌─────────────────┐
+  |     |                     │  composite "db"  │
+  C --- D                     │  ┌───┐ ┌───┐    │
+                              │  │ A │ │ B │    │
+(pairwise only)               │  └───┘ └───┘    │
+                              └─────────────────┘
+                              ┌─────────────────────┐
+                              │  composite "io"      │
+                              │  ┌───┐ ┌───┐ ┌───┐  │
+                              │  │ B │ │ C │ │ D │  │
+                              │  └───┘ └───┘ └───┘  │
+                              └─────────────────────┘
+
+                              B belongs to both "db" and "io".
+                              No duplication needed.
+```
+
+## Niveaux hierarchiques
+
+<ExcalidrawDiagram src="shgat/shgat-hierarchy" alt="Hierarchie SHGAT" />
+
+Les noeuds sont organises en niveaux. Le niveau est determine par la structure, pas par des labels :
+
+- **L0 (feuilles)** : Noeuds sans enfants. Ce sont les outils individuels.
+- **L1+ (composites)** : Noeuds dont les enfants sont des noeuds de niveau inferieur. Niveau = 1 + max niveau enfant.
+
+Un catalogue de production typique :
+
+```
+Level 2 (meta):       3 noeuds  ─── composites de composites (ex: data-pipeline)
+                              │
+Level 1 (composites): 26 noeuds ─── groupes d'outils (ex: database, io)
+                              │
+Level 0 (feuilles):  218 noeuds ─── outils individuels (ex: psql_query)
+```
+
+Il n'y a aucune obligation d'avoir un noeud racine unique. Un graphe peut avoir plusieurs composites L2, ou s'arreter a L1. La profondeur depend de la structure de votre catalogue.
+
+Les niveaux sont calcules automatiquement par DFS lors de la construction du graphe. Vous enregistrez les noeuds avec leurs enfants ; SHGAT calcule le reste.
+
+```typescript
+import { SHGAT } from "@casys/shgat";
+
+const shgat = new SHGAT();
+
+// Leaves: children = []
+shgat.registerNode({ id: "psql_query", embedding: [...], children: [], level: 0 });
+shgat.registerNode({ id: "psql_exec",  embedding: [...], children: [], level: 0 });
+
+// Composite: children = leaf IDs
+shgat.registerNode({
+  id: "database",
+  embedding: [...],
+  children: ["psql_query", "psql_exec"],
+  level: 1,  // Computed: 1 + max(0, 0) = 1
+});
+
+shgat.finalizeNodes();
+```
+
+## Phases de propagation de messages
+
+<ExcalidrawDiagram src="shgat/shgat-message-passing" alt="Propagation de messages SHGAT" />
+
+Avant le scoring, SHGAT execute une propagation de messages multi-niveaux. Cela diffuse l'information structurelle a travers la hierarchie afin que l'embedding de chaque noeud reflete son voisinage -- pas seulement sa propre description.
+
+La propagation de messages a deux phases :
+
+**1. Passe ascendante (L0 -> L1 -> L2)**
+
+Les embeddings des feuilles s'agregent dans leurs composites parents. Chaque composite recoit une combinaison ponderee des embeddings de ses enfants, calculee via l'attention. Les poids d'attention determinent la contribution de chaque enfant.
+
+```
+L0 tools:      [psql_query] [psql_exec] [csv_parse] [json_transform]
+                    ↓             ↓           ↓            ↓
+L1 composites:     [── database ──]         [──── io ─────]
+                           ↓                       ↓
+L2 meta:           [────── data-pipeline ─────────]
+```
+
+**2. Passe descendante (L2 -> L1 -> L0)**
+
+Les embeddings des composites se propagent vers leurs enfants. C'est ainsi qu'une feuille herite du contexte de ses freres et soeurs et de ses composites parents. Apres la passe descendante, `psql_query` connait `psql_exec` meme s'ils n'ont jamais ete utilises ensemble.
+
+```
+L2 meta:           [────── data-pipeline ─────────]
+                           ↓                       ↓
+L1 composites:     [── database ──]         [──── io ─────]
+                    ↓             ↓           ↓            ↓
+L0 tools:      [psql_query] [psql_exec] [read_file] [write_file]
+```
+
+Chaque phase execute en interne trois sous-etapes par transition de niveau :
+
+1. **Vertex -> Edge** : Projeter les embeddings des noeuds pour le calcul de l'attention
+2. **Edge -> Edge** : Calculer les poids d'attention entre les noeuds connectes
+3. **Edge -> Vertex** : Agreger les embeddings ponderes vers les noeuds
+
+Tous les parametres de propagation (matrices de projection, vecteurs d'attention) sont par niveau et par tete. Ils sont entrainables.
+
+<Aside type="tip">
+  Apres la propagation, une feuille herite de la pertinence des composites auxquels elle appartient -- y compris des feuilles soeurs avec lesquelles elle n'a jamais ete directement appariee. Si `psql_query` et `redis_get` appartiennent tous deux a un composite "data-access", ils enrichissent mutuellement leurs embeddings a travers le composite, meme sans historique de co-occurrence.
+</Aside>
+
+## Attention K-Head (16 x 64D)
+
+Le scoring utilise 16 tetes d'attention, chacune operant sur une projection de 64 dimensions de l'embedding 1024D. 16 * 64 = 1024, ce qui correspond exactement a la dimension d'embedding BGE-M3 -- aucune information n'est perdue.
+
+Chaque tete calcule un score d'attention independant entre l'intention et chaque noeud. Differentes tetes capturent differents signaux dans les donnees :
+
+| Type de signal | Ce que la tete capture |
+|---|---|
+| Co-occurrence | Outils qui apparaissent frequemment ensemble dans les traces |
+| Recence | Outils utilises recemment dans des contextes similaires |
+| Recuperation d'erreurs | Outils qui reussissent apres l'echec d'autres outils |
+| Taux de succes | Outils avec un taux de succes historique eleve pour des intentions similaires |
+| Position dans la sequence | Outils qui apparaissent typiquement en debut ou fin de workflow |
+| Similarite structurelle | Outils dans les memes voisinages de composites |
+
+Les tetes ne sont pas assignees manuellement aux types de signaux. Toutes les features de traces sont fournies a toutes les tetes. Chaque tete decouvre sa propre specialisation par l'entrainement.
+
+Le score final de chaque noeud est une combinaison ponderee des 16 scores de tetes. Les poids de fusion font partie des parametres entrainables.
+
+## Pipeline de scoring
+
+Le pipeline complet, de l'intention aux resultats classes :
+
+```
+Intent string
+    ↓
+BGE-M3 encoder (1024D embedding)
+    ↓
+Intent projection (W_intent: 1024 -> 1024)
+    ↓
+K-head attention (16 heads, 64D each)
+  - Q = W_q[h] @ intent    (query, per head)
+  - K = W_k[h] @ node      (key, per head)
+  - score[h] = Q . K / sqrt(64)
+    ↓
+Fusion (weighted combination of 16 head scores)
+    ↓
+Sorted node scores
+```
+
+La methode `scoreNodes()` execute le pipeline entier :
+
+```typescript
+// Score all nodes
+const scores = shgat.scoreNodes(intentEmbedding);
+// Returns: [{ nodeId, score, level, headScores }, ...]
+
+// Score only leaves (L0)
+const leafScores = shgat.scoreLeaves(intentEmbedding);
+
+// Score only composites (L1+)
+const compositeScores = shgat.scoreComposites(intentEmbedding);
+```
+
+L'ensemble de la passe forward et du pipeline de scoring s'execute sur GPU via TensorFlow.js quand disponible. La conversion en tableau ne se fait qu'a l'etape de sortie finale.
+
+## Voir aussi
+
+- [Entrainement](/fr/docs/shgat/training/) -- Perte InfoNCE, recuit de temperature et experience replay
+- [Persistence](/fr/docs/shgat/persistence/) -- Exporter et importer les parametres du modele

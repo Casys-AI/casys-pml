@@ -15,8 +15,8 @@ import type { MCPTool } from "../types.ts";
  * Primary tool for workflow execution with intent-based or explicit mode.
  */
 export const executeDagTool: MCPTool = {
-  name: "pml:execute_dag",
-  description: "[DEPRECATED] Use pml:execute. Legacy DAG workflow execution.",
+  name: "execute_dag",
+  description: "[DEPRECATED] Use execute. Legacy DAG workflow execution.",
   inputSchema: {
     type: "object",
     properties: {
@@ -39,11 +39,11 @@ export const executeDagTool: MCPTool = {
  *
  * Tool discovery via semantic search + graph relationships.
  *
- * @deprecated Use pml:discover instead (Story 10.6)
+ * @deprecated Use discover instead (Story 10.6)
  */
 export const searchToolsTool: MCPTool = {
-  name: "pml:search_tools",
-  description: "[DEPRECATED] Use pml:discover. Legacy semantic tool search.",
+  name: "search_tools",
+  description: "[DEPRECATED] Use discover. Legacy semantic tool search.",
   inputSchema: {
     type: "object",
     properties: {
@@ -76,11 +76,11 @@ export const searchToolsTool: MCPTool = {
  *
  * Find proven code patterns from past executions.
  *
- * @deprecated Use pml:discover instead (Story 10.6)
+ * @deprecated Use discover instead (Story 10.6)
  */
 export const searchCapabilitiesTool: MCPTool = {
-  name: "pml:search_capabilities",
-  description: "[DEPRECATED] Use pml:discover. Legacy capability search.",
+  name: "search_capabilities",
+  description: "[DEPRECATED] Use discover. Legacy capability search.",
   inputSchema: {
     type: "object",
     properties: {
@@ -103,8 +103,8 @@ export const searchCapabilitiesTool: MCPTool = {
  * Sandboxed TypeScript execution with auto-injected MCP tools.
  */
 export const executeCodeTool: MCPTool = {
-  name: "pml:execute_code",
-  description: "[DEPRECATED] Use pml:execute with code parameter. Legacy sandbox execution.",
+  name: "execute_code",
+  description: "[DEPRECATED] Use execute with code parameter. Legacy sandbox execution.",
   inputSchema: {
     type: "object",
     properties: {
@@ -152,7 +152,7 @@ export const executeCodeTool: MCPTool = {
  * Resume paused workflow after layer validation.
  */
 export const continueTool: MCPTool = {
-  name: "pml:continue",
+  name: "continue",
   description: "Resume a paused workflow after layer validation.",
   inputSchema: {
     type: "object",
@@ -176,7 +176,7 @@ export const continueTool: MCPTool = {
  * Stop a running workflow immediately.
  */
 export const abortTool: MCPTool = {
-  name: "pml:abort",
+  name: "abort",
   description: "Stop a running workflow immediately.",
   inputSchema: {
     type: "object",
@@ -200,7 +200,7 @@ export const abortTool: MCPTool = {
  * Modify a running DAG to add new tasks.
  */
 export const replanTool: MCPTool = {
-  name: "pml:replan",
+  name: "replan",
   description: "Add new tasks to a running workflow based on discovered context.",
   inputSchema: {
     type: "object",
@@ -229,9 +229,9 @@ export const replanTool: MCPTool = {
  * Respond to Human-in-the-Loop checkpoints.
  */
 export const approvalResponseTool: MCPTool = {
-  name: "pml:approval_response",
+  name: "approval_response",
   description:
-    "[DEPRECATED] Use pml:execute with continue_workflow parameter. Approve or reject a Human-in-the-Loop checkpoint.",
+    "[DEPRECATED] Use execute with continue_workflow parameter. Approve or reject a Human-in-the-Loop checkpoint.",
   inputSchema: {
     type: "object",
     properties: {
@@ -267,7 +267,7 @@ export const approvalResponseTool: MCPTool = {
  * - Details: id parameter (whois-style full metadata)
  */
 export const discoverTool: MCPTool = {
-  name: "pml:discover",
+  name: "discover",
   description:
     "Search, list, lookup, or get details for MCP tools and learned capabilities. Supports semantic search (intent), glob listing (pattern), exact lookup (name), and full metadata (id).",
   inputSchema: {
@@ -349,7 +349,7 @@ export const discoverTool: MCPTool = {
  * - merge: Combine duplicate capabilities into one
  */
 export const adminTool: MCPTool = {
-  name: "pml:admin",
+  name: "admin",
   description: "Manage capabilities: rename, merge. Administrative operations.",
   inputSchema: {
     type: "object",
@@ -414,7 +414,7 @@ export const adminTool: MCPTool = {
  * - Continue Workflow: Resume a paused workflow (approval_required)
  */
 export const executeTool: MCPTool = {
-  name: "pml:execute",
+  name: "execute",
   description:
     "Execute intent with optional code. With code: runs and learns capability. Without: returns suggestions. Use accept_suggestion to execute a suggested capability, or continue_workflow to resume a paused workflow.",
   inputSchema: {

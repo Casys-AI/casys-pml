@@ -21,44 +21,33 @@ export default function GraphTooltip({
 }: GraphTooltipProps): JSX.Element {
   return (
     <div
-      class="absolute py-2.5 px-3.5 rounded-lg text-xs pointer-events-none z-[1000]"
+      class="absolute py-2.5 px-3.5 rounded-lg text-xs pointer-events-none z-[1000] min-w-[160px] bg-stone-900/95 border border-pml-accent/25 backdrop-blur-md shadow-lg shadow-black/40"
       style={{
         left: `${x}px`,
         top: `${y}px`,
         transform: "translate(-50%, -100%)",
-        background: "rgba(18, 17, 15, 0.97)",
-        border: "1px solid rgba(255, 184, 111, 0.25)",
-        backdropFilter: "blur(12px)",
-        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4)",
-        minWidth: "160px",
       }}
     >
-      {/* Header: Tool name */}
-      <div class="font-bold text-sm mb-2" style={{ color: "#fff" }}>
+      <div class="font-bold text-sm mb-2 text-white">
         {data.label}
       </div>
 
-      {/* Server with color indicator */}
       <div class="flex items-center gap-2 mb-1.5">
         <div
           class="w-2.5 h-2.5 rounded-full flex-shrink-0"
           style={{ background: serverColor }}
         />
-        <span style={{ color: "#d5c3b5" }}>{data.server}</span>
+        <span class="text-stone-300">{data.server}</span>
       </div>
 
-      {/* Metrics */}
-      <div
-        class="flex gap-4 pt-1.5 mt-1.5"
-        style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}
-      >
+      <div class="flex gap-4 pt-1.5 mt-1.5 border-t border-white/10">
         <div>
-          <span style={{ color: "#6b6560" }}>PR</span>
-          <span style={{ color: "#ffb86f" }}>{data.pagerank.toFixed(3)}</span>
+          <span class="text-stone-500">PR</span>
+          <span class="text-pml-accent">{data.pagerank.toFixed(3)}</span>
         </div>
         <div>
-          <span style={{ color: "#6b6560" }}>Deg</span>
-          <span style={{ color: "#d5c3b5" }}>{data.degree}</span>
+          <span class="text-stone-500">Deg</span>
+          <span class="text-stone-300">{data.degree}</span>
         </div>
       </div>
     </div>

@@ -1,0 +1,823 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const heroContent = locale === 'fr'
+  ? {
+      teams: {
+        title: 'Votre Équipe Crée Plus Vite',
+        titleHighlight: 'Que Jamais',
+        subtitle: 'Linking automatisé. 20 heures/mois économisées par personne. Collaboration fluide.',
+        formPlaceholder: 'Entrez votre domaine (ex: stripe.com)',
+        formButton: 'Voir Mon Écosystème',
+        newsletterButton: 'Réserver une démo',
+        previewItems: [
+          '20 heures/semaine économisées (zéro linking manuel)',
+          'Collaboration simplifiée entre équipes',
+          '+40-80% trafic interne automatique'
+        ],
+        trustBadge: 'Analyse Gratuite · Pas de Carte Bancaire · Résultats Immédiats'
+      },
+      agencies: {
+        title: 'Livrez Plus de Projets',
+        titleHighlight: 'Sans Plus de Coûts',
+        subtitle: 'Facturez $700-1300/mois par client. Un seul prix pour clients illimités.',
+        formPlaceholder: 'Estimez votre revenu mensuel',
+        formButton: 'Estimer Mon Revenu',
+        newsletterButton: 'Réserver une démo',
+        previewItems: [
+          '40+ heures/projet de travail manuel automatisé',
+          'Marge 30-40% par client',
+          'Infinite scaling (clients illimités, prix fixe)'
+        ],
+        trustBadge: 'Clients Illimités · 30-40% Marge · Marque Blanche Bientôt'
+      }
+    }
+  : {
+      teams: {
+        title: 'Your Team Creates Faster',
+        titleHighlight: 'Than Ever',
+        subtitle: 'Automated linking. 20 hours/month saved per person. Smooth collaboration.',
+        formPlaceholder: 'Enter your domain (e.g. stripe.com)',
+        formButton: 'See My Ecosystem',
+        newsletterButton: 'Book a demo',
+        previewItems: [
+          '20 hours/week saved (zero manual linking)',
+          'Simplified team collaboration',
+          '+40-80% internal traffic automatic'
+        ],
+        trustBadge: 'Free Analysis · No Credit Card · Instant Results'
+      },
+      agencies: {
+        title: 'Deliver More Projects',
+        titleHighlight: 'Without More Costs',
+        subtitle: 'Charge $700-1300/month per client. One price for unlimited clients.',
+        formPlaceholder: 'Estimate your monthly revenue',
+        formButton: 'Estimate My Revenue',
+        newsletterButton: 'Book a demo',
+        previewItems: [
+          '40+ hours/project of manual work automated',
+          '30-40% margin per client',
+          'Infinite scaling (unlimited clients, fixed price)'
+        ],
+        trustBadge: 'Unlimited Clients · 30-40% Margin · White Label Soon'
+      }
+    };
+
+const defaultSegment = 'teams';
+let t = heroContent[defaultSegment];
+---
+
+<section id="hero">
+  <div class="container">
+    <div class="content">
+      <h1>
+        {t.title} <span class="gradient-text gradient-text-enhanced">{t.titleHighlight}</span>
+      </h1>
+
+      <p class="subtitle">{t.subtitle}</p>
+
+      <!-- TEMPORARILY DISABLED: Domain Analysis Form (will be enabled when backend is ready) -->
+      <!-- <div class="form-container">
+        <form id="hero-form" class="form">
+          <div class="input-wrapper">
+            <input
+              id="domain-input"
+              type="text"
+              placeholder={t.formPlaceholder}
+              class="input"
+              aria-label="Domain"
+            />
+          </div>
+          <button type="submit" class="submit-btn">
+            <span class="btn-text">{t.formButton}</span>
+            <span class="btn-loading">⏳ Loading...</span>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M7 10h10M14 7l3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </form>
+
+        <p id="feedback" class="feedback" role="status"></p>
+      </div> -->
+
+      <!-- Email Newsletter Subscription with Formspree -->
+      <div class="form-container surface-elevated">
+        <form
+          id="newsletter-form"
+          class="form"
+          action="https://formspree.io/f/movnynen"
+          method="POST"
+        >
+          <!-- Hidden subject field for demo requests -->
+          <input
+            type="hidden"
+            name="_subject"
+            value={locale === 'fr' ? 'Demande de démo CASYS' : 'CASYS demo request'}
+          />
+          <div class="input-wrapper">
+            <input
+              id="email-input"
+              type="email"
+              name="email"
+              placeholder={locale === 'fr' ? 'Votre email' : 'Your email'}
+              class="input input-enhanced"
+              aria-label="Email"
+              required
+            />
+          </div>
+          <button type="submit" class="submit-btn">
+            <span class="btn-text">{t.newsletterButton}</span>
+            <span class="btn-loading">⏳ {locale === 'fr' ? 'Envoi...' : 'Sending...'}</span>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M7 10h10M14 7l3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </form>
+
+        <p id="newsletter-feedback" class="feedback" role="status"></p>
+      </div>
+
+      <div class="badge">
+        <div class="badge-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M13.5 4L6 11.5L2.5 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <span>{t.trustBadge}</span>
+      </div>
+
+      <!-- Preview Items -->
+      <div class="preview-items">
+        {t.previewItems.map((item) => (
+          <div class="preview-item card-elevated">
+            <span class="material-symbols-rounded">check_circle</span>
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Import dark mode utility classes globally to prevent Astro tree-shaking */
+  /* @import '@casys/design-system/tokens/m3-dark-mode-enhancements.css'; */
+  /* TEMPORARILY DISABLED: Blocks dev server, inlined below instead */
+
+  /* Dark mode enhanced variables - now auto-generated in m3-colors-generated.css
+   * Violet #dbbddb palette with punchy gradient (tone 85) and pure black background
+   * Variables available: --casys-gradient-start/mid/end, --casys-background-dark, etc.
+   */
+
+  html[data-theme="dark"] .gradient-text-enhanced {
+    background: linear-gradient(135deg,
+      var(--casys-gradient-start) 0%,
+      var(--casys-gradient-mid) 50%,
+      var(--casys-gradient-end) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Utility classes removed - now auto-generated in m3-colors-generated.css:
+   * - .surface-elevated (container elevated with shadow)
+   * - .input-enhanced (enhanced input fields)
+   * - .card-elevated (elevated cards)
+   */
+
+  section {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 40px 0 64px; /* Further reduced - SegmentSelector takes space */
+    background: linear-gradient(135deg,
+      var(--md-sys-color-surface) 0%,
+      var(--md-sys-color-surface-container) 100%);
+    overflow: hidden;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  .content {
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    font-weight: 900;
+    line-height: 1.1; /* Back to normal for single-line */
+    letter-spacing: -0.02em;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 24px; /* Slightly increased for better breathing */
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg,
+      var(--md-sys-color-primary) 0%,
+      var(--md-sys-color-tertiary) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline-block;
+  }
+
+  .subtitle {
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+    line-height: 1.4; /* Slightly tighter */
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0 0 32px; /* Reduced from 48px */
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .form-container {
+    background: var(--md-sys-color-surface-container-high);
+    padding: 24px; /* Reduced from 32px */
+    border-radius: 28px;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 8px rgba(0, 0, 0, 0.02);
+    margin-bottom: 24px; /* Reduced from 32px */
+  }
+
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  @media (min-width: 640px) {
+    .form {
+      flex-direction: row;
+      align-items: stretch;
+    }
+  }
+
+  .input-wrapper {
+    flex: 1;
+    position: relative;
+  }
+
+  .input {
+    width: 100%;
+    padding: 20px 16px;
+    font-size: var(--md-sys-typescale-body-large-size);
+    color: var(--md-sys-color-on-surface);
+    background: var(--md-sys-color-surface-container-highest);
+    border: 2px solid transparent;
+    border-radius: 16px;
+    outline: none;
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .input:focus {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface);
+    transform: scale(1.01);
+    box-shadow: 0 0 0 4px rgba(var(--md-sys-color-primary-rgb), 0.1);
+  }
+
+  .input::placeholder {
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.7;
+  }
+
+  button.submit-btn {
+    height: 56px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 24px;
+    background: linear-gradient(135deg,
+      var(--md-sys-color-primary) 0%,
+      var(--md-sys-color-tertiary) 100%);
+    color: var(--md-sys-color-on-primary);
+    border: none;
+    border-radius: 100px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+    font-family: inherit;
+  }
+
+  button.submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  button.submit-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  @media (max-width: 640px) {
+    button.submit-btn {
+      width: 100%;
+    }
+  }
+
+  /* Initial state: hide loading text */
+  .btn-loading {
+    display: none;
+  }
+
+  .feedback {
+    min-height: 24px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .feedback[data-state="error"] {
+    color: var(--md-sys-color-error);
+  }
+
+  .feedback[data-state="success"] {
+    color: var(--md-sys-color-primary);
+  }
+
+  .feedback[data-state="loading"] {
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    border-radius: 100px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .badge-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border-radius: 50%;
+  }
+
+  .badge-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Preview Items */
+  .preview-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 48px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .preview-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: var(--md-sys-color-surface-container);
+    border-radius: 12px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: var(--md-sys-color-on-surface-variant);
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+    opacity: 0;
+    transform: translateY(10px);
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 8px rgba(0, 0, 0, 0.02);
+  }
+
+  .preview-item.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+    box-shadow:
+      0 3px 6px rgba(0, 0, 0, 0.08),
+      0 8px 16px rgba(0, 0, 0, 0.04);
+  }
+
+  .preview-item:hover {
+    box-shadow:
+      0 4px 8px rgba(0, 0, 0, 0.1),
+      0 12px 24px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+  }
+
+  .preview-item .material-symbols-rounded {
+    color: var(--md-sys-color-primary);
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  /* Tablet: 2 columns */
+  @media (max-width: 768px) {
+    section {
+      padding: 24px 0 40px; /* Minimal padding on mobile */
+    }
+
+    h1 {
+      font-size: clamp(2rem, 7vw, 3rem); /* Slightly smaller on mobile */
+      margin: 0 0 16px;
+    }
+
+    .subtitle {
+      font-size: var(--md-sys-typescale-title-medium-size);
+      margin: 0 0 24px;
+    }
+
+    .form-container {
+      padding: 20px; /* More compact on mobile */
+      margin-bottom: 20px;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .preview-items {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .preview-item {
+      justify-content: flex-start;
+    }
+  }
+
+  /* Desktop: 3 columns */
+  @media (min-width: 1025px) {
+    .preview-items {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 900px;
+    }
+
+    .preview-item {
+      justify-content: flex-start;
+    }
+  }
+
+  /* .bg-pattern removed - no background gradient needed, pure black in dark mode */
+
+  /* Dark Mode Enhancements
+   * Most dark mode styles now use design system utility classes:
+   * - .gradient-text-enhanced (gradients)
+   * - .surface-elevated (containers)
+   * - .input-enhanced (inputs)
+   * - .card-elevated (preview items)
+   * Section background applied globally in LandingLayout.astro
+   */
+
+  /* Typography enhancements for better readability */
+  html[data-theme="dark"] h1 {
+    color: var(--casys-text-primary);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  html[data-theme="dark"] .subtitle {
+    color: var(--casys-text-secondary);
+  }
+
+  /* Badge specific dark mode (not covered by utility classes) */
+  html[data-theme="dark"] .badge {
+    background: rgba(255, 220, 189, 0.12);
+    color: var(--casys-text-primary);  /* Use CASYS token for consistency */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] .badge-icon {
+    background: var(--casys-gradient-start);
+    color: var(--casys-background-dark);  /* Dark text on light violet background */
+  }
+
+  /* Preview item icon accent color */
+  html[data-theme="dark"] .preview-item .material-symbols-rounded {
+    color: var(--casys-gradient-start);
+  }
+</style>
+
+<script>
+  // ========================================
+  // DOMAIN ANALYSIS FORM (Currently disabled in HTML)
+  // Keep this code for future re-activation
+  // ========================================
+  const form = document.getElementById('hero-form') as HTMLFormElement | null;
+  const input = document.getElementById('domain-input') as HTMLInputElement | null;
+  const feedback = document.getElementById('feedback') as HTMLParagraphElement | null;
+
+  form?.addEventListener('submit', async (e) => {
+    if (!input || !feedback) return;
+    e.preventDefault();
+
+    const domain = input.value.trim().toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '');
+
+    if (!domain || !domain.includes('.')) {
+      feedback.setAttribute('data-state', 'error');
+      feedback.textContent = 'Please enter a valid domain';
+      return;
+    }
+
+    input.disabled = true;
+    const btn = form.querySelector('button.submit-btn') as HTMLButtonElement | null;
+    if (!btn) return;
+
+    // Simple DOM manipulation to toggle loading state
+    const btnText = btn.querySelector('.btn-text') as HTMLElement | null;
+    const btnLoading = btn.querySelector('.btn-loading') as HTMLElement | null;
+    const btnIcon = btn.querySelector('svg') as SVGElement | null;
+
+    if (btnText) btnText.style.display = 'none';
+    if (btnLoading) btnLoading.style.display = 'inline';
+    if (btnIcon) btnIcon.style.display = 'none';
+    btn.disabled = true;
+
+    feedback.setAttribute('data-state', 'loading');
+    feedback.textContent = 'Starting analysis...';
+
+    try {
+      const response = await fetch('/api/lead/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Analysis failed');
+      }
+
+      feedback.setAttribute('data-state', 'success');
+      feedback.textContent = 'Analysis started! Redirecting...';
+
+      setTimeout(() => {
+        window.location.href = data.redirectUrl;
+      }, 500);
+
+    } catch (error) {
+      input.disabled = false;
+      btn.disabled = false;
+      if (btnText) btnText.style.display = 'inline';
+      if (btnLoading) btnLoading.style.display = 'none';
+      if (btnIcon) btnIcon.style.display = 'inline';
+
+      feedback.setAttribute('data-state', 'error');
+      feedback.textContent = (error as Error).message || 'Failed to start analysis';
+    }
+  });
+
+  // Segment-aware content switching
+  const heroContent = {
+    fr: {
+      teams: {
+        title: 'Votre Équipe Crée Plus Vite',
+        titleHighlight: 'Que Jamais',
+        subtitle: 'Linking automatisé. 20 heures/mois économisées par personne. Collaboration fluide.',
+        formPlaceholder: 'Entrez votre domaine (ex: stripe.com)',
+        formButton: 'Voir Mon Écosystème',
+        newsletterButton: 'Réserver une démo',
+        previewItems: [
+          '20 heures/semaine économisées (zéro linking manuel)',
+          'Collaboration simplifiée entre équipes',
+          '+40-80% trafic interne automatique'
+        ],
+        trustBadge: 'Analyse Gratuite · Pas de Carte Bancaire · Résultats Immédiats'
+      },
+      agencies: {
+        title: 'Livrez Plus de Projets',
+        titleHighlight: 'Sans Plus de Coûts',
+        subtitle: 'Facturez $700-1300/mois par client. Un seul prix pour clients illimités.',
+        formPlaceholder: 'Estimez votre revenu mensuel',
+        formButton: 'Estimer Mon Revenu',
+        newsletterButton: 'Réserver une démo',
+        previewItems: [
+          '40+ heures/projet de travail manuel automatisé',
+          'Marge 30-40% par client',
+          'Infinite scaling (clients illimités, prix fixe)'
+        ],
+        trustBadge: 'Clients Illimités · 30-40% Marge · Marque Blanche Bientôt'
+      }
+    },
+    en: {
+      teams: {
+        title: 'Your Team Creates Faster',
+        titleHighlight: 'Than Ever',
+        subtitle: 'Automated linking. 20 hours/month saved per person. Smooth collaboration.',
+        formPlaceholder: 'Enter your domain (e.g. stripe.com)',
+        formButton: 'See My Ecosystem',
+        newsletterButton: 'Book a demo',
+        previewItems: [
+          '20 hours/week saved (zero manual linking)',
+          'Simplified team collaboration',
+          '+40-80% internal traffic automatic'
+        ],
+        trustBadge: 'Free Analysis · No Credit Card · Instant Results'
+      },
+      agencies: {
+        title: 'Deliver More Projects',
+        titleHighlight: 'Without More Costs',
+        subtitle: 'Charge $700-1300/month per client. One price for unlimited clients.',
+        formPlaceholder: 'Estimate your monthly revenue',
+        formButton: 'Estimate My Revenue',
+        newsletterButton: 'Book a demo',
+        previewItems: [
+          '40+ hours/project of manual work automated',
+          '30-40% margin per client',
+          'Infinite scaling (unlimited clients, fixed price)'
+        ],
+        trustBadge: 'Unlimited Clients · 30-40% Margin · White Label Soon'
+      }
+    }
+  };
+
+  const updateHeroForSegment = (segment: string) => {
+    const locale = document.documentElement.lang === 'fr' ? 'fr' : 'en';
+    const content = heroContent[locale][segment as keyof typeof heroContent[typeof locale]];
+
+    if (!content) return;
+
+    // Update title
+    const titleEl = document.querySelector('h1') as HTMLElement | null;
+    if (titleEl) {
+      titleEl.innerHTML = `${content.title}<br /><span class="gradient-text">${content.titleHighlight}</span>`;
+    }
+
+    // Update subtitle
+    const subtitleEl = document.querySelector('.subtitle') as HTMLElement | null;
+    if (subtitleEl) {
+      subtitleEl.textContent = content.subtitle;
+    }
+
+    // Update form placeholder and button (disabled domain form)
+    const inputEl = document.getElementById('domain-input') as HTMLInputElement | null;
+    if (inputEl) {
+      inputEl.placeholder = content.formPlaceholder;
+    }
+
+    // Update newsletter button text (active form)
+    const newsletterBtnText = document.querySelector('#newsletter-form .btn-text') as HTMLElement | null;
+    if (newsletterBtnText) {
+      newsletterBtnText.textContent = content.newsletterButton;
+    }
+
+    // Update badge
+    const badgeEl = document.querySelector('.badge span') as HTMLElement | null;
+    if (badgeEl) {
+      badgeEl.textContent = content.trustBadge;
+    }
+
+    // Update preview items
+    const previewItemsEl = document.querySelector('.preview-items') as HTMLElement | null;
+    if (previewItemsEl) {
+      previewItemsEl.innerHTML = content.previewItems.map(item => `
+        <div class="preview-item animate-in">
+          <span class="material-symbols-rounded">check_circle</span>
+          <span>${item}</span>
+        </div>
+      `).join('');
+    }
+  };
+
+  // Animate preview items on page load
+  const animatePreviewItems = () => {
+    const items = document.querySelectorAll('.preview-item');
+    items.forEach((item, index) => {
+      setTimeout(() => {
+        item.classList.add('animate-in');
+      }, index * 100); // Stagger animation by 100ms
+    });
+  };
+
+  // Animate on load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', animatePreviewItems);
+  } else {
+    animatePreviewItems();
+  }
+
+  // Listen for segment changes
+  window.addEventListener('segment-changed', (event: any) => {
+    updateHeroForSegment(event.detail.segment);
+    // Re-animate preview items after segment change
+    setTimeout(animatePreviewItems, 50);
+  });
+
+  // ========================================
+  // EMAIL NEWSLETTER SUBSCRIPTION (Formspree)
+  // Active subscription form
+  // ========================================
+  const newsletterForm = document.getElementById('newsletter-form') as HTMLFormElement | null;
+  const emailInput = document.getElementById('email-input') as HTMLInputElement | null;
+  const newsletterFeedback = document.getElementById('newsletter-feedback') as HTMLParagraphElement | null;
+
+  newsletterForm?.addEventListener('submit', async (e) => {
+    if (!emailInput || !newsletterFeedback) return;
+    e.preventDefault();
+
+    const email = emailInput.value.trim();
+
+    if (!email || !email.includes('@')) {
+      newsletterFeedback.setAttribute('data-state', 'error');
+      newsletterFeedback.textContent = document.documentElement.lang === 'fr'
+        ? 'Veuillez entrer un email valide'
+        : 'Please enter a valid email';
+      return;
+    }
+
+    emailInput.disabled = true;
+    const btn = newsletterForm.querySelector('button.submit-btn') as HTMLButtonElement | null;
+    if (!btn) return;
+
+    // Toggle loading state
+    const btnText = btn.querySelector('.btn-text') as HTMLElement | null;
+    const btnLoading = btn.querySelector('.btn-loading') as HTMLElement | null;
+    const btnIcon = btn.querySelector('svg') as SVGElement | null;
+
+    if (btnText) btnText.style.display = 'none';
+    if (btnLoading) btnLoading.style.display = 'inline';
+    if (btnIcon) btnIcon.style.display = 'none';
+    btn.disabled = true;
+
+    newsletterFeedback.setAttribute('data-state', 'loading');
+    newsletterFeedback.textContent = document.documentElement.lang === 'fr'
+      ? 'Envoi en cours...'
+      : 'Sending...';
+
+    try {
+      // Get subject from hidden field
+      const formData = new FormData(newsletterForm);
+      const subject = formData.get('_subject') as string;
+
+      // Formspree expects JSON format with email field and _subject
+      const response = await fetch('https://formspree.io/f/movnynen', {
+        method: 'POST',
+        body: JSON.stringify({ email, _subject: subject }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Submission failed');
+      }
+
+      newsletterFeedback.setAttribute('data-state', 'success');
+      newsletterFeedback.textContent = document.documentElement.lang === 'fr'
+        ? '✅ Merci ! Vous êtes inscrit(e)'
+        : '✅ Thanks! You\'re subscribed';
+
+      // Reset form after success
+      newsletterForm.reset();
+
+      // Re-enable after 3 seconds
+      setTimeout(() => {
+        emailInput.disabled = false;
+        btn.disabled = false;
+        if (btnText) btnText.style.display = 'inline';
+        if (btnLoading) btnLoading.style.display = 'none';
+        if (btnIcon) btnIcon.style.display = 'inline';
+        newsletterFeedback.textContent = '';
+        newsletterFeedback.removeAttribute('data-state');
+      }, 3000);
+
+    } catch (error) {
+      emailInput.disabled = false;
+      btn.disabled = false;
+      if (btnText) btnText.style.display = 'inline';
+      if (btnLoading) btnLoading.style.display = 'none';
+      if (btnIcon) btnIcon.style.display = 'inline';
+
+      newsletterFeedback.setAttribute('data-state', 'error');
+      newsletterFeedback.textContent = document.documentElement.lang === 'fr'
+        ? 'Erreur lors de l\'inscription'
+        : 'Subscription failed';
+    }
+  });
+</script>

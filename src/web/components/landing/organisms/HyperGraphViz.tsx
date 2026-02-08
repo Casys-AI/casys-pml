@@ -263,9 +263,9 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
   const viewBoxHeight = 480;
 
   return (
-    <div class="hgv">
+    <div class="w-full max-w-full md:max-w-none opacity-0 animate-[hgvFadeIn_0.6s_ease_0.3s_forwards]">
       <svg
-        class="hgv__svg"
+        class="block w-full h-auto"
         viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
         preserveAspectRatio="xMidYMid meet"
       >
@@ -289,7 +289,7 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
         </defs>
 
         {/* Layer 0: Isometric grids (floor + walls) */}
-        <g class="hgv__grid">
+        <g>
           {/* Back wall - lighter, more distant */}
           {backWallLines.map((line, i) => (
             <line
@@ -329,7 +329,7 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
         </g>
 
         {/* Layer 1: Links from meta-meta to meta nodes */}
-        <g class="hgv__meta-links">
+        <g>
           {metaNodes.map((meta, i) => {
             const from = project(metaMetaNode.pos.x, metaMetaNode.pos.y, metaMetaNode.pos.z);
             const to = project(meta.pos.x, meta.pos.y, meta.pos.z);
@@ -349,7 +349,7 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
         </g>
 
         {/* Layer 2: Links from meta nodes to small points */}
-        <g class="hgv__hierarchy-links">
+        <g>
           {pointsWithMeta.map((pt, i) => {
             const meta = metaNodes[pt.metaIndex];
             const from = project(meta.pos.x, meta.pos.y, meta.pos.z);
@@ -370,7 +370,7 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
         </g>
 
         {/* Layer 3: Small points (lots of them) */}
-        <g class="hgv__points">
+        <g>
           {pointsWithMeta.map((pt, i) => {
             const pos = project(pt.x, pt.y, pt.z);
             const meta = metaNodes[pt.metaIndex];
@@ -388,7 +388,7 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
         </g>
 
         {/* Layer 4: Meta nodes */}
-        <g class="hgv__meta-nodes">
+        <g>
           {metaNodes.map((meta, i) => {
             const pos = project(meta.pos.x, meta.pos.y, meta.pos.z);
             return (
@@ -398,7 +398,7 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
         </g>
 
         {/* Layer 5: Meta-meta node (top level) */}
-        <g class="hgv__meta-meta">
+        <g>
           {(() => {
             const pos = project(metaMetaNode.pos.x, metaMetaNode.pos.y, metaMetaNode.pos.z);
             return <circle cx={pos.x} cy={pos.y} r="7" fill={metaMetaNode.color} />;
@@ -406,12 +406,12 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
         </g>
 
         {/* Layer 6: DR-DSP Lightning - Complete workflow paths */}
-        <g class="hgv__lightning">
+        <g>
           {workflowPaths.map((workflow) => {
             const regPos = project(metaMetaNode.pos.x, metaMetaNode.pos.y, metaMetaNode.pos.z);
 
             return (
-              <g key={workflow.id} class="hgv__workflow">
+              <g key={workflow.id}>
                 {workflow.edges.map((edge, edgeIdx) => {
                   const edgeDelay = workflow.delay + edge.delay;
                   const duration = workflow.duration;
@@ -460,7 +460,7 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
                         y2={endPos.y}
                         stroke={LIGHTNING_COLOR}
                         stroke-width="1"
-                        class="hgv__flash-edge"
+                        class="opacity-0 animate-[lightning_10s_linear_infinite]"
                         style={{ animationDelay: `${edgeDelay}s`, animationDuration: `${duration}s` }}
                       />
                     );
@@ -488,7 +488,7 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
                             y2={toolPos.y}
                             stroke={LIGHTNING_COLOR}
                             stroke-width="0.5"
-                            class="hgv__ghost-edge"
+                            class="opacity-0 animate-[ghostFlash_10s_linear_infinite]"
                             style={{ animationDelay: `${edgeDelay}s`, animationDuration: `${duration}s` }}
                           />
                         );
@@ -507,32 +507,8 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
 
       <style>
         {`
-        .hgv {
-          width: 100%;
-          opacity: 0;
-          animation: hgvFadeIn 0.6s ease 0.3s forwards;
-        }
-
         @keyframes hgvFadeIn {
           to { opacity: 1; }
-        }
-
-        .hgv__svg {
-          display: block;
-          width: 100%;
-          height: auto;
-        }
-
-        /* Lightning flash - rapid fire through workflow */
-        .hgv__flash-edge {
-          opacity: 0;
-          animation: lightning 10s linear infinite;
-        }
-
-        /* Ghost hyper-edge - faint alternatives that fade quickly */
-        .hgv__ghost-edge {
-          opacity: 0;
-          animation: ghostFlash 10s linear infinite;
         }
 
         @keyframes lightning {
@@ -549,12 +525,6 @@ export function HyperGraphViz(_props: HyperGraphVizProps) {
           2.5% { opacity: 0.15; }
           3.5% { opacity: 0; }
           100% { opacity: 0; }
-        }
-
-        @media (max-width: 768px) {
-          .hgv {
-            max-width: 100%;
-          }
         }
         `}
       </style>

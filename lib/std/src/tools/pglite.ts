@@ -81,6 +81,13 @@ export const pgliteTools: MiniTool[] = [
       },
       required: ["query"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["filter", "sort", "select", "paginate"],
+        accepts: ["setData", "highlight", "scrollTo"],
+      },
+    },
     handler: async ({ query, params, limit = 100, dbPath: customPath }) => {
       const pglite = await getDb(customPath as string | undefined);
 
@@ -297,6 +304,13 @@ export const pgliteTools: MiniTool[] = [
         dbPath: { type: "string", description: "Database path (optional)" },
       },
       required: ["sql"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["select"],
+        accepts: [],
+      },
     },
     handler: async ({ sql, params, dbPath: customPath }) => {
       const pglite = await getDb(customPath as string | undefined);

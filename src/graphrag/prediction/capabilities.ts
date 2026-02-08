@@ -145,6 +145,43 @@ export function adjustConfidenceFromEpisodes(
 }
 
 /**
+ * Extract literal arguments from a single task node
+ */
+function extractLiteralArgumentsFromTask(
+  taskNode: StaticStructureNode & { type: "task" },
+): Record<string, unknown> | null {
+  if (!taskNode.arguments) {
+    return null;
+  }
+
+  const toolArgs: Record<string, unknown> = {};
+  let hasLiterals = false;
+
+  for (const [argName, argValue] of Object.entries(taskNode.arguments as ArgumentsStructure)) {
+    switch (argValue.type) {
+      case "literal":
+        toolArgs[argName] = argValue.value;
+        hasLiterals = true;
+        break;
+
+      case "reference":
+        log.debug(
+          `[extractArguments] Reference argument ${argName} for ${taskNode.tool}: ${argValue.expression} (needs runtime resolution)`,
+        );
+        break;
+
+      case "parameter":
+        log.debug(
+          `[extractArguments] Parameter argument ${argName} for ${taskNode.tool}: ${argValue.parameterName} (needs intent extraction)`,
+        );
+        break;
+    }
+  }
+
+  return hasLiterals ? toolArgs : null;
+}
+
+/**
  * Extract literal arguments from static_structure for speculative execution (Story 10.2)
  *
  * Iterates through task nodes in the static structure and extracts only
@@ -157,45 +194,21 @@ export function adjustConfidenceFromEpisodes(
 export function extractArgumentsFromStaticStructure(
   staticStructure: StaticStructure | null,
 ): Record<string, Record<string, unknown>> {
-  if (!staticStructure || !staticStructure.nodes) {
+  if (!staticStructure?.nodes) {
     return {};
   }
 
   const result: Record<string, Record<string, unknown>> = {};
 
   for (const node of staticStructure.nodes) {
-    // Only task nodes have arguments
     if (node.type !== "task") {
       continue;
     }
 
     const taskNode = node as StaticStructureNode & { type: "task" };
-    if (!taskNode.arguments) {
-      continue;
-    }
+    const toolArgs = extractLiteralArgumentsFromTask(taskNode);
 
-    const toolArgs: Record<string, unknown> = {};
-    let hasLiterals = false;
-
-    for (const [argName, argValue] of Object.entries(taskNode.arguments as ArgumentsStructure)) {
-      // Only include literal values that can be used immediately
-      if (argValue.type === "literal") {
-        toolArgs[argName] = argValue.value;
-        hasLiterals = true;
-      } // Log references and parameters for debugging (future: runtime resolution)
-      else if (argValue.type === "reference") {
-        log.debug(
-          `[extractArguments] Reference argument ${argName} for ${taskNode.tool}: ${argValue.expression} (needs runtime resolution)`,
-        );
-      } else if (argValue.type === "parameter") {
-        log.debug(
-          `[extractArguments] Parameter argument ${argName} for ${taskNode.tool}: ${argValue.parameterName} (needs intent extraction)`,
-        );
-      }
-    }
-
-    // Only add to result if we have some literal arguments
-    if (hasLiterals) {
+    if (toolArgs) {
       result[taskNode.tool] = toolArgs;
     }
   }

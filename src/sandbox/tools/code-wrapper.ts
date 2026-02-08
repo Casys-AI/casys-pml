@@ -9,6 +9,18 @@
 import { RESULT_MARKER } from "../execution/result-parser.ts";
 
 /**
+ * Regex pattern to detect if code contains statement keywords
+ * (vs pure expression for auto-return wrapping)
+ */
+export const STATEMENT_PATTERN =
+  /(^|\n|\s)(const|let|var|function|class|if|for|while|do|switch|try|return|throw|break|continue)\s/;
+
+/**
+ * Pattern for valid JavaScript variable names
+ */
+const VALID_VARIABLE_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+/**
  * Code Wrapper
  *
  * Handles wrapping user code in execution wrapper with context injection.
@@ -35,7 +47,7 @@ export class CodeWrapper {
       ? Object.entries(context)
         .map(([key, value]) => {
           // Validate variable name is safe (alphanumeric + underscore only)
-          if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+          if (!VALID_VARIABLE_NAME_PATTERN.test(key)) {
             throw new Error(`Invalid context variable name: ${key}`);
           }
           // Serialize value to JSON and inject as const
@@ -45,10 +57,7 @@ export class CodeWrapper {
       : "";
 
     // ADR-016: REPL-style auto-return with heuristic detection
-    // Check if code contains statement keywords
-    const hasStatements =
-      /(^|\n|\s)(const|let|var|function|class|if|for|while|do|switch|try|return|throw|break|continue)\s/
-        .test(code.trim());
+    const hasStatements = STATEMENT_PATTERN.test(code.trim());
 
     // If code has statements, execute as-is (requires explicit return)
     // If code is pure expression, wrap in return for auto-return
@@ -94,7 +103,7 @@ export class CodeWrapper {
    * @returns true if valid
    */
   isValidVariableName(name: string): boolean {
-    return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
+    return VALID_VARIABLE_NAME_PATTERN.test(name);
   }
 
   /**
@@ -104,8 +113,7 @@ export class CodeWrapper {
    * @returns true if code contains statement keywords
    */
   hasStatements(code: string): boolean {
-    return /(^|\n|\s)(const|let|var|function|class|if|for|while|do|switch|try|return|throw|break|continue)\s/
-      .test(code.trim());
+    return STATEMENT_PATTERN.test(code.trim());
   }
 }
 

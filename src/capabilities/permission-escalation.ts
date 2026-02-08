@@ -282,33 +282,37 @@ function findValidEscalation(
 }
 
 /**
- * Checks if a permission scope provides a specific capability
+ * Permission scopes that provide each operation capability
  *
  * Note: 'trusted' is deprecated but still handled for backward compatibility.
  * In the new model, 'trusted' maps to 'mcp-standard' + approvalMode: 'auto'.
+ */
+const OPERATION_CAPABLE_SCOPES: Record<string, ReadonlyArray<PermissionScope | PermissionSet>> = {
+  read: ["readonly", "filesystem", "mcp-standard", "trusted"],
+  write: ["filesystem", "mcp-standard", "trusted"],
+  net: ["network-api", "mcp-standard", "trusted"],
+  env: ["mcp-standard", "trusted"],
+};
+
+/**
+ * Checks if a permission scope provides a specific capability
  */
 function targetProvidesCapability(
   target: PermissionScope | PermissionSet,
   operation: string,
 ): boolean {
-  switch (operation) {
-    case "read":
-      return ["readonly", "filesystem", "mcp-standard", "trusted"].includes(target);
-    case "write":
-      return ["filesystem", "mcp-standard", "trusted"].includes(target);
-    case "net":
-      return ["network-api", "mcp-standard", "trusted"].includes(target);
-    case "env":
-      return ["mcp-standard", "trusted"].includes(target);
-    // FFI and run are now independent flags - not tied to scope
-    case "ffi":
-    case "run":
-      // These depend on PermissionConfig.ffi/run, not scope
-      // Always return false here - handled separately in suggestEscalation
-      return false;
-    default:
-      return false;
+  // FFI and run are independent flags - not tied to scope
+  // They depend on PermissionConfig.ffi/run, handled separately in suggestEscalation
+  if (operation === "ffi" || operation === "run") {
+    return false;
   }
+
+  const capableScopes = OPERATION_CAPABLE_SCOPES[operation];
+  if (!capableScopes) {
+    return false;
+  }
+
+  return capableScopes.includes(target);
 }
 
 /**

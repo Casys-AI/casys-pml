@@ -8,6 +8,7 @@
 
 import * as Sentry from "@sentry/deno";
 import * as log from "@std/log";
+import { SENTRY_TAG_FIELDS } from "./types.ts";
 
 /**
  * Get git commit hash for release tracking
@@ -281,22 +282,10 @@ export async function flushSentry(timeout = 2000): Promise<boolean> {
  *
  * Tags should be low-cardinality strings (server_id, tool_type, etc.)
  */
-function extractTags(
-  context: Record<string, unknown>,
-): Record<string, string> {
+function extractTags(context: Record<string, unknown>): Record<string, string> {
   const tags: Record<string, string> = {};
 
-  // Known tag fields
-  const tagFields = [
-    "server_id",
-    "tool",
-    "operation",
-    "environment",
-    "cache_hit",
-    "pii_detected",
-  ];
-
-  for (const field of tagFields) {
+  for (const field of SENTRY_TAG_FIELDS) {
     if (field in context) {
       const value = context[field];
       if (typeof value === "string" || typeof value === "boolean") {
@@ -313,20 +302,9 @@ function extractTags(
  *
  * Extra can be high-cardinality data (DAG structure, error details, etc.)
  */
-function extractExtra(
-  context: Record<string, unknown>,
-): Record<string, unknown> {
+function extractExtra(context: Record<string, unknown>): Record<string, unknown> {
+  const excludeFields = new Set<string>(SENTRY_TAG_FIELDS);
   const extra: Record<string, unknown> = {};
-
-  // Exclude tag fields (already set as tags)
-  const excludeFields = new Set([
-    "server_id",
-    "tool",
-    "operation",
-    "environment",
-    "cache_hit",
-    "pii_detected",
-  ]);
 
   for (const [key, value] of Object.entries(context)) {
     if (!excludeFields.has(key)) {

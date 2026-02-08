@@ -17,3 +17,6 @@ export type {
 
 // Executor
 export { SandboxExecutor } from "./sandbox-executor.ts";
+
+// UI Utils
+export { extractUiMeta, type ExtractedUiMeta } from "./ui-utils.ts";

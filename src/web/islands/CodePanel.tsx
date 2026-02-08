@@ -19,9 +19,11 @@ import type {
   ExecutionTrace,
   ToolData,
   TraceTaskResult,
+  UiOrchestrationState,
 } from "./CytoscapeGraph.tsx";
 import TraceSelector from "../components/ui/molecules/TraceSelector.tsx";
 import TraceTimeline from "../components/ui/molecules/TraceTimeline.tsx";
+import CompositeUiViewer, { type ToolTraceResult } from "../components/ui/CompositeUiViewer.tsx";
 import { parseToolId } from "../../capabilities/tool-id-utils.ts";
 
 // Re-export for convenience
@@ -86,9 +88,12 @@ const MIN_PANEL_HEIGHT = 150;
 const DEFAULT_MAX_HEIGHT = 800;
 const DEFAULT_PANEL_HEIGHT = 300;
 
-// Get max height dynamically (SSR-safe)
+// Get max height dynamically (SSR-safe) - allow full window height
 const getMaxPanelHeight = () =>
-  typeof window !== "undefined" ? globalThis.innerHeight * 0.8 : DEFAULT_MAX_HEIGHT;
+  typeof window !== "undefined" ? globalThis.innerHeight : DEFAULT_MAX_HEIGHT;
+
+// Threshold for fullscreen mode (covers header)
+const FULLSCREEN_THRESHOLD = 0.9;
 
 export default function CodePanel({
   capability,
@@ -119,9 +124,58 @@ export default function CodePanel({
     return DEFAULT_PANEL_HEIGHT;
   });
   const [isResizing, setIsResizing] = useState(false);
+  // Fullscreen mode: covers entire viewport including header
+  const isFullscreen = typeof window !== "undefined" && panelHeight >= globalThis.innerHeight * FULLSCREEN_THRESHOLD;
   const panelRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
   const startHeightRef = useRef(0);
+
+  // Story 16.6: UI orchestration state for composite viewer
+  // Initialized from capability or fetched from API - no hardcoded defaults
+  const [uiOrchestration, setUiOrchestration] = useState<UiOrchestrationState | null>(
+    capability?.uiOrchestration ?? null
+  );
+
+  // Story 16.6: Code section collapsed state (when UIs are present)
+  const [codeCollapsed, setCodeCollapsed] = useState(false);
+
+  // Story 16.6: Fetched UIs from API
+  const [fetchedUis, setFetchedUis] = useState<CapabilityData["collectedUis"]>(undefined);
+
+  // Story 16.6: Fetch UIs when capability changes
+  useEffect(() => {
+    if (!capability?.id) {
+      setFetchedUis(undefined);
+      return;
+    }
+
+    const fetchUis = async () => {
+      try {
+        console.log("[CodePanel] Fetching UIs for capability.id:", capability.id, "full capability:", JSON.stringify(capability, null, 2));
+        const response = await fetch(`/api/capabilities/${capability.id}/uis`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.hasUis && data.collectedUis?.length > 0) {
+            setFetchedUis(data.collectedUis);
+            if (data.uiOrchestration) {
+              setUiOrchestration(data.uiOrchestration);
+            }
+          } else {
+            setFetchedUis(undefined);
+          }
+        }
+      } catch (error) {
+        console.error("[CodePanel] Failed to fetch UIs:", error);
+        setFetchedUis(undefined);
+      }
+    };
+
+    fetchUis();
+  }, [capability?.id]);
+
+  // Check if capability has UI resources (from fetched data or inline)
+  const collectedUis = fetchedUis ?? capability?.collectedUis;
+  const hasCollectedUis = collectedUis && collectedUis.length > 0;
 
   // Determine display mode
   const displayMode = tool ? "tool" : capability ? "capability" : null;
@@ -150,6 +204,19 @@ export default function CodePanel({
   useEffect(() => {
     setCopied(false);
   }, [capability?.id, tool?.id]);
+
+  // Story 16.6: Update UI orchestration when capability changes
+  // Don't set hardcoded defaults here - let the API fetch (line ~148-169) be the source of truth
+  useEffect(() => {
+    if (capability?.uiOrchestration) {
+      setUiOrchestration(capability.uiOrchestration);
+    } else {
+      // Reset to null - API fetch will provide the actual orchestration
+      setUiOrchestration(null);
+    }
+    // Reset code collapsed state when capability changes
+    setCodeCollapsed(false);
+  }, [capability?.id]);
 
   // Save panel height to localStorage when it changes
   useEffect(() => {
@@ -259,7 +326,7 @@ export default function CodePanel({
       {/* Inject syntax highlighting styles */}
       <style>{syntaxHighlightStyles}</style>
 
-      {/* Slide-up animation */}
+      {/* Slide-up animation keyframes */}
       <style>
         {`
         @keyframes slideUp {
@@ -277,145 +344,76 @@ export default function CodePanel({
 
       <div
         ref={panelRef}
-        class="code-panel"
+        class={`code-panel w-full flex flex-col outline-none bg-pml-bg-elevated border-t border-pml-border ${
+          isFullscreen ? "fixed inset-0 z-[200]" : "relative z-[100]"
+        }`}
         role="region"
         aria-labelledby="code-panel-title"
         tabIndex={0}
         style={{
-          width: "100%",
-          height: `${panelHeight}px`,
+          height: isFullscreen ? "100vh" : `${panelHeight}px`,
           minHeight: `${MIN_PANEL_HEIGHT}px`,
-          maxHeight: `${getMaxPanelHeight()}px`,
-          background: "var(--bg-elevated, #12110f)",
-          borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-          display: "flex",
-          flexDirection: "column",
+          maxHeight: isFullscreen ? "100vh" : `${getMaxPanelHeight()}px`,
           animation: hasAnimated ? "none" : "slideUp 300ms ease-out",
-          position: "relative",
-          zIndex: 100,
-          outline: "none",
         }}
       >
         {/* Resize Handle */}
         <div
           onMouseDown={handleResizeStart as any}
           onTouchStart={handleResizeStart as any}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "8px",
-            cursor: "ns-resize",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 10,
-          }}
+          class="absolute top-0 left-0 right-0 h-2 cursor-ns-resize flex justify-center items-center z-10"
           title="Drag to resize"
         >
           {/* Visual grip indicator */}
           <div
-            style={{
-              width: "40px",
-              height: "4px",
-              borderRadius: "2px",
-              background: isResizing
-                ? "var(--accent, #FFB86F)"
-                : "var(--border, rgba(255, 184, 111, 0.2))",
-              transition: "background 0.15s ease",
-            }}
-            onMouseOver={(e) => {
-              if (!isResizing) {
-                e.currentTarget.style.background = "var(--accent, #FFB86F)";
-              }
-            }}
-            onMouseOut={(e) => {
-              if (!isResizing) {
-                e.currentTarget.style.background = "var(--border, rgba(255, 184, 111, 0.2))";
-              }
-            }}
+            class={`w-[40px] h-1 rounded-sm transition-colors duration-150 ${
+              isResizing ? "bg-pml-accent" : "bg-pml-border hover:bg-pml-accent"
+            }`}
           />
         </div>
+
         {/* Header */}
-        <div
-          class="panel-header"
-          style={{
-            padding: "12px 16px",
-            paddingTop: "16px", // Extra padding for resize handle
-            borderBottom: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
+        <div class="panel-header px-4 py-3 pt-4 border-b border-pml-border flex justify-between items-center shrink-0">
+          <div class="flex items-center gap-3 flex-1 min-w-0">
             {/* Title with type badge */}
             <span
-              style={{
-                padding: "2px 8px",
-                borderRadius: "4px",
-                fontSize: "0.7rem",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                background: displayMode === "tool"
-                  ? "var(--accent-dim, rgba(255, 184, 111, 0.1))"
-                  : "rgba(34, 197, 94, 0.15)",
-                color: displayMode === "tool"
-                  ? "var(--accent, #FFB86F)"
-                  : "var(--success, #22c55e)",
-              }}
+              class={`px-2 py-0.5 rounded text-[0.7rem] font-semibold uppercase tracking-wide ${
+                displayMode === "tool"
+                  ? "bg-pml-accent/10 text-pml-accent"
+                  : "bg-green-500/15 text-green-500"
+              }`}
             >
               {displayMode === "tool" ? "Tool" : "Capability"}
             </span>
             <h3
               id="code-panel-title"
-              style={{
-                margin: 0,
-                color: "var(--text, #f5f0ea)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
+              class="m-0 text-pml-text text-base font-semibold whitespace-nowrap overflow-hidden text-ellipsis"
               title={tool?.label || capability?.label}
             >
               {tool?.label || capability?.label}
             </h3>
 
             {/* Inline stats - different for tool vs capability */}
-            <div
-              style={{
-                display: "flex",
-                gap: "16px",
-                fontSize: "0.8125rem",
-                flexShrink: 0,
-              }}
-            >
+            <div class="flex gap-4 text-[0.8125rem] shrink-0">
               {displayMode === "tool" && tool && (
                 <>
                   <span
+                    class="font-semibold px-2 py-0.5 rounded"
                     style={{
                       color: getColor(tool.server),
-                      fontWeight: 600,
-                      padding: "2px 8px",
                       background: `${getColor(tool.server)}20`,
-                      borderRadius: "4px",
                     }}
                     title="MCP Server"
                   >
                     {tool.server}
                   </span>
                   {tool.observedCount !== undefined && tool.observedCount > 0 && (
-                    <span style={{ color: "var(--text-muted, #d5c3b5)" }} title="Observed usage">
+                    <span class="text-pml-text-muted" title="Observed usage">
                       {tool.observedCount}x used
                     </span>
                   )}
                   {tool.parentCapabilities && tool.parentCapabilities.length > 0 && (
-                    <span style={{ color: "var(--text-dim, #8a8078)" }} title="Parent capabilities">
+                    <span class="text-pml-text-dim" title="Parent capabilities">
                       {tool.parentCapabilities.length} capabilities
                     </span>
                   )}
@@ -424,33 +422,35 @@ export default function CodePanel({
               {displayMode === "capability" && capability && (
                 <>
                   <span
-                    style={{
-                      color: capability.successRate >= 0.8
-                        ? "var(--success, #22c55e)"
+                    class={`font-semibold ${
+                      capability.successRate >= 0.8
+                        ? "text-green-500"
                         : capability.successRate >= 0.5
-                        ? "var(--warning, #f59e0b)"
-                        : "var(--error, #ef4444)",
-                      fontWeight: 600,
-                    }}
+                        ? "text-amber-500"
+                        : "text-red-500"
+                    }`}
                     title="Success rate"
                   >
                     {(capability.successRate * 100).toFixed(0)}%
                   </span>
-                  <span style={{ color: "var(--text-muted, #d5c3b5)" }} title="Usage count">
+                  <span class="text-pml-text-muted" title="Usage count">
                     {capability.usageCount}x
                   </span>
-                  <span style={{ color: "var(--text-dim, #8a8078)" }} title="Tools count">
+                  <span class="text-pml-text-dim" title="Tools count">
                     {capability.toolsCount} tools
                   </span>
+                  {/* Story 16.6: UI components badge */}
+                  {hasCollectedUis && (
+                    <span
+                      class="text-[#4ECDC4] text-xs px-1.5 py-0.5 bg-[#4ECDC4]/15 rounded"
+                      title="UI components from MCP Apps"
+                    >
+                      {collectedUis?.length} UI{(collectedUis?.length ?? 0) !== 1 ? "s" : ""}
+                    </span>
+                  )}
                   {capability.communityId !== undefined && (
                     <span
-                      style={{
-                        color: "var(--accent, #FFB86F)",
-                        fontSize: "0.75rem",
-                        padding: "2px 6px",
-                        background: "var(--accent-dim, rgba(255, 184, 111, 0.1))",
-                        borderRadius: "4px",
-                      }}
+                      class="text-pml-accent text-xs px-1.5 py-0.5 bg-pml-accent/10 rounded"
                       title="Community cluster"
                     >
                       C{capability.communityId}
@@ -465,146 +465,114 @@ export default function CodePanel({
           <button
             onClick={onClose}
             aria-label="Close panel"
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--text-dim, #8a8078)",
-              cursor: "pointer",
-              padding: "4px 8px",
-              fontSize: "1.25rem",
-              lineHeight: 1,
-              borderRadius: "4px",
-              transition: "all 0.15s ease",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "var(--bg-surface, #1a1816)";
-              e.currentTarget.style.color = "var(--text, #f5f0ea)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--text-dim, #8a8078)";
-            }}
+            class="bg-transparent border-none text-pml-text-dim cursor-pointer px-2 py-1 text-xl leading-none rounded transition-all duration-150 hover:bg-pml-bg-surface hover:text-pml-text"
           >
             ✕
           </button>
         </div>
 
+        {/* Story 16.6: Composite UI Viewer (shown when capability has collected UIs) */}
+        {displayMode === "capability" && hasCollectedUis && collectedUis && (
+          <CompositeUiViewer
+            collectedUis={collectedUis}
+            orchestration={uiOrchestration ?? {
+              layout: "stack",
+              sync: [],
+              panelOrder: collectedUis.map((_, i) => i),
+            }}
+            onOrchestrationChange={(newOrchestration) => {
+              setUiOrchestration(newOrchestration);
+              // TODO: Persist to API
+              // fetch(`/api/capabilities/${capability.id}/uis`, {
+              //   method: 'PUT',
+              //   headers: { 'Content-Type': 'application/json' },
+              //   body: JSON.stringify(newOrchestration),
+              // });
+            }}
+            height={Math.max(200, panelHeight - 150)}
+            getServerColor={getServerColor}
+            // Pass trace results from selected trace to replay in UIs
+            traceResults={(() => {
+              const selectedTrace = capability?.traces?.[selectedTraceIndex];
+              if (!selectedTrace?.taskResults) return undefined;
+
+              const resultsMap = new Map<string, ToolTraceResult>();
+              for (const task of selectedTrace.taskResults) {
+                resultsMap.set(task.tool, {
+                  tool: task.tool,
+                  args: task.args,
+                  result: task.result,
+                  success: task.success,
+                });
+              }
+              return resultsMap;
+            })()}
+          />
+        )}
+
+        {/* Story 16.6: Collapsible toggle for code section when UIs present */}
+        {displayMode === "capability" && hasCollectedUis && (
+          <button
+            onClick={() => setCodeCollapsed(!codeCollapsed)}
+            class="px-3 py-1 rounded-none border-none border-b border-pml-border bg-pml-bg-surface text-pml-text-muted text-[0.7rem] cursor-pointer flex items-center gap-1.5 w-full justify-center"
+          >
+            <span
+              class="transition-transform duration-150"
+              style={{ transform: codeCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
+            >
+              ▼
+            </span>
+            {codeCollapsed ? "Show Code & Traces" : "Hide Code & Traces"}
+          </button>
+        )}
+
         {/* Content - Story 11.4: Split layout for Definition (left) + Invocation (right) */}
         <div
-          style={{
-            flex: 1,
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "row",
-            gap: "0",
-          }}
+          class={`flex-1 overflow-hidden flex-row gap-0 ${codeCollapsed ? "hidden" : "flex"}`}
         >
           {/* Left Side: Definition (code, stats, tools) */}
           <div
-            style={{
-              width: displayMode === "capability" && capability?.traces?.length ? "50%" : "100%",
-              overflow: "auto",
-              padding: "16px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "12px",
-              borderRight: displayMode === "capability" && capability?.traces?.length
-                ? "1px solid var(--border, rgba(255, 184, 111, 0.1))"
-                : "none",
-            }}
+            class={`overflow-auto p-4 flex flex-col gap-3 ${
+              displayMode === "capability" && capability?.traces?.length
+                ? "w-1/2 border-r border-pml-border"
+                : "w-full"
+            }`}
           >
             {/* Code Section */}
-            <div
-              style={{
-                background: "var(--bg, #0a0908)",
-                borderRadius: "8px",
-                border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-                overflow: "hidden",
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
+            <div class="bg-pml-bg rounded-lg border border-pml-border overflow-hidden flex-1 flex flex-col">
               {/* Code header with line numbers toggle */}
-              <div
-                style={{
-                  padding: "8px 12px",
-                  borderBottom: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: "0.75rem",
-                  color: "var(--text-dim, #8a8078)",
-                }}
-              >
-                <span style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <div class="px-3 py-2 border-b border-pml-border flex justify-between items-center text-xs text-pml-text-dim">
+                <span class="uppercase tracking-wide">
                   {displayMode === "tool" ? "Input Schema (JSON)" : contentLanguage}
                 </span>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    cursor: "pointer",
-                  }}
-                >
+                <label class="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={showLineNumbers}
                     onChange={(e) => setShowLineNumbers((e.target as HTMLInputElement).checked)}
-                    style={{ accentColor: "var(--accent, #FFB86F)" }}
+                    class="accent-pml-accent"
                   />
                   Line numbers
                 </label>
               </div>
 
               {/* Code content */}
-              <div
-                style={{
-                  flex: 1,
-                  overflow: "auto",
-                  padding: "12px",
-                }}
-              >
+              <div class="flex-1 overflow-auto p-3">
                 {displayContent
                   ? (
-                    <pre
-                      class="code-block"
-                      style={{
-                        margin: 0,
-                        fontFamily:
-                          'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-                        fontSize: "13px",
-                        lineHeight: "1.5",
-                        color: "var(--text, #f5f0ea)",
-                        whiteSpace: "pre",
-                        overflowX: "auto",
-                      }}
-                    >
-                  <code style={{ display: "table", width: "100%" }}>
+                    <pre class="code-block m-0 font-mono text-[13px] leading-relaxed text-pml-text whitespace-pre overflow-x-auto">
+                  <code class="table w-full">
                     {contentLines.map((line, index) => (
                       <div
                         key={index}
-                        style={{
-                          display: "table-row",
-                        }}
+                        class="table-row"
                       >
                         {showLineNumbers && (
-                          <span
-                            style={{
-                              display: "table-cell",
-                              paddingRight: "16px",
-                              textAlign: "right",
-                              color: "var(--text-dim, #8a8078)",
-                              userSelect: "none",
-                              width: "1%",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
+                          <span class="table-cell pr-4 text-right text-pml-text-dim select-none w-[1%] whitespace-nowrap">
                             {index + 1}
                           </span>
                         )}
-                        <span style={{ display: "table-cell" }}>
+                        <span class="table-cell">
                           {highlightCode(line || " ", contentLanguage)}
                         </span>
                       </div>
@@ -613,14 +581,7 @@ export default function CodePanel({
                     </pre>
                   )
                   : (
-                    <div
-                      style={{
-                        color: "var(--text-dim, #8a8078)",
-                        fontStyle: "italic",
-                        padding: "24px",
-                        textAlign: "center",
-                      }}
-                    >
+                    <div class="text-pml-text-dim italic p-6 text-center">
                       {displayMode === "tool"
                         ? "No input schema available"
                         : "No code snippet available"}
@@ -630,35 +591,19 @@ export default function CodePanel({
             </div>
 
             {/* Actions + Info Row */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: "16px",
-                flexWrap: "wrap",
-              }}
-            >
+            <div class="flex justify-between items-start gap-4 flex-wrap">
               {/* Actions */}
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div class="flex gap-2">
                 <button
                   onClick={handleCopy}
                   disabled={!displayContent}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    border: "none",
-                    background: copied ? "var(--success, #22c55e)" : "var(--accent, #FFB86F)",
-                    color: "var(--bg, #0a0908)",
-                    fontWeight: 600,
-                    fontSize: "0.875rem",
-                    cursor: displayContent ? "pointer" : "not-allowed",
-                    opacity: displayContent ? 1 : 0.5,
-                    transition: "all 0.15s ease",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                  }}
+                  class={`px-4 py-2 rounded-lg border-none font-semibold text-sm flex items-center gap-1.5 transition-all duration-150 ${
+                    copied
+                      ? "bg-green-500 text-pml-bg cursor-pointer"
+                      : displayContent
+                      ? "bg-pml-accent text-pml-bg cursor-pointer hover:opacity-90"
+                      : "bg-pml-accent text-pml-bg cursor-not-allowed opacity-50"
+                  }`}
                 >
                   {copied
                     ? (
@@ -679,23 +624,11 @@ export default function CodePanel({
                   title={displayMode === "tool"
                     ? "Run this tool (Coming soon)"
                     : "Coming soon - Story 8.5"}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    border: displayMode === "tool"
-                      ? "1px solid var(--accent, #FFB86F)"
-                      : "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-                    background: displayMode === "tool"
-                      ? "var(--accent-dim, rgba(255, 184, 111, 0.1))"
-                      : "var(--bg-surface, #1a1816)",
-                    color: displayMode === "tool"
-                      ? "var(--accent, #FFB86F)"
-                      : "var(--text-dim, #8a8078)",
-                    fontWeight: 500,
-                    fontSize: "0.875rem",
-                    cursor: "not-allowed",
-                    opacity: displayMode === "tool" ? 0.8 : 0.6,
-                  }}
+                  class={`px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed ${
+                    displayMode === "tool"
+                      ? "border border-pml-accent bg-pml-accent/10 text-pml-accent opacity-80"
+                      : "border border-pml-border bg-pml-bg-surface text-pml-text-dim opacity-60"
+                  }`}
                 >
                   ▶ {displayMode === "tool" ? "Run Tool" : "Try This"}
                 </button>
@@ -703,18 +636,7 @@ export default function CodePanel({
 
               {/* Tool description (for tool mode) */}
               {displayMode === "tool" && tool?.description && (
-                <div
-                  style={{
-                    flex: 1,
-                    minWidth: "200px",
-                    padding: "8px 12px",
-                    background: "var(--bg-surface, #1a1816)",
-                    borderRadius: "6px",
-                    fontSize: "0.8125rem",
-                    color: "var(--text-muted, #d5c3b5)",
-                    lineHeight: "1.4",
-                  }}
-                >
+                <div class="flex-1 min-w-[200px] px-3 py-2 bg-pml-bg-surface rounded-md text-[0.8125rem] text-pml-text-muted leading-snug">
                   {tool.description}
                 </div>
               )}
@@ -722,22 +644,8 @@ export default function CodePanel({
               {/* Tools used (for capability mode) */}
               {displayMode === "capability" && capability?.toolIds &&
                 capability.toolIds.length > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "6px",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "var(--text-dim, #8a8078)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
+                <div class="flex gap-1.5 flex-wrap items-center">
+                  <span class="text-xs text-pml-text-dim uppercase tracking-wide">
                     Tools:
                   </span>
                   {capability.toolIds.map((toolId) => {
@@ -749,19 +657,12 @@ export default function CodePanel({
                         key={toolId}
                         onClick={() => onToolClick?.(toolId)}
                         title={`${server}:${name} - Click to highlight in graph`}
+                        class="px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-all duration-150"
                         style={{
-                          padding: "4px 8px",
-                          borderRadius: "4px",
                           border: `1px solid ${color}40`,
                           background: `${color}15`,
                           color: color,
-                          fontSize: "0.75rem",
-                          fontWeight: 500,
                           cursor: onToolClick ? "pointer" : "default",
-                          transition: "all 0.15s ease",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
                         }}
                         onMouseOver={(e) => {
                           if (onToolClick) {
@@ -775,12 +676,8 @@ export default function CodePanel({
                         }}
                       >
                         <span
-                          style={{
-                            width: "6px",
-                            height: "6px",
-                            borderRadius: "50%",
-                            background: color,
-                          }}
+                          class="w-1.5 h-1.5 rounded-full"
+                          style={{ background: color }}
                         />
                         {name}
                       </button>
@@ -793,16 +690,7 @@ export default function CodePanel({
             {/* Additional metadata */}
             {displayMode === "capability" && capability &&
               (capability.lastUsedAt || capability.createdAt) && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "16px",
-                  fontSize: "0.75rem",
-                  color: "var(--text-dim, #8a8078)",
-                  paddingTop: "8px",
-                  borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-                }}
-              >
+              <div class="flex gap-4 text-xs text-pml-text-dim pt-2 border-t border-pml-border">
                 {capability.lastUsedAt && (
                   <span>Last used: {formatRelativeTime(capability.lastUsedAt)}</span>
                 )}
@@ -813,37 +701,20 @@ export default function CodePanel({
             )}
             {displayMode === "tool" && tool?.parentCapabilities &&
               tool.parentCapabilities.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  alignItems: "center",
-                  fontSize: "0.75rem",
-                  color: "var(--text-dim, #8a8078)",
-                  paddingTop: "8px",
-                  borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-                  flexWrap: "wrap",
-                }}
-              >
-                <span style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <div class="flex gap-2 items-center text-xs text-pml-text-dim pt-2 border-t border-pml-border flex-wrap">
+                <span class="uppercase tracking-wide">
                   Used by:
                 </span>
                 {tool.parentCapabilities.slice(0, 5).map((capId) => (
                   <span
                     key={capId}
-                    style={{
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                      background: "rgba(34, 197, 94, 0.15)",
-                      color: "var(--success, #22c55e)",
-                      fontSize: "0.7rem",
-                    }}
+                    class="px-1.5 py-0.5 rounded bg-green-500/15 text-green-500 text-[0.7rem]"
                   >
                     {capId.replace("cap:", "")}
                   </span>
                 ))}
                 {tool.parentCapabilities.length > 5 && (
-                  <span style={{ color: "var(--text-dim, #8a8078)" }}>
+                  <span class="text-pml-text-dim">
                     +{tool.parentCapabilities.length - 5} more
                   </span>
                 )}
@@ -853,16 +724,7 @@ export default function CodePanel({
 
           {/* Right Side: Invocation (trace selector + timeline) - Story 11.4 */}
           {displayMode === "capability" && capability?.traces && capability.traces.length > 0 && (
-            <div
-              style={{
-                width: "50%",
-                overflow: "auto",
-                padding: "16px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-              }}
-            >
+            <div class="w-1/2 overflow-auto p-4 flex flex-col gap-3">
               <TraceSelector
                 traces={capability.traces}
                 selectedIndex={selectedTraceIndex}

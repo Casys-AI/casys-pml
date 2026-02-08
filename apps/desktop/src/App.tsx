@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { HexCanvas } from './components/HexCanvas';
 import { SlidingSidebar, type SidebarNode } from './components/SlidingSidebar';
+import { TerminalPanel } from './components/Terminal';
 import { setMaxLevel, navigateToLevel, currentLevel } from './stores/navigation';
 import type { HexCell } from './types';
 import { hexSpiral } from './utils/hexMath';
@@ -220,6 +221,7 @@ function App() {
   const [focusedParentId, setFocusedParentId] = useState<string | null>(null);
   const [focusedCell, setFocusedCell] = useState<HexCell | null>(null);
   const [lastClick, setLastClick] = useState<string>('(aucun)');
+  const [terminalVisible, setTerminalVisible] = useState(true);
   const maxLevelRef = useRef(2); // 3 levels: meta-caps, caps, tools
 
   useEffect(() => {
@@ -406,6 +408,21 @@ function App() {
             targetZoom={targetZoom}
           />
         </div>
+        {terminalVisible ? (
+          <div class="terminal-panel">
+            <div class="terminal-panel-header">
+              <span>Terminal</span>
+              <button onClick={() => setTerminalVisible(false)}>Hide</button>
+            </div>
+            <div class="terminal-panel-content">
+              <TerminalPanel />
+            </div>
+          </div>
+        ) : (
+          <div class="terminal-collapsed" onClick={() => setTerminalVisible(true)}>
+            Terminal
+          </div>
+        )}
       </div>
       <footer class="app-footer">
         <span>Visible: {visibleCells.length}</span>

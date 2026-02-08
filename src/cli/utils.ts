@@ -10,6 +10,24 @@
 import { resolvePath } from "../lib/paths.ts";
 
 /**
+ * Get the OS-specific path separator
+ */
+function getPathSeparator(): string {
+  return Deno.build.os === "windows" ? "\\" : "/";
+}
+
+/**
+ * Get the home directory, throwing if not available
+ */
+function getHomeDir(): string {
+  const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE");
+  if (!homeDir) {
+    throw new Error("Cannot determine home directory (HOME/USERPROFILE not set)");
+  }
+  return homeDir;
+}
+
+/**
  * Detect the default MCP configuration path for Claude Desktop
  *
  * Returns OS-specific path:
@@ -17,31 +35,25 @@ import { resolvePath } from "../lib/paths.ts";
  * - Linux: ~/.config/Claude/claude_desktop_config.json
  * - Windows: %APPDATA%\Claude\claude_desktop_config.json
  *
- * @throws {Error} If OS is unsupported
+ * @throws {Error} If OS is unsupported or required env vars are missing
  */
 export function detectMCPConfigPath(): string {
   const os = Deno.build.os;
-  const homeDir = Deno.env.get("HOME");
-  const appData = Deno.env.get("APPDATA");
 
   switch (os) {
-    case "darwin": // macOS
-      if (!homeDir) {
-        throw new Error("HOME environment variable not set");
-      }
-      return `${homeDir}/Library/Application Support/Claude/claude_desktop_config.json`;
+    case "darwin":
+      return `${getHomeDir()}/Library/Application Support/Claude/claude_desktop_config.json`;
 
     case "linux":
-      if (!homeDir) {
-        throw new Error("HOME environment variable not set");
-      }
-      return `${homeDir}/.config/Claude/claude_desktop_config.json`;
+      return `${getHomeDir()}/.config/Claude/claude_desktop_config.json`;
 
-    case "windows":
+    case "windows": {
+      const appData = Deno.env.get("APPDATA");
       if (!appData) {
         throw new Error("APPDATA environment variable not set");
       }
       return `${appData}\\Claude\\claude_desktop_config.json`;
+    }
 
     default:
       throw new Error(`Unsupported operating system: ${os}`);
@@ -55,14 +67,7 @@ export function detectMCPConfigPath(): string {
  * Returns %USERPROFILE%\.pml on Windows
  */
 export function getPmlConfigDir(): string {
-  const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE");
-  if (!homeDir) {
-    throw new Error("Cannot determine home directory");
-  }
-
-  const os = Deno.build.os;
-  const separator = os === "windows" ? "\\" : "/";
-  return `${homeDir}${separator}.pml`;
+  return `${getHomeDir()}${getPathSeparator()}.pml`;
 }
 
 /**
@@ -79,10 +84,7 @@ export function getAgentCardsConfigDir(): string {
  * for MCP ecosystem alignment
  */
 export function getPmlConfigPath(): string {
-  const configDir = getPmlConfigDir();
-  const os = Deno.build.os;
-  const separator = os === "windows" ? "\\" : "/";
-  return `${configDir}${separator}config.json`;
+  return `${getPmlConfigDir()}${getPathSeparator()}config.json`;
 }
 
 /**
@@ -98,10 +100,7 @@ export function getAgentCardsConfigPath(): string {
  * @deprecated Use getPmlConfigPath() instead
  */
 export function getLegacyConfigPath(): string {
-  const configDir = getPmlConfigDir();
-  const os = Deno.build.os;
-  const separator = os === "windows" ? "\\" : "/";
-  return `${configDir}${separator}config.yaml`;
+  return `${getPmlConfigDir()}${getPathSeparator()}config.yaml`;
 }
 
 /**
@@ -132,6 +131,41 @@ export async function findConfigFile(): Promise<{ path: string; format: "json" |
 }
 
 /**
+ * Warn about deprecated environment variable usage
+ */
+function warnDeprecatedEnvVar(currentVar: string, deprecatedVar: string): void {
+  if (!Deno.env.get(currentVar) && Deno.env.get(deprecatedVar)) {
+    console.warn(`⚠️  ${deprecatedVar} is deprecated. Use ${currentVar} instead.`);
+  }
+}
+
+/**
+ * Get a config path from environment with fallback support
+ *
+ * Checks multiple env var names in order (current, then legacy)
+ * and warns about deprecated usage.
+ */
+function getEnvPathWithFallback(
+  currentVar: string,
+  legacyVars: string[],
+): string | undefined {
+  const customPath = Deno.env.get(currentVar);
+  if (customPath) {
+    return customPath;
+  }
+
+  for (const legacyVar of legacyVars) {
+    const legacyPath = Deno.env.get(legacyVar);
+    if (legacyPath) {
+      warnDeprecatedEnvVar(currentVar, legacyVar);
+      return legacyPath;
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Get the Casys PML database path
  *
  * Supports custom path via PML_DB_PATH environment variable.
@@ -152,28 +186,11 @@ export async function findConfigFile(): Promise<{ path: string; format: "json" |
  * getPmlDatabasePath() // /workspaces/project/.pml.db
  */
 export function getPmlDatabasePath(): string {
-  // Allow custom DB path via environment variable (ADR-021)
-  // Support new PML_DB_PATH and legacy CAI_DB_PATH/AGENTCARDS_DB_PATH
-  const customPath = Deno.env.get("PML_DB_PATH") ??
-    Deno.env.get("CAI_DB_PATH") ??
-    Deno.env.get("AGENTCARDS_DB_PATH");
+  const customPath = getEnvPathWithFallback("PML_DB_PATH", ["CAI_DB_PATH", "AGENTCARDS_DB_PATH"]);
   if (customPath) {
-    // Warn about deprecated env vars
-    if (!Deno.env.get("PML_DB_PATH")) {
-      if (Deno.env.get("CAI_DB_PATH")) {
-        console.warn("⚠️  CAI_DB_PATH is deprecated. Use PML_DB_PATH instead.");
-      } else if (Deno.env.get("AGENTCARDS_DB_PATH")) {
-        console.warn("⚠️  AGENTCARDS_DB_PATH is deprecated. Use PML_DB_PATH instead.");
-      }
-    }
     return resolvePath(customPath);
   }
-
-  // Default: ~/.pml/.pml.db
-  const configDir = getPmlConfigDir();
-  const os = Deno.build.os;
-  const separator = os === "windows" ? "\\" : "/";
-  return `${configDir}${separator}.pml.db`;
+  return `${getPmlConfigDir()}${getPathSeparator()}.pml.db`;
 }
 
 /**
@@ -201,25 +218,10 @@ export function getAgentCardsDatabasePath(): string {
  * getWorkflowTemplatesPath() // playground/config/workflow-templates.yaml
  */
 export function getWorkflowTemplatesPath(): string {
-  // Allow custom workflow path via environment variable
-  // Support new PML_WORKFLOW_PATH and legacy CAI_WORKFLOW_PATH/AGENTCARDS_WORKFLOW_PATH
-  const customPath = Deno.env.get("PML_WORKFLOW_PATH") ??
-    Deno.env.get("CAI_WORKFLOW_PATH") ??
-    Deno.env.get("AGENTCARDS_WORKFLOW_PATH");
-  if (customPath) {
-    // Warn about deprecated env vars
-    if (!Deno.env.get("PML_WORKFLOW_PATH")) {
-      if (Deno.env.get("CAI_WORKFLOW_PATH")) {
-        console.warn("⚠️  CAI_WORKFLOW_PATH is deprecated. Use PML_WORKFLOW_PATH instead.");
-      } else if (Deno.env.get("AGENTCARDS_WORKFLOW_PATH")) {
-        console.warn("⚠️  AGENTCARDS_WORKFLOW_PATH is deprecated. Use PML_WORKFLOW_PATH instead.");
-      }
-    }
-    return customPath;
-  }
-
-  // Default: ./config/workflow-templates.yaml (relative to cwd)
-  return "./config/workflow-templates.yaml";
+  return getEnvPathWithFallback(
+    "PML_WORKFLOW_PATH",
+    ["CAI_WORKFLOW_PATH", "AGENTCARDS_WORKFLOW_PATH"],
+  ) ?? "./config/workflow-templates.yaml";
 }
 
 /**

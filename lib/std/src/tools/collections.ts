@@ -135,6 +135,13 @@ export const collectionsTools: MiniTool[] = [
       },
       required: ["items", "key"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["select", "expandGroup"],
+        accepts: ["expandPath"],
+      },
+    },
     handler: ({ items, key }) => groupBy(items as unknown[], key as string),
   },
   {
@@ -375,6 +382,13 @@ export const collectionsTools: MiniTool[] = [
         key: { type: "string", description: "Property to count by" },
       },
       required: ["items", "key"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/chart-viewer",
+        emits: ["barClick", "hover"],
+        accepts: ["highlight"],
+      },
     },
     handler: ({ items, key }) => countBy(items as unknown[], key as string),
   },

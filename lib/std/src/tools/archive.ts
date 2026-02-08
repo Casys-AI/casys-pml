@@ -66,6 +66,13 @@ export const archiveTools: MiniTool[] = [
       },
       required: ["archive"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "extract"],
+        accepts: ["filter"],
+      },
+    },
     handler: async ({ archive, destination, list = false }) => {
       const args = list ? ["-tvf", archive as string] : ["-xf", archive as string];
       if (destination && !list) {
@@ -121,6 +128,13 @@ export const archiveTools: MiniTool[] = [
         list: { type: "boolean", description: "List contents only" },
       },
       required: ["archive"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "extract"],
+        accepts: ["filter"],
+      },
     },
     handler: async ({ archive, destination, list = false }) => {
       const args = list ? ["-l", archive as string] : [archive as string];

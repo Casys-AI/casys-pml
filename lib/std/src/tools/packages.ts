@@ -25,6 +25,13 @@ export const packagesTools: MiniTool[] = [
       },
       required: ["command"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["copy", "search"],
+        accepts: [],
+      },
+    },
     handler: async ({ command, args = [], cwd }) => {
       const cmdArgs = [command as string, ...(args as string[])];
       const result = await runCommand("npm", cmdArgs, { cwd: cwd as string, timeout: 300000 });
@@ -55,6 +62,13 @@ export const packagesTools: MiniTool[] = [
       },
       required: ["command"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/log-viewer",
+        emits: ["copy", "search"],
+        accepts: [],
+      },
+    },
     handler: async ({ command, packages = [], upgrade = false }) => {
       const args = [command as string];
       if (upgrade && command === "install") args.push("--upgrade");
@@ -83,6 +97,13 @@ export const packagesTools: MiniTool[] = [
       },
       required: ["packages"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["viewOutput"],
+        accepts: [],
+      },
+    },
     handler: async ({ packages, update }) => {
       if (update) {
         await runCommand("apt", ["update"], { timeout: 120000 });
@@ -109,6 +130,13 @@ export const packagesTools: MiniTool[] = [
       },
       required: ["query"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["select", "install"],
+        accepts: ["filter"],
+      },
+    },
     handler: async ({ query }) => {
       const result = await runCommand("apt", ["search", query as string]);
       return { output: result.stdout };
@@ -127,6 +155,13 @@ export const packagesTools: MiniTool[] = [
       },
       required: ["packages"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/status-badge",
+        emits: ["viewOutput"],
+        accepts: [],
+      },
+    },
     handler: async ({ packages, cask }) => {
       const args = cask ? ["install", "--cask"] : ["install"];
       args.push(...(packages as string[]));
@@ -136,6 +171,83 @@ export const packagesTools: MiniTool[] = [
         throw new Error(`brew install failed: ${result.stderr}`);
       }
       return { success: true, packages, output: result.stdout };
+    },
+  },
+  {
+    name: "dependency_analyze",
+    description:
+      "Analyze project dependencies from package.json or deno.json. Visualize dependency tree, detect outdated packages, and show dependency relationships. Useful for dependency audits, version tracking, or project analysis. Keywords: dependencies, package.json, npm, deno.json, dependency tree, outdated packages, project dependencies.",
+    category: "packages",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Path to package.json or deno.json (default: '.')" },
+        includeDevDeps: { type: "boolean", description: "Include devDependencies (default: true)" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/dependency-graph",
+      },
+    },
+    handler: async ({ path = ".", includeDevDeps = true }) => {
+      const basePath = path as string;
+
+      // Try package.json first, then deno.json
+      let manifest: Record<string, unknown>;
+      let manifestType = "npm";
+
+      try {
+        const pkgPath = basePath.endsWith(".json") ? basePath : `${basePath}/package.json`;
+        const content = await Deno.readTextFile(pkgPath);
+        manifest = JSON.parse(content);
+      } catch {
+        try {
+          const denoPath = basePath.endsWith(".json") ? basePath : `${basePath}/deno.json`;
+          const content = await Deno.readTextFile(denoPath);
+          manifest = JSON.parse(content);
+          manifestType = "deno";
+        } catch {
+          throw new Error(`No package.json or deno.json found at ${basePath}`);
+        }
+      }
+
+      const name = (manifest!.name as string) || "project";
+      const version = (manifest!.version as string) || "0.0.0";
+
+      const deps: Array<{ name: string; version: string; depth: number; parent?: string; isDev?: boolean }> = [];
+
+      // Parse dependencies
+      const dependencies = (manifest!.dependencies || manifest!.imports || {}) as Record<string, string>;
+      const devDependencies = (manifest!.devDependencies || {}) as Record<string, string>;
+
+      for (const [depName, depVersion] of Object.entries(dependencies)) {
+        deps.push({
+          name: depName,
+          version: String(depVersion),
+          depth: 1,
+        });
+      }
+
+      if (includeDevDeps) {
+        for (const [depName, depVersion] of Object.entries(devDependencies)) {
+          deps.push({
+            name: depName,
+            version: String(depVersion),
+            depth: 1,
+            isDev: true,
+          });
+        }
+      }
+
+      return {
+        name,
+        version,
+        manifestType,
+        dependencies: deps.filter((d) => !d.isDev),
+        devDependencies: deps.filter((d) => d.isDev),
+        totalCount: deps.length,
+      };
     },
   },
 ];

@@ -11,7 +11,7 @@ export interface GraphEdgeData {
   from: { x: number; y: number };
   to: { x: number; y: number };
   active?: boolean;
-  pathId?: number; // For path animation timing
+  pathId?: number;
 }
 
 interface GraphEdgeProps {
@@ -23,10 +23,9 @@ export function GraphEdge({ data, color = "#333" }: GraphEdgeProps) {
   const { from, to, active, pathId } = data;
 
   return (
-    <g class={`gedge ${active ? "gedge--active" : ""}`}>
-      {/* Base edge line */}
+    <g>
       <line
-        class="gedge__line"
+        class="transition-all duration-400"
         x1={from.x}
         y1={from.y}
         x2={to.x}
@@ -34,15 +33,14 @@ export function GraphEdge({ data, color = "#333" }: GraphEdgeProps) {
         stroke={active ? color : "#222"}
         stroke-width={active ? 2 : 1}
         opacity={active ? 0.8 : 0.3}
+        style={active ? { filter: `drop-shadow(0 0 4px ${color})` } : undefined}
       />
 
-      {/* Animated particle for active paths */}
       {active && (
         <circle
-          class="gedge__particle"
           r="3"
           fill={color}
-          style={{ "--delay": `${(pathId || 0) * 0.1}s` } as any}
+          style={{ filter: `drop-shadow(0 0 6px ${color})` }}
         >
           <animateMotion
             dur="1.5s"
@@ -54,7 +52,6 @@ export function GraphEdge({ data, color = "#333" }: GraphEdgeProps) {
         </circle>
       )}
 
-      {/* Hidden path for animateMotion */}
       {active && (
         <path
           id={`path-${data.id}`}
@@ -63,22 +60,6 @@ export function GraphEdge({ data, color = "#333" }: GraphEdgeProps) {
           stroke="none"
         />
       )}
-
-      <style>
-        {`
-        .gedge__line {
-          transition: all 0.4s ease;
-        }
-
-        .gedge--active .gedge__line {
-          filter: drop-shadow(0 0 4px ${color});
-        }
-
-        .gedge__particle {
-          filter: drop-shadow(0 0 6px ${color});
-        }
-        `}
-      </style>
     </g>
   );
 }

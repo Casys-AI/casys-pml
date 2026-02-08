@@ -216,9 +216,9 @@ export const quickStart = {
       description: "That's it. Claude Code auto-starts PML. Just describe what you want.",
       filename: "claude-code",
       codeHtml: `<span class="comment"># PML tools are available automatically:</span>
-<span class="flag">pml:discover</span>({ <span class="key">intent</span>: <span class="str">"read a JSON file"</span> })
+<span class="flag">discover</span>({ <span class="key">intent</span>: <span class="str">"read a JSON file"</span> })
 
-<span class="flag">pml:execute</span>({
+<span class="flag">execute</span>({
   <span class="key">intent</span>: <span class="str">"List dependencies from package.json"</span>,
   <span class="key">code</span>: <span class="str">\`const pkg = await mcp.fs.read_file(...);\`</span>
 })`,
@@ -251,16 +251,16 @@ export const blog = {
 // =============================================================================
 
 export const cta = {
-  title: "Curious? Dive in.",
+  title: "Ready to try?",
   description:
-    "Casys PML is fully open source. " +
-    "Explore the code, run experiments, or contribute to the research.",
+    "Give your agents procedural memory. " +
+    "Start building smarter workflows today.",
 
   actions: {
     primary: {
-      label: "Clone & Experiment",
-      href: "https://github.com/Casys-AI/casys-pml",
-      icon: "github",
+      label: "Get Started",
+      href: "#quickstart",
+      icon: "arrow",
     },
     secondary: {
       label: "Request Beta Access",
@@ -300,6 +300,7 @@ export const footer = {
   links: [
     { href: "https://casys.ai", label: "Casys.ai", external: true },
     { href: "https://github.com/Casys-AI/casys-pml", label: "GitHub", external: true },
+    { href: "https://discord.gg/fuPg8drR", label: "Discord", external: true },
     { href: "/docs", label: "Docs" },
     { href: "/catalog", label: "Catalog" },
   ],

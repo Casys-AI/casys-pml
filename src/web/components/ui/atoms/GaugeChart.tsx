@@ -7,7 +7,9 @@
  * @module web/components/ui/atoms/GaugeChart
  */
 
-interface GaugeChartProps {
+import type { JSX } from "preact";
+
+export interface GaugeChartProps {
   /** Value between 0 and 1 */
   value: number;
   /** Label text below the gauge */
@@ -17,11 +19,29 @@ interface GaugeChartProps {
 }
 
 /**
+ * Builds the conic-gradient for the gauge arc
+ */
+function buildArcGradient(value: number, color: string): string {
+  const fillDeg = value * 180;
+  return `conic-gradient(
+    ${color} 0deg,
+    ${color} ${fillDeg}deg,
+    var(--bg-surface, #1a1816) ${fillDeg}deg,
+    var(--bg-surface, #1a1816) 180deg,
+    transparent 180deg
+  )`;
+}
+
+/**
  * Semi-circular gauge chart with animated needle
  */
-export function GaugeChart({ value, label, color }: GaugeChartProps) {
+export function GaugeChart({
+  value,
+  label,
+  color,
+}: GaugeChartProps): JSX.Element {
   const percentage = Math.round(value * 100);
-  const rotation = value * 180 - 90; // -90 to 90 degrees
+  const needleRotation = value * 180 - 90; // -90 to 90 degrees
 
   return (
     <div class="flex flex-col items-center">
@@ -30,13 +50,7 @@ export function GaugeChart({ value, label, color }: GaugeChartProps) {
         <div
           class="absolute w-24 h-24 rounded-full"
           style={{
-            background: `conic-gradient(
-              ${color} 0deg,
-              ${color} ${value * 180}deg,
-              var(--bg-surface, #1a1816) ${value * 180}deg,
-              var(--bg-surface, #1a1816) 180deg,
-              transparent 180deg
-            )`,
+            background: buildArcGradient(value, color),
             transform: "rotate(-90deg)",
             clipPath: "inset(0 0 50% 0)",
           }}
@@ -51,7 +65,7 @@ export function GaugeChart({ value, label, color }: GaugeChartProps) {
           class="absolute bottom-0 left-1/2 w-0.5 h-10 origin-bottom"
           style={{
             background: "var(--text, #f5f0e8)",
-            transform: `translateX(-50%) rotate(${rotation}deg)`,
+            transform: `translateX(-50%) rotate(${needleRotation}deg)`,
             transition: "transform 0.5s ease-out",
           }}
         />

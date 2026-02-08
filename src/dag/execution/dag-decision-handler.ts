@@ -88,16 +88,8 @@ export class DAGDecisionHandler
     ctx: DecisionContext,
     topologicalSort: (dag: DAGStructure) => Task[][],
   ): Promise<AILResponseResult<Task[][]>> {
-    const captureCtx = {
-      state: ctx.state,
-      episodicMemory: ctx.episodicMemory,
-    };
-
-    const command = await waitForDecisionCommand(
-      ctx.commandQueue,
-      "AIL",
-      ctx.timeouts.ail,
-    );
+    const captureCtx = { state: ctx.state, episodicMemory: ctx.episodicMemory };
+    const command = await waitForDecisionCommand(ctx.commandQueue, "AIL", ctx.timeouts.ail);
 
     if (!command || command.type === "continue") {
       captureAILDecision(captureCtx, ctx.workflowId, "continue", "Agent decision: continue", {
@@ -115,33 +107,47 @@ export class DAGDecisionHandler
     }
 
     if (command.type === "replan_dag" && ctx.dagSuggester) {
-      if (ctx.replanCount >= MAX_REPLANS) {
-        captureAILDecision(captureCtx, ctx.workflowId, "replan_rejected", "Rate limit reached", {
-          max_replans: MAX_REPLANS,
-        });
-        return {};
-      }
+      return this.handleReplan(ctx, command, topologicalSort, captureCtx);
+    }
 
-      try {
-        const augmentedDAG = await ctx.dagSuggester.replanDAG(ctx.dag, {
-          completedTasks: ctx.state.tasks,
-          newRequirement: command.new_requirement ?? "",
-          availableContext: (command.available_context ?? {}) as Record<string, unknown>,
-        });
+    return {};
+  }
 
-        if (augmentedDAG.tasks.length !== ctx.dag.tasks.length) {
-          const newLayers = topologicalSort(augmentedDAG);
-          log.info(`DAG replanned: ${ctx.dag.tasks.length} → ${augmentedDAG.tasks.length} tasks`);
-          captureAILDecision(captureCtx, ctx.workflowId, "replan_success", "DAG replanned", {
-            replan_count: ctx.replanCount + 1,
-          });
-          return { newLayers, newDag: augmentedDAG };
-        }
-      } catch (error) {
-        captureAILDecision(captureCtx, ctx.workflowId, "replan_failed", "Replan failed", {
-          error: String(error),
+  /**
+   * Handle DAG replan request
+   */
+  private async handleReplan(
+    ctx: DecisionContext,
+    command: { new_requirement?: string; available_context?: unknown },
+    topologicalSort: (dag: DAGStructure) => Task[][],
+    captureCtx: { state: WorkflowState; episodicMemory: EpisodicMemoryStore | null },
+  ): Promise<AILResponseResult<Task[][]>> {
+    if (ctx.replanCount >= MAX_REPLANS) {
+      captureAILDecision(captureCtx, ctx.workflowId, "replan_rejected", "Rate limit reached", {
+        max_replans: MAX_REPLANS,
+      });
+      return {};
+    }
+
+    try {
+      const augmentedDAG = await ctx.dagSuggester!.replanDAG(ctx.dag, {
+        completedTasks: ctx.state.tasks,
+        newRequirement: command.new_requirement ?? "",
+        availableContext: (command.available_context ?? {}) as Record<string, unknown>,
+      });
+
+      if (augmentedDAG.tasks.length !== ctx.dag.tasks.length) {
+        const newLayers = topologicalSort(augmentedDAG);
+        log.info(`DAG replanned: ${ctx.dag.tasks.length} → ${augmentedDAG.tasks.length} tasks`);
+        captureAILDecision(captureCtx, ctx.workflowId, "replan_success", "DAG replanned", {
+          replan_count: ctx.replanCount + 1,
         });
+        return { newLayers, newDag: augmentedDAG };
       }
+    } catch (error) {
+      captureAILDecision(captureCtx, ctx.workflowId, "replan_failed", "Replan failed", {
+        error: String(error),
+      });
     }
 
     return {};
@@ -176,20 +182,9 @@ export class DAGDecisionHandler
   /**
    * Wait for HIL response (throws on timeout or rejection)
    */
-  async waitForHILResponse(
-    ctx: DecisionContext,
-    layerIdx: number,
-  ): Promise<void> {
-    const captureCtx = {
-      state: ctx.state,
-      episodicMemory: ctx.episodicMemory,
-    };
-
-    const command = await waitForDecisionCommand(
-      ctx.commandQueue,
-      "HIL",
-      ctx.timeouts.hil,
-    );
+  async waitForHILResponse(ctx: DecisionContext, layerIdx: number): Promise<void> {
+    const captureCtx = { state: ctx.state, episodicMemory: ctx.episodicMemory };
+    const command = await waitForDecisionCommand(ctx.commandQueue, "HIL", ctx.timeouts.hil);
 
     if (!command) {
       captureHILDecision(captureCtx, ctx.workflowId, false, `layer-${layerIdx}`, "timeout");
@@ -197,10 +192,9 @@ export class DAGDecisionHandler
     }
 
     if (command.type === "approval_response") {
-      if (command.approved) {
-        captureHILDecision(captureCtx, ctx.workflowId, true, `layer-${layerIdx}`, command.feedback);
-      } else {
-        captureHILDecision(captureCtx, ctx.workflowId, false, `layer-${layerIdx}`, command.feedback);
+      const approved = command.approved === true;
+      captureHILDecision(captureCtx, ctx.workflowId, approved, `layer-${layerIdx}`, command.feedback);
+      if (!approved) {
         throw new Error(`Workflow aborted by human: ${command.feedback || "no reason provided"}`);
       }
     }

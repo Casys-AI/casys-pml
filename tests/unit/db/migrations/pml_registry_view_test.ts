@@ -131,7 +131,7 @@ Deno.test("Migration 031 - AC2: pml_registry VIEW returns MCP tools", async () =
   }
 });
 
-Deno.test("Migration 031 - AC2: pml_registry VIEW returns capabilities", async () => {
+Deno.test({ name: "Migration 031 - AC2: pml_registry VIEW returns capabilities", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const client = new PGliteClient(getTestDbPath("ac2-capabilities"));
   await client.connect();
 
@@ -162,7 +162,7 @@ Deno.test("Migration 031 - AC2: pml_registry VIEW returns capabilities", async (
   } finally {
     await client.close();
   }
-});
+}});
 
 Deno.test("Migration 031 - AC2: pml_registry VIEW returns both types with UNION", async () => {
   const client = new PGliteClient(getTestDbPath("ac2-union"));

@@ -29,12 +29,44 @@ export interface SyncableGraph {
   addEdge(source: string, target: string, attributes: Record<string, unknown>): void;
   hasNode(nodeId: string): boolean;
   hasEdge(source: string, target: string): boolean;
+  setAttribute?(name: string, value: unknown): void;
   setNodeAttribute?(nodeId: string, name: string, value: unknown): void;
   order: number;
   size: number;
   edges(): string[];
   extremities(edge: string): [string, string];
   getEdgeAttributes(edge: string): Record<string, unknown>;
+}
+
+/**
+ * Create node attributes for a tool or operation
+ */
+function createToolNodeAttributes(toolId: string): Record<string, unknown> {
+  const isOp = toolId.startsWith("code:");
+  const name = toolId.split(":").pop() ?? toolId;
+
+  if (isOp) {
+    return {
+      type: "operation",
+      name,
+      pure: isPureOperation(toolId),
+      category: getOperationCategory(toolId) || "unknown",
+    };
+  }
+
+  return {
+    type: "tool",
+    name,
+    pure: false,
+  };
+}
+
+/**
+ * Ensure a tool/operation node exists in the graph
+ */
+function ensureToolNode(graph: SyncableGraph, toolId: string): void {
+  if (graph.hasNode(toolId)) return;
+  graph.addNode(toolId, createToolNodeAttributes(toolId));
 }
 
 /**
@@ -111,31 +143,31 @@ export async function syncGraphFromDatabase(
     graph.addNode(toolId, attributes);
   }
 
-  // 1b. Load tool observations (aggregated across all users)
-  // Tech-Spec 01: observedConfigs = all observed configurations per tool
-  let observationsLoaded = 0;
+  // 1b. Load server configs from tool_observations
+  // Tech-Spec 01.5: observed_config contains { command, args, env } per server
+  let configsLoaded = 0;
   try {
-    const observations = await db.query(`
-      SELECT tool_id, array_agg(DISTINCT observed_args ORDER BY observed_args) as observed_configs
+    const configs = await db.query(`
+      SELECT server_namespace, observed_config
       FROM tool_observations
-      GROUP BY tool_id
+      WHERE observed_config != '{}'
     `);
 
-    for (const obs of observations) {
-      const toolId = obs.tool_id as string;
-      if (graph.hasNode(toolId) && graph.setNodeAttribute) {
-        // Set observedConfigs attribute on existing tool node
-        graph.setNodeAttribute(toolId, "observedConfigs", obs.observed_configs);
-        observationsLoaded++;
+    for (const cfg of configs) {
+      const serverName = cfg.server_namespace as string;
+      // Store server config as graph attribute (not per-tool)
+      if (graph.setAttribute) {
+        graph.setAttribute(`serverConfig:${serverName}`, cfg.observed_config);
+        configsLoaded++;
       }
     }
 
-    if (observationsLoaded > 0) {
-      log.debug(`Loaded observations for ${observationsLoaded} tools`);
+    if (configsLoaded > 0) {
+      log.debug(`Loaded configs for ${configsLoaded} servers`);
     }
   } catch {
     // Table might not exist yet (migration not run) - that's OK
-    log.debug("tool_observations table not yet available, skipping observation loading");
+    log.debug("tool_observations table not yet available, skipping config loading");
   }
 
   // 2. Load edges (dependencies) from PGlite
@@ -151,22 +183,8 @@ export async function syncGraphFromDatabase(
     const to = dep.to_tool_id as string;
 
     // Create missing nodes (e.g., code:* operations not in tool_schema)
-    if (!graph.hasNode(from)) {
-      const isOp = from.startsWith("code:");
-      graph.addNode(from, {
-        type: isOp ? "operation" : "tool",
-        name: from.split(":").pop() ?? from,
-        pure: isOp ? isPureOperation(from) : false,
-      });
-    }
-    if (!graph.hasNode(to)) {
-      const isOp = to.startsWith("code:");
-      graph.addNode(to, {
-        type: isOp ? "operation" : "tool",
-        name: to.split(":").pop() ?? to,
-        pure: isOp ? isPureOperation(to) : false,
-      });
-    }
+    ensureToolNode(graph, from);
+    ensureToolNode(graph, to);
 
     graph.addEdge(from, to, {
       weight: dep.confidence_score as number,
@@ -244,15 +262,7 @@ export async function syncGraphFromDatabase(
     for (const toolId of tools) {
       if (!toolId || typeof toolId !== "string") continue;
 
-      // Ensure tool node exists
-      if (!graph.hasNode(toolId)) {
-        const isOp = toolId.startsWith("code:");
-        graph.addNode(toolId, {
-          type: isOp ? "operation" : "tool",
-          name: toolId.split(":").pop() ?? toolId,
-          pure: isOp ? isPureOperation(toolId) : false,
-        });
-      }
+      ensureToolNode(graph, toolId);
 
       // Add contains edge if not present
       if (!graph.hasEdge(capNode, toolId)) {

@@ -15,10 +15,27 @@
 import { eventBus } from "../events/mod.ts";
 import type { AlgorithmDecisionPayload } from "../events/types.ts";
 import { isPureOperation } from "../capabilities/pure-operations.ts";
+import type { AlgorithmMode, AlgorithmParams, AlgorithmSignals, TargetType } from "./algorithm-tracer.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 // ============================================================================
 // Abstract Interface (Port)
 // ============================================================================
+
+/**
+ * Decision signals for algorithm decisions (subset of AlgorithmSignals)
+ */
+export type DecisionSignals = Partial<AlgorithmSignals>;
+
+/**
+ * Decision parameters for algorithm decisions (subset of AlgorithmParams)
+ */
+export type DecisionParams = Partial<AlgorithmParams>;
+
+/**
+ * Decision outcome type
+ */
+export type DecisionOutcome = "accepted" | "rejected" | "rejected_by_threshold" | "filtered_by_reliability";
 
 /**
  * Algorithm decision data (domain-agnostic)
@@ -27,64 +44,20 @@ import { isPureOperation } from "../capabilities/pure-operations.ts";
  * from infrastructure-specific types.
  */
 export interface AlgorithmDecision {
-  /** Algorithm name (e.g., "SHGAT", "DRDSP") */
   algorithm: string;
-  /** Algorithm mode (e.g., "passive_suggestion", "active_search") */
-  mode: "active_search" | "passive_suggestion";
-  /** Target type (e.g., "tool", "capability") */
-  targetType: "tool" | "capability";
-  /** User intent (truncated) */
+  mode: AlgorithmMode;
+  targetType: TargetType;
   intent: string;
-  /** User ID for multi-tenant isolation */
   userId?: string;
-  /** Final computed score */
   finalScore: number;
-  /** Threshold used for decision */
   threshold: number;
-  /** Decision outcome */
-  decision: "accepted" | "rejected" | "rejected_by_threshold" | "filtered_by_reliability";
-  /** Optional target ID */
+  decision: DecisionOutcome;
   targetId?: string;
-  /** Optional target name */
   targetName?: string;
-  /** Optional correlation ID for tracing */
   correlationId?: string;
-  /** Optional context hash */
   contextHash?: string;
-  /** Additional signals (algorithm-specific) */
-  signals?: {
-    semanticScore?: number;
-    graphScore?: number;
-    successRate?: number;
-    pagerank?: number;
-    graphDensity?: number;
-    spectralClusterMatch?: boolean;
-    adamicAdar?: number;
-    localAlpha?: number;
-    alphaAlgorithm?: string;
-    coldStart?: boolean;
-    numHeads?: number;
-    avgHeadScore?: number;
-    headScores?: number[];
-    headWeights?: number[];
-    recursiveContribution?: number;
-    featureContribSemantic?: number;
-    featureContribStructure?: number;
-    featureContribTemporal?: number;
-    featureContribReliability?: number;
-    targetSuccessRate?: number;
-    targetUsageCount?: number;
-    reliabilityMult?: number;
-    pathFound?: boolean;
-    pathLength?: number;
-    pathWeight?: number;
-  };
-  /** Algorithm parameters used */
-  params?: {
-    alpha?: number;
-    reliabilityFactor?: number;
-    structuralBoost?: number;
-  };
+  signals?: DecisionSignals;
+  params?: DecisionParams;
 }
 
 /**
@@ -127,7 +100,7 @@ export class TelemetryAdapter implements IDecisionLogger {
    * Returns traceId immediately (sync) - subscribers handle async work.
    */
   logDecision(decision: AlgorithmDecision): string {
-    const traceId = crypto.randomUUID();
+    const traceId = uuidv7();
 
     // Auto-detect pure flag from targetId if not explicitly set
     const pure = decision.targetId ? isPureOperation(decision.targetId) : undefined;
@@ -198,7 +171,7 @@ export class TelemetryAdapter implements IDecisionLogger {
  */
 export class NoOpDecisionLogger implements IDecisionLogger {
   logDecision(_decision: AlgorithmDecision): string {
-    return crypto.randomUUID();
+    return uuidv7();
   }
 }
 

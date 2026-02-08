@@ -155,13 +155,10 @@ function optimizeSequential(
     if (task.type === "code_execution" && task.tool?.startsWith("code:")) {
       const chain = findSequentialChain(task, logicalDAG, processed, maxFusionSize);
 
-      // DEBUG: Log chain and fusion check
-      log.info("[DEBUG] Checking fusion for chain", {
+      log.debug("Checking fusion for chain", {
         startTaskId: task.id,
         chainLength: chain.length,
         chainTools: chain.map((t) => t.tool),
-        pureFlags: chain.map((t) => t.metadata?.pure),
-        canFuse: chain.length > 1 ? canFuseTasks(chain) : "N/A (single task)",
       });
 
       if (chain.length > 1 && canFuseTasks(chain)) {
@@ -401,6 +398,24 @@ export function canFuseTasks(tasks: Task[]): boolean {
     return false;
   }
 
+  // Rule 6: Multi-task fusion requires method chain continuity (chainedFrom).
+  // Tasks connected via variable-based sequence edges (e.g.,
+  //   const filtered = nums.filter(...); const doubled = filtered.map(...)
+  // ) CANNOT be fused because their code references source-level variables
+  // that don't exist in the fused execution context.
+  // Phase 2b+ will add smart variable substitution to support this.
+  // Method chains (filter().map()) are safe because the final executable node
+  // already has the complete chain code — they never reach here with length > 1.
+  for (let i = 1; i < tasks.length; i++) {
+    if (!tasks[i].metadata?.chainedFrom) {
+      log.debug("Cannot fuse: task not part of method chain (variable-based sequence)", {
+        taskId: tasks[i].id,
+        tool: tasks[i].tool,
+      });
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -419,10 +434,9 @@ export function fuseTasks(tasks: Task[]): Task {
     return tasks[0];
   }
 
-  log.info("[DEBUG] Fusing tasks", {
+  log.debug("Fusing tasks", {
     taskIds: tasks.map((t) => t.id),
     operations: tasks.map((t) => t.tool),
-    codes: tasks.map((t) => t.code?.substring(0, 100)),
   });
 
   // Collect external dependencies (dependencies outside the fused group)
@@ -440,7 +454,7 @@ export function fuseTasks(tasks: Task[]): Task {
   // Generate fused code
   const fusedCode = generateFusedCode(tasks);
 
-  log.info("[DEBUG] Generated fused code:", { fusedCode });
+  log.debug("Generated fused code", { codeLength: fusedCode.length });
 
   // Merge literal bindings from all tasks (Story 10.2c fix)
   const mergedLiteralBindings: Record<string, unknown> = {};
@@ -495,8 +509,12 @@ function generateFusedCode(tasks: Task[]): string {
     codeBlocks.push(task.code);
   }
 
-  // Join with newlines and return last result
-  const fusedCode = codeBlocks.join("\n");
+  // Join with semicolons + newlines to ensure each statement terminates properly
+  // Without semicolons, consecutive expressions like:
+  //   nums.filter(n => n > 5)
+  //   filtered.map(n => n * 2)
+  // are parsed as a single expression, causing "Unexpected identifier" errors.
+  const fusedCode = codeBlocks.map((b) => b.replace(/;?\s*$/, ";")).join("\n");
 
   // Wrap in function that returns the last expression result
   return `

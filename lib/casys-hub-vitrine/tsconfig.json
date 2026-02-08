@@ -1,0 +1,14 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    // --- Options requises pour NestJS ---
+
+    // --- Options de qualité de vie ---
+    "strictPropertyInitialization": false, // Requis car les dépendances sont injectées, pas initialisées dans le constructeur
+    "esModuleInterop": true, // Améliore la compatibilité entre les modules CommonJS et ES
+    "forceConsistentCasingInFileNames": true, // Prévient les erreurs de casse dans les imports
+    "jsx": "preserve"
+  },
+  "include": [".astro/types.d.ts", "**/*", "styled-system"],
+  "exclude": ["dist"]
+}

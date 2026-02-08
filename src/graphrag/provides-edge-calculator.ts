@@ -25,6 +25,21 @@ const logger = getLogger("default");
 // =============================================================================
 
 /**
+ * Types that can be stringified and used as string input
+ */
+const STRINGIFIABLE_TYPES = new Set(["number", "boolean", "integer"]);
+
+/**
+ * Relaxed type compatibility rules mapping
+ * Maps target type to a set of acceptable source types
+ */
+const RELAXED_TYPE_COMPATIBILITY: Record<string, Set<string>> = {
+  string: STRINGIFIABLE_TYPES,
+  number: new Set(["integer"]),
+  object: new Set(["array"]),
+};
+
+/**
  * Check if two JSON Schema types are compatible for data flow
  *
  * Compatibility rules (configurable strictness):
@@ -47,28 +62,19 @@ export function areTypesCompatible(
   const from = fromType?.toLowerCase() || "any";
   const to = toType?.toLowerCase() || "any";
 
-  // Exact match
-  if (from === to) return true;
-
-  // "any" accepts everything
-  if (to === "any" || from === "any") return true;
-
-  // Strict mode only allows exact matches (already handled above)
-  if (strict) return false;
-
-  // Relaxed compatibility rules
-  // String can stringify most things
-  if (to === "string") {
-    return ["number", "boolean", "integer"].includes(from);
+  // Exact match or "any" accepts everything
+  if (from === to || to === "any" || from === "any") {
+    return true;
   }
 
-  // Number can accept integer
-  if (to === "number" && from === "integer") return true;
+  // Strict mode only allows exact matches (already handled above)
+  if (strict) {
+    return false;
+  }
 
-  // Object can accept array in some contexts
-  if (to === "object" && from === "array") return true;
-
-  return false;
+  // Check relaxed compatibility rules
+  const acceptableTypes = RELAXED_TYPE_COMPATIBILITY[to];
+  return acceptableTypes?.has(from) ?? false;
 }
 
 // =============================================================================
@@ -613,6 +619,15 @@ interface StoredProvidesEdge {
 }
 
 /**
+ * Direction-specific WHERE clause for provides edge queries
+ */
+const DIRECTION_WHERE_CLAUSES: Record<"from" | "to" | "both", string> = {
+  from: "from_tool_id = $1",
+  to: "to_tool_id = $1",
+  both: "(from_tool_id = $1 OR to_tool_id = $1)",
+};
+
+/**
  * Get provides edges for a specific tool from DB (O(1) query)
  *
  * For full ProvidesEdge objects with schemas, use getToolProvidesEdgesFull().
@@ -627,24 +642,11 @@ export async function getToolProvidesEdges(
   toolId: string,
   direction: "from" | "to" | "both" = "both",
 ): Promise<ProvidesEdge[]> {
-  let query: string;
-  let params: string[];
+  const whereClause = DIRECTION_WHERE_CLAUSES[direction];
+  const query = `SELECT from_tool_id, to_tool_id, confidence_score
+                 FROM tool_dependency WHERE edge_type = 'provides' AND ${whereClause}`;
 
-  if (direction === "from") {
-    query = `SELECT from_tool_id, to_tool_id, confidence_score
-             FROM tool_dependency WHERE edge_type = 'provides' AND from_tool_id = $1`;
-    params = [toolId];
-  } else if (direction === "to") {
-    query = `SELECT from_tool_id, to_tool_id, confidence_score
-             FROM tool_dependency WHERE edge_type = 'provides' AND to_tool_id = $1`;
-    params = [toolId];
-  } else {
-    query = `SELECT from_tool_id, to_tool_id, confidence_score
-             FROM tool_dependency WHERE edge_type = 'provides' AND (from_tool_id = $1 OR to_tool_id = $1)`;
-    params = [toolId];
-  }
-
-  const rows = await db.query(query, params) as unknown as StoredProvidesEdge[];
+  const rows = await db.query(query, [toolId]) as unknown as StoredProvidesEdge[];
 
   // Convert to ProvidesEdge (without full schemas for performance)
   return rows.map((row) => ({

@@ -141,6 +141,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["hex"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ hex }) => {
       const rgb = hexToRgb(hex as string);
       if (!rgb) throw new Error(`Invalid hex color: ${hex}`);
@@ -161,6 +168,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["r", "g", "b"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ r, g, b }) => {
       const hex = rgbToHex(r as number, g as number, b as number);
       return { hex, hexUpper: hex.toUpperCase() };
@@ -180,6 +194,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["r", "g", "b"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ r, g, b }) => {
       const hsl = rgbToHsl(r as number, g as number, b as number);
       return { ...hsl, css: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)` };
@@ -198,6 +219,13 @@ export const colorTools: MiniTool[] = [
         l: { type: "number", description: "Lightness (0-100)" },
       },
       required: ["h", "s", "l"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ h, s, l }) => {
       const rgb = hslToRgb(h as number, s as number, l as number);
@@ -221,6 +249,13 @@ export const colorTools: MiniTool[] = [
         b: { type: "number", description: "Blue (0-255)" },
       },
       required: ["r", "g", "b"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ r, g, b }) => {
       const rNorm = (r as number) / 255;
@@ -255,6 +290,13 @@ export const colorTools: MiniTool[] = [
         v: { type: "number", description: "Value/Brightness (0-100)" },
       },
       required: ["h", "s", "v"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ h, s, v }) => {
       const hNorm = (h as number) / 360;
@@ -319,6 +361,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["r", "g", "b"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ r, g, b }) => {
       const rNorm = (r as number) / 255;
       const gNorm = (g as number) / 255;
@@ -350,6 +399,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["c", "m", "y", "k"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ c, m, y, k }) => {
       const cNorm = (c as number) / 100;
       const mNorm = (m as number) / 100;
@@ -375,6 +431,13 @@ export const colorTools: MiniTool[] = [
         color: { type: "string", description: "Color in any format (hex, rgb, hsl, name)" },
       },
       required: ["color"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["copy", "select"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ color }) => {
       const c = (color as string).trim().toLowerCase();
@@ -426,6 +489,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color, amount = 10 }) => {
       const c = (color as string).trim().toLowerCase();
       const hex = c.startsWith("#") ? c : namedColors[c] || `#${c}`;
@@ -451,6 +521,13 @@ export const colorTools: MiniTool[] = [
         amount: { type: "number", description: "Percentage to darken (0-100, default: 10)" },
       },
       required: ["color"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ color, amount = 10 }) => {
       const c = (color as string).trim().toLowerCase();
@@ -478,6 +555,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color, amount = 10 }) => {
       const c = (color as string).trim().toLowerCase();
       const hex = c.startsWith("#") ? c : namedColors[c] || `#${c}`;
@@ -504,6 +588,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color, amount = 10 }) => {
       const c = (color as string).trim().toLowerCase();
       const hex = c.startsWith("#") ? c : namedColors[c] || `#${c}`;
@@ -529,6 +620,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color }) => {
       const c = (color as string).trim().toLowerCase();
       const hex = c.startsWith("#") ? c : namedColors[c] || `#${c}`;
@@ -550,6 +648,13 @@ export const colorTools: MiniTool[] = [
         color: { type: "string", description: "Color to convert" },
       },
       required: ["color"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
     },
     handler: ({ color }) => {
       const c = (color as string).trim().toLowerCase();
@@ -585,6 +690,13 @@ export const colorTools: MiniTool[] = [
         },
       },
       required: ["color"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["select", "copy"],
+        accepts: ["setPalette", "setType"],
+      },
     },
     handler: ({ color, type = "complementary", count = 5 }) => {
       const c = (color as string).trim().toLowerCase();
@@ -665,6 +777,13 @@ export const colorTools: MiniTool[] = [
       },
       required: ["color1", "color2"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ color1, color2, ratio = 0.5, steps }) => {
       const c1 = hexToRgb(
         (color1 as string).replace(/^#/, "").length === 6 ? (color1 as string) : `#${color1}`,
@@ -707,6 +826,13 @@ export const colorTools: MiniTool[] = [
         background: { type: "string", description: "Background color in hex" },
       },
       required: ["foreground", "background"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["copy", "swapColors"],
+        accepts: ["setForeground", "setBackground"],
+      },
     },
     handler: ({ foreground, background }) => {
       const fg = hexToRgb(
@@ -764,6 +890,13 @@ export const colorTools: MiniTool[] = [
         },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/color-picker",
+        emits: ["selectColor", "copy"],
+        accepts: ["setColor"],
+      },
+    },
     handler: ({ count = 1, saturation, lightness }) => {
       const sRange = (saturation as number[]) || [50, 80];
       const lRange = (lightness as number[]) || [40, 60];
@@ -782,6 +915,379 @@ export const colorTools: MiniTool[] = [
       }
 
       return (count as number) === 1 ? colors[0] : colors;
+    },
+  },
+  {
+    name: "color_accessibility",
+    description:
+      "Check WCAG color contrast accessibility between foreground and background colors. Verify text readability compliance for AA and AAA levels at normal and large text sizes. Suggests alternative colors when contrast fails. Use for accessibility audits, design validation, or a11y compliance. Keywords: WCAG, accessibility, a11y, contrast check, color accessibility, AA, AAA, text contrast, readability.",
+    category: "color",
+    inputSchema: {
+      type: "object",
+      properties: {
+        foreground: {
+          type: "string",
+          description: "Text color (hex, rgb, or named color like 'red', 'blue')",
+        },
+        background: {
+          type: "string",
+          description: "Background color (hex, rgb, or named color)",
+        },
+        fontSize: {
+          type: "number",
+          description: "Font size in pixels (default: 16)",
+        },
+        fontWeight: {
+          type: "string",
+          enum: ["normal", "bold"],
+          description: "Font weight - 'normal' or 'bold' (default: 'normal')",
+        },
+      },
+      required: ["foreground", "background"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/contrast-checker",
+        emits: ["copy", "selectSuggestion", "swapColors"],
+        accepts: ["setForeground", "setBackground"],
+      },
+    },
+    handler: ({ foreground, background, fontSize = 16, fontWeight = "normal" }) => {
+      // Parse colors to hex
+      const parseColor = (color: string): string | null => {
+        const c = color.trim().toLowerCase();
+
+        // Named color
+        if (namedColors[c]) {
+          return namedColors[c];
+        }
+
+        // Hex
+        if (c.startsWith("#") || /^[0-9a-f]{3,6}$/i.test(c)) {
+          const hex = c.startsWith("#") ? c : `#${c}`;
+          const rgb = hexToRgb(hex);
+          if (rgb) return rgbToHex(rgb.r, rgb.g, rgb.b);
+        }
+
+        // RGB
+        const rgbMatch = c.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (rgbMatch) {
+          const r = parseInt(rgbMatch[1], 10);
+          const g = parseInt(rgbMatch[2], 10);
+          const b = parseInt(rgbMatch[3], 10);
+          return rgbToHex(r, g, b);
+        }
+
+        // HSL
+        const hslMatch = c.match(/hsla?\s*\(\s*(\d+)\s*,\s*(\d+)%?\s*,\s*(\d+)%?/);
+        if (hslMatch) {
+          const h = parseInt(hslMatch[1], 10);
+          const s = parseInt(hslMatch[2], 10);
+          const l = parseInt(hslMatch[3], 10);
+          const rgb = hslToRgb(h, s, l);
+          return rgbToHex(rgb.r, rgb.g, rgb.b);
+        }
+
+        return null;
+      };
+
+      // Calculate relative luminance
+      const getLuminance = (rgb: RGB): number => {
+        const adjust = (v: number) => {
+          const s = v / 255;
+          return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * adjust(rgb.r) + 0.7152 * adjust(rgb.g) + 0.0722 * adjust(rgb.b);
+      };
+
+      // Calculate contrast ratio
+      const getContrastRatio = (l1: number, l2: number): number => {
+        const lighter = Math.max(l1, l2);
+        const darker = Math.min(l1, l2);
+        return (lighter + 0.05) / (darker + 0.05);
+      };
+
+      const fgHex = parseColor(foreground as string);
+      const bgHex = parseColor(background as string);
+
+      if (!fgHex) {
+        throw new Error(`Unable to parse foreground color: ${foreground}`);
+      }
+      if (!bgHex) {
+        throw new Error(`Unable to parse background color: ${background}`);
+      }
+
+      const fgRgb = hexToRgb(fgHex)!;
+      const bgRgb = hexToRgb(bgHex)!;
+      const fgLum = getLuminance(fgRgb);
+      const bgLum = getLuminance(bgRgb);
+      const contrastRatio = getContrastRatio(fgLum, bgLum);
+
+      // WCAG thresholds
+      // Large text: >= 18pt (24px) or >= 14pt (18.66px) bold
+      const isLargeText = (fontSize as number) >= 24 ||
+        ((fontSize as number) >= 18.66 && fontWeight === "bold");
+
+      const wcag = {
+        aa: {
+          normal: contrastRatio >= 4.5,
+          large: contrastRatio >= 3,
+        },
+        aaa: {
+          normal: contrastRatio >= 7,
+          large: contrastRatio >= 4.5,
+        },
+      };
+
+      // Determine rating based on text size
+      let rating: "Fail" | "AA Large" | "AA" | "AAA";
+      if (isLargeText) {
+        if (wcag.aaa.large) rating = "AAA";
+        else if (wcag.aa.large) rating = "AA";
+        else rating = "Fail";
+      } else {
+        if (wcag.aaa.normal) rating = "AAA";
+        else if (wcag.aa.normal) rating = "AA";
+        else if (wcag.aa.large) rating = "AA Large";
+        else rating = "Fail";
+      }
+
+      // Generate suggestions if contrast fails
+      let suggestions: Array<{ color: string; contrastRatio: number; rating: string }> | undefined;
+
+      if (rating === "Fail" || rating === "AA Large") {
+        suggestions = [];
+
+        // Determine if we should lighten or darken the foreground
+        const fgHsl = rgbToHsl(fgRgb.r, fgRgb.g, fgRgb.b);
+        const bgIsLight = bgLum > 0.5;
+
+        // Try adjusting lightness of foreground
+        const adjustments = bgIsLight
+          ? [0, -10, -20, -30, -40, -50, -60] // Darken for light backgrounds
+          : [0, 10, 20, 30, 40, 50, 60]; // Lighten for dark backgrounds
+
+        for (const adj of adjustments) {
+          const newL = Math.max(0, Math.min(100, fgHsl.l + adj));
+          const newRgb = hslToRgb(fgHsl.h, fgHsl.s, newL);
+          const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+          const newLum = getLuminance(newRgb);
+          const newRatio = getContrastRatio(newLum, bgLum);
+
+          let newRating: string;
+          if (newRatio >= 7) newRating = "AAA";
+          else if (newRatio >= 4.5) newRating = "AA";
+          else if (newRatio >= 3) newRating = "AA Large";
+          else continue; // Skip if still failing
+
+          // Avoid duplicate suggestions
+          if (!suggestions.some((s) => s.color === newHex)) {
+            suggestions.push({
+              color: newHex,
+              contrastRatio: Math.round(newRatio * 100) / 100,
+              rating: newRating,
+            });
+          }
+
+          // Stop after finding enough good options
+          if (suggestions.length >= 4) break;
+        }
+
+        // Also suggest pure black or white if not already suggested
+        const pureColors = bgIsLight
+          ? ["#000000", "#111111", "#222222"]
+          : ["#ffffff", "#eeeeee", "#dddddd"];
+
+        for (const pureHex of pureColors) {
+          const pureRgb = hexToRgb(pureHex)!;
+          const pureLum = getLuminance(pureRgb);
+          const pureRatio = getContrastRatio(pureLum, bgLum);
+
+          let pureRating: string;
+          if (pureRatio >= 7) pureRating = "AAA";
+          else if (pureRatio >= 4.5) pureRating = "AA";
+          else if (pureRatio >= 3) pureRating = "AA Large";
+          else continue;
+
+          if (!suggestions.some((s) => s.color === pureHex) && suggestions.length < 6) {
+            suggestions.push({
+              color: pureHex,
+              contrastRatio: Math.round(pureRatio * 100) / 100,
+              rating: pureRating,
+            });
+          }
+        }
+
+        // Sort by contrast ratio (best first)
+        suggestions.sort((a, b) => b.contrastRatio - a.contrastRatio);
+      }
+
+      const result: {
+        foreground: string;
+        background: string;
+        contrastRatio: number;
+        wcag: typeof wcag;
+        rating: string;
+        isLargeText: boolean;
+        fontSize: number;
+        fontWeight: string;
+        suggestions?: typeof suggestions;
+      } = {
+        foreground: fgHex,
+        background: bgHex,
+        contrastRatio: Math.round(contrastRatio * 100) / 100,
+        wcag,
+        rating,
+        isLargeText,
+        fontSize: fontSize as number,
+        fontWeight: fontWeight as string,
+      };
+
+      if (suggestions && suggestions.length > 0) {
+        result.suggestions = suggestions;
+      }
+
+      return result;
+    },
+  },
+  {
+    name: "color_palette_harmony",
+    description:
+      "Generate a color palette from a base color using various harmony rules. Create complementary, analogous, triadic, split-complementary, tetradic, or monochromatic palettes. Useful for design systems, UI theming, or brand color exploration. Keywords: palette, color scheme, harmony, complementary, analogous, triadic, color theory, design.",
+    category: "color",
+    inputSchema: {
+      type: "object",
+      properties: {
+        baseColor: {
+          type: "string",
+          description: "Base color (hex, rgb, or named color like 'red', 'blue')",
+        },
+        type: {
+          type: "string",
+          enum: ["complementary", "analogous", "triadic", "split-complementary", "tetradic", "monochromatic"],
+          description: "Palette harmony type (default: 'analogous')",
+        },
+        count: {
+          type: "number",
+          description: "Number of colors to generate (default: 5, max: 10)",
+        },
+      },
+      required: ["baseColor"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/palette-viewer",
+      },
+    },
+    handler: ({ baseColor, type = "analogous", count = 5 }) => {
+      const parseToHsl = (color: string): { h: number; s: number; l: number } | null => {
+        const c = color.trim().toLowerCase();
+
+        // Named color
+        if (namedColors[c]) {
+          const rgb = hexToRgb(namedColors[c]);
+          if (rgb) return rgbToHsl(rgb.r, rgb.g, rgb.b);
+        }
+
+        // Hex
+        if (c.startsWith("#") || /^[0-9a-f]{3,6}$/i.test(c)) {
+          const hex = c.startsWith("#") ? c : `#${c}`;
+          const rgb = hexToRgb(hex);
+          if (rgb) return rgbToHsl(rgb.r, rgb.g, rgb.b);
+        }
+
+        // RGB
+        const rgbMatch = c.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (rgbMatch) {
+          return rgbToHsl(
+            parseInt(rgbMatch[1], 10),
+            parseInt(rgbMatch[2], 10),
+            parseInt(rgbMatch[3], 10)
+          );
+        }
+
+        return null;
+      };
+
+      const hsl = parseToHsl(baseColor as string);
+      if (!hsl) {
+        throw new Error(`Unable to parse base color: ${baseColor}`);
+      }
+
+      const n = Math.min(Math.max(count as number, 2), 10);
+      const colors: Array<{ hex: string; name: string; rgb: { r: number; g: number; b: number } }> = [];
+
+      const addColor = (h: number, s: number, l: number, name: string) => {
+        h = ((h % 360) + 360) % 360;
+        const rgb = hslToRgb(h, s, l);
+        colors.push({
+          hex: rgbToHex(rgb.r, rgb.g, rgb.b),
+          name,
+          rgb,
+        });
+      };
+
+      switch (type) {
+        case "complementary":
+          addColor(hsl.h, hsl.s, hsl.l, "Base");
+          addColor(hsl.h + 180, hsl.s, hsl.l, "Complement");
+          // Add variations
+          for (let i = 2; i < n; i++) {
+            const lightness = hsl.l + (i % 2 === 0 ? 15 : -15) * Math.ceil(i / 2);
+            addColor(i % 2 === 0 ? hsl.h : hsl.h + 180, hsl.s, Math.max(10, Math.min(90, lightness)), `Shade ${i - 1}`);
+          }
+          break;
+
+        case "analogous":
+          const analogousStep = 30;
+          for (let i = 0; i < n; i++) {
+            const offset = (i - Math.floor(n / 2)) * analogousStep;
+            addColor(hsl.h + offset, hsl.s, hsl.l, i === Math.floor(n / 2) ? "Base" : `Analogous ${i + 1}`);
+          }
+          break;
+
+        case "triadic":
+          addColor(hsl.h, hsl.s, hsl.l, "Base");
+          addColor(hsl.h + 120, hsl.s, hsl.l, "Triadic 1");
+          addColor(hsl.h + 240, hsl.s, hsl.l, "Triadic 2");
+          for (let i = 3; i < n; i++) {
+            addColor(hsl.h + (i * 120), hsl.s, hsl.l + (i % 2 === 0 ? 10 : -10), `Shade ${i - 2}`);
+          }
+          break;
+
+        case "split-complementary":
+          addColor(hsl.h, hsl.s, hsl.l, "Base");
+          addColor(hsl.h + 150, hsl.s, hsl.l, "Split 1");
+          addColor(hsl.h + 210, hsl.s, hsl.l, "Split 2");
+          for (let i = 3; i < n; i++) {
+            addColor(hsl.h + (i * 60), hsl.s, hsl.l, `Accent ${i - 2}`);
+          }
+          break;
+
+        case "tetradic":
+          addColor(hsl.h, hsl.s, hsl.l, "Base");
+          addColor(hsl.h + 90, hsl.s, hsl.l, "Tetradic 1");
+          addColor(hsl.h + 180, hsl.s, hsl.l, "Tetradic 2");
+          addColor(hsl.h + 270, hsl.s, hsl.l, "Tetradic 3");
+          for (let i = 4; i < n; i++) {
+            addColor(hsl.h + (i * 90), hsl.s, hsl.l + 15, `Shade ${i - 3}`);
+          }
+          break;
+
+        case "monochromatic":
+        default:
+          for (let i = 0; i < n; i++) {
+            const lightness = 20 + (60 / (n - 1)) * i;
+            addColor(hsl.h, hsl.s, lightness, i === Math.floor(n / 2) ? "Base" : `Shade ${i + 1}`);
+          }
+          break;
+      }
+
+      return {
+        type: type as string,
+        baseColor: colors[0]?.hex || rgbToHex(hslToRgb(hsl.h, hsl.s, hsl.l).r, hslToRgb(hsl.h, hsl.s, hsl.l).g, hslToRgb(hsl.h, hsl.s, hsl.l).b),
+        colors: colors.slice(0, n),
+      };
     },
   },
 ];

@@ -32,6 +32,16 @@ const Ajv2020Constructor = Ajv2020.default || Ajv2020;
 const ajv2020 = new Ajv2020Constructor({ strict: false });
 
 /**
+ * UI metadata from MCP Apps (SEP-1865)
+ */
+export interface ToolUiMeta {
+  resourceUri?: string;
+  visibility?: Array<"model" | "app">;
+  emits?: string[];
+  accepts?: string[];
+}
+
+/**
  * Tool discovered from an MCP server.
  */
 export interface DiscoveredTool {
@@ -41,6 +51,20 @@ export interface DiscoveredTool {
   description?: string;
   /** JSON Schema for input parameters */
   inputSchema?: Record<string, unknown>;
+  /** MCP Apps UI metadata (Story 16.6) */
+  uiMeta?: ToolUiMeta;
+}
+
+/**
+ * Fetched UI HTML content (Story 16.6)
+ */
+export interface FetchedUiHtml {
+  /** Resource URI (e.g., "ui://mcp-std/table-viewer") */
+  resourceUri: string;
+  /** HTML content */
+  content: string;
+  /** MIME type */
+  mimeType: string;
 }
 
 /**
@@ -57,6 +81,8 @@ export interface DiscoveryResult {
   error?: string;
   /** Tools skipped due to invalid schemas */
   skippedTools?: string[];
+  /** Fetched UI HTML content (Story 16.6) */
+  uiHtml?: FetchedUiHtml[];
 }
 
 /**
@@ -157,6 +183,65 @@ function logDebug(message: string): void {
 }
 
 /**
+ * Raw tool from MCP server response.
+ */
+interface RawTool {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+  /** MCP Apps metadata (SEP-1865) */
+  _meta?: {
+    ui?: {
+      resourceUri?: string;
+      visibility?: Array<"model" | "app">;
+      emits?: string[];
+      accepts?: string[];
+    };
+  };
+}
+
+/**
+ * Process and validate raw tools from MCP server.
+ * Extracted to reduce duplication between HTTP and stdio discovery.
+ */
+function processRawTools(
+  rawTools: RawTool[],
+  serverName: string,
+): { validTools: DiscoveredTool[]; skippedTools: string[]; uiToolCount: number } {
+  const validTools: DiscoveredTool[] = [];
+  const skippedTools: string[] = [];
+  let uiToolCount = 0;
+
+  for (const tool of rawTools) {
+    if (validateToolSchema(tool)) {
+      // Extract UI metadata if present (MCP Apps SEP-1865)
+      const uiMeta = tool._meta?.ui;
+      if (uiMeta?.resourceUri) {
+        uiToolCount++;
+      }
+
+      validTools.push({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
+        uiMeta: uiMeta ? {
+          resourceUri: uiMeta.resourceUri,
+          visibility: uiMeta.visibility,
+          emits: uiMeta.emits,
+          accepts: uiMeta.accepts,
+        } : undefined,
+      });
+    } else {
+      log.warn(`[pml:discovery] ${serverName}: invalid schema for "${tool.name}", skipping`);
+      skippedTools.push(tool.name);
+    }
+  }
+
+  logDebug(`${serverName}: discovered ${validTools.length} tools (${skippedTools.length} skipped, ${uiToolCount} with UI)`);
+  return { validTools, skippedTools, uiToolCount };
+}
+
+/**
  * Discover tools from an HTTP MCP server.
  *
  * Makes a JSON-RPC call to the server's URL to get tools/list.
@@ -217,30 +302,13 @@ export async function discoverHttpMcpTools(
         throw new Error(result.error.message);
       }
 
-      // Process tools
-      const rawTools = (result.result?.tools ?? []) as Array<{
-        name: string;
-        description?: string;
-        inputSchema?: unknown;
-      }>;
+      const rawTools = (result.result?.tools ?? []) as RawTool[];
+      const { validTools, skippedTools, uiToolCount } = processRawTools(rawTools, serverName);
 
-      const validTools: DiscoveredTool[] = [];
-      const skippedTools: string[] = [];
-
-      for (const tool of rawTools) {
-        if (validateToolSchema(tool)) {
-          validTools.push({
-            name: tool.name,
-            description: tool.description,
-            inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
-          });
-        } else {
-          log.warn(`[pml:discovery] ${serverName}: invalid schema for "${tool.name}", skipping`);
-          skippedTools.push(tool.name);
-        }
+      // Log UI tools for observability (Story 16.6)
+      if (uiToolCount > 0) {
+        console.error(`[pml:discovery] ${serverName}: ${uiToolCount} tools with UI`);
       }
-
-      logDebug(`${serverName}: discovered ${validTools.length} tools (${skippedTools.length} skipped)`);
 
       return {
         serverName,
@@ -299,36 +367,29 @@ export async function discoverMcpTools(
       ),
     ]) as { tools?: unknown[] };
 
-    // Process tools
-    const rawTools = (response?.tools ?? []) as Array<{
-      name: string;
-      description?: string;
-      inputSchema?: unknown;
-    }>;
+    const rawTools = (response?.tools ?? []) as RawTool[];
+    const { validTools, skippedTools, uiToolCount } = processRawTools(rawTools, serverName);
 
-    const validTools: DiscoveredTool[] = [];
-    const skippedTools: string[] = [];
-
-    for (const tool of rawTools) {
-      if (validateToolSchema(tool)) {
-        validTools.push({
-          name: tool.name,
-          description: tool.description,
-          inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
-        });
-      } else {
-        log.warn(`[pml:discovery] ${serverName}: invalid schema for "${tool.name}", skipping`);
-        skippedTools.push(tool.name);
-      }
+    // Log UI tools for observability (Story 16.6)
+    if (uiToolCount > 0) {
+      console.error(`[pml:discovery] ${serverName}: ${uiToolCount} tools with UI`);
     }
 
-    logDebug(`${serverName}: discovered ${validTools.length} tools (${skippedTools.length} skipped)`);
+    // Story 16.6: Fetch UI HTML resources
+    let uiHtml: FetchedUiHtml[] | undefined;
+    if (uiToolCount > 0) {
+      uiHtml = await fetchUiResources(serverName, validTools, stdioManager);
+      if (uiHtml.length > 0) {
+        console.error(`[pml:discovery] ${serverName}: Fetched ${uiHtml.length} UI HTML resources`);
+      }
+    }
 
     return {
       serverName,
       tools: validTools,
       config,
       skippedTools: skippedTools.length > 0 ? skippedTools : undefined,
+      uiHtml: uiHtml && uiHtml.length > 0 ? uiHtml : undefined,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -447,8 +508,66 @@ export interface DiscoverySummary {
   totalTools: number;
   /** Total tools skipped */
   skippedTools: number;
+  /** Total tools with UI (MCP Apps) */
+  uiTools: number;
   /** List of failed server names with errors */
   failures: Array<{ server: string; error: string }>;
+}
+
+/**
+ * Fetch UI HTML resources for tools with _meta.ui.resourceUri (Story 16.6)
+ *
+ * Calls resources/read for each unique resourceUri and returns the HTML content.
+ *
+ * @param serverName - Server name for logging
+ * @param tools - Discovered tools to check for UI
+ * @param stdioManager - StdioManager for MCP calls
+ * @returns Array of fetched UI HTML
+ */
+async function fetchUiResources(
+  serverName: string,
+  tools: DiscoveredTool[],
+  stdioManager: StdioManager,
+): Promise<FetchedUiHtml[]> {
+  // Collect unique resourceUris
+  const urisToFetch = new Set<string>();
+  for (const tool of tools) {
+    if (tool.uiMeta?.resourceUri) {
+      urisToFetch.add(tool.uiMeta.resourceUri);
+    }
+  }
+
+  if (urisToFetch.size === 0) {
+    return [];
+  }
+
+  logDebug(`${serverName}: Fetching ${urisToFetch.size} UI resources`);
+  const results: FetchedUiHtml[] = [];
+
+  for (const uri of urisToFetch) {
+    try {
+      const response = await stdioManager.call(serverName, "resources/read", { uri }) as {
+        contents?: Array<{ uri: string; mimeType?: string; text?: string }>;
+      };
+
+      const content = response?.contents?.[0];
+      if (content?.text) {
+        results.push({
+          resourceUri: uri,
+          content: content.text,
+          mimeType: content.mimeType ?? "text/html",
+        });
+        logDebug(`${serverName}: Fetched UI ${uri} (${content.text.length} bytes)`);
+      } else {
+        log.warn(`[pml:discovery] ${serverName}: No content for UI ${uri}`);
+      }
+    } catch (error) {
+      // resources/read may not be supported - that's OK, just skip
+      log.warn(`[pml:discovery] ${serverName}: Failed to fetch UI ${uri}: ${error instanceof Error ? error.message : error}`);
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -459,6 +578,7 @@ export function summarizeDiscovery(results: DiscoveryResult[]): DiscoverySummary
 
   let totalTools = 0;
   let skippedTools = 0;
+  let uiTools = 0;
   let successfulServers = 0;
 
   for (const result of results) {
@@ -468,6 +588,8 @@ export function summarizeDiscovery(results: DiscoveryResult[]): DiscoverySummary
       successfulServers++;
       totalTools += result.tools.length;
       skippedTools += result.skippedTools?.length ?? 0;
+      // Count tools with UI (Story 16.6)
+      uiTools += result.tools.filter(t => t.uiMeta?.resourceUri).length;
     }
   }
 
@@ -477,6 +599,7 @@ export function summarizeDiscovery(results: DiscoveryResult[]): DiscoverySummary
     failedServers: failures.length,
     totalTools,
     skippedTools,
+    uiTools,
     failures,
   };
 }

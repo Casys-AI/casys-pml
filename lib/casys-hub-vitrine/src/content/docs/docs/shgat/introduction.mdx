@@ -1,0 +1,78 @@
+---
+title: Introduction
+description: SuperHyperGraph Attention Networks for tool relevance scoring. Multi-level message passing on hypergraphs with K-head attention.
+prev: false
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+Score tool relevance across hypergraph hierarchies — no LLM calls, no external APIs, deterministic.
+
+Built on [libtensorflow](https://www.tensorflow.org/install/lang_c) via Deno FFI for native C performance. Published on [JSR](https://jsr.io/@casys/shgat).
+
+## The problem
+
+Tools are organized in hierarchies. A "database" composite contains `psql_query`, `psql_exec`, `pg_dump`. A "data-pipeline" composite contains the "database" composite plus `csv_parse` and `json_transform`. Traditional scoring approaches flatten this structure into a single list, losing the N-to-N relationships between nodes.
+
+When a user says "export my data as CSV", you need scoring that propagates relevance **across levels** — from leaves through composites — not just cosine similarity on a flat list.
+
+## The fix
+
+`@casys/shgat` uses hypergraph attention to propagate relevance across the full hierarchy. Multi-level message passing (V->E->...->V) enriches embeddings at every level before K-head attention scores them against the user intent. One model, self-contained, runs on your hardware.
+
+```typescript
+import { createSHGAT, type Node } from "@casys/shgat";
+
+// Define your tool hierarchy
+const nodes: Node[] = [
+  { id: "psql_query",  embedding: queryEmb,  children: [], level: 0 },
+  { id: "psql_exec",   embedding: execEmb,   children: [], level: 0 },
+  { id: "csv_parse",   embedding: csvEmb,    children: [], level: 0 },
+  { id: "database",    embedding: dbEmb,     children: ["psql_query", "psql_exec"], level: 1 },
+  { id: "data-pipeline", embedding: pipeEmb, children: ["database", "csv_parse"],  level: 2 },
+];
+
+// Create model and score
+const model = createSHGAT(nodes);
+const ranked = model.scoreNodes(intentEmbedding);
+
+for (const { nodeId, score, level } of ranked.slice(0, 5)) {
+  console.log(`${nodeId} (L${level}): ${score.toFixed(4)}`);
+}
+
+model.dispose();
+```
+
+<Aside type="tip">
+  `scoreNodes()` runs multi-level message passing and K-head attention in a single call. All tensor operations stay on the native backend until the final result conversion.
+</Aside>
+
+## What's included
+
+<CardGrid>
+  <Card title="K-Head Attention" icon="star">
+    16-head attention (adaptive 4-16) with per-head key/query projections. Each head scores independently, then fuses. Deterministic — same input, same output.
+  </Card>
+  <Card title="Multi-Level Message Passing" icon="random">
+    Upward (V->E^0->E^1->...->E^L) then downward (E^L->...->E^0->V) propagation. Composites aggregate their children, then propagate context back down.
+  </Card>
+  <Card title="InfoNCE Contrastive Loss" icon="approve-check">
+    Contrastive training with temperature-scaled cross-entropy. Positive = the tool that was executed. Negatives = sampled from curriculum tiers (easy->hard).
+  </Card>
+  <Card title="Sparse Message Passing" icon="list-format">
+    Sparse incidence matrices for efficient propagation. Scales to thousands of nodes without dense matrix overhead.
+  </Card>
+  <Card title="PER Training" icon="rocket">
+    Prioritized Experience Replay buffer with curriculum learning. Hard negatives are sampled more often as accuracy improves.
+  </Card>
+  <Card title="libtensorflow FFI" icon="setting">
+    Native C TensorFlow via `Deno.dlopen`. No WASM, no npm tf packages. GPU acceleration with CUDA when available.
+  </Card>
+</CardGrid>
+
+## Get started
+
+<CardGrid>
+  <LinkCard title="Installation" href="/docs/shgat/installation/" description="Install via JSR and set up libtensorflow." />
+  <LinkCard title="Quick Start" href="/docs/shgat/quickstart/" description="Score your first nodes in under a minute." />
+</CardGrid>

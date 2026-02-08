@@ -1,0 +1,917 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+      title: 'Our Projects',
+      subtitle: 'Open-source tools exploring different facets of AI systems',
+      activeProjects: [
+        {
+          id: 'casys-pml',
+          name: 'Casys PML',
+          tagline: 'One gateway. Any model. Full observability.',
+          status: 'Active Development',
+          license: 'AGPL-3.0',
+          featured: true,
+          features: [
+              {
+                icon: 'swap_horiz',
+                name: 'Model-Agnostic',
+                description: 'Claude, GPT, Gemini, Ollama — switch freely'
+              },
+              {
+                icon: 'visibility',
+                name: 'Full Observability',
+                description: 'Every tool call traced: cost, latency, status'
+              },
+              {
+                icon: 'auto_awesome',
+                name: 'Pattern Learning',
+                description: 'Workflows improve automatically over time'
+              }
+          ],
+          results: [
+            {
+              stat: '120+',
+              label: 'Capabilities in catalog'
+            },
+            {
+              stat: '4',
+              label: 'LLM providers supported'
+            },
+            {
+              stat: 'Free',
+              label: 'Open source beta'
+            }
+          ],
+          tech: {
+            stack: 'Deno 2.x, PGlite, Drizzle ORM, Transformers.js'
+          },
+          links: {
+            website: 'https://pml.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml',
+            docs: 'https://pml.casys.ai/docs'
+          }
+        },
+        {
+          id: 'mcp-std',
+          name: '@casys/mcp-std',
+          tagline: '508 MCP Tools. One Import.',
+          status: 'v0.4.0',
+          license: 'MIT',
+          features: [
+            { icon: 'construction', name: '508 Tools', description: 'Docker, Git, DB, crypto, text, network...' },
+            { icon: 'category', name: '32 Categories', description: 'Load only what you need' },
+            { icon: 'terminal', name: 'MCP Server', description: 'Standalone or library mode' }
+          ],
+          tech: { stack: 'Deno, TypeScript, JSR' },
+          links: {
+            website: 'https://mcp-std.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std',
+            jsr: 'https://jsr.io/@casys/mcp-std'
+          }
+        },
+        {
+          id: 'mcp-server',
+          name: '@casys/mcp-server',
+          tagline: 'Production MCP Server Framework',
+          status: 'v0.3.0',
+          license: 'MIT',
+          features: [
+            { icon: 'security', name: 'Auth Built-in', description: 'OAuth2, JWT, API keys' },
+            { icon: 'layers', name: 'Middleware', description: 'Rate limiting, CORS, logging' },
+            { icon: 'speed', name: 'HTTP + SSE', description: 'Concurrent transport layer' }
+          ],
+          tech: { stack: 'Deno, TypeScript, JSR' },
+          links: {
+            website: 'https://mcp-server.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server',
+            jsr: 'https://jsr.io/@casys/mcp-server'
+          }
+        },
+        {
+          id: 'engine',
+          name: 'PML Engine',
+          tagline: 'Graph Neural Network for Tool Orchestration',
+          status: 'Research',
+          license: 'AGPL-3.0',
+          features: [
+            { icon: 'hub', name: 'SHGAT', description: 'Sparse Heterogeneous Graph Attention' },
+            { icon: 'psychology', name: 'Runtime Learning', description: 'Learns from execution traces' },
+            { icon: 'route', name: 'DAG Optimization', description: 'Automatic workflow planning' }
+          ],
+          tech: { stack: 'TensorFlow.js, Deno' },
+          links: {
+            website: 'https://engine.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml'
+          }
+        },
+        {
+          id: 'casysdb',
+          name: 'CasysDB',
+          tagline: 'Embedded Graph Database with Branches',
+          status: 'Active Development',
+          license: 'MIT Open Source',
+          features: [
+            {
+              icon: 'flash_on',
+              name: 'Embedded',
+              description: 'Runs in your process'
+            },
+            {
+              icon: 'language',
+              name: 'ISO GQL',
+              description: 'Standard graph query'
+            },
+            {
+              icon: 'account_tree',
+              name: 'Git-like Branches',
+              description: 'Test changes safely'
+            }
+          ],
+          tech: {
+            stack: 'Rust, Python/TS bindings'
+          },
+          links: {
+            website: 'https://y-wheat-rho-70.vercel.app/',
+            github: 'https://github.com/casysai/casysdb'
+          }
+        }
+      ],
+    },
+  fr: {
+      title: 'Nos Projets',
+      subtitle: 'Outils open-source explorant différentes facettes des systèmes AI',
+      activeProjects: [
+        {
+          id: 'casys-pml',
+          name: 'Casys PML',
+          tagline: 'Un gateway. N\'importe quel modèle. Observabilité totale.',
+          status: 'Développement Actif',
+          license: 'AGPL-3.0',
+          featured: true,
+          features: [
+              {
+                icon: 'swap_horiz',
+                name: 'Model-Agnostic',
+                description: 'Claude, GPT, Gemini, Ollama — changez librement'
+              },
+              {
+                icon: 'visibility',
+                name: 'Observabilité Complète',
+                description: 'Chaque appel tracé : coût, latence, statut'
+              },
+              {
+                icon: 'auto_awesome',
+                name: 'Apprentissage de Patterns',
+                description: 'Les workflows s\'améliorent automatiquement'
+              }
+          ],
+          results: [
+            {
+              stat: '120+',
+              label: 'Capabilities au catalogue'
+            },
+            {
+              stat: '4',
+              label: 'Providers LLM supportés'
+            },
+            {
+              stat: 'Gratuit',
+              label: 'Beta open source'
+            }
+          ],
+          tech: {
+            stack: 'Deno 2.x, PGlite, Drizzle ORM, Transformers.js'
+          },
+          links: {
+            website: 'https://pml.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml',
+            docs: 'https://pml.casys.ai/docs'
+          }
+        },
+        {
+          id: 'mcp-std',
+          name: '@casys/mcp-std',
+          tagline: '508 Outils MCP. Un seul import.',
+          status: 'v0.4.0',
+          license: 'MIT',
+          features: [
+            { icon: 'construction', name: '508 Outils', description: 'Docker, Git, DB, crypto, texte, réseau...' },
+            { icon: 'category', name: '32 Catégories', description: 'Chargez uniquement ce dont vous avez besoin' },
+            { icon: 'terminal', name: 'Serveur MCP', description: 'Mode standalone ou librairie' }
+          ],
+          tech: { stack: 'Deno, TypeScript, JSR' },
+          links: {
+            website: 'https://mcp-std.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std',
+            jsr: 'https://jsr.io/@casys/mcp-std'
+          }
+        },
+        {
+          id: 'mcp-server',
+          name: '@casys/mcp-server',
+          tagline: 'Framework Serveur MCP Production',
+          status: 'v0.3.0',
+          license: 'MIT',
+          features: [
+            { icon: 'security', name: 'Auth intégrée', description: 'OAuth2, JWT, clés API' },
+            { icon: 'layers', name: 'Middleware', description: 'Rate limiting, CORS, logging' },
+            { icon: 'speed', name: 'HTTP + SSE', description: 'Transport concurrent' }
+          ],
+          tech: { stack: 'Deno, TypeScript, JSR' },
+          links: {
+            website: 'https://mcp-server.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server',
+            jsr: 'https://jsr.io/@casys/mcp-server'
+          }
+        },
+        {
+          id: 'engine',
+          name: 'PML Engine',
+          tagline: 'Réseau de neurones graphe pour l\'orchestration d\'outils',
+          status: 'Recherche',
+          license: 'AGPL-3.0',
+          features: [
+            { icon: 'hub', name: 'SHGAT', description: 'Sparse Heterogeneous Graph Attention' },
+            { icon: 'psychology', name: 'Apprentissage Runtime', description: 'Apprend des traces d\'exécution' },
+            { icon: 'route', name: 'Optimisation DAG', description: 'Planification automatique de workflows' }
+          ],
+          tech: { stack: 'TensorFlow.js, Deno' },
+          links: {
+            website: 'https://engine.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml'
+          }
+        },
+        {
+          id: 'casysdb',
+          name: 'CasysDB',
+          tagline: 'Graph Database Embedded avec Branches',
+          status: 'Développement Actif',
+          license: 'MIT Open Source',
+          features: [
+            {
+              icon: 'flash_on',
+              name: 'Embedded',
+              description: 'Tourne dans votre process'
+            },
+            {
+              icon: 'language',
+              name: 'ISO GQL',
+              description: 'Standard graph query'
+            },
+            {
+              icon: 'account_tree',
+              name: 'Branches Git-like',
+              description: 'Tester changements safely'
+            }
+          ],
+          tech: {
+            stack: 'Rust, Python/TS bindings'
+          },
+          links: {
+            website: 'https://y-wheat-rho-70.vercel.app/',
+            github: 'https://github.com/casysai/casysdb'
+          }
+        }
+      ],
+    },
+  zh: {
+      title: '我们的项目',
+      subtitle: '探索 AI 系统不同层面的开源工具',
+      activeProjects: [
+        {
+          id: 'casys-pml',
+          name: 'Casys PML',
+          tagline: '一个网关。任何模型。完整可观测性。',
+          status: '活跃开发中',
+          license: 'AGPL-3.0',
+          featured: true,
+          features: [
+              {
+                icon: 'swap_horiz',
+                name: '模型无关',
+                description: 'Claude、GPT、Gemini、Ollama——自由切换'
+              },
+              {
+                icon: 'visibility',
+                name: '完整可观测性',
+                description: '每次工具调用均可追溯：成本、延迟、状态'
+              },
+              {
+                icon: 'auto_awesome',
+                name: '模式学习',
+                description: '工作流随时间自动改进'
+              }
+          ],
+          results: [
+            { stat: '120+', label: '目录中的能力' },
+            { stat: '4', label: '支持的 LLM 提供商' },
+            { stat: '免费', label: '开源测试版' }
+          ],
+          tech: { stack: 'Deno 2.x, PGlite, Drizzle ORM, Transformers.js' },
+          links: {
+            website: 'https://pml.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml',
+            docs: 'https://pml.casys.ai/docs'
+          }
+        },
+        {
+          id: 'mcp-std',
+          name: '@casys/mcp-std',
+          tagline: '508 个 MCP 工具。一行导入。',
+          status: 'v0.4.0',
+          license: 'MIT',
+          features: [
+            { icon: 'construction', name: '508 工具', description: 'Docker、Git、DB、加密、文本、网络...' },
+            { icon: 'category', name: '32 类别', description: '按需加载' },
+            { icon: 'terminal', name: 'MCP 服务器', description: '独立或库模式' }
+          ],
+          tech: { stack: 'Deno, TypeScript, JSR' },
+          links: {
+            website: 'https://mcp-std.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std',
+            jsr: 'https://jsr.io/@casys/mcp-std'
+          }
+        },
+        {
+          id: 'mcp-server',
+          name: '@casys/mcp-server',
+          tagline: '生产级 MCP 服务器框架',
+          status: 'v0.3.0',
+          license: 'MIT',
+          features: [
+            { icon: 'security', name: '内置认证', description: 'OAuth2、JWT、API 密钥' },
+            { icon: 'layers', name: '中间件', description: '限流、CORS、日志' },
+            { icon: 'speed', name: 'HTTP + SSE', description: '并发传输层' }
+          ],
+          tech: { stack: 'Deno, TypeScript, JSR' },
+          links: {
+            website: 'https://mcp-server.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server',
+            jsr: 'https://jsr.io/@casys/mcp-server'
+          }
+        },
+        {
+          id: 'engine',
+          name: 'PML Engine',
+          tagline: '图神经网络工具编排',
+          status: '研究',
+          license: 'AGPL-3.0',
+          features: [
+            { icon: 'hub', name: 'SHGAT', description: '稀疏异构图注意力' },
+            { icon: 'psychology', name: '运行时学习', description: '从执行轨迹中学习' },
+            { icon: 'route', name: 'DAG 优化', description: '自动工作流规划' }
+          ],
+          tech: { stack: 'TensorFlow.js, Deno' },
+          links: {
+            website: 'https://engine.casys.ai',
+            github: 'https://github.com/Casys-AI/casys-pml'
+          }
+        },
+        {
+          id: 'casysdb',
+          name: 'CasysDB',
+          tagline: '支持分支的嵌入式图数据库',
+          status: '活跃开发中',
+          license: 'MIT 开源',
+          features: [
+            { icon: 'flash_on', name: '嵌入式', description: '在你的进程中运行' },
+            { icon: 'language', name: 'ISO GQL', description: '标准图查询' },
+            { icon: 'account_tree', name: 'Git 式分支', description: '安全测试变更' }
+          ],
+          tech: { stack: 'Rust, Python/TS bindings' },
+          links: {
+            website: 'https://y-wheat-rho-70.vercel.app/',
+            github: 'https://github.com/casysai/casysdb'
+          }
+        }
+      ],
+    }
+} as const;
+
+const content = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="projects">
+  <div class="container">
+    <!-- Header -->
+    <div class="section-header">
+      <h2>{content.title}</h2>
+      <p class="section-subtitle">{content.subtitle}</p>
+    </div>
+
+    <!-- Bento Grid Layout -->
+    <div class="bento-grid">
+
+      <!-- MCP Gateway - FEATURED (Large, Left, 2x height) -->
+      <div class="project-card featured mcp-gateway">
+        <div class="project-header">
+          <div>
+            <h3 class="project-name">{content.activeProjects[0].name}</h3>
+            <p class="project-tagline">{content.activeProjects[0].tagline}</p>
+          </div>
+          <div class="project-badges">
+            <span class="status-badge active">{content.activeProjects[0].status}</span>
+            <span class="license-badge">{content.activeProjects[0].license}</span>
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div class="features-grid">
+          {content.activeProjects[0].features.map((feature) => (
+            <div class="feature-card">
+              <span class="material-symbols-rounded">{feature.icon}</span>
+              <div>
+                <div class="feature-name">{feature.name}</div>
+                <div class="feature-description">{feature.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <!-- Results Stats -->
+        <div class="results-stats">
+          {content.activeProjects[0].results.map((result) => (
+            <div class="result-stat">
+              <div class="stat-value">{result.stat}</div>
+              <div class="stat-label">{result.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <!-- Links -->
+        <div class="project-links">
+          {content.activeProjects[0].links.website && (
+            <a href={content.activeProjects[0].links.website} class="project-link primary" target="_blank" rel="noopener noreferrer">
+              <span class="material-symbols-rounded">public</span>
+              <span>Website</span>
+            </a>
+          )}
+          {content.activeProjects[0].links.github && (
+            <a href={content.activeProjects[0].links.github} class="project-link" target="_blank" rel="noopener noreferrer">
+              <span class="material-symbols-rounded">code</span>
+              <span>GitHub</span>
+            </a>
+          )}
+          {content.activeProjects[0].links.docs && content.activeProjects[0].links.docs !== '#' && (
+            <a href={content.activeProjects[0].links.docs} class="project-link" target="_blank" rel="noopener noreferrer">
+              <span class="material-symbols-rounded">description</span>
+              <span>Docs</span>
+            </a>
+          )}
+        </div>
+      </div>
+
+      <!-- Sub-projects grid (mcp-std, mcp-server, engine, casysdb) -->
+      {content.activeProjects.slice(1).map((project) => (
+        <div class={`project-card medium ${project.id}`}>
+          <div class="project-header-compact">
+            <h3 class="project-name">{project.name}</h3>
+            <p class="project-tagline">{project.tagline}</p>
+          </div>
+
+          <span class="status-badge active">{project.status}</span>
+
+          <div class="features-compact">
+            {project.features.map((feature) => (
+              <div class="feature-item">
+                <span class="material-symbols-rounded">{feature.icon}</span>
+                <div>
+                  <div class="feature-name">{feature.name}</div>
+                  <div class="feature-description">{feature.description}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div class="project-links compact">
+            {project.links.website && (
+              <a href={project.links.website} class="project-link" target="_blank" rel="noopener">
+                <span class="material-symbols-rounded">public</span>
+                <span>Website</span>
+              </a>
+            )}
+            {project.links.github && (
+              <a href={project.links.github} class="project-link" target="_blank" rel="noopener">
+                <span class="material-symbols-rounded">code</span>
+                <span>GitHub</span>
+              </a>
+            )}
+            {project.links.jsr && (
+              <a href={project.links.jsr} class="project-link" target="_blank" rel="noopener">
+                <span class="material-symbols-rounded">package_2</span>
+                <span>JSR</span>
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
+
+    </div>
+  </div>
+</section>
+
+
+<style>
+  section {
+    padding: 80px 0;
+    background: var(--md-sys-color-surface);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .section-header {
+    text-align: left;
+    margin-bottom: 48px;
+    max-width: 600px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  /* BENTO GRID LAYOUT */
+  .bento-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* Featured Project - Full width */
+  .project-card.featured {
+    grid-column: 1 / -1;
+  }
+
+  /* Base Project Card - Clean, minimal */
+  .project-card {
+    padding: 32px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border-radius: 16px;
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .project-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Featured Card (MCP Gateway) - Subtle accent */
+  .project-card.featured {
+    background: var(--md-sys-color-surface-container-lowest);
+    border-left: 4px solid var(--md-sys-color-primary);
+  }
+
+  .project-card.featured::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(180, 130, 90, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Project Header */
+  .project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .project-header-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .project-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .medium .project-name {
+    font-size: 1.25rem;
+  }
+
+  .project-tagline {
+    font-size: 0.95rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    font-weight: 500;
+  }
+
+  .medium .project-tagline {
+    font-size: 0.875rem;
+  }
+
+  .project-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .status-badge {
+    padding: 8px 16px;
+    border-radius: 100px;
+    font-size: var(--md-sys-typescale-label-medium-size);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .status-badge.active {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+  }
+
+  .license-badge {
+    padding: 6px 12px;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    border-radius: 8px;
+    font-size: var(--md-sys-typescale-label-small-size);
+    font-weight: 600;
+  }
+
+  /* Features Grid */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .feature-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 12px;
+  }
+
+  .feature-card .material-symbols-rounded {
+    font-size: 28px;
+    color: var(--md-sys-color-primary);
+    flex-shrink: 0;
+  }
+
+  .feature-name {
+    font-size: var(--md-sys-typescale-title-small-size);
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: 2px;
+  }
+
+  .feature-description {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  /* Features Compact (for medium cards) */
+  .features-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .feature-item .material-symbols-rounded {
+    font-size: 20px;
+    color: var(--md-sys-color-primary);
+    flex-shrink: 0;
+  }
+
+  /* Results Stats */
+  .results-stats {
+    display: flex;
+    gap: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .result-stat {
+    text-align: left;
+  }
+
+  .stat-value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Project Links */
+  .project-links {
+    display: flex;
+    gap: 16px;
+    margin-top: auto;
+  }
+
+  .project-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 150ms ease-out, border-color 150ms ease-out;
+  }
+
+  .project-link:hover {
+    background: var(--md-sys-color-surface-container-high);
+    border-color: var(--md-sys-color-outline);
+  }
+
+  .project-link .material-symbols-rounded {
+    font-size: 16px;
+    opacity: 0.7;
+  }
+
+
+  /* Tablet & Mobile Responsive */
+  @media (max-width: 1024px) {
+    .bento-grid {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+    }
+
+    .project-card.featured,
+    .project-card.casysdb {
+      grid-column: 1 / 2;
+      grid-row: auto;
+    }
+  }
+
+  @media (max-width: 768px) {
+    section {
+      padding: 40px 0;
+    }
+
+    .project-card {
+      padding: 24px;
+      gap: 20px;
+    }
+
+    .project-header {
+      flex-direction: column;
+    }
+
+    .project-badges {
+      align-items: flex-start;
+    }
+
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .results-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .project-links {
+      flex-direction: column;
+    }
+  }
+
+</style>
+
+<style is:global>
+  /* Projects Section Dark Mode */
+  html[data-theme="dark"] #projects {
+    background: #0a0908;
+  }
+
+  html[data-theme="dark"] #projects h2 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #projects .section-subtitle {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #projects .project-card {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #projects .project-card:hover {
+    border-color: rgba(255, 184, 111, 0.3);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] #projects .project-card.featured {
+    border-left-color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #projects .project-name {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #projects .project-tagline {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #projects .status-badge.active {
+    background: rgba(255, 184, 111, 0.15);
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #projects .license-badge {
+    background: rgba(255, 184, 111, 0.1);
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #projects .feature-card {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  html[data-theme="dark"] #projects .feature-card .material-symbols-rounded {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #projects .feature-name {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #projects .feature-description {
+    color: #a89a8c;
+  }
+
+  html[data-theme="dark"] #projects .results-stats {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  html[data-theme="dark"] #projects .stat-value {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #projects .stat-label {
+    color: #a89a8c;
+  }
+
+  html[data-theme="dark"] #projects .project-link {
+    color: #d5c3b5;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  html[data-theme="dark"] #projects .project-link:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  html[data-theme="dark"] #projects .feature-item .material-symbols-rounded {
+    color: #FFB86F;
+  }
+</style>
+

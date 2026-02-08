@@ -45,6 +45,7 @@ import {
 import { LockfileManager } from "../lockfile/mod.ts";
 import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
 import { loaderLog } from "../logging.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 import AjvModule from "ajv";
 import type { ErrorObject } from "ajv";
 
@@ -99,6 +100,49 @@ const DEFAULT_PERMISSIONS: PmlPermissions = {
   deny: [],
   ask: ["*"],
 };
+
+/**
+ * Handle approval denial by throwing appropriate error.
+ * Extracted to reduce duplication in load/loadByFqdn methods.
+ */
+function handleApprovalDenial(approvalResult: ApprovalRequiredResult): never {
+  if (approvalResult.approvalType === "tool_permission") {
+    throw new LoaderError(
+      "PERMISSION_DENIED",
+      `Tool ${approvalResult.toolId} was not approved by user`,
+      { toolId: approvalResult.toolId },
+    );
+  }
+  if (approvalResult.approvalType === "api_key_required") {
+    throw new LoaderError(
+      "API_KEY_NOT_CONFIGURED",
+      `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
+      { missingKeys: approvalResult.missingKeys },
+    );
+  }
+  // For other approval types, throw generic error
+  throw new LoaderError(
+    "PERMISSION_DENIED",
+    `Approval was denied`,
+    { approvalType: approvalResult.approvalType },
+  );
+}
+
+/**
+ * Handle integrity approval rejection.
+ * Extracted to reduce duplication.
+ */
+function handleIntegrityRejection(integrityApproval: IntegrityApprovalRequired): never {
+  throw new LoaderError(
+    "DEPENDENCY_INTEGRITY_FAILED",
+    `User rejected integrity change for ${integrityApproval.fqdnBase}`,
+    {
+      fqdnBase: integrityApproval.fqdnBase,
+      oldHash: integrityApproval.oldHash,
+      newHash: integrityApproval.newHash,
+    },
+  );
+}
 
 /**
  * Options for creating a capability loader.
@@ -202,7 +246,7 @@ export class CapabilityLoader {
   private getRootWorkflowId(): string {
     return this.traceIdStack.length > 0
       ? this.traceIdStack[0]
-      : crypto.randomUUID();
+      : uuidv7();
   }
 
   private constructor(
@@ -291,79 +335,48 @@ export class CapabilityLoader {
     let metadata: CapabilityMetadata;
 
     if (this.lockfileManager) {
-      // Story 14.7: Use fetchWithIntegrity for lockfile validation
-      const fetchResult = await this.registryClient.fetchWithIntegrity(
-        namespace,
-        this.lockfileManager,
-      );
-
-      // Check if integrity approval is required
-      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
-        const integrityApproval = fetchResult as IntegrityApprovalRequired;
-
-        // Handle continueWorkflow for integrity approval
-        if (continueWorkflow?.approved === true) {
-          // User approved - continue fetch with approval
-          const approvedResult = await this.registryClient.continueFetchWithApproval(
-            namespace,
-            this.lockfileManager,
-            true,
-          );
-          metadata = approvedResult.metadata;
-        } else if (continueWorkflow?.approved === false) {
-          // User rejected - throw error
-          throw new LoaderError(
-            "DEPENDENCY_INTEGRITY_FAILED",
-            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
-            {
-              fqdnBase: integrityApproval.fqdnBase,
-              oldHash: integrityApproval.oldHash,
-              newHash: integrityApproval.newHash,
-            },
-          );
-        } else {
-          // Return approval request (HIL pause)
-          return integrityApproval;
-        }
+      // If user already approved integrity change, skip re-validation (same fix as FQDN path)
+      if (continueWorkflow?.approved === true) {
+        const approvedResult = await this.registryClient.continueFetchWithApproval(
+          namespace,
+          this.lockfileManager,
+          true,
+        );
+        metadata = approvedResult.metadata;
       } else {
-        // No approval needed - extract metadata
-        metadata = (fetchResult as { metadata: CapabilityMetadata }).metadata;
+        // Story 14.7: Use fetchWithIntegrity for lockfile validation
+        const fetchResult = await this.registryClient.fetchWithIntegrity(
+          namespace,
+          this.lockfileManager,
+        );
+
+        // Check if integrity approval is required
+        if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+          const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+          if (continueWorkflow?.approved === false) {
+            handleIntegrityRejection(integrityApproval);
+          } else {
+            return integrityApproval;
+          }
+        } else {
+          metadata = (fetchResult as { metadata: CapabilityMetadata }).metadata;
+        }
       }
     } else {
-      // No lockfile manager - use simple fetch
       const { metadata: fetchedMetadata } = await this.registryClient.fetch(namespace);
       metadata = fetchedMetadata;
     }
 
-    // Issue 6 fix: Populate fqdnMap from capability's toolsUsed
-    // This enables nested capability calls to use FQDNs in traces for hierarchical matching
     this.populateFqdnMapFromToolsUsed(metadata.toolsUsed);
 
-    // 2. Check and install dependencies
-    // If continueWorkflow.approved is true, force install (user approved)
+    // Check and install dependencies
     const forceInstall = continueWorkflow?.approved === true;
-    const approvalResult = await this.ensureDependencies(
-      metadata,
-      forceInstall,
-    );
+    const approvalResult = await this.ensureDependencies(metadata, forceInstall);
 
-    // If approval is required and not yet approved, return the approval request
     if (approvalResult) {
       if (continueWorkflow?.approved === false) {
-        // Handle denial based on approval type
-        if (approvalResult.approvalType === "tool_permission") {
-          throw new LoaderError(
-            "PERMISSION_DENIED",
-            `Tool ${approvalResult.toolId} was not approved by user`,
-            { toolId: approvalResult.toolId },
-          );
-        } else if (approvalResult.approvalType === "api_key_required") {
-          throw new LoaderError(
-            "API_KEY_NOT_CONFIGURED",
-            `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
-            { missingKeys: approvalResult.missingKeys },
-          );
-        }
+        handleApprovalDenial(approvalResult);
       }
       return approvalResult;
     }
@@ -404,60 +417,36 @@ export class CapabilityLoader {
     // 4. For client-routed stdio types, build the dependency object for approval/install checks
     // All client-routed tools need local installation. For stdio, the MCP itself must be installed.
     // For deno, mcpDeps are already checked via ensureDependencies() above.
-    // Special case: "std" uses binary distribution - no install approval needed
     let stdioDep: McpDependency | null = null;
     const serverName = namespace.split(":")[0];
 
-    if (metadata.routing === "client" && metadata.type === "stdio") {
-      if (serverName === "std") {
-        // std uses binary distribution - binary-resolver will download automatically
-        stdioDep = {
-          name: "std",
-          type: "stdio" as const,
-          install: "binary", // Marker for binary distribution
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-        };
+    // Tech-spec 01.5: All stdio servers (including std) use metadata.install from registry
+    // std is detected by isMcpStd() in stdio-manager via args containing @casys/mcp-std
+    if (metadata.routing === "client" && metadata.type === "stdio" && metadata.install) {
+      stdioDep = {
+        name: serverName,
+        type: "stdio" as const,
+        install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+        version: "latest",
+        integrity: metadata.integrity ?? "",
+        command: metadata.install.command,
+        args: metadata.install.args,
+        // Story 14.6: envRequired from registry metadata (dynamic key detection)
+        envRequired: metadata.install.envRequired,
+      };
 
-        // std still needs tool_permission approval before first use
-        // Always check return - env vars may still be missing after approval
-        const toolIdForPermission = `${serverName}:*`;
-        const stdApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolIdForPermission,
-        );
-        if (stdApproval) {
-          logDebug(`std binary requires approval before download`);
-          return stdApproval;
-        }
-      } else if (metadata.install) {
-        // Other stdio servers use standard install flow
-        stdioDep = {
-          name: serverName,
-          type: "stdio" as const,
-          install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-          command: metadata.install.command,
-          args: metadata.install.args,
-          // Story 14.6: envRequired from registry metadata (dynamic key detection)
-          envRequired: metadata.install.envRequired,
-        };
-
-        // Check if this stdio MCP needs approval to install
-        // Always check return - env vars may still be missing after approval
-        // Use serverName:* as toolId for permission matching (not FQDN namespace)
-        const toolIdForPermission = `${serverName}:*`;
-        const stdioApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolIdForPermission,
-        );
-        if (stdioApproval) {
-          logDebug(`Stdio MCP ${namespace} requires approval to install`);
-          return stdioApproval;
-        }
+      // Check if this stdio MCP needs approval to install
+      // Always check return - env vars may still be missing after approval
+      // Use serverName:* as toolId for permission matching (not FQDN namespace)
+      const toolIdForPermission = `${serverName}:*`;
+      const stdioApproval = await this.ensureDependency(
+        stdioDep,
+        continueWorkflow?.approved ?? false,
+        toolIdForPermission,
+      );
+      if (stdioApproval) {
+        logDebug(`Stdio MCP ${namespace} requires approval to install`);
+        return stdioApproval;
       }
     }
 
@@ -572,6 +561,7 @@ export class CapabilityLoader {
    * @param args - Tool arguments
    * @param continueWorkflow - Optional: approval from previous call
    * @param parentTraceId - Optional: trace ID of parent execution (ADR-041)
+   * @param serverWorkflowId - Optional: workflowId from execute_locally flow for LearningContext correlation
    * @returns Tool result or ApprovalRequiredResult
    */
   async callWithFqdn(
@@ -579,6 +569,7 @@ export class CapabilityLoader {
     args: unknown,
     continueWorkflow?: ContinueWorkflowParams,
     parentTraceId?: string,
+    serverWorkflowId?: string,
   ): Promise<unknown | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Extract action from FQDN: org.project.namespace.action[.hash]
     const parts = fqdn.split(".");
@@ -592,7 +583,7 @@ export class CapabilityLoader {
     const action = parts[3]; // 4th segment is the action
 
     // Load capability by FQDN
-    const loadResult = await this.loadByFqdn(fqdn, continueWorkflow);
+    const loadResult = await this.loadByFqdn(fqdn, continueWorkflow, serverWorkflowId);
 
     if (CapabilityLoader.isApprovalRequired(loadResult)) {
       return loadResult;
@@ -622,11 +613,13 @@ export class CapabilityLoader {
    *
    * @param fqdn - Full FQDN (e.g., "alice.default.fs.listDirectory")
    * @param continueWorkflow - Optional: approval from previous call
+   * @param serverWorkflowId - Optional: workflowId from execute_locally flow for LearningContext correlation
    * @returns Loaded capability or approval required result
    */
   private async loadByFqdn(
     fqdn: string,
     continueWorkflow?: ContinueWorkflowParams,
+    serverWorkflowId?: string,
   ): Promise<LoadedCapability | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Check cache (using FQDN as key)
     const cached = this.loadedCapabilities.get(fqdn);
@@ -638,6 +631,7 @@ export class CapabilityLoader {
       const fetchResult = await this.registryClient.fetchWithIntegrity(
         fqdn,
         this.lockfileManager,
+        serverWorkflowId,
       );
 
       // If hash changed, need re-approval even for cached capability
@@ -645,29 +639,17 @@ export class CapabilityLoader {
         const integrityApproval = fetchResult as IntegrityApprovalRequired;
 
         if (continueWorkflow?.approved === true) {
-          // User approved integrity change - invalidate cache and reload
           this.loadedCapabilities.delete(fqdn);
           logDebug(`Integrity changed and approved - reloading ${fqdn}`);
         } else if (continueWorkflow?.approved === false) {
-          throw new LoaderError(
-            "DEPENDENCY_INTEGRITY_FAILED",
-            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
-            {
-              fqdnBase: integrityApproval.fqdnBase,
-              oldHash: integrityApproval.oldHash,
-              newHash: integrityApproval.newHash,
-            },
-          );
+          handleIntegrityRejection(integrityApproval);
         } else {
-          // Need approval - return the approval request (HIL pause)
           return integrityApproval;
         }
       } else {
-        // Integrity OK - return cached capability
         return cached;
       }
     } else if (cached) {
-      // No lockfile manager - return cached directly
       logDebug(`Capability cache hit (FQDN): ${fqdn}`);
       return cached;
     }
@@ -678,50 +660,42 @@ export class CapabilityLoader {
     let metadata: CapabilityMetadata;
 
     if (this.lockfileManager) {
-      // Use fetchWithIntegrity - accepts FQDNs (toolNameToFqdn passes them through)
-      const fetchResult = await this.registryClient.fetchWithIntegrity(
-        fqdn,
-        this.lockfileManager,
-      );
-
-      // Check if integrity approval is required (hash changed)
-      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
-        const integrityApproval = fetchResult as IntegrityApprovalRequired;
-
-        if (continueWorkflow?.approved === true) {
-          // User approved - continue fetch with approval
-          const approvedResult = await this.registryClient.continueFetchWithApproval(
-            fqdn,
-            this.lockfileManager,
-            true,
-          );
-          metadata = approvedResult.metadata;
-        } else if (continueWorkflow?.approved === false) {
-          // User rejected
-          throw new LoaderError(
-            "DEPENDENCY_INTEGRITY_FAILED",
-            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
-            {
-              fqdnBase: integrityApproval.fqdnBase,
-              oldHash: integrityApproval.oldHash,
-              newHash: integrityApproval.newHash,
-            },
-          );
-        } else {
-          // Need approval - return the approval request (HIL pause)
-          return integrityApproval;
-        }
+      // If user already approved integrity change, skip re-validation and go straight
+      // to fetch+update. Re-calling fetchWithIntegrity would re-detect the same hash
+      // change and create an infinite approval loop.
+      if (continueWorkflow?.approved === true) {
+        const approvedResult = await this.registryClient.continueFetchWithApproval(
+          fqdn,
+          this.lockfileManager,
+          true,
+        );
+        metadata = approvedResult.metadata;
       } else {
-        metadata = (fetchResult as RegistryFetchResult).metadata;
+        // Use fetchWithIntegrity - accepts FQDNs (toolNameToFqdn passes them through)
+        const fetchResult = await this.registryClient.fetchWithIntegrity(
+          fqdn,
+          this.lockfileManager,
+          serverWorkflowId,
+        );
+
+        // Check if integrity approval is required (hash changed)
+        if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+          const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+          if (continueWorkflow?.approved === false) {
+            handleIntegrityRejection(integrityApproval);
+          } else {
+            return integrityApproval;
+          }
+        } else {
+          metadata = (fetchResult as RegistryFetchResult).metadata;
+        }
       }
     } else {
-      // No lockfile manager - fetch without integrity validation (backward compat)
       const { metadata: fetchedMetadata } = await this.registryClient.fetchByFqdn(fqdn);
       metadata = fetchedMetadata;
     }
 
-    // Issue 6 fix: Populate fqdnMap from capability's toolsUsed
-    // This enables nested capability calls to use FQDNs in traces for hierarchical matching
     this.populateFqdnMapFromToolsUsed(metadata.toolsUsed);
 
     // Check and install dependencies
@@ -730,19 +704,7 @@ export class CapabilityLoader {
 
     if (approvalResult) {
       if (continueWorkflow?.approved === false) {
-        if (approvalResult.approvalType === "tool_permission") {
-          throw new LoaderError(
-            "PERMISSION_DENIED",
-            `Tool ${approvalResult.toolId} was not approved by user`,
-            { toolId: approvalResult.toolId },
-          );
-        } else if (approvalResult.approvalType === "api_key_required") {
-          throw new LoaderError(
-            "API_KEY_NOT_CONFIGURED",
-            `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
-            { missingKeys: approvalResult.missingKeys },
-          );
-        }
+        handleApprovalDenial(approvalResult);
       }
       return approvalResult;
     }
@@ -787,51 +749,29 @@ export class CapabilityLoader {
     // DEBUG: Log metadata for permission check
     loaderLog.info(`[loadByFqdn] ${fqdn} → routing=${metadata.routing}, type=${metadata.type}, namespace=${namespace}`);
 
-    if (metadata.routing === "client" && metadata.type === "stdio") {
-      if (namespace === "std") {
-        stdioDep = {
-          name: "std",
-          type: "stdio" as const,
-          install: "binary", // Marker for binary distribution
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-        };
+    // Tech-spec 01.5: All stdio servers (including std) use metadata.install from registry
+    if (metadata.routing === "client" && metadata.type === "stdio" && metadata.install) {
+      stdioDep = {
+        name: namespace,
+        type: "stdio" as const,
+        install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+        version: "latest",
+        integrity: metadata.integrity ?? "",
+        command: metadata.install.command,
+        args: metadata.install.args,
+        envRequired: metadata.install.envRequired,
+      };
 
-        // std still needs tool_permission approval before first use (same as load())
-        // Always check return - env vars may still be missing after approval
-        const toolIdForPermission = `${namespace}:*`;
-        const stdApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolIdForPermission,
-        );
-        if (stdApproval) {
-          logDebug(`std binary requires approval before download (FQDN: ${fqdn})`);
-          return stdApproval;
-        }
-      } else if (metadata.install) {
-        stdioDep = {
-          name: namespace,
-          type: "stdio" as const,
-          install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-          command: metadata.install.command,
-          args: metadata.install.args,
-          envRequired: metadata.install.envRequired,
-        };
-
-        // Always check ensureDependency return - even after approval,
-        // env vars may still be missing (user didn't add key to .env)
-        const stdioApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolId,
-        );
-        if (stdioApproval) {
-          logDebug(`Stdio MCP ${fqdn} requires approval to install`);
-          return stdioApproval;
-        }
+      // Always check ensureDependency return - even after approval,
+      // env vars may still be missing (user didn't add key to .env)
+      const stdioApproval = await this.ensureDependency(
+        stdioDep,
+        continueWorkflow?.approved ?? false,
+        toolId,
+      );
+      if (stdioApproval) {
+        logDebug(`Stdio MCP ${fqdn} requires approval to install`);
+        return stdioApproval;
       }
     }
 
@@ -1293,6 +1233,35 @@ export class CapabilityLoader {
   approveToolForSession(toolId: string): void {
     this.approvedTools.add(toolId);
     logDebug(`Approved ${toolId} for session`);
+  }
+
+  /**
+   * Approve an integrity change for a tool before re-execution.
+   * Called after user approves an integrity approval via continue_workflow.
+   *
+   * Updates the lockfile with the new hash so subsequent nested calls
+   * (inside meta-capabilities) don't re-trigger the same integrity check.
+   * Without this, integrity approvals for nested tool calls cause an infinite loop.
+   *
+   * @param toolId - Full tool ID (e.g., "std:data_address")
+   */
+  async approveIntegrityForSession(toolId: string): Promise<void> {
+    if (!this.lockfileManager) {
+      logDebug(`No lockfileManager — skipping integrity approval for ${toolId}`);
+      return;
+    }
+
+    try {
+      const result = await this.registryClient.continueFetchWithApproval(
+        toolId,
+        this.lockfileManager,
+        true,
+      );
+      logDebug(`Integrity approved for ${toolId} → lockfile updated (fqdn: ${result.metadata.fqdn})`);
+    } catch (error) {
+      // Log but don't throw — the re-execution will handle it
+      logDebug(`Failed to pre-approve integrity for ${toolId}: ${error}`);
+    }
   }
 
   /**

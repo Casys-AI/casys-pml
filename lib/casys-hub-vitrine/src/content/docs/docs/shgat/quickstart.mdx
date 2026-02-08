@@ -1,0 +1,161 @@
+---
+title: Quick Start
+description: Score your first nodes in under a minute.
+---
+
+import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+Score tool relevance across a hypergraph hierarchy. By the end of this page you'll have a model that ranks leaves and composites against a user intent.
+
+## Score your first nodes
+
+<Steps>
+1. **Define your node hierarchy**
+
+    Leaves (L0) are individual tools. Composites (L1+) group leaves or other composites. The `children` array defines the hypergraph structure.
+
+    ```typescript
+    import { createSHGAT, type Node } from "@casys/shgat";
+
+    // Leaves (L0) — individual tools
+    const nodes: Node[] = [
+      { id: "psql_query",     embedding: psqlQueryEmb,   children: [], level: 0 },
+      { id: "psql_exec",      embedding: psqlExecEmb,    children: [], level: 0 },
+      { id: "redis_get",      embedding: redisGetEmb,    children: [], level: 0 },
+      { id: "redis_set",      embedding: redisSetEmb,    children: [], level: 0 },
+      { id: "csv_parse",      embedding: csvParseEmb,    children: [], level: 0 },
+      { id: "json_transform", embedding: jsonTransEmb,   children: [], level: 0 },
+
+      // Composites (L1) — groups of leaves
+      { id: "database",   embedding: dbEmb,    children: ["psql_query", "psql_exec"], level: 1 },
+      { id: "cache",      embedding: cacheEmb, children: ["redis_get", "redis_set"],  level: 1 },
+
+      // Composites (L2) — groups of composites
+      { id: "data-layer", embedding: dataEmb,  children: ["database", "cache", "csv_parse", "json_transform"], level: 2 },
+    ];
+    ```
+
+2. **Create the model and score**
+
+    `createSHGAT` is the factory function. It registers all nodes, computes the hierarchy, and initializes K-head attention parameters.
+
+    ```typescript
+    const model = createSHGAT(nodes);
+
+    // intentEmbedding: 1024-dim vector from your embedding model (e.g. BGE-M3)
+    const ranked = model.scoreNodes(intentEmbedding);
+    ```
+
+3. **Print ranked results**
+
+    Results are sorted by score (highest first). Each result includes the node ID, score, per-head scores, and hierarchy level.
+
+    ```typescript
+    console.log("Ranked nodes:");
+    for (const { nodeId, score, level } of ranked) {
+      const tag = level === 0 ? "leaf" : `L${level}`;
+      console.log(`  [${tag}] ${nodeId}: ${score.toFixed(4)}`);
+    }
+
+    // Filter by level
+    const leaves     = model.scoreLeaves(intentEmbedding);      // L0 only
+    const composites = model.scoreComposites(intentEmbedding);   // L1+ only
+
+    // Clean up native resources
+    model.dispose();
+    ```
+</Steps>
+
+<Aside type="tip">
+  `scoreNodes()` returns all levels combined and sorted. Use `scoreLeaves()` or `scoreComposites()` when you only need one level. All three methods run the same forward pass internally.
+</Aside>
+
+## Full example
+
+```typescript
+import { createSHGAT, type Node } from "@casys/shgat";
+
+// 1024-dim embeddings (from BGE-M3 or any embedding model)
+const dim = 1024;
+const embed = (seed: number) => Array.from({ length: dim }, (_, i) => Math.sin(seed * (i + 1)));
+
+const nodes: Node[] = [
+  { id: "psql_query",  embedding: embed(1), children: [], level: 0 },
+  { id: "psql_exec",   embedding: embed(2), children: [], level: 0 },
+  { id: "redis_get",   embedding: embed(3), children: [], level: 0 },
+  { id: "database",    embedding: embed(4), children: ["psql_query", "psql_exec"], level: 1 },
+  { id: "cache",       embedding: embed(5), children: ["redis_get"], level: 1 },
+  { id: "data-layer",  embedding: embed(6), children: ["database", "cache"], level: 2 },
+];
+
+const model = createSHGAT(nodes);
+
+const intent = embed(1.1); // Close to psql_query
+const results = model.scoreNodes(intent);
+
+console.log("Top 5:");
+for (const { nodeId, score, headScores, level } of results.slice(0, 5)) {
+  const heads = headScores.map((h) => h.toFixed(3)).join(", ");
+  console.log(`  ${nodeId} (L${level}): ${score.toFixed(4)}  heads=[${heads}]`);
+}
+
+model.dispose();
+```
+
+Run it:
+
+```bash
+deno run --unstable-ffi --allow-ffi example.ts
+```
+
+## Level up: Train on production traces
+
+Out of the box, SHGAT scores using initialized parameters. To improve ranking quality, train on your production execution traces using `AutogradTrainer`:
+
+```typescript
+import { createSHGAT, type Node, type TrainingExample } from "@casys/shgat";
+import { AutogradTrainer } from "@casys/shgat/training";
+
+// 1. Build the model (same as above)
+const model = createSHGAT(nodes);
+
+// 2. Create the trainer
+const trainer = new AutogradTrainer({
+  numHeads: 16,
+  embeddingDim: 1024,
+  hiddenDim: 1024,
+  headDim: 64,
+  learningRate: 0.001,
+});
+
+// 3. Set node embeddings from the model
+trainer.setNodeEmbeddings(/* embeddings from your graph */);
+
+// 4. Train on execution traces
+const examples: TrainingExample[] = [
+  {
+    intentEmbedding: userIntentEmb,
+    contextTools: ["psql_query"],
+    candidateId: "database",         // Positive: what was actually executed
+    outcome: 1,
+    negativeCapIds: ["cache"],       // Negatives: other options
+  },
+];
+
+const metrics = trainer.trainBatch(examples);
+console.log(`Loss: ${metrics.loss.toFixed(4)}, Accuracy: ${metrics.accuracy.toFixed(2)}`);
+
+// 5. Export trained parameters
+const params = model.exportParams();
+// Save to disk, load on next startup with model.importParams(params)
+```
+
+<Aside>
+  Training uses InfoNCE contrastive loss with curriculum learning. Start with easy negatives (dissimilar tools), then increase difficulty as accuracy improves. The PER buffer prioritizes examples the model gets wrong.
+</Aside>
+
+## Where to go from here
+
+- **[Installation](/docs/shgat/installation/)** — Full setup guide with libtensorflow and platform-specific instructions
+- **[@casys/shgat on JSR](https://jsr.io/@casys/shgat)** — API reference and version history
+- **[GitHub](https://github.com/Casys-AI/shgat)** — Source code, issues, and contributions

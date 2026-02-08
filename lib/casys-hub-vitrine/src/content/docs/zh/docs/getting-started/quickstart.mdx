@@ -1,0 +1,129 @@
+---
+title: 快速开始
+description: 不到一分钟构建你的第一个 MCP 服务器。
+---
+
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+
+让我们构建一个可运行的 MCP 服务器。在本页结束时，你将拥有一个 STDIO 传输的服务器，然后将其升级为带认证、速率限制和并发控制的 HTTP 服务器。
+
+## 你的第一个服务器
+
+<Steps>
+1. **创建 `server.ts`**：
+
+    ```typescript
+    import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+    const server = new ConcurrentMCPServer({
+      name: "my-server",
+      version: "1.0.0",
+    });
+
+    server.registerTool(
+      {
+        name: "greet",
+        description: "Greet a user",
+        inputSchema: {
+          type: "object",
+          properties: { name: { type: "string" } },
+          required: ["name"],
+        },
+      },
+      ({ name }) => `Hello, ${name}!`,
+    );
+
+    await server.start(); // STDIO transport
+    ```
+
+2. **运行**：
+
+    ```bash
+    deno run --allow-net server.ts
+    ```
+
+3. **连接** 任何 MCP 客户端 — Claude Desktop、Cursor、VS Code 等。
+</Steps>
+
+<Aside type="tip">
+  仅 5 行有效代码。你就获得了 STDIO 传输、完整的 MCP 协议处理和优雅关闭 — 全部开箱即用。
+</Aside>
+
+## 进阶：HTTP + 认证 + 全部功能
+
+对于远程部署，将 `start()` 替换为 `startHttp()` 并开启所需功能：
+
+```typescript
+import {
+  ConcurrentMCPServer,
+  createGoogleAuthProvider,
+} from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "my-api",
+  version: "1.0.0",
+  maxConcurrent: 10,                                    // 10 concurrent tool calls
+  backpressureStrategy: "queue",                         // FIFO queue when at capacity
+  validateSchema: true,                                  // Reject bad input automatically
+  rateLimit: { maxRequests: 100, windowMs: 60_000 },    // 100 req/min per client
+  auth: {
+    provider: createGoogleAuthProvider({
+      audience: "https://my-mcp.example.com",
+      resource: "https://my-mcp.example.com",
+    }),
+  },
+});
+
+server.registerTool(
+  {
+    name: "query",
+    description: "Query the database",
+    inputSchema: {
+      type: "object",
+      properties: { sql: { type: "string" } },
+    },
+    requiredScopes: ["db:read"],  // Token must have this scope
+  },
+  async ({ sql }) => ({ rows: await db.query(sql) }),
+);
+
+await server.startHttp({ port: 3000 });
+```
+
+<Aside>
+  使用 HTTP 传输后，你自动获得：RFC 9728 元数据发现 (`/.well-known/oauth-protected-resource`)、SSE 流、会话管理。无需额外代码。
+</Aside>
+
+## 以二进制文件发布 + YAML 配置
+
+当你以编译后的二进制文件分发时，用户通过 `mcp-server.yaml` 文件配置认证 — 零代码修改：
+
+```yaml
+# mcp-server.yaml
+auth:
+  provider: auth0
+  audience: https://my-mcp.example.com
+  resource: https://my-mcp.example.com
+  domain: my-tenant.auth0.com
+  scopesSupported:
+    - read
+    - write
+    - admin
+```
+
+环境变量可覆盖 YAML，提供部署灵活性：
+
+```bash
+MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
+```
+
+优先级：`程序化配置 > 环境变量 > YAML > 无认证`
+
+## 接下来
+
+你已有一个运行的服务器。现在让它更强大：
+
+- **[中间件管道](/zh/docs/guides/middleware/)** — 为请求链添加日志、缓存、指标或任何自定义逻辑
+- **[认证](/zh/docs/guides/auth/)** — 深入了解 Google、Auth0、GitHub 和 OIDC 的 OAuth2 配置
+- **[配置](/zh/docs/guides/configuration/)** — 用于二进制分发的 YAML + 环境变量配置
+- **[API 参考](/zh/docs/api/concurrent-mcp-server/)** — 每个方法和选项，完整文档

@@ -75,6 +75,13 @@ export const textanalysisTools: MiniTool[] = [
       },
       required: ["text"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/gauge",
+        emits: ["click"],
+        accepts: [],
+      },
+    },
     handler: ({ text }) => {
       const txt = text as string;
       const sentences = getSentences(txt);
@@ -151,17 +158,25 @@ export const textanalysisTools: MiniTool[] = [
   {
     name: "text_statistics",
     description:
-      "Get detailed statistics about text. Character counts, word counts, sentence counts, paragraph counts, reading time, and more. Keywords: text stats, word count, character count, reading time, text analysis.",
+      "Get detailed statistics about text. Character counts, word counts, sentence counts, paragraph counts, reading time, readability scores (Flesch-Kincaid, Flesch Reading Ease), word frequency for word clouds, and sentence analysis. Keywords: text stats, word count, character count, reading time, text analysis, readability, word cloud, Flesch-Kincaid.",
     category: "textanalysis",
     inputSchema: {
       type: "object",
       properties: {
         text: { type: "string", description: "Text to analyze" },
         wordsPerMinute: { type: "number", description: "Reading speed (default: 200)" },
+        wordFrequencyLimit: { type: "number", description: "Number of top words for frequency analysis (default: 10)" },
       },
       required: ["text"],
     },
-    handler: ({ text, wordsPerMinute = 200 }) => {
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/metrics-panel",
+        emits: ["selectMetric"],
+        accepts: [],
+      },
+    },
+    handler: ({ text, wordsPerMinute = 200, wordFrequencyLimit = 10 }) => {
       const txt = text as string;
       const words = getWords(txt);
       const sentences = getSentences(txt);
@@ -188,6 +203,92 @@ export const textanalysisTools: MiniTool[] = [
       const readingTimeSeconds = (words.length / wpm) * 60;
       const speakingTimeSeconds = (words.length / 150) * 60; // ~150 wpm speaking
 
+      // === NEW: Reading Level Indicators ===
+      const sentenceCount = sentences.length || 1;
+      const wordCount = words.length || 1;
+      const syllables = words.reduce((sum, w) => sum + countSyllables(w), 0);
+
+      // Words per sentence and syllables per word
+      const wordsPerSentence = wordCount / sentenceCount;
+      const syllablesPerWord = syllables / wordCount;
+
+      // Flesch Reading Ease (0-100, higher = easier)
+      const fleschReadingEase = 206.835 - 1.015 * wordsPerSentence - 84.6 * syllablesPerWord;
+
+      // Flesch-Kincaid Grade Level
+      const fleschKincaidGrade = 0.39 * wordsPerSentence + 11.8 * syllablesPerWord - 15.59;
+
+      // Interpret reading level
+      let readingLevelInterpretation: string;
+      if (fleschReadingEase >= 90) readingLevelInterpretation = "Very Easy (5th grade)";
+      else if (fleschReadingEase >= 80) readingLevelInterpretation = "Easy (6th grade)";
+      else if (fleschReadingEase >= 70) readingLevelInterpretation = "Fairly Easy (7th grade)";
+      else if (fleschReadingEase >= 60) readingLevelInterpretation = "Standard (8th-9th grade)";
+      else if (fleschReadingEase >= 50) readingLevelInterpretation = "Fairly Difficult (10th-12th grade)";
+      else if (fleschReadingEase >= 30) readingLevelInterpretation = "Difficult (College)";
+      else readingLevelInterpretation = "Very Difficult (College graduate)";
+
+      // === NEW: Word Frequency (Top N for word cloud) ===
+      const stopwords = new Set([
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+        "of", "with", "by", "from", "as", "is", "was", "are", "were", "been",
+        "be", "have", "has", "had", "do", "does", "did", "will", "would",
+        "could", "should", "may", "might", "must", "shall", "can", "need",
+        "it", "its", "this", "that", "these", "those", "i", "you", "he", "she",
+        "we", "they", "me", "him", "her", "us", "them", "my", "your", "his",
+        "her", "our", "their", "what", "which", "who", "whom", "when", "where",
+        "why", "how", "all", "each", "every", "both", "few", "more", "most",
+        "other", "some", "such", "no", "not", "only", "same", "so", "than",
+        "too", "very", "just", "also", "now", "here", "there", "then",
+      ]);
+
+      const filteredWords = words.filter((w) => w.length >= 2 && !stopwords.has(w));
+      const wordFreqMap = new Map<string, number>();
+      for (const word of filteredWords) {
+        wordFreqMap.set(word, (wordFreqMap.get(word) || 0) + 1);
+      }
+
+      const topWords = Array.from(wordFreqMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, wordFrequencyLimit as number)
+        .map(([word, count]) => ({
+          word,
+          count,
+          percentage: Math.round((count / filteredWords.length) * 10000) / 100,
+        }));
+
+      // === NEW: Sentence Analysis ===
+      const sentenceLengths = sentences.map((s) => getWords(s).length);
+      const avgSentenceLength = sentenceLengths.length > 0
+        ? sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length
+        : 0;
+
+      // Find longest sentences (top 3)
+      const sentencesWithLength = sentences.map((s, idx) => ({
+        text: s,
+        wordCount: getWords(s).length,
+        index: idx,
+      }));
+      const longestSentences = [...sentencesWithLength]
+        .sort((a, b) => b.wordCount - a.wordCount)
+        .slice(0, 3)
+        .map((s) => ({
+          text: s.text.length > 100 ? s.text.substring(0, 100) + "..." : s.text,
+          wordCount: s.wordCount,
+          position: s.index + 1,
+        }));
+
+      // Find shortest sentences (top 3, min 2 words)
+      const shortestSentences = [...sentencesWithLength]
+        .filter((s) => s.wordCount >= 2)
+        .sort((a, b) => a.wordCount - b.wordCount)
+        .slice(0, 3)
+        .map((s) => ({
+          text: s.text,
+          wordCount: s.wordCount,
+          position: s.index + 1,
+        }));
+
       return {
         characters: {
           total: chars,
@@ -203,7 +304,12 @@ export const textanalysisTools: MiniTool[] = [
           longest: longestWord,
           shortest: shortestWord,
         },
-        sentences: sentences.length,
+        sentences: {
+          total: sentences.length,
+          avgLength: Math.round(avgSentenceLength * 10) / 10,
+          longest: longestSentences,
+          shortest: shortestSentences,
+        },
         paragraphs: paragraphs.length,
         lines: lines.length,
         readingTime: {
@@ -215,6 +321,19 @@ export const textanalysisTools: MiniTool[] = [
           seconds: Math.round(speakingTimeSeconds),
           minutes: Math.round(speakingTimeSeconds / 60 * 10) / 10,
           formatted: formatDuration(speakingTimeSeconds),
+        },
+        readability: {
+          fleschReadingEase: Math.round(fleschReadingEase * 10) / 10,
+          fleschKincaidGrade: Math.round(fleschKincaidGrade * 10) / 10,
+          interpretation: readingLevelInterpretation,
+          syllables,
+          avgSyllablesPerWord: Math.round(syllablesPerWord * 100) / 100,
+          avgWordsPerSentence: Math.round(wordsPerSentence * 10) / 10,
+        },
+        wordFrequency: {
+          topWords,
+          totalAnalyzed: filteredWords.length,
+          uniqueAnalyzed: wordFreqMap.size,
         },
       };
     },
@@ -234,6 +353,13 @@ export const textanalysisTools: MiniTool[] = [
         ngram: { type: "number", description: "N-gram size (1=words, 2=bigrams, 3=trigrams)" },
       },
       required: ["text"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/chart-viewer",
+        emits: ["barClick", "hover"],
+        accepts: ["highlight"],
+      },
     },
     handler: ({ text, limit = 20, minLength = 1, excludeStopwords = true, ngram = 1 }) => {
       const words = getWords(text as string);
@@ -306,6 +432,13 @@ export const textanalysisTools: MiniTool[] = [
         text: { type: "string", description: "Text to analyze" },
       },
       required: ["text"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/gauge",
+        emits: ["click"],
+        accepts: [],
+      },
     },
     handler: ({ text }) => {
       const words = getWords(text as string);
@@ -405,6 +538,74 @@ export const textanalysisTools: MiniTool[] = [
         },
         wordCount: words.length,
         confidence: total > 5 ? "high" : total > 2 ? "medium" : "low",
+      };
+    },
+  },
+  {
+    name: "word_cloud",
+    description:
+      "Generate word frequency data for word cloud visualization. Analyze text to extract most common words with counts, excluding common stop words. Useful for content analysis, keyword extraction, or text summarization. Keywords: word cloud, frequency, keywords, text analysis, word count, tag cloud.",
+    category: "textanalysis",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to analyze for word frequencies" },
+        maxWords: { type: "number", description: "Maximum number of words to return (default: 50)" },
+        minLength: { type: "number", description: "Minimum word length (default: 3)" },
+        stopWords: { type: "boolean", description: "Filter out common stop words (default: true)" },
+      },
+      required: ["text"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/word-cloud",
+      },
+    },
+    handler: ({ text, maxWords = 50, minLength = 3, stopWords = true }) => {
+      const commonStopWords = new Set([
+        "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
+        "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
+        "this", "but", "his", "by", "from", "they", "we", "say", "her", "she",
+        "or", "an", "will", "my", "one", "all", "would", "there", "their", "what",
+        "so", "up", "out", "if", "about", "who", "get", "which", "go", "me",
+        "when", "make", "can", "like", "time", "no", "just", "him", "know", "take",
+        "people", "into", "year", "your", "good", "some", "could", "them", "see", "other",
+        "than", "then", "now", "look", "only", "come", "its", "over", "think", "also",
+        "back", "after", "use", "two", "how", "our", "work", "first", "well", "way",
+        "even", "new", "want", "because", "any", "these", "give", "day", "most", "us",
+        "is", "are", "was", "were", "been", "being", "has", "had", "does", "did",
+      ]);
+
+      const words = (text as string)
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= (minLength as number));
+
+      const filteredWords = stopWords
+        ? words.filter((w) => !commonStopWords.has(w))
+        : words;
+
+      const frequency = new Map<string, number>();
+      for (const word of filteredWords) {
+        frequency.set(word, (frequency.get(word) || 0) + 1);
+      }
+
+      const sorted = Array.from(frequency.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, maxWords as number);
+
+      const maxCount = sorted[0]?.[1] || 1;
+
+      return {
+        title: "Word Cloud",
+        words: sorted.map(([word, count]) => ({
+          word,
+          count,
+          weight: Math.round((count / maxCount) * 100),
+        })),
+        totalWords: words.length,
+        uniqueWords: frequency.size,
       };
     },
   },

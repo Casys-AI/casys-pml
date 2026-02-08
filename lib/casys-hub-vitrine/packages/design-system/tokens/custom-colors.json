@@ -1,0 +1,23 @@
+{
+  "casys": {
+    "cassis": {
+      "50": { "value": "#faf7fa" },
+      "100": { "value": "#f5eef5" },
+      "200": { "value": "#ecdcec" },
+      "300": { "value": "#e3cae3" },
+      "400": { "value": "#dbbddb" },
+      "500": { "value": "#d3b0d3" },
+      "600": { "value": "#dbbddb" },
+      "700": { "value": "#b89bb8" },
+      "800": { "value": "#957995" },
+      "900": { "value": "#725772" },
+      "950": { "value": "#4f354f" }
+    },
+    "brand": {
+      "yellow": { "value": "#ffde59" },
+      "blue": { "value": "#05004b" },
+      "cyan": { "value": "#00ffff" },
+      "red": { "value": "#ff0000" }
+    }
+  }
+}

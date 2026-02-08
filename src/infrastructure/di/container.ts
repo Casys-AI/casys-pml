@@ -325,7 +325,8 @@ export function buildContainer(
 }
 
 /**
- * Type-safe service accessor functions
+ * Type-safe service accessor functions.
+ * Each function resolves a specific token from the container.
  */
 export function getCapabilityRepository(container: Container): CapabilityRepository {
   return container.get(CapabilityRepository);
@@ -355,7 +356,6 @@ export function getEventBus(container: Container): EventBus {
   return container.get(EventBus);
 }
 
-// Phase 3.2: New service accessors
 export function getCodeAnalyzer(container: Container): CodeAnalyzer {
   return container.get(CodeAnalyzer);
 }

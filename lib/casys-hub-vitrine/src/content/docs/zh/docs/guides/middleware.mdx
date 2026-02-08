@@ -1,0 +1,203 @@
+---
+title: 中间件管道
+description: 面向 MCP 工具调用的可组合洋葱模型中间件。
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+`@casys/mcp-server` 中的每个工具调用都会经过一条可组合的中间件链 — 与你在 Hono、Koa 或 Express 中熟悉的洋葱模型相同。认证、速率限制、验证和你的自定义逻辑就是这样组合在一起而不会纠缠的。
+
+## 工作原理
+
+<img src="/diagrams/mcp-server/mcp-middleware-pipeline.svg" alt="MCP 中间件管道" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
+
+```
+Request → Rate Limit → Auth → Custom Middlewares → Scope Check → Validation → Backpressure → Handler
+                                                                                              ↓
+Response ← Rate Limit ← Auth ← Custom Middlewares ← Scope Check ← Validation ← Backpressure ← Result
+```
+
+每个中间件接收一个 `context` 对象和一个 `next()` 函数。调用 `next()` 将控制权传递给下游。响应沿相同的链反向流动 — 因此单个中间件可以同时处理请求和响应。
+
+## 编写中间件
+
+中间件就是一个 async 函数。这是一个为每个工具调用计时的日志中间件：
+
+```typescript
+import type { Middleware } from "@casys/mcp-server";
+
+const logging: Middleware = async (ctx, next) => {
+  const start = performance.now();
+  console.log(`→ ${ctx.toolName}`, ctx.args);
+
+  const result = await next();
+
+  const ms = (performance.now() - start).toFixed(0);
+  console.log(`← ${ctx.toolName} (${ms}ms)`);
+  return result;
+};
+```
+
+就这样。没有基类，没有装饰器，没有注册样板代码。
+
+## 注册中间件
+
+使用 `server.use()` 添加中间件。它们被插入到内置层 (rate limit、auth) 和内置检查 (validation、backpressure) 之间：
+
+```typescript
+const server = new ConcurrentMCPServer({
+  name: "my-server",
+  version: "1.0.0",
+});
+
+server.use(logging);
+server.use(metrics);
+server.use(caching);
+
+server.registerTool(/* ... */);
+await server.startHttp({ port: 3000 });
+```
+
+<Aside type="caution">
+  `use()` 必须在 `start()` 或 `startHttp()` **之前** 调用。管道在启动时编译，之后无法修改。
+</Aside>
+
+## 管道顺序
+
+以下是每个工具调用的精确执行顺序：
+
+| 顺序 | 层 | 来源 | 作用 |
+|------|------|------|------|
+| 1 | Rate Limit | 内置 (如已配置) | 按客户端的滑动窗口限流 |
+| 2 | Auth | 内置 (如已配置) | JWT/Bearer token 验证 |
+| 3 | **你的中间件** | `server.use()` | 你的代码，按注册顺序 |
+| 4 | Scope Check | 内置 (如有 auth + scopes) | 验证 token scope 是否匹配 `requiredScopes` |
+| 5 | Validation | 内置 (如已配置) | 通过 ajv 进行 JSON Schema 验证 |
+| 6 | Backpressure | 内置 | 根据并发情况执行 queue/sleep/reject |
+| 7 | Handler | `registerTool()` | 你的工具 handler 函数 |
+
+<Aside type="tip">
+  你的中间件在 auth **之后** 但在 validation **之前** 运行。这意味着你可以访问 `ctx.authInfo` 并在 handler 执行前丰富上下文。
+</Aside>
+
+## context 对象
+
+每个中间件和 handler 接收相同的 context：
+
+```typescript
+interface MiddlewareContext {
+  toolName: string;                  // Which tool is being called
+  args: Record<string, unknown>;     // The tool's input arguments
+  request?: Request;                 // HTTP Request (HTTP transport only)
+  sessionId?: string;                // Session ID (HTTP transport only)
+  [key: string]: unknown;            // Extensible — add your own fields
+}
+```
+
+## 丰富 context
+
+中间件可以为下游中间件和 handler 附加数据。这是共享横切关注点数据的推荐方式：
+
+```typescript
+const tenantResolver: Middleware = async (ctx, next) => {
+  const tenantId = ctx.request?.headers.get("x-tenant-id");
+  if (!tenantId) {
+    throw new Error("Missing X-Tenant-Id header");
+  }
+  ctx.tenantId = tenantId;  // Now available to all downstream middlewares + handler
+  return next();
+};
+```
+
+## 短路
+
+不调用 `next()` 即可跳过管道的其余部分。这就是构建缓存的方式：
+
+```typescript
+const cache = new Map<string, { result: unknown; expiry: number }>();
+
+const caching: Middleware = async (ctx, next) => {
+  const key = `${ctx.toolName}:${JSON.stringify(ctx.args)}`;
+  const cached = cache.get(key);
+
+  if (cached && cached.expiry > Date.now()) {
+    return cached.result;  // Entire downstream pipeline is skipped
+  }
+
+  const result = await next();
+  cache.set(key, { result, expiry: Date.now() + 60_000 });
+  return result;
+};
+```
+
+## 错误处理
+
+链中任何位置抛出的错误都会通过所有中间件回传。将错误处理器放在首位，使其包裹一切：
+
+```typescript
+const errorHandler: Middleware = async (ctx, next) => {
+  try {
+    return await next();
+  } catch (error) {
+    console.error(`Tool ${ctx.toolName} failed:`, error);
+    return { error: true, message: String(error) };
+  }
+};
+
+// First middleware = outermost layer = catches all errors
+server.use(errorHandler);
+server.use(logging);
+server.use(caching);
+```
+
+## 实用示例
+
+### 带指标导出的请求计时
+
+```typescript
+const timing: Middleware = async (ctx, next) => {
+  const start = performance.now();
+  try {
+    return await next();
+  } finally {
+    const duration = performance.now() - start;
+    metrics.record(ctx.toolName, duration);
+  }
+};
+```
+
+### 按工具的访问控制
+
+```typescript
+const adminOnly: Middleware = async (ctx, next) => {
+  if (ctx.toolName.startsWith("admin_")) {
+    const role = ctx.authInfo?.claims?.role;
+    if (role !== "admin") {
+      throw new Error("Admin access required");
+    }
+  }
+  return next();
+};
+```
+
+### 请求/响应转换
+
+```typescript
+const sanitizer: Middleware = async (ctx, next) => {
+  // Sanitize input before handler
+  if (typeof ctx.args.query === "string") {
+    ctx.args.query = ctx.args.query.trim().slice(0, 1000);
+  }
+
+  const result = await next();
+
+  // Transform output after handler
+  return { ...result, processedAt: new Date().toISOString() };
+};
+```
+
+## 另请参阅
+
+- [认证 (OAuth2)](/zh/docs/guides/auth/) — 内置认证中间件和 OIDC 配置
+- [ConcurrentMCPServer API](/zh/docs/api/concurrent-mcp-server/) — `use()` 和 `registerTool()` 完整参考
+- [独立组件](/zh/docs/api/standalone-components/) — 将 RateLimiter、RequestQueue 作为独立工具使用

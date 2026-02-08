@@ -11,9 +11,15 @@
  */
 
 import * as log from "@std/log";
-import { addBreadcrumb, captureError, startTransaction } from "../../telemetry/sentry.ts";
-import { formatMCPSuccess } from "../server/responses.ts";
 import type { MCPToolResponse, MCPErrorResponse } from "../server/types.ts";
+import {
+  addHandlerBreadcrumb,
+  createHandlerContext,
+  formatErrorResponse,
+  formatSuccessResponse,
+  handleError,
+  type HandlerContext,
+} from "./shared/mod.ts";
 import {
   DiscoverToolsUseCase,
   DiscoverCapabilitiesUseCase,
@@ -27,6 +33,7 @@ import {
 } from "../../application/use-cases/discover/mod.ts";
 import type { IDecisionLogger } from "../../telemetry/decision-logger.ts";
 import { getUserScope } from "../../lib/user.ts";
+import { uuidv7 } from "../../utils/uuid.ts";
 
 // ============================================================================
 // Types
@@ -129,8 +136,7 @@ export class DiscoverHandlerFacade {
    * @param userId - Authenticated user ID (null for local mode)
    */
   async handle(args: unknown, userId?: string | null): Promise<MCPToolResponse | MCPErrorResponse> {
-    const transaction = startTransaction("mcp.discover", "mcp");
-    const startTime = performance.now();
+    const context = createHandlerContext("mcp.discover");
 
     try {
       const params = args as DiscoverArgs;
@@ -141,38 +147,25 @@ export class DiscoverHandlerFacade {
 
       // Mode detection and routing
       if (params.pattern) {
-        return await this.handleListMode(params, scope, transaction, startTime);
+        return await this.handleListMode(params, scope, context);
       }
       if (params.name) {
-        return await this.handleLookupMode(params, scope, transaction, startTime);
+        return await this.handleLookupMode(params, scope, context);
       }
       if (params.id) {
-        return await this.handleDetailsMode(params, scope, transaction, startTime);
+        return await this.handleDetailsMode(params, scope, context);
       }
       if (params.intent) {
-        return await this.handleSearchMode(params, scope, transaction, startTime);
+        return await this.handleSearchMode(params, scope, context);
       }
 
       // No valid mode parameter provided
-      transaction.finish();
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            error: "Missing required parameter. Provide one of: 'intent' (search), 'pattern' (list), 'name' (lookup), or 'id' (details).",
-          }),
-        }],
-      };
+      return formatErrorResponse(
+        "Missing required parameter. Provide one of: 'intent' (search), 'pattern' (list), 'name' (lookup), or 'id' (details).",
+        context.transaction,
+      );
     } catch (error) {
-      log.error(`discover error: ${error}`);
-      captureError(error as Error, { operation: "discover", handler: "DiscoverHandlerFacade" });
-      transaction.finish();
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: `Discover failed: ${(error as Error).message}` }),
-        }],
-      };
+      return handleError(error, "discover", "DiscoverHandlerFacade", context.transaction);
     }
   }
 
@@ -182,24 +175,20 @@ export class DiscoverHandlerFacade {
   private async handleListMode(
     params: DiscoverArgs,
     scope: Scope,
-    transaction: { finish: () => void; setData: (k: string, v: unknown) => void },
-    startTime: number,
+    context: HandlerContext,
   ): Promise<MCPToolResponse | MCPErrorResponse> {
     const { listCapabilitiesUseCase } = this.deps;
 
     if (!listCapabilitiesUseCase) {
-      transaction.finish();
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: "List mode not available (listCapabilitiesUseCase not configured)" }),
-        }],
-      };
+      return formatErrorResponse(
+        "List mode not available (listCapabilitiesUseCase not configured)",
+        context.transaction,
+      );
     }
 
-    transaction.setData("mode", "list");
-    transaction.setData("pattern", params.pattern);
-    addBreadcrumb("mcp", "Processing list request", { pattern: params.pattern });
+    context.transaction.setData("mode", "list");
+    context.transaction.setData("pattern", params.pattern);
+    addHandlerBreadcrumb("mcp", "Processing list request", { pattern: params.pattern });
 
     const result = await listCapabilitiesUseCase.execute({
       pattern: params.pattern!,
@@ -208,21 +197,15 @@ export class DiscoverHandlerFacade {
       offset: params.offset,
     });
 
-    const elapsedMs = performance.now() - startTime;
-    log.info(`discover (list): pattern="${params.pattern}" in ${elapsedMs.toFixed(1)}ms`);
-
-    transaction.finish();
-
     if (!result.success) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: result.error?.message ?? "List failed" }),
-        }],
-      };
+      return formatErrorResponse(result.error?.message ?? "List failed", context.transaction);
     }
 
-    return formatMCPSuccess(result.data);
+    return formatSuccessResponse(
+      result.data,
+      context,
+      `discover (list): pattern="${params.pattern}" in {elapsed}ms`,
+    );
   }
 
   /**
@@ -231,45 +214,35 @@ export class DiscoverHandlerFacade {
   private async handleLookupMode(
     params: DiscoverArgs,
     scope: Scope,
-    transaction: { finish: () => void; setData: (k: string, v: unknown) => void },
-    startTime: number,
+    context: HandlerContext,
   ): Promise<MCPToolResponse | MCPErrorResponse> {
     const { lookupUseCase } = this.deps;
 
     if (!lookupUseCase) {
-      transaction.finish();
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: "Lookup mode not available (lookupUseCase not configured)" }),
-        }],
-      };
+      return formatErrorResponse(
+        "Lookup mode not available (lookupUseCase not configured)",
+        context.transaction,
+      );
     }
 
-    transaction.setData("mode", "lookup");
-    transaction.setData("name", params.name);
-    addBreadcrumb("mcp", "Processing lookup request", { name: params.name });
+    context.transaction.setData("mode", "lookup");
+    context.transaction.setData("name", params.name);
+    addHandlerBreadcrumb("mcp", "Processing lookup request", { name: params.name });
 
     const result = await lookupUseCase.execute({
       name: params.name!,
       scope,
     });
 
-    const elapsedMs = performance.now() - startTime;
-    log.info(`discover (lookup): name="${params.name}" in ${elapsedMs.toFixed(1)}ms`);
-
-    transaction.finish();
-
     if (!result.success) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: result.error?.message ?? "Lookup failed" }),
-        }],
-      };
+      return formatErrorResponse(result.error?.message ?? "Lookup failed", context.transaction);
     }
 
-    return formatMCPSuccess(result.data);
+    return formatSuccessResponse(
+      result.data,
+      context,
+      `discover (lookup): name="${params.name}" in {elapsed}ms`,
+    );
   }
 
   /**
@@ -278,24 +251,20 @@ export class DiscoverHandlerFacade {
   private async handleDetailsMode(
     params: DiscoverArgs,
     scope: Scope,
-    transaction: { finish: () => void; setData: (k: string, v: unknown) => void },
-    startTime: number,
+    context: HandlerContext,
   ): Promise<MCPToolResponse | MCPErrorResponse> {
     const { getDetailsUseCase } = this.deps;
 
     if (!getDetailsUseCase) {
-      transaction.finish();
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: "Details mode not available (getDetailsUseCase not configured)" }),
-        }],
-      };
+      return formatErrorResponse(
+        "Details mode not available (getDetailsUseCase not configured)",
+        context.transaction,
+      );
     }
 
-    transaction.setData("mode", "details");
-    transaction.setData("id", params.id);
-    addBreadcrumb("mcp", "Processing details request", { id: params.id });
+    context.transaction.setData("mode", "details");
+    context.transaction.setData("id", params.id);
+    addHandlerBreadcrumb("mcp", "Processing details request", { id: params.id });
 
     const result = await getDetailsUseCase.execute({
       id: params.id!,
@@ -303,21 +272,15 @@ export class DiscoverHandlerFacade {
       details: params.details,
     });
 
-    const elapsedMs = performance.now() - startTime;
-    log.info(`discover (details): id="${params.id}" in ${elapsedMs.toFixed(1)}ms`);
-
-    transaction.finish();
-
     if (!result.success) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: result.error?.message ?? "Details lookup failed" }),
-        }],
-      };
+      return formatErrorResponse(result.error?.message ?? "Details lookup failed", context.transaction);
     }
 
-    return formatMCPSuccess(result.data);
+    return formatSuccessResponse(
+      result.data,
+      context,
+      `discover (details): id="${params.id}" in {elapsed}ms`,
+    );
   }
 
   /**
@@ -327,21 +290,20 @@ export class DiscoverHandlerFacade {
   private async handleSearchMode(
     params: DiscoverArgs,
     scope: Scope,
-    transaction: { finish: () => void; setData: (k: string, v: unknown) => void },
-    startTime: number,
+    context: HandlerContext,
   ): Promise<MCPToolResponse | MCPErrorResponse> {
-    const correlationId = crypto.randomUUID();
+    const correlationId = uuidv7();
     const intent = params.intent!;
     const filterType = params.filter?.type ?? "all";
     const minScore = params.filter?.minScore ?? 0.0;
     const limit = Math.min(params.limit ?? 1, 50);
     const includeRelated = params.include_related ?? false;
 
-    transaction.setData("mode", "search");
-    transaction.setData("intent", intent);
-    transaction.setData("filter_type", filterType);
-    transaction.setData("limit", limit);
-    addBreadcrumb("mcp", "Processing search request", { intent, filterType });
+    context.transaction.setData("mode", "search");
+    context.transaction.setData("intent", intent);
+    context.transaction.setData("filter_type", filterType);
+    context.transaction.setData("limit", limit);
+    addHandlerBreadcrumb("mcp", "Processing search request", { intent, filterType });
 
     log.info(`discover (search): intent="${intent}", filter=${filterType}, limit=${limit}, includeRelated=${includeRelated}`);
 
@@ -446,12 +408,10 @@ export class DiscoverHandlerFacade {
       },
     };
 
-    const elapsedMs = performance.now() - startTime;
-    log.info(
-      `discover (search): found ${limitedResults.length} results (${toolsCount} tools, ${capabilitiesCount} caps) in ${elapsedMs.toFixed(1)}ms`,
+    return formatSuccessResponse(
+      response,
+      context,
+      `discover (search): found ${limitedResults.length} results (${toolsCount} tools, ${capabilitiesCount} caps) in {elapsed}ms`,
     );
-
-    transaction.finish();
-    return formatMCPSuccess(response);
   }
 }

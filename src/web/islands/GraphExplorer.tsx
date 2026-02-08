@@ -688,55 +688,13 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
     setPathTo("");
   };
 
-  // Casys design tokens
-  const styles = {
-    panel: {
-      background: "var(--bg-elevated, #12110f)",
-      border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-      backdropFilter: "blur(12px)",
-    },
-    input: {
-      background: "var(--bg-surface, #1a1816)",
-      border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-      color: "var(--text, #f5f0ea)",
-    },
-    inputFocus: {
-      borderColor: "var(--accent, #FFB86F)",
-      boxShadow: "0 0 0 2px var(--accent-dim, rgba(255, 184, 111, 0.1))",
-    },
-    button: {
-      background: "var(--bg-surface, #1a1816)",
-      border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-      color: "var(--text-muted, #d5c3b5)",
-    },
-    buttonActive: {
-      background: "var(--accent-dim, rgba(255, 184, 111, 0.1))",
-      borderColor: "var(--accent, #FFB86F)",
-      color: "var(--accent, #FFB86F)",
-    },
-    buttonPrimary: {
-      background: "var(--accent, #FFB86F)",
-      color: "var(--bg, #0a0908)",
-    },
-    kbd: {
-      background: "var(--accent-dim, rgba(255, 184, 111, 0.1))",
-      border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-      color: "var(--text-dim, #8a8078)",
-    },
-  };
-
-  // SearchBar component to portal into header
   const searchBarContent = (
     <div class="flex gap-3 items-center">
       <div class="relative">
         <input
           ref={searchInputRef}
           type="text"
-          class="w-[420px] py-2.5 px-4 pr-[60px] rounded-xl text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50"
-          style={{
-            ...styles.input,
-            fontFamily: "var(--font-sans)",
-          }}
+          class="w-[420px] py-2.5 px-4 pr-[60px] rounded-xl text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50 bg-stone-800 border border-pml-accent/10 text-stone-100 focus:border-pml-accent focus:ring-2 focus:ring-pml-accent/10"
           placeholder="Search capabilities & tools... (/ or Ctrl+K)"
           value={searchQuery}
           onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
@@ -746,16 +704,13 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
               console.log("[Search] Re-showing results on focus");
               setShowResults(true);
             }
-            Object.assign(e.currentTarget.style, styles.inputFocus);
           }}
-          onBlur={(e) => {
+          onBlur={() => {
             console.log("[Search] Input blur - closing dropdown in 200ms");
             setTimeout(() => {
               console.log("[Search] Closing dropdown now");
               setShowResults(false);
             }, 200);
-            e.currentTarget.style.borderColor = "var(--border)";
-            e.currentTarget.style.boxShadow = "none";
           }}
         />
         {/* Clear button or keyboard shortcut hint */}
@@ -769,8 +724,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
                   setSelectedCapability(null);
                   searchInputRef.current?.focus();
                 }}
-                class="p-1 rounded-md transition-colors hover:bg-white/10"
-                style={{ color: "var(--text-dim, #8a8078)" }}
+                class="p-1 rounded-md transition-colors hover:bg-white/10 text-stone-500"
                 title="Effacer la recherche (Esc)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -783,55 +737,40 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
                 </svg>
               </button>
             )
-            : <kbd class="px-2 py-0.5 rounded-md text-xs font-medium" style={styles.kbd}>/</kbd>}
+            : <kbd class="px-2 py-0.5 rounded-md text-xs font-medium bg-pml-accent/10 border border-pml-accent/10 text-stone-500">/</kbd>}
         </span>
 
-        {/* Autocomplete Results - dropdown below search */}
         {showResults && searchResults.length > 0 && (
-          <div
-            class="absolute top-full left-0 mt-2 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto shadow-2xl"
-            style={{ ...styles.panel, zIndex: 9999, width: "420px" }}
-          >
+          <div class="absolute top-full left-0 mt-2 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto shadow-2xl w-[420px] z-[9999] bg-stone-900 border border-pml-accent/10 backdrop-blur-xl">
             {searchResults.map((result) => (
               <div
                 key={result.id}
-                class="px-4 py-3 cursor-pointer flex justify-between items-center transition-colors"
-                style={{ borderBottom: "1px solid var(--border)" }}
+                class="px-4 py-3 cursor-pointer flex justify-between items-center transition-colors border-b border-pml-accent/10 hover:bg-pml-accent/10"
                 onClick={() => selectSearchResult(result)}
-                onMouseOver={(e) => e.currentTarget.style.background = "var(--accent-dim)"}
-                onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
               >
                 <div class="flex gap-3 items-center">
-                  {/* Type badge */}
                   <span
-                    class="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase"
-                    style={{
-                      background: result.type === "capability"
-                        ? "var(--accent-dim)"
-                        : "var(--bg-surface)",
-                      color: result.type === "capability" ? "var(--accent)" : "var(--text-dim)",
-                    }}
+                    class={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${
+                      result.type === "capability" ? "bg-pml-accent/10 text-pml-accent" : "bg-stone-800 text-stone-500"
+                    }`}
                   >
                     {result.type === "capability" ? "cap" : "tool"}
                   </span>
-                  <span style={{ color: "var(--text)", fontWeight: 600, fontSize: "0.875rem" }}>
+                  <span class="text-stone-100 font-semibold text-sm">
                     {result.name}
                   </span>
                   {result.server && result.type === "tool" && (
-                    <span
-                      class="text-xs px-2 py-1 rounded-md font-medium"
-                      style={{ background: "var(--bg-surface)", color: "var(--text-dim)" }}
-                    >
+                    <span class="text-xs px-2 py-1 rounded-md font-medium bg-stone-800 text-stone-500">
                       {result.server}
                     </span>
                   )}
                 </div>
                 <div class="flex gap-3 text-xs">
-                  <span style={{ color: "var(--success)", fontWeight: 600 }}>
+                  <span class="text-green-400 font-semibold">
                     {(result.score * 100).toFixed(0)}%
                   </span>
                   {result.extra && (
-                    <span style={{ color: "var(--accent)", fontWeight: 600 }}>
+                    <span class="text-pml-accent font-semibold">
                       {result.extra}
                     </span>
                   )}
@@ -842,16 +781,15 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
         )}
       </div>
 
-      {/* Path Finder Toggle */}
       <button
         type="button"
-        class="py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-200"
-        style={showPathFinder ? styles.buttonActive : styles.button}
+        class={`py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-200 border ${
+          showPathFinder
+            ? "bg-pml-accent/10 border-pml-accent text-pml-accent"
+            : "bg-stone-800 border-pml-accent/10 text-stone-400 hover:border-pml-accent/30"
+        }`}
         onClick={() => setShowPathFinder(!showPathFinder)}
         title="Find Path (Ctrl+P)"
-        onMouseOver={(e) =>
-          !showPathFinder && (e.currentTarget.style.borderColor = "var(--accent-medium)")}
-        onMouseOut={(e) => !showPathFinder && (e.currentTarget.style.borderColor = "var(--border)")}
       >
         Path
       </button>
@@ -866,45 +804,28 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
       {/* SearchBar rendered in header via portal */}
       {headerSlot && createPortal(searchBarContent, headerSlot)}
 
-      {/* Path Finder Panel */}
       {showPathFinder && (
-        <div
-          class="absolute top-20 left-1/2 -translate-x-1/2 z-[90] p-4 px-5 rounded-xl shadow-2xl mt-2"
-          style={styles.panel}
-        >
+        <div class="absolute top-20 left-1/2 -translate-x-1/2 z-[90] p-4 px-5 rounded-xl shadow-2xl mt-2 bg-stone-900 border border-pml-accent/10 backdrop-blur-xl">
           <div class="flex gap-3 items-center">
             <input
               type="text"
-              class="w-[200px] py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all"
-              style={styles.input}
+              class="w-[200px] py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all bg-stone-800 border border-pml-accent/10 text-stone-100 focus:border-pml-accent focus:ring-2 focus:ring-pml-accent/10"
               placeholder="From tool..."
               value={pathFrom}
               onInput={(e) => setPathFrom((e.target as HTMLInputElement).value)}
-              onFocus={(e) => Object.assign(e.currentTarget.style, styles.inputFocus)}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--border)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
             />
-            <span style={{ color: "var(--accent)", fontSize: "1.25rem" }}>→</span>
+            <span class="text-pml-accent text-xl">→</span>
             <input
               type="text"
-              class="w-[200px] py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all"
-              style={styles.input}
+              class="w-[200px] py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all bg-stone-800 border border-pml-accent/10 text-stone-100 focus:border-pml-accent focus:ring-2 focus:ring-pml-accent/10"
               placeholder="To tool..."
               value={pathTo}
               onInput={(e) => setPathTo((e.target as HTMLInputElement).value)}
-              onFocus={(e) => Object.assign(e.currentTarget.style, styles.inputFocus)}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--border)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
             />
             <button
               type="button"
               onClick={findPath}
-              class="py-3 px-5 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 hover:brightness-110"
-              style={styles.buttonPrimary}
+              class="py-3 px-5 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 hover:brightness-110 bg-pml-accent text-stone-950"
             >
               Find Path
             </button>
@@ -912,44 +833,26 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
               <button
                 type="button"
                 onClick={clearPath}
-                class="py-3 px-4 rounded-lg text-sm font-medium cursor-pointer transition-all"
-                style={{
-                  background: "rgba(248, 113, 113, 0.1)",
-                  border: "1px solid rgba(248, 113, 113, 0.2)",
-                  color: "var(--error)",
-                }}
+                class="py-3 px-4 rounded-lg text-sm font-medium cursor-pointer transition-all bg-red-400/10 border border-red-400/20 text-red-400"
               >
                 Clear
               </button>
             )}
           </div>
           {pathNodes && pathNodes.length > 0 && (
-            <div class="mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
-              <span style={{ color: "var(--success)", fontSize: "0.875rem", fontWeight: 600 }}>
+            <div class="mt-4 pt-4 border-t border-pml-accent/10">
+              <span class="text-green-400 text-sm font-semibold">
                 Path ({pathNodes.length - 1} hops):
               </span>
               <div class="mt-2.5 flex flex-wrap gap-1.5 items-center">
                 {pathNodes.map((nodeId, i) => (
                   <span key={nodeId}>
                     {i > 0 && (
-                      <span
-                        style={{ color: "var(--accent)", margin: "0 0.25rem", fontWeight: 600 }}
-                      >
-                        →
-                      </span>
+                      <span class="text-pml-accent mx-1 font-semibold">→</span>
                     )}
                     <span
-                      class="cursor-pointer px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all"
-                      style={{
-                        color: "var(--accent)",
-                        background: "var(--accent-dim)",
-                        border: "1px solid var(--accent-medium)",
-                      }}
+                      class="cursor-pointer px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all text-pml-accent bg-pml-accent/10 border border-pml-accent/30 hover:bg-pml-accent/20"
                       onClick={() => setHighlightedNode(nodeId)}
-                      onMouseOver={(e) =>
-                        e.currentTarget.style.background = "var(--accent-medium)"}
-                      onMouseOut={(e) =>
-                        e.currentTarget.style.background = "var(--accent-dim)"}
                     >
                       {nodeId.split(":")[1] || nodeId}
                     </span>
@@ -961,37 +864,19 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
         </div>
       )}
 
-      {/* Breadcrumbs - positioned to avoid legend panel */}
       {breadcrumbs.length > 0 && (
-        <div
-          class="absolute top-5 left-[240px] z-[80] py-2.5 px-4 rounded-xl flex items-center gap-2.5 text-sm"
-          style={styles.panel}
-        >
-          <span style={{ color: "var(--text-dim)", fontWeight: 500 }}>History:</span>
+        <div class="absolute top-5 left-[240px] z-[80] py-2.5 px-4 rounded-xl flex items-center gap-2.5 text-sm bg-stone-900 border border-pml-accent/10 backdrop-blur-xl">
+          <span class="text-stone-500 font-medium">History:</span>
           {breadcrumbs.map((item, index) => (
             <span key={item.id}>
-              {index > 0 && <span style={{ color: "var(--text-dim)", opacity: 0.5 }}>/</span>}
+              {index > 0 && <span class="text-stone-500/50">/</span>}
               <span
-                class="cursor-pointer px-2.5 py-1 rounded-md font-medium transition-all"
-                style={{
-                  color: index === breadcrumbs.length - 1 ? "var(--accent)" : "var(--text-muted)",
-                  background: index === breadcrumbs.length - 1
-                    ? "var(--accent-dim)"
-                    : "transparent",
-                }}
+                class={`cursor-pointer px-2.5 py-1 rounded-md font-medium transition-all hover:bg-pml-accent/10 hover:text-stone-100 ${
+                  index === breadcrumbs.length - 1
+                    ? "text-pml-accent bg-pml-accent/10"
+                    : "text-stone-400 bg-transparent"
+                }`}
                 onClick={() => navigateBreadcrumb(item, index)}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = "var(--accent-dim)";
-                  e.currentTarget.style.color = "var(--text)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = index === breadcrumbs.length - 1
-                    ? "var(--accent-dim)"
-                    : "transparent";
-                  e.currentTarget.style.color = index === breadcrumbs.length - 1
-                    ? "var(--accent)"
-                    : "var(--text-muted)";
-                }}
               >
                 {item.label}
               </span>
@@ -999,18 +884,9 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
           ))}
           <button
             type="button"
-            class="border-none cursor-pointer ml-2 px-2 py-1 rounded transition-all"
-            style={{ background: "transparent", color: "var(--text-dim)" }}
+            class="border-none cursor-pointer ml-2 px-2 py-1 rounded transition-all bg-transparent text-stone-500 hover:text-red-400 hover:bg-red-400/10"
             onClick={() => setBreadcrumbs([])}
             title="Clear history"
-            onMouseOver={(e) => {
-              e.currentTarget.style.color = "var(--error)";
-              e.currentTarget.style.background = "rgba(248, 113, 113, 0.1)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.color = "var(--text-dim)";
-              e.currentTarget.style.background = "transparent";
-            }}
           >
             ✕
           </button>
@@ -1113,8 +989,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
         onClearPins={handleClearPins}
       />
 
-      {/* Main content area: Sidebar + Graph/Timeline */}
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+      <div class="flex-1 flex min-h-0">
         {/* ExplorerSidebar - collapsible and resizable */}
         <ExplorerSidebar
           servers={servers}
@@ -1136,7 +1011,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
         />
 
         {/* Graph Visualization - view mode dependent */}
-        <div ref={graphRef} style={{ flex: 1, position: "relative", minHeight: 0 }}>
+        <div ref={graphRef} class="flex-1 relative min-h-0">
           {viewMode === "capabilities" && (
             /* Timeline view for capabilities (scrollable HTML) */
             <CapabilityTimeline
@@ -1144,6 +1019,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
               apiKey={apiKey}
               onCapabilitySelect={(cap) => {
                 if (cap) {
+                  console.log("[GraphExplorer] onCapabilitySelect cap.id:", cap.id, "cap.name:", cap.name);
                   // Convert TimelineCapability to CapabilityData format
                   setSelectedCapability({
                     id: cap.id,

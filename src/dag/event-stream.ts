@@ -119,11 +119,8 @@ export class EventStream {
    *
    * Prevents new events from being emitted and closes all readers.
    */
-  async close(): Promise<void> {
-    if (this.closed) return;
-
+  close(): void {
     this.closed = true;
-    // Subscribers will finish on their own
   }
 
   /**

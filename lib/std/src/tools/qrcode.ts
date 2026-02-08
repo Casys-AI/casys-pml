@@ -50,6 +50,13 @@ export const qrcodeTools: MiniTool[] = [
       },
       required: ["data"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/qr-viewer",
+        emits: ["copy", "download"],
+        accepts: ["setSize"],
+      },
+    },
     handler: ({ data, format = "svg", size = 1, errorCorrection = "M" }) => {
       // Simple QR code generation - produces a representation
       // For full QR generation, would need qrcode library
@@ -483,6 +490,13 @@ export const qrcodeTools: MiniTool[] = [
       },
       required: ["ssid"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/qr-viewer",
+        emits: ["copy", "download"],
+        accepts: ["setSize"],
+      },
+    },
     handler: ({ ssid, password = "", encryption = "WPA", hidden = false }) => {
       // Escape special characters
       const escape = (str: string) => str.replace(/([\\;,:"'])/g, "\\$1");
@@ -519,6 +533,13 @@ export const qrcodeTools: MiniTool[] = [
         address: { type: "string", description: "Street address" },
       },
       required: ["firstName", "lastName"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/qr-viewer",
+        emits: ["copy", "download"],
+        accepts: ["setSize"],
+      },
     },
     handler: (params) => {
       const lines = ["BEGIN:VCARD", "VERSION:3.0"];

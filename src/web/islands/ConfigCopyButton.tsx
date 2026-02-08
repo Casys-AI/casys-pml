@@ -8,55 +8,38 @@
 
 import { useSignal } from "@preact/signals";
 
-interface ConfigCopyButtonProps {
+export interface ConfigCopyButtonProps {
   config: string;
 }
 
-export default function ConfigCopyButton({ config }: ConfigCopyButtonProps) {
+const COPY_FEEDBACK_DURATION_MS = 2000;
+
+export default function ConfigCopyButton({
+  config,
+}: ConfigCopyButtonProps): JSX.Element {
   const copied = useSignal(false);
 
-  const handleCopy = async () => {
+  async function handleCopy(): Promise<void> {
     try {
       await navigator.clipboard.writeText(config);
       copied.value = true;
       setTimeout(() => {
         copied.value = false;
-      }, 2000);
+      }, COPY_FEEDBACK_DURATION_MS);
     } catch (err) {
       console.error("Failed to copy:", err);
     }
-  };
-
-  const buttonStyle = {
-    padding: "0.25rem 0.75rem",
-    fontSize: "0.75rem",
-    fontWeight: "600",
-    fontFamily: "'Geist', sans-serif",
-    borderRadius: "4px",
-    border: "1px solid rgba(255, 184, 111, 0.08)",
-    background: copied.value ? "rgba(74, 222, 128, 0.2)" : "#08080a",
-    color: copied.value ? "#4ade80" : "#a8a29e",
-    cursor: "pointer",
-    transition: "all 0.2s",
-  };
+  }
 
   return (
     <button
       type="button"
-      style={buttonStyle}
+      class={`py-1 px-3 text-xs font-semibold rounded cursor-pointer transition-all duration-200 border ${
+        copied.value
+          ? "bg-green-400/20 text-green-400 border-green-400/20"
+          : "bg-stone-950 text-stone-400 border-amber-500/10 hover:border-pml-accent hover:text-pml-accent"
+      }`}
       onClick={handleCopy}
-      onMouseOver={(e) => {
-        if (!copied.value) {
-          (e.target as HTMLButtonElement).style.borderColor = "#FFB86F";
-          (e.target as HTMLButtonElement).style.color = "#FFB86F";
-        }
-      }}
-      onMouseOut={(e) => {
-        if (!copied.value) {
-          (e.target as HTMLButtonElement).style.borderColor = "rgba(255, 184, 111, 0.08)";
-          (e.target as HTMLButtonElement).style.color = "#a8a29e";
-        }
-      }}
     >
       {copied.value ? "Copied!" : "Copy"}
     </button>

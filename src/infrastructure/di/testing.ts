@@ -174,46 +174,47 @@ export function createMockMCPClientRegistry(
 }
 
 /**
- * Create a mock database client
+ * Create a mock database client with no-op operations.
  */
 export function createMockDatabaseClient(): DatabaseClient {
-  const mock = {
+  return {
     connect: async () => {},
     disconnect: async () => {},
     query: async () => [],
-  };
-  return mock as unknown as DatabaseClient;
+  } as unknown as DatabaseClient;
 }
 
 /**
- * Create a mock vector search
+ * Create a mock vector search that returns empty results.
  */
 export function createMockVectorSearch(): VectorSearch {
-  const mock = {
+  return {
     searchTools: async () => [],
     searchCapabilities: async () => [],
-  };
-  return mock as unknown as VectorSearch;
+  } as unknown as VectorSearch;
 }
 
 /**
- * Create a mock event bus
+ * Create a mock event bus with in-memory pub/sub.
  */
 export function createMockEventBus(): EventBus {
   const subscribers: Array<(event: unknown) => void> = [];
-  const mock = {
-    emit: (event: unknown) => {
-      subscribers.forEach((fn) => fn(event));
+  return {
+    emit(event: unknown): void {
+      for (const fn of subscribers) {
+        fn(event);
+      }
     },
-    subscribe: (handler: (event: unknown) => void) => {
+    subscribe(handler: (event: unknown) => void): () => void {
       subscribers.push(handler);
       return () => {
         const idx = subscribers.indexOf(handler);
-        if (idx >= 0) subscribers.splice(idx, 1);
+        if (idx >= 0) {
+          subscribers.splice(idx, 1);
+        }
       };
     },
-  };
-  return mock as unknown as EventBus;
+  } as unknown as EventBus;
 }
 
 /**

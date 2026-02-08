@@ -7,7 +7,7 @@
  * @module telemetry/otel
  */
 
-import { trace, type Span, type Tracer, SpanStatusCode } from "@opentelemetry/api";
+import { type Span, SpanStatusCode, trace, type Tracer } from "@opentelemetry/api";
 
 // Tracer instance for algorithm decisions
 let algorithmTracer: Tracer | null = null;

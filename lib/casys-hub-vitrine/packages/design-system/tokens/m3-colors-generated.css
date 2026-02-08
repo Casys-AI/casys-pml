@@ -1,0 +1,224 @@
+/**
+ * Material 3 Design Tokens - AUTO-GENERATED
+ * Source: @material/material-color-utilities
+ * Generated from brand color: #dbbddb
+ */
+
+:root {
+  /* === Primary === */
+  --md-sys-color-primary: #83468f;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #fed6ff;
+  --md-sys-color-on-primary-container: #350041;
+
+  /* === Secondary === */
+  --md-sys-color-secondary: #6b596b;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #f4dbf2;
+  --md-sys-color-on-secondary-container: #251726;
+
+  /* === Tertiary === */
+  --md-sys-color-tertiary: #82524c;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffdad5;
+  --md-sys-color-on-tertiary-container: #33110d;
+
+  /* === Error === */
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
+
+  /* === Surface === */
+  --md-sys-color-surface: #fffbff;
+  --md-sys-color-on-surface: #1e1a1e;
+  --md-sys-color-surface-variant: #ecdfe9;
+  --md-sys-color-on-surface-variant: #4d444c;
+
+  /* === Surface Container === */
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #faf1f6;
+  --md-sys-color-surface-container: #f4ecf0;
+  --md-sys-color-surface-container-high: #eee6ea;
+  --md-sys-color-surface-container-highest: #e9e0e4;
+
+  /* === Outline === */
+  --md-sys-color-outline: #7e747d;
+  --md-sys-color-outline-variant: #cfc3cd;
+
+  /* === Other === */
+  --md-sys-color-background: #fffbff;
+  --md-sys-color-on-background: #1e1a1e;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-inverse-surface: #332f32;
+  --md-sys-color-inverse-on-surface: #f7eef3;
+  --md-sys-color-inverse-primary: #f5adfe;
+}
+
+[data-theme="dark"] {
+  /* === Primary === */
+  --md-sys-color-primary: #f5adfe;
+  --md-sys-color-on-primary: #4f155c;
+  --md-sys-color-primary-container: #692e75;
+  --md-sys-color-on-primary-container: #fed6ff;
+
+  /* === Secondary === */
+  --md-sys-color-secondary: #d7bfd5;
+  --md-sys-color-on-secondary: #3b2b3c;
+  --md-sys-color-secondary-container: #524153;
+  --md-sys-color-on-secondary-container: #f4dbf2;
+
+  /* === Tertiary === */
+  --md-sys-color-tertiary: #f5b8af;
+  --md-sys-color-on-tertiary: #4c2520;
+  --md-sys-color-tertiary-container: #673b35;
+  --md-sys-color-on-tertiary-container: #ffdad5;
+
+  /* === Error === */
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffb4ab;
+
+  /* === Surface === */
+  --md-sys-color-surface: #1e1a1e;
+  --md-sys-color-on-surface: #e9e0e4;
+  --md-sys-color-surface-variant: #4d444c;
+  --md-sys-color-on-surface-variant: #cfc3cd;
+
+  /* === Surface Container === */
+  --md-sys-color-surface-container-lowest: #100d10;
+  --md-sys-color-surface-container-low: #1e1a1e;
+  --md-sys-color-surface-container: #221e22;
+  --md-sys-color-surface-container-high: #2d292c;
+  --md-sys-color-surface-container-highest: #383337;
+
+  /* === Outline === */
+  --md-sys-color-outline: #988d97;
+  --md-sys-color-outline-variant: #4d444c;
+
+  /* === Other === */
+  --md-sys-color-background: #1e1a1e;
+  --md-sys-color-on-background: #e9e0e4;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-inverse-surface: #e9e0e4;
+  --md-sys-color-inverse-on-surface: #332f32;
+  --md-sys-color-inverse-primary: #83468f;
+
+  /* === EXPRESSIVE TOKENS FOR MARKETING/LANDING PAGES === */
+  /* Auto-generated from M3 palettes with higher saturation tones */
+
+  /* Enhanced gradient colors for visual impact (tone 70 = saturated) */
+  --casys-gradient-start: #fac2ff;
+  --casys-gradient-mid: #c8b2c7;
+  --casys-gradient-end: #ffc7c0;
+
+  /* Enhanced text colors for better readability (higher tones) */
+  --casys-text-primary: #f7eef3;      /* Tone 95 - Very light */
+  --casys-text-secondary: #cfc3cd;  /* Tone 80 - Medium light */
+  --casys-text-tertiary: #988d97;    /* Tone 60 - Medium */
+
+  /* Enhanced surfaces for better separation (custom tones) */
+  --casys-surface-elevated: #282528;          /* Tone 15 */
+  --casys-surface-elevated-hover: #2f2b2e; /* Tone 18 */
+  --casys-surface-violet-container: #350041; /* Tone 10 - Violet foncé */
+  --casys-background-dark: #000000;     /* Tone 6 */
+
+  /* Enhanced borders with opacity (from primary palette) */
+  --casys-border-subtle: rgba(250, 194, 255, 0.08);
+  --casys-border-medium: rgba(250, 194, 255, 0.15);
+  --casys-border-strong: rgba(250, 194, 255, 0.25);
+}
+
+/* ========================================
+   UTILITY CLASSES - Marketing/Landing Pages
+   ======================================== */
+
+/* Gradient text expressif (pour Hero titles, CTAs) */
+[data-theme="dark"] .gradient-text-enhanced {
+  background: linear-gradient(135deg,
+    var(--casys-gradient-start) 0%,
+    var(--casys-gradient-mid) 50%,
+    var(--casys-gradient-end) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Container élevé avec séparation visuelle */
+[data-theme="dark"] .surface-elevated {
+  background: var(--casys-surface-elevated);
+  border: 1px solid var(--casys-border-subtle);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .surface-elevated:hover {
+  background: var(--casys-surface-elevated-hover);
+  border-color: var(--casys-border-medium);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.3),
+    0 16px 32px rgba(0, 0, 0, 0.25);
+}
+
+/* Input fields améliorés */
+[data-theme="dark"] .input-enhanced {
+  background: #1a171a;
+  color: var(--casys-text-primary);
+  border: 1px solid var(--casys-border-medium);
+}
+
+[data-theme="dark"] .input-enhanced:focus {
+  background: #201c20;
+  border-color: var(--casys-gradient-start);
+  box-shadow: 0 0 0 4px rgba(250, 194, 255, 0.15);
+}
+
+[data-theme="dark"] .input-enhanced::placeholder {
+  color: var(--casys-text-tertiary);
+}
+
+/* Cards avec profondeur visuelle */
+[data-theme="dark"] .card-elevated {
+  background: var(--casys-surface-elevated);
+  border: 1px solid var(--casys-border-subtle);
+  color: var(--casys-text-secondary);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .card-elevated:hover {
+  background: var(--casys-surface-elevated-hover);
+  border-color: var(--casys-border-medium);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.3),
+    0 16px 32px rgba(0, 0, 0, 0.25);
+}
+
+
+/* ========================================
+   UTILITY CLASSES - Dark Mode Surfaces
+   ======================================== */
+
+/* Hero gradient plein (couleurs saturées) */
+[data-theme="dark"] .surface-gradient-hero {
+  background: linear-gradient(135deg,
+    var(--casys-gradient-start) 0%,    /* #fac2ff */
+    var(--casys-gradient-mid) 50%,     /* #c8b2c7 */
+    var(--casys-gradient-end) 100%     /* #ffc7c0 */
+  );
+}
+
+/* Violet container pour alternance visible */
+[data-theme="dark"] .surface-violet-container {
+  background: var(--casys-surface-violet-container);  /* #350041 */
+}
+
+/* Noir pur pour contraste maximum */
+[data-theme="dark"] .surface-black {
+  background: var(--casys-background-dark);  /* #000000 */
+}

@@ -861,11 +861,14 @@ export class AlgorithmInitializer {
       }));
 
       // Each capability keeps its own toolsUsed (no hack needed)
+      // Include parents/children for multi-level hierarchy training
       const capsForWorker = this.capabilities.map((c) => ({
         id: c.id,
         embedding: c.embedding,
         toolsUsed: c.toolsUsed,
         successRate: c.successRate,
+        parents: c.parents,
+        children: c.children,
       }));
 
       const result = await spawnSHGATTraining({

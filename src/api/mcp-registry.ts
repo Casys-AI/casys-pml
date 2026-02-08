@@ -14,7 +14,7 @@ import * as log from "@std/log";
 import type { RouteContext } from "../mcp/routing/types.ts";
 import { jsonResponse } from "../mcp/routing/types.ts";
 import { McpRegistryService } from "../mcp/registry/mcp-registry.service.ts";
-import { getFQDNPartCount } from "../capabilities/fqdn.ts";
+import { getFQDNPartCount, parseFQDNWithoutHash } from "../capabilities/fqdn.ts";
 
 /**
  * Check if client wants JSON (explicit application/json Accept header).
@@ -55,7 +55,29 @@ export async function handleMcpRegistryGet(
 
     // 4-part FQDN: redirect to current version with hash
     if (partCount === 4) {
-      const currentFqdn = await service.getCurrentFqdn(fqdn);
+      let currentFqdn = await service.getCurrentFqdn(fqdn);
+
+      // Scope-aware resolution: when exact org/project match fails,
+      // try resolveByName with user scope. This handles the case where
+      // the package sends pml.mcp.fake.person but the capability exists
+      // as local.default.fake.person in DB.
+      if (!currentFqdn) {
+        try {
+          const parts = parseFQDNWithoutHash(fqdn);
+          const scope = {
+            org: ctx.userOrg || "local",
+            project: ctx.userProject || "default",
+          };
+          const name = `${parts.namespace}:${parts.action}`;
+          log.debug(`[MCP Registry] Exact FQDN not found, trying resolveByName("${name}", ${scope.org}.${scope.project})`);
+          const resolved = await service.resolveByName(name, scope);
+          if (resolved) {
+            currentFqdn = resolved.fqdn;
+          }
+        } catch (e) {
+          log.debug(`[MCP Registry] resolveByName fallback failed: ${e}`);
+        }
+      }
 
       if (!currentFqdn) {
         log.debug(`[MCP Registry] Not found: ${fqdn}`);

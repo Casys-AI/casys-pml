@@ -1,0 +1,435 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = locale === 'fr'
+  ? {
+      title: 'Résultats Réels de Bêta',
+      subtitle: 'Utilisateurs précoces qui construisent leur écosystème',
+      testimonials: [
+        {
+          type: 'metrics',
+          company: 'TheNoCodeGuy',
+          metrics: [
+            { value: '+63k', label: 'impressions', icon: 'trending_up' },
+            { value: '#6', label: 'Google', icon: 'search' }
+          ],
+          description: 'Article "AI SEO Tools" généré avec workflow CASYS'
+        },
+        {
+          type: 'metrics',
+          company: 'KellyAssist',
+          metrics: [
+            { value: '23', label: 'articles evergreen', icon: 'article' },
+            { value: '4', label: 'clusters SEO', icon: 'hub' }
+          ],
+          description: 'Blog complet construit avec graph memory et reangle'
+        },
+        {
+          type: 'quote',
+          quote: 'Le reangle avec mémoire est magique. CASYS suggère des angles que je n\'aurais jamais trouvés.',
+          author: 'Fondateur SaaS',
+          context: 'bêta fermée',
+          icon: 'format_quote'
+        }
+      ]
+    }
+  : {
+      title: 'Real Results From Beta',
+      subtitle: 'Early users building their ecosystem',
+      testimonials: [
+        {
+          type: 'metrics',
+          company: 'TheNoCodeGuy',
+          metrics: [
+            { value: '+63k', label: 'impressions', icon: 'trending_up' },
+            { value: '#6', label: 'Google', icon: 'search' }
+          ],
+          description: 'AI SEO Tools article generated with CASYS workflow'
+        },
+        {
+          type: 'metrics',
+          company: 'KellyAssist',
+          metrics: [
+            { value: '23', label: 'evergreen articles', icon: 'article' },
+            { value: '4', label: 'SEO clusters', icon: 'hub' }
+          ],
+          description: 'Complete blog built with graph memory and reangle'
+        },
+        {
+          type: 'quote',
+          quote: 'The reangle with memory is magic. CASYS suggests angles I would never have found.',
+          author: 'SaaS Founder',
+          context: 'closed beta',
+          icon: 'format_quote'
+        }
+      ]
+    };
+---
+
+<section class="social-proof">
+  <div class="container">
+    <!-- Section Header -->
+    <div class="header">
+      <h2 class="title">{t.title}</h2>
+      <p class="subtitle">{t.subtitle}</p>
+    </div>
+
+    <!-- Testimonials Grid -->
+    <div class="testimonials-grid">
+      {t.testimonials.map((testimonial, index) => (
+        <div class={`testimonial-card ${testimonial.type}`} style={`animation-delay: ${index * 150}ms`}>
+          {testimonial.type === 'metrics' ? (
+            <>
+              <!-- Metrics Card -->
+              <div class="card-header">
+                <div class="company-icon">
+                  <span class="material-symbols-rounded">business</span>
+                </div>
+                <h3 class="company-name">{testimonial.company}</h3>
+              </div>
+
+              <div class="metrics-grid">
+                {testimonial.metrics.map((metric, idx) => (
+                  <div class="metric-item" style={`animation-delay: ${idx * 100}ms`}>
+                    <div class="metric-icon">
+                      <span class="material-symbols-rounded">{metric.icon}</span>
+                    </div>
+                    <div class="metric-content">
+                      <div class="metric-value">{metric.value}</div>
+                      <div class="metric-label">{metric.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p class="card-description">{testimonial.description}</p>
+            </>
+          ) : (
+            <>
+              <!-- Quote Card -->
+              <div class="quote-icon">
+                <span class="material-symbols-rounded">{testimonial.icon}</span>
+              </div>
+              
+              <blockquote class="quote-text">
+                "{testimonial.quote}"
+              </blockquote>
+              
+              <div class="quote-author">
+                <div class="author-avatar">
+                  <span class="material-symbols-rounded">person</span>
+                </div>
+                <div class="author-info">
+                  <div class="author-name">{testimonial.author}</div>
+                  <div class="author-context">{testimonial.context}</div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .social-proof {
+    padding: 120px 0;
+    background: var(--md-sys-color-surface-container);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 80px;
+  }
+
+  .title {
+    font-size: var(--md-sys-typescale-headline-large-size);
+    font-weight: var(--md-sys-typescale-headline-large-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 16px;
+  }
+
+  .subtitle {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Testimonials Grid */
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+  }
+
+  .testimonial-card {
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 28px;
+    padding: 32px;
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 4px 8px rgba(0, 0, 0, 0.02);
+    transition: all 300ms var(--md-sys-motion-easing-emphasized);
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .testimonial-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .testimonial-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+      0 8px 16px rgba(0, 0, 0, 0.08),
+      0 16px 32px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Metrics Card Styles */
+  .testimonial-card.metrics {
+    border-left: 4px solid var(--md-sys-color-primary);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .company-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-primary);
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  .company-icon .material-symbols-rounded {
+    font-size: 24px;
+  }
+
+  .company-name {
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .metric-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--md-sys-color-surface);
+    border-radius: 16px;
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  .metric-item.animate-in {
+    opacity: 1;
+    transform: scale(1);
+    transition: all 400ms var(--md-sys-motion-easing-emphasized);
+  }
+
+  .metric-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-secondary);
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .metric-icon .material-symbols-rounded {
+    font-size: 20px;
+  }
+
+  .metric-content {
+    flex: 1;
+  }
+
+  .metric-value {
+    font-size: var(--md-sys-typescale-headline-medium-size);
+    font-weight: var(--md-sys-typescale-headline-medium-weight);
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: 2px;
+  }
+
+  .metric-label {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: var(--md-sys-color-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .card-description {
+    font-size: var(--md-sys-typescale-body-large-size);
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* Quote Card Styles */
+  .testimonial-card.quote {
+    border-left: 4px solid var(--md-sys-color-tertiary);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 280px;
+  }
+
+  .quote-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-tertiary);
+    border-radius: 16px;
+    margin-bottom: 24px;
+  }
+
+  .quote-icon .material-symbols-rounded {
+    font-size: 28px;
+  }
+
+  .quote-text {
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-style: italic;
+    color: var(--md-sys-color-on-surface);
+    line-height: 1.6;
+    margin: 0 0 24px;
+    position: relative;
+  }
+
+  .quote-text::before {
+    content: '"';
+    font-size: 4rem;
+    color: var(--md-sys-color-tertiary);
+    opacity: 0.2;
+    position: absolute;
+    top: -20px;
+    left: -10px;
+  }
+
+  .quote-author {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .author-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-on-surface-variant);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .author-avatar .material-symbols-rounded {
+    font-size: 20px;
+  }
+
+  .author-info {
+    flex: 1;
+  }
+
+  .author-name {
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: 2px;
+  }
+
+  .author-context {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .testimonials-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .testimonial-card {
+      padding: 24px;
+    }
+
+    .metrics-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .quote-text {
+      font-size: var(--md-sys-typescale-body-medium-size);
+    }
+  }
+</style>
+
+<script>
+  // Intersection Observer for scroll-triggered animations
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const cards = entry.target.querySelectorAll('.testimonial-card');
+          cards.forEach((card, index) => {
+            setTimeout(() => {
+              card.classList.add('animate-in');
+              
+              // Animate metrics within cards
+              const metrics = card.querySelectorAll('.metric-item');
+              metrics.forEach((metric, metricIndex) => {
+                setTimeout(() => {
+                  metric.classList.add('animate-in');
+                }, metricIndex * 150);
+              });
+            }, index * 200);
+          });
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.2, rootMargin: '-50px' }
+  );
+
+  // Observe the section
+  const section = document.querySelector('.social-proof');
+  if (section) {
+    observer.observe(section);
+  }
+</script>

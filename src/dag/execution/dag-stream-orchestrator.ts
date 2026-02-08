@@ -28,12 +28,10 @@ import { collectLayerResults, type LayerResultsDeps } from "./layer-results.ts";
 import { getToolPermissionConfig } from "../../capabilities/permission-inferrer.ts";
 import * as log from "@std/log";
 
-/**
- * Check if a task requires Human-in-the-Loop approval before execution.
- */
+/** Check if a task requires Human-in-the-Loop approval before execution. */
 function taskRequiresHIL(task: Task): boolean {
-  if (!task.tool) return false;
-  if (task.metadata?.pure === true) return false;
+  if (!task.tool || task.metadata?.pure === true) return false;
+
   const prefix = task.tool.split(":")[0];
   const config = getToolPermissionConfig(prefix);
   return !config || config.approvalMode === "hil";

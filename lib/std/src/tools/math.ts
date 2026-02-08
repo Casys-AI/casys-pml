@@ -30,6 +30,13 @@ export const mathTools: MiniTool[] = [
       },
       required: ["expression"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ expression }) => {
       try {
         return evaluate(expression as string);
@@ -49,6 +56,13 @@ export const mathTools: MiniTool[] = [
         numbers: { type: "array", items: { type: "number" }, description: "Array of numbers" },
       },
       required: ["numbers"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/stats-panel",
+        emits: ["select", "zoom"],
+        accepts: ["highlight"],
+      },
     },
     handler: ({ numbers }) => {
       const nums = numbers as number[];
@@ -81,6 +95,13 @@ export const mathTools: MiniTool[] = [
       },
       required: ["number"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ number, decimals = 0, mode = "round" }) => {
       const factor = Math.pow(10, decimals as number);
       const n = (number as number) * factor;
@@ -112,6 +133,13 @@ export const mathTools: MiniTool[] = [
         integer: { type: "boolean", description: "Integer only (default: true)" },
       },
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ min = 0, max = 100, count = 1, integer = true }) => {
       const generate = () => {
         const n = Math.random() * ((max as number) - (min as number)) + (min as number);
@@ -132,6 +160,13 @@ export const mathTools: MiniTool[] = [
         value: { type: "number", description: "The value" },
         total: { type: "number", description: "The total (for calculating %)" },
         percentage: { type: "number", description: "Percentage (for calculating value)" },
+      },
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
       },
     },
     handler: ({ value, total, percentage }) => {
@@ -160,6 +195,13 @@ export const mathTools: MiniTool[] = [
       },
       required: ["points"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/chart-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ points }) => {
       const data = points as [number, number][];
       if (data.length < 2) throw new Error("Need at least 2 points");
@@ -185,10 +227,151 @@ export const mathTools: MiniTool[] = [
       },
       required: ["numbers"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ numbers }) => {
       const nums = numbers as number[];
       if (nums.length === 0) return null;
       return ss.mode(nums);
+    },
+  },
+  {
+    name: "math_percentile",
+    description:
+      "Calculate percentiles for an array of numbers. Get the value below which a given percentage of data falls. Common percentiles: 25th (Q1), 50th (median), 75th (Q3), 90th, 95th, 99th. Use for statistical analysis, performance benchmarks, or data distribution. Keywords: percentile, quartile, quantile, P50, P90, P99, distribution, rank.",
+    category: "math",
+    inputSchema: {
+      type: "object",
+      properties: {
+        numbers: { type: "array", items: { type: "number" }, description: "Array of numbers" },
+        percentile: {
+          type: "number",
+          description: "Percentile to calculate (0-100, e.g., 50 for median, 95 for 95th percentile)",
+          minimum: 0,
+          maximum: 100,
+        },
+        percentiles: {
+          type: "array",
+          items: { type: "number" },
+          description: "Array of percentiles to calculate (e.g., [25, 50, 75, 90, 95, 99])",
+        },
+      },
+      required: ["numbers"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/metrics-panel",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
+    handler: ({ numbers, percentile, percentiles }) => {
+      const nums = numbers as number[];
+      if (nums.length === 0) {
+        throw new Error("Cannot calculate percentile of empty array");
+      }
+
+      // If specific percentiles array is provided, calculate all
+      if (percentiles !== undefined) {
+        const pcts = percentiles as number[];
+        const results: Record<string, number> = {};
+        for (const p of pcts) {
+          if (p < 0 || p > 100) {
+            throw new Error(`Percentile must be between 0 and 100, got ${p}`);
+          }
+          results[`p${p}`] = ss.quantile(nums, p / 100);
+        }
+        return {
+          count: nums.length,
+          percentiles: results,
+        };
+      }
+
+      // If single percentile is provided
+      if (percentile !== undefined) {
+        const p = percentile as number;
+        if (p < 0 || p > 100) {
+          throw new Error(`Percentile must be between 0 and 100, got ${p}`);
+        }
+        return {
+          count: nums.length,
+          percentile: p,
+          value: ss.quantile(nums, p / 100),
+        };
+      }
+
+      // Default: return common percentiles
+      return {
+        count: nums.length,
+        percentiles: {
+          p25: ss.quantile(nums, 0.25),
+          p50: ss.quantile(nums, 0.50),
+          p75: ss.quantile(nums, 0.75),
+          p90: ss.quantile(nums, 0.90),
+          p95: ss.quantile(nums, 0.95),
+          p99: ss.quantile(nums, 0.99),
+        },
+      };
+    },
+  },
+  {
+    name: "math_correlation",
+    description:
+      "Calculate correlation coefficient between two arrays of numbers. Measure the strength and direction of linear relationship. Returns Pearson correlation coefficient (-1 to 1). Use for data analysis, relationship discovery, or statistical testing. Keywords: correlation, Pearson, coefficient, relationship, covariance, statistical association, r-value.",
+    category: "math",
+    inputSchema: {
+      type: "object",
+      properties: {
+        x: { type: "array", items: { type: "number" }, description: "First array of numbers" },
+        y: { type: "array", items: { type: "number" }, description: "Second array of numbers" },
+      },
+      required: ["x", "y"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/metrics-panel",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
+    handler: ({ x, y }) => {
+      const xArr = x as number[];
+      const yArr = y as number[];
+
+      if (xArr.length !== yArr.length) {
+        throw new Error(`Arrays must have same length: x has ${xArr.length}, y has ${yArr.length}`);
+      }
+      if (xArr.length < 2) {
+        throw new Error("Need at least 2 data points to calculate correlation");
+      }
+
+      const correlation = ss.sampleCorrelation(xArr, yArr);
+      const covariance = ss.sampleCovariance(xArr, yArr);
+
+      // Interpret correlation strength
+      const absCorr = Math.abs(correlation);
+      let strength: string;
+      if (absCorr >= 0.9) strength = "very strong";
+      else if (absCorr >= 0.7) strength = "strong";
+      else if (absCorr >= 0.5) strength = "moderate";
+      else if (absCorr >= 0.3) strength = "weak";
+      else strength = "very weak or none";
+
+      const direction = correlation > 0 ? "positive" : correlation < 0 ? "negative" : "none";
+
+      return {
+        correlation: Math.round(correlation * 10000) / 10000,
+        covariance: Math.round(covariance * 10000) / 10000,
+        strength,
+        direction,
+        n: xArr.length,
+        interpretation: `${strength} ${direction} linear relationship`,
+      };
     },
   },
   {
@@ -212,6 +395,13 @@ export const mathTools: MiniTool[] = [
         },
       },
       required: ["value", "from", "to"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ value, from, to }) => {
       const v = value as number;
@@ -269,6 +459,13 @@ export const mathTools: MiniTool[] = [
       },
       required: ["value", "from", "to"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ value, from, to }) => {
       const num = parseInt(value as string, from as number);
       if (isNaN(num)) throw new Error(`Invalid number for base ${from}: ${value}`);
@@ -294,6 +491,13 @@ export const mathTools: MiniTool[] = [
         },
       },
       required: ["value", "action"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ value, action }) => {
       const romanMap: [string, number][] = [
@@ -359,6 +563,13 @@ export const mathTools: MiniTool[] = [
         },
       },
       required: ["value", "from", "to"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ value, from, to }) => {
       const v = value as number;
@@ -427,6 +638,13 @@ export const mathTools: MiniTool[] = [
       },
       required: ["value", "from", "to"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ value, from, to }) => {
       const v = value as number;
       // Convert to joules as base unit
@@ -481,6 +699,13 @@ export const mathTools: MiniTool[] = [
       },
       required: ["value", "from", "to"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     handler: ({ value, from, to }) => {
       const v = value as number;
       // Convert to watts as base unit
@@ -519,6 +744,13 @@ export const mathTools: MiniTool[] = [
         },
       },
       required: ["value", "from", "to"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ value, from, to }) => {
       const v = value as number;
@@ -586,6 +818,13 @@ export const mathTools: MiniTool[] = [
         to: { type: "number", description: "For 'change' operation: new value" },
       },
       required: ["operation"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ operation, value, percent, from, to }) => {
       switch (operation) {
@@ -665,6 +904,13 @@ export const mathTools: MiniTool[] = [
         },
       },
       required: ["value", "from", "to"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: ({ value, from, to }) => {
       const v = value as number;
@@ -897,6 +1143,13 @@ export const mathTools: MiniTool[] = [
         finalValue: { type: "number", description: "Final value for ROI" },
       },
       required: ["operation"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
     },
     handler: (
       { operation, principal, rate, time, periods = 12, cashFlows, initialInvestment, finalValue },

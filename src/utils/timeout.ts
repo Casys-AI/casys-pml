@@ -52,15 +52,10 @@ export async function withTimeout<T>(
   });
 
   try {
-    const result = await Promise.race([operation, timeoutPromise]);
+    return await Promise.race([operation, timeoutPromise]);
+  } finally {
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
     }
-    return result;
-  } catch (error) {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
-    }
-    throw error;
   }
 }

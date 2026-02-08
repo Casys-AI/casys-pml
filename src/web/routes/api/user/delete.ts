@@ -20,6 +20,7 @@ import { getSessionId } from "../../../../server/auth/oauth.ts";
 import { getKv } from "../../../../server/auth/kv.ts";
 import type { AuthState } from "../../_middleware.ts";
 import { getDb as getMainDb } from "../../../../db/mod.ts"; // Story 9.5: workflow_execution anonymization
+import { uuidv7 } from "../../../../utils/uuid.ts";
 
 export const handler = {
   /**
@@ -76,7 +77,7 @@ export const handler = {
 
     try {
       const db = await getDb();
-      const anonymizedId = `deleted-${crypto.randomUUID()}`;
+      const anonymizedId = `deleted-${uuidv7()}`;
 
       // Story 9.5 AC #5, #8: Anonymize workflow_execution BEFORE deleting user
       // Preserves execution history for analytics while removing user linkage

@@ -10,8 +10,52 @@
 import type { DbClient } from "./types.ts";
 import * as log from "@std/log";
 import { DatabaseError } from "../errors/error-types.ts";
+
+/**
+ * Parse SQL string into individual statements
+ *
+ * Removes comments (-- and /* style) and splits by semicolons.
+ * Used by migrations that embed SQL as template literals.
+ */
+function parseSqlStatements(sql: string): string[] {
+  return sql
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+/**
+ * Execute SQL statements with optional "already exists" tolerance
+ *
+ * @param db Database client
+ * @param statements Array of SQL statements
+ * @param tolerateExists If true, ignores "already exists" errors
+ */
+async function execStatements(
+  db: DbClient,
+  statements: string[],
+  tolerateExists = false,
+): Promise<void> {
+  for (const statement of statements) {
+    try {
+      await db.exec(statement);
+    } catch (error) {
+      if (tolerateExists && error instanceof Error && error.message.includes("already exists")) {
+        log.warn(`Table or index already exists (expected): ${error.message}`);
+      } else {
+        log.error(`Failed to execute statement: ${statement.substring(0, 100)}...`);
+        throw error;
+      }
+    }
+  }
+}
 import { createErrorLoggingMigration } from "./migrations/003_error_logging.ts";
 import { createMcpToolTablesMigration } from "./migrations/004_mcp_tool_tables.ts";
+import { createUsersTableMigration } from "./migrations/005_users_table.ts";
 import { createWorkflowCheckpointsMigration } from "./migrations/006_workflow_checkpoints_migration.ts";
 import { createEpisodicMemoryMigration } from "./migrations/007_episodic_memory_migration.ts";
 import { createWorkflowDagsMigration } from "./migrations/008_workflow_dags_migration.ts";
@@ -49,6 +93,9 @@ import { createPmlRegistryHashColumnMigration } from "./migrations/040_pml_regis
 import { createParentTraceIdFkMigration } from "./migrations/041_parent_trace_id_fk.ts";
 import { createToolObservationsMigration } from "./migrations/042_tool_observations.ts";
 import { createToolObservationsFkMigration } from "./migrations/043_tool_observations_fk.ts";
+import { createUiMetadataMigration } from "./migrations/044_ui_metadata.ts";
+import { createObservedConfigMigration } from "./migrations/045_observed_config.ts";
+import { createUiOrchestrationDefaultMigration } from "./migrations/046_ui_orchestration_default.ts";
 
 /**
  * Migration definition
@@ -315,27 +362,8 @@ CREATE INDEX IF NOT EXISTS idx_tool_dependency_confidence ON tool_dependency(con
     version: 1,
     name: "initial_schema",
     up: async (db: DbClient) => {
-      // Remove SQL comments first (both -- and /* */ style)
-      const sqlWithoutComments = initialSql
-        .split("\n")
-        .filter((line) => !line.trim().startsWith("--"))
-        .join("\n")
-        .replace(/\/\*[\s\S]*?\*\//g, ""); // Remove /* */ comments
-
-      // Split by semicolons and execute each statement
-      const statements = sqlWithoutComments
-        .split(";")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-
-      for (const statement of statements) {
-        try {
-          await db.exec(statement);
-        } catch (error) {
-          log.error(`Failed to execute statement: ${statement.substring(0, 100)}...`);
-          throw error;
-        }
-      }
+      const statements = parseSqlStatements(initialSql);
+      await execStatements(db, statements);
     },
     down: async (db: DbClient) => {
       // Drop tables in reverse order (respecting foreign keys)
@@ -371,31 +399,8 @@ ON metrics (metric_name, timestamp DESC);
     version: 2,
     name: "telemetry_logging",
     up: async (db: DbClient) => {
-      // Remove SQL comments first (both -- and /* */ style)
-      const sqlWithoutComments = telemetrySql
-        .split("\n")
-        .filter((line) => !line.trim().startsWith("--"))
-        .join("\n")
-        .replace(/\/\*[\s\S]*?\*\//g, ""); // Remove /* */ comments
-
-      // Split by semicolons and execute each statement
-      const statements = sqlWithoutComments
-        .split(";")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-
-      for (const statement of statements) {
-        try {
-          await db.exec(statement);
-        } catch (error) {
-          // If table already exists, that's okay - log and continue
-          if (error instanceof Error && error.message.includes("already exists")) {
-            log.warn(`Table or index already exists (expected): ${error.message}`);
-          } else {
-            throw error;
-          }
-        }
-      }
+      const statements = parseSqlStatements(telemetrySql);
+      await execStatements(db, statements, true);
     },
     down: async (db: DbClient) => {
       // Don't drop metrics table in down migration as it may be used by other features
@@ -414,6 +419,7 @@ export function getAllMigrations(): Migration[] {
     createTelemetryMigration(),
     createErrorLoggingMigration(),
     createMcpToolTablesMigration(),
+    createUsersTableMigration(), // Users table for multi-tenant FK support
     createWorkflowCheckpointsMigration(),
     createEpisodicMemoryMigration(),
     createWorkflowDagsMigration(),
@@ -451,5 +457,8 @@ export function getAllMigrations(): Migration[] {
     createParentTraceIdFkMigration(), // ADR-041: Ensure parent_trace_id FK is DEFERRABLE
     createToolObservationsMigration(), // Tech-spec 01: Tool observations (multi-tenant BYOK MCP)
     createToolObservationsFkMigration(), // F12 Fix: Add FK tool_observations → tool_schema
+    createUiMetadataMigration(), // Story 16.6: UI metadata columns for MCP Apps orchestration
+    createObservedConfigMigration(), // Tech-spec 01.5: observed_args → observed_config JSONB
+    createUiOrchestrationDefaultMigration(), // Story 16.6 review: DEFAULT for ui_orchestration
   ];
 }

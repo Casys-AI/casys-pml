@@ -1,0 +1,100 @@
+facebook:
+  label: Facebook
+  permalink: /facebook
+  description: Facebook tag description
+
+hello:
+  label: Hello
+  permalink: /hello
+  description: Hello tag description
+
+docusaurus:
+  label: Docusaurus
+  permalink: /docusaurus
+  description: Docusaurus tag description
+
+hola:
+  label: Hola
+  permalink: /hola
+  description: Hola tag description
+
+# Tags pour les articles techniques
+migration:
+  label: Migration
+  permalink: /migration
+  description: Articles sur les migrations d'architecture et frameworks
+
+nestjs:
+  label: NestJS
+  permalink: /nestjs
+  description: Framework Node.js pour applications scalables
+
+hono:
+  label: Hono
+  permalink: /hono
+  description: Framework web ultralight pour Edge runtime
+
+architecture:
+  label: Architecture
+  permalink: /architecture
+  description: Patterns d'architecture logicielle et design systems
+
+backend:
+  label: Backend
+  permalink: /backend
+  description: Développement backend et APIs
+
+langchain:
+  label: LangChain
+  permalink: /langchain
+  description: Framework pour applications AI et LLM
+
+ai:
+  label: IA
+  permalink: /ai
+  description: Intelligence artificielle et agents automatiques
+
+agents:
+  label: Agents
+  permalink: /agents
+  description: Agents intelligents et systèmes multi-agents
+
+zod:
+  label: Zod
+  permalink: /zod
+  description: Validation de schémas TypeScript
+
+parsing:
+  label: Parsing
+  permalink: /parsing
+  description: Analyse et structuration de données
+
+astro:
+  label: Astro
+  permalink: /astro
+  description: Framework de site statique moderne
+
+mdx:
+  label: MDX
+  permalink: /mdx
+  description: Markdown avec support de composants React/Astro
+
+integration:
+  label: Intégration
+  permalink: /integration
+  description: Intégrations entre systèmes et frameworks
+
+echarts:
+  label: ECharts
+  permalink: /echarts
+  description: Bibliothèque de visualisation de données
+
+visualisation:
+  label: Visualisation
+  permalink: /visualisation
+  description: Création de graphiques et visualisations de données
+
+editorial:
+  label: Éditorial
+  permalink: /editorial
+  description: Composants et systèmes de création de contenu

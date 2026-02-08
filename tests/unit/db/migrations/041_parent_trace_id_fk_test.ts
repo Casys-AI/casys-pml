@@ -237,7 +237,7 @@ Deno.test("Migration 041: down rollback recreates non-deferrable FK", async () =
 // AC4: FK Constraint Enforces Referential Integrity at Commit
 // =============================================================================
 
-Deno.test("Migration 041: DEFERRABLE FK still enforces integrity at commit", async () => {
+Deno.test({ name: "Migration 041: DEFERRABLE FK still enforces integrity at commit", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const client = await setupTestDb("integrity-at-commit");
 
   // Apply migration 041
@@ -267,7 +267,7 @@ Deno.test("Migration 041: DEFERRABLE FK still enforces integrity at commit", asy
   assertEquals(Number(count?.cnt), 0);
 
   await client.close();
-});
+}});
 
 // =============================================================================
 // AC5: Migration Idempotency

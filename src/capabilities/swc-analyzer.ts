@@ -378,29 +378,32 @@ function extractPropertyKey(prop: any): string | null {
 // deno-lint-ignore no-explicit-any
 function extractPropertyValue(prop: any): unknown {
   const value = prop.value;
-  if (!value) return undefined;
-
-  switch (value.type) {
-    case "StringLiteral":
-      return value.value;
-    case "NumericLiteral":
-      return value.value;
-    case "BooleanLiteral":
-      return value.value;
-    case "NullLiteral":
-      return null;
-    case "Identifier":
-      // Variable reference - return placeholder
-      return `$${value.value}`;
-    case "MemberExpression": {
-      // Property access - return as path
-      const chain = extractMemberChain(value);
-      return `$${chain.join(".")}`;
-    }
-    case "ObjectExpression":
-      // Nested object - extract recursively
-      return extractArguments([{ expression: value }]);
-    default:
-      return undefined;
+  if (!value) {
+    return undefined;
   }
+
+  const valueType = value.type as string;
+
+  if (valueType === "StringLiteral" || valueType === "NumericLiteral" || valueType === "BooleanLiteral") {
+    return value.value;
+  }
+
+  if (valueType === "NullLiteral") {
+    return null;
+  }
+
+  if (valueType === "Identifier") {
+    return `$${value.value}`;
+  }
+
+  if (valueType === "MemberExpression") {
+    const chain = extractMemberChain(value);
+    return `$${chain.join(".")}`;
+  }
+
+  if (valueType === "ObjectExpression") {
+    return extractArguments([{ expression: value }]);
+  }
+
+  return undefined;
 }

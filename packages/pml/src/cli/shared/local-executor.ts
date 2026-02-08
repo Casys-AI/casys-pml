@@ -74,7 +74,8 @@ export async function executeLocalCode(
 
         logger?.debug(`Local tool call: ${toolId} → ${fqdn}${continueWorkflow ? " (with continue_workflow)" : ""}`);
 
-        const callResult = await loader.callWithFqdn(fqdn, args, continueWorkflow, parentTraceId);
+        // Pass workflowId (from server or continuation) for LearningContext correlation on integrity approvals
+        const callResult = await loader.callWithFqdn(fqdn, args, continueWorkflow, parentTraceId, workflowId);
 
         // Check if it's an approval_required response (HIL pause)
         if (CapabilityLoader.isApprovalRequired(callResult)) {

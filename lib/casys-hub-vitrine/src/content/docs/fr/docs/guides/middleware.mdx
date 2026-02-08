@@ -1,0 +1,203 @@
+---
+title: Pipeline Middleware
+description: Middleware composable en modele oignon pour les appels d'outils MCP.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Chaque appel d'outil dans `@casys/mcp-server` traverse une chaine de middleware composable — le meme modele oignon que vous connaissez de Hono, Koa, ou Express. C'est ainsi que l'auth, le rate limiting, la validation, et votre logique personnalisee se composent ensemble sans s'emmeler.
+
+## Comment ca marche
+
+<img src="/diagrams/mcp-server/mcp-middleware-pipeline.svg" alt="Pipeline Middleware MCP" style="width: 100%; max-width: 600px; margin: 24px auto; display: block;" />
+
+```
+Request → Rate Limit → Auth → Custom Middlewares → Scope Check → Validation → Backpressure → Handler
+                                                                                              ↓
+Response ← Rate Limit ← Auth ← Custom Middlewares ← Scope Check ← Validation ← Backpressure ← Result
+```
+
+Chaque middleware recoit un objet `context` et une fonction `next()`. Appelez `next()` pour passer le controle en aval. La reponse remonte a travers la meme chaine en sens inverse — un seul middleware peut agir a la fois sur la requete et la reponse.
+
+## Ecrire un middleware
+
+Un middleware est simplement une fonction async. Voici un logger qui chronometre chaque appel d'outil :
+
+```typescript
+import type { Middleware } from "@casys/mcp-server";
+
+const logging: Middleware = async (ctx, next) => {
+  const start = performance.now();
+  console.log(`→ ${ctx.toolName}`, ctx.args);
+
+  const result = await next();
+
+  const ms = (performance.now() - start).toFixed(0);
+  console.log(`← ${ctx.toolName} (${ms}ms)`);
+  return result;
+};
+```
+
+C'est tout. Pas de classe de base, pas de decorateurs, pas de boilerplate d'enregistrement.
+
+## Enregistrer des middlewares
+
+Utilisez `server.use()` pour ajouter vos middlewares. Ils se placent entre les couches integrees (rate limit, auth) et les verifications integrees (validation, backpressure) :
+
+```typescript
+const server = new ConcurrentMCPServer({
+  name: "my-server",
+  version: "1.0.0",
+});
+
+server.use(logging);
+server.use(metrics);
+server.use(caching);
+
+server.registerTool(/* ... */);
+await server.startHttp({ port: 3000 });
+```
+
+<Aside type="caution">
+  `use()` doit etre appele **avant** `start()` ou `startHttp()`. Le pipeline est compile au demarrage et ne peut plus etre modifie ensuite.
+</Aside>
+
+## Ordre du pipeline
+
+Voici exactement ce qui s'execute pour chaque appel d'outil, et dans quel ordre :
+
+| Ordre | Couche | Source | Ce qu'elle fait |
+|-------|--------|--------|-----------------|
+| 1 | Rate Limit | Integre (si configure) | Limitation par fenetre glissante par client |
+| 2 | Auth | Integre (si configure) | Validation de token JWT/Bearer |
+| 3 | **Vos middlewares** | `server.use()` | Votre code, dans l'ordre d'enregistrement |
+| 4 | Scope Check | Integre (si auth + scopes) | Verifie que les scopes du token correspondent a `requiredScopes` |
+| 5 | Validation | Integre (si configure) | Validation JSON Schema via ajv |
+| 6 | Backpressure | Integre | Queue/sleep/reject selon la concurrence |
+| 7 | Handler | `registerTool()` | Votre fonction handler |
+
+<Aside type="tip">
+  Vos middlewares s'executent **apres** l'auth mais **avant** la validation. Cela signifie que vous avez acces a `ctx.authInfo` et pouvez enrichir le contexte avant l'execution du handler.
+</Aside>
+
+## L'objet context
+
+Chaque middleware et handler recoit le meme contexte :
+
+```typescript
+interface MiddlewareContext {
+  toolName: string;                  // Which tool is being called
+  args: Record<string, unknown>;     // The tool's input arguments
+  request?: Request;                 // HTTP Request (HTTP transport only)
+  sessionId?: string;                // Session ID (HTTP transport only)
+  [key: string]: unknown;            // Extensible — add your own fields
+}
+```
+
+## Enrichir le contexte
+
+Les middlewares peuvent attacher des donnees pour les middlewares en aval et le handler. C'est la methode recommandee pour partager des donnees transversales :
+
+```typescript
+const tenantResolver: Middleware = async (ctx, next) => {
+  const tenantId = ctx.request?.headers.get("x-tenant-id");
+  if (!tenantId) {
+    throw new Error("Missing X-Tenant-Id header");
+  }
+  ctx.tenantId = tenantId;  // Now available to all downstream middlewares + handler
+  return next();
+};
+```
+
+## Court-circuitage
+
+N'appelez pas `next()` pour sauter le reste du pipeline. C'est ainsi que vous construisez un cache :
+
+```typescript
+const cache = new Map<string, { result: unknown; expiry: number }>();
+
+const caching: Middleware = async (ctx, next) => {
+  const key = `${ctx.toolName}:${JSON.stringify(ctx.args)}`;
+  const cached = cache.get(key);
+
+  if (cached && cached.expiry > Date.now()) {
+    return cached.result;  // Entire downstream pipeline is skipped
+  }
+
+  const result = await next();
+  cache.set(key, { result, expiry: Date.now() + 60_000 });
+  return result;
+};
+```
+
+## Gestion des erreurs
+
+Les erreurs lancees n'importe ou dans la chaine se propagent a travers tous les middlewares. Placez votre gestionnaire d'erreurs en premier pour qu'il enveloppe tout :
+
+```typescript
+const errorHandler: Middleware = async (ctx, next) => {
+  try {
+    return await next();
+  } catch (error) {
+    console.error(`Tool ${ctx.toolName} failed:`, error);
+    return { error: true, message: String(error) };
+  }
+};
+
+// First middleware = outermost layer = catches all errors
+server.use(errorHandler);
+server.use(logging);
+server.use(caching);
+```
+
+## Recettes
+
+### Chronometrage avec export de metriques
+
+```typescript
+const timing: Middleware = async (ctx, next) => {
+  const start = performance.now();
+  try {
+    return await next();
+  } finally {
+    const duration = performance.now() - start;
+    metrics.record(ctx.toolName, duration);
+  }
+};
+```
+
+### Controle d'acces par outil
+
+```typescript
+const adminOnly: Middleware = async (ctx, next) => {
+  if (ctx.toolName.startsWith("admin_")) {
+    const role = ctx.authInfo?.claims?.role;
+    if (role !== "admin") {
+      throw new Error("Admin access required");
+    }
+  }
+  return next();
+};
+```
+
+### Transformation requete/reponse
+
+```typescript
+const sanitizer: Middleware = async (ctx, next) => {
+  // Sanitize input before handler
+  if (typeof ctx.args.query === "string") {
+    ctx.args.query = ctx.args.query.trim().slice(0, 1000);
+  }
+
+  const result = await next();
+
+  // Transform output after handler
+  return { ...result, processedAt: new Date().toISOString() };
+};
+```
+
+## Voir aussi
+
+- [Authentification (OAuth2)](/fr/docs/guides/auth/) — Le middleware d'auth integre et les presets OIDC
+- [API ConcurrentMCPServer](/fr/docs/api/concurrent-mcp-server/) — Reference complete de `use()` et `registerTool()`
+- [Composants Standalone](/fr/docs/api/standalone-components/) — Utiliser RateLimiter, RequestQueue comme utilitaires independants

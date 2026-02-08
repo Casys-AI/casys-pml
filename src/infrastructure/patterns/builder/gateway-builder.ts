@@ -226,19 +226,21 @@ export class GatewayBuilder {
   // ============================================================================
 
   /**
-   * Validate required dependencies are present
+   * Validate required dependencies are present.
    */
   private validate(): string[] {
-    const missing: string[] = [];
+    const required: Array<[unknown, string]> = [
+      [this.state.db, "db (use withDatabase())"],
+      [this.state.vectorSearch, "vectorSearch (use withVectorSearch())"],
+      [this.state.graphEngine, "graphEngine (use withGraphEngine())"],
+      [this.state.dagSuggester, "dagSuggester (use withDAGSuggester())"],
+      [this.state.executor, "executor (use withExecutor())"],
+      [this.state.mcpClients, "mcpClients (use withMCPClients())"],
+    ];
 
-    if (!this.state.db) missing.push("db (use withDatabase())");
-    if (!this.state.vectorSearch) missing.push("vectorSearch (use withVectorSearch())");
-    if (!this.state.graphEngine) missing.push("graphEngine (use withGraphEngine())");
-    if (!this.state.dagSuggester) missing.push("dagSuggester (use withDAGSuggester())");
-    if (!this.state.executor) missing.push("executor (use withExecutor())");
-    if (!this.state.mcpClients) missing.push("mcpClients (use withMCPClients())");
-
-    return missing;
+    return required
+      .filter(([value]) => !value)
+      .map(([, name]) => name);
   }
 
   /**

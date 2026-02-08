@@ -11,6 +11,20 @@ import type { RouteContext } from "../mcp/routing/types.ts";
 import { errorResponse, jsonResponse } from "../mcp/routing/types.ts";
 import type { CapabilityFilters } from "../capabilities/types.ts";
 
+/** Valid sort fields for capability listing */
+type SortField = "usageCount" | "successRate" | "lastUsed" | "createdAt";
+
+/** Map from API snake_case to internal camelCase sort fields */
+const SORT_FIELD_MAP: Record<string, SortField> = {
+  usage_count: "usageCount",
+  success_rate: "successRate",
+  last_used: "lastUsed",
+  created_at: "createdAt",
+};
+
+/** Valid edge types for capability dependencies */
+const VALID_EDGE_TYPES = ["contains", "sequence", "dependency", "alternative", "provides"] as const;
+
 /**
  * Parse and validate capability list filters from URL params
  */
@@ -90,21 +104,8 @@ function parseCapabilityFilters(
 
   // sort
   const sortParam = url.searchParams.get("sort");
-  if (sortParam) {
-    if (
-      sortParam === "usage_count" ||
-      sortParam === "success_rate" ||
-      sortParam === "last_used" ||
-      sortParam === "created_at"
-    ) {
-      const sortMap: Record<string, "usageCount" | "successRate" | "lastUsed" | "createdAt"> = {
-        usage_count: "usageCount",
-        success_rate: "successRate",
-        last_used: "lastUsed",
-        created_at: "createdAt",
-      };
-      filters.sort = sortMap[sortParam];
-    }
+  if (sortParam && sortParam in SORT_FIELD_MAP) {
+    filters.sort = SORT_FIELD_MAP[sortParam];
   }
 
   // order
@@ -275,10 +276,9 @@ export async function handleCreateDependency(
     }
 
     // Validate edge_type (Story 10.3: added "provides")
-    const validEdgeTypes = ["contains", "sequence", "dependency", "alternative", "provides"];
-    if (!validEdgeTypes.includes(body.edge_type)) {
+    if (!VALID_EDGE_TYPES.includes(body.edge_type)) {
       return errorResponse(
-        `Invalid edge_type. Must be one of: ${validEdgeTypes.join(", ")}`,
+        `Invalid edge_type. Must be one of: ${VALID_EDGE_TYPES.join(", ")}`,
         400,
         corsHeaders,
       );

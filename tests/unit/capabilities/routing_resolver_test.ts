@@ -28,7 +28,7 @@ Deno.test("extractServerName: standard format server:action", () => {
   assertEquals(extractServerName("filesystem:read_file"), "filesystem");
   assertEquals(extractServerName("memory:store"), "memory");
   assertEquals(extractServerName("tavily:search"), "tavily");
-  assertEquals(extractServerName("pml:execute"), "pml");
+  assertEquals(extractServerName("execute"), "execute");
 });
 
 Deno.test("extractServerName: capability tool format mcp__namespace__action", () => {
@@ -150,7 +150,7 @@ Deno.test("resolveRouting: single client tool -> client", () => {
 Deno.test("resolveRouting: with security-first config, single tool -> client", () => {
   // With empty server list, all tools default to client
   assertEquals(resolveRouting(["memory:store"]), "client");
-  assertEquals(resolveRouting(["pml:search"]), "client");
+  assertEquals(resolveRouting(["search"]), "client");
 });
 
 Deno.test("resolveRouting: capability tools resolve correctly", () => {

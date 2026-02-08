@@ -15,6 +15,13 @@ export const transformTools: MiniTool[] = [
     description:
       "Parse CSV string into array of objects with automatic type conversion. Supports custom delimiters, header detection, and empty line handling. Use for importing spreadsheet data, processing exports, or data ingestion. Keywords: parse CSV, CSV to JSON, read CSV, import spreadsheet, CSV parser, comma separated.",
     category: "transform",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -48,6 +55,13 @@ export const transformTools: MiniTool[] = [
     description:
       "Convert array of objects to CSV string with configurable options. Control headers, delimiters, column selection, and quoting. Use for data export, report generation, or spreadsheet creation. Keywords: to CSV, export CSV, array to CSV, generate CSV, create spreadsheet, CSV writer.",
     category: "transform",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -78,6 +92,13 @@ export const transformTools: MiniTool[] = [
     description:
       "Convert JSON array to CSV with optional nested object flattening. Transforms complex JSON data into flat CSV format. Use for exporting API data, generating reports, or data interchange. Keywords: JSON to CSV, export JSON, flatten to CSV, convert JSON, data export, JSON CSV.",
     category: "transform",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/table-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -122,6 +143,13 @@ export const transformTools: MiniTool[] = [
     description:
       "Convert CSV to JSON array with automatic type detection (numbers, booleans). Parse spreadsheet data into structured objects. Use for data import, processing CSV files, or ETL pipelines. Keywords: CSV to JSON, parse CSV, import CSV, CSV parser, spreadsheet to JSON, data import.",
     category: "transform",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -144,6 +172,13 @@ export const transformTools: MiniTool[] = [
     description:
       "Convert XML to JSON object structure. Parse XML elements, attributes, and text content into nested objects. Handles basic XML structures for data extraction. Use for API integration, config parsing, or legacy data. Keywords: XML to JSON, parse XML, XML parser, convert XML, read XML, XML object.",
     category: "transform",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -212,6 +247,13 @@ export const transformTools: MiniTool[] = [
     description:
       "Convert JSON object to XML string with proper formatting. Handles nested objects, arrays, and attributes (@-prefixed keys). Configurable root element and indentation. Use for API output, config generation, or data export. Keywords: JSON to XML, generate XML, create XML, convert to XML, XML output, build XML.",
     category: "transform",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/xml-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -275,6 +317,13 @@ export const transformTools: MiniTool[] = [
     description:
       "Encode or decode base64 strings. Convert binary data or text to base64 for transmission, or decode base64 back to original. Use for data URI creation, API payloads, or embedded content. Keywords: base64 encode, base64 decode, btoa atob, binary to text, encode string, data URI.",
     category: "transform",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {
@@ -295,6 +344,13 @@ export const transformTools: MiniTool[] = [
     description:
       "Simple template string replacement using {{placeholder}} syntax. Replace placeholders with values from a data object. Use for email templates, dynamic content, or string interpolation. Keywords: template replace, string interpolation, placeholder, mustache, variable substitution, template engine.",
     category: "transform",
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/json-viewer",
+        emits: ["copy"],
+        accepts: [],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: {

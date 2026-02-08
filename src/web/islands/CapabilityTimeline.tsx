@@ -284,6 +284,7 @@ export default function CapabilityTimeline({
             }),
           );
 
+          console.log("[CapabilityTimeline] Building cap from node.data.id:", node.data.id, "node.data.label:", node.data.label);
           caps.push({
             id: node.data.id,
             name: node.data.label,
@@ -805,30 +806,6 @@ export default function CapabilityTimeline({
 
   return (
     <>
-      {/* Animation keyframes */}
-      <style>
-        {`
-        @keyframes slideInFade {
-          from {
-            opacity: 0;
-            transform: translateY(-12px) scale(0.97);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-        @keyframes rowFlash {
-          0% {
-            background: rgba(255, 184, 111, 0.3);
-          }
-          100% {
-            background: transparent;
-          }
-        }
-      `}
-      </style>
-
       <div
         class="w-full h-full overflow-y-auto"
         style={{ background: "var(--bg, #0a0908)" }}

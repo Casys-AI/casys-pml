@@ -369,7 +369,7 @@ export default function EmergencePanel({
 
   if (loading && !metrics) {
     return (
-      <div class="h-full flex items-center justify-center" style={{ color: "var(--text-dim)" }}>
+      <div class="h-full flex items-center justify-center text-stone-500">
         Loading emergence metrics...
       </div>
     );
@@ -377,7 +377,7 @@ export default function EmergencePanel({
 
   if (error) {
     return (
-      <div class="h-full flex items-center justify-center" style={{ color: "var(--error)" }}>
+      <div class="h-full flex items-center justify-center text-red-400">
         Error: {error}
       </div>
     );
@@ -393,39 +393,26 @@ export default function EmergencePanel({
   }
 
   return (
-    <div
-      class="h-full overflow-auto p-4"
-      style={{
-        background: "linear-gradient(to bottom, var(--bg-elevated), var(--bg))",
-      }}
-    >
-      {/* Header with Scope Toggle (Story 9.8) */}
+    <div class="h-full overflow-auto p-4 bg-gradient-to-b from-stone-900 to-stone-950">
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-4">
-          <h2 class="text-lg font-bold" style={{ color: "var(--text)" }}>
+          <h2 class="text-lg font-bold text-stone-100">
             Emergence Metrics
           </h2>
-          {/* Story 9.8: Scope Toggle */}
           <ScopeToggle
             scope={scope}
             onChange={handleScopeChange}
             isLocalMode={isLocalMode}
           />
         </div>
-        <div
-          class="flex gap-1 p-0.5 rounded-lg"
-          style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-        >
+        <div class="flex gap-1 p-0.5 rounded-lg bg-stone-800 border border-pml-accent/10">
           {(["1h", "24h", "7d", "30d"] as TimeRange[]).map((r) => (
             <button
               key={r}
               type="button"
-              class="py-1.5 px-3 rounded text-xs font-semibold transition-colors"
-              style={
-                timeRange === r
-                  ? { background: "var(--accent)", color: "var(--bg)" }
-                  : { color: "var(--text-muted)" }
-              }
+              class={`py-1.5 px-3 rounded text-xs font-semibold transition-colors ${
+                timeRange === r ? "bg-pml-accent text-stone-950" : "text-stone-400"
+              }`}
               onClick={() => setTimeRange(r)}
             >
               {r}
@@ -502,13 +489,8 @@ export default function EmergencePanel({
         </div>
       </div>
 
-      {/* Secondary metrics with Speculation Gauge (CR-6) */}
       <div class="flex flex-wrap gap-3 mb-4 items-center">
-        {/* Gauge for speculation accuracy */}
-        <div
-          class="p-3 rounded-lg flex-shrink-0 relative"
-          style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-        >
+        <div class="p-3 rounded-lg flex-shrink-0 relative bg-stone-800 border border-pml-accent/10">
           <GaugeChart
             value={current.speculationAccuracy}
             label="Speculation Accuracy"
@@ -548,7 +530,7 @@ export default function EmergencePanel({
           badge={current.tensorEntropy ? `${current.tensorEntropy.graphSize.nodes} nodes` : "over time"}
         >
           <div ref={entropyChartRef} class="h-40 w-full" />
-          <div class="mt-2 flex justify-between items-center text-xs" style={{ color: "var(--text-dim)" }}>
+          <div class="mt-2 flex justify-between items-center text-xs text-stone-500">
             <span>
               Healthy: {thresholds.entropyHealthy[0].toFixed(2)} - {thresholds.entropyHealthy[1].toFixed(2)}
               {thresholds.isAdjusted && <span class="ml-1 opacity-60">(size-adjusted)</span>}
@@ -567,7 +549,6 @@ export default function EmergencePanel({
               )}
             </div>
           </div>
-          {/* Story 6.6: Show all 3 entropy values with colors matching the chart */}
           {current.tensorEntropy && (
             <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
               <LegendItem
@@ -588,9 +569,8 @@ export default function EmergencePanel({
               />
             </div>
           )}
-          {/* Embedding count info */}
           {current.tensorEntropy?.embeddingCount && (
-            <div class="mt-1 text-xs opacity-50" style={{ color: "var(--text-dim)" }}>
+            <div class="mt-1 text-xs opacity-50 text-stone-500">
               {current.tensorEntropy.embeddingCount} embeddings • {current.tensorEntropy.graphSize.hyperedges} hyperedges
             </div>
           )}
@@ -612,11 +592,7 @@ export default function EmergencePanel({
       {/* Recommendations */}
       <RecommendationsPanel recommendations={recommendations} />
 
-      {/* Footer */}
-      <div
-        class="mt-4 pt-3 text-xs text-center"
-        style={{ borderTop: "1px solid var(--border)", color: "var(--text-dim)" }}
-      >
+      <div class="mt-4 pt-3 text-xs text-center border-t border-pml-accent/10 text-stone-500">
         Based on CAS theory (Holland 1992) &amp; SYMBIOSIS/ODI (arxiv:2503.13754)
       </div>
     </div>

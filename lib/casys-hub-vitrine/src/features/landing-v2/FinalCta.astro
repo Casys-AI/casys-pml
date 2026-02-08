@@ -1,0 +1,305 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    title: 'Ready to Optimize Your Agentic Architecture?',
+    subtitle: 'Choose how you want to work with us',
+    ctas: [
+      {
+        icon: 'rocket_launch',
+        text: 'Try Casys PML',
+        subtext: 'Join the freemium waitlist',
+        url: '#contact'
+      },
+      {
+        icon: 'mail',
+        text: 'Get in Touch',
+        subtext: 'Questions & architecture help',
+        url: '#contact'
+      }
+    ],
+    trustBadges: [
+      { icon: 'check_circle', text: 'AGPL-3.0 Open Source' },
+      { icon: 'check_circle', text: '10+ years expertise' },
+      { icon: 'check_circle', text: 'Mid-market accessible' }
+    ]
+  },
+  fr: {
+    title: 'Prêt à Optimiser Votre Architecture Agentique?',
+    subtitle: 'Choisissez comment vous voulez travailler avec nous',
+    ctas: [
+      {
+        icon: 'rocket_launch',
+        text: 'Essayer Casys PML',
+        subtext: 'Rejoindre la waitlist freemium',
+        url: '#contact'
+      },
+      {
+        icon: 'mail',
+        text: 'Nous Contacter',
+        subtext: 'Questions & aide architecture',
+        url: '#contact'
+      }
+    ],
+    trustBadges: [
+      { icon: 'check_circle', text: 'AGPL-3.0 Open Source' },
+      { icon: 'check_circle', text: '10+ ans d\'expertise' },
+      { icon: 'check_circle', text: 'Mid-market accessible' }
+    ]
+  },
+  zh: {
+    title: '准备好优化您的智能体架构了吗？',
+    subtitle: '选择您想与我们合作的方式',
+    ctas: [
+      {
+        icon: 'rocket_launch',
+        text: '试用 Casys PML',
+        subtext: '加入免费等候名单',
+        url: '#contact'
+      },
+      {
+        icon: 'mail',
+        text: '联系我们',
+        subtext: '咨询与架构帮助',
+        url: '#contact'
+      }
+    ],
+    trustBadges: [
+      { icon: 'check_circle', text: 'AGPL-3.0 开源' },
+      { icon: 'check_circle', text: '10+ 年经验' },
+      { icon: 'check_circle', text: '中端市场可及' }
+    ]
+  }
+};
+const content = translations[locale] ?? translations.en;
+---
+
+<section id="final-cta">
+  <div class="container">
+    <div class="content">
+      <h2>{content.title}</h2>
+      <p class="subtitle">{content.subtitle}</p>
+
+      <!-- CTAs -->
+      <div class="ctas-group">
+        {content.ctas.map((cta) => (
+          <a href={cta.url} class="cta-card">
+            <span class="material-symbols-rounded cta-icon">{cta.icon}</span>
+            <div class="cta-content">
+              <div class="cta-text">{cta.text}</div>
+              <div class="cta-subtext">{cta.subtext}</div>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      <!-- Trust Badges -->
+      <div class="trust-badges">
+        {content.trustBadges.map((badge) => (
+          <div class="trust-badge">
+            <span class="material-symbols-rounded">{badge.icon}</span>
+            <span>{badge.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     FINAL CTA - Editorial/Refined Aesthetic
+     Font: Fraunces for headlines
+     Palette: Warm orange for dark mode
+     ======================================== */
+
+  section {
+    padding: 100px 0;
+    background: var(--md-sys-color-surface-container-low);
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 40px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    max-width: 800px;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  /* CTAs */
+  .ctas-group {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .cta-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 32px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 16px;
+    text-decoration: none;
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+    min-width: 300px;
+  }
+
+  .cta-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .cta-icon {
+    font-size: 36px;
+    color: var(--md-sys-color-primary);
+    flex-shrink: 0;
+  }
+
+  .cta-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+  }
+
+  .cta-text {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .cta-subtext {
+    font-size: 0.9rem;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  /* Trust Badges */
+  .trust-badges {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .trust-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .trust-badge .material-symbols-rounded {
+    font-size: 20px;
+    color: var(--md-sys-color-primary);
+  }
+
+  /* Mobile Responsiveness */
+  @media (max-width: 768px) {
+    section {
+      padding: 60px 0;
+    }
+
+    h2 {
+      font-size: 2rem;
+    }
+
+    .ctas-group {
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .cta-card {
+      min-width: unset;
+      width: 100%;
+      padding: 20px 24px;
+    }
+
+    .trust-badges {
+      flex-direction: column;
+      gap: 16px;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     FINAL CTA - DARK MODE
+     Warm orange palette (#FFB86F, #D4A574)
+     ======================================== */
+
+  html[data-theme="dark"] #final-cta {
+    background: #0a0908;
+  }
+
+  html[data-theme="dark"] #final-cta h2 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #final-cta .subtitle {
+    color: #d5c3b5;
+  }
+
+  /* CTA Cards */
+  html[data-theme="dark"] #final-cta .cta-card {
+    background: #1a1815;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #final-cta .cta-card:hover {
+    border-color: rgba(255, 184, 111, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] #final-cta .cta-icon {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #final-cta .cta-text {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #final-cta .cta-subtext {
+    color: #d5c3b5;
+  }
+
+  /* Trust Badges */
+  html[data-theme="dark"] #final-cta .trust-badge {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #final-cta .trust-badge .material-symbols-rounded {
+    color: #FFB86F;
+  }
+</style>

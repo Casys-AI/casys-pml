@@ -87,22 +87,17 @@ export function topologicalSortTasks<T extends { id: string; dependsOn: string[]
 export function computeLayerIndexForTasks<T extends { id: string; dependsOn: string[] }>(
   tasks: T[],
 ): (T & { layerIndex: number })[] {
-  if (tasks.length === 0) {
-    return [];
-  }
+  if (tasks.length === 0) return [];
 
-  // Reuse topologicalSortTasks to get layers
   const layers = topologicalSortTasks(tasks);
-
-  // Build taskId → layerIndex map
   const taskToLayer = new Map<string, number>();
-  layers.forEach((layer, layerIndex) => {
-    for (const task of layer) {
+
+  for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
+    for (const task of layers[layerIndex]) {
       taskToLayer.set(task.id, layerIndex);
     }
-  });
+  }
 
-  // Return tasks with layerIndex added
   return tasks.map((task) => ({
     ...task,
     layerIndex: taskToLayer.get(task.id) ?? 0,

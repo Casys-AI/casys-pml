@@ -111,17 +111,19 @@ export function hashCodeSync(code: string): string {
 function serializeNode(node: StaticStructureNode): string {
   const base = { id: node.id, type: node.type };
 
-  switch (node.type) {
-    case "task":
-      // Include tool and arguments (arguments already have node IDs, not variable names)
-      return JSON.stringify({ ...base, tool: node.tool, arguments: node.arguments });
-    case "decision":
-      return JSON.stringify({ ...base, condition: node.condition });
-    case "capability":
-      return JSON.stringify({ ...base, capabilityId: node.capabilityId });
-    default:
-      return JSON.stringify(base);
+  if (node.type === "task") {
+    return JSON.stringify({ ...base, tool: node.tool, arguments: node.arguments });
   }
+
+  if (node.type === "decision") {
+    return JSON.stringify({ ...base, condition: node.condition });
+  }
+
+  if (node.type === "capability") {
+    return JSON.stringify({ ...base, capabilityId: node.capabilityId });
+  }
+
+  return JSON.stringify(base);
 }
 
 /**

@@ -16,6 +16,10 @@ interface SpawnTrainingInput {
     embedding: number[];
     toolsUsed: string[];
     successRate: number;
+    /** Parent capability IDs (for multi-level hierarchy) */
+    parents?: string[];
+    /** Child capability IDs (for multi-level hierarchy) */
+    children?: string[];
   }>;
   examples: TrainingExample[];
   epochs?: number;

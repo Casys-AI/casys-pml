@@ -11,6 +11,7 @@ import type { DbClient } from "../db/types.ts";
 import { MCPServerDiscovery } from "./discovery.ts";
 import { MCPClient } from "./client.ts";
 import { DiscoveryStats, MCPServer, MCPTool, ServerDiscoveryResult } from "./types.ts";
+import { ensureUiCacheReady } from "../services/ui-cache-service.ts";
 
 /**
  * Schema Extractor Service
@@ -67,7 +68,7 @@ export class SchemaExtractor {
       const servers = await this.discovery.discoverServers();
       stats.totalServers = servers.length;
 
-      console.log(`✓ Found ${servers.length} servers in config\n`);
+      log.info(`✓ Found ${servers.length} servers in config`);
       log.info(`Discovered ${servers.length} MCP servers`);
 
       // Step 2-5: Extract schemas from all servers concurrently (AC8)
@@ -87,7 +88,7 @@ export class SchemaExtractor {
           }
 
           const duration = result.connectionDuration || 0;
-          console.log(
+          log.info(
             `✓ Connected to ${result.serverName} (${result.toolsExtracted} tools) [${duration}ms]`,
           );
         } else {
@@ -98,28 +99,28 @@ export class SchemaExtractor {
           );
 
           const reason = result.status === "timeout" ? "timeout" : result.error;
-          console.log(
+          log.warn(
             `✗ Failed to connect to ${result.serverName} (${reason})`,
           );
         }
       }
 
       // AC7: Console output summary
-      console.log(`\n📊 Summary:`);
-      console.log(
+      log.info(`📊 Summary:`);
+      log.info(
         `  Servers connected: ${stats.successfulServers}/${stats.totalServers}`,
       );
-      console.log(`  Tools extracted: ${stats.totalToolsExtracted}`);
+      log.info(`  Tools extracted: ${stats.totalToolsExtracted}`);
 
       if (stats.failedServers > 0) {
-        console.log(`  Failed servers: ${stats.failedServers}`);
+        log.warn(`  Failed servers: ${stats.failedServers}`);
         for (const [serverId, error] of stats.failures) {
-          console.log(`    - ${serverId}: ${error}`);
+          log.warn(`    - ${serverId}: ${error}`);
         }
       }
 
       stats.duration = Math.round(performance.now() - startTime);
-      console.log(`  Total duration: ${stats.duration}ms\n`);
+      log.info(`  Total duration: ${stats.duration}ms`);
 
       log.info(
         `Discovery complete: ${stats.successfulServers}/${stats.totalServers} servers, ${stats.totalToolsExtracted} tools`,
@@ -137,23 +138,37 @@ export class SchemaExtractor {
    * Extract schemas from a single server
    *
    * AC2-AC4: Connection, list_tools call, validation
+   * Story 16.6: Also fetches UI resources and caches them in KV
    */
   private async extractServerSchemas(
     server: MCPServer,
   ): Promise<ServerDiscoveryResult> {
+    const startTime = performance.now();
+    let client: MCPClient | null = null;
+
     try {
       // AC2: Establish connection
+      client = new MCPClient(server, this.timeout);
+      await client.connect();
+
       // AC3: Send list_tools request
-      // AC4: Parse and validate schemas
-      const client = new MCPClient(server, this.timeout);
-      const result = await client.extractSchemas();
+      const tools = await client.listTools();
+      const duration = performance.now() - startTime;
 
-      if (result.status === "success" && result.tools) {
-        // AC4: Validate schemas
-        this.validateSchemas(result.tools);
-      }
+      // AC4: Validate schemas
+      this.validateSchemas(tools);
 
-      return result;
+      // Story 16.6: Fetch UI resources for tools with _meta.ui.resourceUri
+      await this.fetchAndCacheUiResources(client, server.id, tools);
+
+      return {
+        serverId: server.id,
+        serverName: server.name,
+        status: "success",
+        toolsExtracted: tools.length,
+        tools,
+        connectionDuration: Math.round(duration),
+      };
     } catch (error) {
       log.warn(
         `Error extracting schemas from ${server.id}: ${error}`,
@@ -165,6 +180,63 @@ export class SchemaExtractor {
         toolsExtracted: 0,
         error: error instanceof Error ? error.message : String(error),
       };
+    } finally {
+      if (client) {
+        try {
+          await client.close();
+        } catch {
+          // Ignore close errors
+        }
+      }
+    }
+  }
+
+  /**
+   * Fetch and cache UI resources from MCP server (Story 16.6)
+   *
+   * For each tool with _meta.ui.resourceUri, fetches the HTML via resources/read
+   * and stores it in Deno KV for quick access by the frontend.
+   */
+  private async fetchAndCacheUiResources(
+    client: MCPClient,
+    serverId: string,
+    tools: MCPTool[],
+  ): Promise<void> {
+    const urisToFetch = new Map<string, string[]>();
+    for (const tool of tools) {
+      const resourceUri = tool._meta?.ui?.resourceUri;
+      if (resourceUri) {
+        const existing = urisToFetch.get(resourceUri) || [];
+        existing.push(tool.name);
+        urisToFetch.set(resourceUri, existing);
+      }
+    }
+
+    if (urisToFetch.size === 0) {
+      return;
+    }
+
+    log.info(`[SchemaExtractor] Fetching ${urisToFetch.size} UI resources from ${serverId}`);
+
+    const cacheService = await ensureUiCacheReady();
+
+    for (const [resourceUri, toolNames] of urisToFetch) {
+      try {
+        const content = await client.readResource(resourceUri);
+        if (content?.text) {
+          await cacheService.set(
+            resourceUri,
+            content.text,
+            content.mimeType ?? "text/html",
+            serverId,
+          );
+          log.debug(`[SchemaExtractor] Cached UI: ${resourceUri} (${toolNames.length} tools)`);
+        } else {
+          log.warn(`[SchemaExtractor] No content for UI: ${resourceUri}`);
+        }
+      } catch (error) {
+        log.warn(`[SchemaExtractor] Failed to fetch UI ${resourceUri}: ${error}`);
+      }
     }
   }
 
@@ -210,6 +282,8 @@ export class SchemaExtractor {
 
   /**
    * Store extracted schemas in PGlite (AC5)
+   *
+   * Also stores UI metadata (_meta.ui) if present for MCP Apps support (Story 16.6)
    */
   private async storeSchemas(
     serverId: string,
@@ -218,24 +292,34 @@ export class SchemaExtractor {
     for (const tool of tools) {
       const toolId = `${serverId}:${tool.name}`;
 
+      // Extract UI metadata if present (MCP Apps SEP-1865)
+      const uiMeta = tool._meta?.ui ?? null;
+
       try {
         await this.db.query(
-          `INSERT INTO tool_schema (tool_id, server_id, name, description, input_schema, output_schema, cached_at)
-           VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, NOW())
+          `INSERT INTO tool_schema (tool_id, server_id, name, description, input_schema, output_schema, ui_meta, cached_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
            ON CONFLICT(tool_id) DO UPDATE SET
              description = excluded.description,
              input_schema = excluded.input_schema,
              output_schema = excluded.output_schema,
+             ui_meta = excluded.ui_meta,
              cached_at = NOW()`,
           [
             toolId,
             serverId,
             tool.name,
             tool.description,
-            tool.inputSchema, // postgres.js/pglite auto-serializes to JSONB
-            tool.outputSchema ?? null, // postgres.js/pglite auto-serializes to JSONB
+            tool.inputSchema, // Pass object directly - postgres.js handles JSONB serialization
+            tool.outputSchema ?? null,
+            uiMeta ?? null, // Pass object directly - no JSON.stringify to avoid double-encoding
           ],
         );
+
+        // Log UI-enabled tools for observability
+        if (uiMeta?.resourceUri) {
+          log.debug(`Tool ${toolId} has UI resource: ${uiMeta.resourceUri}`);
+        }
       } catch (error) {
         log.warn(
           `Failed to store schema for ${toolId}: ${error}`,

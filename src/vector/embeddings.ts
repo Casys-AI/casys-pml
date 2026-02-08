@@ -9,7 +9,7 @@
 
 import { pipeline } from "@huggingface/transformers";
 import * as log from "@std/log";
-import type { DbClient } from "../db/types.ts";
+import type { DbClient, Transaction } from "../db/types.ts";
 import type { MCPTool } from "../mcp/types.ts";
 
 /**
@@ -65,6 +65,33 @@ export interface EmbeddingModelInterface {
   isLoaded(): boolean;
   dispose(): Promise<void>;
 }
+
+/**
+ * Metadata stored with embeddings for cache validation
+ */
+interface EmbeddingMetadata {
+  description?: string;
+  schema?: {
+    inputSchema?: unknown;
+    outputSchema?: unknown;
+  };
+  generated_at?: string;
+}
+
+/**
+ * Database row for tool schema query results
+ */
+interface ToolSchemaRow {
+  tool_id: string;
+  server_id: string;
+  name: string;
+  description: string | null;
+  input_schema: string | Record<string, unknown>;
+  output_schema?: string | Record<string, unknown> | null;
+}
+
+/** Batch size for embedding generation transactions */
+const EMBEDDING_BATCH_SIZE = 20;
 
 /**
  * BGE-M3 Embedding Model
@@ -168,23 +195,7 @@ export class EmbeddingModel {
     }
 
     try {
-      // Try various cleanup methods that might exist on the model
-      if (typeof this.model.dispose === "function") {
-        await this.model.dispose();
-      } else if (typeof this.model.destroy === "function") {
-        await this.model.destroy();
-      } else if (typeof this.model.close === "function") {
-        await this.model.close();
-      } else if (this.model.model && typeof this.model.model.dispose === "function") {
-        // Some pipelines have nested model objects
-        await this.model.model.dispose();
-      } else if (
-        this.model.model && this.model.model.session &&
-        typeof this.model.model.session.release === "function"
-      ) {
-        // ONNX runtime sessions have release() method
-        await this.model.model.session.release();
-      }
+      await this.tryDisposeModel();
     } catch (error) {
       log.warn(`Failed to dispose embedding model: ${error}`);
     }
@@ -192,7 +203,34 @@ export class EmbeddingModel {
     this.model = null;
     this.loading = null;
   }
+
+  /**
+   * Try various cleanup methods that might exist on the model
+   */
+  private async tryDisposeModel(): Promise<void> {
+    const model = this.model;
+    const disposeMethod = model.dispose ?? model.destroy ?? model.close;
+
+    if (typeof disposeMethod === "function") {
+      await disposeMethod.call(model);
+      return;
+    }
+
+    // Some pipelines have nested model objects
+    if (model.model?.dispose) {
+      await model.model.dispose();
+      return;
+    }
+
+    // ONNX runtime sessions have release() method
+    if (model.model?.session?.release) {
+      await model.model.session.release();
+    }
+  }
 }
+
+/** Maximum recommended text length before BGE truncation (~512 tokens) */
+const MAX_RECOMMENDED_LENGTH = 2000;
 
 /**
  * Convert tool schema to text for embedding generation
@@ -209,47 +247,57 @@ export class EmbeddingModel {
 export function schemaToText(schema: ToolSchema | MCPTool): string {
   const parts: string[] = [];
 
-  // Add tool name
-  if ("name" in schema && schema.name) {
-    parts.push(schema.name);
+  const name = "name" in schema ? schema.name : undefined;
+  if (name) {
+    parts.push(name);
   }
 
-  // Add description
   if (schema.description) {
     parts.push(schema.description);
   }
 
-  // Extract and add input parameters
-  const inputSchema = "inputSchema" in schema ? schema.inputSchema : schema.input_schema || {};
-  if (typeof inputSchema === "object" && inputSchema !== null) {
-    const properties =
-      (inputSchema as Record<string, unknown>).properties as Record<string, unknown> || {};
+  const parameterParts = extractParameterDescriptions(schema);
+  parts.push(...parameterParts);
 
-    for (const [paramName, paramDef] of Object.entries(properties)) {
-      if (typeof paramDef === "object" && paramDef !== null) {
-        const def = paramDef as Record<string, unknown>;
-        const description = def.description as string || "";
-        parts.push(`${paramName}: ${description}`);
-      }
-    }
-  }
-
-  // Join with separator for better readability
   const text = parts.filter(Boolean).join(" | ");
 
-  // Validate text length (BGE truncates at 512 tokens ≈ 2000 chars)
-  const MAX_RECOMMENDED_LENGTH = 2000; // ~512 tokens
   if (text.length > MAX_RECOMMENDED_LENGTH) {
-    const toolName = ("name" in schema && schema.name) || "unknown";
+    const toolName = name ?? "unknown";
     log.warn(
-      `⚠️  Schema text for tool "${toolName}" exceeds recommended length (${text.length} chars > ${MAX_RECOMMENDED_LENGTH} chars)`,
-    );
-    log.warn(
-      `   BGE model will truncate to ~512 tokens, which may affect embedding quality`,
+      `Schema text for tool "${toolName}" exceeds recommended length ` +
+        `(${text.length} chars > ${MAX_RECOMMENDED_LENGTH} chars). ` +
+        `BGE model will truncate to ~512 tokens, which may affect embedding quality.`,
     );
   }
 
   return text;
+}
+
+/**
+ * Extract parameter names and descriptions from schema
+ */
+function extractParameterDescriptions(schema: ToolSchema | MCPTool): string[] {
+  const inputSchema = "inputSchema" in schema ? schema.inputSchema : schema.input_schema;
+  if (!inputSchema || typeof inputSchema !== "object") {
+    return [];
+  }
+
+  const properties = (inputSchema as Record<string, unknown>).properties as
+    | Record<string, unknown>
+    | undefined;
+  if (!properties) {
+    return [];
+  }
+
+  const parts: string[] = [];
+  for (const [paramName, paramDef] of Object.entries(properties)) {
+    if (typeof paramDef === "object" && paramDef !== null) {
+      const description = (paramDef as Record<string, unknown>).description as string || "";
+      parts.push(`${paramName}: ${description}`);
+    }
+  }
+
+  return parts;
 }
 
 /**
@@ -288,6 +336,80 @@ class ProgressTracker {
 }
 
 /**
+ * Parse a JSON schema field, handling both string and object formats
+ */
+function parseJsonField<T>(value: string | T | null | undefined): T | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") return JSON.parse(value) as T;
+  return value;
+}
+
+/**
+ * Convert a database row to a ToolSchema object
+ */
+function rowToToolSchema(row: ToolSchemaRow): ToolSchema {
+  return {
+    tool_id: row.tool_id,
+    server_id: row.server_id,
+    name: row.name,
+    description: row.description || "",
+    input_schema: parseJsonField<Record<string, unknown>>(row.input_schema) ?? {},
+    output_schema: parseJsonField<Record<string, unknown>>(row.output_schema),
+  };
+}
+
+/**
+ * Check if an existing embedding is still valid (schema unchanged)
+ */
+function isEmbeddingCacheValid(
+  schema: ToolSchema,
+  existingMeta: EmbeddingMetadata | null,
+): boolean {
+  if (!existingMeta) return false;
+
+  const descriptionMatches = schema.description === (existingMeta.description || "");
+  const schemaMatches =
+    JSON.stringify(schema.input_schema) ===
+    JSON.stringify(existingMeta.schema?.inputSchema || {});
+
+  return descriptionMatches && schemaMatches;
+}
+
+/**
+ * Split an array into batches of a specified size
+ */
+function splitIntoBatches<T>(items: T[], batchSize: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    batches.push(items.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+/** SQL for fetching tool schemas */
+const FETCH_SCHEMAS_SQL = `
+  SELECT tool_id, server_id, name, description, input_schema, output_schema, cached_at
+  FROM tool_schema
+  ORDER BY server_id, name`;
+
+/** SQL for checking existing embedding */
+const CHECK_EMBEDDING_SQL = "SELECT tool_id, metadata FROM tool_embedding WHERE tool_id = $1";
+
+/** SQL for upserting embedding */
+const UPSERT_EMBEDDING_SQL = `
+  INSERT INTO tool_embedding (tool_id, server_id, tool_name, embedding, metadata, created_at)
+  VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
+  ON CONFLICT (tool_id) DO UPDATE
+  SET embedding = EXCLUDED.embedding,
+      metadata = EXCLUDED.metadata,
+      created_at = NOW()`;
+
+/** SQL for tracking embedding metric */
+const TRACK_METRIC_SQL = `
+  INSERT INTO metrics (metric_name, value, metadata, timestamp)
+  VALUES ('tool_embedded', 1, $1::jsonb, NOW())`;
+
+/**
  * Generate embeddings for all tool schemas in the database
  *
  * Features:
@@ -304,182 +426,134 @@ export async function generateEmbeddings(
   db: DbClient,
   model: EmbeddingModelInterface,
 ): Promise<EmbeddingStats> {
-  log.info("🔄 Starting embedding generation...");
+  log.info("Starting embedding generation...");
 
   const startTime = performance.now();
-  let newlyGenerated = 0;
-  let cachedCount = 0;
-  let totalTools = 0;
+  const stats = { newlyGenerated: 0, cachedCount: 0, totalTools: 0 };
 
   try {
-    // Ensure model is loaded
     await model.load();
 
-    // 1. Fetch all tool schemas from database
-    const schemasResult = await db.query(
-      `SELECT tool_id, server_id, name, description, input_schema, output_schema, cached_at
-       FROM tool_schema
-       ORDER BY server_id, name`,
-    );
-
+    const schemasResult = await db.query(FETCH_SCHEMAS_SQL);
     if (schemasResult.length === 0) {
       log.warn("No tool schemas found in database");
-      return {
-        totalTools: 0,
-        newlyGenerated: 0,
-        cachedCount: 0,
-        duration: 0,
-      };
+      return { ...stats, duration: 0 };
     }
 
-    totalTools = schemasResult.length;
-    log.info(`Found ${totalTools} tool schemas to process`);
+    stats.totalTools = schemasResult.length;
+    log.info(`Found ${stats.totalTools} tool schemas to process`);
 
-    // 2. Initialize progress tracker
-    const progress = new ProgressTracker(totalTools);
+    const progress = new ProgressTracker(stats.totalTools);
+    const batches = splitIntoBatches(schemasResult, EMBEDDING_BATCH_SIZE);
+    log.info(`Processing ${batches.length} batches of up to ${EMBEDDING_BATCH_SIZE} tools each`);
 
-    // 3. Process schemas in batches for better performance
-    const BATCH_SIZE = 20; // Process 20 tools per transaction
-    const batches: typeof schemasResult[] = [];
-
-    // Split into batches
-    for (let i = 0; i < schemasResult.length; i += BATCH_SIZE) {
-      batches.push(schemasResult.slice(i, i + BATCH_SIZE));
-    }
-
-    log.info(`Processing ${batches.length} batches of up to ${BATCH_SIZE} tools each`);
-
-    // Process each batch in a transaction
     for (const batch of batches) {
-      try {
-        await db.transaction(async (tx) => {
-          for (const row of batch) {
-            try {
-              const schema: ToolSchema = {
-                tool_id: row.tool_id as string,
-                server_id: row.server_id as string,
-                name: row.name as string,
-                description: row.description as string || "",
-                input_schema: (typeof row.input_schema === "string"
-                  ? JSON.parse(row.input_schema)
-                  : row.input_schema) as Record<string, unknown>,
-                output_schema: row.output_schema
-                  ? (typeof row.output_schema === "string"
-                    ? JSON.parse(row.output_schema)
-                    : row.output_schema) as Record<string, unknown>
-                  : undefined,
-              };
-
-              // 3a. Check if embedding already exists and is up-to-date (AC6: caching)
-              const existing = await tx.query(
-                "SELECT tool_id, metadata FROM tool_embedding WHERE tool_id = $1",
-                [schema.tool_id],
-              );
-
-              if (existing.length > 0) {
-                // Check if description or schema has changed
-                const existingMeta = existing[0].metadata as {
-                  description?: string;
-                  schema?: { inputSchema?: unknown; outputSchema?: unknown };
-                } | null;
-                const currentDesc = schema.description;
-                const existingDesc = existingMeta?.description || "";
-
-                // Also check input_schema changes (for new required fields, etc.)
-                const currentSchemaStr = JSON.stringify(schema.input_schema);
-                const existingSchemaStr = JSON.stringify(existingMeta?.schema?.inputSchema || {});
-
-                if (currentDesc === existingDesc && currentSchemaStr === existingSchemaStr) {
-                  // Cache hit - no changes, skip regeneration
-                  cachedCount++;
-                  progress.increment();
-                  continue;
-                }
-                // Description or schema changed - regenerate embedding
-                log.debug(`Tool ${schema.tool_id} changed, regenerating embedding`);
-              }
-
-              // 3b. Generate new embedding
-              const text = schemaToText(schema);
-              const embedding = await model.encode(text);
-
-              // 3c. Store in database with ON CONFLICT for upsert
-              // Include full schema in metadata for pml_discover response
-              await tx.query(
-                `INSERT INTO tool_embedding (tool_id, server_id, tool_name, embedding, metadata, created_at)
-                 VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
-                 ON CONFLICT (tool_id) DO UPDATE
-                 SET embedding = EXCLUDED.embedding,
-                     metadata = EXCLUDED.metadata,
-                     created_at = NOW()`,
-                [
-                  schema.tool_id,
-                  schema.server_id,
-                  schema.name,
-                  `[${embedding.join(",")}]`,
-                  { // postgres.js auto-serializes to JSONB
-                    description: schema.description,
-                    schema: {
-                      inputSchema: schema.input_schema,
-                      outputSchema: schema.output_schema,
-                    },
-                    generated_at: new Date().toISOString(),
-                  },
-                ],
-              );
-
-              // Track metric for getPeriodStats().newNodesAdded
-              await tx.query(
-                `INSERT INTO metrics (metric_name, value, metadata, timestamp)
-                 VALUES ('tool_embedded', 1, $1::jsonb, NOW())`,
-                [{ tool_id: schema.tool_id }], // postgres.js/pglite auto-serializes to JSONB
-              );
-
-              newlyGenerated++;
-              progress.increment();
-            } catch (error) {
-              // Log individual tool failure but continue processing
-              log.error(`✗ Failed to process tool ${row.tool_id as string}: ${error}`);
-              progress.increment();
-              // Continue with next tool
-            }
-          }
-        });
-      } catch (error) {
-        // Log batch failure but continue with next batch
-        log.error(`✗ Failed to process batch: ${error}`);
-        // Progress already incremented for failed tools in the batch
-      }
+      await processBatch(db, model, batch as unknown as ToolSchemaRow[], stats, progress);
     }
 
     const duration = progress.finish();
+    logCompletionStats(stats, duration);
 
-    log.info(`✓ Embedding generation complete in ${duration.toFixed(1)}s`);
-    log.info(`  - New embeddings: ${newlyGenerated}`);
-    log.info(`  - Cached: ${cachedCount}`);
-    log.info(`  - Total: ${totalTools}`);
-
-    return {
-      totalTools,
-      newlyGenerated,
-      cachedCount,
-      duration,
-    };
+    return { ...stats, duration };
   } catch (error) {
-    // Top-level error handling for database/model failures
     const duration = (performance.now() - startTime) / 1000;
-    log.error(`✗ Embedding generation failed after ${duration.toFixed(1)}s: ${error}`);
-    log.error(`  - Partial results: ${newlyGenerated} generated, ${cachedCount} cached`);
-
-    // Return partial results to allow graceful degradation
-    return {
-      totalTools,
-      newlyGenerated,
-      cachedCount,
-      duration,
-    };
+    log.error(`Embedding generation failed after ${duration.toFixed(1)}s: ${error}`);
+    log.error(`  - Partial results: ${stats.newlyGenerated} generated, ${stats.cachedCount} cached`);
+    return { ...stats, duration };
   }
 }
+
+/**
+ * Process a batch of tool schemas in a single transaction
+ */
+async function processBatch(
+  db: DbClient,
+  model: EmbeddingModelInterface,
+  batch: ToolSchemaRow[],
+  stats: { newlyGenerated: number; cachedCount: number },
+  progress: ProgressTracker,
+): Promise<void> {
+  try {
+    await db.transaction(async (tx) => {
+      for (const row of batch) {
+        await processToolSchema(tx, model, row, stats, progress);
+      }
+    });
+  } catch (error) {
+    log.error(`Failed to process batch: ${error}`);
+  }
+}
+
+/**
+ * Process a single tool schema: check cache, generate embedding, store
+ */
+async function processToolSchema(
+  tx: Transaction,
+  model: EmbeddingModelInterface,
+  row: ToolSchemaRow,
+  stats: { newlyGenerated: number; cachedCount: number },
+  progress: ProgressTracker,
+): Promise<void> {
+  try {
+    const schema = rowToToolSchema(row);
+
+    const existing = await tx.query(CHECK_EMBEDDING_SQL, [schema.tool_id]);
+    if (existing.length > 0) {
+      const existingMeta = existing[0].metadata as EmbeddingMetadata | null;
+      if (isEmbeddingCacheValid(schema, existingMeta)) {
+        stats.cachedCount++;
+        progress.increment();
+        return;
+      }
+      log.debug(`Tool ${schema.tool_id} changed, regenerating embedding`);
+    }
+
+    const text = schemaToText(schema);
+    const embedding = await model.encode(text);
+
+    const metadata: EmbeddingMetadata = {
+      description: schema.description,
+      schema: {
+        inputSchema: schema.input_schema,
+        outputSchema: schema.output_schema,
+      },
+      generated_at: new Date().toISOString(),
+    };
+
+    await tx.query(UPSERT_EMBEDDING_SQL, [
+      schema.tool_id,
+      schema.server_id,
+      schema.name,
+      `[${embedding.join(",")}]`,
+      metadata,
+    ]);
+
+    await tx.query(TRACK_METRIC_SQL, [{ tool_id: schema.tool_id }]);
+
+    stats.newlyGenerated++;
+    progress.increment();
+  } catch (error) {
+    log.error(`Failed to process tool ${row.tool_id}: ${error}`);
+    progress.increment();
+  }
+}
+
+/**
+ * Log completion statistics
+ */
+function logCompletionStats(
+  stats: { totalTools: number; newlyGenerated: number; cachedCount: number },
+  duration: number,
+): void {
+  log.info(`Embedding generation complete in ${duration.toFixed(1)}s`);
+  log.info(`  - New embeddings: ${stats.newlyGenerated}`);
+  log.info(`  - Cached: ${stats.cachedCount}`);
+  log.info(`  - Total: ${stats.totalTools}`);
+}
+
+/** SQL for fetching a single tool schema */
+const FETCH_SINGLE_SCHEMA_SQL =
+  "SELECT tool_id, server_id, name, description, input_schema FROM tool_schema WHERE tool_id = $1";
 
 /**
  * Generate embedding for a single tool (useful for incremental updates)
@@ -496,50 +570,25 @@ export async function generateEmbeddingForTool(
 ): Promise<EmbeddingGenerationResult> {
   await model.load();
 
-  // Fetch tool schema
-  const row = await db.queryOne(
-    "SELECT tool_id, server_id, name, description, input_schema FROM tool_schema WHERE tool_id = $1",
-    [toolId],
-  );
-
+  const row = await db.queryOne(FETCH_SINGLE_SCHEMA_SQL, [toolId]);
   if (!row) {
     throw new Error(`Tool schema not found: ${toolId}`);
   }
 
-  const schema: ToolSchema = {
-    tool_id: row.tool_id as string,
-    server_id: row.server_id as string,
-    name: row.name as string,
-    description: row.description as string || "",
-    input_schema:
-      (typeof row.input_schema === "string"
-        ? JSON.parse(row.input_schema)
-        : row.input_schema) as Record<string, unknown>,
-  };
-
-  // Generate embedding
+  const schema = rowToToolSchema(row as unknown as ToolSchemaRow);
   const text = schemaToText(schema);
   const embedding = await model.encode(text);
 
-  // Store in database
-  await db.query(
-    `INSERT INTO tool_embedding (tool_id, server_id, tool_name, embedding, metadata, created_at)
-     VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
-     ON CONFLICT (tool_id) DO UPDATE
-     SET embedding = EXCLUDED.embedding,
-         metadata = EXCLUDED.metadata,
-         created_at = NOW()`,
-    [
-      schema.tool_id,
-      schema.server_id,
-      schema.name,
-      `[${embedding.join(",")}]`,
-      { // postgres.js/pglite auto-serializes to JSONB
-        schema_hash: text.substring(0, 100),
-        generated_at: new Date().toISOString(),
-      },
-    ],
-  );
+  await db.query(UPSERT_EMBEDDING_SQL, [
+    schema.tool_id,
+    schema.server_id,
+    schema.name,
+    `[${embedding.join(",")}]`,
+    {
+      schema_hash: text.substring(0, 100),
+      generated_at: new Date().toISOString(),
+    },
+  ]);
 
   return {
     toolId: schema.tool_id,

@@ -8,13 +8,7 @@
 
 import { useEffect, useRef } from "preact/hooks";
 import type { DailyCount } from "../../admin/types.ts";
-
-// ECharts type declaration
-declare global {
-  interface Window {
-    echarts: typeof import("echarts");
-  }
-}
+import type { EChartsInstance } from "./types.ts";
 
 interface ExecutionsByDayChartProps {
   data: DailyCount[];
@@ -26,9 +20,7 @@ export default function ExecutionsByDayChart({
   height = "200px",
 }: ExecutionsByDayChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<ReturnType<typeof window.echarts.init> | null>(
-    null,
-  );
+  const chartInstance = useRef<EChartsInstance | null>(null);
 
   useEffect(() => {
     if (!chartRef.current || !window.echarts || data.length === 0) return;

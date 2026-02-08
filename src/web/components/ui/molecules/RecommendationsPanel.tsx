@@ -11,7 +11,6 @@ import { useState } from "preact/hooks";
 import type { Recommendation } from "../../../../shared/emergence.types.ts";
 
 interface RecommendationsPanelProps {
-  /** List of recommendations */
   recommendations: Recommendation[];
 }
 
@@ -19,14 +18,11 @@ const TYPE_STYLES: Record<
   Recommendation["type"],
   { bg: string; border: string; icon: string }
 > = {
-  warning: { bg: "rgba(251, 191, 36, 0.1)", border: "#fbbf24", icon: "⚠️" },
-  info: { bg: "rgba(96, 165, 250, 0.1)", border: "#60a5fa", icon: "ℹ️" },
-  success: { bg: "rgba(74, 222, 128, 0.1)", border: "#4ade80", icon: "✓" },
+  warning: { bg: "bg-pml-accent/10", border: "border-l-pml-accent", icon: "⚠️" },
+  info: { bg: "bg-blue-400/10", border: "border-l-blue-400", icon: "ℹ️" },
+  success: { bg: "bg-green-400/10", border: "border-l-green-400", icon: "✓" },
 };
 
-/**
- * Collapsible panel showing emergence recommendations
- */
 export function RecommendationsPanel({
   recommendations,
 }: RecommendationsPanelProps) {
@@ -35,21 +31,14 @@ export function RecommendationsPanel({
   if (recommendations.length === 0) return null;
 
   return (
-    <div
-      class="rounded-lg overflow-hidden"
-      style={{
-        background: "var(--bg-surface)",
-        border: "1px solid var(--border)",
-      }}
-    >
+    <div class="rounded-lg overflow-hidden bg-stone-900 border border-amber-500/10">
       <button
         type="button"
-        class="w-full p-2 flex items-center justify-between text-sm font-semibold"
-        style={{ color: "var(--text)" }}
+        class="w-full p-2 flex items-center justify-between text-sm font-semibold text-stone-100"
         onClick={() => setCollapsed(!collapsed)}
       >
         <span>Recommendations ({recommendations.length})</span>
-        <span style={{ color: "var(--text-dim)" }}>
+        <span class="text-stone-500">
           {collapsed ? "▶" : "▼"}
         </span>
       </button>
@@ -60,18 +49,14 @@ export function RecommendationsPanel({
             return (
               <div
                 key={idx}
-                class="p-2 rounded text-xs"
-                style={{
-                  background: style.bg,
-                  borderLeft: `3px solid ${style.border}`,
-                }}
+                class={`p-2 rounded text-xs border-l-[3px] ${style.bg} ${style.border}`}
               >
                 <div class="flex items-start gap-1.5">
                   <span>{style.icon}</span>
                   <div>
-                    <div style={{ color: "var(--text)" }}>{rec.message}</div>
+                    <div class="text-stone-100">{rec.message}</div>
                     {rec.action && (
-                      <div class="mt-1" style={{ color: "var(--text-muted)" }}>
+                      <div class="mt-1 text-stone-400">
                         → {rec.action}
                       </div>
                     )}

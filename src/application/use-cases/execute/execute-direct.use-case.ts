@@ -39,6 +39,7 @@ import { getUserScope, resolveToolFqdn } from "../../../lib/user.ts";
 import { saveWorkflowState } from "../../../cache/workflow-state-cache.ts";
 import type { LearningContext } from "../../../cache/types.ts";
 import { computeLayerIndexForTasks } from "../../../dag/mod.ts";
+import { uuidv7 } from "../../../utils/uuid.ts";
 
 // ============================================================================
 // Interfaces (Clean Architecture - no concrete imports)
@@ -351,7 +352,7 @@ export class ExecuteDirectUseCase {
           if (isPackageClient) {
             // Package client: store LearningContext and return execute_locally response
             // Client will execute locally and send trace with workflowId for capability creation
-            const workflowId = crypto.randomUUID();
+            const workflowId = uuidv7();
 
             // Get user scope for FQDN generation (multi-tenant support)
             const scope = await getUserScope(this.userId ?? null);
@@ -523,7 +524,7 @@ export class ExecuteDirectUseCase {
         }
 
         // Step 8: Save capability and emit learning event
-        const correlationId = crypto.randomUUID();
+        const correlationId = uuidv7();
         const { capability, capabilityFqdn, capabilityName } = await this.saveCapability(
           code,
           intent,
@@ -608,10 +609,10 @@ export class ExecuteDirectUseCase {
   // ==========================================================================
 
   private getFirstError(results: DAGExecutionResults): string {
-    const failedResults = results.results.filter(
+    const failedResult = results.results.find(
       (r) => r.status === "error" || r.status === "failed_safe",
     );
-    return failedResults[0]?.error ?? results.errors[0]?.error ?? "Unknown error";
+    return failedResult?.error ?? results.errors[0]?.error ?? "Unknown error";
   }
 
   private async saveCapability(

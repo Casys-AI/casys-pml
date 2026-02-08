@@ -17,50 +17,27 @@ interface DagStepProps {
 export function DagStep({ name, time, success, color, isLast }: DagStepProps) {
   return (
     <div
-      class={`dag-step ${isLast ? "dag-step--final" : ""}`}
-      style={{ "--step-color": color } as any}
+      class="group relative flex flex-col items-center gap-1 py-3 px-4 bg-stone-950 border rounded-lg min-w-[110px] transition-all duration-200 hover:-translate-y-0.5"
+      style={{
+        borderColor: color,
+        boxShadow: isLast ? `inset 0 0 20px ${color}15` : undefined,
+        background: isLast ? `linear-gradient(135deg, ${color}10 0%, #0c0a09 100%)` : undefined,
+      }}
     >
-      <span class="dag-step__name">{name}</span>
-      <span class="dag-step__time">
+      <span
+        class="font-mono text-xs font-medium"
+        style={{ color }}
+      >
+        {name}
+      </span>
+      <span class="font-mono text-[0.65rem] text-green-400">
         {success ? "✓" : "✗"} {time}ms
       </span>
 
       <style>
         {`
-        .dag-step {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.25rem;
-          padding: 0.75rem 1rem;
-          background: #0d0d10;
-          border: 1px solid var(--step-color, #FFB86F);
-          border-radius: 8px;
-          min-width: 110px;
-          transition: all 0.2s ease;
-        }
-
-        .dag-step:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px color-mix(in srgb, var(--step-color) 30%, transparent);
-        }
-
-        .dag-step--final {
-          background: linear-gradient(135deg, color-mix(in srgb, var(--step-color) 10%, transparent) 0%, #0d0d10 100%);
-        }
-
-        .dag-step__name {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.75rem;
-          font-weight: 500;
-          color: var(--step-color, #FFB86F);
-        }
-
-        .dag-step__time {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.65rem;
-          color: #4ade80;
+        .group:hover {
+          box-shadow: 0 4px 12px ${color}30;
         }
         `}
       </style>

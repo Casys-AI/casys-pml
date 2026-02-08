@@ -35,28 +35,8 @@ import {
   extractShortHash,
 } from "./hash-utils.ts";
 
-// Cached server config from .mcp-servers.json
-let cachedServerConfig: Record<string, ServerConnectionInfo> | null = null;
-
-/**
- * Load MCP server config from config/.mcp-servers.json
- */
-async function loadServerConfigFromFile(): Promise<Record<string, ServerConnectionInfo>> {
-  if (cachedServerConfig !== null) return cachedServerConfig;
-
-  try {
-    const content = await Deno.readTextFile("config/.mcp-servers.json");
-    const parsed = JSON.parse(content);
-    // Handle { mcpServers: { ... } } format
-    cachedServerConfig = parsed.mcpServers || parsed;
-    log.debug("[McpRegistry] Loaded server config from config/.mcp-servers.json");
-  } catch {
-    log.debug("[McpRegistry] No .mcp-servers.json found");
-    cachedServerConfig = {};
-  }
-
-  return cachedServerConfig!;
-}
+// Tech-spec 01.5: Server config now comes from tool_observations DB table
+// (synced from client .pml.json via POST /api/tools/sync)
 
 /**
  * MCP Registry Service
@@ -234,7 +214,8 @@ export class McpRegistryService {
         );
 
         if (result.length > 0 && result[0].code_snippet) {
-          return result[0].code_snippet as string;
+          const rawCode = result[0].code_snippet as string;
+          return await this.resolveCapRefs(rawCode);
         }
       } catch (e) {
         log.warn(`[McpRegistry] Failed to get code for ${fqdn}: ${e}`);
@@ -243,6 +224,64 @@ export class McpRegistryService {
 
     // MiniTools (pml.std.*) are bundled client-side in lib/std/bundle.js
     // No server-side code serving needed - client uses local bundle
+    return null;
+  }
+
+  /**
+   * Resolve a capability by namespace:action name with scope-aware lookup.
+   *
+   * Mirrors CapabilityRegistry.resolveByName() but returns McpRegistryEntry.
+   * Used when the package sends a FQDN with wrong org/project (e.g., pml.mcp.fake.person)
+   * but the capability exists under a different org/project (e.g., local.default.fake.person).
+   *
+   * Resolution order:
+   * 1. User scope: org/project/namespace/action
+   * 2. Public: namespace/action with visibility='public'
+   *
+   * @param name - namespace:action format (e.g., "fake:person")
+   * @param scope - { org, project } from user session
+   * @returns Registry entry or null
+   */
+  async resolveByName(
+    name: string,
+    scope: { org: string; project: string },
+  ): Promise<McpRegistryEntry | null> {
+    const colonIndex = name.indexOf(":");
+    if (colonIndex <= 0) {
+      log.debug(`[McpRegistry] resolveByName: invalid format (no colon): ${name}`);
+      return null;
+    }
+
+    const namespace = name.substring(0, colonIndex);
+    const action = name.substring(colonIndex + 1);
+
+    // 1. Try user scope: exact org/project/namespace/action
+    const scopeResult = await this.db.query(
+      `SELECT * FROM pml_registry
+       WHERE org = $1 AND project = $2 AND namespace = $3 AND action = $4
+       LIMIT 1`,
+      [scope.org, scope.project, namespace, action],
+    );
+
+    if (scopeResult.length > 0) {
+      log.debug(`[McpRegistry] resolveByName: found ${name} in scope ${scope.org}.${scope.project}`);
+      return await this.enrichRow(scopeResult[0] as unknown as PmlRegistryRow);
+    }
+
+    // 2. Try public visibility: namespace/action regardless of org/project
+    const publicResult = await this.db.query(
+      `SELECT * FROM pml_registry
+       WHERE namespace = $1 AND action = $2 AND visibility = 'public'
+       LIMIT 1`,
+      [namespace, action],
+    );
+
+    if (publicResult.length > 0) {
+      log.debug(`[McpRegistry] resolveByName: found ${name} as public capability`);
+      return await this.enrichRow(publicResult[0] as unknown as PmlRegistryRow);
+    }
+
+    log.debug(`[McpRegistry] resolveByName: ${name} not found in scope or public`);
     return null;
   }
 
@@ -432,9 +471,8 @@ export class McpRegistryService {
       };
 
       // Add type-specific fields
-      // Note: "std" uses binary distribution - client downloads from GitHub releases
-      // No install info needed as client's binary-resolver handles it
-      if (type === "stdio" && config && row.server_id !== "std") {
+      // Tech-spec 01.5: All servers (including std) get install info from observed_config
+      if (type === "stdio" && config) {
         entry.install = {
           command: config.command || "",
           args: config.args || [],
@@ -452,12 +490,73 @@ export class McpRegistryService {
   }
 
   /**
-   * Get server connection info from config/.mcp-servers.json
+   * Resolve $cap:UUID references in code_snippet to mcp.namespace.action format.
+   *
+   * Code_snippets store stable UUID refs: mcp["$cap:9f597aff-..."](args)
+   * The package sandbox only supports mcp.namespace.action(args).
+   * Server resolves UUIDs to current names at serve time.
+   */
+  private async resolveCapRefs(codeSnippet: string): Promise<string> {
+    // Match mcp["$cap:UUID"] and mcp['$cap:UUID']
+    const pattern = /\$cap:([a-f0-9-]+)/g;
+
+    const uuids = new Set<string>();
+    let match;
+    while ((match = pattern.exec(codeSnippet)) !== null) {
+      uuids.add(match[1]);
+    }
+
+    if (uuids.size === 0) return codeSnippet;
+
+    log.debug(`[McpRegistry] Resolving ${uuids.size} $cap:UUID refs in code_snippet`);
+
+    let result = codeSnippet;
+    for (const uuid of uuids) {
+      const rows = await this.db.query(
+        `SELECT namespace, action FROM capability_records WHERE id = $1 LIMIT 1`,
+        [uuid],
+      );
+
+      if (rows.length > 0) {
+        const { namespace, action } = rows[0] as { namespace: string; action: string };
+        // mcp["$cap:UUID"] → mcp.namespace.action
+        result = result.replaceAll(`mcp["$cap:${uuid}"]`, `mcp.${namespace}.${action}`);
+        result = result.replaceAll(`mcp['$cap:${uuid}']`, `mcp.${namespace}.${action}`);
+        log.debug(`[McpRegistry] Resolved $cap:${uuid} → ${namespace}:${action}`);
+      } else {
+        log.warn(`[McpRegistry] $cap:UUID not found in capability_records: ${uuid}`);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get server connection info from tool_observations DB.
+   * Tech-spec 01.5: Config is synced from client .pml.json
    */
   private async getServerConfig(serverId: string | null): Promise<ServerConnectionInfo | null> {
     if (!serverId) return null;
 
-    const configs = await loadServerConfigFromFile();
-    return configs[serverId] || null;
+    try {
+      // Query tool_observations for the server's observed_config
+      // Note: observed_config is JSONB containing { command, args, env }
+      const rows = await this.db.query(
+        `SELECT observed_config
+         FROM tool_observations
+         WHERE server_namespace = $1
+         LIMIT 1`,
+        [serverId],
+      ) as { observed_config: ServerConnectionInfo }[];
+
+      if (rows.length > 0 && rows[0].observed_config) {
+        return rows[0].observed_config;
+      }
+
+      return null;
+    } catch (e) {
+      log.debug(`[McpRegistry] Error getting server config for ${serverId}: ${e}`);
+      return null;
+    }
   }
 }

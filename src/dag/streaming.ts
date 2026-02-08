@@ -115,32 +115,18 @@ export class BufferedEventStream {
    * Write event to stream with buffering
    */
   async write(event: SSEEvent): Promise<void> {
-    // Add to buffer
     this.buffer.push(event);
-
-    // Flush if buffer full
-    if (this.buffer.length >= this.maxBufferSize) {
-      await this.flush();
-    }
-
-    // Write to downstream
+    if (this.buffer.length >= this.maxBufferSize) await this.flush();
     await this.downstream.write(event);
   }
 
   /**
    * Flush buffer (for memory management)
    */
-  async flush(): Promise<void> {
+  flush(): void {
     if (this.buffer.length === 0) return;
-
-    if (this.onFlush) {
-      this.onFlush([...this.buffer]);
-    }
-
-    log.warn(
-      `Event buffer flushed (${this.buffer.length} events) - consider adjusting buffer size`,
-    );
-
+    this.onFlush?.([...this.buffer]);
+    log.warn(`Event buffer flushed (${this.buffer.length} events) - consider adjusting buffer size`);
     this.buffer = [];
   }
 
@@ -148,7 +134,7 @@ export class BufferedEventStream {
    * Close stream
    */
   async close(): Promise<void> {
-    await this.flush();
+    this.flush();
     await this.downstream.close();
   }
 }

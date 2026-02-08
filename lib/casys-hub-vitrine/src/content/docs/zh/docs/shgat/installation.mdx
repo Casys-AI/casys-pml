@@ -1,0 +1,119 @@
+---
+title: 安装
+description: 通过 JSR 安装 @casys/shgat 并配置 libtensorflow。
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+安装软件包，配置原生 TensorFlow 后端，并验证一切正常运行。
+
+## 安装
+
+<Tabs>
+  <TabItem label="Deno（推荐）">
+    ```bash
+    deno add jsr:@casys/shgat
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npx jsr add @casys/shgat
+    ```
+  </TabItem>
+</Tabs>
+
+发布在 [JSR](https://jsr.io/@casys/shgat)，现代 JavaScript 注册表。
+
+## 系统要求
+
+| 依赖 | 最低版本 | 说明 |
+|-----------|----------------|-------|
+| **Deno** | 2.0+ | FFI 需要 `--unstable-ffi` 标志 |
+| **libtensorflow** | 2.15.x | 原生 C 库（见下文） |
+| **Linux x86_64** | Ubuntu 20.04+ / Debian 11+ | 也支持 macOS x86_64 |
+| **CUDA**（可选） | 11.8+ | 仅用于 GPU 加速 |
+
+## TensorFlow 安装
+
+`@casys/shgat` 通过 `Deno.dlopen` 直接使用 C TensorFlow 库。您需要在系统上安装 `libtensorflow`。
+
+### 方案 A：安装脚本
+
+```bash
+./scripts/install-libtensorflow.sh        # CPU (default)
+./scripts/install-libtensorflow.sh gpu     # GPU (requires CUDA 11.8+)
+```
+
+### 方案 B：手动安装
+
+<Tabs>
+  <TabItem label="Linux">
+    ```bash
+    # Download libtensorflow 2.15.0 (CPU)
+    curl -L https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.15.0.tar.gz \
+      -o /tmp/libtensorflow.tar.gz
+
+    # Extract to /usr/local
+    sudo tar -C /usr/local -xzf /tmp/libtensorflow.tar.gz
+
+    # Update library cache
+    sudo ldconfig
+
+    # Verify
+    ls /usr/local/lib/libtensorflow.so
+    ```
+  </TabItem>
+  <TabItem label="macOS">
+    ```bash
+    # Download libtensorflow 2.15.0 (CPU)
+    curl -L https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-darwin-x86_64-2.15.0.tar.gz \
+      -o /tmp/libtensorflow.tar.gz
+
+    # Extract to /usr/local
+    sudo tar -C /usr/local -xzf /tmp/libtensorflow.tar.gz
+
+    # Verify
+    ls /usr/local/lib/libtensorflow.dylib
+    ```
+  </TabItem>
+</Tabs>
+
+## 验证安装
+
+创建 `test-shgat.ts` 文件：
+
+```typescript
+import { createSHGAT, type Node } from "@casys/shgat";
+
+const nodes: Node[] = [
+  { id: "tool-a", embedding: new Array(1024).fill(0.1), children: [], level: 0 },
+  { id: "tool-b", embedding: new Array(1024).fill(0.2), children: [], level: 0 },
+  { id: "group",  embedding: new Array(1024).fill(0.15), children: ["tool-a", "tool-b"], level: 1 },
+];
+
+const model = createSHGAT(nodes);
+console.log(`Nodes registered: ${model.getToolCount()} leaves, ${model.getCapabilityCount()} composites`);
+
+const scores = model.scoreNodes(new Array(1024).fill(0.1));
+console.log("Top result:", scores[0]?.nodeId, scores[0]?.score.toFixed(4));
+
+model.dispose();
+```
+
+运行：
+
+```bash
+deno run --unstable-ffi --allow-ffi test-shgat.ts
+```
+
+<Aside type="tip">
+  如果您看到节点数量和分数，说明原生 TensorFlow 后端运行正常。前往快速入门来对真实节点进行评分。
+</Aside>
+
+<Aside>
+  SHGAT 通过 Deno FFI（`Deno.dlopen`）使用 libtensorflow。没有 WASM，没有 npm tf 包，原生 C 性能。`--unstable-ffi` 和 `--allow-ffi` 标志是 Deno 加载共享库所必需的。
+</Aside>
+
+## 下一步
+
+对您的第一批真实节点进行评分并查看排名结果：**[快速入门](/zh/docs/shgat/quickstart/)**。

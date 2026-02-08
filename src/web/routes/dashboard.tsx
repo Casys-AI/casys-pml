@@ -72,32 +72,6 @@ export default function Dashboard({ data }: { data: DashboardData }) {
         {/* ECharts for emergence metrics visualization */}
         <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js">
         </script>
-        <style>
-          {`
-          * {
-            scrollbar-width: thin;
-            scrollbar-color: var(--accent-dim) transparent;
-          }
-
-          *::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-          }
-
-          *::-webkit-scrollbar-track {
-            background: transparent;
-          }
-
-          *::-webkit-scrollbar-thumb {
-            background: var(--accent-dim);
-            border-radius: 3px;
-          }
-
-          *::-webkit-scrollbar-thumb:hover {
-            background: var(--accent-medium);
-          }
-        `}
-        </style>
       </Head>
 
       <DashboardLayout

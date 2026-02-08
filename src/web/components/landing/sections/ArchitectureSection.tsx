@@ -9,36 +9,40 @@
 
 export function ArchitectureSection() {
   return (
-    <section class="arch">
-      <div class="arch__container">
-        <div class="arch__header">
-          <span class="arch__eyebrow">Architecture</span>
-          <h2 class="arch__title">How it works</h2>
-          <p class="arch__subtitle">
+    <section class="relative py-16 px-8 sm:py-12 sm:px-5 bg-[#08080a]">
+      <div class="max-w-[1100px] mx-auto">
+        <div class="text-center mb-10">
+          <p class="font-mono text-[0.7rem] font-medium text-pml-accent uppercase tracking-[0.2em] mb-3">
+            Architecture
+          </p>
+          <h2 class="font-serif text-[clamp(1.5rem,3vw,2.25rem)] font-normal text-stone-100 mb-3">
+            How it works
+          </h2>
+          <p class="text-[0.95rem] text-stone-500 max-w-[480px] mx-auto leading-relaxed">
             A unified gateway that connects any LLM to any MCP server, with full observability and continuous learning.
           </p>
         </div>
 
-        <div class="arch__diagram">
-          {/* Clients */}
-          <div class="arch__column arch__column--clients">
-            <div class="arch__column-label">Clients</div>
-            <div class="arch__box arch__box--clients">
-              <div class="arch__client">Claude</div>
-              <div class="arch__client">GPT</div>
-              <div class="arch__client">Gemini</div>
-              <div class="arch__client">Ollama</div>
-              <div class="arch__client arch__client--any">(Any LLM)</div>
+        <div class="hidden md:flex items-center justify-center gap-2">
+          <div class="flex flex-col items-center gap-4 self-start">
+            <div class="font-mono text-[0.7rem] font-semibold text-stone-500 uppercase tracking-[0.1em]">
+              Clients
             </div>
-            <div class="arch__pillar arch__pillar--1">
-              <span class="arch__pillar-num">1</span>
-              <span class="arch__pillar-label">Model-Agnostic</span>
+            <div class="flex flex-col gap-2 p-5 rounded-xl bg-white/[0.02] border border-pml-accent/15 min-w-[120px]">
+              <div class="font-mono text-[0.8rem] text-stone-400 py-1.5 px-3 bg-pml-accent/5 rounded-md text-center">Claude</div>
+              <div class="font-mono text-[0.8rem] text-stone-400 py-1.5 px-3 bg-pml-accent/5 rounded-md text-center">GPT</div>
+              <div class="font-mono text-[0.8rem] text-stone-400 py-1.5 px-3 bg-pml-accent/5 rounded-md text-center">Gemini</div>
+              <div class="font-mono text-[0.8rem] text-stone-400 py-1.5 px-3 bg-pml-accent/5 rounded-md text-center">Ollama</div>
+              <div class="font-mono text-[0.7rem] text-stone-600 text-center">(Any LLM)</div>
+            </div>
+            <div class="flex items-center gap-2 mt-3 py-1.5 px-3 rounded-md bg-pml-accent/5 border border-pml-accent/15">
+              <span class="font-mono text-[0.65rem] font-bold text-[#08080a] bg-pml-accent w-[18px] h-[18px] flex items-center justify-center rounded-full">1</span>
+              <span class="font-sans text-[0.7rem] font-medium text-pml-accent uppercase tracking-[0.05em]">Model-Agnostic</span>
             </div>
           </div>
 
-          {/* Arrow Left */}
-          <div class="arch__arrow">
-            <svg viewBox="0 0 60 24" class="arch__arrow-svg">
+          <div class="px-1">
+            <svg viewBox="0 0 60 24" class="w-[50px] h-6">
               <defs>
                 <linearGradient id="arrowGradH" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#FFB86F" stopOpacity="0.3" />
@@ -49,467 +53,95 @@ export function ArchitectureSection() {
             </svg>
           </div>
 
-          {/* Gateway */}
-          <div class="arch__column arch__column--gateway">
-            <div class="arch__column-label">PML Gateway</div>
-            <div class="arch__box arch__box--gateway">
-              <div class="arch__gateway-row">
-                <div class="arch__gateway-item">Registry</div>
-                <span class="arch__gateway-arrow">→</span>
-                <div class="arch__gateway-item">DAG</div>
-                <span class="arch__gateway-arrow">→</span>
-                <div class="arch__gateway-item">Sandbox</div>
+          <div class="flex flex-col items-center gap-4 self-center">
+            <div class="font-mono text-[0.7rem] font-semibold text-stone-500 uppercase tracking-[0.1em]">
+              PML Gateway
+            </div>
+            <div class="p-5 rounded-xl bg-pml-accent/[0.03] border border-pml-accent/25 min-w-[340px]">
+              <div class="flex items-center justify-center gap-2 mb-4">
+                <div class="font-mono text-[0.75rem] font-medium text-stone-100 py-2 px-3 bg-[#0d0d10] border border-pml-accent/20 rounded-md">Registry</div>
+                <span class="text-pml-accent opacity-50 text-[0.8rem]">→</span>
+                <div class="font-mono text-[0.75rem] font-medium text-stone-100 py-2 px-3 bg-[#0d0d10] border border-pml-accent/20 rounded-md">DAG</div>
+                <span class="text-pml-accent opacity-50 text-[0.8rem]">→</span>
+                <div class="font-mono text-[0.75rem] font-medium text-stone-100 py-2 px-3 bg-[#0d0d10] border border-pml-accent/20 rounded-md">Sandbox</div>
               </div>
-              <div class="arch__gateway-bottom">
-                <div class="arch__gateway-item arch__gateway-item--world">
+              <div class="flex items-center justify-center gap-3 pt-4 border-t border-dashed border-pml-accent/15">
+                <div class="font-mono text-[0.7rem] text-green-400 py-2 px-3 bg-[#0d0d10] border border-green-400/30 rounded-md">
                   Symbolic World Model
                 </div>
-                <span class="arch__gateway-learn">← learn</span>
-                <div class="arch__gateway-item arch__gateway-item--obs">
+                <span class="font-mono text-[0.65rem] text-green-400 opacity-70">← learn</span>
+                <div class="font-mono text-[0.7rem] text-blue-400 py-2 px-3 bg-[#0d0d10] border border-blue-400/30 rounded-md">
                   Observability
                 </div>
               </div>
             </div>
-            <div class="arch__pillars-row">
-              <div class="arch__pillar arch__pillar--2">
-                <span class="arch__pillar-num">2</span>
-                <span class="arch__pillar-label">Observability</span>
+            <div class="flex gap-3 mt-3">
+              <div class="flex items-center gap-2 py-1.5 px-3 rounded-md bg-blue-400/5 border border-blue-400/20">
+                <span class="font-mono text-[0.65rem] font-bold text-[#08080a] bg-blue-400 w-[18px] h-[18px] flex items-center justify-center rounded-full">2</span>
+                <span class="font-sans text-[0.7rem] font-medium text-blue-400 uppercase tracking-[0.05em]">Observability</span>
               </div>
-              <div class="arch__pillar arch__pillar--3">
-                <span class="arch__pillar-num">3</span>
-                <span class="arch__pillar-label">Intelligence</span>
+              <div class="flex items-center gap-2 py-1.5 px-3 rounded-md bg-green-400/5 border border-green-400/20">
+                <span class="font-mono text-[0.65rem] font-bold text-[#08080a] bg-green-400 w-[18px] h-[18px] flex items-center justify-center rounded-full">3</span>
+                <span class="font-sans text-[0.7rem] font-medium text-green-400 uppercase tracking-[0.05em]">Intelligence</span>
               </div>
             </div>
           </div>
 
-          {/* Arrow Right */}
-          <div class="arch__arrow">
-            <svg viewBox="0 0 60 24" class="arch__arrow-svg">
+          <div class="px-1">
+            <svg viewBox="0 0 60 24" class="w-[50px] h-6">
               <path d="M0 12 L50 12 M44 6 L50 12 L44 18" stroke="url(#arrowGradH)" strokeWidth="2" fill="none" strokeLinecap="round" />
             </svg>
           </div>
 
-          {/* MCP Servers */}
-          <div class="arch__column arch__column--servers">
-            <div class="arch__column-label">MCP Servers</div>
-            <div class="arch__box arch__box--servers">
-              <div class="arch__server">filesystem</div>
-              <div class="arch__server">postgres</div>
-              <div class="arch__server">github</div>
-              <div class="arch__server">memory</div>
-              <div class="arch__server arch__server--any">(Any Tools)</div>
+          <div class="flex flex-col items-center gap-4 self-start">
+            <div class="font-mono text-[0.7rem] font-semibold text-stone-500 uppercase tracking-[0.1em]">
+              MCP Servers
+            </div>
+            <div class="flex flex-col gap-2 p-5 rounded-xl bg-white/[0.02] border border-pml-accent/15 min-w-[120px]">
+              <div class="font-mono text-[0.8rem] text-stone-400 py-1.5 px-3 bg-pml-accent/5 rounded-md text-center">filesystem</div>
+              <div class="font-mono text-[0.8rem] text-stone-400 py-1.5 px-3 bg-pml-accent/5 rounded-md text-center">postgres</div>
+              <div class="font-mono text-[0.8rem] text-stone-400 py-1.5 px-3 bg-pml-accent/5 rounded-md text-center">github</div>
+              <div class="font-mono text-[0.8rem] text-stone-400 py-1.5 px-3 bg-pml-accent/5 rounded-md text-center">memory</div>
+              <div class="font-mono text-[0.7rem] text-stone-600 text-center">(Any Tools)</div>
             </div>
           </div>
         </div>
 
-        {/* Mobile: Simplified vertical view */}
-        <div class="arch__diagram-mobile">
-          <div class="arch__mobile-block">
-            <div class="arch__mobile-label">Any LLM Client</div>
-            <div class="arch__mobile-items">Claude · GPT · Gemini · Ollama</div>
-          </div>
-          <div class="arch__mobile-arrow">↓</div>
-          <div class="arch__mobile-block arch__mobile-block--gateway">
-            <div class="arch__mobile-label">PML Gateway</div>
-            <div class="arch__mobile-features">
-              <span>Registry</span>
-              <span>DAG Executor</span>
-              <span>Sandbox</span>
+        <div class="flex md:hidden flex-col items-center gap-2">
+          <div class="w-full max-w-[320px] p-5 rounded-xl bg-white/[0.02] border border-pml-accent/15 text-center">
+            <div class="font-mono text-[0.7rem] font-semibold text-pml-accent uppercase tracking-[0.1em] mb-3">
+              Any LLM Client
             </div>
-            <div class="arch__mobile-intelligence">
-              <span class="arch__mobile-world">Symbolic World Model</span>
-              <span class="arch__mobile-obs">Observability</span>
+            <div class="font-mono text-[0.8rem] text-stone-400">
+              Claude · GPT · Gemini · Ollama
             </div>
           </div>
-          <div class="arch__mobile-arrow">↓</div>
-          <div class="arch__mobile-block">
-            <div class="arch__mobile-label">MCP Servers</div>
-            <div class="arch__mobile-items">filesystem · postgres · github · (Any Tools)</div>
+          <div class="text-xl text-pml-accent opacity-50">↓</div>
+          <div class="w-full max-w-[320px] p-5 sm:p-4 rounded-xl bg-pml-accent/[0.03] border border-pml-accent/25 text-center">
+            <div class="font-mono text-[0.7rem] font-semibold text-pml-accent uppercase tracking-[0.1em] mb-3">
+              PML Gateway
+            </div>
+            <div class="flex justify-center gap-2 flex-wrap mb-4">
+              <span class="font-mono text-[0.7rem] sm:text-[0.65rem] text-stone-100 py-1.5 px-2.5 sm:py-1 sm:px-2 bg-[#0d0d10] border border-pml-accent/20 rounded-md">Registry</span>
+              <span class="font-mono text-[0.7rem] sm:text-[0.65rem] text-stone-100 py-1.5 px-2.5 sm:py-1 sm:px-2 bg-[#0d0d10] border border-pml-accent/20 rounded-md">DAG Executor</span>
+              <span class="font-mono text-[0.7rem] sm:text-[0.65rem] text-stone-100 py-1.5 px-2.5 sm:py-1 sm:px-2 bg-[#0d0d10] border border-pml-accent/20 rounded-md">Sandbox</span>
+            </div>
+            <div class="flex justify-center gap-3 pt-3 border-t border-dashed border-pml-accent/15">
+              <span class="font-mono text-[0.65rem] text-green-400 py-1 px-2 bg-green-400/10 border border-green-400/20 rounded">Symbolic World Model</span>
+              <span class="font-mono text-[0.65rem] text-blue-400 py-1 px-2 bg-blue-400/10 border border-blue-400/20 rounded">Observability</span>
+            </div>
+          </div>
+          <div class="text-xl text-pml-accent opacity-50">↓</div>
+          <div class="w-full max-w-[320px] p-5 rounded-xl bg-white/[0.02] border border-pml-accent/15 text-center">
+            <div class="font-mono text-[0.7rem] font-semibold text-pml-accent uppercase tracking-[0.1em] mb-3">
+              MCP Servers
+            </div>
+            <div class="font-mono text-[0.8rem] text-stone-400">
+              filesystem · postgres · github · (Any Tools)
+            </div>
           </div>
         </div>
       </div>
-
-      <style>
-        {`
-        .arch {
-          position: relative;
-          padding: 5rem 2rem;
-          background: #08080a;
-        }
-
-        .arch__container {
-          max-width: 1100px;
-          margin: 0 auto;
-        }
-
-        .arch__header {
-          text-align: center;
-          margin-bottom: 3rem;
-        }
-
-        .arch__eyebrow {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.7rem;
-          font-weight: 500;
-          color: #FFB86F;
-          text-transform: uppercase;
-          letter-spacing: 0.2em;
-        }
-
-        .arch__title {
-          font-family: 'Instrument Serif', Georgia, serif;
-          font-size: clamp(1.75rem, 3vw, 2.25rem);
-          font-weight: 400;
-          color: #f0ede8;
-          margin: 0.75rem 0;
-        }
-
-        .arch__subtitle {
-          font-size: 1rem;
-          color: #888;
-          max-width: 500px;
-          margin: 0 auto;
-          line-height: 1.6;
-        }
-
-        /* Desktop Diagram */
-        .arch__diagram {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-        }
-
-        .arch__column--clients,
-        .arch__column--servers {
-          align-self: flex-start;
-        }
-
-        .arch__column--gateway {
-          align-self: center;
-        }
-
-        .arch__diagram-mobile {
-          display: none;
-        }
-
-        .arch__column {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .arch__column-label {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.7rem;
-          font-weight: 600;
-          color: #666;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-        }
-
-        .arch__box {
-          padding: 1.25rem;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 184, 111, 0.15);
-        }
-
-        /* Clients */
-        .arch__box--clients {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-          min-width: 120px;
-        }
-
-        .arch__client {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.8rem;
-          color: #a8a29e;
-          padding: 0.4rem 0.75rem;
-          background: rgba(255, 184, 111, 0.05);
-          border-radius: 6px;
-          text-align: center;
-        }
-
-        .arch__client--any {
-          color: #666;
-          font-size: 0.7rem;
-          background: transparent;
-        }
-
-        /* Gateway */
-        .arch__box--gateway {
-          min-width: 340px;
-          background: rgba(255, 184, 111, 0.03);
-          border-color: rgba(255, 184, 111, 0.25);
-        }
-
-        .arch__gateway-row {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          margin-bottom: 1rem;
-        }
-
-        .arch__gateway-item {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.75rem;
-          font-weight: 500;
-          color: #f0ede8;
-          padding: 0.5rem 0.75rem;
-          background: #0d0d10;
-          border: 1px solid rgba(255, 184, 111, 0.2);
-          border-radius: 6px;
-        }
-
-        .arch__gateway-arrow {
-          color: #FFB86F;
-          opacity: 0.5;
-          font-size: 0.8rem;
-        }
-
-        .arch__gateway-bottom {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          padding-top: 1rem;
-          border-top: 1px dashed rgba(255, 184, 111, 0.15);
-        }
-
-        .arch__gateway-item--world {
-          color: #4ade80;
-          border-color: rgba(74, 222, 128, 0.3);
-          font-size: 0.7rem;
-        }
-
-        .arch__gateway-item--obs {
-          color: #60a5fa;
-          border-color: rgba(96, 165, 250, 0.3);
-          font-size: 0.7rem;
-        }
-
-        .arch__gateway-learn {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.65rem;
-          color: #4ade80;
-          opacity: 0.7;
-        }
-
-        /* Servers */
-        .arch__box--servers {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-          min-width: 120px;
-        }
-
-        .arch__server {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.8rem;
-          color: #a8a29e;
-          padding: 0.4rem 0.75rem;
-          background: rgba(255, 184, 111, 0.05);
-          border-radius: 6px;
-          text-align: center;
-        }
-
-        .arch__server--any {
-          color: #666;
-          font-size: 0.7rem;
-          background: transparent;
-        }
-
-        /* Arrows */
-        .arch__arrow {
-          padding: 0 0.25rem;
-        }
-
-        .arch__arrow-svg {
-          width: 50px;
-          height: 24px;
-        }
-
-        /* Pillars */
-        .arch__pillar {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-top: 0.75rem;
-          padding: 0.4rem 0.75rem;
-          border-radius: 6px;
-          background: rgba(255, 184, 111, 0.05);
-          border: 1px solid rgba(255, 184, 111, 0.15);
-        }
-
-        .arch__pillar-num {
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.65rem;
-          font-weight: 700;
-          color: #08080a;
-          background: #FFB86F;
-          width: 18px;
-          height: 18px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-        }
-
-        .arch__pillar-label {
-          font-family: 'Geist', sans-serif;
-          font-size: 0.7rem;
-          font-weight: 500;
-          color: #FFB86F;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .arch__pillar--2 .arch__pillar-num {
-          background: #60a5fa;
-        }
-        .arch__pillar--2 .arch__pillar-label {
-          color: #60a5fa;
-        }
-        .arch__pillar--2 {
-          border-color: rgba(96, 165, 250, 0.2);
-          background: rgba(96, 165, 250, 0.05);
-        }
-
-        .arch__pillar--3 .arch__pillar-num {
-          background: #4ade80;
-        }
-        .arch__pillar--3 .arch__pillar-label {
-          color: #4ade80;
-        }
-        .arch__pillar--3 {
-          border-color: rgba(74, 222, 128, 0.2);
-          background: rgba(74, 222, 128, 0.05);
-        }
-
-        .arch__pillars-row {
-          display: flex;
-          gap: 0.75rem;
-          margin-top: 0.75rem;
-        }
-
-        /* Mobile */
-        @media (max-width: 900px) {
-          .arch__diagram {
-            display: none;
-          }
-
-          .arch__diagram-mobile {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-          }
-
-          .arch__mobile-block {
-            width: 100%;
-            max-width: 320px;
-            padding: 1.25rem;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 184, 111, 0.15);
-            text-align: center;
-          }
-
-          .arch__mobile-block--gateway {
-            background: rgba(255, 184, 111, 0.03);
-            border-color: rgba(255, 184, 111, 0.25);
-          }
-
-          .arch__mobile-label {
-            font-family: 'Geist Mono', monospace;
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #FFB86F;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 0.75rem;
-          }
-
-          .arch__mobile-items {
-            font-family: 'Geist Mono', monospace;
-            font-size: 0.8rem;
-            color: #a8a29e;
-          }
-
-          .arch__mobile-features {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-bottom: 1rem;
-          }
-
-          .arch__mobile-features span {
-            font-family: 'Geist Mono', monospace;
-            font-size: 0.7rem;
-            color: #f0ede8;
-            padding: 0.4rem 0.6rem;
-            background: #0d0d10;
-            border: 1px solid rgba(255, 184, 111, 0.2);
-            border-radius: 6px;
-          }
-
-          .arch__mobile-intelligence {
-            display: flex;
-            justify-content: center;
-            gap: 0.75rem;
-            padding-top: 0.75rem;
-            border-top: 1px dashed rgba(255, 184, 111, 0.15);
-          }
-
-          .arch__mobile-world {
-            font-family: 'Geist Mono', monospace;
-            font-size: 0.65rem;
-            color: #4ade80;
-            padding: 0.3rem 0.5rem;
-            background: rgba(74, 222, 128, 0.1);
-            border: 1px solid rgba(74, 222, 128, 0.2);
-            border-radius: 4px;
-          }
-
-          .arch__mobile-obs {
-            font-family: 'Geist Mono', monospace;
-            font-size: 0.65rem;
-            color: #60a5fa;
-            padding: 0.3rem 0.5rem;
-            background: rgba(96, 165, 250, 0.1);
-            border: 1px solid rgba(96, 165, 250, 0.2);
-            border-radius: 4px;
-          }
-
-          .arch__mobile-arrow {
-            font-size: 1.25rem;
-            color: #FFB86F;
-            opacity: 0.5;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .arch {
-            padding: 3rem 1.25rem;
-          }
-
-          .arch__mobile-block {
-            padding: 1rem;
-          }
-
-          .arch__mobile-features span {
-            font-size: 0.65rem;
-            padding: 0.3rem 0.5rem;
-          }
-        }
-        `}
-      </style>
     </section>
   );
 }

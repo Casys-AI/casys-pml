@@ -9,69 +9,33 @@
  */
 
 import { getDb } from "../db/mod.ts";
-import {
-  AlgorithmTracer,
-  type UserAction,
-} from "../telemetry/algorithm-tracer.ts";
+import { AlgorithmTracer, type UserAction } from "../telemetry/algorithm-tracer.ts";
 import { recordAlgorithmDecision } from "../telemetry/otel.ts";
+import {
+  type AlgorithmMode,
+  type AlphaStatsResult,
+  type FeedbackRequest,
+  type FeedbackResult,
+  type MetricsResult,
+  type TracesResult,
+  UUID_REGEX,
+  VALID_MODES,
+  VALID_USER_ACTIONS,
+} from "./types.ts";
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface FeedbackRequest {
-  traceId: string;
-  userAction: UserAction;
-  executionSuccess?: boolean;
-  durationMs?: number;
-}
-
-export interface FeedbackResult {
-  success: boolean;
-  message: string;
-  traceId: string;
-}
-
-export interface AlphaStatsResult {
-  success: boolean;
-  windowHours: number;
-  stats: Awaited<ReturnType<AlgorithmTracer["getAlphaStats"]>>;
-}
-
-export interface TracesResult {
-  success: boolean;
-  traces: unknown[];
-  count: number;
-}
-
-export interface MetricsResult {
-  success: boolean;
-  windowHours: number;
-  mode: string;
-  metrics: Awaited<ReturnType<AlgorithmTracer["getMetrics"]>>;
-}
+// Re-export types for consumers
+export type { AlphaStatsResult, FeedbackRequest, FeedbackResult, MetricsResult, TracesResult };
 
 // ============================================================================
 // Validation
 // ============================================================================
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const VALID_USER_ACTIONS: UserAction[] = [
-  "selected",
-  "ignored",
-  "explicit_rejection",
-];
-const VALID_MODES = ["active_search", "passive_suggestion"] as const;
-
 export function isValidUserAction(action: unknown): action is UserAction {
   return VALID_USER_ACTIONS.includes(action as UserAction);
 }
 
-export function isValidMode(
-  mode: unknown,
-): mode is (typeof VALID_MODES)[number] {
-  return VALID_MODES.includes(mode as (typeof VALID_MODES)[number]);
+export function isValidMode(mode: unknown): mode is AlgorithmMode {
+  return VALID_MODES.includes(mode as AlgorithmMode);
 }
 
 export function isValidUUID(uuid: string): boolean {
@@ -141,7 +105,7 @@ export async function getAlphaStats(
  */
 export async function getAlgorithmMetrics(
   windowHours: number,
-  mode?: (typeof VALID_MODES)[number],
+  mode?: AlgorithmMode,
 ): Promise<MetricsResult> {
   const db = await getDb();
   const tracer = new AlgorithmTracer(db);

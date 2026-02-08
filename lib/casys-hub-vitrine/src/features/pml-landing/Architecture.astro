@@ -1,0 +1,665 @@
+---
+const locale = (Astro as any).currentLocale ?? 'en';
+
+const translations = {
+  en: {
+    eyebrow: 'Architecture',
+    title: 'How it works',
+    description: 'A unified gateway sits between your LLM and the tools it needs. Every request is decomposed into a directed acyclic graph, executed inside a sandbox, and fully traced.',
+    clients: {
+      label: 'Clients',
+      items: ['Claude', 'GPT', 'Gemini', 'Ollama', 'Any LLM'],
+    },
+    gateway: {
+      label: 'PML Gateway',
+      pipeline: ['Registry', 'DAG', 'Sandbox'],
+      extras: ['Symbolic World Model', 'Observability'],
+    },
+    servers: {
+      label: 'MCP Servers',
+      items: ['filesystem', 'postgres', 'github', 'memory', 'Any Tools'],
+    },
+    pillars: [
+      { label: 'Model-Agnostic', description: 'Works with any LLM provider' },
+      { label: 'Observability', description: 'Full trace of every action' },
+      { label: 'Intelligence', description: 'Symbolic reasoning layer' },
+    ],
+    mobileArrow: 'flows to',
+  },
+  fr: {
+    eyebrow: 'Architecture',
+    title: 'Comment \u00e7a marche',
+    description: 'Un gateway unifi\u00e9 se place entre votre LLM et les outils dont il a besoin. Chaque requ\u00eate est d\u00e9compos\u00e9e en graphe acyclique dirig\u00e9, ex\u00e9cut\u00e9e dans un sandbox, et enti\u00e8rement trac\u00e9e.',
+    clients: {
+      label: 'Clients',
+      items: ['Claude', 'GPT', 'Gemini', 'Ollama', 'Tout LLM'],
+    },
+    gateway: {
+      label: 'PML Gateway',
+      pipeline: ['Registre', 'DAG', 'Sandbox'],
+      extras: ['Mod\u00e8le Symbolique', 'Observabilit\u00e9'],
+    },
+    servers: {
+      label: 'Serveurs MCP',
+      items: ['filesystem', 'postgres', 'github', 'memory', 'Tout Outil'],
+    },
+    pillars: [
+      { label: 'Agnostique', description: 'Compatible avec tout fournisseur LLM' },
+      { label: 'Observabilit\u00e9', description: 'Trace compl\u00e8te de chaque action' },
+      { label: 'Intelligence', description: 'Couche de raisonnement symbolique' },
+    ],
+    mobileArrow: 'transmet \u00e0',
+  },
+  zh: {
+    eyebrow: '\u67b6\u6784',
+    title: '\u5de5\u4f5c\u539f\u7406',
+    description: '\u7edf\u4e00\u7f51\u5173\u4f4d\u4e8e\u60a8\u7684 LLM \u548c\u5b83\u6240\u9700\u5de5\u5177\u4e4b\u95f4\u3002\u6bcf\u4e2a\u8bf7\u6c42\u88ab\u5206\u89e3\u4e3a\u6709\u5411\u65e0\u73af\u56fe\uff0c\u5728\u6c99\u7bb1\u4e2d\u6267\u884c\uff0c\u5e76\u5b8c\u5168\u8ffd\u8e2a\u3002',
+    clients: {
+      label: '\u5ba2\u6237\u7aef',
+      items: ['Claude', 'GPT', 'Gemini', 'Ollama', '\u4efb\u4f55 LLM'],
+    },
+    gateway: {
+      label: 'PML \u7f51\u5173',
+      pipeline: ['\u6ce8\u518c\u8868', 'DAG', '\u6c99\u7bb1'],
+      extras: ['\u7b26\u53f7\u4e16\u754c\u6a21\u578b', '\u53ef\u89c2\u6d4b\u6027'],
+    },
+    servers: {
+      label: 'MCP \u670d\u52a1\u5668',
+      items: ['filesystem', 'postgres', 'github', 'memory', '\u4efb\u4f55\u5de5\u5177'],
+    },
+    pillars: [
+      { label: '\u6a21\u578b\u65e0\u5173', description: '\u517c\u5bb9\u4efb\u4f55 LLM \u63d0\u4f9b\u5546' },
+      { label: '\u53ef\u89c2\u6d4b\u6027', description: '\u6bcf\u4e2a\u64cd\u4f5c\u7684\u5b8c\u6574\u8ffd\u8e2a' },
+      { label: '\u667a\u80fd', description: '\u7b26\u53f7\u63a8\u7406\u5c42' },
+    ],
+    mobileArrow: '\u4f20\u8f93\u81f3',
+  },
+};
+
+const t = translations[locale as keyof typeof translations] ?? translations.en;
+---
+
+<section id="architecture">
+  <div class="arch-container">
+    <!-- Header -->
+    <div class="arch-header">
+      <span class="arch-eyebrow">{t.eyebrow}</span>
+      <h2 class="arch-title">{t.title}</h2>
+      <p class="arch-description">{t.description}</p>
+    </div>
+
+    <!-- Desktop Flow (hidden on mobile) -->
+    <div class="arch-flow-desktop" aria-label={`${t.clients.label} arrow ${t.gateway.label} arrow ${t.servers.label}`}>
+      <!-- Clients Box -->
+      <div class="arch-box arch-box-clients">
+        <span class="arch-box-label">{t.clients.label}</span>
+        <ul class="arch-box-list">
+          {t.clients.items.map((item: string) => (
+            <li class="arch-box-item">{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <!-- Arrow: Clients -> Gateway -->
+      <div class="arch-arrow" aria-hidden="true">
+        <svg viewBox="0 0 80 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="arch-arrow-svg">
+          <line x1="0" y1="12" x2="64" y2="12" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" />
+          <polyline points="60,6 72,12 60,18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+      </div>
+
+      <!-- Gateway Box -->
+      <div class="arch-box arch-box-gateway">
+        <span class="arch-box-label">{t.gateway.label}</span>
+        <div class="arch-pipeline">
+          {t.gateway.pipeline.map((step: string, i: number) => (
+            <Fragment>
+              <span class="arch-pipeline-step">{step}</span>
+              {i < t.gateway.pipeline.length - 1 && (
+                <span class="arch-pipeline-arrow" aria-hidden="true">&rarr;</span>
+              )}
+            </Fragment>
+          ))}
+        </div>
+        <div class="arch-extras">
+          {t.gateway.extras.map((extra: string) => (
+            <span class="arch-extra-tag">{extra}</span>
+          ))}
+        </div>
+      </div>
+
+      <!-- Arrow: Gateway -> Servers -->
+      <div class="arch-arrow" aria-hidden="true">
+        <svg viewBox="0 0 80 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="arch-arrow-svg">
+          <line x1="0" y1="12" x2="64" y2="12" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" />
+          <polyline points="60,6 72,12 60,18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+      </div>
+
+      <!-- Servers Box -->
+      <div class="arch-box arch-box-servers">
+        <span class="arch-box-label">{t.servers.label}</span>
+        <ul class="arch-box-list">
+          {t.servers.items.map((item: string) => (
+            <li class="arch-box-item">{item}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Mobile Flow (hidden on desktop) -->
+    <div class="arch-flow-mobile" role="list" aria-label={`${t.clients.label}, ${t.gateway.label}, ${t.servers.label}`}>
+      <div class="arch-box arch-box-clients" role="listitem">
+        <span class="arch-box-label">{t.clients.label}</span>
+        <ul class="arch-box-list">
+          {t.clients.items.map((item: string) => (
+            <li class="arch-box-item">{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="arch-mobile-arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="arch-mobile-arrow-svg">
+          <line x1="12" y1="0" x2="12" y2="28" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" />
+          <polyline points="6,24 12,36 18,24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+        <span class="sr-only">{t.mobileArrow}</span>
+      </div>
+
+      <div class="arch-box arch-box-gateway" role="listitem">
+        <span class="arch-box-label">{t.gateway.label}</span>
+        <div class="arch-pipeline">
+          {t.gateway.pipeline.map((step: string, i: number) => (
+            <Fragment>
+              <span class="arch-pipeline-step">{step}</span>
+              {i < t.gateway.pipeline.length - 1 && (
+                <span class="arch-pipeline-arrow" aria-hidden="true">&rarr;</span>
+              )}
+            </Fragment>
+          ))}
+        </div>
+        <div class="arch-extras">
+          {t.gateway.extras.map((extra: string) => (
+            <span class="arch-extra-tag">{extra}</span>
+          ))}
+        </div>
+      </div>
+
+      <div class="arch-mobile-arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="arch-mobile-arrow-svg">
+          <line x1="12" y1="0" x2="12" y2="28" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" />
+          <polyline points="6,24 12,36 18,24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+        <span class="sr-only">{t.mobileArrow}</span>
+      </div>
+
+      <div class="arch-box arch-box-servers" role="listitem">
+        <span class="arch-box-label">{t.servers.label}</span>
+        <ul class="arch-box-list">
+          {t.servers.items.map((item: string) => (
+            <li class="arch-box-item">{item}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Pillar Badges -->
+    <div class="arch-pillars">
+      <div class="arch-pillar arch-pillar-amber">
+        <span class="arch-pillar-num">1</span>
+        <div class="arch-pillar-content">
+          <span class="arch-pillar-label">{t.pillars[0].label}</span>
+          <span class="arch-pillar-desc">{t.pillars[0].description}</span>
+        </div>
+      </div>
+      <div class="arch-pillar arch-pillar-blue">
+        <span class="arch-pillar-num">2</span>
+        <div class="arch-pillar-content">
+          <span class="arch-pillar-label">{t.pillars[1].label}</span>
+          <span class="arch-pillar-desc">{t.pillars[1].description}</span>
+        </div>
+      </div>
+      <div class="arch-pillar arch-pillar-green">
+        <span class="arch-pillar-num">3</span>
+        <div class="arch-pillar-content">
+          <span class="arch-pillar-label">{t.pillars[2].label}</span>
+          <span class="arch-pillar-desc">{t.pillars[2].description}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     ARCHITECTURE SECTION - Light mode
+     Fonts: Instrument Serif, JetBrains Mono, Inter
+     ======================================== */
+
+  section {
+    padding: 96px 0;
+    background: var(--md-sys-color-surface);
+  }
+
+  .arch-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* --- Header --- */
+  .arch-header {
+    text-align: center;
+    margin-bottom: 64px;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .arch-eyebrow {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #FFB86F;
+    margin-bottom: 12px;
+  }
+
+  .arch-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 400;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .arch-description {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 1.0625rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  /* --- Desktop Flow --- */
+  .arch-flow-desktop {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 56px;
+  }
+
+  @media (min-width: 900px) {
+    .arch-flow-desktop {
+      display: flex;
+    }
+    .arch-flow-mobile {
+      display: none;
+    }
+  }
+
+  /* --- Arch Boxes --- */
+  .arch-box {
+    background: #f8f8fa;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    padding: 24px;
+    min-width: 180px;
+    max-width: 260px;
+    flex: 0 1 auto;
+  }
+
+  .arch-box-gateway {
+    min-width: 260px;
+    max-width: 340px;
+    border-color: rgba(255, 184, 111, 0.3);
+    background: #faf8f5;
+  }
+
+  .arch-box-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .arch-box-gateway .arch-box-label {
+    color: #b8860b;
+    border-bottom-color: rgba(255, 184, 111, 0.15);
+  }
+
+  .arch-box-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .arch-box-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--md-sys-color-on-surface);
+    padding: 4px 0;
+    line-height: 1.4;
+  }
+
+  .arch-box-item:last-child {
+    color: var(--md-sys-color-on-surface-variant);
+    font-style: italic;
+  }
+
+  /* --- Pipeline inside gateway --- */
+  .arch-pipeline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .arch-pipeline-step {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    background: rgba(255, 184, 111, 0.1);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 184, 111, 0.15);
+  }
+
+  .arch-pipeline-arrow {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .arch-extras {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .arch-extra-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 400;
+    color: var(--md-sys-color-on-surface-variant);
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px dashed rgba(0, 0, 0, 0.1);
+    background: transparent;
+  }
+
+  /* --- Arrows --- */
+  .arch-arrow {
+    flex: 0 0 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+
+  .arch-arrow-svg {
+    width: 80px;
+    height: 24px;
+    color: #FFB86F;
+  }
+
+  /* --- Mobile Flow --- */
+  .arch-flow-mobile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 48px;
+  }
+
+  @media (min-width: 900px) {
+    .arch-flow-mobile {
+      display: none;
+    }
+  }
+
+  .arch-flow-mobile .arch-box {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .arch-mobile-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0;
+  }
+
+  .arch-mobile-arrow-svg {
+    width: 24px;
+    height: 40px;
+    color: #FFB86F;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* --- Pillar Badges --- */
+  .arch-pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  @media (max-width: 640px) {
+    .arch-pillars {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
+
+  .arch-pillar {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: #f8f8fa;
+  }
+
+  .arch-pillar-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .arch-pillar-amber .arch-pillar-num {
+    background: #d97706;
+  }
+
+  .arch-pillar-blue .arch-pillar-num {
+    background: #2563eb;
+  }
+
+  .arch-pillar-green .arch-pillar-num {
+    background: #16a34a;
+  }
+
+  .arch-pillar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .arch-pillar-label {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .arch-pillar-desc {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.8125rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.5;
+  }
+
+  /* --- Responsive --- */
+  @media (max-width: 768px) {
+    section {
+      padding: 64px 0;
+    }
+
+    .arch-header {
+      margin-bottom: 40px;
+    }
+
+    .arch-title {
+      font-size: clamp(1.75rem, 5vw, 2.25rem);
+    }
+
+    .arch-description {
+      font-size: 0.9375rem;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     ARCHITECTURE - DARK MODE
+     ======================================== */
+
+  html[data-theme="dark"] #architecture {
+    background: #08080a;
+  }
+
+  html[data-theme="dark"] #architecture .arch-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #architecture .arch-description {
+    color: #a89a8c;
+  }
+
+  /* Boxes */
+  html[data-theme="dark"] #architecture .arch-box {
+    background: #0c0c0f;
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #architecture .arch-box-gateway {
+    background: #141418;
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #architecture .arch-box-label {
+    color: #a89a8c;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  html[data-theme="dark"] #architecture .arch-box-gateway .arch-box-label {
+    color: #FFB86F;
+    border-bottom-color: rgba(255, 184, 111, 0.15);
+  }
+
+  html[data-theme="dark"] #architecture .arch-box-item {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #architecture .arch-box-item:last-child {
+    color: #7a6e62;
+  }
+
+  /* Pipeline */
+  html[data-theme="dark"] #architecture .arch-pipeline-step {
+    color: #f5f0ea;
+    background: rgba(255, 184, 111, 0.08);
+    border-color: rgba(255, 184, 111, 0.15);
+  }
+
+  html[data-theme="dark"] #architecture .arch-pipeline-arrow {
+    color: #7a6e62;
+  }
+
+  html[data-theme="dark"] #architecture .arch-extra-tag {
+    color: #7a6e62;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  /* Arrows */
+  html[data-theme="dark"] #architecture .arch-arrow-svg {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #architecture .arch-mobile-arrow-svg {
+    color: #FFB86F;
+  }
+
+  /* Pillars */
+  html[data-theme="dark"] #architecture .arch-pillar {
+    background: #0c0c0f;
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+
+  html[data-theme="dark"] #architecture .arch-pillar-amber {
+    border-color: rgba(217, 119, 6, 0.2);
+  }
+
+  html[data-theme="dark"] #architecture .arch-pillar-blue {
+    border-color: rgba(37, 99, 235, 0.2);
+  }
+
+  html[data-theme="dark"] #architecture .arch-pillar-green {
+    border-color: rgba(22, 163, 74, 0.2);
+  }
+
+  html[data-theme="dark"] #architecture .arch-pillar-amber .arch-pillar-num {
+    background: #b45309;
+  }
+
+  html[data-theme="dark"] #architecture .arch-pillar-blue .arch-pillar-num {
+    background: #1d4ed8;
+  }
+
+  html[data-theme="dark"] #architecture .arch-pillar-green .arch-pillar-num {
+    background: #15803d;
+  }
+
+  html[data-theme="dark"] #architecture .arch-pillar-label {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #architecture .arch-pillar-desc {
+    color: #a89a8c;
+  }
+</style>

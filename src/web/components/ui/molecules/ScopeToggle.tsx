@@ -10,115 +10,99 @@
  * @module web/components/ui/molecules/ScopeToggle
  */
 
+import type { JSX } from "preact";
 import { useState } from "preact/hooks";
 
 export type Scope = "user" | "system";
 
-interface ScopeToggleProps {
+export interface ScopeToggleProps {
   scope: Scope;
   onChange: (scope: Scope) => void;
   isLocalMode?: boolean;
 }
 
+interface ScopeOption {
+  value: Scope;
+  label: string;
+  description: string;
+}
+
+const SCOPE_OPTIONS: ScopeOption[] = [
+  {
+    value: "user",
+    label: "My Usage",
+    description: "Tools and metrics from your executions only",
+  },
+  {
+    value: "system",
+    label: "System",
+    description: "All tools and metrics from any user",
+  },
+];
+
 export default function ScopeToggle({
   scope,
   onChange,
   isLocalMode = false,
-}: ScopeToggleProps) {
+}: ScopeToggleProps): JSX.Element {
   const [showTooltip, setShowTooltip] = useState(false);
 
-  const options: Array<{ value: Scope; label: string; description: string }> = [
-    {
-      value: "user",
-      label: "My Usage",
-      description: "Tools and metrics from your executions only",
-    },
-    {
-      value: "system",
-      label: "System",
-      description: "All tools and metrics from any user",
-    },
-  ];
+  function handleMouseEnter(): void {
+    setShowTooltip(true);
+  }
+
+  function handleMouseLeave(): void {
+    setShowTooltip(false);
+  }
 
   return (
     <div
       class="relative inline-flex items-center"
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      {/* Toggle buttons */}
-      <div
-        class="flex rounded-lg overflow-hidden"
-        style={{
-          background: "var(--bg-surface, #1a1816)",
-          border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-        }}
-      >
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            class="px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer hover:brightness-110"
-            style={{
-              background: scope === option.value
-                ? "var(--accent-dim, rgba(255, 184, 111, 0.1))"
-                : "transparent",
-              color: scope === option.value
-                ? "var(--accent, #FFB86F)"
-                : "var(--text-muted, #d5c3b5)",
-              borderRight: option.value === "user"
-                ? "1px solid var(--border, rgba(255, 184, 111, 0.1))"
-                : "none",
-            }}
-            title={option.description}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div class="flex rounded-lg overflow-hidden bg-stone-900 border border-amber-500/10">
+        {SCOPE_OPTIONS.map((option) => {
+          const isActive = scope === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              class={`px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer hover:brightness-110 ${
+                isActive
+                  ? "bg-pml-accent/10 text-pml-accent"
+                  : "bg-transparent text-stone-300"
+              } ${option.value === "user" ? "border-r border-amber-500/10" : ""}`}
+              title={option.description}
+            >
+              {option.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tooltip */}
       {showTooltip && (
-        <div
-          class="absolute top-full left-0 mt-2 w-64 p-3 rounded-lg shadow-xl z-50"
-          style={{
-            background: "var(--bg-elevated, #12110f)",
-            border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-          }}
-        >
-          <div class="text-sm font-medium mb-2" style={{ color: "var(--text, #f5f0ea)" }}>
+        <div class="absolute top-full left-0 mt-2 w-64 p-3 rounded-lg shadow-xl z-50 bg-stone-800 border border-amber-500/10">
+          <div class="text-sm font-medium mb-2 text-stone-100">
             Scope Filter
           </div>
           <div class="space-y-2">
-            {options.map((option) => (
+            {SCOPE_OPTIONS.map((option) => (
               <div key={option.value}>
-                <span
-                  class="text-xs font-semibold"
-                  style={{ color: "var(--accent, #FFB86F)" }}
-                >
+                <span class="text-xs font-semibold text-pml-accent">
                   {option.label}:
                 </span>
-                <span
-                  class="text-xs ml-1"
-                  style={{ color: "var(--text-dim, #8a8078)" }}
-                >
+                <span class="text-xs ml-1 text-stone-500">
                   {option.description}
                 </span>
               </div>
             ))}
           </div>
 
-          {/* AC #6: Local mode notice */}
           {isLocalMode && (
-            <div
-              class="mt-3 pt-2 text-xs"
-              style={{
-                borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-                color: "var(--text-dim, #8a8078)",
-              }}
-            >
-              <span style={{ color: "var(--info, #60a5fa)" }}>
+            <div class="mt-3 pt-2 text-xs border-t border-amber-500/10 text-stone-500">
+              <span class="text-blue-400">
                 In local mode, both views show the same data.
               </span>
               <br />

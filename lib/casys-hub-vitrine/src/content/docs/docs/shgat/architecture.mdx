@@ -1,0 +1,184 @@
+---
+title: Architecture
+description: K-head attention, multi-level message passing, and hypergraph hierarchy.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import ExcalidrawDiagram from '../../../../components/ExcalidrawDiagram.astro';
+
+`@casys/shgat` is a SuperHyperGraph Attention Network. It takes a set of nodes organized in a hypergraph hierarchy, runs multi-level message passing to propagate structural information, then scores every node against a user intent using K-head attention. The output is a ranked list of nodes with scores.
+
+Published on [JSR](https://jsr.io/@casys/shgat). Source on [GitHub](https://github.com/Casys-AI/shgat).
+
+## Why a hypergraph?
+
+Regular graphs model pairwise relationships: A connects to B. That works for simple cases, but tool catalogs are not simple. One composite groups multiple leaves. One leaf belongs to multiple composites. A composite can contain other composites.
+
+A hypergraph handles this natively. A hyperedge connects any number of vertices at once -- no artificial flattening, no duplicated edges. The graph structure matches the real structure of the catalog.
+
+```
+Regular graph:                Hypergraph:
+  A --- B                     ┌─────────────────┐
+  |     |                     │  composite "db"  │
+  C --- D                     │  ┌───┐ ┌───┐    │
+                              │  │ A │ │ B │    │
+(pairwise only)               │  └───┘ └───┘    │
+                              └─────────────────┘
+                              ┌─────────────────────┐
+                              │  composite "io"      │
+                              │  ┌───┐ ┌───┐ ┌───┐  │
+                              │  │ B │ │ C │ │ D │  │
+                              │  └───┘ └───┘ └───┘  │
+                              └─────────────────────┘
+
+                              B belongs to both "db" and "io".
+                              No duplication needed.
+```
+
+## Hierarchy levels
+
+<ExcalidrawDiagram src="shgat/shgat-hierarchy" alt="SHGAT Hierarchy" />
+
+Nodes are organized into levels. The level is determined by structure, not by labels:
+
+- **L0 (leaves)**: Nodes with no children. These are individual tools.
+- **L1+ (composites)**: Nodes whose children are lower-level nodes. Level = 1 + max child level.
+
+A typical production catalog:
+
+```
+Level 2 (meta):       3 nodes  ─── composites of composites (e.g. data-pipeline)
+                              │
+Level 1 (composites): 26 nodes ─── groups of tools (e.g. database, io)
+                              │
+Level 0 (leaves):   218 nodes  ─── individual tools (e.g. psql_query)
+```
+
+There is no requirement for a single root node. A graph can have multiple L2 composites, or stop at L1. The depth depends on your catalog structure.
+
+Levels are computed automatically via DFS when the graph is built. You register nodes with their children; SHGAT computes the rest.
+
+```typescript
+import { SHGAT } from "@casys/shgat";
+
+const shgat = new SHGAT();
+
+// Leaves: children = []
+shgat.registerNode({ id: "psql_query", embedding: [...], children: [], level: 0 });
+shgat.registerNode({ id: "psql_exec",  embedding: [...], children: [], level: 0 });
+
+// Composite: children = leaf IDs
+shgat.registerNode({
+  id: "database",
+  embedding: [...],
+  children: ["psql_query", "psql_exec"],
+  level: 1,  // Computed: 1 + max(0, 0) = 1
+});
+
+shgat.finalizeNodes();
+```
+
+## Message passing phases
+
+<ExcalidrawDiagram src="shgat/shgat-message-passing" alt="SHGAT Message Passing" />
+
+Before scoring, SHGAT runs multi-level message passing. This propagates structural information through the hierarchy so that every node's embedding reflects its neighborhood -- not just its own description.
+
+Message passing has two phases:
+
+**1. Upward pass (L0 -> L1 -> L2)**
+
+Leaf embeddings aggregate into their parent composites. Each composite receives a weighted combination of its children's embeddings, computed via attention. The attention weights determine how much each child contributes.
+
+```
+L0 tools:      [psql_query] [psql_exec] [csv_parse] [json_transform]
+                    ↓             ↓           ↓            ↓
+L1 composites:     [── database ──]         [──── io ─────]
+                           ↓                       ↓
+L2 meta:           [────── data-pipeline ─────────]
+```
+
+**2. Downward pass (L2 -> L1 -> L0)**
+
+Composite embeddings propagate back down to their children. This is how a leaf inherits context from its siblings and parent composites. After the downward pass, `psql_query` knows about `psql_exec` even if they were never used together.
+
+```
+L2 meta:           [────── data-pipeline ─────────]
+                           ↓                       ↓
+L1 composites:     [── database ──]         [──── io ─────]
+                    ↓             ↓           ↓            ↓
+L0 tools:      [psql_query] [psql_exec] [read_file] [write_file]
+```
+
+Each phase internally runs three sub-steps per level transition:
+
+1. **Vertex -> Edge**: Project node embeddings for attention computation
+2. **Edge -> Edge**: Compute attention weights between connected nodes
+3. **Edge -> Vertex**: Aggregate weighted embeddings back to nodes
+
+All message passing parameters (projection matrices, attention vectors) are per-level and per-head. They are trainable.
+
+<Aside type="tip">
+  After message passing, a leaf inherits relevance from composites it belongs to -- including sibling leaves it has never been directly paired with. If `psql_query` and `redis_get` both belong to a "data-access" composite, they inform each other's embeddings through the composite, even with zero co-occurrence history.
+</Aside>
+
+## K-Head Attention (16 x 64D)
+
+Scoring uses 16 attention heads, each operating on a 64-dimensional projection of the 1024D embedding. 16 * 64 = 1024, which exactly matches the BGE-M3 embedding dimension -- no information is discarded.
+
+Each head computes an independent attention score between the intent and every node. Different heads capture different signals from the data:
+
+| Signal type | What the head captures |
+|---|---|
+| Co-occurrence | Tools that frequently appear together in traces |
+| Recency | Tools used recently in similar contexts |
+| Error recovery | Tools that succeed after other tools fail |
+| Success rate | Tools with high historical success for similar intents |
+| Sequence position | Tools that typically appear early vs. late in workflows |
+| Structural similarity | Tools in the same composite neighborhoods |
+
+Heads are not manually assigned to signal types. All trace features are fed to all heads. Each head discovers its own specialization through training.
+
+The final score for each node is a weighted combination of all 16 head scores. The fusion weights are part of the trainable parameters.
+
+## Scoring pipeline
+
+The full scoring pipeline, from intent to ranked results:
+
+```
+Intent string
+    ↓
+BGE-M3 encoder (1024D embedding)
+    ↓
+Intent projection (W_intent: 1024 -> 1024)
+    ↓
+K-head attention (16 heads, 64D each)
+  - Q = W_q[h] @ intent    (query, per head)
+  - K = W_k[h] @ node      (key, per head)
+  - score[h] = Q . K / sqrt(64)
+    ↓
+Fusion (weighted combination of 16 head scores)
+    ↓
+Sorted node scores
+```
+
+The `scoreNodes()` method runs the entire pipeline:
+
+```typescript
+// Score all nodes
+const scores = shgat.scoreNodes(intentEmbedding);
+// Returns: [{ nodeId, score, level, headScores }, ...]
+
+// Score only leaves (L0)
+const leafScores = shgat.scoreLeaves(intentEmbedding);
+
+// Score only composites (L1+)
+const compositeScores = shgat.scoreComposites(intentEmbedding);
+```
+
+The entire forward pass and scoring pipeline runs on GPU via TensorFlow.js when available. Array conversion only happens at the final output step.
+
+## See Also
+
+- [Training](/docs/shgat/training/) -- InfoNCE loss, temperature annealing, and experience replay
+- [Persistence](/docs/shgat/persistence/) -- Export and import model parameters
