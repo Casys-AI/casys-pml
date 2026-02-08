@@ -1,14 +1,14 @@
 /**
  * SHGAT Factory Functions
  *
- * Factory functions for creating SHGAT instances.
- * Training functions moved to AutogradTrainer.
+ * Factory for creating SHGAT inference instances.
+ * For training, use SHGATBuilder from builder.ts or AutogradTrainer directly.
  *
  * @module shgat-tf/core/factory
  */
 
 import { SHGAT } from "./shgat.ts";
-import type { Node, SHGATConfig, TrainingExample } from "./types.ts";
+import type { Node, SHGATConfig } from "./types.ts";
 import { buildGraph } from "./types.ts";
 import { getAdaptiveHeadsByGraphSize } from "../initialization/index.ts";
 
@@ -91,62 +91,3 @@ export function createSHGAT(
   return shgat;
 }
 
-// ============================================================================
-// Deprecated Training Functions
-// ============================================================================
-
-/**
- * @deprecated Use AutogradTrainer from training/autograd-trainer.ts instead
- */
-export async function trainSHGATOnEpisodes(
-  _shgat: SHGAT,
-  _episodes: TrainingExample[],
-  _getEmbedding: (id: string) => number[] | null,
-  _options?: {
-    epochs?: number;
-    batchSize?: number;
-    onEpoch?: (epoch: number, loss: number, accuracy: number) => void;
-  },
-): Promise<{ finalLoss: number; finalAccuracy: number }> {
-  throw new Error(
-    "trainSHGATOnEpisodes is deprecated in shgat-tf. " +
-    "Use AutogradTrainer from training/autograd-trainer.ts instead."
-  );
-}
-
-/**
- * @deprecated Use AutogradTrainer from training/autograd-trainer.ts instead
- */
-export async function trainSHGATOnEpisodesKHead(
-  _shgat: SHGAT,
-  _episodes: TrainingExample[],
-  _getEmbedding: (id: string) => number[] | null,
-  _options?: {
-    epochs?: number;
-    learningRate?: number;
-    batchSize?: number;
-    onEpoch?: (epoch: number, loss: number, accuracy: number) => void;
-  },
-): Promise<{ finalLoss: number; finalAccuracy: number }> {
-  throw new Error(
-    "trainSHGATOnEpisodesKHead is deprecated in shgat-tf. " +
-    "Use AutogradTrainer from training/autograd-trainer.ts instead."
-  );
-}
-
-/**
- * @deprecated Use AutogradTrainer from training/autograd-trainer.ts instead
- */
-export async function trainSHGATOnExecution(
-  _shgat: SHGAT,
-  _execution: {
-    intentEmbedding: number[];
-    targetCapId: string;
-    outcome: number;
-  },
-): Promise<{ loss: number; accuracy: number; gradNorm: number }> {
-  throw new Error(
-    "trainSHGATOnExecution is deprecated in shgat-tf. " +
-    "Use AutogradTrainer from training/autograd-trainer.ts instead."
-  );
-}

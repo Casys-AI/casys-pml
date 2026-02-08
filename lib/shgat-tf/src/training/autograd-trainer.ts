@@ -21,13 +21,6 @@ import {
   projectionScore,
 } from "../core/projection-head.ts";
 
-// Sparse message passing imports (DEPRECATED - kept for backward compatibility)
-import {
-  sparseMPForward,
-  sparseMPBackward,
-  applySparseMPGradients,
-} from "./sparse-mp.ts";
-
 // ============================================================================
 // Types
 // ============================================================================
@@ -124,8 +117,7 @@ export function initTFParams(config: SHGATConfig, maxLevel: number): TFParams {
     "W_intent"
   );
 
-  // Message passing per level
-  // Always create level 0 (V→E^0) and level 1 (E^0→V, hardcoded in sparseMPForward)
+  // Message passing weights per level
   const W_up = new Map<number, tf.Variable[]>();
   const W_down = new Map<number, tf.Variable[]>();
   const a_up = new Map<number, tf.Variable[]>();
@@ -537,9 +529,6 @@ export function infoNCELoss(
 
 /**
  * Batch contrastive loss with in-batch negatives
- *
- * Note: This function is NOT used in the main sparse training path.
- * It's kept for potential future use or legacy dense training.
  */
 export function batchContrastiveLoss(
   intentEmbs: tf.Tensor2D,   // [batchSize, embDim]
@@ -590,20 +579,13 @@ export function batchContrastiveLoss(
 // ============================================================================
 
 /**
- * Message passing context for training
- * Pre-computed once per batch to avoid recomputation per example
+ * Message passing context for training.
+ * Pre-computed once per batch to avoid recomputation per example.
  */
 export interface MessagePassingContext {
   graph: GraphStructure;
   H_init: tf.Tensor2D;
   E_init: Map<number, tf.Tensor2D>;
-  /**
-   * Use sparse message passing implementation.
-   * When true, uses JS sparse loops for MP (avoids TF.js tf.gather gradient issues on WASM).
-   * When false, uses dense TF.js autograd (requires CPU backend, ~10x slower).
-   * @default true
-   */
-  useSparse?: boolean;
 }
 
 /**
@@ -612,14 +594,9 @@ export interface MessagePassingContext {
  * If mpContext is provided, message passing is applied to enrich embeddings
  * BEFORE scoring, allowing gradients to flow through W_up, W_down, a_up, a_down.
  *
- * DENSE MODE (default, recommended):
- * When mpContext.useSparse is false (default), uses dense TF.js autograd for all operations.
+ * Uses dense TF.js autograd for all operations.
  * Requires CPU or WebGPU backend (WASM lacks UnsortedSegmentSum kernel for tf.gather gradients).
  * Provides correct gradients for ALL parameters including message passing weights.
- *
- * SPARSE MODE (deprecated):
- * When mpContext.useSparse is true, uses sparse JS loops for message passing.
- * Has known gradient bugs (117.9% gradient check error). Kept for backward compatibility.
  *
  * @param examples - Training examples
  * @param nodeEmbeddings - Raw node embeddings
@@ -638,22 +615,6 @@ export function trainStep(
   optimizer: tf.Optimizer,
   mpContext?: MessagePassingContext,
 ): TrainingMetrics {
-  // Check if we should use sparse MP (default: true when mpContext is provided)
-  const useSparse = mpContext?.useSparse !== false;
-
-  if (useSparse && mpContext) {
-    return trainStepSparse(
-      examples,
-      nodeEmbeddings,
-      params,
-      config,
-      trainerConfig,
-      optimizer,
-      mpContext,
-    );
-  }
-
-  // Dense mode (legacy) - use TF.js autograd for everything
   let totalLoss = 0;
   let totalCorrect = 0;
 
@@ -1028,351 +989,6 @@ export function disposeGraphStructure(graph: GraphStructure): void {
   }
 }
 
-// ============================================================================
-// Sparse Training Step (DEPRECATED - Hybrid: Sparse MP + Dense K-head)
-// ============================================================================
-
-/**
- * Training step with sparse message passing
- *
- * @deprecated Use dense autograd mode instead (useSparse=false).
- * The sparse backward pass has known gradient bugs (117.9% gradient check error).
- * Dense autograd with CPU/WebGPU backend provides correct gradients automatically.
- *
- * This hybrid approach:
- * 1. Runs sparse MP forward (JS loops, only connected pairs)
- * 2. Computes K-head scoring loss with TF.js autograd (dense, fast)
- * 3. Backprops K-head gradients via autograd
- * 4. Manually computes and applies MP gradients (sparse backward)
- */
-function trainStepSparse(
-  examples: TrainingExample[],
-  nodeEmbeddings: Map<string, number[]>,
-  params: TFParams,
-  config: SHGATConfig,
-  trainerConfig: TrainerConfig,
-  optimizer: tf.Optimizer,
-  mpContext: MessagePassingContext,
-): TrainingMetrics {
-  // ========================================================================
-  // STEP 1: Sparse message passing forward
-  // ========================================================================
-
-  // Convert TF.js tensors to JS arrays for sparse MP
-  const H_init_arr = mpContext.H_init.arraySync() as number[][];
-  const E_init_arr = new Map<number, number[][]>();
-  for (const [level, tensor] of mpContext.E_init) {
-    E_init_arr.set(level, tensor.arraySync() as number[][]);
-  }
-
-  // Run sparse MP forward
-  const { H: H_enriched, E: E_enriched, cache: mpCache } = sparseMPForward(
-    H_init_arr,
-    E_init_arr,
-    mpContext.graph,
-    params,
-    config,
-  );
-
-  // Build enriched embeddings map for K-head scoring
-  const enrichedEmbeddings = new Map<string, number[]>();
-
-  // Add enriched tool embeddings
-  for (let i = 0; i < mpContext.graph.toolIds.length; i++) {
-    enrichedEmbeddings.set(mpContext.graph.toolIds[i], H_enriched[i]);
-  }
-
-  // Add enriched cap embeddings
-  for (const [level, capIds] of mpContext.graph.capIdsByLevel) {
-    const E_level = E_enriched.get(level);
-    if (E_level) {
-      for (let i = 0; i < capIds.length; i++) {
-        enrichedEmbeddings.set(capIds[i], E_level[i]);
-      }
-    }
-  }
-
-  // ========================================================================
-  // STEP 2: K-head scoring with TF.js autograd (for W_k, W_intent)
-  // ========================================================================
-
-  let totalLoss = 0;
-  let totalCorrect = 0;
-
-  // Gradient accumulators for manual MP backward
-  const dH_accum: number[][] = H_enriched.map(row => new Array(row.length).fill(0));
-  const dE_accum = new Map<number, number[][]>();
-  for (const [level, embs] of E_enriched) {
-    dE_accum.set(level, embs.map(row => new Array(row.length).fill(0)));
-  }
-
-  // Pre-extract K-head weights as JS arrays for proper d(score)/d(emb) chain rule.
-  // score_i = (1/H) * Σ_h (emb_i @ W_k[h]) · Q_h
-  // => d(score_i)/d(emb_i) = (1/H) * Σ_h W_k[h] @ Q_h   (vector, not scalar!)
-  const W_k_arrays: number[][][] = params.W_k.map(w => w.arraySync() as number[][]);
-  const W_intent_array: number[][] = params.W_intent.arraySync() as number[][];
-  const { numHeads, headDim, embeddingDim } = config;
-
-  // Build tool/cap index lookup once (avoid indexOf per node per example)
-  const toolIdToIdx = new Map<string, number>();
-  for (let i = 0; i < mpContext.graph.toolIds.length; i++) {
-    toolIdToIdx.set(mpContext.graph.toolIds[i], i);
-  }
-  const capIdToLevelIdx = new Map<string, { level: number; idx: number }>();
-  for (const [level, capIds] of mpContext.graph.capIdsByLevel) {
-    for (let i = 0; i < capIds.length; i++) {
-      capIdToLevelIdx.set(capIds[i], { level, idx: i });
-    }
-  }
-
-  const { grads: kheadGrads, value: batchLoss } = tf.variableGrads(() => {
-    let loss = tf.scalar(0);
-
-    for (const ex of examples) {
-      // Collect node IDs for this example
-      const nodeIds: string[] = [ex.candidateId];
-      for (const negId of ex.negativeCapIds || []) {
-        if (enrichedEmbeddings.has(negId) || nodeEmbeddings.has(negId)) {
-          nodeIds.push(negId);
-        }
-      }
-
-      if (nodeIds.length < 2) continue;
-
-      // Build embeddings tensor from enriched embeddings
-      const nodeEmbs: number[][] = nodeIds.map(id =>
-        enrichedEmbeddings.get(id) || nodeEmbeddings.get(id) || new Array(embeddingDim).fill(0)
-      );
-      const nodeEmbsTensor = ops.toTensor(nodeEmbs);
-
-      // Get intent embedding
-      const intentEmb = ops.toTensor(ex.intentEmbedding);
-
-      // K-head scoring (this is what autograd will differentiate)
-      const scores = forwardScoring(intentEmb, nodeEmbsTensor, params, config);
-
-      // Positive is at index 0
-      const positiveScore = scores.slice([0], [1]).squeeze() as tf.Scalar;
-      const negativeScores = scores.slice([1], [nodeIds.length - 1]) as tf.Tensor1D;
-
-      // InfoNCE loss
-      const exampleLoss = infoNCELoss(positiveScore, negativeScores, trainerConfig.temperature);
-      loss = loss.add(exampleLoss);
-
-      // Track accuracy
-      const allScoresArr = scores.arraySync() as number[];
-      const maxIdx = allScoresArr.indexOf(Math.max(...allScoresArr));
-      if (maxIdx === 0) totalCorrect++;
-
-      // ====================================================================
-      // ACCUMULATE dEnrichedEmb for MP backward — proper K-head chain rule
-      //
-      // d(loss)/d(emb_i) = dLogit_i * d(score_i)/d(emb_i)
-      //
-      // K-head forward: score_i = (1/H) * Σ_h (emb_i @ W_k[h]) · Q_h
-      // K-head backward: d(score_i)/d(emb_i) = (1/H) * Σ_h W_k[h] @ Q_h
-      //
-      // This is the same for all nodes (depends on intent + W_k, not emb_i).
-      // So we compute gradBase once per example, then scale by dLogit per node.
-      // ====================================================================
-
-      // Compute softmax gradient: dLogit[i] = (softmax[i] - target[i]) / temperature
-      const softmaxLogits = allScoresArr.map(s => s / trainerConfig.temperature);
-      const maxLogit = Math.max(...softmaxLogits);
-      const expLogits = softmaxLogits.map(s => Math.exp(s - maxLogit));
-      const sumExp = expLogits.reduce((a, b) => a + b, 0);
-      const softmaxProbs = expLogits.map(e => e / sumExp);
-      const dLogits = softmaxProbs.map((p, i) => (i === 0 ? p - 1 : p) / trainerConfig.temperature);
-
-      // Compute intentProj (skip W_intent when preserveDim=true)
-      const intentArr = ex.intentEmbedding;
-      let intentProj: number[];
-      if (config.preserveDim) {
-        // Use raw intent directly (matches forwardScoring preserveDim bypass)
-        intentProj = intentArr;
-      } else {
-        const hiddenDim = W_intent_array[0].length;
-        intentProj = new Array(hiddenDim).fill(0);
-        for (let i = 0; i < embeddingDim; i++) {
-          for (let j = 0; j < hiddenDim; j++) {
-            intentProj[j] += intentArr[i] * W_intent_array[i][j];
-          }
-        }
-      }
-
-      // Compute gradBase = (1/numHeads) * Σ_h (W_k[h] @ Q_h) / sqrt(headDim) → [embeddingDim]
-      // Where Q_h = intentProj @ W_k[h] (shared W_k for both Q and K)
-      // The /sqrt(headDim) matches the scaling applied in kHeadScoring forward pass
-      const sqrtHeadDim = Math.sqrt(headDim);
-      const gradBase = new Array(embeddingDim).fill(0);
-      for (let h = 0; h < numHeads; h++) {
-        const W_k_h = W_k_arrays[h]; // [embeddingDim, headDim]
-        // Compute Q_h = intentProj @ W_k[h] → [headDim]
-        const Q_h = new Array(headDim).fill(0);
-        for (let j = 0; j < headDim; j++) {
-          for (let d = 0; d < embeddingDim; d++) {
-            Q_h[j] += intentProj[d] * W_k_h[d][j];
-          }
-        }
-        // gradBase[d] += Σ_j W_k_h[d][j] * Q_h[j] / (numHeads * sqrt(headDim))
-        for (let i = 0; i < embeddingDim; i++) {
-          let dot = 0;
-          for (let j = 0; j < headDim; j++) {
-            dot += W_k_h[i][j] * Q_h[j];
-          }
-          gradBase[i] += dot / (numHeads * sqrtHeadDim);
-        }
-      }
-
-      // Propagate to embeddings: dEmb_i = dLogit_i * gradBase (element-wise)
-      for (let idx = 0; idx < nodeIds.length; idx++) {
-        const nodeId = nodeIds[idx];
-        const dLogit = dLogits[idx];
-
-        const toolIdx = toolIdToIdx.get(nodeId);
-        if (toolIdx !== undefined) {
-          for (let j = 0; j < embeddingDim; j++) {
-            dH_accum[toolIdx][j] += dLogit * gradBase[j];
-          }
-        } else {
-          const capInfo = capIdToLevelIdx.get(nodeId);
-          if (capInfo) {
-            const dE_level = dE_accum.get(capInfo.level);
-            if (dE_level) {
-              for (let j = 0; j < embeddingDim; j++) {
-                dE_level[capInfo.idx][j] += dLogit * gradBase[j];
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // FIX C1: Do NOT divide loss by batchSize here — the manual SGD step already
-    // divides lr by batchSize. Dividing here AND in SGD = double batch-averaging
-    // (effective lr was 32x too small: lr/batchSize^2 instead of lr/batchSize).
-    // The raw loss (batch-sum) goes to autograd; we divide only for logging.
-
-    // L2 regularization on K-head parameters only
-    // NOTE (M8): MP params have NO L2 regularization in sparse mode
-    let l2Loss = tf.scalar(0);
-    for (const W of params.W_k) {
-      l2Loss = l2Loss.add(tf.sum(tf.square(W)));
-    }
-    l2Loss = l2Loss.add(tf.sum(tf.square(params.W_intent)));
-
-    // Projection head L2 (stronger to prevent overfitting with few examples)
-    if (params.projectionHead) {
-      const projL2Scale = 10;
-      l2Loss = l2Loss.add(tf.sum(tf.square(params.projectionHead.W1)).mul(projL2Scale));
-      l2Loss = l2Loss.add(tf.sum(tf.square(params.projectionHead.W2)).mul(projL2Scale));
-    }
-
-    l2Loss = l2Loss.mul(trainerConfig.l2Lambda);
-
-    // totalLoss for logging only — divide by batchSize for human-readable average
-    totalLoss = (loss.add(l2Loss).arraySync() as number) / examples.length;
-
-    return loss.add(l2Loss) as tf.Scalar;
-  });
-
-  // ========================================================================
-  // STEP 3: Apply K-head gradients via TF.js optimizer
-  // ========================================================================
-
-  // Compute gradient norm (K-head only — dispose intermediates to prevent WASM OOM)
-  let kheadGradNormSq = 0;
-  for (const g of Object.values(kheadGrads)) {
-    const sq = tf.square(g);
-    const s = tf.sum(sq);
-    kheadGradNormSq += s.arraySync() as number;
-    sq.dispose();
-    s.dispose();
-  }
-  const kheadGradNorm = Math.sqrt(kheadGradNormSq);
-
-  // Apply K-head gradients with manual SGD + per-element clip
-  // (matches old SHGAT's applyKHeadGradients: lr/batchSize, clip per element to [-1, 1])
-  const kheadLr = trainerConfig.learningRate / examples.length;
-  const kheadMaxGrad = 1.0; // Per-element gradient clipping threshold
-  const l2Lambda = trainerConfig.l2Lambda ?? 0;
-
-  for (const [varName, gradTensor] of Object.entries(kheadGrads)) {
-    // Find the corresponding variable
-    const variable = tf.engine().registeredVariables[varName] as tf.Variable | undefined;
-    if (!variable) continue;
-
-    const gradArr = gradTensor.arraySync();
-    const varArr = variable.arraySync();
-
-    if (Array.isArray(varArr) && Array.isArray(varArr[0])) {
-      // 2D tensor (W_k: [embDim, headDim])
-      const W = varArr as number[][];
-      const dW = gradArr as number[][];
-      for (let i = 0; i < W.length; i++) {
-        for (let j = 0; j < W[i].length; j++) {
-          let g = (dW[i]?.[j] ?? 0) + l2Lambda * W[i][j];
-          g = Math.max(-kheadMaxGrad, Math.min(kheadMaxGrad, g));
-          W[i][j] -= kheadLr * g;
-        }
-      }
-      const newW = tf.tensor2d(W);
-      variable.assign(newW);
-      newW.dispose(); // Prevent WASM tensor leak
-    } else if (Array.isArray(varArr)) {
-      // 1D tensor (biases, etc.)
-      const V = varArr as number[];
-      const dV = gradArr as number[];
-      for (let i = 0; i < V.length; i++) {
-        let g = (dV[i] ?? 0) + l2Lambda * V[i];
-        g = Math.max(-kheadMaxGrad, Math.min(kheadMaxGrad, g));
-        V[i] -= kheadLr * g;
-      }
-      const newV = tf.tensor1d(V);
-      variable.assign(newV);
-      newV.dispose(); // Prevent WASM tensor leak
-    }
-  }
-
-  // Cleanup K-head gradients
-  Object.values(kheadGrads).forEach((g) => g.dispose());
-  (batchLoss as tf.Tensor).dispose();
-
-  // ========================================================================
-  // STEP 4: Sparse MP backward and gradient application
-  // ========================================================================
-
-  // Run sparse backward pass
-  const mpGrads = sparseMPBackward(dH_accum, dE_accum, mpCache, params);
-
-  // Apply MP gradients
-  const mpLearningRate = trainerConfig.learningRate * (config.mpLearningRateScale ?? 1);
-  applySparseMPGradients(params, mpGrads, mpLearningRate, examples.length);
-
-  // Compute MP gradient norm
-  let mpGradNormSq = 0;
-  for (const [, dW_level] of mpGrads.dW_up) {
-    for (const dW_h of dW_level) {
-      for (const row of dW_h) {
-        for (const v of row) mpGradNormSq += v * v;
-      }
-    }
-  }
-  for (const [, da_level] of mpGrads.da_up) {
-    for (const da_h of da_level) {
-      for (const v of da_h) mpGradNormSq += v * v;
-    }
-  }
-  // Combined gradient norm (includes both K-head and MP gradients)
-  const gradientNorm = Math.sqrt(kheadGradNormSq + mpGradNormSq);
-
-  return {
-    loss: totalLoss,
-    accuracy: totalCorrect / examples.length,
-    gradientNorm,
-    numExamples: examples.length,
-  };
-}
 
 // ============================================================================
 // Trainer Class
@@ -1381,8 +997,8 @@ function trainStepSparse(
 /**
  * SHGAT Trainer with TensorFlow.js autograd
  *
- * Supports full message passing when graph structure is provided.
- * By default uses sparse MP for better performance and WASM compatibility.
+ * Uses dense TF.js autograd for all operations (message passing + K-head scoring).
+ * Requires CPU or WebGPU backend (WASM lacks UnsortedSegmentSum for tf.gather gradients).
  */
 export class AutogradTrainer {
   private params: TFParams;
@@ -1392,7 +1008,6 @@ export class AutogradTrainer {
   private nodeEmbeddings: Map<string, number[]> = new Map();
   private graph: GraphStructure | null = null;
   private useMessagePassing: boolean = false;
-  private useSparseMP: boolean = false; // Dense autograd by default (CPU/WebGPU - full autograd support)
 
   constructor(
     config: SHGATConfig,
@@ -1403,18 +1018,6 @@ export class AutogradTrainer {
     this.trainerConfig = { ...DEFAULT_TRAINER_CONFIG, ...trainerConfig };
     this.params = initTFParams(config, maxLevel);
     this.optimizer = tf.train.adam(this.trainerConfig.learningRate);
-  }
-
-  /**
-   * Enable or disable sparse message passing mode
-   *
-   * @param useSparse - true for sparse JS loops (WASM only, manual backward - DEPRECATED)
-   *                    false for dense TF.js autograd (CPU/WebGPU, full autograd)
-   * @default false (dense autograd is now the default)
-   * @deprecated Sparse mode has known gradient bugs. Use dense autograd with CPU/WebGPU backend.
-   */
-  setSparseMP(useSparse: boolean): void {
-    this.useSparseMP = useSparse;
   }
 
   /**
@@ -1482,22 +1085,20 @@ export class AutogradTrainer {
       graph: this.graph,
       H_init,
       E_init,
-      useSparse: this.useSparseMP,
     };
   }
 
   /**
    * Train on a batch of examples
    *
-   * When graph is set via setGraph(), message passing is integrated into training.
-   * This allows gradients to flow through W_up, W_down, a_up, a_down parameters.
+   * Uses dense TF.js autograd. Gradients flow through message passing weights
+   * (W_up, W_down, a_up, a_down) AND scoring weights (W_k, W_intent).
    *
-   * Uses dense TF.js autograd by default (CPU/WebGPU backend).
    * The backend is automatically switched to a training-compatible one if needed.
    */
   async trainBatch(examples: TrainingExample[]): Promise<TrainingMetrics> {
-    // Ensure backend supports autograd for dense mode
-    if (!this.useSparseMP && !supportsAutograd()) {
+    // Ensure backend supports autograd
+    if (!supportsAutograd()) {
       const prevBackend = getBackend();
       const newBackend = await switchBackend("training" as BackendMode);
       console.error(
@@ -1532,7 +1133,7 @@ export class AutogradTrainer {
   /**
    * Score nodes for an intent
    *
-   * If graph is set, uses full message passing for enriched embeddings.
+   * If graph is set, uses dense TF.js message passing for enriched embeddings.
    * Otherwise, uses direct K-head attention (faster but less accurate).
    */
   score(intentEmb: number[], nodeIds: string[]): number[] {
@@ -1547,75 +1148,52 @@ export class AutogradTrainer {
 
       // Apply message passing if graph is available
       if (this.useMessagePassing && this.graph) {
-        // Build initial embeddings (JS arrays)
+        // Build initial embeddings
         const toolEmbs: number[][] = [];
         for (const toolId of this.graph.toolIds) {
           toolEmbs.push(this.nodeEmbeddings.get(toolId) || new Array(this.config.embeddingDim).fill(0));
         }
 
-        const E_init_arr = new Map<number, number[][]>();
+        const H_init = ops.toTensor(toolEmbs);
+        const E_init = new Map<number, tf.Tensor2D>();
         for (const [level, capIds] of this.graph.capIdsByLevel) {
           const capEmbs: number[][] = [];
           for (const capId of capIds) {
             capEmbs.push(this.nodeEmbeddings.get(capId) || new Array(this.config.embeddingDim).fill(0));
           }
-          E_init_arr.set(level, capEmbs);
+          E_init.set(level, ops.toTensor(capEmbs));
         }
 
-        let H_arr: number[][];
-        let E_arrs: Map<number, number[][]>;
+        // Dense message passing
+        const { H: H_mp, E: E_mp } = messagePassingForward(
+          H_init,
+          E_init,
+          this.graph,
+          this.params,
+          this.config,
+        );
 
-        if (this.useSparseMP) {
-          // Use sparse MP (faster, WASM compatible)
-          const { H, E } = sparseMPForward(
-            toolEmbs,
-            E_init_arr,
-            this.graph,
-            this.params,
-            this.config,
-          );
-          H_arr = H;
-          E_arrs = E;
-        } else {
-          // Use dense TF.js MP (legacy, requires CPU)
-          const H_init = ops.toTensor(toolEmbs);
-          const E_init = new Map<number, tf.Tensor2D>();
-          for (const [level, embs] of E_init_arr) {
-            E_init.set(level, ops.toTensor(embs));
-          }
-
-          const { H: H_mp, E: E_mp } = messagePassingForward(
-            H_init,
-            E_init,
-            this.graph,
-            this.params,
-            this.config,
-          );
-
-          H_arr = H_mp.arraySync() as number[][];
-          E_arrs = new Map<number, number[][]>();
-          for (const [level, tensor] of E_mp) {
-            E_arrs.set(level, tensor.arraySync() as number[][]);
-          }
-
-          // Cleanup dense tensors
-          H_init.dispose();
-          for (const [, tensor] of E_init) tensor.dispose();
-          H_mp.dispose();
-          for (const [, tensor] of E_mp) tensor.dispose();
+        const H_arr = H_mp.arraySync() as number[][];
+        const E_arrs = new Map<number, number[][]>();
+        for (const [level, tensor] of E_mp) {
+          E_arrs.set(level, tensor.arraySync() as number[][]);
         }
+
+        // Cleanup dense tensors
+        H_init.dispose();
+        for (const [, tensor] of E_init) tensor.dispose();
+        H_mp.dispose();
+        for (const [, tensor] of E_mp) tensor.dispose();
 
         // Map nodeIds to their enriched embeddings
         const enriched: number[][] = [];
         for (const nodeId of nodeIds) {
-          // Check if it's a tool
           const toolIdx = this.graph.toolIds.indexOf(nodeId);
           if (toolIdx >= 0) {
             enriched.push(H_arr[toolIdx]);
             continue;
           }
 
-          // Check if it's a capability at any level
           let found = false;
           for (const [level, capIds] of this.graph.capIdsByLevel) {
             const capIdx = capIds.indexOf(nodeId);
@@ -1630,7 +1208,6 @@ export class AutogradTrainer {
           }
 
           if (!found) {
-            // Fallback to original embedding
             enriched.push(this.nodeEmbeddings.get(nodeId) || new Array(this.config.embeddingDim).fill(0));
           }
         }

@@ -20,8 +20,8 @@ import { initTensorFlow, logMemory, tf } from "./tf/backend.ts";
 import { TransitionModel } from "./transition/gru-model.ts";
 import type { TransitionExample } from "./transition/types.ts";
 
-// Import SHGAT sparse message passing
-import { sparseMPForward } from "../../shgat-tf/src/training/sparse-mp.ts";
+// Import SHGAT message passing (dense autograd)
+import { messagePassingForward } from "../../shgat-tf/src/training/autograd-trainer.ts";
 import type { GraphStructure, TFParams } from "../../shgat-tf/src/training/autograd-trainer.ts";
 
 // Load environment
@@ -310,7 +310,7 @@ console.log(`      Graph built with ${maxLevel + 1} levels (will limit to traine
 // =============================================================================
 console.log("\n[5/8] Creating TF params for message passing...");
 
-// We need W_up, W_down, a_up, a_down for sparseMPForward
+// We need W_up, W_down, a_up, a_down for messagePassingForward
 const W_up = new Map<number, tf.Variable[]>();
 const W_down = new Map<number, tf.Variable[]>();
 const a_up = new Map<number, tf.Variable[]>();
@@ -422,7 +422,7 @@ if (effectiveMaxLevel < maxLevel) {
   console.log(`      Rebuilt graph with maxLevel=${effectiveMaxLevel}`);
 }
 
-// Minimal TFParams (only what sparseMPForward needs)
+// Minimal TFParams (only what messagePassingForward needs)
 const tfParams: TFParams = {
   W_k: [],  // Not needed for MP
   W_q: [],  // Not needed for MP
@@ -447,25 +447,35 @@ console.log(`      Final config: ${numHeads} heads, headDim=${headDim}`);
 // =============================================================================
 console.log("\n[6/8] Enriching embeddings with message passing...");
 
-// Convert to arrays for sparseMPForward
-const H_init: number[][] = toolIds.map(id => rawToolEmbeddings.get(id)!);
-const E_init = new Map<number, number[][]>();
+// Convert to tensors for messagePassingForward (dense autograd)
+const H_init_arr: number[][] = toolIds.map(id => rawToolEmbeddings.get(id)!);
+const H_init_tensor = tf.tensor2d(H_init_arr);
+const E_init_tensors = new Map<number, import("npm:@tensorflow/tfjs@4.22.0").Tensor2D>();
 
 // Initialize embeddings only for levels in the graph
 for (let level = 0; level <= graph.maxLevel; level++) {
   const levelCaps = graph.capIdsByLevel.get(level) || [];
-  E_init.set(level, levelCaps.map(id => capEmbeddings.get(id)!));
+  const capEmbs = levelCaps.map(id => capEmbeddings.get(id)!);
+  if (capEmbs.length > 0) {
+    E_init_tensors.set(level, tf.tensor2d(capEmbs));
+  }
 }
-console.log(`      Initialized embeddings for ${E_init.size} levels`);
+console.log(`      Initialized embeddings for ${E_init_tensors.size} levels`);
 
 try {
-  const { H: H_enriched, E: E_enriched } = sparseMPForward(
-    H_init,
-    E_init,
+  const mpResult = messagePassingForward(
+    H_init_tensor,
+    E_init_tensors,
     graph,
     tfParams,
     shgatConfig,
   );
+  const H_enriched = mpResult.H.arraySync() as number[][];
+  // Cleanup MP tensors
+  mpResult.H.dispose();
+  for (const [, t] of mpResult.E) t.dispose();
+  H_init_tensor.dispose();
+  for (const [, t] of E_init_tensors) t.dispose();
 
   console.log(`      Enriched ${H_enriched.length} tool embeddings`);
 

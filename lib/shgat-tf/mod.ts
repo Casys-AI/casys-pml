@@ -5,13 +5,12 @@
  * libtensorflow via FFI for high-performance training and inference.
  *
  * Key features:
- * - libtensorflow FFI backend (native C performance, no WASM overhead)
+ * - Dense TF.js autograd for training (CPU/WebGPU backends)
  * - Two-phase message passing: Vertex→Hyperedge, Hyperedge→Vertex
- * - K-head attention (4-16 adaptive heads) with InfoNCE contrastive loss
+ * - K-head attention (16 heads) with InfoNCE contrastive loss
  * - Multi-level hierarchy support (n-SuperHyperGraph)
- * - Sparse message passing for large graphs (~10x training speedup)
  * - Prioritized Experience Replay (PER) for sample efficiency
- * - Automatic differentiation via TensorFlow autograd
+ * - Optional libtensorflow FFI backend for native performance
  *
  * @example Recommended: Builder API (training + inference)
  * ```typescript
@@ -74,38 +73,39 @@ export type {
 // Legacy API (still works, but prefer SHGATBuilder for new code)
 // ============================================================================
 
-// Main SHGAT class and factory functions
+// SHGAT class and factory
 export {
   createSHGAT,
   SHGAT,
-  trainSHGATOnEpisodes,
-  trainSHGATOnEpisodesKHead,
-  trainSHGATOnExecution,
 } from "./src/core/shgat.ts";
 
-// Re-export from shgat.ts (types and utilities)
+// Types and configuration
 export {
   type AttentionResult,
-  type CapabilityNode,
   createDefaultTraceFeatures,
-  DEFAULT_FEATURE_WEIGHTS,
-  DEFAULT_FUSION_WEIGHTS,
   DEFAULT_HYPERGRAPH_FEATURES,
   DEFAULT_SHGAT_CONFIG,
   DEFAULT_TOOL_GRAPH_FEATURES,
   DEFAULT_TRACE_STATS,
-  type FeatureWeights,
   type ForwardCache,
-  type FusionWeights,
-  getAdaptiveConfig,
   type HypergraphFeatures,
   NUM_TRACE_STATS,
   type SHGATConfig,
   type ToolGraphFeatures,
-  type ToolNode,
   type TraceFeatures,
   type TraceStats,
   type TrainingExample,
+} from "./src/core/shgat.ts";
+
+// Legacy types (kept for backward compatibility — prefer Node type)
+export {
+  type CapabilityNode,
+  type ToolNode,
+  type FeatureWeights,
+  type FusionWeights,
+  DEFAULT_FEATURE_WEIGHTS,
+  DEFAULT_FUSION_WEIGHTS,
+  getAdaptiveConfig,
 } from "./src/core/shgat.ts";
 
 // Additional types from types.ts
@@ -215,7 +215,7 @@ export {
   type BackendMode,
 } from "./src/tf/backend.ts";
 
-// Layers Trainer (tf.layers.* + model.trainOnBatch - recommended!)
+// Layers Trainer (alternative: tf.layers.* + model.trainOnBatch)
 export {
   LayersTrainer,
   initLayersTrainer,

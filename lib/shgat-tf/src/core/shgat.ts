@@ -825,9 +825,4 @@ export class SHGAT {
 // Factory Functions (re-exported from factory.ts)
 // ============================================================================
 
-export {
-  createSHGAT,
-  trainSHGATOnEpisodes,
-  trainSHGATOnEpisodesKHead,
-  trainSHGATOnExecution,
-} from "./factory.ts";
+export { createSHGAT } from "./factory.ts";
