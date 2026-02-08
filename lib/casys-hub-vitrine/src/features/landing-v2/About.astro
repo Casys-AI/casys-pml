@@ -1,0 +1,571 @@
+---
+import { useTranslations } from '../../i18n';
+const locale = (Astro as any).currentLocale ?? 'en';
+const content = useTranslations(locale).about;
+---
+
+<section id="about">
+  <!-- Hero: Photo + Bio -->
+  <div class="about-hero">
+    <div class="about-hero-inner">
+      <div class="photo-column">
+        <div class="photo-frame">
+          <img
+            src="/images/founder-erwan.jpg"
+            alt={content.heroName}
+            width="400"
+            height="400"
+            loading="eager"
+          />
+          <div class="photo-accent"></div>
+        </div>
+      </div>
+      <div class="bio-column">
+        <span class="eyebrow">{content.pageTitle}</span>
+        <h1>{content.heroName}</h1>
+        <p class="hero-title">{content.heroTitle}</p>
+        <p class="hero-bio">{content.heroBio}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expertise Areas -->
+  <div class="expertise-section">
+    <div class="container">
+      <div class="section-header">
+        <h2>{content.expertiseTitle}</h2>
+        <p class="section-subtitle">{content.expertiseSubtitle}</p>
+      </div>
+      <div class="expertise-grid">
+        {content.areas.map((area) => (
+          <div class="expertise-card">
+            <span class="material-symbols-rounded expertise-icon">{area.icon}</span>
+            <h3>{area.title}</h3>
+            <p>{area.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <!-- Philosophy -->
+  <div class="philosophy-section">
+    <div class="container">
+      <h2>{content.philosophyTitle}</h2>
+      <div class="principles-grid">
+        {content.principles.map((p) => (
+          <div class="principle-card">
+            <span class="material-symbols-rounded principle-icon">{p.icon}</span>
+            <h3>{p.title}</h3>
+            <p>{p.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="about-cta-section">
+    <div class="container">
+      <div class="cta-box">
+        <h2>{content.ctaTitle}</h2>
+        <p>{content.ctaSubtitle}</p>
+        <div class="cta-buttons">
+          <a href={content.ctaPrimary.url} class="cta-btn primary">
+            <span class="material-symbols-rounded">{content.ctaPrimary.icon}</span>
+            <span>{content.ctaPrimary.text}</span>
+          </a>
+          <a href={content.ctaSecondary.url} class="cta-btn secondary">
+            <span class="material-symbols-rounded">{content.ctaSecondary.icon}</span>
+            <span>{content.ctaSecondary.text}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ========================================
+     ABOUT PAGE — Editorial Founder Profile
+     Fraunces serif headings, warm palette
+     ======================================== */
+
+  section {
+    --section-gap: 80px;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---- HERO ---- */
+  .about-hero {
+    padding: 80px 0 60px;
+    background: var(--md-sys-color-surface);
+  }
+
+  .about-hero-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  .photo-frame {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+  }
+
+  .photo-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .photo-accent {
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    border: 2px solid var(--md-sys-color-outline-variant);
+    pointer-events: none;
+  }
+
+  .eyebrow {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--md-sys-color-primary);
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 3rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 8px;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .hero-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.2rem;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--md-sys-color-primary);
+    margin: 0 0 20px;
+    letter-spacing: -0.01em;
+  }
+
+  .hero-bio {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+  }
+
+  /* ---- EXPERTISE ---- */
+  .expertise-section {
+    padding: var(--section-gap) 0;
+    background: var(--md-sys-color-surface-container-low);
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .expertise-section h2,
+  .philosophy-section h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+    text-align: center;
+  }
+
+  .section-subtitle {
+    font-size: 1.05rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .expertise-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+
+  .expertise-card {
+    padding: 28px 24px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border-radius: 16px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    transition: border-color 200ms ease-out, transform 200ms ease-out;
+  }
+
+  .expertise-card:hover {
+    border-color: var(--md-sys-color-primary);
+    transform: translateY(-2px);
+  }
+
+  .expertise-icon {
+    font-size: 28px;
+    color: var(--md-sys-color-primary);
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .expertise-card h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .expertise-card p {
+    font-size: 0.9rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ---- PHILOSOPHY ---- */
+  .philosophy-section {
+    padding: var(--section-gap) 0;
+    background: var(--md-sys-color-surface);
+  }
+
+  .philosophy-section h2 {
+    margin-bottom: 48px;
+  }
+
+  .principles-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .principle-card {
+    padding: 28px 24px;
+    text-align: center;
+  }
+
+  .principle-icon {
+    font-size: 32px;
+    color: var(--md-sys-color-primary);
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .principle-card h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .principle-card p {
+    font-size: 0.9rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ---- CTA ---- */
+  .about-cta-section {
+    padding: var(--section-gap) 0;
+    background: var(--md-sys-color-surface-container-low);
+  }
+
+  .cta-box {
+    padding: 48px;
+    background: var(--md-sys-color-surface-container);
+    border-radius: 20px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    text-align: center;
+  }
+
+  .cta-box h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .cta-box p {
+    font-size: 1.05rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0 0 32px;
+    line-height: 1.6;
+    max-width: 550px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .cta-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 200ms ease-out, border-color 200ms ease-out, transform 150ms ease-out;
+  }
+
+  .cta-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .cta-btn.primary {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+  }
+
+  .cta-btn.primary:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .cta-btn.secondary {
+    background: transparent;
+    color: var(--md-sys-color-primary);
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .cta-btn.secondary:hover {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-container-high);
+  }
+
+  .cta-btn .material-symbols-rounded {
+    font-size: 20px;
+  }
+
+  /* ---- RESPONSIVE ---- */
+
+  @media (max-width: 1024px) {
+    .about-hero-inner {
+      grid-template-columns: 280px 1fr;
+      gap: 40px;
+    }
+
+    .expertise-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    h1 {
+      font-size: 2.4rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    section {
+      --section-gap: 48px;
+    }
+
+    .about-hero {
+      padding: 48px 0 40px;
+    }
+
+    .about-hero-inner {
+      grid-template-columns: 1fr;
+      gap: 32px;
+      text-align: center;
+    }
+
+    .photo-column {
+      display: flex;
+      justify-content: center;
+    }
+
+    .photo-frame {
+      max-width: 240px;
+    }
+
+    h1 {
+      font-size: 2rem;
+    }
+
+    .expertise-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .principles-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .cta-box {
+      padding: 32px 24px;
+    }
+
+    .cta-box h2 {
+      font-size: 1.6rem;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ========================================
+     ABOUT PAGE - DARK MODE
+     Warm orange palette
+     ======================================== */
+
+  html[data-theme="dark"] #about .about-hero {
+    background: var(--casys-warm-background);
+  }
+
+  html[data-theme="dark"] #about .eyebrow {
+    color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #about h1 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #about .hero-title {
+    color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #about .hero-bio {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  html[data-theme="dark"] #about .photo-frame {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  }
+
+  html[data-theme="dark"] #about .photo-accent {
+    border-color: rgba(255, 184, 111, 0.15);
+  }
+
+  /* Expertise */
+  html[data-theme="dark"] #about .expertise-section {
+    background: var(--casys-warm-surface);
+  }
+
+  html[data-theme="dark"] #about .expertise-section h2 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #about .section-subtitle {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  html[data-theme="dark"] #about .expertise-card {
+    background: var(--casys-warm-background);
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #about .expertise-card:hover {
+    border-color: var(--casys-warm-border-accent-hover);
+  }
+
+  html[data-theme="dark"] #about .expertise-icon {
+    color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #about .expertise-card h3 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #about .expertise-card p {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  /* Philosophy */
+  html[data-theme="dark"] #about .philosophy-section {
+    background: var(--casys-warm-background);
+  }
+
+  html[data-theme="dark"] #about .philosophy-section h2 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #about .principle-icon {
+    color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #about .principle-card h3 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #about .principle-card p {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  /* CTA */
+  html[data-theme="dark"] #about .about-cta-section {
+    background: var(--casys-warm-surface);
+  }
+
+  html[data-theme="dark"] #about .cta-box {
+    background: var(--casys-warm-background);
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #about .cta-box h2 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #about .cta-box p {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  html[data-theme="dark"] #about .cta-btn.primary {
+    background: var(--casys-warm-accent);
+    color: var(--casys-warm-surface);
+  }
+
+  html[data-theme="dark"] #about .cta-btn.primary:hover {
+    background: var(--casys-warm-accent-hover);
+  }
+
+  html[data-theme="dark"] #about .cta-btn.secondary {
+    color: var(--casys-warm-accent);
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #about .cta-btn.secondary:hover {
+    border-color: var(--casys-warm-accent);
+    background: rgba(255, 184, 111, 0.1);
+  }
+</style>

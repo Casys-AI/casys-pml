@@ -1,5 +1,6 @@
 ---
 import '../styles.css';
+import Analytics from '@vercel/analytics/astro';
 import { getCollection } from 'astro:content';
 
 export interface Props {
@@ -122,6 +123,15 @@ function getPostSlug(post: typeof sortedPosts[0]) {
           mql.addEventListener('change', apply);
         } catch(_) {}
       })();
+    </script>
+
+    <!-- Google tag (gtag.js) -->
+    <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-FR86NHGK8Y"></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-FR86NHGK8Y');
     </script>
 
     <title>{title}</title>
@@ -261,6 +271,7 @@ function getPostSlug(post: typeof sortedPosts[0]) {
         </div>
       </main>
     </div>
+    <Analytics />
   </body>
 </html>
 

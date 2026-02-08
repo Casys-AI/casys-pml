@@ -26,7 +26,7 @@ export const zh: Translations = {
     connect: '链接',
     contact: '联系我们',
     discord: 'Discord',
-    description: 'MCP 基础设施专家',
+    description: '智能体架构与上下文系统',
     tagline: '开源工具 & 咨询服务',
   },
   subsiteFooter: {
@@ -38,18 +38,18 @@ export const zh: Translations = {
     connect: '链接',
     contact: '联系我们',
     discord: 'Discord',
-    description: '应用 AI 研究',
-    tagline: 'MIT 开源工具 & 咨询服务',
+    description: '智能体架构与上下文系统',
+    tagline: '开源工具 & 咨询服务',
   },
 
   // ========================================
   // LANDING V2 SECTIONS
   // ========================================
   hero: {
-    kicker: 'MCP 基础设施专业知识',
+    kicker: '智能体架构与上下文系统',
     titleLine1: '从知识图谱',
     titleLine2: '到 MCP 服务器',
-    subtitle: '十年知识工程经验 — 以开源基础设施交付给您的团队。',
+    subtitle: '十五年以上上下文工程经验 — 以开源基础设施交付给您的团队。',
     cta: {
       primary: { text: '与我们合作', icon: 'handshake', url: '#work-with-us' },
       secondary: { text: '探索项目', icon: 'explore', url: '#projects' },
@@ -62,8 +62,8 @@ export const zh: Translations = {
     ],
   },
   socialProof: {
-    title: 'Building in Public',
-    subtitle: '进展与社区',
+    title: 'Track Record',
+    subtitle: '用成果说话,不靠承诺',
     items: [
       {
         type: 'stat',
@@ -79,7 +79,7 @@ export const zh: Translations = {
       {
         type: 'stat',
         icon: 'groups',
-        stat: '10+',
+        stat: '15+',
         label: '年经验',
         description: 'Context Management → Graph DBs → DAGs → MCP',
         link: {
@@ -158,7 +158,7 @@ export const zh: Translations = {
   },
   whatWeDo: {
     title: '我们做什么',
-    subtitle: '结合探索、开源和咨询的应用 AI 研究',
+    subtitle: '结合探索、开源和咨询的上下文工程',
     cards: [
       {
         id: 'research',
@@ -169,7 +169,7 @@ export const zh: Translations = {
         researchAreas: [
           {
             name: '知识管理',
-            description: '10+ 年 KM 系统、图谱、语义搜索经验'
+            description: '15+ 年 KM 系统、图谱、语义搜索经验'
           },
           {
             name: '智能体系统',
@@ -194,9 +194,9 @@ export const zh: Translations = {
         id: 'opensource',
         icon: 'code',
         title: '开源项目',
-        subtitle: 'MIT 许可工具',
+        subtitle: '开源工具',
         projects: ['MCP Gateway: 上下文管理'],
-        highlights: ['全部 MIT 许可', '生产就绪', '咨询可选']
+        highlights: ['默认开源', '生产就绪', '咨询可选']
       },
       {
         id: 'consulting',
@@ -204,7 +204,7 @@ export const zh: Translations = {
         title: '咨询',
         subtitle: '实操帮助',
         services: ['架构与策略', '实施与部署', '培训'],
-        highlights: ['中端市场可及', '无最低承诺', '直接对接开发者']
+        highlights: ['灵活定价', '无最低承诺', '直接对接开发者']
       }
     ]
   },
@@ -232,8 +232,8 @@ export const zh: Translations = {
             },
             {
               icon: 'auto_awesome',
-              name: '模式学习',
-              description: '工作流随时间自动改进'
+              name: '模式提取',
+              description: 'SHGAT 从执行轨迹中提取相关性模式'
             }
         ],
         results: [
@@ -292,7 +292,7 @@ export const zh: Translations = {
         license: 'AGPL-3.0',
         features: [
           { icon: 'hub', name: 'SHGAT', description: '稀疏异构图注意力' },
-          { icon: 'psychology', name: '运行时学习', description: '从执行轨迹中学习' },
+          { icon: 'psychology', name: '基于轨迹训练', description: '基于生产执行轨迹训练' },
           { icon: 'route', name: 'DAG 优化', description: '自动工作流规划' }
         ],
         tech: { stack: 'TensorFlow.js, Deno' },
@@ -321,10 +321,10 @@ export const zh: Translations = {
       {
         id: 'continuity',
         icon: 'timeline',
-        title: '10+ 年持续发展',
+        title: '15+ 年持续发展',
         description: '不是追逐热潮的 AI 新手',
         highlights: [
-          '10+ 年的实绩',
+          '15+ 年的实绩',
           '深度专长，而非表面热潮',
           '每个阶段都建立在前一个之上'
         ]
@@ -333,9 +333,9 @@ export const zh: Translations = {
         id: 'opensource',
         icon: 'code_blocks',
         title: '开源优先',
-        description: '全部 MIT 许可。工具免费，咨询可选',
+        description: '默认开源。工具免费，咨询可选',
         highlights: [
-          '全部 MIT 许可',
+          '默认开源',
           '无供应商锁定',
           '分享研究成果'
         ]
@@ -354,17 +354,17 @@ export const zh: Translations = {
       {
         id: 'accessible',
         icon: 'handshake',
-        title: '中端市场可及',
+        title: '无门槛设计',
         description: '无企业级开销',
         highlights: [
-          '中端市场定价',
+          '透明定价',
           '无最低承诺规模',
           '直接对接开发者'
         ]
       }
     ],
     bottomLine: {
-      text: '一个拥有多领域 AI 深度专长的小型实验室。我们构建实用工具，分享所学，在需要时帮助团队。',
+      text: '一个在上下文管理和智能体系统方面拥有深度专长的小型事务所。我们构建实用工具，分享所学，在需要时帮助团队。',
       cta: {
         primary: {
           text: '联系我们',
@@ -391,20 +391,20 @@ export const zh: Translations = {
     categories: ['项目', '咨询', '培训', '通用'],
     allLabel: '全部',
     faqs: [
-      { category: '项目', q: 'Casys PML 到底是什么？', a: 'Casys PML 是一个模型无关的 MCP 网关。一次构建 AI 工作流，在 Claude、GPT、Gemini 或本地 Ollama 上运行。每次工具调用都被追踪（成本、延迟、状态），系统从使用模式中学习自动改进。' },
-      { category: '项目', q: 'Casys PML 与其他 MCP 工具有什么不同？', a: 'Casys PML 是统一网关，而非仅仅是 MCP 客户端。它提供：(1) 动态切换 LLM 提供商（无供应商锁定）；(2) 对每次工具调用的完整可观测性，包括成本和延迟追踪；(3) 自动模式学习——工作流随时间优化。它是唯一结合模型无关+可观测性+学习的 MCP 网关。' },
+      { category: '项目', q: 'Casys PML 到底是什么？', a: 'Casys PML 是一个模型无关的 MCP 网关。一次构建 AI 工作流，在 Claude、GPT、Gemini 或本地 Ollama 上运行。每次工具调用都被追踪（成本、延迟、状态），SHGAT 从执行数据中提取相关性模式以改进工具评分。' },
+      { category: '项目', q: 'Casys PML 与其他 MCP 工具有什么不同？', a: 'Casys PML 是统一网关，而非仅仅是 MCP 客户端。它提供：(1) 动态切换 LLM 提供商（无供应商锁定）；(2) 对每次工具调用的完整可观测性，包括成本和延迟追踪；(3) 基于图的模式提取——SHGAT 从执行轨迹评分工具相关性。唯一结合模型无关路由+可观测性+图注意力评分的 MCP 网关。' },
       { category: '项目', q: '支持哪些 LLM 模型？', a: 'Claude (Anthropic)、GPT (OpenAI)、Gemini (Google) 和 Ollama（本地/自托管）。PML 作为网关：无需重写工作流即可切换提供商。目录包含 120+ 个即用能力。' },
       { category: '项目', q: 'Casys PML 是开源的吗？', a: '是的。AGPL-3.0 许可证。您可以永久免费自托管、阅读代码、修改和贡献。托管服务为需要云同步和协作的团队可选。' },
       { category: '项目', q: 'Casys PML 目前处于什么状态？', a: '活跃开发中。核心功能已就绪：GraphRAG 发现、DAG 编排与并行执行、隔离 TypeScript 沙箱、实时可观测性。Deno 2.x + PGlite 架构。在 GitHub 上关注进展。' },
       { category: '咨询', q: '咨询包括什么？', a: '架构评审、部署帮助、定制 MCP 集成、上下文策略设计、团队培训。我们与您的代码库进行实操合作。灵活选项：短期工作坊、定制项目、持续合作伙伴关系和定制企业方案。' },
-      { category: '咨询', q: '为什么选择 Casys AI 而不是大型咨询公司？', a: '我们是构建 Casys PML 的团队。我们为自己推荐的系统编写代码。您直接对接技术专家，而非客户经理。更快的迭代、中端市场可及的入口、没有大型咨询公司那样的高额最低承诺。' },
+      { category: '咨询', q: '为什么选择 Casys 而不是大型咨询公司？', a: '我们是构建 Casys PML 的团队。我们为自己推荐的系统编写代码。您直接对接技术专家，而非客户经理。更快的迭代、灵活的入口门槛、没有大型咨询公司那样的高额最低承诺。' },
       { category: '咨询', q: '你们只做 Casys PML 还是也做其他架构？', a: '我们服务任何智能体架构。如果您没有使用 Casys PML，没关系。我们的专长是 Context Management、图数据库、DAG 编排。我们帮您设计最佳方案。' },
       { category: '培训', q: '你们提供哪些培训？', a: '智能体架构工作坊 (2-3天)、Casys PML 实操培训 (1天)、Context Management 基础 (半天)。所有课程根据您的技术栈和用例定制。' },
       { category: '培训', q: '培训在哪里进行？', a: '现场（台湾、亚太地区）、远程（全球）或混合模式。我们与 Alegria Group 合作在台湾举办定期工作坊，并参与 French Tech Taiwan 活动。' },
-      { category: '通用', q: 'Casys AI 的商业模式是什么？', a: '混合模式：(1) Casys PML SaaS（免费增值）；(2) 咨询（工作坊 → 项目 → 合作伙伴关系 → 企业级）；(3) 培训（定制课程）。您根据需求选择合作方式。' },
-      { category: '通用', q: 'Casys AI 适合谁？', a: '正在构建 AI 代理和基于 MCP 系统的中端市场公司的 CTO、技术负责人和工程经理。如果您面临上下文管理挑战，我们可以提供帮助。' },
-      { category: '通用', q: '你们的专业背景是什么？', a: '10+ 年 Context Management 经验，从知识管理 (2013+) 到图数据库到 DAG 架构到 MCP 生态系统。在这个领域被叫做"AI 代理的 Context Management"之前，我们就已经在做了。' },
-      { category: '通用', q: '你们的合作方式是怎样的？', a: '我们提供多种灵活选项：专项工作坊 (1天)、定制项目（完整部署）或持续合作（直接对接开发者）。没有高额最低承诺。我们优化迭代速度和中端市场可及性，而非利润最大化。商业模式为混合型：开源 (Casys PML)、咨询、培训。联系我们讨论您的具体需求。' }
+      { category: '通用', q: 'Casys 的商业模式是什么？', a: '三大支柱：(1) 开源工具（Casys PML、mcp-std、mcp-server——永久免费）；(2) 咨询（工作坊、架构评审、部署帮助）；(3) 培训（定制课程）。工具证明专长；咨询将其应用于您的具体场景。' },
+      { category: '通用', q: 'Casys 适合谁？', a: '正在构建 AI 代理和智能体系统的公司的 CTO、技术负责人和工程经理。如果您面临上下文管理、工具编排或知识图谱挑战，我们可以提供帮助。' },
+      { category: '通用', q: '你们的专业背景是什么？', a: '15+ 年上下文工程经验，从知识管理 (2013+) 到图数据库到 DAG 架构到 MCP 生态系统。在这个领域被叫做"AI 代理的 Context Management"之前，我们就已经在做了。' },
+      { category: '通用', q: '你们的合作方式是怎样的？', a: '我们提供多种灵活选项：专项工作坊 (1天)、定制项目（完整部署）或持续合作（直接对接从业者）。没有高额最低承诺。我们优化迭代速度和可及性，而非利润最大化。联系我们讨论您的具体需求。' }
     ]
   },
   finalCta: {
@@ -414,8 +414,8 @@ export const zh: Translations = {
       {
         icon: 'rocket_launch',
         text: '试用 Casys PML',
-        subtext: '加入免费等候名单',
-        url: '#contact'
+        subtext: '开源——30 秒安装',
+        url: 'https://pml.casys.ai'
       },
       {
         icon: 'mail',
@@ -426,16 +426,16 @@ export const zh: Translations = {
     ],
     trustBadges: [
       { icon: 'check_circle', text: 'AGPL-3.0 开源' },
-      { icon: 'check_circle', text: '10+ 年经验' },
-      { icon: 'check_circle', text: '中端市场可及' }
+      { icon: 'check_circle', text: '15+ 年经验' },
+      { icon: 'check_circle', text: '定价透明' }
     ]
   },
   contact: {
     title: '准备好开始了吗？',
-    subtitle: '加入 Casys PML 等候名单、预约咨询电话或申请培训。24小时内回复。',
+    subtitle: '预约咨询电话、申请培训或讨论架构挑战。24小时内回复。',
     namePlaceholder: '您的姓名',
     emailPlaceholder: '您的工作邮箱',
-    messagePlaceholder: '我想加入等候名单 / 预约咨询 / 申请培训',
+    messagePlaceholder: '我想预约咨询 / 申请培训 / 讨论架构挑战',
     submitButton: '发送请求',
     sending: '发送中...',
     successMessage: '已收到您的请求！我们将在24小时内回复。',
@@ -543,7 +543,7 @@ export const zh: Translations = {
     description: '一次构建 AI 工作流，使用 Claude、GPT、Gemini 或本地 Ollama 运行。每次工具调用均可追踪。秒级调试，而非小时。',
     ctaPrimary: '开始使用',
     ctaSecondary: '阅读文档',
-    pillars: ['模型无关', '完整可追踪', '学习模式'],
+    pillars: ['模型无关', '完整可追踪', '模式提取'],
     traceHeader: 'workflow:ci-deploy',
     traceLive: 'live',
     traceCalls: '22 次调用',
@@ -570,7 +570,7 @@ export const zh: Translations = {
     pillars: [
       { label: '模型无关', description: '兼容任何 LLM 提供商' },
       { label: '可观测性', description: '每个操作的完整追踪' },
-      { label: '智能', description: '符号推理层' },
+      { label: '符号推理', description: '符号推理层' },
     ],
     mobileArrow: '传输至',
   },
@@ -661,30 +661,30 @@ export const zh: Translations = {
   },
   pmlCta: {
     title: '准备好了吗？',
-    description: '为您的代理赋予程序化记忆。立即开始构建更智能的工作流。',
+    description: '为您的代理赋予程序化记忆。立即开始构建可观测的工作流。',
     primaryCta: '开始使用',
     secondaryCta: '申请测试版',
   },
   pmlIntelligence: {
-    eyebrow: '集体智能',
+    eyebrow: '模式提取',
     titleLine1: '每次执行',
-    titleLine2: '都让它更智能。',
-    description: '运行的工作流越多，系统就越好。网络效应不断叠加——一旦开始，就无法追赶。',
+    titleLine2: '都留下轨迹。',
+    description: 'PML 记录完整的执行轨迹——工具序列、延迟、错误路径。SHGAT 从这些数据中提取相关性模式。确定性、可检查、无黑盒。',
     features: [
       {
         icon: 'hub',
-        title: '社区模式',
-        desc: '从数千次工作流执行中学习。使用的人越多，对每个人就越智能。',
+        title: '执行轨迹',
+        desc: '每次工作流运行都被完整记录：工具调用、输入、输出、时间、成本。数据保留在您的基础设施上。',
       },
       {
         icon: 'auto_awesome',
-        title: '自动优化',
-        desc: '您的工作流随时间自动改进。无需手动调优。',
+        title: '图注意力评分',
+        desc: 'SHGAT 处理轨迹数据以评分工具相关性。跨超图层级的 K-head 注意力。无 LLM 调用。',
       },
       {
         icon: 'recommend',
-        title: '智能建议',
-        desc: '"运行过此工作流的用户还使用了…"——发现你不知道自己需要的工具。',
+        title: '共现模式',
+        desc: '经常一起运行的工具会自动浮现。统计共现，而非猜测。',
       },
     ],
   },
@@ -843,5 +843,69 @@ export const zh: Translations = {
         desc: 'SHGAT-TF trains from production traces \u2014 no external service, no GPU required. libtensorflow FFI runs natively via Deno.dlopen. Self-contained.',
       },
     ],
+  },
+
+  // ========================================
+  // ABOUT PAGE
+  // ========================================
+  about: {
+    pageTitle: '关于',
+    heroName: 'Erwan Le Pesle',
+    heroTitle: '创始人 & 系统架构师，Casys',
+    heroBio: '十五年来，我们一直在构建将知识转化为行动的系统——从 mIRC 上的早期聊天机器人，到企业知识管理，再到用于工具相关性的图注意力网络。当大语言模型出现时，问题没有改变：上下文输入，行动输出。MCP 是这一原则最新的表达，也是最具影响力的。Casys AI 帮助工程团队交付可靠的 AI 集成——无供应商锁定，无黑盒。',
+    expertiseTitle: '我们做什么',
+    expertiseSubtitle: '连接 AI 系统与现实世界数据、工具和工作流的基础设施——为生产环境的可观测性和确定性而构建。',
+    areas: [
+      {
+        icon: 'hub',
+        title: '知识图谱',
+        description: '模式设计、查询优化和图原生架构。Neo4j 认证专业开发者。从本体建模到生产级图管道。',
+      },
+      {
+        icon: 'database',
+        title: '图数据库',
+        description: '建模关系型数据库无法表达的复杂关系。我们设计、部署和优化处理真实生产流量的 Neo4j 实例。',
+      },
+      {
+        icon: 'smart_toy',
+        title: '智能体系统',
+        description: '工具编排、上下文路由和执行可靠性。我们架构多智能体系统，使每个决策可追溯，每个故障可恢复。',
+      },
+      {
+        icon: 'cable',
+        title: 'MCP 基础设施',
+        description: '服务器架构、连接器设计和协议级优化。已交付 500+ 开源工具。我们构建可观测、可测试、生产就绪的 MCP 层。',
+      },
+    ],
+    philosophyTitle: '我们的工作方式',
+    principles: [
+      {
+        icon: 'code',
+        title: '以开源为基石',
+        description: '我们的核心工具是开源的。客户获得的解决方案建立在可审查、可分叉、可拥有的代码之上。无供应商锁定，无黑盒。',
+      },
+      {
+        icon: 'science',
+        title: '能上线的研究',
+        description: '我们发布所学，交付所建。我们推荐的每项技术都经过真实工作负载的验证，而非仅限于基准测试。',
+      },
+      {
+        icon: 'emoji_objects',
+        title: '务实，不炒作',
+        description: '我们不贩卖"AI 转型"。我们用具体的工程方法解决具体的基础设施问题。让工作成果说话。',
+      },
+    ],
+    ctaTitle: '从一个问题开始',
+    ctaSubtitle: '描述您的 MCP 基础设施挑战、知识图谱瓶颈或智能体系统设计问题。我们会坦诚告知是否能帮到您——以及我们会如何着手解决。',
+    ctaPrimary: {
+      text: '联系我们',
+      url: '/#contact',
+      icon: 'mail',
+    },
+    ctaSecondary: {
+      text: '查看项目',
+      url: '/#projects',
+      icon: 'folder_open',
+    },
   },
 };

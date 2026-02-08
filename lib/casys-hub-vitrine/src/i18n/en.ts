@@ -24,7 +24,7 @@ export const en = {
     connect: 'Connect',
     contact: 'Contact',
     discord: 'Discord',
-    description: 'MCP Infrastructure Expertise',
+    description: 'Agentic Architecture & Context Systems',
     tagline: 'Open Source Tools & Consulting',
   },
   subsiteFooter: {
@@ -36,18 +36,18 @@ export const en = {
     connect: 'Connect',
     contact: 'Contact',
     discord: 'Discord',
-    description: 'Applied AI Research',
-    tagline: 'MIT Open Source Tools & Consulting',
+    description: 'Agentic Architecture & Context Systems',
+    tagline: 'Open Source Tools & Consulting',
   },
 
   // ========================================
   // LANDING V2 SECTIONS
   // ========================================
   hero: {
-    kicker: 'MCP Infrastructure Expertise',
+    kicker: 'Agentic Architecture & Context Systems',
     titleLine1: 'From Knowledge Graphs',
     titleLine2: 'to MCP Servers',
-    subtitle: '10 years of knowledge engineering — shipped as open-source infrastructure for your team.',
+    subtitle: '15+ years of context engineering — shipped as open-source infrastructure for your team.',
     cta: {
       primary: { text: 'Work With Us', icon: 'handshake', url: '#work-with-us' },
       secondary: { text: 'Explore Projects', icon: 'explore', url: '#projects' },
@@ -60,8 +60,8 @@ export const en = {
     ],
   },
   socialProof: {
-    title: 'Building in Public',
-    subtitle: 'Progress and community',
+    title: 'Track Record',
+    subtitle: 'Proof of work, not promises',
     items: [
       {
         type: 'stat',
@@ -77,7 +77,7 @@ export const en = {
       {
         type: 'stat',
         icon: 'groups',
-        stat: '10+',
+        stat: '15+',
         label: 'Years Expertise',
         description: 'Context Management → Graph DBs → DAGs → MCP',
         link: {
@@ -176,7 +176,7 @@ export const en = {
   },
   whatWeDo: {
     title: 'What We Do',
-    subtitle: 'Applied AI research combining exploration, open source, and consulting',
+    subtitle: 'Context engineering combining exploration, open source, and consulting',
     cards: [
       {
         id: 'research',
@@ -187,7 +187,7 @@ export const en = {
         researchAreas: [
           {
             name: 'Knowledge Management',
-            description: '10+ years building KM systems, graphs, semantic search'
+            description: '15+ years building KM systems, graphs, semantic search'
           },
           {
             name: 'Agentic Systems',
@@ -212,9 +212,9 @@ export const en = {
         id: 'opensource',
         icon: 'code',
         title: 'Open Source Projects',
-        subtitle: 'MIT licensed tools',
+        subtitle: 'Open source tools',
         projects: ['MCP Gateway: Context management'],
-        highlights: ['All MIT licensed', 'Production-ready', 'Consulting optional']
+        highlights: ['Open source by default', 'Production-ready', 'Consulting optional']
       },
       {
         id: 'consulting',
@@ -222,7 +222,7 @@ export const en = {
         title: 'Consulting',
         subtitle: 'Hands-on help',
         services: ['Architecture & Strategy', 'Implementation & Deployment', 'Training'],
-        highlights: ['Mid-market accessible', 'No minimum engagement', 'Direct builder access']
+        highlights: ['Flexible pricing', 'No minimum engagement', 'Direct builder access']
       }
     ]
   },
@@ -250,8 +250,8 @@ export const en = {
             },
             {
               icon: 'auto_awesome',
-              name: 'Pattern Learning',
-              description: 'Workflows improve automatically over time'
+              name: 'Pattern Extraction',
+              description: 'SHGAT extracts relevance patterns from execution traces'
             }
         ],
         results: [
@@ -321,7 +321,7 @@ export const en = {
         license: 'AGPL-3.0',
         features: [
           { icon: 'hub', name: 'SHGAT', description: 'Sparse Heterogeneous Graph Attention' },
-          { icon: 'psychology', name: 'Runtime Learning', description: 'Learns from execution traces' },
+          { icon: 'psychology', name: 'Trace-Based Training', description: 'Trains on production execution traces' },
           { icon: 'route', name: 'DAG Optimization', description: 'Automatic workflow planning' }
         ],
         tech: { stack: 'TensorFlow.js, Deno' },
@@ -350,10 +350,10 @@ export const en = {
       {
         id: 'continuity',
         icon: 'timeline',
-        title: '10+ Years Continuity',
+        title: '15+ Years Continuity',
         description: 'Not AI newcomers riding the hype wave',
         highlights: [
-          '10+ years track record',
+          '15+ years track record',
           'Deep expertise, not surface-level hype',
           'Each phase builds on the last'
         ]
@@ -362,9 +362,9 @@ export const en = {
         id: 'opensource',
         icon: 'code_blocks',
         title: 'Open Source First',
-        description: 'All MIT licensed. Tools free, consulting optional',
+        description: 'Open source by default. Tools free, consulting optional',
         highlights: [
-          'All MIT licensed',
+          'Open source by default',
           'No vendor lock-in',
           'Share the research'
         ]
@@ -383,17 +383,17 @@ export const en = {
       {
         id: 'accessible',
         icon: 'handshake',
-        title: 'Mid-Market Accessible',
+        title: 'Accessible by Design',
         description: 'No corporate overhead',
         highlights: [
-          'Mid-market pricing',
+          'Transparent pricing',
           'No minimum engagement sizes',
           'Direct access to builders'
         ]
       }
     ],
     bottomLine: {
-      text: 'A small lab with deep expertise across multiple AI domains. We build real tools, share what we learn, and help teams when needed.',
+      text: 'A small firm with deep expertise across context management and agentic systems. We build real tools, share what we learn, and help teams when needed.',
       cta: {
         primary: {
           text: 'Get in Touch',
@@ -416,19 +416,19 @@ export const en = {
   },
   faq: {
     title: 'Frequently Asked Questions',
-    subtitle: 'Everything you need to know about our projects and Casys',
+    subtitle: 'Everything you need to know about our projects and consulting',
     categories: ['Projects', 'Consulting', 'Training', 'General'],
     allLabel: 'All',
     faqs: [
       {
         category: 'Projects',
         q: 'What is Casys PML exactly?',
-        a: 'Casys PML is a model-agnostic MCP gateway. Build your AI workflows once, run them on Claude, GPT, Gemini, or your local Ollama. Every tool call is traced (cost, latency, status) and the system learns from your usage patterns to improve automatically.'
+        a: 'Casys PML is a model-agnostic MCP gateway. Build your AI workflows once, run them on Claude, GPT, Gemini, or your local Ollama. Every tool call is traced (cost, latency, status) and SHGAT extracts relevance patterns from execution data to improve tool scoring.'
       },
       {
         category: 'Projects',
         q: 'How is Casys PML different from other MCP tools?',
-        a: 'Casys PML is a unified gateway, not just an MCP client. It offers: (1) Switch LLM providers on the fly (no vendor lock-in), (2) Full observability on every tool call with cost and latency tracking, (3) Automatic pattern learning — your workflows optimize over time. It\'s the only MCP gateway combining model-agnostic + observability + learning.'
+        a: 'Casys PML is a unified gateway, not just an MCP client. It offers: (1) Switch LLM providers on the fly (no vendor lock-in), (2) Full observability on every tool call with cost and latency tracking, (3) Graph-based pattern extraction — SHGAT scores tool relevance from execution traces. The only MCP gateway combining model-agnostic routing + observability + graph attention scoring.'
       },
       {
         category: 'Projects',
@@ -452,8 +452,8 @@ export const en = {
       },
       {
         category: 'Consulting',
-        q: 'Why should I hire Casys AI vs big consultancies?',
-        a: 'We\'re the people who build Casys PML. We code the systems we recommend. You get direct access to technical experts, not account managers. Faster iteration, accessible mid-market entry points, no heavy minimum engagements like big consultancies.'
+        q: 'Why should I hire Casys vs big consultancies?',
+        a: 'We\'re the people who build Casys PML. We code the systems we recommend. You get direct access to technical experts, not account managers. Faster iteration, accessible entry points, no heavy minimum engagements like big consultancies.'
       },
       {
         category: 'Consulting',
@@ -472,23 +472,23 @@ export const en = {
       },
       {
         category: 'General',
-        q: 'What\'s the Casys AI business model?',
-        a: 'Hybrid: (1) Casys PML SaaS (freemium), (2) Consulting (workshops → projects → partnerships → enterprise), (3) Training (custom programs). You choose how to work with us based on your needs.'
+        q: 'What\'s the Casys business model?',
+        a: 'Three pillars: (1) Open source tools (Casys PML, mcp-std, mcp-server — free forever), (2) Consulting (workshops, architecture review, deployment help), (3) Training (custom programs). The tools prove the expertise; the consulting applies it to your specific context.'
       },
       {
         category: 'General',
-        q: 'Who is Casys AI for?',
-        a: 'CTOs, Tech Leads, Engineering Managers at mid-market companies building AI agents and MCP-based systems. If you\'re dealing with context management challenges, we can help.'
+        q: 'Who is Casys for?',
+        a: 'CTOs, Tech Leads, Engineering Managers at companies building AI agents and agentic systems. If you\'re dealing with context management, tool orchestration, or knowledge graph challenges, we can help.'
       },
       {
         category: 'General',
         q: 'What\'s your expertise background?',
-        a: '10+ years Context Management, from Knowledge Management (2013+) to Graph Databases to DAG architectures to MCP ecosystems. We\'ve been doing this since before it was called "Context Management for AI agents".'
+        a: '15+ years in context engineering, from Knowledge Management to Graph Databases to DAG architectures to MCP ecosystems. We\'ve been doing this since before it was called "Context Management for AI agents".'
       },
       {
         category: 'General',
         q: 'How are your engagements structured?',
-        a: 'We offer several flexible options: focused workshops (1 day), custom projects (full deployment), or ongoing partnerships (direct builder access). No heavy minimum engagements. We optimize for iteration speed and mid-market access, not margin maximization. Our business model is hybrid: open source (Casys PML), consulting, training. Contact us to discuss your specific needs.'
+        a: 'We offer several flexible options: focused workshops (1 day), custom projects (full deployment), or ongoing partnerships (direct access to practitioners). No heavy minimum engagements. We optimize for iteration speed and accessibility, not margin maximization. Contact us to discuss your specific needs.'
       }
     ]
   },
@@ -499,8 +499,8 @@ export const en = {
       {
         icon: 'rocket_launch',
         text: 'Try Casys PML',
-        subtext: 'Join the freemium waitlist',
-        url: '#contact'
+        subtext: 'Open source — install in 30 seconds',
+        url: 'https://pml.casys.ai'
       },
       {
         icon: 'mail',
@@ -511,16 +511,16 @@ export const en = {
     ],
     trustBadges: [
       { icon: 'check_circle', text: 'AGPL-3.0 Open Source' },
-      { icon: 'check_circle', text: '10+ years expertise' },
-      { icon: 'check_circle', text: 'Mid-market accessible' }
+      { icon: 'check_circle', text: '15+ years expertise' },
+      { icon: 'check_circle', text: 'Accessible pricing' }
     ]
   },
   contact: {
     title: 'Ready to Get Started?',
-    subtitle: 'Join the Casys PML waitlist, book a consulting call, or request training. 24h response time.',
+    subtitle: 'Book a consulting call, request training, or discuss your architecture challenges. 24h response time.',
     namePlaceholder: 'Your name',
     emailPlaceholder: 'Your work email',
-    messagePlaceholder: 'I want to join the waitlist / book a consulting call / request training',
+    messagePlaceholder: 'I want to book a consulting call / request training / discuss an architecture challenge',
     submitButton: 'Send my request',
     sending: 'Sending...',
     successMessage: 'Request received! We\'ll get back to you within 24h.',
@@ -628,7 +628,7 @@ export const en = {
     description: 'Build AI workflows once, run them with Claude, GPT, Gemini, or your local Ollama. Every tool call traced. Debug in seconds, not hours.',
     ctaPrimary: 'Get Started',
     ctaSecondary: 'Read the Docs',
-    pillars: ['Model-Agnostic', 'Full Traceability', 'Learns Patterns'],
+    pillars: ['Model-Agnostic', 'Full Traceability', 'Pattern Extraction'],
     traceHeader: 'workflow:ci-deploy',
     traceLive: 'live',
     traceCalls: '22 calls',
@@ -655,7 +655,7 @@ export const en = {
     pillars: [
       { label: 'Model-Agnostic', description: 'Works with any LLM provider' },
       { label: 'Observability', description: 'Full trace of every action' },
-      { label: 'Intelligence', description: 'Symbolic reasoning layer' },
+      { label: 'Symbolic Reasoning', description: 'Symbolic reasoning layer' },
     ],
     mobileArrow: 'flows to',
   },
@@ -746,30 +746,30 @@ export const en = {
   },
   pmlCta: {
     title: 'Ready to try?',
-    description: 'Give your agents procedural memory. Start building smarter workflows today.',
+    description: 'Give your agents procedural memory. Start building observable workflows today.',
     primaryCta: 'Get Started',
     secondaryCta: 'Request Beta Access',
   },
   pmlIntelligence: {
-    eyebrow: 'Collective Intelligence',
+    eyebrow: 'Pattern Extraction',
     titleLine1: 'Every execution',
-    titleLine2: 'makes it smarter.',
-    description: 'The more workflows run, the better the system gets. Network effects that compound \u2014 impossible to catch up once you start.',
+    titleLine2: 'leaves a trace.',
+    description: 'PML records full execution traces — tool sequences, latencies, error paths. SHGAT extracts relevance patterns from this data. Deterministic, inspectable, no black box.',
     features: [
       {
         icon: 'hub',
-        title: 'Community Patterns',
-        desc: 'Learn from thousands of workflow executions. The more people use it, the smarter it gets for everyone.',
+        title: 'Execution Traces',
+        desc: 'Every workflow run is fully logged: tool calls, inputs, outputs, timing, costs. The data stays on your infrastructure.',
       },
       {
         icon: 'auto_awesome',
-        title: 'Auto-Optimization',
-        desc: 'Your workflows improve automatically over time. No manual tuning required.',
+        title: 'Graph Attention Scoring',
+        desc: 'SHGAT processes trace data to score tool relevance. K-head attention across the hypergraph hierarchy. No LLM calls.',
       },
       {
         icon: 'recommend',
-        title: 'Smart Suggestions',
-        desc: '"Users who ran this also used..." \u2014 discover tools you didn\'t know you needed.',
+        title: 'Co-occurrence Patterns',
+        desc: 'Tools that frequently run together surface automatically. Statistical co-occurrence, not guesswork.',
       },
     ],
   },
@@ -928,5 +928,69 @@ export const en = {
         desc: 'SHGAT-TF trains from production traces \u2014 no external service, no GPU required. libtensorflow FFI runs natively via Deno.dlopen. Self-contained.',
       },
     ],
+  },
+
+  // ========================================
+  // ABOUT PAGE
+  // ========================================
+  about: {
+    pageTitle: 'About',
+    heroName: 'Erwan Le Pesle',
+    heroTitle: 'Founder & System Architect, Casys',
+    heroBio: 'We have been building systems that connect knowledge to action for over fifteen years \u2014 from early chatbots on mIRC, to enterprise knowledge management, to graph attention networks for tool relevance. When LLMs arrived, the problem didn\'t change: context in, action out. MCP is the latest expression of that principle, and the most consequential. Casys AI helps engineering teams ship reliable AI integrations \u2014 no vendor lock-in, no black boxes.',
+    expertiseTitle: 'What We Do',
+    expertiseSubtitle: 'Infrastructure that connects AI systems to real-world data, tools, and workflows \u2014 built for production observability and determinism.',
+    areas: [
+      {
+        icon: 'hub',
+        title: 'Knowledge Graphs',
+        description: 'Schema design, query optimization, and graph-native architectures. Neo4j Professional Developer certified. From ontology modeling to production-grade graph pipelines.',
+      },
+      {
+        icon: 'database',
+        title: 'Graph Databases',
+        description: 'Modeling complex relationships that relational databases cannot express. We design, deploy, and optimize Neo4j instances handling real production traffic.',
+      },
+      {
+        icon: 'smart_toy',
+        title: 'Agentic Systems',
+        description: 'Tool orchestration, context routing, and execution reliability. We architect multi-agent systems where every decision is traceable and every failure is recoverable.',
+      },
+      {
+        icon: 'cable',
+        title: 'MCP Infrastructure',
+        description: 'Server architecture, connector design, and protocol-level optimization. 500+ open-source tools shipped. We build MCP layers that are observable, testable, and production-ready.',
+      },
+    ],
+    philosophyTitle: 'How We Work',
+    principles: [
+      {
+        icon: 'code',
+        title: 'Open Source as Foundation',
+        description: 'Our core tooling is open source. Clients get solutions built on code they can inspect, fork, and own. No vendor lock-in, no black boxes.',
+      },
+      {
+        icon: 'science',
+        title: 'Research That Ships',
+        description: 'We publish what we learn and ship what we build. Every technique we recommend has been tested against real workloads, not just benchmarks.',
+      },
+      {
+        icon: 'emoji_objects',
+        title: 'Context Over Hype',
+        description: 'We don\'t sell "AI transformation." We solve specific infrastructure problems with specific engineering methods. The work speaks for itself.',
+      },
+    ],
+    ctaTitle: 'Start With a Problem',
+    ctaSubtitle: 'Describe your MCP infrastructure challenge, your knowledge graph bottleneck, or your agentic system design question. We\'ll tell you straight whether we can help \u2014 and exactly how we\'d approach it.',
+    ctaPrimary: {
+      text: 'Get in Touch',
+      url: '/#contact',
+      icon: 'mail',
+    },
+    ctaSecondary: {
+      text: 'View Projects',
+      url: '/#projects',
+      icon: 'folder_open',
+    },
   },
 } as const;
