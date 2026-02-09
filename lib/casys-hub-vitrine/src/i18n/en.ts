@@ -12,6 +12,7 @@ export const en = {
     whyCasys: 'Why Casys',
     consulting: 'Consulting',
     blog: 'Blog',
+    useCases: 'Our Work',
     about: 'About',
     contact: 'Contact',
   },
@@ -50,7 +51,7 @@ export const en = {
     titleLine2: 'to MCP Servers',
     subtitle: '15+ years of context engineering — shipped as open-source infrastructure for your team.',
     cta: {
-      primary: { text: 'Work With Us', icon: 'handshake', url: '#work-with-us' },
+      primary: { text: 'Work With Us', icon: 'handshake', url: '#contact' },
       secondary: { text: 'Explore Projects', icon: 'explore', url: '#projects' },
     },
     proofs: [
@@ -993,5 +994,22 @@ export const en = {
       url: '/#projects',
       icon: 'folder_open',
     },
+  },
+
+  // ========================================
+  // USE CASES PAGE
+  // ========================================
+  useCases: {
+    pageTitle: 'Our Work',
+    heroTitle: 'Our Work',
+    heroSubtitle: 'We build MCP infrastructure for production. Here\'s what that looks like — real challenges, real solutions, real metrics.',
+    labelChallenge: 'Challenge',
+    labelApproach: 'Solution',
+    labelResult: 'Result',
+    labelStack: 'Stack',
+    ctaTitle: 'Have a Similar Challenge?',
+    ctaSubtitle: 'Describe your MCP infrastructure challenge. We\'ll tell you straight whether we can help — and exactly how we\'d approach it.',
+    ctaPrimary: { text: 'Get in Touch', url: '/#contact', icon: 'mail' },
+    ctaSecondary: { text: 'View Projects', url: '/#projects', icon: 'folder_open' },
   },
 } as const;

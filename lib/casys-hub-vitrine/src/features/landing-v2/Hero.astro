@@ -253,15 +253,21 @@ const t = useTranslations(locale).hero;
     }
 
     .proof-bar {
-      flex-direction: column;
-      gap: 16px;
-      padding: 20px;
-      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      padding: 12px;
+      width: auto;
+    }
+
+    .proof-badge {
+      align-items: center;
+      text-align: center;
+      padding: 10px 8px;
     }
 
     .proof-separator {
-      width: 80%;
-      height: 1px;
+      display: none;
     }
 
     .cta-group {

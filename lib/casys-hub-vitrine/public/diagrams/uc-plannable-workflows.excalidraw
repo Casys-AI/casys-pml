@@ -1,0 +1,42 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys AI Use Cases",
+  "elements": [
+    {"id": "req", "type": "rectangle", "x": 160, "y": 15, "width": 180, "height": 36, "strokeColor": "#f0ede8", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "req-text", "type": "text", "x": 190, "y": 26, "width": 120, "height": 14, "text": "Technician Request", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+
+    {"id": "arr1", "type": "arrow", "x": 250, "y": 51, "width": 0, "height": 24, "strokeColor": "#666666", "strokeWidth": 1.5, "roughness": 0, "points": [[0, 0], [0, 24]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "engine", "type": "rectangle", "x": 175, "y": 75, "width": 150, "height": 36, "strokeColor": "#60a5fa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "engine-text", "type": "text", "x": 205, "y": 86, "width": 90, "height": 14, "text": "MCP Engine", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+
+    {"id": "arr2", "type": "arrow", "x": 250, "y": 111, "width": 0, "height": 24, "strokeColor": "#666666", "strokeWidth": 1.5, "roughness": 0, "points": [[0, 0], [0, 24]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "gate", "type": "diamond", "x": 205, "y": 135, "width": 90, "height": 60, "strokeColor": "#fbbf24", "backgroundColor": "#1a1a1e", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0},
+    {"id": "gate-text", "type": "text", "x": 215, "y": 155, "width": 70, "height": 14, "text": "Approval\nGate", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "gate-label", "type": "text", "x": 310, "y": 148, "width": 150, "height": 24, "text": "\"Should we call\nthis tool?\"", "fontSize": 9, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "gate-check", "type": "text", "x": 310, "y": 175, "width": 80, "height": 12, "text": "Technician: \u2713", "fontSize": 9, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+
+    {"id": "arr3", "type": "arrow", "x": 250, "y": 195, "width": 0, "height": 24, "strokeColor": "#fbbf24", "strokeWidth": 1.5, "roughness": 0, "points": [[0, 0], [0, 24]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "server", "type": "rectangle", "x": 175, "y": 219, "width": 150, "height": 36, "strokeColor": "#a78bfa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "server-text", "type": "text", "x": 205, "y": 230, "width": 90, "height": 14, "text": "MCP Server", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#a78bfa"},
+
+    {"id": "arr4", "type": "arrow", "x": 250, "y": 255, "width": 0, "height": 24, "strokeColor": "#666666", "strokeWidth": 1.5, "roughness": 0, "points": [[0, 0], [0, 24]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "elicit", "type": "diamond", "x": 205, "y": 279, "width": 90, "height": 60, "strokeColor": "#60a5fa", "backgroundColor": "#1a1a1e", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0},
+    {"id": "elicit-text", "type": "text", "x": 218, "y": 299, "width": 70, "height": 14, "text": "Elicitation", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "elicit-label", "type": "text", "x": 310, "y": 292, "width": 150, "height": 24, "text": "\"Which test\nprofile?\"", "fontSize": 9, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "elicit-answer", "type": "text", "x": 310, "y": 320, "width": 120, "height": 12, "text": "Technician: \"Standard\"", "fontSize": 9, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+
+    {"id": "arr5", "type": "arrow", "x": 250, "y": 339, "width": 0, "height": 24, "strokeColor": "#60a5fa", "strokeWidth": 1.5, "roughness": 0, "points": [[0, 0], [0, 24]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "result", "type": "rectangle", "x": 175, "y": 363, "width": 150, "height": 36, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "result-text", "type": "text", "x": 195, "y": 374, "width": 110, "height": 14, "text": "Traceable Result", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+
+    {"id": "timeline-pre", "type": "text", "x": 40, "y": 155, "width": 120, "height": 12, "text": "Before execution", "fontSize": 8, "fontFamily": 1, "textAlign": "right", "verticalAlign": "middle", "strokeColor": "#fbbf24", "opacity": 60},
+    {"id": "timeline-during", "type": "text", "x": 40, "y": 299, "width": 120, "height": 12, "text": "During execution", "fontSize": 8, "fontFamily": 1, "textAlign": "right", "verticalAlign": "middle", "strokeColor": "#60a5fa", "opacity": 60}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

@@ -1,0 +1,69 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 230"><!-- svg-source:excalidraw -->
+<rect x="0" y="0" width="560" height="230" fill="#08080a"/>
+<style>text{font-family:'Inter','Segoe UI',system-ui,sans-serif}</style>
+
+<!-- BEFORE label -->
+<text x="90" y="20" font-size="12" font-weight="700" fill="#ef4444" text-anchor="middle" letter-spacing="0.1em">BEFORE</text>
+
+<!-- Excel sheets (stacked, opaque) -->
+<rect x="30" y="35" rx="4" ry="4" width="120" height="35" fill="#2d2d35" stroke="#666666" stroke-width="1.5"/>
+<text x="90" y="57" font-size="9" fill="#666666" text-anchor="middle">Sizing.xlsx</text>
+
+<rect x="30" y="80" rx="4" ry="4" width="120" height="35" fill="#2d2d35" stroke="#666666" stroke-width="1.5"/>
+<text x="90" y="102" font-size="9" fill="#666666" text-anchor="middle">Costing.xlsx</text>
+
+<rect x="30" y="125" rx="4" ry="4" width="120" height="35" fill="#2d2d35" stroke="#666666" stroke-width="1.5"/>
+<text x="90" y="147" font-size="9" fill="#666666" text-anchor="middle">Process.xlsx</text>
+
+<!-- Dashed hidden links -->
+<line x1="90" y1="70" x2="90" y2="80" stroke="#666666" stroke-width="1" stroke-dasharray="3,3" opacity="0.3"/>
+<line x1="90" y1="115" x2="90" y2="125" stroke="#666666" stroke-width="1" stroke-dasharray="3,3" opacity="0.3"/>
+
+<text x="90" y="182" font-size="9" fill="#ef4444" text-anchor="middle" opacity="0.7">Dependencies invisible</text>
+
+<!-- Transform arrow -->
+<line x1="180" y1="100" x2="245" y2="100" stroke="#fbbf24" stroke-width="2.5"/>
+<polygon points="245,94 257,100 245,106" fill="#fbbf24"/>
+<text x="218" y="88" font-size="10" font-weight="600" fill="#fbbf24" text-anchor="middle">Parse</text>
+
+<!-- AFTER label -->
+<text x="410" y="20" font-size="12" font-weight="700" fill="#4ade80" text-anchor="middle" letter-spacing="0.1em">AFTER</text>
+
+<!-- Top node: Bid Price -->
+<rect x="355" y="32" rx="8" ry="8" width="110" height="30" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
+<text x="410" y="52" font-size="10" font-weight="600" fill="#fbbf24" text-anchor="middle">Bid Price</text>
+
+<!-- Mid-level nodes -->
+<rect x="275" y="95" rx="6" ry="6" width="100" height="26" fill="#2d2d35" stroke="#60a5fa" stroke-width="1.5"/>
+<text x="325" y="112" font-size="8" fill="#60a5fa" text-anchor="middle">Material Cost</text>
+
+<rect x="410" y="95" rx="6" ry="6" width="100" height="26" fill="#2d2d35" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="460" y="112" font-size="8" fill="#a78bfa" text-anchor="middle">Process Cost</text>
+
+<!-- Bottom nodes: conflicting parameters -->
+<rect x="278" y="155" rx="4" ry="4" width="90" height="24" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+<text x="323" y="171" font-size="8" fill="#4ade80" text-anchor="middle">Density = 1.8</text>
+
+<rect x="420" y="155" rx="4" ry="4" width="90" height="24" fill="#2d2d35" stroke="#ef4444" stroke-width="1.5"/>
+<text x="465" y="171" font-size="8" fill="#ef4444" text-anchor="middle">Density = 2.1</text>
+
+<!-- Dependency links -->
+<line x1="370" y1="62" x2="340" y2="95" stroke="#60a5fa" stroke-width="1.5"/>
+<polygon points="336,91 340,99 345,92" fill="#60a5fa"/>
+
+<line x1="450" y1="62" x2="460" y2="95" stroke="#a78bfa" stroke-width="1.5"/>
+<polygon points="455,91 460,99 465,92" fill="#a78bfa"/>
+
+<line x1="325" y1="121" x2="323" y2="155" stroke="#4ade80" stroke-width="1.5"/>
+<polygon points="318,151 323,159 328,151" fill="#4ade80"/>
+
+<line x1="460" y1="121" x2="465" y2="155" stroke="#ef4444" stroke-width="1.5"/>
+<polygon points="460,151 465,159 470,151" fill="#ef4444"/>
+
+<!-- Conflict highlight -->
+<rect x="270" y="148" rx="8" ry="8" width="248" height="38" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,3"/>
+
+<text x="394" y="204" font-size="9" font-weight="600" fill="#ef4444" text-anchor="middle">Conflict visible in the graph</text>
+
+<text x="410" y="222" font-size="8" fill="#f0ede8" text-anchor="middle" opacity="0.5">Every dependency is a navigable link</text>
+</svg>

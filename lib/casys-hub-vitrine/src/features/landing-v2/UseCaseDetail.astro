@@ -1,0 +1,971 @@
+---
+/**
+ * UseCaseDetail — full narrative page for a single use case
+ *
+ * Reads like an editorial case study: clear narrative arc from
+ * situation through friction to resolution. Visual connectors
+ * create flow between sections. The punchline blockquote is the
+ * centerpiece.
+ */
+import { useTranslations } from '../../i18n';
+import type { UseCase } from '../../content/use-cases';
+import ExcalidrawDiagram from '../../components/ExcalidrawDiagram.astro';
+
+interface Props {
+  useCase: UseCase;
+}
+
+const { useCase: uc } = Astro.props;
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = useTranslations(locale).useCases;
+const localePath = locale === 'en' ? '' : `/${locale}`;
+const paragraphs = (text: string) => text.split('\n\n').filter(Boolean);
+---
+
+<section id="use-case-detail">
+  <!-- Navigation bar -->
+  <div class="uc-nav">
+    <div class="reading-progress" aria-hidden="true"></div>
+    <div class="container">
+      <a href={`${localePath}/use-cases`} class="back-link">
+        <span class="material-symbols-rounded back-arrow">arrow_back</span>
+        <span class="back-text">{t.pageTitle}</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="uc-detail-hero">
+    <div class="hero-accent-bar" aria-hidden="true"></div>
+    <div class="container">
+      <div class="hero-inner">
+        <span class="case-tag">
+          <span class="material-symbols-rounded tag-icon">{uc.icon}</span>
+          {uc.tag}
+        </span>
+        <h1>{uc.title[locale] || uc.title.en}</h1>
+      </div>
+    </div>
+  </div>
+
+  <!-- Narrative flow -->
+  <div class="uc-narrative">
+    <div class="container">
+      <div class="narrative-flow">
+        <!-- Step 1: Situation -->
+        <div class="narrative-step">
+          <div class="step-connector" aria-hidden="true">
+            <span class="step-number">01</span>
+            <span class="connector-line"></span>
+          </div>
+          <div class="step-content">
+            <div class="block-label">
+              <span class="material-symbols-rounded label-icon">description</span>
+              {locale === 'fr' ? 'Le contexte' : locale === 'zh' ? '背景' : 'The Situation'}
+            </div>
+            {paragraphs(uc.situation[locale] || uc.situation.en).map(p => (
+              <p class="narrative-text" set:html={p} />
+            ))}
+          </div>
+        </div>
+
+        <!-- Step 2: Friction -->
+        <div class="narrative-step friction-step">
+          <div class="step-connector" aria-hidden="true">
+            <span class="step-number friction-number">02</span>
+            <span class="connector-line friction-line"></span>
+          </div>
+          <div class="step-content friction-content">
+            <div class="block-label friction-label">
+              <span class="material-symbols-rounded label-icon">warning</span>
+              {t.labelChallenge}
+            </div>
+            {paragraphs(uc.friction[locale] || uc.friction.en).map(p => (
+              <p class="narrative-text" set:html={p} />
+            ))}
+          </div>
+        </div>
+
+        <!-- Visual (between friction and shift) -->
+        {(uc.visual || uc.diagram) && (
+          <div class="narrative-visual">
+            <div class="step-connector" aria-hidden="true">
+              <span class="connector-line visual-line"></span>
+            </div>
+            <div class={uc.diagram ? 'visual-frame diagram-frame' : 'visual-frame'}>
+              {uc.visual ? (
+                <img
+                  src={uc.visual}
+                  alt={uc.title[locale] || uc.title.en}
+                  class="case-image"
+                  loading="lazy"
+                />
+              ) : uc.diagram ? (
+                <ExcalidrawDiagram src={uc.diagram} alt={uc.visualCaption?.[locale] || uc.visualCaption?.en || uc.title[locale] || uc.title.en} />
+              ) : null}
+              {uc.visualCaption && (
+                <span class="visual-caption">
+                  {uc.visualCaption[locale] || uc.visualCaption.en}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <!-- Step 3: The Shift -->
+        <div class="narrative-step shift-step">
+          <div class="step-connector" aria-hidden="true">
+            <span class="step-number shift-number">03</span>
+            <span class="connector-line shift-line"></span>
+          </div>
+          <div class="step-content shift-content">
+            <div class="block-label shift-label">
+              <span class="material-symbols-rounded label-icon">lightbulb</span>
+              {t.labelApproach}
+            </div>
+            {paragraphs(uc.shift[locale] || uc.shift.en).map(p => (
+              <p class="narrative-text" set:html={p} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <!-- Punchline -->
+      <div class="punchline-section">
+        <div class="punchline-decoration" aria-hidden="true">
+          <span class="material-symbols-rounded deco-icon">format_quote</span>
+        </div>
+        <blockquote class="punchline">
+          {uc.punchline[locale] || uc.punchline.en}
+        </blockquote>
+      </div>
+
+      <!-- Stack -->
+      <div class="stack-section">
+        <div class="block-label stack-label">
+          <span class="material-symbols-rounded label-icon">layers</span>
+          {t.labelStack}
+        </div>
+        <div class="stack-chips">
+          {uc.stack.map((s) => (
+            <span class="chip">
+              <span class="chip-dot" aria-hidden="true"></span>
+              {s}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="uc-detail-cta">
+    <div class="container">
+      <div class="cta-card">
+        <div class="cta-accent-bar" aria-hidden="true"></div>
+        <div class="cta-inner">
+          <h2>{t.ctaTitle}</h2>
+          <p>{t.ctaSubtitle}</p>
+          <div class="cta-actions">
+            <a href={t.ctaPrimary.url} class="cta-btn primary">
+              <span class="material-symbols-rounded">{t.ctaPrimary.icon}</span>
+              <span>{t.ctaPrimary.text}</span>
+            </a>
+            <a href={`${localePath}/use-cases`} class="cta-btn secondary">
+              <span class="material-symbols-rounded">arrow_back</span>
+              <span>{locale === 'fr' ? 'Tous les cas' : locale === 'zh' ? '所有案例' : 'All Use Cases'}</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ================================================================
+   * USE CASE DETAIL — Editorial case study layout
+   * ================================================================ */
+
+  section {
+    --section-gap: 72px;
+    --card-radius: 20px;
+    --accent: var(--md-sys-color-primary);
+    --friction-red: #c0392b;
+    --friction-red-soft: rgba(192, 57, 43, 0.08);
+    --friction-red-border: rgba(192, 57, 43, 0.5);
+    --shift-accent: var(--md-sys-color-primary);
+    --connector-width: 48px;
+    --connector-color: var(--md-sys-color-outline-variant);
+    --transition-smooth: 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---- NAVIGATION ---- */
+  .uc-nav {
+    padding: 20px 0;
+    background: rgba(255, 255, 255, 0.85);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    position: sticky;
+    top: 0;
+    z-index: 101;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .reading-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 0%;
+    background: var(--md-sys-color-primary);
+    transition: width 50ms linear;
+    z-index: 1;
+    border-radius: 0 2px 2px 0;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--md-sys-color-primary);
+    text-decoration: none;
+    transition: gap var(--transition-smooth);
+    padding: 4px 0;
+  }
+
+  .back-link:hover {
+    gap: 12px;
+  }
+
+  .back-arrow {
+    font-size: 18px;
+    transition: transform var(--transition-smooth);
+  }
+
+  .back-link:hover .back-arrow {
+    transform: translateX(-3px);
+  }
+
+  /* ---- HERO ---- */
+  .uc-detail-hero {
+    position: relative;
+    padding: 48px 0 56px;
+    background: var(--md-sys-color-surface);
+  }
+
+  .hero-accent-bar {
+    position: absolute;
+    top: 0;
+    left: 28px;
+    width: 48px;
+    height: 3px;
+    background: var(--md-sys-color-primary);
+    border-radius: 2px;
+  }
+
+  .hero-inner {
+    max-width: 640px;
+  }
+
+  .case-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+    padding: 5px 14px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+  }
+
+  .tag-icon {
+    font-size: 15px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+  }
+
+  /* ---- NARRATIVE FLOW ---- */
+  .uc-narrative {
+    padding: 0 0 var(--section-gap);
+    background: var(--md-sys-color-surface);
+  }
+
+  .narrative-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Step layout: connector | content */
+  .narrative-step {
+    display: grid;
+    grid-template-columns: var(--connector-width) 1fr;
+    gap: 0;
+    min-height: 0;
+  }
+
+  /* Connector column */
+  .step-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 4px;
+  }
+
+  .step-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--md-sys-color-outline);
+    background: var(--md-sys-color-surface-container);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    position: relative;
+    z-index: 1;
+  }
+
+  .connector-line {
+    width: 1px;
+    flex: 1;
+    background: var(--connector-color);
+    min-height: 24px;
+  }
+
+  /* Step content */
+  .step-content {
+    padding: 0 0 40px 8px;
+  }
+
+  .block-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-bottom: 12px;
+  }
+
+  .label-icon {
+    font-size: 16px;
+  }
+
+  .narrative-text {
+    font-size: 1.05rem;
+    line-height: 1.85;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0 0 16px;
+    text-align: justify;
+  }
+
+  .narrative-text:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ---- FRICTION ---- */
+  .friction-number {
+    color: var(--friction-red);
+    border-color: var(--friction-red-border);
+    background: var(--friction-red-soft);
+  }
+
+  .friction-line {
+    background: linear-gradient(
+      to bottom,
+      var(--friction-red-border),
+      var(--connector-color)
+    );
+  }
+
+  .friction-label {
+    color: var(--friction-red);
+  }
+
+
+  /* ---- VISUAL ---- */
+  .narrative-visual {
+    display: grid;
+    grid-template-columns: var(--connector-width) 1fr;
+    gap: 0;
+    padding: 8px 0 40px;
+  }
+
+  .visual-line {
+    opacity: 0.4;
+  }
+
+  .visual-frame {
+    text-align: center;
+    padding-left: 8px;
+  }
+
+  .case-image {
+    max-width: 360px;
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.06),
+      0 12px 40px rgba(0, 0, 0, 0.08);
+    transition: box-shadow var(--transition-smooth);
+  }
+
+  .case-image:hover {
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.08),
+      0 16px 48px rgba(0, 0, 0, 0.12);
+  }
+
+  .diagram-frame {
+    max-width: 100%;
+  }
+
+  .visual-caption {
+    display: block;
+    margin-top: 14px;
+    font-size: 0.8rem;
+    color: var(--md-sys-color-on-surface-variant);
+    font-style: italic;
+    opacity: 0.6;
+    line-height: 1.5;
+  }
+
+  /* ---- SHIFT ---- */
+  .shift-number {
+    color: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+  }
+
+  .shift-line {
+    background: linear-gradient(
+      to bottom,
+      var(--md-sys-color-primary),
+      transparent
+    );
+    opacity: 0.5;
+  }
+
+  .shift-label {
+    color: var(--md-sys-color-primary);
+  }
+
+
+  /* ---- PUNCHLINE ---- */
+  .punchline-section {
+    position: relative;
+    margin: 16px 0 48px;
+    padding: 40px 0;
+  }
+
+  .punchline-decoration {
+    position: absolute;
+    top: 20px;
+    left: -8px;
+    opacity: 0.08;
+    pointer-events: none;
+  }
+
+  .deco-icon {
+    font-size: 72px;
+    color: var(--md-sys-color-primary);
+  }
+
+  .punchline {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(1.4rem, 3vw, 1.75rem);
+    font-weight: 500;
+    font-style: italic;
+    color: var(--md-sys-color-primary);
+    line-height: 1.5;
+    margin: 0;
+    padding: 32px 40px;
+    border-left: none;
+    background: var(--md-sys-color-primary-container);
+    border-radius: 16px;
+    position: relative;
+    text-align: center;
+  }
+
+  .punchline::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--md-sys-color-primary);
+    border-radius: 4px 0 0 4px;
+  }
+
+  /* ---- STACK ---- */
+  .stack-section {
+    padding: 28px 0 0;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .stack-label {
+    margin-bottom: 16px;
+  }
+
+  .stack-chips {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--md-sys-color-on-surface-variant);
+    background: var(--md-sys-color-surface-container);
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--md-sys-color-primary);
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+
+  /* ---- CTA ---- */
+  .uc-detail-cta {
+    padding: var(--section-gap) 0;
+    background: var(--md-sys-color-surface-container-low);
+  }
+
+  .cta-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--card-radius);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container);
+  }
+
+  .cta-accent-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+      90deg,
+      var(--md-sys-color-primary),
+      var(--md-sys-color-primary-container)
+    );
+  }
+
+  .cta-inner {
+    padding: 52px 48px;
+    text-align: center;
+  }
+
+  .cta-inner h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .cta-inner p {
+    font-size: 1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0 auto 32px;
+    line-height: 1.7;
+    max-width: 480px;
+  }
+
+  .cta-actions {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 28px;
+    border-radius: 12px;
+    font-size: 0.925rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      background 200ms,
+      border-color 200ms,
+      transform 200ms,
+      box-shadow 200ms;
+  }
+
+  .cta-btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .cta-btn.primary {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .cta-btn.primary:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  }
+
+  .cta-btn.secondary {
+    background: transparent;
+    color: var(--md-sys-color-primary);
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .cta-btn.secondary:hover {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-container-high);
+  }
+
+  .cta-btn .material-symbols-rounded {
+    font-size: 20px;
+  }
+
+  /* ================================================================
+   * DARK MODE
+   * ================================================================ */
+
+  /* Navigation */
+  :global(html[data-theme="dark"]) .uc-nav {
+    background: rgba(8, 8, 10, 0.85);
+    border-bottom-color: var(--casys-warm-border-dim);
+  }
+
+  :global(html[data-theme="dark"]) .reading-progress {
+    background: var(--casys-warm-accent);
+  }
+
+  :global(html[data-theme="dark"]) .back-link {
+    color: var(--casys-warm-accent);
+  }
+
+  /* Hero */
+  :global(html[data-theme="dark"]) .uc-detail-hero {
+    background: var(--casys-warm-background);
+  }
+
+  :global(html[data-theme="dark"]) .hero-accent-bar {
+    background: var(--casys-warm-accent);
+  }
+
+  :global(html[data-theme="dark"]) .case-tag {
+    color: var(--casys-warm-accent);
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  :global(html[data-theme="dark"]) h1 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  /* Narrative */
+  :global(html[data-theme="dark"]) .uc-narrative {
+    background: var(--casys-warm-background);
+  }
+
+  :global(html[data-theme="dark"]) .block-label {
+    color: var(--casys-warm-text-muted);
+  }
+
+  :global(html[data-theme="dark"]) .narrative-text {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  /* Link colors handled in <style is:global> below — scoped styles can't override browser defaults for set:html content */
+
+  :global(html[data-theme="dark"]) .step-number {
+    color: var(--casys-warm-text-dim);
+    background: var(--casys-warm-surface);
+    border-color: var(--casys-warm-border-dim);
+  }
+
+  :global(html[data-theme="dark"]) .connector-line {
+    background: var(--casys-warm-border-dim);
+  }
+
+  /* Friction dark */
+  :global(html[data-theme="dark"]) .friction-number {
+    color: var(--casys-warm-error);
+    border-color: rgba(248, 113, 113, 0.4);
+    background: rgba(248, 113, 113, 0.1);
+  }
+
+  :global(html[data-theme="dark"]) .friction-line {
+    background: linear-gradient(
+      to bottom,
+      rgba(248, 113, 113, 0.4),
+      var(--casys-warm-border-dim)
+    );
+  }
+
+  :global(html[data-theme="dark"]) .friction-label {
+    color: var(--casys-warm-error);
+  }
+
+
+  /* Shift dark */
+  :global(html[data-theme="dark"]) .shift-number {
+    color: var(--casys-warm-accent);
+    border-color: var(--casys-warm-accent);
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  :global(html[data-theme="dark"]) .shift-line {
+    background: linear-gradient(
+      to bottom,
+      var(--casys-warm-accent),
+      transparent
+    );
+    opacity: 0.3;
+  }
+
+  :global(html[data-theme="dark"]) .shift-label {
+    color: var(--casys-warm-accent);
+  }
+
+
+  /* Visual dark */
+  :global(html[data-theme="dark"]) .case-image {
+    border-color: var(--casys-warm-border-accent);
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.2),
+      0 12px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  :global(html[data-theme="dark"]) .case-image:hover {
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.25),
+      0 16px 48px rgba(0, 0, 0, 0.5);
+  }
+
+  :global(html[data-theme="dark"]) .visual-caption {
+    color: var(--casys-warm-text-dim);
+  }
+
+  /* Punchline dark */
+  :global(html[data-theme="dark"]) .deco-icon {
+    color: var(--casys-warm-accent);
+  }
+
+  :global(html[data-theme="dark"]) .punchline {
+    color: var(--casys-warm-accent);
+    background: rgba(255, 184, 111, 0.06);
+  }
+
+  :global(html[data-theme="dark"]) .punchline::before {
+    background: var(--casys-warm-accent);
+  }
+
+  /* Stack dark */
+  :global(html[data-theme="dark"]) .stack-section {
+    border-top-color: var(--casys-warm-border-dim);
+  }
+
+  :global(html[data-theme="dark"]) .chip {
+    color: var(--casys-warm-accent);
+    background: rgba(255, 184, 111, 0.06);
+    border-color: var(--casys-warm-border-accent);
+  }
+
+  :global(html[data-theme="dark"]) .chip-dot {
+    background: var(--casys-warm-accent);
+  }
+
+  /* CTA dark */
+  :global(html[data-theme="dark"]) .uc-detail-cta {
+    background: var(--casys-warm-surface);
+  }
+
+  :global(html[data-theme="dark"]) .cta-card {
+    background: var(--casys-warm-background);
+    border-color: var(--casys-warm-border-accent);
+  }
+
+  :global(html[data-theme="dark"]) .cta-accent-bar {
+    background: linear-gradient(
+      90deg,
+      var(--casys-warm-accent),
+      rgba(255, 184, 111, 0.3)
+    );
+  }
+
+  :global(html[data-theme="dark"]) .cta-inner h2 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  :global(html[data-theme="dark"]) .cta-inner p {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  :global(html[data-theme="dark"]) .cta-btn.primary {
+    background: var(--casys-warm-accent);
+    color: var(--casys-warm-surface);
+    box-shadow: 0 2px 12px rgba(255, 184, 111, 0.15);
+  }
+
+  :global(html[data-theme="dark"]) .cta-btn.primary:hover {
+    background: var(--casys-warm-accent-hover);
+    box-shadow: 0 6px 24px rgba(255, 184, 111, 0.25);
+  }
+
+  :global(html[data-theme="dark"]) .cta-btn.secondary {
+    color: var(--casys-warm-accent);
+    border-color: var(--casys-warm-border-accent);
+  }
+
+  :global(html[data-theme="dark"]) .cta-btn.secondary:hover {
+    border-color: var(--casys-warm-accent);
+    background: rgba(255, 184, 111, 0.08);
+  }
+
+  /* ================================================================
+   * RESPONSIVE
+   * ================================================================ */
+
+  @media (max-width: 768px) {
+    section {
+      --section-gap: 48px;
+      --connector-width: 36px;
+    }
+
+    .uc-detail-hero {
+      padding: 32px 0 40px;
+    }
+
+    .hero-accent-bar {
+      left: 20px;
+      width: 36px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+    }
+
+    .step-number {
+      width: 24px;
+      height: 24px;
+      font-size: 0.6rem;
+    }
+
+    .step-content {
+      padding: 0 0 32px 8px;
+    }
+
+    .punchline {
+      font-size: 1.2rem;
+      padding: 24px 28px;
+    }
+
+    .punchline-decoration {
+      display: none;
+    }
+
+    .cta-inner {
+      padding: 36px 24px;
+    }
+
+    .cta-inner h2 {
+      font-size: 1.4rem;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Dark mode link colors for use case narrative text.
+     Must be is:global because set:html content has no Astro scope attributes,
+     so scoped selectors never match. */
+  html[data-theme="dark"] #use-case-detail .narrative-text a,
+  html[data-theme="dark"] #use-case-detail .narrative-text a:link,
+  html[data-theme="dark"] #use-case-detail .narrative-text a:visited {
+    color: #FFB86F !important;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 184, 111, 0.3);
+    text-underline-offset: 3px;
+  }
+
+  html[data-theme="dark"] #use-case-detail .narrative-text a:hover {
+    color: #FFB86F !important;
+    text-decoration-color: #FFB86F;
+  }
+
+  /* Light mode links too — consistent accent color */
+  #use-case-detail .narrative-text a,
+  #use-case-detail .narrative-text a:link,
+  #use-case-detail .narrative-text a:visited {
+    color: var(--md-sys-color-primary);
+    text-decoration: underline;
+    text-decoration-color: rgba(0, 0, 0, 0.15);
+    text-underline-offset: 3px;
+  }
+
+  #use-case-detail .narrative-text a:hover {
+    text-decoration-color: var(--md-sys-color-primary);
+  }
+</style>
+
+<script>
+  const section = document.getElementById('use-case-detail');
+  const bar = section?.querySelector('.reading-progress') as HTMLElement | null;
+
+  if (section && bar) {
+    const update = () => {
+      const rect = section.getBoundingClientRect();
+      const total = section.scrollHeight - window.innerHeight;
+      const scrolled = -rect.top;
+      const pct = Math.min(100, Math.max(0, (scrolled / total) * 100));
+      bar.style.width = `${pct}%`;
+    };
+
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  }
+</script>

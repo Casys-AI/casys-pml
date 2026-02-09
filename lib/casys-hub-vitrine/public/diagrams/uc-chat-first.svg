@@ -1,0 +1,65 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 220"><!-- svg-source:excalidraw -->
+<rect x="0" y="0" width="540" height="220" fill="#08080a"/>
+<style>text{font-family:'Inter','Segoe UI',system-ui,sans-serif}</style>
+
+<!-- BEFORE label -->
+<text x="120" y="22" font-size="12" font-weight="700" fill="#ef4444" text-anchor="middle" letter-spacing="0.1em">BEFORE</text>
+
+<!-- 5 app boxes -->
+<rect x="20" y="38" rx="6" ry="6" width="95" height="32" fill="#2d2d35" stroke="#666666" stroke-width="1.5"/>
+<text x="67" y="58" font-size="10" fill="#f0ede8" text-anchor="middle">Calendar</text>
+
+<rect x="125" y="38" rx="6" ry="6" width="95" height="32" fill="#2d2d35" stroke="#666666" stroke-width="1.5"/>
+<text x="172" y="58" font-size="10" fill="#f0ede8" text-anchor="middle">Grafana</text>
+
+<rect x="20" y="82" rx="6" ry="6" width="95" height="32" fill="#2d2d35" stroke="#666666" stroke-width="1.5"/>
+<text x="67" y="102" font-size="10" fill="#f0ede8" text-anchor="middle">Make</text>
+
+<rect x="125" y="82" rx="6" ry="6" width="95" height="32" fill="#2d2d35" stroke="#666666" stroke-width="1.5"/>
+<text x="172" y="102" font-size="10" fill="#f0ede8" text-anchor="middle">Slack</text>
+
+<rect x="72" y="126" rx="6" ry="6" width="95" height="32" fill="#2d2d35" stroke="#666666" stroke-width="1.5"/>
+<text x="120" y="146" font-size="10" fill="#f0ede8" text-anchor="middle">No-code CRM</text>
+
+<!-- Chaos lines -->
+<line x1="115" y1="70" x2="130" y2="82" stroke="#ef4444" stroke-width="1" opacity="0.35"/>
+<line x1="125" y1="70" x2="112" y2="82" stroke="#ef4444" stroke-width="1" opacity="0.35"/>
+<line x1="67" y1="114" x2="100" y2="126" stroke="#ef4444" stroke-width="1" opacity="0.35"/>
+<line x1="172" y1="114" x2="140" y2="126" stroke="#ef4444" stroke-width="1" opacity="0.35"/>
+<line x1="67" y1="70" x2="120" y2="126" stroke="#ef4444" stroke-width="1" opacity="0.25"/>
+<line x1="172" y1="70" x2="120" y2="126" stroke="#ef4444" stroke-width="1" opacity="0.25"/>
+
+<text x="120" y="178" font-size="9" fill="#ef4444" text-anchor="middle" opacity="0.8">5 apps, 5 interfaces, 5 mental models</text>
+
+<!-- Transform arrow -->
+<line x1="245" y1="105" x2="305" y2="105" stroke="#fbbf24" stroke-width="2.5"/>
+<polygon points="305,99 317,105 305,111" fill="#fbbf24"/>
+<text x="281" y="93" font-size="11" font-weight="600" fill="#fbbf24" text-anchor="middle">MCP</text>
+
+<!-- AFTER label -->
+<text x="420" y="22" font-size="12" font-weight="700" fill="#4ade80" text-anchor="middle" letter-spacing="0.1em">AFTER</text>
+
+<!-- Chat window -->
+<rect x="335" y="34" rx="12" ry="12" width="180" height="155" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+<text x="425" y="54" font-size="11" font-weight="600" fill="#4ade80" text-anchor="middle">Chat</text>
+<line x1="345" y1="62" x2="505" y2="62" stroke="#4ade80" stroke-width="0.5" opacity="0.3"/>
+
+<!-- Mini components inside chat -->
+<rect x="350" y="72" rx="4" ry="4" width="72" height="24" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
+<text x="386" y="88" font-size="8" fill="#60a5fa" text-anchor="middle">Schedule</text>
+
+<rect x="430" y="72" rx="4" ry="4" width="72" height="24" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
+<text x="466" y="88" font-size="8" fill="#a78bfa" text-anchor="middle">Metrics</text>
+
+<rect x="350" y="104" rx="4" ry="4" width="72" height="24" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
+<text x="386" y="120" font-size="8" fill="#fbbf24" text-anchor="middle">Invoice</text>
+
+<rect x="430" y="104" rx="4" ry="4" width="72" height="24" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+<text x="466" y="120" font-size="8" fill="#4ade80" text-anchor="middle">CRM</text>
+
+<!-- Prompt bar -->
+<rect x="350" y="145" rx="6" ry="6" width="152" height="28" fill="#1a1a1e" stroke="#666666" stroke-width="1"/>
+<text x="426" y="163" font-size="8" fill="#666666" text-anchor="middle" font-style="italic">"Schedule 3 sessions..."</text>
+
+<text x="425" y="202" font-size="9" fill="#4ade80" text-anchor="middle" opacity="0.8">1 conversation, composable on demand</text>
+</svg>

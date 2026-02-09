@@ -14,6 +14,7 @@ export const zh: Translations = {
     whyCasys: '为什么选择 Casys',
     consulting: '咨询服务',
     blog: 'Blog',
+    useCases: '我们的工作',
     about: '关于我们',
     contact: '联系我们',
   },
@@ -52,7 +53,7 @@ export const zh: Translations = {
     titleLine2: '到 MCP 服务器',
     subtitle: '十五年以上上下文工程经验 — 以开源基础设施交付给您的团队。',
     cta: {
-      primary: { text: '与我们合作', icon: 'handshake', url: '#work-with-us' },
+      primary: { text: '与我们合作', icon: 'handshake', url: '#contact' },
       secondary: { text: '探索项目', icon: 'explore', url: '#projects' },
     },
     proofs: [
@@ -908,5 +909,22 @@ export const zh: Translations = {
       url: '/#projects',
       icon: 'folder_open',
     },
+  },
+
+  // ========================================
+  // USE CASES PAGE
+  // ========================================
+  useCases: {
+    pageTitle: '我们的工作',
+    heroTitle: '我们的工作',
+    heroSubtitle: '我们为生产环境构建 MCP 基础设施。以下是实际案例——真实的挑战、真实的解决方案、真实的指标。',
+    labelChallenge: '挑战',
+    labelApproach: '解决方案',
+    labelResult: '成果',
+    labelStack: '技术栈',
+    ctaTitle: '有类似的挑战？',
+    ctaSubtitle: '描述您的 MCP 基础设施挑战。我们会坦诚告知是否能帮到您——以及我们会如何着手解决。',
+    ctaPrimary: { text: '联系我们', url: '/#contact', icon: 'mail' },
+    ctaSecondary: { text: '查看项目', url: '/#projects', icon: 'folder_open' },
   },
 };

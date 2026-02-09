@@ -1,0 +1,50 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys AI Use Cases",
+  "elements": [
+    {"id": "title-before", "type": "text", "x": 30, "y": 10, "width": 100, "height": 16, "text": "BEFORE", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#ef4444"},
+    {"id": "title-after", "type": "text", "x": 370, "y": 10, "width": 100, "height": 16, "text": "AFTER", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#4ade80"},
+
+    {"id": "excel1", "type": "rectangle", "x": 25, "y": 38, "width": 110, "height": 35, "strokeColor": "#666666", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "excel1-text", "type": "text", "x": 35, "y": 48, "width": 90, "height": 12, "text": "Sizing.xlsx", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#666666"},
+
+    {"id": "excel2", "type": "rectangle", "x": 25, "y": 85, "width": 110, "height": 35, "strokeColor": "#666666", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "excel2-text", "type": "text", "x": 35, "y": 95, "width": 90, "height": 12, "text": "Costing.xlsx", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#666666"},
+
+    {"id": "excel3", "type": "rectangle", "x": 25, "y": 132, "width": 110, "height": 35, "strokeColor": "#666666", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "excel3-text", "type": "text", "x": 35, "y": 142, "width": 90, "height": 12, "text": "Process.xlsx", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#666666"},
+
+    {"id": "hidden1", "type": "line", "x": 80, "y": 73, "width": 0, "height": 12, "strokeColor": "#666666", "strokeWidth": 1, "strokeStyle": "dashed", "roughness": 0, "opacity": 30, "points": [[0, 0], [0, 12]]},
+    {"id": "hidden2", "type": "line", "x": 80, "y": 120, "width": 0, "height": 12, "strokeColor": "#666666", "strokeWidth": 1, "strokeStyle": "dashed", "roughness": 0, "opacity": 30, "points": [[0, 0], [0, 12]]},
+
+    {"id": "opaque-label", "type": "text", "x": 35, "y": 180, "width": 90, "height": 12, "text": "Dependencies?", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#ef4444", "opacity": 70},
+
+    {"id": "transform-arrow", "type": "arrow", "x": 170, "y": 105, "width": 70, "height": 0, "strokeColor": "#fbbf24", "strokeWidth": 2.5, "roughness": 0, "points": [[0, 0], [70, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "transform-label", "type": "text", "x": 180, "y": 85, "width": 50, "height": 12, "text": "Parse", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+
+    {"id": "price", "type": "rectangle", "x": 370, "y": 30, "width": 120, "height": 30, "strokeColor": "#fbbf24", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "price-text", "type": "text", "x": 385, "y": 38, "width": 90, "height": 12, "text": "Bid Price", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+
+    {"id": "cost-mat", "type": "rectangle", "x": 280, "y": 95, "width": 100, "height": 26, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "cost-mat-text", "type": "text", "x": 290, "y": 101, "width": 80, "height": 12, "text": "Material Cost", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+
+    {"id": "cost-proc", "type": "rectangle", "x": 400, "y": 95, "width": 100, "height": 26, "strokeColor": "#a78bfa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "cost-proc-text", "type": "text", "x": 410, "y": 101, "width": 80, "height": 12, "text": "Process Cost", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#a78bfa"},
+
+    {"id": "param-a", "type": "rectangle", "x": 280, "y": 155, "width": 90, "height": 24, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "param-a-text", "type": "text", "x": 290, "y": 161, "width": 70, "height": 10, "text": "Density = 1.8", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+
+    {"id": "param-b", "type": "rectangle", "x": 420, "y": 155, "width": 90, "height": 24, "strokeColor": "#ef4444", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "param-b-text", "type": "text", "x": 430, "y": 161, "width": 70, "height": 10, "text": "Density = 2.1", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#ef4444"},
+
+    {"id": "link1", "type": "arrow", "x": 330, "y": 60, "width": 0, "height": 35, "strokeColor": "#60a5fa", "strokeWidth": 1.5, "roughness": 0, "points": [[0, 0], [0, 35]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "link2", "type": "arrow", "x": 450, "y": 60, "width": 0, "height": 35, "strokeColor": "#a78bfa", "strokeWidth": 1.5, "roughness": 0, "points": [[0, 0], [0, 35]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "link3", "type": "arrow", "x": 330, "y": 121, "width": 0, "height": 34, "strokeColor": "#4ade80", "strokeWidth": 1.5, "roughness": 0, "points": [[0, 0], [0, 34]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "link4", "type": "arrow", "x": 450, "y": 121, "width": 15, "height": 34, "strokeColor": "#ef4444", "strokeWidth": 1.5, "roughness": 0, "points": [[0, 0], [15, 34]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "conflict", "type": "rectangle", "x": 340, "y": 148, "width": 175, "height": 38, "strokeColor": "#ef4444", "backgroundColor": "transparent", "fillStyle": "solid", "strokeWidth": 1.5, "strokeStyle": "dashed", "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "conflict-label", "type": "text", "x": 355, "y": 190, "width": 150, "height": 12, "text": "Conflict visible!", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#ef4444"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

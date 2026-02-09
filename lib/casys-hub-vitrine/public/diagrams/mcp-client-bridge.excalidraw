@@ -1,0 +1,38 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "box-user", "type": "rectangle", "x": 60, "y": 10, "width": 200, "height": 44, "strokeColor": "#60a5fa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "text-user", "type": "text", "x": 108, "y": 16, "width": 104, "height": 14, "text": "User", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#60a5fa"},
+    {"id": "text-user-sub", "type": "text", "x": 78, "y": 34, "width": 164, "height": 12, "text": "Telegram / LINE / KakaoTalk", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#60a5fa"},
+
+    {"id": "arr-1", "type": "arrow", "x": 160, "y": 54, "width": 0, "height": 16, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [0, 16]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "box-miniapp", "type": "rectangle", "x": 60, "y": 70, "width": 200, "height": 44, "strokeColor": "#60a5fa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "text-miniapp", "type": "text", "x": 108, "y": 76, "width": 104, "height": 14, "text": "Mini App / TMA", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#60a5fa"},
+    {"id": "text-miniapp-sub", "type": "text", "x": 108, "y": 94, "width": 104, "height": 12, "text": "HTML/JS rendering", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#60a5fa"},
+
+    {"id": "arr-2", "type": "arrow", "x": 160, "y": 114, "width": 0, "height": 16, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [0, 16]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-postmsg", "type": "text", "x": 275, "y": 117, "width": 100, "height": 12, "text": "postMessage", "fontSize": 9, "fontFamily": 1, "textAlign": "left", "verticalAlign": "top", "strokeColor": "#666666"},
+
+    {"id": "box-bridge", "type": "rectangle", "x": 50, "y": 130, "width": 220, "height": 50, "strokeColor": "#fbbf24", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 3, "roughness": 0, "roundness": {"type": 3, "value": 10}},
+    {"id": "text-bridge", "type": "text", "x": 100, "y": 136, "width": 120, "height": 16, "text": "MCP Client Bridge", "fontSize": 13, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#fbbf24"},
+    {"id": "text-bridge-sub", "type": "text", "x": 100, "y": 158, "width": 120, "height": 12, "text": "Platform Adapter", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#fbbf24"},
+
+    {"id": "arr-3", "type": "arrow", "x": 160, "y": 180, "width": 0, "height": 16, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [0, 16]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-mcp", "type": "text", "x": 275, "y": 183, "width": 100, "height": 12, "text": "MCP Protocol", "fontSize": 9, "fontFamily": 1, "textAlign": "left", "verticalAlign": "top", "strokeColor": "#666666"},
+
+    {"id": "box-server", "type": "rectangle", "x": 60, "y": 196, "width": 200, "height": 44, "strokeColor": "#4ade80", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "text-server", "type": "text", "x": 108, "y": 202, "width": 104, "height": 14, "text": "MCP Server", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#4ade80"},
+    {"id": "text-server-sub", "type": "text", "x": 108, "y": 220, "width": 104, "height": 12, "text": "JSON-RPC over SSE", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#4ade80"},
+
+    {"id": "arr-4", "type": "arrow", "x": 160, "y": 240, "width": 0, "height": 16, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [0, 16]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-tools", "type": "text", "x": 275, "y": 243, "width": 100, "height": 12, "text": "Tool calls", "fontSize": 9, "fontFamily": 1, "textAlign": "left", "verticalAlign": "top", "strokeColor": "#666666"},
+
+    {"id": "box-tools", "type": "rectangle", "x": 60, "y": 256, "width": 200, "height": 44, "strokeColor": "#a78bfa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "text-tools", "type": "text", "x": 108, "y": 262, "width": 104, "height": 14, "text": "Tools", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#a78bfa"},
+    {"id": "text-tools-sub", "type": "text", "x": 108, "y": 280, "width": 104, "height": 12, "text": "DBs, APIs, Files", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#a78bfa"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

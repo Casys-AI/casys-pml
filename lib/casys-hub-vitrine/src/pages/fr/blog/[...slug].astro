@@ -50,7 +50,7 @@ function getPostSlug(post: typeof allPosts[0]) {
 }
 ---
 
-<BlogLayout title={entry.data.title} locale={locale}>
+<BlogLayout title={entry.data.title} locale={locale} description={entry.data.description} slug={entry.slug.replace('fr/', '')}>
   <!-- Navigation retour -->
   <nav class="back-nav">
     <a href="/fr/blog" class="back-link">

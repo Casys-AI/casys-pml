@@ -6,9 +6,15 @@ import { getCollection } from 'astro:content';
 export interface Props {
   title: string;
   locale?: 'en' | 'fr' | 'zh';
+  description?: string;
+  slug?: string;
 }
 
-const { title, locale = 'en' } = Astro.props;
+const { title, locale = 'en', description, slug } = Astro.props;
+const siteUrl = import.meta.env.PUBLIC_SITE_URL as string | undefined;
+const ogImage = slug
+  ? `${siteUrl || ''}/og/blog/${slug}.png`
+  : `${siteUrl || ''}/og/home.png`;
 
 const labels = {
   en: {
@@ -102,7 +108,12 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     <meta charset="UTF-8" />
     <meta name="description" content={t.blogSubtitle} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/icons/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/icons/site.webmanifest" />
 
     <!-- Google Fonts - Fraunces (Display) + Inter (Body) + JetBrains Mono + Material Symbols -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -135,12 +146,32 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     </script>
 
     <title>{title}</title>
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    {description && <meta name="description" content={description} />}
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    {description && <meta name="twitter:description" content={description} />}
+    <meta name="twitter:image" content={ogImage} />
   </head>
 
   <body class="blog-body">
     <!-- Nav bar -->
     <nav class="blog-topnav">
       <div class="blog-topnav-inner">
+        <!-- Mobile sidebar toggle -->
+        <button class="blog-sidebar-toggle" aria-label="Toggle sidebar" id="sidebarToggle">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <line x1="3" y1="5" x2="17" y2="5" />
+            <line x1="3" y1="10" x2="17" y2="10" />
+            <line x1="3" y1="15" x2="17" y2="15" />
+          </svg>
+        </button>
+
         <!-- Logo + title -->
         <div class="blog-topnav-brand">
           <img src="/icons/favicon-32x32.png" alt="CASYS" class="blog-topnav-logo" />
@@ -150,8 +181,6 @@ function getPostSlug(post: typeof sortedPosts[0]) {
 
         <!-- Navigation links -->
         <div class="blog-topnav-links">
-          <a href={blogBase} class="blog-topnav-link">Blog</a>
-          <span class="blog-topnav-sep" aria-hidden="true"></span>
           <a href={homeBase} class="blog-topnav-link">&larr; {t.home}</a>
         </div>
       </div>
@@ -159,8 +188,17 @@ function getPostSlug(post: typeof sortedPosts[0]) {
 
     <!-- Main layout: sidebar + content -->
     <div class="blog-shell">
+      <!-- Sidebar overlay (mobile) -->
+      <div class="blog-sidebar-overlay" id="sidebarOverlay"></div>
+
       <!-- Sidebar -->
-      <aside class="blog-sidebar">
+      <aside class="blog-sidebar" id="blogSidebar">
+        <button class="blog-sidebar-close" id="sidebarClose" aria-label="Close sidebar">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="4" y1="4" x2="14" y2="14" />
+            <line x1="14" y1="4" x2="4" y2="14" />
+          </svg>
+        </button>
         <div class="blog-sidebar-header">
           <h2 class="blog-sidebar-title">{t.blogTitle}</h2>
           <p class="blog-sidebar-subtitle">{t.blogSubtitle}</p>
@@ -271,6 +309,29 @@ function getPostSlug(post: typeof sortedPosts[0]) {
         </div>
       </main>
     </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const toggle = document.getElementById('sidebarToggle');
+        const close = document.getElementById('sidebarClose');
+        const sidebar = document.getElementById('blogSidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (!toggle || !close || !sidebar || !overlay) return;
+
+        function open() {
+          sidebar.classList.add('blog-sidebar--open');
+          overlay.classList.add('blog-sidebar-overlay--visible');
+          document.body.style.overflow = 'hidden';
+        }
+        function shut() {
+          sidebar.classList.remove('blog-sidebar--open');
+          overlay.classList.remove('blog-sidebar-overlay--visible');
+          document.body.style.overflow = '';
+        }
+        toggle.addEventListener('click', open);
+        close.addEventListener('click', shut);
+        overlay.addEventListener('click', shut);
+      });
+    </script>
     <Analytics />
   </body>
 </html>
@@ -614,6 +675,123 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     margin: 0 auto;
     padding: 2.5rem 2rem;
   }
+
+  /* --- Mobile Sidebar Toggle Button --- */
+  .blog-sidebar-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--md-sys-color-on-surface, #1c1917);
+    cursor: pointer;
+    transition: background-color 0.15s;
+  }
+
+  .blog-sidebar-toggle:hover {
+    background-color: var(--md-sys-color-surface-variant, #f5f5f4);
+  }
+
+  /* --- Sidebar Close Button (mobile only) --- */
+  .blog-sidebar-close {
+    display: none;
+    position: absolute;
+    top: 14px;
+    right: 12px;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--md-sys-color-on-surface-variant, #78716c);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+    z-index: 1;
+  }
+
+  .blog-sidebar-close:hover {
+    background-color: var(--md-sys-color-surface-variant, #f5f5f4);
+    color: var(--md-sys-color-on-surface, #1c1917);
+  }
+
+  /* --- Sidebar Overlay (mobile) --- */
+  .blog-sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 49;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .blog-sidebar-overlay--visible {
+    opacity: 1;
+  }
+
+  /* --- Responsive: Mobile (< 768px) --- */
+  @media (max-width: 767px) {
+    .blog-sidebar-toggle {
+      display: flex;
+    }
+
+    .blog-sidebar-close {
+      display: flex;
+    }
+
+    .blog-sidebar-overlay {
+      display: block;
+      pointer-events: none;
+    }
+
+    .blog-sidebar-overlay--visible {
+      pointer-events: auto;
+    }
+
+    .blog-sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 50;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      box-shadow: none;
+    }
+
+    .blog-sidebar--open {
+      transform: translateX(0);
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .blog-content {
+      padding: 1.5rem 1rem;
+    }
+
+    .blog-body {
+      overflow: auto;
+    }
+
+    .blog-shell {
+      flex-direction: column;
+      height: auto;
+      min-height: calc(100vh - 60px);
+    }
+
+    .blog-main {
+      overflow: visible;
+    }
+  }
 </style>
 
 <style is:global>
@@ -751,6 +929,29 @@ function getPostSlug(post: typeof sortedPosts[0]) {
   /* --- Main Content (dark) --- */
   html[data-theme="dark"] .blog-main {
     background-color: #0a0908;
+  }
+
+  /* --- Mobile Toggle + Close (dark) --- */
+  html[data-theme="dark"] .blog-sidebar-toggle {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .blog-sidebar-toggle:hover {
+    background-color: rgba(255, 184, 111, 0.08);
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .blog-sidebar-close {
+    color: #8a7e72;
+  }
+
+  html[data-theme="dark"] .blog-sidebar-close:hover {
+    background-color: rgba(255, 184, 111, 0.08);
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .blog-sidebar-overlay {
+    background: rgba(0, 0, 0, 0.6);
   }
 
   /* --- Scrollbar (dark) --- */

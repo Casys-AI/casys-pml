@@ -25,8 +25,8 @@ const t = useTranslations(locale).footer;
           <h3 class="nav-title">{t.product}</h3>
           <nav class="nav-links">
             <a href="#projects">{t.projects}</a>
-            <a href="#work-with-us">{t.consulting}</a>
-            <a href="#work-with-us">{t.training}</a>
+            <a href="#contact">{t.consulting}</a>
+            <a href="#contact">{t.training}</a>
           </nav>
         </div>
 
@@ -273,14 +273,22 @@ const t = useTranslations(locale).footer;
     }
 
     .footer-nav {
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 16px;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px 16px;
     }
 
     .footer-bottom {
       flex-direction: column;
       gap: 16px;
       text-align: center;
+    }
+  }
+
+  /* Very small screens (390px and below) */
+  @media (max-width: 420px) {
+    .footer-nav {
+      grid-template-columns: 1fr;
+      gap: 28px;
     }
   }
 </style>

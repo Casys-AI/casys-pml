@@ -3,6 +3,7 @@ import '../styles.css';
 import Analytics from '@vercel/analytics/astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import HrefLang from '../components/HrefLang.astro';
 
 export interface Props {
   title: string;
@@ -26,7 +27,7 @@ const metaTitle = metaTitles[locale as keyof typeof metaTitles] ?? metaTitles.en
 
 const metaDescriptions = {
   en: 'Applied AI research lab. We explore AI architectures, build open-source tools (MCP Gateway, MCP Standard Tools), and share what we learn. 10+ years expertise: KM → Graph → Agents. Consulting available.',
-  fr: 'Lab de recherche AI appliquée. On explore architectures AI, build des outils open-source (MCP Gateway, MCP Standard Tools), et partage ce qu\'on apprend. 10+ ans expertise KM → Graph → Agents. Consulting disponible.',
+  fr: 'Lab de recherche IA appliquée. Outils open-source MCP Gateway & Standard Tools. 15+ ans d\'expertise KM, Graph, Agents. Consulting disponible.',
   zh: '应用 AI 研究实验室。我们探索 AI 架构，构建开源工具（MCP Gateway、MCP 标准工具），并分享所学。10+ 年经验：KM → Graph → Agents。提供咨询服务。',
 } as const;
 const metaDescription = metaDescriptions[locale as keyof typeof metaDescriptions] ?? metaDescriptions.en;
@@ -84,6 +85,34 @@ const metaDescription = metaDescriptions[locale as keyof typeof metaDescriptions
     </script>
     <title>{metaTitle}</title>
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <HrefLang />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Casys",
+      "alternateName": "Casys AI",
+      "url": "https://casys.ai",
+      "logo": "https://casys.ai/icons/logo.svg",
+      "description": "Applied AI research lab specializing in MCP infrastructure, knowledge graphs, and agentic systems.",
+      "founder": {
+        "@type": "Person",
+        "name": "Erwan Le Pesle"
+      },
+      "sameAs": [
+        "https://github.com/Casys-AI",
+        "https://discord.gg/fuPg8drR",
+        "https://www.linkedin.com/company/casys-ai"
+      ],
+      "areaServed": ["FR", "TW", "US", "JP"]
+    })} />
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Casys",
+      "url": "https://casys.ai",
+      "inLanguage": ["en", "fr", "zh"]
+    })} />
     <style is:inline>
       /* ============================================
          LAYOUT ESSENTIALS
@@ -165,9 +194,13 @@ const metaDescription = metaDescriptions[locale as keyof typeof metaDescriptions
     <meta property="og:description" content={metaDescription} />
     {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
     <meta property="og:locale" content={ogLocale} />
+    <meta property="og:image" content={`${siteUrl || ''}/og/home.png`} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={metaTitle} />
     <meta name="twitter:description" content={metaDescription} />
+    <meta name="twitter:image" content={`${siteUrl || ''}/og/home.png`} />
 
     <!-- Google tag (gtag.js) -->
     <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-FR86NHGK8Y"></script>

@@ -28,6 +28,7 @@
     "@casys/design-system": "workspace:*",
     "@material/web": "^2.4.0",
     "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "@resvg/resvg-wasm": "2.6.2",
     "@types/d3": "^7.4.3",
     "@vercel/analytics": "^1.5.0",
     "@vercel/functions": "^3.4.1",
@@ -36,7 +37,8 @@
     "d3": "^7.9.0",
     "mermaid": "^11.12.0",
     "preact": "^10.25.0",
-    "sass": "^1.83.0"
+    "sass": "^1.83.0",
+    "satori": "^0.19.1"
   },
   "devDependencies": {
     "@types/node": "^22.17.1",

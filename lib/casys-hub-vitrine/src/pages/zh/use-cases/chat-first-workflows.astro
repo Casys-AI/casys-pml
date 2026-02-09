@@ -1,0 +1,11 @@
+---
+import LandingLayout from '../../../layouts/LandingLayout.astro';
+import UseCaseDetail from '../../../features/landing-v2/UseCaseDetail.astro';
+import { useCases } from '../../../content/use-cases';
+
+const uc = useCases.find(c => c.id === 'chat-first-workflows')!;
+---
+
+<LandingLayout title={`${uc.title.zh} — Casys AI`}>
+  <UseCaseDetail useCase={uc} />
+</LandingLayout>

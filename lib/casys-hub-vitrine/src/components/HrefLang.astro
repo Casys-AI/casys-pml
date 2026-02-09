@@ -1,0 +1,62 @@
+---
+/**
+ * HrefLang - Generates <link rel="alternate" hreflang="..."> tags for all locales.
+ *
+ * Placed in <head> to signal search engines about language/region variants.
+ * EN is the default locale (no prefix), FR and ZH use /fr/ and /zh/ prefixes.
+ * x-default always points to the EN variant.
+ */
+
+const SITE_URL = 'https://casys.ai';
+const LOCALES = ['en', 'fr', 'zh'] as const;
+const LOCALE_PREFIXES: Record<string, string> = {
+  en: '',
+  fr: '/fr',
+  zh: '/zh',
+};
+
+const pathname = Astro.url.pathname;
+
+/**
+ * Strip the locale prefix from the current pathname to get the base path.
+ * Examples:
+ *   /fr/about  -> /about
+ *   /zh/about  -> /about
+ *   /about     -> /about
+ *   /fr/       -> /
+ *   /          -> /
+ */
+function getBasePath(path: string): string {
+  for (const prefix of ['/fr', '/zh']) {
+    if (path === prefix || path === `${prefix}/`) {
+      return '/';
+    }
+    if (path.startsWith(`${prefix}/`)) {
+      return path.slice(prefix.length);
+    }
+  }
+  return path;
+}
+
+const basePath = getBasePath(pathname);
+
+/**
+ * Build the full URL for a given locale.
+ * EN has no prefix, FR uses /fr, ZH uses /zh.
+ * Ensures no double slashes and proper trailing behavior.
+ */
+function buildUrl(locale: string): string {
+  const prefix = LOCALE_PREFIXES[locale] ?? '';
+  if (basePath === '/') {
+    // Root page: /  or  /fr/  or  /zh/
+    return `${SITE_URL}${prefix}/`;
+  }
+  // Sub-pages: /about  or  /fr/about  or  /zh/about
+  return `${SITE_URL}${prefix}${basePath}`;
+}
+---
+
+{LOCALES.map((locale) => (
+  <link rel="alternate" hreflang={locale} href={buildUrl(locale)} />
+))}
+<link rel="alternate" hreflang="x-default" href={buildUrl('en')} />

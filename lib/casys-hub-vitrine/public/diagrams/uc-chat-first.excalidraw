@@ -1,0 +1,55 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys AI Use Cases",
+  "elements": [
+    {"id": "title-before", "type": "text", "x": 40, "y": 10, "width": 80, "height": 16, "text": "BEFORE", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#ef4444"},
+    {"id": "title-after", "type": "text", "x": 370, "y": 10, "width": 80, "height": 16, "text": "AFTER", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#4ade80"},
+
+    {"id": "app1", "type": "rectangle", "x": 20, "y": 40, "width": 90, "height": 32, "strokeColor": "#666666", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "app1-text", "type": "text", "x": 30, "y": 50, "width": 70, "height": 12, "text": "Calendar", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+
+    {"id": "app2", "type": "rectangle", "x": 130, "y": 40, "width": 90, "height": 32, "strokeColor": "#666666", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "app2-text", "type": "text", "x": 140, "y": 50, "width": 70, "height": 12, "text": "Grafana", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+
+    {"id": "app3", "type": "rectangle", "x": 20, "y": 90, "width": 90, "height": 32, "strokeColor": "#666666", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "app3-text", "type": "text", "x": 30, "y": 100, "width": 70, "height": 12, "text": "Make", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+
+    {"id": "app4", "type": "rectangle", "x": 130, "y": 90, "width": 90, "height": 32, "strokeColor": "#666666", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "app4-text", "type": "text", "x": 140, "y": 100, "width": 70, "height": 12, "text": "Slack", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+
+    {"id": "app5", "type": "rectangle", "x": 75, "y": 140, "width": 90, "height": 32, "strokeColor": "#666666", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1.5, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "app5-text", "type": "text", "x": 85, "y": 150, "width": 70, "height": 12, "text": "No-code CRM", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+
+    {"id": "chaos1", "type": "arrow", "x": 112, "y": 72, "width": 30, "height": 20, "strokeColor": "#ef4444", "strokeWidth": 1, "roughness": 0, "opacity": 40, "points": [[0, 0], [30, 20]], "startArrowhead": null, "endArrowhead": null},
+    {"id": "chaos2", "type": "arrow", "x": 140, "y": 72, "width": -20, "height": 20, "strokeColor": "#ef4444", "strokeWidth": 1, "roughness": 0, "opacity": 40, "points": [[0, 0], [-20, 20]], "startArrowhead": null, "endArrowhead": null},
+    {"id": "chaos3", "type": "arrow", "x": 65, "y": 72, "width": 50, "height": 70, "strokeColor": "#ef4444", "strokeWidth": 1, "roughness": 0, "opacity": 40, "points": [[0, 0], [50, 70]], "startArrowhead": null, "endArrowhead": null},
+    {"id": "chaos4", "type": "arrow", "x": 175, "y": 72, "width": -40, "height": 70, "strokeColor": "#ef4444", "strokeWidth": 1, "roughness": 0, "opacity": 40, "points": [[0, 0], [-40, 70]], "startArrowhead": null, "endArrowhead": null},
+
+    {"id": "label-5apps", "type": "text", "x": 55, "y": 185, "width": 130, "height": 12, "text": "5 apps, 5 interfaces", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#ef4444"},
+
+    {"id": "transform-arrow", "type": "arrow", "x": 250, "y": 100, "width": 70, "height": 0, "strokeColor": "#fbbf24", "strokeWidth": 2.5, "roughness": 0, "points": [[0, 0], [70, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "transform-label", "type": "text", "x": 260, "y": 80, "width": 50, "height": 12, "text": "MCP", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+
+    {"id": "chat-window", "type": "rectangle", "x": 340, "y": 35, "width": 170, "height": 150, "strokeColor": "#4ade80", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 12}},
+    {"id": "chat-header", "type": "text", "x": 390, "y": 42, "width": 70, "height": 14, "text": "Chat", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#4ade80"},
+
+    {"id": "mini1", "type": "rectangle", "x": 355, "y": 65, "width": 65, "height": 22, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "mini1-text", "type": "text", "x": 360, "y": 70, "width": 55, "height": 10, "text": "Schedule", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+
+    {"id": "mini2", "type": "rectangle", "x": 430, "y": 65, "width": 65, "height": 22, "strokeColor": "#a78bfa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "mini2-text", "type": "text", "x": 435, "y": 70, "width": 55, "height": 10, "text": "Metrics", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#a78bfa"},
+
+    {"id": "mini3", "type": "rectangle", "x": 355, "y": 95, "width": 65, "height": 22, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "mini3-text", "type": "text", "x": 360, "y": 100, "width": 55, "height": 10, "text": "Invoice", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+
+    {"id": "mini4", "type": "rectangle", "x": 430, "y": 95, "width": 65, "height": 22, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 4}},
+    {"id": "mini4-text", "type": "text", "x": 435, "y": 100, "width": 55, "height": 10, "text": "CRM", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+
+    {"id": "prompt", "type": "rectangle", "x": 355, "y": 140, "width": 140, "height": 28, "strokeColor": "#666666", "backgroundColor": "#1a1a1e", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "prompt-text", "type": "text", "x": 360, "y": 148, "width": 130, "height": 10, "text": "\"Schedule 3 sessions...\"", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#666666"},
+
+    {"id": "label-1chat", "type": "text", "x": 370, "y": 192, "width": 120, "height": 12, "text": "1 conversation", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

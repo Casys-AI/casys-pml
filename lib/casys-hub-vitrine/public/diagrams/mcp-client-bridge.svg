@@ -1,0 +1,55 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 350" width="400" height="350">
+<!-- svg-source:excalidraw -->
+<rect x="0" y="0" width="400" height="350" fill="#08080a"/>
+<style>text{font-family:'Inter','Segoe UI',system-ui,sans-serif}</style>
+
+<!-- Row 1: User -->
+<rect x="80" y="18" rx="8" ry="8" width="200" height="44" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+<text x="180" y="38" font-size="12" font-weight="600" fill="#60a5fa" text-anchor="middle">User</text>
+<text x="180" y="53" font-size="9" fill="#60a5fa" text-anchor="middle" opacity="0.8">Telegram / LINE / KakaoTalk</text>
+
+<!-- Arrow 1 -->
+<line x1="180" y1="62" x2="180" y2="78" stroke="#666666" stroke-width="2"/>
+<polygon points="175,76 180,84 185,76" fill="#666666"/>
+
+<!-- Row 2: Mini App -->
+<rect x="80" y="84" rx="8" ry="8" width="200" height="44" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+<text x="180" y="104" font-size="12" font-weight="600" fill="#60a5fa" text-anchor="middle">Mini App / TMA</text>
+<text x="180" y="119" font-size="9" fill="#60a5fa" text-anchor="middle" opacity="0.8">HTML/JS rendering</text>
+
+<!-- Arrow 2 -->
+<line x1="180" y1="128" x2="180" y2="144" stroke="#666666" stroke-width="2"/>
+<polygon points="175,142 180,150 185,142" fill="#666666"/>
+
+<!-- Label: postMessage -->
+<text x="295" y="142" font-size="9" fill="#666666" text-anchor="start" font-style="italic">postMessage</text>
+
+<!-- Row 3: MCP Client Bridge (key component - thicker stroke) -->
+<rect x="70" y="150" rx="10" ry="10" width="220" height="50" fill="#1f1f23" stroke="#fbbf24" stroke-width="3"/>
+<text x="180" y="172" font-size="13" font-weight="700" fill="#fbbf24" text-anchor="middle">MCP Client Bridge</text>
+<text x="180" y="190" font-size="9" fill="#fbbf24" text-anchor="middle" opacity="0.8">Platform Adapter</text>
+
+<!-- Arrow 3 -->
+<line x1="180" y1="200" x2="180" y2="216" stroke="#666666" stroke-width="2"/>
+<polygon points="175,214 180,222 185,214" fill="#666666"/>
+
+<!-- Label: MCP Protocol -->
+<text x="295" y="214" font-size="9" fill="#666666" text-anchor="start" font-style="italic">MCP Protocol</text>
+
+<!-- Row 4: MCP Server -->
+<rect x="80" y="222" rx="8" ry="8" width="200" height="44" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+<text x="180" y="242" font-size="12" font-weight="600" fill="#4ade80" text-anchor="middle">MCP Server</text>
+<text x="180" y="257" font-size="9" fill="#4ade80" text-anchor="middle" opacity="0.8">JSON-RPC over SSE</text>
+
+<!-- Arrow 4 -->
+<line x1="180" y1="266" x2="180" y2="282" stroke="#666666" stroke-width="2"/>
+<polygon points="175,280 180,288 185,280" fill="#666666"/>
+
+<!-- Label: Tool calls -->
+<text x="295" y="280" font-size="9" fill="#666666" text-anchor="start" font-style="italic">Tool calls</text>
+
+<!-- Row 5: Tools -->
+<rect x="80" y="288" rx="8" ry="8" width="200" height="44" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+<text x="180" y="308" font-size="12" font-weight="600" fill="#a78bfa" text-anchor="middle">Tools</text>
+<text x="180" y="323" font-size="9" fill="#a78bfa" text-anchor="middle" opacity="0.8">DBs, APIs, Files</text>
+</svg>

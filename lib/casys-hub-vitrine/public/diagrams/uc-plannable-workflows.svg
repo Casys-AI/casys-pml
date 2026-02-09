@@ -1,0 +1,69 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 420"><!-- svg-source:excalidraw -->
+<rect x="0" y="0" width="500" height="420" fill="#08080a"/>
+<style>text{font-family:'Inter','Segoe UI',system-ui,sans-serif}</style>
+
+<!-- Technician Request -->
+<rect x="160" y="15" rx="8" ry="8" width="180" height="36" fill="#2d2d35" stroke="#f0ede8" stroke-width="1.5"/>
+<text x="250" y="38" font-size="11" fill="#f0ede8" text-anchor="middle">Technician Request</text>
+
+<!-- Arrow 1 -->
+<line x1="250" y1="51" x2="250" y2="75" stroke="#666666" stroke-width="1.5"/>
+<polygon points="245,73 250,81 255,73" fill="#666666"/>
+
+<!-- MCP Engine -->
+<rect x="175" y="81" rx="8" ry="8" width="150" height="36" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+<text x="250" y="104" font-size="11" font-weight="600" fill="#60a5fa" text-anchor="middle">MCP Engine</text>
+
+<!-- Arrow 2 -->
+<line x1="250" y1="117" x2="250" y2="141" stroke="#666666" stroke-width="1.5"/>
+<polygon points="245,139 250,147 255,139" fill="#666666"/>
+
+<!-- Approval Gate diamond -->
+<polygon points="250,145 300,175 250,205 200,175" fill="#1a1a1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="250" y="172" font-size="9" font-weight="600" fill="#fbbf24" text-anchor="middle">Approval</text>
+<text x="250" y="184" font-size="9" font-weight="600" fill="#fbbf24" text-anchor="middle">Gate</text>
+
+<!-- Gate annotation -->
+<line x1="302" y1="168" x2="322" y2="168" stroke="#fbbf24" stroke-width="1" opacity="0.5"/>
+<text x="328" y="164" font-size="9" fill="#fbbf24" font-style="italic" text-anchor="start">"Should we call</text>
+<text x="328" y="177" font-size="9" fill="#fbbf24" font-style="italic" text-anchor="start">this tool?"</text>
+<text x="328" y="196" font-size="9" fill="#4ade80" text-anchor="start">Technician: &#x2713;</text>
+
+<!-- Timeline label: Before -->
+<text x="168" y="175" font-size="8" fill="#fbbf24" text-anchor="end" opacity="0.6">Before</text>
+<text x="168" y="185" font-size="8" fill="#fbbf24" text-anchor="end" opacity="0.6">execution</text>
+
+<!-- Arrow 3 -->
+<line x1="250" y1="205" x2="250" y2="229" stroke="#fbbf24" stroke-width="1.5"/>
+<polygon points="245,227 250,235 255,227" fill="#fbbf24"/>
+
+<!-- MCP Server -->
+<rect x="175" y="235" rx="8" ry="8" width="150" height="36" fill="#2d2d35" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="250" y="258" font-size="11" fill="#a78bfa" text-anchor="middle">MCP Server</text>
+
+<!-- Arrow 4 -->
+<line x1="250" y1="271" x2="250" y2="295" stroke="#666666" stroke-width="1.5"/>
+<polygon points="245,293 250,301 255,293" fill="#666666"/>
+
+<!-- Elicitation diamond -->
+<polygon points="250,299 300,329 250,359 200,329" fill="#1a1a1e" stroke="#60a5fa" stroke-width="2"/>
+<text x="250" y="332" font-size="9" font-weight="600" fill="#60a5fa" text-anchor="middle">Elicitation</text>
+
+<!-- Elicitation annotation -->
+<line x1="302" y1="322" x2="322" y2="322" stroke="#60a5fa" stroke-width="1" opacity="0.5"/>
+<text x="328" y="318" font-size="9" fill="#60a5fa" font-style="italic" text-anchor="start">"Which test</text>
+<text x="328" y="331" font-size="9" fill="#60a5fa" font-style="italic" text-anchor="start">profile?"</text>
+<text x="328" y="350" font-size="9" fill="#4ade80" text-anchor="start">Technician: "Standard"</text>
+
+<!-- Timeline label: During -->
+<text x="168" y="326" font-size="8" fill="#60a5fa" text-anchor="end" opacity="0.6">During</text>
+<text x="168" y="336" font-size="8" fill="#60a5fa" text-anchor="end" opacity="0.6">execution</text>
+
+<!-- Arrow 5 -->
+<line x1="250" y1="359" x2="250" y2="378" stroke="#60a5fa" stroke-width="1.5"/>
+<polygon points="245,376 250,384 255,376" fill="#60a5fa"/>
+
+<!-- Result -->
+<rect x="175" y="384" rx="8" ry="8" width="150" height="36" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+<text x="250" y="407" font-size="11" font-weight="600" fill="#4ade80" text-anchor="middle">Traceable Result</text>
+</svg>

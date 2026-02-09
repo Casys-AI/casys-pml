@@ -2,7 +2,22 @@
 import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
 const content = useTranslations(locale).faq;
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": content.faqs.map((faq) => ({
+    "@type": "Question",
+    "name": faq.q,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": faq.a,
+    },
+  })),
+};
 ---
+
+<script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />
 
 <section id="faq">
   <div class="container">
