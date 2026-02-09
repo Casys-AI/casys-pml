@@ -101,18 +101,24 @@ export const DEFAULT_TRAINER_CONFIG: TrainerConfig = {
 
 /**
  * Initialize trainable parameters as TF.js Variables
+ * @param baseSeed - Optional base seed for deterministic initialization. Each parameter
+ *   gets a unique seed derived from baseSeed to ensure reproducibility across runs.
  */
-export function initTFParams(config: SHGATConfig, maxLevel: number): TFParams {
+export function initTFParams(config: SHGATConfig, maxLevel: number, baseSeed?: number): TFParams {
   const { numHeads, embeddingDim, headDim, hiddenDim } = config;
+
+  // Seed counter: each glorotNormal call gets a unique seed
+  let seedCounter = 0;
+  const nextSeed = () => baseSeed !== undefined ? baseSeed + (++seedCounter) : undefined;
 
   // K-head scoring (W_k is shared for Q and K projections, matching old SHGAT behavior)
   const W_k: tf.Variable[] = [];
   for (let h = 0; h < numHeads; h++) {
-    W_k.push(tf.variable(ops.glorotNormal([embeddingDim, headDim]), true, `W_k_${h}`));
+    W_k.push(tf.variable(ops.glorotNormal([embeddingDim, headDim], nextSeed()), true, `W_k_${h}`));
   }
 
   const W_intent = tf.variable(
-    ops.glorotNormal([embeddingDim, hiddenDim || embeddingDim]),
+    ops.glorotNormal([embeddingDim, hiddenDim || embeddingDim], nextSeed()),
     true,
     "W_intent"
   );
@@ -131,10 +137,10 @@ export function initTFParams(config: SHGATConfig, maxLevel: number): TFParams {
     const a_down_level: tf.Variable[] = [];
 
     for (let h = 0; h < numHeads; h++) {
-      W_up_level.push(tf.variable(ops.glorotNormal([embeddingDim, headDim]), true, `W_up_${level}_${h}`));
-      W_down_level.push(tf.variable(ops.glorotNormal([embeddingDim, headDim]), true, `W_down_${level}_${h}`));
-      a_up_level.push(tf.variable(ops.glorotNormal([2 * headDim]), true, `a_up_${level}_${h}`));
-      a_down_level.push(tf.variable(ops.glorotNormal([2 * headDim]), true, `a_down_${level}_${h}`));
+      W_up_level.push(tf.variable(ops.glorotNormal([embeddingDim, headDim], nextSeed()), true, `W_up_${level}_${h}`));
+      W_down_level.push(tf.variable(ops.glorotNormal([embeddingDim, headDim], nextSeed()), true, `W_down_${level}_${h}`));
+      a_up_level.push(tf.variable(ops.glorotNormal([2 * headDim], nextSeed()), true, `a_up_${level}_${h}`));
+      a_down_level.push(tf.variable(ops.glorotNormal([2 * headDim], nextSeed()), true, `a_down_${level}_${h}`));
     }
 
     W_up.set(level, W_up_level);
@@ -330,7 +336,10 @@ export function messagePassingForward(
 
   // ========================================================================
   // DOWNWARD PASS: E^L → ... → E^0 → V
+  // Uses config.downwardResidual for blend: (1-dr)*propagated + dr*original
   // ========================================================================
+
+  const dr = config.downwardResidual ?? 0;
 
   for (let level = maxLevel - 1; level >= 0; level--) {
     const W_down = params.W_down.get(level + 1) || params.W_down.get(1);
@@ -347,7 +356,7 @@ export function messagePassingForward(
     // Transpose for downward pass
     const reverseConn = tf.transpose(forwardConn) as tf.Tensor2D;
 
-    const E_new = multiHeadMessagePassing(
+    const E_propagated = multiHeadMessagePassing(
       capsAtParent,   // source: parent caps
       capsAtLevel,    // target: child caps
       reverseConn,
@@ -358,53 +367,86 @@ export function messagePassingForward(
     );
 
     reverseConn.dispose();
-    E.get(level)?.dispose();
-    E.set(level, E_new);
+
+    if (dr > 0) {
+      // Blend: (1-dr)*propagated + dr*pre_downward
+      const E_blended = tf.add(
+        tf.mul(E_propagated, 1 - dr),
+        tf.mul(capsAtLevel, dr),
+      ) as tf.Tensor2D;
+      E_propagated.dispose();
+      E.get(level)?.dispose();
+      E.set(level, E_blended);
+    } else {
+      E.get(level)?.dispose();
+      E.set(level, E_propagated);
+    }
   }
 
   // Final: E^0 → V
   const E_level0 = E.get(0);
-  const W_down = params.W_down.get(1);
-  const a_down = params.a_down.get(1);
-  if (E_level0 && W_down && a_down) {
+  const W_down_final = params.W_down.get(1);
+  const a_down_final = params.a_down.get(1);
+  if (E_level0 && W_down_final && a_down_final) {
     // Transpose toolToCapMatrix for E→V direction
     const reverseConn = tf.transpose(graph.toolToCapMatrix) as tf.Tensor2D;
 
-    const H_new = multiHeadMessagePassing(
+    const H_propagated = multiHeadMessagePassing(
       E_level0,      // source: caps
       H,             // target: tools
       reverseConn,
-      W_down,
-      W_down,
-      a_down,
+      W_down_final,
+      W_down_final,
+      a_down_final,
       numHeads,
     );
 
     reverseConn.dispose();
-    H.dispose();
-    H = H_new;
+
+    if (dr > 0) {
+      // Blend: (1-dr)*propagated + dr*pre_downward
+      const H_blended = tf.add(
+        tf.mul(H_propagated, 1 - dr),
+        tf.mul(H, dr),
+      ) as tf.Tensor2D;
+      H_propagated.dispose();
+      H.dispose();
+      H = H_blended;
+    } else {
+      H.dispose();
+      H = H_propagated;
+    }
   }
 
-  // Apply residual connection
-  if (params.residualWeights) {
-    const alpha = 0.3;  // Default residual weight
-    const H_residual = tf.add(
-      tf.mul(H, 1 - alpha),
-      tf.mul(H_init, alpha),
-    ) as tf.Tensor2D;
-    H.dispose();
-    H = H_residual;
+  // ========================================================================
+  // POST-MP RESIDUAL: blend with initial embeddings
+  // Uses config.preserveDimResiduals (per-level) or config.preserveDimResidual (global)
+  // ========================================================================
 
-    for (const [level, E_tensor] of E) {
-      const E_initLevel = E_init.get(level);
-      if (E_initLevel) {
-        const E_residual = tf.add(
-          tf.mul(E_tensor, 1 - alpha),
-          tf.mul(E_initLevel, alpha),
-        ) as tf.Tensor2D;
-        E_tensor.dispose();
-        E.set(level, E_residual);
-      }
+  const pdr = config.preserveDimResiduals;
+  const globalResidual = config.preserveDimResidual ?? 0.3;
+
+  // Tools (H) — graph level 0 → preserveDimResiduals[0]
+  const toolAlpha = pdr?.[0] ?? globalResidual;
+  const H_residual = tf.add(
+    tf.mul(H, 1 - toolAlpha),
+    tf.mul(H_init, toolAlpha),
+  ) as tf.Tensor2D;
+  H.dispose();
+  H = H_residual;
+
+  // Capabilities (E) — graph level = capLevel + 1
+  for (const [capLevel, E_tensor] of E) {
+    const E_initLevel = E_init.get(capLevel);
+    if (E_initLevel) {
+      const graphLevel = capLevel + 1;  // caps at E level 0 are graph level 1
+      const capAlpha = pdr?.[graphLevel] ?? globalResidual;
+      const E_residual = tf.add(
+        tf.mul(E_tensor, 1 - capAlpha),
+        tf.mul(E_initLevel, capAlpha),
+      ) as tf.Tensor2D;
+      E_tensor.dispose();
+      E.set(capLevel, E_residual);
     }
   }
 
@@ -1016,10 +1058,11 @@ export class AutogradTrainer {
     config: SHGATConfig,
     trainerConfig: Partial<TrainerConfig> = {},
     maxLevel = 3,
+    baseSeed?: number,
   ) {
     this.config = config;
     this.trainerConfig = { ...DEFAULT_TRAINER_CONFIG, ...trainerConfig };
-    this.params = initTFParams(config, maxLevel);
+    this.params = initTFParams(config, maxLevel, baseSeed);
     this.optimizer = tf.train.adam(this.trainerConfig.learningRate);
   }
 

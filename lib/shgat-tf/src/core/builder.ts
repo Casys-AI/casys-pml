@@ -152,6 +152,31 @@ export interface ArchitectureOptions {
   preserveDim?: boolean;
   /** Enable projection head for fine-grained discrimination (default: false) */
   useProjectionHead?: boolean;
+  /**
+   * Residual weight for downward message passing phase.
+   * output = (1-r)*propagated + r*original
+   * @default 0 (no residual in downward — WARNING: causes collapse with hierarchy)
+   */
+  downwardResidual?: number;
+  /**
+   * Global residual weight applied after message passing.
+   * final = (1-r)*propagated + r*original
+   * @default 0.3
+   */
+  preserveDimResidual?: number;
+  /**
+   * Per-level residual weights applied after message passing.
+   * Index corresponds to node level (0=leaves, 1=intermediate, 2=root, etc.)
+   * Overrides preserveDimResidual for nodes at each specified level.
+   * @example [0.95, 0.7, 0.5] // L0: 95% original, L1: 70%, L2: 50%
+   */
+  preserveDimResiduals?: number[];
+  /**
+   * Random seed for deterministic parameter initialization.
+   * When set, all random matrices (W_k, W_up, W_down, etc.) are initialized
+   * with deterministic values, making results reproducible across runs.
+   */
+  seed?: number;
 }
 
 // ============================================================================
@@ -278,6 +303,9 @@ export class SHGATBuilder {
       ...(this._archOpts.hiddenDim !== undefined && { hiddenDim: this._archOpts.hiddenDim }),
       ...(this._archOpts.preserveDim !== undefined && { preserveDim: this._archOpts.preserveDim }),
       ...(this._archOpts.useProjectionHead !== undefined && { useProjectionHead: this._archOpts.useProjectionHead }),
+      ...(this._archOpts.downwardResidual !== undefined && { downwardResidual: this._archOpts.downwardResidual }),
+      ...(this._archOpts.preserveDimResidual !== undefined && { preserveDimResidual: this._archOpts.preserveDimResidual }),
+      ...(this._archOpts.preserveDimResiduals !== undefined && { preserveDimResiduals: this._archOpts.preserveDimResiduals }),
     };
 
     const trainerConfig: Partial<TrainerConfig> = {
@@ -328,7 +356,7 @@ export class SHGATBuilder {
     const graph = buildGraphStructure(capInfos, toolIds);
 
     // 5. Create trainer
-    const trainer = new AutogradTrainer(config, trainerConfig, graph.maxLevel);
+    const trainer = new AutogradTrainer(config, trainerConfig, graph.maxLevel, this._archOpts.seed);
     trainer.setNodeEmbeddings(embeddings);
     trainer.setGraph(graph);
 
