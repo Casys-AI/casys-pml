@@ -1,0 +1,53 @@
+---
+title: Bridge Client API
+description: 浏览器端 Bridge Client 的 API 参考。
+---
+
+## 概述
+
+Bridge Client (`bridge.js`) 由 Resource Server 自动注入到 HTML 响应中。通常你不需要直接与它交互，但了解其 API 有助于调试。
+
+## 初始化
+
+桥接层在页面加载时自动初始化：
+
+1. 检测平台 (Telegram、LINE 或通用)
+2. 建立到 Resource Server 的 WebSocket 连接
+3. Monkey-patch `window.parent.postMessage`
+4. 发送 `ui/initialize` 握手
+5. 开始转发 JSON-RPC 消息
+
+## JSON-RPC 方法
+
+### 出站 (App 到 Host)
+
+| 方法 | 描述 |
+|------|------|
+| `tools/call` | 执行 MCP 工具 |
+| `resources/read` | 读取 MCP 资源 |
+| `ui/open-link` | 打开外部 URL |
+| `ui/ready` | 通知界面已就绪 |
+
+### 入站 (Host 到 App)
+
+| 方法 | 描述 |
+|------|------|
+| `host-context-changed` | 主题、视口或区域设置已变更 |
+| `tools/call` (响应) | 工具执行结果 |
+| `resources/read` (响应) | 资源内容 |
+
+## 消息路由
+
+`MessageRouter` 跟踪待处理请求，超时时间为 30 秒：
+
+```typescript
+// Internal flow (simplified)
+app.postMessage(request)
+  -> bridge.js intercepts
+  -> router.send(request)
+  -> WebSocket.send(JSON.stringify(request))
+  -> ... server processes ...
+  -> WebSocket.onmessage(response)
+  -> router.resolve(response.id, response)
+  -> window.dispatchEvent(MessageEvent)
+```

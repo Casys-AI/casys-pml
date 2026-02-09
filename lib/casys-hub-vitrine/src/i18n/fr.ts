@@ -59,6 +59,7 @@ export const fr: Translations = {
     proofs: [
       { name: 'mcp-std', stat: '508 outils', url: 'https://mcp-std.casys.ai' },
       { name: 'mcp-server', stat: 'Auth production', url: 'https://mcp-server.casys.ai' },
+      { name: 'mcp-bridge', stat: 'Telegram', url: 'https://mcp-bridge.casys.ai' },
       { name: 'Casys PML', stat: 'Gateway', url: 'https://pml.casys.ai' },
       { name: 'Engine', stat: 'Scoring par graphe', url: 'https://engine.casys.ai' },
     ],
@@ -232,107 +233,70 @@ export const fr: Translations = {
   },
   projects: {
     title: 'Nos Projets',
-    subtitle: 'Outils open-source explorant différentes facettes des systèmes AI',
-    activeProjects: [
+    subtitle: 'Outils open source pour l\'écosystème MCP. Du protocol tooling à l\'intelligence par graphe.',
+    featured: {
+      name: 'Casys PML',
+      tagline: 'Un gateway. N\'importe quel modèle. Observabilité totale.',
+      status: 'Développement Actif',
+      license: 'AGPL-3.0',
+      features: [
+        { icon: 'swap_horiz', name: 'Model-Agnostic', description: 'Claude, GPT, Gemini, Ollama — changez librement' },
+        { icon: 'visibility', name: 'Observabilité Complète', description: 'Chaque appel tracé : coût, latence, statut' },
+        { icon: 'auto_awesome', name: 'Extraction de Patterns', description: 'SHGAT extrait les patterns de pertinence des traces d\'exécution' },
+      ],
+      results: [
+        { stat: '120+', label: 'Capabilities au catalogue' },
+        { stat: '4', label: 'Providers LLM supportés' },
+        { stat: 'Gratuit', label: 'Beta open source' },
+      ],
+      links: {
+        website: 'https://pml.casys.ai',
+        github: 'https://github.com/Casys-AI/casys-pml',
+        docs: 'https://pml.casys.ai/docs',
+      },
+    },
+    categories: [
       {
-        id: 'casys-pml',
-        name: 'Casys PML',
-        tagline: 'Un gateway. N\'importe quel modèle. Observabilité totale.',
-        status: 'Développement Actif',
-        license: 'AGPL-3.0',
-        featured: true,
-        features: [
-            {
-              icon: 'swap_horiz',
-              name: 'Model-Agnostic',
-              description: 'Claude, GPT, Gemini, Ollama — changez librement'
-            },
-            {
-              icon: 'visibility',
-              name: 'Observabilité Complète',
-              description: 'Chaque appel tracé : coût, latence, statut'
-            },
-            {
-              icon: 'auto_awesome',
-              name: 'Extraction de Patterns',
-              description: 'SHGAT extrait les patterns de pertinence des traces d\'exécution'
-            }
-        ],
-        results: [
+        name: 'Infrastructure MCP',
+        items: [
           {
-            stat: '120+',
-            label: 'Capabilities au catalogue'
+            id: 'mcp-std',
+            name: '@casys/mcp-std',
+            tagline: '508 Outils MCP. Un seul import.',
+            status: 'v0.4.0',
+            tech: 'Deno',
+            links: { website: 'https://mcp-std.casys.ai', github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std', jsr: 'https://jsr.io/@casys/mcp-std' },
           },
           {
-            stat: '4',
-            label: 'Providers LLM supportés'
+            id: 'mcp-server',
+            name: '@casys/mcp-server',
+            tagline: 'Framework Serveur MCP Production',
+            status: 'v0.3.0',
+            tech: 'Deno',
+            links: { website: 'https://mcp-server.casys.ai', github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server', jsr: 'https://jsr.io/@casys/mcp-server' },
           },
           {
-            stat: 'Gratuit',
-            label: 'Beta open source'
-          }
+            id: 'mcp-bridge',
+            name: '@casys/mcp-bridge',
+            tagline: 'MCP Apps vers plateformes messagerie',
+            status: 'v0.1.0',
+            tech: 'Deno',
+            links: { website: 'https://mcp-bridge.casys.ai', github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/mcp-apps-bridge', jsr: 'https://jsr.io/@casys/mcp-bridge' },
+          },
         ],
-        tech: {
-          stack: 'Deno 2.x, PGlite, Drizzle ORM, Transformers.js'
-        },
-        links: {
-          website: 'https://pml.casys.ai',
-          github: 'https://github.com/Casys-AI/casys-pml',
-          docs: 'https://pml.casys.ai/docs'
-        }
       },
       {
-        id: 'mcp-std',
-        name: '@casys/mcp-std',
-        tagline: '508 Outils MCP. Un seul import.',
-        status: 'v0.4.0',
-        license: 'MIT',
-        features: [
-          { icon: 'construction', name: '508 Outils', description: 'Docker, Git, DB, crypto, texte, réseau...' },
-          { icon: 'category', name: '32 Catégories', description: 'Chargez uniquement ce dont vous avez besoin' },
-          { icon: 'terminal', name: 'Serveur MCP', description: 'Mode standalone ou librairie' }
+        name: 'Intelligence',
+        items: [
+          {
+            id: 'engine',
+            name: 'PML Engine',
+            tagline: 'Réseau de neurones graphe pour l\'orchestration d\'outils',
+            status: 'Recherche',
+            tech: 'TF.js',
+            links: { website: 'https://engine.casys.ai', github: 'https://github.com/Casys-AI/casys-pml' },
+          },
         ],
-        tech: { stack: 'Deno, TypeScript, JSR' },
-        links: {
-          website: 'https://mcp-std.casys.ai',
-          github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std',
-          jsr: 'https://jsr.io/@casys/mcp-std'
-        }
-      },
-      {
-        id: 'mcp-server',
-        name: '@casys/mcp-server',
-        tagline: 'Framework Serveur MCP Production',
-        status: 'v0.3.0',
-        license: 'MIT',
-        features: [
-          { icon: 'security', name: 'Auth intégrée', description: 'OAuth2, JWT, clés API' },
-          { icon: 'layers', name: 'Middleware', description: 'Rate limiting, CORS, logging' },
-          { icon: 'speed', name: 'HTTP + SSE', description: 'Transport concurrent' }
-        ],
-        tech: { stack: 'Deno, TypeScript, JSR' },
-        links: {
-          website: 'https://mcp-server.casys.ai',
-          github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server',
-          jsr: 'https://jsr.io/@casys/mcp-server'
-        }
-      },
-      {
-        id: 'engine',
-        name: 'PML Engine',
-        tagline: 'Réseau de neurones graphe pour l\'orchestration d\'outils',
-        status: 'Recherche',
-        license: 'AGPL-3.0',
-        features: [
-          { icon: 'hub', name: 'SHGAT', description: 'Sparse Heterogeneous Graph Attention' },
-          { icon: 'psychology', name: 'Entraînement sur Traces', description: 'S\'entraîne sur les traces de production' },
-          { icon: 'route', name: 'Optimisation DAG', description: 'Planification automatique de workflows' }
-        ],
-        tech: { stack: 'TensorFlow.js, Deno' },
-        links: {
-          website: 'https://engine.casys.ai',
-          github: 'https://github.com/Casys-AI/casys-pml'
-        }
       },
     ],
   },
@@ -996,6 +960,93 @@ export const fr: Translations = {
       url: '/#projects',
       icon: 'folder_open',
     },
+  },
+
+  // ========================================
+  // SUBSITE: MCP-BRIDGE
+  // ========================================
+  mcpBridgeHeader: {
+    features: 'Fonctionnalites',
+    architecture: 'Architecture',
+    quickstart: 'Demarrage',
+    install: 'Installer',
+    docs: 'Docs',
+    workWithUs: 'Travaillons ensemble',
+  },
+  mcpBridgeHero: {
+    tagline: 'MCP Apps \u2192 Plateformes Messagerie',
+    heroTitle1: 'Vos MCP Apps sur',
+    heroTitle2: '2 Mrd d\'Utilisateurs',
+    heroSubtitle: 'Transformez n\'importe quelle MCP App en Telegram Mini App. Zéro changement de code. Même outil, nouvelle audience.',
+    statTests: 'Tests au vert',
+    statPlatforms: 'Plateforme',
+    statRelease: 'Derniere',
+    ctaPrimary: 'Commencer',
+    ctaSecondary: 'Voir sur JSR',
+    ctaDocs: 'Documentation',
+  },
+  mcpBridgeFeatures: {
+    title: 'Comblez le',
+    titleAccent: 'Fosse',
+    subtitle: 'Tout ce qu\'il faut pour emmener vos MCP Apps des outils dev vers les plateformes de messagerie.',
+    features: [
+      { icon: 'code_off', name: 'Zero Changement', desc: 'Les MCP Apps existantes fonctionnent telles quelles.' },
+      { icon: 'layers', name: 'Architecture 3 Couches', desc: 'Client, Resource Server, MCP Server.' },
+      { icon: 'swap_horiz', name: 'Traduction Protocole', desc: 'JSON-RPC 2.0 via WebSocket, transparent.' },
+      { icon: 'smart_toy', name: 'Telegram Mini Apps', desc: 'Theme, viewport, auth complets.' },
+      { icon: 'more_horiz', name: 'Plus de plateformes', desc: 'LINE, Discord, WhatsApp — bientôt.' },
+      { icon: 'shield', name: 'CSP Stricte', desc: 'Content-Security-Policy stricte par defaut.' },
+      { icon: 'key', name: 'Auth par Session', desc: 'Tokens crypto-securises, validation HMAC.' },
+      { icon: 'sync', name: 'Transport WebSocket', desc: 'Communication bidirectionnelle temps reel.' },
+      { icon: 'palette', name: 'Mapping Themes', desc: 'Themes plateforme mappes automatiquement.' },
+      { icon: 'extension', name: 'Adaptateurs Extensibles', desc: 'Ajoutez Discord, WhatsApp ou autre.' },
+    ],
+  },
+  mcpBridgeArchitecture: {
+    title: 'Comment \u00e7a',
+    titleAccent: 'Marche',
+    subtitle: 'Le bridge intercepte les appels postMessage de votre MCP App, les route via WebSocket au Resource Server, qui transmet les appels d\'outils a votre serveur MCP inchange.',
+    steps: [
+      { icon: 'web', label: 'MCP App', type: 'incoming' },
+      { icon: 'javascript', label: 'bridge.js', type: '' },
+      { icon: 'sync', label: 'WebSocket', type: '' },
+      { icon: 'dns', label: 'Resource Server', type: 'handler' },
+      { icon: 'hub', label: 'MCP Server', type: '' },
+      { icon: 'send', label: 'Telegram', type: 'custom' },
+    ],
+  },
+  mcpBridgeComparison: {
+    title: 'Int\u00e9gration Custom vs',
+    titleAccent: 'Bridge',
+    subtitle: 'Economisez des mois de travail d\'integration. Le bridge gere les parties complexes.',
+    colCustom: 'Int\u00e9gration Manuelle',
+    colBridge: '@casys/mcp-bridge',
+    rows: [
+      ['Changements de code MCP App', 'R\u00e9\u00e9criture requise', 'Aucun'],
+      ['Auth plateforme (Telegram)', 'HMAC manuel', 'Inclus'],
+      ['Content Security Policy', 'Headers manuels', 'Auto-g\u00e9n\u00e9r\u00e9'],
+      ['Gestion WebSocket', 'De z\u00e9ro', 'Inclus'],
+      ['Synchronisation theme', 'Mapping manuel', 'Automatique'],
+      ['Support multi-plateforme', 'Code par plateforme', 'Pattern adaptateur'],
+      ['Gestion des sessions', 'Impl\u00e9mentation custom', 'Crypto-s\u00e9curis\u00e9'],
+      ['Injection HTML (bridge.js)', 'N/A', 'Automatique'],
+    ],
+  },
+  mcpBridgeQuickStart: {
+    title: 'D\u00e9ployez sur',
+    titleAccent: 'Telegram',
+    subtitle: 'Votre MCP App dans Telegram en trois etapes. Aucun changement a votre code existant.',
+    tabTelegram: 'Telegram',
+    tabLine: 'Bientôt',
+  },
+  mcpBridgeInstall: {
+    title: 'Pret',
+    titleAccent: 'Quand Vous l\'Etes',
+    subtitle: 'Une commande. Compatible Deno et Node.js. Publie sur JSR, le registre JavaScript moderne.',
+    jsrLabel: 'Registre JSR',
+    githubLabel: 'GitHub',
+    docsLabel: 'Documentation',
+    builtWith: 'Construit avec',
   },
 
   // ========================================

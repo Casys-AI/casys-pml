@@ -1,0 +1,164 @@
+---
+import { useTranslations } from '../../i18n';
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = useTranslations(locale).mcpBridgeQuickStart;
+
+const codeTelegram = `<span class="c-keyword">import</span> { startResourceServer } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-bridge"</span>;
+
+<span class="c-keyword">const</span> server = <span class="c-fn">startResourceServer</span>({
+  assetDirectories: { <span class="c-string">"my-app"</span>: <span class="c-string">"./ui-dist"</span> },
+  platform: <span class="c-string">"telegram"</span>,
+  telegramBotToken: Deno.env.<span class="c-fn">get</span>(<span class="c-string">"TELEGRAM_BOT_TOKEN"</span>),
+  onMessage: <span class="c-keyword">async</span> (session, message) => {
+    <span class="c-comment">// Forward to your MCP server</span>
+    <span class="c-keyword">return</span> <span class="c-keyword">null</span>;
+  },
+  options: { resourceServerPort: <span class="c-num">4000</span> },
+});
+
+console.<span class="c-fn">log</span>(<span class="c-string">\`Bridge ready at \${server.baseUrl}\`</span>);`;
+
+const codeLine = `<span class="c-comment">// LINE LIFF adapter — coming soon</span>
+<span class="c-comment">//</span>
+<span class="c-comment">// import { LineAdapter } from "@casys/mcp-bridge";</span>
+<span class="c-comment">//</span>
+<span class="c-comment">// const adapter = new LineAdapter();</span>
+<span class="c-comment">// await adapter.init({ resourceBaseUrl: "https://..." });</span>`;
+---
+
+<section id="quickstart">
+  <div class="container">
+    <div class="section-header">
+      <h2>{t.title} <span class="accent-text">{t.titleAccent}</span></h2>
+      <p class="section-subtitle">{t.subtitle}</p>
+    </div>
+    <div class="code-tabs-container">
+      <div class="tabs-header" role="tablist" aria-label="Code examples">
+        <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-panel-telegram" id="tab-telegram" data-tab="telegram">
+          <span class="material-symbols-rounded">smart_toy</span>
+          {t.tabTelegram}
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-panel-line" id="tab-line" data-tab="line">
+          <span class="material-symbols-rounded">chat</span>
+          {t.tabLine}
+        </button>
+      </div>
+      <div class="tabs-content">
+        <div class="tab-panel active" role="tabpanel" id="tab-panel-telegram" aria-labelledby="tab-telegram" data-tab="telegram">
+          <pre class="code-block"><code set:html={codeTelegram} /></pre>
+        </div>
+        <div class="tab-panel" role="tabpanel" id="tab-panel-line" aria-labelledby="tab-line" data-tab="line" hidden>
+          <pre class="code-block"><code set:html={codeLine} /></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  #quickstart {
+    position: relative;
+    padding: 56px 0 64px;
+    background: var(--md-sys-color-surface-container-lowest);
+    overflow: hidden;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+  .section-header { margin-bottom: 32px; max-width: 600px; }
+  .section-header h2 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 600; font-optical-sizing: auto; color: var(--md-sys-color-on-surface); margin: 0 0 12px; letter-spacing: -0.02em; }
+  .section-subtitle { font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); margin: 0; line-height: 1.6; }
+
+  .code-tabs-container { border-radius: 16px; overflow: hidden; border: 1px solid var(--md-sys-color-outline-variant); background: var(--md-sys-color-surface-container-lowest); }
+
+  .tabs-header { display: flex; background: var(--md-sys-color-surface-container-high); border-bottom: 1px solid var(--md-sys-color-outline-variant); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .tab-btn { display: flex; align-items: center; gap: 8px; padding: 14px 24px; border: none; background: transparent; color: var(--md-sys-color-on-surface-variant); font-family: 'Inter', sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; white-space: nowrap; position: relative; transition: color 200ms ease-out, background 200ms ease-out; }
+  .tab-btn:hover { color: var(--md-sys-color-on-surface); background: var(--md-sys-color-surface-container); }
+  .tab-btn:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: -3px; }
+  .tab-btn .material-symbols-rounded { font-size: 18px; }
+  .tab-btn.active { color: var(--md-sys-color-primary); font-weight: 600; }
+  .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 16px; right: 16px; height: 2px; background: var(--md-sys-color-primary); border-radius: 1px 1px 0 0; }
+
+  .tabs-content { padding: 0; }
+  .tab-panel { display: none; padding: 0; }
+  .tab-panel.active { display: block; }
+
+  .code-block { margin: 0; padding: 24px 28px; font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; line-height: 1.75; overflow-x: auto; -webkit-overflow-scrolling: touch; color: var(--md-sys-color-on-surface); }
+  .code-block code { display: block; white-space: pre; }
+
+  @media (max-width: 1024px) { .container { padding: 0 32px; } }
+  @media (max-width: 768px) {
+    #quickstart { padding: 60px 0; }
+    .container { padding: 0 20px; }
+    .tabs-header { gap: 0; }
+    .tab-btn { padding: 12px 16px; font-size: 0.8125rem; }
+    .tab-btn .material-symbols-rounded { display: none; }
+    .code-block { padding: 16px; font-size: 0.6875rem; line-height: 1.7; }
+  }
+  @media (max-width: 380px) { .container { padding: 0 14px; } }
+</style>
+
+<style is:global>
+  #quickstart .c-keyword { color: #92400e; font-weight: 600; }
+  #quickstart .c-string { color: #047857; }
+  #quickstart .c-type { color: #1d4ed8; }
+  #quickstart .c-fn { color: #b45309; }
+  #quickstart .c-num { color: #dc2626; }
+  #quickstart .c-comment { color: #9ca3af; font-style: italic; }
+
+  html[data-theme="dark"] #quickstart { background: #0a0908; }
+  html[data-theme="dark"] #quickstart .section-header h2 { color: #f5f0ea; }
+  html[data-theme="dark"] #quickstart .section-subtitle { color: #d5c3b5; }
+  html[data-theme="dark"] #quickstart .code-tabs-container { background: #111110; border-color: rgba(255, 184, 111, 0.1); }
+  html[data-theme="dark"] #quickstart .tabs-header { background: #1a1815; border-bottom-color: rgba(255, 184, 111, 0.08); }
+  html[data-theme="dark"] #quickstart .tab-btn { color: #a89a8c; }
+  html[data-theme="dark"] #quickstart .tab-btn:hover { color: #f5f0ea; background: rgba(255, 255, 255, 0.03); }
+  html[data-theme="dark"] #quickstart .tab-btn.active { color: #FFB86F; }
+  html[data-theme="dark"] #quickstart .tab-btn.active::after { background: #FFB86F; }
+  html[data-theme="dark"] #quickstart .code-block { color: #f5f0ea; }
+
+  html[data-theme="dark"] #quickstart .c-keyword { color: #c4b5fd; }
+  html[data-theme="dark"] #quickstart .c-string { color: #6ee7b7; }
+  html[data-theme="dark"] #quickstart .c-type { color: #93c5fd; }
+  html[data-theme="dark"] #quickstart .c-fn { color: #FFB86F; }
+  html[data-theme="dark"] #quickstart .c-num { color: #fca5a5; }
+  html[data-theme="dark"] #quickstart .c-comment { color: #6b7280; font-style: italic; }
+</style>
+
+<script is:inline>
+  // Code tabs switching for bridge quickstart
+  (function() {
+    var section = document.getElementById('quickstart');
+    if (!section) return;
+    var tabBtns = section.querySelectorAll('.tab-btn');
+    var tabPanels = section.querySelectorAll('.tab-panel');
+
+    tabBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var target = btn.dataset.tab;
+        if (!target) return;
+        tabBtns.forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        tabPanels.forEach(function(panel) {
+          if (panel.dataset.tab === target) { panel.classList.add('active'); panel.removeAttribute('hidden'); }
+          else { panel.classList.remove('active'); panel.setAttribute('hidden', ''); }
+        });
+      });
+
+      btn.addEventListener('keydown', function(e) {
+        var tabs = Array.from(tabBtns);
+        var idx = tabs.indexOf(btn);
+        var nextIdx = idx;
+        if (e.key === 'ArrowRight') nextIdx = (idx + 1) % tabs.length;
+        else if (e.key === 'ArrowLeft') nextIdx = (idx - 1 + tabs.length) % tabs.length;
+        else if (e.key === 'Home') nextIdx = 0;
+        else if (e.key === 'End') nextIdx = tabs.length - 1;
+        else return;
+        e.preventDefault();
+        tabs[nextIdx].focus();
+        tabs[nextIdx].click();
+      });
+    });
+  })();
+</script>

@@ -1,0 +1,77 @@
+---
+title: Demarrage rapide
+description: Faites tourner votre MCP App dans Telegram en 5 minutes.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+## Prerequis
+
+- [Deno](https://deno.land) 2.x ou Node.js 20+
+- Un token de bot Telegram (depuis [@BotFather](https://t.me/botfather))
+- Un serveur MCP existant avec des ressources `ui://`
+
+## Installation
+
+```bash
+# Deno
+deno add jsr:@casys/mcp-bridge
+
+# Node.js
+npx jsr add @casys/mcp-bridge
+```
+
+## Mise en place
+
+<Steps>
+
+1. **Creer le serveur bridge**
+
+   ```typescript
+   // bridge.ts
+   import { startResourceServer } from "@casys/mcp-bridge";
+
+   const server = startResourceServer({
+     assetDirectories: { "my-app": "./ui-dist" },
+     platform: "telegram",
+     telegramBotToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+     onMessage: async (session, message) => { return null; },
+     options: { resourceServerPort: 4000, debug: true },
+   });
+
+   console.log(`Bridge ready at ${server.baseUrl}`);
+   ```
+
+2. **Exposer votre serveur**
+
+   Pour le developpement, utilisez un tunnel comme [ngrok](https://ngrok.com) :
+
+   ```bash
+   ngrok http 4000
+   ```
+
+3. **Configurer votre bot Telegram**
+
+   Definissez l'URL de la Mini App dans [@BotFather](https://t.me/botfather) :
+   - Envoyez `/setmenubutton`
+   - Selectionnez votre bot
+   - Definissez l'URL vers votre URL ngrok/production
+
+4. **Tester**
+
+   Ouvrez votre bot dans Telegram et appuyez sur le bouton de menu. L'interface de votre MCP App devrait apparaitre directement dans Telegram !
+
+</Steps>
+
+<Aside type="tip">
+  Le bridge gere automatiquement la synchronisation des themes. Si l'utilisateur passe Telegram en mode sombre, votre MCP App recoit une notification `host-context-changed` avec le nouveau theme.
+</Aside>
+
+## Ce qui se passe sous le capot
+
+1. Telegram charge l'URL de votre bridge dans une WebView
+2. Le Resource Server sert votre HTML `ui://` avec `bridge.js` injecte
+3. Quand votre MCP App appelle `postMessage`, bridge.js l'intercepte
+4. Le message est route via WebSocket vers le Resource Server
+5. Le Resource Server transmet les requetes `tools/call` a votre MCP Server
+6. Les resultats reviennent par le meme chemin

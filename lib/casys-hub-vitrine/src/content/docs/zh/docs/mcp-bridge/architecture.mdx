@@ -1,0 +1,53 @@
+---
+title: 架构
+description: 深入了解三层桥接架构。
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## 概述
+
+桥接层使用三层架构，使你的 MCP App 和 MCP Server 完全不需要修改：
+
+```
+[MCP App (iframe)] --postMessage--> [bridge.js] --WebSocket--> [Resource Server] --stdio/HTTP--> [MCP Server]
+```
+
+## 第一层：Bridge Client (浏览器端)
+
+Bridge Client 是一个 IIFE 脚本 (`bridge.js`)，由 Resource Server 自动注入到所服务的 HTML 中。
+
+**核心职责：**
+- Monkey-patch `window.parent.postMessage` 以拦截 JSON-RPC 消息
+- 建立到 Resource Server 的 WebSocket 连接
+- 将平台事件 (主题变更、视口调整) 转换为 MCP 通知
+- 处理 `ui/initialize` 握手
+
+## 第二层：Resource Server (HTTP + WebSocket)
+
+Resource Server 是核心编排器：
+
+- **HTTP**：将 `ui://` 资源作为普通网页提供，在 HTML 响应中注入 `bridge.js`
+- **WebSocket**：与 Bridge Client 保持双向通信
+- **会话**：加密安全的会话管理，支持平台特定的认证验证
+- **CSP**：从资源元数据自动生成 Content-Security-Policy 头
+- **转发**：将 `tools/call` 和 `resources/read` 请求路由到 MCP Server
+
+## 第三层：MCP Server (无需修改)
+
+你现有的 MCP Server 完全不需要改动。Resource Server 以标准 MCP 客户端身份连接，使用 stdio 或 HTTP 传输。
+
+## 消息流
+
+一个典型的工具调用经过以下流程：
+
+1. 用户在 Telegram WebView 中与界面交互
+2. MCP App 调用 `postMessage({ jsonrpc: "2.0", method: "tools/call", ... })`
+3. `bridge.js` 拦截并通过 WebSocket 发送
+4. Resource Server 验证会话，转发到 MCP Server
+5. MCP Server 执行工具，返回结果
+6. Resource Server 通过 WebSocket 发送结果
+7. `bridge.js` 向 MCP App 分派 `MessageEvent`
+8. 界面更新
+
+**总增加延迟**：约 1 次 WebSocket 往返 (同机部署时可忽略)。

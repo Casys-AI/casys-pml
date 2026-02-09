@@ -1,0 +1,53 @@
+---
+title: API Bridge Client
+description: Reference API du Bridge Client cote navigateur.
+---
+
+## Vue d'ensemble
+
+Le Bridge Client (`bridge.js`) est automatiquement injecte dans les reponses HTML par le Resource Server. Vous n'interagissez generalement pas directement avec lui, mais comprendre son API aide au debogage.
+
+## Initialisation
+
+Le bridge s'auto-initialise au chargement de la page :
+
+1. Detecte la plateforme (Telegram, LINE ou generique)
+2. Etablit la connexion WebSocket vers le Resource Server
+3. Monkey-patche `window.parent.postMessage`
+4. Envoie le handshake `ui/initialize`
+5. Commence a transmettre les messages JSON-RPC
+
+## Methodes JSON-RPC
+
+### Sortantes (App vers Host)
+
+| Methode | Description |
+|---------|-------------|
+| `tools/call` | Executer un outil MCP |
+| `resources/read` | Lire une ressource MCP |
+| `ui/open-link` | Ouvrir une URL externe |
+| `ui/ready` | Signaler que l'interface est prete |
+
+### Entrantes (Host vers App)
+
+| Methode | Description |
+|---------|-------------|
+| `host-context-changed` | Le theme, le viewport ou la locale a change |
+| `tools/call` (reponse) | Resultat d'execution d'outil |
+| `resources/read` (reponse) | Contenu de la ressource |
+
+## Routage des messages
+
+Le `MessageRouter` suit les requetes en attente avec un timeout de 30 secondes :
+
+```typescript
+// Internal flow (simplified)
+app.postMessage(request)
+  -> bridge.js intercepts
+  -> router.send(request)
+  -> WebSocket.send(JSON.stringify(request))
+  -> ... server processes ...
+  -> WebSocket.onmessage(response)
+  -> router.resolve(response.id, response)
+  -> window.dispatchEvent(MessageEvent)
+```

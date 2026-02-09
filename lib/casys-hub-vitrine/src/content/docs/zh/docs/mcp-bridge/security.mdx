@@ -1,0 +1,61 @@
+---
+title: 安全模型
+description: MCP Bridge 的 CSP 策略、会话认证和信任模型。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## 概述
+
+MCP Bridge 在三层架构中实现纵深防御安全。
+
+## 内容安全策略 (CSP)
+
+每个 HTML 响应都包含严格的 CSP 头：
+
+```
+Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src wss://your-domain.com
+```
+
+CSP 指令从资源元数据自动生成，以 `default-src 'none'` 作为基线。
+
+## 会话认证
+
+1. **会话创建**：使用 `crypto.getRandomValues()` 生成加密安全令牌
+2. **令牌传递**：在 WebSocket 握手期间发送给客户端
+3. **验证**：每条后续消息都必须包含会话令牌
+4. **过期**：会话在不活动后过期 (可配置)
+
+## 平台认证
+
+### Telegram (HMAC-SHA256)
+
+```
+initData signature = HMAC-SHA256(data_check_string, secret_key)
+secret_key = HMAC-SHA256(bot_token, "WebAppData")
+```
+
+适配器在创建会话前验证每个请求的 `initData`。
+
+### LINE (OAuth)
+
+<Aside type="note">
+  LINE OAuth 认证已计划但尚未实现。LINE 适配器目前仅提供低级 `McpAppsAdapter` 传输接口。
+</Aside>
+
+LINE 平台适配器完成后，访问令牌将通过 LINE 的令牌验证 API 进行验证。
+
+## 路径遍历防护
+
+所有 `ui://` 资源路径在解析前都会进行标准化：
+- `../` 和 `.` 段通过词法方式解析
+- 路径相对于应用基础目录进行解析
+- 解析后的路径必须保持在已配置的资源目录内
+
+<Aside type="tip">
+  Resource Server 使用词法路径标准化 (无需文件系统访问即可解析 `..` 和 `.` 段) 来防止路径遍历攻击。不执行符号链接解析。
+</Aside>
+
+## Target Origin 验证
+
+WebSocket 消息包含严格的来源检查。桥接层只接受来自已配置的 `resourceBaseUrl` 来源的消息。

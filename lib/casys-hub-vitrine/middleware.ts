@@ -14,6 +14,7 @@ import { rewrite, next } from '@vercel/functions';
 const SUBDOMAIN_ROUTES: Record<string, string> = {
   'mcp-server.casys.ai': '/mcp-server',
   'mcp-std.casys.ai': '/mcp-std',
+  'mcp-bridge.casys.ai': '/mcp-bridge',
   'pml.casys.ai': '/pml',
   'engine.casys.ai': '/engine',
 };

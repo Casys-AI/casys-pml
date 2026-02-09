@@ -1,0 +1,61 @@
+---
+title: Security Model
+description: CSP enforcement, session auth, and trust model for the MCP Bridge.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Overview
+
+The MCP Bridge implements defense-in-depth security across all three layers.
+
+## Content Security Policy (CSP)
+
+Every HTML response includes a strict CSP header:
+
+```
+Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src wss://your-domain.com
+```
+
+CSP directives are auto-generated from resource metadata, with `default-src 'none'` as the baseline.
+
+## Session Authentication
+
+1. **Session creation**: A crypto-secure token is generated using `crypto.getRandomValues()`
+2. **Token delivery**: Sent to the client during the WebSocket handshake
+3. **Validation**: Every subsequent message must include the session token
+4. **Expiration**: Sessions expire after inactivity (configurable)
+
+## Platform Auth
+
+### Telegram (HMAC-SHA256)
+
+```
+initData signature = HMAC-SHA256(data_check_string, secret_key)
+secret_key = HMAC-SHA256(bot_token, "WebAppData")
+```
+
+The adapter validates every request's `initData` before creating a session.
+
+### LINE (OAuth)
+
+<Aside type="note">
+  LINE OAuth authentication is planned but not yet implemented. The LINE adapter currently provides the low-level `McpAppsAdapter` transport interface only.
+</Aside>
+
+Access tokens will be validated against LINE's token verification API once the LINE platform adapter is complete.
+
+## Path Traversal Protection
+
+All `ui://` resource paths are normalized before resolution:
+- `../` and `.` segments are resolved lexically
+- Paths are resolved relative to the app base directory
+- Resolved paths must remain within the configured asset directory
+
+<Aside type="tip">
+  The Resource Server uses lexical path normalization (resolving `..` and `.` segments without filesystem access) to prevent path traversal attacks. No symlink resolution is performed.
+</Aside>
+
+## Target Origin Validation
+
+WebSocket messages include strict origin checking. The bridge only accepts messages from the configured `resourceBaseUrl` origin.

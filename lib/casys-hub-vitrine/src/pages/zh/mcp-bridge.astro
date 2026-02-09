@@ -1,0 +1,13 @@
+---
+import McpBridgeLayout from '../../features/mcp-bridge/McpBridgeLayout.astro';
+import McpBridgeContent from '../../features/mcp-bridge/McpBridgeContent.astro';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const pageTitle = locale === 'zh'
+  ? '@casys/mcp-bridge - MCP Apps 桥接消息平台'
+  : '@casys/mcp-bridge - MCP Apps to Messaging Platforms';
+---
+
+<McpBridgeLayout title={pageTitle}>
+  <McpBridgeContent />
+</McpBridgeLayout>

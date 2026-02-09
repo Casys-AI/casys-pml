@@ -1,0 +1,60 @@
+---
+title: API Resource Server
+description: Reference API du composant Resource Server.
+---
+
+## `startResourceServer(options)`
+
+Cree et demarre le Resource Server.
+
+```typescript
+import { startResourceServer } from "@casys/mcp-bridge";
+
+const server = startResourceServer({
+  assetDirectories: { "my-app": "./ui-dist" },
+  platform: "telegram",
+  telegramBotToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+  onMessage: async (session, message) => { return null; },
+  options: { resourceServerPort: 4000, debug: true },
+});
+```
+
+### Options
+
+| Parametre | Type | Requis | Description |
+|-----------|------|--------|-------------|
+| `assetDirectories` | `Record<string, string>` | Oui | Map nom d'app vers repertoire de fichiers UI |
+| `platform` | `"telegram" \| "line"` | Oui | Plateforme cible |
+| `telegramBotToken` | `string` | Non | Token de bot Telegram (requis si platform = "telegram") |
+| `onMessage` | `(session, message) => Promise<result>` | Non | Handler de messages entrants |
+| `options.resourceServerPort` | `number` | Non | Port du serveur HTTP (defaut : auto) |
+| `options.debug` | `boolean` | Non | Mode debug (defaut : false) |
+
+### Valeur de retour
+
+`startResourceServer()` est **synchrone** et retourne immediatement :
+
+```typescript
+interface ResourceServer {
+  baseUrl: string;       // URL de base du serveur
+  sessions: Map;         // Sessions actives
+  stop(): void;          // Arret du serveur
+}
+```
+
+## Interface `PlatformAdapter`
+
+Implementez cette interface pour ajouter le support d'une nouvelle plateforme.
+
+```typescript
+interface PlatformAdapter {
+  name: string;
+  initialize(): Promise<void>;
+  getTheme(): ThemeData;
+  getContainerDimensions(): ContainerDimensions;
+  onLifecycleEvent(callback: (event: LifecycleEvent) => void): void;
+  openLink(url: string): void;
+  sendMessage?(message: unknown): void;
+  getAuthData?(): unknown;
+}
+```

@@ -1,0 +1,54 @@
+---
+title: Telegram Adapter
+description: Full guide for integrating MCP Apps as Telegram Mini Apps.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Overview
+
+The Telegram adapter maps the Telegram WebApp SDK to MCP Apps protocol, providing:
+
+- Theme synchronization (light/dark)
+- Viewport and safe area insets
+- Authentication via `initData` (HMAC-SHA256)
+- Lifecycle events (activation, deactivation)
+- Native link opening
+
+## Setup
+
+```typescript
+import { TelegramPlatformAdapter } from "@casys/mcp-bridge";
+
+// Client-side: runs inside the Telegram Mini App WebView
+const adapter = new TelegramPlatformAdapter();
+const hostContext = await adapter.initialize();
+```
+
+## Theme Mapping
+
+Telegram themes are automatically mapped to MCP host context:
+
+| Telegram | MCP Host Context |
+|----------|-----------------|
+| `colorScheme: "dark"` | `{ theme: "dark" }` |
+| `colorScheme: "light"` | `{ theme: "light" }` |
+| `themeParams.bg_color` | `backgroundColor` |
+| `themeParams.text_color` | `textColor` |
+
+## Authentication
+
+The adapter validates Telegram `initData` using HMAC-SHA256:
+
+1. Telegram sends `initData` query string with user info
+2. The adapter verifies the signature using your bot token
+3. Valid sessions receive a crypto-secure session token
+4. Invalid requests are rejected with 401
+
+<Aside type="caution">
+  Never expose your bot token to the client. The adapter handles validation server-side.
+</Aside>
+
+## Viewport & Safe Areas
+
+The adapter reports Telegram's viewport dimensions and safe area insets, which your MCP App receives via `host-context-changed` notifications.

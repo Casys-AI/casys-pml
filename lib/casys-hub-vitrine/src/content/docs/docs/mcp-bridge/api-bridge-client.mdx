@@ -1,0 +1,59 @@
+---
+title: Bridge Client API
+description: API reference for the browser-side Bridge Client.
+---
+
+## Overview
+
+The Bridge Client (`bridge.js`) is automatically injected into HTML responses by the Resource Server. You typically don't interact with it directly, but understanding its API helps with debugging.
+
+## Initialization
+
+The bridge self-initializes when the page loads:
+
+1. Detects the platform (Telegram, LINE, or generic)
+2. Establishes WebSocket connection to the Resource Server
+3. Monkey-patches `window.parent.postMessage`
+4. Sends `ui/initialize` handshake
+5. Begins forwarding JSON-RPC messages
+
+## JSON-RPC Methods
+
+### Outgoing (App to Host)
+
+| Method | Description |
+|--------|-------------|
+| `ui/initialize` | Handshake — get host context, capabilities |
+| `tools/call` | Execute an MCP tool |
+| `resources/read` | Read an MCP resource |
+| `ui/open-link` | Open an external URL via the platform |
+| `ui/message` | Send a message to the host |
+| `ui/request-display-mode` | Request inline, fullscreen, or PiP display |
+
+### Incoming (Host to App)
+
+| Method | Description |
+|--------|-------------|
+| `ui/notifications/host-context-changed` | Theme, viewport, or locale changed |
+| `ui/notifications/tool-input` | Tool input data from the host |
+| `ui/notifications/tool-result` | Tool execution result notification |
+| `ui/notifications/tool-cancelled` | Tool execution was cancelled |
+| `ui/resource-teardown` | Platform is closing — clean up |
+| `tools/call` (response) | Tool execution result (JSON-RPC response) |
+| `resources/read` (response) | Resource content (JSON-RPC response) |
+
+## Message Routing
+
+The `MessageRouter` tracks pending requests with a 30-second timeout:
+
+```typescript
+// Internal flow (simplified)
+app.postMessage(request)
+  -> bridge.js intercepts
+  -> router.send(request)
+  -> WebSocket.send(JSON.stringify(request))
+  -> ... server processes ...
+  -> WebSocket.onmessage(response)
+  -> router.resolve(response.id, response)
+  -> window.dispatchEvent(MessageEvent)
+```

@@ -1,0 +1,22 @@
+---
+import SubsiteHeader from '../../components/SubsiteHeader.astro';
+import { useTranslations } from '../../i18n';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = useTranslations(locale).mcpBridgeHeader;
+---
+
+<SubsiteHeader
+  logo={{ prefix: '@casys/', name: 'mcp-bridge', version: 'v0.1' }}
+  navLinks={[
+    { href: '#features', label: t.features },
+    { href: '#architecture', label: t.architecture },
+    { href: '#quickstart', label: t.quickstart },
+    { href: '#install', label: t.install },
+    { href: '/docs/mcp-bridge/introduction/', label: t.docs, icon: 'description' },
+  ]}
+  githubUrl="https://github.com/Casys-AI/casys-pml/tree/main/lib/mcp-apps-bridge"
+  jsrUrl="https://jsr.io/@casys/mcp-bridge"
+  consultingLabel={t.workWithUs}
+  heroAnchor="#mcp-bridge-hero"
+/>

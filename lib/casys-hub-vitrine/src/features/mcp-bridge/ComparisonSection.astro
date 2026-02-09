@@ -1,0 +1,130 @@
+---
+import { useTranslations } from '../../i18n';
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = useTranslations(locale).mcpBridgeComparison;
+---
+
+<section id="comparison">
+  <div class="container">
+    <div class="section-header center">
+      <h2>{t.title} <span class="accent-text">{t.titleAccent}</span></h2>
+      <p class="section-subtitle">{t.subtitle}</p>
+    </div>
+    <div class="table-wrap">
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th class="cmp-feature-col"></th>
+            <th class="cmp-sdk-col">{t.colCustom}</th>
+            <th class="cmp-fw-col">{t.colBridge}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {t.rows.map(([feature, custom, bridge]) => (
+            <tr>
+              <td class="cmp-feature">{feature}</td>
+              <td class="cmp-cell">{custom === true ? '\u2713' : custom === false ? '\u2014' : custom}</td>
+              <td class="cmp-cell cmp-fw">{bridge === true ? '\u2713' : bridge === false ? '\u2014' : bridge}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<style>
+  #comparison {
+    position: relative;
+    padding: 56px 0 64px;
+    overflow: hidden;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+  .section-header { margin-bottom: 28px; }
+  .section-header.center { text-align: center; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .section-header h2 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 600; color: var(--md-sys-color-on-surface); margin: 0 0 12px; letter-spacing: -0.02em; }
+  .section-subtitle { font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); margin: 0; line-height: 1.6; }
+
+  .table-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .cmp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .cmp-table thead {
+    background: var(--md-sys-color-surface-container-high);
+  }
+
+  .cmp-table th {
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    text-align: center;
+    color: var(--md-sys-color-on-surface-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .cmp-feature-col { text-align: left !important; width: 50%; }
+  .cmp-sdk-col, .cmp-fw-col { width: 25%; }
+
+  .cmp-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-lowest);
+  }
+
+  .cmp-table tr:last-child td { border-bottom: none; }
+
+  .cmp-feature {
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .cmp-cell {
+    text-align: center;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .cmp-fw {
+    color: var(--md-sys-color-primary);
+    font-weight: 600;
+  }
+
+  @media (max-width: 768px) {
+    #comparison { padding: 48px 0; }
+    .container { padding: 0 20px; }
+    .cmp-table { font-size: 0.8125rem; }
+    .cmp-table th, .cmp-table td { padding: 8px 12px; }
+  }
+
+  @media (max-width: 380px) {
+    .container { padding: 0 14px; }
+    .cmp-table { font-size: 0.75rem; }
+    .cmp-table th, .cmp-table td { padding: 8px; }
+  }
+</style>
+
+<style is:global>
+  #comparison { background: var(--md-sys-color-surface-container-lowest); }
+  html[data-theme="dark"] #comparison { background: #0a0908; }
+  html[data-theme="dark"] #comparison .section-header h2 { color: #f5f0ea; }
+  html[data-theme="dark"] #comparison .section-subtitle { color: #d5c3b5; }
+
+  html[data-theme="dark"] #comparison .table-wrap { border-color: rgba(255, 184, 111, 0.1); }
+  html[data-theme="dark"] #comparison .cmp-table thead { background: #1a1815; }
+  html[data-theme="dark"] #comparison .cmp-table th { color: #a89a8c; border-color: rgba(255, 184, 111, 0.08); }
+  html[data-theme="dark"] #comparison .cmp-table td { background: #0d0c0a; border-color: rgba(255, 184, 111, 0.06); }
+  html[data-theme="dark"] #comparison .cmp-feature { color: #f5f0ea; }
+  html[data-theme="dark"] #comparison .cmp-cell { color: #6b6560; }
+  html[data-theme="dark"] #comparison .cmp-fw { color: #FFB86F; }
+</style>

@@ -1,0 +1,81 @@
+---
+title: Quick Start
+description: Get your MCP App running inside Telegram in 5 minutes.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+- [Deno](https://deno.land) 2.x or Node.js 20+
+- A Telegram Bot token (from [@BotFather](https://t.me/botfather))
+- An existing MCP server with `ui://` resources
+
+## Installation
+
+```bash
+# Deno
+deno add jsr:@casys/mcp-bridge
+
+# Node.js
+npx jsr add @casys/mcp-bridge
+```
+
+## Setup
+
+<Steps>
+
+1. **Create the bridge server**
+
+   ```typescript
+   // bridge.ts
+   import { startResourceServer } from "@casys/mcp-bridge";
+
+   const server = startResourceServer({
+     assetDirectories: { "my-app": "./ui-dist" },
+     platform: "telegram",
+     telegramBotToken: Deno.env.get("TELEGRAM_BOT_TOKEN")!,
+     onMessage: async (_session, message) => {
+       // Forward tool calls to your MCP server and return the response
+       console.log("Received:", message);
+       return null;
+     },
+     options: { resourceServerPort: 4000, debug: true },
+   });
+
+   console.log(`Bridge ready at ${server.baseUrl}`);
+   ```
+
+2. **Expose your server**
+
+   For development, use a tunnel like [ngrok](https://ngrok.com):
+
+   ```bash
+   ngrok http 4000
+   ```
+
+3. **Configure your Telegram Bot**
+
+   Set the Mini App URL in [@BotFather](https://t.me/botfather):
+   - Send `/setmenubutton`
+   - Select your bot
+   - Set the URL to your ngrok/production URL
+
+4. **Test it**
+
+   Open your bot in Telegram and tap the menu button. Your MCP App UI should appear inside Telegram!
+
+</Steps>
+
+<Aside type="tip">
+  The bridge automatically handles theme synchronization. If the user switches Telegram to dark mode, your MCP App receives a `host-context-changed` notification with the new theme.
+</Aside>
+
+## What happens under the hood
+
+1. Telegram loads your bridge URL in a WebView
+2. The Resource Server serves your `ui://` HTML with `bridge.js` injected
+3. When your MCP App calls `postMessage`, bridge.js intercepts it
+4. The message is routed via WebSocket to the Resource Server
+5. The Resource Server forwards `tools/call` requests to your MCP Server
+6. Results flow back through the same path

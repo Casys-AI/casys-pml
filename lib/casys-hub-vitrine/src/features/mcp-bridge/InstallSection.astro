@@ -1,0 +1,31 @@
+---
+import SubsiteInstallSection from '../../components/SubsiteInstallSection.astro';
+import { useTranslations } from '../../i18n';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = useTranslations(locale).mcpBridgeInstall;
+
+const denoSvg = '<svg width="20" height="20" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zm-52.7 394.3c-14.3 0-27.3-5.8-36.7-15.2-9.4-9.4-15.2-22.4-15.2-36.7 0-28.6 23.2-51.9 51.9-51.9 28.6 0 51.9 23.2 51.9 51.9 0 28.7-23.2 51.9-51.9 51.9zM361 316.8c-5.3 8.1-14.4 13.5-24.8 13.5-16.3 0-29.6-13.3-29.6-29.6 0-10.3 5.3-19.4 13.3-24.7l89.2-140.2c2.2-3.5 6-5.8 10.3-5.8 6.7 0 12.2 5.4 12.2 12.2 0 2.2-.6 4.2-1.6 6L361 316.8z"/></svg>';
+const jsrSvg = '<svg width="18" height="18" viewBox="0 -3 64 64" fill="none" aria-hidden="true" style="border-radius:3px"><path d="M 0,21.846 H 9.846 V 12 h 34.462 v 4.923 H 64 V 36.616 H 54.155 V 46.462 H 19.693 V 41.539 H 0" fill="#083344"/><g fill="#f7df1e" transform="matrix(4.923,0,0,4.923,0,12)"><path d="M 1,3 H 2 V 4 H 3 V 1 H 4 V 5 H 1"/><path d="M 5,1 H 8 V 2 H 6 V 3 H 8 V 6 H 5 V 5 H 7 V 4 H 5"/><path d="m 9,2 h 3 V 4 H 11 V 3 H 10 V 6 H 9"/></g></svg>';
+---
+
+<SubsiteInstallSection
+  sectionId="install"
+  title={t.title}
+  titleAccent={t.titleAccent}
+  subtitle={t.subtitle}
+  commands={[
+    { runtime: 'Deno', command: 'deno add jsr:@casys/mcp-bridge' },
+    { runtime: 'npm', command: 'npx jsr add @casys/mcp-bridge' },
+  ]}
+  links={[
+    { icon: 'package_2', label: t.jsrLabel, href: 'https://jsr.io/@casys/mcp-bridge' },
+    { icon: 'code', label: t.githubLabel, href: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/mcp-apps-bridge' },
+    { icon: 'description', label: t.docsLabel, href: 'https://jsr.io/@casys/mcp-bridge/doc' },
+  ]}
+  builtWithLabel={t.builtWith}
+  builtWithBadges={[
+    { label: 'Deno', href: 'https://deno.land', svg: denoSvg, text: 'Deno' },
+    { label: 'JSR', href: 'https://jsr.io', svg: jsrSvg, text: 'JSR' },
+  ]}
+/>

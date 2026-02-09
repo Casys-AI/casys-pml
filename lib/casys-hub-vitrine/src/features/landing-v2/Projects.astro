@@ -12,113 +12,119 @@ const content = useTranslations(locale).projects;
       <p class="section-subtitle">{content.subtitle}</p>
     </div>
 
-    <!-- Bento Grid Layout -->
-    <div class="bento-grid">
-
-      <!-- MCP Gateway - FEATURED (Large, Left, 2x height) -->
-      <div class="project-card featured mcp-gateway">
-        <div class="project-header">
-          <div>
-            <h3 class="project-name">{content.activeProjects[0].name}</h3>
-            <p class="project-tagline">{content.activeProjects[0].tagline}</p>
-          </div>
-          <div class="project-badges">
-            <span class="status-badge active">{content.activeProjects[0].status}</span>
-            <span class="license-badge">{content.activeProjects[0].license}</span>
-          </div>
+    <!-- Featured Project (PML Gateway) -->
+    <div class="featured-card">
+      <div class="featured-header">
+        <div>
+          <h3 class="featured-name">{content.featured.name}</h3>
+          <p class="featured-tagline">{content.featured.tagline}</p>
         </div>
-
-        <!-- Features -->
-        <div class="features-grid">
-          {content.activeProjects[0].features.map((feature) => (
-            <div class="feature-card">
-              <span class="material-symbols-rounded">{feature.icon}</span>
-              <div>
-                <div class="feature-name">{feature.name}</div>
-                <div class="feature-description">{feature.description}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <!-- Results Stats -->
-        <div class="results-stats">
-          {content.activeProjects[0].results.map((result) => (
-            <div class="result-stat">
-              <div class="stat-value">{result.stat}</div>
-              <div class="stat-label">{result.label}</div>
-            </div>
-          ))}
-        </div>
-
-        <!-- Links -->
-        <div class="project-links">
-          {content.activeProjects[0].links.website && (
-            <a href={content.activeProjects[0].links.website} class="project-link primary" target="_blank" rel="noopener noreferrer">
-              <span class="material-symbols-rounded">public</span>
-              <span>Website</span>
-            </a>
-          )}
-          {content.activeProjects[0].links.github && (
-            <a href={content.activeProjects[0].links.github} class="project-link" target="_blank" rel="noopener noreferrer">
-              <span class="material-symbols-rounded">code</span>
-              <span>GitHub</span>
-            </a>
-          )}
-          {content.activeProjects[0].links.docs && content.activeProjects[0].links.docs !== '#' && (
-            <a href={content.activeProjects[0].links.docs} class="project-link" target="_blank" rel="noopener noreferrer">
-              <span class="material-symbols-rounded">description</span>
-              <span>Docs</span>
-            </a>
-          )}
+        <div class="featured-badges">
+          <span class="status-badge active">{content.featured.status}</span>
+          <span class="license-badge">{content.featured.license}</span>
         </div>
       </div>
 
-      <!-- Sub-projects grid (mcp-std, mcp-server, engine) -->
-      {content.activeProjects.slice(1).map((project) => (
-        <div class={`project-card medium ${project.id}`}>
-          <div class="project-header-compact">
-            <h3 class="project-name">{project.name}</h3>
-            <p class="project-tagline">{project.tagline}</p>
+      <!-- Features -->
+      <div class="features-grid">
+        {content.featured.features.map((feature: { icon: string; name: string; description: string }) => (
+          <div class="feature-cell">
+            <span class="material-symbols-rounded">{feature.icon}</span>
+            <div>
+              <div class="feature-name">{feature.name}</div>
+              <div class="feature-desc">{feature.description}</div>
+            </div>
           </div>
+        ))}
+      </div>
 
-          <span class="status-badge active">{project.status}</span>
+      <!-- Results Stats -->
+      <div class="results-stats">
+        {content.featured.results.map((result: { stat: string; label: string }) => (
+          <div class="result-stat">
+            <div class="stat-value">{result.stat}</div>
+            <div class="stat-label">{result.label}</div>
+          </div>
+        ))}
+      </div>
 
-          <div class="features-compact">
-            {project.features.map((feature) => (
-              <div class="feature-item">
-                <span class="material-symbols-rounded">{feature.icon}</span>
-                <div>
-                  <div class="feature-name">{feature.name}</div>
-                  <div class="feature-description">{feature.description}</div>
+      <!-- Links -->
+      <div class="featured-links">
+        {content.featured.links.website && (
+          <a href={content.featured.links.website} class="project-link primary" target="_blank" rel="noopener noreferrer">
+            <span class="material-symbols-rounded">public</span>
+            <span>Website</span>
+          </a>
+        )}
+        {content.featured.links.github && (
+          <a href={content.featured.links.github} class="project-link" target="_blank" rel="noopener noreferrer">
+            <span class="material-symbols-rounded">code</span>
+            <span>GitHub</span>
+          </a>
+        )}
+        {content.featured.links.docs && content.featured.links.docs !== '#' && (
+          <a href={content.featured.links.docs} class="project-link" target="_blank" rel="noopener noreferrer">
+            <span class="material-symbols-rounded">description</span>
+            <span>Docs</span>
+          </a>
+        )}
+      </div>
+    </div>
+
+    <!-- Categories List -->
+    <div class="categories">
+      {content.categories.map((category: {
+        name: string;
+        items: {
+          id: string;
+          name: string;
+          tagline: string;
+          status: string;
+          tech: string;
+          links: { website?: string; github?: string; jsr?: string };
+        }[];
+      }) => (
+        <div class="category">
+          <h3 class="category-name">{category.name}</h3>
+          <div class="category-items">
+            {category.items.map((item, idx) => (
+              <div class={`project-row ${idx < category.items.length - 1 ? 'has-border' : ''}`}>
+                <div class="row-info">
+                  {item.links.website ? (
+                    <a href={item.links.website} class="row-name" target="_blank" rel="noopener noreferrer">
+                      {item.name}
+                    </a>
+                  ) : (
+                    <span class="row-name">{item.name}</span>
+                  )}
+                  <span class="row-tagline">{item.tagline}</span>
+                </div>
+                <div class="row-meta">
+                  <span class="pill status-pill">{item.status}</span>
+                  <span class="pill tech-pill">{item.tech}</span>
+                  <div class="row-links">
+                    {item.links.github && (
+                      <a href={item.links.github} class="icon-link" target="_blank" rel="noopener noreferrer" aria-label={`${item.name} on GitHub`}>
+                        <span class="material-symbols-rounded">code</span>
+                      </a>
+                    )}
+                    {item.links.jsr && (
+                      <a href={item.links.jsr} class="icon-link" target="_blank" rel="noopener noreferrer" aria-label={`${item.name} on JSR`}>
+                        <svg class="jsr-inline-icon" width="16" height="16" viewBox="0 -3 64 64" fill="none" aria-hidden="true"><path d="M 0,21.846 H 9.846 V 12 h 34.462 v 4.923 H 64 V 36.616 H 54.155 V 46.462 H 19.693 V 41.539 H 0" fill="#083344"/><g fill="#f7df1e" transform="matrix(4.923,0,0,4.923,0,12)"><path d="M 1,3 H 2 V 4 H 3 V 1 H 4 V 5 H 1"/><path d="M 5,1 H 8 V 2 H 6 V 3 H 8 V 6 H 5 V 5 H 7 V 4 H 5"/><path d="m 9,2 h 3 V 4 H 11 V 3 H 10 V 6 H 9"/></g></svg>
+                      </a>
+                    )}
+                    {item.links.website && (
+                      <a href={item.links.website} class="icon-link" target="_blank" rel="noopener noreferrer" aria-label={`${item.name} website`}>
+                        <span class="material-symbols-rounded">open_in_new</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-
-          <div class="project-links compact">
-            {project.links.website && (
-              <a href={project.links.website} class="project-link" target="_blank" rel="noopener">
-                <span class="material-symbols-rounded">public</span>
-                <span>Website</span>
-              </a>
-            )}
-            {project.links.github && (
-              <a href={project.links.github} class="project-link" target="_blank" rel="noopener">
-                <span class="material-symbols-rounded">code</span>
-                <span>GitHub</span>
-              </a>
-            )}
-            {project.links.jsr && (
-              <a href={project.links.jsr} class="project-link" target="_blank" rel="noopener">
-                <svg class="jsr-inline-icon" width="16" height="16" viewBox="0 -3 64 64" fill="none" aria-hidden="true"><path d="M 0,21.846 H 9.846 V 12 h 34.462 v 4.923 H 64 V 36.616 H 54.155 V 46.462 H 19.693 V 41.539 H 0" fill="#083344"/><g fill="#f7df1e" transform="matrix(4.923,0,0,4.923,0,12)"><path d="M 1,3 H 2 V 4 H 3 V 1 H 4 V 5 H 1"/><path d="M 5,1 H 8 V 2 H 6 V 3 H 8 V 6 H 5 V 5 H 7 V 4 H 5"/><path d="m 9,2 h 3 V 4 H 11 V 3 H 10 V 6 H 9"/></g></svg>
-                <span>JSR</span>
-              </a>
-            )}
-          </div>
         </div>
       ))}
-
     </div>
   </div>
 </section>
@@ -136,6 +142,7 @@ const content = useTranslations(locale).projects;
     padding: 0 24px;
   }
 
+  /* ── Section Header ── */
   .section-header {
     text-align: left;
     margin-bottom: 48px;
@@ -159,58 +166,23 @@ const content = useTranslations(locale).projects;
     line-height: 1.6;
   }
 
-  /* BENTO GRID LAYOUT */
-  .bento-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-    align-items: start;
-  }
-
-  /* Featured Project - Full width */
-  .project-card.featured {
-    grid-column: 1 / -1;
-  }
-
-  /* Sub-project cards: first two side by side, third spans remaining */
-  .project-card.medium:nth-child(2) {
-    grid-column: 1 / 2;
-  }
-
-  .project-card.medium:nth-child(3) {
-    grid-column: 2 / 4;
-  }
-
-  .project-card.medium:nth-child(4) {
-    grid-column: 1 / 3;
-  }
-
-  /* Base Project Card - Clean, minimal */
-  .project-card {
-    padding: 32px;
+  /* ── Featured Card (PML Gateway) ── */
+  .featured-card {
+    padding: 28px 32px;
     background: var(--md-sys-color-surface-container-lowest);
     border-radius: 16px;
-    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-left: 4px solid var(--md-sys-color-primary);
     display: flex;
     flex-direction: column;
-    gap: 24px;
-    border: 1px solid var(--md-sys-color-outline-variant);
+    gap: 20px;
     position: relative;
     overflow: hidden;
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+    margin-bottom: 40px;
   }
 
-  .project-card:hover {
-    border-color: var(--md-sys-color-primary);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  }
-
-  /* Featured Card (MCP Gateway) - Subtle accent */
-  .project-card.featured {
-    background: var(--md-sys-color-surface-container-lowest);
-    border-left: 4px solid var(--md-sys-color-primary);
-  }
-
-  .project-card.featured::before {
+  .featured-card::before {
     content: '';
     position: absolute;
     top: 0;
@@ -221,55 +193,45 @@ const content = useTranslations(locale).projects;
     pointer-events: none;
   }
 
-  /* Project Header */
-  .project-header {
+  .featured-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  .featured-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 20px;
   }
 
-  .project-header-compact {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .project-name {
+  .featured-name {
     font-family: 'Fraunces', Georgia, serif;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 600;
     color: var(--md-sys-color-on-surface);
     margin: 0;
     letter-spacing: -0.01em;
   }
 
-  .medium .project-name {
-    font-size: 1.25rem;
-  }
-
-  .project-tagline {
+  .featured-tagline {
     font-size: 0.95rem;
     color: var(--md-sys-color-on-surface-variant);
-    margin: 0;
+    margin: 4px 0 0;
     font-weight: 500;
   }
 
-  .medium .project-tagline {
-    font-size: 0.875rem;
-  }
-
-  .project-badges {
+  .featured-badges {
     display: flex;
-    flex-direction: column;
     gap: 8px;
-    align-items: flex-end;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   .status-badge {
-    padding: 8px 16px;
+    padding: 6px 14px;
     border-radius: 100px;
-    font-size: var(--md-sys-typescale-label-medium-size);
+    font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
   }
@@ -280,11 +242,11 @@ const content = useTranslations(locale).projects;
   }
 
   .license-badge {
-    padding: 6px 12px;
+    padding: 5px 10px;
     background: var(--md-sys-color-primary-container);
     color: var(--md-sys-color-on-primary-container);
     border-radius: 8px;
-    font-size: var(--md-sys-typescale-label-small-size);
+    font-size: 0.7rem;
     font-weight: 600;
   }
 
@@ -292,60 +254,43 @@ const content = useTranslations(locale).projects;
   .features-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-  }
-
-  .feature-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 16px;
-    background: var(--md-sys-color-surface-container-high);
-    border-radius: 12px;
-  }
-
-  .feature-card .material-symbols-rounded {
-    font-size: 28px;
-    color: var(--md-sys-color-primary);
-    flex-shrink: 0;
-  }
-
-  .feature-name {
-    font-size: var(--md-sys-typescale-title-small-size);
-    font-weight: 600;
-    color: var(--md-sys-color-on-surface);
-    margin-bottom: 2px;
-  }
-
-  .feature-description {
-    font-size: var(--md-sys-typescale-body-small-size);
-    color: var(--md-sys-color-on-surface-variant);
-  }
-
-  /* Features Compact (for medium cards) */
-  .features-compact {
-    display: flex;
-    flex-direction: column;
     gap: 12px;
   }
 
-  .feature-item {
+  .feature-cell {
     display: flex;
     align-items: flex-start;
     gap: 10px;
+    padding: 12px 14px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 10px;
   }
 
-  .feature-item .material-symbols-rounded {
-    font-size: 20px;
+  .feature-cell .material-symbols-rounded {
+    font-size: 24px;
     color: var(--md-sys-color-primary);
     flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .feature-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: 1px;
+  }
+
+  .feature-desc {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.4;
   }
 
   /* Results Stats */
   .results-stats {
     display: flex;
     gap: 32px;
-    padding-top: 16px;
+    padding-top: 14px;
     border-top: 1px solid var(--md-sys-color-outline-variant);
   }
 
@@ -355,25 +300,25 @@ const content = useTranslations(locale).projects;
 
   .stat-value {
     font-family: 'Fraunces', Georgia, serif;
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 600;
     color: var(--md-sys-color-primary);
     line-height: 1;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
 
   .stat-label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 500;
     color: var(--md-sys-color-on-surface-variant);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
-  /* Project Links */
-  .project-links {
+  /* Featured Links */
+  .featured-links {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     margin-top: auto;
   }
 
@@ -381,12 +326,12 @@ const content = useTranslations(locale).projects;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 16px;
+    padding: 7px 14px;
     background: transparent;
     color: var(--md-sys-color-on-surface);
     border: 1px solid var(--md-sys-color-outline-variant);
     border-radius: 8px;
-    font-size: 0.875rem;
+    font-size: 0.825rem;
     font-weight: 500;
     text-decoration: none;
     transition: background 150ms ease-out, border-color 150ms ease-out;
@@ -402,59 +347,183 @@ const content = useTranslations(locale).projects;
     opacity: 0.7;
   }
 
-
-  /* Tablet: 2-column grid */
-  @media (max-width: 1024px) {
-    .bento-grid {
-      grid-template-columns: repeat(2, 1fr);
-      grid-template-rows: auto;
-    }
-
-    .project-card.featured {
-      grid-column: 1 / -1;
-    }
-
-    .project-card.medium:nth-child(2) {
-      grid-column: 1 / 2;
-    }
-
-    .project-card.medium:nth-child(3) {
-      grid-column: 2 / 3;
-    }
-
-    .project-card.medium:nth-child(4) {
-      grid-column: 1 / -1;
-    }
+  /* ── Categories Section ── */
+  .categories {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
-  /* Mobile: Single column */
+  .category {
+    padding-top: 24px;
+  }
+
+  .category:first-child {
+    padding-top: 0;
+  }
+
+  .category-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0 0 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    letter-spacing: -0.01em;
+  }
+
+  .category:first-child .category-name {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .category-items {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Project Row ── */
+  .project-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 12px;
+    min-height: 64px;
+    border-radius: 8px;
+    transition: background 150ms ease-out;
+  }
+
+  .project-row:hover {
+    background: var(--md-sys-color-surface-container-high);
+  }
+
+  .project-row.has-border {
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .project-row.has-border:hover {
+    border-bottom-color: transparent;
+  }
+
+  /* Row left: name + tagline */
+  .row-info {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .row-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  a.row-name:hover {
+    color: var(--md-sys-color-primary);
+  }
+
+  .row-tagline {
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Row right: pills + icon links */
+  .row-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .pill {
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1.3;
+  }
+
+  .status-pill {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+  }
+
+  .tech-pill {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .row-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 4px;
+  }
+
+  .icon-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    color: var(--md-sys-color-on-surface-variant);
+    text-decoration: none;
+    transition: background 150ms ease-out, color 150ms ease-out;
+  }
+
+  .icon-link:hover {
+    background: var(--md-sys-color-surface-container-highest);
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .icon-link .material-symbols-rounded {
+    font-size: 18px;
+  }
+
+  .icon-link .jsr-inline-icon {
+    display: block;
+  }
+
+  /* ── Mobile (< 768px) ── */
   @media (max-width: 768px) {
     section {
       padding: 40px 0;
     }
 
-    .bento-grid {
-      grid-template-columns: 1fr;
-      gap: 20px;
+    .section-header {
+      margin-bottom: 32px;
     }
 
-    .project-card.featured,
-    .project-card.medium:nth-child(2),
-    .project-card.medium:nth-child(3),
-    .project-card.medium:nth-child(4) {
-      grid-column: 1 / 2;
+    h2 {
+      font-size: 2rem;
     }
 
-    .project-card {
-      padding: 24px;
-      gap: 20px;
+    /* Featured card mobile */
+    .featured-card {
+      padding: 20px;
+      gap: 16px;
+      margin-bottom: 28px;
     }
 
-    .project-header {
+    .featured-header {
       flex-direction: column;
     }
 
-    .project-badges {
+    .featured-badges {
       align-items: flex-start;
     }
 
@@ -467,11 +536,39 @@ const content = useTranslations(locale).projects;
       gap: 20px;
     }
 
-    .project-links {
+    .featured-links {
       flex-wrap: wrap;
     }
-  }
 
+    /* Project rows mobile: stack */
+    .project-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 12px;
+      min-height: unset;
+    }
+
+    .row-info {
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .row-tagline {
+      white-space: normal;
+      overflow: visible;
+    }
+
+    .row-meta {
+      width: 100%;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .row-links {
+      margin-left: auto;
+    }
+  }
 </style>
 
 <style is:global>
@@ -488,25 +585,24 @@ const content = useTranslations(locale).projects;
     color: var(--casys-warm-text-secondary);
   }
 
-  html[data-theme="dark"] #projects .project-card {
+  /* Featured card dark */
+  html[data-theme="dark"] #projects .featured-card {
     background: var(--casys-warm-surface);
     border-color: rgba(255, 184, 111, 0.1);
-  }
-
-  html[data-theme="dark"] #projects .project-card:hover {
-    border-color: var(--casys-warm-border-accent-hover);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  }
-
-  html[data-theme="dark"] #projects .project-card.featured {
     border-left-color: var(--casys-warm-accent);
   }
 
-  html[data-theme="dark"] #projects .project-name {
+  html[data-theme="dark"] #projects .featured-card:hover {
+    border-color: var(--casys-warm-border-accent-hover);
+    border-left-color: var(--casys-warm-accent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] #projects .featured-name {
     color: var(--casys-warm-text-primary);
   }
 
-  html[data-theme="dark"] #projects .project-tagline {
+  html[data-theme="dark"] #projects .featured-tagline {
     color: var(--casys-warm-text-secondary);
   }
 
@@ -520,11 +616,11 @@ const content = useTranslations(locale).projects;
     color: var(--casys-warm-text-secondary);
   }
 
-  html[data-theme="dark"] #projects .feature-card {
+  html[data-theme="dark"] #projects .feature-cell {
     background: rgba(255, 255, 255, 0.03);
   }
 
-  html[data-theme="dark"] #projects .feature-card .material-symbols-rounded {
+  html[data-theme="dark"] #projects .feature-cell .material-symbols-rounded {
     color: var(--casys-warm-accent);
   }
 
@@ -532,7 +628,7 @@ const content = useTranslations(locale).projects;
     color: var(--casys-warm-text-primary);
   }
 
-  html[data-theme="dark"] #projects .feature-description {
+  html[data-theme="dark"] #projects .feature-desc {
     color: var(--casys-warm-text-muted);
   }
 
@@ -558,8 +654,53 @@ const content = useTranslations(locale).projects;
     border-color: rgba(255, 255, 255, 0.2);
   }
 
-  html[data-theme="dark"] #projects .feature-item .material-symbols-rounded {
+  /* Category dark */
+  html[data-theme="dark"] #projects .category-name {
+    color: var(--casys-warm-text-muted);
+    border-top-color: rgba(255, 184, 111, 0.1);
+  }
+
+  /* Project row dark */
+  html[data-theme="dark"] #projects .project-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  html[data-theme="dark"] #projects .project-row.has-border {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  html[data-theme="dark"] #projects .project-row.has-border:hover {
+    border-bottom-color: transparent;
+  }
+
+  html[data-theme="dark"] #projects .row-name {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #projects a.row-name:hover {
     color: var(--casys-warm-accent);
   }
-</style>
 
+  html[data-theme="dark"] #projects .row-tagline {
+    color: var(--casys-warm-text-muted);
+  }
+
+  html[data-theme="dark"] #projects .status-pill {
+    background: rgba(255, 184, 111, 0.12);
+    color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #projects .tech-pill {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--casys-warm-text-secondary);
+  }
+
+  html[data-theme="dark"] #projects .icon-link {
+    color: var(--casys-warm-text-muted);
+  }
+
+  html[data-theme="dark"] #projects .icon-link:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--casys-warm-text-primary);
+  }
+</style>

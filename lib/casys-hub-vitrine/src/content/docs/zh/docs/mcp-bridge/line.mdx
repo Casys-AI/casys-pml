@@ -1,0 +1,39 @@
+---
+title: LINE 适配器
+description: 将 MCP Apps 集成为 LINE LIFF 应用的指南。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## 概述
+
+<Aside type="caution">LINE 适配器正在积极开发中，尚不可用。目前仅 Telegram 适配器可用于生产环境。本页记录了计划中的 API。</Aside>
+
+LINE LIFF 适配器使 MCP Apps 能够在 LINE 的应用内浏览器框架中运行。
+
+## 配置
+
+```typescript
+import { LineAdapter } from "@casys/mcp-bridge";
+
+// 客户端：在 LINE LIFF WebView 内运行
+const adapter = new LineAdapter();
+await adapter.init({ resourceBaseUrl: "https://your-domain.com" });
+```
+
+## 功能
+
+- **OAuth 令牌管理**：通过 LIFF SDK 自动管理令牌
+- **平台检测**：检测移动端与网页浏览器环境
+- **区域设置映射**：将 LINE 的区域设置映射到 MCP 上下文
+- **外部链接**：通过 `liff.openWindow()` 打开链接
+- **安全区域**：报告视口尺寸以正确渲染界面
+
+## 认证
+
+LINE 认证使用 OAuth 2.0 令牌：
+
+1. 用户在 LINE 中打开 LIFF 应用
+2. LIFF SDK 处理 OAuth 流程
+3. 适配器提取访问令牌
+4. 令牌在服务端通过 LINE API 进行验证

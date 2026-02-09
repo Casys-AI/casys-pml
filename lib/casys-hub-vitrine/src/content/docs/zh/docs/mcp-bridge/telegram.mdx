@@ -1,0 +1,54 @@
+---
+title: Telegram 适配器
+description: 将 MCP Apps 集成为 Telegram Mini Apps 的完整指南。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## 概述
+
+Telegram 适配器将 Telegram WebApp SDK 映射到 MCP Apps 协议，提供：
+
+- 主题同步 (浅色/深色)
+- 视口和安全区域边距
+- 通过 `initData` 进行认证 (HMAC-SHA256)
+- 生命周期事件 (激活、停用)
+- 原生链接打开
+
+## 配置
+
+```typescript
+import { TelegramPlatformAdapter } from "@casys/mcp-bridge";
+
+// 客户端：在 Telegram Mini App WebView 内运行
+const adapter = new TelegramPlatformAdapter();
+const hostContext = await adapter.initialize();
+```
+
+## 主题映射
+
+Telegram 主题会自动映射到 MCP 宿主上下文：
+
+| Telegram | MCP Host Context |
+|----------|-----------------|
+| `colorScheme: "dark"` | `{ theme: "dark" }` |
+| `colorScheme: "light"` | `{ theme: "light" }` |
+| `themeParams.bg_color` | `backgroundColor` |
+| `themeParams.text_color` | `textColor` |
+
+## 认证
+
+适配器使用 HMAC-SHA256 验证 Telegram 的 `initData`：
+
+1. Telegram 发送包含用户信息的 `initData` 查询字符串
+2. 适配器使用你的 bot 令牌验证签名
+3. 有效会话获得加密安全的会话令牌
+4. 无效请求返回 401
+
+<Aside type="caution">
+  永远不要将你的 bot 令牌暴露给客户端。适配器在服务端处理验证。
+</Aside>
+
+## 视口与安全区域
+
+适配器报告 Telegram 的视口尺寸和安全区域边距，你的 MCP App 通过 `host-context-changed` 通知接收这些信息。

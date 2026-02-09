@@ -1,0 +1,53 @@
+---
+title: Architecture
+description: Plongee dans l'architecture du pont a 3 couches.
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Vue d'ensemble
+
+Le bridge utilise une architecture a 3 couches qui garde votre MCP App et votre MCP Server completement inchanges :
+
+```
+[MCP App (iframe)] --postMessage--> [bridge.js] --WebSocket--> [Resource Server] --stdio/HTTP--> [MCP Server]
+```
+
+## Couche 1 : Bridge Client (cote navigateur)
+
+Le Bridge Client est un script IIFE (`bridge.js`) automatiquement injecte dans le HTML servi par le Resource Server.
+
+**Responsabilites cles :**
+- Monkey-patche `window.parent.postMessage` pour intercepter les messages JSON-RPC
+- Etablit la connexion WebSocket vers le Resource Server
+- Traduit les evenements plateforme (changements de theme, redimensionnement du viewport) en notifications MCP
+- Gere le handshake `ui/initialize`
+
+## Couche 2 : Resource Server (HTTP + WebSocket)
+
+Le Resource Server est l'orchestrateur central :
+
+- **HTTP** : Sert les ressources `ui://` comme des pages web classiques, en injectant `bridge.js` dans les reponses HTML
+- **WebSocket** : Maintient une communication bidirectionnelle avec les Bridge Clients
+- **Sessions** : Gestion de sessions crypto-securisee avec validation d'authentification specifique a chaque plateforme
+- **CSP** : Genere automatiquement les en-tetes Content-Security-Policy depuis les metadonnees des ressources
+- **Transmission** : Route les requetes `tools/call` et `resources/read` vers le MCP Server
+
+## Couche 3 : MCP Server (non modifie)
+
+Votre serveur MCP existant reste completement inchange. Le Resource Server s'y connecte en tant que client MCP standard, via le transport stdio ou HTTP.
+
+## Flux de messages
+
+Un appel d'outil typique traverse :
+
+1. L'utilisateur interagit avec l'interface dans la WebView Telegram
+2. La MCP App appelle `postMessage({ jsonrpc: "2.0", method: "tools/call", ... })`
+3. `bridge.js` intercepte, envoie via WebSocket
+4. Le Resource Server valide la session, transmet au MCP Server
+5. Le MCP Server execute l'outil, retourne le resultat
+6. Le Resource Server envoie le resultat via WebSocket
+7. `bridge.js` dispatche un `MessageEvent` a la MCP App
+8. L'interface se met a jour
+
+**Latence ajoutee totale** : ~1 aller-retour WebSocket (negligeable quand co-localise).

@@ -1,0 +1,95 @@
+---
+import { useTranslations } from '../../i18n';
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = useTranslations(locale).mcpBridgeArchitecture;
+---
+
+<section id="architecture">
+  <div class="container">
+    <div class="section-header center">
+      <h2>{t.title} <span class="accent-text">{t.titleAccent}</span></h2>
+      <p class="section-subtitle">{t.subtitle}</p>
+    </div>
+    <div class="pipeline-flow" role="img" aria-label="Bridge architecture visualization">
+      {t.steps.map((step, i) => (
+        <>
+          <div class={`pipeline-step ${step.type}`}>
+            <span class="material-symbols-rounded">{step.icon}</span>
+            <span class="pipeline-label">{step.label}</span>
+          </div>
+          {i < t.steps.length - 1 && <div class="pipeline-connector" aria-hidden="true"></div>}
+        </>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  #architecture {
+    position: relative;
+    padding: 56px 0 64px;
+    background: var(--md-sys-color-surface-container-lowest);
+    overflow: hidden;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+  .section-header { margin-bottom: 24px; }
+  .section-header.center { text-align: center; max-width: 700px; margin-left: auto; margin-right: auto; }
+  .section-header h2 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 600; font-optical-sizing: auto; color: var(--md-sys-color-on-surface); margin: 0 0 12px; letter-spacing: -0.02em; }
+  .section-subtitle { font-size: 1.1rem; color: var(--md-sys-color-on-surface-variant); margin: 0; line-height: 1.6; }
+
+  .pipeline-flow { display: flex; align-items: center; justify-content: center; gap: 0; padding: 48px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .pipeline-step { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 12px; min-width: 80px; border-radius: 12px; transition: transform 200ms ease-out; flex-shrink: 0; }
+  .pipeline-step:hover { transform: translateY(-4px); }
+
+  .pipeline-step .material-symbols-rounded { font-size: 28px; color: var(--md-sys-color-on-surface-variant); width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; background: var(--md-sys-color-surface-container-high); border: 1px solid var(--md-sys-color-outline-variant); border-radius: 14px; transition: border-color 200ms ease-out, background 200ms ease-out; }
+  .pipeline-step:hover .material-symbols-rounded { border-color: var(--md-sys-color-primary); color: var(--md-sys-color-primary); }
+
+  .pipeline-step.incoming .material-symbols-rounded { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); border-color: transparent; }
+  .pipeline-step.handler .material-symbols-rounded { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); border-color: transparent; }
+  .pipeline-step.custom .material-symbols-rounded { border-style: dashed; }
+
+  .pipeline-label { font-size: 0.75rem; font-weight: 600; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
+
+  .pipeline-connector { width: 24px; height: 2px; background: var(--md-sys-color-outline-variant); flex-shrink: 0; position: relative; }
+  .pipeline-connector::after { content: ''; position: absolute; right: -1px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-left: 5px solid var(--md-sys-color-outline-variant); border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+
+  @media (max-width: 1024px) {
+    .container { padding: 0 32px; }
+    .pipeline-flow { justify-content: flex-start; padding: 32px 0; }
+  }
+
+  @media (max-width: 768px) {
+    #architecture { padding: 60px 0; }
+    .container { padding: 0 20px; }
+    .pipeline-flow { gap: 0; padding: 24px 0; }
+    .pipeline-step { min-width: 56px; padding: 8px 4px; }
+    .pipeline-step .material-symbols-rounded { width: 40px; height: 40px; font-size: 20px; border-radius: 10px; }
+    .pipeline-label { font-size: 0.5625rem; }
+    .pipeline-connector { width: 12px; }
+  }
+
+  @media (max-width: 380px) {
+    .container { padding: 0 14px; }
+    .pipeline-step { min-width: 44px; }
+    .pipeline-connector { width: 6px; }
+    .pipeline-connector::after { display: none; }
+  }
+</style>
+
+<style is:global>
+  html[data-theme="dark"] #architecture { background: #0d0c0a; }
+  html[data-theme="dark"] #architecture .section-header h2 { color: #f5f0ea; }
+  html[data-theme="dark"] #architecture .section-subtitle { color: #d5c3b5; }
+
+  html[data-theme="dark"] #architecture .pipeline-step .material-symbols-rounded { background: #1a1815; border-color: rgba(255, 184, 111, 0.12); color: #d5c3b5; }
+  html[data-theme="dark"] #architecture .pipeline-step:hover .material-symbols-rounded { border-color: #FFB86F; color: #FFB86F; }
+  html[data-theme="dark"] #architecture .pipeline-step.incoming .material-symbols-rounded { background: rgba(255, 184, 111, 0.15); color: #FFB86F; border-color: transparent; }
+  html[data-theme="dark"] #architecture .pipeline-step.handler .material-symbols-rounded { background: #FFB86F; color: #1a1815; border-color: transparent; }
+  html[data-theme="dark"] #architecture .pipeline-step.custom .material-symbols-rounded { border-color: rgba(255, 184, 111, 0.25); border-style: dashed; }
+  html[data-theme="dark"] #architecture .pipeline-label { color: #a89a8c; }
+  html[data-theme="dark"] #architecture .pipeline-connector { background: rgba(255, 184, 111, 0.15); }
+  html[data-theme="dark"] #architecture .pipeline-connector::after { border-left-color: rgba(255, 184, 111, 0.15); }
+</style>

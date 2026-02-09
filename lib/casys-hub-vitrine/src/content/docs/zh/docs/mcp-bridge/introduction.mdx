@@ -1,0 +1,73 @@
+---
+title: 简介
+description: 将 MCP Apps 桥接到 Telegram 和 LINE 等消息平台。无需修改代码。
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+**@casys/mcp-bridge** 将 MCP Apps 从开发者工具 (Claude Desktop、VS Code) 带到拥有 20 亿以上用户的消息平台 — 无需修改 MCP App 的任何一行代码。
+
+## 问题
+
+MCP Apps (通过 `ui://` 资源提供的交互式界面) 只能在开发者工具中运行。Telegram、LINE 和其他消息平台上的用户无法访问它们。
+
+为每个平台构建自定义集成意味着：
+- 为每个平台的 SDK 重写 UI 代码
+- 从零开始实现认证、会话管理和安全机制
+- 为每个平台维护独立的代码库
+- 失去 MCP 协议内置的工具执行能力
+
+## 解决方案
+
+`@casys/mcp-bridge` 是一个透明的桥接层：
+
+1. **拦截** MCP App 的 `postMessage` 调用 (通过注入的 `bridge.js`)
+2. **路由** JSON-RPC 消息通过 WebSocket 到 Resource Server
+3. **转发** 工具调用到你未修改的 MCP Server
+4. **映射** 平台特定功能 (主题、认证、视口) 自动完成
+
+```typescript
+import { startResourceServer } from "@casys/mcp-bridge";
+
+const server = startResourceServer({
+  assetDirectories: { "my-app": "./ui-dist" },
+  platform: "telegram",
+  telegramBotToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+});
+// Your MCP App now works inside Telegram!
+```
+
+## 架构
+
+<CardGrid>
+  <Card title="Bridge Client" icon="puzzle">
+    浏览器端 IIFE 脚本，注入到服务的 HTML 中。Monkey-patch `postMessage` 以拦截 MCP JSON-RPC 调用。
+  </Card>
+  <Card title="Resource Server" icon="server">
+    HTTP + WebSocket 服务器。提供 `ui://` 资源、注入 bridge.js、管理会话、转发工具调用。
+  </Card>
+  <Card title="平台适配器" icon="setting">
+    Telegram 和 LINE 适配器处理认证、主题映射、视口和生命周期事件。
+  </Card>
+  <Card title="MCP Server" icon="rocket">
+    你现有的 MCP 服务器完全不需要修改。桥接层作为 MCP 客户端运行。
+  </Card>
+</CardGrid>
+
+## 核心功能
+
+- **零代码修改** — 现有 MCP Apps 直接可用
+- **Telegram Mini Apps** — 完整的 WebApp SDK 集成 (主题、视口、安全区域、认证)
+- **LINE LIFF** — 即将推出
+- **默认安全** — CSP 策略、HMAC-SHA256 认证、加密安全会话
+- **107 个测试** — 全面的测试覆盖
+- **可扩展** — 通过适配器模式添加 Discord、WhatsApp 或任何平台
+
+## 下一步
+
+<CardGrid>
+  <LinkCard title="快速开始" href="/zh/docs/mcp-bridge/quickstart/" description="5 分钟内在 Telegram 中运行你的第一个 MCP App" />
+  <LinkCard title="架构" href="/zh/docs/mcp-bridge/architecture/" description="深入了解三层桥接设计" />
+  <LinkCard title="Telegram 适配器" href="/zh/docs/mcp-bridge/telegram/" description="Telegram Mini App 集成完整指南" />
+  <LinkCard title="安全模型" href="/zh/docs/mcp-bridge/security/" description="CSP、认证和会话管理详情" />
+</CardGrid>

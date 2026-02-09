@@ -59,6 +59,7 @@ export const zh: Translations = {
     proofs: [
       { name: 'mcp-std', stat: '508 个工具', url: 'https://mcp-std.casys.ai' },
       { name: 'mcp-server', stat: '生产认证', url: 'https://mcp-server.casys.ai' },
+      { name: 'mcp-bridge', stat: 'Telegram', url: 'https://mcp-bridge.casys.ai' },
       { name: 'Casys PML', stat: '网关', url: 'https://pml.casys.ai' },
       { name: 'Engine', stat: '图评分', url: 'https://engine.casys.ai' },
     ],
@@ -212,96 +213,70 @@ export const zh: Translations = {
   },
   projects: {
     title: '我们的项目',
-    subtitle: '探索 AI 系统不同层面的开源工具',
-    activeProjects: [
+    subtitle: 'MCP 生态系统的开源工具。从协议工具到图智能。',
+    featured: {
+      name: 'Casys PML',
+      tagline: '一个网关。任何模型。完整可观测性。',
+      status: '活跃开发中',
+      license: 'AGPL-3.0',
+      features: [
+        { icon: 'swap_horiz', name: '模型无关', description: 'Claude、GPT、Gemini、Ollama——自由切换' },
+        { icon: 'visibility', name: '完整可观测性', description: '每次工具调用均可追溯：成本、延迟、状态' },
+        { icon: 'auto_awesome', name: '模式提取', description: 'SHGAT 从执行轨迹中提取相关性模式' },
+      ],
+      results: [
+        { stat: '120+', label: '目录中的能力' },
+        { stat: '4', label: '支持的 LLM 提供商' },
+        { stat: '免费', label: '开源测试版' },
+      ],
+      links: {
+        website: 'https://pml.casys.ai',
+        github: 'https://github.com/Casys-AI/casys-pml',
+        docs: 'https://pml.casys.ai/docs',
+      },
+    },
+    categories: [
       {
-        id: 'casys-pml',
-        name: 'Casys PML',
-        tagline: '一个网关。任何模型。完整可观测性。',
-        status: '活跃开发中',
-        license: 'AGPL-3.0',
-        featured: true,
-        features: [
-            {
-              icon: 'swap_horiz',
-              name: '模型无关',
-              description: 'Claude、GPT、Gemini、Ollama——自由切换'
-            },
-            {
-              icon: 'visibility',
-              name: '完整可观测性',
-              description: '每次工具调用均可追溯：成本、延迟、状态'
-            },
-            {
-              icon: 'auto_awesome',
-              name: '模式提取',
-              description: 'SHGAT 从执行轨迹中提取相关性模式'
-            }
+        name: 'MCP 基础设施',
+        items: [
+          {
+            id: 'mcp-std',
+            name: '@casys/mcp-std',
+            tagline: '508 个 MCP 工具。一行导入。',
+            status: 'v0.4.0',
+            tech: 'Deno',
+            links: { website: 'https://mcp-std.casys.ai', github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std', jsr: 'https://jsr.io/@casys/mcp-std' },
+          },
+          {
+            id: 'mcp-server',
+            name: '@casys/mcp-server',
+            tagline: '生产级 MCP 服务器框架',
+            status: 'v0.3.0',
+            tech: 'Deno',
+            links: { website: 'https://mcp-server.casys.ai', github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server', jsr: 'https://jsr.io/@casys/mcp-server' },
+          },
+          {
+            id: 'mcp-bridge',
+            name: '@casys/mcp-bridge',
+            tagline: 'MCP Apps 桥接消息平台',
+            status: 'v0.1.0',
+            tech: 'Deno',
+            links: { website: 'https://mcp-bridge.casys.ai', github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/mcp-apps-bridge', jsr: 'https://jsr.io/@casys/mcp-bridge' },
+          },
         ],
-        results: [
-          { stat: '120+', label: '目录中的能力' },
-          { stat: '4', label: '支持的 LLM 提供商' },
-          { stat: '免费', label: '开源测试版' }
-        ],
-        tech: { stack: 'Deno 2.x, PGlite, Drizzle ORM, Transformers.js' },
-        links: {
-          website: 'https://pml.casys.ai',
-          github: 'https://github.com/Casys-AI/casys-pml',
-          docs: 'https://pml.casys.ai/docs'
-        }
       },
       {
-        id: 'mcp-std',
-        name: '@casys/mcp-std',
-        tagline: '508 个 MCP 工具。一行导入。',
-        status: 'v0.4.0',
-        license: 'MIT',
-        features: [
-          { icon: 'construction', name: '508 工具', description: 'Docker、Git、DB、加密、文本、网络...' },
-          { icon: 'category', name: '32 类别', description: '按需加载' },
-          { icon: 'terminal', name: 'MCP 服务器', description: '独立或库模式' }
+        name: '智能层',
+        items: [
+          {
+            id: 'engine',
+            name: 'PML Engine',
+            tagline: '图神经网络工具编排',
+            status: '研究',
+            tech: 'TF.js',
+            links: { website: 'https://engine.casys.ai', github: 'https://github.com/Casys-AI/casys-pml' },
+          },
         ],
-        tech: { stack: 'Deno, TypeScript, JSR' },
-        links: {
-          website: 'https://mcp-std.casys.ai',
-          github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/std',
-          jsr: 'https://jsr.io/@casys/mcp-std'
-        }
-      },
-      {
-        id: 'mcp-server',
-        name: '@casys/mcp-server',
-        tagline: '生产级 MCP 服务器框架',
-        status: 'v0.3.0',
-        license: 'MIT',
-        features: [
-          { icon: 'security', name: '内置认证', description: 'OAuth2、JWT、API 密钥' },
-          { icon: 'layers', name: '中间件', description: '限流、CORS、日志' },
-          { icon: 'speed', name: 'HTTP + SSE', description: '并发传输层' }
-        ],
-        tech: { stack: 'Deno, TypeScript, JSR' },
-        links: {
-          website: 'https://mcp-server.casys.ai',
-          github: 'https://github.com/Casys-AI/casys-pml/tree/main/lib/server',
-          jsr: 'https://jsr.io/@casys/mcp-server'
-        }
-      },
-      {
-        id: 'engine',
-        name: 'PML Engine',
-        tagline: '图神经网络工具编排',
-        status: '研究',
-        license: 'AGPL-3.0',
-        features: [
-          { icon: 'hub', name: 'SHGAT', description: '稀疏异构图注意力' },
-          { icon: 'psychology', name: '基于轨迹训练', description: '基于生产执行轨迹训练' },
-          { icon: 'route', name: 'DAG 优化', description: '自动工作流规划' }
-        ],
-        tech: { stack: 'TensorFlow.js, Deno' },
-        links: {
-          website: 'https://engine.casys.ai',
-          github: 'https://github.com/Casys-AI/casys-pml'
-        }
       },
     ],
   },
@@ -909,6 +884,93 @@ export const zh: Translations = {
       url: '/#projects',
       icon: 'folder_open',
     },
+  },
+
+  // ========================================
+  // SUBSITE: MCP-BRIDGE
+  // ========================================
+  mcpBridgeHeader: {
+    features: '功能',
+    architecture: '架构',
+    quickstart: '快速开始',
+    install: '安装',
+    docs: '文档',
+    workWithUs: '合作咨询',
+  },
+  mcpBridgeHero: {
+    tagline: 'MCP Apps \u2192 消息平台',
+    heroTitle1: 'MCP Apps 触达',
+    heroTitle2: '20亿+用户',
+    heroSubtitle: '将任何 MCP App 变为 Telegram Mini App。零代码改动。同一工具，全新受众。',
+    statTests: '测试通过',
+    statPlatforms: '平台',
+    statRelease: '最新版本',
+    ctaPrimary: '快速开始',
+    ctaSecondary: '在 JSR 上查看',
+    ctaDocs: '文档',
+  },
+  mcpBridgeFeatures: {
+    title: '弥合',
+    titleAccent: '鸿沟',
+    subtitle: '将 MCP Apps 从开发者工具带到消息平台所需的一切。',
+    features: [
+      { icon: 'code_off', name: '零代码改动', desc: '现有 MCP Apps 直接使用，无需重写。' },
+      { icon: 'layers', name: '三层架构', desc: '客户端、资源服务器、MCP 服务器。' },
+      { icon: 'swap_horiz', name: '协议转换', desc: '通过 WebSocket 的 JSON-RPC 2.0，无缝衔接。' },
+      { icon: 'smart_toy', name: 'Telegram Mini Apps', desc: '完整的主题、视口、认证支持。' },
+      { icon: 'more_horiz', name: '更多平台', desc: 'LINE、Discord、WhatsApp — 即将推出。' },
+      { icon: 'shield', name: 'CSP 强制', desc: '默认严格的内容安全策略。' },
+      { icon: 'key', name: '会话认证', desc: '加密安全令牌，HMAC 验证。' },
+      { icon: 'sync', name: 'WebSocket 传输', desc: '实时双向通信。' },
+      { icon: 'palette', name: '主题映射', desc: '平台主题自动映射到 MCP Apps。' },
+      { icon: 'extension', name: '可扩展适配器', desc: '添加 Discord、WhatsApp 或任何平台。' },
+    ],
+  },
+  mcpBridgeArchitecture: {
+    title: '工作',
+    titleAccent: '原理',
+    subtitle: 'Bridge 拦截 MCP App 的 postMessage 调用，通过 WebSocket 路由到资源服务器，再将工具调用转发到未修改的 MCP 服务器。',
+    steps: [
+      { icon: 'web', label: 'MCP App', type: 'incoming' },
+      { icon: 'javascript', label: 'bridge.js', type: '' },
+      { icon: 'sync', label: 'WebSocket', type: '' },
+      { icon: 'dns', label: '资源服务器', type: 'handler' },
+      { icon: 'hub', label: 'MCP 服务器', type: '' },
+      { icon: 'send', label: 'Telegram', type: 'custom' },
+    ],
+  },
+  mcpBridgeComparison: {
+    title: '自定义集成 vs',
+    titleAccent: 'Bridge',
+    subtitle: '省去数月的集成工作。Bridge 处理复杂部分，让您更快发布。',
+    colCustom: '自定义集成',
+    colBridge: '@casys/mcp-bridge',
+    rows: [
+      ['MCP App 代码改动', '需要重写', '无需改动'],
+      ['平台认证（Telegram）', '手动 HMAC', '内置'],
+      ['内容安全策略', '手动 headers', '自动生成'],
+      ['WebSocket 管理', '从零开始', '内置'],
+      ['主题同步', '手动映射', '自动'],
+      ['多平台支持', '按平台编码', '适配器模式'],
+      ['会话管理', '自定义实现', '加密安全'],
+      ['HTML 注入 (bridge.js)', '不适用', '自动'],
+    ],
+  },
+  mcpBridgeQuickStart: {
+    title: '部署到',
+    titleAccent: 'Telegram',
+    subtitle: '三步将您的 MCP App 运行在 Telegram 中。无需更改现有代码。',
+    tabTelegram: 'Telegram',
+    tabLine: '即将推出',
+  },
+  mcpBridgeInstall: {
+    title: '随时',
+    titleAccent: '就绪',
+    subtitle: '一条命令。支持 Deno 和 Node.js。发布在 JSR，现代 JavaScript 注册表。',
+    jsrLabel: 'JSR 注册表',
+    githubLabel: 'GitHub',
+    docsLabel: '文档',
+    builtWith: '基于',
   },
 
   // ========================================

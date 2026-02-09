@@ -1,0 +1,53 @@
+---
+title: Architecture
+description: Deep dive into the 3-layer bridge architecture.
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Overview
+
+The bridge uses a 3-layer architecture that keeps your MCP App and MCP Server completely unmodified:
+
+```
+[MCP App (iframe)] --postMessage--> [bridge.js] --WebSocket--> [Resource Server] --stdio/HTTP--> [MCP Server]
+```
+
+## Layer 1: Bridge Client (browser-side)
+
+The Bridge Client is an IIFE script (`bridge.js`) automatically injected into the HTML served by the Resource Server.
+
+**Key responsibilities:**
+- Monkey-patches `window.parent.postMessage` to intercept JSON-RPC messages
+- Establishes WebSocket connection to the Resource Server
+- Translates platform events (theme changes, viewport resize) into MCP notifications
+- Handles the `ui/initialize` handshake
+
+## Layer 2: Resource Server (HTTP + WebSocket)
+
+The Resource Server is the central orchestrator:
+
+- **HTTP**: Serves `ui://` resources as regular web pages, injecting `bridge.js` into HTML responses
+- **WebSocket**: Maintains bidirectional communication with Bridge Clients
+- **Sessions**: Crypto-secure session management with platform-specific auth validation
+- **CSP**: Auto-generates Content-Security-Policy headers from resource metadata
+- **Forwarding**: Routes `tools/call` and `resources/read` requests to the MCP Server
+
+## Layer 3: MCP Server (unmodified)
+
+Your existing MCP Server remains completely unchanged. The Resource Server connects to it as a standard MCP client, using either stdio or HTTP transport.
+
+## Message Flow
+
+A typical tool call flows through:
+
+1. User interacts with UI in Telegram WebView
+2. MCP App calls `postMessage({ jsonrpc: "2.0", method: "tools/call", ... })`
+3. `bridge.js` intercepts, sends via WebSocket
+4. Resource Server validates session, forwards to MCP Server
+5. MCP Server executes tool, returns result
+6. Resource Server sends result via WebSocket
+7. `bridge.js` dispatches `MessageEvent` to the MCP App
+8. UI updates
+
+**Total added latency**: ~1 WebSocket round-trip (negligible when co-located).

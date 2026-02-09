@@ -1,0 +1,81 @@
+---
+title: 快速开始
+description: 5 分钟内在 Telegram 中运行你的 MCP App。
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+## 前置条件
+
+- [Deno](https://deno.land) 2.x 或 Node.js 20+
+- 一个 Telegram Bot 令牌 (从 [@BotFather](https://t.me/botfather) 获取)
+- 一个已有的带 `ui://` 资源的 MCP 服务器
+
+## 安装
+
+```bash
+# Deno
+deno add jsr:@casys/mcp-bridge
+
+# Node.js
+npx jsr add @casys/mcp-bridge
+```
+
+## 配置
+
+<Steps>
+
+1. **创建桥接服务器**
+
+   ```typescript
+   // bridge.ts
+   import { startResourceServer } from "@casys/mcp-bridge";
+
+   const server = startResourceServer({
+     assetDirectories: { "my-app": "./ui-dist" },
+     platform: "telegram",
+     telegramBotToken: Deno.env.get("TELEGRAM_BOT_TOKEN")!,
+     onMessage: async (_session, message) => {
+       // Forward tool calls to your MCP server and return the response
+       console.log("Received:", message);
+       return null;
+     },
+     options: { resourceServerPort: 4000, debug: true },
+   });
+
+   console.log(`Bridge ready at ${server.baseUrl}`);
+   ```
+
+2. **暴露你的服务器**
+
+   开发环境下，使用 [ngrok](https://ngrok.com) 等隧道工具：
+
+   ```bash
+   ngrok http 4000
+   ```
+
+3. **配置 Telegram Bot**
+
+   在 [@BotFather](https://t.me/botfather) 中设置 Mini App URL：
+   - 发送 `/setmenubutton`
+   - 选择你的 bot
+   - 将 URL 设置为你的 ngrok/生产环境 URL
+
+4. **测试**
+
+   在 Telegram 中打开你的 bot 并点击菜单按钮。你的 MCP App 界面应该会直接在 Telegram 中显示！
+
+</Steps>
+
+<Aside type="tip">
+  桥接层自动处理主题同步。如果用户将 Telegram 切换到深色模式，你的 MCP App 会收到一个包含新主题的 `host-context-changed` 通知。
+</Aside>
+
+## 底层原理
+
+1. Telegram 在 WebView 中加载你的桥接 URL
+2. Resource Server 提供带有注入的 `bridge.js` 的 `ui://` HTML
+3. 当你的 MCP App 调用 `postMessage` 时，bridge.js 将其拦截
+4. 消息通过 WebSocket 路由到 Resource Server
+5. Resource Server 将 `tools/call` 请求转发到你的 MCP Server
+6. 结果通过相同的路径返回

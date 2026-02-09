@@ -1,0 +1,65 @@
+---
+title: Resource Server API
+description: API reference for the Resource Server component.
+---
+
+## `startResourceServer(options)`
+
+Creates and starts the Resource Server.
+
+```typescript
+import { startResourceServer } from "@casys/mcp-bridge";
+
+// Synchronous — do NOT use await
+const server = startResourceServer({
+  assetDirectories: { "my-app": "./ui-dist" },
+  platform: "telegram",
+  telegramBotToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+  onMessage: async (session, message) => {
+    // Forward tool calls to your MCP server and return the response
+    return null;
+  },
+  options: { resourceServerPort: 4000, debug: true },
+  csp: {},
+});
+
+console.log(`Listening at ${server.baseUrl}`);
+```
+
+### Options (`ResourceServerConfig`)
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assetDirectories` | `Record<string, string>` | Yes | Directory containing UI assets, keyed by server name (from `ui://` URI) |
+| `platform` | `"telegram" \| "line"` | Yes | Platform name for bridge.js configuration |
+| `telegramBotToken` | `string` | Yes (telegram) | Telegram bot token for HMAC-SHA256 initData validation. Required when platform is `"telegram"` (fail-fast if omitted) |
+| `onMessage` | `(session, message) => Promise<McpAppsMessage \| null>` | No | Handler called when a JSON-RPC message is received from a webview |
+| `options` | `BridgeOptions` | No | Bridge options: `resourceServerPort`, `allowedOrigins`, `debug` |
+| `csp` | `CspOptions` | No | Custom CSP options applied to served HTML pages |
+
+### Return Value
+
+```typescript
+interface ResourceServer {
+  readonly baseUrl: string;        // Base URL at which the server is listening
+  readonly sessions: SessionStore; // Session store (for inspection/testing)
+  stop(): Promise<void>;           // Stop the server and release resources
+}
+```
+
+## `PlatformAdapter` Interface
+
+Implement this interface to add support for new platforms. This is the high-level platform SDK abstraction used by the `BridgeClient` client-side.
+
+```typescript
+interface PlatformAdapter {
+  readonly name: string;
+  initialize(): Promise<HostContext>;
+  getTheme(): "light" | "dark";
+  getContainerDimensions(): ContainerDimensions;
+  onLifecycleEvent(handler: LifecycleEventHandler): void;
+  openLink(url: string): Promise<void>;
+  sendMessage?(text: string): Promise<void>;
+  getAuthData?(): Record<string, unknown>;
+}
+```

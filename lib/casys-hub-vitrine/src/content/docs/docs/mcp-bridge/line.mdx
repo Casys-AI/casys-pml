@@ -1,0 +1,41 @@
+---
+title: LINE Adapter
+description: Guide for integrating MCP Apps as LINE LIFF applications.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Overview
+
+<Aside type="caution">
+  The LINE adapter is under active development and not yet available. Only the Telegram adapter is production-ready. This page documents the planned API.
+</Aside>
+
+The LINE LIFF adapter enables MCP Apps to run inside LINE's in-app browser framework.
+
+## Setup
+
+```typescript
+import { LineAdapter } from "@casys/mcp-bridge";
+
+// Client-side: runs inside the LINE LIFF WebView
+const adapter = new LineAdapter();
+await adapter.init({ resourceBaseUrl: "https://your-domain.com" });
+```
+
+## Features
+
+- **OAuth Token Handling**: Automatic token management via LIFF SDK
+- **Platform Detection**: Detects mobile vs web browser environments
+- **Locale Mapping**: Maps LINE's locale to MCP context
+- **External Links**: Opens links via `liff.openWindow()`
+- **Safe Area**: Reports viewport dimensions for proper UI rendering
+
+## Authentication
+
+LINE authentication uses OAuth 2.0 tokens:
+
+1. User opens the LIFF app in LINE
+2. LIFF SDK handles the OAuth flow
+3. The adapter extracts the access token
+4. Token is validated server-side against LINE's API

@@ -1,0 +1,52 @@
+---
+title: Adaptateur Telegram
+description: Guide complet pour integrer des MCP Apps en tant que Telegram Mini Apps.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Vue d'ensemble
+
+L'adaptateur Telegram mappe le SDK Telegram WebApp vers le protocole MCP Apps, fournissant :
+
+- Synchronisation des themes (clair/sombre)
+- Viewport et marges de zone securisee (safe area insets)
+- Authentification via `initData` (HMAC-SHA256)
+- Evenements de cycle de vie (activation, desactivation)
+- Ouverture native des liens
+
+## Mise en place
+
+```typescript
+import { TelegramPlatformAdapter } from "@casys/mcp-bridge";
+
+const adapter = new TelegramPlatformAdapter();
+```
+
+## Mapping des themes
+
+Les themes Telegram sont automatiquement mappes vers le contexte hote MCP :
+
+| Telegram | MCP Host Context |
+|----------|-----------------|
+| `colorScheme: "dark"` | `{ theme: "dark" }` |
+| `colorScheme: "light"` | `{ theme: "light" }` |
+| `themeParams.bg_color` | `backgroundColor` |
+| `themeParams.text_color` | `textColor` |
+
+## Authentification
+
+L'adaptateur valide le `initData` de Telegram via HMAC-SHA256 :
+
+1. Telegram envoie la chaine de requete `initData` avec les infos utilisateur
+2. L'adaptateur verifie la signature avec votre token de bot
+3. Les sessions valides recoivent un token de session crypto-securise
+4. Les requetes invalides sont rejetees avec un 401
+
+<Aside type="caution">
+  N'exposez jamais votre token de bot cote client. L'adaptateur gere la validation cote serveur.
+</Aside>
+
+## Viewport et zones securisees
+
+L'adaptateur rapporte les dimensions du viewport Telegram et les marges de zone securisee, que votre MCP App recoit via des notifications `host-context-changed`.

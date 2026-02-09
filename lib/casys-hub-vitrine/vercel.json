@@ -17,6 +17,11 @@
       "source": "/:path((?!_astro|_vercel|api|ui|icons|fonts|images|pagefind|docs|fr|zh|engine).*)",
       "has": [{ "type": "host", "value": "engine.casys.ai" }],
       "destination": "/engine/:path"
+    },
+    {
+      "source": "/:path((?!_astro|_vercel|api|ui|icons|fonts|images|pagefind|docs|fr|zh|mcp-bridge).*)",
+      "has": [{ "type": "host", "value": "mcp-bridge.casys.ai" }],
+      "destination": "/mcp-bridge/:path"
     }
   ]
 }

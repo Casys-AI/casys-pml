@@ -1,0 +1,57 @@
+---
+title: Modele de securite
+description: Application du CSP, authentification de session et modele de confiance pour le MCP Bridge.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Vue d'ensemble
+
+Le MCP Bridge implemente une securite en profondeur a travers les trois couches.
+
+## Content Security Policy (CSP)
+
+Chaque reponse HTML inclut un en-tete CSP strict :
+
+```
+Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src wss://your-domain.com
+```
+
+Les directives CSP sont auto-generees depuis les metadonnees des ressources, avec `default-src 'none'` comme base.
+
+## Authentification de session
+
+1. **Creation de session** : Un token crypto-securise est genere via `crypto.getRandomValues()`
+2. **Livraison du token** : Envoye au client lors du handshake WebSocket
+3. **Validation** : Chaque message suivant doit inclure le token de session
+4. **Expiration** : Les sessions expirent apres inactivite (configurable)
+
+## Auth par plateforme
+
+### Telegram (HMAC-SHA256)
+
+```
+initData signature = HMAC-SHA256(data_check_string, secret_key)
+secret_key = HMAC-SHA256(bot_token, "WebAppData")
+```
+
+L'adaptateur valide le `initData` de chaque requete avant de creer une session.
+
+### LINE (OAuth) — prevu
+
+La validation OAuth LINE est prevue mais pas encore implementee. Seul l'adaptateur Telegram est disponible pour le moment.
+
+## Protection contre le path traversal
+
+Tous les chemins de ressources `ui://` sont normalises lexicalement avant resolution :
+- Les sequences `../` sont supprimees
+- Les chemins sont normalises via `normalizePath()` (normalisation lexicale, pas de resolution de liens symboliques)
+- Les chemins resolus doivent rester dans le repertoire de base de l'application
+
+<Aside type="tip">
+  Le Resource Server utilise une normalisation lexicale des chemins (`normalizePath()`) pour empecher le path traversal. Il n'y a pas de verification de liens symboliques via `Deno.realPath()`.
+</Aside>
+
+## Validation du Target Origin
+
+Les messages WebSocket incluent une verification stricte de l'origine. Le bridge n'accepte que les messages provenant de l'origine `resourceBaseUrl` configuree.

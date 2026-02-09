@@ -1,0 +1,58 @@
+---
+title: Resource Server API
+description: Resource Server 组件的 API 参考。
+---
+
+## `startResourceServer(options)`
+
+创建并启动 Resource Server。
+
+```typescript
+import { startResourceServer } from "@casys/mcp-bridge";
+
+const server = startResourceServer({
+  assetDirectories: { "my-app": "./ui-dist" },
+  platform: "telegram",
+  telegramBotToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+  onMessage: async (session, message) => { return null; },
+  options: { resourceServerPort: 4000, debug: true },
+});
+```
+
+### 选项
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `assetDirectories` | `Record<string, string>` | 是 | UI 资源目录，按服务器名称索引 (来自 `ui://` URI) |
+| `platform` | `"telegram" \| "line"` | 是 | 平台名称 |
+| `telegramBotToken` | `string` | 当 platform="telegram" 时必需 | 用于 HMAC-SHA256 验证 initData 的 Telegram Bot 令牌 |
+| `onMessage` | `(session, message) => Promise<McpAppsMessage \| null>` | 否 | 收到 JSON-RPC 消息时的回调处理器 |
+| `options` | `BridgeOptions` | 否 | 桥接选项 (端口、CORS、调试) |
+| `csp` | `CspOptions` | 否 | 与默认值合并的自定义 CSP 选项 |
+
+### 返回值
+
+```typescript
+interface ResourceServer {
+  baseUrl: string;          // 服务器基础 URL
+  sessions: SessionStore;   // 会话存储 (用于检查/测试)
+  stop(): Promise<void>;    // 停止服务器并释放资源
+}
+```
+
+## `PlatformAdapter` 接口
+
+实现此接口以添加新平台支持。
+
+```typescript
+interface PlatformAdapter {
+  readonly name: string;
+  initialize(): Promise<HostContext>;
+  getTheme(): "light" | "dark";
+  getContainerDimensions(): ContainerDimensions;
+  onLifecycleEvent(handler: LifecycleEventHandler): void;
+  openLink(url: string): Promise<void>;
+  sendMessage?(text: string): Promise<void>;
+  getAuthData?(): Record<string, unknown>;
+}
+```
