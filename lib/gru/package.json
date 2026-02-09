@@ -1,0 +1,27 @@
+{
+  "name": "@pml/gru",
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "train": "tsx src/test-training.ts",
+    "train:n8n": "tsx src/test-training-n8n.ts",
+    "bench": "tsx src/benchmark-node.ts",
+    "n8n:scrape": "tsx src/n8n/scrape-n8n.ts",
+    "n8n:embed": "tsx src/n8n/embed-n8n-nodes.ts",
+    "n8n:targets": "tsx src/n8n/build-soft-targets.ts",
+    "n8n:pipeline": "npm run n8n:scrape && npm run n8n:embed && npm run n8n:targets"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "@huggingface/transformers": "^3.0.0",
+    "dotenv": "^16.4.7",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

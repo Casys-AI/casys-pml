@@ -1,18 +1,29 @@
 /**
  * Transition Model Module
  *
- * GRU-based model for predicting tool sequences and goal termination.
+ * Compact Informed GRU for predicting tool sequences and goal termination,
+ * leveraging structural signals (Jaccard, bigram, capability fingerprints).
  *
  * @module gru/transition
  */
 
-export { TransitionModel } from "./gru-model.ts";
+export { CompactInformedGRU } from "./gru-model.ts";
+
 export type {
-  TransitionModelConfig,
-  TransitionPrediction,
+  CompactGRUConfig,
   TransitionExample,
-  TransitionMetrics,
-  TransitionBatch,
-  TransitionModelWeights,
+  TrainingMetrics,
+  PredictionResult,
+  RankedPrediction,
+  StructuralBias,
+  ToolCapabilityMap,
+  SerializedModel,
 } from "./types.ts";
-export { DEFAULT_TRANSITION_CONFIG } from "./types.ts";
+export { DEFAULT_CONFIG } from "./types.ts";
+
+export {
+  computeJaccardMatrix,
+  computeBigramMatrix,
+  computeTransitionFeatures,
+  computeCapFingerprint,
+} from "./structural-bias.ts";

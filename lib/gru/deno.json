@@ -1,14 +1,21 @@
 {
   "name": "@pml/gru",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "exports": "./src/mod.ts",
   "imports": {
     "@tensorflow/tfjs": "npm:@tensorflow/tfjs@4.22.0",
-    "@tensorflow/tfjs-backend-wasm": "npm:@tensorflow/tfjs-backend-wasm@4.22.0"
+    "@tensorflow/tfjs-backend-wasm": "npm:@tensorflow/tfjs-backend-wasm@4.22.0",
+    "@tensorflow/tfjs-node": "npm:@tensorflow/tfjs-node@4.22.0",
+    "dotenv/config": "npm:dotenv@16.4.7/config",
+    "postgres": "npm:postgres@3.4.5"
   },
   "tasks": {
     "test": "deno test --allow-read --allow-env src/",
-    "check": "deno check src/mod.ts"
+    "check": "deno check src/mod.ts",
+    "bench:run": "deno run --allow-all src/benchmark-e2e.ts",
+    "bench:deno": "deno run --allow-all src/benchmark-node.ts",
+    "bench:node": "node --loader ts-node/esm src/benchmark-node.ts",
+    "train": "deno run --allow-all src/test-training.ts"
   },
   "compilerOptions": {
     "strict": true,

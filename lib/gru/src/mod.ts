@@ -1,34 +1,37 @@
 /**
- * GRU TransitionModel Package
+ * GRU Compact Informed GRU Package
  *
  * GRU-based model for predicting tool sequences and detecting goal termination.
  * Works alongside SHGAT (which handles relevance scoring) to build complete
- * workflow paths.
+ * workflow paths. Incorporates structural signals (Jaccard similarity, bigram
+ * transitions, capability fingerprints) for informed predictions.
  *
  * ## Architecture
  *
- * - **SHGAT**: Scores tool relevance for an intent → returns first tool
- * - **GRU TransitionModel**: Predicts next tools step-by-step → builds complete path
+ * - **SHGAT**: Scores tool relevance for an intent -> returns first tool
+ * - **CompactInformedGRU**: Predicts next tools step-by-step -> builds complete path
  *
  * ## Usage
  *
  * ```typescript
- * import { TransitionModel, initTensorFlow } from "@pml/gru";
+ * import { CompactInformedGRU, initTensorFlow, computeJaccardMatrix, computeBigramMatrix } from "@pml/gru";
  *
  * // Initialize TF.js
- * await initTensorFlow("wasm");
+ * await initTensorFlow();
  *
  * // Create model
- * const model = new TransitionModel({
- *   embeddingDim: 1024,
- *   hiddenDim: 256,
- * });
+ * const model = new CompactInformedGRU({ embeddingDim: 1024 });
  *
- * // Set tool vocabulary (from SHGAT or embedding store)
- * model.setToolVocabulary(toolEmbeddings);
+ * // Set tool vocabulary and capability map
+ * model.setToolVocabulary(toolEmbeddings, toolCapMap);
+ *
+ * // Set structural bias
+ * const jaccard = computeJaccardMatrix(toolCapMap);
+ * const bigram = computeBigramMatrix(traces, model.getToolToIndex(), numTools);
+ * model.setStructuralBias({ jaccardMatrix: jaccard, bigramMatrix: bigram, numTools });
  *
  * // Build path from first tool
- * const path = await model.buildPath(intentEmbedding, firstToolId);
+ * const path = model.buildPath(intentEmbedding, firstToolId);
  * ```
  *
  * @module gru
@@ -46,17 +49,27 @@ export {
   dispose,
 } from "./tf/mod.ts";
 
-// TransitionModel
+// CompactInformedGRU
 export {
-  TransitionModel,
-  DEFAULT_TRANSITION_CONFIG,
+  CompactInformedGRU,
+  DEFAULT_CONFIG,
 } from "./transition/mod.ts";
 
 export type {
-  TransitionModelConfig,
-  TransitionPrediction,
+  CompactGRUConfig,
   TransitionExample,
-  TransitionMetrics,
-  TransitionBatch,
-  TransitionModelWeights,
+  TrainingMetrics,
+  PredictionResult,
+  RankedPrediction,
+  StructuralBias,
+  ToolCapabilityMap,
+  SerializedModel,
+} from "./transition/mod.ts";
+
+// Structural bias utilities
+export {
+  computeJaccardMatrix,
+  computeBigramMatrix,
+  computeTransitionFeatures,
+  computeCapFingerprint,
 } from "./transition/mod.ts";
