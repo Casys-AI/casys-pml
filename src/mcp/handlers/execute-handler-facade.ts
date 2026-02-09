@@ -39,6 +39,13 @@ export interface ExecuteRequest {
     approved: boolean;
     checkpoint_id?: string;
   };
+  /** Accept and execute a suggestion from a previous Suggestion mode response */
+  accept_suggestion?: {
+    /** Call name from suggestedDag (e.g., 'std:cap_list', 'cap:listByNamespace') */
+    callName: string;
+    /** Arguments for execution, matching the inputSchema from the suggestion */
+    args?: Record<string, unknown>;
+  };
   /** Execution options */
   options?: {
     timeout?: number;
@@ -87,11 +94,16 @@ export class ExecuteHandlerFacade {
       hasCode: !!request.code,
       hasIntent: !!request.intent,
       hasContinuation: !!request.continue_workflow,
+      hasAcceptSuggestion: !!request.accept_suggestion,
     });
 
     // Route to appropriate use case
     if (request.continue_workflow) {
       return await this.handleContinuation(request);
+    }
+
+    if (request.accept_suggestion) {
+      return await this.handleAcceptSuggestion(request);
     }
 
     // Check if code was explicitly provided (even if empty string)
@@ -299,6 +311,61 @@ export class ExecuteHandlerFacade {
       mode: "direct",
       executionTimeMs: result.data.executionTimeMs,
     };
+  }
+
+  /**
+   * Handle accept_suggestion: convert callName to code and delegate to handleDirect().
+   *
+   * callName format: "namespace:action" (e.g., "std:cap_list", "cap:listByNamespace")
+   * Generated code: `return await mcp.{namespace}.{action}({args})`
+   */
+  private async handleAcceptSuggestion(request: ExecuteRequest): Promise<ExecuteResponse> {
+    if (!this.deps.executeDirectUC) {
+      return this.notConfiguredError("ExecuteDirectUseCase not configured (needed for accept_suggestion)");
+    }
+
+    const { callName, args } = request.accept_suggestion!;
+
+    // Parse callName → namespace + action
+    const colonIdx = callName.indexOf(":");
+    if (colonIdx === -1) {
+      return {
+        status: "success",
+        result: null,
+        mode: "accept_suggestion",
+        executionTimeMs: 0,
+        error_code: "INVALID_CALL_NAME",
+        error: `Invalid callName format: "${callName}". Expected "namespace:action" (e.g., "std:cap_list")`,
+      };
+    }
+
+    const namespace = callName.slice(0, colonIdx);
+    const action = callName.slice(colonIdx + 1);
+
+    // Generate code from callName + args (always pass {} minimum — tools require an object)
+    const argsStr = args && Object.keys(args).length > 0
+      ? JSON.stringify(args)
+      : "{}";
+    const code = `return await mcp.${namespace}.${action}(${argsStr})`;
+
+    log.info("[ExecuteHandlerFacade] accept_suggestion → generated code", {
+      callName,
+      code,
+    });
+
+    // Delegate to handleDirect with generated code
+    const response = await this.handleDirect({
+      ...request,
+      code,
+      intent: request.intent || `accept suggestion: ${callName}`,
+    });
+
+    // Override mode to "accept_suggestion" for traceability
+    if (response.mode === "direct") {
+      response.mode = "accept_suggestion";
+    }
+
+    return response;
   }
 
   // ==========================================================================

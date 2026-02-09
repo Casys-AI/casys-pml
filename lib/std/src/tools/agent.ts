@@ -1023,4 +1023,80 @@ Respond with JSON: { "result": ..., "reasoning": "..." }`;
       return tryParseJSON(extractText(response.content));
     },
   },
+
+  // -------------------------------------------------------------------------
+  // agent_help - Conversational assistant backed by MCP Sampling
+  // -------------------------------------------------------------------------
+  {
+    name: "agent_help",
+    description:
+      "Conversational assistant backed by MCP Sampling with pml_execute tool access. " +
+      "Takes a user message (with optional history and context), calls sampling, returns a response. " +
+      "Keywords: agent, help, chat, conversation, dialogue, assistant, talk, discuss, question, support, sampling, multi-turn.",
+    category: "agent" as any,
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-std/agent-chat",
+      },
+    },
+    inputSchema: {
+      type: "object",
+      properties: {
+        message: {
+          type: "string",
+          description: "User message to respond to",
+        },
+        context: {
+          type: "string",
+          description: "Initial context or topic for the conversation",
+        },
+        history: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              role: {
+                type: "string",
+                description: "Message role: 'user' or 'assistant'",
+              },
+              content: {
+                type: "string",
+                description: "Message content",
+              },
+            },
+          },
+          description: "Conversation history array of {role, content} objects",
+        },
+      },
+      required: ["message"],
+    },
+    handler: async ({ message, context, history }) => {
+      const client = getSamplingClient();
+
+      const systemPrompt =
+        `Tu es un assistant conversationnel dans le playground PML.\n` +
+        `${context ? `Contexte: ${context}\n` : ""}` +
+        `Tu aides l'utilisateur de manière claire et structurée. Réponds en français.\n` +
+        `Tu as accès à pml_execute pour découvrir et appeler des outils MCP si nécessaire ` +
+        `(lire des fichiers, requêter des données, etc.).\n` +
+        `Utilise les outils uniquement quand c'est pertinent pour répondre à la question.`;
+
+      const messages: Array<{ role: "user" | "assistant"; content: string }> = [
+        { role: "user", content: systemPrompt },
+        ...((history as Array<{ role: "user" | "assistant"; content: string }>) || []),
+        { role: "user", content: message as string },
+      ];
+
+      const response = await client.createMessage({
+        messages,
+        toolChoice: "auto",
+        maxTokens: 2048,
+        maxIterations: 3,
+      });
+
+      return {
+        message: extractText(response.content),
+      };
+    },
+  },
 ];
