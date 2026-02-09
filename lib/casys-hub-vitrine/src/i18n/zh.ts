@@ -14,6 +14,7 @@ export const zh: Translations = {
     whyCasys: '为什么选择 Casys',
     consulting: '咨询服务',
     blog: 'Blog',
+    about: '关于我们',
     contact: '联系我们',
   },
   footer: {

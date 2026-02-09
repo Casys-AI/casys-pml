@@ -14,6 +14,7 @@ export const fr: Translations = {
     whyCasys: 'Pourquoi Casys',
     consulting: 'Consulting',
     blog: 'Blog',
+    about: 'À propos',
     contact: 'Contact',
   },
   footer: {

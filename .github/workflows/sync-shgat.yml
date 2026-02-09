@@ -1,13 +1,13 @@
-# Sync MCP Server framework to public repository
-# Syncs lib/server/ folder to @casys/mcp-server package
+# Sync SHGAT to public repository
+# Syncs lib/shgat-tf/ folder to @casys/shgat package
 
-name: Sync MCP Server
+name: Sync SHGAT
 
 on:
   push:
     branches: [main]
     paths:
-      - "lib/server/**"
+      - "lib/shgat-tf/**"
 
   # Allow manual trigger
   workflow_dispatch:
@@ -26,35 +26,31 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
 
-      - name: Clone mcp-server repo
+      - name: Clone shgat repo
         run: |
-          git clone https://x-access-token:${{ secrets.PUBLIC_REPO_PAT }}@github.com/Casys-AI/mcp-server.git mcp-server-repo
-          cd mcp-server-repo
+          git clone https://x-access-token:${{ secrets.PUBLIC_REPO_PAT }}@github.com/Casys-AI/shgat.git shgat-repo
+          cd shgat-repo
           git checkout main || git checkout -b main
 
-      - name: Sync lib/server/ folder
+      - name: Sync lib/shgat-tf/ folder
         run: |
           # Remove existing files (except .git)
-          find mcp-server-repo -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          find shgat-repo -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 
-          # Copy lib/server/ contents to root of public repo
-          cp -r lib/server/* mcp-server-repo/
+          # Copy lib/shgat-tf/ contents to root of public repo
+          cp -r lib/shgat-tf/* shgat-repo/
 
           # Copy .github workflows (hidden files not included in *)
-          if [ -d "lib/server/.github" ]; then
-            cp -r lib/server/.github mcp-server-repo/
+          if [ -d "lib/shgat-tf/.github" ]; then
+            cp -r lib/shgat-tf/.github shgat-repo/
           fi
 
-          # Add LICENSE (use lib/server/LICENSE if it exists, otherwise root LICENSE)
-          if [ -f "lib/server/LICENSE" ]; then
-            cp lib/server/LICENSE mcp-server-repo/LICENSE
-          else
-            cp LICENSE mcp-server-repo/LICENSE
-          fi
+          # Add LICENSE
+          cp LICENSE shgat-repo/LICENSE
 
       - name: Commit and push
         run: |
-          cd mcp-server-repo
+          cd shgat-repo
           git add -A
 
           # Check if there are changes to commit
@@ -71,7 +67,7 @@ jobs:
 
       - name: Create version tag if needed
         run: |
-          cd mcp-server-repo
+          cd shgat-repo
 
           # Get version from deno.json
           VERSION=$(grep '"version"' deno.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
@@ -87,5 +83,5 @@ jobs:
             echo "Creating tag $TAG"
             git tag "$TAG"
             git push origin "$TAG"
-            echo "Tag $TAG created and pushed - this will trigger the release workflow"
+            echo "Tag $TAG created and pushed - this will trigger the publish workflow"
           fi

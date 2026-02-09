@@ -43,8 +43,12 @@ jobs:
           # Copy .github workflows (for JSR publish)
           cp -r lib/std/.github mcp-std-repo/
 
-          # Add LICENSE
-          cp LICENSE mcp-std-repo/LICENSE
+          # Add LICENSE (use lib/std/LICENSE if it exists, otherwise root LICENSE)
+          if [ -f "lib/std/LICENSE" ]; then
+            cp lib/std/LICENSE mcp-std-repo/LICENSE
+          else
+            cp LICENSE mcp-std-repo/LICENSE
+          fi
 
       - name: Commit and push
         run: |

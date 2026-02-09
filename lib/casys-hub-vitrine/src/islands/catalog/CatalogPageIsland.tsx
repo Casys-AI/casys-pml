@@ -496,7 +496,12 @@ export default function CatalogPageIsland({
   void _isCloudMode;
 
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("category");
+    }
+    return null;
+  });
   const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
 
   // Build UI components

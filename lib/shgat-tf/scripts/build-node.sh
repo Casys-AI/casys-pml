@@ -45,7 +45,7 @@ find "$DIST_DIR" -name "*.ts" -exec sed -i 's/from "\(\.\.[^"]*\)\.ts"/from "\1.
 # Generate package.json
 cat > "$DIST_DIR/package.json" <<'PKGJSON'
 {
-  "name": "@pml/shgat-tf",
+  "name": "@casys/shgat",
   "version": "0.1.0",
   "description": "SuperHyperGraph Attention Networks with TensorFlow.js",
   "type": "module",

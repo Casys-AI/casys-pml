@@ -4,22 +4,22 @@ const locale = (Astro as any).currentLocale ?? 'en';
 const t = useTranslations(locale).mcpStdCategories;
 
 const categories = [
-  { emoji: '\u{1F433}', name: 'Docker', count: 20 },
-  { emoji: '\u{1F4E6}', name: 'Git', count: 9 },
-  { emoji: '\u{1F418}', name: 'Database', count: 31 },
-  { emoji: '\u{1F310}', name: 'Network', count: 30 },
-  { emoji: '\u{1F4DD}', name: 'Text & Format', count: 80 },
-  { emoji: '\u{1F4DA}', name: 'Collections', count: 20 },
-  { emoji: '\u{1F512}', name: 'Crypto', count: 21 },
-  { emoji: '\u{2211}',  name: 'Math', count: 19 },
-  { emoji: '\u{1F916}', name: 'AI Agents', count: 9 },
-  { emoji: '\u{1F3B2}', name: 'Mock Data', count: 27 },
-  { emoji: '\u{1F3A8}', name: 'Colors', count: 21 },
-  { emoji: '\u{1F4C5}', name: 'Date & Time', count: 9 },
-  { emoji: '\u{2713}',  name: 'Validation', count: 18 },
-  { emoji: '\u{1F523}', name: 'Encoding', count: 11 },
-  { emoji: '\u{1F4F1}', name: 'QR & Barcodes', count: 10 },
-  { emoji: '\u{1F6E1}', name: 'Resilience', count: 8 },
+  { emoji: '\u{1F433}', name: 'Docker', catalogId: 'docker', count: 20 },
+  { emoji: '\u{1F4E6}', name: 'Git', catalogId: 'git', count: 9 },
+  { emoji: '\u{1F418}', name: 'Database', catalogId: 'database', count: 31 },
+  { emoji: '\u{1F310}', name: 'Network', catalogId: 'network', count: 30 },
+  { emoji: '\u{1F4DD}', name: 'Text & Format', catalogId: 'text', count: 80 },
+  { emoji: '\u{1F4DA}', name: 'Collections', catalogId: 'array', count: 20 },
+  { emoji: '\u{1F512}', name: 'Crypto', catalogId: 'utils', count: 21 },
+  { emoji: '\u{2211}',  name: 'Math', catalogId: 'utils', count: 19 },
+  { emoji: '\u{1F916}', name: 'AI Agents', catalogId: 'agent', count: 9 },
+  { emoji: '\u{1F3B2}', name: 'Mock Data', catalogId: 'faker', count: 27 },
+  { emoji: '\u{1F3A8}', name: 'Colors', catalogId: 'color', count: 21 },
+  { emoji: '\u{1F4C5}', name: 'Date & Time', catalogId: 'utils', count: 9 },
+  { emoji: '\u{2713}',  name: 'Validation', catalogId: 'utils', count: 18 },
+  { emoji: '\u{1F523}', name: 'Encoding', catalogId: 'encode', count: 11 },
+  { emoji: '\u{1F4F1}', name: 'QR & Barcodes', catalogId: 'barcode', count: 10 },
+  { emoji: '\u{1F6E1}', name: 'Resilience', catalogId: 'resilience', count: 8 },
 ];
 
 const catalogPath = locale === 'en' ? '/mcp-std/catalog' : `/${locale}/mcp-std/catalog`;
@@ -33,11 +33,11 @@ const catalogPath = locale === 'en' ? '/mcp-std/catalog' : `/${locale}/mcp-std/c
     </div>
     <div class="categories-grid">
       {categories.map((cat) => (
-        <div class="category-card">
+        <a href={`${catalogPath}?category=${cat.catalogId}`} class="category-card">
           <span class="category-emoji" aria-hidden="true">{cat.emoji}</span>
           <span class="category-name">{cat.name}</span>
           <span class="category-count">{cat.count} tools</span>
-        </div>
+        </a>
       ))}
     </div>
     <div class="categories-cta">
@@ -102,6 +102,7 @@ const catalogPath = locale === 'en' ? '/mcp-std/catalog' : `/${locale}/mcp-std/c
     padding: 20px 12px;
     background: var(--md-sys-color-surface-container-lowest);
     text-align: center;
+    text-decoration: none;
     transition: background 150ms ease-out;
   }
 

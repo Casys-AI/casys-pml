@@ -12,6 +12,7 @@ export const en = {
     whyCasys: 'Why Casys',
     consulting: 'Consulting',
     blog: 'Blog',
+    about: 'About',
     contact: 'Contact',
   },
   footer: {

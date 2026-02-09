@@ -70,6 +70,7 @@ const projects = [
         <a href="#why-casys" class="nav-link">{t.whyCasys}</a>
         <a href="#work-with-us" class="nav-link">{t.consulting}</a>
         <a href={blogHref} class="nav-link">{t.blog}</a>
+        <a href={locale === 'en' ? '/about' : `/${locale}/about`} class="nav-link">{t.about}</a>
         <a href="#contact" class="nav-link">{t.contact}</a>
       </div>
       <div class="nav-icons">
@@ -120,6 +121,7 @@ const projects = [
     <a href="#why-casys" class="nav-link">{t.whyCasys}</a>
     <a href="#work-with-us" class="nav-link">{t.consulting}</a>
     <a href={blogHref} class="nav-link">{t.blog}</a>
+    <a href={locale === 'en' ? '/about' : `/${locale}/about`} class="nav-link">{t.about}</a>
     <a href="#contact" class="nav-link">{t.contact}</a>
     <div class="mobile-social">
       <a href="https://discord.gg/fuPg8drR" target="_blank" rel="noopener" class="mobile-social-link">

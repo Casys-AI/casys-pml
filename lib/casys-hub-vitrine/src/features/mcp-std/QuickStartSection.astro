@@ -3,11 +3,16 @@ import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
 const t = useTranslations(locale).mcpStdQuickStart;
 
-const codeServer = `<span class="c-keyword">import</span> { serve } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-std/server"</span>;
-
-<span class="c-comment">// Start with all 508 tools</span>
-<span class="c-keyword">await</span> <span class="c-fn">serve</span>();
-<span class="c-comment">// That's it. STDIO + HTTP on :3000</span>`;
+const codeServer = `<span class="c-comment">// .mcp.json — add to Claude Desktop, Cursor, etc.</span>
+{
+  <span class="c-string">"mcpServers"</span>: {
+    <span class="c-string">"std"</span>: {
+      <span class="c-string">"command"</span>: <span class="c-string">"deno"</span>,
+      <span class="c-string">"args"</span>: [<span class="c-string">"run"</span>, <span class="c-string">"-A"</span>, <span class="c-string">"jsr:@casys/mcp-std/server"</span>]
+    }
+  }
+}
+<span class="c-comment">// 508 tools ready via STDIO</span>`;
 
 const codeLibrary = `<span class="c-keyword">import</span> { getToolByName } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-std"</span>;
 
@@ -15,15 +20,21 @@ const codeLibrary = `<span class="c-keyword">import</span> { getToolByName } <sp
 <span class="c-keyword">const</span> result = <span class="c-keyword">await</span> tool.<span class="c-fn">handler</span>({ path: <span class="c-string">"."</span> });
 console.<span class="c-fn">log</span>(result);`;
 
-const codeCategory = `<span class="c-keyword">import</span> { getToolsByCategory } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-std"</span>;
+const codeCategory = `<span class="c-comment">// Load only specific categories via CLI flag</span>
+<span class="c-comment">// .mcp.json</span>
+{
+  <span class="c-string">"mcpServers"</span>: {
+    <span class="c-string">"std"</span>: {
+      <span class="c-string">"command"</span>: <span class="c-string">"deno"</span>,
+      <span class="c-string">"args"</span>: [<span class="c-string">"run"</span>, <span class="c-string">"-A"</span>, <span class="c-string">"jsr:@casys/mcp-std/server"</span>,
+             <span class="c-string">"--categories=database,git,text"</span>]
+    }
+  }
+}
 
-<span class="c-comment">// Load only what you need — not all 508 tools</span>
-<span class="c-keyword">const</span> dbTools = <span class="c-fn">getToolsByCategory</span>(<span class="c-string">"database"</span>);   <span class="c-comment">// 18 tools</span>
-<span class="c-keyword">const</span> gitTools = <span class="c-fn">getToolsByCategory</span>(<span class="c-string">"git"</span>);        <span class="c-comment">// 15 tools</span>
-
-<span class="c-comment">// Or filter categories on the MCP server</span>
-<span class="c-keyword">import</span> { serve } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-std/server"</span>;
-<span class="c-keyword">await</span> <span class="c-fn">serve</span>({ categories: [<span class="c-string">"database"</span>, <span class="c-string">"git"</span>, <span class="c-string">"text"</span>] });`;
+<span class="c-comment">// Or use as a library</span>
+<span class="c-keyword">import</span> { getToolsByCategory } <span class="c-keyword">from</span> <span class="c-string">"@casys/mcp-std"</span>;
+<span class="c-keyword">const</span> dbTools = <span class="c-fn">getToolsByCategory</span>(<span class="c-string">"database"</span>);`;
 ---
 
 <section id="quickstart">
@@ -51,7 +62,7 @@ const codeCategory = `<span class="c-keyword">import</span> { getToolsByCategory
         <div class="tab-panel active" role="tabpanel" id="std-tab-panel-server" aria-labelledby="std-tab-server" data-tab="server">
           <div class="code-block-wrapper">
             <pre class="code-block"><code set:html={codeServer} /></pre>
-            <button class="copy-btn" aria-label="Copy server code" data-copy={`import { serve } from "@casys/mcp-std/server";\n\n// Start with all 508 tools\nawait serve();\n// That's it. STDIO + HTTP on :3000`}>
+            <button class="copy-btn" aria-label="Copy server code" data-copy={`{\n  "mcpServers": {\n    "std": {\n      "command": "deno",\n      "args": ["run", "-A", "jsr:@casys/mcp-std/server"]\n    }\n  }\n}`}>
               <span class="material-symbols-rounded">content_copy</span>
             </button>
           </div>
@@ -67,7 +78,7 @@ const codeCategory = `<span class="c-keyword">import</span> { getToolsByCategory
         <div class="tab-panel" role="tabpanel" id="std-tab-panel-category" aria-labelledby="std-tab-category" data-tab="category" hidden>
           <div class="code-block-wrapper">
             <pre class="code-block"><code set:html={codeCategory} /></pre>
-            <button class="copy-btn" aria-label="Copy category code" data-copy={`import { getToolsByCategory } from "@casys/mcp-std";\n\n// Load only what you need — not all 508 tools\nconst dbTools = getToolsByCategory("database");   // 18 tools\nconst gitTools = getToolsByCategory("git");        // 15 tools\n\n// Or filter categories on the MCP server\nimport { serve } from "@casys/mcp-std/server";\nawait serve({ categories: ["database", "git", "text"] });`}>
+            <button class="copy-btn" aria-label="Copy category code" data-copy={`{\n  "mcpServers": {\n    "std": {\n      "command": "deno",\n      "args": ["run", "-A", "jsr:@casys/mcp-std/server",\n             "--categories=database,git,text"]\n    }\n  }\n}`}>
               <span class="material-symbols-rounded">content_copy</span>
             </button>
           </div>

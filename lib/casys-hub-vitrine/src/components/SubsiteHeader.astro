@@ -26,8 +26,9 @@ const idPrefix = 'sh';
 <header class="sh-header">
   <div class="sh-header-container">
     <div class="sh-brand">
-      <a href="https://casys.ai" class="sh-home-link" title="Casys AI">
-        <span class="sh-home-icon">&#9670;</span>
+      <a href="https://casys.ai" class="sh-home-link" title="Casys">
+        <img src="/icons/logo.svg" alt="Casys" class="sh-home-logo" />
+        <span class="sh-home-label">Casys</span>
       </a>
       <span class="sh-sep" aria-hidden="true">/</span>
       <a href={heroAnchor} class="sh-logo">
@@ -136,15 +137,25 @@ const idPrefix = 'sh';
   .sh-home-link {
     display: flex;
     align-items: center;
+    gap: 6px;
     text-decoration: none;
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--md-sys-color-primary);
-    transition: color 150ms ease-out;
+    transition: opacity 150ms ease-out;
   }
 
   .sh-home-link:hover { opacity: 0.8; }
+
+  .sh-home-logo {
+    width: 22px;
+    height: 22px;
+  }
+
+  .sh-home-label {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.01em;
+  }
 
   .sh-sep {
     color: var(--md-sys-color-outline-variant);
@@ -396,7 +407,7 @@ const idPrefix = 'sh';
     border-bottom-color: rgba(255, 184, 111, 0.08);
   }
 
-  html[data-theme="dark"] .sh-home-link { color: #FFB86F; }
+  html[data-theme="dark"] .sh-home-label { color: #f5f0ea; }
   html[data-theme="dark"] .sh-sep { color: rgba(255, 184, 111, 0.3); }
 
   html[data-theme="dark"] .sh-logo-pkg { color: #a89a8c; }
