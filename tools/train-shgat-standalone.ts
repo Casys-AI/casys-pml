@@ -533,6 +533,7 @@ try {
       usePER: true,
       useCurriculum: true,
       learningRate: 0.05,
+      useProjectionHead: Deno.env.get("SHGAT_USE_PROJECTION_HEAD") === "true",
     },
     databaseUrl: DATABASE_URL,
     additionalTools,

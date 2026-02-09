@@ -243,6 +243,18 @@ export interface SHGATConfig {
    */
   aggregationActivation?: "elu" | "none";
 
+  // === Projection Head (contrastive discrimination) ===
+  /** Enable learned projection head for fine-grained tool discrimination. @default false */
+  useProjectionHead?: boolean;
+  /** Projection head hidden dimension. @default 256 */
+  projectionHiddenDim?: number;
+  /** Projection head output dimension. @default 256 */
+  projectionOutputDim?: number;
+  /** Blend weight: final = (1-α)*khead + α*projection. @default 0.5 */
+  projectionBlendAlpha?: number;
+  /** Temperature for projection scoring. @default 0.07 */
+  projectionTemperature?: number;
+
   // === Legacy (kept for backward compatibility) ===
   /** @deprecated Which heads are active - all heads active in v2 */
   activeHeads?: number[];

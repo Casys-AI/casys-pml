@@ -38,6 +38,8 @@ interface SpawnTrainingInput {
   useCurriculum?: boolean;
   /** Learning rate (default: 0.05) */
   learningRate?: number;
+  /** Enable projection head for contrastive discrimination (default: false, env: SHGAT_USE_PROJECTION_HEAD) */
+  useProjectionHead?: boolean;
 }
 
 interface SpawnTrainingResult {
@@ -82,6 +84,7 @@ export async function spawnSHGATTraining(
       usePER: input.usePER ?? true,
       useCurriculum: input.useCurriculum ?? true,
       learningRate: input.learningRate ?? 0.05,
+      useProjectionHead: input.useProjectionHead ?? (Deno.env.get("SHGAT_USE_PROJECTION_HEAD") === "true"),
     },
     existingParams: input.existingParams,
     databaseUrl,

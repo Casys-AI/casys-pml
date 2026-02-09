@@ -24,6 +24,7 @@
  */
 
 import { createSHGATFromCapabilities, generateDefaultToolEmbedding, type TrainingExample } from "../shgat.ts";
+import type { SHGATConfig } from "./types.ts";
 import { NUM_NEGATIVES } from "./types.ts";
 import { initBlasAcceleration } from "./utils/math.ts";
 import { PERBuffer, annealBeta, annealTemperature } from "./training/per-buffer.ts";
@@ -68,6 +69,7 @@ interface WorkerInput {
     usePER?: boolean;        // Use PER sampling (default: true)
     useCurriculum?: boolean; // Use curriculum learning (default: true)
     learningRate?: number;   // Learning rate (default: 0.05)
+    useProjectionHead?: boolean; // Enable projection head (default: false)
   };
   /** Optional: import existing params before training (for live updates) */
   existingParams?: Record<string, unknown>;
@@ -210,7 +212,15 @@ async function main() {
     // Create SHGAT from capabilities
     logDebug(`[SHGAT Worker] Creating SHGAT graph...`);
     const startCreate = Date.now();
-    const shgat = createSHGATFromCapabilities(input.capabilities);
+    const shgatPartialConfig: Partial<SHGATConfig> = {};
+    if (input.config.useProjectionHead) {
+      shgatPartialConfig.useProjectionHead = true;
+      shgatPartialConfig.projectionHiddenDim = 256;
+      shgatPartialConfig.projectionOutputDim = 256;
+      shgatPartialConfig.projectionBlendAlpha = 0.5;
+      shgatPartialConfig.projectionTemperature = 0.07;
+    }
+    const shgat = createSHGATFromCapabilities(input.capabilities, shgatPartialConfig);
     logDebug(`[SHGAT Worker] SHGAT created in ${Date.now() - startCreate}ms`);
 
     // Register additional tools from examples (not in any capability's toolsUsed)
@@ -243,13 +253,14 @@ async function main() {
       usePER = true,
       useCurriculum = true,
       learningRate = 0.05,
+      useProjectionHead = false,
     } = input.config;
 
     const mode = usePER ? "PER" : "uniform";
     logInfo(
       `[SHGAT Worker] Starting ${mode} training: ${input.examples.length} examples, ${epochs} epochs, ` +
       `batch_size=${batchSize}, ${input.capabilities.length} caps, ` +
-      `τ=${fixedTemperature ?? "anneal"}, curriculum=${useCurriculum}, lr=${learningRate}`
+      `τ=${fixedTemperature ?? "anneal"}, curriculum=${useCurriculum}, lr=${learningRate}, projHead=${useProjectionHead}`
     );
 
     // Apply custom learning rate
