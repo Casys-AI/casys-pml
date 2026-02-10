@@ -12,7 +12,7 @@
 
 import "dotenv/config";
 import postgres from "postgres";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, createWriteStream, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { N8nScrapedWorkflow } from "./types.ts";
@@ -26,7 +26,9 @@ const __dirname = dirname(__filename);
 const DATA_DIR = resolve(__dirname, "../../data");
 const WORKFLOWS_PATH = resolve(DATA_DIR, "n8n-workflows.json");
 const EMBEDDINGS_PATH = resolve(DATA_DIR, "n8n-node-embeddings.json");
+const WF_EMBEDDINGS_PATH = resolve(DATA_DIR, "n8n-workflow-description-embeddings.json");
 const OUTPUT_PATH = resolve(DATA_DIR, "n8n-training-examples.json");
+const SHGAT_PAIRS_PATH = resolve(DATA_DIR, "n8n-shgat-contrastive-pairs.json");
 
 // ---------------------------------------------------------------------------
 // Types
@@ -123,6 +125,18 @@ async function main() {
   const workflows: N8nScrapedWorkflow[] = JSON.parse(readFileSync(WORKFLOWS_PATH, "utf-8"));
   const n8nEmbeddings: Record<string, number[]> = JSON.parse(readFileSync(EMBEDDINGS_PATH, "utf-8"));
   console.log(`[targets] Loaded ${workflows.length} workflows, ${Object.keys(n8nEmbeddings).length} n8n embeddings`);
+
+  // Load workflow description embeddings (optional — graceful warning if missing)
+  let wfDescEmbeddings: Record<string, number[]> = {};
+  if (existsSync(WF_EMBEDDINGS_PATH)) {
+    wfDescEmbeddings = JSON.parse(readFileSync(WF_EMBEDDINGS_PATH, "utf-8"));
+    console.log(`[targets] Loaded ${Object.keys(wfDescEmbeddings).length} workflow description embeddings`);
+  } else {
+    console.warn(
+      `[targets] WARNING: ${WF_EMBEDDINGS_PATH} not found — ` +
+      "using node embedding as intent fallback. Run 'npm run n8n:embed' to generate workflow description embeddings.",
+    );
+  }
 
   // Load MCP tool embeddings from database
   const DATABASE_URL = process.env.DATABASE_URL;
@@ -226,11 +240,15 @@ async function main() {
   }
 
   // Convert workflows to TransitionExamples
-  console.log("\n[targets] Converting workflows to training examples...");
+  const MAX_WF = parseInt(process.env.MAX_WF || "0", 10);
+  const wfSlice = MAX_WF > 0 ? workflows.slice(0, MAX_WF) : workflows;
+  console.log(`\n[targets] Converting ${wfSlice.length}/${workflows.length} workflows to training examples...`);
   const examples: SoftTargetExample[] = [];
   let skippedNoEmb = 0;
+  let usedDescEmb = 0;
+  let usedNodeFallback = 0;
 
-  for (const wf of workflows) {
+  for (const wf of wfSlice) {
     // Build ordered node sequence from edges, excluding non-MCP nodes
     const rawSequence = buildNodeSequence(wf);
     const nodeSequence = rawSequence.filter((key) =>
@@ -238,16 +256,31 @@ async function main() {
     );
     if (nodeSequence.length < 2) continue;
 
-    // Intent embedding = 2nd node in sequence (1st is often a generic entry point;
-    // the 2nd node better represents the workflow's actual intent).
-    // Fallback to 1st if only 2 nodes or 2nd has no embedding.
-    const intentKey = nodeSequence.length > 2
-      ? (n8nEmbeddings[nodeSequence[1]] ? nodeSequence[1] : nodeSequence[0])
-      : nodeSequence[0];
-    const intentEmb = n8nEmbeddings[intentKey];
-    if (!intentEmb) {
-      skippedNoEmb++;
-      continue;
+    // Intent embedding: prefer workflow description embedding (captures "what user wants to do")
+    // over node embedding (captures "which tool is used").
+    const wfDescEmb = wfDescEmbeddings[String(wf.id)];
+    let intentEmb: number[];
+    if (wfDescEmb) {
+      intentEmb = wfDescEmb;
+      usedDescEmb++;
+    } else {
+      // Fallback: 2nd node embedding (1st is often a generic entry point)
+      const intentKey = nodeSequence.length > 2
+        ? (n8nEmbeddings[nodeSequence[1]] ? nodeSequence[1] : nodeSequence[0])
+        : nodeSequence[0];
+      const nodeEmb = n8nEmbeddings[intentKey];
+      if (!nodeEmb) {
+        skippedNoEmb++;
+        continue;
+      }
+      intentEmb = nodeEmb;
+      usedNodeFallback++;
+      if (wf.description) {
+        // Has description but no embedding — embed script may need re-running
+        console.warn(
+          `[targets] WARNING: workflow ${wf.id} ("${wf.name}") has description but no description embedding — using node embedding as intent`,
+        );
+      }
     }
 
     // Generate step-by-step examples
@@ -277,6 +310,7 @@ async function main() {
   }
 
   console.log(`[targets] Generated ${examples.length} training examples`);
+  console.log(`[targets] Intent source: ${usedDescEmb} workflow description, ${usedNodeFallback} node fallback`);
   console.log(`[targets] Skipped (no embedding): ${skippedNoEmb}`);
 
   // Stats
@@ -287,10 +321,125 @@ async function main() {
   const avgTopSim = Array.from(softTargetCache.values()).reduce((s, v) => s + v.topSim, 0) / softTargetCache.size;
   console.log(`[targets] Average top-1 cosine similarity: ${avgTopSim.toFixed(3)}`);
 
-  // Save
-  writeFileSync(OUTPUT_PATH, JSON.stringify({ mcpToolIds, examples }, null, 0));
-  const fileSizeMB = (Buffer.byteLength(JSON.stringify({ mcpToolIds, examples })) / 1024 / 1024).toFixed(1);
+  // Save — sparse format for softTargetProbs to stay under V8 string limit
+  // Instead of dense [0, 0, 0.5, 0, 0.3, ...] store [[idx, prob], ...]
+  const ws = createWriteStream(OUTPUT_PATH);
+  ws.write(`{"mcpToolIds":${JSON.stringify(mcpToolIds)},"sparse":true,"examples":[\n`);
+  for (let i = 0; i < examples.length; i++) {
+    const ex = examples[i];
+    // Convert dense probs to sparse [[idx, prob], ...]
+    // Keep only top-10 probs to reduce file size (~10 vs ~420 entries)
+    const candidates: [number, number][] = [];
+    for (let j = 0; j < ex.softTargetProbs.length; j++) {
+      if (ex.softTargetProbs[j] > 1e-10) {
+        candidates.push([j, ex.softTargetProbs[j]]);
+      }
+    }
+    candidates.sort((a, b) => b[1] - a[1]);
+    const sparse = candidates.slice(0, 10);
+    // Re-normalize
+    const spTotal = sparse.reduce((s, [, p]) => s + p, 0);
+    if (spTotal > 0) for (const entry of sparse) entry[1] /= spTotal;
+    const sparseEx = {
+      intentEmbedding: ex.intentEmbedding,
+      contextToolIds: ex.contextToolIds,
+      targetToolId: ex.targetToolId,
+      isTerminal: ex.isTerminal,
+      isSingleTool: ex.isSingleTool,
+      sp: sparse,  // sparse probs: [[toolIdx, prob], ...]
+    };
+    const line = JSON.stringify(sparseEx);
+    ws.write(i === 0 ? line : `,\n${line}`);
+  }
+  ws.write("\n]}\n");
+  ws.end();
+  await new Promise<void>((resolve, reject) => {
+    ws.on("finish", resolve);
+    ws.on("error", reject);
+  });
+  const { size: fileSizeBytes } = await import("node:fs").then(fs => fs.statSync(OUTPUT_PATH));
+  const fileSizeMB = (fileSizeBytes / 1024 / 1024).toFixed(1);
+  const avgSparse = examples.reduce((s, e) => s + e.softTargetProbs.filter(p => p > 1e-10).length, 0) / examples.length;
   console.log(`\n[targets] Output: ${OUTPUT_PATH} (${fileSizeMB} MB)`);
+  console.log(`[targets] Format: sparse (avg ${avgSparse.toFixed(1)} non-zero probs per example, vs ${mcpToolIds.length} dense)`);
+
+  // -------------------------------------------------------------------
+  // Phase 2: SHGAT Contrastive Pairs
+  // -------------------------------------------------------------------
+  // For each workflow with a description embedding, generate a contrastive pair:
+  //   intentEmbedding = workflow description embedding (1024D)
+  //   positiveToolIds = unique MCP tools mapped from the workflow's n8n nodes
+  // This augments LiveMCPBench's 282 examples with thousands of n8n pairs.
+  console.log("\n[targets] Phase 2: Generating SHGAT contrastive pairs...");
+
+  interface ShgatContrastivePair {
+    intentEmbedding: number[];
+    positiveToolIds: string[];
+    workflowId: number;
+    workflowName: string;
+  }
+
+  const shgatPairs: ShgatContrastivePair[] = [];
+  let shgatSkippedNoDesc = 0;
+  let shgatSkippedNoTools = 0;
+
+  for (const wf of wfSlice) {
+    // Require workflow description embedding
+    const descEmb = wfDescEmbeddings[String(wf.id)];
+    if (!descEmb) {
+      shgatSkippedNoDesc++;
+      continue;
+    }
+
+    // Collect unique MCP tool IDs from all workflow nodes
+    const positiveToolIds = new Set<string>();
+    for (const node of wf.nodes) {
+      const key = nodeTypeKey(node.type, node.operation);
+      if (isExcludedN8nNode(key)) continue;
+      const cached = softTargetCache.get(key);
+      if (cached) {
+        positiveToolIds.add(cached.topToolId);
+      }
+    }
+
+    if (positiveToolIds.size === 0) {
+      shgatSkippedNoTools++;
+      continue;
+    }
+
+    shgatPairs.push({
+      intentEmbedding: descEmb,
+      positiveToolIds: Array.from(positiveToolIds),
+      workflowId: wf.id,
+      workflowName: wf.name,
+    });
+  }
+
+  // Save SHGAT contrastive pairs
+  const shgatWs = createWriteStream(SHGAT_PAIRS_PATH);
+  shgatWs.write("[\n");
+  for (let i = 0; i < shgatPairs.length; i++) {
+    const line = JSON.stringify(shgatPairs[i]);
+    shgatWs.write(i === 0 ? line : `,\n${line}`);
+  }
+  shgatWs.write("\n]\n");
+  shgatWs.end();
+  await new Promise<void>((res, rej) => {
+    shgatWs.on("finish", res);
+    shgatWs.on("error", rej);
+  });
+
+  const shgatFileSize = (await import("node:fs").then(fs => fs.statSync(SHGAT_PAIRS_PATH))).size;
+  const shgatFileSizeMB = (shgatFileSize / 1024 / 1024).toFixed(1);
+  const avgToolsPerPair = shgatPairs.length > 0
+    ? (shgatPairs.reduce((s, p) => s + p.positiveToolIds.length, 0) / shgatPairs.length).toFixed(1)
+    : "0";
+  const uniqueShgatTools = new Set(shgatPairs.flatMap((p) => p.positiveToolIds)).size;
+
+  console.log(`[targets] SHGAT contrastive pairs: ${shgatPairs.length}`);
+  console.log(`[targets] SHGAT skipped: ${shgatSkippedNoDesc} no description, ${shgatSkippedNoTools} no MCP tools`);
+  console.log(`[targets] SHGAT avg tools/pair: ${avgToolsPerPair}, unique tools: ${uniqueShgatTools}`);
+  console.log(`[targets] SHGAT output: ${SHGAT_PAIRS_PATH} (${shgatFileSizeMB} MB)`);
 }
 
 /**

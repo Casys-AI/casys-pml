@@ -160,7 +160,7 @@ async function fetchWorkflow(id: number): Promise<{
 // ---------------------------------------------------------------------------
 
 function processWorkflow(
-  meta: { id: number; name: string; totalViews: number },
+  meta: { id: number; name: string; totalViews: number; description?: string },
   rawNodes: RawN8nNode[],
   connections: Record<string, Record<string, RawConnectionTarget[][][]>>,
 ): N8nScrapedWorkflow | null {
@@ -221,7 +221,14 @@ function processWorkflow(
 
   if (edges.length === 0) return null;
 
-  return { id: meta.id, name: meta.name, views: meta.totalViews, nodes, edges };
+  return {
+    id: meta.id,
+    name: meta.name,
+    views: meta.totalViews,
+    nodes,
+    edges,
+    ...(meta.description ? { description: meta.description } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -293,7 +300,7 @@ async function main() {
     }
 
     const result = processWorkflow(
-      { id, name: wf.meta.name, totalViews },
+      { id, name: wf.meta.name, totalViews, description: wf.meta.description },
       wf.nodes,
       wf.connections,
     );

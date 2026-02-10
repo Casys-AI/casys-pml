@@ -26,6 +26,8 @@ import { initTensorFlow, logMemory } from "./tf/backend.ts";
 import { CompactInformedGRU } from "./transition/gru-model.ts";
 import { computeJaccardMatrix, computeBigramMatrix } from "./transition/structural-bias.ts";
 import type { TransitionExample, ToolCapabilityMap } from "./transition/types.ts";
+import { buildDAGAwareExamples } from "./training-utils.ts";
+import type { TaskResultWithLayer } from "./training-utils.ts";
 
 /**
  * Parse embedding from PostgreSQL text format.
@@ -208,7 +210,7 @@ console.log(`      Bigram matrix: ${numToolsForMatrix}x${numToolsForMatrix} (fro
 // ---------------------------------------------------------------------------
 // 5. Generate TransitionExamples (with dedup for single-tool)
 // ---------------------------------------------------------------------------
-console.log("\n[5/8] Generating TransitionExamples...");
+console.log("\n[5/8] Generating TransitionExamples (DAG-aware)...");
 const allExamples: TransitionExample[] = [];
 
 // Dedup set for single-tool traces: key = embedHash + ":" + toolId
@@ -216,55 +218,37 @@ const singleToolSeen = new Set<string>();
 
 let singleToolCount = 0;
 let multiToolCount = 0;
-let singleToolDeduped = 0;
+let dagAwareCount = 0;
+let linearFallbackCount = 0;
+
+const validToolIdSet = new Set(toolEmbeddings.keys());
 
 for (const trace of traceRows) {
   const intentEmbedding = parseEmbedding(trace.intent_embedding);
   if (!intentEmbedding) continue;
 
-  const taskResults = trace.task_results as Array<{ tool?: string }>;
-  const toolSequence = taskResults
-    .map((t) => t.tool)
-    .filter((t): t is string => !!t && toolEmbeddings.has(t));
+  const taskResults = trace.task_results as TaskResultWithLayer[];
 
-  if (toolSequence.length === 0) continue;
+  // Use DAG-aware example generation (P0-1 fix)
+  const traceResult = buildDAGAwareExamples(
+    trace.id, intentEmbedding, taskResults,
+    validToolIdSet, singleToolSeen, embedHash,
+  );
 
-  if (toolSequence.length === 1) {
-    // Single-tool trace: dedup by intent hash + tool_id
-    const key = embedHash(intentEmbedding) + ":" + toolSequence[0];
-    if (singleToolSeen.has(key)) {
-      singleToolDeduped++;
-      continue;
-    }
-    singleToolSeen.add(key);
-
-    allExamples.push({
-      intentEmbedding,
-      contextToolIds: [],
-      targetToolId: toolSequence[0],
-      isTerminal: 1,
-      isSingleTool: true,
-      _traceId: trace.id,
-    });
-    singleToolCount++;
-  } else {
-    // Multi-tool trace: generate step-by-step examples
-    for (let i = 0; i < toolSequence.length; i++) {
-      allExamples.push({
-        intentEmbedding,
-        contextToolIds: toolSequence.slice(0, i),
-        targetToolId: toolSequence[i],
-        isTerminal: i === toolSequence.length - 1 ? 1 : 0,
-        isSingleTool: false,
-        _traceId: trace.id,
-      });
-    }
+  if (traceResult.isSingleTool) singleToolCount++;
+  if (traceResult.isMultiTool) {
     multiToolCount++;
+    const hasLayers = taskResults.some((t: TaskResultWithLayer) =>
+      (t.layer_index ?? t.layerIndex ?? -1) >= 0);
+    if (hasLayers) dagAwareCount++;
+    else linearFallbackCount++;
   }
+  allExamples.push(...traceResult.examples);
 }
 
-console.log(`      Single-tool examples: ${singleToolCount} (deduped ${singleToolDeduped})`);
+console.log(`      Single-tool examples: ${singleToolCount}`);
 console.log(`      Multi-tool traces: ${multiToolCount}`);
+console.log(`      DAG-aware context: ${dagAwareCount} traces, linear fallback: ${linearFallbackCount} traces`);
 console.log(`      Total examples: ${allExamples.length}`);
 
 // Split train/test BY TRACE (80/20) to avoid contamination

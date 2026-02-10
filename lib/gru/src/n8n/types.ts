@@ -30,4 +30,6 @@ export interface N8nScrapedWorkflow {
   views: number;
   nodes: N8nScrapedNode[];
   edges: N8nScrapedEdge[];
+  /** Human-readable description of what this workflow does (from n8n template). */
+  description?: string;
 }

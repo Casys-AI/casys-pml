@@ -133,7 +133,12 @@ would be more impactful than more n8n data.
 Test KL weight schedule: w=0.05 (epochs 1-10) → w=0.15 (11-20) → w=0.3 (21-30).
 Could combine per-step accuracy benefits of low KL with path coherence of high KL.
 
-### P7: Workflow-Level Intent Embeddings
+### P7: Workflow-Level Intent Embeddings (DOUBLE USAGE: GRU + SHGAT)
+
+**Statut**: EN COURS (tache #13, assigne a paper-analyst, 2026-02-10)
+
+#### Le probleme
+
 Currently, the `intentEmbedding` for n8n examples is the embedding of the 2nd node
 in the workflow sequence — a poor proxy for actual user intent.
 The n8n API returns a `description` field per workflow (e.g., *"Sync new Notion pages
@@ -141,6 +146,30 @@ to Google Sheets and notify via Slack"*) which is a much better intent signal.
 
 **Current state**: `fetchWorkflow()` in `scrape-n8n.ts` already captures `meta.description`
 but discards it — `N8nScrapedWorkflow` has no `description` field.
+
+#### Insight cle : les workflows n8n SONT des capabilities
+
+Un workflow n8n = une sequence d'outils qui accomplit une tache. Sa description = l'intent
+utilisateur. C'est exactement la definition d'une capability dans notre systeme. Cela signifie
+que les descriptions de workflow servent a la fois au GRU et au SHGAT :
+
+```
+Workflow n8n description --> BGE-M3 embedding (1024D)
+    |
+    +-- GRU : meilleur intentEmbedding dans les soft targets (KL loss)
+    |         Remplace le proxy "2nd node embedding" par le vrai intent
+    |
+    +-- SHGAT : paires contrastives (intent_emb, positive_tool_ids)
+    |           Passe de 282 exemples a potentiellement des milliers
+    |
+    +-- Cercle vertueux :
+              SHGAT mieux entraine (plus de data)
+              --> meilleurs composite features
+              --> GRU mieux informe (spectre continu)
+              --> meilleures predictions E2E
+```
+
+#### Partie 1 : GRU — Meilleur intentEmbedding
 
 **Fix**:
 1. Add `description?: string` to `N8nScrapedWorkflow` type and pass it through in `processWorkflow()`
@@ -151,9 +180,54 @@ but discards it — `N8nScrapedWorkflow` has no `description` field.
    `no-silent-fallbacks.md` policy) and either skip the workflow or use node embedding
    with explicit `log.warn("workflow {id} has no description, using node embedding as intent")`
 
-**Impact**: Should improve intent representation quality significantly. The node embedding
-captures *what tool is used*, the description captures *what the user wants to do* —
-which is exactly what `intentEmbedding` should represent.
+**Impact GRU**: The node embedding captures *what tool is used*, the description captures
+*what the user wants to do* — which is exactly what `intentEmbedding` should represent.
+Les soft targets seront beaucoup plus pertinentes pour la KL divergence.
+
+#### Partie 2 : SHGAT — Paires contrastives depuis les descriptions
+
+Le SHGAT est bloque a 282 exemples contrastifs (LiveMCPBench). Les workflow descriptions
+fournissent des milliers de paires supplementaires.
+
+**Pipeline**:
+1. Pour chaque workflow avec description :
+   - `query_embedding` = BGE-M3("{name}. {description}")
+   - `positive_tool_ids` = MCP tools mappes depuis les noeuds n8n (mapping cosine existant)
+2. Generer `data/n8n-shgat-contrastive-pairs.json` :
+   ```json
+   [
+     {
+       "intentEmbedding": [... 1024 floats ...],
+       "positiveToolIds": ["std:read_file", "std:hash_checksum"],
+       "workflowId": 12345,
+       "workflowName": "Sync Notion to Sheets"
+     }
+   ]
+   ```
+3. Le SHGAT training (autograd-trainer.ts) consomme ces paires en plus de LiveMCPBench
+
+**Impact SHGAT**: Passe de 282 a potentiellement 5000+ exemples contrastifs.
+Avec le full softmax (P2-6), la borne InfoNCE passe de log(9)=2.2 nats a log(525)=6.3 nats
+sur un dataset 20x plus grand. C'est potentiellement le plus gros gain de toute la roadmap.
+
+#### Estimation du volume
+
+| Source | Workflows | Avec description | Paires contrastives estimees |
+|--------|-----------|-----------------|------------------------------|
+| n8n v1 (minViews=100) | 538 | ~400 (75%) | ~400 |
+| n8n v2 (all) | 7654 | ~5000 (65%) | ~5000 |
+| LiveMCPBench existant | — | — | 282 |
+| **Total estime** | | | **~5282** (x18.7 vs actuel) |
+
+#### Fichiers concernes
+
+| Fichier | Changement |
+|---------|-----------|
+| `lib/gru/src/n8n/types.ts` | Ajouter `description?: string` a `N8nScrapedWorkflow` |
+| `lib/gru/src/n8n/scrape-n8n.ts` | Propager `meta.description` dans le workflow |
+| `lib/gru/src/n8n/embed-n8n-nodes.ts` | Section pour embedder les descriptions workflow |
+| `lib/gru/src/n8n/build-soft-targets.ts` | Utiliser workflow description comme intentEmbedding |
+| Nouveau script ou section | Generer `n8n-shgat-contrastive-pairs.json` |
 
 ## Reproduction
 

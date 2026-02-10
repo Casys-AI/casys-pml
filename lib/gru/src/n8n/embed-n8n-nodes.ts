@@ -24,6 +24,7 @@ const __dirname = dirname(__filename);
 const DATA_DIR = resolve(__dirname, "../../data");
 const INPUT_PATH = resolve(DATA_DIR, "n8n-workflows.json");
 const OUTPUT_PATH = resolve(DATA_DIR, "n8n-node-embeddings.json");
+const WF_EMBEDDINGS_PATH = resolve(DATA_DIR, "n8n-workflow-description-embeddings.json");
 
 // ---------------------------------------------------------------------------
 // Template (Option C — structured, explicit field labels)
@@ -161,6 +162,55 @@ async function main() {
   for (const [key, node] of entries.slice(0, 5)) {
     console.log(`  ${key} → "${buildEmbeddingText(node)}"`);
   }
+
+  // -------------------------------------------------------------------
+  // Phase 2: Workflow description embeddings
+  // -------------------------------------------------------------------
+  console.log("\n[embed] Phase 2: Embedding workflow descriptions...");
+
+  const wfWithDesc = workflows.filter((wf) => wf.description && wf.description.trim().length > 0);
+  const wfWithoutDesc = workflows.length - wfWithDesc.length;
+
+  if (wfWithoutDesc > 0) {
+    console.warn(
+      `[embed] WARNING: ${wfWithoutDesc}/${workflows.length} workflows have no description — ` +
+      "these will use node embedding as intent fallback in build-soft-targets.",
+    );
+  }
+
+  console.log(`[embed] Workflows with description: ${wfWithDesc.length}/${workflows.length}`);
+
+  const wfEmbeddings: Record<string, number[]> = {};
+  let wfDone = 0;
+  const startWfEmbed = performance.now();
+
+  for (const wf of wfWithDesc) {
+    const text = `${wf.name}. ${wf.description!.trim()}`;
+    const output = await model(text, { pooling: "mean", normalize: true });
+    const vec = Array.from(output.data as Float32Array);
+
+    if (vec.length !== 1024) {
+      console.warn(`[embed] WARNING: workflow ${wf.id} produced ${vec.length}D vector, expected 1024`);
+      continue;
+    }
+
+    wfEmbeddings[String(wf.id)] = vec;
+    wfDone++;
+
+    if (wfDone % 100 === 0 || wfDone === wfWithDesc.length) {
+      const elapsed = ((performance.now() - startWfEmbed) / 1000).toFixed(1);
+      const rate = (wfDone / parseFloat(elapsed)).toFixed(1);
+      console.log(`[embed] ${wfDone}/${wfWithDesc.length} workflow descriptions embedded (${elapsed}s, ${rate}/s)`);
+    }
+  }
+
+  // Save workflow description embeddings
+  writeFileSync(WF_EMBEDDINGS_PATH, JSON.stringify(wfEmbeddings));
+  const wfFileSizeMB = (Buffer.byteLength(JSON.stringify(wfEmbeddings)) / 1024 / 1024).toFixed(1);
+  console.log(`\n[embed] Workflow description embeddings done!`);
+  console.log(`  Embeddings: ${Object.keys(wfEmbeddings).length}`);
+  console.log(`  File size: ${wfFileSizeMB} MB`);
+  console.log(`  Output: ${WF_EMBEDDINGS_PATH}`);
 }
 
 main().catch((err) => {

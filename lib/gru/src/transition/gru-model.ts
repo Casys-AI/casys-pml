@@ -1,26 +1,37 @@
 /**
- * Compact Informed GRU — Transition Model
+ * Compact Informed GRU — Transition Model (v0.3.0)
  *
- * Predicts next tools step-by-step and detects goal termination,
+ * Predicts next tools (or capabilities) step-by-step and detects goal termination,
  * leveraging structural signals from the hypergraph (Jaccard, bigram, capabilities).
  *
- * Architecture (4 Keras inputs):
+ * Architecture (5 Keras inputs, unified vocab, separate termination head):
+ *
  *   contextInput[batch, maxSeqLen, 1024]  -> input_proj Dense(128, linear) -+
  *   transFeatsInput[batch, maxSeqLen, 5]  ------------------ concat[133] ---+
- *                                                            Masking(0)
  *                                                            GRU(64, recurrentDropout=0.25)
- *                                                              |  [batch, 64]
+ *                                                              |  gruOutput[batch, 64]
  *   intentInput[batch, 1024] -> intent_proj Dense(64, relu) --+
- *   capInput[batch, numCaps] -> cap_proj Dense(16, relu) -----+-> concat[144]
  *                                                              |
- *                                                        Dense(64, relu)
- *                                                        Dropout(0.4)
- *                                                              |
- *                                              +---------------+---------------+
- *                                     emb_proj Dense(1024)         term_head Dense(1, sigmoid)
- *                                     similarity_head Dense(numTools, softmax, frozen)
+ *                                              +---------------+-----------------------------+
+ *                                              |                                             |
+ *                                   [gruOutput + intentProj] = 128D            capProj + compositeProj
+ *                                              |                                             |
+ *                                   term_hidden Dense(32, relu)              fusion_concat[152]
+ *                                   term_head Dense(1, sigmoid)              fusion_dense Dense(64, relu)
+ *                                                                            fusion_dropout(0.4)
+ *                                                                                    |
+ *                                                                         emb_proj Dense(1024)
+ *                                                                         similarity_head Dense(vocabSize, softmax, frozen)
  *
- * ~257K trainable parameters (vs 1.64M previous, -84%).
+ * Changes in v0.3.0:
+ *   - Unified vocabulary with VocabNode hierarchy: similarity_head covers
+ *     numTools + numVocabNodes items. Leaf nodes (level 0) are atomic tools.
+ *     Non-leaf nodes (level 1+ = capabilities, meta-caps) are expanded to
+ *     their leaf children when predicted.
+ *   - Separate termination head: branched from [gruOutput, intentProj] = 128D,
+ *     BEFORE fusion with cap/composite. MLP: Dense(128->32, relu) -> Dense(32->1, sigmoid).
+ *   - Single optimizer: replaces the dual-optimizer that caused moment oscillation
+ *     on shared parameters.
  *
  * @module gru/transition/gru-model
  */
@@ -34,8 +45,12 @@ import type {
   RankedPrediction,
   StructuralBias,
   ToolCapabilityMap,
+  VocabNode,
 } from "./types.ts";
-import { DEFAULT_CONFIG } from "./types.ts";
+import {
+  DEFAULT_CONFIG,
+  EMPTY_COMPOSITE_FEATURES,
+} from "./types.ts";
 import {
   computeTransitionFeatures,
   computeCapFingerprint,
@@ -52,12 +67,22 @@ export class CompactInformedGRU {
   readonly config: CompactGRUConfig;
   private model: tf.LayersModel | null = null;
   private optimizer: tf.Optimizer | null = null;
-  private termOptimizer: tf.Optimizer | null = null;
 
-  // Tool index mappings
-  private toolToIndex = new Map<string, number>();
-  private indexToTool = new Map<number, string>();
+  // Unified vocabulary: nodes indexed 0..vocabSize-1
+  // Level 0 (leaf/tool) indices come first: 0..numTools-1
+  // Level 1+ (caps, meta-caps) follow: numTools..vocabSize-1
+  private nodeToIndex = new Map<string, number>();
+  private indexToNode = new Map<number, VocabNode>();
   private toolEmbeddings = new Map<string, number[]>();
+
+  /**
+   * Total output vocabulary size = numTools + numVocabNodes.
+   * Leaf nodes (level 0) occupy indices 0..numTools-1.
+   * Higher-level nodes occupy numTools..vocabSize-1.
+   */
+  private get vocabSize(): number {
+    return this.config.numTools + this.config.numVocabNodes;
+  }
 
   // Structural bias
   private toolCapMap: ToolCapabilityMap | null = null;
@@ -77,17 +102,25 @@ export class CompactInformedGRU {
   // ---------------------------------------------------------------------------
 
   /**
-   * Build the Keras functional model with 4 inputs and 2 outputs.
+   * Build the Keras functional model with 5 inputs and 2 outputs.
    *
    * Inputs:
-   *   1. contextInput  [batch, maxSeqLen, embeddingDim]
+   *   1. contextInput    [batch, maxSeqLen, embeddingDim]
    *   2. transFeatsInput [batch, maxSeqLen, numTransitionFeatures]
-   *   3. intentInput   [batch, embeddingDim]
-   *   4. capInput      [batch, numCapabilities]
+   *   3. intentInput     [batch, embeddingDim]
+   *   4. capInput        [batch, numCapabilities]
+   *   5. compositeInput  [batch, compositeFeatureDim]
    *
    * Outputs:
-   *   1. nextToolProbs  [batch, numTools] (softmax)
+   *   1. nextToolProbs  [batch, vocabSize] (softmax) — unified vocabulary (all levels)
    *   2. terminationProb [batch, 1] (sigmoid)
+   *
+   * Architecture changes (v0.3.0):
+   *   - similarity_head output = vocabSize (numTools + numVocabNodes)
+   *   - termination_head branched from concat([gruOutput, intentProj]) = 128D
+   *     BEFORE fusion with cap/composite. MLP: Dense(128→32, ReLU) → Dense(32→1, sigmoid)
+   *   - Single optimizer (no more dual-optimizer oscillation)
+   *   - Unified VocabNode hierarchy (level-based, not type-based)
    */
   private buildModel(): void {
     const {
@@ -96,6 +129,8 @@ export class CompactInformedGRU {
       hiddenDim,
       intentProjDim,
       capProjDim,
+      compositeFeatureDim,
+      compositeProjDim,
       numTransitionFeatures,
       numCapabilities,
       numTools,
@@ -103,6 +138,8 @@ export class CompactInformedGRU {
       recurrentDropout,
       maxSeqLen,
     } = this.config;
+
+    const outputVocabSize = this.vocabSize;
 
     if (numTools === 0) {
       throw new Error(
@@ -130,6 +167,11 @@ export class CompactInformedGRU {
     const capInput = tf.input({
       shape: [numCapabilities],
       name: "cap_input",
+    });
+
+    const compositeInput = tf.input({
+      shape: [compositeFeatureDim],
+      name: "composite_input",
     });
 
     // --- Context branch: project + concat features + GRU ---
@@ -181,11 +223,47 @@ export class CompactInformedGRU {
       })
       .apply(capInput) as tf.SymbolicTensor;
 
-    // --- Fusion: concat GRU[64] + intent[64] + cap[16] = [144] ---
+    // Composite features: [batch, 3] -> [batch, 8]
+    const compositeProj = tf.layers
+      .dense({
+        units: compositeProjDim,
+        activation: "relu",
+        name: "composite_proj",
+      })
+      .apply(compositeInput) as tf.SymbolicTensor;
+
+    // --- Termination head (SEPARATE branch, before fusion with cap/composite) ---
+    // concat([gruOutput[64], intentProj[64]]) = [128]
+    // → Dense(128→32, relu) → Dense(32→1, sigmoid)
+    // Rationale: termination depends on sequence progress + intent match,
+    // NOT on capability fingerprint or composite scoring (which serve next-tool).
+    // Isolated gradient path eliminates dual-optimizer oscillation.
+
+    const termInput = tf.layers
+      .concatenate({ name: "term_input_concat" })
+      .apply([gruOutput, intentProj]) as tf.SymbolicTensor;
+
+    const termHidden = tf.layers
+      .dense({
+        units: 32,
+        activation: "relu",
+        name: "term_hidden",
+      })
+      .apply(termInput) as tf.SymbolicTensor;
+
+    const terminationOutput = tf.layers
+      .dense({
+        units: 1,
+        activation: "sigmoid",
+        name: "termination_head",
+      })
+      .apply(termHidden) as tf.SymbolicTensor;
+
+    // --- Fusion: concat GRU[64] + intent[64] + cap[16] + composite[8] = [152] ---
 
     const fused = tf.layers
       .concatenate({ name: "fusion_concat" })
-      .apply([gruOutput, intentProj, capProj]) as tf.SymbolicTensor;
+      .apply([gruOutput, intentProj, capProj, compositeProj]) as tf.SymbolicTensor;
 
     const fusionDense = tf.layers
       .dense({
@@ -199,7 +277,7 @@ export class CompactInformedGRU {
       .dropout({ rate: dropout, name: "fusion_dropout" })
       .apply(fusionDense) as tf.SymbolicTensor;
 
-    // --- Output heads ---
+    // --- Next-tool output head ---
 
     // Embedding projection: [batch, 64] -> [batch, 1024]
     const embProj = tf.layers
@@ -210,11 +288,11 @@ export class CompactInformedGRU {
       })
       .apply(fusionDropout) as tf.SymbolicTensor;
 
-    // Similarity head: frozen dot-product with tool embeddings / temperature
-    // kernel = toolEmbeddings^T / temperature, shape [embeddingDim, numTools]
+    // Similarity head: frozen dot-product with node embeddings (all levels) / temperature
+    // kernel = embeddings^T / temperature, shape [embeddingDim, vocabSize]
     const nextToolOutput = tf.layers
       .dense({
-        units: numTools,
+        units: outputVocabSize,
         activation: "softmax",
         useBias: false,
         trainable: false,
@@ -222,19 +300,10 @@ export class CompactInformedGRU {
       })
       .apply(embProj) as tf.SymbolicTensor;
 
-    // Termination head: [batch, 64] -> [batch, 1]
-    const terminationOutput = tf.layers
-      .dense({
-        units: 1,
-        activation: "sigmoid",
-        name: "termination_head",
-      })
-      .apply(fusionDropout) as tf.SymbolicTensor;
-
     // --- Assemble model ---
 
     this.model = tf.model({
-      inputs: [contextInput, transFeatsInput, intentInput, capInput],
+      inputs: [contextInput, transFeatsInput, intentInput, capInput, compositeInput],
       outputs: [nextToolOutput, terminationOutput],
       name: "CompactInformedGRU",
     });
@@ -247,22 +316,29 @@ export class CompactInformedGRU {
   /**
    * Set tool vocabulary and embeddings. Rebuilds the model.
    *
-   * @param tools - Map of tool ID -> embedding vector (1024-d).
-   * @param toolCapMap - Binary tool-to-capability mapping.
+   * @param tools - Map of tool ID -> embedding vector (1024-d). These become level-0 leaf nodes.
+   * @param toolCapMap - Binary tool-to-capability mapping (for structural bias).
+   * @param higherLevelNodes - Optional array of VocabNode with level > 0 (capabilities, meta-caps).
+   *   When provided, these are appended to the output vocabulary after leaf tools.
+   *   Nodes whose children are not all in the tools map are silently skipped.
+   *   The similarity_head covers [numTools + accepted_higher_nodes] output units.
    */
   setToolVocabulary(
     tools: Map<string, number[]>,
     toolCapMap: ToolCapabilityMap,
+    higherLevelNodes?: VocabNode[],
   ): void {
     this.toolEmbeddings = tools;
     this.toolCapMap = toolCapMap;
-    this.toolToIndex.clear();
-    this.indexToTool.clear();
+    this.nodeToIndex.clear();
+    this.indexToNode.clear();
 
+    // Register leaf nodes (level 0) — indices 0..numTools-1
     let idx = 0;
-    for (const toolId of tools.keys()) {
-      this.toolToIndex.set(toolId, idx);
-      this.indexToTool.set(idx, toolId);
+    for (const [toolId, embedding] of tools) {
+      const node: VocabNode = { id: toolId, level: 0, embedding };
+      this.nodeToIndex.set(toolId, idx);
+      this.indexToNode.set(idx, node);
       idx++;
     }
 
@@ -270,6 +346,26 @@ export class CompactInformedGRU {
     (this.config as { numTools: number }).numTools = tools.size;
     (this.config as { numCapabilities: number }).numCapabilities =
       toolCapMap.numCapabilities;
+
+    // Register higher-level nodes (level 1+) — indices numTools..vocabSize-1
+    let numVocabNodes = 0;
+    if (higherLevelNodes && higherLevelNodes.length > 0) {
+      for (const node of higherLevelNodes) {
+        if (node.level === 0) continue; // Leaf nodes must come from tools map
+
+        // Only include nodes whose children are all in the vocabulary
+        const allChildrenKnown = (node.children ?? []).every(
+          (cid) => this.nodeToIndex.has(cid),
+        );
+        if (!allChildrenKnown) continue;
+
+        this.nodeToIndex.set(node.id, idx);
+        this.indexToNode.set(idx, node);
+        idx++;
+        numVocabNodes++;
+      }
+    }
+    (this.config as { numVocabNodes: number }).numVocabNodes = numVocabNodes;
 
     // Rebuild model with correct dimensions
     if (this.model) {
@@ -279,10 +375,6 @@ export class CompactInformedGRU {
     if (this.optimizer) {
       this.optimizer.dispose();
       this.optimizer = null;
-    }
-    if (this.termOptimizer) {
-      this.termOptimizer.dispose();
-      this.termOptimizer = null;
     }
     this.buildModel();
 
@@ -307,30 +399,31 @@ export class CompactInformedGRU {
   }
 
   /**
-   * Initialize the frozen similarity_head kernel with tool embeddings / temperature.
-   * kernel shape = [embeddingDim, numTools]
+   * Initialize the frozen similarity_head kernel with node embeddings / temperature.
+   * kernel shape = [embeddingDim, vocabSize]
+   * All nodes (all levels) are placed at their index position in the matrix.
    */
   private initSimilarityWeights(): void {
     if (!this.model) return;
 
     const embDim = this.config.embeddingDim;
-    const numTools = this.config.numTools;
+    const vs = this.vocabSize;
     const T = this.currentTemperature;
 
-    // Build embedding matrix [numTools, embDim]
-    const embData = new Float32Array(numTools * embDim);
-    for (const [toolId, embedding] of this.toolEmbeddings) {
-      const toolIdx = this.toolToIndex.get(toolId)!;
-      const base = toolIdx * embDim;
+    // Build embedding matrix [vocabSize, embDim] from unified node registry
+    const embData = new Float32Array(vs * embDim);
+
+    for (const [nodeIdx, node] of this.indexToNode) {
+      const base = nodeIdx * embDim;
       for (let d = 0; d < embDim; d++) {
-        embData[base + d] = embedding[d];
+        embData[base + d] = node.embedding[d];
       }
     }
 
-    // kernel = embeddings^T / T -> [embDim, numTools]
+    // kernel = embeddings^T / T -> [embDim, vocabSize]
     tf.tidy(() => {
-      const embMatrix = tf.tensor2d(embData, [numTools, embDim]);
-      const transposed = embMatrix.transpose(); // [embDim, numTools]
+      const embMatrix = tf.tensor2d(embData, [vs, embDim]);
+      const transposed = embMatrix.transpose(); // [embDim, vocabSize]
       const kernel = transposed.div(tf.scalar(T));
 
       const simLayer = this.model!.getLayer("similarity_head");
@@ -384,26 +477,51 @@ export class CompactInformedGRU {
 
   /**
    * Resolve tool ID to integer index. Returns -1 for unknown tools.
+   * Works for any node level, but primarily used for leaf (L0) tools.
    */
   private getToolIndex(toolId: string): number {
-    return this.toolToIndex.get(toolId) ?? -1;
+    return this.nodeToIndex.get(toolId) ?? -1;
   }
 
   /**
-   * Prepare the 4 input tensors for a batch of examples.
+   * Resolve a unified vocabulary index to a VocabNode.
+   * Returns null for out-of-range indices.
+   */
+  private resolveVocabIndex(idx: number): VocabNode | null {
+    return this.indexToNode.get(idx) ?? null;
+  }
+
+  /**
+   * Expand a prediction: if the predicted node is a leaf (level 0),
+   * return [nodeId]. If it is a higher-level node (level 1+),
+   * return its children (leaf tool IDs).
+   * This is used by buildPath to expand non-leaf predictions into the context.
+   */
+  private expandPrediction(idx: number): string[] {
+    const node = this.resolveVocabIndex(idx);
+    if (!node) return [];
+    if (node.level === 0) return [node.id];
+    // Non-leaf → expand to its leaf children
+    return node.children ?? [];
+  }
+
+  /**
+   * Prepare the 5 input tensors for a batch of examples.
    *
-   * @returns Object with 4 tensors, caller must dispose.
+   * @returns Object with 5 tensors, caller must dispose.
    */
   private prepareBatchInputs(examples: TransitionExample[]): {
     contextTensor: tf.Tensor3D;
     transFeatsTensor: tf.Tensor3D;
     intentTensor: tf.Tensor2D;
     capTensor: tf.Tensor2D;
+    compositeTensor: tf.Tensor2D;
   } {
     const {
       embeddingDim,
       numTransitionFeatures,
       numCapabilities,
+      compositeFeatureDim,
       maxSeqLen,
     } = this.config;
     const batchSize = examples.length;
@@ -417,6 +535,7 @@ export class CompactInformedGRU {
     );
     const intentData = new Float32Array(batchSize * embeddingDim);
     const capData = new Float32Array(batchSize * numCapabilities);
+    const compositeData = new Float32Array(batchSize * compositeFeatureDim);
 
     for (let b = 0; b < batchSize; b++) {
       const ex = examples[b];
@@ -444,6 +563,13 @@ export class CompactInformedGRU {
         for (let c = 0; c < numCapabilities; c++) {
           capData[capBase + c] = fingerprint[c];
         }
+      }
+
+      // --- Composite features (from SHGAT scoreNodes, defaults to zeros) ---
+      const compFeats = ex.compositeFeatures ?? EMPTY_COMPOSITE_FEATURES;
+      const compBase = b * compositeFeatureDim;
+      for (let f = 0; f < compositeFeatureDim; f++) {
+        compositeData[compBase + f] = compFeats[f] ?? 0;
       }
 
       // --- Context embeddings + transition features (padded) ---
@@ -498,20 +624,26 @@ export class CompactInformedGRU {
       ]),
       intentTensor: tf.tensor2d(intentData, [batchSize, embeddingDim]),
       capTensor: tf.tensor2d(capData, [batchSize, numCapabilities]),
+      compositeTensor: tf.tensor2d(compositeData, [batchSize, compositeFeatureDim]),
     };
   }
 
   /**
    * Prepare single-example inputs for inference.
+   *
+   * @param compositeFeatures - Optional composite scoring features from SHGAT.
+   *   When provided, enables the continuous spectrum routing (no binary threshold).
    */
   private prepareSingleInput(
     intentEmb: number[],
     contextToolIds: string[],
+    compositeFeatures?: number[],
   ): {
     contextTensor: tf.Tensor3D;
     transFeatsTensor: tf.Tensor3D;
     intentTensor: tf.Tensor2D;
     capTensor: tf.Tensor2D;
+    compositeTensor: tf.Tensor2D;
   } {
     return this.prepareBatchInputs([
       {
@@ -520,6 +652,7 @@ export class CompactInformedGRU {
         targetToolId: "",
         isTerminal: 0,
         isSingleTool: false,
+        compositeFeatures,
       },
     ]);
   }
@@ -531,10 +664,13 @@ export class CompactInformedGRU {
   /**
    * Train on a batch of examples.
    *
-   * Loss:
-   *   a) Focal CE with label smoothing (masked for isSingleTool=true)
-   *   b) Weighted BCE for termination
-   *   c) total = nextToolLoss + terminationLossWeight * terminationLoss
+   * Loss (single pass, single optimizer):
+   *   L = L_nextTool + n8nWeight * L_KL + terminationLossWeight * L_termination
+   *
+   * The termination head is branched from [gruOutput, intentProj] (128D) BEFORE
+   * the next-tool fusion, giving it an isolated feature space. A single Adam
+   * optimizer replaces the previous dual-optimizer approach, eliminating
+   * moment oscillation on shared parameters.
    *
    * @param examples - Batch of transition examples.
    * @returns Per-step training metrics.
@@ -548,9 +684,6 @@ export class CompactInformedGRU {
     if (!this.optimizer) {
       this.optimizer = tf.train.adam(this.config.learningRate);
     }
-    if (!this.termOptimizer) {
-      this.termOptimizer = tf.train.adam(this.config.learningRate);
-    }
 
     const batchSize = examples.length;
     const {
@@ -559,7 +692,7 @@ export class CompactInformedGRU {
       terminationLossWeight,
       n8nLossWeight,
     } = this.config;
-    const numTools = this.config.numTools;
+    const vs = this.vocabSize;
 
     // Prepare batch data
     const inputs = this.prepareBatchInputs(examples);
@@ -569,19 +702,26 @@ export class CompactInformedGRU {
     const termTargets: number[] = [];
     const singleToolMask: number[] = []; // 0 if single-tool (skip next-tool loss), 1 otherwise
     const n8nMaskArr: number[] = []; // 1 if n8n example (has softTargetProbs), 0 if production
-    const softTargetsArr: number[][] = []; // [batch, numTools] soft target distributions
+    const softTargetsArr: number[][] = []; // [batch, vocabSize] soft target distributions
 
-    let termPositiveCount = 0;
     for (const ex of examples) {
-      targetIndices.push(this.toolToIndex.get(ex.targetToolId) ?? 0);
+      targetIndices.push(this.nodeToIndex.get(ex.targetToolId) ?? 0);
       termTargets.push(ex.isTerminal);
       singleToolMask.push(ex.isSingleTool ? 0 : 1);
-      if (ex.isTerminal === 1) termPositiveCount++;
 
       // n8n vs production routing
-      const hasN8n = ex.softTargetProbs && ex.softTargetProbs.length === numTools;
+      // n8n softTargetProbs may be numTools-sized (no caps) — pad to vocabSize
+      const hasN8n = ex.softTargetProbs && ex.softTargetProbs.length > 0;
       n8nMaskArr.push(hasN8n ? 1 : 0);
-      softTargetsArr.push(hasN8n ? ex.softTargetProbs! : new Array(numTools).fill(0));
+      if (hasN8n) {
+        const padded = new Array(vs).fill(0);
+        for (let i = 0; i < Math.min(ex.softTargetProbs!.length, vs); i++) {
+          padded[i] = ex.softTargetProbs![i];
+        }
+        softTargetsArr.push(padded);
+      } else {
+        softTargetsArr.push(new Array(vs).fill(0));
+      }
     }
 
     const targetIdxTensor = tf.tensor1d(targetIndices, "int32");
@@ -592,10 +732,9 @@ export class CompactInformedGRU {
     const singleToolMaskTensor = tf.tensor1d(singleToolMask);
     const n8nMaskTensor = tf.tensor1d(n8nMaskArr);
     const prodMaskTensor = tf.sub(tf.scalar(1), n8nMaskTensor);
-    const softTargetsTensor = tf.tensor2d(softTargetsArr, [batchSize, numTools]);
+    const softTargetsTensor = tf.tensor2d(softTargetsArr, [batchSize, vs]);
 
     // Termination class weights (balance positive/negative, prod examples only)
-    // n8n examples have different terminal ratios that bias the termination head
     let prodTermPos = 0;
     let prodCount = 0;
     for (let i = 0; i < batchSize; i++) {
@@ -614,54 +753,30 @@ export class CompactInformedGRU {
       (w: any) => w.val as tf.Variable,
     );
 
-    // Split variables: termination_head vs everything else.
-    // The n8n KL gradient should NOT flow through the termination head or
-    // distort shared representations used by termination. We use two
-    // gradient passes:
-    //   Pass 1 (nextToolCost): focal CE + KL → all vars EXCEPT termination_head
-    //   Pass 2 (termCost): BCE → ALL vars (termination_head + shared)
-    const termHeadVarNames = new Set<string>();
-    for (const w of model.getLayer("termination_head").trainableWeights) {
-      termHeadVarNames.add(w.originalName);
-    }
-    const nextToolVars = trainableVars.filter(
-      (v) => !termHeadVarNames.has(v.name),
-    );
-
     let lossVal = 0;
     let nextToolLossVal = 0;
     let terminationLossVal = 0;
 
-    // Shared forward pass tensors (reused across both gradient passes)
-    // We cache probs/termProbs to avoid double forward pass
-    let cachedProbs: tf.Tensor | null = null;
-    let cachedTermProbs: tf.Tensor | null = null;
-
-    const forwardPass = () => {
+    // --- Single pass: combined loss → single optimizer ---
+    const combinedCostFn = () => {
       const outputs = model.apply(
         [
           inputs.contextTensor,
           inputs.transFeatsTensor,
           inputs.intentTensor,
           inputs.capTensor,
+          inputs.compositeTensor,
         ],
         { training: true },
       ) as tf.Tensor[];
-      return { probs: outputs[0], termProbs: outputs[1] };
-    };
-
-    // --- Pass 1: next-tool loss (focal CE + n8n KL) → excludes termination_head ---
-    const nextToolCostFn = () => {
-      const { probs, termProbs } = forwardPass();
-
-      // Cache termProbs for pass 2
-      cachedTermProbs = termProbs;
+      const probs = outputs[0];
+      const termProbs = outputs[1];
 
       // --- (a) Focal CE with label smoothing, masked for single-tool ---
       const clipped = probs.clipByValue(1e-7, 1 - 1e-7);
 
-      const oneHot = tf.oneHot(targetIdxTensor, numTools).toFloat();
-      const smoothedLabels = oneHot.mul(1 - eps).add(eps / numTools);
+      const oneHot = tf.oneHot(targetIdxTensor, vs).toFloat();
+      const smoothedLabels = oneHot.mul(1 - eps).add(eps / vs);
 
       const pTarget = tf.sum(tf.mul(clipped, oneHot), -1);
       const focalWeight =
@@ -683,7 +798,7 @@ export class CompactInformedGRU {
         tf.maximum(prodActiveSamples, tf.scalar(1)),
       );
 
-      // --- (a2) KL divergence for n8n soft-target examples ---
+      // --- (b) KL divergence for n8n soft-target examples ---
       let n8nLoss: tf.Scalar;
       const n8nCount = tf.sum(n8nMaskTensor);
       const hasN8n = n8nLossWeight > 0 && n8nMaskArr.some((v) => v === 1);
@@ -703,30 +818,7 @@ export class CompactInformedGRU {
         n8nLoss = tf.scalar(0);
       }
 
-      const nextToolTotal = tf.add(
-        nextToolLoss,
-        tf.mul(tf.scalar(n8nLossWeight), n8nLoss),
-      );
-
-      nextToolLossVal = (nextToolLoss as tf.Tensor).dataSync()[0];
-
-      return nextToolTotal as tf.Scalar;
-    };
-
-    // Pass 1: gradients for next-tool branch (excludes termination_head)
-    const { value: nextToolValue, grads: nextToolGrads } =
-      tf.variableGrads(nextToolCostFn, nextToolVars);
-    this.optimizer.applyGradients(nextToolGrads);
-    const nextToolLossTotal = nextToolValue.dataSync()[0];
-    nextToolValue.dispose();
-    for (const key of Object.keys(nextToolGrads)) {
-      nextToolGrads[key].dispose();
-    }
-
-    // --- Pass 2: termination loss (BCE) → ALL trainable vars ---
-    const termCostFn = () => {
-      const { termProbs } = forwardPass();
-
+      // --- (c) Termination BCE (prod-only, class-weighted) ---
       const termClipped = termProbs.clipByValue(1e-7, 1 - 1e-7);
       const perExampleTermBCE = tf.neg(
         tf.add(
@@ -751,22 +843,30 @@ export class CompactInformedGRU {
         tf.maximum(prodTermCount, tf.scalar(1)),
       );
 
+      nextToolLossVal = (nextToolLoss as tf.Tensor).dataSync()[0];
       terminationLossVal = (termBCE as tf.Tensor).dataSync()[0];
 
-      return tf.mul(tf.scalar(terminationLossWeight), termBCE) as tf.Scalar;
+      // Combined loss: L = L_nextTool + w_n8n * L_KL + w_term * L_term
+      const totalLoss = tf.add(
+        tf.add(
+          nextToolLoss,
+          tf.mul(tf.scalar(n8nLossWeight), n8nLoss),
+        ),
+        tf.mul(tf.scalar(terminationLossWeight), termBCE),
+      );
+
+      return totalLoss as tf.Scalar;
     };
 
-    // Pass 2: gradients for termination branch (all vars, separate optimizer)
-    const { value: termValue, grads: termGrads } =
-      tf.variableGrads(termCostFn, trainableVars);
-    this.termOptimizer!.applyGradients(termGrads);
-    const termLossTotal = termValue.dataSync()[0];
-    termValue.dispose();
-    for (const key of Object.keys(termGrads)) {
-      termGrads[key].dispose();
+    // Single gradient pass → single optimizer
+    const { value: totalValue, grads: allGrads } =
+      tf.variableGrads(combinedCostFn, trainableVars);
+    this.optimizer.applyGradients(allGrads);
+    lossVal = totalValue.dataSync()[0];
+    totalValue.dispose();
+    for (const key of Object.keys(allGrads)) {
+      allGrads[key].dispose();
     }
-
-    lossVal = nextToolLossTotal + termLossTotal;
 
     // Compute accuracy metrics (inference mode, no dropout)
     let nextToolAcc = 0;
@@ -778,6 +878,7 @@ export class CompactInformedGRU {
         inputs.transFeatsTensor,
         inputs.intentTensor,
         inputs.capTensor,
+        inputs.compositeTensor,
       ]) as tf.Tensor[];
 
       const predNextIdx = predictions[0].argMax(-1).dataSync();
@@ -808,6 +909,7 @@ export class CompactInformedGRU {
       inputs.transFeatsTensor,
       inputs.intentTensor,
       inputs.capTensor,
+      inputs.compositeTensor,
       targetIdxTensor,
       termTargetTensor,
       singleToolMaskTensor,
@@ -836,11 +938,16 @@ export class CompactInformedGRU {
    *
    * @param intentEmb - Intent embedding [embeddingDim].
    * @param contextToolIds - Tool IDs in the current context.
+   * @param compositeFeatures - Optional SHGAT composite scoring features.
+   *   Enables continuous spectrum routing (the termination head decides
+   *   whether the best composite is sufficient, instead of a binary threshold).
    * @returns Predicted tool, termination flag, and confidence.
+   *   If a non-leaf node is predicted, toolId is the first child.
    */
   predictNext(
     intentEmb: number[],
     contextToolIds: string[],
+    compositeFeatures?: number[],
   ): PredictionResult {
     if (!this.model) {
       throw new Error(
@@ -849,25 +956,26 @@ export class CompactInformedGRU {
     }
 
     return tf.tidy(() => {
-      const inputs = this.prepareSingleInput(intentEmb, contextToolIds);
+      const inputs = this.prepareSingleInput(intentEmb, contextToolIds, compositeFeatures);
 
       const outputs = this.model!.predict([
         inputs.contextTensor,
         inputs.transFeatsTensor,
         inputs.intentTensor,
         inputs.capTensor,
+        inputs.compositeTensor,
       ]) as tf.Tensor[];
 
       const scores = outputs[0].dataSync() as Float32Array;
       const termProb = outputs[1].dataSync() as Float32Array;
 
-      // Apply structural bias in log-space
+      // Apply structural bias in log-space (only to tool indices)
       const adjustedScores = this.applyStructuralBias(
         scores,
         contextToolIds,
       );
 
-      // Argmax
+      // Argmax over full vocabulary (all levels)
       let maxIdx = 0;
       let maxScore = adjustedScores[0];
       for (let i = 1; i < adjustedScores.length; i++) {
@@ -877,8 +985,14 @@ export class CompactInformedGRU {
         }
       }
 
+      // Resolve: could be a leaf tool or higher-level node
+      const node = this.resolveVocabIndex(maxIdx);
+      const toolId = node
+        ? (node.level === 0 ? node.id : (node.children?.[0] ?? ""))
+        : "";
+
       return {
-        toolId: this.indexToTool.get(maxIdx) ?? "",
+        toolId,
         shouldTerminate: termProb[0] > this.config.terminationThreshold,
         confidence: maxScore,
       };
@@ -887,6 +1001,9 @@ export class CompactInformedGRU {
 
   /**
    * Predict next tool with full ranking (for Hit@K / MRR evaluation).
+   *
+   * Returns ranked tools (non-leaf nodes are resolved to their first child
+   * for backward compatibility with evaluation code).
    *
    * @param intentEmb - Intent embedding.
    * @param contextToolIds - Current context.
@@ -897,6 +1014,7 @@ export class CompactInformedGRU {
     intentEmb: number[],
     contextToolIds: string[],
     k = 10,
+    compositeFeatures?: number[],
   ): RankedPrediction {
     if (!this.model) {
       throw new Error(
@@ -905,13 +1023,14 @@ export class CompactInformedGRU {
     }
 
     return tf.tidy(() => {
-      const inputs = this.prepareSingleInput(intentEmb, contextToolIds);
+      const inputs = this.prepareSingleInput(intentEmb, contextToolIds, compositeFeatures);
 
       const outputs = this.model!.predict([
         inputs.contextTensor,
         inputs.transFeatsTensor,
         inputs.intentTensor,
         inputs.capTensor,
+        inputs.compositeTensor,
       ]) as tf.Tensor[];
 
       const scores = outputs[0].dataSync() as Float32Array;
@@ -922,11 +1041,17 @@ export class CompactInformedGRU {
         contextToolIds,
       );
 
-      // Build ranked list
+      // Build ranked list from full vocabulary (all levels)
       const ranked: Array<{ toolId: string; score: number }> = [];
       for (let i = 0; i < adjustedScores.length; i++) {
-        const toolId = this.indexToTool.get(i);
-        if (toolId) ranked.push({ toolId, score: adjustedScores[i] });
+        const node = this.resolveVocabIndex(i);
+        if (!node) continue;
+        // For non-leaf nodes, use the first child for backward compat
+        // with eval code that checks toolId against ground truth
+        const id = node.level === 0
+          ? node.id
+          : (node.children?.[0] ?? node.id);
+        ranked.push({ toolId: id, score: adjustedScores[i] });
       }
       ranked.sort((a, b) => b.score - a.score);
 
@@ -941,18 +1066,24 @@ export class CompactInformedGRU {
   /**
    * Apply Jaccard + bigram structural bias to probabilities in log-space.
    *
-   * log_probs = log(probs) + alpha * jaccard[lastTool, :] + beta * bigram[lastTool, :]
+   * Bias is applied only to leaf nodes (level 0, indices 0..numTools-1).
+   * Non-leaf nodes (level 1+, indices numTools..vocabSize-1) keep their raw probabilities.
+   * Final distribution is renormalized over the full vocabulary.
+   *
+   * log_probs[L0]  = log(probs[L0]) + alpha * jaccard[lastTool, L0] + beta * bigram[lastTool, L0]
+   * log_probs[L1+] = log(probs[L1+])  (no structural bias for non-leaf)
    * adjusted = softmax(log_probs)
    *
-   * @param probs - Raw softmax probabilities [numTools].
+   * @param probs - Raw softmax probabilities [vocabSize].
    * @param contextToolIds - Current context (to find last tool).
-   * @returns Adjusted probability distribution.
+   * @returns Adjusted probability distribution [vocabSize].
    */
   private applyStructuralBias(
     probs: Float32Array,
     contextToolIds: string[],
   ): Float32Array {
     const numTools = this.config.numTools;
+    const vs = this.vocabSize;
 
     // If no bias matrices or empty context, return raw probs
     if (
@@ -963,18 +1094,18 @@ export class CompactInformedGRU {
     }
 
     const lastToolId = contextToolIds[contextToolIds.length - 1];
-    const lastToolIdx = this.toolToIndex.get(lastToolId);
+    const lastToolIdx = this.nodeToIndex.get(lastToolId);
     if (lastToolIdx === undefined) return probs;
 
     const { jaccardAlpha, bigramBeta } = this.config;
 
-    // Work in log-space
-    const logProbs = new Float32Array(numTools);
-    for (let i = 0; i < numTools; i++) {
+    // Work in log-space over the full vocabulary
+    const logProbs = new Float32Array(vs);
+    for (let i = 0; i < vs; i++) {
       logProbs[i] = Math.log(Math.max(probs[i], 1e-10));
     }
 
-    // Add Jaccard bias
+    // Add Jaccard bias (tool indices only)
     if (this.jaccardMatrix) {
       const rowBase = lastToolIdx * numTools;
       for (let i = 0; i < numTools; i++) {
@@ -982,7 +1113,7 @@ export class CompactInformedGRU {
       }
     }
 
-    // Add bigram bias
+    // Add bigram bias (tool indices only)
     if (this.bigramMatrix) {
       const rowBase = lastToolIdx * numTools;
       for (let i = 0; i < numTools; i++) {
@@ -990,20 +1121,20 @@ export class CompactInformedGRU {
       }
     }
 
-    // Softmax to renormalize
+    // Softmax to renormalize over full vocabulary
     let maxLogProb = -Infinity;
-    for (let i = 0; i < numTools; i++) {
+    for (let i = 0; i < vs; i++) {
       if (logProbs[i] > maxLogProb) maxLogProb = logProbs[i];
     }
 
-    const adjusted = new Float32Array(numTools);
+    const adjusted = new Float32Array(vs);
     let sum = 0;
-    for (let i = 0; i < numTools; i++) {
+    for (let i = 0; i < vs; i++) {
       adjusted[i] = Math.exp(logProbs[i] - maxLogProb);
       sum += adjusted[i];
     }
     if (sum > 0) {
-      for (let i = 0; i < numTools; i++) {
+      for (let i = 0; i < vs; i++) {
         adjusted[i] /= sum;
       }
     }
@@ -1019,18 +1150,19 @@ export class CompactInformedGRU {
    * Build complete tool path from a starting tool using greedy decoding.
    *
    * At each step:
-   * 1. Prepare the 4 inputs from the current context
+   * 1. Prepare the 5 inputs from the current context
    * 2. Forward pass (model.predict)
    * 3. Apply structural bias (Jaccard + bigram) in log-space
    * 4. Apply sticky bias: if repeat >= stickyMaxRepeat, suppress the repeated tool
-   * 5. Argmax -> next tool
-   * 6. Check termination
+   * 5. Argmax -> next node (any level)
+   * 6. If non-leaf predicted (level > 0), expand its children into the path
+   * 7. Check termination
    *
    * @param intentEmb - Intent embedding.
-   * @param firstToolId - Starting tool (typically from SHGAT).
-   * @returns Array of tool IDs forming the path.
+   * @param firstToolId - Starting tool (typically from SHGAT or GRU autostart).
+   * @returns Array of tool IDs forming the path (non-leaf nodes are expanded to children).
    */
-  buildPath(intentEmb: number[], firstToolId: string): string[] {
+  buildPath(intentEmb: number[], firstToolId: string, compositeFeatures?: number[]): string[] {
     if (!this.model) {
       throw new Error(
         "[CompactInformedGRU] Model not built. Call setToolVocabulary() first.",
@@ -1040,17 +1172,18 @@ export class CompactInformedGRU {
     const path: string[] = [firstToolId];
     const { maxPathLength, terminationThreshold, stickyMaxRepeat } =
       this.config;
-    const numTools = this.config.numTools;
+    const vs = this.vocabSize;
 
     for (let step = 0; step < maxPathLength - 1; step++) {
       const result = tf.tidy(() => {
-        const inputs = this.prepareSingleInput(intentEmb, path);
+        const inputs = this.prepareSingleInput(intentEmb, path, compositeFeatures);
 
         const outputs = this.model!.predict([
           inputs.contextTensor,
           inputs.transFeatsTensor,
           inputs.intentTensor,
           inputs.capTensor,
+          inputs.compositeTensor,
         ]) as tf.Tensor[];
 
         const probs = outputs[0].dataSync() as Float32Array;
@@ -1061,7 +1194,7 @@ export class CompactInformedGRU {
 
         // Sticky bias: penalize excessive repetition
         const lastToolId = path[path.length - 1];
-        const lastToolIdx = this.toolToIndex.get(lastToolId);
+        const lastToolIdx = this.nodeToIndex.get(lastToolId);
         if (lastToolIdx !== undefined) {
           let repeatCount = 0;
           for (let i = path.length - 1; i >= 0; i--) {
@@ -1069,14 +1202,14 @@ export class CompactInformedGRU {
             else break;
           }
           if (repeatCount >= stickyMaxRepeat) {
-            adjusted[lastToolIdx] = 0; // Suppress repeated tool
+            adjusted[lastToolIdx] = 0; // Suppress repeated node
           }
         }
 
-        // Argmax
+        // Argmax over full vocabulary
         let maxIdx = 0;
         let maxScore = adjusted[0];
-        for (let i = 1; i < numTools; i++) {
+        for (let i = 1; i < vs; i++) {
           if (adjusted[i] > maxScore) {
             maxScore = adjusted[i];
             maxIdx = i;
@@ -1084,18 +1217,21 @@ export class CompactInformedGRU {
         }
 
         return {
-          nextToolId: this.indexToTool.get(maxIdx) ?? "",
+          predictedIdx: maxIdx,
           shouldTerminate: termProb[0] > terminationThreshold,
         };
       });
 
-      // Add predicted tool
-      if (result.nextToolId) {
-        path.push(result.nextToolId);
+      // Expand prediction: leaf → [toolId], non-leaf → [child1, child2, ...]
+      const expandedTools = this.expandPrediction(result.predictedIdx);
+      for (const tid of expandedTools) {
+        if (path.length < maxPathLength) {
+          path.push(tid);
+        }
       }
 
-      // Check termination after adding the tool
-      if (result.shouldTerminate) {
+      // Check termination after adding the tool(s)
+      if (result.shouldTerminate || expandedTools.length === 0) {
         break;
       }
     }
@@ -1108,10 +1244,11 @@ export class CompactInformedGRU {
    *
    * At each step, every active candidate is expanded into two branches:
    *   (a) TERMINATE: path is done, score includes log(termProb)
-   *   (b) CONTINUE: expand with top-B next tools, score includes log(1 - termProb)
+   *   (b) CONTINUE: expand with top-B next items (tools or caps), score includes log(1 - termProb)
    * Both branches compete on length-normalized score: logProb / length^alpha.
    *
-   * This prevents short paths from dominating due to fewer probability decay steps.
+   * Non-leaf nodes are expanded inline: if a level-1+ node is in the top-K,
+   * its leaf children are appended to the candidate path.
    *
    * @param intentEmb - Intent embedding.
    * @param firstToolId - Starting tool (typically from SHGAT).
@@ -1124,6 +1261,7 @@ export class CompactInformedGRU {
     firstToolId: string,
     beamWidth: number = 3,
     lengthAlpha: number = 0.7,
+    compositeFeatures?: number[],
   ): Array<{ path: string[]; score: number }> {
     if (!this.model) {
       throw new Error(
@@ -1132,7 +1270,7 @@ export class CompactInformedGRU {
     }
 
     const { maxPathLength, stickyMaxRepeat } = this.config;
-    const numTools = this.config.numTools;
+    const vs = this.vocabSize;
 
     const normalize = (logProb: number, len: number) =>
       logProb / Math.pow(len, lengthAlpha);
@@ -1150,13 +1288,14 @@ export class CompactInformedGRU {
       for (const candidate of candidates) {
         // Forward pass for this candidate
         const expansions = tf.tidy(() => {
-          const inputs = this.prepareSingleInput(intentEmb, candidate.path);
+          const inputs = this.prepareSingleInput(intentEmb, candidate.path, compositeFeatures);
 
           const outputs = this.model!.predict([
             inputs.contextTensor,
             inputs.transFeatsTensor,
             inputs.intentTensor,
             inputs.capTensor,
+            inputs.compositeTensor,
           ]) as tf.Tensor[];
 
           const probs = outputs[0].dataSync() as Float32Array;
@@ -1167,7 +1306,7 @@ export class CompactInformedGRU {
 
           // Sticky bias: suppress excessive repetition
           const lastToolId = candidate.path[candidate.path.length - 1];
-          const lastToolIdx = this.toolToIndex.get(lastToolId);
+          const lastToolIdx = this.nodeToIndex.get(lastToolId);
           if (lastToolIdx !== undefined) {
             let repeatCount = 0;
             for (let i = candidate.path.length - 1; i >= 0; i--) {
@@ -1179,9 +1318,9 @@ export class CompactInformedGRU {
             }
           }
 
-          // Find top-beamWidth tools
+          // Find top-beamWidth items from full vocabulary
           const topK: Array<{ idx: number; prob: number }> = [];
-          for (let i = 0; i < numTools; i++) {
+          for (let i = 0; i < vs; i++) {
             if (adjusted[i] > 1e-10) {
               topK.push({ idx: i, prob: adjusted[i] });
             }
@@ -1189,7 +1328,7 @@ export class CompactInformedGRU {
           topK.sort((a, b) => b.prob - a.prob);
 
           return {
-            topTools: topK.slice(0, beamWidth),
+            topItems: topK.slice(0, beamWidth),
             termProb: termProb[0],
           };
         });
@@ -1204,15 +1343,19 @@ export class CompactInformedGRU {
           });
         }
 
-        // Branch B: CONTINUE with each top tool
+        // Branch B: CONTINUE with each top item (leaf or expanded non-leaf)
         const continueLogProb = candidate.logProb + Math.log(1 - tp + 1e-10);
-        for (const tool of expansions.topTools) {
-          const toolId = this.indexToTool.get(tool.idx);
-          if (!toolId) continue;
+        for (const item of expansions.topItems) {
+          const expanded = this.expandPrediction(item.idx);
+          if (expanded.length === 0) continue;
+
+          const newPath = [...candidate.path, ...expanded];
+          // Truncate to maxPathLength
+          const trimmed = newPath.slice(0, maxPathLength);
 
           nextCandidates.push({
-            path: [...candidate.path, toolId],
-            logProb: continueLogProb + Math.log(Math.max(tool.prob, 1e-10)),
+            path: trimmed,
+            logProb: continueLogProb + Math.log(Math.max(item.prob, 1e-10)),
           });
         }
       }
@@ -1253,6 +1396,58 @@ export class CompactInformedGRU {
     }));
   }
 
+  /**
+   * Build path where GRU itself picks the first tool (context = []).
+   * Uses predictNextTopK with empty context, then buildPath from top-1.
+   */
+  buildPathAutoStart(
+    intentEmb: number[],
+    compositeFeatures?: number[],
+  ): { path: string[]; firstToolRanked: Array<{ toolId: string; score: number }> } {
+    const pred = this.predictNextTopK(intentEmb, [], 10, compositeFeatures);
+    const firstToolId = pred.ranked[0]?.toolId;
+    if (!firstToolId) return { path: [], firstToolRanked: pred.ranked };
+
+    const path = this.buildPath(intentEmb, firstToolId, compositeFeatures);
+    return { path, firstToolRanked: pred.ranked };
+  }
+
+  /**
+   * Multi-start beam: launch beams from each of the top-K first tools
+   * (picked by GRU with empty context) and return the best overall path.
+   */
+  buildPathBeamMultiStart(
+    intentEmb: number[],
+    numStarts: number = 3,
+    beamWidth: number = 3,
+    lengthAlpha: number = 0.7,
+    compositeFeatures?: number[],
+  ): Array<{ path: string[]; score: number; startTool: string }> {
+    const pred = this.predictNextTopK(intentEmb, [], numStarts, compositeFeatures);
+    const allResults: Array<{ path: string[]; score: number; startTool: string }> = [];
+
+    for (const { toolId } of pred.ranked) {
+      const beamResults = this.buildPathBeam(intentEmb, toolId, beamWidth, lengthAlpha, compositeFeatures);
+      for (const r of beamResults) {
+        allResults.push({ ...r, startTool: toolId });
+      }
+    }
+
+    // Sort all paths by score (best first), deduplicate
+    allResults.sort((a, b) => b.score - a.score);
+    const seen = new Set<string>();
+    const deduped: typeof allResults = [];
+    for (const r of allResults) {
+      const key = r.path.join("|");
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(r);
+      }
+    }
+
+    return deduped.slice(0, beamWidth * numStarts);
+  }
+
   // ---------------------------------------------------------------------------
   // Utilities
   // ---------------------------------------------------------------------------
@@ -1262,14 +1457,34 @@ export class CompactInformedGRU {
     return this.currentTemperature;
   }
 
-  /** Get tool-to-index mapping. */
-  getToolToIndex(): ReadonlyMap<string, number> {
-    return this.toolToIndex;
+  /** Get node-to-index mapping (all levels). */
+  getNodeToIndex(): ReadonlyMap<string, number> {
+    return this.nodeToIndex;
   }
 
-  /** Get index-to-tool mapping. */
+  /** Get index-to-node mapping (all levels). */
+  getIndexToNode(): ReadonlyMap<number, VocabNode> {
+    return this.indexToNode;
+  }
+
+  /**
+   * Get tool-to-index mapping (leaf nodes only, backward compat).
+   * Filters nodeToIndex to only include level-0 nodes.
+   */
+  getToolToIndex(): ReadonlyMap<string, number> {
+    return this.nodeToIndex;
+  }
+
+  /**
+   * Get index-to-tool mapping (leaf nodes only, backward compat).
+   * Returns a view over indexToNode filtered to level-0 nodes, mapped to id strings.
+   */
   getIndexToTool(): ReadonlyMap<number, string> {
-    return this.indexToTool;
+    const result = new Map<number, string>();
+    for (const [idx, node] of this.indexToNode) {
+      if (node.level === 0) result.set(idx, node.id);
+    }
+    return result;
   }
 
   /** Print model summary to console. */
@@ -1291,10 +1506,6 @@ export class CompactInformedGRU {
     if (this.optimizer) {
       this.optimizer.dispose();
       this.optimizer = null;
-    }
-    if (this.termOptimizer) {
-      this.termOptimizer.dispose();
-      this.termOptimizer = null;
     }
   }
 }

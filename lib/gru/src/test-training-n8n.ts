@@ -21,6 +21,8 @@ import { initTensorFlow, logMemory } from "./tf/backend.ts";
 import { CompactInformedGRU } from "./transition/gru-model.ts";
 import { computeJaccardMatrix, computeBigramMatrix } from "./transition/structural-bias.ts";
 import type { TransitionExample, ToolCapabilityMap } from "./transition/types.ts";
+import { buildDAGAwareExamples, generateKFolds, formatKFoldMetric } from "./training-utils.ts";
+import type { TaskResultWithLayer } from "./training-utils.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -164,35 +166,37 @@ for (const trace of traceRows) {
 }
 const bigramMatrix = computeBigramMatrix(allTraces, matrixToolIndex, numToolsForMatrix);
 
-console.log("\n[5/9] Generating production TransitionExamples...");
+console.log("\n[5/9] Generating production TransitionExamples (DAG-aware)...");
 const prodExamples: (TransitionExample & { _traceId: string })[] = [];
 const singleToolSeen = new Set<string>();
 let singleToolCount = 0, multiToolCount = 0;
+let dagAwareCount = 0, linearFallbackCount = 0;
+
+const validToolIdSet = new Set(toolEmbeddings.keys());
 
 for (const trace of traceRows) {
   const intentEmbedding = parseEmbedding(trace.intent_embedding);
   if (!intentEmbedding) continue;
-  const taskResults = trace.task_results as Array<{ tool?: string }>;
-  const toolSequence = taskResults.map((t) => t.tool).filter((t): t is string => !!t && toolEmbeddings.has(t));
-  if (toolSequence.length === 0) continue;
+  const taskResults = trace.task_results as TaskResultWithLayer[];
 
-  if (toolSequence.length === 1) {
-    const key = embedHash(intentEmbedding) + ":" + toolSequence[0];
-    if (singleToolSeen.has(key)) continue;
-    singleToolSeen.add(key);
-    prodExamples.push({ intentEmbedding, contextToolIds: [], targetToolId: toolSequence[0], isTerminal: 1, isSingleTool: true, _traceId: trace.id });
-    singleToolCount++;
-  } else {
-    for (let i = 0; i < toolSequence.length; i++) {
-      prodExamples.push({
-        intentEmbedding, contextToolIds: toolSequence.slice(0, i),
-        targetToolId: toolSequence[i], isTerminal: i === toolSequence.length - 1 ? 1 : 0, isSingleTool: false, _traceId: trace.id,
-      });
-    }
+  // Use DAG-aware example generation (P0-1 fix)
+  const traceResult = buildDAGAwareExamples(
+    trace.id, intentEmbedding, taskResults,
+    validToolIdSet, singleToolSeen, embedHash,
+  );
+
+  if (traceResult.isSingleTool) singleToolCount++;
+  if (traceResult.isMultiTool) {
     multiToolCount++;
+    const hasLayers = taskResults.some((t: TaskResultWithLayer) =>
+      (t.layer_index ?? t.layerIndex ?? -1) >= 0);
+    if (hasLayers) dagAwareCount++;
+    else linearFallbackCount++;
   }
+  prodExamples.push(...traceResult.examples);
 }
 console.log(`      Prod: ${prodExamples.length} examples (${singleToolCount} single, ${multiToolCount} multi-tool)`);
+console.log(`      DAG-aware context: ${dagAwareCount} traces, linear fallback: ${linearFallbackCount} traces`);
 
 // Split prod into train/test BY TRACE (not by example) to avoid contamination
 // This ensures all examples from a given trace are in the same split
@@ -412,6 +416,85 @@ console.log(`\n      === Path Evaluation (${evalCount} test-only traces) ===`);
 console.log(`      Greedy exact match:  ${greedyExactMatch}/${evalCount} (${evalCount > 0 ? (greedyExactMatch / evalCount * 100).toFixed(1) : "0.0"}%)`);
 console.log(`      Beam@3 exact match:  ${beamExactMatch}/${evalCount} (${evalCount > 0 ? (beamExactMatch / evalCount * 100).toFixed(1) : "0.0"}%)`);
 console.log(`      Beam@3 tools match:  ${beamContainsMatch}/${evalCount} (${evalCount > 0 ? (beamContainsMatch / evalCount * 100).toFixed(1) : "0.0"}%)`);
+
+// --- K-fold Cross-Validation (P0-2) ---
+const K_FOLDS = parseInt(process.argv.find((a) => a.startsWith("--kfolds="))?.slice(9) ?? "5", 10);
+const RUN_KFOLD = !process.argv.includes("--no-kfold");
+
+if (RUN_KFOLD && K_FOLDS >= 2) {
+  console.log(`\n=== K-FOLD CROSS-VALIDATION (K=${K_FOLDS}, seed=${SPLIT_SEED}) ===`);
+
+  const folds = generateKFolds(uniqueTraceIds, K_FOLDS, shuffle);
+
+  const foldNextAcc: number[] = [];
+  const foldTermAcc: number[] = [];
+  const foldHit1: number[] = [];
+  const foldHit3: number[] = [];
+  const foldMRR: number[] = [];
+
+  for (let f = 0; f < folds.length; f++) {
+    const fold = folds[f];
+    const foldTrain = prodExamples.filter((ex) => fold.trainTraceIds.has(ex._traceId));
+    const foldTest = prodExamples.filter((ex) => fold.testTraceIds.has(ex._traceId));
+
+    const foldOversampled: TransitionExample[] = [];
+    for (let r = 0; r < PROD_OVERSAMPLE; r++) foldOversampled.push(...foldTrain);
+    const foldMixed = [...foldOversampled, ...n8nExamples];
+
+    const foldModel = new CompactInformedGRU({ embeddingDim, n8nLossWeight: N8N_LOSS_WEIGHT });
+    foldModel.setToolVocabulary(toolEmbeddings, toolCapMap);
+    foldModel.setStructuralBias({ jaccardMatrix, bigramMatrix, numTools: numToolsForMatrix });
+
+    for (let epoch = 0; epoch < EPOCHS; epoch++) {
+      foldModel.annealTemperature(epoch, EPOCHS);
+      const shuffledFold = shuffle([...foldMixed]);
+      for (let i = 0; i < shuffledFold.length; i += BATCH_SIZE) {
+        const batch = shuffledFold.slice(i, i + BATCH_SIZE);
+        if (batch.length > 0) foldModel.trainStep(batch);
+      }
+    }
+
+    let correctNext = 0, correctTerm = 0, hit1 = 0, hit3 = 0, mrrSum = 0, nextTotal = 0;
+    for (const ex of foldTest) {
+      const pred = foldModel.predictNextTopK(ex.intentEmbedding, ex.contextToolIds, 10);
+      if (!ex.isSingleTool) {
+        nextTotal++;
+        const rank = pred.ranked.findIndex(r => r.toolId === ex.targetToolId);
+        if (rank === 0) { hit1++; correctNext++; }
+        if (rank >= 0 && rank < 3) hit3++;
+        if (rank >= 0) mrrSum += 1 / (rank + 1);
+      }
+      if ((pred.shouldTerminate ? 1 : 0) === ex.isTerminal) correctTerm++;
+    }
+
+    const nextAccVal = nextTotal > 0 ? (correctNext / nextTotal) * 100 : 0;
+    const termAccVal = (correctTerm / foldTest.length) * 100;
+    const hit1Val = nextTotal > 0 ? (hit1 / nextTotal) * 100 : 0;
+    const hit3Val = nextTotal > 0 ? (hit3 / nextTotal) * 100 : 0;
+    const mrrVal = nextTotal > 0 ? mrrSum / nextTotal : 0;
+
+    foldNextAcc.push(nextAccVal);
+    foldTermAcc.push(termAccVal);
+    foldHit1.push(hit1Val);
+    foldHit3.push(hit3Val);
+    foldMRR.push(mrrVal);
+
+    console.log(
+      `  Fold ${f + 1}/${K_FOLDS}: nextAcc=${nextAccVal.toFixed(1)}%, termAcc=${termAccVal.toFixed(1)}%, ` +
+      `Hit@1=${hit1Val.toFixed(1)}%, Hit@3=${hit3Val.toFixed(1)}%, MRR=${mrrVal.toFixed(3)} ` +
+      `(${fold.trainTraceIds.size}/${fold.testTraceIds.size} traces)`
+    );
+
+    foldModel.dispose();
+  }
+
+  console.log(`\n  --- K-Fold Summary (K=${K_FOLDS}) ---`);
+  console.log(`  ${formatKFoldMetric("Next-tool acc", foldNextAcc)}`);
+  console.log(`  ${formatKFoldMetric("Termination acc", foldTermAcc)}`);
+  console.log(`  ${formatKFoldMetric("Hit@1", foldHit1)}`);
+  console.log(`  ${formatKFoldMetric("Hit@3", foldHit3)}`);
+  console.log(`  ${formatKFoldMetric("MRR", foldMRR, "")}`);
+}
 
 console.log("\n[Done] Mixed training complete!");
 logMemory("Final ");

@@ -16,16 +16,17 @@
  * Configuration for the Compact Informed GRU.
  *
  * Architecture:
- *   tool_emb[1024] → input_proj(1024→128) ─┐
- *   transition_features[5] ─────────────────┤→ concat[133] → GRU(133,64)
- *                                           │
- *   intent_emb[1024] → intent_proj(1024→64)─┤
- *   cap_fingerprint[numCaps] → cap_proj(C→16)┤→ concat[144] → dense(144→64)
+ *   tool_emb[1024] → input_proj(1024→128) ──┐
+ *   transition_features[5] ──────────────────┤→ concat[133] → GRU(133,64)
  *                                            │
- *                          ┌─────────────────┘
- *                 emb_proj(64→1024)        term_head(64→1)
- *                 similarity_head(frozen)
- *                 + jaccard_bias + bigram_bias
+ *   intent_emb[1024] → intent_proj(1024→64)──┤
+ *   cap_fingerprint[numCaps] → cap_proj(C→16)┤
+ *   composite_feats[3] → comp_proj(3→8) ─────┤→ concat[152] → dense(152→64)
+ *                                             │
+ *                          ┌──────────────────┘
+ *                 emb_proj(64→1024)         term_head(128→1)
+ *                 similarity_head(frozen, vocabSize = numTools + numVocabNodes)
+ *                 + jaccard_bias + bigram_bias (L0 nodes only)
  */
 export interface CompactGRUConfig {
   // -- Dimensions -----------------------------------------------------------
@@ -53,6 +54,12 @@ export interface CompactGRUConfig {
 
   /** Number of tools in vocabulary. Set by setToolVocabulary. */
   numTools: number;
+
+  /** Number of composite scoring features (bestScore, coverage, level). */
+  compositeFeatureDim: number;
+
+  /** Projection dim for composite features. */
+  compositeProjDim: number;
 
   // -- Inference ------------------------------------------------------------
 
@@ -112,6 +119,13 @@ export interface CompactGRUConfig {
 
   /** Weight for n8n KL divergence loss (0 = disabled, 0.3 recommended). */
   n8nLossWeight: number;
+
+  /**
+   * Number of non-leaf vocabulary nodes (level > 0) in the unified vocabulary.
+   * Set automatically by setToolVocabulary when higher-level nodes are provided.
+   * vocabSize = numTools + numVocabNodes.
+   */
+  numVocabNodes: number;
 }
 
 /**
@@ -127,6 +141,8 @@ export const DEFAULT_CONFIG: CompactGRUConfig = {
   numTransitionFeatures: 5,
   numCapabilities: 212,
   numTools: 0, // Set by setToolVocabulary
+  compositeFeatureDim: 3,
+  compositeProjDim: 8,
 
   // Inference
   terminationThreshold: 0.5,
@@ -153,6 +169,9 @@ export const DEFAULT_CONFIG: CompactGRUConfig = {
 
   // n8n augmentation
   n8nLossWeight: 0.3,
+
+  // Non-leaf vocabulary nodes (caps, meta-caps)
+  numVocabNodes: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -213,6 +232,19 @@ export interface TransitionExample {
    * Used for n8n augmentation examples where the target is approximate.
    */
   softTargetProbs?: number[];
+
+  /**
+   * Composite scoring features from SHGAT scoreNodes().
+   * Replaces the binary "composite threshold" with a continuous spectrum.
+   * The termination head learns when a composite is sufficient.
+   *
+   * [0] bestCompositeScore: float [0,1] — SHGAT score of best matching composite
+   * [1] compositeCoverage:  float [0,1] — semantic overlap (intent vs composite embedding)
+   * [2] compositeLevel:     float [0,1] — normalized hierarchy level (0=L0, 0.5=L1, 1.0=L2)
+   *
+   * When absent, defaults to zeros (backward compatible).
+   */
+  compositeFeatures?: number[];
 }
 
 /** Per-epoch training metrics. */
@@ -237,6 +269,84 @@ export interface TrainingMetrics {
 
   /** Number of active tensors (for leak detection). */
   numTensors: number;
+}
+
+// ---------------------------------------------------------------------------
+// Composite scoring types
+// ---------------------------------------------------------------------------
+
+/**
+ * Composite scoring features passed from SHGAT to GRU.
+ *
+ * Instead of a binary threshold ("if composite score > X → use it"),
+ * these features are fed as a continuous input to the GRU model.
+ * The termination head learns WHEN a composite is sufficient, eliminating
+ * the fragile cliff-edge of threshold-based routing.
+ *
+ * Expert panel consensus (2026-02-10):
+ *   "Pas de seuil binaire, mais un spectre continu où le score du composite
+ *    est une feature du GRU, qui décide lui-même du degré de complétion."
+ */
+export interface CompositeScoring {
+  /** SHGAT score of the best matching composite node [0, 1]. */
+  bestCompositeScore: number;
+
+  /** Semantic coverage: cosine(intent, bestComposite) [0, 1]. */
+  compositeCoverage: number;
+
+  /**
+   * Normalized hierarchy level of the best composite.
+   * 0.0 = L0 (atomic tool), 0.5 = L1 (capability), 1.0 = L2 (meta-capability).
+   */
+  compositeLevel: number;
+}
+
+/**
+ * Convert CompositeScoring to a fixed-size feature vector.
+ */
+export function compositeToFeatures(c: CompositeScoring): number[] {
+  return [c.bestCompositeScore, c.compositeCoverage, c.compositeLevel];
+}
+
+/**
+ * Default composite features (no composite available = zeros).
+ */
+export const EMPTY_COMPOSITE_FEATURES: number[] = [0, 0, 0];
+
+// ---------------------------------------------------------------------------
+// Unified vocabulary node types
+// ---------------------------------------------------------------------------
+
+/**
+ * A node in the unified vocabulary hierarchy.
+ *
+ * Level 0 = leaf (atomic tool), Level 1 = capability, Level 2 = meta-capability, etc.
+ * When the GRU predicts a non-leaf node (level > 0), its children are expanded
+ * into the path context.
+ *
+ * Replaces the former tool/capability dichotomy with a generic hierarchy
+ * that can accommodate arbitrary depth (L0, L1, L2, ...).
+ */
+export interface VocabNode {
+  /** Unique identifier (tool ID or capability ID). */
+  id: string;
+
+  /**
+   * Hierarchy level: 0 = leaf (atomic tool), 1 = capability, 2 = meta-cap, etc.
+   * Structural bias (Jaccard, bigram) is applied only to level-0 nodes.
+   * Prediction of level > 0 triggers expansion to leaf children in buildPath.
+   */
+  level: number;
+
+  /** BGE-M3 embedding (1024D, same space for all levels). */
+  embedding: number[];
+
+  /**
+   * Child node IDs (leaf tool IDs for L1+).
+   * Absent for level-0 (leaf) nodes.
+   * When the GRU predicts this node, children are added to the path.
+   */
+  children?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -287,8 +397,11 @@ export interface SerializedModel {
   /** Model config. */
   config: CompactGRUConfig;
 
-  /** Tool ID → index mapping. */
+  /** Tool ID → index mapping (leaf nodes only, for backward compat). */
   toolIndex: Record<string, number>;
+
+  /** Full vocabulary node registry (all levels). */
+  vocabNodes?: Array<{ id: string; level: number; children?: string[] }>;
 
   /** Keras model weights as ArrayBuffers. */
   modelWeights: ArrayBuffer[];

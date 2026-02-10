@@ -18,8 +18,14 @@ export type {
   StructuralBias,
   ToolCapabilityMap,
   SerializedModel,
+  CompositeScoring,
+  VocabNode,
 } from "./types.ts";
-export { DEFAULT_CONFIG } from "./types.ts";
+export {
+  DEFAULT_CONFIG,
+  compositeToFeatures,
+  EMPTY_COMPOSITE_FEATURES,
+} from "./types.ts";
 
 export {
   computeJaccardMatrix,

@@ -508,25 +508,39 @@ try {
 
   console.log(`      Loaded ${traceRows.length} multi-tool traces`);
 
-  // Generate examples
+  // Generate examples (DAG-aware context via layerIndex)
   const allExamples: TransitionExample[] = [];
   for (const trace of traceRows) {
     const intentEmbedding = parseEmbedding(trace.intent_embedding);
     if (!intentEmbedding) continue;
 
-    const taskResults = trace.task_results as Array<{ tool?: string }>;
-    const toolSequence = taskResults
-      .map((t) => t.tool)
-      .filter((t): t is string => !!t && enrichedToolEmbeddings.has(t));
+    const taskResults = trace.task_results as Array<{ tool?: string; layer_index?: number; layerIndex?: number }>;
+    const validTasks: Array<{ tool: string; layerIndex: number }> = [];
+    for (const task of taskResults) {
+      if (!task.tool || !enrichedToolEmbeddings.has(task.tool)) continue;
+      const layer = task.layerIndex ?? task.layer_index ?? -1;
+      validTasks.push({ tool: task.tool, layerIndex: layer });
+    }
 
-    if (toolSequence.length < 2) continue;
+    if (validTasks.length < 2) continue;
 
-    for (let i = 0; i < toolSequence.length; i++) {
+    const hasLayers = validTasks.some((t) => t.layerIndex >= 0);
+    for (let i = 0; i < validTasks.length; i++) {
+      const current = validTasks[i];
+      let contextToolIds: string[];
+      if (hasLayers && current.layerIndex >= 0) {
+        // DAG-aware: only include tools from strictly lower layers
+        contextToolIds = validTasks
+          .filter((t, idx) => idx < i && t.layerIndex >= 0 && t.layerIndex < current.layerIndex)
+          .map((t) => t.tool);
+      } else {
+        contextToolIds = validTasks.slice(0, i).map((t) => t.tool);
+      }
       allExamples.push({
         intentEmbedding,
-        contextToolIds: toolSequence.slice(0, i),
-        targetToolId: toolSequence[i],
-        isTerminal: i === toolSequence.length - 1 ? 1 : 0,
+        contextToolIds,
+        targetToolId: current.tool,
+        isTerminal: i === validTasks.length - 1 ? 1 : 0,
       });
     }
   }

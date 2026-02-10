@@ -64,6 +64,13 @@ export type {
   StructuralBias,
   ToolCapabilityMap,
   SerializedModel,
+  CompositeScoring,
+  VocabNode,
+} from "./transition/mod.ts";
+
+export {
+  compositeToFeatures,
+  EMPTY_COMPOSITE_FEATURES,
 } from "./transition/mod.ts";
 
 // Structural bias utilities
@@ -73,3 +80,39 @@ export {
   computeTransitionFeatures,
   computeCapFingerprint,
 } from "./transition/mod.ts";
+
+// Training utilities (DAG-aware examples + K-fold CV)
+export {
+  buildDAGAwareExamples,
+  generateKFolds,
+  computeStats,
+  formatKFoldMetric,
+} from "./training-utils.ts";
+export type {
+  TaskResultWithLayer,
+  TraceExamples,
+  FoldResult,
+  KFoldMetrics,
+} from "./training-utils.ts";
+
+// Advanced training (PER + TD Error + Thompson Sampling)
+export {
+  PERBuffer,
+  calculateTDError,
+  calculateBatchTDErrors,
+  tdErrorFromProbability,
+  ThompsonSampler,
+  DEFAULT_PER_ALPHA,
+  DEFAULT_BETA_START,
+  DEFAULT_THOMPSON_CONFIG,
+  COLD_START_PRIORITY,
+} from "./training/mod.ts";
+export type {
+  PERBufferConfig,
+  PEREntry,
+  PERSampleResult,
+  TDErrorResult,
+  ThompsonSamplerConfig,
+  ToolBetaState,
+  SerializedThompsonState,
+} from "./training/mod.ts";
