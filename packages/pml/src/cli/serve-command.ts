@@ -45,9 +45,8 @@ import {
   forwardToCloud,
   extractContinueWorkflow,
   parseExecuteLocallyResponse,
-  formatApprovalRequired,
   executeLocalCode,
-  type AnyApprovalResult,
+  buildMcpLocalResult,
 } from "./shared/mod.ts";
 
 // Serve mode = debug mode - always enable logs
@@ -411,31 +410,15 @@ export function createServeCommand(): Command<any> {
                 );
                 pendingWorkflowStore.delete(continueWorkflow.workflowId);
 
-                if (result.status === "approval_required") {
-                  return c.json({
-                    jsonrpc: "2.0",
-                    id,
-                    result: formatApprovalRequired(
-                      result.toolId,
-                      result.approval as AnyApprovalResult,
-                      pendingWorkflowStore,
-                      pending.code,
-                      pending.fqdnMap,
-                      pending.dagTasks, // Story 11.4
-                    ),
-                  });
-                }
-                if (result.status === "error") {
-                  return c.json({
-                    jsonrpc: "2.0",
-                    id,
-                    result: { content: [{ type: "text", text: JSON.stringify({ status: "error", error: result.error }) }] },
-                  });
-                }
                 return c.json({
                   jsonrpc: "2.0",
                   id,
-                  result: { content: [{ type: "text", text: JSON.stringify({ status: "success", result: result.result }) }] },
+                  result: buildMcpLocalResult(result, {
+                    code: pending.code,
+                    fqdnMap: pending.fqdnMap ?? {},
+                    pendingWorkflowStore,
+                    dagTasks: pending.dagTasks,
+                  }, true, undefined, continueWorkflow.workflowId),
                 });
               }
             }
@@ -470,37 +453,24 @@ export function createServeCommand(): Command<any> {
                   execLocally.dag?.tasks, // Story 11.4: DAG tasks with layerIndex
                 );
 
+                // ADR-065: Trace is now sent by local-executor.ts with unified workflowId/traceId
                 if (result.status === "approval_required") {
                   log(`  ${colors.yellow("⏸")} approval_required: ${result.toolId}`);
-                  return c.json({
-                    jsonrpc: "2.0",
-                    id,
-                    result: formatApprovalRequired(
-                      result.toolId,
-                      result.approval as AnyApprovalResult,
-                      pendingWorkflowStore,
-                      execLocally.code,
-                      Object.fromEntries(fqdnMap),
-                      execLocally.dag?.tasks, // Story 11.4
-                    ),
-                  });
-                }
-                if (result.status === "error") {
+                } else if (result.status === "error") {
                   log(`  ${colors.red("✗")} error: ${result.error}`);
-                  return c.json({
-                    jsonrpc: "2.0",
-                    id,
-                    result: { content: [{ type: "text", text: JSON.stringify({ status: "error", error: result.error, executed_locally: true }) }] },
-                  });
+                } else {
+                  log(`  ${colors.green("✓")} success (${result.durationMs}ms)`);
                 }
-                // ADR-065: Trace is now sent by local-executor.ts with unified workflowId/traceId
-                // No need for duplicate trace here - local-executor passes workflowId to enqueueDirectExecutionTrace()
 
-                log(`  ${colors.green("✓")} success (${result.durationMs}ms)`);
                 return c.json({
                   jsonrpc: "2.0",
                   id,
-                  result: { content: [{ type: "text", text: JSON.stringify({ status: "success", result: result.result, executed_locally: true }) }] },
+                  result: buildMcpLocalResult(result, {
+                    code: execLocally.code,
+                    fqdnMap: Object.fromEntries(fqdnMap),
+                    pendingWorkflowStore,
+                    dagTasks: execLocally.dag?.tasks,
+                  }, true, execLocally.ui_orchestration, execLocally.workflowId),
                 });
               }
             }

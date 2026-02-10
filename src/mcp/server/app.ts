@@ -419,6 +419,15 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
     return response || c.json({ error: "Not found" }, 404);
   });
 
+  // GET /api/traces/:id — fetch single execution trace
+  app.get("/api/traces/:id", async (c) => {
+    const routeCtx = c.get("routeCtx");
+    const corsHdrs = c.get("corsHeaders");
+    const url = new URL(c.req.raw.url);
+    const response = await handleTracesRoutes(c.req.raw, url, routeCtx, corsHdrs);
+    return response || c.json({ error: "Not found" }, 404);
+  });
+
   // UI Resources API (Story 16.6: MCP Apps UI fetching)
   app.get("/api/ui/resource", async (c) => {
     const routeCtx = c.get("routeCtx");

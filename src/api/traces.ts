@@ -369,6 +369,37 @@ export async function handleTracesPost(
 }
 
 /**
+ * GET /api/traces/:id
+ *
+ * Retrieve a single execution trace by ID (= workflowId per ADR-065).
+ * Used by MCP Apps (e.g., TraceViewer) to fetch real execution traces.
+ */
+export async function handleTracesGet(
+  _req: Request,
+  _url: URL,
+  ctx: RouteContext,
+  corsHeaders: Record<string, string>,
+  traceId: string,
+): Promise<Response> {
+  if (!ctx.db) {
+    return errorResponse("Database unavailable", 503, corsHeaders);
+  }
+
+  if (!isUUID(traceId)) {
+    return errorResponse("Invalid trace ID format", 400, corsHeaders);
+  }
+
+  const traceStore = new ExecutionTraceStore(ctx.db);
+  const trace = await traceStore.getTraceById(traceId);
+
+  if (!trace) {
+    return errorResponse("Trace not found", 404, corsHeaders);
+  }
+
+  return jsonResponse(trace, 200, corsHeaders);
+}
+
+/**
  * Route traces-related requests.
  */
 export function handleTracesRoutes(
@@ -379,6 +410,12 @@ export function handleTracesRoutes(
 ): Promise<Response> | null {
   if (url.pathname === "/api/traces" && req.method === "POST") {
     return handleTracesPost(req, url, ctx, corsHeaders);
+  }
+
+  // GET /api/traces/:id
+  const traceMatch = url.pathname.match(/^\/api\/traces\/([^/]+)$/);
+  if (traceMatch && req.method === "GET") {
+    return handleTracesGet(req, url, ctx, corsHeaders, traceMatch[1]);
   }
 
   return null;

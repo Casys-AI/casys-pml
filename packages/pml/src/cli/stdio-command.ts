@@ -48,6 +48,7 @@ import {
   parseExecuteLocallyResponse,
   formatApprovalRequired,
   executeLocalCode,
+  buildMcpLocalResult,
   type AnyApprovalResult,
 } from "./shared/mod.ts";
 import { checkForUpdates } from "./shared/version-check.ts";
@@ -339,45 +340,15 @@ async function handleToolsCall(
 
         pendingWorkflowStore.delete(continueWorkflow.workflowId!);
 
-        if (localResult.status === "approval_required") {
-          sendResponse({
-            jsonrpc: "2.0",
-            id,
-            result: formatApprovalRequired(
-              localResult.toolId,
-              localResult.approval as AnyApprovalResult,
-              pendingWorkflowStore,
-              pendingWorkflow.code,
-              pendingWorkflow.fqdnMap,
-              pendingWorkflow.dagTasks, // Story 11.4
-            ),
-          });
-          return;
-        }
-
-        if (localResult.status === "error") {
-          sendResponse({
-            jsonrpc: "2.0",
-            id,
-            result: {
-              content: [{
-                type: "text",
-                text: JSON.stringify({ status: "error", error: localResult.error, executed_locally: true }, null, 2),
-              }],
-            },
-          });
-          return;
-        }
-
         sendResponse({
           jsonrpc: "2.0",
           id,
-          result: {
-            content: [{
-              type: "text",
-              text: JSON.stringify({ status: "success", result: localResult.result, executed_locally: true }, null, 2),
-            }],
-          },
+          result: buildMcpLocalResult(localResult, {
+            code: pendingWorkflow.code,
+            fqdnMap: pendingWorkflow.fqdnMap ?? {},
+            pendingWorkflowStore,
+            dagTasks: pendingWorkflow.dagTasks,
+          }, true, undefined, continueWorkflow.workflowId),
         });
         return;
       }
@@ -419,52 +390,16 @@ async function handleToolsCall(
           execLocally.dag?.tasks, // Story 11.4: DAG tasks with layerIndex
         );
 
-        // Handle approval_required (HIL pause)
-        if (localResult.status === "approval_required") {
-          stdioLog.debug(`Local execution paused - tool ${localResult.toolId} requires approval`);
-          sendResponse({
-            jsonrpc: "2.0",
-            id,
-            result: formatApprovalRequired(
-              localResult.toolId,
-              localResult.approval as AnyApprovalResult,
-              pendingWorkflowStore,
-              execLocally.code,
-              Object.fromEntries(fqdnMap),
-              execLocally.dag?.tasks, // Story 11.4
-            ),
-          });
-          return;
-        }
-
-        // Handle error
-        if (localResult.status === "error") {
-          sendResponse({
-            jsonrpc: "2.0",
-            id,
-            result: {
-              content: [{
-                type: "text",
-                text: JSON.stringify({ status: "error", error: localResult.error, executed_locally: true }, null, 2),
-              }],
-            },
-          });
-          return;
-        }
-
         // ADR-065: Trace is now sent by local-executor.ts with unified workflowId/traceId
-        // No need for duplicate trace here - local-executor passes workflowId to enqueueDirectExecutionTrace()
-
-        // Return successful local execution result
         sendResponse({
           jsonrpc: "2.0",
           id,
-          result: {
-            content: [{
-              type: "text",
-              text: JSON.stringify({ status: "success", result: localResult.result, executed_locally: true }, null, 2),
-            }],
-          },
+          result: buildMcpLocalResult(localResult, {
+            code: execLocally.code,
+            fqdnMap: Object.fromEntries(fqdnMap),
+            pendingWorkflowStore,
+            dagTasks: execLocally.dag?.tasks,
+          }, true, execLocally.ui_orchestration, execLocally.workflowId),
         });
         return;
       }
