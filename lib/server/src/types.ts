@@ -88,6 +88,18 @@ export interface ConcurrentServerOptions {
    * STDIO transport is unaffected (local, no auth needed).
    */
   auth?: import("./auth/types.ts").AuthOptions;
+
+  /**
+   * Content Security Policy for HTML resources (MCP Apps).
+   * When provided, injects a CSP `<meta>` tag into HTML content before serving.
+   * This protects against XSS even in STDIO mode where HTTP headers are unavailable.
+   *
+   * @example
+   * ```typescript
+   * resourceCsp: { allowInline: true }
+   * ```
+   */
+  resourceCsp?: import("./security/csp.ts").CspOptions;
 }
 
 // ============================================

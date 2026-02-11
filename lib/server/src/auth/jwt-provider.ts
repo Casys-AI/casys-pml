@@ -10,6 +10,7 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import { AuthProvider } from "./provider.ts";
 import type { AuthInfo, ProtectedResourceMetadata } from "./types.ts";
+import { recordAuthEvent, isOtelEnabled } from "../observability/otel.ts";
 
 /**
  * Configuration for JwtAuthProvider.
@@ -86,6 +87,9 @@ export class JwtAuthProvider extends AuthProvider {
     const cacheKey = await this.hashToken(token);
     const cached = this.tokenCache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
+      if (isOtelEnabled()) {
+        recordAuthEvent("cache_hit", { subject: cached.authInfo.subject ?? "" });
+      }
       return cached.authInfo;
     }
     // Evict expired entry if present

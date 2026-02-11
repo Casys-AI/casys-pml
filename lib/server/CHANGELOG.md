@@ -2,6 +2,17 @@
 
 All notable changes to `@casys/mcp-server` will be documented in this file.
 
+## [0.8.0] - 2026-02-11
+
+### Added
+
+- **Security: HMAC-SHA256 channel authentication for PostMessage (MCP Apps)** — `MessageSigner` class for signing/verifying JSON-RPC messages with `_hmac` + `_seq` (anti-replay). `injectChannelAuth()` injects an inline script into iframe HTML that signs outgoing postMessages. Host-side verification via `MessageSigner.verify()`.
+- **Observability: `recordAuthEvent()` wired** — auth tracing spans now fire on token verify, reject, and JWT cache hit (gated by `isOtelEnabled()`).
+
+### Changed
+
+- **API cleanup** — removed internal types from public barrel (`PromiseResolver`, `QueueOptions`, `MCP_APP_URI_SCHEME`).
+
 ## [0.7.0] - 2026-02-07
 
 ### Added

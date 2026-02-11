@@ -62,8 +62,6 @@ export type {
   SamplingParams,
   SamplingResult,
   QueueMetrics,
-  PromiseResolver,
-  QueueOptions,
   RateLimitOptions,
   RateLimitContext,
   // MCP Apps types (SEP-1865)
@@ -78,7 +76,7 @@ export type {
 } from "./src/types.ts";
 
 // MCP Apps constants
-export { MCP_APP_MIME_TYPE, MCP_APP_URI_SCHEME } from "./src/types.ts";
+export { MCP_APP_MIME_TYPE } from "./src/types.ts";
 
 // Middleware pipeline
 export type {
@@ -131,6 +129,15 @@ export {
   isOtelEnabled,
   type ToolCallSpanAttributes,
 } from "./src/observability/mod.ts";
+
+// Security - CSP utilities
+export { buildCspHeader, injectCspMetaTag } from "./src/security/csp.ts";
+export type { CspOptions } from "./src/security/csp.ts";
+
+// Security - HMAC channel authentication for PostMessage (MCP Apps)
+export { injectChannelAuth } from "./src/security/channel-hmac.ts";
+export { MessageSigner } from "./src/security/message-signer.ts";
+export type { SignedMessage, VerifyResult } from "./src/security/message-signer.ts";
 
 // Runtime port (for advanced consumers who need to inspect the adapter contract)
 export type {

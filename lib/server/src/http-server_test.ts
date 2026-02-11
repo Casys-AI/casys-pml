@@ -4,7 +4,7 @@
  * @module lib/server/http-server_test
  */
 
-import { assertEquals, assertExists } from "@std/assert";
+import { assertEquals, assertExists, assertStringIncludes } from "@std/assert";
 import { ConcurrentMCPServer } from "./concurrent-server.ts";
 import { MCP_APP_MIME_TYPE } from "./types.ts";
 
@@ -266,6 +266,135 @@ Deno.test("startHttp - GET returns 405", async () => {
     const res = await fetch(`http://localhost:${port}/mcp`);
     assertEquals(res.status, 405);
     await res.text(); // Consume body to avoid leak
+  } finally {
+    await http.shutdown();
+  }
+});
+
+// ── CSP meta tag injection (resourceCsp) ────────────────────────
+
+Deno.test("startHttp - resources/read injects CSP meta tag when resourceCsp is set", async () => {
+  const server = new ConcurrentMCPServer({
+    name: "csp-test",
+    version: "1.0.0",
+    logger: () => {},
+    resourceCsp: { allowInline: true },
+  });
+
+  const htmlContent = "<html><head><title>App</title></head><body>Hello</body></html>";
+  server.registerResource(
+    { uri: "ui://test/csp-app", name: "CSP App" },
+    () => ({ uri: "ui://test/csp-app", mimeType: MCP_APP_MIME_TYPE, text: htmlContent }),
+  );
+
+  const listener = Deno.listen({ port: 0 });
+  const port = (listener.addr as Deno.NetAddr).port;
+  listener.close();
+
+  const http = await server.startHttp({ port, onListen: () => {} });
+
+  try {
+    const res = await fetch(`http://localhost:${port}/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "resources/read",
+        params: { uri: "ui://test/csp-app" },
+      }),
+    });
+
+    const data = await res.json();
+    const returnedHtml = data.result.contents[0].text;
+
+    // CSP meta tag should be injected after <head>
+    assertStringIncludes(returnedHtml, '<meta http-equiv="Content-Security-Policy"');
+    assertStringIncludes(returnedHtml, "default-src 'none'");
+    assertStringIncludes(returnedHtml, "script-src 'self' 'unsafe-inline'");
+    // Original content should still be present
+    assertStringIncludes(returnedHtml, "<title>App</title>");
+    assertStringIncludes(returnedHtml, "<body>Hello</body>");
+  } finally {
+    await http.shutdown();
+  }
+});
+
+Deno.test("startHttp - resources/read does NOT inject CSP when resourceCsp is not set", async () => {
+  const server = new ConcurrentMCPServer({
+    name: "no-csp-test",
+    version: "1.0.0",
+    logger: () => {},
+    // No resourceCsp option
+  });
+
+  const htmlContent = "<html><head><title>Plain</title></head><body>No CSP</body></html>";
+  server.registerResource(
+    { uri: "ui://test/plain", name: "Plain App" },
+    () => ({ uri: "ui://test/plain", mimeType: MCP_APP_MIME_TYPE, text: htmlContent }),
+  );
+
+  const listener = Deno.listen({ port: 0 });
+  const port = (listener.addr as Deno.NetAddr).port;
+  listener.close();
+
+  const http = await server.startHttp({ port, onListen: () => {} });
+
+  try {
+    const res = await fetch(`http://localhost:${port}/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "resources/read",
+        params: { uri: "ui://test/plain" },
+      }),
+    });
+
+    const data = await res.json();
+    // HTML should be returned unchanged (no CSP injection)
+    assertEquals(data.result.contents[0].text, htmlContent);
+  } finally {
+    await http.shutdown();
+  }
+});
+
+Deno.test("startHttp - resources/read skips CSP injection for non-HTML resources", async () => {
+  const server = new ConcurrentMCPServer({
+    name: "json-csp-test",
+    version: "1.0.0",
+    logger: () => {},
+    resourceCsp: { allowInline: true }, // CSP enabled
+  });
+
+  const jsonContent = '{"data": "test"}';
+  server.registerResource(
+    { uri: "ui://test/json", name: "JSON Resource", mimeType: "application/json" },
+    () => ({ uri: "ui://test/json", mimeType: "application/json", text: jsonContent }),
+  );
+
+  const listener = Deno.listen({ port: 0 });
+  const port = (listener.addr as Deno.NetAddr).port;
+  listener.close();
+
+  const http = await server.startHttp({ port, onListen: () => {} });
+
+  try {
+    const res = await fetch(`http://localhost:${port}/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "resources/read",
+        params: { uri: "ui://test/json" },
+      }),
+    });
+
+    const data = await res.json();
+    // JSON content should NOT have CSP meta tag
+    assertEquals(data.result.contents[0].text, jsonContent);
   } finally {
     await http.shutdown();
   }

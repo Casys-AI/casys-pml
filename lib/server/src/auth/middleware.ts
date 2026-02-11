@@ -9,6 +9,7 @@
 
 import type { AuthProvider } from "./provider.ts";
 import type { Middleware } from "../middleware/types.ts";
+import { recordAuthEvent, isOtelEnabled } from "../observability/otel.ts";
 
 /**
  * Authentication error with structured information
@@ -124,12 +125,25 @@ export function createAuthMiddleware(provider: AuthProvider): Middleware {
 
     const token = extractBearerToken(ctx.request);
     if (!token) {
+      if (isOtelEnabled()) {
+        recordAuthEvent("reject", { reason: "missing_token", tool: ctx.toolName ?? "" });
+      }
       throw new AuthError("missing_token", metadataUrl);
     }
 
     const authInfo = await provider.verifyToken(token);
     if (!authInfo) {
+      if (isOtelEnabled()) {
+        recordAuthEvent("reject", { reason: "invalid_token", tool: ctx.toolName ?? "" });
+      }
       throw new AuthError("invalid_token", metadataUrl);
+    }
+
+    if (isOtelEnabled()) {
+      recordAuthEvent("verify", {
+        subject: authInfo.subject ?? "",
+        tool: ctx.toolName ?? "",
+      });
     }
 
     // Deep-freeze authInfo to prevent mutation by downstream middlewares

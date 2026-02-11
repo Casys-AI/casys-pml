@@ -42,6 +42,7 @@ import type {
   HttpServerOptions,
 } from "./types.ts";
 import { MCP_APP_MIME_TYPE, MCP_APP_URI_SCHEME } from "./types.ts";
+import { buildCspHeader, injectCspMetaTag } from "./security/csp.ts";
 import { ServerMetrics } from "./observability/metrics.ts";
 import { startToolCallSpan, endToolCallSpan } from "./observability/otel.ts";
 
@@ -452,6 +453,21 @@ export class ConcurrentMCPServer {
    * Validate resource URI scheme
    * Logs warning if not using ui:// scheme (MCP Apps standard)
    */
+  /**
+   * Apply CSP meta tag injection to HTML resource content (if configured).
+   * Only transforms HTML content (checks mimeType); non-HTML passes through.
+   */
+  private applyResourceCsp(content: import("./types.ts").ResourceContent): import("./types.ts").ResourceContent {
+    if (!this.options.resourceCsp) return content;
+    if (!content.mimeType?.includes("text/html")) return content;
+
+    const cspValue = buildCspHeader(this.options.resourceCsp);
+    return {
+      ...content,
+      text: injectCspMetaTag(content.text ?? "", cspValue),
+    };
+  }
+
   private validateResourceUri(uri: string): void {
     if (!uri.startsWith(MCP_APP_URI_SCHEME)) {
       this.log(
@@ -504,7 +520,8 @@ export class ConcurrentMCPServer {
       async (uri: URL) => {
         try {
           const content = await handler(uri);
-          return { contents: [content] };
+          const finalContent = this.applyResourceCsp(content);
+          return { contents: [finalContent] };
         } catch (error) {
           this.log(
             `[ERROR] Resource handler failed for ${uri}: ${
@@ -1048,10 +1065,11 @@ export class ConcurrentMCPServer {
 
           try {
             const content = await resourceInfo.handler(new URL(uri));
+            const finalContent = this.applyResourceCsp(content);
             return c.json({
               jsonrpc: "2.0",
               id,
-              result: { contents: [content] },
+              result: { contents: [finalContent] },
             });
           } catch (error) {
             this.log(`Error reading resource ${uri}: ${error instanceof Error ? error.message : String(error)}`);

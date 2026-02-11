@@ -20,7 +20,7 @@ let serverTracer: Tracer | null = null;
  */
 export function getServerTracer(): Tracer {
   if (!serverTracer) {
-    serverTracer = trace.getTracer("mcp.server", "0.6.0");
+    serverTracer = trace.getTracer("mcp.server", "0.8.0");
   }
   return serverTracer;
 }
@@ -75,7 +75,7 @@ export function endToolCallSpan(
 }
 
 /**
- * Record an auth event as a fire-and-forget span
+ * Record an auth event as a fire-and-forget span.
  */
 export function recordAuthEvent(
   event: "verify" | "reject" | "cache_hit",
@@ -93,5 +93,10 @@ export function recordAuthEvent(
  * Deno: OTEL_DENO=true  |  Node.js: OTEL_ENABLED=true
  */
 export function isOtelEnabled(): boolean {
-  return env("OTEL_DENO") === "true" || env("OTEL_ENABLED") === "true";
+  try {
+    return env("OTEL_DENO") === "true" || env("OTEL_ENABLED") === "true";
+  } catch {
+    // Deno without --allow-env throws NotCapable
+    return false;
+  }
 }
