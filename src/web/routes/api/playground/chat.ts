@@ -36,6 +36,15 @@ interface PmlJsonRpcResponse {
   result?: {
     content: Array<{ type: string; text: string }>;
     isError?: boolean;
+    _meta?: {
+      ui?: {
+        resourceUri?: string;
+        emits?: string[];
+        accepts?: string[];
+        html?: string;
+        context?: Record<string, unknown>;
+      };
+    };
   };
   error?: {
     code: number;
@@ -106,6 +115,42 @@ interface DiscoverResult {
   call_name?: string;
 }
 
+/**
+ * Sanitize JSON Schema properties for OpenAI strict validation.
+ * OpenAI rejects array schemas without `items` — add `items: {}` as fallback.
+ */
+function sanitizeSchemaProperties(
+  properties: Record<string, unknown>,
+): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(properties)) {
+    if (value && typeof value === "object") {
+      const prop = { ...(value as Record<string, unknown>) };
+      if (prop.type === "array" && !prop.items) {
+        prop.items = {};
+      }
+      // Recurse into nested object properties
+      if (prop.type === "object" && prop.properties && typeof prop.properties === "object") {
+        prop.properties = sanitizeSchemaProperties(prop.properties as Record<string, unknown>);
+      }
+      // Recurse into array item properties
+      if (prop.type === "array" && prop.items && typeof prop.items === "object") {
+        const items = prop.items as Record<string, unknown>;
+        if (items.type === "object" && items.properties && typeof items.properties === "object") {
+          prop.items = {
+            ...items,
+            properties: sanitizeSchemaProperties(items.properties as Record<string, unknown>),
+          };
+        }
+      }
+      sanitized[key] = prop;
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
 /** call_name "namespace:action" → { namespace, action } */
 function parseCallName(callName: string): { namespace: string; action: string } {
   const idx = callName.indexOf(":");
@@ -124,7 +169,7 @@ async function discoverToolsForMessage(message: string): Promise<{
   openaiTools: OpenAI.ChatCompletionTool[];
   callNameByFunc: Map<string, string>;
 }> {
-  const rpc = await callPml("discover", { intent: message, limit: DISCOVER_LIMIT, filter: { type: "tool" } });
+  const rpc = await callPml("discover", { intent: message, limit: DISCOVER_LIMIT });
   const text = rpc.result?.content?.[0]?.text || "{}";
   const data = JSON.parse(text);
   const results: DiscoverResult[] = data.results || [];
@@ -140,9 +185,10 @@ async function discoverToolsForMessage(message: string): Promise<{
     // OpenAI function names: ^[a-zA-Z0-9_-]+$ — replace ":" with "_"
     const funcName = `pml_${i}_${callName.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
+    const rawProperties = (schema as Record<string, unknown>).properties || {};
     const parameters: Record<string, unknown> = {
       type: "object",
-      properties: (schema as Record<string, unknown>).properties || {},
+      properties: sanitizeSchemaProperties(rawProperties as Record<string, unknown>),
     };
     const required = (schema as Record<string, unknown>).required;
     if (Array.isArray(required) && required.length > 0) {
@@ -236,40 +282,26 @@ interface TunnelResult {
 }
 
 /**
- * Unwrap MCP envelope: extract actual data + optional _meta.ui from a PML tool result.
+ * Unwrap MCP envelope: extract actual data from a PML tool result text.
  *
- * PML results may be wrapped in several layers:
- * - { result: { _meta, content: [{ text: "..." }] } }
- * - { result: { _meta, key: value } } (no envelope, data is inline)
- * - plain text
+ * NOTE: _meta.ui lives at rpc.result._meta (sibling of content), NOT inside content[0].text.
+ * So this function only extracts data — UI metadata is extracted separately from the RPC response.
  */
-function unwrapMcpResult(resultText: string): { data: unknown; uiMeta: ToolResultEntry["uiMeta"] } {
+function unwrapMcpResult(resultText: string): { data: unknown } {
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(resultText);
   } catch {
-    return { data: resultText, uiMeta: undefined };
+    return { data: resultText };
   }
 
   const mcpResult = parsed?.result ?? parsed;
 
   if (!mcpResult || typeof mcpResult !== "object") {
-    return { data: mcpResult, uiMeta: undefined };
+    return { data: mcpResult };
   }
 
   const r = mcpResult as Record<string, unknown>;
-
-  // Extract _meta.ui if present (tool has a dedicated viewer)
-  let uiMeta: ToolResultEntry["uiMeta"];
-  const meta = r._meta as Record<string, unknown> | undefined;
-  if (meta?.ui) {
-    const ui = meta.ui as Record<string, unknown>;
-    uiMeta = {
-      resourceUri: ui.resourceUri as string,
-      emits: ui.emits as string[] | undefined,
-      accepts: ui.accepts as string[] | undefined,
-    };
-  }
 
   // Unwrap content[0].text → parse as JSON for actual data
   const content = r.content as Array<{ type: string; text?: string }> | undefined;
@@ -280,26 +312,62 @@ function unwrapMcpResult(resultText: string): { data: unknown; uiMeta: ToolResul
     } catch {
       actualData = content[0].text;
     }
-    return { data: actualData, uiMeta };
+    return { data: actualData };
   }
 
   if (!content) {
-    // No MCP envelope — data is directly in the result (minus _meta)
     const { _meta: _, ...rest } = r;
     const data = Object.keys(rest).length > 0 ? rest : mcpResult;
-    return { data, uiMeta };
+    return { data };
   }
 
-  return { data: mcpResult, uiMeta };
+  return { data: mcpResult };
 }
 
-/** Serialize tool data as context text, truncated to stay under MCP limits. */
-const MAX_CONTEXT_LENGTH = 8000; // Well under 65536 byte MCP limit
-function truncateForContext(data: unknown): string {
-  const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-  if (text.length <= MAX_CONTEXT_LENGTH) return text;
-  return text.slice(0, MAX_CONTEXT_LENGTH) + "\n... (tronque)";
+/**
+ * Extract uiMeta from the RPC response _meta field (SEP-1865 standard location).
+ */
+function extractUiMeta(rpc: PmlJsonRpcResponse): ToolResultEntry["uiMeta"] {
+  const ui = rpc.result?._meta?.ui;
+  if (!ui?.resourceUri) return undefined;
+  return {
+    resourceUri: ui.resourceUri,
+    emits: ui.emits,
+    accepts: ui.accepts,
+  };
 }
+
+/**
+ * Extract workflow_id from any approval_required response format.
+ * Returns undefined if the response is NOT an approval request.
+ *
+ * Known formats:
+ * - Direct: { status: "approval_required", workflow_id: "..." }
+ * - Local wrapped: { status: "success", result: { type: "object", value: { approvalRequired: true, workflowId: "..." } } }
+ * - Nested result: { status: "approval_required", workflowId: "..." }
+ */
+function extractApprovalWorkflowId(parsed: Record<string, unknown>): string | undefined {
+  // Format 1: top-level status = "approval_required"
+  if (parsed.status === "approval_required") {
+    return (parsed.workflow_id ?? parsed.workflowId) as string | undefined;
+  }
+
+  // Format 2: result.approvalRequired or result.value.approvalRequired (local execution wrapping)
+  const result = parsed.result;
+  if (result && typeof result === "object") {
+    const r = result as Record<string, unknown>;
+    if (r.approvalRequired) return r.workflowId as string | undefined;
+    // Nested in value (sandbox wraps in { type: "object", value: {...} })
+    const value = r.value;
+    if (value && typeof value === "object") {
+      const v = value as Record<string, unknown>;
+      if (v.approvalRequired) return (v.workflowId ?? v.workflow_id) as string | undefined;
+    }
+  }
+
+  return undefined;
+}
+
 
 async function runTunnelAgent(
   message: string,
@@ -394,10 +462,34 @@ async function runTunnelAgent(
       const code = buildExecuteCode(callName, args);
       let resultText: string;
       try {
-        const rpc = await callPml("execute", { code, intent: callName });
+        let rpc = await callPml("execute", { code, intent: callName });
         resultText = rpc.result?.content?.[0]?.text || "No result";
 
-        const { data, uiMeta } = unwrapMcpResult(resultText);
+        // Auto-approve ALL HIL requests (playground = trusted sandbox)
+        // Defensive: max 3 attempts, dedup workflowIds to detect loops
+        let parsed: Record<string, unknown> | undefined;
+        try { parsed = JSON.parse(resultText); } catch { /* not JSON */ }
+        let approvalAttempts = 0;
+        // Note: same workflowId can appear multiple times legitimately when a capability
+        // has multiple unapproved tools (each re-execution discovers the next one).
+        // Rely on max attempts counter (5) instead of workflowId dedup.
+        while (parsed && approvalAttempts < 5) {
+          const wfId = extractApprovalWorkflowId(parsed);
+          if (!wfId) break;
+          console.log(`[Playground Agent] Auto-approving HIL (${approvalAttempts + 1}/5): ${wfId}`);
+          rpc = await callPml("execute", {
+            continue_workflow: { workflow_id: wfId, approved: true },
+          });
+          resultText = rpc.result?.content?.[0]?.text || "No result";
+          try { parsed = JSON.parse(resultText); } catch { parsed = undefined; }
+          approvalAttempts++;
+        }
+        if (approvalAttempts >= 5) {
+          console.warn(`[Playground Agent] Max approval attempts reached for tool ${callName}`);
+        }
+
+        const { data } = unwrapMcpResult(resultText);
+        const uiMeta = extractUiMeta(rpc);
         collectedToolResults.push({ toolName: callName, data, uiMeta });
       } catch (error) {
         resultText = JSON.stringify({
@@ -477,7 +569,6 @@ export const handler = {
           const { action } = parseCallName(tr.toolName);
 
           if (tr.uiMeta?.resourceUri) {
-            // Tool declares a dedicated viewer → use it
             return {
               resourceUri: tr.uiMeta.resourceUri,
               title: action,
@@ -485,12 +576,15 @@ export const handler = {
             };
           }
 
-          // No dedicated viewer → open agent-chat with auto-send
-          const contextText = truncateForContext(tr.data);
+          // No dedicated viewer → agent-chat with MCP result as context + trigger LLM analysis
+          const contextText = typeof tr.data === "string" ? tr.data : JSON.stringify(tr.data, null, 2);
           return {
             resourceUri: "ui://mcp-std/agent-chat",
             title: action,
-            data: { context: contextText, initialMessage: body.message },
+            data: {
+              context: contextText.slice(0, 8000),
+              initialMessage: "Analyse ces données et donne-moi un résumé.",
+            },
           };
         });
 

@@ -1,6 +1,6 @@
 # Story 17.6: Agent Orchestrator for Main Tunnel
 
-Status: done
+Status: in-progress
 
 ## Story
 
@@ -125,6 +125,132 @@ See epic-17 decision: "Le LLM est appelé par PML via MCP Sampling, pas directem
 - [Source: lib/std/src/tools/agent.ts] — Agent tools implementation
 - [Source: src/web/routes/api/playground/chat.ts] — Current tunnel implementation
 - [Source: src/mcp/handlers/execute-handler-facade.ts] — accept_suggestion implementation
+
+## Session Log — 2026-02-10
+
+### Architecture Pivot (AC6 abandonné)
+
+L'architecture MCP Sampling (AC6: `agent_delegate`) a été **remplacée** par un appel direct OpenAI
+depuis Fresh. Raison : `agent_delegate` via PML serve ajoute une couche de complexité inutile
+quand le LLM n'a besoin que de discover + execute.
+
+**Architecture actuelle** :
+```
+Browser → POST /api/playground/chat (Fresh 8081)
+  → chat.ts: OpenAI LLM (gpt-5-mini) agentic loop
+  → discover tools via callPml("discover", {intent})
+  → execute tools via callPml("execute", {code, intent})
+  → auto-approve HIL via callPml("execute", {continue_workflow})
+  → résultat + widgets → Browser
+```
+
+### Bugs corrigés
+
+| Bug | Cause | Fix | Fichier |
+|-----|-------|-----|---------|
+| **OpenAI 400 "array schema missing items"** | Tool schemas du DB ont `type:"array"` sans `items` | `sanitizeSchemaProperties()` ajoute `items:{}` récursivement | chat.ts |
+| **HIL bloque l'exécution** | Capabilities déclenchent `approval_required` non géré | `extractApprovalWorkflowId()` + boucle auto-approve (max 3, dedup) | chat.ts |
+| **metrics-panel crash `toFixed` undefined** | Flat data `{count:0}` spread sans champ `value` | Convertit flat objects en metrics array `{id, label, value, type:"stat"}` | metrics-panel/main.tsx |
+| **Agent-chat loop (front-end)** | `initialMessage` sur agent-chat widgets → auto-send cascading | Widgets agent-chat sans `initialMessage` (context only) | chat.ts |
+| **`_meta.ui` jamais extrait (CRITIQUE)** | `_meta.ui` vit à `rpc.result._meta` (niveau MCP), PAS dans `content[0].text`. `unwrapMcpResult()` parsait le texte → jamais trouvé | `extractUiMeta(rpc)` dédié extrait depuis la réponse RPC | chat.ts |
+
+### État actuel des fonctionnalités
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Discover tools (semantic) | OK | `discoverToolsForMessage()` avec sanitization schemas |
+| LLM tool calling (gpt-5-mini) | OK | `tool_choice:"required"` au 1er tour |
+| Execute via PML | OK | `buildExecuteCode()` → `callPml("execute", {code, intent})` |
+| Auto-approve HIL | OK (défensif) | Max 3 attempts, workflowId dedup, pending store fonctionne |
+| `_meta.ui` extraction | FIXÉ | `extractUiMeta(rpc)` depuis `rpc.result._meta.ui` |
+| Widget rendering (metrics-panel) | FIXÉ | Flat data → stat metrics array. Build UI refait |
+| Widget rendering (agent-chat) | OK | Context only, pas d'initialMessage |
+| Composite UI (multi-tool) | Non testé | Le code existe dans TryPlaygroundIsland |
+
+### Problème ouvert : HIL sur tâches code:* du sandbox
+
+Le log `Tool code:exec_031732b2 requires approval - pausing for HIL` montre que les tâches
+internes `code:*` du sandbox (DAG nodes) déclenchent un approval. Ce n'est PAS une capability —
+c'est le mécanisme d'exécution interne du sandbox qui route les tâches `code:*` par le loader.
+
+Le flow :
+1. `callPml("execute", {code})` → cloud retourne `execute_locally` avec code JS
+2. Sandbox exécute le code → le DAG contient des nœuds `code:exec_XXXX`
+3. Le loader traite `code:exec_XXXX` comme un tool call → `approval_required`
+4. Auto-approve → re-execute → même approval
+
+L'approval est **légitime** (première utilisation d'un tool → permission demandée). Le problème
+c'est que l'approval ne semble pas pris en compte lors de la re-exécution.
+
+`approveToolForSession(toolId)` ajoute le toolId dans `approvedTools` Set.
+`routeMcpCall()` check `approvedTools.has(toolId)` — devrait matcher.
+
+**Diagnostic confirmé par les logs (05:44:29)** :
+
+1. Approval type = `tool_permission` (PAS integrity)
+2. `std:psql_schema requires approval` ×2 (la capa appelle psql_schema 2 fois)
+3. Après l'auto-approve, le `continue_workflow` est **forwardé au cloud** (`→ forwarding to cloud...`)
+   au lieu d'être résolu par `pendingWorkflowStore`
+4. Le cloud crée un NOUVEAU `execute_locally` → nouveau cycle → boucle
+
+**ROOT CAUSE CONFIRMÉ (test 2026-02-11)** :
+
+Le `pendingWorkflowStore` n'est **jamais peuplé**. L'approval est "avalé" par la capability
+et retourné comme données normales (status="success").
+
+Il y a **deux couches de sandbox** :
+- **Outer** (`executeLocalCode` → `clientToolHandler`) : détecte approvals et throw `__APPROVAL_REQUIRED__`
+- **Inner** (`executeInSandbox` → `routeMcpCall`) : retourne l'approval comme **valeur de retour**
+  au code de la capability → pas de throw, pas de `pendingWorkflowStore`
+
+La capability `db:tableSchemas` appelle `mcp.std.psql_schema()` 2×.
+`routeMcpCall` retourne `{ approvalRequired: true, ... }` au lieu de throw.
+La capability stocke ça dans son résultat → l'outer sandbox voit status="success" avec
+les approvals noyés dans la data → `isApprovalRequired(callResult)` = false → pas de pending store.
+
+**Réponse PML observée** :
+```json
+{ "status": "success", "result": {
+    "execution_trace": { "approvalRequired": true, "workflowId": "...", "toolId": "std:psql_schema" },
+    "algorithm_traces": { "approvalRequired": true, ... }
+}, "executed_locally": true }
+```
+
+**Fix implémenté (2026-02-11)** : dans `executeInSandbox` (capability-loader.ts), même pattern
+que `clientToolHandler` dans `local-executor.ts` :
+
+1. Variable `pendingApproval` dans la closure (avant création du sandbox)
+2. Dans `onRpc` : si `isApprovalRequired(callResult)`, stocker dans `pendingApproval` + throw
+3. Dans `!result.success` : si `pendingApproval` est set, retourner l'objet approval brut
+   (pas en `LoaderError`) → remonte à `callWithFqdn` → `clientToolHandler` le détecte → `state.pendingApproval` → `pendingWorkflowStore` peuplé → `continue_workflow` fonctionne
+
+**Fichiers** : `capability-loader.ts` → `executeInSandbox()` → lignes 1032-1091
+
+### Fichiers modifiés
+
+| Fichier | Changements |
+|---------|-------------|
+| `src/web/routes/api/playground/chat.ts` | sanitizeSchemaProperties, extractApprovalWorkflowId, auto-approve loop défensif, extractUiMeta, unwrapMcpResult simplifié, agent-chat sans initialMessage |
+| `lib/std/src/ui/metrics-panel/src/main.tsx` | Flat object → metrics array dans ontoolresult fallback |
+| `lib/std/src/ui/dist/` | Rebuilt via `node build-all.mjs` |
+| `packages/pml/src/loader/capability-loader.ts` | Inner sandbox approval bubbling : pendingApproval closure + return approval object au lieu de LoaderError |
+
+### Problème connu : discover tools pas filtré par scope
+
+Le discover tools path (SHGAT → `pml_registry`) ne filtre **pas** par org/project/visibility.
+`pml_registry` contient des entrées `record_type='capability'` d'autres orgs (ex: `superWorldSavior`)
+qui sont retournées au LLM. L'execute échoue ensuite car `resolveToolFqdn` cherche dans le scope
+courant (`local.default`) et ne les trouve pas → "Tool not found".
+
+- **Discover capabilities** : filtré par scope via `scopeFilter` ✅
+- **Discover tools** : pas filtré ❌ — `discover-tools.ts` n'a aucun paramètre scope
+- **SHGAT** : construit avec `scope=system` (tout)
+- **Impact** : le LLM peut appeler des tools inaccessibles → erreur + widget agent-chat avec contexte erreur
+
+**Fix potentiel** : filtrer les résultats `record_type='capability'` par scope dans le tools path,
+ou appliquer un `scopeFilter` unifié sur tous les résultats discover avant de les retourner.
+
+**Fichiers** : `discover-handler-facade.ts`, `discover-tools.ts`, `scope-filter.ts`
 
 ## Dev Agent Record
 

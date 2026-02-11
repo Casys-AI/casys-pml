@@ -1029,6 +1029,9 @@ export class CapabilityLoader {
       this.traceIdStack.push(traceCollector.getTraceId());
     }
 
+    // Track approval from inner sandbox so we can bubble it up properly
+    let pendingApproval: { approval: unknown; toolId: string } | null = null;
+
     // Create sandbox with RPC handler that records mcp.* calls
     const sandbox = new SandboxWorker({
       onRpc: async (rpcMethod: string, rpcArgs: unknown) => {
@@ -1043,6 +1046,11 @@ export class CapabilityLoader {
 
         try {
           callResult = await this.routeMcpCall(meta, namespace, action, rpcArgs);
+          // Bubble approval up — don't let the capability swallow it as data
+          if (CapabilityLoader.isApprovalRequired(callResult)) {
+            pendingApproval = { approval: callResult, toolId: `${namespace}:${action}` };
+            throw new Error(`__APPROVAL_REQUIRED__:${namespace}:${action}`);
+          }
           return callResult;
         } catch (error) {
           callSuccess = false;
@@ -1071,6 +1079,18 @@ export class CapabilityLoader {
       const result: SandboxResult = await sandbox.execute(code, args);
 
       if (!result.success) {
+        // If a tool inside the capability required approval, bubble it up
+        // as the approval object (not as an error) so clientToolHandler
+        // can detect it via isApprovalRequired() and populate pendingWorkflowStore
+        if (pendingApproval) {
+          logDebug(`Sandbox aborted due to inner approval: ${pendingApproval.toolId} — bubbling up`);
+          if (traceCollector) {
+            const trace = traceCollector.finalize(meta.fqdn, false, `approval_required:${pendingApproval.toolId}`);
+            this.pendingTraces.push(trace);
+          }
+          return pendingApproval.approval;
+        }
+
         // ADR-041: Finalize trace with failure - add to pending (not synced yet)
         if (traceCollector) {
           const trace = traceCollector.finalize(
