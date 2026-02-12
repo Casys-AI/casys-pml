@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-process-global no-node-globals
 /**
  * Runtime adapter — Node.js implementation
  *
@@ -10,10 +11,22 @@
 
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import type { RuntimePort, ServeOptions, ServeHandle, FetchHandler } from "./runtime-types.ts";
+import type {
+  FetchHandler,
+  RuntimePort,
+  ServeHandle,
+  ServeOptions,
+} from "./types.ts";
 
 // Re-export types so consumers import from a single module
-export type { ServeOptions, ServeHandle, FetchHandler } from "./runtime-types.ts";
+export type { FetchHandler, ServeHandle, ServeOptions } from "./types.ts";
+
+class PayloadTooLargeError extends Error {
+  constructor(maxBytes: number) {
+    super(`Payload too large. Max ${maxBytes} bytes.`);
+    this.name = "PayloadTooLargeError";
+  }
+}
 
 /**
  * Get an environment variable.
@@ -30,7 +43,9 @@ export async function readTextFile(path: string): Promise<string | null> {
   try {
     return await readFile(path, "utf-8");
   } catch (err: unknown) {
-    if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+    if (
+      err && typeof err === "object" && "code" in err && err.code === "ENOENT"
+    ) {
       return null;
     }
     throw err;
@@ -41,11 +56,27 @@ export async function readTextFile(path: string): Promise<string | null> {
  * Start an HTTP server with a fetch-style handler.
  * Uses node:http with a Request/Response adapter (compatible with Hono).
  */
-export function serve(options: ServeOptions, handler: FetchHandler): ServeHandle {
+export function serve(
+  options: ServeOptions,
+  handler: FetchHandler,
+): ServeHandle {
   const hostname = options.hostname ?? "0.0.0.0";
+  const maxBodyBytes = options.maxBodyBytes ?? null;
 
   const server = createServer(async (nodeReq, nodeRes) => {
     try {
+      const contentLength = nodeReq.headers["content-length"];
+      if (maxBodyBytes !== null && contentLength) {
+        const length = Array.isArray(contentLength)
+          ? Number(contentLength[0])
+          : Number(contentLength);
+        if (!Number.isNaN(length) && length > maxBodyBytes) {
+          nodeRes.writeHead(413);
+          nodeRes.end(`Payload too large. Max ${maxBodyBytes} bytes.`);
+          return;
+        }
+      }
+
       // Convert Node.js IncomingMessage → Web Request
       // Prefer Host header (correct behind reverse proxy) over bound hostname
       const host = nodeReq.headers.host ?? `${hostname}:${options.port}`;
@@ -62,7 +93,7 @@ export function serve(options: ServeOptions, handler: FetchHandler): ServeHandle
       }
 
       const body = nodeReq.method !== "GET" && nodeReq.method !== "HEAD"
-        ? await collectBody(nodeReq)
+        ? await collectBody(nodeReq, maxBodyBytes)
         : undefined;
 
       const request = new Request(url, {
@@ -103,6 +134,13 @@ export function serve(options: ServeOptions, handler: FetchHandler): ServeHandle
         nodeRes.end();
       }
     } catch (err) {
+      if (err instanceof PayloadTooLargeError) {
+        if (!nodeRes.headersSent) {
+          nodeRes.writeHead(413);
+          nodeRes.end(err.message);
+        }
+        return;
+      }
       console.error("[runtime.node] Request handler error:", err);
       if (!nodeRes.headersSent) {
         nodeRes.writeHead(500);
@@ -133,7 +171,9 @@ export function unrefTimer(id: number): void {
   // The caller passes it as `number` for Deno compat — we cast back.
   try {
     const timer = id as unknown as { unref?: () => void };
-    if (typeof timer === "object" && timer && typeof timer.unref === "function") {
+    if (
+      typeof timer === "object" && timer && typeof timer.unref === "function"
+    ) {
       timer.unref();
     }
   } catch (err) {
@@ -147,11 +187,34 @@ void ({ env, readTextFile, serve, unrefTimer } satisfies RuntimePort);
 // ─── Internal helpers ────────────────────────────────────
 
 /** Collect request body from Node.js IncomingMessage */
-function collectBody(req: import("node:http").IncomingMessage): Promise<Uint8Array> {
+function collectBody(
+  req: import("node:http").IncomingMessage,
+  maxBytes: number | null,
+): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
-    req.on("error", reject);
+    let total = 0;
+    let rejected = false;
+    req.on("data", (chunk: Buffer) => {
+      if (rejected) return;
+      total += chunk.length;
+      if (maxBytes !== null && total > maxBytes) {
+        rejected = true;
+        req.destroy();
+        reject(new PayloadTooLargeError(maxBytes));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      if (!rejected) {
+        resolve(new Uint8Array(Buffer.concat(chunks)));
+      }
+    });
+    req.on("error", (err) => {
+      if (!rejected) {
+        reject(err);
+      }
+    });
   });
 }

@@ -177,7 +177,9 @@ export class RateLimiter {
     const now = Date.now();
 
     for (const requests of this.requestCounts.values()) {
-      totalRequests += requests.filter((time) => now - time < this.windowMs).length;
+      totalRequests += requests.filter((time) =>
+        now - time < this.windowMs
+      ).length;
     }
 
     return {

@@ -2,16 +2,23 @@
 
 All notable changes to `@casys/mcp-server` will be documented in this file.
 
-## [0.8.0] - 2026-02-11
+## [0.8.0] - 2026-02-12
 
 ### Added
 
 - **Security: HMAC-SHA256 channel authentication for PostMessage (MCP Apps)** — `MessageSigner` class for signing/verifying JSON-RPC messages with `_hmac` + `_seq` (anti-replay). `injectChannelAuth()` injects an inline script into iframe HTML that signs outgoing postMessages. Host-side verification via `MessageSigner.verify()`.
+- **Security: HTTP hardening options** — `maxBodyBytes` (default 1 MB, returns 413 JSON-RPC error), `corsOrigins` allowlist with wildcard warning, `requireAuth` fail-fast at startup, `ipRateLimit` per-IP 429 + `Retry-After` header, `sessionId` propagation into middleware context.
+- **Security: CSP injection** — `buildCspHeader()` and `injectCspMetaTag()` for Content-Security-Policy in MCP Apps HTML resources. Configurable via `resourceCsp` in `ConcurrentServerOptions`.
+- **Security: CORS wildcard warning** — logs `[WARN]` when `corsOrigins` is `"*"` regardless of auth configuration.
+- **Node.js runtime adapter** — `runtime.node.ts` implements the `RuntimePort` contract for Node.js 18+ with `maxBodyBytes` enforcement at both `Content-Length` and streaming body levels.
 - **Observability: `recordAuthEvent()` wired** — auth tracing spans now fire on token verify, reject, and JWT cache hit (gated by `isOtelEnabled()`).
+- **`HttpServerInstance` return type** — `startHttp()` now returns `{ shutdown(), addr }` for programmatic control.
 
 ### Changed
 
+- **File reorganization** — moved files into domain subfolders: `src/runtime/`, `src/concurrency/`, `src/validation/`, `src/sampling/`. All re-exports from `mod.ts` are unchanged.
 - **API cleanup** — removed internal types from public barrel (`PromiseResolver`, `QueueOptions`, `MCP_APP_URI_SCHEME`).
+- **Lint cleanup** — zero `deno lint` errors, zero `deno fmt` issues, no slow types.
 
 ## [0.7.0] - 2026-02-07
 

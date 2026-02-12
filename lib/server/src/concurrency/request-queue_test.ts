@@ -4,7 +4,7 @@
  * Tests the request queue with concurrency control and backpressure.
  */
 
-import { assertEquals, assertRejects, assert } from "jsr:@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { RequestQueue } from "./request-queue.ts";
 
 // ==============================================
@@ -97,7 +97,7 @@ Deno.test("RequestQueue - reject strategy throws when at capacity", async () => 
   await assertRejects(
     () => queue.acquire(),
     Error,
-    "Server at capacity (2 concurrent requests)"
+    "Server at capacity (2 concurrent requests)",
   );
 });
 

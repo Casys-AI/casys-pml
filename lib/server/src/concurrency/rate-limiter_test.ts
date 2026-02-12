@@ -4,7 +4,7 @@
  * Tests the sliding window rate limiter for per-client request throttling.
  */
 
-import { assertEquals, assert } from "jsr:@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import { RateLimiter } from "./rate-limiter.ts";
 
 Deno.test("RateLimiter - checkLimit returns true when under limit", () => {

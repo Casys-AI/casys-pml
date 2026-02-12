@@ -10,8 +10,13 @@
  * @module lib/server/observability/otel
  */
 
-import { type Span, SpanStatusCode, trace, type Tracer } from "@opentelemetry/api";
-import { env } from "../runtime.ts";
+import {
+  type Span,
+  SpanStatusCode,
+  trace,
+  type Tracer,
+} from "@opentelemetry/api";
+import { env } from "../runtime/runtime.ts";
 
 let serverTracer: Tracer | null = null;
 
@@ -83,7 +88,9 @@ export function recordAuthEvent(
 ): void {
   const tracer = getServerTracer();
   tracer.startActiveSpan(`mcp.auth.${event}`, { attributes }, (span) => {
-    span.setStatus({ code: event === "reject" ? SpanStatusCode.ERROR : SpanStatusCode.OK });
+    span.setStatus({
+      code: event === "reject" ? SpanStatusCode.ERROR : SpanStatusCode.OK,
+    });
     span.end();
   });
 }

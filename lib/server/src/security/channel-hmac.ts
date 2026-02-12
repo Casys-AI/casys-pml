@@ -129,7 +129,7 @@ export function injectChannelAuth(html: string, secret: string): string {
   if (!/^[0-9a-f]{64}$/.test(secret)) {
     throw new Error(
       "[injectChannelAuth] Invalid secret: expected 64-char lowercase hex string. " +
-      "Use MessageSigner.generateSecret() to create one.",
+        "Use MessageSigner.generateSecret() to create one.",
     );
   }
   const script = generateHmacScript(secret);

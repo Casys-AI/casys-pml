@@ -17,19 +17,19 @@ rate-limit → auth → custom middleware → scope-check → validation → bac
 
 The official SDK gives you the protocol. This framework gives you the production stack.
 
-| | Official SDK | @casys/mcp-server |
-|---|:---:|:---:|
-| MCP protocol compliance | Yes | Yes |
-| Concurrency control | -- | 3 backpressure strategies |
-| Middleware pipeline | -- | Composable onion model |
-| OAuth2 / JWT auth | -- | Built-in + 4 OIDC presets |
-| Rate limiting | -- | Sliding window, per-client |
-| Schema validation | -- | JSON Schema (ajv) |
-| Streamable HTTP + SSE | Manual | Built-in session management |
-| OpenTelemetry tracing | -- | Automatic spans per tool call |
-| Prometheus metrics | -- | `/metrics` endpoint |
-| MCP Apps (UI resources) | Manual | `registerResource()` + `ui://` |
-| Sampling bridge | -- | Bidirectional LLM delegation |
+|                         | Official SDK |       @casys/mcp-server        |
+| ----------------------- | :----------: | :----------------------------: |
+| MCP protocol compliance |     Yes      |              Yes               |
+| Concurrency control     |      --      |   3 backpressure strategies    |
+| Middleware pipeline     |      --      |     Composable onion model     |
+| OAuth2 / JWT auth       |      --      |   Built-in + 4 OIDC presets    |
+| Rate limiting           |      --      |   Sliding window, per-client   |
+| Schema validation       |      --      |       JSON Schema (ajv)        |
+| Streamable HTTP + SSE   |    Manual    |  Built-in session management   |
+| OpenTelemetry tracing   |      --      | Automatic spans per tool call  |
+| Prometheus metrics      |      --      |      `/metrics` endpoint       |
+| MCP Apps (UI resources) |    Manual    | `registerResource()` + `ui://` |
+| Sampling bridge         |      --      |  Bidirectional LLM delegation  |
 
 ---
 
@@ -55,9 +55,15 @@ import { ConcurrentMCPServer } from "@casys/mcp-server";
 const server = new ConcurrentMCPServer({ name: "my-server", version: "1.0.0" });
 
 server.registerTool(
-  { name: "greet", description: "Greet a user", inputSchema: {
-    type: "object", properties: { name: { type: "string" } }, required: ["name"],
-  }},
+  {
+    name: "greet",
+    description: "Greet a user",
+    inputSchema: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    },
+  },
   ({ name }) => `Hello, ${name}!`,
 );
 
@@ -67,7 +73,10 @@ await server.start();
 ### HTTP Server with Auth
 
 ```typescript
-import { ConcurrentMCPServer, createGoogleAuthProvider } from "@casys/mcp-server";
+import {
+  ConcurrentMCPServer,
+  createGoogleAuthProvider,
+} from "@casys/mcp-server";
 
 const server = new ConcurrentMCPServer({
   name: "my-api",
@@ -85,9 +94,15 @@ const server = new ConcurrentMCPServer({
 });
 
 server.registerTool(
-  { name: "query", description: "Query the database", inputSchema: {
-    type: "object", properties: { sql: { type: "string" } },
-  }, requiredScopes: ["db:read"] },
+  {
+    name: "query",
+    description: "Query the database",
+    inputSchema: {
+      type: "object",
+      properties: { sql: { type: "string" } },
+    },
+    requiredScopes: ["db:read"],
+  },
   async ({ sql }) => ({ rows: [] }),
 );
 
@@ -97,6 +112,25 @@ await server.startHttp({ port: 3000 });
 // POST /mcp      → JSON-RPC (tools/call, tools/list, ...)
 // GET  /mcp      → SSE stream (server→client notifications)
 ```
+
+**Secure-by-default HTTP options:**
+
+```typescript
+await server.startHttp({
+  port: 3000,
+  requireAuth: true, // fail fast if auth isn't configured
+  corsOrigins: ["https://app.example.com"],
+  maxBodyBytes: 1_000_000, // 1 MB
+  ipRateLimit: { maxRequests: 120, windowMs: 60_000 },
+});
+```
+
+**Notes:**
+
+- `requireAuth: true` throws if no auth provider is configured
+- `corsOrigins` defaults to `"*"` — use an allowlist in production
+- `maxBodyBytes` defaults to **1 MB** (set `null` to disable)
+- `ipRateLimit` keys on client IP by default
 
 ---
 
@@ -112,7 +146,9 @@ import type { Middleware } from "@casys/mcp-server";
 const timing: Middleware = async (ctx, next) => {
   const start = performance.now();
   const result = await next();
-  console.log(`${ctx.toolName} took ${(performance.now() - start).toFixed(0)}ms`);
+  console.log(
+    `${ctx.toolName} took ${(performance.now() - start).toFixed(0)}ms`,
+  );
   return result;
 };
 
@@ -127,10 +163,10 @@ Four OIDC presets out of the box:
 
 ```typescript
 import {
-  createGoogleAuthProvider,   // Google OIDC
-  createAuth0AuthProvider,    // Auth0
-  createGitHubAuthProvider,   // GitHub Actions OIDC
-  createOIDCAuthProvider,     // Generic OIDC (Keycloak, Okta, etc.)
+  createGoogleAuthProvider, // Google OIDC
+  createAuth0AuthProvider, // Auth0
+  createGitHubAuthProvider, // GitHub Actions OIDC
+  createOIDCAuthProvider, // Generic OIDC (Keycloak, Okta, etc.)
 } from "@casys/mcp-server";
 
 const auth0 = createAuth0AuthProvider({
@@ -220,7 +256,7 @@ mcp_server_uptime_seconds 86400
 Programmatic access:
 
 ```typescript
-server.getServerMetrics();     // Full snapshot (counters, histograms, gauges)
+server.getServerMetrics(); // Full snapshot (counters, histograms, gauges)
 server.getPrometheusMetrics(); // Prometheus text format string
 ```
 
@@ -228,11 +264,11 @@ server.getPrometheusMetrics(); // Prometheus text format string
 
 Three backpressure strategies when the server is at capacity:
 
-| Strategy | Behavior |
-|----------|----------|
+| Strategy          | Behavior                                   |
+| ----------------- | ------------------------------------------ |
 | `sleep` (default) | Busy-wait with configurable sleep interval |
-| `queue` | FIFO queue with ordered release |
-| `reject` | Fail fast with immediate error |
+| `queue`           | FIFO queue with ordered release            |
+| `reject`          | Fail fast with immediate error             |
 
 ```typescript
 new ConcurrentMCPServer({
@@ -255,6 +291,18 @@ new ConcurrentMCPServer({
   },
 });
 ```
+
+For HTTP endpoints, use `startHttp({ ipRateLimit: ... })` to rate limit by client IP (or custom key).
+
+### Security Best Practices (Tool Handlers)
+
+Tool handlers receive **untrusted JSON input**. Treat args as hostile:
+
+- **Define strict schemas**: `additionalProperties: false`, `minLength`, `pattern`, `enum`.
+- **Never pass raw args to a shell** (`Deno.Command`, `child_process.exec`). If you must, use an allowlist + argv array (no shell).
+- **Validate paths & resources**: allowlisted roots, deny `..`, restrict env access.
+- **Prefer safe APIs**: parameterized DB queries, SDK methods, typed clients.
+- **Log sensitive actions**: file writes, network calls, admin ops.
 
 ### MCP Apps (UI Resources)
 
@@ -321,16 +369,29 @@ import { RateLimiter, RequestQueue, SchemaValidator } from "@casys/mcp-server";
 
 // Rate limiter
 const limiter = new RateLimiter({ maxRequests: 10, windowMs: 1000 });
-if (limiter.checkLimit("client-123")) { /* proceed */ }
+if (limiter.checkLimit("client-123")) {
+  /* proceed */
+}
 
 // Request queue
-const queue = new RequestQueue({ maxConcurrent: 5, strategy: "queue", sleepMs: 10 });
+const queue = new RequestQueue({
+  maxConcurrent: 5,
+  strategy: "queue",
+  sleepMs: 10,
+});
 await queue.acquire();
-try { /* work */ } finally { queue.release(); }
+try {
+  /* work */
+} finally {
+  queue.release();
+}
 
 // Schema validator
 const validator = new SchemaValidator();
-validator.addSchema("tool", { type: "object", properties: { n: { type: "number" } } });
+validator.addSchema("tool", {
+  type: "object",
+  properties: { n: { type: "number" } },
+});
 validator.validate("tool", { n: 5 }); // { valid: true, errors: [] }
 ```
 
@@ -340,13 +401,13 @@ validator.validate("tool", { n: 5 }); // { valid: true, errors: [] }
 
 When running with `startHttp()`:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/mcp` or `/` | JSON-RPC endpoint (initialize, tools/call, tools/list, ...) |
-| `GET` | `/mcp` or `/` | SSE stream (server→client notifications) |
-| `GET` | `/health` | Health check |
-| `GET` | `/metrics` | Prometheus metrics |
-| `GET` | `/.well-known/oauth-protected-resource` | RFC 9728 metadata (when auth enabled) |
+| Method | Path                                    | Description                                                 |
+| ------ | --------------------------------------- | ----------------------------------------------------------- |
+| `POST` | `/mcp` or `/`                           | JSON-RPC endpoint (initialize, tools/call, tools/list, ...) |
+| `GET`  | `/mcp` or `/`                           | SSE stream (server→client notifications)                    |
+| `GET`  | `/health`                               | Health check                                                |
+| `GET`  | `/metrics`                              | Prometheus metrics                                          |
+| `GET`  | `/.well-known/oauth-protected-resource` | RFC 9728 metadata (when auth enabled)                       |
 
 ---
 

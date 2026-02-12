@@ -17,10 +17,10 @@ export { AuthProvider } from "./provider.ts";
 // Middleware and utilities
 export {
   AuthError,
-  extractBearerToken,
-  createUnauthorizedResponse,
-  createForbiddenResponse,
   createAuthMiddleware,
+  createForbiddenResponse,
+  createUnauthorizedResponse,
+  extractBearerToken,
 } from "./middleware.ts";
 
 // Scope enforcement
@@ -32,13 +32,13 @@ export type { JwtAuthProviderOptions } from "./jwt-provider.ts";
 
 // OIDC Presets
 export {
+  createAuth0AuthProvider,
   createGitHubAuthProvider,
   createGoogleAuthProvider,
-  createAuth0AuthProvider,
   createOIDCAuthProvider,
 } from "./presets.ts";
 export type { PresetOptions } from "./presets.ts";
 
 // Config loader (YAML + env)
-export { loadAuthConfig, createAuthProviderFromConfig } from "./config.ts";
+export { createAuthProviderFromConfig, loadAuthConfig } from "./config.ts";
 export type { AuthConfig, AuthProviderName } from "./config.ts";

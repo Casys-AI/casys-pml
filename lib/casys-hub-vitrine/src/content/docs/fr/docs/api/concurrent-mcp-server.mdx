@@ -7,6 +7,10 @@ import { Aside } from '@astrojs/starlight/components';
 
 Le point d'entree principal du framework. `ConcurrentMCPServer` gere l'enregistrement des outils, la composition de middleware, la selection du transport, et la gestion du cycle de vie.
 
+<Aside type="note">
+  Fonctionne sur **Deno** et **Node.js** (18+). Le framework utilise un adaptateur runtime (`RuntimePort`) pour que la meme API fonctionne sur les deux plateformes. L'enforcement de `maxBodyBytes` est implemente dans les deux couches HTTP Deno et Node.js.
+</Aside>
+
 ## Constructeur
 
 ```typescript
@@ -30,6 +34,7 @@ interface ConcurrentServerOptions {
   samplingClient?: SamplingClient;       // Custom sampling client
   logger?: (msg: string) => void;        // Default: console.error
   auth?: AuthOptions;                    // OAuth2/Bearer config
+  resourceCsp?: CspOptions;              // Injection meta-tag CSP pour le HTML des MCP Apps
 }
 ```
 
@@ -143,16 +148,52 @@ Demarre avec le transport STDIO. A utiliser pour les outils locaux (Claude Deskt
 ### startHttp
 
 ```typescript
-await server.startHttp(options: HttpServerOptions): Promise<void>;
+await server.startHttp(options: HttpServerOptions): Promise<HttpServerInstance>;
 ```
 
 Demarre avec le transport Streamable HTTP. Inclut le streaming SSE, la gestion de sessions, et la decouverte RFC 9728.
 
+Retourne un `HttpServerInstance` avec `shutdown()` et `addr` :
+
+```typescript
+interface HttpServerInstance {
+  shutdown(): Promise<void>;   // Arret gracieux
+  addr: { hostname: string; port: number };
+}
+```
+
 ```typescript
 interface HttpServerOptions {
   port: number;
-  hostname?: string;  // Default: "0.0.0.0"
+  hostname?: string;              // Default: "0.0.0.0"
+  cors?: boolean;                 // Default: true
+  corsOrigins?: "*" | string[];   // Default: "*" — utilisez une allowlist en production
+  maxBodyBytes?: number | null;   // Default: 1_000_000 (1 Mo). null = pas de limite
+  requireAuth?: boolean;          // Default: false — throw au demarrage si true sans auth
+  ipRateLimit?: {
+    maxRequests: number;          // Requetes max par fenetre par IP
+    windowMs: number;             // Fenetre en ms
+    keyExtractor?: (ctx) => string;
+    onLimitExceeded?: "reject" | "wait";  // Default: "reject"
+  };
+  onListen?: (info: { hostname: string; port: number }) => void;
 }
+```
+
+<Aside type="tip">
+  Defauts securises : `maxBodyBytes` limite le payload a 1 Mo (retourne 413), `ipRateLimit` retourne 429 avec un header `Retry-After`, `corsOrigins` affiche un avertissement quand defini a `"*"`, et `requireAuth: true` echoue immediatement au demarrage si aucun auth n'est configure.
+</Aside>
+
+**Exemple avec toutes les options de securite :**
+
+```typescript
+await server.startHttp({
+  port: 3000,
+  requireAuth: true,
+  corsOrigins: ["https://app.example.com"],
+  maxBodyBytes: 1_048_576,
+  ipRateLimit: { maxRequests: 60, windowMs: 60_000 },
+});
 ```
 
 ### stop

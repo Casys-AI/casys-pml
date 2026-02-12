@@ -28,7 +28,7 @@ export interface RateLimitOptions {
    * - 'reject': Return error immediately
    * - 'wait': Wait for slot with backoff (default)
    */
-  onLimitExceeded?: 'reject' | 'wait';
+  onLimitExceeded?: "reject" | "wait";
 }
 
 /**
@@ -56,7 +56,7 @@ export interface ConcurrentServerOptions {
   maxConcurrent?: number;
 
   /** Backpressure strategy when at capacity (default: 'sleep') */
-  backpressureStrategy?: 'sleep' | 'queue' | 'reject';
+  backpressureStrategy?: "sleep" | "queue" | "reject";
 
   /** Sleep duration in ms for 'sleep' strategy (default: 10) */
   backpressureSleepMs?: number;
@@ -155,8 +155,13 @@ export interface McpUiToolMeta {
   accepts?: string[];
 }
 
-/** MCP Tool metadata container */
+/**
+ * MCP Tool metadata container.
+ *
+ * Carries optional UI hints and routing metadata for MCP Apps (SEP-1865).
+ */
 export interface MCPToolMeta {
+  /** UI configuration for rendering this tool's output in an MCP App */
   ui?: McpUiToolMeta;
 }
 
@@ -207,7 +212,9 @@ export interface ResourceContent {
  * });
  * ```
  */
-export type ResourceHandler = (uri: URL) => Promise<ResourceContent> | ResourceContent;
+export type ResourceHandler = (
+  uri: URL,
+) => Promise<ResourceContent> | ResourceContent;
 
 /** MCP Apps MIME type constant */
 export const MCP_APP_MIME_TYPE = "text/html;profile=mcp-app" as const;
@@ -247,9 +254,28 @@ export interface MCPTool {
 }
 
 /**
- * Tool handler function
+ * Tool handler function.
+ *
+ * Receives validated arguments and returns a result (or throws).
+ * The return value is serialised as JSON inside a `text` content block.
+ *
+ * **Security**: Never pass `args` values directly to shell commands or SQL.
+ * Always validate / sanitise inside the handler or via `inputSchema`.
+ *
+ * @param args - Validated tool arguments from the MCP client
+ * @returns Tool result (string, object, or Promise thereof)
+ *
+ * @example
+ * ```typescript
+ * const handler: ToolHandler = async (args) => {
+ *   const rows = await db.query(args.sql as string);
+ *   return { rows, count: rows.length };
+ * };
+ * ```
  */
-export type ToolHandler = (args: Record<string, unknown>) => Promise<unknown> | unknown;
+export type ToolHandler = (
+  args: Record<string, unknown>,
+) => Promise<unknown> | unknown;
 
 /**
  * Sampling client interface for bidirectional LLM delegation
@@ -323,13 +349,57 @@ export interface PromiseResolver<T = unknown> {
  */
 export interface QueueOptions {
   maxConcurrent: number;
-  strategy: 'sleep' | 'queue' | 'reject';
+  strategy: "sleep" | "queue" | "reject";
   sleepMs: number;
 }
 
 // ============================================
 // HTTP Server Types
 // ============================================
+
+/**
+ * Context passed to HTTP rate limit key extractor
+ */
+export interface HttpRateLimitContext {
+  /** Client IP address (from x-forwarded-for/x-real-ip) */
+  ip: string;
+
+  /** HTTP method */
+  method: string;
+
+  /** HTTP path (e.g. /mcp) */
+  path: string;
+
+  /** HTTP headers */
+  headers: Headers;
+
+  /** MCP session ID, if present */
+  sessionId?: string;
+}
+
+/**
+ * HTTP rate limit configuration
+ */
+export interface HttpRateLimitOptions {
+  /** Maximum requests per window */
+  maxRequests: number;
+
+  /** Time window in milliseconds */
+  windowMs: number;
+
+  /**
+   * Function to extract client identifier from HTTP context
+   * Default: uses IP address
+   */
+  keyExtractor?: (context: HttpRateLimitContext) => string;
+
+  /**
+   * Behavior when rate limit is exceeded
+   * - 'reject': Return error immediately
+   * - 'wait': Wait for slot with backoff
+   */
+  onLimitExceeded?: "reject" | "wait";
+}
 
 /**
  * Options for starting an HTTP server
@@ -343,6 +413,28 @@ export interface HttpServerOptions {
 
   /** Enable CORS (default: true) */
   cors?: boolean;
+
+  /**
+   * Allowed CORS origins (default: "*")
+   * Use an allowlist in production.
+   */
+  corsOrigins?: "*" | string[];
+
+  /**
+   * Maximum request body size in bytes (default: 1_000_000).
+   * Set to null to disable the limit.
+   */
+  maxBodyBytes?: number | null;
+
+  /**
+   * Require auth for HTTP mode. If true and auth is not configured, startHttp throws.
+   */
+  requireAuth?: boolean;
+
+  /**
+   * IP-based rate limiting for HTTP endpoints.
+   */
+  ipRateLimit?: HttpRateLimitOptions;
 
   /**
    * Callback when server is ready

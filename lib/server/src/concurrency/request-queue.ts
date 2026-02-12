@@ -7,7 +7,7 @@
  * @module lib/server/request-queue
  */
 
-import type { QueueOptions, QueueMetrics } from "./types.ts";
+import type { QueueMetrics, QueueOptions } from "../types.ts";
 
 /**
  * RequestQueue manages concurrent request execution with backpressure
@@ -37,7 +37,7 @@ import type { QueueOptions, QueueMetrics } from "./types.ts";
 export class RequestQueue {
   private inFlight = 0;
   private maxConcurrent: number;
-  private strategy: 'sleep' | 'queue' | 'reject';
+  private strategy: "sleep" | "queue" | "reject";
   private sleepMs: number;
   private waitQueue: Array<() => void> = [];
 
@@ -54,16 +54,18 @@ export class RequestQueue {
    * @throws {Error} If strategy is 'reject' and queue is at capacity
    */
   async acquire(): Promise<void> {
-    if (this.strategy === 'reject') {
+    if (this.strategy === "reject") {
       // Fail fast - reject immediately if at capacity
       if (this.inFlight >= this.maxConcurrent) {
-        throw new Error(`Server at capacity (${this.maxConcurrent} concurrent requests)`);
+        throw new Error(
+          `Server at capacity (${this.maxConcurrent} concurrent requests)`,
+        );
       }
       this.inFlight++;
       return;
     }
 
-    if (this.strategy === 'queue') {
+    if (this.strategy === "queue") {
       // Queue-based backpressure - wait in FIFO queue.
       // Claim the slot BEFORE awaiting to prevent TOCTOU race:
       // without this, two waiters woken back-to-back could both see
@@ -94,7 +96,7 @@ export class RequestQueue {
    * Notifies next waiting request if using queue strategy
    */
   release(): void {
-    if (this.strategy === 'queue' && this.waitQueue.length > 0) {
+    if (this.strategy === "queue" && this.waitQueue.length > 0) {
       // Transfer the slot directly to the next waiter without decrementing.
       // This prevents the TOCTOU race: the waiter wakes up with
       // the slot already claimed (inFlight unchanged).

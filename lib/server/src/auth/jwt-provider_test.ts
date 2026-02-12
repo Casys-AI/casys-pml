@@ -1,3 +1,4 @@
+// deno-lint-ignore-file require-await
 /**
  * Tests for JwtAuthProvider and OIDC presets.
  *
@@ -6,13 +7,13 @@
  * @module lib/server/auth/jwt-provider_test
  */
 
-import { assertEquals, assertThrows, assert } from "@std/assert";
-import { generateKeyPair, exportJWK, SignJWT } from "jose";
+import { assert, assertEquals, assertThrows } from "@std/assert";
+import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { JwtAuthProvider } from "./jwt-provider.ts";
 import {
+  createAuth0AuthProvider,
   createGitHubAuthProvider,
   createGoogleAuthProvider,
-  createAuth0AuthProvider,
   createOIDCAuthProvider,
 } from "./presets.ts";
 
@@ -24,7 +25,10 @@ interface LocalJwks {
   port: number;
   issuer: string;
   shutdown: () => Promise<void>;
-  sign: (claims: Record<string, unknown>, options?: { expiresIn?: string }) => Promise<string>;
+  sign: (
+    claims: Record<string, unknown>,
+    options?: { expiresIn?: string },
+  ) => Promise<string>;
 }
 
 async function startLocalJwksServer(): Promise<LocalJwks> {
@@ -152,7 +156,10 @@ Deno.test("JwtAuthProvider - getResourceMetadata returns correct data", () => {
     issuer: "https://issuer.example.com",
     audience: "https://my-mcp.example.com",
     resource: "https://my-mcp.example.com",
-    authorizationServers: ["https://auth1.example.com", "https://auth2.example.com"],
+    authorizationServers: [
+      "https://auth1.example.com",
+      "https://auth2.example.com",
+    ],
     scopesSupported: ["read", "admin"],
   });
 
@@ -203,7 +210,9 @@ Deno.test("createGitHubAuthProvider - sets correct issuer", () => {
   });
 
   const metadata = provider.getResourceMetadata();
-  assertEquals(metadata.authorization_servers, ["https://token.actions.githubusercontent.com"]);
+  assertEquals(metadata.authorization_servers, [
+    "https://token.actions.githubusercontent.com",
+  ]);
   assertEquals(metadata.resource, "https://my-mcp.example.com");
   assertEquals(metadata.bearer_methods_supported, ["header"]);
 });
@@ -226,7 +235,9 @@ Deno.test("createAuth0AuthProvider - sets correct issuer from domain", () => {
   });
 
   const metadata = provider.getResourceMetadata();
-  assertEquals(metadata.authorization_servers, ["https://my-tenant.auth0.com/"]);
+  assertEquals(metadata.authorization_servers, [
+    "https://my-tenant.auth0.com/",
+  ]);
 });
 
 Deno.test("createAuth0AuthProvider - passes scopesSupported", () => {
@@ -251,7 +262,9 @@ Deno.test("createOIDCAuthProvider - generic provider with custom issuer", () => 
   });
 
   const metadata = provider.getResourceMetadata();
-  assertEquals(metadata.authorization_servers, ["https://custom-idp.example.com"]);
+  assertEquals(metadata.authorization_servers, [
+    "https://custom-idp.example.com",
+  ]);
   assertEquals(metadata.resource, "https://my-mcp.example.com");
 });
 

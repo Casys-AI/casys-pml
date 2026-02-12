@@ -1,3 +1,4 @@
+// deno-lint-ignore-file require-await
 /**
  * Unit tests for middleware runner.
  *
@@ -9,7 +10,10 @@ import { createMiddlewareRunner } from "./runner.ts";
 import type { Middleware, MiddlewareContext } from "./types.ts";
 
 Deno.test("middleware runner - executes handler when no middlewares", async () => {
-  const run = createMiddlewareRunner([], async (ctx) => `hello ${ctx.toolName}`);
+  const run = createMiddlewareRunner(
+    [],
+    async (ctx) => `hello ${ctx.toolName}`,
+  );
   const result = await run({ toolName: "test", args: {} });
   assertEquals(result, "hello test");
 });
@@ -37,7 +41,13 @@ Deno.test("middleware runner - executes middlewares in onion order", async () =>
 
   const result = await run({ toolName: "test", args: {} });
 
-  assertEquals(order, ["m1-before", "m2-before", "handler", "m2-after", "m1-after"]);
+  assertEquals(order, [
+    "m1-before",
+    "m2-before",
+    "handler",
+    "m2-after",
+    "m1-after",
+  ]);
   assertEquals(result, "ok");
 });
 

@@ -7,10 +7,10 @@
  * @module lib/server/auth/jwt-provider
  */
 
-import { jwtVerify, createRemoteJWKSet } from "jose";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { AuthProvider } from "./provider.ts";
 import type { AuthInfo, ProtectedResourceMetadata } from "./types.ts";
-import { recordAuthEvent, isOtelEnabled } from "../observability/otel.ts";
+import { isOtelEnabled, recordAuthEvent } from "../observability/otel.ts";
 
 /**
  * Configuration for JwtAuthProvider.
@@ -74,11 +74,14 @@ export class JwtAuthProvider extends AuthProvider {
       throw new Error("[JwtAuthProvider] resource is required");
     }
     if (!options.authorizationServers?.length) {
-      throw new Error("[JwtAuthProvider] at least one authorizationServer is required");
+      throw new Error(
+        "[JwtAuthProvider] at least one authorizationServer is required",
+      );
     }
 
     this.options = options;
-    const jwksUri = options.jwksUri ?? `${options.issuer}/.well-known/jwks.json`;
+    const jwksUri = options.jwksUri ??
+      `${options.issuer}/.well-known/jwks.json`;
     this.jwks = createRemoteJWKSet(new URL(jwksUri));
   }
 
@@ -88,7 +91,9 @@ export class JwtAuthProvider extends AuthProvider {
     const cached = this.tokenCache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
       if (isOtelEnabled()) {
-        recordAuthEvent("cache_hit", { subject: cached.authInfo.subject ?? "" });
+        recordAuthEvent("cache_hit", {
+          subject: cached.authInfo.subject ?? "",
+        });
       }
       return cached.authInfo;
     }
@@ -140,7 +145,9 @@ export class JwtAuthProvider extends AuthProvider {
   private async hashToken(token: string): Promise<string> {
     const data = new TextEncoder().encode(token);
     const hash = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(new Uint8Array(hash)).map((b) =>
+      b.toString(16).padStart(2, "0")
+    ).join("");
   }
 
   getResourceMetadata(): ProtectedResourceMetadata {

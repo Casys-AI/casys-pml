@@ -9,15 +9,12 @@
  */
 
 export {
-  getServerTracer,
-  startToolCallSpan,
   endToolCallSpan,
-  recordAuthEvent,
+  getServerTracer,
   isOtelEnabled,
+  recordAuthEvent,
+  startToolCallSpan,
   type ToolCallSpanAttributes,
 } from "./otel.ts";
 
-export {
-  ServerMetrics,
-  type ServerMetricsSnapshot,
-} from "./metrics.ts";
+export { ServerMetrics, type ServerMetricsSnapshot } from "./metrics.ts";

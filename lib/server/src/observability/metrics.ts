@@ -184,11 +184,19 @@ export class ServerMetrics {
     sseClients?: number;
     rateLimiterKeys?: number;
   }): void {
-    if (gauges.activeRequests !== undefined) this.activeRequests = gauges.activeRequests;
-    if (gauges.queuedRequests !== undefined) this.queuedRequests = gauges.queuedRequests;
-    if (gauges.activeSessions !== undefined) this.activeSessions = gauges.activeSessions;
+    if (gauges.activeRequests !== undefined) {
+      this.activeRequests = gauges.activeRequests;
+    }
+    if (gauges.queuedRequests !== undefined) {
+      this.queuedRequests = gauges.queuedRequests;
+    }
+    if (gauges.activeSessions !== undefined) {
+      this.activeSessions = gauges.activeSessions;
+    }
     if (gauges.sseClients !== undefined) this.sseClients = gauges.sseClients;
-    if (gauges.rateLimiterKeys !== undefined) this.rateLimiterKeys = gauges.rateLimiterKeys;
+    if (gauges.rateLimiterKeys !== undefined) {
+      this.rateLimiterKeys = gauges.rateLimiterKeys;
+    }
   }
 
   /**
@@ -237,31 +245,79 @@ export class ServerMetrics {
       lines.push(`${prefix}_${name} ${value}`);
     };
 
-    counter("tool_calls_total", "Total tool calls", m.counters.tool_calls_total);
-    counter("tool_calls_success_total", "Successful tool calls", m.counters.tool_calls_success);
-    counter("tool_calls_failed_total", "Failed tool calls", m.counters.tool_calls_failed);
-    counter("requests_rate_limited_total", "Requests rejected by rate limiter", m.counters.requests_rate_limited);
-    counter("requests_backpressure_total", "Requests rejected by backpressure", m.counters.requests_rejected_backpressure);
-    counter("auth_success_total", "Successful auth verifications", m.counters.auth_success);
-    counter("auth_failed_total", "Failed auth verifications", m.counters.auth_failed);
-    counter("auth_cache_hits_total", "Auth token cache hits", m.counters.auth_cache_hits);
-    counter("sessions_created_total", "Sessions created", m.counters.sessions_created);
-    counter("sessions_expired_total", "Sessions expired by cleanup", m.counters.sessions_expired);
+    counter(
+      "tool_calls_total",
+      "Total tool calls",
+      m.counters.tool_calls_total,
+    );
+    counter(
+      "tool_calls_success_total",
+      "Successful tool calls",
+      m.counters.tool_calls_success,
+    );
+    counter(
+      "tool_calls_failed_total",
+      "Failed tool calls",
+      m.counters.tool_calls_failed,
+    );
+    counter(
+      "requests_rate_limited_total",
+      "Requests rejected by rate limiter",
+      m.counters.requests_rate_limited,
+    );
+    counter(
+      "requests_backpressure_total",
+      "Requests rejected by backpressure",
+      m.counters.requests_rejected_backpressure,
+    );
+    counter(
+      "auth_success_total",
+      "Successful auth verifications",
+      m.counters.auth_success,
+    );
+    counter(
+      "auth_failed_total",
+      "Failed auth verifications",
+      m.counters.auth_failed,
+    );
+    counter(
+      "auth_cache_hits_total",
+      "Auth token cache hits",
+      m.counters.auth_cache_hits,
+    );
+    counter(
+      "sessions_created_total",
+      "Sessions created",
+      m.counters.sessions_created,
+    );
+    counter(
+      "sessions_expired_total",
+      "Sessions expired by cleanup",
+      m.counters.sessions_expired,
+    );
 
     // --- Per-tool counters ---
     lines.push(`# HELP ${prefix}_tool_calls_by_name Tool calls by tool name`);
     lines.push(`# TYPE ${prefix}_tool_calls_by_name counter`);
     for (const [name, pt] of this.perTool) {
-      lines.push(`${prefix}_tool_calls_by_name{tool="${name}",status="success"} ${pt.success}`);
-      lines.push(`${prefix}_tool_calls_by_name{tool="${name}",status="failed"} ${pt.failed}`);
+      lines.push(
+        `${prefix}_tool_calls_by_name{tool="${name}",status="success"} ${pt.success}`,
+      );
+      lines.push(
+        `${prefix}_tool_calls_by_name{tool="${name}",status="failed"} ${pt.failed}`,
+      );
     }
 
     // --- Histogram ---
     const h = m.histograms.tool_call_duration_ms;
-    lines.push(`# HELP ${prefix}_tool_call_duration_ms Tool call duration in milliseconds`);
+    lines.push(
+      `# HELP ${prefix}_tool_call_duration_ms Tool call duration in milliseconds`,
+    );
     lines.push(`# TYPE ${prefix}_tool_call_duration_ms histogram`);
     for (const bucket of h.buckets) {
-      lines.push(`${prefix}_tool_call_duration_ms_bucket{le="${bucket.le}"} ${bucket.count}`);
+      lines.push(
+        `${prefix}_tool_call_duration_ms_bucket{le="${bucket.le}"} ${bucket.count}`,
+      );
     }
     lines.push(`${prefix}_tool_call_duration_ms_bucket{le="+Inf"} ${h.count}`);
     lines.push(`${prefix}_tool_call_duration_ms_sum ${h.sum}`);
@@ -274,11 +330,23 @@ export class ServerMetrics {
       lines.push(`${prefix}_${name} ${value}`);
     };
 
-    gauge("active_requests", "Currently executing requests", m.gauges.active_requests);
-    gauge("queued_requests", "Requests waiting in queue", m.gauges.queued_requests);
+    gauge(
+      "active_requests",
+      "Currently executing requests",
+      m.gauges.active_requests,
+    );
+    gauge(
+      "queued_requests",
+      "Requests waiting in queue",
+      m.gauges.queued_requests,
+    );
     gauge("active_sessions", "Active HTTP sessions", m.gauges.active_sessions);
     gauge("sse_clients", "Connected SSE clients", m.gauges.sse_clients);
-    gauge("rate_limiter_keys", "Tracked rate limiter keys", m.gauges.rate_limiter_keys);
+    gauge(
+      "rate_limiter_keys",
+      "Tracked rate limiter keys",
+      m.gauges.rate_limiter_keys,
+    );
     gauge("uptime_seconds", "Server uptime in seconds", m.uptime_seconds);
 
     return lines.join("\n") + "\n";

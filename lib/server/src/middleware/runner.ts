@@ -42,6 +42,7 @@ export function createMiddlewareRunner(
     let index = 0;
     let handlerCalled = false;
 
+    // deno-lint-ignore require-await
     const next = async (): Promise<MiddlewareResult> => {
       if (index < middlewares.length) {
         const middleware = middlewares[index++];
@@ -50,7 +51,7 @@ export function createMiddlewareRunner(
       if (handlerCalled) {
         throw new Error(
           "[MiddlewareRunner] next() called after pipeline already completed. " +
-          "A middleware may be calling next() multiple times.",
+            "A middleware may be calling next() multiple times.",
         );
       }
       handlerCalled = true;

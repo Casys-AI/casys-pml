@@ -4,9 +4,9 @@
 
 import { assertEquals, assertRejects } from "@std/assert";
 import {
+  buildHmacPayload,
   bytesToHex,
   hexToBytes,
-  buildHmacPayload,
   MessageSigner,
 } from "./message-signer.ts";
 import type { SignedMessage } from "./message-signer.ts";
@@ -52,7 +52,12 @@ Deno.test("hex roundtrip", () => {
 // ── buildHmacPayload ──────────────────────────────────────────
 
 Deno.test("buildHmacPayload - request with params", () => {
-  const msg: SignedMessage = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "test" } };
+  const msg: SignedMessage = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: { name: "test" },
+  };
   assertEquals(buildHmacPayload(msg, 0), '0:1:tools/call:{"name":"test"}');
 });
 
@@ -62,7 +67,11 @@ Deno.test("buildHmacPayload - response with result", () => {
 });
 
 Deno.test("buildHmacPayload - error response", () => {
-  const msg: SignedMessage = { jsonrpc: "2.0", id: 1, error: { code: -1, message: "fail" } };
+  const msg: SignedMessage = {
+    jsonrpc: "2.0",
+    id: 1,
+    error: { code: -1, message: "fail" },
+  };
   assertEquals(buildHmacPayload(msg, 2), '2:1::{"code":-1,"message":"fail"}');
 });
 
@@ -72,7 +81,12 @@ Deno.test("buildHmacPayload - notification (no id)", () => {
 });
 
 Deno.test("buildHmacPayload - string id", () => {
-  const msg: SignedMessage = { jsonrpc: "2.0", id: "abc-123", method: "test", params: {} };
+  const msg: SignedMessage = {
+    jsonrpc: "2.0",
+    id: "abc-123",
+    method: "test",
+    params: {},
+  };
   assertEquals(buildHmacPayload(msg, 7), "7:abc-123:test:{}");
 });
 
@@ -97,7 +111,12 @@ Deno.test("MessageSigner - roundtrip sign → verify", async () => {
   const signer = new MessageSigner(secret);
   await signer.init();
 
-  const msg: SignedMessage = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "test" } };
+  const msg: SignedMessage = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: { name: "test" },
+  };
   const signed = await signer.sign(msg);
 
   assertEquals(typeof signed._hmac, "string");
@@ -119,7 +138,12 @@ Deno.test("MessageSigner - two-party roundtrip", async () => {
   await alice.init();
   await bob.init();
 
-  const msg: SignedMessage = { jsonrpc: "2.0", id: 1, method: "ping", params: {} };
+  const msg: SignedMessage = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "ping",
+    params: {},
+  };
   const signed = await alice.sign(msg);
   const result = await bob.verify(signed);
   assertEquals(result.valid, true);
@@ -133,7 +157,12 @@ Deno.test("MessageSigner - tampered payload rejected", async () => {
   await alice.init();
   await bob.init();
 
-  const msg: SignedMessage = { jsonrpc: "2.0", id: 1, method: "test", params: { x: 1 } };
+  const msg: SignedMessage = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "test",
+    params: { x: 1 },
+  };
   const signed = await alice.sign(msg);
 
   // Tamper with params
@@ -150,7 +179,12 @@ Deno.test("MessageSigner - replay rejected (same seq)", async () => {
   await alice.init();
   await bob.init();
 
-  const msg: SignedMessage = { jsonrpc: "2.0", id: 1, method: "test", params: {} };
+  const msg: SignedMessage = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "test",
+    params: {},
+  };
   const signed = await alice.sign(msg);
 
   // First verify succeeds
@@ -171,9 +205,19 @@ Deno.test("MessageSigner - sequence gap OK", async () => {
   await bob.init();
 
   // Sign 3 messages, verify only #0 and #2 (skip #1)
-  const msg0 = await alice.sign({ jsonrpc: "2.0", id: 1, method: "m0", params: {} });
+  const msg0 = await alice.sign({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "m0",
+    params: {},
+  });
   await alice.sign({ jsonrpc: "2.0", id: 2, method: "m1", params: {} }); // skip
-  const msg2 = await alice.sign({ jsonrpc: "2.0", id: 3, method: "m2", params: {} });
+  const msg2 = await alice.sign({
+    jsonrpc: "2.0",
+    id: 3,
+    method: "m2",
+    params: {},
+  });
 
   const r0 = await bob.verify(msg0);
   assertEquals(r0.valid, true);
@@ -190,8 +234,18 @@ Deno.test("MessageSigner - decrement seq rejected", async () => {
   await alice.init();
   await bob.init();
 
-  const msg0 = await alice.sign({ jsonrpc: "2.0", id: 1, method: "a", params: {} }); // seq=0
-  const msg1 = await alice.sign({ jsonrpc: "2.0", id: 2, method: "b", params: {} }); // seq=1
+  const msg0 = await alice.sign({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "a",
+    params: {},
+  }); // seq=0
+  const msg1 = await alice.sign({
+    jsonrpc: "2.0",
+    id: 2,
+    method: "b",
+    params: {},
+  }); // seq=1
 
   // Verify seq=1 first
   const r1 = await bob.verify(msg1);
@@ -209,7 +263,12 @@ Deno.test("MessageSigner - wrong secret rejected", async () => {
   await alice.init();
   await bob.init();
 
-  const signed = await alice.sign({ jsonrpc: "2.0", id: 1, method: "test", params: {} });
+  const signed = await alice.sign({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "test",
+    params: {},
+  });
   const result = await bob.verify(signed);
   assertEquals(result.valid, false);
   assertEquals(result.error, "HMAC signature mismatch");
@@ -228,7 +287,13 @@ Deno.test("MessageSigner - invalid _hmac hex returns error", async () => {
   const signer = new MessageSigner(MessageSigner.generateSecret());
   await signer.init();
 
-  const result = await signer.verify({ jsonrpc: "2.0", id: 1, method: "test", _hmac: "not-hex!", _seq: 0 });
+  const result = await signer.verify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "test",
+    _hmac: "not-hex!",
+    _seq: 0,
+  });
   assertEquals(result.valid, false);
   assertEquals(result.error, "Invalid _hmac: not valid hex");
 });
@@ -245,7 +310,8 @@ Deno.test("MessageSigner - sign before init throws", async () => {
 Deno.test("MessageSigner - verify before init throws", async () => {
   const signer = new MessageSigner(MessageSigner.generateSecret());
   await assertRejects(
-    () => signer.verify({ jsonrpc: "2.0", method: "test", _hmac: "aa", _seq: 0 }),
+    () =>
+      signer.verify({ jsonrpc: "2.0", method: "test", _hmac: "aa", _seq: 0 }),
     Error,
     "Not initialized",
   );
@@ -311,5 +377,8 @@ Deno.test("MessageSigner - response message roundtrip", async () => {
   const signed = await alice.sign(response);
   const result = await bob.verify(signed);
   assertEquals(result.valid, true);
-  assertEquals((result.message.result as Record<string, unknown[]>).content.length, 1);
+  assertEquals(
+    (result.message.result as Record<string, unknown[]>).content.length,
+    1,
+  );
 });

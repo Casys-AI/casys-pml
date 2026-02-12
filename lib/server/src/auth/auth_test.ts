@@ -1,18 +1,19 @@
+// deno-lint-ignore-file require-await
 /**
  * Tests for auth middleware, bearer extraction, and HTTP integration.
  *
  * @module lib/server/auth/auth_test
  */
 
-import { assertEquals, assert, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { AuthProvider } from "./provider.ts";
 import type { AuthInfo, ProtectedResourceMetadata } from "./types.ts";
 import {
-  extractBearerToken,
-  createUnauthorizedResponse,
-  createForbiddenResponse,
-  createAuthMiddleware,
   AuthError,
+  createAuthMiddleware,
+  createForbiddenResponse,
+  createUnauthorizedResponse,
+  extractBearerToken,
 } from "./middleware.ts";
 import { createScopeMiddleware } from "./scope-middleware.ts";
 import type { MiddlewareContext } from "../middleware/types.ts";
@@ -104,7 +105,11 @@ Deno.test("createUnauthorizedResponse - status 401 with WWW-Authenticate", async
   );
   assertEquals(res.status, 401);
   const wwwAuth = res.headers.get("WWW-Authenticate");
-  assert(wwwAuth?.includes('resource_metadata="https://example.com/.well-known/oauth-protected-resource"'));
+  assert(
+    wwwAuth?.includes(
+      'resource_metadata="https://example.com/.well-known/oauth-protected-resource"',
+    ),
+  );
   const body = await res.json();
   assertEquals(body.error.code, -32001);
 });
@@ -135,13 +140,19 @@ Deno.test("createForbiddenResponse - status 403", async () => {
 // ============================================
 
 Deno.test("createAuthMiddleware - skips auth on STDIO (no request)", async () => {
-  const provider = new MockAuthProvider({ subject: "user-1", scopes: ["read"] });
+  const provider = new MockAuthProvider({
+    subject: "user-1",
+    scopes: ["read"],
+  });
   const middleware = createAuthMiddleware(provider);
   let nextCalled = false;
 
   await middleware(
     { toolName: "test", args: {} },
-    async () => { nextCalled = true; return "ok"; },
+    async () => {
+      nextCalled = true;
+      return "ok";
+    },
   );
 
   assertEquals(nextCalled, true);
@@ -153,10 +164,15 @@ Deno.test("createAuthMiddleware - throws AuthError on missing token", async () =
   const middleware = createAuthMiddleware(provider);
 
   await assertRejects(
-    () => middleware(
-      { toolName: "test", args: {}, request: new Request("http://localhost") },
-      async () => "ok",
-    ),
+    () =>
+      middleware(
+        {
+          toolName: "test",
+          args: {},
+          request: new Request("http://localhost"),
+        },
+        async () => "ok",
+      ),
     AuthError,
     "Authorization header with Bearer token required",
   );
@@ -167,23 +183,27 @@ Deno.test("createAuthMiddleware - throws AuthError on invalid token", async () =
   const middleware = createAuthMiddleware(provider);
 
   await assertRejects(
-    () => middleware(
-      {
-        toolName: "test",
-        args: {},
-        request: new Request("http://localhost", {
-          headers: { Authorization: "Bearer invalid-token" },
-        }),
-      },
-      async () => "ok",
-    ),
+    () =>
+      middleware(
+        {
+          toolName: "test",
+          args: {},
+          request: new Request("http://localhost", {
+            headers: { Authorization: "Bearer invalid-token" },
+          }),
+        },
+        async () => "ok",
+      ),
     AuthError,
     "Invalid or expired token",
   );
 });
 
 Deno.test("createAuthMiddleware - injects frozen authInfo on valid token", async () => {
-  const provider = new MockAuthProvider({ subject: "user-1", scopes: ["read", "write"] });
+  const provider = new MockAuthProvider({
+    subject: "user-1",
+    scopes: ["read", "write"],
+  });
   const middleware = createAuthMiddleware(provider);
   const ctx: MiddlewareContext = {
     toolName: "test",
@@ -211,7 +231,10 @@ Deno.test("createScopeMiddleware - passes when no scopes required", async () => 
 
   await middleware(
     { toolName: "test", args: {}, authInfo: { subject: "u", scopes: [] } },
-    async () => { nextCalled = true; return "ok"; },
+    async () => {
+      nextCalled = true;
+      return "ok";
+    },
   );
 
   assertEquals(nextCalled, true);
@@ -223,8 +246,15 @@ Deno.test("createScopeMiddleware - passes when user has required scopes", async 
   let nextCalled = false;
 
   await middleware(
-    { toolName: "admin_tool", args: {}, authInfo: { subject: "u", scopes: ["admin", "read"] } },
-    async () => { nextCalled = true; return "ok"; },
+    {
+      toolName: "admin_tool",
+      args: {},
+      authInfo: { subject: "u", scopes: ["admin", "read"] },
+    },
+    async () => {
+      nextCalled = true;
+      return "ok";
+    },
   );
 
   assertEquals(nextCalled, true);
@@ -235,10 +265,15 @@ Deno.test("createScopeMiddleware - throws AuthError when scopes missing", async 
   const middleware = createScopeMiddleware(scopes);
 
   await assertRejects(
-    () => middleware(
-      { toolName: "admin_tool", args: {}, authInfo: { subject: "u", scopes: ["read"] } },
-      async () => "ok",
-    ),
+    () =>
+      middleware(
+        {
+          toolName: "admin_tool",
+          args: {},
+          authInfo: { subject: "u", scopes: ["read"] },
+        },
+        async () => "ok",
+      ),
     AuthError,
     "Insufficient scope",
   );
@@ -251,7 +286,10 @@ Deno.test("createScopeMiddleware - passes when no authInfo (STDIO)", async () =>
 
   await middleware(
     { toolName: "admin_tool", args: {} }, // no authInfo, no request = STDIO
-    async () => { nextCalled = true; return "ok"; },
+    async () => {
+      nextCalled = true;
+      return "ok";
+    },
   );
 
   assertEquals(nextCalled, true);
@@ -262,10 +300,15 @@ Deno.test("createScopeMiddleware - throws when no authInfo on HTTP request (no-s
   const middleware = createScopeMiddleware(scopes);
 
   await assertRejects(
-    () => middleware(
-      { toolName: "admin_tool", args: {}, request: new Request("http://localhost") }, // HTTP but no authInfo
-      async () => "ok",
-    ),
+    () =>
+      middleware(
+        {
+          toolName: "admin_tool",
+          args: {},
+          request: new Request("http://localhost"),
+        }, // HTTP but no authInfo
+        async () => "ok",
+      ),
     Error,
     "no authInfo found on HTTP request",
   );
@@ -434,7 +477,9 @@ Deno.test("HTTP + Auth - RFC 9728 endpoint returns metadata", async () => {
   const http = await server.startHttp({ port, onListen: () => {} });
 
   try {
-    const res = await fetch(`http://localhost:${port}/.well-known/oauth-protected-resource`);
+    const res = await fetch(
+      `http://localhost:${port}/.well-known/oauth-protected-resource`,
+    );
     assertEquals(res.status, 200);
     const metadata = await res.json();
     assertEquals(metadata.resource, "https://mock.example.com");
@@ -460,7 +505,9 @@ Deno.test("HTTP + Auth - RFC 9728 endpoint 404 when no auth", async () => {
   const http = await server.startHttp({ port, onListen: () => {} });
 
   try {
-    const res = await fetch(`http://localhost:${port}/.well-known/oauth-protected-resource`);
+    const res = await fetch(
+      `http://localhost:${port}/.well-known/oauth-protected-resource`,
+    );
     assertEquals(res.status, 404);
     await res.text(); // consume body
   } finally {

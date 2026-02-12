@@ -4,8 +4,8 @@
  * @module lib/server/auth/config_test
  */
 
-import { assertEquals, assertRejects, assert } from "@std/assert";
-import { loadAuthConfig, createAuthProviderFromConfig } from "./config.ts";
+import { assert, assertEquals, assertRejects } from "@std/assert";
+import { createAuthProviderFromConfig, loadAuthConfig } from "./config.ts";
 import type { AuthConfig } from "./config.ts";
 import { JwtAuthProvider } from "./jwt-provider.ts";
 
@@ -38,15 +38,17 @@ function withEnv(
 }
 
 function clearAuthEnv() {
-  for (const key of [
-    "MCP_AUTH_PROVIDER",
-    "MCP_AUTH_AUDIENCE",
-    "MCP_AUTH_RESOURCE",
-    "MCP_AUTH_DOMAIN",
-    "MCP_AUTH_ISSUER",
-    "MCP_AUTH_JWKS_URI",
-    "MCP_AUTH_SCOPES",
-  ]) {
+  for (
+    const key of [
+      "MCP_AUTH_PROVIDER",
+      "MCP_AUTH_AUDIENCE",
+      "MCP_AUTH_RESOURCE",
+      "MCP_AUTH_DOMAIN",
+      "MCP_AUTH_ISSUER",
+      "MCP_AUTH_JWKS_URI",
+      "MCP_AUTH_SCOPES",
+    ]
+  ) {
     Deno.env.delete(key);
   }
 }
@@ -308,7 +310,9 @@ Deno.test("createAuthProviderFromConfig - github creates JwtAuthProvider", () =>
   const provider = createAuthProviderFromConfig(config);
   assert(provider instanceof JwtAuthProvider);
   const metadata = provider.getResourceMetadata();
-  assertEquals(metadata.authorization_servers, ["https://token.actions.githubusercontent.com"]);
+  assertEquals(metadata.authorization_servers, [
+    "https://token.actions.githubusercontent.com",
+  ]);
 });
 
 Deno.test("createAuthProviderFromConfig - google creates JwtAuthProvider", () => {
@@ -333,7 +337,9 @@ Deno.test("createAuthProviderFromConfig - auth0 creates JwtAuthProvider with dom
   const provider = createAuthProviderFromConfig(config);
   assert(provider instanceof JwtAuthProvider);
   const metadata = provider.getResourceMetadata();
-  assertEquals(metadata.authorization_servers, ["https://my-tenant.auth0.com/"]);
+  assertEquals(metadata.authorization_servers, [
+    "https://my-tenant.auth0.com/",
+  ]);
 });
 
 Deno.test("createAuthProviderFromConfig - oidc creates JwtAuthProvider with issuer", () => {

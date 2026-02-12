@@ -6,7 +6,7 @@
  * @module lib/server/middleware/validation
  */
 
-import type { SchemaValidator } from "../schema-validator.ts";
+import type { SchemaValidator } from "../validation/schema-validator.ts";
 import type { Middleware } from "./types.ts";
 
 /**
@@ -20,6 +20,7 @@ import type { Middleware } from "./types.ts";
 export function createValidationMiddleware(
   validator: SchemaValidator,
 ): Middleware {
+  // deno-lint-ignore require-await
   return async (ctx, next) => {
     validator.validateOrThrow(ctx.toolName, ctx.args);
     return next();

@@ -8,10 +8,15 @@
  * @module lib/server/runtime
  */
 
-import type { RuntimePort, ServeOptions, ServeHandle, FetchHandler } from "./runtime-types.ts";
+import type {
+  FetchHandler,
+  RuntimePort,
+  ServeHandle,
+  ServeOptions,
+} from "./types.ts";
 
 // Re-export types so consumers import from a single module
-export type { ServeOptions, ServeHandle, FetchHandler } from "./runtime-types.ts";
+export type { FetchHandler, ServeHandle, ServeOptions } from "./types.ts";
 
 /**
  * Get an environment variable.
@@ -38,7 +43,10 @@ export async function readTextFile(path: string): Promise<string | null> {
 /**
  * Start an HTTP server with a fetch-style handler.
  */
-export function serve(options: ServeOptions, handler: FetchHandler): ServeHandle {
+export function serve(
+  options: ServeOptions,
+  handler: FetchHandler,
+): ServeHandle {
   const server = Deno.serve(
     {
       port: options.port,

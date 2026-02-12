@@ -36,9 +36,14 @@ export function buildCspHeader(options: CspOptions = {}): string {
   const allowInline = options.allowInline !== false;
   const inlineDirective = allowInline ? " 'unsafe-inline'" : "";
 
-  const scriptSrc = [`'self'${inlineDirective}`, ...(options.scriptSources ?? [])].join(" ");
+  const scriptSrc = [
+    `'self'${inlineDirective}`,
+    ...(options.scriptSources ?? []),
+  ].join(" ");
   const connectSrc = ["'self'", ...(options.connectSources ?? [])].join(" ");
-  const frameAncestors = ["'self'", ...(options.frameAncestors ?? [])].join(" ");
+  const frameAncestors = ["'self'", ...(options.frameAncestors ?? [])].join(
+    " ",
+  );
 
   return [
     `default-src 'none'`,
@@ -67,7 +72,8 @@ export function buildCspHeader(options: CspOptions = {}): string {
  */
 export function injectCspMetaTag(html: string, cspValue: string): string {
   const escaped = cspValue.replace(/"/g, "&quot;");
-  const metaTag = `<meta http-equiv="Content-Security-Policy" content="${escaped}">`;
+  const metaTag =
+    `<meta http-equiv="Content-Security-Policy" content="${escaped}">`;
 
   // Inject right after <head> (case-insensitive, handles attributes)
   const headMatch = html.match(/<head[^>]*>/i);

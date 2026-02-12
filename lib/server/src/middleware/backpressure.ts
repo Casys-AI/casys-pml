@@ -7,7 +7,7 @@
  * @module lib/server/middleware/backpressure
  */
 
-import type { RequestQueue } from "../request-queue.ts";
+import type { RequestQueue } from "../concurrency/request-queue.ts";
 import type { Middleware } from "./types.ts";
 
 /**

@@ -6,7 +6,7 @@
  * @module lib/server/middleware/rate-limit
  */
 
-import type { RateLimiter } from "../rate-limiter.ts";
+import type { RateLimiter } from "../concurrency/rate-limiter.ts";
 import type { RateLimitOptions } from "../types.ts";
 import type { Middleware } from "./types.ts";
 
@@ -25,7 +25,9 @@ export function createRateLimitMiddleware(
   options: RateLimitOptions,
 ): Middleware {
   return async (ctx, next) => {
-    const key = options.keyExtractor?.({ toolName: ctx.toolName, args: ctx.args }) ?? "default";
+    const key =
+      options.keyExtractor?.({ toolName: ctx.toolName, args: ctx.args }) ??
+        "default";
 
     if (options.onLimitExceeded === "reject") {
       if (!limiter.checkLimit(key)) {

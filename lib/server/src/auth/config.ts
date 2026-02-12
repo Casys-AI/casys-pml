@@ -8,19 +8,24 @@
  */
 
 import { parse as parseYaml } from "@std/yaml";
-import { env, readTextFile } from "../runtime.ts";
+import { env, readTextFile } from "../runtime/runtime.ts";
 import type { AuthProvider } from "./provider.ts";
 import {
+  createAuth0AuthProvider,
   createGitHubAuthProvider,
   createGoogleAuthProvider,
-  createAuth0AuthProvider,
   createOIDCAuthProvider,
 } from "./presets.ts";
 
 /** Supported auth provider names */
 export type AuthProviderName = "github" | "google" | "auth0" | "oidc";
 
-const VALID_PROVIDERS: AuthProviderName[] = ["github", "google", "auth0", "oidc"];
+const VALID_PROVIDERS: AuthProviderName[] = [
+  "github",
+  "google",
+  "auth0",
+  "oidc",
+];
 
 /**
  * Parsed auth configuration (after YAML + env merge).
@@ -100,7 +105,7 @@ export async function loadAuthConfig(
   if (!VALID_PROVIDERS.includes(provider as AuthProviderName)) {
     throw new Error(
       `[AuthConfig] Unknown auth provider: "${provider}". ` +
-      `Valid values: ${VALID_PROVIDERS.join(", ")}`,
+        `Valid values: ${VALID_PROVIDERS.join(", ")}`,
     );
   }
 
@@ -110,13 +115,13 @@ export async function loadAuthConfig(
   if (!audience) {
     throw new Error(
       `[AuthConfig] "audience" is required when provider="${provider}". ` +
-      "Set auth.audience in YAML or MCP_AUTH_AUDIENCE env var.",
+        "Set auth.audience in YAML or MCP_AUTH_AUDIENCE env var.",
     );
   }
   if (!resource) {
     throw new Error(
       `[AuthConfig] "resource" is required when provider="${provider}". ` +
-      "Set auth.resource in YAML or MCP_AUTH_RESOURCE env var.",
+        "Set auth.resource in YAML or MCP_AUTH_RESOURCE env var.",
     );
   }
 
@@ -136,13 +141,13 @@ export async function loadAuthConfig(
   if (config.provider === "auth0" && !config.domain) {
     throw new Error(
       '[AuthConfig] "domain" is required for auth0 provider. ' +
-      "Set auth.domain in YAML or MCP_AUTH_DOMAIN env var.",
+        "Set auth.domain in YAML or MCP_AUTH_DOMAIN env var.",
     );
   }
   if (config.provider === "oidc" && !config.issuer) {
     throw new Error(
       '[AuthConfig] "issuer" is required for oidc provider. ' +
-      "Set auth.issuer in YAML or MCP_AUTH_ISSUER env var.",
+        "Set auth.issuer in YAML or MCP_AUTH_ISSUER env var.",
     );
   }
 
@@ -200,7 +205,10 @@ async function loadYamlAuth(
   }
 
   const configFile = parsed as Record<string, unknown>;
-  if (!configFile.auth || typeof configFile.auth !== "object" || Array.isArray(configFile.auth)) {
+  if (
+    !configFile.auth || typeof configFile.auth !== "object" ||
+    Array.isArray(configFile.auth)
+  ) {
     return null;
   }
 
@@ -213,7 +221,9 @@ async function loadYamlAuth(
     issuer: typeof auth.issuer === "string" ? auth.issuer : undefined,
     jwksUri: typeof auth.jwksUri === "string" ? auth.jwksUri : undefined,
     scopesSupported: Array.isArray(auth.scopesSupported)
-      ? auth.scopesSupported.filter((s: unknown): s is string => typeof s === "string")
+      ? auth.scopesSupported.filter((s: unknown): s is string =>
+        typeof s === "string"
+      )
       : undefined,
   };
 }

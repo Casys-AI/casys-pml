@@ -37,6 +37,8 @@ export interface ServeOptions {
   port: number;
   hostname?: string;
   onListen?: (info: { hostname: string; port: number }) => void;
+  /** Maximum request body size in bytes (optional, adapter-specific). */
+  maxBodyBytes?: number | null;
 }
 
 /** Handle returned by serve(), used to shut down the server */
@@ -50,7 +52,10 @@ export interface ServeHandle {
  * Deno: wraps Deno.serve()
  * Node.js: wraps node:http.createServer() with Request/Response adapter
  */
-export type ServeFn = (options: ServeOptions, handler: FetchHandler) => ServeHandle;
+export type ServeFn = (
+  options: ServeOptions,
+  handler: FetchHandler,
+) => ServeHandle;
 
 // ─── Timers ──────────────────────────────────────────────
 

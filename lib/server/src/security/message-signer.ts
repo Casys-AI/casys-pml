@@ -132,22 +132,32 @@ export class MessageSigner {
     if (!keyBytes) {
       throw new Error(
         "[MessageSigner] Invalid secret: must be a valid hex string. " +
-        "Use MessageSigner.generateSecret() to create one.",
+          "Use MessageSigner.generateSecret() to create one.",
       );
     }
     this.cryptoKey = await crypto.subtle.importKey(
-      "raw", keyBytes.buffer as ArrayBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"],
+      "raw",
+      keyBytes.buffer as ArrayBuffer,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign", "verify"],
     );
   }
 
   /** Sign a JSON-RPC message by adding `_hmac` and `_seq` fields. */
   async sign(message: SignedMessage): Promise<SignedMessage> {
     if (!this.cryptoKey) {
-      throw new Error("[MessageSigner] Not initialized. Call init() before sign().");
+      throw new Error(
+        "[MessageSigner] Not initialized. Call init() before sign().",
+      );
     }
     const seq = this.sendSeq++;
     const payload = buildHmacPayload(message, seq);
-    const sig = await crypto.subtle.sign("HMAC", this.cryptoKey, new TextEncoder().encode(payload));
+    const sig = await crypto.subtle.sign(
+      "HMAC",
+      this.cryptoKey,
+      new TextEncoder().encode(payload),
+    );
     return { ...message, _seq: seq, _hmac: bytesToHex(new Uint8Array(sig)) };
   }
 
@@ -158,24 +168,48 @@ export class MessageSigner {
    */
   async verify(message: SignedMessage): Promise<VerifyResult> {
     if (!this.cryptoKey) {
-      throw new Error("[MessageSigner] Not initialized. Call init() before verify().");
+      throw new Error(
+        "[MessageSigner] Not initialized. Call init() before verify().",
+      );
     }
     const { _hmac, _seq, ...clean } = message;
 
     if (_hmac === undefined || _seq === undefined) {
-      return { valid: false, message: clean as SignedMessage, error: "Missing _hmac or _seq field" };
+      return {
+        valid: false,
+        message: clean as SignedMessage,
+        error: "Missing _hmac or _seq field",
+      };
     }
     if (typeof _seq !== "number" || _seq <= this.lastRecvSeq) {
-      return { valid: false, message: clean as SignedMessage, error: `Replay detected: _seq=${_seq} <= lastRecvSeq=${this.lastRecvSeq}` };
+      return {
+        valid: false,
+        message: clean as SignedMessage,
+        error:
+          `Replay detected: _seq=${_seq} <= lastRecvSeq=${this.lastRecvSeq}`,
+      };
     }
     const hmacBytes = hexToBytes(_hmac);
     if (!hmacBytes) {
-      return { valid: false, message: clean as SignedMessage, error: "Invalid _hmac: not valid hex" };
+      return {
+        valid: false,
+        message: clean as SignedMessage,
+        error: "Invalid _hmac: not valid hex",
+      };
     }
     const payload = buildHmacPayload(clean as SignedMessage, _seq);
-    const isValid = await crypto.subtle.verify("HMAC", this.cryptoKey, hmacBytes.buffer as ArrayBuffer, new TextEncoder().encode(payload));
+    const isValid = await crypto.subtle.verify(
+      "HMAC",
+      this.cryptoKey,
+      hmacBytes.buffer as ArrayBuffer,
+      new TextEncoder().encode(payload),
+    );
     if (!isValid) {
-      return { valid: false, message: clean as SignedMessage, error: "HMAC signature mismatch" };
+      return {
+        valid: false,
+        message: clean as SignedMessage,
+        error: "HMAC signature mismatch",
+      };
     }
     this.lastRecvSeq = _seq;
     return { valid: true, message: clean as SignedMessage };

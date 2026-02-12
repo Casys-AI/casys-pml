@@ -4,10 +4,7 @@
 
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { MessageSigner } from "./message-signer.ts";
-import {
-  generateHmacScript,
-  injectChannelAuth,
-} from "./channel-hmac.ts";
+import { generateHmacScript, injectChannelAuth } from "./channel-hmac.ts";
 
 // ── generateHmacScript ─────────────────────────────────────────
 
@@ -48,7 +45,8 @@ Deno.test("generateHmacScript - only signs, does not verify", () => {
 // ── injectChannelAuth ──────────────────────────────────────────
 
 Deno.test("injectChannelAuth - injects before </head>", () => {
-  const html = "<html><head><title>Test</title></head><body>Hello</body></html>";
+  const html =
+    "<html><head><title>Test</title></head><body>Hello</body></html>";
   const secret = MessageSigner.generateSecret();
   const result = injectChannelAuth(html, secret);
 
@@ -73,7 +71,8 @@ Deno.test("injectChannelAuth - prepends when no </head>", () => {
 });
 
 Deno.test("injectChannelAuth - preserves original content", () => {
-  const html = '<html><head><meta charset="UTF-8"></head><body><p>Content</p></body></html>';
+  const html =
+    '<html><head><meta charset="UTF-8"></head><body><p>Content</p></body></html>';
   const result = injectChannelAuth(html, MessageSigner.generateSecret());
   assertStringIncludes(result, '<meta charset="UTF-8">');
   assertStringIncludes(result, "<p>Content</p>");

@@ -9,7 +9,7 @@
 
 import type { AuthProvider } from "./provider.ts";
 import type { Middleware } from "../middleware/types.ts";
-import { recordAuthEvent, isOtelEnabled } from "../observability/otel.ts";
+import { isOtelEnabled, recordAuthEvent } from "../observability/otel.ts";
 
 /**
  * Authentication error with structured information
@@ -17,7 +17,10 @@ import { recordAuthEvent, isOtelEnabled } from "../observability/otel.ts";
  */
 export class AuthError extends Error {
   constructor(
-    public readonly code: "missing_token" | "invalid_token" | "insufficient_scope",
+    public readonly code:
+      | "missing_token"
+      | "invalid_token"
+      | "insufficient_scope",
     public readonly resourceMetadataUrl: string,
     public readonly requiredScopes?: string[],
   ) {
@@ -25,8 +28,8 @@ export class AuthError extends Error {
       code === "missing_token"
         ? "Authorization header with Bearer token required"
         : code === "invalid_token"
-          ? "Invalid or expired token"
-          : `Insufficient scope: requires ${requiredScopes?.join(", ")}`,
+        ? "Invalid or expired token"
+        : `Insufficient scope: requires ${requiredScopes?.join(", ")}`,
     );
     this.name = "AuthError";
   }
@@ -60,7 +63,9 @@ export function createUnauthorizedResponse(
   const escape = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   const parts = [`Bearer resource_metadata="${escape(resourceMetadataUrl)}"`];
   if (error) parts.push(`error="${escape(error)}"`);
-  if (errorDescription) parts.push(`error_description="${escape(errorDescription)}"`);
+  if (errorDescription) {
+    parts.push(`error_description="${escape(errorDescription)}"`);
+  }
 
   return new Response(
     JSON.stringify({
@@ -126,7 +131,10 @@ export function createAuthMiddleware(provider: AuthProvider): Middleware {
     const token = extractBearerToken(ctx.request);
     if (!token) {
       if (isOtelEnabled()) {
-        recordAuthEvent("reject", { reason: "missing_token", tool: ctx.toolName ?? "" });
+        recordAuthEvent("reject", {
+          reason: "missing_token",
+          tool: ctx.toolName ?? "",
+        });
       }
       throw new AuthError("missing_token", metadataUrl);
     }
@@ -134,7 +142,10 @@ export function createAuthMiddleware(provider: AuthProvider): Middleware {
     const authInfo = await provider.verifyToken(token);
     if (!authInfo) {
       if (isOtelEnabled()) {
-        recordAuthEvent("reject", { reason: "invalid_token", tool: ctx.toolName ?? "" });
+        recordAuthEvent("reject", {
+          reason: "invalid_token",
+          tool: ctx.toolName ?? "",
+        });
       }
       throw new AuthError("invalid_token", metadataUrl);
     }

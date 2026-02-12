@@ -23,6 +23,7 @@ import type { Middleware } from "../middleware/types.ts";
 export function createScopeMiddleware(
   toolScopes: Map<string, string[]>,
 ): Middleware {
+  // deno-lint-ignore require-await
   return async (ctx, next) => {
     const requiredScopes = toolScopes.get(ctx.toolName);
 
@@ -35,14 +36,18 @@ export function createScopeMiddleware(
       if (!ctx.request) return next(); // STDIO: local transport, no auth needed
       // HTTP request with required scopes but no authInfo = auth middleware is missing
       throw new Error(
-        `[ScopeMiddleware] Tool "${ctx.toolName}" requires scopes [${requiredScopes.join(", ")}] ` +
-        "but no authInfo found on HTTP request. Ensure auth middleware is configured in the pipeline.",
+        `[ScopeMiddleware] Tool "${ctx.toolName}" requires scopes [${
+          requiredScopes.join(", ")
+        }] ` +
+          "but no authInfo found on HTTP request. Ensure auth middleware is configured in the pipeline.",
       );
     }
 
     const hasAll = requiredScopes.every((s) => authInfo.scopes.includes(s));
     if (!hasAll) {
-      const missingScopes = requiredScopes.filter((s) => !authInfo.scopes.includes(s));
+      const missingScopes = requiredScopes.filter((s) =>
+        !authInfo.scopes.includes(s)
+      );
       // resourceMetadataUrl is not critical for 403 responses (only used in 401),
       // but we populate it from context if available for consistency
       const metadataUrl = (ctx.resourceMetadataUrl as string | undefined) ?? "";

@@ -41,7 +41,14 @@ server.<span class="c-fn">registerTool</span>(
   <span class="c-keyword">async</span> ({ sql }) =&gt; ({ rows: [] }),
 );
 
-<span class="c-keyword">await</span> server.<span class="c-fn">startHttp</span>({ port: <span class="c-num">3000</span> });`;
+<span class="c-comment">// Security-first HTTP defaults</span>
+<span class="c-keyword">await</span> server.<span class="c-fn">startHttp</span>({
+  port: <span class="c-num">3000</span>,
+  requireAuth: <span class="c-keyword">true</span>,
+  corsOrigins: [<span class="c-string">"https://app.example.com"</span>],
+  maxBodyBytes: <span class="c-num">1_048_576</span>,          <span class="c-comment">// 1 MB</span>
+  ipRateLimit: { maxRequests: <span class="c-num">60</span>, windowMs: <span class="c-num">60_000</span> },
+});`;
 
 const codeYaml = `<span class="c-comment"># mcp-server.yaml</span>
 <span class="c-keyword">auth</span>:

@@ -8,7 +8,10 @@
  * @module lib/server/auth/presets
  */
 
-import { JwtAuthProvider, type JwtAuthProviderOptions } from "./jwt-provider.ts";
+import {
+  JwtAuthProvider,
+  type JwtAuthProviderOptions,
+} from "./jwt-provider.ts";
 
 /**
  * Base options shared by all presets.
@@ -36,7 +39,9 @@ export interface PresetOptions {
  * });
  * ```
  */
-export function createGitHubAuthProvider(options: PresetOptions): JwtAuthProvider {
+export function createGitHubAuthProvider(
+  options: PresetOptions,
+): JwtAuthProvider {
   return new JwtAuthProvider({
     issuer: "https://token.actions.githubusercontent.com",
     audience: options.audience,
@@ -60,7 +65,9 @@ export function createGitHubAuthProvider(options: PresetOptions): JwtAuthProvide
  * });
  * ```
  */
-export function createGoogleAuthProvider(options: PresetOptions): JwtAuthProvider {
+export function createGoogleAuthProvider(
+  options: PresetOptions,
+): JwtAuthProvider {
   return new JwtAuthProvider({
     issuer: "https://accounts.google.com",
     audience: options.audience,
@@ -115,6 +122,8 @@ export function createAuth0AuthProvider(
  * });
  * ```
  */
-export function createOIDCAuthProvider(options: JwtAuthProviderOptions): JwtAuthProvider {
+export function createOIDCAuthProvider(
+  options: JwtAuthProviderOptions,
+): JwtAuthProvider {
   return new JwtAuthProvider(options);
 }

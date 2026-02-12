@@ -7,6 +7,10 @@ import { Aside } from '@astrojs/starlight/components';
 
 框架的主入口。`ConcurrentMCPServer` 处理工具注册、中间件组合、传输选择和生命周期管理。
 
+<Aside type="note">
+  支持 **Deno** 和 **Node.js** (18+)。框架使用运行时适配器 (`RuntimePort`)，同一 API 在两个平台上均可运行。`maxBodyBytes` 在 Deno 和 Node.js HTTP 层均有实现。
+</Aside>
+
 ## 构造函数
 
 ```typescript
@@ -30,6 +34,7 @@ interface ConcurrentServerOptions {
   samplingClient?: SamplingClient;       // Custom sampling client
   logger?: (msg: string) => void;        // Default: console.error
   auth?: AuthOptions;                    // OAuth2/Bearer config
+  resourceCsp?: CspOptions;              // 为 MCP Apps HTML 注入 CSP meta 标签
 }
 ```
 
@@ -143,16 +148,52 @@ await server.start(): Promise<void>;
 ### startHttp
 
 ```typescript
-await server.startHttp(options: HttpServerOptions): Promise<void>;
+await server.startHttp(options: HttpServerOptions): Promise<HttpServerInstance>;
 ```
 
 使用 Streamable HTTP 传输启动。包含 SSE 流、会话管理和 RFC 9728 发现。
 
+返回 `HttpServerInstance`，包含 `shutdown()` 和 `addr`：
+
+```typescript
+interface HttpServerInstance {
+  shutdown(): Promise<void>;   // 优雅关闭
+  addr: { hostname: string; port: number };
+}
+```
+
 ```typescript
 interface HttpServerOptions {
   port: number;
-  hostname?: string;  // Default: "0.0.0.0"
+  hostname?: string;              // 默认: "0.0.0.0"
+  cors?: boolean;                 // 默认: true
+  corsOrigins?: "*" | string[];   // 默认: "*" — 生产环境请使用白名单
+  maxBodyBytes?: number | null;   // 默认: 1_000_000 (1 MB)。null = 无限制
+  requireAuth?: boolean;          // 默认: false — 为 true 但无 auth 时启动即报错
+  ipRateLimit?: {
+    maxRequests: number;          // 每个窗口每 IP 最大请求数
+    windowMs: number;             // 窗口时长（毫秒）
+    keyExtractor?: (ctx) => string;
+    onLimitExceeded?: "reject" | "wait";  // 默认: "reject"
+  };
+  onListen?: (info: { hostname: string; port: number }) => void;
 }
+```
+
+<Aside type="tip">
+  安全优先默认值：`maxBodyBytes` 将负载限制为 1 MB（返回 413），`ipRateLimit` 返回 429 并带 `Retry-After` 头，`corsOrigins` 设为 `"*"` 时会记录警告，`requireAuth: true` 在未配置 auth 时启动即失败。
+</Aside>
+
+**包含所有安全选项的示例：**
+
+```typescript
+await server.startHttp({
+  port: 3000,
+  requireAuth: true,
+  corsOrigins: ["https://app.example.com"],
+  maxBodyBytes: 1_048_576,
+  ipRateLimit: { maxRequests: 60, windowMs: 60_000 },
+});
 ```
 
 ### stop
