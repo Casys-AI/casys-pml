@@ -941,7 +941,7 @@ export const zh: Translations = {
   // ========================================
   about: {
     pageTitle: "关于",
-    heroName: "Erwan Le Pesle",
+    heroName: "Erwan Lee Pesle",
     heroTitle: "创始人 & 系统架构师，Casys",
     heroBio:
       "十五年来，我们一直在构建将知识转化为行动的系统——从 mIRC 上的早期聊天机器人，到企业知识管理，再到用于工具相关性的图注意力网络。当大语言模型出现时，问题没有改变：上下文输入，行动输出。MCP 是这一原则最新的表达，也是最具影响力的。Casys AI 帮助工程团队交付可靠的 AI 集成——无供应商锁定，无黑盒。",

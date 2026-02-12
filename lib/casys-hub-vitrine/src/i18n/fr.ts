@@ -1010,7 +1010,7 @@ export const fr: Translations = {
   // ========================================
   about: {
     pageTitle: "\u00c0 propos",
-    heroName: "Erwan Le Pesle",
+    heroName: "Erwan Lee Pesle",
     heroTitle: "Fondateur & Architecte Syst\u00e8me, Casys",
     heroBio:
       "Nous construisons des syst\u00e8mes qui connectent la connaissance \u00e0 l'action depuis plus de quinze ans \u2014 des premiers chatbots sur mIRC au knowledge management en entreprise, jusqu'aux r\u00e9seaux d'attention sur graphes pour la pertinence des outils. Quand les LLM sont arriv\u00e9s, le probl\u00e8me n'a pas chang\u00e9 : contexte en entr\u00e9e, action en sortie. MCP est l'expression la plus r\u00e9cente de ce principe, et la plus cons\u00e9quente. Casys AI aide les \u00e9quipes techniques \u00e0 livrer des int\u00e9grations IA fiables \u2014 sans d\u00e9pendance fournisseur, sans bo\u00eete noire.",

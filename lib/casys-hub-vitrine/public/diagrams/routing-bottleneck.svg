@@ -1,0 +1,51 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 290" width="560" height="290">
+<!-- svg-source:excalidraw -->
+<rect x="0" y="0" width="560" height="290" fill="#08080a"/>
+<style>text{font-family:'Inter','Segoe UI',system-ui,sans-serif}</style>
+
+<!-- Title: User Intent -->
+<text x="280" y="22" font-size="14" font-weight="700" fill="#f0ede8" text-anchor="middle">User Intent</text>
+
+<!-- Split arrows -->
+<line x1="240" y1="30" x2="140" y2="58" stroke="#666666" stroke-width="2"/>
+<polygon points="136,54 140,62 145,53" fill="#666666"/>
+<line x1="320" y1="30" x2="420" y2="58" stroke="#666666" stroke-width="2"/>
+<polygon points="415,53 420,62 424,54" fill="#666666"/>
+
+<!-- LEFT: LLM Router -->
+<rect x="40" y="64" rx="8" ry="8" width="200" height="56" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+<text x="140" y="82" font-size="13" font-weight="600" fill="#60a5fa" text-anchor="middle">LLM Router</text>
+<text x="140" y="98" font-size="9" fill="#60a5fa" text-anchor="middle" opacity="0.8">8B params · GPU · ~1s</text>
+<text x="140" y="112" font-size="8" fill="#666666" text-anchor="middle" font-style="italic">re-reads full history as text</text>
+
+<!-- Left arrow down (long, direct) -->
+<line x1="140" y1="120" x2="140" y2="224" stroke="#666666" stroke-width="2"/>
+<polygon points="135,222 140,230 145,222" fill="#666666"/>
+
+<!-- RIGHT: Specialized Router -->
+<rect x="320" y="64" rx="8" ry="8" width="200" height="56" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+<text x="420" y="82" font-size="13" font-weight="600" fill="#4ade80" text-anchor="middle">Specialized Router</text>
+<text x="420" y="98" font-size="9" fill="#4ade80" text-anchor="middle" opacity="0.8">&lt;1M params · CPU · &lt;10ms</text>
+<text x="420" y="112" font-size="8" fill="#666666" text-anchor="middle" font-style="italic">graph structure + sequence memory</text>
+
+<!-- Right arrow down to sampling -->
+<line x1="420" y1="120" x2="420" y2="150" stroke="#666666" stroke-width="2"/>
+<polygon points="415,148 420,156 425,148" fill="#666666"/>
+
+<!-- MCP Sampling (key element) -->
+<rect x="320" y="156" rx="10" ry="10" width="200" height="50" fill="#1f1f23" stroke="#fbbf24" stroke-width="3"/>
+<text x="420" y="178" font-size="13" font-weight="700" fill="#fbbf24" text-anchor="middle">MCP Sampling</text>
+<text x="420" y="194" font-size="8" fill="#fbbf24" text-anchor="middle" opacity="0.8">LLM when reasoning adds value</text>
+
+<!-- Right arrow down to tool -->
+<line x1="420" y1="206" x2="420" y2="224" stroke="#666666" stroke-width="2"/>
+<polygon points="415,222 420,230 425,222" fill="#666666"/>
+
+<!-- LEFT: Tool Selected -->
+<rect x="60" y="232" rx="8" ry="8" width="160" height="40" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+<text x="140" y="256" font-size="12" font-weight="600" fill="#a78bfa" text-anchor="middle">Tool Selected</text>
+
+<!-- RIGHT: Tool Selected -->
+<rect x="340" y="232" rx="8" ry="8" width="160" height="40" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+<text x="420" y="256" font-size="12" font-weight="600" fill="#a78bfa" text-anchor="middle">Tool Selected</text>
+</svg>

@@ -1,0 +1,162 @@
+---
+title: "20 000 $ pour router 16 agents IA — le problème que personne ne résout"
+description: "L'industrie empile les protocoles et les milliards de paramètres pour coordonner des agents IA. Le vrai goulot d'étranglement n'est pas le protocole. C'est le cerveau qui décide."
+author: "Erwan Lee Pesle"
+date: 2026-02-12
+tags:
+  - mcp
+  - mcp-sampling
+  - routing
+  - multi-agent
+  - a2a
+category: "Industrie"
+language: fr
+snippet: "8 protocoles, 8 milliards de paramètres, des milliers de dollars en GPU. Et si le problème n'était pas là ?"
+featured: true
+draft: false
+---
+
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+## Le cerveau dont personne ne parle
+
+Voici la vérité qui dérange à propos de l'industrie des agents IA en février 2026 : tout le monde construit des autoroutes, et personne ne construit de GPS.
+
+Huit protocoles en un an pour connecter les agents entre eux. Des milliards de paramètres pour fine-tuner des routeurs. 20 000 $ en API pour qu'un chercheur supervise 16 instances de Claude pendant deux semaines.
+
+Le problème n'est pas la communication entre agents. Le problème est la **décision** : quand un agent a 10 000 outils devant lui, comment choisit-il le bon ?
+
+## Le coût du choix
+
+| Approche | Latence | Paramètres | Tool use |
+| -------- | ------- | ---------- | -------- |
+| GPT-5.2 high | ~1-2s GPU | 200B+ (estimé) | 57,5% Pass@1 ([MCPMark](https://mcpmark.ai/leaderboard)) |
+| Gemini 3 Pro high | ~1s GPU | estimé >100B | 53,9% Pass@1 (MCPMark) |
+| Claude Opus 4.5 high | ~1-2s GPU | modèle complet | 42,3% Pass@1 (MCPMark) |
+| ToolACE-MCP (Qwen3-8B LoRA) | ~0.5-1s GPU | 8B | 53,4% ([MCP-Universe](https://arxiv.org/abs/2601.08276)) |
+| 16 Claudes en parallèle | semaines | 16 × modèle complet | $20 000/projet |
+| Routeur spécialisé (graph + séquence) | sub-10ms CPU | sub-1M | workflows réels |
+
+Le meilleur modèle au monde — GPT-5.2 en mode high — échoue sur 42% des tâches MCP. Claude Opus 4.5, le plus cher du tableau (à 466 $ par run), plafonne à 42%. Et pourtant, l'industrie est massivement investie dans ces approches.
+
+## L'admission
+
+Les benchmarks se multiplient — et convergent vers la même conclusion.
+
+[MCPMark](https://mcpmark.ai/leaderboard), le leaderboard de référence pour le tool use en conditions réelles (5 serveurs MCP, tâches multi-steps), place GPT-5.2 en tête à 57,5%. [MCP-Atlas](https://scale.com/leaderboard/mcp_atlas) (Scale AI, 36 serveurs, 220 outils, 1 000 tâches) plafonne à 62,3%. Le [paper ToolACE-MCP](https://arxiv.org/abs/2601.08276) de Shanghai Jiao Tong, Zhejiang et Huawei Noah's Ark Lab mesurait GPT-4o à 47% sur MCP-Universe dès janvier 2026. Avec GPT-5.2, on gagne 10 points. Pas le double — dix points.
+
+Les auteurs de ToolACE-MCP écrivaient : “despite their reasoning prowess, [generalist LLMs] struggle with the precise discrimination required for tool selection.” Un an et deux générations de modèles plus tard, le constat tient. **Le meilleur LLM généraliste du marché échoue sur plus de 4 tâches MCP sur 10.**
+
+ToolACE-MCP propose sa réponse : un LLM de 8 milliards de paramètres, spécialisé via LoRA sur des trajectoires synthétiques. C'est mieux qu'un généraliste. Mais c'est encore un modèle qui relit l'historique complet en texte brut à chaque décision, sans structure relationnelle entre les outils, avec de l'inférence GPU à chaque appel.
+
+## Le plafond de contexte
+
+Et il y a un problème plus fondamental que la performance : **le LLM ne peut pas voir tous les outils.**
+
+Chaque outil MCP a un schema — nom, description, paramètres, types. Le serveur GitHub MCP expose ~91 outils. Ça représente [~22% du context window](https://eclipsesource.com/blogs/2026/01/22/mcp-context-overload/) de Claude Opus 4.5 — avant même que l'utilisateur n'ait tapé un mot. Un utilisateur de Reddit [a documenté](https://medium.com/@joe.njenga/claude-code-just-cut-mcp-context-bloat-by-46-9-51k-tokens-down-to-8-5k-with-new-tool-search-ddf9e905f734) 67 000 tokens consommés rien qu'en connectant quatre serveurs MCP à Claude Code.
+
+Anthropic a réagi en janvier 2026 : quand les schemas MCP dépassent **10% du context**, Claude Code passe en mode [Tool Search](https://www.anthropic.com/engineering/advanced-tool-use) — les outils sont chargés à la demande via recherche au lieu d'être préchargés. Le résultat : 51K tokens ramenés à 8,5K. Anthropic a aussi introduit un mode où l'agent [écrit du code pour appeler les outils](https://www.anthropic.com/engineering/code-execution-with-mcp) au lieu de les invoquer directement, réduisant encore la pression sur le contexte.
+
+Mais ces solutions ne font que repousser le mur. Le registre [Smithery](https://smithery.ai) recense 17 000+ outils MCP. Aucun context window — pas même le million de tokens d'Opus 4.6 — ne peut contenir les schemas de 17 000 outils. Quelque chose doit décider **quels outils montrer au LLM** avant que le LLM ne commence à raisonner. C'est du routage. Et c'est un problème que le LLM ne peut pas résoudre lui-même, puisqu'il n'a pas encore vu les outils.
+
+[Microsoft Research](https://www.microsoft.com/en-us/research/blog/tool-space-interference-in-the-mcp-era-designing-for-agent-compatibility-at-scale/) parle de "tool-space interference" — les outils interfèrent entre eux quand il y en a trop dans le contexte, dégradant la performance même sur les outils que le modèle connaît bien. Plus d'outils = moins de précision. Le paradoxe est structurel.
+
+## La troisième voie
+
+Il y a une alternative que peu explorent : des routeurs spécialisés, sub-1M paramètres, qui encodent directement la structure du problème.
+
+Le raisonnement est simple. Le routage d'outils n'est pas un problème de langage — c'est un problème de **graphe** (quels outils sont liés ?) et de **séquence** (dans quel ordre ?). Utiliser un LLM pour ça, c'est comme utiliser un traducteur pour lire un plan de métro.
+
+Chez [CasYs](/), on a séparé les deux : un réseau d'attention sur hypergraphe pour la pertinence sémantique, un GRU pour le séquencement. Moins d'un million de paramètres au total. Inférence en millisecondes sur CPU. Entraîné sur des milliers de workflows réels [n8n](https://n8n.io), mappés automatiquement vers l'écosystème MCP via similarité d'embeddings.
+
+Ce n'est pas un résultat isolé. La tendance est plus large : les architectures hybrides légères — graphes, mémoire récurrente, embeddings spécialisés — commencent à émerger pour les tâches de décision à faible latence.
+
+<ExcalidrawDiagram src="routing-bottleneck" alt="LLM Router (8B, GPU, secondes) vs Routeur spécialisé (graphe + séquence, <1M, CPU, millisecondes) avec MCP Sampling" />
+
+## La primitive que personne n'utilise
+
+Google a créé [A2A](https://google.github.io/A2A/) pour que les agents se parlent. IBM a créé ACP. Microsoft a créé AGORA.
+
+| Protocole | Auteur | Ce qu'il résout |
+| --------- | ------ | --------------- |
+| **MCP** | Anthropic → Linux Foundation | Agent → Outils |
+| **A2A** | Google → Linux Foundation | Agent → Agent |
+| **A2UI** | Google | Agent → Interface native |
+| **MCP Apps** | Anthropic + OpenAI | Agent → Interface web |
+| **AG-UI** | CopilotKit | Agent → Interface (open-source) |
+| **ANP** | AGNTCY | Agent → Réseau Internet |
+| **ACP** | IBM | Agent → Agent (entreprise) |
+| **AGORA** | Microsoft | Agents as microservices |
+
+Huit protocoles en moins d'un an. Trois rien que pour l'UI. Subhadip Mitra [parle](https://subhadipmitra.com/blog/2026/agent-protocol-stack/) de "formation d'un véritable stack de protocoles."
+
+Mais il y a une primitive dans la [spec MCP](https://modelcontextprotocol.io) que presque personne n'utilise encore : `sampling/createMessage`.
+
+Un serveur MCP enfant envoie une requête au gateway. Le gateway relaie vers le LLM hôte — Claude, ChatGPT, ou n'importe quel client. Le LLM raisonne. Le serveur enfant continue avec le résultat. Un appel JSON-RPC, un timeout de 5 minutes. Pas de handshake, pas d'Agent Card.
+
+Ce n'est pas un fallback. C'est une primitive d'orchestration : reformuler une requête ambiguë, enrichir un résultat intermédiaire, valider un plan avant exécution, synthétiser les sorties de plusieurs outils. Le LLM intervient quand le raisonnement en langage naturel ajoute de la valeur — pas à chaque décision de routage.
+
+Le [paper ICLR 2026 de Harper Reed et al.](https://arxiv.org/abs/2509.13547) confirme l'intuition : donner aux agents un **mécanisme d'externalisation** — journaling, communication, peu importe le support — réduit les coûts de 15 à 40% et le nombre de turns de 12 à 27%. Leur découverte la plus intéressante : les agents préfèrent **écrire** plutôt que lire (ratio 2 à 9x). Le bénéfice vient de l'articulation structurée — externaliser sa pensée — pas du protocole utilisé. Écrire dans un journal MCP ou écrire un fichier `plan.md`, le pattern cognitif est le même. L'avantage de MCP, c'est la standardisation : n'importe quel agent peut découvrir et utiliser la même interface sans intégration custom.
+
+MCP sampling existe. Il est dans la spec. Presque personne ne l'utilise.
+
+## Données réelles vs données synthétiques
+
+ToolACE-MCP s'entraîne sur des conversations synthétiques — un LLM joue l'utilisateur, un autre joue l'assistant, un troisième valide. C'est ingénieux, mais ce sont des conversations que personne n'a jamais eues.
+
+Il existe une alternative : les plateformes d'automatisation. [n8n](https://n8n.io) a 7 654 templates publics avec de vraies séquences d'outils, créées par de vrais utilisateurs. Zapier en a des dizaines de milliers. Make aussi.
+
+Ces workflows sont exactement ce qu'un routeur a besoin d'apprendre : "quand un utilisateur veut faire X, la séquence typique est A → B → C." Pas besoin d'un LLM pour synthétiser des exemples — les exemples existent déjà, créés par des millions d'utilisateurs.
+
+Le registre [Smithery](https://smithery.ai) recense plus de 17 000 outils MCP. Mapper les workflows d'automatisation vers cet écosystème via similarité d'embeddings, c'est un pipeline de données scalable — et surtout, ancré dans des usages réels.
+
+ToolACE-MCP a une technique qu'il faut leur reconnaître : la **mutation auto-évolutive**, qui génère des variantes d'outils pour créer des hard negatives. Mais quand l'alternative est d'apprendre sur des séquences que des humains ont effectivement construites et utilisées, le synthétique devient un plan B.
+
+## Ce que 16 Claude révèlent
+
+Anthropic a [publié](https://www.anthropic.com/engineering/building-c-compiler) le 5 février 2026 un cas d'étude : 16 instances de Claude Opus 4.6 en parallèle pour construire un compilateur C en Rust. 100 000 lignes de code, 20 000 $ en API.
+
+L'expérience est impressionnante. Et le mécanisme de coordination est plus intéressant qu'il n'y paraît : chaque agent opérait dans son propre container Docker, réclamant des tâches via des **lock files** et poussant du code vers un **repo Git partagé**. Pas d'agent orchestrateur. Les agents partageaient bien un contexte — le code source, les fichiers de coordination — mais au niveau du filesystem, pas d'un graphe structuré.
+
+Le sous-texte révélateur :
+
+- **Le routeur, c'était Carlini lui-même.** Deux semaines à superviser, relancer et recadrer les agents. Ars Technica titre : ["needed deep human management"](https://arstechnica.com/ai/2026/02/sixteen-claude-ai-agents-working-together-created-a-new-c-compiler/).
+- **20 000 $ pour un seul projet**, 2 000 sessions Claude Code.
+- **Le contexte partagé était un repo Git** — pas de mémoire compressée, pas de dépendances explicites entre tâches, pas de routage automatisé. Quand un agent se bloquait, c'est un humain qui décidait quoi faire.
+
+Les agents avaient un mécanisme de coordination (Git + lock files). Ce qui manquait, c'est un **cerveau de routage** — quelque chose qui décide automatiquement quel agent fait quoi, dans quel ordre, et quand relancer. Ce rôle, c'est Carlini qui l'a rempli manuellement pendant deux semaines.
+
+## Ce que ça signifie pour les développeurs
+
+Si vous construisez des agents MCP aujourd'hui, le routage n'est pas un problème que vous pouvez ignorer. Plus votre catalog d'outils grandit, plus le choix du bon outil à chaque step devient le facteur limitant — en latence, en coût, et en fiabilité.
+
+Trois implications concrètes :
+
+- **Ne comptez pas sur le LLM hôte pour le routage.** GPT-5.2 plafonne à 57,5% sur [MCPMark](https://mcpmark.ai/leaderboard). Claude Opus 4.5 à 42,3%. Votre agent a besoin d'une couche de décision dédiée — même un simple scoring par embeddings vaut mieux que de tout déléguer au contexte window.
+- **Utilisez `sampling/createMessage`.** C'est dans la spec MCP, c'est un JSON-RPC call, et ça vous donne le LLM dans la boucle d'orchestration sans construire un protocole inter-agents. Reformulation, validation, synthèse — tout passe par là.
+- **Vos workflows d'automatisation sont des données d'entraînement.** Si vous utilisez n8n, Zapier ou Make, vos séquences d'outils réelles sont exactement ce qu'un routeur a besoin pour apprendre. L'ère des trajectoires synthétiques générées par LLM touche à sa fin.
+
+Le routage est un problème d'infrastructure, pas un problème de modèle. Traitez-le comme tel.
+
+## La prédiction
+
+D'ici 12 à 18 mois :
+
+- **MCP sampling absorbera 80% du rôle d'A2A.** La coordination inter-agents courante n'a pas besoin d'un protocole dédié quand une primitive JSON-RPC suffit. A2A survivra pour le discovery d'agents inconnus et les négociations complexes d'entreprise.
+- **Les routeurs sub-1M paramètres deviendront la norme.** La recherche a prouvé que les LLM sont sous-optimaux pour la sélection d'outils. Les alternatives graph-based et sequence-based prendront le relais.
+- **Le protocol stack se consolidera à 3 couches** : MCP (outils + coordination via sampling), un standard d'UI (MCP Apps ou AG-UI), et un standard de discovery (probablement A2A Agent Cards).
+- **Les données d'automatisation** (n8n, Zapier, Make) deviendront le signal d'entraînement dominant pour les routeurs, supplantant les trajectoires synthétiques.
+
+## Le vrai goulot d'étranglement
+
+Les problèmes de protocole sont largement résolus. MCP existe, adopté par Anthropic, OpenAI, Microsoft et Google, hébergé par la Linux Foundation. Le sampling est dans la spec. Les outils sont là.
+
+La vraie bataille est dans le routeur. Et le routeur n'a pas besoin de 8 milliards de paramètres.
+
+Il a besoin de la bonne structure — un graphe pour les relations, une mémoire pour l'historique, et un canal vers le LLM quand le raisonnement en langage naturel apporte de la valeur. Le reste du temps, il décide seul. En millisecondes. Sur CPU. Sur n'importe quel device.
+
+L'argument est le même que pour les messageries : l'infrastructure avec le moins de friction gagne.
+
+---
+
+*Cet article s'appuie sur [MCPMark](https://mcpmark.ai/leaderboard) (LobeHub, 2025), [MCP-Atlas](https://scale.com/leaderboard/mcp_atlas) (Scale AI, 2026), [ToolACE-MCP](https://arxiv.org/abs/2601.08276) (Yao et al., 2026), le [blog Anthropic sur les Agent Teams](https://www.anthropic.com/engineering/building-c-compiler) (Carlini, 2026), l'analyse du [protocol stack agentique](https://subhadipmitra.com/blog/2026/agent-protocol-stack/) par Subhadip Mitra, le [paper "AI Agents with Human-Like Collaborative Tools"](https://arxiv.org/abs/2509.13547) (Reed et al.), la [comparaison MCP vs A2A](https://auth0.com/blog/mcp-vs-a2a/) d'Auth0, et nos benchmarks internes CasYs.*

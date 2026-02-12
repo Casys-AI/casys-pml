@@ -1,0 +1,37 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "title", "type": "text", "x": 200, "y": 8, "width": 160, "height": 16, "text": "User Intent", "fontSize": 14, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#f0ede8"},
+
+    {"id": "arr-split-l", "type": "arrow", "x": 240, "y": 28, "width": 100, "height": 30, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0,0],[-100,30]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arr-split-r", "type": "arrow", "x": 320, "y": 28, "width": 100, "height": 30, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0,0],[100,30]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "box-llm", "type": "rectangle", "x": 40, "y": 64, "width": 200, "height": 56, "strokeColor": "#60a5fa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "text-llm", "type": "text", "x": 140, "y": 72, "width": 100, "height": 14, "text": "LLM Router", "fontSize": 13, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#60a5fa"},
+    {"id": "text-llm-sub", "type": "text", "x": 140, "y": 92, "width": 100, "height": 12, "text": "8B params · GPU · ~1s", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#60a5fa"},
+    {"id": "text-llm-sub2", "type": "text", "x": 140, "y": 106, "width": 100, "height": 12, "text": "re-reads full history as text", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#666666"},
+
+    {"id": "box-spec", "type": "rectangle", "x": 320, "y": 64, "width": 200, "height": 56, "strokeColor": "#4ade80", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "text-spec", "type": "text", "x": 420, "y": 72, "width": 100, "height": 14, "text": "Specialized Router", "fontSize": 13, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#4ade80"},
+    {"id": "text-spec-sub", "type": "text", "x": 420, "y": 92, "width": 100, "height": 12, "text": "<1M params · CPU · <10ms", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#4ade80"},
+    {"id": "text-spec-sub2", "type": "text", "x": 420, "y": 106, "width": 100, "height": 12, "text": "graph structure + sequence memory", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#666666"},
+
+    {"id": "arr-llm-down", "type": "arrow", "x": 140, "y": 120, "width": 0, "height": 100, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0,0],[0,100]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arr-spec-down", "type": "arrow", "x": 420, "y": 120, "width": 0, "height": 30, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0,0],[0,30]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "box-sampling", "type": "rectangle", "x": 320, "y": 156, "width": 200, "height": 50, "strokeColor": "#fbbf24", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 3, "roughness": 0, "roundness": {"type": 3, "value": 10}},
+    {"id": "text-sampling", "type": "text", "x": 420, "y": 164, "width": 100, "height": 14, "text": "MCP Sampling", "fontSize": 13, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#fbbf24"},
+    {"id": "text-sampling-sub", "type": "text", "x": 420, "y": 184, "width": 100, "height": 12, "text": "LLM when reasoning adds value", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#fbbf24"},
+
+    {"id": "arr-samp-down", "type": "arrow", "x": 420, "y": 206, "width": 0, "height": 14, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0,0],[0,14]], "startArrowhead": null, "endArrowhead": "arrow"},
+
+    {"id": "box-tool-l", "type": "rectangle", "x": 60, "y": 226, "width": 160, "height": 40, "strokeColor": "#a78bfa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "text-tool-l", "type": "text", "x": 140, "y": 240, "width": 100, "height": 14, "text": "Tool Selected", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#a78bfa"},
+
+    {"id": "box-tool-r", "type": "rectangle", "x": 340, "y": 226, "width": 160, "height": 40, "strokeColor": "#a78bfa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "text-tool-r", "type": "text", "x": 420, "y": 240, "width": 100, "height": 14, "text": "Tool Selected", "fontSize": 12, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#a78bfa"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

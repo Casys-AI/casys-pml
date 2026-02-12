@@ -98,3 +98,38 @@ editorial:
   label: Éditorial
   permalink: /editorial
   description: Composants et systèmes de création de contenu
+
+mcp-sampling:
+  label: MCP Sampling
+  permalink: /mcp-sampling
+  description: MCP sampling protocol for agent-to-agent delegation
+
+routing:
+  label: Routing
+  permalink: /routing
+  description: Tool and agent routing, selection and orchestration
+
+multi-agent:
+  label: Multi-Agent
+  permalink: /multi-agent
+  description: Multi-agent coordination and collaboration
+
+a2a:
+  label: A2A
+  permalink: /a2a
+  description: Agent-to-Agent protocol and inter-agent communication
+
+mcp:
+  label: MCP
+  permalink: /mcp
+  description: Model Context Protocol
+
+shgat:
+  label: SHGAT
+  permalink: /shgat
+  description: SuperHyperGraph Attention Networks
+
+gru:
+  label: GRU
+  permalink: /gru
+  description: Gated Recurrent Unit for sequence prediction
