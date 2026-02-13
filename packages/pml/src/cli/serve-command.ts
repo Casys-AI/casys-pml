@@ -106,6 +106,18 @@ export function createServeCommand(): Command<any> {
                 log(`${colors.yellow("⚠")} MCP Sync failed: ${syncResult.error}`);
               }
             }
+
+            // Register fetched UI HTML as local resources (Gap #1 fix)
+            let uiCount = 0;
+            for (const result of discoveryResults) {
+              for (const ui of result.uiHtml ?? []) {
+                pmlServer.registerUiResource(ui.resourceUri, ui.content, ui.mimeType);
+                uiCount++;
+              }
+            }
+            if (uiCount > 0) {
+              log(`${colors.green("✓")} UI Resources: ${uiCount} registered for resources/read`);
+            }
           } catch (error) {
             log(`${colors.yellow("⚠")} MCP Discovery failed: ${error}`);
           } finally {
@@ -130,6 +142,18 @@ export function createServeCommand(): Command<any> {
               if (syncResult.success) {
                 log(`${colors.green("✓")} Re-sync: ${syncResult.synced} tools`);
               }
+            }
+
+            // Register new UI resources from re-discovery
+            let uiCount = 0;
+            for (const result of results) {
+              for (const ui of result.uiHtml ?? []) {
+                pmlServer.registerUiResource(ui.resourceUri, ui.content, ui.mimeType);
+                uiCount++;
+              }
+            }
+            if (uiCount > 0) {
+              log(`${colors.green("✓")} Re-registered: ${uiCount} UI resources`);
             }
           } finally {
             discoveryManager.shutdownAll();

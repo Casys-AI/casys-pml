@@ -274,6 +274,10 @@ export class PmlServer {
           await loader.approveIntegrityForSession(integrityTarget);
         }
         break;
+      case "oauth_connect":
+        // User completed OAuth flow externally, reload .env for new tokens
+        await reloadEnv(workspace);
+        break;
       case "dependency":
         // Proceed with dependency installation
         break;
@@ -341,6 +345,37 @@ export class PmlServer {
       logger: "pml",
       data: message,
     });
+  }
+
+  /**
+   * Register a UI resource fetched during discovery.
+   *
+   * Called after MCP discovery to populate resources/read with Tool UI HTML.
+   * The composite generator references these via ui:// URIs in iframe src.
+   *
+   * @param resourceUri - UI resource URI (e.g., "ui://mcp-std/chart-viewer")
+   * @param htmlContent - The HTML content to serve
+   * @param mimeType - MIME type (default: "text/html")
+   */
+  registerUiResource(resourceUri: string, htmlContent: string, mimeType = "text/html"): void {
+    try {
+      // Extract a human-readable name from the URI (e.g., "chart-viewer" from "ui://mcp-std/chart-viewer")
+      const name = resourceUri.split("/").pop() ?? resourceUri;
+
+      this.server.registerResource(
+        { uri: resourceUri, name, description: `Tool UI: ${name}` },
+        () => ({
+          uri: resourceUri,
+          mimeType,
+          text: htmlContent,
+        }),
+      );
+    } catch (error) {
+      // Duplicate URI — already registered (e.g., multiple servers expose same UI)
+      this.config.logger.debug?.(
+        `[pml-server] UI resource already registered: ${resourceUri}`,
+      );
+    }
   }
 
   /**

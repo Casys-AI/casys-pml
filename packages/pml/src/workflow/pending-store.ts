@@ -24,7 +24,7 @@ import { uuidv7 } from "../utils/uuid.ts";
 /**
  * Type of approval required.
  */
-export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity";
+export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity" | "oauth_connect";
 
 /**
  * DAG task with layerIndex for TraceTimeline visualization.
@@ -183,6 +183,7 @@ export class PendingWorkflowStore {
       dependency?: McpDependency;
       missingKeys?: string[];
       integrityInfo?: { fqdnBase: string; newHash: string; oldHash: string };
+      authUrl?: string;
       fqdnMap?: Record<string, string>;
       dagTasks?: PendingDAGTask[];
     },

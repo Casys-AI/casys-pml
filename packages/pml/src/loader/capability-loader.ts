@@ -40,6 +40,7 @@ import {
   checkKeys,
   pauseForMissingKeys,
   reloadEnv,
+  resolveEnvHeaders,
 } from "../byok/mod.ts";
 // Note: getRequiredKeys removed - now using metadata.install.envRequired from registry
 import { LockfileManager } from "../lockfile/mod.ts";
@@ -118,6 +119,13 @@ function handleApprovalDenial(approvalResult: ApprovalRequiredResult): never {
       "API_KEY_NOT_CONFIGURED",
       `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
       { missingKeys: approvalResult.missingKeys },
+    );
+  }
+  if (approvalResult.approvalType === "oauth_connect") {
+    throw new LoaderError(
+      "API_KEY_NOT_CONFIGURED",
+      `OAuth authentication not completed for ${approvalResult.toolId}. Auth URL: ${approvalResult.authUrl}`,
+      { toolId: approvalResult.toolId, authUrl: approvalResult.authUrl },
     );
   }
   // For other approval types, throw generic error
@@ -409,9 +417,9 @@ export class CapabilityLoader {
     } else if (metadata.type === "stdio") {
       // Stdio types are executed via subprocess - no code to load
       logDebug(`Stdio capability registered: ${namespace} (subprocess)`);
-    } else {
-      // http types should never reach here (server-routed)
-      logDebug(`HTTP capability registered: ${namespace} (should be server-routed)`);
+    } else if (metadata.type === "http") {
+      // HTTP types execute via direct fetch() client-side — no code to load
+      logDebug(`HTTP capability registered: ${namespace} (client-side fetch)`);
     }
 
     // 4. For client-routed stdio types, build the dependency object for approval/install checks
@@ -869,12 +877,32 @@ export class CapabilityLoader {
       const keyCheck = checkKeys(requiredKeys);
 
       if (!keyCheck.allValid) {
-        // Return HIL pause instead of throwing error
-        // Note: Continuation handling is now managed by stdio-command.ts
+        // HTTP deps with authUrl: return oauth_connect instead of api_key_required.
+        // This gives the user an auth URL to authenticate externally.
+        if (dep.type === "http" && dep.authUrl) {
+          logDebug(`HTTP dep ${dep.name} needs OAuth — authUrl: ${dep.authUrl}`);
+          return {
+            approvalRequired: true,
+            approvalType: "oauth_connect" as const,
+            workflowId: uuidv7(),
+            toolId: toolId ?? `${dep.name}:*`,
+            authUrl: dep.authUrl,
+            description: `Authenticate with ${dep.name}: open the URL below, complete the auth flow, then add the token to your .env file and click Continue.\n\nMissing keys: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`,
+          };
+        }
+
+        // Standard api_key_required for stdio deps and HTTP deps without authUrl
         logDebug(`Missing env vars for ${dep.name}: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`);
         const approval = pauseForMissingKeys(keyCheck);
         return approval;
       }
+    }
+
+    // HTTP deps don't need installation — they use direct fetch().
+    // Once env vars are satisfied (checked above), the dep is ready.
+    if (dep.type === "http") {
+      logDebug(`HTTP dep ${dep.name} ready (no installation needed)`);
+      return null;
     }
 
     // Check if already installed with correct version
@@ -1082,13 +1110,15 @@ export class CapabilityLoader {
         // If a tool inside the capability required approval, bubble it up
         // as the approval object (not as an error) so clientToolHandler
         // can detect it via isApprovalRequired() and populate pendingWorkflowStore
-        if (pendingApproval) {
-          logDebug(`Sandbox aborted due to inner approval: ${pendingApproval.toolId} — bubbling up`);
+        // TS can't track closure mutations — pendingApproval is set inside handleRpcCall callback
+        const bubbledApproval = pendingApproval as { approval: unknown; toolId: string } | null;
+        if (bubbledApproval) {
+          logDebug(`Sandbox aborted due to inner approval: ${bubbledApproval.toolId} — bubbling up`);
           if (traceCollector) {
-            const trace = traceCollector.finalize(meta.fqdn, false, `approval_required:${pendingApproval.toolId}`);
+            const trace = traceCollector.finalize(meta.fqdn, false, `approval_required:${bubbledApproval.toolId}`);
             this.pendingTraces.push(trace);
           }
-          return pendingApproval.approval;
+          return bubbledApproval.approval;
         }
 
         // ADR-041: Finalize trace with failure - add to pending (not synced yet)
@@ -1231,6 +1261,11 @@ export class CapabilityLoader {
       return this.callStdio(dep, namespace, action, args);
     }
 
+    // HTTP-type deps: client-side fetch (no subprocess needed)
+    if (dep && dep.type === "http") {
+      return this.callHttp(dep, namespace, action, args);
+    }
+
     // Check routing configuration
     const routing = resolveToolRouting(toolId);
 
@@ -1308,6 +1343,69 @@ export class CapabilityLoader {
     });
 
     return result;
+  }
+
+  /**
+   * Call an HTTP-type dependency via direct fetch().
+   *
+   * Executes a client-side HTTP request to an external MCP API.
+   * Env var references in headers are resolved via resolveEnvHeaders().
+   * Traces are automatically collected by the existing onRpc handler.
+   *
+   * @param dep - The HTTP-type McpDependency
+   * @param namespace - MCP namespace (e.g., "tavily")
+   * @param action - Action name (e.g., "search")
+   * @param args - Tool arguments
+   * @returns The result from the HTTP endpoint
+   */
+  private async callHttp(
+    dep: McpDependency,
+    namespace: string,
+    action: string,
+    args: unknown,
+  ): Promise<unknown> {
+    const url = dep.httpUrl;
+    if (!url) {
+      throw new LoaderError(
+        "HTTP_CALL_FAILED",
+        `HTTP dep ${namespace} missing httpUrl — cannot execute client-side`,
+        { namespace, dep: dep.name },
+      );
+    }
+
+    logDebug(`HTTP call: ${namespace}:${action} → ${url}`);
+
+    // Resolve env var references in headers (fail-fast if missing)
+    const headers = resolveEnvHeaders(dep.httpHeaders ?? {});
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({
+        method: `${namespace}:${action}`,
+        params: args,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new LoaderError(
+        "HTTP_CALL_FAILED",
+        `HTTP dep ${namespace} returned ${response.status}: ${response.statusText}`,
+        { namespace, action, status: response.status },
+      );
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new LoaderError(
+        "HTTP_CALL_FAILED",
+        `HTTP dep ${namespace} RPC error: ${data.error.message ?? JSON.stringify(data.error)}`,
+        { namespace, action, error: data.error },
+      );
+    }
+
+    return data.result;
   }
 
   /**

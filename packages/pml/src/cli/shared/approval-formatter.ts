@@ -18,6 +18,7 @@ import type { PendingWorkflowStore } from "../../workflow/mod.ts";
  * Supports:
  * - tool_permission: User must approve tool usage
  * - api_key_required: User must provide API keys
+ * - oauth_connect: User must authenticate via external URL
  * - integrity: Tool code hash changed
  * - dependency: MCP server needs installation
  *
@@ -134,6 +135,37 @@ export function formatApprovalRequired(
             fqdn_base: approvalResult.fqdnBase,
             old_hash: approvalResult.oldHash,
             new_hash: approvalResult.newHash,
+          },
+          options: ["continue", "abort"],
+        }, null, 2),
+      }],
+    };
+  }
+
+  // Handle OAuth connect approval
+  if (approvalResult.approvalType === "oauth_connect") {
+    const workflowId = approvalResult.workflowId;
+
+    if (originalCode) {
+      pendingStore.setWithId(workflowId, originalCode, toolName, "oauth_connect", {
+        authUrl: approvalResult.authUrl,
+        fqdnMap,
+        dagTasks,
+      });
+    }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "approval_required",
+          approval_type: "oauth_connect",
+          workflow_id: workflowId,
+          context: {
+            tool: toolName,
+            tool_id: approvalResult.toolId,
+            auth_url: approvalResult.authUrl,
+            description: approvalResult.description,
           },
           options: ["continue", "abort"],
         }, null, 2),

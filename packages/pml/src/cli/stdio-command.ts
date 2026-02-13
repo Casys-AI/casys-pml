@@ -117,6 +117,18 @@ export function createStdioCommand(): Command<any> {
                 stdioLog.debug(`MCP Sync failed (non-fatal): ${syncResult.error}`);
               }
             }
+
+            // Register fetched UI HTML as local resources (Gap #1 fix)
+            let uiCount = 0;
+            for (const result of discoveryResults) {
+              for (const ui of result.uiHtml ?? []) {
+                pmlServer.registerUiResource(ui.resourceUri, ui.content, ui.mimeType);
+                uiCount++;
+              }
+            }
+            if (uiCount > 0) {
+              stdioLog.debug(`UI Resources: ${uiCount} registered for resources/read`);
+            }
           } catch (error) {
             stdioLog.debug(`MCP Discovery failed (non-fatal): ${error}`);
           } finally {
