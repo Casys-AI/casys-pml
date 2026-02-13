@@ -12,12 +12,12 @@
  */
 
 import * as math from "../utils/math.ts";
-import type { PhaseParameters, SparseConnectivity } from "./phase-interface.ts";
+import type { PhaseForwardCache, PhaseParameters, SparseConnectivity } from "./phase-interface.ts";
 import { denseToSparse, transposeSparse } from "./phase-interface.ts";
 import type { LevelParams, MultiLevelEmbeddings, MultiLevelForwardCache } from "../core/types.ts";
-import { VertexToEdgePhase, type VEForwardCache } from "./vertex-to-edge-phase.ts";
-import { EdgeToVertexPhase, type EVForwardCache } from "./edge-to-vertex-phase.ts";
-import { EdgeToEdgePhase, type EEForwardCache } from "./edge-to-edge-phase.ts";
+import { VertexToEdgePhase } from "./vertex-to-edge-phase.ts";
+import { EdgeToVertexPhase } from "./edge-to-vertex-phase.ts";
+import { EdgeToEdgePhase } from "./edge-to-edge-phase.ts";
 import {
   VertexToVertexPhase,
   type CooccurrenceEntry,
@@ -36,13 +36,13 @@ import type {
  */
 export interface MultiLevelBackwardCache extends MultiLevelForwardCache {
   /** V→E phase caches per level per head: level → head → cache */
-  veCaches: Map<number, VEForwardCache[]>;
+  veCaches: Map<number, PhaseForwardCache[]>;
   /** E→E upward phase caches per level per head: level → head → cache */
-  eeUpwardCaches: Map<number, EEForwardCache[]>;
+  eeUpwardCaches: Map<number, PhaseForwardCache[]>;
   /** E→E downward phase caches per level per head: level → head → cache */
-  eeDownwardCaches: Map<number, EEForwardCache[]>;
+  eeDownwardCaches: Map<number, PhaseForwardCache[]>;
   /** E→V phase caches per head: head → cache */
-  evCaches: EVForwardCache[];
+  evCaches: PhaseForwardCache[];
   /** V→V phase cache (optional, only if V2V enabled) */
   v2vCache?: V2VForwardCache;
   /** L0-to-L1 sparse connectivity */
@@ -417,11 +417,11 @@ export class MultiLevelOrchestrator {
             headsE.push(embeddings);
             levelAttention.push(attention);
 
-            // Collect intermediates: H_proj=childProj, E_proj=parentProj
-            childProjPerHead.push(veCache.H_proj);
-            parentProjPerHead.push(veCache.E_proj);
+            // Collect intermediates: sourceProj=childProj, targetProj=parentProj
+            childProjPerHead.push(veCache.sourceProj);
+            parentProjPerHead.push(veCache.targetProj);
             attentionPerHead.push(attention); // use dense attention from PhaseResult
-            // scores not directly stored in VEForwardCache, use empty placeholder
+            // scores not directly stored in PhaseForwardCache, use empty placeholder
             scoresPerHead.push([]);
           } else {
             const { embeddings, attention } = this.vertexToEdgePhase.forward(
@@ -462,9 +462,9 @@ export class MultiLevelOrchestrator {
             headsE.push(embeddings);
             levelAttention.push(attention);
 
-            // Collect intermediates: E_k_proj=childProj, E_kPlus1_proj=parentProj
-            childProjPerHead.push(eeCache.E_k_proj);
-            parentProjPerHead.push(eeCache.E_kPlus1_proj);
+            // Collect intermediates: sourceProj=childProj, targetProj=parentProj
+            childProjPerHead.push(eeCache.sourceProj);
+            parentProjPerHead.push(eeCache.targetProj);
             attentionPerHead.push(attention); // use dense attention from PhaseResult
             scoresPerHead.push([]);
           } else {
@@ -559,10 +559,9 @@ export class MultiLevelOrchestrator {
           headsE.push(propagated);
           levelAttention.push(attention);
 
-          // In downward: phase receives (parent, child) as (E_k, E_kPlus1)
-          // E_k_proj = parent projections (source), E_kPlus1_proj = child projections (target)
-          parentProjPerHead.push(eeCache.E_k_proj);
-          childProjPerHead.push(eeCache.E_kPlus1_proj);
+          // In downward: source=parent, target=child
+          parentProjPerHead.push(eeCache.sourceProj);
+          childProjPerHead.push(eeCache.targetProj);
           attentionPerHead.push(attention); // use dense attention from PhaseResult
           scoresPerHead.push([]);
         } else {
@@ -721,10 +720,10 @@ export class MultiLevelOrchestrator {
     const maxLevel = Math.max(...Array.from(E_levels_init.keys()));
 
     // Initialize extended cache
-    const veCaches = new Map<number, VEForwardCache[]>();
-    const eeUpwardCaches = new Map<number, EEForwardCache[]>();
-    const eeDownwardCaches = new Map<number, EEForwardCache[]>();
-    const evCaches: EVForwardCache[] = [];
+    const veCaches = new Map<number, PhaseForwardCache[]>();
+    const eeUpwardCaches = new Map<number, PhaseForwardCache[]>();
+    const eeDownwardCaches = new Map<number, PhaseForwardCache[]>();
+    const evCaches: PhaseForwardCache[] = [];
 
     // Initialize result structures
     const E = new Map<number, number[][]>();
@@ -775,8 +774,8 @@ export class MultiLevelOrchestrator {
 
       const headsE: number[][][] = [];
       const levelAttention: number[][][] = [];
-      const levelVECaches: VEForwardCache[] = [];
-      const levelEECaches: EEForwardCache[] = [];
+      const levelVECaches: PhaseForwardCache[] = [];
+      const levelEECaches: PhaseForwardCache[] = [];
 
       for (let head = 0; head < config.numHeads; head++) {
         if (level === 0) {
@@ -853,7 +852,7 @@ export class MultiLevelOrchestrator {
       const edgesAtLevelPreDownward = edgesAtLevel.map((row) => [...row]);
       const headsE: number[][][] = [];
       const levelAttention: number[][][] = [];
-      const levelEECaches: EEForwardCache[] = [];
+      const levelEECaches: PhaseForwardCache[] = [];
 
       const forwardConn2 = interLevelConns.get(level + 1);
       if (!forwardConn2) continue;
@@ -1029,7 +1028,7 @@ export class MultiLevelOrchestrator {
         const grads = levelGrads.get(0)!;
 
         // Split dH into per-head gradients (reverse of concat)
-        const headDim = cache.evCaches[0]?.E_proj[0]?.length ?? 0;
+        const headDim = cache.evCaches[0]?.sourceProj[0]?.length ?? 0;
         const dH_perHead: number[][][] = [];
         for (let head = 0; head < numHeads; head++) {
           dH_perHead.push(dH.map(row =>
@@ -1079,7 +1078,7 @@ export class MultiLevelOrchestrator {
       if (!dE_level) continue;
 
       // Split into per-head
-      const headDim = eeCaches[0]?.E_k_proj[0]?.length ?? 0;
+      const headDim = eeCaches[0]?.sourceProj[0]?.length ?? 0;
       const dE_perHead: number[][][] = [];
       for (let head = 0; head < numHeads; head++) {
         dE_perHead.push(dE_level.map(row =>
@@ -1130,7 +1129,7 @@ export class MultiLevelOrchestrator {
         const dE0 = dE.get(0);
         if (!dE0) continue;
 
-        const headDim = veCaches[0]?.H_proj[0]?.length ?? 0;
+        const headDim = veCaches[0]?.sourceProj[0]?.length ?? 0;
         const dE_perHead: number[][][] = [];
         for (let head = 0; head < numHeads; head++) {
           dE_perHead.push(dE0.map(row =>
@@ -1171,7 +1170,7 @@ export class MultiLevelOrchestrator {
         const dE_level = dE.get(level);
         if (!dE_level) continue;
 
-        const headDim = eeCaches[0]?.E_k_proj[0]?.length ?? 0;
+        const headDim = eeCaches[0]?.sourceProj[0]?.length ?? 0;
         const dE_perHead: number[][][] = [];
         for (let head = 0; head < numHeads; head++) {
           dE_perHead.push(dE_level.map(row =>

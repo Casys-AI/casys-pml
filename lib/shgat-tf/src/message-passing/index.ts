@@ -7,8 +7,17 @@
  * @module graphrag/algorithms/shgat/message-passing
  */
 
-export type { MessagePassingPhase, PhaseParameters, PhaseResult, SparseConnectivity } from "./phase-interface.ts";
-export { denseToSparse, transposeSparse } from "./phase-interface.ts";
+export type {
+  MessagePassingPhase,
+  PhaseForwardCache,
+  PhaseGradients,
+  PhaseParameters,
+  PhaseResult,
+  PhaseResultWithCache,
+  SparseConnectivity,
+} from "./phase-interface.ts";
+export { denseToSparse, edgeKey, transposeSparse } from "./phase-interface.ts";
+export { phaseBackward, phaseForward } from "./phase-shared.ts";
 export { VertexToEdgePhase } from "./vertex-to-edge-phase.ts";
 export { EdgeToVertexPhase } from "./edge-to-vertex-phase.ts";
 export { EdgeToEdgePhase } from "./edge-to-edge-phase.ts";

@@ -127,6 +127,68 @@ export interface MessagePassingPhase {
   getName(): string;
 }
 
+// ============================================================================
+// Unified Phase Cache & Gradients (all phases share the same structure)
+// ============================================================================
+
+/** Compute edge key from source/target indices (avoids string GC) */
+export function edgeKey(sourceIdx: number, targetIdx: number, numTargets: number): number {
+  return sourceIdx * numTargets + targetIdx;
+}
+
+/**
+ * Unified forward cache for all GAT message passing phases (V→E, E→V, E→E).
+ *
+ * All phases share the same source→target attention-aggregation structure.
+ * Phase-specific names map to source/target:
+ *   V→E: source=H(L0),   target=E(L1+)
+ *   E→V: source=E(L1+),  target=H(L0)
+ *   E→E: source=E_k,     target=E_{k+1}
+ */
+export interface PhaseForwardCache {
+  /** Original source node embeddings [numSource][embDim] */
+  source: number[][];
+  /** Original target node embeddings [numTarget][embDim] */
+  target: number[][];
+  /** Projected source embeddings [numSource][headDim] — Float32 for RAM */
+  sourceProj: Float32Array[];
+  /** Projected target embeddings [numTarget][headDim] — Float32 for RAM */
+  targetProj: Float32Array[];
+  /** Aggregated values before ELU [numTarget][headDim] — Float32 for RAM */
+  aggregated: Float32Array[];
+  /** Sparse attention weights (edgeKey → weight) */
+  attention: Map<number, number>;
+  /** Neighbor map: targetIdx → [sourceIdx, ...] for iteration */
+  neighborMap: Map<number, number[]>;
+  /** Number of target nodes (for edgeKey computation) */
+  numTargets: number;
+  /** LeakyReLU slope */
+  leakyReluSlope: number;
+}
+
+/**
+ * Unified gradients from backward pass.
+ */
+export interface PhaseGradients {
+  /** Gradient for W_source [headDim][embDim] */
+  dW_source: number[][];
+  /** Gradient for W_target [headDim][embDim] */
+  dW_target: number[][];
+  /** Gradient for a_attention [2*headDim] */
+  da_attention: number[];
+  /** Gradient for source embeddings [numSource][embDim] */
+  dSource: number[][];
+  /** Gradient for target embeddings [numTarget][embDim] */
+  dTarget: number[][];
+}
+
+/**
+ * Phase result with forward cache for backward pass.
+ */
+export interface PhaseResultWithCache extends PhaseResult {
+  cache: PhaseForwardCache;
+}
+
 /**
  * Multi-level message passing orchestrator
  *
