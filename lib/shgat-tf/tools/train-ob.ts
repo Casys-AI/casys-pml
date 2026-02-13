@@ -37,14 +37,12 @@ import { loadFullDataset } from "./load-parquet.ts";
 
 import { ensureBLAS } from "../src/utils/blas-ffi.ts";
 import * as math from "../src/utils/math.ts";
-import { infoNCELossAndGradient } from "../src/training/infonce-loss.ts";
 import {
   batchContrastiveForward,
   batchContrastiveBackward,
 } from "../src/training/batch-contrastive-loss.ts";
 import { AdamOptimizer } from "../src/training/adam-optimizer.ts";
 import {
-  computeMultiHeadKHeadScoresWithCache,
   backpropMultiHeadKHeadLogit,
   backpropWIntent,
   initMultiLevelKHeadGradients,
@@ -160,7 +158,6 @@ const KL_WEIGHT_PLATEAU = parseFloat(getArg("kl-weight", "0.2"));
 const MP_LR_SCALE = parseFloat(getArg("mp-lr-scale", "0.1"));
 const EVAL_EVERY = Math.max(1, parseInt(getArg("eval-every", "2"), 10));
 const EVAL_CHUNK = parseInt(getArg("eval-chunk", "256"), 10);
-const USE_BATCH_CONTRASTIVE = boolArg("batch-contrastive", true);
 const KL_SUBSAMPLE = parseInt(getArg("kl-subsample", "2000"), 10);
 
 // ==========================================================================
@@ -491,7 +488,6 @@ console.log(`    Epochs: ${EPOCHS}, Batch: ${BATCH_SIZE}, LR: ${LEARNING_RATE} (
 console.log(`    \u03C4: ${TAU_START}\u2192${TAU_END}, Negatives: ${NUM_NEGATIVES}`);
 console.log(`    KL: ${USE_KL}, KL warmup: ${KL_WARMUP}ep, KL weight: ${KL_WEIGHT_PLATEAU}`);
 console.log(`    MP LR scale: ${MP_LR_SCALE}, Seed: ${SEED}`);
-console.log(`    Batch contrastive: ${USE_BATCH_CONTRASTIVE}`);
 console.log(`    KL subsample: ${KL_SUBSAMPLE > 0 ? KL_SUBSAMPLE : 'all'}`);
 console.log(`    Eval every: ${EVAL_EVERY}, Eval chunk: ${EVAL_CHUNK}\n`);
 
@@ -653,23 +649,23 @@ const epochDurationsMs: number[] = [];
 // Pre-allocate gradient buffers ONCE — zeroed at the start of each batch.
 // Previously, these were allocated per-batch (1932×1024 + 6916×1024 = ~145MB per batch),
 // causing ~5GB GC pressure per epoch and OOM at 4GB heap.
-const _batchDH: number[][] = graph.l0Ids.map(() => new Float64Array(ds.embeddingDim) as unknown as number[]);
+const _batchDH: number[][] = graph.l0Ids.map(() => new Array<number>(ds.embeddingDim).fill(0));
 const _batchDE = new Map<number, number[][]>();
 for (const [level, ids] of graph.nodeIdsByLevel) {
-  _batchDE.set(level, ids.map(() => new Float64Array(ds.embeddingDim) as unknown as number[]));
+  _batchDE.set(level, ids.map(() => new Array<number>(ds.embeddingDim).fill(0)));
 }
 // Zero-only DE buffer for KL MP backward (n8n targets are L0-only, no dE needed)
 const _emptyDE = new Map<number, number[][]>();
 for (const [level, ids] of graph.nodeIdsByLevel) {
-  _emptyDE.set(level, ids.map(() => new Float64Array(ds.embeddingDim) as unknown as number[]));
+  _emptyDE.set(level, ids.map(() => new Array<number>(ds.embeddingDim).fill(0)));
 }
 
 function zeroDH(dh: number[][]): void {
-  for (let i = 0; i < dh.length; i++) (dh[i] as unknown as Float64Array).fill(0);
+  for (const row of dh) row.fill(0);
 }
 function zeroDE(de: Map<number, number[][]>): void {
   for (const [, arr] of de) {
-    for (let i = 0; i < arr.length; i++) (arr[i] as unknown as Float64Array).fill(0);
+    for (const row of arr) row.fill(0);
   }
 }
 
@@ -736,128 +732,48 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     let batchLoss = 0;
     let batchCorrect = 0;
 
-    if (USE_BATCH_CONTRASTIVE) {
-      // ---- Batch contrastive: in-batch negatives with symmetric CE ----
-      // Collect batch data
-      const intentsProjected: number[][] = [];
-      const positiveEmbs: number[][] = [];
-      for (const ex of batch) {
-        intentsProjected.push(math.matVecBlas(W_intent, ex.intentEmbedding));
-        positiveEmbs.push(enrichedEmbs.get(ex.targetToolId) ?? []);
+    // ---- Batch contrastive: in-batch negatives with symmetric CE ----
+    // Collect batch data
+    const intentsProjected: number[][] = [];
+    const positiveEmbs: number[][] = [];
+    for (const ex of batch) {
+      intentsProjected.push(math.matVecBlas(W_intent, ex.intentEmbedding));
+      positiveEmbs.push(enrichedEmbs.get(ex.targetToolId) ?? []);
+    }
+
+    // Forward
+    const { loss, cache } = batchContrastiveForward(
+      intentsProjected, positiveEmbs, headParams, config, tau,
+    );
+    batchLoss = loss * batch.length; // batchContrastiveForward returns mean loss
+
+    // Batch accuracy from cache.logits: check if diagonal is max per row
+    for (let i = 0; i < batch.length; i++) {
+      let maxLogit = -Infinity;
+      for (let j = 0; j < batch.length; j++) {
+        if (cache.logits[i][j] > maxLogit) maxLogit = cache.logits[i][j];
       }
+      if (cache.logits[i][i] >= maxLogit) batchCorrect++;
+    }
 
-      // Forward
-      const { loss, cache } = batchContrastiveForward(
-        intentsProjected, positiveEmbs, headParams, config, tau,
-      );
-      batchLoss = loss * batch.length; // batchContrastiveForward returns mean loss
+    // Backward
+    const { dIntentsProjected, dNodeEmbeddings } = batchContrastiveBackward(
+      cache, headParams, grads.khead, config,
+    );
 
-      // Batch accuracy from cache.logits: check if diagonal is max per row
-      for (let i = 0; i < batch.length; i++) {
-        let maxLogit = -Infinity;
-        for (let j = 0; j < batch.length; j++) {
-          if (cache.logits[i][j] > maxLogit) maxLogit = cache.logits[i][j];
-        }
-        if (cache.logits[i][i] >= maxLogit) batchCorrect++;
-      }
-
-      // Backward
-      const { dIntentsProjected, dNodeEmbeddings } = batchContrastiveBackward(
-        cache, headParams, grads.khead, config,
-      );
-
-      // Accumulate dNodeEmbeddings into _batchDH (positives are always L0 nodes)
-      for (let i = 0; i < batch.length; i++) {
-        const l0Idx = l0IdxMap.get(batch[i].targetToolId);
-        if (l0Idx !== undefined) {
-          for (let d = 0; d < ds.embeddingDim; d++) {
-            _batchDH[l0Idx][d] += dNodeEmbeddings[i][d];
-          }
+    // Accumulate dNodeEmbeddings into _batchDH (positives are always L0 nodes)
+    for (let i = 0; i < batch.length; i++) {
+      const l0Idx = l0IdxMap.get(batch[i].targetToolId);
+      if (l0Idx !== undefined) {
+        for (let d = 0; d < ds.embeddingDim; d++) {
+          _batchDH[l0Idx][d] += dNodeEmbeddings[i][d];
         }
       }
+    }
 
-      // W_intent backward for each example
-      for (let i = 0; i < batch.length; i++) {
-        backpropWIntent(dIntentsProjected[i], batch[i].intentEmbedding, grads, config);
-      }
-    } else {
-      // ---- Legacy per-example InfoNCE (fallback) ----
-      for (const ex of batch) {
-        const intentProjected = math.matVecBlas(W_intent, ex.intentEmbedding);
-
-        // Sample negatives
-        const exclude = new Set([ex.targetToolId, ...ex.contextToolIds]);
-        const pool = graph.l0Ids.filter(id => !exclude.has(id));
-        shuffleInPlace(pool);
-        const negIds = pool.slice(0, NUM_NEGATIVES);
-        const candidateIds = [ex.targetToolId, ...negIds];
-
-        // Forward K-head: compute logits for all candidates
-        const allLogits: number[] = [];
-        const allCaches: Array<{ Q: number[]; K: number[]; dotQK: number }>[] = [];
-        const allNodeEmbs: number[][] = [];
-
-        for (const candId of candidateIds) {
-          const nodeEmb = enrichedEmbs.get(candId) ?? [];
-          allNodeEmbs.push(nodeEmb);
-          const { logits, caches } = computeMultiHeadKHeadScoresWithCache(
-            intentProjected, nodeEmb, headParams, config);
-          let avg = 0;
-          for (const l of logits) avg += l;
-          allLogits.push(avg / logits.length);
-          allCaches.push(caches);
-        }
-
-        // Batch accuracy: positive is at index 0, check if it has the max logit
-        let maxLogit = -Infinity;
-        for (const l of allLogits) if (l > maxLogit) maxLogit = l;
-        if (allLogits[0] >= maxLogit) batchCorrect++;
-
-        // InfoNCE loss + gradient (positive at index 0)
-        const { loss, gradient: dLogits } = infoNCELossAndGradient(allLogits, 0, tau);
-        batchLoss += loss;
-
-        // Backward through each candidate
-        const totalDIntentProjected = new Array(ds.embeddingDim).fill(0);
-
-        for (let j = 0; j < candidateIds.length; j++) {
-          if (Math.abs(dLogits[j]) < 1e-10) continue;
-
-          const { dIntentProjected, dNodeEmbedding } = backpropMultiHeadKHeadLogit(
-            dLogits[j], allCaches[j], intentProjected, allNodeEmbs[j],
-            headParams, grads.khead, config,
-          );
-
-          for (let d = 0; d < ds.embeddingDim; d++) {
-            totalDIntentProjected[d] += dIntentProjected[d];
-          }
-
-          // Accumulate dNodeEmbedding into _batchDH or _batchDE depending on node type
-          const candId = candidateIds[j];
-          const l0Idx = l0IdxMap.get(candId);
-          if (l0Idx !== undefined) {
-            // L0 candidate: accumulate into dH for E→V backward
-            for (let d = 0; d < ds.embeddingDim; d++) {
-              _batchDH[l0Idx][d] += dNodeEmbedding[d];
-            }
-          } else {
-            // L1+ candidate: accumulate into dE at the correct level
-            for (const [level, ids] of graph.nodeIdsByLevel) {
-              const nodeIdx = ids.indexOf(candId);
-              if (nodeIdx >= 0) {
-                const dELevel = _batchDE.get(level)!;
-                for (let d = 0; d < ds.embeddingDim; d++) {
-                  dELevel[nodeIdx][d] += dNodeEmbedding[d];
-                }
-                break;
-              }
-            }
-          }
-        }
-
-        // W_intent backward
-        backpropWIntent(totalDIntentProjected, ex.intentEmbedding, grads, config);
-      }
+    // W_intent backward for each example
+    for (let i = 0; i < batch.length; i++) {
+      backpropWIntent(dIntentsProjected[i], batch[i].intentEmbedding, grads, config);
     }
 
     // ---- MP backward (full graph, once per batch) ----
@@ -929,10 +845,19 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       zeroDH(_batchDH);
       let batchKL = 0;
 
+      const scoringDim = headParams[0].W_q.length;
+      const scale = Math.sqrt(scoringDim);
+
       for (const ex of batch) {
         if (!ex.softTargetSparse || ex.softTargetSparse.length === 0) continue;
 
         const intentProjected = math.matVecBlas(W_intent, ex.intentEmbedding);
+
+        // Pre-compute Q per head once per example (same for all target nodes)
+        const Q_heads: number[][] = [];
+        for (let h = 0; h < config.numHeads; h++) {
+          Q_heads.push(math.matVecBlas(headParams[h].W_q, intentProjected));
+        }
 
         // Get logits for L0 nodes in softTargetSparse
         const sparseL0Ids: string[] = [];
@@ -949,14 +874,21 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
         const caches: Array<{ Q: number[]; K: number[]; dotQK: number }>[] = [];
         const nodeEmbs: number[][] = [];
 
+        // Score each sparse target, reusing pre-computed Q vectors
         for (const nodeId of sparseL0Ids) {
           const nodeEmb = enrichedEmbs.get(nodeId) ?? [];
           nodeEmbs.push(nodeEmb);
-          const r = computeMultiHeadKHeadScoresWithCache(intentProjected, nodeEmb, headParams, config);
-          let avg = 0;
-          for (const l of r.logits) avg += l;
-          logits.push(avg / r.logits.length);
-          caches.push(r.caches);
+          const headCaches: Array<{ Q: number[]; K: number[]; dotQK: number }> = [];
+          let avgLogit = 0;
+          for (let h = 0; h < config.numHeads; h++) {
+            const K = math.matVecBlas(headParams[h].W_k, nodeEmb);
+            const dotQK = math.dot(Q_heads[h], K);
+            const logit = dotQK / scale;
+            avgLogit += logit;
+            headCaches.push({ Q: Q_heads[h], K, dotQK });
+          }
+          logits.push(avgLogit / config.numHeads);
+          caches.push(headCaches);
         }
 
         // Softmax → model distribution q

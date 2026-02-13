@@ -102,13 +102,14 @@ export function resetMultiLevelGradients(
   accum: MultiLevelGradientAccumulators,
   levelParams: Map<number, LevelParams>,
 ): void {
-  for (const [level, params] of levelParams) {
+  for (const [level] of levelParams) {
     const grads = accum.levelGradients.get(level);
     if (grads) {
-      grads.dW_child = zerosLike3D(params.W_child);
-      grads.dW_parent = zerosLike3D(params.W_parent);
-      grads.da_upward = params.a_upward.map((row) => row.map(() => 0));
-      grads.da_downward = params.a_downward.map((row) => row.map(() => 0));
+      // Zero-fill in place instead of reallocating (avoids GC pressure per batch)
+      for (const head of grads.dW_child) for (const row of head) row.fill(0);
+      for (const head of grads.dW_parent) for (const row of head) row.fill(0);
+      for (const row of grads.da_upward) row.fill(0);
+      for (const row of grads.da_downward) row.fill(0);
     }
   }
 }

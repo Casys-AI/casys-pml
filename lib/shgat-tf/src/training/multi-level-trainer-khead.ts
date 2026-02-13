@@ -90,22 +90,17 @@ export function initMultiLevelKHeadGradients(
 export function resetMultiLevelKHeadGradients(
   accum: MultiLevelKHeadGradientAccumulators,
   levelParams: Map<number, LevelParams>,
-  headParams: HeadParams[],
-  config: SHGATConfig,
+  _headParams: HeadParams[],
+  _config: SHGATConfig,
 ): void {
   resetMultiLevelGradients(accum, levelParams);
 
-  // Reset K-head gradients
-  for (let h = 0; h < config.numHeads; h++) {
-    accum.khead.dW_q[h] = zerosLike2D(headParams[h].W_q);
-    accum.khead.dW_k[h] = zerosLike2D(headParams[h].W_k);
-  }
+  // Zero-fill K-head gradients in place (avoids GC pressure per batch)
+  for (const dWq of accum.khead.dW_q) for (const row of dWq) row.fill(0);
+  for (const dWk of accum.khead.dW_k) for (const row of dWk) row.fill(0);
 
-  // Reset W_intent gradients
-  accum.dW_intent = Array.from(
-    { length: config.hiddenDim },
-    () => Array(config.embeddingDim).fill(0),
-  );
+  // Zero-fill W_intent gradients in place
+  for (const row of accum.dW_intent) row.fill(0);
 }
 
 // ============================================================================
