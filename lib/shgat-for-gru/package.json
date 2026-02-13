@@ -1,0 +1,16 @@
+{
+  "name": "@casys/shgat-for-gru",
+  "version": "0.1.0",
+  "description": "SHGAT adapter for GRU — loads OB-trained params, enriches embeddings via MP, K-head scoring",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx --test src/__tests__/*.test.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsx": "^4.7.0"
+  }
+}
