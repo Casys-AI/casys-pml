@@ -391,8 +391,8 @@ export class MultiLevelOrchestrator {
       const levelAttention: number[][][] = [];
 
       // Per-head intermediates collectors (training mode only)
-      const childProjPerHead: number[][][] = [];
-      const parentProjPerHead: number[][][] = [];
+      const childProjPerHead: Float32Array[][] = [];
+      const parentProjPerHead: Float32Array[][] = [];
       const scoresPerHead: number[][][] = [];
       const attentionPerHead: number[][][] = [];
 
@@ -525,8 +525,8 @@ export class MultiLevelOrchestrator {
       const levelAttention: number[][][] = [];
 
       // Per-head intermediates collectors (training mode only)
-      const childProjPerHead: number[][][] = [];
-      const parentProjPerHead: number[][][] = [];
+      const childProjPerHead: Float32Array[][] = [];
+      const parentProjPerHead: Float32Array[][] = [];
       const scoresPerHead: number[][][] = [];
       const attentionPerHead: number[][][] = [];
 

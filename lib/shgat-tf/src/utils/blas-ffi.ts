@@ -107,6 +107,27 @@ export function ensureBLAS(): void {
   }
 }
 
+/** Any numeric row type for input matrices */
+type NumericArray = number[] | Float32Array;
+type NumericMatrix = NumericArray[];
+
+/** Create FFI-safe Float32Array (Deno.UnsafePointer.of requires ArrayBuffer, not ArrayBufferLike) */
+function f32(size: number): Float32Array<ArrayBuffer> {
+  return new Float32Array(size) as Float32Array<ArrayBuffer>;
+}
+
+/** Flatten a NumericMatrix to Float32Array (typed as ArrayBuffer for Deno FFI) */
+function flattenToF32(M: NumericMatrix, rows: number, cols: number): Float32Array<ArrayBuffer> {
+  const flat = f32(rows * cols);
+  for (let i = 0; i < rows; i++) {
+    const row = M[i];
+    for (let j = 0; j < cols; j++) {
+      flat[i * cols + j] = row[j];
+    }
+  }
+  return flat;
+}
+
 /**
  * Matrix multiplication using BLAS: C = A @ B
  *
@@ -114,7 +135,7 @@ export function ensureBLAS(): void {
  * @param B - Matrix B as 2D array [K][N]
  * @returns C - Result matrix [M][N]
  */
-export function blasMatmul(A: number[][], B: number[][]): number[][] {
+export function blasMatmul(A: NumericMatrix, B: NumericMatrix): number[][] {
   const M = A.length;
   const K = A[0]?.length || 0;
   const N = B[0]?.length || 0;
@@ -129,22 +150,9 @@ export function blasMatmul(A: number[][], B: number[][]): number[][] {
     return jsMatmul(A, B);
   }
 
-  // Flatten to Float32Arrays
-  const flatA = new Float32Array(M * K);
-  const flatB = new Float32Array(K * N);
-  const flatC = new Float32Array(M * N);
-
-  for (let i = 0; i < M; i++) {
-    for (let j = 0; j < K; j++) {
-      flatA[i * K + j] = A[i][j];
-    }
-  }
-
-  for (let i = 0; i < K; i++) {
-    for (let j = 0; j < N; j++) {
-      flatB[i * N + j] = B[i][j];
-    }
-  }
+  const flatA = flattenToF32(A, M, K);
+  const flatB = flattenToF32(B, K, N);
+  const flatC = f32(M * N);
 
   const ptrA = Deno.UnsafePointer.of(flatA);
   const ptrB = Deno.UnsafePointer.of(flatB);
@@ -182,7 +190,7 @@ export function blasMatmul(A: number[][], B: number[][]): number[][] {
  * @param B - Matrix B as 2D array [N][K] (will be transposed)
  * @returns C - Result matrix [M][N]
  */
-export function blasMatmulTranspose(A: number[][], B: number[][]): number[][] {
+export function blasMatmulTranspose(A: NumericMatrix, B: NumericMatrix): number[][] {
   const M = A.length;
   const K = A[0]?.length || 0;
   const N = B.length;
@@ -197,22 +205,9 @@ export function blasMatmulTranspose(A: number[][], B: number[][]): number[][] {
     return jsMatmulTranspose(A, B);
   }
 
-  // Flatten to Float32Arrays
-  const flatA = new Float32Array(M * K);
-  const flatB = new Float32Array(N * K);
-  const flatC = new Float32Array(M * N);
-
-  for (let i = 0; i < M; i++) {
-    for (let j = 0; j < K; j++) {
-      flatA[i * K + j] = A[i][j];
-    }
-  }
-
-  for (let i = 0; i < N; i++) {
-    for (let j = 0; j < K; j++) {
-      flatB[i * K + j] = B[i][j];
-    }
-  }
+  const flatA = flattenToF32(A, M, K);
+  const flatB = flattenToF32(B, N, K);
+  const flatC = f32(M * N);
 
   const ptrA = Deno.UnsafePointer.of(flatA);
   const ptrB = Deno.UnsafePointer.of(flatB);
@@ -244,13 +239,68 @@ export function blasMatmulTranspose(A: number[][], B: number[][]): number[][] {
 }
 
 /**
+ * Matrix multiplication using BLAS: C = A @ B^T — returns Float32Array[] directly.
+ * Avoids float32→float64 reconversion, halving output RAM.
+ * Requires BLAS (no JS fallback). Call ensureBLAS() first.
+ *
+ * @param A - Matrix A [M][K]
+ * @param B - Matrix B [N][K] (will be transposed)
+ * @returns C - Result as Float32Array[] [M][N]
+ */
+export function blasMatmulTransposeF32(A: NumericMatrix, B: NumericMatrix): Float32Array[] {
+  const M = A.length;
+  const K = A[0]?.length || 0;
+  const N = B.length;
+
+  if (M === 0 || K === 0 || N === 0) {
+    return Array.from({ length: M }, () => new Float32Array(N));
+  }
+
+  if (!initAttempted) initBlas();
+
+  if (!blasAvailable || !blasLib) {
+    throw new Error(
+      "[BLAS] blasMatmulTransposeF32 requires BLAS. Call ensureBLAS() at startup.",
+    );
+  }
+
+  const flatA = flattenToF32(A, M, K);
+  const flatB = flattenToF32(B, N, K);
+  const flatC = f32(M * N);
+
+  const ptrA = Deno.UnsafePointer.of(flatA);
+  const ptrB = Deno.UnsafePointer.of(flatB);
+  const ptrC = Deno.UnsafePointer.of(flatC);
+
+  blasLib.symbols.cblas_sgemm(
+    CblasRowMajor,
+    CblasNoTrans,
+    CblasTrans,
+    M, N, K,
+    1.0,
+    ptrA!, K,
+    ptrB!, K,
+    0.0,
+    ptrC!, N,
+  );
+
+  // Slice flat result directly into Float32Array rows (no float64 conversion)
+  const result: Float32Array[] = new Array(M);
+  for (let i = 0; i < M; i++) {
+    result[i] = flatC.subarray(i * N, (i + 1) * N).slice();
+  }
+
+  return result;
+}
+
+/**
  * Matrix-vector multiplication using BLAS: y = A @ x
  *
  * @param A - Matrix A as 2D array [M][N]
  * @param x - Vector x as 1D array [N]
  * @returns y - Result vector [M]
  */
-export function blasMatVec(A: number[][], x: number[]): number[] {
+export function blasMatVec(A: NumericMatrix, x: ArrayLike<number>): number[] {
   const M = A.length;
   const N = A[0]?.length || 0;
 
@@ -264,16 +314,9 @@ export function blasMatVec(A: number[][], x: number[]): number[] {
     return jsMatVec(A, x);
   }
 
-  // Flatten to Float32Arrays
-  const flatA = new Float32Array(M * N);
-  const flatX = new Float32Array(N);
-  const flatY = new Float32Array(M);
-
-  for (let i = 0; i < M; i++) {
-    for (let j = 0; j < N; j++) {
-      flatA[i * N + j] = A[i][j];
-    }
-  }
+  const flatA = flattenToF32(A, M, N);
+  const flatX = f32(N);
+  const flatY = f32(M);
 
   for (let i = 0; i < N; i++) {
     flatX[i] = x[i] || 0;
@@ -305,7 +348,7 @@ export function blasMatVec(A: number[][], x: number[]): number[] {
  * @param x - Vector x as 1D array [M]
  * @returns y - Result vector [N]
  */
-export function blasMatVecTranspose(A: number[][], x: number[]): number[] {
+export function blasMatVecTranspose(A: NumericMatrix, x: ArrayLike<number>): number[] {
   const M = A.length;
   const N = A[0]?.length || 0;
 
@@ -319,16 +362,9 @@ export function blasMatVecTranspose(A: number[][], x: number[]): number[] {
     return jsMatVecTranspose(A, x);
   }
 
-  // Flatten to Float32Arrays
-  const flatA = new Float32Array(M * N);
-  const flatX = new Float32Array(M);
-  const flatY = new Float32Array(N);
-
-  for (let i = 0; i < M; i++) {
-    for (let j = 0; j < N; j++) {
-      flatA[i * N + j] = A[i][j];
-    }
-  }
+  const flatA = flattenToF32(A, M, N);
+  const flatX = f32(M);
+  const flatY = f32(N);
 
   for (let i = 0; i < M; i++) {
     flatX[i] = x[i] || 0;
@@ -364,7 +400,7 @@ export function blasMatVecTranspose(A: number[][], x: number[]): number[] {
  * @param alpha - Scalar multiplier (default 1.0)
  * @returns Modified matrix A
  */
-export function blasOuterProduct(A: number[][], x: number[], y: number[], alpha: number = 1.0): number[][] {
+export function blasOuterProduct(A: number[][], x: ArrayLike<number>, y: ArrayLike<number>, alpha: number = 1.0): number[][] {
   const M = x.length;
   const N = y.length;
 
@@ -379,9 +415,9 @@ export function blasOuterProduct(A: number[][], x: number[], y: number[], alpha:
   }
 
   // Flatten A to Float32Array
-  const flatA = new Float32Array(M * N);
-  const flatX = new Float32Array(M);
-  const flatY = new Float32Array(N);
+  const flatA = f32(M * N);
+  const flatX = f32(M);
+  const flatY = f32(N);
 
   for (let i = 0; i < M; i++) {
     for (let j = 0; j < N; j++) {
@@ -425,7 +461,7 @@ export function blasOuterProduct(A: number[][], x: number[], y: number[], alpha:
 /**
  * JS fallback: Matrix-vector multiplication A @ x
  */
-function jsMatVec(A: number[][], x: number[]): number[] {
+function jsMatVec(A: NumericMatrix, x: ArrayLike<number>): number[] {
   const M = A.length;
   const result = new Array(M);
   for (let i = 0; i < M; i++) {
@@ -443,7 +479,7 @@ function jsMatVec(A: number[][], x: number[]): number[] {
 /**
  * JS fallback: Matrix-vector multiplication A^T @ x
  */
-function jsMatVecTranspose(A: number[][], x: number[]): number[] {
+function jsMatVecTranspose(A: NumericMatrix, x: ArrayLike<number>): number[] {
   const M = A.length;
   const N = A[0]?.length || 0;
   const result = new Array(N).fill(0);
@@ -460,7 +496,7 @@ function jsMatVecTranspose(A: number[][], x: number[]): number[] {
 /**
  * JS fallback: Outer product A + alpha * x @ y^T
  */
-function jsOuterProductAdd(A: number[][], x: number[], y: number[], alpha: number): number[][] {
+function jsOuterProductAdd(A: number[][], x: ArrayLike<number>, y: ArrayLike<number>, alpha: number): number[][] {
   const M = x.length;
   const N = y.length;
   for (let i = 0; i < M; i++) {
@@ -476,7 +512,7 @@ function jsOuterProductAdd(A: number[][], x: number[], y: number[], alpha: numbe
 /**
  * JS fallback: Matrix multiplication A @ B
  */
-function jsMatmul(A: number[][], B: number[][]): number[][] {
+function jsMatmul(A: NumericMatrix, B: NumericMatrix): number[][] {
   const M = A.length;
   const K = A[0]?.length || 0;
   const N = B[0]?.length || 0;
@@ -498,7 +534,7 @@ function jsMatmul(A: number[][], B: number[][]): number[][] {
 /**
  * JS fallback: Matrix multiplication A @ B^T
  */
-function jsMatmulTranspose(A: number[][], B: number[][]): number[][] {
+function jsMatmulTranspose(A: NumericMatrix, B: NumericMatrix): number[][] {
   const M = A.length;
   const K = A[0]?.length || 0;
   const N = B.length;

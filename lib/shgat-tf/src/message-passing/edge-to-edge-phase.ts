@@ -35,12 +35,12 @@ export interface EEForwardCache {
   E_k: number[][];
   /** Parent node embeddings (level k+1) [numTargetNodes][embDim] */
   E_kPlus1: number[][];
-  /** Projected child embeddings [numSourceNodes][headDim] */
-  E_k_proj: number[][];
-  /** Projected parent embeddings [numTargetNodes][headDim] */
-  E_kPlus1_proj: number[][];
-  /** Aggregated values before ELU [numTargetNodes][headDim] */
-  aggregated: number[][];
+  /** Projected child embeddings [numSourceNodes][headDim] — Float32 for RAM */
+  E_k_proj: Float32Array[];
+  /** Projected parent embeddings [numTargetNodes][headDim] — Float32 for RAM */
+  E_kPlus1_proj: Float32Array[];
+  /** Aggregated values before ELU [numTargetNodes][headDim] — Float32 for RAM */
+  aggregated: Float32Array[];
   /** Attention weights: sparse Map (edgeKey → weight) */
   attention: Map<number, number>;
   /** Sparse connectivity */
@@ -122,9 +122,9 @@ export class EdgeToEdgePhase implements MessagePassingPhase {
   ): EEPhaseResultWithCache {
     const numTargetNodes = E_kPlus1.length;
 
-    // Project embeddings
-    const E_k_proj = math.matmulTranspose(E_k, params.W_source);
-    const E_kPlus1_proj = math.matmulTranspose(E_kPlus1, params.W_target);
+    // Project embeddings (Float32 for cache RAM)
+    const E_k_proj = math.matmulTransposeF32(E_k, params.W_source);
+    const E_kPlus1_proj = math.matmulTransposeF32(E_kPlus1, params.W_target);
 
     const hiddenDim = E_k_proj[0]?.length ?? 0;
 
@@ -166,10 +166,10 @@ export class EdgeToEdgePhase implements MessagePassingPhase {
 
     // Aggregate: E^(k+1)_new[p] = ELU(Σ_c attention[c,p] * E_k_proj[c])
     const E_kPlus1_new: number[][] = [];
-    const aggregated: number[][] = [];
+    const aggregated: Float32Array[] = [];
 
     for (let p = 0; p < numTargetNodes; p++) {
-      const agg = Array(hiddenDim).fill(0);
+      const agg = new Float32Array(hiddenDim);
       const children = conn.targetToSources.get(p);
       if (children) {
         for (const c of children) {
@@ -182,7 +182,7 @@ export class EdgeToEdgePhase implements MessagePassingPhase {
         }
       }
       aggregated.push(agg);
-      E_kPlus1_new.push(agg.map((x) => math.elu(x)));
+      E_kPlus1_new.push(Array.from(agg, (x) => math.elu(x)));
     }
 
     // Build dense attention matrix for PhaseResult (backward compat)

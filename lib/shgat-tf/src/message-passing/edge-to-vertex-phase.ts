@@ -32,12 +32,12 @@ export interface EVForwardCache {
   E: number[][];
   /** Original L0 node embeddings [numL0][embDim] */
   H: number[][];
-  /** Projected L1+ node embeddings [numL1][headDim] */
-  E_proj: number[][];
-  /** Projected L0 node embeddings [numL0][headDim] */
-  H_proj: number[][];
-  /** Aggregated values before ELU [numL0][headDim] (per L0 node) */
-  aggregated: number[][];
+  /** Projected L1+ node embeddings [numL1][headDim] — Float32 for RAM */
+  E_proj: Float32Array[];
+  /** Projected L0 node embeddings [numL0][headDim] — Float32 for RAM */
+  H_proj: Float32Array[];
+  /** Aggregated values before ELU [numL0][headDim] — Float32 for RAM */
+  aggregated: Float32Array[];
   /** Attention weights: sparse Map (edgeKey → weight) */
   attention: Map<number, number>;
   /** Sparse connectivity */
@@ -106,9 +106,9 @@ export class EdgeToVertexPhase implements MessagePassingPhase {
     const numL1 = E.length;
     const numL0 = H.length;
 
-    // Project embeddings
-    const E_proj = math.matmulTranspose(E, params.W_source);
-    const H_proj = math.matmulTranspose(H, params.W_target);
+    // Project embeddings (Float32 for cache RAM)
+    const E_proj = math.matmulTransposeF32(E, params.W_source);
+    const H_proj = math.matmulTransposeF32(H, params.W_target);
 
     const hiddenDim = E_proj[0]?.length ?? 0;
 
@@ -151,10 +151,10 @@ export class EdgeToVertexPhase implements MessagePassingPhase {
 
     // Aggregate: H_new[t] = ELU(Σ_c attention[c,t] * E_proj[c])
     const H_new: number[][] = [];
-    const aggregated: number[][] = [];
+    const aggregated: Float32Array[] = [];
 
     for (let t = 0; t < numL0; t++) {
-      const agg = Array(hiddenDim).fill(0);
+      const agg = new Float32Array(hiddenDim);
       const sources = conn.sourceToTargets.get(t);
       if (sources) {
         for (const c of sources) {
@@ -167,7 +167,7 @@ export class EdgeToVertexPhase implements MessagePassingPhase {
         }
       }
       aggregated.push(agg);
-      H_new.push(agg.map((x) => math.elu(x)));
+      H_new.push(Array.from(agg, (x) => math.elu(x)));
     }
 
     // Build dense attention matrix for PhaseResult (backward compat)

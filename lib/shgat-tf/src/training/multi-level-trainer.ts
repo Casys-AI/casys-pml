@@ -48,10 +48,10 @@ export interface LevelGradients {
  * Intermediate activations for gradient computation (per level)
  */
 export interface LevelIntermediates {
-  /** Child projections per head: [head][numChildren][headDim] */
-  childProj: number[][][];
-  /** Parent projections per head: [head][numParents][headDim] */
-  parentProj: number[][][];
+  /** Child projections per head: [head][numChildren][headDim] — Float32 for RAM */
+  childProj: Float32Array[][];
+  /** Parent projections per head: [head][numParents][headDim] — Float32 for RAM */
+  parentProj: Float32Array[][];
   /** Pre-softmax attention scores: [head][numChildren][numParents] */
   scores: number[][][];
   /** Post-softmax attention weights: [head][numChildren][numParents] */

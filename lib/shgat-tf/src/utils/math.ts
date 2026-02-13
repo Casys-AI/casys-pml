@@ -9,6 +9,12 @@
 // Note: uses Math.random() for dropout (non-seeded) to avoid importing parameters.ts
 // which transitively pulls in TF.js. For seeded RNG, use parameters.ts directly.
 
+/** Any numeric row type — number[] or Float32Array */
+export type NumericArray = number[] | Float32Array;
+
+/** Any row-based numeric matrix */
+export type NumericMatrix = NumericArray[];
+
 /**
  * Matrix multiplication with transpose: A · B^T
  * Uses BLAS acceleration for larger matrices (~10x speedup).
@@ -17,15 +23,46 @@
  * @param B - Matrix B [n][k] (will be transposed)
  * @returns Result matrix [m][n]
  */
-export function matmulTranspose(A: number[][], B: number[][]): number[][] {
+export function matmulTranspose(A: NumericMatrix, B: NumericMatrix): number[][] {
   // Use BLAS for larger matrices (message passing projections: ~105×1024 × 64×1024^T)
   if (isBlasReady() && A.length >= 10 && (A[0]?.length || 0) >= 64) {
     return blasModule!.blasMatmulTranspose(A, B);
   }
   // JS fallback
-  return A.map((row) =>
-    B.map((bRow) => row.reduce((sum, val, i) => sum + val * (bRow[i] || 0), 0))
-  );
+  const m = A.length;
+  const n = B.length;
+  const k = A[0]?.length || 0;
+  const result: number[][] = new Array(m);
+  for (let i = 0; i < m; i++) {
+    result[i] = new Array(n);
+    for (let j = 0; j < n; j++) {
+      let sum = 0;
+      for (let p = 0; p < k; p++) {
+        sum += A[i][p] * B[j][p];
+      }
+      result[i][j] = sum;
+    }
+  }
+  return result;
+}
+
+/**
+ * Matrix multiplication with transpose returning Float32Array rows: A · B^T
+ * Saves ~50% RAM vs number[][] for cache storage.
+ * Requires BLAS (no JS fallback). Call initBlasAcceleration() first.
+ *
+ * @param A - Matrix A [m][k]
+ * @param B - Matrix B [n][k] (will be transposed)
+ * @returns Result as Float32Array[] [m][n]
+ */
+export function matmulTransposeF32(A: NumericMatrix, B: NumericMatrix): Float32Array[] {
+  if (!isBlasReady()) {
+    throw new Error(
+      "[math] matmulTransposeF32 requires BLAS acceleration. " +
+      "Call initBlasAcceleration() or ensureBLAS() at startup.",
+    );
+  }
+  return blasModule!.blasMatmulTransposeF32(A, B);
 }
 
 /**
@@ -90,13 +127,19 @@ export function softmax(values: number[]): number[] {
 
 /**
  * Dot product of two vectors
+ * Accepts number[] or Float32Array.
  *
  * @param a - Vector a
  * @param b - Vector b
  * @returns Scalar dot product
  */
-export function dot(a: number[], b: number[]): number {
-  return a.reduce((sum, val, i) => sum + val * (b[i] || 0), 0);
+export function dot(a: ArrayLike<number>, b: ArrayLike<number>): number {
+  let sum = 0;
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    sum += a[i] * b[i];
+  }
+  return sum;
 }
 
 /**
@@ -237,12 +280,13 @@ export async function initBlasAcceleration(): Promise<boolean> {
 /**
  * Standard matrix multiplication: A · B
  * Uses BLAS if available for ~10x speedup on large matrices.
+ * Accepts number[][] or Float32Array[] inputs.
  *
  * @param A - Matrix A [m][k]
  * @param B - Matrix B [k][n]
  * @returns Result matrix [m][n]
  */
-export function matmul(A: number[][], B: number[][]): number[][] {
+export function matmul(A: NumericMatrix, B: NumericMatrix): number[][] {
   // Use BLAS for larger matrices (overhead not worth it for small)
   if (isBlasReady() && A.length >= 10 && (A[0]?.length || 0) >= 64) {
     return blasModule!.blasMatmul(A, B);
@@ -253,7 +297,7 @@ export function matmul(A: number[][], B: number[][]): number[][] {
 /**
  * Pure JS matrix multiplication (fallback)
  */
-export function matmulJS(A: number[][], B: number[][]): number[][] {
+export function matmulJS(A: NumericMatrix, B: NumericMatrix): number[][] {
   const m = A.length;
   const k = A[0]?.length || 0;
   const n = B[0]?.length || 0;
@@ -281,7 +325,7 @@ export function matmulJS(A: number[][], B: number[][]): number[][] {
  * @param v - Vector [k]
  * @returns Vector of dot products [m]
  */
-export function matVec(M: number[][], v: number[]): number[] {
+export function matVec(M: NumericMatrix, v: ArrayLike<number>): number[] {
   const m = M.length;
   const result = new Array(m);
   for (let i = 0; i < m; i++) {
@@ -298,11 +342,12 @@ export function matVec(M: number[][], v: number[]): number[] {
 
 /**
  * Transpose a matrix
+ * Accepts number[][] or Float32Array[].
  *
  * @param M - Matrix [m][n]
  * @returns Transposed matrix [n][m]
  */
-export function transpose(M: number[][]): number[][] {
+export function transpose(M: NumericMatrix): number[][] {
   if (M.length === 0) return [];
   const m = M.length;
   const n = M[0].length;
@@ -328,7 +373,7 @@ export function transpose(M: number[][]): number[][] {
  * @param x - Vector [n]
  * @returns Vector [m]
  */
-export function matVecBlas(A: number[][], x: number[]): number[] {
+export function matVecBlas(A: NumericMatrix, x: ArrayLike<number>): number[] {
   // Use BLAS for larger matrices (high threshold to avoid FFI overhead)
   if (isBlasReady() && A.length >= 256) {
     return blasModule!.blasMatVec(A, x);
@@ -344,7 +389,7 @@ export function matVecBlas(A: number[][], x: number[]): number[] {
  * @param x - Vector [m]
  * @returns Vector [n]
  */
-export function matVecTransposeBlas(A: number[][], x: number[]): number[] {
+export function matVecTransposeBlas(A: NumericMatrix, x: ArrayLike<number>): number[] {
   // Use BLAS for larger matrices (high threshold to avoid FFI overhead)
   if (isBlasReady() && A.length >= 256) {
     return blasModule!.blasMatVecTranspose(A, x);
@@ -371,7 +416,7 @@ export function matVecTransposeBlas(A: number[][], x: number[]): number[] {
  * @param alpha - Scalar multiplier (default 1.0)
  * @returns Modified matrix A
  */
-export function outerProductAdd(A: number[][], x: number[], y: number[], alpha: number = 1.0): number[][] {
+export function outerProductAdd(A: number[][], x: ArrayLike<number>, y: ArrayLike<number>, alpha: number = 1.0): number[][] {
   // Use BLAS for larger dimensions (high threshold to avoid FFI overhead for small ops)
   if (isBlasReady() && x.length >= 256 && y.length >= 256) {
     return blasModule!.blasOuterProduct(A, x, y, alpha);
@@ -403,4 +448,23 @@ export function zerosLike2D(matrix: number[][]): number[][] {
  */
 export function zerosLike3D(tensor: number[][][]): number[][][] {
   return tensor.map((m) => m.map((r) => r.map(() => 0)));
+}
+
+// ============================================================================
+// Float32Array utilities (for cache RAM optimization)
+// ============================================================================
+
+/**
+ * Convert number[][] to Float32Array[] for cache storage.
+ * Halves RAM usage (64-bit → 32-bit per element).
+ *
+ * @param m - Matrix as number[][]
+ * @returns Matrix as Float32Array[]
+ */
+export function toFloat32Rows(m: number[][]): Float32Array[] {
+  const result = new Array<Float32Array>(m.length);
+  for (let i = 0; i < m.length; i++) {
+    result[i] = Float32Array.from(m[i]);
+  }
+  return result;
 }
