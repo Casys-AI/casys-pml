@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 140" width="540" height="140">
+  <!-- svg-source:excalidraw — dag-replanning.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="540" height="140" fill="#08080a"/>
+  <rect x="20" y="20" width="200" height="100" rx="12" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+  <text x="120" y="39" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#60a5fa" text-anchor="middle">Before: Original Plan</text>
+  <rect x="35" y="60" width="70" height="40" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="70" y="83" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Build</text>
+  <rect x="135" y="60" width="70" height="40" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="170" y="83" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Deploy</text>
+  <path d="M110 80 L130 80" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="260" y="20" width="260" height="100" rx="12" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="390" y="39" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">After: Inserted Security Scan</text>
+  <rect x="275" y="60" width="60" height="40" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="305" y="82" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#f0ede8" text-anchor="middle">Build</text>
+  <rect x="360" y="60" width="80" height="40" rx="6" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
+  <text x="400" y="81" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="middle">Security Scan</text>
+  <rect x="460" y="60" width="50" height="40" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="485" y="81" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle">Deploy</text>
+  <path d="M340 80 L355 80" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M445 80 L455 80" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+</svg>

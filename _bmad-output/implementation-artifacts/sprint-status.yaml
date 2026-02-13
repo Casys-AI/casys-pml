@@ -341,5 +341,41 @@ development_status:
   16-4-composite-ui-generator: done # Code Review PASSED 2026-02-02: All 9 issues fixed (2 HIGH, 4 MEDIUM, 3 LOW), 31 tests passing
   16-5-message-transport-abstraction: done # Code Review 2026-02-02: All 10 issues fixed (4 HIGH, 3 MEDIUM, 3 LOW), 547 tests passing
   16-6-dev-frontend-preview-mode: in-progress # Code Review 2026-02-03: 2 MEDIUM (tests, placeholder HTML), 1 LOW - UI read-only by design
-  16-7-migrate-gateway-concurrent-server: backlog # Tech debt: reuse lib/server ConcurrentMCPServer
+  16-7-migrate-gateway-concurrent-server: in-progress # Tech debt: reuse lib/server ConcurrentMCPServer — Story created 2026-02-13
   epic-16-retrospective: optional
+
+  # Epic 17: Playground Conversationnel — Try PML
+  # Epic: epic-17-playground-conversationnel.md
+  # Tech-Spec: tech-specs/playground-conversationnel/
+  # 8 user stories, objectif = vidéo démo
+  # Vitrine interactive de PML : discovery, execution, composition, observabilité
+  # Architecture : Fresh SSR (/try) + PML local (pml serve) pour l'exécution tools
+  # Pas public pour le moment (PLAYGROUND_ENABLED env gate)
+  # Depends on: Epic 16 (Sync rules, Event bus, Composite UI)
+  epic-17: in-progress
+  17-1-mock-datasets-pre-configures: done # Datasets pré-configurés (23 datasets), system prompt datasetId, lookup serveur, processLlmResponse()
+  17-2-validation-5-uis-cibles: done # Code Review APPROVED 2026-02-06: 73 tests passing, .gitignore fix, all 5 UIs validated
+  17-3-agent-chat-fenetres-separees: review # 2026-02-06: PML proxy, real MCP Sampling agents, fake agents removed, Brave Search cleaned up
+  17-4-composition-widgets-drag-drop: backlog # Ex-US-06: D&D agent sur table-viewer → agent compose le workflow via IA
+  17-5-navigateur-chrome-embarque: backlog # Chrome embarqué CDP Screencast + Playwright agent (Brave Search abandonné, architecture redéfinie)
+  # 17-6 ancien (composition) supprimée et fusionnée dans 17-4
+  17-6-agent-orchestrateur-tunnel-principal: in-progress # US-06: Agent LLM orchestre discover→compose args→execute dans le tunnel principal
+  17-7-chat-pml-natif: backlog # Chat → PML local (discover+execute), pas de LLM externe
+  # 17-8: supprimée (on passe par le package PML local)
+  epic-17-retrospective: optional
+
+  # MCP Apps Bridge (@casys/mcp-apps-bridge)
+  # Tech-Spec: tech-specs/mcp-apps-bridge/ (11 sharded files)
+  # Repo: lib/mcp-apps-bridge/
+  # Bridge MCP Apps UI (iframes JSON-RPC) → messaging platforms (Telegram Mini Apps, LINE LIFF)
+  # 3-layer arch: BridgeClient (monkey-patch postMessage) → Resource Server (HTTP+WS) → MCP Server
+  # 107 tests, 0 lint errors, review approved
+  # Depends on: None (standalone JSR package)
+  mcp-apps-bridge: mvp-complete # MVP done 2026-02-10: Telegram adapter, resource server, bridge.js, demo-bot
+  mcp-bridge-p0-project-setup: done # 2026-02-09: Project structure, deno.json, types, tests
+  mcp-bridge-p1-core-protocol: done # 2026-02-09: JSON-RPC types, protocol builders, message router, bridge client (54 tests)
+  mcp-bridge-p2-telegram-adapter: done # 2026-02-09: TelegramAdapter, PlatformAdapter, theme/viewport/auth mapping (13 tests)
+  mcp-bridge-p3-resource-server: done # 2026-02-09: HTTP server, WS bridge, CSP, sessions, Telegram auth validation (35 tests)
+  mcp-bridge-p4-e2e-integration: done # 2026-02-10: demo-bot (Telegram + GPT-5-nano + PML), color-picker UI, tool-result push via WS
+  mcp-bridge-p5-line-liff: backlog # LINE LIFF adapter (stub exists, 3 tests)
+  mcp-bridge-p6-cli-scaffold: backlog # CLI init/serve/validate commands

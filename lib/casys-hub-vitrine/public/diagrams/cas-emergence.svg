@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 215" width="480" height="215">
+  <!-- svg-source:excalidraw — cas-emergence.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+    <marker id="ah-a78bfa" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#a78bfa"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="480" height="215" fill="#08080a"/>
+  <rect x="20" y="20" width="70" height="40" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="55" y="44" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#f0ede8" text-anchor="middle">Tool A</text>
+  <rect x="20" y="80" width="70" height="40" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="55" y="104" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#f0ede8" text-anchor="middle">Tool B</text>
+  <rect x="20" y="140" width="70" height="40" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="55" y="164" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#f0ede8" text-anchor="middle">Tool C</text>
+  <rect x="150" y="70" width="120" height="60" rx="8" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
+  <text x="210" y="102" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#60a5fa" text-anchor="middle">Pattern Detection</text>
+  <rect x="330" y="70" width="130" height="60" rx="8" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#fbbf24" text-anchor="middle" y="97">
+    <tspan x="395">Emergent</tspan>
+    <tspan x="395" dy="15.6">Capability</tspan>
+  </text>
+  <path d="M95 40 L145 85" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M95 100 L145 100" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M95 160 L145 115" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M275 100 L325 100" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M395 135 L395 195 L60 195 L60 65" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-a78bfa)"/>
+  <text x="170" y="190" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#a78bfa" text-anchor="middle">influences</text>
+</svg>

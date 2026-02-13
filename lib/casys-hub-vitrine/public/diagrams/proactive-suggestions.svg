@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 420" width="580" height="420">
+  <!-- svg-source:excalidraw — proactive-suggestions.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="580" height="420" fill="#08080a"/>
+  <g transform="translate(-20 0)">
+  <rect x="40" y="20" width="280" height="80" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+  <text x="180" y="41" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#a78bfa" text-anchor="middle">Current Context</text>
+  <text x="55" y="59" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">Tools in use: [read_file, github:get_issue]</text>
+  <text x="55" y="77" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">Intent: &quot;Process issue and update file&quot;</text>
+  <path d="M180 105 L180 135" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="40" y="140" width="280" height="120" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+  <text x="180" y="161" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#60a5fa" text-anchor="middle">PML Analysis</text>
+  <text x="55" y="179" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">1. Find tools related to read_file</text>
+  <text x="55" y="197" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">2. Find tools related to github:get_issue</text>
+  <text x="55" y="215" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">3. Match intent against capabilities</text>
+  <text x="55" y="233" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">4. Rank by relevance and success rate</text>
+  <path d="M180 265 L180 295" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="40" y="300" width="280" height="100" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="180" y="321" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">Suggestions</text>
+  <text x="55" y="342" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="start">→ write_file (85%)</text>
+  <text x="55" y="362" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#fbbf24" text-anchor="start">→ github:update_issue (72%)</text>
+  <text x="55" y="382" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#fbbf24" text-anchor="start">→ github:add_comment (68%)</text>
+  <text x="380" y="32" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#f0ede8" text-anchor="start">Context Types</text>
+  <rect x="380" y="45" width="200" height="55" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
+  <text x="395" y="63" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="start">Tool Relationships</text>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#888888" text-anchor="start" y="78">
+    <tspan x="395">A often followed by B</tspan>
+    <tspan x="395" dy="10.4">read_file → write_file</tspan>
+  </text>
+  <rect x="380" y="110" width="200" height="55" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
+  <text x="395" y="128" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#a78bfa" text-anchor="start">Capability Matching</text>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#888888" text-anchor="start" y="143">
+    <tspan x="395">Intent matches known pattern</tspan>
+    <tspan x="395" dy="10.4">&quot;bug report&quot; → full workflow</tspan>
+  </text>
+  <rect x="380" y="175" width="200" height="55" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="395" y="193" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="start">Community Context</text>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#888888" text-anchor="start" y="208">
+    <tspan x="395">Same server tools</tspan>
+    <tspan x="395" dy="10.4">postgres:query → postgres:insert</tspan>
+  </text>
+  <text x="380" y="261" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="start">When Suggestions Trigger</text>
+  <text x="395" y="284" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="start">• DAG Building</text>
+  <text x="395" y="302" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="start">• After Execution</text>
+  <text x="395" y="320" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="start">• On Error (alternatives)</text>
+  <text x="395" y="338" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="start">• Idle Context (periodic)</text>
+  <rect x="380" y="360" width="200" height="40" rx="4" fill="#1e293b" stroke="#22d3ee" stroke-width="1"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#22d3ee" text-anchor="middle" y="379">
+    <tspan x="480">Like autocomplete for tools</tspan>
+    <tspan x="480" dy="11.7">but understands context</tspan>
+  </text>
+  </g>
+</svg>

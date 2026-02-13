@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 210" width="540" height="210">
+  <!-- svg-source:excalidraw — rpc-bridge-before.excalidraw -->
+  <defs>
+    <marker id="ah-ce9178" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#ce9178"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="540" height="210" fill="#08080a"/>
+  <g transform="translate(-30 -30)">
+  <rect x="50" y="100" width="180" height="120" rx="8" fill="#1a1a1d" stroke="#FFB86F" stroke-width="2"/>
+  <text x="90" y="131" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="16" fill="#f0ede8" text-anchor="start">Main Thread</text>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#a78bfa" text-anchor="start" y="164">
+    <tspan x="70">tools</tspan>
+    <tspan x="70" dy="18.2">(functions)</tspan>
+  </text>
+  <path d="M240 160 L360 160" fill="none" stroke="#ce9178" stroke-width="3" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ce9178)"/>
+  <text x="300" y="144" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#ce9178" text-anchor="middle">❌ lost!</text>
+  <rect x="370" y="100" width="180" height="120" rx="8" fill="#1a1a1d" stroke="#FFB86F" stroke-width="2"/>
+  <text x="430" y="131" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="16" fill="#f0ede8" text-anchor="start">Worker</text>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#ce9178" text-anchor="start" y="164">
+    <tspan x="390">tools = {}</tspan>
+    <tspan x="390" dy="18.2">(empty!)</tspan>
+  </text>
+  <text x="300" y="70" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="20" fill="#ce9178" text-anchor="middle">Before: Silent Failure</text>
+  <text x="300" y="191" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#666666" text-anchor="middle">JSON.stringify</text>
+  </g>
+</svg>

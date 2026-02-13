@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 260" width="600" height="260">
+  <!-- svg-source:excalidraw — schema-inference.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="600" height="260" fill="#08080a"/>
+  <g transform="translate(0 10)">
+  <text x="250" y="24" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#60a5fa" text-anchor="middle">Schema Inference</text>
+  <rect x="20" y="40" width="200" height="100" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+  <text x="120" y="58" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">Input Code</text>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#4ade80" text-anchor="start" y="76">
+    <tspan x="30">const content = </tspan>
+    <tspan x="30" dy="10.4">  await mcp.read_file(</tspan>
+    <tspan x="30" dy="10.4">    { path: &quot;data.json&quot; }</tspan>
+    <tspan x="30" dy="10.4">  );</tspan>
+  </text>
+  <path d="M225 90 L275 90" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="280" y="50" width="100" height="80" rx="8" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
+  <text x="330" y="68" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">SWC</text>
+  <text x="330" y="83" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#888888" text-anchor="middle">AST Parser</text>
+  <rect x="290" y="92" width="80" height="28" rx="4" fill="#2d2d35" stroke="#f59e0b" stroke-width="1"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#fbbf24" text-anchor="middle" y="105">
+    <tspan x="330">Detect</tspan>
+    <tspan x="330" dy="9.1">args.xxx</tspan>
+  </text>
+  <path d="M385 90 L435 90" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="440" y="40" width="140" height="100" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="510" y="58" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">Inferred Schema</text>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#4ade80" text-anchor="start" y="76">
+    <tspan x="450">{</tspan>
+    <tspan x="450" dy="10.4">  path: {</tspan>
+    <tspan x="450" dy="10.4">    type: &quot;string&quot;</tspan>
+    <tspan x="450" dy="10.4">    required: true</tspan>
+    <tspan x="450" dy="10.4">  }</tspan>
+    <tspan x="450" dy="10.4">}</tspan>
+  </text>
+  <rect x="20" y="160" width="560" height="70" rx="6" fill="#1f1f23" stroke="#60a5fa" stroke-width="1"/>
+  <text x="300" y="178" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">Inference Sources</text>
+  <rect x="35" y="188" width="120" height="32" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#4ade80" text-anchor="middle" y="202">
+    <tspan x="95">Tool Schema</tspan>
+    <tspan x="95" dy="9.1">HIGH confidence</tspan>
+  </text>
+  <rect x="170" y="188" width="120" height="32" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#60a5fa" text-anchor="middle" y="202">
+    <tspan x="230">Type Annotation</tspan>
+    <tspan x="230" dy="9.1">HIGH confidence</tspan>
+  </text>
+  <rect x="305" y="188" width="120" height="32" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#fbbf24" text-anchor="middle" y="202">
+    <tspan x="365">Usage Pattern</tspan>
+    <tspan x="365" dy="9.1">MEDIUM confidence</tspan>
+  </text>
+  <rect x="440" y="188" width="120" height="32" rx="4" fill="#2d2d35" stroke="#888888" stroke-width="1"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#888888" text-anchor="middle" y="202">
+    <tspan x="500">Heuristic</tspan>
+    <tspan x="500" dy="9.1">LOW confidence</tspan>
+  </text>
+  </g>
+</svg>

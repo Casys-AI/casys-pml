@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 140" width="440" height="140">
+  <!-- svg-source:excalidraw — spec-confirm.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+    <marker id="ah-4ade80" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#4ade80"/></marker>
+    <marker id="ah-ef4444" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#ef4444"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="440" height="140" fill="#08080a"/>
+  <rect x="20" y="50" width="120" height="40" rx="6" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
+  <text x="80" y="72" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">Speculative Result</text>
+  <path d="M230 40l35 30 -35 30 -35 -30Z" fill="#2d2d35" stroke="#60a5fa" stroke-width="2" stroke-linejoin="round"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#60a5fa" text-anchor="middle" y="69">
+    <tspan x="230">Prediction</tspan>
+    <tspan x="230" dy="11.7">Correct?</tspan>
+  </text>
+  <rect x="320" y="20" width="100" height="35" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="370" y="40" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">Apply result</text>
+  <rect x="320" y="85" width="100" height="35" rx="6" fill="#2d2d35" stroke="#ef4444" stroke-width="2"/>
+  <text x="370" y="105" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#ef4444" text-anchor="middle">Discard silently</text>
+  <path d="M145 70 L190 70" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M265 55 L315 40" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <path d="M265 85 L315 100" fill="none" stroke="#ef4444" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ef4444)"/>
+  <text x="287.5" y="44" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">Yes</text>
+  <text x="285" y="104" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#ef4444" text-anchor="middle">No</text>
+</svg>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 240" width="390" height="240">
+  <!-- svg-source:excalidraw — cross-layer-communication.excalidraw -->
+  <defs>
+    <marker id="ah-4ade80" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#4ade80"/></marker>
+    <marker id="ah-a78bfa" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#a78bfa"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="390" height="240" fill="#08080a"/>
+  <g transform="translate(0 10)">
+  <text x="190" y="28" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="18" fill="#FFB86F" text-anchor="middle">Cross-Layer Communication</text>
+  <rect x="20" y="50" width="150" height="160" rx="12" fill="#1a2a1a" stroke="#4ade80" stroke-width="2"/>
+  <text x="95" y="76" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="16" fill="#4ade80" text-anchor="middle">Tactical</text>
+  <rect x="35" y="95" width="120" height="35" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="95" y="115" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#f0ede8" text-anchor="middle">Co-occurrence</text>
+  <rect x="35" y="145" width="120" height="35" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="95" y="165" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#f0ede8" text-anchor="middle">Sequences</text>
+  <rect x="220" y="50" width="150" height="160" rx="12" fill="#1a1a2a" stroke="#a78bfa" stroke-width="2"/>
+  <text x="295" y="76" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="16" fill="#a78bfa" text-anchor="middle">Strategic</text>
+  <rect x="235" y="95" width="120" height="35" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="295" y="115" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#f0ede8" text-anchor="middle">Capabilities</text>
+  <rect x="235" y="145" width="120" height="35" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="295" y="165" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#f0ede8" text-anchor="middle">Dependencies</text>
+  <path d="M155 105 L235 113" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <text x="192.5" y="98" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">feeds</text>
+  <path d="M155 155 L235 163" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <text x="192.5" y="148" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">feeds</text>
+  <path d="M235 120 L155 128" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-a78bfa)"/>
+  <text x="192.5" y="130" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#a78bfa" text-anchor="middle">constrains</text>
+  <path d="M235 170 L155 178" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-a78bfa)"/>
+  <text x="192.5" y="180" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#a78bfa" text-anchor="middle">constrains</text>
+  </g>
+</svg>

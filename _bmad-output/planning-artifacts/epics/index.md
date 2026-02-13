@@ -17,4 +17,6 @@
 | 12 | [Speculative Execution Arguments](./epic-12-speculative-execution-arguments.md) | TypeScript | Active |
 | 13 | [Capability Naming & Curation](./epic-13-capability-naming-curation.md) | TypeScript | Active |
 | 14 | [JSR Package & Local/Cloud MCP Routing](./epic-14-jsr-package-local-cloud-mcp-routing.md) | TypeScript | Active |
-| **15** | **[CasysDB Native Engine](./epic-15-casysdb-native-engine.md)** | **Rust** | **Draft** |
+| 15 | [CasysDB Native Engine](./epic-15-casysdb-native-engine.md) | Rust | Draft |
+| 16 | [MCP Apps UI Orchestration](./epic-16-mcp-apps-ui-orchestration.md) | TypeScript | In Progress |
+| **17** | **[Playground Conversationnel — Try PML](./epic-17-playground-conversationnel.md)** | **TypeScript** | **Draft** |

@@ -211,40 +211,45 @@ intent_emb[1024] -----> dense(1024,256) -/      |
                              (1024, 644, frozen, /temp)
 ```
 
-### Propose "Compact Informed GRU" (~257K params, ratio 921:1)
+### Propose "Compact Informed GRU" (~258K params, ratio 924:1)
+
+**Mis a jour 2026-02-10** : ajout du 5eme input `composite_features[3]` pour le spectre continu composite (voir section 7bis).
 
 ```
-tool_emb[1024] --> input_proj(1024, 128, linear) ---+
-transition_features[5] (jaccard, shared_caps,       |-> concat[133]
-                        is_repeat, cap_novelty) ----+        |
-                                                             v
-                                                    GRU(133, 64)
-                                                    dropout=0.25 recurrent
-                                                             |
-                                                             v
-intent_emb[1024] --> intent_proj(1024, 64, relu) --+
-cap_fingerprint[212] --> cap_proj(212, 16, relu) --+--> concat(gru[64], intent[64], cap[16])
-                                                             |
-                                                             v
-                                                      dense(144, 64, relu)
-                                                             |
-                                                      dropout(0.4)
-                                                             |
-                                          +------------------+------------------+
-                                          |                                    |
-                                   embedding_proj                        termination
-                                   (64, 1024)                           (64, 1, sigmoid)
-                                          |
-                                   similarity_head
-                                   (1024, 644, frozen, /temp)
-                                          |
-                                   + alpha * jaccard[last_tool]      <-- zero-param bias
-                                   + beta * bigram[last_tool]        <-- zero-param bias
-                                          |
-                                   + sticky_repeat_heuristic         <-- post-process
+tool_emb[1024] --> input_proj(1024, 128, linear) ----+
+transition_features[5] (jaccard, shared_caps,        |-> concat[133]
+                        is_repeat, cap_novelty) -----+        |
+                                                              v
+                                                     GRU(133, 64)
+                                                     dropout=0.25 recurrent
+                                                              |
+                                                              v
+intent_emb[1024] --> intent_proj(1024, 64, relu) ---+
+cap_fingerprint[212] --> cap_proj(212, 16, relu) ---+
+composite_feats[3] --> comp_proj(3, 8, relu) -------+--> concat(gru[64], intent[64], cap[16], comp[8])
+                                                              |  = [152]
+                                                              v
+                                                       dense(152, 64, relu)
+                                                              |
+                                                       dropout(0.4)
+                                                              |
+                                           +------------------+------------------+
+                                           |                                    |
+                                    embedding_proj                        termination
+                                    (64, 1024)                           (64, 1, sigmoid)
+                                           |                                    ^
+                                    similarity_head               composite_feats influence
+                                    (1024, 644, frozen, /temp)    la decision de terminaison
+                                           |
+                                    + alpha * jaccard[last_tool]      <-- zero-param bias
+                                    + beta * bigram[last_tool]        <-- zero-param bias
+                                           |
+                                    + sticky_repeat_heuristic         <-- post-process
 ```
 
 Le `cap_fingerprint[212]` est le OR logique des capability fingerprints des outils deja dans la sequence, projete en 16 dims. Il encode "quelles capabilities ont ete couvertes", offrant au modele un signal de progression dans l'espace des capabilities. Actuellement actif pour ~10% des outils ; a terme actif pour 100% quand le graphe sera complet.
+
+Le `composite_feats[3]` encode le score SHGAT du meilleur composite, sa couverture semantique, et son niveau hierarchique. Ce signal permet a la tete de terminaison d'apprendre QUAND un composite est suffisant (voir section 7bis).
 
 ### Comparaison des composants
 
@@ -254,11 +259,109 @@ Le `cap_fingerprint[212]` est le OR logique des capability fingerprints des outi
 | Input projection | - | (1024, 128) = 131K | +131K |
 | Intent projection | (1024, 256) = 262K | (1024, 64) = 66K | -196K |
 | Cap projection | - | (212, 16) = 3.4K | +3.4K |
-| Combined dense | (512, 256) = 131K | (144, 64) = 9.3K | -122K |
+| Composite projection | - | (3, 8) = 32 | +32 |
+| Combined dense | (512, 256) = 131K | (152, 64) = 9.8K | -121K |
 | Embedding projection | (256, 1024) = 263K | (64, 1024) = 66K | -197K |
 | Termination head | (256, 1) = 257 | (64, 1) = 65 | -192 |
 | Jaccard + bigram bias | - | 2 scalaires | +2 |
-| **TOTAL TRAINABLE** | **~1,641K** | **~257K** | **-84%** |
+| **TOTAL TRAINABLE** | **~1,641K** | **~258K** | **-84%** |
+
+---
+
+## 7bis. Spectre continu composite — Remplacement du seuil binaire
+
+**Ajoute 2026-02-10** suite au panel d'experts architecture SHGAT+GRU.
+
+### Probleme : le seuil binaire composite est fragile
+
+L'approche initiale prevoyait un seuil binaire :
+```
+if (bestCompositeScore > THRESHOLD) → executer le composite directement
+else → GRU compose le workflow
+```
+
+**Problemes identifies (consensus du panel)** :
+1. **Cliff edge** (Taleb) : un score de 0.79 vs 0.81 produit des comportements radicalement differents
+2. **Non-calibre** : le seuil optimal depend du domaine, du nombre de composites, du type d'intent
+3. **Non-appris** : un seuil statique ne s'ameliore pas avec plus de donnees
+
+### Solution : features composites comme input du GRU
+
+Au lieu d'un seuil binaire, le score du meilleur composite est injecte comme **feature continue** dans le modele GRU. C'est la **tete de terminaison** qui apprend quand un composite est suffisant.
+
+**3 features composites** (de `SHGAT.scoreNodes(intent)`) :
+
+| Feature | Description | Range | Signal |
+|---------|-------------|-------|--------|
+| `bestCompositeScore` | Score SHGAT du meilleur composite matchant | [0, 1] | "A quel point le meilleur composite est pertinent" |
+| `compositeCoverage` | Cosine(intent, bestComposite embedding) | [0, 1] | "Le composite couvre-t-il semantiquement l'intent" |
+| `compositeLevel` | Niveau hierarchique normalise (L0=0, L1=0.5, L2=1) | [0, 1] | "Est-ce un outil atomique ou un composite riche" |
+
+**Comportement appris attendu** :
+- Score eleve + coverage elevee + level > 0 → terminaison immediate (le composite suffit)
+- Score eleve + coverage partielle → premier outil selectionne, GRU complete
+- Score faible → composition from scratch
+
+### Implementation
+
+**Types** (`types.ts`) :
+```typescript
+export interface CompositeScoring {
+  bestCompositeScore: number;   // [0, 1]
+  compositeCoverage: number;    // [0, 1]
+  compositeLevel: number;       // [0, 1]
+}
+```
+
+**Modele** (`gru-model.ts`) :
+- 5eme input : `compositeInput [batch, 3]`
+- Projection : `comp_proj Dense(3, 8, relu)` (+32 params)
+- Fusion : `concat[152]` (au lieu de 144) → `dense(152, 64)` (+512 params)
+- **Total** : +544 params (~0.2% du total, negligeable)
+
+**Backward compatible** : quand `compositeFeatures` est absent (anciennes donnees), defaults a `[0, 0, 0]`. Le modele apprend a ignorer ce signal quand il est nul.
+
+### Integration avec SHGAT
+
+```typescript
+// En production : SHGAT score tous les niveaux
+const allScores = shgat.scoreNodes(intentEmbedding);
+
+// Extraire le meilleur composite (L1+)
+const composites = allScores.filter(s => s.level > 0);
+const best = composites.sort((a, b) => b.score - a.score)[0];
+
+const compositeFeatures = best ? [
+  best.score,
+  cosineSim(intentEmbedding, best.embedding),
+  best.level / maxLevel,
+] : [0, 0, 0];
+
+// GRU recoit les features composites
+const path = gru.buildPath(intentEmb, firstToolId, compositeFeatures);
+// → si le composite suffit, termination au step 0 ou 1
+// → sinon, GRU compose normalement
+```
+
+### Avantages vs seuil binaire
+
+| Aspect | Seuil binaire | Spectre continu |
+|--------|---------------|-----------------|
+| Robustesse | Fragile (cliff edge) | Degrade gracieusement |
+| Calibration | Manuelle, par domaine | Apprise des donnees |
+| Amelioration | Statique | S'ameliore avec plus de donnees |
+| Interpretabilite | 1 param (seuil) | 3 features lisibles |
+| Params supplementaires | 0 | +544 (negligeable) |
+
+### Statut
+
+- [x] Types et interface (`CompositeScoring`, `compositeToFeatures`) — **implemente**
+- [x] 5eme input dans `buildModel()` — **implemente**
+- [x] Propagation dans `prepareBatchInputs()`, `prepareSingleInput()` — **implemente**
+- [x] API publique : `predictNext()`, `predictNextTopK()`, `buildPath()`, `buildPathBeam()` — **implemente**
+- [x] Backward compatible (default zeros) — **implemente**
+- [ ] Generer les composite features depuis SHGAT pour les traces d'entrainement
+- [ ] Benchmark comparatif avec/sans composite features
 
 ---
 

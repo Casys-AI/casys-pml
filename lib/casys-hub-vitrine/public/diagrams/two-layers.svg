@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 370" width="500" height="370">
+  <!-- svg-source:excalidraw — two-layers.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="500" height="370" fill="#08080a"/>
+  <rect x="20" y="20" width="460" height="180" rx="12" fill="#1f1f23" stroke="#FFB86F" stroke-width="2"/>
+  <text x="260" y="55" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="20" fill="#FFB86F" text-anchor="middle">Strategic Layer (Capabilities)</text>
+  <rect x="40" y="80" width="120" height="50" rx="8" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="100" y="107" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#f0ede8" text-anchor="middle">Git Workflow</text>
+  <rect x="190" y="80" width="100" height="50" rx="8" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="240" y="107" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#f0ede8" text-anchor="middle">Test Suite</text>
+  <rect x="320" y="130" width="140" height="50" rx="8" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="390" y="157" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#f0ede8" text-anchor="middle">Deploy Pipeline</text>
+  <path d="M160 105 L320 155" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M290 105 L330 145" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="20" y="250" width="460" height="100" rx="12" fill="#1f1f23" stroke="#FFB86F" stroke-width="2"/>
+  <text x="250" y="285" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="20" fill="#FFB86F" text-anchor="middle">Tactical Layer (Tools)</text>
+  <rect x="30" y="300" width="80" height="40" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="70" y="321" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">git_commit</text>
+  <rect x="120" y="300" width="70" height="40" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="155" y="321" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">git_push</text>
+  <rect x="200" y="300" width="70" height="40" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="235" y="321" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">jest_run</text>
+  <rect x="280" y="300" width="90" height="40" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="325" y="321" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">docker_build</text>
+  <rect x="380" y="300" width="90" height="40" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="425" y="321" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">aws_deploy</text>
+  <path d="M70 130 L70 295" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M130 130 L155 295" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M235 130 L235 295" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M360 180 L330 295" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M420 180 L430 295" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <text x="100" y="220" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#666666" text-anchor="middle">contains</text>
+  <text x="375" y="220" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#666666" text-anchor="middle">contains</text>
+</svg>

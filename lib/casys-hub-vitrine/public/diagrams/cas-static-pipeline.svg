@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 435 70" width="435" height="70">
+  <!-- svg-source:excalidraw — cas-static-pipeline.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="435" height="70" fill="#08080a"/>
+  <g transform="translate(0 -10)">
+  <rect x="20" y="30" width="55" height="30" rx="6" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
+  <text x="47.5" y="49" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#60a5fa" text-anchor="middle">Input</text>
+  <path d="M80 45 L105 45" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="110" y="30" width="45" height="30" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="132.5" y="49" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#a78bfa" text-anchor="middle">LLM</text>
+  <path d="M160 45 L185 45" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="190" y="30" width="50" height="30" rx="6" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
+  <text x="215.5" y="49" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#fbbf24" text-anchor="middle">Tools</text>
+  <path d="M245 45 L270 45" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="275" y="30" width="55" height="30" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="302" y="49" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">Output</text>
+  <path d="M335 45 L360 45" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="365" y="30" width="50" height="30" rx="6" fill="#2d2d35" stroke="#ef4444" stroke-width="2"/>
+  <text x="390" y="49" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#ef4444" text-anchor="middle">Done</text>
+  </g>
+</svg>

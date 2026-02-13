@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 570 140" width="570" height="140">
+  <!-- svg-source:excalidraw — spec-graphrag-advantage.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+    <marker id="ah-4ade80" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#4ade80"/></marker>
+    <marker id="ah-fbbf24" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#fbbf24"/></marker>
+    <marker id="ah-ef4444" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#ef4444"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="570" height="140" fill="#08080a"/>
+  <rect x="20" y="50" width="90" height="40" rx="6" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
+  <text x="65" y="72" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#f0ede8" text-anchor="middle">Current Task</text>
+  <rect x="150" y="50" width="100" height="40" rx="6" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
+  <text x="200" y="72" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">GraphRAG Query</text>
+  <rect x="290" y="20" width="130" height="30" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="355" y="37" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">Next: 95% confidence</text>
+  <rect x="290" y="55" width="130" height="30" rx="6" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
+  <text x="355" y="72" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="middle">Alternative: 78%</text>
+  <rect x="290" y="90" width="130" height="30" rx="6" fill="#2d2d35" stroke="#666666" stroke-width="1"/>
+  <text x="355" y="107" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#666666" text-anchor="middle">Unlikely: 45%</text>
+  <rect x="460" y="20" width="80" height="30" rx="6" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="500" y="37" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">Speculate ✓</text>
+  <rect x="460" y="55" width="90" height="30" rx="6" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
+  <text x="505" y="72" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="middle">Maybe speculate</text>
+  <rect x="460" y="90" width="90" height="30" rx="6" fill="#2d2d35" stroke="#ef4444" stroke-width="1"/>
+  <text x="505" y="107" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#ef4444" text-anchor="middle">Don't speculate</text>
+  <path d="M115 70 L145 70" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M255 60 L285 35" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M255 70 L285 70" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M255 80 L285 105" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M425 35 L455 35" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <path d="M425 70 L455 70" fill="none" stroke="#fbbf24" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+  <path d="M425 105 L455 105" fill="none" stroke="#ef4444" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ef4444)"/>
+</svg>

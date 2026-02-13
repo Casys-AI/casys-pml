@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 810 340" width="810" height="340">
+  <!-- svg-source:excalidraw — personality-spectrum.excalidraw -->
+  <defs>
+    <marker id="ah-f0ede8" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#f0ede8"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="810" height="340" fill="#08080a"/>
+  <text x="368" y="40" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="20" fill="#f0ede8" text-anchor="middle">The AI Personality Spectrum: What Are We Actually Asking For?</text>
+  <path d="M40 146 L740 146" fill="none" stroke="#f0ede8" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f0ede8)"/>
+  <text x="20" y="122" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="16" fill="#ef4444" text-anchor="start">SYCOPHANT</text>
+  <text x="640" y="122" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="16" fill="#ef4444" text-anchor="start">ANTAGONIST</text>
+  <ellipse cx="80" cy="146" rx="10" ry="10" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#ef4444" text-anchor="start" y="177">
+    <tspan x="40">GPT-4o April '25</tspan>
+    <tspan x="40" dy="14.3">&quot;I'm proud of you</tspan>
+    <tspan x="40" dy="14.3">for hearing</tspan>
+    <tspan x="40" dy="14.3">radio signals!&quot;</tspan>
+  </text>
+  <ellipse cx="690" cy="146" rx="10" ry="10" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#ef4444" text-anchor="start" y="180">
+    <tspan x="670">HAL 9000</tspan>
+    <tspan x="670" dy="14.3">&quot;I'm sorry Dave,</tspan>
+    <tspan x="670" dy="14.3">I can't do that&quot;</tspan>
+  </text>
+  <rect x="261" y="90" width="200" height="50" rx="6.25" fill="#1a3a1a" stroke="#4ade80" stroke-width="3"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#4ade80" text-anchor="middle" y="115">
+    <tspan x="368">THE SWEET SPOT</tspan>
+    <tspan x="368" dy="18.2">Helpful + Honest</tspan>
+  </text>
+  <ellipse cx="487" cy="148" rx="10" ry="10" fill="#3a2a0a" stroke="#fbbf24" stroke-width="2"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#fbbf24" text-anchor="start" y="178">
+    <tspan x="441">GPT-5 Aug '25</tspan>
+    <tspan x="441" dy="14.3">&quot;too curt&quot;</tspan>
+    <tspan x="441" dy="14.3">Users revolted</tspan>
+  </text>
+  <ellipse cx="357" cy="148" rx="10" ry="10" fill="#2d2044" stroke="#a78bfa" stroke-width="2"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#a78bfa" text-anchor="start" y="173">
+    <tspan x="316">Samantha (Her)</tspan>
+    <tspan x="316" dy="14.3">Helpful AND had</tspan>
+    <tspan x="316" dy="14.3">her own journey</tspan>
+  </text>
+  <ellipse cx="600" cy="146" rx="10" ry="10" fill="#2d2d35" stroke="#9ca3af" stroke-width="2"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#9ca3af" text-anchor="start" y="181">
+    <tspan x="569">Ava (Ex Machina)</tspan>
+    <tspan x="569" dy="14.3">Manipulation as</tspan>
+    <tspan x="569" dy="14.3">&quot;personality&quot;</tspan>
+  </text>
+  <ellipse cx="230" cy="146" rx="10" ry="10" fill="#1a2744" stroke="#60a5fa" stroke-width="2"/>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#60a5fa" text-anchor="start" y="192">
+    <tspan x="190">Omotenashi</tspan>
+    <tspan x="190" dy="14.3">Butler service</tspan>
+  </text>
+  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#9ca3af" text-anchor="middle" y="274">
+    <tspan x="404">The debate: Critics want AI to move RIGHT on this spectrum (more friction = more personality).</tspan>
+    <tspan x="404" dy="18.2">But users keep pulling it LEFT (more helpful = more useful).</tspan>
+    <tspan x="404" dy="18.2">Maybe &quot;personality&quot; isn't on this axis at all?</tspan>
+  </text>
+</svg>

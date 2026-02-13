@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 290" width="350" height="290">
+  <!-- svg-source:excalidraw — dag-dag-model.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="350" height="290" fill="#08080a"/>
+  <g transform="translate(-60 0)">
+  <rect x="180" y="20" width="100" height="40" rx="8" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="230" y="43" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Read Config</text>
+  <rect x="80" y="90" width="100" height="40" rx="8" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
+  <text x="130" y="113" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Fetch Data</text>
+  <rect x="280" y="90" width="110" height="40" rx="8" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
+  <text x="335" y="113" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Load Template</text>
+  <rect x="180" y="160" width="100" height="40" rx="8" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
+  <text x="229.5" y="183" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Process</text>
+  <rect x="80" y="230" width="100" height="40" rx="8" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="130" y="253" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Write Output</text>
+  <rect x="280" y="230" width="100" height="40" rx="8" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="330" y="253" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Notify</text>
+  <path d="M200 65 L140 85" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M260 65 L320 85" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M160 135 L210 155" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M310 135 L260 155" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M200 205 L140 225" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M260 205 L320 225" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  </g>
+</svg>
