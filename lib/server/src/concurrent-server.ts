@@ -266,6 +266,11 @@ export class ConcurrentMCPServer {
   private setupHandlers(): void {
     const server = this.mcpServer.server;
 
+    // Wire up "initialized" notification callback (post-handshake)
+    server.oninitialized = () => {
+      this.initializedCallback?.();
+    };
+
     // tools/list handler
     server.setRequestHandler(ListToolsRequestSchema, () => {
       return {
@@ -285,6 +290,13 @@ export class ConcurrentMCPServer {
 
       try {
         const result = await this.executeToolCall(toolName, args);
+
+        // If handler returns a pre-formatted MCP result (has content array),
+        // pass it through without re-wrapping. This supports proxy/gateway
+        // patterns where the handler builds the complete response.
+        if (this.isPreformattedResult(result)) {
+          return result;
+        }
 
         // Format response according to MCP protocol
         const tool = this.tools.get(toolName);
@@ -1269,6 +1281,16 @@ export class ConcurrentMCPServer {
               c.req.raw,
               reqSessionId,
             );
+
+            // Pre-formatted result: pass through as-is
+            if (this.isPreformattedResult(result)) {
+              return c.json({
+                jsonrpc: "2.0",
+                id,
+                result,
+              });
+            }
+
             const tool = this.tools.get(toolName);
             return c.json({
               jsonrpc: "2.0",
@@ -1668,6 +1690,61 @@ export class ConcurrentMCPServer {
    */
   getResourceInfo(uri: string): MCPResource | undefined {
     return this.resources.get(uri)?.resource;
+  }
+
+  /**
+   * Send a JSON-RPC notification to the connected transport.
+   * For stdio: writes to stdout via MCP SDK transport.
+   * For HTTP: broadcasts to all SSE clients.
+   *
+   * @param method - Notification method (e.g. "notifications/message")
+   * @param params - Notification parameters
+   */
+  sendNotification(
+    method: string,
+    params?: Record<string, unknown>,
+  ): void {
+    if (!this.started) return;
+
+    // For HTTP mode, broadcast via SSE
+    if (this.httpServer) {
+      this.broadcastNotification(method, params);
+      return;
+    }
+
+    // For stdio mode, send via SDK transport
+    try {
+      this.mcpServer.server.notification({ method, params });
+    } catch {
+      // Transport may not support notifications yet (pre-initialized)
+    }
+  }
+
+  /**
+   * Register a callback for the "initialized" notification.
+   * Called after client sends "initialized" (post-handshake).
+   */
+  onInitialized(callback: () => void): void {
+    this.initializedCallback = callback;
+  }
+
+  private initializedCallback: (() => void) | null = null;
+
+  /**
+   * Check if a handler result is a pre-formatted MCP result.
+   * Pre-formatted results have a `content` array and are passed through
+   * without re-wrapping. This supports proxy/gateway patterns.
+   */
+  // deno-lint-ignore no-explicit-any
+  private isPreformattedResult(result: unknown): result is { content: Array<{ type: string; text: string }>; _meta?: Record<string, unknown> } {
+    if (!result || typeof result !== "object") return false;
+    const obj = result as Record<string, unknown>;
+    return Array.isArray(obj.content) &&
+      obj.content.length > 0 &&
+      typeof obj.content[0] === "object" &&
+      obj.content[0] !== null &&
+      "type" in obj.content[0] &&
+      "text" in obj.content[0];
   }
 
   /**

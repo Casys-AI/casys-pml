@@ -3,723 +3,106 @@
  *
  * Starts the PML MCP server in stdio mode for Claude Code integration.
  * This is the PRIMARY interface - Claude Code spawns this process.
- * Uses shared utilities from ./shared/ for common functionality.
+ * Uses PmlServer (composition over ConcurrentMCPServer) for protocol handling.
  *
  * @module cli/stdio-command
  */
 
 import { Command } from "@cliffy/command";
-import type { PmlConfig } from "../types.ts";
-import type { MCPResource, ResourceContent } from "@casys/mcp-server";
-import { MCP_APP_MIME_TYPE } from "@casys/mcp-server";
 import {
-  getWorkspaceSourceDescription,
-  isValidWorkspace,
-  resolveWorkspaceWithDetails,
-} from "../workspace.ts";
-import { loadUserPermissions } from "../permissions/loader.ts";
+  initializePmlContext,
+  shutdownPmlContext,
+  PmlServer,
+} from "../server/mod.ts";
 import {
   getRoutingVersion,
-  initializeRouting,
   isRoutingInitialized,
-  resolveToolRouting,
-  syncRoutingConfig,
 } from "../routing/mod.ts";
-import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
-import { SessionClient } from "../session/mod.ts";
-import { PendingWorkflowStore } from "../workflow/mod.ts";
-import { TraceSyncer } from "../tracing/mod.ts";
-import { exists } from "@std/fs";
-import { join } from "@std/path";
-import { reloadEnv } from "../byok/env-loader.ts";
+import { getWorkspaceSourceDescription } from "../workspace.ts";
 import { stdioLog } from "../logging.ts";
-import { loadMcpServers } from "../config.ts";
+import { PACKAGE_VERSION } from "./shared/constants.ts";
+import { checkForUpdates } from "./shared/version-check.ts";
 import { discoverAllMcpToolsWithTimeout, summarizeDiscovery, syncDiscoveredTools } from "../discovery/mod.ts";
 import { StdioManager } from "../loader/stdio-manager.ts";
-
-// Shared utilities
-import {
-  PML_CONFIG_FILE,
-  PACKAGE_VERSION,
-  SILENT_LOGGER,
-  PML_TOOLS_FULL,
-  forwardToCloud,
-  extractContinueWorkflow,
-  parseExecuteLocallyResponse,
-  formatApprovalRequired,
-  executeLocalCode,
-  buildMcpLocalResult,
-  type AnyApprovalResult,
-} from "./shared/mod.ts";
-import { checkForUpdates } from "./shared/version-check.ts";
-
-/** Active session client (initialized at startup) */
-let sessionClient: SessionClient | null = null;
-
-/** Trace syncer for sending execution traces to cloud */
-let traceSyncer: TraceSyncer | null = null;
-
-/** Pending workflow store for local approval flows */
-const pendingWorkflowStore = new PendingWorkflowStore();
-
-/** Resource store for MCP Apps (Story 16.2) */
-type ResourceHandler = (uri: URL) => Promise<ResourceContent> | ResourceContent;
-const resourceStore = new Map<string, { resource: MCPResource; handler: ResourceHandler }>();
-
-/**
- * Register a resource for MCP Apps
- * @public - Will be used by Story 16.3 (UI Collection)
- */
-export function registerResource(resource: MCPResource, handler: ResourceHandler): void {
-  resourceStore.set(resource.uri, { resource, handler });
-}
-
-/**
- * Get all registered resources
- */
-function getResources(): MCPResource[] {
-  return Array.from(resourceStore.values()).map(r => ({
-    ...r.resource,
-    mimeType: r.resource.mimeType ?? MCP_APP_MIME_TYPE,
-  }));
-}
-
-/**
- * Read a resource by URI
- */
-async function readResource(uri: string): Promise<ResourceContent | null> {
-  const entry = resourceStore.get(uri);
-  if (!entry) return null;
-  return await entry.handler(new URL(uri));
-}
 
 /** Logger adapter for shared utilities */
 const stdioLogger = {
   debug: (msg: string) => stdioLog.debug(msg),
 };
 
-/**
- * Send JSON-RPC response to stdout
- */
-function sendResponse(response: unknown): void {
-  const json = JSON.stringify(response);
-  Deno.stdout.writeSync(new TextEncoder().encode(json + "\n"));
-}
-
-/**
- * Send JSON-RPC error to stdout
- */
-function sendError(
-  id: string | number | null,
-  code: number,
-  message: string,
-): void {
-  sendResponse({
-    jsonrpc: "2.0",
-    id,
-    error: { code, message },
-  });
-}
-
-/**
- * Send MCP notification to client (notifications/message)
- * @see https://spec.modelcontextprotocol.io/specification/server/utilities/logging/
- */
-function sendNotification(
-  level: "debug" | "info" | "warning" | "error",
-  message: string,
-): void {
-  sendResponse({
-    jsonrpc: "2.0",
-    method: "notifications/message",
-    params: {
-      level,
-      logger: "pml",
-      data: message,
-    },
-  });
-}
-
-/**
- * Check for updates and notify if newer version available (non-blocking)
- */
-function checkAndNotifyUpdates(): void {
-  checkForUpdates()
-    .then((latestVersion) => {
-      if (latestVersion) {
-        sendNotification(
-          "info",
-          `PML update available: v${latestVersion} (current: v${PACKAGE_VERSION}). Run 'pml upgrade' to update.`,
-        );
-      }
-    })
-    .catch(() => {
-      // Silently ignore version check errors
-    });
-}
-
-/**
- * Handle MCP initialize request
- */
-function handleInitialize(id: string | number): void {
-  sendResponse({
-    jsonrpc: "2.0",
-    id,
-    result: {
-      protocolVersion: "2024-11-05",
-      capabilities: {
-        tools: {},
-        resources: resourceStore.size > 0 ? {} : undefined,
-      },
-      serverInfo: { name: "pml", version: PACKAGE_VERSION },
-    },
-  });
-}
-
-/**
- * Handle MCP tools/list request
- */
-function handleToolsList(id: string | number): void {
-  sendResponse({
-    jsonrpc: "2.0",
-    id,
-    result: { tools: PML_TOOLS_FULL },
-  });
-}
-
-/**
- * Handle MCP resources/list request (Story 16.2)
- */
-function handleResourcesList(id: string | number): void {
-  sendResponse({
-    jsonrpc: "2.0",
-    id,
-    result: { resources: getResources() },
-  });
-}
-
-/**
- * Handle MCP resources/read request (Story 16.2)
- */
-async function handleResourcesRead(id: string | number, uri: string): Promise<void> {
-  const content = await readResource(uri);
-  if (!content) {
-    sendError(id, -32602, `Resource not found: ${uri}`);
-    return;
-  }
-  sendResponse({
-    jsonrpc: "2.0",
-    id,
-    result: { contents: [content] },
-  });
-}
-
-/**
- * Handle MCP tools/call request
- */
-async function handleToolsCall(
-  id: string | number,
-  params: { name: string; arguments?: Record<string, unknown> },
-  loader: CapabilityLoader | null,
-  cloudUrl: string,
-  workspace: string,
-  lockfileManager: LockfileManager | null,
-): Promise<void> {
-  const { name, arguments: args } = params;
-
-  // Handle discover - always forward to cloud
-  if (name === "discover") {
-    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
-    if (!cloudResult.ok) {
-      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
-      return;
-    }
-    sendResponse(cloudResult.response);
-    return;
-  }
-
-  // Handle admin - always forward to cloud (MCP Tools Consolidation)
-  if (name === "admin") {
-    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
-    if (!cloudResult.ok) {
-      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
-      return;
-    }
-    sendResponse(cloudResult.response);
-    return;
-  }
-
-  // Handle abort - always forward to cloud
-  if (name === "abort") {
-    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
-    if (!cloudResult.ok) {
-      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
-      return;
-    }
-    sendResponse(cloudResult.response);
-    return;
-  }
-
-  // Handle replan - always forward to cloud
-  if (name === "replan") {
-    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
-    if (!cloudResult.ok) {
-      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
-      return;
-    }
-    sendResponse(cloudResult.response);
-    return;
-  }
-
-  // Handle execute with hybrid routing support
-  if (name === "execute") {
-    const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
-
-    if (continueWorkflow) {
-      stdioLog.debug(`execute with continue_workflow: approved=${continueWorkflow.approved}`);
-
-      // Check if this is a LOCAL workflow (stored in our pending store)
-      const pendingWorkflow = continueWorkflow.workflowId
-        ? pendingWorkflowStore.get(continueWorkflow.workflowId)
-        : null;
-
-      if (pendingWorkflow) {
-        stdioLog.debug(`Found local pending workflow: ${continueWorkflow.workflowId}`);
-
-        if (!continueWorkflow.approved) {
-          pendingWorkflowStore.delete(continueWorkflow.workflowId!);
-          sendResponse({
-            jsonrpc: "2.0",
-            id,
-            result: {
-              content: [{
-                type: "text",
-                text: JSON.stringify({ status: "aborted", reason: "User rejected approval" }, null, 2),
-              }],
-            },
-          });
-          return;
-        }
-
-        // Pre-continuation actions based on approval type
-        stdioLog.debug(`Re-executing code after approval for: ${pendingWorkflow.approvalType}`);
-
-        switch (pendingWorkflow.approvalType) {
-          case "tool_permission":
-            if (loader && pendingWorkflow.toolId) {
-              stdioLog.debug(`Approving tool for session: ${pendingWorkflow.toolId}`);
-              loader.approveToolForSession(pendingWorkflow.toolId);
-            }
-            break;
-          case "api_key_required":
-            stdioLog.debug(`Reloading environment for API key approval`);
-            await reloadEnv(workspace);
-            break;
-          case "integrity":
-            if (lockfileManager && pendingWorkflow.integrityInfo) {
-              stdioLog.debug(`Approving integrity update: ${pendingWorkflow.integrityInfo.fqdnBase}`);
-            }
-            break;
-          case "dependency":
-            stdioLog.debug(`Proceeding with dependency installation`);
-            break;
-        }
-
-        // Re-execute with stored FQDN map
-        const storedFqdnMap = new Map<string, string>(Object.entries(pendingWorkflow.fqdnMap ?? {}));
-        const localResult = await executeLocalCode(
-          pendingWorkflow.code,
-          loader,
-          cloudUrl,
-          storedFqdnMap,
-          { approved: true, workflowId: continueWorkflow.workflowId },
-          stdioLogger,
-          undefined, // serverWorkflowId not needed for continuation
-          pendingWorkflow.dagTasks, // Story 11.4: DAG tasks with layerIndex
-        );
-
-        pendingWorkflowStore.delete(continueWorkflow.workflowId!);
-
-        sendResponse({
-          jsonrpc: "2.0",
-          id,
-          result: buildMcpLocalResult(localResult, {
-            code: pendingWorkflow.code,
-            fqdnMap: pendingWorkflow.fqdnMap ?? {},
-            pendingWorkflowStore,
-            dagTasks: pendingWorkflow.dagTasks,
-          }, true, undefined, continueWorkflow.workflowId),
-        });
-        return;
-      }
-    }
-
-    // Forward to cloud
-    const cloudResult = await forwardToCloud(id, name, cleanArgs || {}, cloudUrl, sessionClient);
-
-    if (!cloudResult.ok) {
-      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
-      return;
-    }
-
-    // Check if server returned execute_locally
-    const response = cloudResult.response as { result?: { content?: Array<{ type: string; text: string }> } };
-    const content = response?.result?.content?.[0]?.text;
-
-    if (content) {
-      const execLocally = parseExecuteLocallyResponse(content);
-
-      if (execLocally) {
-        stdioLog.debug(`execute_locally received - client tools: ${execLocally.client_tools.join(", ")}`);
-
-        // Create FQDN map from server-resolved tools
-        const fqdnMap = new Map<string, string>();
-        for (const tool of execLocally.tools_used) {
-          fqdnMap.set(tool.id, tool.fqdn);
-        }
-        stdioLog.debug(`FQDN map: ${JSON.stringify(Object.fromEntries(fqdnMap))}`);
-
-        const localResult = await executeLocalCode(
-          execLocally.code,
-          loader,
-          cloudUrl,
-          fqdnMap,
-          continueWorkflow,
-          stdioLogger,
-          execLocally.workflowId, // ADR-065: server workflowId = client traceId
-          execLocally.dag?.tasks, // Story 11.4: DAG tasks with layerIndex
-        );
-
-        // ADR-065: Trace is now sent by local-executor.ts with unified workflowId/traceId
-        sendResponse({
-          jsonrpc: "2.0",
-          id,
-          result: buildMcpLocalResult(localResult, {
-            code: execLocally.code,
-            fqdnMap: Object.fromEntries(fqdnMap),
-            pendingWorkflowStore,
-            dagTasks: execLocally.dag?.tasks,
-          }, true, execLocally.ui_orchestration, execLocally.workflowId),
-        });
-        return;
-      }
-    }
-
-    // Not execute_locally - return server response as-is
-    sendResponse(cloudResult.response);
-    return;
-  }
-
-  // Direct tool routing (deprecated path - backwards compatibility)
-  const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
-  const routing = resolveToolRouting(name);
-  stdioLog.debug(`Tool ${name} → ${routing}${continueWorkflow ? ` (continue: ${continueWorkflow.approved})` : ""}`);
-
-  if (routing === "client") {
-    if (!loader) {
-      sendError(id, -32603, "Capability loader not initialized");
-      return;
-    }
-
-    try {
-      const result = await loader.call(name, cleanArgs, continueWorkflow);
-
-      if (CapabilityLoader.isApprovalRequired(result)) {
-        sendResponse({
-          jsonrpc: "2.0",
-          id,
-          result: formatApprovalRequired(name, result as AnyApprovalResult, pendingWorkflowStore),
-        });
-        return;
-      }
-
-      sendResponse({
-        jsonrpc: "2.0",
-        id,
-        result: {
-          content: [{
-            type: "text",
-            text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
-          }],
-        },
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      stdioLog.debug(`Tool error: ${message}`);
-      sendError(id, -32603, `Tool execution failed: ${message}`);
-    }
-    return;
-  }
-
-  // Server routing - forward to pml.casys.ai
-  try {
-    const apiKey = Deno.env.get("PML_API_KEY");
-    if (!apiKey) {
-      sendError(id, -32603, "PML_API_KEY environment variable is required");
-      return;
-    }
-
-    const response = await fetch(`${cloudUrl}/mcp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id,
-        method: "tools/call",
-        params: { name, arguments: args },
-      }),
-    });
-
-    if (!response.ok) {
-      sendError(id, -32603, `Cloud error: ${response.status} ${response.statusText}`);
-      return;
-    }
-
-    const result = await response.json();
-    sendResponse(result);
-  } catch (error) {
-    sendError(id, -32603, `Cloud unreachable: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-/**
- * Process a single JSON-RPC request
- */
-async function processRequest(
-  line: string,
-  loader: CapabilityLoader | null,
-  cloudUrl: string,
-  workspace: string,
-  lockfileManager: LockfileManager | null,
-): Promise<void> {
-  let request: {
-    jsonrpc: string;
-    id?: string | number;
-    method: string;
-    params?: unknown;
-  };
-
-  try {
-    request = JSON.parse(line);
-  } catch {
-    sendError(null, -32700, "Parse error: Invalid JSON");
-    return;
-  }
-
-  if (request.jsonrpc !== "2.0") {
-    sendError(request.id ?? null, -32600, "Invalid Request: Not JSON-RPC 2.0");
-    return;
-  }
-
-  const id = request.id ?? null;
-  const method = request.method;
-  const params = request.params as Record<string, unknown> | undefined;
-
-  stdioLog.debug(`← ${method}`);
-
-  switch (method) {
-    case "initialize":
-      if (id !== null) handleInitialize(id);
-      break;
-    case "initialized":
-      // Notification, no response needed
-      // Check for updates in background (non-blocking)
-      checkAndNotifyUpdates();
-      break;
-    case "tools/list":
-      if (id !== null) handleToolsList(id);
-      break;
-    case "resources/list":
-      if (id !== null) handleResourcesList(id);
-      break;
-    case "resources/read":
-      if (id !== null && params?.uri) {
-        await handleResourcesRead(id, params.uri as string);
-      }
-      break;
-    case "tools/call":
-      if (id !== null && params) {
-        await handleToolsCall(
-          id,
-          params as { name: string; arguments?: Record<string, unknown> },
-          loader,
-          cloudUrl,
-          workspace,
-          lockfileManager,
-        );
-      }
-      break;
-    default:
-      if (id !== null) {
-        sendError(id, -32601, `Method not found: ${method}`);
-      }
-  }
-}
-
-/**
- * Main stdio loop - reads from stdin, processes, writes to stdout
- */
-async function runStdioLoop(
-  loader: CapabilityLoader | null,
-  cloudUrl: string,
-  workspace: string,
-  lockfileManager: LockfileManager | null,
-): Promise<void> {
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  for await (const chunk of Deno.stdin.readable) {
-    buffer += decoder.decode(chunk);
-
-    let newlineIndex: number;
-    while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
-      const line = buffer.slice(0, newlineIndex).trim();
-      buffer = buffer.slice(newlineIndex + 1);
-
-      if (line) {
-        await processRequest(line, loader, cloudUrl, workspace, lockfileManager);
-      }
-    }
-  }
-}
-
-/**
- * Create stdio command
- */
 // deno-lint-ignore no-explicit-any
 export function createStdioCommand(): Command<any> {
   return new Command()
     .name("stdio")
     .description("Start the PML MCP server in stdio mode (for Claude Code)")
-    .action(async () => {
-      // Resolve workspace
-      const workspaceResult = resolveWorkspaceWithDetails(SILENT_LOGGER);
-      const workspace = workspaceResult.path;
-
-      // Auto-load .env from workspace
-      if (!Deno.env.get("PML_API_KEY")) {
-        try {
-          await reloadEnv(workspace);
-          if (Deno.env.get("PML_API_KEY")) {
-            stdioLog.debug(`Loaded PML_API_KEY from workspace .env`);
-          }
-        } catch (error) {
-          stdioLog.debug(`Failed to load .env: ${error}`);
-        }
-      }
-
-      // Verify PML_API_KEY
-      const apiKey = Deno.env.get("PML_API_KEY");
-      if (!apiKey) {
-        console.error("[pml] ERROR: PML_API_KEY environment variable is required");
-        console.error("[pml] Set it with: export PML_API_KEY=your_key");
-        console.error("[pml] Or add PML_API_KEY=your_key to .env in your project");
-        Deno.exit(1);
-      }
-
-      if (!isValidWorkspace(workspace)) {
-        stdioLog.debug(`Invalid workspace: ${workspace}`);
-        Deno.exit(1);
-      }
-
-      // Load config
-      const configPath = join(workspace, PML_CONFIG_FILE);
-      const defaultConfig: PmlConfig = {
-        version: PACKAGE_VERSION,
-        workspace,
-        cloud: { url: "https://pml.casys.ai" },
-        server: { port: 3003 },
-        permissions: { allow: [], deny: [], ask: ["*"] },
-      };
-
-      let config: PmlConfig = defaultConfig;
-      if (await exists(configPath)) {
-        try {
-          const content = await Deno.readTextFile(configPath);
-          config = { ...defaultConfig, ...JSON.parse(content) };
-        } catch (error) {
-          stdioLog.debug(`Failed to load config: ${error}`);
-        }
-      }
-
-      // Load permissions
-      const { permissions } = await loadUserPermissions(workspace, SILENT_LOGGER);
-
-      // Sync routing config from cloud
-      const cloudUrl = Deno.env.get("PML_CLOUD_URL") ?? config.cloud?.url ?? "https://pml.casys.ai";
-      const { config: routingConfig } = await syncRoutingConfig(cloudUrl, SILENT_LOGGER);
-      initializeRouting(routingConfig);
-
-      // Register session with server
-      try {
-        sessionClient = new SessionClient({ cloudUrl, apiKey, version: PACKAGE_VERSION, workspace });
-        await sessionClient.register();
-        stdioLog.debug(`Session registered: ${sessionClient.sessionId?.slice(0, 8)}`);
-      } catch (error) {
-        stdioLog.debug(`Session registration failed (non-fatal): ${error}`);
-        sessionClient = null;
-      }
-
-      stdioLog.debug(`Workspace: ${workspace} (${getWorkspaceSourceDescription(workspaceResult)})`);
-      stdioLog.debug(`Cloud: ${cloudUrl}`);
-      stdioLog.debug(`Routing: v${getRoutingVersion()} (${isRoutingInitialized() ? "ready" : "failed"})`);
-
-      // Initialize CapabilityLoader
-      let loader: CapabilityLoader | null = null;
-      let lockfileManager: LockfileManager | null = null;
-      try {
-        lockfileManager = new LockfileManager({ workspace });
-        await lockfileManager.load();
-        loader = await CapabilityLoader.create({ cloudUrl, workspace, permissions, lockfileManager });
-        stdioLog.debug(`CapabilityLoader initialized with permissions + lockfile`);
-      } catch (error) {
-        stdioLog.debug(`Failed to initialize CapabilityLoader: ${error}`);
-      }
-
-      // Initialize TraceSyncer (ADR-065: explicit flush only, no auto-flush timer)
-      traceSyncer = new TraceSyncer({
-        cloudUrl,
-        apiKey,
-        batchSize: 10,
-        maxRetries: 3,
+    .option("--expose <capabilities:string[]>", "Expose specific capabilities as named MCP tools")
+    .option("--only [only:boolean]", "Only expose specified capabilities (hide discover/execute/admin)", { default: false })
+    .action(async (options: { expose?: string[]; only?: boolean }) => {
+      // Initialize PML context (shared init flow)
+      const ctx = await initializePmlContext({
+        expose: options.expose,
+        only: options.only,
+        logger: stdioLogger,
       });
-      stdioLog.debug(`TraceSyncer initialized`);
 
-      // F5 Fix: Discover tools from user-configured MCP servers (fully async, non-blocking)
-      // Discovery runs in background and doesn't block stdio loop startup
-      const userMcpServers = loadMcpServers(config);
-      if (userMcpServers.size > 0) {
-        stdioLog.debug(`Starting async discovery for ${userMcpServers.size} user MCP server(s)...`);
+      // Log startup info (stderr — invisible to MCP client)
+      stdioLog.debug(`Workspace: ${ctx.workspace} (${getWorkspaceSourceDescription(ctx.workspaceResult)})`);
+      stdioLog.debug(`Cloud: ${ctx.cloudUrl}`);
+      stdioLog.debug(`Routing: v${getRoutingVersion()} (${isRoutingInitialized() ? "ready" : "failed"})`);
+      stdioLog.debug(`Session: ${ctx.sessionClient?.sessionId?.slice(0, 8) ?? "none"}`);
+      if (ctx.exposedCapabilities.length > 0) {
+        stdioLog.debug(
+          `Exposed: ${ctx.exposedCapabilities.map((c) => c.name).join(", ")}${ctx.onlyMode ? " (only)" : ""}`,
+        );
+      }
 
-        // Fire-and-forget: don't await, let it run in background
+      // Create PmlServer (stdio mode with full descriptions)
+      const pmlServer = new PmlServer(
+        { useFullDescriptions: true, logger: stdioLogger },
+        ctx,
+      );
+
+      // Wire up version check after MCP handshake completes
+      pmlServer.onInitialized(() => {
+        checkForUpdates()
+          .then((latestVersion) => {
+            if (latestVersion) {
+              pmlServer.sendNotification(
+                "info",
+                `PML update available: v${latestVersion} (current: v${PACKAGE_VERSION}). Run 'pml upgrade' to update.`,
+              );
+            }
+          })
+          .catch(() => {
+            // Silently ignore version check errors
+          });
+      });
+
+      // Discover tools from user-configured MCP servers (background, non-blocking)
+      if (ctx.userMcpServers.size > 0) {
+        stdioLog.debug(`Starting async discovery for ${ctx.userMcpServers.size} user MCP server(s)...`);
+
         (async () => {
-          const discoveryManager = new StdioManager(60_000); // 1min idle timeout
-
+          const discoveryManager = new StdioManager(60_000);
           try {
-            // Use timeout version with parallel execution (5 concurrent, 60s global timeout)
             const discoveryResults = await discoverAllMcpToolsWithTimeout(
-              userMcpServers,
+              ctx.userMcpServers,
               discoveryManager,
-              10_000,  // 10s per server
-              60_000,  // 60s global timeout
-              5,       // 5 parallel
+              10_000, 60_000, 5,
             );
-
             const summary = summarizeDiscovery(discoveryResults);
-
             stdioLog.debug(
               `MCP Discovery: ${summary.successfulServers}/${summary.totalServers} servers, ` +
               `${summary.totalTools} tools found` +
-              (summary.uiTools > 0 ? `, ${summary.uiTools} with UI` : "")
+              (summary.uiTools > 0 ? `, ${summary.uiTools} with UI` : ""),
             );
 
-            // F11 Fix: Send MCP notification for failures (visible to user in Claude Code)
-            // stderr logs are invisible in stdio mode, so use notifications/message
+            // Send MCP notification for failures (visible to user in Claude Code)
             if (summary.failures.length > 0) {
               const failureDetails = summary.failures
                 .map((f) => `${f.server}: ${f.error}`)
                 .join("; ");
-              sendNotification(
+              pmlServer.sendNotification(
                 "warning",
                 `MCP Discovery: ${summary.failures.length} server(s) failed - ${failureDetails}`,
               );
@@ -727,7 +110,7 @@ export function createStdioCommand(): Command<any> {
 
             // Sync discovered tools to cloud
             if (summary.totalTools > 0) {
-              const syncResult = await syncDiscoveredTools(cloudUrl, apiKey, discoveryResults);
+              const syncResult = await syncDiscoveredTools(ctx.cloudUrl, ctx.apiKey, discoveryResults);
               if (syncResult.success) {
                 stdioLog.debug(`MCP Sync: ${syncResult.synced} tools synced to cloud`);
               } else {
@@ -742,19 +125,13 @@ export function createStdioCommand(): Command<any> {
         })();
       }
 
-      // Start stdio loop
+      // Start stdio server
       try {
-        await runStdioLoop(loader, cloudUrl, workspace, lockfileManager);
+        await pmlServer.start();
       } finally {
-        loader?.shutdown();
-        if (traceSyncer) {
-          await traceSyncer.shutdown();
-          stdioLog.debug("TraceSyncer shutdown");
-        }
-        if (sessionClient) {
-          await sessionClient.shutdown();
-          stdioLog.debug("Session unregistered");
-        }
+        await pmlServer.shutdown();
+        await shutdownPmlContext(ctx);
+        stdioLog.debug("Shutdown complete");
       }
     });
 }
