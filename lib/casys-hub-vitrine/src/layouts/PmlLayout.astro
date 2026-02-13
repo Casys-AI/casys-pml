@@ -101,7 +101,10 @@ const nav = navTranslations[locale as keyof typeof navTranslations] ?? navTransl
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-FR86NHGK8Y', { cookie_domain: 'casys.ai' });
+      gtag('config', 'G-FR86NHGK8Y', {
+        cookie_domain: 'casys.ai',
+        linker: { accept_incoming: false, decorate: false }
+      });
     </script>
   </head>
 

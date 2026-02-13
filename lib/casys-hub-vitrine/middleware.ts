@@ -30,6 +30,9 @@ const PASSTHROUGH_PREFIXES = [
   '/pagefind/',
 ];
 
+// Supported i18n locale prefixes
+const LOCALE_PREFIXES = ['fr', 'zh'];
+
 export default function middleware(request: Request) {
   const url = new URL(request.url);
   const hostname = url.hostname;
@@ -48,6 +51,20 @@ export default function middleware(request: Request) {
   // Don't rewrite if already prefixed (e.g. /mcp-server/foo)
   if (url.pathname.startsWith(basePath)) {
     return next();
+  }
+
+  // Check if the path starts with a locale prefix (e.g. /fr, /zh)
+  // Astro i18n pages are at /{locale}/{basePath}, not {basePath}/{locale}
+  const segments = url.pathname.split('/').filter(Boolean);
+  const firstSegment = segments[0];
+
+  if (firstSegment && LOCALE_PREFIXES.includes(firstSegment)) {
+    // /fr -> /fr/mcp-bridge, /fr/docs/foo -> /fr/mcp-bridge/docs/foo
+    const rest = segments.slice(1);
+    const targetPath = rest.length === 0
+      ? `/${firstSegment}${basePath}`
+      : `/${firstSegment}${basePath}/${rest.join('/')}`;
+    return rewrite(new URL(targetPath, request.url));
   }
 
   // Rewrite root and sub-paths to the internal Astro page

@@ -14,6 +14,13 @@ const posts = allPosts
   .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime())
   .slice(0, 3);
 
+// Build locale-aware blog URLs
+const blogPrefix = locale === 'en' ? '/blog' : `/${locale}/blog`;
+function getBlogUrl(post: typeof posts[0]): string {
+  const slug = post.slug.replace(`${locale}/`, '');
+  return `${blogPrefix}/${slug}`;
+}
+
 // Date formatter per locale
 const dateLocaleMap: Record<string, string> = {
   en: 'en-US',
@@ -42,7 +49,7 @@ function formatDate(date: Date): string {
       <!-- Blog Cards Grid -->
       <div class="blog-grid">
         {posts.map((post) => (
-          <a href={`/blog/${post.id}`} class="blog-card">
+          <a href={getBlogUrl(post)} class="blog-card">
             <div class="blog-card-inner">
               <!-- Meta: date + category -->
               <div class="blog-meta">
@@ -73,7 +80,7 @@ function formatDate(date: Date): string {
 
       <!-- View all CTA -->
       <div class="view-all-wrapper">
-        <a href="/blog" class="view-all-link">
+        <a href={blogPrefix} class="view-all-link">
           {t.viewAll} <span aria-hidden="true">&rarr;</span>
         </a>
       </div>

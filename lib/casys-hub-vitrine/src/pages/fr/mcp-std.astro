@@ -1,0 +1,13 @@
+---
+import McpStdLayout from '../../features/mcp-std/McpStdLayout.astro';
+import McpStdContent from '../../features/mcp-std/McpStdContent.astro';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const pageTitle = locale === 'fr'
+  ? '@casys/mcp-std - 508 Outils MCP Standards'
+  : '@casys/mcp-std - 508 MCP Standard Tools';
+---
+
+<McpStdLayout title={pageTitle}>
+  <McpStdContent />
+</McpStdLayout>
