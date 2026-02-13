@@ -150,19 +150,37 @@ export async function resolveExposedCapabilities(
   cloudUrl: string,
   sessionClient: SessionClient | null,
 ): Promise<ExposedCapability[]> {
+  // Resolve all capabilities in parallel
+  const results = await Promise.allSettled(
+    capabilities.map((cap) => fetchCapabilityMetadata(cap, cloudUrl, sessionClient)),
+  );
+
+  // Collect errors and successes
+  const errors: string[] = [];
   const resolved: ExposedCapability[] = [];
 
-  for (const cap of capabilities) {
-    const metadata = await fetchCapabilityMetadata(cap, cloudUrl, sessionClient);
-    resolved.push({
-      name: sanitizeToolName(metadata.name),
-      fqdn: metadata.fqdn,
-      description: metadata.description,
-      inputSchema: metadata.parametersSchema ?? {
-        type: "object",
-        properties: {},
-      },
-    });
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result.status === "rejected") {
+      errors.push(`${capabilities[i]}: ${result.reason?.message ?? result.reason}`);
+    } else {
+      const metadata = result.value;
+      resolved.push({
+        name: sanitizeToolName(metadata.name),
+        fqdn: metadata.fqdn,
+        description: metadata.description,
+        inputSchema: metadata.parametersSchema ?? {
+          type: "object",
+          properties: {},
+        },
+      });
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to resolve ${errors.length} capability(ies):\n  - ${errors.join("\n  - ")}`,
+    );
   }
 
   // Check for name collisions after sanitization

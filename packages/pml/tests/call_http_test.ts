@@ -2,13 +2,14 @@
  * Tests for HTTP Client-Side Execution
  *
  * Tests resolveEnvHeaders() from env-loader.ts
- * and the HTTP dep callHttp() integration pattern.
+ * and callHttp() from loader/call-http.ts
  *
  * @module tests/call_http_test
  */
 
-import { assertEquals, assertThrows } from "@std/assert";
+import { assertEquals, assertThrows, assertRejects } from "@std/assert";
 import { resolveEnvHeaders } from "../src/byok/env-loader.ts";
+import { callHttp } from "../src/loader/call-http.ts";
 
 // ============================================================================
 // resolveEnvHeaders Tests
@@ -103,10 +104,10 @@ Deno.test("resolveEnvHeaders: multiple headers with mixed static and dynamic", (
 });
 
 // ============================================================================
-// callHttp integration pattern tests (via fetch mock)
+// callHttp Tests (direct function, fetch mocked)
 // ============================================================================
 
-Deno.test("callHttp pattern: POST with correct body shape", async () => {
+Deno.test("callHttp: sends POST with correct body shape", async () => {
   const originalFetch = globalThis.fetch;
 
   try {
@@ -124,26 +125,16 @@ Deno.test("callHttp pattern: POST with correct body shape", async () => {
       );
     };
 
-    // Simulate what callHttp does
-    const httpUrl = "https://api.example.com/mcp";
-    const namespace = "tavily";
-    const action = "search";
-    const args = { query: "test query" };
-
-    const response = await fetch(httpUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        method: `${namespace}:${action}`,
-        params: args,
-      }),
-    });
-
-    const data = await response.json();
+    const result = await callHttp(
+      "https://api.example.com/mcp",
+      "tavily",
+      "search",
+      { query: "test query" },
+    );
 
     assertEquals(capturedUrl, "https://api.example.com/mcp");
     assertEquals(capturedInit?.method, "POST");
-    assertEquals(data.result.data, "test-result");
+    assertEquals(result, { data: "test-result" });
 
     // Verify body shape
     const body = JSON.parse(capturedInit?.body as string);
@@ -154,7 +145,7 @@ Deno.test("callHttp pattern: POST with correct body shape", async () => {
   }
 });
 
-Deno.test("callHttp pattern: resolved headers are merged with Content-Type", async () => {
+Deno.test("callHttp: merges resolved env headers with Content-Type", async () => {
   const originalFetch = globalThis.fetch;
   const orig = Deno.env.get("TEST_TAVILY_KEY_CH");
 
@@ -172,15 +163,13 @@ Deno.test("callHttp pattern: resolved headers are merged with Content-Type", asy
       );
     };
 
-    // Simulate callHttp header resolution
-    const depHeaders = { "Authorization": "Bearer ${TEST_TAVILY_KEY_CH}" };
-    const resolvedHeaders = resolveEnvHeaders(depHeaders);
-
-    await fetch("https://api.example.com/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...resolvedHeaders },
-      body: "{}",
-    });
+    await callHttp(
+      "https://api.example.com/mcp",
+      "tavily",
+      "search",
+      {},
+      { "Authorization": "Bearer ${TEST_TAVILY_KEY_CH}" },
+    );
 
     assertEquals(capturedHeaders["Content-Type"], "application/json");
     assertEquals(capturedHeaders["Authorization"], "Bearer tvly-test123");
@@ -191,7 +180,7 @@ Deno.test("callHttp pattern: resolved headers are merged with Content-Type", asy
   }
 });
 
-Deno.test("callHttp pattern: HTTP error response handling", async () => {
+Deno.test("callHttp: throws LoaderError on HTTP error", async () => {
   const originalFetch = globalThis.fetch;
 
   try {
@@ -201,21 +190,17 @@ Deno.test("callHttp pattern: HTTP error response handling", async () => {
       );
     };
 
-    const response = await fetch("https://api.example.com/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
-
-    // callHttp would throw LoaderError here
-    assertEquals(response.ok, false);
-    assertEquals(response.status, 404);
+    await assertRejects(
+      () => callHttp("https://api.example.com/mcp", "tavily", "search", {}),
+      Error,
+      "HTTP dep tavily returned 404",
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-Deno.test("callHttp pattern: RPC error in response body", async () => {
+Deno.test("callHttp: throws LoaderError on RPC error in response body", async () => {
   const originalFetch = globalThis.fetch;
 
   try {
@@ -230,18 +215,48 @@ Deno.test("callHttp pattern: RPC error in response body", async () => {
       );
     };
 
-    const response = await fetch("https://api.example.com/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
-
-    const data = await response.json();
-
-    // callHttp checks data.error and throws
-    assertEquals(data.error.code, -32601);
-    assertEquals(data.error.message, "Method not found");
+    await assertRejects(
+      () => callHttp("https://api.example.com/mcp", "tavily", "search", {}),
+      Error,
+      "RPC error: Method not found",
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+Deno.test("callHttp: returns result field from response", async () => {
+  const originalFetch = globalThis.fetch;
+
+  try {
+    globalThis.fetch = (_input: string | URL | Request, _init?: RequestInit): Promise<Response> => {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ result: { content: [{ type: "text", text: "hello" }] } }),
+          { status: 200 },
+        ),
+      );
+    };
+
+    const result = await callHttp("https://api.example.com/mcp", "ns", "act", {});
+    assertEquals(result, { content: [{ type: "text", text: "hello" }] });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("callHttp: throws on missing env var in headers", async () => {
+  Deno.env.delete("NONEXISTENT_HTTP_KEY_999");
+
+  await assertRejects(
+    () => callHttp(
+      "https://api.example.com/mcp",
+      "ns",
+      "act",
+      {},
+      { "Authorization": "Bearer ${NONEXISTENT_HTTP_KEY_999}" },
+    ),
+    Error,
+    "Missing env var NONEXISTENT_HTTP_KEY_999",
+  );
 });

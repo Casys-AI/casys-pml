@@ -40,8 +40,8 @@ import {
   checkKeys,
   pauseForMissingKeys,
   reloadEnv,
-  resolveEnvHeaders,
 } from "../byok/mod.ts";
+import { callHttp } from "./call-http.ts";
 // Note: getRequiredKeys removed - now using metadata.install.envRequired from registry
 import { LockfileManager } from "../lockfile/mod.ts";
 import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
@@ -1263,7 +1263,16 @@ export class CapabilityLoader {
 
     // HTTP-type deps: client-side fetch (no subprocess needed)
     if (dep && dep.type === "http") {
-      return this.callHttp(dep, namespace, action, args);
+      const url = dep.httpUrl;
+      if (!url) {
+        throw new LoaderError(
+          "HTTP_CALL_FAILED",
+          `HTTP dep ${namespace} missing httpUrl — cannot execute client-side`,
+          { namespace, dep: dep.name },
+        );
+      }
+      logDebug(`HTTP call: ${namespace}:${action} → ${url}`);
+      return callHttp(url, namespace, action, args, dep.httpHeaders ?? {});
     }
 
     // Check routing configuration
@@ -1343,69 +1352,6 @@ export class CapabilityLoader {
     });
 
     return result;
-  }
-
-  /**
-   * Call an HTTP-type dependency via direct fetch().
-   *
-   * Executes a client-side HTTP request to an external MCP API.
-   * Env var references in headers are resolved via resolveEnvHeaders().
-   * Traces are automatically collected by the existing onRpc handler.
-   *
-   * @param dep - The HTTP-type McpDependency
-   * @param namespace - MCP namespace (e.g., "tavily")
-   * @param action - Action name (e.g., "search")
-   * @param args - Tool arguments
-   * @returns The result from the HTTP endpoint
-   */
-  private async callHttp(
-    dep: McpDependency,
-    namespace: string,
-    action: string,
-    args: unknown,
-  ): Promise<unknown> {
-    const url = dep.httpUrl;
-    if (!url) {
-      throw new LoaderError(
-        "HTTP_CALL_FAILED",
-        `HTTP dep ${namespace} missing httpUrl — cannot execute client-side`,
-        { namespace, dep: dep.name },
-      );
-    }
-
-    logDebug(`HTTP call: ${namespace}:${action} → ${url}`);
-
-    // Resolve env var references in headers (fail-fast if missing)
-    const headers = resolveEnvHeaders(dep.httpHeaders ?? {});
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
-      body: JSON.stringify({
-        method: `${namespace}:${action}`,
-        params: args,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new LoaderError(
-        "HTTP_CALL_FAILED",
-        `HTTP dep ${namespace} returned ${response.status}: ${response.statusText}`,
-        { namespace, action, status: response.status },
-      );
-    }
-
-    const data = await response.json();
-
-    if (data.error) {
-      throw new LoaderError(
-        "HTTP_CALL_FAILED",
-        `HTTP dep ${namespace} RPC error: ${data.error.message ?? JSON.stringify(data.error)}`,
-        { namespace, action, error: data.error },
-      );
-    }
-
-    return data.result;
   }
 
   /**

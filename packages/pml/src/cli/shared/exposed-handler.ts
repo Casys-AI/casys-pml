@@ -19,10 +19,11 @@ import { executeLocalCode } from "./local-executor.ts";
 import { buildMcpLocalResult } from "./response-builder.ts";
 import AjvModule from "ajv";
 
-// Singleton AJV instance for schema validation
+// Singleton AJV instance with compiled schema cache
 // deno-lint-ignore no-explicit-any
 const Ajv = (AjvModule as any).default ?? AjvModule;
 const ajv = new Ajv({ allErrors: true, strict: false });
+const schemaCache = new Map<string, ReturnType<typeof ajv.compile>>();
 
 /**
  * Result of handling an exposed capability call.
@@ -87,7 +88,11 @@ export async function handleExposedCall(
 
   // Validate args against inputSchema before sending to cloud
   if (cap.inputSchema && Object.keys(cap.inputSchema).length > 0) {
-    const validate = ajv.compile(cap.inputSchema);
+    let validate = schemaCache.get(cap.fqdn);
+    if (!validate) {
+      validate = ajv.compile(cap.inputSchema);
+      schemaCache.set(cap.fqdn, validate);
+    }
     if (!validate(ctx.args ?? {})) {
       const errors = (validate.errors ?? [])
         .map((e: { instancePath: string; message?: string }) =>
