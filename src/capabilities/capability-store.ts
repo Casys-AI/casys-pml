@@ -24,6 +24,7 @@ import {
   type PermissionSet,
   type SaveCapabilityInput,
   type StaticStructure,
+  type UiOrchestrationConfig,
 } from "./types.ts";
 import { ExecutionTraceStore } from "./execution-trace-store.ts";
 import { CapabilityDependencyStore } from "./capability-dependency-store.ts";
@@ -587,7 +588,13 @@ export class CapabilityStore {
    */
   async findByCodeHash(codeHash: string): Promise<Capability | null> {
     const result = await this.db.query(
-      `SELECT * FROM workflow_pattern WHERE code_hash = $1`,
+      `SELECT wp.*,
+              COALESCE(cr.namespace || ':' || cr.action, cr.id::text) as display_name,
+              cr.id as fqdn,
+              cr.ui_orchestration
+       FROM workflow_pattern wp
+       LEFT JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+       WHERE wp.code_hash = $1`,
       [codeHash],
     );
 
@@ -837,7 +844,8 @@ export class CapabilityStore {
     const result = await this.db.query(
       `SELECT wp.*,
               COALESCE(cr.namespace || ':' || cr.action, cr.id::text) as display_name,
-              cr.id as fqdn
+              cr.id as fqdn,
+              cr.ui_orchestration
        FROM workflow_pattern wp
        LEFT JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
        WHERE wp.pattern_id = $1`,
@@ -937,6 +945,12 @@ export class CapabilityStore {
       riskCategory: toolsUsed ? calculateCapabilityRisk(toolsUsed) : "safe",
       // Story 10.1: Hierarchy level from DB (0=leaf, 1+=meta-capability)
       hierarchyLevel: (row.hierarchy_level as number) ?? 0,
+      // Story 16.3: UI orchestration for composite generation
+      uiOrchestration: row.ui_orchestration
+        ? (typeof row.ui_orchestration === "string"
+          ? JSON.parse(row.ui_orchestration)
+          : row.ui_orchestration) as UiOrchestrationConfig
+        : undefined,
     };
   }
 

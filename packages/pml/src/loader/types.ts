@@ -154,10 +154,10 @@ export interface CapabilityMetadata {
 export interface McpDependency {
   /** MCP namespace (e.g., "memory", "serena") */
   name: string;
-  /** Transport type - always "stdio" for npm deps */
-  type: "stdio";
-  /** Install command (e.g., "npx @mcp/server-memory@1.2.3") */
-  install: string;
+  /** Transport type: "stdio" for npm subprocess deps, "http" for direct HTTP API deps */
+  type: "stdio" | "http";
+  /** Install command (e.g., "npx @mcp/server-memory@1.2.3") — required for stdio type, unused for http */
+  install?: string;
   /** Pinned version */
   version: string;
   /** sha256 hash for integrity verification */
@@ -170,6 +170,12 @@ export interface McpDependency {
   args?: string[];
   /** Optional: environment variables to pass to the process */
   env?: Record<string, string>;
+  /** Base URL for HTTP MCP endpoint (required for http type) */
+  httpUrl?: string;
+  /** Headers template — env vars referenced as ${VAR} (e.g., {"Authorization": "Bearer ${TAVILY_API_KEY}"}) */
+  httpHeaders?: Record<string, string>;
+  /** OAuth authorization URL — if set, triggers oauth_connect approval instead of api_key_required */
+  authUrl?: string;
 }
 
 // ============================================================================
@@ -352,6 +358,7 @@ export type LoaderErrorCode =
   | "SUBPROCESS_SPAWN_FAILED"
   | "SUBPROCESS_CALL_FAILED"
   | "SUBPROCESS_TIMEOUT"
+  | "HTTP_CALL_FAILED" // HTTP-type dep: fetch() or RPC error
   | "VALIDATION_ERROR"; // Arguments don't match parametersSchema
 
 /**
@@ -435,7 +442,7 @@ export interface ExecutionContext {
  * - "api_key_required": API key missing, user needs to configure .env
  * - "integrity": Integrity hash changed, user needs to approve update (Story 14.7)
  */
-export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity";
+export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity" | "oauth_connect";
 
 /**
  * Result when a tool requires user permission to execute.
@@ -504,12 +511,35 @@ export interface ApiKeyApprovalRequired {
 }
 
 /**
+ * Result when an HTTP dep requires OAuth authentication.
+ *
+ * The MCP client displays the authUrl to the user, who authenticates
+ * externally and stores credentials in .env. Then continue_workflow
+ * resumes execution. Same UX pattern as api_key_required.
+ */
+export interface OAuthConnectApprovalRequired {
+  /** True when approval is required */
+  approvalRequired: true;
+  /** Discriminant for approval type */
+  approvalType: "oauth_connect";
+  /** Workflow ID for continuation tracking */
+  workflowId: string;
+  /** Tool ID requesting authentication */
+  toolId: string;
+  /** URL where the user authenticates externally */
+  authUrl: string;
+  /** Human-readable description for the user */
+  description: string;
+}
+
+/**
  * Union of all approval-required results.
  */
 export type ApprovalRequiredResult =
   | ToolPermissionApprovalRequired
   | DependencyApprovalRequired
-  | ApiKeyApprovalRequired;
+  | ApiKeyApprovalRequired
+  | OAuthConnectApprovalRequired;
 
 /**
  * Successful load result with capability.

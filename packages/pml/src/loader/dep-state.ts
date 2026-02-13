@@ -171,7 +171,7 @@ export class DepState {
       version: dep.version,
       integrity,
       installedAt: new Date().toISOString(),
-      installCommand: dep.install,
+      installCommand: dep.install ?? "",
       installPath,
     };
 

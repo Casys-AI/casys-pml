@@ -41,8 +41,32 @@
   }
 }
 
-/* CSS Variables for light/dark theming */
+/* CSS Variables - Casys Design System (Dark-first)
+ * Dark mode is the default since Casys is a dark-first design system.
+ * Use .light class to override with light theme if needed.
+ */
 :root {
+  /* Casys Design System - Dark Theme (Default) */
+  --fg-default: #f5f0ea;           /* pml-text */
+  --fg-muted: #d5c3b5;             /* pml-text-muted */
+  --fg-dim: #8a8078;               /* pml-text-dim */
+  --bg-canvas: #0a0908;            /* pml-bg */
+  --bg-subtle: #12110f;            /* pml-bg-elevated */
+  --bg-muted: #1a1816;             /* pml-bg-surface */
+  --border-default: rgba(255, 184, 111, 0.1);   /* pml-border */
+  --border-subtle: rgba(255, 184, 111, 0.06);
+  --border-strong: rgba(255, 184, 111, 0.2);   /* pml-border-strong */
+  --accent: #ffb86f;               /* pml-accent - golden yellow */
+  --accent-dim: rgba(255, 184, 111, 0.1);
+  --accent-medium: rgba(255, 184, 111, 0.2);
+  --success: #4ade80;              /* pml-success */
+  --warning: #fbbf24;              /* pml-warning */
+  --error: #f87171;                /* pml-error */
+  --info: #60a5fa;                 /* pml-info */
+}
+
+/* Light theme override (optional) */
+.light {
   --fg-default: #1a1a1a;
   --fg-muted: #6b7280;
   --fg-dim: #9ca3af;
@@ -61,24 +85,24 @@
   --info: #3b82f6;
 }
 
+/* Keep .dark class for compatibility */
 .dark {
-  /* Casys Design System - Dark Theme */
-  --fg-default: #f5f0ea;           /* pml-text */
-  --fg-muted: #d5c3b5;             /* pml-text-muted */
-  --fg-dim: #8a8078;               /* pml-text-dim */
-  --bg-canvas: #0a0908;            /* pml-bg */
-  --bg-subtle: #12110f;            /* pml-bg-elevated */
-  --bg-muted: #1a1816;             /* pml-bg-surface */
-  --border-default: rgba(255, 184, 111, 0.1);   /* pml-border */
+  --fg-default: #f5f0ea;
+  --fg-muted: #d5c3b5;
+  --fg-dim: #8a8078;
+  --bg-canvas: #0a0908;
+  --bg-subtle: #12110f;
+  --bg-muted: #1a1816;
+  --border-default: rgba(255, 184, 111, 0.1);
   --border-subtle: rgba(255, 184, 111, 0.06);
-  --border-strong: rgba(255, 184, 111, 0.2);   /* pml-border-strong */
-  --accent: #ffb86f;               /* pml-accent - jaune doré */
+  --border-strong: rgba(255, 184, 111, 0.2);
+  --accent: #ffb86f;
   --accent-dim: rgba(255, 184, 111, 0.1);
   --accent-medium: rgba(255, 184, 111, 0.2);
-  --success: #4ade80;              /* pml-success */
-  --warning: #fbbf24;              /* pml-warning */
-  --error: #f87171;                /* pml-error */
-  --info: #60a5fa;                 /* pml-info */
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --info: #60a5fa;
 }
 
 /* Base styles */

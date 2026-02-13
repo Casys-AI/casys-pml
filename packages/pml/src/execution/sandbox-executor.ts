@@ -8,18 +8,15 @@
  * - Package-side execution when server returns `execute_locally`
  * - CapabilityLoader for sandboxed capability execution
  *
- * ## UI Collection Architecture (Story 16.6)
+ * ## UI Collection (Story 16.3 — re-wired Epic 16)
  *
- * UI collection is NOT done in the sandbox executor. According to MCP Apps spec (SEP-1865),
- * `_meta.ui.resourceUri` is defined in `tools/list` (tool definition), not in `tools/call`
- * (tool response). Therefore:
+ * Per SEP-1865, both `tools/list` (static) and `tools/call` (dynamic) can carry
+ * `_meta.ui`. The sandbox collects UI metadata from tool call responses using
+ * `extractUiMeta()`. This enables the package-side MCP path (Option B) to
+ * return `_meta.ui` to clients (Claude Desktop, Cursor, etc.).
  *
- * 1. **Sandbox executor** - Pure execution, returns `toolsCalled` and `toolCallRecords`
- * 2. **Server-side collector** - Looks up `tool_schema.ui_meta` (from discovery) to build
- *    `CollectedUiResource[]` based on which tools were called
- *
- * This separation keeps the sandbox simple and avoids coupling with the database layer.
- * See `src/services/ui-collector.ts` for the server-side collection logic.
+ * Server-side collection via `UiCollector` handles the dashboard path (Option A)
+ * separately — no duplication.
  *
  * @module execution/sandbox-executor
  */
@@ -36,6 +33,8 @@ import type {
   ToolCallHandler,
   ToolCallRecord,
 } from "./types.ts";
+import { extractUiMeta } from "./ui-utils.ts";
+import type { CollectedUiResource } from "../types/ui-orchestration.ts";
 
 /**
  * Log debug message for sandbox operations.
@@ -54,6 +53,8 @@ interface RpcCallContext {
   fqdnMap: Map<string, string> | undefined;
   toolsCalled: string[];
   toolCallRecords: ToolCallRecord[];
+  /** Story 16.3: UI resources collected from tool responses */
+  collectedUi: CollectedUiResource[];
 }
 
 /**
@@ -113,6 +114,7 @@ export class SandboxExecutor {
 
     const toolsCalled: string[] = [];
     const toolCallRecords: ToolCallRecord[] = [];
+    const collectedUi: CollectedUiResource[] = [];
     const startTime = Date.now();
 
     // Create sandbox with hybrid RPC handler
@@ -124,6 +126,7 @@ export class SandboxExecutor {
           fqdnMap,
           toolsCalled,
           toolCallRecords,
+          collectedUi,
         });
       },
       executionTimeoutMs: this.executionTimeoutMs,
@@ -135,6 +138,9 @@ export class SandboxExecutor {
 
       const durationMs = Date.now() - startTime;
 
+      // Story 16.3: Only include collectedUi when non-empty (tests expect absent, not empty array)
+      const uiResult = collectedUi.length > 0 ? { collectedUi } : {};
+
       if (!result.success) {
         logDebug(`Sandbox execution failed: ${result.error?.message}`);
         return {
@@ -144,12 +150,11 @@ export class SandboxExecutor {
           toolsCalled,
           toolCallRecords,
           traceId,
+          ...uiResult,
         };
       }
 
       logDebug(`Sandbox execution completed in ${durationMs}ms`);
-      // Note: UI collection is done server-side based on toolsCalled + tool_schema.ui_meta
-      // See Story 16.6 architecture comment at top of file
       return {
         success: true,
         value: result.value,
@@ -157,6 +162,7 @@ export class SandboxExecutor {
         toolsCalled,
         toolCallRecords,
         traceId,
+        ...uiResult,
       };
     } finally {
       sandbox.shutdown();
@@ -165,11 +171,10 @@ export class SandboxExecutor {
 
   /**
    * Handle an RPC call from the sandbox worker.
-   * Routes the tool call and records execution metrics.
+   * Routes the tool call, records execution metrics, and collects UI metadata.
    *
-   * Note: UI collection is NOT done here. Per MCP Apps spec (SEP-1865), `_meta.ui`
-   * is in `tools/list` not `tools/call`. UI collection happens server-side by
-   * looking up `tool_schema.ui_meta` based on `toolsCalled`.
+   * Story 16.3: After each tool call, extracts `_meta.ui` from the response
+   * and builds a `CollectedUiResource` with source, resourceUri, context + _args.
    */
   private async handleRpcCall(
     method: string,
@@ -196,6 +201,19 @@ export class SandboxExecutor {
         success,
         durationMs: Date.now() - callStart,
       });
+    }
+
+    // Story 16.3: Collect _meta.ui from tool response if present
+    if (success) {
+      const uiMeta = extractUiMeta(result);
+      if (uiMeta) {
+        ctx.collectedUi.push({
+          source: method,
+          resourceUri: uiMeta.resourceUri,
+          context: { ...uiMeta.context, _args: args },
+          slot: ctx.collectedUi.length,
+        });
+      }
     }
 
     return result;

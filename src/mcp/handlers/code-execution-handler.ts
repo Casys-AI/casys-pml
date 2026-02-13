@@ -7,6 +7,11 @@
  * Story 10.5: Execute code via inferred DAG for per-layer validation,
  * parallel execution, checkpoints, and SSE streaming.
  *
+ * @deprecated Use `execute` tool (ExecuteHandlerFacade / ExecuteDirectUseCase) instead.
+ * This handler is kept for backward compatibility only. All new features
+ * (UI collection, composite generation, hybrid routing) are wired in the
+ * unified `execute` path, NOT here.
+ *
  * @module mcp/handlers/code-execution-handler
  */
 

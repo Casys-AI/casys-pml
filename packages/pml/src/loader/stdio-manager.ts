@@ -77,8 +77,8 @@ function parseCommand(dep: McpDependency): { cmd: string; args: string[] } {
     };
   }
 
-  // Parse from install command
-  const parts = dep.install.trim().split(/\s+/);
+  // Parse from install command (always present for stdio deps)
+  const parts = (dep.install ?? "").trim().split(/\s+/);
   return {
     cmd: parts[0],
     args: parts.slice(1),

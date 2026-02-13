@@ -3,23 +3,19 @@
  *
  * Types for the SandboxExecutor module.
  *
- * ## UI Collection Architecture (Story 16.6)
+ * ## UI Collection (Story 16.3 — re-wired Epic 16)
  *
- * The sandbox executor does NOT collect UI metadata. Per MCP Apps spec (SEP-1865),
- * `_meta.ui.resourceUri` is defined in `tools/list` (during discovery), not in
- * `tools/call` responses.
+ * The sandbox executor collects `_meta.ui` from MCP tool responses at execution time.
+ * Both `tools/list` (discovery-time, static) and `tools/call` (execution-time, dynamic)
+ * can carry UI metadata per SEP-1865. The sandbox collects the dynamic path.
  *
- * UI collection happens **server-side** after execution:
- * 1. Sandbox returns `toolsCalled[]` (list of tool IDs that were invoked)
- * 2. Server looks up `tool_schema.ui_meta` for each called tool
- * 3. Server builds `CollectedUiResource[]` for tools that have UI
- *
- * See `src/services/ui-collector.ts` for the server-side implementation.
+ * Server-side `UiCollector` handles the dashboard (Option A) path separately.
  *
  * @module execution/types
  */
 
 import type { SandboxError } from "../sandbox/mod.ts";
+import type { CollectedUiResource } from "../types/ui-orchestration.ts";
 
 /**
  * Record of a single tool call during execution.
@@ -40,8 +36,8 @@ export interface ToolCallRecord {
 /**
  * Result from sandbox code execution.
  *
- * Note: UI collection is NOT included here. It's done server-side based on
- * `toolsCalled` + `tool_schema.ui_meta`. See module docs for details.
+ * Includes `collectedUi` when at least one tool returned `_meta.ui`
+ * in its response (Story 16.3). Undefined (not present) when no UI collected.
  */
 export interface SandboxExecutionResult {
   /** Whether execution succeeded */
@@ -54,13 +50,18 @@ export interface SandboxExecutionResult {
   durationMs: number;
   /**
    * Tools called during execution (for tracing and UI collection).
-   * Used by server-side UI collector to look up which tools have UIs.
    */
   toolsCalled?: string[];
   /** Detailed records of each tool call */
   toolCallRecords?: ToolCallRecord[];
   /** Trace ID for this execution (for parent-child linking) */
   traceId: string;
+  /**
+   * UI resources collected from tool responses during execution.
+   * Present only when at least one tool returned `_meta.ui`.
+   * Story 16.3: collected in-sandbox via `extractUiMeta()`.
+   */
+  collectedUi?: CollectedUiResource[];
 }
 
 /**

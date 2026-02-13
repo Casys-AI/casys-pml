@@ -7,6 +7,7 @@
  */
 
 import type { ToolCallRecord } from "../../execution/types.ts";
+import type { CollectedUiResource } from "../../types/ui-orchestration.ts";
 import type {
   ApprovalRequiredResult,
   IntegrityApprovalRequired,
@@ -22,7 +23,7 @@ import type {
  * - Approval required (HIL pause for dependency/API key/integrity)
  */
 export type LocalExecutionResult =
-  | { status: "success"; result: unknown; durationMs: number; toolCallRecords: ToolCallRecord[] }
+  | { status: "success"; result: unknown; durationMs: number; toolCallRecords: ToolCallRecord[]; collectedUi?: CollectedUiResource[] }
   | { status: "error"; error: string }
   | { status: "approval_required"; approval: ApprovalRequiredResult | IntegrityApprovalRequired; toolId: string };
 
@@ -77,6 +78,11 @@ export interface ExecuteLocallyResponse {
   workflowId?: string;
   /** Story 11.4: DAG with layerIndex for TraceTimeline */
   dag?: ExecuteLocallyDAG;
+  /** Story 16.3: UI orchestration for composite generation (from capability_records) */
+  ui_orchestration?: {
+    layout: "split" | "tabs" | "grid" | "stack";
+    sync?: Array<{ from: string; event: string; to: string; action: string }>;
+  };
 }
 
 /**

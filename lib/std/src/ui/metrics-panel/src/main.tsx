@@ -282,7 +282,22 @@ function MetricsPanel() {
           } else if (parsed.metrics) {
             setData(parsed);
           } else {
-            setData({ metrics: [{ id: "metric", label: "Value", ...parsed }] });
+            // Flat object → convert each key/value into a metric
+            const entries = Object.entries(parsed).filter(
+              ([, v]) => typeof v === "number" || typeof v === "string"
+            );
+            if (entries.length > 0) {
+              setData({
+                metrics: entries.map(([key, val]) => ({
+                  id: key,
+                  label: key.replace(/([A-Z])/g, " $1").replace(/[_-]/g, " ").trim(),
+                  value: typeof val === "number" ? val : 0,
+                  type: "stat" as const,
+                })),
+              });
+            } else {
+              setData({ metrics: [{ id: "result", label: "Result", value: 0, type: "stat" }] });
+            }
           }
         }
       } catch (e) {

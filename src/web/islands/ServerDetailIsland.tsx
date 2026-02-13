@@ -658,10 +658,16 @@ function UiPreviewWithBridge({
       iframe.contentWindow,
     );
 
-    bridge.connect(transport).then(() => {
-      console.log(`[UiPreviewWithBridge] Bridge connected, loading iframe`);
-      // Set iframe src after bridge is ready
-      iframe.src = `/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`;
+    bridge.connect(transport).then(async () => {
+      console.log(`[UiPreviewWithBridge] Bridge connected, fetching HTML`);
+      try {
+        const resp = await fetch(`/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        iframe.srcdoc = await resp.text();
+      } catch (fetchErr) {
+        console.error(`[UiPreviewWithBridge] Failed to fetch UI HTML:`, fetchErr);
+        setStatus("error");
+      }
     }).catch((err) => {
       console.error(`[UiPreviewWithBridge] Bridge error:`, err);
       setStatus("error");
@@ -688,7 +694,7 @@ function UiPreviewWithBridge({
       <iframe
         ref={iframeRef}
         title={`UI Preview: ${toolName}`}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
         class="w-full h-full min-h-[280px] border-none bg-[#1a1a1a]"
       />
       {status === "loading" && (

@@ -143,6 +143,8 @@ export async function executeLocalCode(
       result: result.value,
       durationMs: result.durationMs,
       toolCallRecords: result.toolCallRecords ?? [],
+      // Story 16.3: Propagate collected UIs from sandbox to MCP response layer
+      ...(result.collectedUi ? { collectedUi: result.collectedUi } : {}),
     };
   } catch (error) {
     // Check if this was an approval_required that bubbled up

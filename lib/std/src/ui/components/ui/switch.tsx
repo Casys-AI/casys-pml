@@ -101,10 +101,10 @@ export function Root({
             className={cx(
               styles.track,
               "rounded-full transition-colors duration-200",
-              "peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2",
+              "peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2",
               checked
-                ? "bg-blue-600"
-                : "bg-gray-200 dark:bg-gray-700"
+                ? "bg-accent"
+                : "bg-bg-muted"
             )}
           >
             <span
@@ -139,7 +139,7 @@ export function Label({ children, className, ...rest }: SwitchLabelProps) {
   return (
     <span
       className={cx(
-        "text-sm text-gray-900 dark:text-white",
+        "text-sm text-fg-default",
         disabled && "opacity-50",
         className
       )}
@@ -162,7 +162,7 @@ export function Control({ children, className, ...rest }: SwitchControlProps) {
     <span
       className={cx(
         "relative inline-flex w-9 h-5 rounded-full transition-colors duration-200",
-        checked ? "bg-blue-600" : "bg-gray-200 dark:bg-gray-700",
+        checked ? "bg-accent" : "bg-bg-muted",
         className
       )}
       {...rest}

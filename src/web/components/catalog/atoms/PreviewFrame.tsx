@@ -139,9 +139,15 @@ export default function PreviewFrame({
       iframe.contentWindow,
     );
 
-    bridge.connect(transport).then(() => {
-      // Set iframe src after bridge is ready
-      iframe.src = `/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`;
+    bridge.connect(transport).then(async () => {
+      try {
+        const resp = await fetch(`/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        iframe.srcdoc = await resp.text();
+      } catch (fetchErr) {
+        console.error(`[PreviewFrame] Failed to fetch UI HTML:`, fetchErr);
+        setStatus("error");
+      }
     }).catch((err) => {
       console.error(`[PreviewFrame] Bridge error:`, err);
       setStatus("error");
@@ -203,7 +209,7 @@ export default function PreviewFrame({
         <iframe
           ref={iframeRef}
           title={`Preview: ${resourceUri}`}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           style={{
             width: "100%",
             height: "100%",

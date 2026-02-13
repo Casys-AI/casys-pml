@@ -1,4 +1,4 @@
-# MCP Apps UI Components
+ MCP Apps UI Components
 
 This directory contains 40+ interactive UI components for MiniTools, built with **Preact** and **Tailwind CSS v4**. Each component is compiled into a single self-contained HTML file for use with the MCP Apps extension (SEP-1865).
 

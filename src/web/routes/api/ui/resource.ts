@@ -14,6 +14,10 @@
 import { Handlers } from "$fresh/server.ts";
 import { ensureUiCacheReady } from "../../../../services/ui-cache-service.ts";
 import { generateStandalonePreview } from "../../../data/ui-mock-data.ts";
+import { buildCspHeader } from "../../../../../lib/server/src/security/csp.ts";
+
+/** CSP header for MCP App iframes (deny-all baseline, allow inline + self) */
+const MCP_APP_CSP = buildCspHeader({ allowInline: true });
 
 /**
  * Script injected into all MCP App iframes to report their height to parent.
@@ -133,6 +137,9 @@ export const handler: Handlers = {
             "X-Server-Id": cached.serverId,
             "X-Preview-Mode": "true",
             "Cache-Control": "no-cache",
+            "Content-Security-Policy": MCP_APP_CSP,
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "SAMEORIGIN",
           },
         });
       }
@@ -146,7 +153,7 @@ export const handler: Handlers = {
         ? "no-cache, no-store, must-revalidate"
         : "public, max-age=3600";
 
-      // Return HTML content with auto-resize
+      // Return HTML content with auto-resize and security headers
       return new Response(content, {
         status: 200,
         headers: {
@@ -156,6 +163,9 @@ export const handler: Handlers = {
           "X-Cached-At": new Date(cached.cachedAt).toISOString(),
           "X-Preview-Mode": isPreview ? "true" : "false",
           "Cache-Control": cacheControl,
+          "Content-Security-Policy": MCP_APP_CSP,
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
         },
       });
     } catch (error) {

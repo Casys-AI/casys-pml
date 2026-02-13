@@ -50,6 +50,8 @@ export interface CreateCapabilityRecordInput {
   routing?: CapabilityRouting;
   /** Tools used by this capability (Story 13.9 - routing inference) */
   toolsUsed?: string[];
+  /** UI orchestration config (default: stack layout — DB DEFAULT handles it if not provided) */
+  uiOrchestration?: { layout: string; sync?: unknown[] };
 }
 
 /**
@@ -93,16 +95,19 @@ export class CapabilityRegistry {
       `
       INSERT INTO capability_records (
         org, project, namespace, action, hash,
-        workflow_pattern_id, user_id, created_at, visibility, routing, tags
+        workflow_pattern_id, user_id, created_at, visibility, routing, tags,
+        ui_orchestration
       ) VALUES (
         $1, $2, $3, $4, $5,
-        $6, $7, $8, $9, $10, $11
+        $6, $7, $8, $9, $10, $11,
+        COALESCE($12::jsonb, '{"layout":"stack","sync":[]}'::jsonb)
       )
       ON CONFLICT (org, project, namespace, action, hash) DO UPDATE SET
         workflow_pattern_id = EXCLUDED.workflow_pattern_id,
         updated_at = NOW(),
         version = capability_records.version + 1,
-        tags = EXCLUDED.tags
+        tags = EXCLUDED.tags,
+        ui_orchestration = COALESCE(EXCLUDED.ui_orchestration, capability_records.ui_orchestration)
       RETURNING id
     `,
       [
@@ -117,6 +122,7 @@ export class CapabilityRegistry {
         input.visibility || "private",
         resolveRouting(input.toolsUsed || [], input.routing),
         input.tags || [],
+        input.uiOrchestration ?? null,
       ],
     );
 

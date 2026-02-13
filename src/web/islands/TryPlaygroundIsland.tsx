@@ -745,8 +745,12 @@ function WidgetFrame({ widget, onRemove, onAgentMessage }: WidgetFrameProps) {
         iframe.contentWindow
       );
 
-      bridge.connect(transport).then(() => {
-        iframe.src = `/api/ui/resource?uri=${encodeURIComponent(widget.resourceUri)}`;
+      bridge.connect(transport).then(async () => {
+        try {
+          const resp = await fetch(`/api/ui/resource?uri=${encodeURIComponent(widget.resourceUri)}`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          iframe.srcdoc = await resp.text();
+        } catch { setStatus("error"); }
       }).catch(() => {
         setStatus("error");
       });
@@ -861,7 +865,7 @@ function WidgetFrame({ widget, onRemove, onAgentMessage }: WidgetFrameProps) {
         <iframe
           ref={iframeRef}
           class="w-full h-full border-0"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           style={{ pointerEvents: isDragging || isResizing ? "none" : "auto" }}
         />
         {agentLoading && (

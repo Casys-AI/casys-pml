@@ -115,8 +115,12 @@ function UiPreviewWithBridge({
       iframe.contentWindow,
     );
 
-    bridge.connect(transport).then(() => {
-      iframe.src = `/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`;
+    bridge.connect(transport).then(async () => {
+      try {
+        const resp = await fetch(`/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        iframe.srcdoc = await resp.text();
+      } catch { setStatus("error"); }
     }).catch(() => {
       setStatus("error");
     });
@@ -141,7 +145,7 @@ function UiPreviewWithBridge({
       <iframe
         ref={iframeRef}
         title={`UI Preview: ${toolName}`}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
         class="tdp-iframe"
         style={iframeHeight ? { height: `${iframeHeight}px`, minHeight: "unset" } : undefined}
       />

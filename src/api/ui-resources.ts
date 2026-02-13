@@ -19,6 +19,10 @@ import {
   createMcpResourceFetcher,
   parseResourceUri,
 } from "../services/mcp-resource-fetcher.ts";
+import { buildCspHeader } from "../../lib/server/src/security/csp.ts";
+
+/** CSP header for MCP App iframes (deny-all baseline, allow inline + self) */
+const MCP_APP_CSP = buildCspHeader({ allowInline: true });
 
 /**
  * GET /api/ui/resource?uri=ui://std/docker_ps
@@ -128,7 +132,7 @@ export async function handleUiResourceGet(
 
     log.debug(`[API /ui/resource] Serving UI: ${resourceUri}`);
 
-    // Return HTML content
+    // Return HTML content with security headers
     return new Response(result.content, {
       status: 200,
       headers: {
@@ -136,12 +140,9 @@ export async function handleUiResourceGet(
         "Content-Type": result.mimeType,
         "X-Resource-Uri": resourceUri,
         "X-Server-Id": serverId,
-        // Allow embedding in iframes
+        "Content-Security-Policy": MCP_APP_CSP,
+        "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "SAMEORIGIN",
-        // Restrict what embedded UI can do (inline scripts/styles OK, no external resources)
-        "Content-Security-Policy":
-          "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:;",
-        // Cache for 5 minutes on client
         "Cache-Control": "private, max-age=300",
       },
     });

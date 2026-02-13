@@ -35,11 +35,14 @@ import {
   normalizeToolId,
   type RoutingDbClient,
 } from "../../../capabilities/routing-resolver.ts";
+import { isPureOperation } from "../../../capabilities/pure-operations.ts";
 import { getUserScope, resolveToolFqdn } from "../../../lib/user.ts";
 import { saveWorkflowState } from "../../../cache/workflow-state-cache.ts";
 import type { LearningContext } from "../../../cache/types.ts";
 import { computeLayerIndexForTasks } from "../../../dag/mod.ts";
 import { uuidv7 } from "../../../utils/uuid.ts";
+import { hashSemanticStructure } from "../../../capabilities/hash.ts";
+import type { UiOrchestrationConfig } from "../../../capabilities/types/capability.ts";
 
 // ============================================================================
 // Interfaces (Clean Architecture - no concrete imports)
@@ -314,11 +317,13 @@ export class ExecuteDirectUseCase {
       });
 
       // Step 5.5: Hybrid routing check (Story 14 - PML Execute Hybrid Routing)
-      // Extract all tools/capabilities from tasks (exclude pseudo-tools like code:add)
+      // Extract all tools/capabilities from tasks, excluding JS code operations
+      // (code:filter, code:map, code:add etc.) which are handled in-process by the executor.
+      // Note: code:exec_* capabilities are NOT pure operations and must be routed normally.
       // Normalize tool IDs: mcp.server.action -> server:action for routing lookup
       const toolsUsed = optimizedDAG.tasks
         .map((t) => (t as { tool?: string }).tool)
-        .filter((t): t is string => !!t && !t.startsWith("code:"))
+        .filter((t): t is string => !!t && !isPureOperation(t))
         .map(normalizeToolId);
 
       if (toolsUsed.length > 0) {
@@ -414,6 +419,16 @@ export class ExecuteDirectUseCase {
               toolsUsed: toolsWithFqdn,
             });
 
+            // Story 16.3: Lookup ui_orchestration for existing capabilities (re-executions)
+            let uiOrchestration: UiOrchestrationConfig | undefined;
+            try {
+              const codeHash = await hashSemanticStructure(staticStructure);
+              const existing = await this.deps.capabilityRepo.findByCodeHash(codeHash);
+              uiOrchestration = existing?.uiOrchestration;
+            } catch {
+              log.debug("[ExecuteDirectUseCase] ui_orchestration lookup skipped");
+            }
+
             return {
               success: true,
               data: {
@@ -424,6 +439,7 @@ export class ExecuteDirectUseCase {
                 clientTools,
                 workflowId,
                 executionTimeMs: performance.now() - startTime,
+                ...(uiOrchestration ? { uiOrchestration } : {}),
                 dag: {
                   mode: "dag",
                   tasksCount: logicalDAG.tasks.length,

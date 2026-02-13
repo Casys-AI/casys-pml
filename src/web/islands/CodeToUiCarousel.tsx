@@ -781,8 +781,12 @@ function UiPreviewItem({ resourceUri, mockData, size = "medium", index }: UiPrev
       iframe.contentWindow,
     );
 
-    bridge.connect(transport).then(() => {
-      iframe.src = `/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`;
+    bridge.connect(transport).then(async () => {
+      try {
+        const resp = await fetch(`/api/ui/resource?uri=${encodeURIComponent(resourceUri)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        iframe.srcdoc = await resp.text();
+      } catch { setStatus("error"); }
     }).catch(() => {
       setStatus("error");
     });
@@ -831,7 +835,7 @@ function UiPreviewItem({ resourceUri, mockData, size = "medium", index }: UiPrev
       <iframe
         ref={iframeRef}
         title="UI Preview"
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
         style={{
           width: "100%",
           height: "100%",

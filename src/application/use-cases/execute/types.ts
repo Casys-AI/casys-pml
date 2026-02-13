@@ -92,6 +92,8 @@ export interface ExecuteDirectResult {
   clientTools?: string[];
   /** Workflow ID for correlating client execution with server capability creation */
   workflowId?: string;
+  /** UI orchestration config from existing capability (Story 16.3) */
+  uiOrchestration?: { layout: string; sync?: Array<{ from: string; event: string; to: string; action: string }> };
 }
 
 // ============================================================================

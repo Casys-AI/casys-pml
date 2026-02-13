@@ -200,6 +200,7 @@ export class ExecuteHandlerFacade {
         mode: "execute_locally",
         executionTimeMs: result.data.executionTimeMs ?? 0,
         dag: result.data.dag,
+        ...(result.data.uiOrchestration ? { ui_orchestration: result.data.uiOrchestration } : {}),
       };
     }
 

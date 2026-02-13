@@ -13,6 +13,16 @@ import type { StaticStructure } from "./static-analysis.ts";
 import type { BranchDecision, TraceTaskResult } from "./execution.ts";
 
 /**
+ * UI orchestration config from capability_records (migration 044).
+ * Defines how multi-tool UIs are composed (layout, sync rules).
+ */
+export interface UiOrchestrationConfig {
+  layout: "split" | "tabs" | "grid" | "stack";
+  sync?: Array<{ from: string; event: string; to: string; action: string }>;
+  panelOrder?: number[];
+}
+
+/**
  * Tool invocation stored with capability (mirrors sandbox ToolInvocation)
  * Enables sequence visualization and parallelism detection in graphs.
  */
@@ -110,6 +120,8 @@ export interface Capability {
    * Populated when this capability is called by other capabilities.
    */
   parents?: string[];
+  /** UI orchestration for composite generation (layout + sync rules) */
+  uiOrchestration?: UiOrchestrationConfig;
 }
 
 /**

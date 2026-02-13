@@ -223,8 +223,12 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
       iframe.contentWindow,
     );
 
-    bridge.connect(transport).then(() => {
-      iframe.src = `/api/ui/resource?uri=${encodeURIComponent(item.resourceUri!)}`;
+    bridge.connect(transport).then(async () => {
+      try {
+        const resp = await fetch(`/api/ui/resource?uri=${encodeURIComponent(item.resourceUri!)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        iframe.srcdoc = await resp.text();
+      } catch { setStatus("error"); }
     }).catch(() => {
       setStatus("error");
     });
@@ -290,7 +294,7 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
           <iframe
             ref={iframeRef}
             title={`Preview: ${item.name}`}
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts"
             class="w-full h-full border-none bg-[#0a0a0c] transition-opacity duration-400 ease-out"
             style={{
               opacity: status === "connected" ? 1 : 0,

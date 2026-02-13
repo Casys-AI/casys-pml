@@ -167,6 +167,12 @@ export interface Task {
      * Only present on loop tasks, contains the tools that are called inside the loop body.
      */
     bodyTools?: string[];
+    /**
+     * Source task ID this task was chained from (method chain continuity)
+     * Present when task comes from a method chain (e.g., .filter().map())
+     * Used by dag-optimizer to determine if sequential tasks can be fused.
+     */
+    chainedFrom?: string;
   };
 }
 
