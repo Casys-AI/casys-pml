@@ -127,15 +127,12 @@ Options:
   --lr <n>             Peak learning rate (default: 0.005)
   --lr-warmup <n>      LR warmup epochs (default: 3)
   --temperature <n>    InfoNCE temperature start (default: 0.10)
-  --num-negatives <n>  Negatives per InfoNCE example (default: 32)
   --seed <n>           Random seed (default: 42)
   --kl / --no-kl       KL divergence on n8n soft targets (default: ON)
   --kl-warmup <n>      KL warmup epochs (default: 3)
   --kl-weight <n>      KL loss weight at plateau (default: 0.2)
   --mp-lr-scale <n>    LR scale for MP weights (default: 0.1)
   --eval-every <n>     Run full eval every N epochs (default: 2)
-  --eval-chunk <n>     Tools per eval scoring chunk (default: 256)
-  --batch-contrastive / --no-batch-contrastive  Use batch contrastive loss (default: ON)
   --kl-subsample <n>   Max n8n examples per epoch (default: 2000, 0=all)
   --msgpack            Use msgpack.gz loader instead of Parquet (default: Parquet)
   --data-path <path>   Path to msgpack.gz dataset (only with --msgpack)
@@ -150,14 +147,12 @@ const LEARNING_RATE = parseFloat(getArg("lr", "0.005"));
 const LR_WARMUP = parseInt(getArg("lr-warmup", "3"), 10);
 const TAU_START = parseFloat(getArg("temperature", "0.10"));
 const TAU_END = 0.06;
-const NUM_NEGATIVES = parseInt(getArg("num-negatives", "32"), 10);
 const SEED = parseInt(getArg("seed", "42"), 10);
 const USE_KL = boolArg("kl", true);
 const KL_WARMUP = parseInt(getArg("kl-warmup", "3"), 10);
 const KL_WEIGHT_PLATEAU = parseFloat(getArg("kl-weight", "0.2"));
 const MP_LR_SCALE = parseFloat(getArg("mp-lr-scale", "0.1"));
 const EVAL_EVERY = Math.max(1, parseInt(getArg("eval-every", "2"), 10));
-const EVAL_CHUNK = parseInt(getArg("eval-chunk", "256"), 10);
 const KL_SUBSAMPLE = parseInt(getArg("kl-subsample", "2000"), 10);
 
 // ==========================================================================
@@ -485,11 +480,11 @@ const GRU_DATA_DIR = resolve(scriptDir, "../../gru/data");
 
 console.log("=== SHGAT-TF OB Training (Manual Backward + OpenBLAS) ===");
 console.log(`    Epochs: ${EPOCHS}, Batch: ${BATCH_SIZE}, LR: ${LEARNING_RATE} (warmup: ${LR_WARMUP}ep)`);
-console.log(`    \u03C4: ${TAU_START}\u2192${TAU_END}, Negatives: ${NUM_NEGATIVES}`);
+console.log(`    \u03C4: ${TAU_START}\u2192${TAU_END}`);
 console.log(`    KL: ${USE_KL}, KL warmup: ${KL_WARMUP}ep, KL weight: ${KL_WEIGHT_PLATEAU}`);
 console.log(`    MP LR scale: ${MP_LR_SCALE}, Seed: ${SEED}`);
 console.log(`    KL subsample: ${KL_SUBSAMPLE > 0 ? KL_SUBSAMPLE : 'all'}`);
-console.log(`    Eval every: ${EVAL_EVERY}, Eval chunk: ${EVAL_CHUNK}\n`);
+console.log(`    Eval every: ${EVAL_EVERY}\n`);
 
 // ---- Load dataset ----
 // Default: Parquet (lower peak memory, lazy per-table loading).
@@ -1119,7 +1114,7 @@ console.log(`\nParams \u2192 ${outputPath}`);
 const report = {
   timestamp: new Date().toISOString(),
   mode: "ob-manual-backward",
-  config: { EPOCHS, BATCH_SIZE, LEARNING_RATE, LR_WARMUP, TAU_START, TAU_END, NUM_NEGATIVES, SEED, USE_KL, KL_WARMUP, KL_WEIGHT_PLATEAU, MP_LR_SCALE },
+  config: { EPOCHS, BATCH_SIZE, LEARNING_RATE, LR_WARMUP, TAU_START, TAU_END, SEED, USE_KL, KL_WARMUP, KL_WEIGHT_PLATEAU, MP_LR_SCALE },
   dataset: { nodes: ds.nodes.length, leaves: ds.leafIds.length, embDim: ds.embeddingDim, prodTrain: ds.prodTrain.length, prodTest: ds.prodTest.length, n8nTrain: ds.n8nTrain.length, n8nEval: ds.n8nEval.length },
   results: { bestHit1, bestMRR, bestEpoch, totalTimeSec: +(totalMs / 1000).toFixed(1), peakRssMB: Math.round(Deno.memoryUsage().rss / 1024 / 1024) },
 };
