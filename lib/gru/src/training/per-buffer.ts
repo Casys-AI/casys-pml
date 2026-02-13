@@ -188,9 +188,10 @@ export class PERBuffer {
     const sampledIndices: number[] = [];
     const sampledProbabilities: number[] = [];
     const used = new Set<number>();
+    let remainingPriority = totalPriority;
 
     for (let s = 0; s < actualBatch; s++) {
-      let r = Math.random() * totalPriority;
+      let r = Math.random() * remainingPriority;
       let chosen = -1;
 
       for (let j = 0; j < validIndices.length; j++) {
@@ -202,7 +203,7 @@ export class PERBuffer {
         }
       }
 
-      // Fallback: pick first unused
+      // Fallback: pick first unused (only needed for floating-point edge cases)
       if (chosen === -1) {
         for (let j = 0; j < validIndices.length; j++) {
           if (!used.has(j)) {
@@ -215,6 +216,7 @@ export class PERBuffer {
       if (chosen === -1) break;
 
       used.add(chosen);
+      remainingPriority -= priorities[chosen];
       sampledIndices.push(validIndices[chosen]);
       sampledProbabilities.push(priorities[chosen] / totalPriority);
     }

@@ -650,6 +650,7 @@ console.log(
 );
 
 // --- Step 7b: Load n8n augmentation data ---
+const N8N_DATA_PATH_PARQUET = resolve(N8N_DATA_DIR, "n8n-training-examples.parquet");
 const N8N_DATA_PATH_BIN = resolve(N8N_DATA_DIR, "n8n-training-examples.msgpack.gz");
 const N8N_DATA_PATH_JSON = resolve(N8N_DATA_DIR, "n8n-training-examples.json");
 const N8N_LOSS_WEIGHT = parseFloat(process.env["N8N_WEIGHT"] || "0.3");
@@ -682,8 +683,102 @@ function remapProbs(
   return total > 0 ? remapped : null;
 }
 
-if (existsSync(N8N_DATA_PATH_BIN)) {
-  // Primary: msgpack+gzip format (fast, compact)
+// Helper: reconstruct dense probs from Parquet sparse indices/probs columns.
+// The sparse indices reference the same allToolIds ordering as toolIds in this script
+// (PML from DB sorted by tool_id + Smithery from expanded-vocab.json), so they map
+// directly to model indices without remapping.
+function sparseParquetToProbs(
+  indicesBytes: Uint8Array,
+  probsBytes: Uint8Array,
+  vocabSize: number,
+): number[] | null {
+  if (!indicesBytes || indicesBytes.length === 0) return null;
+  // Ensure alignment for typed array views
+  const idxAligned = new Uint8Array(indicesBytes.length);
+  idxAligned.set(indicesBytes);
+  const indices = new Int32Array(idxAligned.buffer, 0, idxAligned.length / 4);
+
+  const probAligned = new Uint8Array(probsBytes.length);
+  probAligned.set(probsBytes);
+  const probs = new Float32Array(probAligned.buffer, 0, probAligned.length / 4);
+
+  const dense = new Array(vocabSize).fill(0);
+  let total = 0;
+  for (let i = 0; i < indices.length; i++) {
+    const idx = indices[i];
+    if (idx >= 0 && idx < vocabSize) {
+      dense[idx] = probs[i];
+      total += probs[i];
+    }
+  }
+  if (total > 0) {
+    for (let i = 0; i < dense.length; i++) dense[i] /= total;
+  }
+  return total > 0 ? dense : null;
+}
+
+if (existsSync(N8N_DATA_PATH_PARQUET)) {
+  // Primary: Parquet format (memory-efficient, avoids ~12GB msgpack decode)
+  // FAIL-FAST: if Parquet exists but fails to load, throw — no silent fallback
+  console.log(`      Loading Parquet: ${N8N_DATA_PATH_PARQUET}`);
+  const t0Parquet = performance.now();
+
+  const arrowMod = await import("apache-arrow");
+  const parquetWasm = await import("parquet-wasm");
+  if (typeof parquetWasm.default === "function") {
+    await (parquetWasm.default as unknown as () => Promise<void>)();
+  }
+  const { readParquet: readPq } = parquetWasm;
+
+  const parquetBytes = new Uint8Array(readFileSync(N8N_DATA_PATH_PARQUET));
+  console.log(`      Parquet file: ${(parquetBytes.length / 1024 / 1024).toFixed(1)} MB`);
+  const wasmTable = readPq(parquetBytes);
+  const ipcStream = wasmTable.intoIPCStream();
+  const arrowTable = arrowMod.tableFromIPC(ipcStream);
+
+  const numRows = arrowTable.numRows;
+  const colEmb = arrowTable.getChild("intent_embedding")!;
+  const colCtx = arrowTable.getChild("context_tool_ids_json")!;
+  const colTarget = arrowTable.getChild("target_tool_id")!;
+  const colTerm = arrowTable.getChild("is_terminal")!;
+  const colSparseIdx = arrowTable.getChild("soft_target_indices")!;
+  const colSparseProb = arrowTable.getChild("soft_target_probs")!;
+
+  let rawCount = 0;
+  for (let i = 0; i < numRows; i++) {
+    rawCount++;
+    const targetToolId = colTarget.get(i) as string;
+    const contextToolIds = JSON.parse(colCtx.get(i) as string) as string[];
+
+    if (!enrichedToolEmbeddings.has(targetToolId)) continue;
+    if (contextToolIds.some((id: string) => !enrichedToolEmbeddings.has(id))) continue;
+
+    const embBytes = colEmb.get(i) as Uint8Array;
+    const embAligned = new Uint8Array(embBytes.length);
+    embAligned.set(embBytes);
+    const intentEmbedding = Array.from(
+      new Float32Array(embAligned.buffer, 0, embAligned.length / 4),
+    );
+
+    const indicesBytes = colSparseIdx.get(i) as Uint8Array;
+    const probsBytes = colSparseProb.get(i) as Uint8Array;
+    const softTargetProbs = sparseParquetToProbs(indicesBytes, probsBytes, toolIds.length);
+
+    n8nExamples.push({
+      intentEmbedding,
+      contextToolIds,
+      targetToolId,
+      isTerminal: (colTerm.get(i) as number) || 0,
+      isSingleTool: false,
+      softTargetProbs: softTargetProbs ?? undefined,
+    });
+  }
+
+  const elapsed = ((performance.now() - t0Parquet) / 1000).toFixed(1);
+  console.log(`      n8n examples loaded: ${n8nExamples.length} (from ${rawCount} raw, ${elapsed}s)`);
+} else if (existsSync(N8N_DATA_PATH_BIN)) {
+  // Fallback 1: msgpack+gzip format (WARNING: requires ~12GB RAM to decode)
+  console.log(`      WARNING: Parquet not found, falling back to msgpack+gzip (high memory usage)`);
   console.log(`      Loading msgpack+gzip: ${N8N_DATA_PATH_BIN}`);
   const compressed = new Uint8Array(readFileSync(N8N_DATA_PATH_BIN));
   const decompressed = pako.ungzip(compressed);
@@ -743,8 +838,9 @@ if (existsSync(N8N_DATA_PATH_BIN)) {
     console.log("      GC forced after msgpack load");
   }
 } else if (existsSync(N8N_DATA_PATH_JSON)) {
-  // Fallback: JSON format
-  console.log(`      Falling back to JSON: ${N8N_DATA_PATH_JSON}`);
+  // Fallback 2: JSON format
+  console.log(`      WARNING: Parquet and msgpack not found, falling back to JSON`);
+  console.log(`      Loading JSON: ${N8N_DATA_PATH_JSON}`);
   const n8nRaw = readFileSync(N8N_DATA_PATH_JSON, "utf-8");
   // deno-lint-ignore no-explicit-any
   const n8nData = JSON.parse(n8nRaw) as any;
@@ -784,7 +880,7 @@ if (existsSync(N8N_DATA_PATH_BIN)) {
     `      n8n examples loaded: ${n8nExamples.length} (from ${n8nData.examples.length} raw)`,
   );
 } else {
-  console.warn(`      WARNING: n8n data not found (tried msgpack.gz and json)`);
+  console.warn(`      WARNING: n8n data not found (tried parquet, msgpack.gz and json)`);
   console.warn(`      Continuing with production-only training.`);
 }
 

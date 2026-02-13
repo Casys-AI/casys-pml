@@ -12,7 +12,8 @@
  */
 
 import * as math from "../utils/math.ts";
-import type { PhaseParameters } from "./phase-interface.ts";
+import type { PhaseParameters, SparseConnectivity } from "./phase-interface.ts";
+import { denseToSparse, transposeSparse } from "./phase-interface.ts";
 import type { LevelParams, MultiLevelEmbeddings, MultiLevelForwardCache } from "../core/types.ts";
 import { VertexToEdgePhase, type VEForwardCache } from "./vertex-to-edge-phase.ts";
 import { EdgeToVertexPhase, type EVForwardCache } from "./edge-to-vertex-phase.ts";
@@ -25,6 +26,10 @@ import {
   type V2VParams,
   type VertexToVertexConfig,
 } from "./vertex-to-vertex-phase.ts";
+import type {
+  LevelIntermediates,
+  ExtendedMultiLevelForwardCache,
+} from "../training/multi-level-trainer.ts";
 
 /**
  * Extended cache for backward pass with per-phase caches
@@ -40,10 +45,10 @@ export interface MultiLevelBackwardCache extends MultiLevelForwardCache {
   evCaches: EVForwardCache[];
   /** V→V phase cache (optional, only if V2V enabled) */
   v2vCache?: V2VForwardCache;
-  /** Tool-to-cap connectivity matrix */
-  toolToCapMatrix: number[][];
-  /** Cap-to-cap connectivity matrices: level → matrix */
-  capToCapMatrices: Map<number, number[][]>;
+  /** L0-to-L1 sparse connectivity */
+  l0ToL1Conn: SparseConnectivity;
+  /** Inter-level sparse connectivity: level → sparse */
+  interLevelConns: Map<number, SparseConnectivity>;
   /** Max hierarchy level */
   maxLevel: number;
   /** Config used */
@@ -56,9 +61,9 @@ export interface MultiLevelBackwardCache extends MultiLevelForwardCache {
 export interface MultiLevelGradients {
   /** Gradients per level: level → LevelParamsGradients */
   levelGrads: Map<number, LevelParamsGradients>;
-  /** Gradient for input H [numTools][embDim] */
+  /** Gradient for input H [numL0][embDim] */
   dH: number[][];
-  /** Gradient for input E per level: level → [numCaps][embDim] */
+  /** Gradient for input E per level: level → [numL1][embDim] */
   dE: Map<number, number[][]>;
   /** V→V gradients (optional, only if V2V enabled) */
   v2vGrads?: V2VGradients;
@@ -84,15 +89,15 @@ export interface LevelParamsGradients {
  * Each layer has parameters for all heads.
  */
 export interface LayerParameters {
-  /** Vertex projection matrices per head [numHeads][headDim][embeddingDim] */
+  /** L0 node projection matrices per head [numHeads][headDim][embeddingDim] */
   W_v: number[][][];
-  /** Edge projection matrices per head [numHeads][headDim][embeddingDim] */
+  /** L1+ node projection matrices per head [numHeads][headDim][embeddingDim] */
   W_e: number[][][];
   /** Attention vectors V→E per head [numHeads][2*headDim] */
   a_ve: number[][];
-  /** Edge projection matrices (phase 2) per head [numHeads][headDim][embeddingDim] */
+  /** L1+ node projection matrices (phase 2) per head [numHeads][headDim][embeddingDim] */
   W_e2: number[][][];
-  /** Vertex projection matrices (phase 2) per head [numHeads][headDim][embeddingDim] */
+  /** L0 node projection matrices (phase 2) per head [numHeads][headDim][embeddingDim] */
   W_v2: number[][][];
   /** Attention vectors E→V per head [numHeads][2*headDim] */
   a_ev: number[][];
@@ -102,13 +107,13 @@ export interface LayerParameters {
  * Forward pass cache for backpropagation
  */
 export interface ForwardCache {
-  /** Tool embeddings per layer [numLayers+1][numTools][dim] */
+  /** L0 node embeddings per layer [numLayers+1][numL0][dim] */
   H: number[][][];
-  /** Capability embeddings per layer [numLayers+1][numCaps][dim] */
+  /** L1+ node embeddings per layer [numLayers+1][numL1][dim] */
   E: number[][][];
-  /** Attention weights V→E [layer][head][numTools][numCaps] */
+  /** Attention weights V→E [layer][head][numL0][numL1] */
   attentionVE: number[][][][];
-  /** Attention weights E→V [layer][head][numCaps][numTools] */
+  /** Attention weights E→V [layer][head][numL1][numL0] */
   attentionEV: number[][][][];
 }
 
@@ -169,7 +174,7 @@ export class MultiLevelOrchestrator {
   /**
    * Apply V→V enrichment if configured
    *
-   * @param H - Tool embeddings [numTools][embeddingDim]
+   * @param H - L0 node embeddings [numL0][embeddingDim]
    * @returns Enriched embeddings (or original if no co-occurrence data)
    */
   private applyV2VEnrichment(H: number[][]): number[][] {
@@ -188,14 +193,14 @@ export class MultiLevelOrchestrator {
    *
    * For each layer l:
    *   For each head k:
-   *     1. V → E: Tools aggregate to capabilities
-   *     2. E → V: Capabilities aggregate back to tools
+   *     1. V → E: L0 nodes aggregate to L1+ nodes
+   *     2. E → V: L1+ nodes aggregate back to L0 nodes
    *   Concatenate all heads
    *   Apply dropout (if training)
    *
-   * @param H_init - Initial tool embeddings [numTools][embeddingDim]
-   * @param E_init - Initial capability embeddings [numCaps][embeddingDim]
-   * @param incidenceMatrix - Connectivity [numTools][numCaps]
+   * @param H_init - Initial L0 node embeddings [numL0][embeddingDim]
+   * @param E_init - Initial L1+ node embeddings [numL1][embeddingDim]
+   * @param incidenceMatrix - Connectivity [numL0][numL1] (dense, auto-converted to sparse)
    * @param layerParams - Parameters for all layers
    * @param config - Configuration (numHeads, dropout, etc.)
    * @returns Final embeddings and cache for backprop
@@ -207,6 +212,9 @@ export class MultiLevelOrchestrator {
     layerParams: LayerParameters[],
     config: OrchestratorConfig,
   ): { H: number[][]; E: number[][]; cache: ForwardCache } {
+    // Convert dense → sparse once (legacy backward compat)
+    const conn = denseToSparse(incidenceMatrix);
+
     const cache: ForwardCache = {
       H: [],
       E: [],
@@ -232,7 +240,7 @@ export class MultiLevelOrchestrator {
 
       // Process each head in parallel
       for (let head = 0; head < config.numHeads; head++) {
-        // Phase 1: Vertex → Hyperedge
+        // Phase 1: L0 → L1+ (upward aggregation)
         const veParams: PhaseParameters = {
           W_source: params.W_v[head],
           W_target: params.W_e[head],
@@ -242,14 +250,14 @@ export class MultiLevelOrchestrator {
         const { embeddings: E_new, attention: attentionVE } = this.vertexToEdgePhase.forward(
           H,
           E,
-          incidenceMatrix,
+          conn,
           veParams,
           { leakyReluSlope: config.leakyReluSlope },
         );
 
         layerAttentionVE.push(attentionVE);
 
-        // Phase 2: Hyperedge → Vertex
+        // Phase 2: L1+ → L0 (downward propagation)
         const evParams: PhaseParameters = {
           W_source: params.W_e2[head],
           W_target: params.W_v2[head],
@@ -259,7 +267,7 @@ export class MultiLevelOrchestrator {
         const { embeddings: H_new, attention: attentionEV } = this.edgeToVertexPhase.forward(
           E_new,
           H,
-          incidenceMatrix,
+          conn,
           evParams,
           { leakyReluSlope: config.leakyReluSlope },
         );
@@ -293,13 +301,13 @@ export class MultiLevelOrchestrator {
    * Multi-level forward pass: V → E^0 → E^1 → ... → E^L_max → ... → E^0 → V
    *
    * Implements n-SuperHyperGraph message passing with:
-   * 1. Upward aggregation: Tools → Level-0 Caps → ... → Level-L_max Caps
-   * 2. Downward propagation: Level-L_max → ... → Level-0 → Tools
+   * 1. Upward aggregation: L0 nodes → L1 nodes → ... → L_max nodes
+   * 2. Downward propagation: L_max → ... → L1 → L0 nodes
    *
-   * @param H_init - Initial tool embeddings [numTools][embDim]
-   * @param E_levels_init - Initial embeddings per level: level → [numCapsAtLevel][embDim]
-   * @param toolToCapMatrix - I₀: Tool-to-level-0 connectivity [numTools][numCaps0]
-   * @param capToCapMatrices - I_k: Level-(k-1) to level-k connectivity, keyed by parent level
+   * @param H_init - Initial L0 node embeddings [numL0][embDim]
+   * @param E_levels_init - Initial embeddings per level: level → [numNodesAtLevel][embDim]
+   * @param l0ToL1Matrix - I₀: L0-to-L1 connectivity [numL0][numL1] (dense, auto-converted)
+   * @param interLevelMatrices - I_k: Level-(k-1) to level-k connectivity, keyed by parent level (dense)
    * @param levelParams - Parameters per hierarchy level
    * @param config - Configuration (numHeads, dropout, etc.)
    * @returns MultiLevelEmbeddings with final embeddings and attention weights
@@ -307,14 +315,20 @@ export class MultiLevelOrchestrator {
   forwardMultiLevel(
     H_init: number[][],
     E_levels_init: Map<number, number[][]>,
-    toolToCapMatrix: number[][],
-    capToCapMatrices: Map<number, number[][]>,
+    l0ToL1Matrix: number[][],
+    interLevelMatrices: Map<number, number[][]>,
     levelParams: Map<number, LevelParams>,
     config: OrchestratorConfig,
   ): { result: MultiLevelEmbeddings; cache: MultiLevelForwardCache } {
+    // Convert dense → sparse once (legacy backward compat for this method)
+    const l0ToL1Conn = denseToSparse(l0ToL1Matrix);
+    const interLevelConns = new Map<number, SparseConnectivity>();
+    for (const [level, matrix] of interLevelMatrices) {
+      interLevelConns.set(level, denseToSparse(matrix));
+    }
     // Validate inputs
     if (E_levels_init.size === 0) {
-      throw new Error("forwardMultiLevel requires at least one level of capability embeddings");
+      throw new Error("forwardMultiLevel requires at least one level of higher-level node embeddings");
     }
 
     const maxLevel = Math.max(...Array.from(E_levels_init.keys()));
@@ -352,12 +366,20 @@ export class MultiLevelOrchestrator {
     // Apply V→V co-occurrence enrichment (if configured)
     const H_enriched = this.applyV2VEnrichment(H_init);
 
-    // Track current tool embeddings
+    // Track current L0 node embeddings
     let H = H_enriched.map((row) => [...row]);
 
     // ========================================================================
     // UPWARD PASS: V → E^0 → E^1 → ... → E^L_max
     // ========================================================================
+
+    // In training mode, collect LevelIntermediates for backward pass
+    const intermediateUpwardActivations = this.trainingMode
+      ? new Map<number, LevelIntermediates>()
+      : undefined;
+    const intermediateDownwardActivations = this.trainingMode
+      ? new Map<number, LevelIntermediates>()
+      : undefined;
 
     for (let level = 0; level <= maxLevel; level++) {
       const params = levelParams.get(level);
@@ -365,37 +387,63 @@ export class MultiLevelOrchestrator {
         throw new Error(`Missing LevelParams for level ${level}`);
       }
 
-      const capsAtLevel = E.get(level);
-      if (!capsAtLevel || capsAtLevel.length === 0) continue;
+      const edgesAtLevel = E.get(level);
+      if (!edgesAtLevel || edgesAtLevel.length === 0) continue;
 
       const headsE: number[][][] = [];
       const levelAttention: number[][][] = [];
 
+      // Per-head intermediates collectors (training mode only)
+      const childProjPerHead: number[][][] = [];
+      const parentProjPerHead: number[][][] = [];
+      const scoresPerHead: number[][][] = [];
+      const attentionPerHead: number[][][] = [];
+
       for (let head = 0; head < config.numHeads; head++) {
         if (level === 0) {
-          // Phase: Tools (V) → Level-0 Capabilities (E^0)
+          // Phase: L0 nodes (V) → Level-0 L1+ nodes (E^0)
           const phaseParams: PhaseParameters = {
             W_source: params.W_child[head],
             W_target: params.W_parent[head],
             a_attention: params.a_upward[head],
           };
 
-          const { embeddings, attention } = this.vertexToEdgePhase.forward(
-            H,
-            capsAtLevel,
-            toolToCapMatrix,
-            phaseParams,
-            { leakyReluSlope: config.leakyReluSlope },
-          );
+          if (this.trainingMode) {
+            const { embeddings, attention, cache: veCache } = this.vertexToEdgePhase.forwardWithCache(
+              H,
+              edgesAtLevel,
+              l0ToL1Conn,
+              phaseParams,
+              { leakyReluSlope: config.leakyReluSlope },
+            );
 
-          headsE.push(embeddings);
-          levelAttention.push(attention);
+            headsE.push(embeddings);
+            levelAttention.push(attention);
+
+            // Collect intermediates: H_proj=childProj, E_proj=parentProj
+            childProjPerHead.push(veCache.H_proj);
+            parentProjPerHead.push(veCache.E_proj);
+            attentionPerHead.push(attention); // use dense attention from PhaseResult
+            // scores not directly stored in VEForwardCache, use empty placeholder
+            scoresPerHead.push([]);
+          } else {
+            const { embeddings, attention } = this.vertexToEdgePhase.forward(
+              H,
+              edgesAtLevel,
+              l0ToL1Conn,
+              phaseParams,
+              { leakyReluSlope: config.leakyReluSlope },
+            );
+
+            headsE.push(embeddings);
+            levelAttention.push(attention);
+          }
         } else {
-          // Phase: Level-(k-1) → Level-k Capabilities
+          // Phase: Level-(k-1) → Level-k nodes
           const E_prev = E.get(level - 1);
           if (!E_prev) continue;
 
-          const connectivity = capToCapMatrices.get(level);
+          const connectivity = interLevelConns.get(level);
           if (!connectivity) continue;
 
           const phase = edgeToEdgePhases.get(`up-${level}`)!;
@@ -405,16 +453,35 @@ export class MultiLevelOrchestrator {
             a_attention: params.a_upward[head],
           };
 
-          const { embeddings, attention } = phase.forward(
-            E_prev,
-            capsAtLevel,
-            connectivity,
-            phaseParams,
-            { leakyReluSlope: config.leakyReluSlope },
-          );
+          if (this.trainingMode) {
+            const { embeddings, attention, cache: eeCache } = phase.forwardWithCache(
+              E_prev,
+              edgesAtLevel,
+              connectivity,
+              phaseParams,
+              { leakyReluSlope: config.leakyReluSlope },
+            );
 
-          headsE.push(embeddings);
-          levelAttention.push(attention);
+            headsE.push(embeddings);
+            levelAttention.push(attention);
+
+            // Collect intermediates: E_k_proj=childProj, E_kPlus1_proj=parentProj
+            childProjPerHead.push(eeCache.E_k_proj);
+            parentProjPerHead.push(eeCache.E_kPlus1_proj);
+            attentionPerHead.push(attention); // use dense attention from PhaseResult
+            scoresPerHead.push([]);
+          } else {
+            const { embeddings, attention } = phase.forward(
+              E_prev,
+              edgesAtLevel,
+              connectivity,
+              phaseParams,
+              { leakyReluSlope: config.leakyReluSlope },
+            );
+
+            headsE.push(embeddings);
+            levelAttention.push(attention);
+          }
         }
       }
 
@@ -423,6 +490,16 @@ export class MultiLevelOrchestrator {
         const E_new = math.concatHeads(headsE);
         E.set(level, E_new);
         cache.intermediateUpward.set(level, E_new.map((row) => [...row]));
+      }
+
+      // Store LevelIntermediates for training backward pass
+      if (intermediateUpwardActivations && childProjPerHead.length > 0) {
+        intermediateUpwardActivations.set(level, {
+          childProj: childProjPerHead,
+          parentProj: parentProjPerHead,
+          scores: scoresPerHead,
+          attention: attentionPerHead,
+        });
       }
 
       attentionUpward.set(level, levelAttention);
@@ -438,24 +515,30 @@ export class MultiLevelOrchestrator {
       const params = levelParams.get(level);
       if (!params) continue;
 
-      const capsAtLevel = E.get(level);
-      const capsAtParentLevel = E.get(level + 1);
+      const edgesAtLevel = E.get(level);
+      const edgesAtParentLevel = E.get(level + 1);
 
-      if (!capsAtLevel || capsAtLevel.length === 0) continue;
-      if (!capsAtParentLevel || capsAtParentLevel.length === 0) continue;
+      if (!edgesAtLevel || edgesAtLevel.length === 0) continue;
+      if (!edgesAtParentLevel || edgesAtParentLevel.length === 0) continue;
 
       // Save pre-downward embeddings for residual connection
-      const capsAtLevelPreDownward = capsAtLevel.map((row) => [...row]);
+      const edgesAtLevelPreDownward = edgesAtLevel.map((row) => [...row]);
 
       const headsE: number[][][] = [];
       const levelAttention: number[][][] = [];
 
-      // Get reverse connectivity (parent → child)
-      const forwardConnectivity = capToCapMatrices.get(level + 1);
-      if (!forwardConnectivity) continue;
+      // Per-head intermediates collectors (training mode only)
+      const childProjPerHead: number[][][] = [];
+      const parentProjPerHead: number[][][] = [];
+      const scoresPerHead: number[][][] = [];
+      const attentionPerHead: number[][][] = [];
 
-      // Transpose the connectivity matrix for downward pass
-      const reverseConnectivity = this.transposeMatrix(forwardConnectivity);
+      // Get reverse connectivity (parent → child)
+      const forwardConn = interLevelConns.get(level + 1);
+      if (!forwardConn) continue;
+
+      // Transpose the connectivity for downward pass
+      const reverseConnectivity = transposeSparse(forwardConn);
 
       const phase = edgeToEdgePhases.get(`down-${level + 1}`)!;
 
@@ -467,16 +550,36 @@ export class MultiLevelOrchestrator {
           a_attention: params.a_downward[head],
         };
 
-        const { embeddings: propagated, attention } = phase.forward(
-          capsAtParentLevel,
-          capsAtLevel,
-          reverseConnectivity,
-          phaseParams,
-          { leakyReluSlope: config.leakyReluSlope },
-        );
+        if (this.trainingMode) {
+          const { embeddings: propagated, attention, cache: eeCache } = phase.forwardWithCache(
+            edgesAtParentLevel,
+            edgesAtLevel,
+            reverseConnectivity,
+            phaseParams,
+            { leakyReluSlope: config.leakyReluSlope },
+          );
 
-        headsE.push(propagated);
-        levelAttention.push(attention);
+          headsE.push(propagated);
+          levelAttention.push(attention);
+
+          // In downward: phase receives (parent, child) as (E_k, E_kPlus1)
+          // E_k_proj = parent projections (source), E_kPlus1_proj = child projections (target)
+          parentProjPerHead.push(eeCache.E_k_proj);
+          childProjPerHead.push(eeCache.E_kPlus1_proj);
+          attentionPerHead.push(attention); // use dense attention from PhaseResult
+          scoresPerHead.push([]);
+        } else {
+          const { embeddings: propagated, attention } = phase.forward(
+            edgesAtParentLevel,
+            edgesAtLevel,
+            reverseConnectivity,
+            phaseParams,
+            { leakyReluSlope: config.leakyReluSlope },
+          );
+
+          headsE.push(propagated);
+          levelAttention.push(attention);
+        }
       }
 
       // Concatenate heads first
@@ -486,7 +589,7 @@ export class MultiLevelOrchestrator {
         // Apply residual connection with configurable weight
         // E_new = (1-α)*propagated + α*original, where α = downwardResidual
         const alpha = config.downwardResidual ?? 0;
-        const E_new = capsAtLevelPreDownward.map((row, i) =>
+        const E_new = edgesAtLevelPreDownward.map((row, i) =>
           row.map((val, j) => {
             const propagated = E_concat[i]?.[j] ?? 0;
             return (1 - alpha) * propagated + alpha * val;
@@ -497,19 +600,29 @@ export class MultiLevelOrchestrator {
         cache.intermediateDownward.set(level, E_new.map((row) => [...row]));
       }
 
+      // Store LevelIntermediates for training backward pass
+      if (intermediateDownwardActivations && childProjPerHead.length > 0) {
+        intermediateDownwardActivations.set(level, {
+          childProj: childProjPerHead,
+          parentProj: parentProjPerHead,
+          scores: scoresPerHead,
+          attention: attentionPerHead,
+        });
+      }
+
       attentionDownward.set(level, levelAttention);
       cache.attentionDownward.set(level, levelAttention);
     }
 
-    // Final phase: Level-0 → Tools (downward)
+    // Final phase: Level-0 → L0 nodes (downward)
     const E_level0 = E.get(0);
     if (E_level0 && E_level0.length > 0) {
       const params = levelParams.get(0);
       if (params) {
-        // Save pre-downward tool embeddings for residual connection
+        // Save pre-downward L0 node embeddings for residual connection
         const H_preDownward = H.map((row) => [...row]);
 
-        // EdgeToVertexPhase expects [tool][cap] format (same as upward pass)
+        // EdgeToVertexPhase expects [L0][L1] format (same as upward pass)
         // It internally handles the reverse aggregation direction
 
         const headsH: number[][][] = [];
@@ -525,7 +638,7 @@ export class MultiLevelOrchestrator {
           const { embeddings: propagated, attention } = this.edgeToVertexPhase.forward(
             E_level0,
             H,
-            toolToCapMatrix,
+            l0ToL1Conn,
             phaseParams,
             { leakyReluSlope: config.leakyReluSlope },
           );
@@ -575,23 +688,17 @@ export class MultiLevelOrchestrator {
       attentionDownward,
     };
 
+    // In training mode, return an ExtendedMultiLevelForwardCache with LevelIntermediates
+    if (this.trainingMode && intermediateUpwardActivations && intermediateDownwardActivations) {
+      const extendedCache: ExtendedMultiLevelForwardCache = {
+        ...cache,
+        intermediateUpwardActivations,
+        intermediateDownwardActivations,
+      };
+      return { result, cache: extendedCache };
+    }
+
     return { result, cache };
-  }
-
-  /**
-   * Transpose a matrix
-   * @param matrix Input matrix [rows][cols]
-   * @returns Transposed matrix [cols][rows]
-   */
-  private transposeMatrix(matrix: number[][]): number[][] {
-    if (matrix.length === 0) return [];
-    const rows = matrix.length;
-    const cols = matrix[0].length;
-
-    return Array.from(
-      { length: cols },
-      (_, j) => Array.from({ length: rows }, (_, i) => matrix[i][j]),
-    );
   }
 
   /**
@@ -604,8 +711,8 @@ export class MultiLevelOrchestrator {
   forwardMultiLevelWithCache(
     H_init: number[][],
     E_levels_init: Map<number, number[][]>,
-    toolToCapMatrix: number[][],
-    capToCapMatrices: Map<number, number[][]>,
+    l0ToL1Conn: SparseConnectivity,
+    interLevelConns: Map<number, SparseConnectivity>,
     levelParams: Map<number, LevelParams>,
     config: OrchestratorConfig,
     v2vParams?: V2VParams,
@@ -668,8 +775,8 @@ export class MultiLevelOrchestrator {
       const params = levelParams.get(level);
       if (!params) continue;
 
-      const capsAtLevel = E.get(level);
-      if (!capsAtLevel || capsAtLevel.length === 0) continue;
+      const edgesAtLevel = E.get(level);
+      if (!edgesAtLevel || edgesAtLevel.length === 0) continue;
 
       const headsE: number[][][] = [];
       const levelAttention: number[][][] = [];
@@ -687,8 +794,8 @@ export class MultiLevelOrchestrator {
 
           const { embeddings, attention, cache: veCache } = this.vertexToEdgePhase.forwardWithCache(
             H,
-            capsAtLevel,
-            toolToCapMatrix,
+            edgesAtLevel,
+            l0ToL1Conn,
             phaseParams,
             { leakyReluSlope: config.leakyReluSlope },
           );
@@ -699,7 +806,7 @@ export class MultiLevelOrchestrator {
         } else {
           // E^(k-1)→E^k with cache
           const E_prev = E.get(level - 1);
-          const connectivity = capToCapMatrices.get(level);
+          const connectivity = interLevelConns.get(level);
           if (!E_prev || !connectivity) continue;
 
           const phase = edgeToEdgePhases.get(`up-${level}`)!;
@@ -711,7 +818,7 @@ export class MultiLevelOrchestrator {
 
           const { embeddings, attention, cache: eeCache } = phase.forwardWithCache(
             E_prev,
-            capsAtLevel,
+            edgesAtLevel,
             connectivity,
             phaseParams,
             { leakyReluSlope: config.leakyReluSlope },
@@ -744,18 +851,18 @@ export class MultiLevelOrchestrator {
       const params = levelParams.get(level);
       if (!params) continue;
 
-      const capsAtLevel = E.get(level);
-      const capsAtParentLevel = E.get(level + 1);
-      if (!capsAtLevel || !capsAtParentLevel) continue;
+      const edgesAtLevel = E.get(level);
+      const edgesAtParentLevel = E.get(level + 1);
+      if (!edgesAtLevel || !edgesAtParentLevel) continue;
 
-      const capsAtLevelPreDownward = capsAtLevel.map((row) => [...row]);
+      const edgesAtLevelPreDownward = edgesAtLevel.map((row) => [...row]);
       const headsE: number[][][] = [];
       const levelAttention: number[][][] = [];
       const levelEECaches: EEForwardCache[] = [];
 
-      const forwardConnectivity = capToCapMatrices.get(level + 1);
-      if (!forwardConnectivity) continue;
-      const reverseConnectivity = this.transposeMatrix(forwardConnectivity);
+      const forwardConn2 = interLevelConns.get(level + 1);
+      if (!forwardConn2) continue;
+      const reverseConnectivity = transposeSparse(forwardConn2);
 
       const phase = edgeToEdgePhases.get(`down-${level + 1}`)!;
 
@@ -767,8 +874,8 @@ export class MultiLevelOrchestrator {
         };
 
         const { embeddings, attention, cache: eeCache } = phase.forwardWithCache(
-          capsAtParentLevel,
-          capsAtLevel,
+          edgesAtParentLevel,
+          edgesAtLevel,
           reverseConnectivity,
           phaseParams,
           { leakyReluSlope: config.leakyReluSlope },
@@ -784,7 +891,7 @@ export class MultiLevelOrchestrator {
       if (headsE.length > 0) {
         const E_concat = math.concatHeads(headsE);
         // Residual connection
-        const E_new = capsAtLevelPreDownward.map((row, i) =>
+        const E_new = edgesAtLevelPreDownward.map((row, i) =>
           row.map((val, j) => val + (E_concat[i]?.[j] ?? 0))
         );
         E.set(level, E_new);
@@ -811,7 +918,7 @@ export class MultiLevelOrchestrator {
           const { embeddings, attention, cache: evCache } = this.edgeToVertexPhase.forwardWithCache(
             E_level0,
             H,
-            toolToCapMatrix,
+            l0ToL1Conn,
             phaseParams,
             { leakyReluSlope: config.leakyReluSlope },
           );
@@ -851,8 +958,8 @@ export class MultiLevelOrchestrator {
       eeDownwardCaches,
       evCaches,
       v2vCache,
-      toolToCapMatrix,
-      capToCapMatrices,
+      l0ToL1Conn,
+      interLevelConns,
       maxLevel,
       config,
     };
@@ -870,8 +977,8 @@ export class MultiLevelOrchestrator {
    * 3. Backward through upward passes E^k→E^(k+1) and V→E^0 (gives gradients)
    * 4. Backward through V→V (if trainable V2V enabled)
    *
-   * @param dE_final - Gradient on final capability embeddings (from K-head scoring)
-   * @param dH_final - Gradient on final tool embeddings (optional, usually zero)
+   * @param dE_final - Gradient on final L1+ node embeddings (from K-head scoring)
+   * @param dH_final - Gradient on final L0 node embeddings (optional, usually zero)
    * @param cache - Forward pass cache
    * @param levelParams - Level parameters for gradient computation
    * @param v2vParams - Optional V2V learnable parameters (for backward)

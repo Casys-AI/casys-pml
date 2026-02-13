@@ -112,7 +112,7 @@ export {
 } from "./src/core/shgat.ts";
 
 // Additional types from types.ts
-export type { BatchedEmbeddings, LevelParams, Member, Node } from "./src/core/types.ts";
+export type { BatchedEmbeddings, LevelParams, Member, Node, SoftTargetExample } from "./src/core/types.ts";
 export {
   batchGetEmbeddings,
   batchGetEmbeddingsByLevel,

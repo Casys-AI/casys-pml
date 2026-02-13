@@ -231,16 +231,54 @@ sur un dataset 20x plus grand. C'est potentiellement le plus gros gain de toute 
 
 ## Reproduction
 
-```bash
-# Generate n8n data
-cd lib/gru
-npm run n8n:scrape          # → data/n8n-workflows.json
-npm run n8n:embed           # → data/n8n-node-embeddings.json
-npm run n8n:targets         # → data/n8n-training-examples.json
+### Full pipeline (n8n scrape → embed → train)
 
-# Train baseline
+```bash
+cd lib/gru
+
+# 1. Scrape n8n workflows (captures descriptions since 2026-02-11)
+npx tsx src/n8n/scrape-n8n.ts --max=10000 --min-views=0
+# → data/n8n-workflows.json (~7800 workflows with name + description)
+
+# 2. Embed node types + workflow intents (name + description)
+npx tsx src/n8n/embed-n8n-nodes.ts
+# → data/n8n-node-embeddings.json (node type embeddings, ~2100 types)
+# → data/n8n-workflow-description-embeddings.json (workflow intent embeddings, ~7400)
+# Use --phase2-only to skip node embeddings if already generated
+
+# 3. Build soft targets (requires DATABASE_URL for MCP tool embeddings)
+npx tsx src/n8n/build-soft-targets.ts
+# → data/n8n-training-examples.json (GRU: sparse top-K=10, streaming write)
+# → data/n8n-shgat-contrastive-pairs.json (SHGAT: contrastive pairs)
+
+# 4. Train GRU baseline
 npm run train -- --seed=42
 
-# Train mixed
+# 5. Train GRU mixed (n8n augmentation)
 npm run train:n8n -- --seed=42 --n8n-weight=0.3 --oversample=3 --epochs=30
 ```
+
+### SHGAT KL training (no n8n→PML mapping needed)
+
+```bash
+cd lib/shgat-tf/benchmark
+
+# 1. Build soft targets from workflow intent embeddings → LiveMCPBench tools
+npx tsx src/build-n8n-soft-targets.ts --temp 0.01 --top-k 10
+# → data/livemcp/n8n-kl-targets.json
+# Uses cosine_sim(workflow_intent_emb, 525_tool_embs) as soft target distribution
+# No hard mapping needed — cosine similarity IS the training signal
+
+# 2. Train SHGAT mixed (InfoNCE + KL divergence)
+node --max-old-space-size=4096 ./node_modules/.bin/tsx src/train-livemcp-mixed.ts \
+  --flat-only --epochs 25 --seed 42 \
+  --kl-weight 0.3 --kl-temp 0.01 --max-n8n 2000 --kl-batch 64
+```
+
+### Key design: no hard mapping
+
+Both GRU and SHGAT n8n pipelines use **soft probability distributions** via cosine
+similarity instead of hard n8n→PML node mappings. This means:
+- Any n8n workflow can be used for training without manual curation
+- The embedding similarity IS the training signal (KL divergence)
+- Scales to thousands of workflows without mapping effort

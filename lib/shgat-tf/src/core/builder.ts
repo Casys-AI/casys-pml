@@ -31,17 +31,19 @@
  * @module shgat-tf/core/builder
  */
 
-import type { Node, SHGATConfig, TrainingExample } from "./types.ts";
+import { tf } from "../tf/backend.ts";
+import type { Node, SHGATConfig, SoftTargetExample, TrainingExample } from "./types.ts";
 import { DEFAULT_SHGAT_CONFIG } from "./types.ts";
 import {
   AutogradTrainer,
   buildGraphStructure,
-  disposeGraphStructure,
   type CapabilityInfo,
+  DEFAULT_TRAINER_CONFIG,
+  disposeGraphStructure,
   type GraphStructure,
+  type KLTrainingMetrics,
   type TrainerConfig,
   type TrainingMetrics,
-  DEFAULT_TRAINER_CONFIG,
 } from "../training/autograd-trainer.ts";
 import { initTensorFlow } from "../tf/backend.ts";
 import type { BackendMode } from "../tf/backend.ts";
@@ -88,11 +90,55 @@ export interface SHGATTrainer {
   trainBatch(examples: TrainingExample[]): Promise<TrainingMetrics>;
 
   /**
+   * Train on a batch of KL divergence examples (soft targets from n8n workflows).
+   *
+   * Scores ALL tools for each intent, then minimizes KL(target || predicted).
+   * K-heads learn to match cosine similarity distributions.
+   *
+   * @param examples - Soft target examples with sparse probability distributions
+   * @param toolIds - All tool IDs in the vocabulary (order matches target indices)
+   * @param klTemperature - Temperature for softmax on predicted scores
+   * @returns KL training metrics
+   */
+  trainBatchKL(
+    examples: SoftTargetExample[],
+    toolIds: string[],
+    klTemperature: number,
+    klWeight?: number,
+  ): Promise<KLTrainingMetrics>;
+
+  /**
    * Update InfoNCE temperature (for cosine annealing during training).
    *
    * @param temperature - New temperature (e.g. 0.10 → 0.06 over epochs)
    */
   setTemperature(temperature: number): void;
+
+  /**
+   * Update learning rate (for warmup + cosine decay scheduling).
+   *
+   * @param lr - New learning rate
+   */
+  setLearningRate(lr: number): void;
+
+  /**
+   * Configure subgraph neighbor sampling K parameter for mini-batch MP.
+   * @param K - Max neighbors per node (default 8, recommended 16)
+   */
+  setSubgraphK(K: number): void;
+
+  /**
+   * Pre-compute enriched embeddings via message passing OUTSIDE the gradient tape.
+   * Call once per epoch before trainBatch/trainBatchKL.
+   * Reduces autograd tape memory from ~3GB to ~50MB.
+   */
+  precomputeEnrichedEmbeddings(): void;
+
+  /**
+   * Export trained parameters as plain JS arrays for serialization.
+   * Returns a JSON-serializable object.
+   */
+  exportParams(): Record<string, unknown>;
 
   /** Release GPU/tensor resources */
   dispose(): void;
@@ -177,6 +223,13 @@ export interface ArchitectureOptions {
    * with deterministic values, making results reproducible across runs.
    */
   seed?: number;
+  /**
+   * Learning rate multiplier for MP parameters (W_up, W_down, a_up, a_down).
+   * Values < 1 dampen noisy gradients from subgraph sampling.
+   * Values > 1 amplify vanishing gradients through attention layers.
+   * @default 1 (same learning rate as K-head)
+   */
+  mpLearningRateScale?: number;
 }
 
 // ============================================================================
@@ -286,7 +339,7 @@ export class SHGATBuilder {
     // Validate
     if (this._nodes.length === 0) {
       throw new Error(
-        "[SHGATBuilder] No nodes provided. Call .nodes([...]) before .build()."
+        "[SHGATBuilder] No nodes provided. Call .nodes([...]) before .build().",
       );
     }
 
@@ -297,23 +350,34 @@ export class SHGATBuilder {
     // 2. Build config
     const config: SHGATConfig = {
       ...DEFAULT_SHGAT_CONFIG,
-      ...(this._archOpts.embeddingDim !== undefined && { embeddingDim: this._archOpts.embeddingDim }),
+      ...(this._archOpts.embeddingDim !== undefined &&
+        { embeddingDim: this._archOpts.embeddingDim }),
       ...(this._archOpts.numHeads !== undefined && { numHeads: this._archOpts.numHeads }),
       ...(this._archOpts.headDim !== undefined && { headDim: this._archOpts.headDim }),
       ...(this._archOpts.hiddenDim !== undefined && { hiddenDim: this._archOpts.hiddenDim }),
       ...(this._archOpts.preserveDim !== undefined && { preserveDim: this._archOpts.preserveDim }),
-      ...(this._archOpts.useProjectionHead !== undefined && { useProjectionHead: this._archOpts.useProjectionHead }),
-      ...(this._archOpts.downwardResidual !== undefined && { downwardResidual: this._archOpts.downwardResidual }),
-      ...(this._archOpts.preserveDimResidual !== undefined && { preserveDimResidual: this._archOpts.preserveDimResidual }),
-      ...(this._archOpts.preserveDimResiduals !== undefined && { preserveDimResiduals: this._archOpts.preserveDimResiduals }),
+      ...(this._archOpts.useProjectionHead !== undefined &&
+        { useProjectionHead: this._archOpts.useProjectionHead }),
+      ...(this._archOpts.downwardResidual !== undefined &&
+        { downwardResidual: this._archOpts.downwardResidual }),
+      ...(this._archOpts.preserveDimResidual !== undefined &&
+        { preserveDimResidual: this._archOpts.preserveDimResidual }),
+      ...(this._archOpts.preserveDimResiduals !== undefined &&
+        { preserveDimResiduals: this._archOpts.preserveDimResiduals }),
+      ...(this._archOpts.mpLearningRateScale !== undefined &&
+        { mpLearningRateScale: this._archOpts.mpLearningRateScale }),
     };
 
     const trainerConfig: Partial<TrainerConfig> = {
       ...DEFAULT_TRAINER_CONFIG,
-      ...(this._trainingOpts.learningRate !== undefined && { learningRate: this._trainingOpts.learningRate }),
-      ...(this._trainingOpts.batchSize !== undefined && { batchSize: this._trainingOpts.batchSize }),
-      ...(this._trainingOpts.temperature !== undefined && { temperature: this._trainingOpts.temperature }),
-      ...(this._trainingOpts.gradientClip !== undefined && { gradientClip: this._trainingOpts.gradientClip }),
+      ...(this._trainingOpts.learningRate !== undefined &&
+        { learningRate: this._trainingOpts.learningRate }),
+      ...(this._trainingOpts.batchSize !== undefined &&
+        { batchSize: this._trainingOpts.batchSize }),
+      ...(this._trainingOpts.temperature !== undefined &&
+        { temperature: this._trainingOpts.temperature }),
+      ...(this._trainingOpts.gradientClip !== undefined &&
+        { gradientClip: this._trainingOpts.gradientClip }),
       ...(this._trainingOpts.l2Lambda !== undefined && { l2Lambda: this._trainingOpts.l2Lambda }),
     };
 
@@ -332,22 +396,39 @@ export class SHGATBuilder {
       }
     }
 
-    const nodeIdSet = new Set(this._nodes.map(n => n.id));
+    const nodeIdSet = new Set(this._nodes.map((n) => n.id));
 
+    // Pass 1: Identify leaf nodes (no valid children) to distinguish
+    // tool-children from capability-children in the hierarchy.
+    const leafIds = new Set<string>();
+    for (const node of this._nodes) {
+      const validChildren = node.children.filter((id) => nodeIdSet.has(id));
+      if (validChildren.length === 0) {
+        leafIds.add(node.id);
+      }
+    }
+
+    // Pass 2: Build toolIds and capInfos with separate toolsUsed vs children.
+    // - toolsUsed: direct tool (leaf) children → creates edges in toolToCapMatrix
+    // - children: sub-capability children → creates edges in capToCapMatrices
+    // This enables multi-level hierarchy (L0→L1→L2→...→root) for message passing.
     for (const node of this._nodes) {
       embeddings.set(node.id, node.embedding);
 
-      // Filter children to only valid node IDs
-      const validChildren = node.children.filter(id => nodeIdSet.has(id));
+      const validChildren = node.children.filter((id) => nodeIdSet.has(id));
 
       if (validChildren.length === 0) {
         // Leaf (tool)
         toolIds.push(node.id);
       } else {
-        // Composite (capability)
+        // Composite (capability) — separate leaf children from cap children
+        const childTools = validChildren.filter((id) => leafIds.has(id));
+        const childCaps = validChildren.filter((id) => !leafIds.has(id));
+
         capInfos.push({
           id: node.id,
-          toolsUsed: validChildren,
+          toolsUsed: childTools,
+          children: childCaps.length > 0 ? childCaps : undefined,
         });
       }
     }
@@ -402,8 +483,66 @@ class BuiltSHGAT implements SHGATTrainerScorer {
     return this.trainer.trainBatch(examples);
   }
 
+  async trainBatchKL(
+    examples: SoftTargetExample[],
+    toolIds: string[],
+    klTemperature: number,
+    klWeight: number = 1.0,
+  ): Promise<KLTrainingMetrics> {
+    if (this.disposed) {
+      throw new Error("[SHGAT] Instance has been disposed. Create a new one via SHGATBuilder.");
+    }
+    return this.trainer.trainBatchKL(examples, toolIds, klTemperature, klWeight);
+  }
+
   setTemperature(temperature: number): void {
     this.trainer.setTemperature(temperature);
+  }
+
+  setLearningRate(lr: number): void {
+    this.trainer.setLearningRate(lr);
+  }
+
+  setSubgraphK(K: number): void {
+    this.trainer.setSubgraphK(K);
+  }
+
+  precomputeEnrichedEmbeddings(): void {
+    if (this.disposed) {
+      throw new Error("[SHGAT] Instance has been disposed.");
+    }
+    this.trainer.precomputeEnrichedEmbeddings();
+  }
+
+  exportParams(): Record<string, unknown> {
+    if (this.disposed) {
+      throw new Error("[SHGAT] Instance has been disposed.");
+    }
+    const params = this.trainer.getParams();
+    const toArr = (v: tf.Variable) => v.arraySync();
+
+    const result: Record<string, unknown> = {
+      W_k: params.W_k.map(toArr),
+      W_intent: toArr(params.W_intent),
+      W_up: Object.fromEntries(
+        [...params.W_up.entries()].map(([l, ws]) => [l, ws.map(toArr)]),
+      ),
+      W_down: Object.fromEntries(
+        [...params.W_down.entries()].map(([l, ws]) => [l, ws.map(toArr)]),
+      ),
+      a_up: Object.fromEntries(
+        [...params.a_up.entries()].map(([l, ws]) => [l, ws.map(toArr)]),
+      ),
+      a_down: Object.fromEntries(
+        [...params.a_down.entries()].map(([l, ws]) => [l, ws.map(toArr)]),
+      ),
+    };
+    if (params.W_q) result.W_q = params.W_q.map(toArr);
+    if (params.residualWeights) result.residualWeights = toArr(params.residualWeights);
+    if (params.projectionHead) {
+      result.projectionHead = this.trainer.exportProjectionHeadToArray();
+    }
+    return result;
   }
 
   dispose(): void {

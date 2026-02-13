@@ -36,25 +36,19 @@
  * @module gru/transition/gru-model
  */
 
-import { tf, dispose } from "../tf/backend.ts";
+import { dispose, tf } from "../tf/backend.ts";
 import type {
   CompactGRUConfig,
-  TransitionExample,
-  TrainingMetrics,
   PredictionResult,
   RankedPrediction,
   StructuralBias,
   ToolCapabilityMap,
+  TrainingMetrics,
+  TransitionExample,
   VocabNode,
 } from "./types.ts";
-import {
-  DEFAULT_CONFIG,
-  EMPTY_COMPOSITE_FEATURES,
-} from "./types.ts";
-import {
-  computeTransitionFeatures,
-  computeCapFingerprint,
-} from "./structural-bias.ts";
+import { DEFAULT_CONFIG, EMPTY_COMPOSITE_FEATURES } from "./types.ts";
+import { computeCapFingerprint, computeTransitionFeatures } from "./structural-bias.ts";
 
 /**
  * Compact Informed GRU — Transition Model
@@ -344,8 +338,7 @@ export class CompactInformedGRU {
 
     // Update dynamic config
     (this.config as { numTools: number }).numTools = tools.size;
-    (this.config as { numCapabilities: number }).numCapabilities =
-      toolCapMap.numCapabilities;
+    (this.config as { numCapabilities: number }).numCapabilities = toolCapMap.numCapabilities;
 
     // Register higher-level nodes (level 1+) — indices numTools..vocabSize-1
     let numVocabNodes = 0;
@@ -443,15 +436,13 @@ export class CompactInformedGRU {
    * @param totalEpochs - Total number of epochs.
    */
   annealTemperature(epoch: number, totalEpochs: number): void {
-    const { temperatureStart, temperatureEnd, annealingStopRatio } =
-      this.config;
+    const { temperatureStart, temperatureEnd, annealingStopRatio } = this.config;
 
     const effectiveEpochs = annealingStopRatio * totalEpochs;
     const progress = Math.min(epoch / Math.max(effectiveEpochs, 1), 1.0);
 
     // Cosine annealing: T(t) = T_end + (T_start - T_end) * 0.5 * (1 + cos(pi * progress))
-    this.currentTemperature =
-      temperatureEnd +
+    this.currentTemperature = temperatureEnd +
       (temperatureStart - temperatureEnd) *
         0.5 *
         (1 + Math.cos(Math.PI * progress));
@@ -581,8 +572,7 @@ export class CompactInformedGRU {
       for (let t = 0; t < seqLen; t++) {
         const toolId = seqToolIds[t];
         const emb = this.getToolEmbedding(toolId);
-        const embBase =
-          (b * maxSeqLen + (padOffset + t)) * embeddingDim;
+        const embBase = (b * maxSeqLen + (padOffset + t)) * embeddingDim;
         for (let d = 0; d < embeddingDim; d++) {
           contextData[embBase + d] = emb[d];
         }
@@ -601,8 +591,7 @@ export class CompactInformedGRU {
             ctxUpToT,
             this.toolCapMap,
           );
-          const featBase =
-            (b * maxSeqLen + (padOffset + t)) * numTransitionFeatures;
+          const featBase = (b * maxSeqLen + (padOffset + t)) * numTransitionFeatures;
           for (let f = 0; f < numTransitionFeatures; f++) {
             transFeatsData[featBase + f] = feats[f];
           }
@@ -779,10 +768,9 @@ export class CompactInformedGRU {
       const smoothedLabels = oneHot.mul(1 - eps).add(eps / vs);
 
       const pTarget = tf.sum(tf.mul(clipped, oneHot), -1);
-      const focalWeight =
-        focalGamma > 0
-          ? tf.pow(tf.sub(1, pTarget), focalGamma)
-          : tf.onesLike(pTarget);
+      const focalWeight = focalGamma > 0
+        ? tf.pow(tf.sub(1, pTarget), focalGamma)
+        : tf.onesLike(pTarget);
 
       const logProbs = tf.log(clipped);
       const perExampleCE = tf.neg(
@@ -859,8 +847,7 @@ export class CompactInformedGRU {
     };
 
     // Single gradient pass → single optimizer
-    const { value: totalValue, grads: allGrads } =
-      tf.variableGrads(combinedCostFn, trainableVars);
+    const { value: totalValue, grads: allGrads } = tf.variableGrads(combinedCostFn, trainableVars);
     this.optimizer.applyGradients(allGrads);
     lossVal = totalValue.dataSync()[0];
     totalValue.dispose();
@@ -987,9 +974,7 @@ export class CompactInformedGRU {
 
       // Resolve: could be a leaf tool or higher-level node
       const node = this.resolveVocabIndex(maxIdx);
-      const toolId = node
-        ? (node.level === 0 ? node.id : (node.children?.[0] ?? ""))
-        : "";
+      const toolId = node ? (node.level === 0 ? node.id : (node.children?.[0] ?? "")) : "";
 
       return {
         toolId,
@@ -1048,9 +1033,7 @@ export class CompactInformedGRU {
         if (!node) continue;
         // For non-leaf nodes, use the first child for backward compat
         // with eval code that checks toolId against ground truth
-        const id = node.level === 0
-          ? node.id
-          : (node.children?.[0] ?? node.id);
+        const id = node.level === 0 ? node.id : (node.children?.[0] ?? node.id);
         ranked.push({ toolId: id, score: adjustedScores[i] });
       }
       ranked.sort((a, b) => b.score - a.score);
@@ -1170,8 +1153,7 @@ export class CompactInformedGRU {
     }
 
     const path: string[] = [firstToolId];
-    const { maxPathLength, terminationThreshold, stickyMaxRepeat } =
-      this.config;
+    const { maxPathLength, terminationThreshold, stickyMaxRepeat } = this.config;
     const vs = this.vocabSize;
 
     for (let step = 0; step < maxPathLength - 1; step++) {
@@ -1272,8 +1254,7 @@ export class CompactInformedGRU {
     const { maxPathLength, stickyMaxRepeat } = this.config;
     const vs = this.vocabSize;
 
-    const normalize = (logProb: number, len: number) =>
-      logProb / Math.pow(len, lengthAlpha);
+    const normalize = (logProb: number, len: number) => logProb / Math.pow(len, lengthAlpha);
 
     let candidates: Array<{
       path: string[];
@@ -1427,7 +1408,13 @@ export class CompactInformedGRU {
     const allResults: Array<{ path: string[]; score: number; startTool: string }> = [];
 
     for (const { toolId } of pred.ranked) {
-      const beamResults = this.buildPathBeam(intentEmb, toolId, beamWidth, lengthAlpha, compositeFeatures);
+      const beamResults = this.buildPathBeam(
+        intentEmb,
+        toolId,
+        beamWidth,
+        lengthAlpha,
+        compositeFeatures,
+      );
       for (const r of beamResults) {
         allResults.push({ ...r, startTool: toolId });
       }
@@ -1495,6 +1482,52 @@ export class CompactInformedGRU {
       );
     }
     this.model.summary();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Weight persistence
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Export all trainable weights as plain JS arrays (JSON-serializable).
+   * The similarity_head kernel is excluded (it's derived from embeddings, not learned).
+   */
+  exportWeights(): { names: string[]; weights: number[][] } {
+    if (!this.model) {
+      throw new Error("[CompactInformedGRU] Model not built.");
+    }
+    // deno-lint-ignore no-explicit-any
+    const names: string[] = this.model.weights.map((w: any) => w.name as string);
+    const tensors = this.model.getWeights();
+    const weights: number[][] = tensors.map((t: tf.Tensor) => Array.from(t.dataSync()));
+    return { names, weights };
+  }
+
+  /**
+   * Load weights previously exported by `exportWeights()`.
+   * The model must already be built (call setToolVocabulary first) and
+   * weight shapes must match. similarity_head is re-injected from embeddings.
+   */
+  loadWeights(data: { names: string[]; weights: number[][] }): void {
+    if (!this.model) {
+      throw new Error("[CompactInformedGRU] Model not built. Call setToolVocabulary() first.");
+    }
+    const currentWeights = this.model.getWeights();
+    if (data.weights.length !== currentWeights.length) {
+      throw new Error(
+        `[CompactInformedGRU] Weight count mismatch: saved=${data.weights.length}, model=${currentWeights.length}`,
+      );
+    }
+    const tensors: tf.Tensor[] = [];
+    for (let i = 0; i < currentWeights.length; i++) {
+      const shape = currentWeights[i].shape;
+      tensors.push(tf.tensor(data.weights[i], shape));
+    }
+    this.model.setWeights(tensors);
+    for (const t of tensors) t.dispose();
+
+    // Re-inject similarity head from current embeddings (overrides saved value)
+    this.initSimilarityWeights();
   }
 
   /** Dispose all TF resources. */

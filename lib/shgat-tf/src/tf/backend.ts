@@ -17,9 +17,9 @@
  * @module shgat-tf/tf/backend
  */
 
-import * as tf from "npm:@tensorflow/tfjs@4.22.0";
+import * as tf from "@tensorflow/tfjs";
 // Import WASM backend to register it
-import "npm:@tensorflow/tfjs-backend-wasm@4.22.0";
+import "@tensorflow/tfjs-backend-wasm";
 
 // Re-export tf for use throughout the codebase
 export { tf };
@@ -39,10 +39,9 @@ export type BackendMode = "training" | "inference";
  * Inference only needs forward ops so WASM is fine and faster than CPU.
  */
 const BACKEND_PRIORITY: Record<BackendMode, string[]> = {
-  training:  ["webgpu", "cpu"],           // Never WASM: missing UnsortedSegmentSum
-  inference: ["webgpu", "wasm", "cpu"],   // WASM is fast for forward-only
+  training: ["webgpu", "cpu"], // Never WASM: missing UnsortedSegmentSum
+  inference: ["webgpu", "wasm", "cpu"], // WASM is fast for forward-only
 };
-
 
 /**
  * Ensure TensorFlow.js is initialized before use.
@@ -182,7 +181,9 @@ export function getMemoryInfo(): tf.MemoryInfo {
 export function logMemory(prefix = ""): void {
   const mem = tf.memory();
   console.log(
-    `${prefix}[TF Memory] tensors: ${mem.numTensors}, bytes: ${(mem.numBytes / 1024 / 1024).toFixed(2)}MB`,
+    `${prefix}[TF Memory] tensors: ${mem.numTensors}, bytes: ${
+      (mem.numBytes / 1024 / 1024).toFixed(2)
+    }MB`,
   );
 }
 

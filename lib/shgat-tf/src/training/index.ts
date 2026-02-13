@@ -15,22 +15,28 @@
 export {
   AutogradTrainer,
   trainStep,
+  trainStepKL,
   forwardScoring,
   kHeadScoring,
   infoNCELoss,
+  klDivergenceLoss,
   batchContrastiveLoss,
   initTFParams,
   DEFAULT_TRAINER_CONFIG,
   messagePassingForward,
   buildGraphStructure,
   disposeGraphStructure,
+  buildAdjacencyCache,
+  sampleSubgraph,
 } from "./autograd-trainer.ts";
 
 export type {
   TFParams,
   TrainerConfig,
   TrainingMetrics,
+  KLTrainingMetrics,
   GraphStructure,
+  AdjacencyCache,
   CapabilityInfo,
   MessagePassingContext,
 } from "./autograd-trainer.ts";

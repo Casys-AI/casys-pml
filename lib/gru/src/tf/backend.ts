@@ -71,24 +71,27 @@ export async function initTensorFlow(
   // Dynamically load optional backends to register them with tf.
   // These are optional: if not installed, we gracefully skip them.
 
-  // Detect runtime: tfjs-node only works in Node.js, not Deno
+  // Detect runtime: tfjs-node only works in Node.js, not Deno.
+  // We REQUIRE the native C++ backend for acceptable ML performance.
   // deno-lint-ignore no-explicit-any
   const isDeno = typeof (globalThis as any).Deno !== "undefined";
-
-  if (!isDeno) {
-    // Try native Node.js backend first (10-50x faster than CPU)
-    try { await import("@tensorflow/tfjs-node"); } catch { /* not available */ }
+  if (isDeno) {
+    throw new Error(
+      "[TF] Deno runtime detected — tfjs-node (native C++ backend) is not available under Deno. " +
+        "Run with Node.js/tsx instead: npx tsx <script>",
+    );
   }
-  // Try WASM backend (2-10x faster than CPU, works in both Deno and Node)
-  try { await import("@tensorflow/tfjs-backend-wasm"); } catch { /* not available */ }
+
+  // Native Node.js backend (10-50x faster than CPU/WASM)
+  try {
+    await import("@tensorflow/tfjs-node");
+  } catch { /* not available */ }
 
   await tf.ready();
 
   // Try backends in order of preference
   // "tensorflow" is the native Node.js backend registered by tfjs-node
-  const backends = preferredBackend
-    ? [preferredBackend]
-    : ["tensorflow", "wasm", "cpu"];
+  const backends = preferredBackend ? [preferredBackend] : ["tensorflow", "wasm", "cpu"];
 
   for (const backend of backends) {
     try {
@@ -135,7 +138,9 @@ export function getMemoryInfo(): tf.MemoryInfo {
 export function logMemory(prefix = ""): void {
   const mem = tf.memory();
   console.log(
-    `${prefix}[TF Memory] tensors: ${mem.numTensors}, bytes: ${(mem.numBytes / 1024 / 1024).toFixed(2)}MB`,
+    `${prefix}[TF Memory] tensors: ${mem.numTensors}, bytes: ${
+      (mem.numBytes / 1024 / 1024).toFixed(2)
+    }MB`,
   );
 }
 

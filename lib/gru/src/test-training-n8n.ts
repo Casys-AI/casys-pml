@@ -13,20 +13,25 @@
 
 import "dotenv/config";
 import postgres from "postgres";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { createReadStream, existsSync, readFileSync } from "node:fs";
+import { createInterface } from "node:readline";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { decode as msgpackDecode } from "@msgpack/msgpack";
+import pako from "pako";
 
 import { initTensorFlow, logMemory } from "./tf/backend.ts";
 import { CompactInformedGRU } from "./transition/gru-model.ts";
-import { computeJaccardMatrix, computeBigramMatrix } from "./transition/structural-bias.ts";
-import type { TransitionExample, ToolCapabilityMap } from "./transition/types.ts";
-import { buildDAGAwareExamples, generateKFolds, formatKFoldMetric } from "./training-utils.ts";
+import { computeBigramMatrix, computeJaccardMatrix } from "./transition/structural-bias.ts";
+import type { ToolCapabilityMap, TransitionExample } from "./transition/types.ts";
+import { buildDAGAwareExamples, formatKFoldMetric, generateKFolds } from "./training-utils.ts";
 import type { TaskResultWithLayer } from "./training-utils.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const N8N_DATA_PATH = resolve(__dirname, "../data/n8n-training-examples.json");
+const N8N_DATA_PATH_BIN = resolve(__dirname, "../data/n8n-training-examples.msgpack.gz");
+const EXPANDED_VOCAB_PATH = resolve(__dirname, "../data/expanded-vocab.json");
 
 // ---------------------------------------------------------------------------
 // Helpers (same as test-training.ts)
@@ -41,13 +46,17 @@ function parseEmbedding(embStr: string): number[] | null {
 // Seeded PRNG (mulberry32) for reproducible train/test splits
 function seededRng(seed: number) {
   return () => {
-    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    seed |= 0;
+    seed = seed + 0x6D2B79F5 | 0;
     let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
 }
-const SPLIT_SEED = parseInt(process.argv.find((a) => a.startsWith("--seed="))?.slice(7) ?? "42", 10);
+const SPLIT_SEED = parseInt(
+  process.argv.find((a) => a.startsWith("--seed="))?.slice(7) ?? "42",
+  10,
+);
 const rng = seededRng(SPLIT_SEED);
 
 function shuffle<T>(array: T[]): T[] {
@@ -66,9 +75,14 @@ function embedHash(emb: number[]): string {
 // CLI args
 // ---------------------------------------------------------------------------
 
-const PROD_OVERSAMPLE = parseInt(process.argv.find((a) => a.startsWith("--oversample="))?.slice(13) ?? "3", 10);
+const PROD_OVERSAMPLE = parseInt(
+  process.argv.find((a) => a.startsWith("--oversample="))?.slice(13) ?? "3",
+  10,
+);
 const EPOCHS = parseInt(process.argv.find((a) => a.startsWith("--epochs="))?.slice(9) ?? "30", 10);
-const N8N_LOSS_WEIGHT = parseFloat(process.argv.find((a) => a.startsWith("--n8n-weight="))?.slice(13) ?? "0.3");
+const N8N_LOSS_WEIGHT = parseFloat(
+  process.argv.find((a) => a.startsWith("--n8n-weight="))?.slice(13) ?? "0.3",
+);
 
 // ---------------------------------------------------------------------------
 // Main
@@ -78,7 +92,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   throw new Error(
     "[GRU] DATABASE_URL environment variable is required. " +
-    "Set it in .env or export it before running this script.",
+      "Set it in .env or export it before running this script.",
   );
 }
 
@@ -106,7 +120,24 @@ for (const row of toolRows) {
   const embedding = parseEmbedding(row.embedding);
   if (embedding && embedding.length > 0) toolEmbeddings.set(row.tool_id, embedding);
 }
-console.log(`      ${toolEmbeddings.size} tool embeddings`);
+console.log(`      ${toolEmbeddings.size} PML tool embeddings`);
+
+// Load expanded vocab (Smithery MCP tools) if available
+if (existsSync(EXPANDED_VOCAB_PATH)) {
+  const expandedVocab = JSON.parse(readFileSync(EXPANDED_VOCAB_PATH, "utf-8"));
+  const smIds: string[] = expandedVocab.smitheryToolIds;
+  const smEmbs: number[][] = expandedVocab.smitheryToolEmbeddings;
+  let added = 0;
+  for (let i = 0; i < smIds.length; i++) {
+    if (!toolEmbeddings.has(smIds[i])) {
+      toolEmbeddings.set(smIds[i], smEmbs[i]);
+      added++;
+    }
+  }
+  console.log(`      + ${added} Smithery tools from expanded vocab → ${toolEmbeddings.size} total`);
+} else {
+  console.log("      No expanded vocab found — PML-only (644 tools)");
+}
 const embeddingDim = toolEmbeddings.values().next().value?.length || 1024;
 
 console.log("\n[2/9] Loading execution traces...");
@@ -154,14 +185,20 @@ for (const { capId, toolId } of toolCapPairs) {
   const cIdx = capToIndex.get(capId);
   if (tIdx !== undefined && cIdx !== undefined) capMatrix[tIdx * numCaps + cIdx] = 1;
 }
-const toolCapMap: ToolCapabilityMap = { matrix: capMatrix, numTools: numToolsForMatrix, numCapabilities: numCaps };
+const toolCapMap: ToolCapabilityMap = {
+  matrix: capMatrix,
+  numTools: numToolsForMatrix,
+  numCapabilities: numCaps,
+};
 
 console.log("\n[4/9] Computing structural bias...");
 const jaccardMatrix = computeJaccardMatrix(toolCapMap);
 const allTraces: string[][] = [];
 for (const trace of traceRows) {
   const taskResults = trace.task_results as Array<{ tool?: string }>;
-  const toolSeq = taskResults.map((t) => t.tool).filter((t): t is string => !!t && toolEmbeddings.has(t));
+  const toolSeq = taskResults.map((t) => t.tool).filter((t): t is string =>
+    !!t && toolEmbeddings.has(t)
+  );
   if (toolSeq.length >= 2) allTraces.push(toolSeq);
 }
 const bigramMatrix = computeBigramMatrix(allTraces, matrixToolIndex, numToolsForMatrix);
@@ -181,22 +218,31 @@ for (const trace of traceRows) {
 
   // Use DAG-aware example generation (P0-1 fix)
   const traceResult = buildDAGAwareExamples(
-    trace.id, intentEmbedding, taskResults,
-    validToolIdSet, singleToolSeen, embedHash,
+    trace.id,
+    intentEmbedding,
+    taskResults,
+    validToolIdSet,
+    singleToolSeen,
+    embedHash,
   );
 
   if (traceResult.isSingleTool) singleToolCount++;
   if (traceResult.isMultiTool) {
     multiToolCount++;
     const hasLayers = taskResults.some((t: TaskResultWithLayer) =>
-      (t.layer_index ?? t.layerIndex ?? -1) >= 0);
+      (t.layer_index ?? t.layerIndex ?? -1) >= 0
+    );
     if (hasLayers) dagAwareCount++;
     else linearFallbackCount++;
   }
   prodExamples.push(...traceResult.examples);
 }
-console.log(`      Prod: ${prodExamples.length} examples (${singleToolCount} single, ${multiToolCount} multi-tool)`);
-console.log(`      DAG-aware context: ${dagAwareCount} traces, linear fallback: ${linearFallbackCount} traces`);
+console.log(
+  `      Prod: ${prodExamples.length} examples (${singleToolCount} single, ${multiToolCount} multi-tool)`,
+);
+console.log(
+  `      DAG-aware context: ${dagAwareCount} traces, linear fallback: ${linearFallbackCount} traces`,
+);
 
 // Split prod into train/test BY TRACE (not by example) to avoid contamination
 // This ensures all examples from a given trace are in the same split
@@ -208,7 +254,9 @@ const testTraceIds = new Set(uniqueTraceIds.slice(traceSplitIdx));
 
 const prodTrain = prodExamples.filter((ex) => trainTraceIds.has(ex._traceId));
 const prodTest = prodExamples.filter((ex) => testTraceIds.has(ex._traceId));
-console.log(`      Prod train: ${prodTrain.length}, Prod test: ${prodTest.length} (${trainTraceIds.size}/${testTraceIds.size} traces)`);
+console.log(
+  `      Prod train: ${prodTrain.length}, Prod test: ${prodTest.length} (${trainTraceIds.size}/${testTraceIds.size} traces)`,
+);
 
 // =====================================================================
 // PHASE 2: Load n8n augmentation data
@@ -218,49 +266,124 @@ console.log("\n[6/9] Loading n8n augmentation data...");
 
 let n8nExamples: TransitionExample[] = [];
 
-if (!existsSync(N8N_DATA_PATH)) {
-  console.warn(`      WARNING: n8n data not found at ${N8N_DATA_PATH}`);
-  console.warn(`      Run 'npm run n8n:pipeline' first. Continuing with production-only training.`);
-} else {
-  const n8nData = JSON.parse(readFileSync(N8N_DATA_PATH, "utf-8")) as {
-    mcpToolIds: string[];
-    examples: Array<{
-      intentEmbedding: number[];
-      contextToolIds: string[];
-      targetToolId: string;
-      isTerminal: number;
-      isSingleTool: boolean;
-      softTargetProbs: number[];
-    }>;
-  };
+if (existsSync(N8N_DATA_PATH_BIN)) {
+  // Primary: msgpack+gzip format (fast, compact, no V8 string limit)
+  console.log(`      Loading msgpack+gzip: ${N8N_DATA_PATH_BIN}`);
+  const compressed = new Uint8Array(readFileSync(N8N_DATA_PATH_BIN));
+  const decompressed = pako.ungzip(compressed);
+  console.log(
+    `      Compressed: ${(compressed.length / 1024 / 1024).toFixed(1)} MB → Decompressed: ${
+      (decompressed.length / 1024 / 1024).toFixed(1)
+    } MB`,
+  );
 
-  // Remap soft target probs from n8n tool ordering to model's tool ordering
-  const n8nToolIds = n8nData.mcpToolIds;
+  // deno-lint-ignore no-explicit-any
+  const n8nData = msgpackDecode(decompressed) as any;
+  const n8nToolIds: string[] = n8nData.mcpToolIds;
   const n8nToModelIdx = new Map<number, number>();
   for (let i = 0; i < n8nToolIds.length; i++) {
     const modelIdx = matrixToolIndex.get(n8nToolIds[i]);
     if (modelIdx !== undefined) n8nToModelIdx.set(i, modelIdx);
   }
 
+  let rawCount = 0;
   for (const ex of n8nData.examples) {
-    // Filter: only keep examples where target and context tools exist in our vocabulary
-    if (!toolEmbeddings.has(ex.targetToolId)) continue;
-    if (ex.contextToolIds.some((id) => !toolEmbeddings.has(id))) continue;
+    rawCount++;
+    const targetToolId: string = ex.tid;
+    const contextToolIds: string[] = ex.ctx;
 
-    // Remap softTargetProbs to model's tool ordering
+    if (!toolEmbeddings.has(targetToolId)) continue;
+    if (contextToolIds.some((id: string) => !toolEmbeddings.has(id))) continue;
+
+    // Remap probs from n8n tool ordering to model's tool ordering
+    const probs: Float32Array | number[] = ex.probs;
     const remappedProbs = new Array(numToolsForMatrix).fill(0);
     let total = 0;
-    for (let i = 0; i < ex.softTargetProbs.length; i++) {
-      const modelIdx = n8nToModelIdx.get(i);
-      if (modelIdx !== undefined) {
-        remappedProbs[modelIdx] = ex.softTargetProbs[i];
-        total += ex.softTargetProbs[i];
+    for (let i = 0; i < probs.length; i++) {
+      if (probs[i] > 0) {
+        const modelIdx = n8nToModelIdx.get(i);
+        if (modelIdx !== undefined) {
+          remappedProbs[modelIdx] = probs[i];
+          total += probs[i];
+        }
       }
     }
-    // Re-normalize (some probability mass may have been lost)
     if (total > 0) {
       for (let i = 0; i < remappedProbs.length; i++) remappedProbs[i] /= total;
     }
+
+    n8nExamples.push({
+      intentEmbedding: Array.from(ex.ie as Float32Array),
+      contextToolIds,
+      targetToolId,
+      isTerminal: ex.term,
+      isSingleTool: false,
+      softTargetProbs: remappedProbs,
+    });
+  }
+
+  console.log(`      n8n examples loaded: ${n8nExamples.length} (from ${rawCount} raw)`);
+} else if (existsSync(N8N_DATA_PATH)) {
+  // Fallback: stream-parse legacy JSON format
+  console.log(`      Falling back to JSON streaming: ${N8N_DATA_PATH}`);
+  const rl = createInterface({
+    input: createReadStream(N8N_DATA_PATH, "utf-8"),
+    crlfDelay: Infinity,
+  });
+  let headerParsed = false;
+  let n8nToolIds: string[] = [];
+  const n8nToModelIdx = new Map<number, number>();
+  let rawCount = 0;
+
+  for await (const line of rl) {
+    if (!headerParsed) {
+      const match = line.match(/"mcpToolIds":(\[.*?\]),"sparse"/);
+      if (match) {
+        n8nToolIds = JSON.parse(match[1]);
+        for (let i = 0; i < n8nToolIds.length; i++) {
+          const modelIdx = matrixToolIndex.get(n8nToolIds[i]);
+          if (modelIdx !== undefined) n8nToModelIdx.set(i, modelIdx);
+        }
+        headerParsed = true;
+      }
+      continue;
+    }
+
+    const trimmed = line.replace(/^,/, "").replace(/\]?\}?\s*$/, "").trim();
+    if (!trimmed || trimmed === "]}" || trimmed === "]") continue;
+
+    // deno-lint-ignore no-explicit-any
+    let ex: any;
+    try {
+      ex = JSON.parse(trimmed.endsWith("}") ? trimmed : trimmed + "}");
+    } catch {
+      continue;
+    }
+    rawCount++;
+
+    if (!toolEmbeddings.has(ex.targetToolId)) continue;
+    if (ex.contextToolIds.some((id: string) => !toolEmbeddings.has(id))) continue;
+
+    const remappedProbs = new Array(numToolsForMatrix).fill(0);
+    let total = 0;
+    if (ex.sp) {
+      for (const [n8nIdx, prob] of ex.sp) {
+        const modelIdx = n8nToModelIdx.get(n8nIdx);
+        if (modelIdx !== undefined) {
+          remappedProbs[modelIdx] = prob;
+          total += prob;
+        }
+      }
+    } else if (ex.softTargetProbs) {
+      for (let i = 0; i < ex.softTargetProbs.length; i++) {
+        const modelIdx = n8nToModelIdx.get(i);
+        if (modelIdx !== undefined) {
+          remappedProbs[modelIdx] = ex.softTargetProbs[i];
+          total += ex.softTargetProbs[i];
+        }
+      }
+    }
+    if (total > 0) { for (let i = 0; i < remappedProbs.length; i++) remappedProbs[i] /= total; }
 
     n8nExamples.push({
       intentEmbedding: ex.intentEmbedding,
@@ -270,9 +393,18 @@ if (!existsSync(N8N_DATA_PATH)) {
       isSingleTool: false,
       softTargetProbs: remappedProbs,
     });
+
+    if (rawCount % 5000 === 0) {
+      console.log(`      ... streamed ${rawCount} examples (${n8nExamples.length} kept)`);
+    }
   }
 
-  console.log(`      n8n examples loaded: ${n8nExamples.length} (from ${n8nData.examples.length} raw)`);
+  console.log(
+    `      n8n examples loaded: ${n8nExamples.length} (from ${rawCount} raw, JSON fallback)`,
+  );
+} else {
+  console.warn(`      WARNING: n8n data not found`);
+  console.warn(`      Run 'npm run n8n:pipeline' first. Continuing with production-only training.`);
 }
 
 // =====================================================================
@@ -286,12 +418,18 @@ const oversampledProd: TransitionExample[] = [];
 for (let r = 0; r < PROD_OVERSAMPLE; r++) {
   oversampledProd.push(...prodTrain);
 }
-console.log(`      Oversampled prod: ${oversampledProd.length} (${PROD_OVERSAMPLE}x ${prodTrain.length})`);
+console.log(
+  `      Oversampled prod: ${oversampledProd.length} (${PROD_OVERSAMPLE}x ${prodTrain.length})`,
+);
 
 const mixedTrain = [...oversampledProd, ...n8nExamples];
 console.log(`      n8n examples: ${n8nExamples.length}`);
 console.log(`      Mixed total: ${mixedTrain.length}`);
-console.log(`      Prod/n8n ratio: ${(oversampledProd.length / Math.max(n8nExamples.length, 1)).toFixed(1)}:1`);
+console.log(
+  `      Prod/n8n ratio: ${
+    (oversampledProd.length / Math.max(n8nExamples.length, 1)).toFixed(1)
+  }:1`,
+);
 
 await sql.end();
 
@@ -337,10 +475,12 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
 
   console.log(
     `  Epoch ${String(epoch + 1).padStart(2)}/${EPOCHS}: ` +
-    `loss=${avgLoss.toFixed(4)} (nextTool=${avgNextToolLoss.toFixed(4)}, term=${avgTermLoss.toFixed(4)}), ` +
-    `nextAcc=${avgNextAcc.toFixed(1)}%, ` +
-    `termAcc=${avgTermAcc.toFixed(1)}%, T=${model.getTemperature().toFixed(4)}, ` +
-    `time=${epochTime.toFixed(1)}s`,
+      `loss=${avgLoss.toFixed(4)} (nextTool=${avgNextToolLoss.toFixed(4)}, term=${
+        avgTermLoss.toFixed(4)
+      }), ` +
+      `nextAcc=${avgNextAcc.toFixed(1)}%, ` +
+      `termAcc=${avgTermAcc.toFixed(1)}%, T=${model.getTemperature().toFixed(4)}, ` +
+      `time=${epochTime.toFixed(1)}s`,
   );
 }
 
@@ -364,7 +504,9 @@ const testNextAcc = nextTotal > 0 ? (correctNext / nextTotal) * 100 : 0;
 const testTermAcc = (correctTerm / prodTest.length) * 100;
 
 console.log(`      Next tool accuracy: ${testNextAcc.toFixed(1)}% (${correctNext}/${nextTotal})`);
-console.log(`      Termination accuracy: ${testTermAcc.toFixed(1)}% (${correctTerm}/${prodTest.length})`);
+console.log(
+  `      Termination accuracy: ${testTermAcc.toFixed(1)}% (${correctTerm}/${prodTest.length})`,
+);
 
 // Path evaluation: greedy vs beam (using test-set traces only, no DB reconnection)
 console.log("\n      Path building — Greedy vs Beam(3) [test set only]:");
@@ -374,7 +516,9 @@ console.log("\n      Path building — Greedy vs Beam(3) [test set only]:");
 const testTraceRowsForPath = traceRows.filter((trace) => {
   if (!testTraceIds.has(trace.id)) return false;
   const taskResults = trace.task_results as Array<{ tool?: string }>;
-  const toolSeq = taskResults.map((t) => t.tool).filter((t): t is string => !!t && toolEmbeddings.has(t));
+  const toolSeq = taskResults.map((t) => t.tool).filter((t): t is string =>
+    !!t && toolEmbeddings.has(t)
+  );
   return toolSeq.length >= 2;
 });
 
@@ -385,7 +529,9 @@ for (const trace of testTraceRowsForPath) {
   const intentEmb = parseEmbedding(trace.intent_embedding);
   if (!intentEmb) continue;
   const taskResults = trace.task_results as Array<{ tool?: string }>;
-  const actualPath = taskResults.map((t) => t.tool).filter((t): t is string => !!t && toolEmbeddings.has(t));
+  const actualPath = taskResults.map((t) => t.tool).filter((t): t is string =>
+    !!t && toolEmbeddings.has(t)
+  );
   if (actualPath.length < 2) continue;
 
   const greedyPath = model.buildPath(intentEmb, actualPath[0]);
@@ -396,26 +542,48 @@ for (const trace of testTraceRowsForPath) {
   if (greedyPath.join(" -> ") === actualStr) greedyExactMatch++;
 
   for (const beam of beamResults) {
-    if (beam.path.join(" -> ") === actualStr) { beamExactMatch++; break; }
+    if (beam.path.join(" -> ") === actualStr) {
+      beamExactMatch++;
+      break;
+    }
   }
   for (const beam of beamResults) {
     const beamSet = new Set(beam.path);
-    if (actualPath.every((t) => beamSet.has(t)) && beam.path.length === actualPath.length) { beamContainsMatch++; break; }
+    if (actualPath.every((t) => beamSet.has(t)) && beam.path.length === actualPath.length) {
+      beamContainsMatch++;
+      break;
+    }
   }
 
   if (evalCount <= 5) {
     console.log(`\n      [${evalCount}] Actual: [${actualStr}]`);
     console.log(`          Greedy: [${greedyPath.join(" -> ")}]`);
     for (let b = 0; b < Math.min(beamResults.length, 3); b++) {
-      console.log(`          Beam[${b}]: [${beamResults[b].path.join(" -> ")}] (score: ${beamResults[b].score.toExponential(2)})`);
+      console.log(
+        `          Beam[${b}]: [${beamResults[b].path.join(" -> ")}] (score: ${
+          beamResults[b].score.toExponential(2)
+        })`,
+      );
     }
   }
 }
 
 console.log(`\n      === Path Evaluation (${evalCount} test-only traces) ===`);
-console.log(`      Greedy exact match:  ${greedyExactMatch}/${evalCount} (${evalCount > 0 ? (greedyExactMatch / evalCount * 100).toFixed(1) : "0.0"}%)`);
-console.log(`      Beam@3 exact match:  ${beamExactMatch}/${evalCount} (${evalCount > 0 ? (beamExactMatch / evalCount * 100).toFixed(1) : "0.0"}%)`);
-console.log(`      Beam@3 tools match:  ${beamContainsMatch}/${evalCount} (${evalCount > 0 ? (beamContainsMatch / evalCount * 100).toFixed(1) : "0.0"}%)`);
+console.log(
+  `      Greedy exact match:  ${greedyExactMatch}/${evalCount} (${
+    evalCount > 0 ? (greedyExactMatch / evalCount * 100).toFixed(1) : "0.0"
+  }%)`,
+);
+console.log(
+  `      Beam@3 exact match:  ${beamExactMatch}/${evalCount} (${
+    evalCount > 0 ? (beamExactMatch / evalCount * 100).toFixed(1) : "0.0"
+  }%)`,
+);
+console.log(
+  `      Beam@3 tools match:  ${beamContainsMatch}/${evalCount} (${
+    evalCount > 0 ? (beamContainsMatch / evalCount * 100).toFixed(1) : "0.0"
+  }%)`,
+);
 
 // --- K-fold Cross-Validation (P0-2) ---
 const K_FOLDS = parseInt(process.argv.find((a) => a.startsWith("--kfolds="))?.slice(9) ?? "5", 10);
@@ -459,8 +627,11 @@ if (RUN_KFOLD && K_FOLDS >= 2) {
       const pred = foldModel.predictNextTopK(ex.intentEmbedding, ex.contextToolIds, 10);
       if (!ex.isSingleTool) {
         nextTotal++;
-        const rank = pred.ranked.findIndex(r => r.toolId === ex.targetToolId);
-        if (rank === 0) { hit1++; correctNext++; }
+        const rank = pred.ranked.findIndex((r) => r.toolId === ex.targetToolId);
+        if (rank === 0) {
+          hit1++;
+          correctNext++;
+        }
         if (rank >= 0 && rank < 3) hit3++;
         if (rank >= 0) mrrSum += 1 / (rank + 1);
       }
@@ -480,9 +651,11 @@ if (RUN_KFOLD && K_FOLDS >= 2) {
     foldMRR.push(mrrVal);
 
     console.log(
-      `  Fold ${f + 1}/${K_FOLDS}: nextAcc=${nextAccVal.toFixed(1)}%, termAcc=${termAccVal.toFixed(1)}%, ` +
-      `Hit@1=${hit1Val.toFixed(1)}%, Hit@3=${hit3Val.toFixed(1)}%, MRR=${mrrVal.toFixed(3)} ` +
-      `(${fold.trainTraceIds.size}/${fold.testTraceIds.size} traces)`
+      `  Fold ${f + 1}/${K_FOLDS}: nextAcc=${nextAccVal.toFixed(1)}%, termAcc=${
+        termAccVal.toFixed(1)
+      }%, ` +
+        `Hit@1=${hit1Val.toFixed(1)}%, Hit@3=${hit3Val.toFixed(1)}%, MRR=${mrrVal.toFixed(3)} ` +
+        `(${fold.trainTraceIds.size}/${fold.testTraceIds.size} traces)`,
     );
 
     foldModel.dispose();

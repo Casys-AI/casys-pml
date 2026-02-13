@@ -9,7 +9,12 @@
 
 import { describe, it } from "node:test";
 import { strict as assert } from "node:assert";
-import { PERBuffer, DEFAULT_PER_ALPHA, DEFAULT_MIN_PRIORITY, DEFAULT_MAX_PRIORITY } from "../per-buffer.ts";
+import {
+  DEFAULT_MAX_PRIORITY,
+  DEFAULT_MIN_PRIORITY,
+  DEFAULT_PER_ALPHA,
+  PERBuffer,
+} from "../per-buffer.ts";
 import type { TransitionExample } from "../../transition/types.ts";
 
 // Helper: create a minimal TransitionExample
@@ -127,15 +132,16 @@ describe("PERBuffer", () => {
     it("high-priority entries sampled more often (alpha=1)", () => {
       const buffer = new PERBuffer({ capacity: 100, alpha: 1.0 });
 
+      // Priority gap of 1000:1 makes this nearly deterministic
       for (let i = 0; i < 10; i++) {
-        buffer.add(makeExample(`low_${i}`), 0.01);
+        buffer.add(makeExample(`low_${i}`), 0.001);
       }
       for (let i = 0; i < 10; i++) {
         buffer.add(makeExample(`high_${i}`), 1.0);
       }
 
       let highCount = 0;
-      const trials = 100;
+      const trials = 200;
       for (let t = 0; t < trials; t++) {
         const result = buffer.sample(5);
         for (const entry of result.entries) {
@@ -144,7 +150,10 @@ describe("PERBuffer", () => {
       }
 
       const highRatio = highCount / (trials * 5);
-      assert.ok(highRatio > 0.8, `Expected high ratio > 0.8, got ${highRatio}`);
+      assert.ok(
+        highRatio > 0.9,
+        `Expected high ratio > 0.9 with 1000:1 priority gap, got ${highRatio}`,
+      );
     });
 
     it("samples without replacement (no duplicates)", () => {

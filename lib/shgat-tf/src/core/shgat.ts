@@ -61,8 +61,8 @@ import {
 // Forward pass helpers (extracted)
 import {
   forwardCore,
-  buildToolToCapMatrix,
-  buildCapToCapMatrices,
+  buildL0ToL1Matrix,
+  buildInterLevelMatrices,
   type ForwardPassContext,
 } from "./forward-helpers.ts";
 
@@ -504,8 +504,8 @@ export class SHGAT {
         hierarchy: this.hierarchy,
         multiLevelIncidence: this.multiLevelIncidence,
       };
-      const toolToCapMatrix_array = buildToolToCapMatrix(ctx);
-      const capToCapMatrices_array = buildCapToCapMatrices(ctx);
+      const toolToCapMatrix_array = buildL0ToL1Matrix(ctx);
+      const capToCapMatrices_array = buildInterLevelMatrices(ctx);
 
       // Convert to tensors
       const H = tf.tensor2d(H_array);

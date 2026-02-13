@@ -1,43 +1,45 @@
 /**
  * Vertex → Hyperedge Message Passing Phase
  *
- * Phase 1 of SHGAT message passing: Tools (vertices) send messages to
- * capabilities (hyperedges) they participate in.
+ * Phase 1 of SHGAT message passing: L0 nodes send messages to
+ * L1+ nodes (groups) they participate in.
  *
  * Algorithm:
- *   1. Project tool embeddings: H' = H · W_v^T
- *   2. Project capability embeddings: E' = E · W_e^T
+ *   1. Project L0 node embeddings: H' = H · W_v^T
+ *   2. Project L1+ node embeddings: E' = E · W_e^T
  *   3. Compute attention scores: score(t, c) = a^T · LeakyReLU([H'_t || E'_c])
- *      (masked by incidence matrix: only compute for tools in capability)
- *   4. Normalize per capability: α_c = softmax({score(t, c) | t ∈ c})
+ *      (masked by incidence matrix: only compute for L0 nodes in L1+ group)
+ *   4. Normalize per L1+ node: α_c = softmax({score(t, c) | t ∈ c})
  *   5. Aggregate: E^new_c = ELU(Σ_t α_tc · H'_t)
+ *
+ * Uses SparseConnectivity for O(edges) memory instead of O(numL0 × numL1).
  *
  * @module graphrag/algorithms/shgat/message-passing/vertex-to-edge-phase
  */
 
 import * as math from "../utils/math.ts";
-import type { MessagePassingPhase, PhaseParameters, PhaseResult } from "./phase-interface.ts";
+import type { MessagePassingPhase, PhaseParameters, PhaseResult, SparseConnectivity } from "./phase-interface.ts";
 
 /**
  * Cache for backward pass
  */
 export interface VEForwardCache {
-  /** Original tool embeddings [numTools][embDim] */
+  /** Original L0 node embeddings [numL0][embDim] */
   H: number[][];
-  /** Original capability embeddings [numCaps][embDim] */
+  /** Original L1+ node embeddings [numL1][embDim] */
   E: number[][];
-  /** Projected tool embeddings [numTools][headDim] */
+  /** Projected L0 node embeddings [numL0][headDim] */
   H_proj: number[][];
-  /** Projected capability embeddings [numCaps][headDim] */
+  /** Projected L1+ node embeddings [numL1][headDim] */
   E_proj: number[][];
   /** Pre-activation concatenated vectors for each (t,c) pair */
-  concatPreAct: Map<string, number[]>;
-  /** Aggregated values before ELU [numCaps][headDim] */
+  concatPreAct: Map<number, number[]>;
+  /** Aggregated values before ELU [numL1][headDim] (per L1+ node) */
   aggregated: number[][];
-  /** Attention weights [numTools][numCaps] */
-  attention: number[][];
-  /** Connectivity matrix */
-  connectivity: number[][];
+  /** Attention weights: sparse Map (edgeKey → weight) */
+  attention: Map<number, number>;
+  /** Sparse connectivity */
+  connectivity: SparseConnectivity;
   /** LeakyReLU slope */
   leakyReluSlope: number;
 }
@@ -52,9 +54,9 @@ export interface VEGradients {
   dW_target: number[][];
   /** Gradient for a_attention [2*headDim] */
   da_attention: number[];
-  /** Gradient for input H [numTools][embDim] */
+  /** Gradient for input H (L0 nodes) [numL0][embDim] */
   dH: number[][];
-  /** Gradient for input E [numCaps][embDim] */
+  /** Gradient for input E (L1+ nodes) [numL1][embDim] */
   dE: number[][];
 }
 
@@ -63,6 +65,11 @@ export interface VEGradients {
  */
 export interface VEPhaseResultWithCache extends PhaseResult {
   cache: VEForwardCache;
+}
+
+/** Compute edge key from source/target indices (avoids string GC) */
+function edgeKey(s: number, t: number, numL1: number): number {
+  return s * numL1 + t;
 }
 
 /**
@@ -76,7 +83,7 @@ export class VertexToEdgePhase implements MessagePassingPhase {
   forward(
     H: number[][],
     E: number[][],
-    connectivity: number[][],
+    connectivity: SparseConnectivity,
     params: PhaseParameters,
     config: { leakyReluSlope: number },
   ): PhaseResult {
@@ -90,81 +97,78 @@ export class VertexToEdgePhase implements MessagePassingPhase {
   forwardWithCache(
     H: number[][],
     E: number[][],
-    connectivity: number[][],
+    conn: SparseConnectivity,
     params: PhaseParameters,
     config: { leakyReluSlope: number },
   ): VEPhaseResultWithCache {
-    const numTools = H.length;
-    const numCaps = E.length;
+    const numL1 = E.length;
 
     // Project embeddings
     const H_proj = math.matmulTranspose(H, params.W_source);
     const E_proj = math.matmulTranspose(E, params.W_target);
 
-    // Cache for backward: pre-activation concat values
-    const concatPreAct = new Map<string, number[]>();
-
-    // Compute attention scores (masked by incidence matrix)
-    const attentionScores: number[][] = Array.from(
-      { length: numTools },
-      () => Array(numCaps).fill(-Infinity),
-    );
-
-    for (let t = 0; t < numTools; t++) {
-      for (let c = 0; c < numCaps; c++) {
-        if (connectivity[t][c] === 1) {
-          // Concatenate projected embeddings
-          const concat = [...H_proj[t], ...E_proj[c]];
-          concatPreAct.set(`${t}:${c}`, concat); // Cache pre-activation
-          const activated = concat.map((x) => math.leakyRelu(x, config.leakyReluSlope));
-          attentionScores[t][c] = math.dot(params.a_attention, activated);
-        }
-      }
-    }
-
-    // Softmax per capability (column-wise)
-    const attentionVE: number[][] = Array.from({ length: numTools }, () => Array(numCaps).fill(0));
-
-    for (let c = 0; c < numCaps; c++) {
-      // Find all tools in this capability
-      const toolsInCap: number[] = [];
-      for (let t = 0; t < numTools; t++) {
-        if (connectivity[t][c] === 1) {
-          toolsInCap.push(t);
-        }
-      }
-
-      if (toolsInCap.length === 0) continue;
-
-      // Normalize attention weights for this capability
-      const scores = toolsInCap.map((t) => attentionScores[t][c]);
-      const softmaxed = math.softmax(scores);
-
-      for (let i = 0; i < toolsInCap.length; i++) {
-        attentionVE[toolsInCap[i]][c] = softmaxed[i];
-      }
-    }
-
-    // Aggregate: E_new = σ(A'^T · H_proj)
-    const E_new: number[][] = [];
-    const aggregated: number[][] = [];
     const hiddenDim = H_proj[0]?.length ?? 0;
 
-    for (let c = 0; c < numCaps; c++) {
-      const agg = Array(hiddenDim).fill(0);
+    // Sparse attention scores: edgeKey → raw score
+    const attentionScores = new Map<number, number>();
+    // Cache for backward: pre-activation concat values
+    const concatPreAct = new Map<number, number[]>();
 
-      // Weighted sum of tool embeddings
-      for (let t = 0; t < numTools; t++) {
-        if (attentionVE[t][c] > 0) {
-          for (let d = 0; d < hiddenDim; d++) {
-            agg[d] += attentionVE[t][c] * H_proj[t][d];
+    // Compute attention scores only for existing edges
+    for (const [c, sources] of conn.targetToSources) {
+      for (const t of sources) {
+        const key = edgeKey(t, c, numL1);
+        const concat = [...H_proj[t], ...E_proj[c]];
+        concatPreAct.set(key, concat);
+        const activated = concat.map((x) => math.leakyRelu(x, config.leakyReluSlope));
+        attentionScores.set(key, math.dot(params.a_attention, activated));
+      }
+    }
+
+    // Softmax per L1+ node (over L0 nodes in that group)
+    const attentionVE = new Map<number, number>();
+
+    for (const [c, sources] of conn.targetToSources) {
+      if (sources.length === 0) continue;
+
+      const scores = sources.map((t) => attentionScores.get(edgeKey(t, c, numL1))!);
+      const softmaxed = math.softmax(scores);
+
+      for (let i = 0; i < sources.length; i++) {
+        attentionVE.set(edgeKey(sources[i], c, numL1), softmaxed[i]);
+      }
+    }
+
+    // Aggregate: E_new[c] = ELU(Σ_t attention[t,c] * H_proj[t])
+    const E_new: number[][] = [];
+    const aggregated: number[][] = [];
+
+    for (let c = 0; c < numL1; c++) {
+      const agg = Array(hiddenDim).fill(0);
+      const sources = conn.targetToSources.get(c);
+      if (sources) {
+        for (const t of sources) {
+          const alpha = attentionVE.get(edgeKey(t, c, numL1)) ?? 0;
+          if (alpha > 0) {
+            for (let d = 0; d < hiddenDim; d++) {
+              agg[d] += alpha * H_proj[t][d];
+            }
           }
         }
       }
-
       aggregated.push(agg);
-      // Apply ELU activation
       E_new.push(agg.map((x) => math.elu(x)));
+    }
+
+    // Build dense attention matrix for PhaseResult (backward compat)
+    const attentionDense: number[][] = Array.from(
+      { length: H.length },
+      () => Array(numL1).fill(0),
+    );
+    for (const [key, val] of attentionVE) {
+      const t = Math.floor(key / numL1);
+      const c = key % numL1;
+      attentionDense[t][c] = val;
     }
 
     const cache: VEForwardCache = {
@@ -175,17 +179,17 @@ export class VertexToEdgePhase implements MessagePassingPhase {
       concatPreAct,
       aggregated,
       attention: attentionVE,
-      connectivity,
+      connectivity: conn,
       leakyReluSlope: config.leakyReluSlope,
     };
 
-    return { embeddings: E_new, attention: attentionVE, cache };
+    return { embeddings: E_new, attention: attentionDense, cache };
   }
 
   /**
    * Backward pass: compute gradients for W_source, W_target, a_attention
    *
-   * @param dE_new - Gradient from next layer [numCaps][headDim]
+   * @param dE_new - Gradient from next layer [numL1][headDim]
    * @param cache - Forward pass cache
    * @param params - Phase parameters (needed for chain rule)
    * @returns Gradients for all parameters and inputs
@@ -195,9 +199,9 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     cache: VEForwardCache,
     params: PhaseParameters,
   ): VEGradients {
-    const { H, E, H_proj, concatPreAct, aggregated, attention, connectivity, leakyReluSlope } = cache;
-    const numTools = H.length;
-    const numCaps = E.length;
+    const { H, E, H_proj, concatPreAct, aggregated, attention, connectivity: conn, leakyReluSlope } = cache;
+    const numL0 = H.length;
+    const numL1 = E.length;
     const headDim = H_proj[0]?.length ?? 0;
     const embDim = H[0]?.length ?? 0;
 
@@ -205,105 +209,82 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     const dW_source: number[][] = Array.from({ length: headDim }, () => Array(embDim).fill(0));
     const dW_target: number[][] = Array.from({ length: headDim }, () => Array(embDim).fill(0));
     const da_attention: number[] = Array(2 * headDim).fill(0);
-    const dH: number[][] = Array.from({ length: numTools }, () => Array(embDim).fill(0));
-    const dE: number[][] = Array.from({ length: numCaps }, () => Array(embDim).fill(0));
+    const dH: number[][] = Array.from({ length: numL0 }, () => Array(embDim).fill(0));
+    const dE: number[][] = Array.from({ length: numL1 }, () => Array(embDim).fill(0));
 
     // Intermediate gradients
-    const dH_proj: number[][] = Array.from({ length: numTools }, () => Array(headDim).fill(0));
-    const dE_proj: number[][] = Array.from({ length: numCaps }, () => Array(headDim).fill(0));
+    const dH_proj: number[][] = Array.from({ length: numL0 }, () => Array(headDim).fill(0));
+    const dE_proj: number[][] = Array.from({ length: numL1 }, () => Array(headDim).fill(0));
 
     // Step 1: Through ELU activation
-    // dAggregated[c][d] = dE_new[c][d] * ELU'(aggregated[c][d])
     const dAggregated: number[][] = [];
-    for (let c = 0; c < numCaps; c++) {
+    for (let c = 0; c < numL1; c++) {
       const dAgg = dE_new[c].map((grad, d) => {
         const x = aggregated[c][d];
-        // ELU'(x) = 1 if x >= 0, else exp(x)
         const eluDeriv = x >= 0 ? 1 : Math.exp(x);
         return grad * eluDeriv;
       });
       dAggregated.push(dAgg);
     }
 
-    // Step 2: Through aggregation
-    // aggregated[c] = Σ_t attention[t][c] * H_proj[t]
-    // → dAttention[t][c] = dAggregated[c] · H_proj[t]
-    // → dH_proj[t] += attention[t][c] * dAggregated[c]
-    const dAttention: number[][] = Array.from({ length: numTools }, () => Array(numCaps).fill(0));
+    // Step 2: Through aggregation (sparse)
+    // aggregated[c] = Σ_t attention[t,c] * H_proj[t]
+    const dAttention = new Map<number, number>();
 
-    for (let c = 0; c < numCaps; c++) {
-      for (let t = 0; t < numTools; t++) {
-        if (attention[t][c] > 0) {
-          // dAttention[t][c] = dot(dAggregated[c], H_proj[t])
-          dAttention[t][c] = math.dot(dAggregated[c], H_proj[t]);
+    for (const [c, sources] of conn.targetToSources) {
+      for (const t of sources) {
+        const key = edgeKey(t, c, numL1);
+        const alpha = attention.get(key) ?? 0;
+        if (alpha > 0) {
+          // dAttention[t,c] = dot(dAggregated[c], H_proj[t])
+          dAttention.set(key, math.dot(dAggregated[c], H_proj[t]));
 
-          // dH_proj[t] += attention[t][c] * dAggregated[c]
+          // dH_proj[t] += attention[t,c] * dAggregated[c]
           for (let d = 0; d < headDim; d++) {
-            dH_proj[t][d] += attention[t][c] * dAggregated[c][d];
+            dH_proj[t][d] += alpha * dAggregated[c][d];
           }
         }
       }
     }
 
-    // Step 3: Through softmax (per capability)
-    // softmax jacobian: dScore[t] = attention[t] * (dAttention[t] - Σ attention * dAttention)
-    const dScore: number[][] = Array.from({ length: numTools }, () => Array(numCaps).fill(0));
+    // Step 3: Through softmax (per L1+ node)
+    const dScore = new Map<number, number>();
 
-    for (let c = 0; c < numCaps; c++) {
-      // Find tools in this capability
-      const toolsInCap: number[] = [];
-      for (let t = 0; t < numTools; t++) {
-        if (connectivity[t][c] === 1) {
-          toolsInCap.push(t);
-        }
-      }
+    for (const [c, sources] of conn.targetToSources) {
+      if (sources.length === 0) continue;
 
-      if (toolsInCap.length === 0) continue;
-
-      // Compute sum: Σ attention[t][c] * dAttention[t][c]
       let sumAttnDAttn = 0;
-      for (const t of toolsInCap) {
-        sumAttnDAttn += attention[t][c] * dAttention[t][c];
+      for (const t of sources) {
+        const key = edgeKey(t, c, numL1);
+        sumAttnDAttn += (attention.get(key) ?? 0) * (dAttention.get(key) ?? 0);
       }
 
-      // dScore[t][c] = attention[t][c] * (dAttention[t][c] - sumAttnDAttn)
-      for (const t of toolsInCap) {
-        dScore[t][c] = attention[t][c] * (dAttention[t][c] - sumAttnDAttn);
+      for (const t of sources) {
+        const key = edgeKey(t, c, numL1);
+        const alpha = attention.get(key) ?? 0;
+        dScore.set(key, alpha * ((dAttention.get(key) ?? 0) - sumAttnDAttn));
       }
     }
 
     // Step 4 & 5: Through attention computation and LeakyReLU
-    // score[t][c] = a · LeakyReLU(concat)
-    // → dActivated = dScore * a (element-wise contribution)
-    // → dConcat = dActivated * LeakyReLU'
-    // → da_attention += activated * dScore
-
-    for (let t = 0; t < numTools; t++) {
-      for (let c = 0; c < numCaps; c++) {
-        if (connectivity[t][c] !== 1) continue;
-
-        const concat = concatPreAct.get(`${t}:${c}`);
+    for (const [c, sources] of conn.targetToSources) {
+      for (const t of sources) {
+        const key = edgeKey(t, c, numL1);
+        const concat = concatPreAct.get(key);
         if (!concat) continue;
 
-        const score_grad = dScore[t][c];
-
-        // Compute activated values (for da_attention)
+        const score_grad = dScore.get(key) ?? 0;
         const activated = concat.map((x) => math.leakyRelu(x, leakyReluSlope));
 
-        // da_attention += activated * dScore
         for (let i = 0; i < activated.length; i++) {
           da_attention[i] += activated[i] * score_grad;
         }
 
-        // dActivated = dScore * a_attention
-        // dConcat = dActivated * LeakyReLU'(concat)
         const dConcat = concat.map((x, i) => {
           const leakyDeriv = x > 0 ? 1 : leakyReluSlope;
           return score_grad * params.a_attention[i] * leakyDeriv;
         });
 
-        // Split dConcat into dH_proj_attn and dE_proj
-        // dConcat = [dH_proj_attn, dE_proj_attn]
         for (let d = 0; d < headDim; d++) {
           dH_proj[t][d] += dConcat[d];
           dE_proj[c][d] += dConcat[headDim + d];
@@ -311,38 +292,30 @@ export class VertexToEdgePhase implements MessagePassingPhase {
       }
     }
 
-    // Step 6: Through projection matrices (BLAS-accelerated matrix multiplications)
-    // H_proj = H @ W_source.T → dW_source += dH_proj.T @ H, dH += dH_proj @ W_source
-    // E_proj = E @ W_target.T → dW_target += dE_proj.T @ E, dE += dE_proj @ W_target
-
-    // dW_source = dH_proj.T @ H (BLAS: matmulTranspose computes A @ B^T, so we use transpose of dH_proj)
-    // Using batch outer product: dW_source[i][j] = Σ_t dH_proj[t][i] * H[t][j]
-    const dW_source_contrib = math.matmulTranspose(math.transpose(dH_proj), H);
+    // Step 6: Through projection matrices (BLAS-accelerated)
+    const dW_source_contrib = math.matmul(math.transpose(dH_proj), H);
     for (let i = 0; i < headDim; i++) {
       for (let j = 0; j < embDim; j++) {
         dW_source[i][j] += dW_source_contrib[i]?.[j] ?? 0;
       }
     }
 
-    // dW_target = dE_proj.T @ E
-    const dW_target_contrib = math.matmulTranspose(math.transpose(dE_proj), E);
+    const dW_target_contrib = math.matmul(math.transpose(dE_proj), E);
     for (let i = 0; i < headDim; i++) {
       for (let j = 0; j < embDim; j++) {
         dW_target[i][j] += dW_target_contrib[i]?.[j] ?? 0;
       }
     }
 
-    // dH = dH_proj @ W_source (BLAS-accelerated)
     const dH_contrib = math.matmul(dH_proj, params.W_source);
-    for (let t = 0; t < numTools; t++) {
+    for (let t = 0; t < numL0; t++) {
       for (let j = 0; j < embDim; j++) {
         dH[t][j] += dH_contrib[t]?.[j] ?? 0;
       }
     }
 
-    // dE = dE_proj @ W_target (BLAS-accelerated)
     const dE_contrib = math.matmul(dE_proj, params.W_target);
-    for (let c = 0; c < numCaps; c++) {
+    for (let c = 0; c < numL1; c++) {
       for (let j = 0; j < embDim; j++) {
         dE[c][j] += dE_contrib[c]?.[j] ?? 0;
       }

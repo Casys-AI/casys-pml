@@ -9,9 +9,11 @@
  * Usage: npx tsx src/n8n/scrape-n8n.ts [--max=1000] [--min-views=50]
  */
 
-import { writeFileSync, existsSync, readFileSync } from "node:fs";
+import { writeFileSync, existsSync, readFileSync, statSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as arrow from "apache-arrow";
+import { initParquetWasm, writeParquetFile } from "./parquet-utils.ts";
 import type { N8nScrapedNode, N8nScrapedEdge, N8nScrapedWorkflow } from "./types.ts";
 
 // ---------------------------------------------------------------------------
@@ -36,6 +38,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const DATA_DIR = resolve(__dirname, "../../data");
 const OUTPUT_PATH = resolve(DATA_DIR, "n8n-workflows.json");
+const OUTPUT_PARQUET_PATH = resolve(DATA_DIR, "n8n-workflows.parquet");
 const CHECKPOINT_PATH = resolve(DATA_DIR, "n8n-scrape-checkpoint.json");
 
 // ---------------------------------------------------------------------------
@@ -232,6 +235,66 @@ function processWorkflow(
 }
 
 // ---------------------------------------------------------------------------
+// Parquet export
+// ---------------------------------------------------------------------------
+
+/**
+ * Flatten workflows into a row-per-edge Parquet table.
+ * Columns: workflow_id (Int32), workflow_name (Utf8), views (Int32),
+ *          from_type (Utf8), from_op (Utf8), to_type (Utf8), to_op (Utf8),
+ *          nodes_json (Utf8 — JSON array of N8nScrapedNode[])
+ */
+async function writeWorkflowsParquet(workflows: N8nScrapedWorkflow[]): Promise<void> {
+  console.log("[scrape] Writing Parquet...");
+  const t0 = performance.now();
+  await initParquetWasm();
+
+  // Count total edges for pre-allocation
+  let totalEdges = 0;
+  for (const wf of workflows) totalEdges += wf.edges.length;
+
+  const workflowIds = new Int32Array(totalEdges);
+  const workflowNames: string[] = new Array(totalEdges);
+  const views = new Int32Array(totalEdges);
+  const fromTypes: string[] = new Array(totalEdges);
+  const fromOps: string[] = new Array(totalEdges);
+  const toTypes: string[] = new Array(totalEdges);
+  const toOps: string[] = new Array(totalEdges);
+  const nodesJsonArr: string[] = new Array(totalEdges);
+
+  let row = 0;
+  for (const wf of workflows) {
+    const nodesJson = JSON.stringify(wf.nodes);
+    for (const edge of wf.edges) {
+      workflowIds[row] = wf.id;
+      workflowNames[row] = wf.name;
+      views[row] = wf.views;
+      fromTypes[row] = edge.fromType;
+      fromOps[row] = edge.fromOp ?? "";
+      toTypes[row] = edge.toType;
+      toOps[row] = edge.toOp ?? "";
+      nodesJsonArr[row] = nodesJson;
+      row++;
+    }
+  }
+
+  const table = new arrow.Table({
+    workflow_id: arrow.makeVector(workflowIds),
+    workflow_name: arrow.vectorFromArray(workflowNames, new arrow.Utf8()),
+    views: arrow.makeVector(views),
+    from_type: arrow.vectorFromArray(fromTypes, new arrow.Utf8()),
+    from_op: arrow.vectorFromArray(fromOps, new arrow.Utf8()),
+    to_type: arrow.vectorFromArray(toTypes, new arrow.Utf8()),
+    to_op: arrow.vectorFromArray(toOps, new arrow.Utf8()),
+    nodes_json: arrow.vectorFromArray(nodesJsonArr, new arrow.Utf8()),
+  });
+
+  writeParquetFile(table, OUTPUT_PARQUET_PATH);
+  const stat = statSync(OUTPUT_PARQUET_PATH);
+  console.log(`  Output (Parquet): ${OUTPUT_PARQUET_PATH} (${(stat.size / 1e6).toFixed(1)}MB, ${(performance.now() - t0).toFixed(0)}ms)`);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -323,13 +386,16 @@ async function main() {
     await delay(100);
   }
 
-  // Save final output
+  // Save final output (JSON)
   writeFileSync(OUTPUT_PATH, JSON.stringify(workflows, null, 2));
   console.log(`\n[scrape] Done!`);
   console.log(`  Workflows saved: ${workflows.length}`);
   console.log(`  Total edges: ${workflows.reduce((s, w) => s + w.edges.length, 0)}`);
   console.log(`  Unique node types: ${new Set(workflows.flatMap((w) => w.nodes.map((n) => n.type))).size}`);
-  console.log(`  Output: ${OUTPUT_PATH}`);
+  console.log(`  Output (JSON): ${OUTPUT_PATH}`);
+
+  // Save Parquet output
+  await writeWorkflowsParquet(workflows);
 
   // Cleanup checkpoint
   if (existsSync(CHECKPOINT_PATH)) {
