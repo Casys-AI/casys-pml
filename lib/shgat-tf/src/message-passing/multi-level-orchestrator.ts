@@ -345,9 +345,9 @@ export class MultiLevelOrchestrator {
     const attentionUpward = new Map<number, number[][][]>();
     const attentionDownward = new Map<number, number[][][]>();
 
-    // Initialize cache
+    // Initialize cache (store references — cache is read-only after forward)
     const cache: MultiLevelForwardCache = {
-      H_init: H_init.map((row) => [...row]),
+      H_init,
       H_final: [],
       E_init: new Map(),
       E_final: new Map(),
@@ -357,17 +357,14 @@ export class MultiLevelOrchestrator {
       attentionDownward: new Map(),
     };
 
-    // Copy initial embeddings to cache
+    // Copy initial embeddings for mutation safety in upward pass
     for (const [level, embs] of E_levels_init) {
-      cache.E_init.set(level, embs.map((row) => [...row]));
+      cache.E_init.set(level, embs);
       E.set(level, embs.map((row) => [...row]));
     }
 
     // Apply V→V co-occurrence enrichment (if configured)
-    const H_enriched = this.applyV2VEnrichment(H_init);
-
-    // Track current L0 node embeddings
-    let H = H_enriched.map((row) => [...row]);
+    let H = this.applyV2VEnrichment(H_init);
 
     // ========================================================================
     // UPWARD PASS: V → E^0 → E^1 → ... → E^L_max
@@ -489,7 +486,7 @@ export class MultiLevelOrchestrator {
       if (headsE.length > 0) {
         const E_new = math.concatHeads(headsE);
         E.set(level, E_new);
-        cache.intermediateUpward.set(level, E_new.map((row) => [...row]));
+        cache.intermediateUpward.set(level, E_new);
       }
 
       // Store LevelIntermediates for training backward pass
@@ -597,7 +594,7 @@ export class MultiLevelOrchestrator {
         );
 
         E.set(level, E_new);
-        cache.intermediateDownward.set(level, E_new.map((row) => [...row]));
+        cache.intermediateDownward.set(level, E_new);
       }
 
       // Store LevelIntermediates for training backward pass
@@ -675,10 +672,10 @@ export class MultiLevelOrchestrator {
       }
     }
 
-    // Store final embeddings in cache
-    cache.H_final = H.map((row) => [...row]);
+    // Store references to final embeddings (cache is read-only after forward)
+    cache.H_final = H;
     for (const [level, embs] of E) {
-      cache.E_final.set(level, embs.map((row) => [...row]));
+      cache.E_final.set(level, embs);
     }
 
     const result: MultiLevelEmbeddings = {
@@ -734,19 +731,19 @@ export class MultiLevelOrchestrator {
     const attentionUpward = new Map<number, number[][][]>();
     const attentionDownward = new Map<number, number[][][]>();
 
-    // Copy initial embeddings
+    // Use initial embeddings (copy only for upward mutation safety)
     for (const [level, embs] of E_levels_init) {
       E.set(level, embs.map((row) => [...row]));
     }
 
     // Apply V→V enrichment (with cache for backward pass)
     let v2vCache: V2VForwardCache | undefined;
-    let H_enriched: number[][];
+    let H: number[][];
 
     if (v2vParams && this.vertexToVertexPhase && this.cooccurrenceData && this.cooccurrenceData.length > 0) {
-      // Use trainable V2V with cache
+      // Use trainable V2V with cache (creates new embeddings)
       const v2vResult = this.vertexToVertexPhase.forwardWithCache(H_init, this.cooccurrenceData, v2vParams);
-      H_enriched = v2vResult.embeddings;
+      H = v2vResult.embeddings;
       v2vCache = v2vResult.cache;
     } else if (v2vParams) {
       // v2vParams provided but V2V not configured - this is a bug
@@ -756,10 +753,8 @@ export class MultiLevelOrchestrator {
       );
     } else {
       // No V2V requested - pass through unchanged
-      H_enriched = H_init.map(row => [...row]);
+      H = H_init;
     }
-
-    let H = H_enriched.map((row) => [...row]);
 
     // Pre-create EdgeToEdgePhase instances
     const edgeToEdgePhases = new Map<string, EdgeToEdgePhase>();
@@ -944,11 +939,12 @@ export class MultiLevelOrchestrator {
       }
     }
 
+    // Store references in cache — backward pass only reads from these, never mutates.
     const cache: MultiLevelBackwardCache = {
-      H_init: H_init.map((row) => [...row]),
-      H_final: H.map((row) => [...row]),
-      E_init: new Map(Array.from(E_levels_init.entries()).map(([k, v]) => [k, v.map(r => [...r])])),
-      E_final: new Map(Array.from(E.entries()).map(([k, v]) => [k, v.map(r => [...r])])),
+      H_init,
+      H_final: H,
+      E_init: E_levels_init,
+      E_final: E,
       intermediateUpward: new Map(),
       intermediateDownward: new Map(),
       attentionUpward,

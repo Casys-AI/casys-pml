@@ -687,7 +687,7 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
   // per-phase caches (VE/EE/EV), required for orchestrator.backwardMultiLevel().
   const mpT0 = Date.now();
   const orchConfig = { numHeads: NUM_HEADS, numLayers: 1, dropout: 0, leakyReluSlope: 0.2 };
-  const { result: mpResult, cache: mpBackwardCache } = orchestrator.forwardMultiLevelWithCache(
+  let { result: mpResult, cache: mpBackwardCache } = orchestrator.forwardMultiLevelWithCache(
     graph.H_init,
     graph.E_levels_init,
     graph.l0ToL1Conn,
@@ -1042,6 +1042,11 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       }
     }
   }
+
+  // Release mpBackwardCache to free RAM for GC between epoch forward passes.
+  // Next epoch creates a fresh cache via forwardMultiLevelWithCache().
+  mpBackwardCache = null!;
+  mpResult = null!;
 
   // ---- Epoch summary (enriched) ----
   const infoLoss = infoBatches > 0 ? infoLossSum / infoBatches : 0;

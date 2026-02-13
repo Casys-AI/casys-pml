@@ -22,6 +22,10 @@ import type { MessagePassingPhase, PhaseParameters, PhaseResult, SparseConnectiv
 
 /**
  * Cache for backward pass
+ *
+ * NOTE: concatPreAct was removed to reduce RAM usage during training.
+ * The concatenated vectors [H_proj[t] || E_proj[c]] are reconstructed
+ * on-the-fly during backward from the already-cached H_proj and E_proj.
  */
 export interface VEForwardCache {
   /** Original L0 node embeddings [numL0][embDim] */
@@ -32,8 +36,6 @@ export interface VEForwardCache {
   H_proj: number[][];
   /** Projected L1+ node embeddings [numL1][headDim] */
   E_proj: number[][];
-  /** Pre-activation concatenated vectors for each (t,c) pair */
-  concatPreAct: Map<number, number[]>;
   /** Aggregated values before ELU [numL1][headDim] (per L1+ node) */
   aggregated: number[][];
   /** Attention weights: sparse Map (edgeKey → weight) */
@@ -111,17 +113,22 @@ export class VertexToEdgePhase implements MessagePassingPhase {
 
     // Sparse attention scores: edgeKey → raw score
     const attentionScores = new Map<number, number>();
-    // Cache for backward: pre-activation concat values
-    const concatPreAct = new Map<number, number[]>();
 
     // Compute attention scores only for existing edges
+    // NOTE: concat vectors are computed inline to avoid storing them in a Map.
+    // They can be reconstructed from H_proj and E_proj during backward pass.
     for (const [c, sources] of conn.targetToSources) {
       for (const t of sources) {
         const key = edgeKey(t, c, numL1);
-        const concat = [...H_proj[t], ...E_proj[c]];
-        concatPreAct.set(key, concat);
-        const activated = concat.map((x) => math.leakyRelu(x, config.leakyReluSlope));
-        attentionScores.set(key, math.dot(params.a_attention, activated));
+        // Inline attention: a^T · LeakyReLU([H_proj[t] || E_proj[c]])
+        let score = 0;
+        for (let d = 0; d < hiddenDim; d++) {
+          score += params.a_attention[d] * math.leakyRelu(H_proj[t][d], config.leakyReluSlope);
+        }
+        for (let d = 0; d < hiddenDim; d++) {
+          score += params.a_attention[hiddenDim + d] * math.leakyRelu(E_proj[c][d], config.leakyReluSlope);
+        }
+        attentionScores.set(key, score);
       }
     }
 
@@ -176,7 +183,6 @@ export class VertexToEdgePhase implements MessagePassingPhase {
       E,
       H_proj,
       E_proj,
-      concatPreAct,
       aggregated,
       attention: attentionVE,
       connectivity: conn,
@@ -199,7 +205,7 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     cache: VEForwardCache,
     params: PhaseParameters,
   ): VEGradients {
-    const { H, E, H_proj, concatPreAct, aggregated, attention, connectivity: conn, leakyReluSlope } = cache;
+    const { H, E, H_proj, E_proj, aggregated, attention, connectivity: conn, leakyReluSlope } = cache;
     const numL0 = H.length;
     const numL1 = E.length;
     const headDim = H_proj[0]?.length ?? 0;
@@ -267,27 +273,24 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     }
 
     // Step 4 & 5: Through attention computation and LeakyReLU
+    // Reconstruct concat = [H_proj[t], E_proj[c]] inline (no Map lookup needed)
     for (const [c, sources] of conn.targetToSources) {
       for (const t of sources) {
         const key = edgeKey(t, c, numL1);
-        const concat = concatPreAct.get(key);
-        if (!concat) continue;
-
         const score_grad = dScore.get(key) ?? 0;
-        const activated = concat.map((x) => math.leakyRelu(x, leakyReluSlope));
 
-        for (let i = 0; i < activated.length; i++) {
-          da_attention[i] += activated[i] * score_grad;
-        }
-
-        const dConcat = concat.map((x, i) => {
-          const leakyDeriv = x > 0 ? 1 : leakyReluSlope;
-          return score_grad * params.a_attention[i] * leakyDeriv;
-        });
-
+        // da_attention += leakyRelu(x) * score_grad; dProj += score_grad * a * leakyRelu'(x)
         for (let d = 0; d < headDim; d++) {
-          dH_proj[t][d] += dConcat[d];
-          dE_proj[c][d] += dConcat[headDim + d];
+          const x = H_proj[t][d];
+          da_attention[d] += math.leakyRelu(x, leakyReluSlope) * score_grad;
+          const leakyDeriv = x > 0 ? 1 : leakyReluSlope;
+          dH_proj[t][d] += score_grad * params.a_attention[d] * leakyDeriv;
+        }
+        for (let d = 0; d < headDim; d++) {
+          const x = E_proj[c][d];
+          da_attention[headDim + d] += math.leakyRelu(x, leakyReluSlope) * score_grad;
+          const leakyDeriv = x > 0 ? 1 : leakyReluSlope;
+          dE_proj[c][d] += score_grad * params.a_attention[headDim + d] * leakyDeriv;
         }
       }
     }
