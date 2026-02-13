@@ -390,6 +390,48 @@ export class ConcurrentMCPServer {
     this.log(`Registered tool: ${tool.name}`);
   }
 
+  /**
+   * Register a tool after the server has started (live registration).
+   *
+   * Unlike registerTool(), this can be called while the server is running.
+   * The tool becomes immediately available for tools/list and tools/call.
+   *
+   * Use case: relay proxy where tools are registered dynamically
+   * when remote owners connect/disconnect their tunnels.
+   *
+   * @param tool - Tool definition
+   * @param handler - Tool handler function
+   */
+  registerToolLive(tool: MCPTool, handler: ToolHandler): void {
+    this.tools.set(tool.name, {
+      ...tool,
+      handler,
+    });
+
+    if (this.schemaValidator) {
+      this.schemaValidator.addSchema(tool.name, tool.inputSchema);
+    }
+
+    this.log(`Live-registered tool: ${tool.name} (total: ${this.tools.size})`);
+  }
+
+  /**
+   * Unregister a tool (removes it from tools/list and tools/call).
+   *
+   * Can be called before or after start.
+   * In-flight calls to this tool will complete normally.
+   *
+   * @param toolName - Name of the tool to remove
+   * @returns true if the tool was found and removed
+   */
+  unregisterTool(toolName: string): boolean {
+    const deleted = this.tools.delete(toolName);
+    if (deleted) {
+      this.log(`Unregistered tool: ${toolName} (remaining: ${this.tools.size})`);
+    }
+    return deleted;
+  }
+
   // ============================================
   // Middleware Pipeline
   // ============================================
