@@ -1,5 +1,44 @@
 # SHGAT-TF Changelog
 
+## 2026-02-14 — Eval metrics + best model checkpoint + epochs default 10
+
+### Changements
+
+#### 1. Best model checkpoint
+- Sauvegarde `shgat-params-ob-best.json` a chaque amelioration de R@1 (ecrase le precedent).
+- Export final ecrit toujours le last epoch (`shgat-params-ob-{timestamp}.json`) + affiche le chemin du best.
+- `serializeParams()` helper factorise la serialization.
+
+#### 2. 3 nouvelles metriques d'eval SHGAT
+
+Le R@1 standalone n'est pas le bon KPI pour SHGAT (c'est un feature extractor pour le GRU, pas un scorer final). 3 metriques ajoutees pour evaluer la qualite du MP :
+
+- **MP delta norm**: `||H_final - H_init||` moyen, split hier/orphan. Montre si le MP colore les embeddings. Attendu: hier >> orph (~0 pour orphelins car MP = identity).
+- **R@1 split hier/orph**: Meme R@1 mais decompose par tools hierarchiques vs orphelins. Si le MP aide, hier R@1 > orph R@1.
+- **Silhouette intra-capability**: Cosine sim moyenne entre tools sous meme cap (intra) vs entre caps differentes (inter). Delta positif = clustering coherent.
+
+#### 3. Epochs default: 15 → 10
+- Run 7: best R@1=24.3% a epoch 8, puis overfitting (8.4% a epoch 20).
+- 10 epochs evite la zone d'overfitting tout en laissant de la marge.
+
+### Resultats run 7 (20 epochs, seed=42, 6 KL fixes)
+
+| Metrique | Valeur |
+|---|---|
+| Best R@1 | 24.3% (epoch 8) |
+| Best MRR | 0.318 |
+| Temps total | 180min (9min/epoch) |
+| Peak RSS | 6.5GB |
+| Speedup vs run 6 | 3.7x (epoch 1: 7m58s vs 29m43s) |
+
+**Observations:**
+- Overfitting apres epoch 8 (R@1 24.3% → 8.4% a epoch 20)
+- MP grad norms clippees a 4.0 des epoch ~10 (destabilisation)
+- 1155 prod exemples / 7.35M params = ratio 6364 params/ex → overfitting inevitable
+- KL loss n8n stable (~2.4) mais ne transfere pas directement vers eval prod
+
+---
+
 ## 2026-02-14 (run 7) — KL Performance Overhaul (6 fixes)
 
 ### Changements

@@ -124,7 +124,7 @@ if (cliArgs.includes("--help")) {
 SHGAT-TF OB Training — Manual backward + OpenBLAS FFI
 
 Options:
-  --epochs <n>         Training epochs (default: 15)
+  --epochs <n>         Training epochs (default: 10)
   --batch-size <n>     Batch size (default: 32)
   --lr <n>             Peak learning rate (default: 0.005)
   --lr-warmup <n>      LR warmup epochs (default: 3)
@@ -145,7 +145,7 @@ Options:
   Deno.exit(0);
 }
 
-const EPOCHS = parseInt(getArg("epochs", "15"), 10);
+const EPOCHS = parseInt(getArg("epochs", "10"), 10);
 const BATCH_SIZE = parseInt(getArg("batch-size", "32"), 10);
 const LEARNING_RATE = parseFloat(getArg("lr", "0.005"));
 const LR_WARMUP = parseInt(getArg("lr-warmup", "3"), 10);
@@ -749,6 +749,20 @@ function writeInPlace(msg: string): void {
 // ==========================================================================
 // Training loop
 // ==========================================================================
+
+/** Serialize current params for checkpoint/export */
+function serializeParams() {
+  return {
+    headParams: headParams.map(hp => ({ W_q: hp.W_q, W_k: hp.W_k, W_v: hp.W_v, a: hp.a })),
+    W_intent,
+    levelParams: Object.fromEntries(
+      Array.from(levelParams.entries()).map(([level, lp]) => [level, {
+        W_child: lp.W_child, W_parent: lp.W_parent,
+        a_upward: lp.a_upward, a_downward: lp.a_downward,
+      }])),
+    config: { numHeads: NUM_HEADS, headDim: HEAD_DIM, embeddingDim: ds.embeddingDim, preserveDim: true, maxLevel: graph.maxLevel },
+  };
+}
 
 console.log(`\n${C.bold}${C.bgBlue} SHGAT-TF Training ${C.reset} ${EPOCHS} epochs\n`);
 const trainingStartMs = Date.now();
@@ -1532,6 +1546,7 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     const evalT0 = Date.now();
     const testSample = ds.prodTest.slice(0, Math.min(ds.prodTest.length, 500));
     let hit1 = 0, hit3 = 0, hit5 = 0, rr = 0;
+    let hierHit1 = 0, hierTotal = 0, orphHit1 = 0, orphTotal = 0;
 
     // --- Batched eval: precompute K projections for ALL L0 nodes per head ---
     // AllL0Embs: [numL0 × embDim] matrix
@@ -1586,6 +1601,11 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       if (rank <= 3) hit3++;
       if (rank <= 5) hit5++;
       rr += 1 / rank;
+
+      // Track R@1 by hierarchy status
+      const hasAnc = graph.l0Ancestors[targetIdx] && graph.l0Ancestors[targetIdx].size > 0;
+      if (hasAnc) { hierTotal++; if (rank <= 1) hierHit1++; }
+      else { orphTotal++; if (rank <= 1) orphHit1++; }
     }
 
     const count = validCount || 1;
@@ -1594,11 +1614,12 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     testHit5 = hit5 / count;
     testMRR = rr / count;
 
-    if (testHit1 > bestHit1) { bestHit1 = testHit1; bestEpoch = epoch + 1; }
+    const isNewBest = testHit1 > bestHit1;
+    if (isNewBest) { bestHit1 = testHit1; bestEpoch = epoch + 1; }
     if (testMRR > bestMRR) bestMRR = testMRR;
 
     const evalMs = Date.now() - evalT0;
-    const r1Color = testHit1 >= bestHit1 ? C.green : C.yellow;
+    const r1Color = isNewBest ? C.green : C.yellow;
     console.log(
       `  ${C.blue}📊 EVAL${C.reset} ` +
       `${r1Color}R@1=${(testHit1 * 100).toFixed(1)}%${C.reset} ` +
@@ -1608,6 +1629,103 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     console.log(
       `  ${C.dim}   Best R@1=${(bestHit1 * 100).toFixed(1)}% MRR=${bestMRR.toFixed(3)} (epoch ${bestEpoch})${C.reset}`,
     );
+
+    // ---- Metric 1: MP delta norm (H_final vs H_init) ----
+    // How much did MP change embeddings? Split by hierarchical vs orphan.
+    {
+      let hierDeltaSum = 0, hierCount = 0;
+      let orphDeltaSum = 0, orphCount = 0;
+      for (let i = 0; i < numL0; i++) {
+        let normSq = 0;
+        const hf = H_final[i], hi = graph.H_init[i];
+        for (let d = 0; d < embDim; d++) {
+          const diff = hf[d] - hi[d];
+          normSq += diff * diff;
+        }
+        const norm = Math.sqrt(normSq);
+        const hasAnc = graph.l0Ancestors[i] && graph.l0Ancestors[i].size > 0;
+        if (hasAnc) { hierDeltaSum += norm; hierCount++; }
+        else { orphDeltaSum += norm; orphCount++; }
+      }
+      const hierAvg = hierCount > 0 ? hierDeltaSum / hierCount : 0;
+      const orphAvg = orphCount > 0 ? orphDeltaSum / orphCount : 0;
+      console.log(
+        `  ${C.dim}   MP Δ: hier=${hierAvg.toFixed(4)} (${hierCount}) orph=${orphAvg.toFixed(4)} (${orphCount})${C.reset}`,
+      );
+    }
+
+    // ---- Metric 2: R@1 split by hierarchical vs orphan (from eval loop above) ----
+    {
+      const hierR1 = hierTotal > 0 ? (hierHit1 / hierTotal * 100).toFixed(1) : "n/a";
+      const orphR1 = orphTotal > 0 ? (orphHit1 / orphTotal * 100).toFixed(1) : "n/a";
+      console.log(
+        `  ${C.dim}   R@1 split: hier=${hierR1}% (${hierTotal}) orph=${orphR1}% (${orphTotal})${C.reset}`,
+      );
+    }
+
+    // ---- Metric 3: Silhouette intra-capability ----
+    // For L0 tools with L1 ancestors: avg cosine sim to siblings under same cap
+    // vs avg cosine sim to random tools from other caps.
+    {
+      const cosine = math.cosineSimilarity;
+      // Group hierarchical L0 by their first L1 ancestor
+      const capGroups = new Map<number, number[]>(); // l1Idx → [l0Idxs]
+      for (let i = 0; i < numL0; i++) {
+        const anc = graph.l0Ancestors[i];
+        if (!anc || anc.size === 0) continue;
+        // Get first L1 ancestor (level 1 in the map)
+        for (const [, ancIdxs] of anc) {
+          if (ancIdxs.length > 0) {
+            const capIdx = ancIdxs[0];
+            let group = capGroups.get(capIdx);
+            if (!group) { group = []; capGroups.set(capIdx, group); }
+            group.push(i);
+            break; // first ancestor only
+          }
+        }
+      }
+
+      // Only evaluate caps with ≥2 tools (need siblings)
+      let intraSim = 0, interSim = 0, pairCount = 0;
+      const multiGroups = [...capGroups.values()].filter(g => g.length >= 2);
+      const allHierTools = multiGroups.flat();
+
+      for (const group of multiGroups.slice(0, 50)) { // cap at 50 groups for speed
+        for (let a = 0; a < group.length; a++) {
+          const ea = H_final[group[a]];
+          // Intra: avg sim to siblings
+          for (let b = a + 1; b < group.length; b++) {
+            const eb = H_final[group[b]];
+            intraSim += cosine(ea, eb);
+            pairCount++;
+          }
+          // Inter: sim to one random tool from another group
+          if (allHierTools.length > group.length) {
+            let rIdx = allHierTools[Math.floor(Math.random() * allHierTools.length)];
+            while (group.includes(rIdx)) {
+              rIdx = allHierTools[Math.floor(Math.random() * allHierTools.length)];
+            }
+            interSim += cosine(ea, H_final[rIdx]);
+          }
+        }
+      }
+      const nGroups = multiGroups.length;
+      const avgIntra = pairCount > 0 ? intraSim / pairCount : 0;
+      const totalInter = multiGroups.reduce((s, g) => s + g.length, 0);
+      const avgInter = totalInter > 0 ? interSim / totalInter : 0;
+      const silhouette = avgIntra - avgInter; // higher = better clustering
+      console.log(
+        `  ${C.dim}   Silhouette: intra=${avgIntra.toFixed(4)} inter=${avgInter.toFixed(4)} ` +
+        `Δ=${silhouette.toFixed(4)} (${nGroups} caps ≥2 tools)${C.reset}`,
+      );
+    }
+
+    // Save best model checkpoint (overwrite previous best)
+    if (isNewBest) {
+      const bestPath = resolve(GRU_DATA_DIR, "shgat-params-ob-best.json");
+      Deno.writeTextFileSync(bestPath, JSON.stringify(serializeParams()));
+      console.log(`  ${C.green}💾 Best model saved${C.reset} ${C.dim}→ ${bestPath}${C.reset}`);
+    }
   }
 }
 
@@ -1622,22 +1740,12 @@ console.log(`  ${C.dim}Peak RSS${C.reset}   ${formatMem()}`);
 console.log(`  ${C.green}Best R@1${C.reset}   ${(bestHit1 * 100).toFixed(1)}% ${C.dim}(epoch ${bestEpoch})${C.reset}`);
 console.log(`  ${C.green}Best MRR${C.reset}   ${bestMRR.toFixed(3)}`);
 
-// Export trained params
+// Export final params (last epoch — best model already saved as shgat-params-ob-best.json)
 const runId = new Date().toISOString().replace(/[:.]/g, "-");
-const exportParams = {
-  headParams: headParams.map(hp => ({ W_q: hp.W_q, W_k: hp.W_k, W_v: hp.W_v, a: hp.a })),
-  W_intent,
-  levelParams: Object.fromEntries(
-    Array.from(levelParams.entries()).map(([level, lp]) => [level, {
-      W_child: lp.W_child, W_parent: lp.W_parent,
-      a_upward: lp.a_upward, a_downward: lp.a_downward,
-    }])),
-  config: { numHeads: NUM_HEADS, headDim: HEAD_DIM, embeddingDim: ds.embeddingDim, preserveDim: true, maxLevel: graph.maxLevel },
-};
-
 const outputPath = resolve(GRU_DATA_DIR, `shgat-params-ob-${runId}.json`);
-Deno.writeTextFileSync(outputPath, JSON.stringify(exportParams));
-console.log(`\nParams \u2192 ${outputPath}`);
+Deno.writeTextFileSync(outputPath, JSON.stringify(serializeParams()));
+console.log(`\nParams (last epoch) \u2192 ${outputPath}`);
+console.log(`Params (best R@1)   \u2192 ${resolve(GRU_DATA_DIR, "shgat-params-ob-best.json")}`);
 
 const report = {
   timestamp: new Date().toISOString(),
