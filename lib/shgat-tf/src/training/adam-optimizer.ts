@@ -158,6 +158,14 @@ function clipGradients(grads: number[][], maxNorm: number): number[][] {
   const norm = Math.sqrt(normSq);
   if (norm <= maxNorm) return grads;
 
+  // In-place scaling to avoid allocating a new matrix every call.
+  // With 33 Adam calls per KL batch × 63 batches = 2079 calls/epoch,
+  // the old grads.map().map() pattern caused heavy GC pressure.
   const scale = maxNorm / norm;
-  return grads.map(row => row.map(val => val * scale));
+  for (const row of grads) {
+    for (let j = 0; j < row.length; j++) {
+      row[j] *= scale;
+    }
+  }
+  return grads;
 }

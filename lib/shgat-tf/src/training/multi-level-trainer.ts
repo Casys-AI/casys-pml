@@ -12,7 +12,7 @@
  * @module graphrag/algorithms/shgat/training/multi-level-trainer
  */
 
-import type { LevelParams, MultiLevelForwardCache, SHGATConfig } from "../core/types.ts";
+import type { LevelParams, MultiLevelForwardCache } from "../core/types.ts";
 import * as math from "../utils/math.ts";
 const { zerosLike3D } = math;
 

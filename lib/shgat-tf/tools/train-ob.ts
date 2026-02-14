@@ -43,13 +43,13 @@ import {
 } from "../src/training/batch-contrastive-loss.ts";
 import { AdamOptimizer } from "../src/training/adam-optimizer.ts";
 import {
-  backpropMultiHeadKHeadLogit,
   backpropWIntent,
   initMultiLevelKHeadGradients,
   resetMultiLevelKHeadGradients,
 } from "../src/training/multi-level-trainer-khead.ts";
 import type { MultiLevelKHeadGradientAccumulators } from "../src/training/multi-level-trainer-khead.ts";
 import { MultiLevelOrchestrator } from "../src/message-passing/multi-level-orchestrator.ts";
+import type { MultiLevelGradients } from "../src/message-passing/multi-level-orchestrator.ts";
 import type { SparseConnectivity } from "../src/message-passing/phase-interface.ts";
 import type { LevelParams, SHGATConfig } from "../src/core/types.ts";
 import type { HeadParams } from "../src/initialization/parameters.ts";
@@ -59,7 +59,9 @@ import type { HeadParams } from "../src/initialization/parameters.ts";
 // ==========================================================================
 
 ensureBLAS();
-console.log("[BLAS] OpenBLAS FFI loaded.");
+// Also init BLAS in math.ts module (separate lazy-load state from blas-ffi.ts)
+await math.initBlasAcceleration();
+console.log("[BLAS] OpenBLAS FFI loaded (blas-ffi + math module).");
 
 // ==========================================================================
 // Dataset type (matches export-dataset.ts output)
@@ -131,9 +133,11 @@ Options:
   --kl / --no-kl       KL divergence on n8n soft targets (default: ON)
   --kl-warmup <n>      KL warmup epochs (default: 3)
   --kl-weight <n>      KL loss weight at plateau (default: 0.2)
-  --mp-lr-scale <n>    LR scale for MP weights (default: 0.1)
+  --mp-lr-scale <n>    LR scale for MP weights (default: 1.0)
   --eval-every <n>     Run full eval every N epochs (default: 2)
   --kl-subsample <n>   Max n8n examples per epoch (default: 2000, 0=all)
+  --kl-batch-size <n>  KL batch size (default: 128, larger = fewer backward passes)
+  --kl-accum <n>       KL gradient accumulation steps (default: 4, 1=no accum)
   --msgpack            Use msgpack.gz loader instead of Parquet (default: Parquet)
   --data-path <path>   Path to msgpack.gz dataset (only with --msgpack)
   --help               Show this help
@@ -151,9 +155,11 @@ const SEED = parseInt(getArg("seed", "42"), 10);
 const USE_KL = boolArg("kl", true);
 const KL_WARMUP = parseInt(getArg("kl-warmup", "3"), 10);
 const KL_WEIGHT_PLATEAU = parseFloat(getArg("kl-weight", "0.2"));
-const MP_LR_SCALE = parseFloat(getArg("mp-lr-scale", "0.1"));
+const MP_LR_SCALE = parseFloat(getArg("mp-lr-scale", "1.0"));
 const EVAL_EVERY = Math.max(1, parseInt(getArg("eval-every", "2"), 10));
 const KL_SUBSAMPLE = parseInt(getArg("kl-subsample", "2000"), 10);
+const KL_BATCH_SIZE = parseInt(getArg("kl-batch-size", "128"), 10);
+const KL_ACCUM_STEPS = Math.max(1, parseInt(getArg("kl-accum", "4"), 10));
 
 // ==========================================================================
 // Seeded PRNG (mulberry32 — inlined from parameters.ts to avoid TF.js import)
@@ -247,11 +253,14 @@ function scheduleLR(epoch: number, totalEpochs: number, lrPeak: number, warmupEp
 }
 
 function scheduleKLWeight(epoch: number, warmupEpochs: number, plateau: number): number {
-  if (epoch < warmupEpochs) return 0;
+  // Always provide minimum signal (10% of plateau) from epoch 0.
+  // Old design: 0 for warmupEpochs then ramp. Problem: MP gradients starved
+  // during warmup because KL is the main source of dense dH gradients.
+  const minWeight = plateau * 0.1;
   const rampEnd = warmupEpochs * 2;
   if (epoch >= rampEnd) return plateau;
-  const progress = (epoch - warmupEpochs) / Math.max(rampEnd - warmupEpochs, 1);
-  return plateau * progress;
+  const progress = epoch / Math.max(rampEnd, 1);
+  return minWeight + (plateau - minWeight) * progress;
 }
 
 function scheduleTemperature(epoch: number, totalEpochs: number, start: number, end: number): number {
@@ -329,6 +338,20 @@ function computeGradNorms(grads: MultiLevelKHeadGradientAccumulators): {
   };
 }
 
+/** Compute gradient norms from epoch-level MP backward output */
+function computeMPGradNorms(mpGrads: MultiLevelGradients): { wChild: number; wParent: number; atten: number } {
+  let wChildSq = 0, wParentSq = 0, attenSq = 0;
+  for (const [, lg] of mpGrads.levelGrads) {
+    for (let h = 0; h < lg.dW_child.length; h++) {
+      for (const row of lg.dW_child[h]) for (const v of row) wChildSq += v * v;
+      for (const row of lg.dW_parent[h]) for (const v of row) wParentSq += v * v;
+      for (const v of lg.da_upward[h]) attenSq += v * v;
+      for (const v of lg.da_downward[h]) attenSq += v * v;
+    }
+  }
+  return { wChild: Math.sqrt(wChildSq), wParent: Math.sqrt(wParentSq), atten: Math.sqrt(attenSq) };
+}
+
 // ==========================================================================
 // Graph structure building (pure JS, no TF.js)
 // ==========================================================================
@@ -342,6 +365,10 @@ interface PureGraphStructure {
   maxLevel: number;
   E_levels_init: Map<number, number[][]>;
   H_init: number[][];
+  /** l0 tool index → ancestor indices at each orchestrator level.
+   *  ancestors[l0Idx] = Map<orchLevel, idx[]>
+   *  Recursive: works for any number of hierarchy levels. */
+  l0Ancestors: Map<number, number[]>[];
 }
 
 /**
@@ -468,7 +495,44 @@ function buildGraphStructure(nodes: ExportedNode[], leafIds: string[]): PureGrap
     E_levels_init.set(level, ids.map(id => [...(nodeMap.get(id)?.embedding ?? [])]));
   }
 
-  return { l0ToL1Conn, interLevelConns, l0Ids, l0IdxMap, nodeIdsByLevel, maxLevel, E_levels_init, H_init };
+  // Build l0Ancestors: for each L0 tool, find ancestor indices at every level.
+  // Recursive: walks up the hierarchy from L0 → L1 (orch 0) → L2 (orch 1) → ...
+  // Uses the connectivity graph (sourceToTargets = child→parent mappings).
+  const l0Ancestors: Map<number, number[]>[] = new Array(l0Ids.length);
+  for (let i = 0; i < l0Ids.length; i++) {
+    const ancestors = new Map<number, number[]>();
+    // Level 0 (orch): L0 tool → L1 caps via l0ToL1Conn.sourceToTargets
+    const l1Parents = l0ToL1Conn.sourceToTargets.get(i) ?? [];
+    if (l1Parents.length > 0) ancestors.set(0, [...l1Parents]);
+    // Higher levels: walk up via interLevelConns
+    let currentParents = l1Parents;
+    for (let orchLevel = 1; orchLevel <= maxLevel; orchLevel++) {
+      const conn = interLevelConns.get(orchLevel);
+      if (!conn) break;
+      const nextParents = new Set<number>();
+      for (const pIdx of currentParents) {
+        const grandParents = conn.sourceToTargets.get(pIdx) ?? [];
+        for (const gp of grandParents) nextParents.add(gp);
+      }
+      const nextArr = [...nextParents];
+      if (nextArr.length > 0) ancestors.set(orchLevel, nextArr);
+      currentParents = nextArr;
+    }
+    l0Ancestors[i] = ancestors;
+  }
+
+  // Debug: verify ancestor coverage
+  let withAncestors = 0;
+  const toolsWithAncestorIdxs = new Set<number>();
+  for (let i = 0; i < l0Ids.length; i++) {
+    if (l0Ancestors[i] && l0Ancestors[i].size > 0) {
+      withAncestors++;
+      toolsWithAncestorIdxs.add(i);
+    }
+  }
+  console.log(`  l0Ancestors: ${withAncestors}/${l0Ids.length} tools have ≥1 ancestor (l0ToL1Src.size=${l0ToL1Src.size})`);
+
+  return { l0ToL1Conn, interLevelConns, l0Ids, l0IdxMap, nodeIdsByLevel, maxLevel, E_levels_init, H_init, l0Ancestors };
 }
 
 // ==========================================================================
@@ -483,7 +547,7 @@ console.log(`    Epochs: ${EPOCHS}, Batch: ${BATCH_SIZE}, LR: ${LEARNING_RATE} (
 console.log(`    \u03C4: ${TAU_START}\u2192${TAU_END}`);
 console.log(`    KL: ${USE_KL}, KL warmup: ${KL_WARMUP}ep, KL weight: ${KL_WEIGHT_PLATEAU}`);
 console.log(`    MP LR scale: ${MP_LR_SCALE}, Seed: ${SEED}`);
-console.log(`    KL subsample: ${KL_SUBSAMPLE > 0 ? KL_SUBSAMPLE : 'all'}`);
+console.log(`    KL subsample: ${KL_SUBSAMPLE > 0 ? KL_SUBSAMPLE : 'all'}, KL batch: ${KL_BATCH_SIZE}, KL accum: ${KL_ACCUM_STEPS}`);
 console.log(`    Eval every: ${EVAL_EVERY}\n`);
 
 // ---- Load dataset ----
@@ -515,20 +579,19 @@ console.log(`  N8n: ${ds.n8nTrain.length} train / ${ds.n8nEval.length} eval`);
 console.log("\n[Graph] Building sparse connectivity...");
 const graph = buildGraphStructure(ds.nodes, ds.leafIds);
 const l0IdxMap = graph.l0IdxMap;
-console.log(`  L0 nodes: ${graph.l0Ids.length}, MaxLevel: ${graph.maxLevel}`);
+console.log(`  L0 (tools):   ${graph.l0Ids.length} leaves`);
 {
   let totalEdges = 0;
   for (const [, targets] of graph.l0ToL1Conn.sourceToTargets) totalEdges += targets.length;
-  const denseSize = graph.l0ToL1Conn.numSources * graph.l0ToL1Conn.numTargets;
-  console.log(`  L0: ${totalEdges} edges (sparse) vs ${denseSize} dense entries (${(totalEdges / denseSize * 100).toFixed(1)}% fill)`);
-  for (const [level, conn] of graph.interLevelConns) {
+  const numL1 = graph.l0ToL1Conn.numTargets;
+  console.log(`  L1 (caps):    ${numL1} nodes, ${totalEdges} edges L0→L1 (${(totalEdges / (graph.l0ToL1Conn.numSources * numL1) * 100).toFixed(1)}% fill)`);
+  for (const [orchLevel, conn] of graph.interLevelConns) {
     let edges = 0;
     for (const [, targets] of conn.sourceToTargets) edges += targets.length;
-    console.log(`  L${level}: ${edges} edges (${conn.numSources}→${conn.numTargets})`);
+    const dsLevel = orchLevel + 1; // orchLevel 1 = dataset level 2
+    console.log(`  L${dsLevel} (super):  ${conn.numTargets} nodes, ${edges} edges L${dsLevel - 1}→L${dsLevel}`);
   }
-}
-for (const [level, ids] of graph.nodeIdsByLevel) {
-  console.log(`  Level ${level}: ${ids.length} L${level + 1} nodes`);
+  console.log(`  Max level: ${graph.maxLevel + 1} (${graph.maxLevel + 2} tiers total: tools → caps${graph.maxLevel > 0 ? " → super-caps" : ""})`);
 }
 
 // ---- Free heavy data no longer needed ----
@@ -631,36 +694,87 @@ const grads = initMultiLevelKHeadGradients(levelParams, headParams, config);
 const orchestrator = new MultiLevelOrchestrator(true);
 
 // ==========================================================================
+// Pretty logging helpers (ANSI colors + progress bar)
+// ==========================================================================
+
+const isTTY = Deno.stdout.isTerminal();
+const C = {
+  reset: isTTY ? "\x1b[0m" : "",
+  bold: isTTY ? "\x1b[1m" : "",
+  dim: isTTY ? "\x1b[2m" : "",
+  red: isTTY ? "\x1b[31m" : "",
+  green: isTTY ? "\x1b[32m" : "",
+  yellow: isTTY ? "\x1b[33m" : "",
+  blue: isTTY ? "\x1b[34m" : "",
+  magenta: isTTY ? "\x1b[35m" : "",
+  cyan: isTTY ? "\x1b[36m" : "",
+  white: isTTY ? "\x1b[37m" : "",
+  bgBlue: isTTY ? "\x1b[44m" : "",
+};
+
+function progressBar(current: number, total: number, width = 20): string {
+  const ratio = Math.min(current / Math.max(total, 1), 1);
+  const filled = Math.round(ratio * width);
+  const empty = width - filled;
+  const bar = "█".repeat(filled) + "░".repeat(empty);
+  const pct = (ratio * 100).toFixed(0).padStart(3);
+  return `${C.cyan}${bar}${C.reset} ${pct}%`;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms.toFixed(0)}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  const min = Math.floor(ms / 60000);
+  const sec = Math.floor((ms % 60000) / 1000);
+  return `${min}m${sec.toString().padStart(2, "0")}s`;
+}
+
+function formatMem(): string {
+  const rss = Deno.memoryUsage().rss;
+  return rss >= 1024 * 1024 * 1024
+    ? `${(rss / 1024 / 1024 / 1024).toFixed(1)}GB`
+    : `${(rss / 1024 / 1024).toFixed(0)}MB`;
+}
+
+const enc = new TextEncoder();
+function writeInPlace(msg: string): void {
+  if (isTTY) {
+    Deno.stdout.writeSync(enc.encode(`\x1b[2K\r${msg}`));
+  } else {
+    // Pipe/file: print as regular line (no \r tricks)
+    console.log(msg);
+  }
+}
+
+// ==========================================================================
 // Training loop
 // ==========================================================================
 
-console.log(`\n=== Training: ${EPOCHS} epochs ===\n`);
+console.log(`\n${C.bold}${C.bgBlue} SHGAT-TF Training ${C.reset} ${EPOCHS} epochs\n`);
 const trainingStartMs = Date.now();
 let bestHit1 = 0, bestMRR = 0, bestEpoch = 0;
 
 /** Epoch durations for ETA calculation */
 const epochDurationsMs: number[] = [];
 
-// Pre-allocate gradient buffers ONCE — zeroed at the start of each batch.
-// Previously, these were allocated per-batch (1932×1024 + 6916×1024 = ~145MB per batch),
-// causing ~5GB GC pressure per epoch and OOM at 4GB heap.
-const _batchDH: number[][] = graph.l0Ids.map(() => new Array<number>(ds.embeddingDim).fill(0));
-const _batchDE = new Map<number, number[][]>();
+// Pre-allocate gradient buffer for epoch-level MP backward accumulation.
+// dH gradients from ALL batches (InfoNCE + KL) are accumulated here, then
+// ONE MP backward pass propagates them through the graph at epoch end.
+const _epochDH: number[][] = graph.l0Ids.map(() => new Array<number>(ds.embeddingDim).fill(0));
+// dE gradients at L1+ from contrastive capability-level loss.
+// Previously always zero; now accumulates gradients from L1+ contrastive batches.
+const _epochDE = new Map<number, number[][]>();
 for (const [level, ids] of graph.nodeIdsByLevel) {
-  _batchDE.set(level, ids.map(() => new Array<number>(ds.embeddingDim).fill(0)));
-}
-// Zero-only DE buffer for KL MP backward (n8n targets are L0-only, no dE needed)
-const _emptyDE = new Map<number, number[][]>();
-for (const [level, ids] of graph.nodeIdsByLevel) {
-  _emptyDE.set(level, ids.map(() => new Array<number>(ds.embeddingDim).fill(0)));
+  _epochDE.set(level, ids.map(() => new Array<number>(ds.embeddingDim).fill(0)));
 }
 
 function zeroDH(dh: number[][]): void {
   for (const row of dh) row.fill(0);
 }
+
 function zeroDE(de: Map<number, number[][]>): void {
-  for (const [, arr] of de) {
-    for (const row of arr) row.fill(0);
+  for (const [, rows] of de) {
+    for (const row of rows) row.fill(0);
   }
 }
 
@@ -701,12 +815,27 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     }
   }
 
-  console.log(`  [Epoch ${epoch + 1}/${EPOCHS}] LR=${epochLR.toFixed(5)} \u03C4=${tau.toFixed(4)} klW=${klWeight.toFixed(3)} MP=${mpMs}ms`);
+  // ---- Pre-compute K projections for KL scoring (epoch-level cache) ----
+  // projectedKeys[h] = H_final @ W_k[h].T  →  [numL0, headDim]
+  // Constant over the epoch: H_final fixed (MP once/epoch), W_k changes only
+  // slightly per-batch (Adam step ≪ weight magnitude). Replaces O(batchSize ×
+  // sparseTargets × numHeads) matVec calls with O(1) index lookups.
+  // Cost: 1932 × 64 × 16 heads ≈ 8MB (negligible).
+  const klPrecomputeT0 = Date.now();
+  const projectedKeysPerHead: number[][][] = new Array(config.numHeads);
+  for (let h = 0; h < config.numHeads; h++) {
+    projectedKeysPerHead[h] = math.matmulTranspose(H_final, headParams[h].W_k);
+  }
+  const klPrecomputeMs = Date.now() - klPrecomputeT0;
 
-  // ---- Epoch-level accuracy accumulators ----
+  console.log(`\n${C.bold}━━━ Epoch ${epoch + 1}/${EPOCHS}${C.reset} ${C.dim}LR=${epochLR.toFixed(5)} τ=${tau.toFixed(4)} klW=${klWeight.toFixed(3)} MP=${formatDuration(mpMs)} KL-precompute=${formatDuration(klPrecomputeMs)}${C.reset}`);
+
+  // ---- Epoch-level accumulators ----
   let epochAccCorrect = 0, epochAccTotal = 0;
-  // ---- Epoch-level gradient norm accumulator (sum of squared total norms per batch) ----
   let epochGradNormSqSum = 0, epochGradBatches = 0;
+  // Zero epoch-level dH and dE accumulators (gradients from all batches flow here)
+  zeroDH(_epochDH);
+  zeroDE(_epochDE);
 
   // ---- InfoNCE batches (prod) ----
   let infoLossSum = 0, infoBatches = 0;
@@ -720,15 +849,10 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
 
     resetMultiLevelKHeadGradients(grads, levelParams, headParams, config);
 
-    // Zero pre-allocated gradient buffers (avoids per-batch allocation)
-    zeroDH(_batchDH);
-    zeroDE(_batchDE);
-
     let batchLoss = 0;
     let batchCorrect = 0;
 
     // ---- Batch contrastive: in-batch negatives with symmetric CE ----
-    // Collect batch data
     const intentsProjected: number[][] = [];
     const positiveEmbs: number[][] = [];
     for (const ex of batch) {
@@ -736,13 +860,11 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       positiveEmbs.push(enrichedEmbs.get(ex.targetToolId) ?? []);
     }
 
-    // Forward
     const { loss, cache } = batchContrastiveForward(
       intentsProjected, positiveEmbs, headParams, config, tau,
     );
-    batchLoss = loss * batch.length; // batchContrastiveForward returns mean loss
+    batchLoss = loss * batch.length;
 
-    // Batch accuracy from cache.logits: check if diagonal is max per row
     for (let i = 0; i < batch.length; i++) {
       let maxLogit = -Infinity;
       for (let j = 0; j < batch.length; j++) {
@@ -751,57 +873,37 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       if (cache.logits[i][i] >= maxLogit) batchCorrect++;
     }
 
-    // Backward
+    // Backward (K-head gradients)
     const { dIntentsProjected, dNodeEmbeddings } = batchContrastiveBackward(
       cache, headParams, grads.khead, config,
     );
 
-    // Accumulate dNodeEmbeddings into _batchDH (positives are always L0 nodes)
+    // Accumulate dNodeEmbeddings into _epochDH (epoch-level MP accumulator)
     for (let i = 0; i < batch.length; i++) {
       const l0Idx = l0IdxMap.get(batch[i].targetToolId);
       if (l0Idx !== undefined) {
         for (let d = 0; d < ds.embeddingDim; d++) {
-          _batchDH[l0Idx][d] += dNodeEmbeddings[i][d];
+          _epochDH[l0Idx][d] += dNodeEmbeddings[i][d];
         }
       }
     }
 
-    // W_intent backward for each example
+    // W_intent backward
     for (let i = 0; i < batch.length; i++) {
       backpropWIntent(dIntentsProjected[i], batch[i].intentEmbedding, grads, config);
     }
 
-    // ---- MP backward (full graph, once per batch) ----
-    const mpGrads = orchestrator.backwardMultiLevel(
-      _batchDE, _batchDH, mpBackwardCache, levelParams,
-    );
-
-    // Compute gradient norms BEFORE Adam step
+    // K-head gradient norms (MP norms computed at epoch level)
     const batchGN = computeGradNorms(grads);
     epochGradNormSqSum += batchGN.total * batchGN.total;
     epochGradBatches++;
 
-    // ---- Adam step ----
+    // ---- Adam step: K-head + W_intent only (MP deferred to epoch end) ----
     for (let h = 0; h < NUM_HEADS; h++) {
       adam.step(`W_q_${h}`, headParams[h].W_q, grads.khead.dW_q[h]);
       adam.step(`W_k_${h}`, headParams[h].W_k, grads.khead.dW_k[h]);
     }
     adam.step("W_intent", W_intent, grads.dW_intent);
-
-    // MP params (with reduced LR)
-    const savedLr = adam.lr;
-    adam.lr = epochLR * MP_LR_SCALE;
-    for (const [level, lp] of levelParams) {
-      const lg = mpGrads.levelGrads.get(level);
-      if (!lg) continue;
-      for (let h = 0; h < NUM_HEADS; h++) {
-        adam.step(`W_child_L${level}_H${h}`, lp.W_child[h], lg.dW_child[h]);
-        adam.step(`W_parent_L${level}_H${h}`, lp.W_parent[h], lg.dW_parent[h]);
-      }
-      adam.step(`a_up_L${level}`, lp.a_upward, lg.da_upward);
-      adam.step(`a_down_L${level}`, lp.a_downward, lg.da_downward);
-    }
-    adam.lr = savedLr;
 
     infoLossSum += batchLoss / batch.length;
     infoBatches++;
@@ -810,168 +912,587 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
 
     // ---- Batch log ----
     const batchAcc = (batchCorrect / batch.length * 100).toFixed(1);
-    if ((b + 1) % 10 === 0 || b === numInfoBatches - 1) {
-      const mem = (Deno.memoryUsage().rss / 1024 / 1024).toFixed(0);
-      Deno.stdout.writeSync(new TextEncoder().encode(
-        `\r    [Batch ${b + 1}/${numInfoBatches}] loss=${(batchLoss / batch.length).toFixed(4)} acc=${batchAcc}% |dWq|=${batchGN.wq.toFixed(4)} |dWk|=${batchGN.wk.toFixed(4)} |dWi|=${batchGN.wIntent.toFixed(4)} ${mem}MB`));
+    if ((b + 1) % 5 === 0 || b === numInfoBatches - 1) {
+      const batchElapsed = Date.now() - t0 - mpMs;
+      const batchEta = batchElapsed / (b + 1) * (numInfoBatches - b - 1);
+      writeInPlace(
+        `  ${progressBar(b + 1, numInfoBatches, 15)} ` +
+        `${C.red}loss=${(batchLoss / batch.length).toFixed(3)}${C.reset} ` +
+        `${C.green}acc=${batchAcc}%${C.reset} ` +
+        `${C.dim}|∇|=${batchGN.total.toFixed(3)} ${formatMem()} ETA ${formatDuration(batchEta)}${C.reset}`);
     }
   }
   if (numInfoBatches > 0) console.log();
 
-  // ---- KL batches (n8n soft targets) ----
-  // Architecture decision: KL path also trains MP weights via dH → E→V backward.
-  // n8n data provides ~2000+ examples → sufficient signal for W_child/W_parent.
-  // The KL gradient flows: dLogit → K-head backward → dNodeEmbedding → dH → MP backward.
-  let klLossSum = 0, klBatches = 0;
-  if (klWeight > 0 && ds.n8nTrain.length > 0) {
-    const n8nShuffled = [...ds.n8nTrain];
-    shuffleInPlace(n8nShuffled);
-    // Sub-sample to avoid processing all 35K+ examples (KL per-L0-node scoring is slow)
-    const n8nSample = KL_SUBSAMPLE > 0 ? n8nShuffled.slice(0, KL_SUBSAMPLE) : n8nShuffled;
-    const numKLBatches = Math.ceil(n8nSample.length / BATCH_SIZE);
+  // ---- Contrastive L1+ batches (recursive hierarchy-level contrastive) ----
+  // For each hierarchy level above L0, compute InfoNCE(intent → ancestor_embedding)
+  // and accumulate dE gradients. This gives the MP a DIRECT loss signal — not just
+  // indirect dH from L0 scoring. Recursive: iterates all levels automatically.
+  let hierLossSum = 0, hierBatches = 0;
+  const hierWeight = 0.5; // scale relative to InfoNCE (balances L1+ vs L0 signal)
+  const hierBatchesByLevel = new Map<number, number>(); // per-level batch count for normalization
 
-    for (let b = 0; b < numKLBatches; b++) {
-      const batch = n8nSample.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
-      if (batch.length === 0) continue;
+  for (let orchLevel = 0; orchLevel <= graph.maxLevel; orchLevel++) {
+    const levelNodeIds = graph.nodeIdsByLevel.get(orchLevel);
+    if (!levelNodeIds || levelNodeIds.length === 0) {
+      console.log(`  ${C.dim}HIER-L${orchLevel + 1}: skipped (no nodeIds)${C.reset}`);
+      continue;
+    }
+
+    const levelEmbs = mpResult.E.get(orchLevel);
+    if (!levelEmbs || levelEmbs.length === 0) {
+      console.log(`  ${C.dim}HIER-L${orchLevel + 1}: skipped (no embs, E keys=[${[...mpResult.E.keys()]}])${C.reset}`);
+      continue;
+    }
+
+    // Collect examples (prod + n8n) that have a valid ancestor at this level.
+    // Prod tools are often orphans (no L1 parent), but n8n tools have hierarchy
+    // from workflow groupings → n8n data provides the bulk of HIER examples.
+    const levelExamples: { intentEmbedding: number[]; ancestorIdxs: number[] }[] = [];
+    let noL0 = 0, noAnc = 0, noMap = 0;
+    // Helper to collect from any example source with targetToolId + intentEmbedding
+    const collectFromExamples = (examples: { targetToolId: string; intentEmbedding: number[] }[]) => {
+      for (const ex of examples) {
+        const l0Idx = l0IdxMap.get(ex.targetToolId);
+        if (l0Idx === undefined) { noL0++; continue; }
+        const ancestors = graph.l0Ancestors[l0Idx];
+        if (!ancestors || ancestors.size === 0) { noMap++; continue; }
+        const ancestorIdxs = ancestors.get(orchLevel);
+        if (ancestorIdxs && ancestorIdxs.length > 0) {
+          levelExamples.push({ intentEmbedding: ex.intentEmbedding, ancestorIdxs });
+        } else {
+          noAnc++;
+        }
+      }
+    };
+    collectFromExamples(prodShuffled);
+    collectFromExamples(ds.n8nTrain); // n8n tools have L1+ parents via workflow groupings
+    shuffleInPlace(levelExamples); // mix prod + n8n before batching
+    if (levelExamples.length < BATCH_SIZE) {
+      console.log(`  ${C.dim}HIER-L${orchLevel + 1}: skipped (${levelExamples.length} ex < ${BATCH_SIZE}, noL0=${noL0}, noMap=${noMap}, noAnc=${noAnc})${C.reset}`);
+      continue;
+    }
+
+    let levelLossSum = 0, levelBatchCount = 0;
+    const numLevelBatches = Math.ceil(levelExamples.length / BATCH_SIZE);
+
+    for (let b = 0; b < numLevelBatches; b++) {
+      const batch = levelExamples.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
+      if (batch.length < 2) continue; // need ≥2 for in-batch negatives
 
       resetMultiLevelKHeadGradients(grads, levelParams, headParams, config);
 
-      // Reuse pre-allocated _batchDH (zeroed) for KL MP backward
-      zeroDH(_batchDH);
-      let batchKL = 0;
-
-      const scoringDim = headParams[0].W_q.length;
-      const scale = Math.sqrt(scoringDim);
-
+      const intentsProjected: number[][] = [];
+      const positiveEmbs: number[][] = [];
       for (const ex of batch) {
-        if (!ex.softTargetSparse || ex.softTargetSparse.length === 0) continue;
-
-        const intentProjected = math.matVecBlas(W_intent, ex.intentEmbedding);
-
-        // Pre-compute Q per head once per example (same for all target nodes)
-        const Q_heads: number[][] = [];
-        for (let h = 0; h < config.numHeads; h++) {
-          Q_heads.push(math.matVecBlas(headParams[h].W_q, intentProjected));
-        }
-
-        // Get logits for L0 nodes in softTargetSparse
-        const sparseL0Ids: string[] = [];
-        const sparseProbs: number[] = [];
-        for (const [l0Idx, prob] of ex.softTargetSparse) {
-          if (l0Idx >= 0 && l0Idx < ds.leafIds.length) {
-            sparseL0Ids.push(ds.leafIds[l0Idx]);
-            sparseProbs.push(prob);
-          }
-        }
-        if (sparseL0Ids.length === 0) continue;
-
-        const logits: number[] = [];
-        const caches: Array<{ Q: number[]; K: number[]; dotQK: number }>[] = [];
-        const nodeEmbs: number[][] = [];
-
-        // Score each sparse target, reusing pre-computed Q vectors
-        for (const nodeId of sparseL0Ids) {
-          const nodeEmb = enrichedEmbs.get(nodeId) ?? [];
-          nodeEmbs.push(nodeEmb);
-          const headCaches: Array<{ Q: number[]; K: number[]; dotQK: number }> = [];
-          let avgLogit = 0;
-          for (let h = 0; h < config.numHeads; h++) {
-            const K = math.matVecBlas(headParams[h].W_k, nodeEmb);
-            const dotQK = math.dot(Q_heads[h], K);
-            const logit = dotQK / scale;
-            avgLogit += logit;
-            headCaches.push({ Q: Q_heads[h], K, dotQK });
-          }
-          logits.push(avgLogit / config.numHeads);
-          caches.push(headCaches);
-        }
-
-        // Softmax → model distribution q
-        let maxL = -Infinity;
-        for (const l of logits) if (l > maxL) maxL = l;
-        const expL = logits.map(l => Math.exp((l - maxL) / tau));
-        const sumE = expL.reduce((a, b) => a + b, 0);
-        const q = expL.map(e => e / sumE);
-
-        // KL divergence loss
-        let kl = 0;
-        for (let j = 0; j < sparseProbs.length; j++) {
-          if (sparseProbs[j] > 1e-8 && q[j] > 1e-8) {
-            kl += sparseProbs[j] * Math.log(sparseProbs[j] / q[j]);
-          }
-        }
-        batchKL += kl;
-
-        // KL gradient: dLogit[j] = (q[j] - p[j]) * klWeight / tau
-        const totalDIntentProjected = new Array(ds.embeddingDim).fill(0);
-        for (let j = 0; j < sparseL0Ids.length; j++) {
-          const dLogit = (q[j] - sparseProbs[j]) * klWeight / tau;
-          if (Math.abs(dLogit) < 1e-10) continue;
-
-          const { dIntentProjected, dNodeEmbedding } = backpropMultiHeadKHeadLogit(
-            dLogit, caches[j], intentProjected, nodeEmbs[j],
-            headParams, grads.khead, config,
-          );
-          for (let d = 0; d < ds.embeddingDim; d++) {
-            totalDIntentProjected[d] += dIntentProjected[d];
-          }
-
-          // Accumulate dNodeEmbedding into dH for MP backward
-          const tIdx = l0IdxMap.get(sparseL0Ids[j]);
-          if (tIdx !== undefined) {
-            for (let d = 0; d < ds.embeddingDim; d++) {
-              _batchDH[tIdx][d] += dNodeEmbedding[d];
-            }
-          }
-        }
-        backpropWIntent(totalDIntentProjected, ex.intentEmbedding, grads, config);
+        intentsProjected.push(math.matVecBlas(W_intent, ex.intentEmbedding));
+        positiveEmbs.push(levelEmbs[ex.ancestorIdxs[0]]);
       }
 
-      // MP backward for KL path (dH only, no dE since n8n targets are L0 nodes)
-      // _emptyDE is pre-allocated and always zeros (never written to in KL path)
-      const klMpGrads = orchestrator.backwardMultiLevel(
-        _emptyDE, _batchDH, mpBackwardCache, levelParams,
+      const { loss, cache: hierCache } = batchContrastiveForward(
+        intentsProjected, positiveEmbs, headParams, config, tau,
       );
 
-      // Capture KL gradient norms for epoch-level accumulation
-      const klGN = computeGradNorms(grads);
-      epochGradNormSqSum += klGN.total * klGN.total;
+      const { dIntentsProjected, dNodeEmbeddings } = batchContrastiveBackward(
+        hierCache, headParams, grads.khead, config,
+      );
+
+      // Track grad norms for epoch summary (scaled by hierWeight)
+      const hierGN = computeGradNorms(grads);
+      epochGradNormSqSum += hierGN.total * hierGN.total * hierWeight * hierWeight;
       epochGradBatches++;
 
-      // Adam step: K-head + W_intent + MP (full, including KL contribution)
+      // Accumulate dNodeEmbeddings into _epochDE at this level (DIRECT MP gradient)
+      const levelDE = _epochDE.get(orchLevel)!;
+      for (let i = 0; i < batch.length; i++) {
+        const ancestorIdx = batch[i].ancestorIdxs[0];
+        for (let d = 0; d < ds.embeddingDim; d++) {
+          levelDE[ancestorIdx][d] += dNodeEmbeddings[i][d] * hierWeight;
+        }
+      }
+
+      // W_intent backward (scaled by hierWeight to balance with L0 InfoNCE)
+      for (let i = 0; i < batch.length; i++) {
+        const scaled = dIntentsProjected[i].map(v => v * hierWeight);
+        backpropWIntent(scaled, batch[i].intentEmbedding, grads, config);
+      }
+
+      // Scale K-head gradients by hierWeight (same scaling as W_intent and dE)
+      for (let h = 0; h < NUM_HEADS; h++) {
+        for (const row of grads.khead.dW_q[h]) { for (let d = 0; d < row.length; d++) row[d] *= hierWeight; }
+        for (const row of grads.khead.dW_k[h]) { for (let d = 0; d < row.length; d++) row[d] *= hierWeight; }
+      }
+
+      // Adam step: K-head + W_intent (MP deferred to epoch end)
       for (let h = 0; h < NUM_HEADS; h++) {
         adam.step(`W_q_${h}`, headParams[h].W_q, grads.khead.dW_q[h]);
         adam.step(`W_k_${h}`, headParams[h].W_k, grads.khead.dW_k[h]);
       }
       adam.step("W_intent", W_intent, grads.dW_intent);
 
-      // MP params from KL backward (with reduced LR, same as InfoNCE)
-      const klSavedLr = adam.lr;
-      adam.lr = epochLR * MP_LR_SCALE;
-      for (const [level, lp] of levelParams) {
-        const lg = klMpGrads.levelGrads.get(level);
-        if (!lg) continue;
-        for (let h = 0; h < NUM_HEADS; h++) {
-          adam.step(`W_child_L${level}_H${h}`, lp.W_child[h], lg.dW_child[h]);
-          adam.step(`W_parent_L${level}_H${h}`, lp.W_parent[h], lg.dW_parent[h]);
-        }
-        adam.step(`a_up_L${level}`, lp.a_upward, lg.da_upward);
-        adam.step(`a_down_L${level}`, lp.a_downward, lg.da_downward);
-      }
-      adam.lr = klSavedLr;
+      levelLossSum += loss;
+      levelBatchCount++;
+      hierLossSum += loss;
+      hierBatches++;
+      hierBatchesByLevel.set(orchLevel, (hierBatchesByLevel.get(orchLevel) ?? 0) + 1);
+    }
 
-      klLossSum += batchKL / batch.length;
-      klBatches++;
-
-      if ((b + 1) % 20 === 0 || b === numKLBatches - 1) {
-        const mem = (Deno.memoryUsage().rss / 1024 / 1024).toFixed(0);
-        console.log(`    [KL ${b + 1}/${numKLBatches}] loss=${(klLossSum / klBatches).toFixed(4)} w=${klWeight.toFixed(3)} ${mem}MB`);
-      }
+    if (levelBatchCount > 0) {
+      console.log(
+        `  ${C.yellow}HIER-L${orchLevel + 1}${C.reset} ${levelExamples.length} ex, ` +
+        `${levelBatchCount} batches, ${C.red}loss=${(levelLossSum / levelBatchCount).toFixed(3)}${C.reset} ${C.dim}w=${hierWeight.toFixed(2)}${C.reset}`);
     }
   }
 
-  // Release mpBackwardCache to free RAM for GC between epoch forward passes.
-  // Next epoch creates a fresh cache via forwardMultiLevelWithCache().
+  // ---- KL batches (n8n soft targets) — BATCHED BACKWARD ----
+  //
+  // Gradient flow: dLogit → K-head → dNodeEmbedding → _epochDH (accumulated)
+  // MP backward deferred to epoch end (same as InfoNCE path).
+  //
+  // ---- Batched backward design ----
+  //
+  // PROBLEM: The original per-target backward calls ~768 individual
+  // backpropMultiHeadKHeadLogit() per batch (128 examples × ~7.5 sparse targets
+  // × ~80% nonzero filter). Each call does per-head: 2 outerProductAdd (rank-1
+  // updates on [64,1024]) + 2 matVecTransposeBlas ([64,1024]^T @ [64]). Total:
+  // ~73K small BLAS ops per batch = 61% of KL cost.
+  //
+  // SOLUTION: Collect all backward tuples across the batch, then for each head
+  // do 4 large matmuls instead of T*4 small vector ops:
+  //
+  //   T = total tuples with nonzero gradient (~768)
+  //   headDim = 64, embDim = 1024
+  //
+  //   Per-tuple scalars:
+  //     dHeadLogit[t] = dLogit[t] / (numHeads × √headDim)
+  //
+  //   Per-tuple vectors (from forward cache):
+  //     Q_cache[t][h] = W_q[h] @ intentProj[t]       [headDim]
+  //     K_cache[t][h] = projectedKeysPerHead[h][l0Idx] [headDim]
+  //     intentProj_batch[t]  [embDim]
+  //     nodeEmb_batch[t]     [embDim]
+  //
+  //   For each head h:
+  //     dQ_batch[t][d] = K_cache[t][h][d] × dHeadLogit[t]    [T, headDim]
+  //     dK_batch[t][d] = Q_cache[t][h][d] × dHeadLogit[t]    [T, headDim]
+  //
+  //     Weight gradients (sum of outer products = matmul):
+  //       dW_q[h] += dQ_batch^T @ intentProj_batch    [headDim,T] @ [T,embDim] = [headDim,embDim]
+  //       dW_k[h] += dK_batch^T @ nodeEmb_batch        [headDim,T] @ [T,embDim] = [headDim,embDim]
+  //
+  //     Input gradients (batch matmul):
+  //       dIntentBatch_h = dQ_batch @ W_q[h]           [T,headDim] @ [headDim,embDim] = [T,embDim]
+  //       dNodeEmbBatch_h = dK_batch @ W_k[h]          [T,headDim] @ [headDim,embDim] = [T,embDim]
+  //
+  //   Scatter-accumulate dIntentBatch → per-example totalDIntentProj
+  //   Scatter-accumulate dNodeEmbBatch → _epochDH
+  //   Per-example: backpropWIntent(totalDIntentProj, intentOriginal)
+  //
+  // Mathematical equivalence:
+  //   outerProductAdd(dW, dQ_i, v_i) adds dW[r][c] += dQ_i[r] × v_i[c]
+  //   sum_i(dQ_i ⊗ v_i) = [dQ_0; dQ_1; ...]^T @ [v_0; v_1; ...]
+  //                       = dQ_batch^T @ v_batch     (matmul)
+  //   where dQ_batch is [T, headDim] and v_batch is [T, embDim]
+  //   result shape: [headDim, embDim] ✓
+  //
+  //   matVecTransposeBlas(W, dQ_i) computes W^T @ dQ_i = [embDim]
+  //   For all tuples: [dQ_0; dQ_1; ...] @ W = dQ_batch @ W   (matmul)
+  //   where dQ_batch is [T, headDim] and W is [headDim, embDim]
+  //   result shape: [T, embDim] ✓
+  //
+  // Memory budget (T=960 worst case):
+  //   dQ_batch/dK_batch: [960, 64] = 480KB (reused per head)
+  //   intentProj_batch/nodeEmb_batch: [960, 1024] = 7.5MB each
+  //   dIntentBatch/dNodeEmbBatch: [960, 1024] = 7.5MB each (output of matmul)
+  //   Total peak: ~30MB — well within 12GB limit
+  //
+  let klLossSum = 0, klBatches = 0;
+  if (klWeight > 0 && ds.n8nTrain.length > 0) {
+    const n8nShuffled = [...ds.n8nTrain];
+    shuffleInPlace(n8nShuffled);
+    const n8nSample = KL_SUBSAMPLE > 0 ? n8nShuffled.slice(0, KL_SUBSAMPLE) : n8nShuffled;
+    const numKLBatches = Math.ceil(n8nSample.length / KL_BATCH_SIZE);
+
+    const scoringDim = headParams[0].W_q.length;     // headDim = 64
+    const invScale = 1.0 / Math.sqrt(scoringDim);    // 1/√headDim
+    const invHeads = 1.0 / config.numHeads;           // 1/numHeads
+    const dHeadLogitScale = invHeads * invScale;      // combined: 1/(numHeads × √headDim)
+
+    // Gradient accumulation: reset grads once, accumulate over KL_ACCUM_STEPS
+    // batches, then do ONE Adam step. Reduces Adam calls by KL_ACCUM_STEPS×.
+    // Gradients are normalized by accumSteps at Adam step time.
+    let accumCount = 0;
+    resetMultiLevelKHeadGradients(grads, levelParams, headParams, config);
+
+    for (let b = 0; b < numKLBatches; b++) {
+      const batch = n8nSample.slice(b * KL_BATCH_SIZE, (b + 1) * KL_BATCH_SIZE);
+      if (batch.length === 0) continue;
+
+      let batchKL = 0;
+
+      // ================================================================
+      // Phase 1: Batched forward pass + collect backward tuples
+      // ================================================================
+      //
+      // Batched projections (BLAS-accelerated):
+      //   intentProjBatch = matmulTranspose(intentEmbBatch, W_intent)  [B,1024]@[1024,1024]^T=[B,1024]
+      //   Q_batch[h]      = matmulTranspose(intentProjBatch, W_q[h])   [B,1024]@[64,1024]^T=[B,64]
+      // This replaces B×matVecBlas(W_intent,x) + B×16×matVecBlas(W_q,x) (JS fallback for W_q)
+      // with 1 BLAS matmul + 16 BLAS matmul.
+      //
+      // Scoring (dot Q·K) remains per-example because sparse targets differ per example.
+
+      // Backward tuple: everything needed for one (example, sparse_target) pair
+      interface KLBackwardTuple {
+        dLogit: number;                   // scalar gradient from KL
+        Q_perHead: number[][];            // [numHeads][headDim] — Q vectors
+        K_perHead: number[][];            // [numHeads][headDim] — K vectors (pre-computed)
+        intentProjected: number[];        // [embDim] — W_intent @ intentEmbedding
+        nodeEmb: number[];                // [embDim] — H_final[l0Idx]
+        exIdx: number;                    // index into batch (for scatter-add dIntentProj)
+        l0Idx: number;                    // leaf index (for scatter-add _epochDH)
+      }
+
+      const backwardTuples: KLBackwardTuple[] = [];
+      // Track which examples have valid tuples (for W_intent backprop)
+      const exampleIntentOriginal: (number[] | null)[] = new Array(batch.length).fill(null);
+
+      // --- Pre-filter valid examples and resolve sparse targets ---
+      interface ValidExample {
+        exIdx: number;
+        intentEmb: number[];
+        sparseL0Idxs: number[];
+        sparseProbs: number[];
+      }
+      const validExamples: ValidExample[] = [];
+      for (let exIdx = 0; exIdx < batch.length; exIdx++) {
+        const ex = batch[exIdx];
+        if (!ex.softTargetSparse || ex.softTargetSparse.length === 0) continue;
+        const sparseL0Idxs: number[] = [];
+        const sparseProbs: number[] = [];
+        for (const [l0Idx, prob] of ex.softTargetSparse) {
+          if (l0Idx >= 0 && l0Idx < ds.leafIds.length) {
+            sparseL0Idxs.push(l0Idx);
+            sparseProbs.push(prob);
+          }
+        }
+        if (sparseL0Idxs.length === 0) continue;
+        validExamples.push({ exIdx, intentEmb: ex.intentEmbedding, sparseL0Idxs, sparseProbs });
+      }
+
+      if (validExamples.length > 0) {
+        const V = validExamples.length;
+
+        // --- Batched intent projection: [V, embDim] ---
+        // matmulTranspose(A, B) = A @ B^T
+        // intentEmbBatch[V, 1024] @ W_intent[1024, 1024]^T = [V, 1024]
+        // Hits BLAS: V >= 10 (usually ~120+), dim=1024 >= 64 ✓
+        const intentEmbBatch: number[][] = new Array(V);
+        for (let i = 0; i < V; i++) intentEmbBatch[i] = validExamples[i].intentEmb;
+        const intentProjBatch = math.matmulTranspose(intentEmbBatch, W_intent); // [V, 1024]
+
+        // --- Batched Q projection per head: [V, headDim] ---
+        // Q_batch[h] = matmulTranspose(intentProjBatch, W_q[h])
+        //   [V, 1024] @ [64, 1024]^T = [V, 64]
+        // Hits BLAS: V >= 10, dim=1024 >= 64 ✓
+        // Replaces V × 16 individual matVecBlas calls (which fall back to JS for W_q[64,1024])
+        const Q_allHeads: number[][][] = new Array(config.numHeads); // [numHeads][V][headDim]
+        for (let h = 0; h < config.numHeads; h++) {
+          Q_allHeads[h] = math.matmulTranspose(intentProjBatch, headParams[h].W_q); // [V, headDim]
+        }
+
+        // --- Per-example scoring + KL + backward tuple collection ---
+        for (let vi = 0; vi < V; vi++) {
+          const { exIdx, sparseL0Idxs, sparseProbs } = validExamples[vi];
+          const intentProjected = intentProjBatch[vi]; // [embDim], from batched result
+
+          // Collect Q vectors for this example from batched results
+          const Q_perHead: number[][] = new Array(config.numHeads);
+          for (let h = 0; h < config.numHeads; h++) {
+            Q_perHead[h] = Q_allHeads[h][vi]; // [headDim]
+          }
+
+          // Forward: compute logits for all sparse targets (per-example, targets differ)
+          const logits: number[] = [];
+          const K_perHead_all: number[][][] = []; // [target][head][headDim]
+
+          for (const l0Idx of sparseL0Idxs) {
+            const K_target: number[][] = [];
+            let avgLogit = 0;
+            for (let h = 0; h < config.numHeads; h++) {
+              const K = projectedKeysPerHead[h][l0Idx];
+              const dotQK = math.dot(Q_perHead[h], K);
+              avgLogit += dotQK * invScale; // logit = dot / √dim
+              K_target.push(K);
+            }
+            logits.push(avgLogit * invHeads); // average over heads
+            K_perHead_all.push(K_target);
+          }
+
+          // Softmax with temperature + KL loss
+          let maxL = -Infinity;
+          for (const l of logits) if (l > maxL) maxL = l;
+          const expL = logits.map(l => Math.exp((l - maxL) / tau));
+          const sumE = expL.reduce((a, b_) => a + b_, 0);
+          const q = expL.map(e => e / sumE);
+
+          let kl = 0;
+          for (let j = 0; j < sparseProbs.length; j++) {
+            if (sparseProbs[j] > 1e-8 && q[j] > 1e-8) {
+              kl += sparseProbs[j] * Math.log(sparseProbs[j] / q[j]);
+            }
+          }
+          batchKL += kl;
+
+          // Collect backward tuples for targets with nonzero gradient
+          let hasValidTuple = false;
+          for (let j = 0; j < sparseL0Idxs.length; j++) {
+            const dLogit = (q[j] - sparseProbs[j]) * klWeight / tau;
+            if (Math.abs(dLogit) < 1e-10) continue;
+
+            backwardTuples.push({
+              dLogit,
+              Q_perHead,          // shared across targets of same example
+              K_perHead: K_perHead_all[j],
+              intentProjected,    // shared across targets of same example
+              nodeEmb: H_final[sparseL0Idxs[j]],
+              exIdx,
+              l0Idx: sparseL0Idxs[j],
+            });
+            hasValidTuple = true;
+          }
+          if (hasValidTuple) {
+            exampleIntentOriginal[exIdx] = validExamples[vi].intentEmb;
+          }
+        }
+      } // end if validExamples.length > 0
+
+      // ================================================================
+      // Phase 2: Batched backward (all tuples at once)
+      // ================================================================
+
+      const T = backwardTuples.length;
+
+      if (T > 0) {
+        const embDim = ds.embeddingDim;
+        const headDim = scoringDim;
+
+        // Build batch matrices: intentProj_batch [T, embDim], nodeEmb_batch [T, embDim]
+        const intentProjBatch: number[][] = new Array(T);
+        const nodeEmbBatch: number[][] = new Array(T);
+        for (let t = 0; t < T; t++) {
+          intentProjBatch[t] = backwardTuples[t].intentProjected;
+          nodeEmbBatch[t] = backwardTuples[t].nodeEmb;
+        }
+
+        // Accumulator for dIntentProjected per tuple (sum across all heads)
+        // and dNodeEmbedding per tuple (sum across all heads).
+        // [T, embDim] — allocated once, accumulated across heads.
+        const dIntentProjAll: number[][] = Array.from({ length: T }, () => new Array(embDim).fill(0));
+        const dNodeEmbAll: number[][] = Array.from({ length: T }, () => new Array(embDim).fill(0));
+
+        for (let h = 0; h < config.numHeads; h++) {
+          // Build dQ_batch and dK_batch for this head: [T, headDim]
+          const dQ_batch: number[][] = new Array(T);
+          const dK_batch: number[][] = new Array(T);
+
+          for (let t = 0; t < T; t++) {
+            const tuple = backwardTuples[t];
+            const d = tuple.dLogit * dHeadLogitScale;
+            const K_h = tuple.K_perHead[h];
+            const Q_h = tuple.Q_perHead[h];
+
+            // dQ[t][dim] = K[t][h][dim] × dHeadLogit
+            // dK[t][dim] = Q[t][h][dim] × dHeadLogit
+            const dQ = new Array(headDim);
+            const dK = new Array(headDim);
+            for (let s = 0; s < headDim; s++) {
+              dQ[s] = K_h[s] * d;
+              dK[s] = Q_h[s] * d;
+            }
+            dQ_batch[t] = dQ;
+            dK_batch[t] = dK;
+          }
+
+          // Weight gradient: dW_q[h] += dQ_batch^T @ intentProjBatch
+          //   transpose(dQ_batch) is [headDim, T], intentProjBatch is [T, embDim]
+          //   result: [headDim, embDim]
+          // Uses matmulTranspose(A, B) = A @ B^T, so we need:
+          //   matmulTranspose(intentProjBatch, dQ_batch)^T
+          // But that gives [T, T]. Wrong approach.
+          //
+          // Correct: matmul(transpose(dQ_batch), intentProjBatch)
+          //   = [headDim, T] @ [T, embDim] = [headDim, embDim]
+          // This hits BLAS when T >= 10 (which it always is, T~768).
+          const dQ_T = math.transpose(dQ_batch);      // [headDim, T]
+          const dK_T = math.transpose(dK_batch);      // [headDim, T]
+
+          const dWq_h = math.matmul(dQ_T, intentProjBatch); // [headDim, embDim]
+          const dWk_h = math.matmul(dK_T, nodeEmbBatch);    // [headDim, embDim]
+
+          // Add to gradient accumulators in-place
+          const gradDWq = grads.khead.dW_q[h];
+          const gradDWk = grads.khead.dW_k[h];
+          for (let r = 0; r < headDim; r++) {
+            const gqr = gradDWq[r], dqr = dWq_h[r];
+            const gkr = gradDWk[r], dkr = dWk_h[r];
+            for (let c = 0; c < embDim; c++) {
+              gqr[c] += dqr[c];
+              gkr[c] += dkr[c];
+            }
+          }
+
+          // Input gradient: dIntentBatch_h = dQ_batch @ W_q[h]
+          //   [T, headDim] @ [headDim, embDim] = [T, embDim]
+          // This hits BLAS when T >= 10.
+          const dIntentBatch_h = math.matmul(dQ_batch, headParams[h].W_q); // [T, embDim]
+          const dNodeEmbBatch_h = math.matmul(dK_batch, headParams[h].W_k); // [T, embDim]
+
+          // Accumulate into per-tuple totals (summing across heads)
+          for (let t = 0; t < T; t++) {
+            const diAll = dIntentProjAll[t], diH = dIntentBatch_h[t];
+            const dnAll = dNodeEmbAll[t], dnH = dNodeEmbBatch_h[t];
+            for (let d = 0; d < embDim; d++) {
+              diAll[d] += diH[d];
+              dnAll[d] += dnH[d];
+            }
+          }
+        } // end for each head
+
+        // ================================================================
+        // Phase 3: Scatter-accumulate results
+        // ================================================================
+
+        // Scatter dNodeEmbAll → _epochDH
+        for (let t = 0; t < T; t++) {
+          const l0Idx = backwardTuples[t].l0Idx;
+          const dnAll = dNodeEmbAll[t];
+          const dhRow = _epochDH[l0Idx];
+          for (let d = 0; d < embDim; d++) {
+            dhRow[d] += dnAll[d];
+          }
+        }
+
+        // Scatter-add dIntentProjAll per example, then backprop W_intent
+        // Group tuples by exIdx to sum their dIntentProjected
+        const perExDIntent = new Map<number, number[]>();
+        for (let t = 0; t < T; t++) {
+          const exIdx = backwardTuples[t].exIdx;
+          let acc = perExDIntent.get(exIdx);
+          if (!acc) {
+            acc = new Array(embDim).fill(0);
+            perExDIntent.set(exIdx, acc);
+          }
+          const diAll = dIntentProjAll[t];
+          for (let d = 0; d < embDim; d++) {
+            acc[d] += diAll[d];
+          }
+        }
+
+        for (const [exIdx, totalDIntentProj] of perExDIntent) {
+          const intentOrig = exampleIntentOriginal[exIdx];
+          if (intentOrig) {
+            backpropWIntent(totalDIntentProj, intentOrig, grads, config);
+          }
+        }
+      } // end if T > 0
+
+      klLossSum += batchKL / batch.length;
+      klBatches++;
+      accumCount++;
+
+      // Gradient accumulation: Adam step every KL_ACCUM_STEPS batches or at end
+      const isLastBatch = (b === numKLBatches - 1);
+      if (accumCount >= KL_ACCUM_STEPS || isLastBatch) {
+        // Normalize accumulated gradients by number of accumulated batches
+        if (accumCount > 1) {
+          const invAccum = 1 / accumCount;
+          for (let h = 0; h < NUM_HEADS; h++) {
+            for (const row of grads.khead.dW_q[h]) for (let d = 0; d < row.length; d++) row[d] *= invAccum;
+            for (const row of grads.khead.dW_k[h]) for (let d = 0; d < row.length; d++) row[d] *= invAccum;
+          }
+          for (const row of grads.dW_intent) for (let d = 0; d < row.length; d++) row[d] *= invAccum;
+        }
+
+        // K-head gradient norms (on normalized grads)
+        const klGN = computeGradNorms(grads);
+        epochGradNormSqSum += klGN.total * klGN.total;
+        epochGradBatches++;
+
+        // Adam step: K-head + W_intent only (MP deferred)
+        for (let h = 0; h < NUM_HEADS; h++) {
+          adam.step(`W_q_${h}`, headParams[h].W_q, grads.khead.dW_q[h]);
+          adam.step(`W_k_${h}`, headParams[h].W_k, grads.khead.dW_k[h]);
+        }
+        adam.step("W_intent", W_intent, grads.dW_intent);
+
+        // Reset for next accumulation window
+        accumCount = 0;
+        if (!isLastBatch) {
+          resetMultiLevelKHeadGradients(grads, levelParams, headParams, config);
+        }
+      }
+
+      if ((b + 1) % 4 === 0 || b === numKLBatches - 1) {
+        writeInPlace(
+          `  ${C.magenta}KL${C.reset} ${progressBar(b + 1, numKLBatches, 10)} ` +
+          `${C.red}loss=${(klLossSum / klBatches).toFixed(4)}${C.reset} ` +
+          `${C.dim}w=${klWeight.toFixed(3)} T=${T} ${formatMem()}${C.reset}`);
+      }
+    }
+    if (numKLBatches > 0) console.log();
+  }
+
+  // ---- Epoch-level MP backward ("autoroute") ----
+  // All batch dH/dE gradients accumulated in _epochDH/_epochDE. ONE backward pass
+  // through the full graph instead of ~100 per-batch passes.
+  const mpBackT0 = Date.now();
+  // Normalize dH by num_batches (InfoNCE + KL sources)
+  const numBatchesDH = infoBatches + klBatches;
+  if (numBatchesDH > 0) {
+    const scale = 1 / numBatchesDH;
+    for (const row of _epochDH) {
+      for (let d = 0; d < row.length; d++) row[d] *= scale;
+    }
+  }
+  // Normalize dE per-level by the number of batches that contributed to each level.
+  // Global normalization would bias levels with fewer batches (over-normalized).
+  for (const [orchLevel, rows] of _epochDE) {
+    const levelBatches = hierBatchesByLevel.get(orchLevel) ?? 0;
+    if (levelBatches > 0) {
+      const scale = 1 / levelBatches;
+      for (const row of rows) {
+        for (let d = 0; d < row.length; d++) row[d] *= scale;
+      }
+    }
+  }
+  const mpGrads = orchestrator.backwardMultiLevel(
+    _epochDE, _epochDH, mpBackwardCache, levelParams,
+  );
+  const mpBackMs = Date.now() - mpBackT0;
+
+  // Adam step for MP params (once per epoch, with reduced LR)
+  const savedLr = adam.lr;
+  adam.lr = epochLR * MP_LR_SCALE;
+  for (const [level, lp] of levelParams) {
+    const lg = mpGrads.levelGrads.get(level);
+    if (!lg) continue;
+    for (let h = 0; h < NUM_HEADS; h++) {
+      adam.step(`W_child_L${level}_H${h}`, lp.W_child[h], lg.dW_child[h]);
+      adam.step(`W_parent_L${level}_H${h}`, lp.W_parent[h], lg.dW_parent[h]);
+    }
+    adam.step(`a_up_L${level}`, lp.a_upward, lg.da_upward);
+    adam.step(`a_down_L${level}`, lp.a_downward, lg.da_downward);
+  }
+  adam.lr = savedLr;
+
+  // MP gradient norms (exponential notation to see real magnitude)
+  const mpGN = computeMPGradNorms(mpGrads);
+  console.log(
+    `  ${C.blue}MP backward${C.reset} ${formatDuration(mpBackMs)} ` +
+    `${C.dim}|∇W_c|=${mpGN.wChild.toExponential(2)} |∇W_p|=${mpGN.wParent.toExponential(2)} |∇a|=${mpGN.atten.toExponential(2)}${C.reset}`);
+
+  // Release caches for GC between epoch forward passes
   mpBackwardCache = null!;
   mpResult = null!;
 
@@ -984,21 +1505,23 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     : 0;
   const elapsedMs = Date.now() - t0;
   epochDurationsMs.push(elapsedMs);
-  const mem = (Deno.memoryUsage().rss / 1024 / 1024 / 1024).toFixed(1);
-
   // ETA: average of past epoch durations * remaining epochs
   const avgEpochMs = epochDurationsMs.reduce((a, b) => a + b, 0) / epochDurationsMs.length;
   const remainingEpochs = EPOCHS - (epoch + 1);
   const etaMs = avgEpochMs * remainingEpochs;
   const etaMin = (etaMs / 60000).toFixed(0);
 
+  const hierLoss = hierBatches > 0 ? hierLossSum / hierBatches : 0;
+  const lossStr = `${C.red}loss=${infoLoss.toFixed(3)}${C.reset}` +
+    (hierBatches > 0 ? `${C.yellow}+hier=${hierLoss.toFixed(3)}${C.reset}` : "") +
+    (klBatches > 0 ? `${C.magenta}+kl=${klLoss.toFixed(3)}${C.reset}` : "");
+  const accColor = epochAcc >= 80 ? C.green : epochAcc >= 50 ? C.yellow : C.red;
+  const accStr = `${accColor}acc=${epochAcc.toFixed(1)}%${C.reset}`;
+  const etaStr = remainingEpochs > 0 ? `${C.cyan}ETA ${etaMin}min${C.reset}` : `${C.green}DONE${C.reset}`;
   console.log(
-    `Epoch ${epoch + 1}/${EPOCHS} | LR=${epochLR.toFixed(4)} \u03C4=${tau.toFixed(3)} KL_w=${klWeight.toFixed(2)}` +
-    ` | loss=${infoLoss.toFixed(3)}` + (klBatches > 0 ? `+kl=${klLoss.toFixed(3)}` : "") +
-    ` acc=${epochAcc.toFixed(1)}%` +
-    ` | |grad|=${epochGradNorm.toFixed(4)}` +
-    ` | MP=${mpMs}ms | ${(elapsedMs / 1000).toFixed(1)}s | ${mem}GB` +
-    (remainingEpochs > 0 ? ` | ETA ${etaMin}min` : ""),
+    `${C.bold}  ✓ Epoch ${epoch + 1}/${EPOCHS}${C.reset} ` +
+    `${lossStr} ${accStr} ` +
+    `${C.dim}|∇|=${epochGradNorm.toFixed(3)} mpBack=${formatDuration(mpBackMs)} ${formatDuration(elapsedMs)} ${formatMem()}${C.reset} ${etaStr}`,
   );
 
   // ---- Eval ----
@@ -1075,8 +1598,16 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     if (testMRR > bestMRR) bestMRR = testMRR;
 
     const evalMs = Date.now() - evalT0;
-    console.log(`  [EVAL epoch ${epoch + 1}] Recall@1=${(testHit1 * 100).toFixed(1)}% Recall@3=${(testHit3 * 100).toFixed(1)}% Recall@5=${(testHit5 * 100).toFixed(1)}% MRR=${testMRR.toFixed(3)} (${validCount} exemples test, ${evalMs}ms)`);
-    console.log(`  -- Best Recall@1=${(bestHit1 * 100).toFixed(1)}% MRR=${bestMRR.toFixed(3)} (epoch ${bestEpoch})\n`);
+    const r1Color = testHit1 >= bestHit1 ? C.green : C.yellow;
+    console.log(
+      `  ${C.blue}📊 EVAL${C.reset} ` +
+      `${r1Color}R@1=${(testHit1 * 100).toFixed(1)}%${C.reset} ` +
+      `R@3=${(testHit3 * 100).toFixed(1)}% R@5=${(testHit5 * 100).toFixed(1)}% ` +
+      `MRR=${testMRR.toFixed(3)} ${C.dim}(${validCount} test, ${formatDuration(evalMs)})${C.reset}`,
+    );
+    console.log(
+      `  ${C.dim}   Best R@1=${(bestHit1 * 100).toFixed(1)}% MRR=${bestMRR.toFixed(3)} (epoch ${bestEpoch})${C.reset}`,
+    );
   }
 }
 
@@ -1085,14 +1616,11 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
 // ==========================================================================
 
 const totalMs = Date.now() - trainingStartMs;
-console.log("\n" + "=".repeat(60));
-console.log("  OB TRAINING REPORT");
-console.log("=".repeat(60));
-console.log(`  Time:      ${(totalMs / 1000).toFixed(1)}s total (${(totalMs / EPOCHS / 1000).toFixed(1)}s/epoch)`);
-console.log(`  Peak RSS:  ${(Deno.memoryUsage().rss / 1024 / 1024).toFixed(0)}MB`);
-console.log(`  Best Recall@1: ${(bestHit1 * 100).toFixed(1)}% (epoch ${bestEpoch})`);
-console.log(`  Best MRR:   ${bestMRR.toFixed(3)}`);
-console.log("=".repeat(60));
+console.log(`\n${C.bold}${C.bgBlue} TRAINING REPORT ${C.reset}`);
+console.log(`  ${C.dim}Time${C.reset}       ${formatDuration(totalMs)} total (${formatDuration(totalMs / EPOCHS)}/epoch)`);
+console.log(`  ${C.dim}Peak RSS${C.reset}   ${formatMem()}`);
+console.log(`  ${C.green}Best R@1${C.reset}   ${(bestHit1 * 100).toFixed(1)}% ${C.dim}(epoch ${bestEpoch})${C.reset}`);
+console.log(`  ${C.green}Best MRR${C.reset}   ${bestMRR.toFixed(3)}`);
 
 // Export trained params
 const runId = new Date().toISOString().replace(/[:.]/g, "-");
@@ -1114,7 +1642,7 @@ console.log(`\nParams \u2192 ${outputPath}`);
 const report = {
   timestamp: new Date().toISOString(),
   mode: "ob-manual-backward",
-  config: { EPOCHS, BATCH_SIZE, LEARNING_RATE, LR_WARMUP, TAU_START, TAU_END, SEED, USE_KL, KL_WARMUP, KL_WEIGHT_PLATEAU, MP_LR_SCALE },
+  config: { EPOCHS, BATCH_SIZE, KL_BATCH_SIZE, KL_ACCUM_STEPS, LEARNING_RATE, LR_WARMUP, TAU_START, TAU_END, SEED, USE_KL, KL_WARMUP, KL_WEIGHT_PLATEAU, MP_LR_SCALE },
   dataset: { nodes: ds.nodes.length, leaves: ds.leafIds.length, embDim: ds.embeddingDim, prodTrain: ds.prodTrain.length, prodTest: ds.prodTest.length, n8nTrain: ds.n8nTrain.length, n8nEval: ds.n8nEval.length },
   results: { bestHit1, bestMRR, bestEpoch, totalTimeSec: +(totalMs / 1000).toFixed(1), peakRssMB: Math.round(Deno.memoryUsage().rss / 1024 / 1024) },
 };
