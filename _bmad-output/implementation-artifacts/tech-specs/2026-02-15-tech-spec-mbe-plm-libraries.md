@@ -360,12 +360,12 @@ composent fonctionnent. Raisons :
 ### Phase 1 — lib/mbe : Tools déterministes
 
 **Étape 1.1 : `mbe_step_parse` (brique zéro)**
-- [ ] Évaluer OpenCASCADE via Deno FFI (`.so`/`.dylib` natif)
-- [ ] Compiler OpenCASCADE C++ comme shared library avec bindings C (extern "C")
-- [ ] Créer `lib/mbe/src/ffi/occt.ts` — bindings Deno.dlopen() pour OCCT
+- [ ] Intégrer opencascade.js (WASM) dans Deno — import + instantiation du module WASM
+- [ ] Créer `lib/mbe/src/occt/wasm-bridge.ts` — bridge TypeScript pour opencascade.js
 - [ ] Implémenter le handler : load STEP → extract feature tree → return JSON
 - [ ] Test : parser un fichier STEP simple (boîte, cylindre) et valider le feature tree
 - [ ] Test : parser un assemblage multi-pièces et valider la hiérarchie
+- [ ] Benchmark perf WASM sur fichiers de taille croissante (1 MB → 50 MB)
 
 **Étape 1.2 : `mbe_material_lookup` (standalone, pas de dépendance géométrique)**
 - [ ] Choisir source de données : base embarquée (JSON/SQLite) ou API externe (MatWeb)
@@ -431,7 +431,7 @@ composent fonctionnent. Raisons :
 | 3 | Categories | Separate type unions | Extensible indépendamment de lib/std | 2026-02-15 |
 | 4 | Server ports | 3009 / 3010 | Suite logique après lib/std (3008) | 2026-02-15 |
 | 5 | Dependency | plm → mbe → server | mbe ne dépend pas de std | 2026-02-15 |
-| 6 | STEP parsing | Deno FFI + OpenCASCADE C++ | Deno supporte FFI nativement, OCCT est le standard industriel open-source. Pas de WASM (perf + accès fichiers natif) | 2026-02-15 |
+| 6 | STEP parsing | opencascade.js (WASM) dans Deno, FFI natif en fallback | WASM plus simple à intégrer (pas de compilation C++). Migrer vers FFI si perf insuffisante. Toujours côté serveur (client-agnostique) | 2026-02-15 |
 | 7 | Agent tools | Dans chaque lib (agent.ts) | Même pattern que lib/std, les agents composent les tools de leur domaine | 2026-02-15 |
 | 8 | Agent timing | Après tools déterministes | Les agents composent les tools — il faut que ceux-ci marchent d'abord | 2026-02-15 |
 | 9 | Protocol features | Exploiter elicitation + prompts + resources | Pas seulement tools+sampling — le protocole MCP offre d'autres primitives pertinentes | 2026-02-15 |
@@ -688,21 +688,24 @@ la géométrie structurée (feature tree, topologie, matériaux, tolerances).
 | **opencascade.js (WASM)** | Plus simple à intégrer, tourne dans Deno directement | Moins performant (WASM overhead), limité en accès fichier |
 | **STEP parser custom (TypeScript)** | Zero dépendance native, tout en Deno | Énorme effort, STEP est un format très complexe (ISO 10303) |
 | **pythonocc + subprocess** | OCCT en Python, plus accessible | Dépendance Python, overhead subprocess |
-| **Minetest intégration directe** | OCCT/Lua bindings existent (luaocc) | Mélange responsabilités client/serveur |
 
-### 12.4. Décision recommandée
+### 12.4. Décision
 
-Pour la Phase 1 (étape 1.1), **deux voies pragmatiques** :
+**OCCT côté serveur (Deno), pas côté client (Minetest).** Le parsing STEP est une
+responsabilité serveur pour rester **client-agnostique**. Que le client soit Minetest,
+Claude Code ou un dashboard web, le parsing fonctionne pareil.
 
-1. **opencascade.js (WASM)** — démarrer avec ça car l'intégration dans Deno est plus simple
-   (import WASM, pas de compilation C++). Suffisant pour les cas simples.
+Approche retenue :
 
-2. **OCCT natif via FFI** — migrer plus tard si les perfs WASM ne suffisent pas
-   (gros assemblages, fichiers >50 MB).
+1. **Phase 1 : opencascade.js (WASM) dans Deno** — plus simple à intégrer que FFI natif.
+   Pas de compilation C++, pas de `.so` à gérer. Import WASM directement dans Deno.
+   Suffisant pour les cas courants (pièces simples, assemblages modestes).
 
-On peut aussi explorer une troisième voie : parser les fichiers STEP **côté Minetest** (il
-existe des bindings Lua pour OCCT — `luaocc`) et exposer les résultats via le protocole MCP.
-Ça ferait du client Minetest le parser, et le serveur MBE consommerait les données parsées.
+2. **Phase future (si besoin) : OCCT natif via Deno FFI** — si les perfs WASM ne suffisent
+   pas pour les gros fichiers (>50 MB), on migre vers les bindings natifs.
+
+**Retiré :** l'option "parsing côté Minetest via luaocc" est écartée — ça mélangerait les
+responsabilités et rendrait le système dépendant du client.
 
 ---
 
@@ -710,9 +713,9 @@ existe des bindings Lua pour OCCT — `luaocc`) et exposer les résultats via le
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| OpenCASCADE C++ compilation complexe pour Deno FFI | Bloque étape 1.1 | Préparer un fallback WASM (opencascade.js) si FFI trop complexe |
+| opencascade.js WASM trop lent sur gros fichiers | Dégrade étape 1.1 | Benchmark tôt, migrer vers FFI natif si >5s sur fichiers courants |
 | Pas de base matériaux open-source complète | Limite étape 1.2 | Commencer avec une DB embarquée (~50 matériaux courants), étendre après |
 | Sampling non disponible en mode standalone | Limite Phase 3 | Les agent tools dégradent gracieusement (throw si pas de SamplingClient) — fail-fast policy |
 | Performance FFI sur gros fichiers STEP (>100 MB) | Perf étape 1.1 | Implémenter streaming + timeout configurable |
 | Client Lua HTTP dans Minetest limité (pas de SSE natif) | Limite features temps-réel | Utiliser polling ou mod Lua HTTP avancé (luasocket, curl FFI) |
-| Parsing STEP dans Minetest (luaocc) mélange responsabilités | Architecture floue | Garder le parsing côté serveur MCP, Minetest = pure UI/client |
+| Tentation de parser côté client (Minetest) | Architecture floue, perd l'agnosticisme client | OCCT toujours côté serveur Deno — Minetest = pure UI/client |
