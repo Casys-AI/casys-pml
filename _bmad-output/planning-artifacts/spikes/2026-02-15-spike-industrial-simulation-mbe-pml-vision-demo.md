@@ -489,6 +489,163 @@ packages/mbe-sim/
 | Dashboard trop complexe | Phase 1 = texte/logs, dashboard progressif |
 | Scope creep | Phase 1 = 30 tools + 1 recette simple, iterer |
 
+## Extension PLM : De la Simulation au Product Lifecycle Management
+
+### Le parallele PML ↔ PLM
+
+Le naming n'est pas un accident. **PML (Procedural Memory Layer)** orchestre des procedures composables — c'est exactement ce que fait un **PLM (Product Lifecycle Management)** pour un produit physique. La simulation MBE est le noyau, mais la vraie demo c'est le **flux de production complet** :
+
+```
+  Conception        Fabrication       Qualification      Production        Fin de vie
+ ┌──────────┐     ┌──────────────┐   ┌─────────────┐   ┌────────────┐   ┌──────────┐
+ │ Design   │────→│ MBE Growth   │──→│ Caract.     │──→│ Production │──→│ Yield /  │
+ │ Recipe   │     │ + Fab        │   │ + Qualif.   │   │ Scale-up   │   │ Costing  │
+ └──────────┘     └──────────────┘   └─────────────┘   └────────────┘   └──────────┘
+      │                  │                  │                 │               │
+      ▼                  ▼                  ▼                 ▼               ▼
+  BOM + Costing    Process Control    Go/No-Go          Scheduling      ROI Analysis
+  Material Specs   Equipment State    SPC/SQC           Multi-chamber   Cost per wafer
+  Target Specs     Real-time DAG      Pass/Fail         Throughput      Margin
+```
+
+### Namespaces supplementaires PLM (~40 tools additionnels)
+
+#### 11. BOM & Costing (~10 tools)
+
+| Tool | Description |
+|------|-------------|
+| `bom:create` | Creer nomenclature produit (substrat, gaz, dopants, masques) |
+| `bom:add_item` | Ajouter materiau avec quantite, fournisseur, prix unitaire |
+| `bom:calculate_cost` | Calculer cout total materiaux pour une recette |
+| `bom:compare_recipes` | Comparer couts entre 2 recettes (ex: 3-QW vs 4-QW VCSEL) |
+| `bom:material_availability` | Verifier stock/delai fournisseur pour chaque materiau |
+| `bom:estimate_consumables` | Estimer consommation (LN₂, gaz, targets) par run |
+| `bom:cost_per_wafer` | Cout total wafer (materiaux + equipement + temps machine + operateur) |
+| `bom:cost_per_die` | Cout par puce (wafer cost / yield × dies per wafer) |
+| `bom:margin_analysis` | Marge brute = prix vente - cout die - packaging - test |
+| `bom:what_if_pricing` | Simulation "et si le Gallium augmente de 20%?" |
+
+#### 12. Production Planning (~10 tools)
+
+| Tool | Description |
+|------|-------------|
+| `planning:schedule_run` | Planifier un run MBE (date, chambre, recette, priorite) |
+| `planning:check_conflicts` | Verifier conflits equipement (maintenance, autre run) |
+| `planning:optimize_batch` | Regrouper wafers compatibles pour un meme run |
+| `planning:estimate_duration` | Duree totale estimee (prep + growth + charact + fab) |
+| `planning:capacity_forecast` | Prevision capacite N chambres sur M semaines |
+| `planning:maintenance_window` | Planifier maintenance (cell refill, bakeout) sans bloquer production |
+| `planning:gantt_generate` | Generer Gantt multi-chambre avec dependances |
+| `planning:bottleneck_analysis` | Identifier goulots (ex: XRD partage entre 3 chambres MBE) |
+| `planning:throughput_simulate` | Simuler debit wafers/semaine pour differentes configs |
+| `planning:backlog_priority` | Prioriser backlog commandes par urgence/marge/client |
+
+#### 13. Quality & SPC (~10 tools)
+
+| Tool | Description |
+|------|-------------|
+| `quality:define_spec` | Definir specifications produit (epaisseur ±2%, composition ±1%) |
+| `quality:spc_chart` | Generer carte de controle (X-bar, R, Cpk) |
+| `quality:check_in_spec` | Verifier si wafer est dans les specs |
+| `quality:disposition` | Disposition wafer : pass / rework / scrap |
+| `quality:yield_calculate` | Calcul rendement (wafers bons / wafers lances) |
+| `quality:yield_trend` | Tendance rendement sur N runs (amelioration ou degradation?) |
+| `quality:defect_pareto` | Analyse Pareto des defauts (haze, particules, epi defects) |
+| `quality:root_cause` | Correler defauts avec parametres process (temperature, flux, pression) |
+| `quality:cpk_report` | Rapport capabilite process pour chaque parametre critique |
+| `quality:lot_genealogy` | Tracabilite complete : substrat → epitaxie → device → test |
+
+#### 14. Supply Chain (~8 tools)
+
+| Tool | Description |
+|------|-------------|
+| `supply:inventory_check` | Etat du stock (substrats, sources MBE, gaz, produits chimiques) |
+| `supply:reorder_point` | Seuil de reapprovisionnement atteint? |
+| `supply:lead_time_estimate` | Delai fournisseur pour chaque materiau |
+| `supply:purchase_order` | Generer commande d'achat |
+| `supply:vendor_compare` | Comparer fournisseurs (prix, qualite, delai) |
+| `supply:forecast_consumption` | Prevision consommation basee sur le planning de production |
+| `supply:critical_materials` | Alerter sur materiaux critiques (single-source, long lead time) |
+| `supply:cost_trend` | Evolution prix matieres premieres (Ga, In, As) sur 12 mois |
+
+**Nouveau total : ~150 tools repartis en 14 namespaces**
+
+### Ce que ca demontre en plus
+
+| Feature PML | Illustration PLM |
+|-------------|------------------|
+| **Composition de DAGs** | Recette MBE + BOM + Planning + Quality = mega-DAG compose |
+| **Cross-namespace discovery** | `discover("combien coute ce VCSEL")` → traverse bom:*, quality:*, planning:* |
+| **Decision support** | `bom:what_if_pricing` + `quality:yield_trend` → "on reste rentable meme si Ga +20%" |
+| **Data pipeline** | Resultats growth → characterization → quality:check_in_spec → planning:next_run |
+| **Multi-domain orchestration** | Un seul `pml_execute` orchestre physique + finance + logistique |
+
+### Scenario Demo Etendu : "Combien me coute ce VCSEL?"
+
+```
+> pml_execute({
+>   intent: "Simulate VCSEL production cost for 100 wafers",
+>   code: `
+>     // 1. Charger recette et calculer BOM
+>     const recipe = await mcp.sim.recipe:load({ name: "vcsel-4qw-850nm" });
+>     const bom = await mcp.sim.bom:calculate_cost({ recipe_id: recipe.id });
+>
+>     // 2. Simuler rendement base sur historique
+>     const yield = await mcp.sim.quality:yield_trend({ recipe: "vcsel", last_n: 20 });
+>
+>     // 3. Planifier production
+>     const plan = await mcp.sim.planning:capacity_forecast({
+>       chambers: 2, wafers: 100, recipe: recipe.id
+>     });
+>
+>     // 4. Cout total
+>     const cost = await mcp.sim.bom:cost_per_die({
+>       wafer_cost: bom.total,
+>       yield_percent: yield.average,
+>       dies_per_wafer: 2400
+>     });
+>
+>     return {
+>       cost_per_wafer: bom.total,        // $1,250
+>       average_yield: yield.average,      // 78%
+>       cost_per_good_die: cost.per_die,   // $0.67
+>       production_weeks: plan.duration,   // 6.5 weeks
+>       total_good_dies: plan.total_dies,  // 187,200
+>       total_cost: plan.total_cost,       // $125,000
+>       margin_at_1_50: "55%"              // si prix vente = $1.50/die
+>     };
+>   `
+> })
+```
+
+### Le mot "Composition" — le lien PML ↔ PLM ↔ MBE
+
+C'est le concept unificateur :
+
+| Niveau | Composition |
+|--------|-------------|
+| **MBE physique** | Composition d'alliage : Al₀.₃Ga₀.₇As — chaque couche est une **composition** de materiaux |
+| **Recette** | Composition de couches : buffer + DBR + QW + cap — une recette est une **composition** d'etapes |
+| **DAG PML** | Composition de tools : `cell:* + growth:* + rheed:*` — un DAG est une **composition** d'operations |
+| **PLM produit** | Composition de process : epitaxie + fab + test + packaging — un produit est une **composition** de phases |
+| **Business** | Composition de couts : materiaux + machine-time + main d'oeuvre — un P&L est une **composition** de lignes |
+
+PML orchestre des compositions a tous les niveaux. C'est le pitch.
+
+### Scope : In vs Out
+
+| In scope (demo) | Out of scope (futur) |
+|-----------------|---------------------|
+| Simulation MBE avec physique simplifiee | Physique ab-initio realiste |
+| BOM statique avec prix fixes | Integration ERP reel (SAP, Oracle) |
+| Planning mono-site | Multi-site / multi-fab |
+| Quality avec specs manuelles | ML-based predictive quality |
+| Supply chain mock | Integration fournisseurs reels |
+| Costing deterministe | Monte Carlo sur variabilite rendement |
+| Recettes pre-definies (VCSEL, HEMT, solar) | Editeur de recettes libre |
+
+La simulation est un **sandbox credible** — pas un jumeau numerique de production. L'objectif est de montrer que PML **peut** orchestrer tout ca, pas de remplacer un MES.
+
 ## Next Steps
 
 1. Valider cette direction avec l'equipe
@@ -496,3 +653,4 @@ packages/mbe-sim/
 3. Brancher sur MCP server existant (`@casys/mcp-server`)
 4. Premier DAG fonctionnel : croissance GaAs buffer (15 noeuds)
 5. Iterer vers VCSEL complet + dashboard
+6. **Phase 6 (PLM)** : Ajouter BOM, costing, planning, quality apres que le core MBE fonctionne
