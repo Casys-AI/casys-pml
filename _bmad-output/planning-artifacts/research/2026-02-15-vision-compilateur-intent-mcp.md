@@ -1,11 +1,18 @@
-# PML : Compilateur d'Intents en Workflows MCP
+# PML : Compilateur d'Intelligence Agent
 
 **Date** : 2026-02-15
+**Mise a jour** : 2026-02-15 (revision fondateur — ISA ouverte, sampling, manifeste)
 **Origine** : Session exploratoire fondateur + equipe 4 agents
+
+## La these
+
+**L'intelligence agent est un artefact compilable.**
+
+Les agents IA ne devraient pas re-reflechir a chaque execution. Leurs patterns d'action ET de raisonnement sont capturables, compilables, et optimisables. PML est le compilateur.
 
 ## En une phrase
 
-PML est un compilateur qui transforme des intents (langage naturel ou code TypeScript) en workflows MCP optimises et deterministes.
+PML est un compilateur qui transforme les actions et le raisonnement d'un agent (tools, sampling, resources) en workflows deterministes et optimises.
 
 ## L'analogie compilateur
 
@@ -18,41 +25,46 @@ PML est un compilateur qui transforme des intents (langage naturel ou code TypeS
 | Target | x86 machine code | Plan physique | Sandbox natif (code:*) + JSON-RPC (MCP externes) |
 | Bibliotheques | libc, stdlib | Tables, vues | MCP tools publies par la communaute |
 
-## Le jeu d'instructions
+## L'ISA : MCP est le jeu d'instructions
 
-MCP est l'ISA (Instruction Set Architecture). Les "instructions" sont les tools MCP, organisees en 8 categories semantiques :
+MCP est l'ISA (Instruction Set Architecture) — ouvert, extensible, defini par la communaute. L'ISA n'est pas un ensemble fige de verbes. C'est tout ce que le protocole MCP expose :
 
-```
-read      → obtenir de la donnee (file, http, db, git)
-decode    → transformer un format (base64, utf8, json)
-split     → decouper (lignes, csv, json, regex)
-match     → trouver un pattern (regex, find, filter)
-compare   → comparer (equal, diff, schema validation)
-transform → modifier (map, flatMap, reduce, replace)
-merge     → fusionner (concat, join, assign)
-emit      → produire un resultat (write file, http post, db insert)
-```
+- **Tools** — l'agent agit sur le monde (filesystem, DB, API, deploy, n'importe quoi)
+- **Sampling** — le serveur demande au LLM de raisonner (un noeud de raisonnement dans le DAG)
+- **Resources** — l'agent accede a du contexte (fichiers, schemas, documentation)
 
-PML a deja 63 operations code:* (array, string, object, math, logical, json, binary, control) qui mappent sur ces 8 categories. Les categories = VocabNodes L1 dans la hierarchie SHGAT.
+Demain quelqu'un publie un MCP server `deploy_kubernetes` ou `train_model`. Ca devient une instruction disponible. Le compilateur n'a pas besoin de la connaitre d'avance — il compile ce que l'agent fait, point.
+
+C'est plus **LLVM que x86**. LLVM n'a pas 8 instructions fixes. Il a un IR riche et extensible. La valeur c'est les passes d'optimisation sur l'IR, pas la restriction du jeu d'instructions.
+
+### Taxonomie interne (pour le routeur ML)
+
+Le SHGAT utilise des categories semantiques comme VocabNodes L1 pour le clustering et le message passing hierarchique. Ces categories (read, transform, emit, etc.) sont une taxonomie interne au routeur, pas une contrainte sur ce que l'agent peut faire. Elles evoluent avec l'usage.
+
+PML a deja 63 operations code:* (array, string, object, math, logical, json, binary, control). Les VocabNodes L1 du SHGAT organisent ces operations et les tools externes en clusters semantiques pour ameliorer le routing.
 
 ## La compilation en 3 phases
 
 **Phase 1 — Interpretee (cold, 0 traces)**
 - Le LLM determine quel tools appeler et dans quel ordre
-- Chaque execution genere une trace
+- Le LLM raisonne a chaque etape (sampling)
+- Chaque execution genere une trace complete (actions + raisonnement)
 - Cout : eleve (LLM a chaque decision)
 
 **Phase 2 — Compilee (warm, suffisamment de traces pour que le GRU depasse le seuil de confiance)**
-- Le GRU predit la sequence de tools sans LLM (~60% Hit@1 avec 1155 exemples prod)
+- Le GRU predit la sequence de tools sans LLM (~60% Hit@1 avec 1155 exemples prod, objectif 99%)
 - Le DAG est connu d'avance, pas besoin de reflechir
-- Gain : 0 tokens LLM pour le routing
-- Note : 60% = routing assiste, pas garanti. Le LLM reste necessaire pour ~40% des cas
+- Le LLM reste en fallback pour les cas nouveaux ou ambigus
+- Gain : 0 tokens LLM pour le routing sur les chemins compiles
 
 **Phase 3 — Optimisee (hot, futur)**
-- Les operations code:* consecutives sont fusionnees en un seul appel sandbox
+- Les operations code:* consecutives sont fusionnees en un seul appel sandbox (operator fusion)
+- Les noeuds de sampling recurrents sont eux-memes compiles (le raisonnement previsible est elimine)
 - Les donnees restent en memoire entre etapes fusionnees (pas de serialisation JSON)
 - Les MCP externes (psql, filesystem) restent des appels JSON-RPC
-- Gain : reduction de l'overhead d'execution en plus du routing
+- Gain : reduction de l'overhead d'execution ET de raisonnement
+
+L'objectif final : le LLM passe de "travailleur paye a chaque geste" a "professeur qui a fini de former l'eleve." L'agent compile est autonome.
 
 ## La granularite
 
@@ -83,7 +95,7 @@ La communaute construit des bibliotheques de workflows compiles, comme npm pour 
 
 ### Algebre de workflows
 
-Soit P = {read, decode, split, match, compare, transform, merge, emit} l'ensemble des primitives.
+Soit T = l'ensemble des operations MCP disponibles (tools + sampling + resources). T est ouvert et extensible — n'importe quel MCP server peut l'enrichir.
 
 Operateurs de composition :
 - `→` (sequence) : a → b execute b apres a, avec passage de donnees
@@ -92,6 +104,8 @@ Operateurs de composition :
 - `!` (fallback) : a ! b execute b si a echoue (gestion d'erreur au niveau du DAG)
 
 **Cloture sous composition** : si W1 et W2 sont des workflows, alors W1 → W2 est un workflow. Un workflow compile EST une primitive pour le niveau superieur. C'est la fractalite. [VISION — necessite `pml publish` pour etre effectif, pas encore implemente]
+
+**Noeuds de raisonnement** : un noeud sampling est un noeud du DAG comme un autre. En phase cold, il invoque le LLM. En phase hot, si le pattern de raisonnement est previsible, le noeud est compile (le resultat est predit sans LLM).
 
 ### Pipeline du compilateur
 
@@ -122,7 +136,8 @@ La trace produite par `execute` alimente `TraceHistory`, qui ameliore `route` et
 | Traces → amelioration | route + optimize | Profile-Guided Optimization | GCC PGO, JVM JIT |
 | Workflow = primitive | toutes | Compositional semantics | Denotational semantics (Scott/Strachey) |
 | GRU adaptatif | route | Online learning | Regret minimization |
-| 8 verbes × composition | lower | Dataflow programming | Kahn process networks (1974) |
+| ISA ouverte × composition | lower | Dataflow programming | Kahn process networks (1974) |
+| Sampling compile | optimize | Distillation / caching | Knowledge distillation (Hinton et al. 2015) |
 
 ### Ce que ca implique
 
@@ -131,9 +146,15 @@ La trace produite par `execute` alimente `TraceHistory`, qui ameliore `route` et
 3. **Optimisabilite** : le compilateur peut transformer le DAG sans changer la semantique (fusion, reordonnancement, parallelisation)
 4. **Composabilite** : la cloture garantit que tout workflow est reutilisable comme brique
 
+## Pourquoi compiler — et pourquoi maintenant
+
+L'IA peut deja construire des choses sans MCP. Claude Code ecrit du code, manipule des fichiers, query des bases — sans protocol standardise. Mais c'est comme ecrire de l'assembleur a la main : ca marche, c'est pas reproductible, c'est pas composable, c'est pas optimisable.
+
+MCP standardise les actions. PML les compile. La difference entre "un agent qui fait 47 actions en re-reflechissant a chaque fois" et "un DAG compile qui rejoue le meme chemin en 0 tokens" — c'est la difference entre taper des commandes shell et executer un Makefile.
+
 ## Precedents
 
-Unix pipes (1973), SQL (1970s), MapReduce (2004) : peu de verbes + compositionalite + compilateur/optimizer = ecosysteme massif. La valeur n'est jamais dans les verbes — elle est dans le compilateur.
+Unix pipes (1973), SQL (1970s), MapReduce (2004) : compositionalite + compilateur/optimizer = ecosysteme massif. La valeur n'est jamais dans les verbes — elle est dans le compilateur. Et les verbes n'ont jamais ete figes : Unix a commence avec quelques commandes, il en a des milliers aujourd'hui. L'ISA est ouverte. Le compilateur optimise.
 
 ## Ce qui existe deja
 
@@ -151,5 +172,12 @@ Unix pipes (1973), SQL (1970s), MapReduce (2004) : peu de verbes + compositional
 - Chainage parse→lower→route dans un pipeline unifie (aujourd'hui modules separes)
 - Fusion des code:* consecutifs dans le sandbox (operator fusion, ~2-3 semaines)
 - Gestion d'erreurs au niveau DAG (operateur fallback `!`)
-- Renommage STD MCP en namespaces semantiques (read:*, transform:*, etc.)
 - Benchmarks d'overhead reels (latence MCP STDIO, gain fusion)
+- Noeuds sampling dans le DAG (capturer le raisonnement, pas juste les actions)
+- Compilation des noeuds sampling recurrents (distillation des patterns de raisonnement)
+
+## Le manifeste
+
+L'intelligence agent est un artefact compilable, pas un flux stochastique perpetuel.
+
+Les agents IA d'aujourd'hui re-reflechissent a chaque execution. Demain, leurs patterns d'action et de raisonnement seront compiles, optimises, et partages. Le LLM passera de travailleur perpetuel a professeur temporaire. Et PML sera le compilateur.
