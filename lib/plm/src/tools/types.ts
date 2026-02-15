@@ -44,7 +44,9 @@ export type PlmToolCategory =
   | "bom"
   | "change"
   | "quality"
-  | "planning";
+  | "planning"
+  // Agent tools (MCP Sampling) — Phase 3
+  | "agent";
 
 /** PLM tool handler function type */
 export type PlmToolHandler = (args: Record<string, unknown>) => Promise<unknown> | unknown;

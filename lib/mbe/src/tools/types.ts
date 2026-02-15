@@ -44,7 +44,9 @@ export type MbeToolCategory =
   | "geometry"
   | "tolerance"
   | "material"
-  | "model";
+  | "model"
+  // Agent tools (MCP Sampling) — Phase 3
+  | "agent";
 
 /** MBE tool handler function type */
 export type MbeToolHandler = (args: Record<string, unknown>) => Promise<unknown> | unknown;

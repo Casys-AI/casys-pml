@@ -278,41 +278,170 @@ if (import.meta.main) {
 
 ---
 
-## 7. Roadmap
+## 7. Agent Tools (MCP Sampling)
 
-### Phase 1 — lib/mbe (Primitives)
+### 7.1. Principe
 
-1. Scaffold (types, client, server, deno.json)
-2. `geometry.ts` — STEP parsing, feature tree, BRep
-3. `tolerance.ts` — GD&T parsing, tolerance stacking
-4. `material.ts` — Material DB, property lookups
-5. `model.ts` — PMI extraction, MBD validation
-6. Tests unitaires par catégorie
+En plus des tools déterministes (calcul pur), chaque lib expose des **agent tools**
+qui utilisent MCP Sampling pour déléguer du raisonnement à un LLM. Le pattern est
+identique à `lib/std/src/tools/agent.ts` (8 tools : `agent_delegate`, `agent_analyze`,
+`agent_extract`, etc.).
 
-### Phase 2 — lib/plm (Métier)
+Les agent tools **composent** les tools déterministes : le LLM raisonne, les tools calculent.
 
-1. Scaffold (types, client, server, deno.json)
-2. `bom.ts` — BOM generation, flattening, costing
-3. `change.ts` — ECR/ECO workflows
-4. `quality.ts` — Inspection plans, FAIR, PPAP
-5. `planning.ts` — Routing, work instructions
-6. Tests + intégration avec lib/mbe
+L'infrastructure sampling existe déjà dans `lib/server` (`SamplingBridge`,
+`createAgenticSamplingClient`). Les agent tools n'ont besoin que d'un `SamplingClient`
+injecté au démarrage du serveur (même pattern que `lib/std/server.ts`).
 
-### Phase 3 — Intégration Gateway
+### 7.2. Agent tools MBE (lib/mbe/src/tools/agent.ts)
 
-1. Enregistrer les tools MBE/PLM dans le discovery engine
-2. Embeddings BGE-M3 pour les tools domaine
-3. DAG suggestions pour workflows cross-lib (std + mbe + plm)
-4. Capabilities auto-capture pour les patterns métier
+| Tool | Description | Pourquoi sampling |
+|------|-------------|-------------------|
+| `mbe_agent_suggest_tolerances` | Proposer des GD&T en fonction de la fonction pièce (fit/form/function) | Raisonnement sémantique sur fonction + best practices, pas du calcul |
+| `mbe_agent_material_recommend` | Recommander un matériau selon constraints multi-critères | Compromis poids/coût/résistance/environnement/usinabilité |
+| `mbe_agent_design_review` | DFM/DFA review sur une géométrie parsée | Interprétation de features + règles manufacturing contextuelles |
+
+**Exemple de composition :**
+
+```typescript
+// mbe_agent_suggest_tolerances compose mbe_step_parse + mbe_gdt_parse
+// 1. Parse le modèle (déterministe) → feature tree
+// 2. Envoie le feature tree au LLM via sampling
+// 3. LLM raisonne sur fit/form/function et propose des GD&T
+// 4. Optionnel : valide les GD&T proposées via mbe_tolerance_stack (déterministe)
+```
+
+### 7.3. Agent tools PLM (lib/plm/src/tools/agent.ts)
+
+| Tool | Description | Pourquoi sampling |
+|------|-------------|-------------------|
+| `plm_agent_change_assess` | Évaluer un ECR, résumer l'impact, recommander approbation/rejet | Raisonnement impact + risque sur données structurées |
+| `plm_agent_work_instruction` | Générer des instructions opérateur en langage naturel depuis routing | Génération de texte structuré, adapté au niveau opérateur |
+| `plm_agent_cost_optimize` | Suggérer des pistes d'optimisation coût sur une BOM | Analyse multi-facteurs (material substitution, process change, design simplification) |
+
+### 7.4. Structure avec agent.ts
+
+```
+lib/mbe/src/tools/
+├── geometry.ts     ← déterministe (STEP, BRep, features)
+├── tolerance.ts    ← déterministe (GD&T, stacking)
+├── material.ts     ← déterministe (DB lookups, properties)
+├── model.ts        ← déterministe (PMI, MBD)
+└── agent.ts        ← sampling (compose les tools ci-dessus via pml_execute)
+
+lib/plm/src/tools/
+├── bom.ts          ← déterministe (BOM, costing)
+├── change.ts       ← déterministe (ECR/ECO, impact)
+├── quality.ts      ← déterministe (inspection, FAIR)
+├── planning.ts     ← déterministe (routing, instructions)
+└── agent.ts        ← sampling (compose les tools ci-dessus via pml_execute)
+```
+
+### 7.5. Prérequis pour les agent tools
+
+Les agent tools ne seront implémentés **qu'après** que les tools déterministes qu'ils
+composent fonctionnent. Raisons :
+
+1. Un agent qui appelle `mbe_step_parse` a besoin que ce tool retourne des données réelles
+2. Les prompts des agents dépendent du format de sortie des tools déterministes
+3. Tester un agent sans données réelles ne valide rien
 
 ---
 
-## 8. Decisions
+## 8. Roadmap détaillée
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Validation | AJV via lib/server | Cohérent avec lib/std, JSON Schema standard |
-| Naming | `mbe_` / `plm_` prefix | Évite collisions, discovery claire |
-| Categories | Separate type unions | Extensible indépendamment de lib/std |
-| Server ports | 3009 / 3010 | Suite logique après lib/std (3008) |
-| Dependency | plm → mbe → server | mbe ne dépend pas de std |
+### Phase 0 — Scaffold (DONE ✅)
+
+- [x] Tech spec (ce document)
+- [x] `lib/mbe/` — types, client, server, deno.json, 4 fichiers de tools (15 tools stubbed)
+- [x] `lib/plm/` — types, client, server, deno.json, 4 fichiers de tools (14 tools stubbed)
+- [x] Import maps dans le workspace root (`@casys/mcp-mbe`, `@casys/mcp-plm`)
+
+### Phase 1 — lib/mbe : Tools déterministes
+
+**Étape 1.1 : `mbe_step_parse` (brique zéro)**
+- [ ] Évaluer OpenCASCADE via Deno FFI (`.so`/`.dylib` natif)
+- [ ] Compiler OpenCASCADE C++ comme shared library avec bindings C (extern "C")
+- [ ] Créer `lib/mbe/src/ffi/occt.ts` — bindings Deno.dlopen() pour OCCT
+- [ ] Implémenter le handler : load STEP → extract feature tree → return JSON
+- [ ] Test : parser un fichier STEP simple (boîte, cylindre) et valider le feature tree
+- [ ] Test : parser un assemblage multi-pièces et valider la hiérarchie
+
+**Étape 1.2 : `mbe_material_lookup` (standalone, pas de dépendance géométrique)**
+- [ ] Choisir source de données : base embarquée (JSON/SQLite) ou API externe (MatWeb)
+- [ ] Implémenter lookup par désignation (AL6061-T6, 316L, Ti-6Al-4V, etc.)
+- [ ] Couvrir les propriétés : densité, yield, UTS, élongation, dureté, conductivité thermique
+- [ ] Implémenter cross-reference standards (AMS ↔ DIN ↔ EN ↔ JIS)
+- [ ] Tests : lookup de 10 matériaux courants aéro/auto
+
+**Étape 1.3 : `mbe_tolerance_stack` (pur calcul, testable isolément)**
+- [ ] Implémenter worst-case (arithmétique)
+- [ ] Implémenter RSS (Root Sum of Squares) avec niveau de confiance
+- [ ] Implémenter Monte Carlo (distribution normale)
+- [ ] Tests : valider contre des cas connus (textbook tolerance stacks)
+
+**Étape 1.4 : Remaining geometry + model tools**
+- [ ] `mbe_iges_parse`, `mbe_feature_tree`, `mbe_bounding_box`, `mbe_mass_properties`
+- [ ] `mbe_pmi_extract`, `mbe_mbd_validate`, `mbe_model_compare`
+- [ ] `mbe_gdt_parse`, `mbe_datum_reference`
+
+### Phase 2 — lib/plm : Tools métier
+
+**Étape 2.1 : `plm_bom_generate` (compose mbe_step_parse)**
+- [ ] Extraire hiérarchie assemblage depuis STEP (dépend de 1.1)
+- [ ] Extraire quantités, part numbers, niveaux
+- [ ] Format de sortie : hierarchical, flat, indented
+- [ ] Tests : BOM d'un assemblage simple (5-10 pièces)
+
+**Étape 2.2 : `plm_bom_cost` + `plm_bom_flatten`**
+- [ ] Modèles de costing : raw_material (volume × prix/kg), machining (feature-based)
+- [ ] Flatten : aggrégation des quantités sur tous les niveaux
+
+**Étape 2.3 : Change management + Quality**
+- [ ] `plm_ecr_create`, `plm_eco_create`, `plm_change_impact`
+- [ ] `plm_inspection_plan`, `plm_fair_generate`, `plm_control_plan`
+
+**Étape 2.4 : Planning**
+- [ ] `plm_routing_create`, `plm_work_instruction`, `plm_cycle_time`
+
+### Phase 3 — Agent tools (MCP Sampling)
+
+**Prérequis :** Étapes 1.1 à 1.3 complétées et testées.
+
+- [ ] `lib/mbe/src/tools/agent.ts` — `mbe_agent_suggest_tolerances`, `mbe_agent_material_recommend`, `mbe_agent_design_review`
+- [ ] `lib/plm/src/tools/agent.ts` — `plm_agent_change_assess`, `plm_agent_work_instruction`, `plm_agent_cost_optimize`
+- [ ] Injection du `SamplingClient` dans les servers MBE/PLM (pattern identique à lib/std)
+- [ ] Tests avec mocks de sampling (pas de LLM réel dans les tests unitaires)
+
+### Phase 4 — Intégration Gateway + Discovery
+
+- [ ] Enregistrer les tools MBE/PLM dans le discovery engine (GraphRAG)
+- [ ] Générer embeddings BGE-M3 pour les 29+ tools domaine
+- [ ] DAG suggestions pour workflows cross-lib (std + mbe + plm)
+- [ ] Capabilities auto-capture pour les patterns métier récurrents
+
+---
+
+## 9. Decisions
+
+| # | Decision | Choice | Rationale | Date |
+|---|----------|--------|-----------|------|
+| 1 | Validation | AJV via lib/server | Cohérent avec lib/std, JSON Schema standard | 2026-02-15 |
+| 2 | Naming | `mbe_` / `plm_` prefix | Évite collisions, discovery claire | 2026-02-15 |
+| 3 | Categories | Separate type unions | Extensible indépendamment de lib/std | 2026-02-15 |
+| 4 | Server ports | 3009 / 3010 | Suite logique après lib/std (3008) | 2026-02-15 |
+| 5 | Dependency | plm → mbe → server | mbe ne dépend pas de std | 2026-02-15 |
+| 6 | STEP parsing | Deno FFI + OpenCASCADE C++ | Deno supporte FFI nativement, OCCT est le standard industriel open-source. Pas de WASM (perf + accès fichiers natif) | 2026-02-15 |
+| 7 | Agent tools | Dans chaque lib (agent.ts) | Même pattern que lib/std, les agents composent les tools de leur domaine | 2026-02-15 |
+| 8 | Agent timing | Après tools déterministes | Les agents composent les tools — il faut que ceux-ci marchent d'abord | 2026-02-15 |
+
+---
+
+## 10. Risks & Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| OpenCASCADE C++ compilation complexe pour Deno FFI | Bloque étape 1.1 | Préparer un fallback WASM (opencascade.js) si FFI trop complexe |
+| Pas de base matériaux open-source complète | Limite étape 1.2 | Commencer avec une DB embarquée (~50 matériaux courants), étendre après |
+| Sampling non disponible en mode standalone | Limite Phase 3 | Les agent tools dégradent gracieusement (throw si pas de SamplingClient) — fail-fast policy |
+| Performance FFI sur gros fichiers STEP (>100 MB) | Perf étape 1.1 | Implémenter streaming + timeout configurable |
