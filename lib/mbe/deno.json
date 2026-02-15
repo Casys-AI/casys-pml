@@ -1,0 +1,31 @@
+{
+  "name": "@casys/mcp-mbe",
+  "version": "0.1.0",
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "serve": "deno run --allow-all server.ts --http --port=3009",
+    "compile": "deno compile -A --output mcp-mbe server.ts",
+    "test": "deno test --allow-all tests/"
+  },
+  "exports": {
+    ".": "./mod.ts",
+    "./server": "./server.ts"
+  },
+  "publish": {
+    "include": [
+      "mod.ts",
+      "server.ts",
+      "src/**/*.ts",
+      "README.md",
+      "LICENSE"
+    ],
+    "exclude": [
+      "**/*_test.ts",
+      "**/*.test.ts",
+      "**/*.bench.ts"
+    ]
+  },
+  "imports": {
+    "@casys/mcp-server": "../server/mod.ts"
+  }
+}

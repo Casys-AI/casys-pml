@@ -108,6 +108,8 @@
     "graphology-communities-louvain": "npm:graphology-communities-louvain@^2.0.1",
     "jose": "npm:jose@^6.0.0",
     "@casys/mcp-server": "./lib/server/mod.ts",
+    "@casys/mcp-mbe": "./lib/mbe/mod.ts",
+    "@casys/mcp-plm": "./lib/plm/mod.ts",
     "ajv": "npm:ajv@^8.17.1",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.15.1",
     "@modelcontextprotocol/ext-apps": "npm:@modelcontextprotocol/ext-apps@^1.0.1",
