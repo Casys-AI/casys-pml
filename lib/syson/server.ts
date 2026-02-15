@@ -20,12 +20,15 @@
  *
  * Environment:
  *   SYSON_URL=http://localhost:8080  (SysON instance URL)
+ *   ANTHROPIC_API_KEY=...           (for agent sampling, optional)
+ *   OPENAI_API_KEY=...              (for agent sampling, optional)
  *
  * @module lib/syson/server
  */
 
-import { ConcurrentMCPServer } from "@casys/mcp-server";
+import { ConcurrentMCPServer, SamplingBridge } from "@casys/mcp-server";
 import { SysonToolsClient } from "./src/client.ts";
+import { createAgenticSamplingClient, setSamplingClient } from "./src/tools/agent.ts";
 
 const DEFAULT_HTTP_PORT = 3009;
 
@@ -50,13 +53,26 @@ async function main() {
     categories ? { categories } : undefined,
   );
 
-  // Create concurrent MCP server
+  // Create agentic sampling client and wrap with SamplingBridge
+  // - In Claude Code: native sampling, SamplingBridge provides timeout + tracking
+  // - In standalone: uses ANTHROPIC_API_KEY/OPENAI_API_KEY for direct API calls
+  const underlyingSamplingClient = createAgenticSamplingClient();
+  const samplingBridge = new SamplingBridge(underlyingSamplingClient, {
+    timeout: 120_000,
+  });
+  setSamplingClient(samplingBridge);
+
+  console.error("[mcp-syson] Sampling bridge initialized (timeout: 120s)");
+
+  // Create concurrent MCP server with sampling support
   const server = new ConcurrentMCPServer({
     name: "mcp-syson",
     version: "0.1.0",
     maxConcurrent: 10,
     backpressureStrategy: "queue",
     validateSchema: true,
+    enableSampling: true,
+    samplingClient: samplingBridge,
     logger: (msg) => console.error(`[mcp-syson] ${msg}`),
   });
 
@@ -84,7 +100,7 @@ async function main() {
     });
 
     console.error(
-      `[mcp-syson] Server ready (${toolsClient.count} tools) - HTTP mode${
+      `[mcp-syson] Server ready (${toolsClient.count} tools, sampling: enabled) - HTTP mode${
         categories ? ` - categories: ${categories.join(", ")}` : ""
       }`,
     );
@@ -97,7 +113,7 @@ async function main() {
     await server.start();
 
     console.error(
-      `[mcp-syson] Server ready (${toolsClient.count} tools) - stdio mode${
+      `[mcp-syson] Server ready (${toolsClient.count} tools, sampling: enabled) - stdio mode${
         categories ? ` - categories: ${categories.join(", ")}` : ""
       }`,
     );

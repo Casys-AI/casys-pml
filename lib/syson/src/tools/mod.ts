@@ -11,12 +11,14 @@ export { projectTools } from "./project.ts";
 export { modelTools } from "./model.ts";
 export { elementTools } from "./element.ts";
 export { queryTools } from "./query.ts";
+export { agentTools, createAgenticSamplingClient, setSamplingClient } from "./agent.ts";
 
 // Imports for combined arrays
 import { projectTools } from "./project.ts";
 import { modelTools } from "./model.ts";
 import { elementTools } from "./element.ts";
 import { queryTools } from "./query.ts";
+import { agentTools } from "./agent.ts";
 import type { SysonTool } from "./types.ts";
 
 /** All SysON tools combined */
@@ -25,6 +27,7 @@ export const allTools: SysonTool[] = [
   ...modelTools,
   ...elementTools,
   ...queryTools,
+  ...agentTools,
 ];
 
 /** Tools organized by category */
@@ -33,6 +36,7 @@ export const toolsByCategory: Record<string, SysonTool[]> = {
   model: modelTools,
   element: elementTools,
   query: queryTools,
+  agent: agentTools,
 };
 
 /** Get tools by category */

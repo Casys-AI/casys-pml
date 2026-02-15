@@ -43,10 +43,14 @@ export {
 } from "./src/client.ts";
 export type { SysonGraphQLClientOptions } from "./src/client.ts";
 
+// Re-export sampling client injection
+export { setSamplingClient } from "./src/tools/agent.ts";
+
 // Re-export individual tool arrays
 export {
   projectTools,
   modelTools,
   elementTools,
   queryTools,
+  agentTools,
 } from "./src/tools/mod.ts";
