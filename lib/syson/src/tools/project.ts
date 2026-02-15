@@ -1,0 +1,228 @@
+/**
+ * SysON Project Tools
+ *
+ * CRUD operations on SysON projects.
+ *
+ * @module lib/syson/tools/project
+ */
+
+import type { SysonTool } from "./types.ts";
+import { getSysonClient } from "../api/graphql-client.ts";
+import { GET_PROJECT, GET_PROJECT_TEMPLATES, LIST_PROJECTS } from "../api/queries.ts";
+import { CREATE_PROJECT, DELETE_PROJECT } from "../api/mutations.ts";
+import type {
+  CreateProjectResult,
+  DeleteProjectResult,
+  GetProjectResult,
+  GetProjectTemplatesResult,
+  ListProjectsResult,
+} from "../api/types.ts";
+
+/**
+ * Extract mutation result, throwing on ErrorPayload.
+ * Follows no-silent-fallbacks policy — fail-fast on errors.
+ */
+function unwrapMutation<T extends Record<string, unknown>>(
+  result: T,
+  operationName: string,
+): Record<string, unknown> {
+  const payload = Object.values(result)[0] as Record<string, unknown>;
+  if (payload?.__typename === "ErrorPayload") {
+    throw new Error(
+      `[lib/syson] ${operationName} failed: ${(payload as { message: string }).message}`,
+    );
+  }
+  return payload;
+}
+
+export const projectTools: SysonTool[] = [
+  {
+    name: "syson_project_list",
+    description:
+      "List SysML v2 projects in SysON with optional name filter. " +
+      "Returns project ID, name, and natures.",
+    category: "project",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filter: {
+          type: "string",
+          description: "Filter projects by name (contains match)",
+        },
+        first: {
+          type: "number",
+          description: "Number of results to return. Default: 20",
+        },
+        after: {
+          type: "string",
+          description: "Cursor for pagination (from previous result)",
+        },
+      },
+    },
+    handler: async ({ filter, first, after }) => {
+      const client = getSysonClient();
+      const data = await client.query<ListProjectsResult>(LIST_PROJECTS, {
+        first: (first as number) ?? 20,
+        after: after as string | undefined,
+        filter: filter ? { name: { contains: filter } } : undefined,
+      });
+
+      return {
+        projects: data.viewer.projects.edges.map((e) => ({
+          id: e.node.id,
+          name: e.node.name,
+          natures: e.node.natures?.map((n) => n.name) ?? [],
+        })),
+        pageInfo: data.viewer.projects.pageInfo,
+      };
+    },
+  },
+
+  {
+    name: "syson_project_get",
+    description:
+      "Get a SysON project by ID. Returns project details including editingContextId " +
+      "(needed for all subsequent operations on this project).",
+    category: "project",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_id: {
+          type: "string",
+          description: "Project UUID",
+        },
+      },
+      required: ["project_id"],
+    },
+    handler: async ({ project_id }) => {
+      const client = getSysonClient();
+      const data = await client.query<GetProjectResult>(GET_PROJECT, {
+        projectId: project_id as string,
+      });
+
+      const project = data.viewer.project;
+      return {
+        id: project.id,
+        name: project.name,
+        natures: project.natures?.map((n) => n.name) ?? [],
+        editingContextId: project.currentEditingContext?.id ?? null,
+      };
+    },
+  },
+
+  {
+    name: "syson_project_create",
+    description:
+      "Create a new SysML v2 project in SysON. " +
+      "Optionally specify a template. Returns project ID and editingContextId.",
+    category: "project",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Project name",
+        },
+        template_id: {
+          type: "string",
+          description:
+            "Template ID to use (from syson_project_templates). " +
+            "If omitted, creates a blank project.",
+        },
+      },
+      required: ["name"],
+    },
+    handler: async ({ name, template_id }) => {
+      const client = getSysonClient();
+
+      // If no template specified, try to find SysON template
+      let resolvedTemplateId = template_id as string | undefined;
+      if (!resolvedTemplateId) {
+        const templates = await client.query<GetProjectTemplatesResult>(GET_PROJECT_TEMPLATES);
+        const sysonTemplate = templates.viewer.projectTemplates.edges.find(
+          (e) =>
+            e.node.label.toLowerCase().includes("syson") ||
+            e.node.label.toLowerCase().includes("sysml"),
+        );
+        if (sysonTemplate) {
+          resolvedTemplateId = sysonTemplate.node.id;
+        }
+      }
+
+      const mutationId = crypto.randomUUID();
+      const data = await client.mutate<CreateProjectResult>(CREATE_PROJECT, {
+        input: {
+          id: mutationId,
+          name: name as string,
+          ...(resolvedTemplateId && { templateId: resolvedTemplateId }),
+          libraryIds: [],
+        },
+      });
+
+      const payload = unwrapMutation(data, "createProject");
+      const project = (payload as { project: { id: string; name: string } }).project;
+
+      // Fetch the project to get editingContextId
+      const projectData = await client.query<GetProjectResult>(GET_PROJECT, {
+        projectId: project.id,
+      });
+
+      return {
+        id: project.id,
+        name: project.name,
+        editingContextId: projectData.viewer.project.currentEditingContext?.id ?? project.id,
+      };
+    },
+  },
+
+  {
+    name: "syson_project_delete",
+    description: "Delete a SysON project by ID. This action is irreversible.",
+    category: "project",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_id: {
+          type: "string",
+          description: "Project UUID to delete",
+        },
+      },
+      required: ["project_id"],
+    },
+    handler: async ({ project_id }) => {
+      const client = getSysonClient();
+      const mutationId = crypto.randomUUID();
+
+      const data = await client.mutate<DeleteProjectResult>(DELETE_PROJECT, {
+        input: {
+          id: mutationId,
+          projectId: project_id as string,
+        },
+      });
+
+      unwrapMutation(data, "deleteProject");
+      return { deleted: true, projectId: project_id };
+    },
+  },
+
+  {
+    name: "syson_project_templates",
+    description: "List available project templates in SysON.",
+    category: "project",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+    handler: async () => {
+      const client = getSysonClient();
+      const data = await client.query<GetProjectTemplatesResult>(GET_PROJECT_TEMPLATES);
+
+      return {
+        templates: data.viewer.projectTemplates.edges.map((e) => ({
+          id: e.node.id,
+          label: e.node.label,
+        })),
+      };
+    },
+  },
+];

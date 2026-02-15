@@ -1,0 +1,117 @@
+/**
+ * GraphQL mutation strings for SysON/Sirius Web API
+ *
+ * All mutations are plain strings — no codegen, no deps.
+ *
+ * @module lib/syson/api/mutations
+ */
+
+export const CREATE_PROJECT = `
+  mutation CreateProject($input: CreateProjectInput!) {
+    createProject(input: $input) {
+      ... on CreateProjectSuccessPayload {
+        __typename id project { id name }
+      }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const DELETE_PROJECT = `
+  mutation DeleteProject($input: DeleteProjectInput!) {
+    deleteProject(input: $input) {
+      ... on SuccessPayload { __typename id }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const CREATE_DOCUMENT = `
+  mutation CreateDocument($input: CreateDocumentInput!) {
+    createDocument(input: $input) {
+      ... on CreateDocumentSuccessPayload {
+        __typename id document { id name kind }
+      }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const CREATE_ROOT_OBJECT = `
+  mutation CreateRootObject($input: CreateRootObjectInput!) {
+    createRootObject(input: $input) {
+      ... on CreateRootObjectSuccessPayload {
+        __typename id object { id kind label }
+      }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const CREATE_CHILD = `
+  mutation CreateChild($input: CreateChildInput!) {
+    createChild(input: $input) {
+      ... on CreateChildSuccessPayload {
+        __typename id object { id kind label }
+        messages { body level }
+      }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const RENAME_TREE_ITEM = `
+  mutation RenameTreeItem($input: RenameTreeItemInput!) {
+    renameTreeItem(input: $input) {
+      ... on SuccessPayload { __typename id }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const DELETE_TREE_ITEM = `
+  mutation DeleteTreeItem($input: DeleteTreeItemInput!) {
+    deleteTreeItem(input: $input) {
+      ... on SuccessPayload { __typename id }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const EDIT_TEXTFIELD = `
+  mutation EditTextfield($input: EditTextfieldInput!) {
+    editTextfield(input: $input) {
+      ... on SuccessPayload { __typename id }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const EVALUATE_EXPRESSION = `
+  mutation EvaluateExpression($input: EvaluateExpressionInput!) {
+    evaluateExpression(input: $input) {
+      ... on EvaluateExpressionSuccessPayload {
+        __typename
+        result {
+          ... on ObjectExpressionResult { __typename value { id kind label } }
+          ... on ObjectsExpressionResult { __typename value { id kind label } }
+          ... on StringExpressionResult { __typename value }
+          ... on BooleanExpressionResult { __typename value }
+          ... on IntExpressionResult { __typename value }
+        }
+      }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const CREATE_REPRESENTATION = `
+  mutation CreateRepresentation($input: CreateRepresentationInput!) {
+    createRepresentation(input: $input) {
+      ... on CreateRepresentationSuccessPayload {
+        __typename id representation { id label kind }
+      }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
