@@ -434,10 +434,130 @@ composent fonctionnent. Raisons :
 | 6 | STEP parsing | Deno FFI + OpenCASCADE C++ | Deno supporte FFI nativement, OCCT est le standard industriel open-source. Pas de WASM (perf + accès fichiers natif) | 2026-02-15 |
 | 7 | Agent tools | Dans chaque lib (agent.ts) | Même pattern que lib/std, les agents composent les tools de leur domaine | 2026-02-15 |
 | 8 | Agent timing | Après tools déterministes | Les agents composent les tools — il faut que ceux-ci marchent d'abord | 2026-02-15 |
+| 9 | Protocol features | Exploiter elicitation + prompts + resources | Pas seulement tools+sampling — le protocole MCP offre d'autres primitives pertinentes | 2026-02-15 |
 
 ---
 
-## 10. Risks & Mitigations
+## 10. MCP Protocol Features — Matrice de compatibilité
+
+### 10.1. Features du protocole MCP (spec 2025-11-25)
+
+Le protocole MCP ne se limite pas à tools + sampling. Voici l'inventaire complet des
+features et leur pertinence pour MBE/PLM :
+
+| Feature | Direction | Spec | Status lib/server | Claude Code | Pertinence MBE/PLM |
+|---------|-----------|------|-------------------|-------------|---------------------|
+| **Tools** | Server → Client | Stable | ✅ Implémenté | ✅ Supporté | Core — tous les tools MBE/PLM |
+| **Resources** | Server → Client | Stable (SEP-1865) | ✅ Implémenté | ✅ Supporté | Material DB, STEP metadata, BOM trees |
+| **Prompts** | Server → Client | Stable | ⚠️ Types importés, handler absent | ✅ Supporté | Workflows pré-définis (Design Review, ECR) |
+| **Sampling** | Client ← Server | Stable (SEP-1577) | ✅ Implémenté | ✅ Natif | Agent tools (raisonnement LLM) |
+| **Elicitation (form)** | Client ← Server | Stable (2025-06-18) | ❌ Pas implémenté | ⚠️ À vérifier | Collecte de paramètres interactifs |
+| **Elicitation (URL)** | Client ← Server | Stable (2025-11-25) | ❌ Pas implémenté | ⚠️ À vérifier | OAuth vers ERP/APIs externes |
+| **Roots** | Client ← Server | Stable | ❌ Pas implémenté | ✅ Supporté | Limiter le scope filesystem des tools |
+| **Completions** | Server → Client | Stable | ❌ Pas implémenté | ❌ Inconnu | Auto-complétion de paramètres tools |
+| **Logging** | Server → Client | Stable | ⚠️ Partiel (console) | ✅ Supporté | Debug et traçabilité des tools |
+| **Tasks** | Server → Client | Expérimental (2025-11-25) | ❌ Pas implémenté | ❌ Probablement pas | Long-running ops (gros STEP, Monte Carlo) |
+| **Notifications** | Bidirectionnel | Stable | ✅ Implémenté | ✅ Supporté | Progress updates, changements d'état |
+
+### 10.2. Elicitation — Cas d'usage MBE/PLM
+
+L'elicitation (form mode) permet au **serveur** de demander des informations à
+l'**utilisateur** pendant l'exécution d'un tool. C'est un `elicitation/create` avec un
+`requestedSchema` en JSON Schema (types primitifs uniquement : string, number, boolean, enum).
+
+**Cas concrets dans lib/mbe :**
+
+| Quand | Elicitation | Schema |
+|-------|-------------|--------|
+| `mbe_agent_suggest_tolerances` | "Quelle est la fonction de cette pièce ?" | `{ function: enum["fit", "clearance", "press_fit", "sealing"], criticality: enum["safety", "functional", "cosmetic"] }` |
+| `mbe_agent_material_recommend` | "Quelles sont vos contraintes ?" | `{ max_weight_kg: number, max_cost_eur_kg: number, environment: enum["indoor", "marine", "aerospace", "automotive"], weldable: boolean }` |
+| `mbe_mass_properties` | "Quel matériau pour le calcul de masse ?" | `{ material: string, density_override: number }` |
+
+**Cas concrets dans lib/plm :**
+
+| Quand | Elicitation | Schema |
+|-------|-------------|--------|
+| `plm_ecr_create` | "Détails de la demande de changement" | `{ reason: enum["defect", "cost_reduction", ...], priority: enum["critical", "high", "medium", "low"] }` |
+| `plm_bom_cost` | "Paramètres de costing" | `{ costing_model: enum["raw_material", "machining", ...], quantity: number, currency: enum["EUR", "USD"] }` |
+| `plm_change_impact` | "Confirmer le périmètre d'analyse" | `{ include_cost: boolean, include_schedule: boolean, include_suppliers: boolean }` |
+
+**Contraintes importantes :**
+- Schema limité aux types primitifs (pas d'objets imbriqués)
+- L'utilisateur peut **decline** ou **cancel** → le tool doit gérer ces cas (fail-fast)
+- Claude Code : **compatibilité à vérifier** — si non supporté, fallback sur des paramètres d'input classiques
+
+### 10.3. Prompts — Workflows pré-définis
+
+Les prompts MCP permettent au serveur d'exposer des **templates de workflows** que le
+client peut lister et proposer à l'utilisateur (comme des slash commands).
+
+**Exemples pour MBE/PLM :**
+
+```
+prompts/list → [
+  { name: "mbe_design_review",   description: "Full DFM/DFA review of a CAD model" },
+  { name: "plm_new_part",        description: "Create new part with material, tolerances, BOM entry" },
+  { name: "plm_change_request",  description: "Initiate ECR → ECO workflow" },
+  { name: "plm_inspection_setup", description: "Generate FAIR + inspection plan from model" },
+]
+```
+
+Chaque prompt retourne un template de messages pré-remplis que le LLM peut exécuter.
+C'est un raccourci pour des workflows multi-tools complexes.
+
+**Status lib/server :** Les types sont importés (`GetPromptRequest`) mais le handler
+n'est pas câblé dans `ConcurrentMCPServer`. À implémenter dans lib/server d'abord.
+
+### 10.4. Resources — Données navigables
+
+Les resources MCP permettent d'exposer des **données structurées** que le client peut
+lister et lire (comme un filesystem virtuel).
+
+**Exemples pour MBE/PLM :**
+
+| Resource URI | Description |
+|-------------|-------------|
+| `mbe://materials/AL6061-T6` | Fiche matériau complète |
+| `mbe://materials?category=aluminum` | Liste des aluminiums disponibles |
+| `mbe://step/{file_hash}/features` | Feature tree d'un fichier STEP parsé |
+| `plm://bom/{assembly_id}` | BOM navigable d'un assemblage |
+| `plm://changes/pending` | ECR/ECO en attente d'approbation |
+
+Les resources sont déjà supportées dans lib/server (`registerResource()`). Le pattern
+MCP Apps (SEP-1865) permet aussi d'associer des UI interactives aux resources.
+
+### 10.5. Tasks — Opérations long-running (expérimental)
+
+Le feature "Tasks" (2025-11-25, expérimental) permettrait de gérer des opérations qui
+prennent plus de quelques secondes :
+
+- Parsing d'un gros fichier STEP (>100 MB)
+- Simulation Monte Carlo (10000+ itérations)
+- BOM costing avec appels API externes
+
+**Status :** Expérimental, probablement pas supporté par Claude Code. À surveiller pour
+une adoption future. En attendant, on utilise les `notifications` pour le progress tracking.
+
+### 10.6. Plan d'implémentation des features protocole
+
+| Priorité | Feature | Où | Pré-requis | Phase |
+|----------|---------|----|----|-------|
+| **P0** | Tools | lib/mbe, lib/plm | — | Phase 0 (DONE) |
+| **P1** | Sampling (agent tools) | lib/mbe, lib/plm | Tools déterministes | Phase 3 |
+| **P2** | Resources (material DB, BOM) | lib/mbe, lib/plm | Tools implémentés | Phase 4 |
+| **P3** | Elicitation (form mode) | lib/server d'abord | Support dans ConcurrentMCPServer | Phase 3-4 |
+| **P3** | Prompts (workflow templates) | lib/server d'abord | Handler prompts/list + prompts/get | Phase 4 |
+| **P4** | Elicitation (URL mode) | lib/server | OAuth flows vers ERP | Future |
+| **P5** | Tasks | lib/server | Spec stabilisée | Future |
+
+**Note importante :** L'implémentation de l'elicitation et des prompts nécessite d'abord
+un travail dans `lib/server/src/concurrent-server.ts` pour câbler les handlers MCP
+correspondants. Ce n'est pas spécifique à MBE/PLM — c'est un enrichissement du framework
+serveur qui bénéficie à toutes les libs (std, mbe, plm).
+
+---
+
+## 11. Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
