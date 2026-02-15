@@ -435,6 +435,7 @@ composent fonctionnent. Raisons :
 | 7 | Agent tools | Dans chaque lib (agent.ts) | Même pattern que lib/std, les agents composent les tools de leur domaine | 2026-02-15 |
 | 8 | Agent timing | Après tools déterministes | Les agents composent les tools — il faut que ceux-ci marchent d'abord | 2026-02-15 |
 | 9 | Protocol features | Exploiter elicitation + prompts + resources | Pas seulement tools+sampling — le protocole MCP offre d'autres primitives pertinentes | 2026-02-15 |
+| 10 | Client independence | Implémenter toutes les features, pas seulement celles de Claude Code | On construit notre propre client si nécessaire (dashboard Fresh). MCP Apps UI comme alternative à l'URL mode elicitation | 2026-02-15 |
 
 ---
 
@@ -451,8 +452,8 @@ features et leur pertinence pour MBE/PLM :
 | **Resources** | Server → Client | Stable (SEP-1865) | ✅ Implémenté | ✅ Supporté | Material DB, STEP metadata, BOM trees |
 | **Prompts** | Server → Client | Stable | ⚠️ Types importés, handler absent | ✅ Supporté | Workflows pré-définis (Design Review, ECR) |
 | **Sampling** | Client ← Server | Stable (SEP-1577) | ✅ Implémenté | ✅ Natif | Agent tools (raisonnement LLM) |
-| **Elicitation (form)** | Client ← Server | Stable (2025-06-18) | ❌ Pas implémenté | ⚠️ À vérifier | Collecte de paramètres interactifs |
-| **Elicitation (URL)** | Client ← Server | Stable (2025-11-25) | ❌ Pas implémenté | ⚠️ À vérifier | OAuth vers ERP/APIs externes |
+| **Elicitation (form)** | Client ← Server | Stable (2025-06-18) | ❌ À implémenter | ⚠️ Non garanti | Collecte de paramètres interactifs |
+| **Elicitation (URL)** | Client ← Server | Stable (2025-11-25) | ❌ À implémenter | ⚠️ Non garanti — MCP Apps UI en alternative | OAuth / interactions sensibles |
 | **Roots** | Client ← Server | Stable | ❌ Pas implémenté | ✅ Supporté | Limiter le scope filesystem des tools |
 | **Completions** | Server → Client | Stable | ❌ Pas implémenté | ❌ Inconnu | Auto-complétion de paramètres tools |
 | **Logging** | Server → Client | Stable | ⚠️ Partiel (console) | ✅ Supporté | Debug et traçabilité des tools |
@@ -484,7 +485,30 @@ l'**utilisateur** pendant l'exécution d'un tool. C'est un `elicitation/create` 
 **Contraintes importantes :**
 - Schema limité aux types primitifs (pas d'objets imbriqués)
 - L'utilisateur peut **decline** ou **cancel** → le tool doit gérer ces cas (fail-fast)
-- Claude Code : **compatibilité à vérifier** — si non supporté, fallback sur des paramètres d'input classiques
+- Claude Code : compatibilité non garantie — **on implémente quand même** dans lib/server
+  et on construit notre propre client si nécessaire. On ne sacrifie pas la fonctionnalité.
+
+**Alternative à l'URL mode : MCP Apps (UI Resources)**
+
+Pour les cas où l'URL mode elicitation serait overkill ou non supporté par le client,
+les **MCP Apps** (SEP-1865, déjà implémenté dans lib/server) offrent une alternative :
+
+- On expose une resource `ui://mcp-mbe/material-selector` avec une UI interactive HTML
+- Le tool associe `_meta.ui.resourceUri` à cette resource
+- Le client affiche l'UI et l'utilisateur interagit directement
+- Plus riche que l'elicitation form (pas limité aux types primitifs)
+- Déjà supporté dans lib/server via `registerResource()` + CSP injection
+
+Exemples de resources UI pour MBE/PLM :
+
+| Resource URI | UI | Usage |
+|-------------|-----|-------|
+| `ui://mcp-mbe/material-selector` | Filtrable material picker | `mbe_material_lookup` |
+| `ui://mcp-mbe/tolerance-viewer` | GD&T frame visualizer | `mbe_gdt_parse` |
+| `ui://mcp-plm/bom-tree` | Expandable BOM hierarchy | `plm_bom_generate` |
+| `ui://mcp-plm/change-workflow` | ECR/ECO status tracker | `plm_ecr_create` |
+
+**Stratégie : elicitation form pour les inputs simples, MCP Apps UI pour les interactions riches.**
 
 ### 10.3. Prompts — Workflows pré-définis
 
@@ -545,15 +569,21 @@ une adoption future. En attendant, on utilise les `notifications` pour le progre
 | **P0** | Tools | lib/mbe, lib/plm | — | Phase 0 (DONE) |
 | **P1** | Sampling (agent tools) | lib/mbe, lib/plm | Tools déterministes | Phase 3 |
 | **P2** | Resources (material DB, BOM) | lib/mbe, lib/plm | Tools implémentés | Phase 4 |
-| **P3** | Elicitation (form mode) | lib/server d'abord | Support dans ConcurrentMCPServer | Phase 3-4 |
-| **P3** | Prompts (workflow templates) | lib/server d'abord | Handler prompts/list + prompts/get | Phase 4 |
-| **P4** | Elicitation (URL mode) | lib/server | OAuth flows vers ERP | Future |
+| **P2** | MCP Apps UI (rich interactions) | lib/mbe, lib/plm | Resources implémentées | Phase 4 |
+| **P3** | Elicitation (form mode) | lib/server d'abord | Handler `elicitation/create` dans ConcurrentMCPServer | Phase 3-4 |
+| **P3** | Prompts (workflow templates) | lib/server d'abord | Handler `prompts/list` + `prompts/get` | Phase 4 |
+| **P4** | Elicitation (URL mode) | lib/server | OAuth flows vers ERP — ou MCP Apps UI en alternative | Future |
 | **P5** | Tasks | lib/server | Spec stabilisée | Future |
 
 **Note importante :** L'implémentation de l'elicitation et des prompts nécessite d'abord
 un travail dans `lib/server/src/concurrent-server.ts` pour câbler les handlers MCP
 correspondants. Ce n'est pas spécifique à MBE/PLM — c'est un enrichissement du framework
 serveur qui bénéficie à toutes les libs (std, mbe, plm).
+
+**Position sur la compatibilité client :** On implémente **toutes** les features utiles
+dans lib/server, indépendamment du support Claude Code. Si Claude Code ne supporte pas
+l'elicitation, on construira notre propre client MCP (le dashboard Fresh supporte déjà
+HTTP + SSE). On ne sacrifie pas de fonctionnalité pour une limitation client.
 
 ---
 
