@@ -19,14 +19,19 @@ L'objectif est d'étendre cet écosystème avec deux nouvelles bibliothèques de
 
 | Library | Scope | Rôle | Phase |
 |---------|-------|------|-------|
-| **lib/syson** | MBSE (SysON bridge) | Bridge MCP vers l'API REST SysML v2 de SysON | **Phase 1 (MVP)** |
+| **lib/syson** | MBSE (SysON bridge) | Bridge MCP vers l'API GraphQL de SysON (Sirius Web) | **Phase 1 (MVP)** |
 | **lib/plm** | Product Lifecycle Management | BOM, ECR/ECO, qualité, planning | Phase 2 |
 | ~~lib/mbe~~ | ~~Model-Based Engineering~~ | ~~Primitives géométriques, GD&T, matériaux, PMI~~ | Future (si besoin CAD) |
 
 **Architecture globale :** SysON (open-source, web-based, Docker) sert de **backend MBSE** avec
 son UI intégrée (diagrammes SysML v2, requirements, architecture). `lib/syson` est le bridge
-MCP qui permet aux agents et à lib/plm d'interagir avec les modèles SysON via son API REST
-standardisée OMG. **Pas d'UI custom à construire** — SysON fournit l'UI et les diagrammes.
+MCP qui permet aux agents et à lib/plm d'interagir avec les modèles SysON via son **API GraphQL**
+(Sirius Web). **Pas d'UI custom à construire** — SysON fournit l'UI et les diagrammes.
+
+**Décision clé : client GraphQL custom, zéro dépendance externe.** Le schéma GraphQL de
+Sirius Web est entièrement documenté dans les fichiers `.graphqls` du repo. On code le client
+nous-mêmes en TypeScript/Deno — c'est du simple `fetch()` + JSON. Pas de SDK tiers, pas de
+générateur de code, pas de dépendance fragile. On maîtrise tout.
 
 `lib/syson` = source de vérité (requirements → architecture → composants → traçabilité).
 `lib/plm` = workflows métier (nomenclatures, gestion du changement, qualité).
@@ -49,7 +54,8 @@ standardisée OMG. **Pas d'UI custom à construire** — SysON fournit l'UI et l
 │ data     │ relations │ quality   │ middleware      │
 │ agent    │ queries   │ planning  │ auth + rate     │
 └──────────┴─────┬─────┴───────────┴──────────────────┘
-                 │ REST API (SysML v2)
+                 │ GraphQL API (/api/graphql)
+                 │ + REST API (/api/rest/) fallback
            ┌─────▼─────┐
            │   SysON   │
            │  (Docker) │
@@ -70,7 +76,8 @@ lib/std ──depends────────┘
 `lib/plm` et `lib/syson` n'ont **aucune dépendance** sur `lib/std` — ils sont
 indépendants et ne partagent que `lib/server` pour l'infrastructure MCP.
 
-`lib/syson` communique avec SysON (instance Docker) via REST API — pas d'import direct.
+`lib/syson` communique avec SysON (instance Docker) via **GraphQL API** — pas d'import direct.
+Le client GraphQL est **codé from scratch** en TypeScript (simple `fetch` + JSON, zéro deps).
 `lib/plm` peut consommer des données du modèle SysON via `lib/syson` (cross-lib calls).
 
 ### 2.3. Pattern de tool (identique à lib/std)
@@ -234,27 +241,339 @@ export const bomTools: MiniTool[] = [
 
 ---
 
-## 5. lib/syson — Bridge MCP vers SysON (MBSE)
+## 5. lib/syson — Bridge MCP vers SysON (MBSE) via GraphQL
 
 ### 5.1. Principe
 
-`lib/syson` est un **bridge MCP** : il expose des tools MCP qui appellent l'API REST
-SysML v2 de SysON. Les agents et les autres libs interagissent avec les modèles MBSE
+`lib/syson` est un **bridge MCP** : il expose des tools MCP qui appellent l'**API GraphQL**
+de SysON (Sirius Web). Les agents et les autres libs interagissent avec les modèles MBSE
 via ces tools, sans connaître les détails de l'API SysON.
 
 **SysON fournit l'UI** (diagrammes, navigation, édition graphique). `lib/syson` fournit
 l'accès programmatique.
 
-### 5.2. Catégories de tools
+**Pourquoi GraphQL et pas REST :**
+- L'API REST SysML v2 (`/api/rest/`) est un sous-ensemble limité (CRUD basique, read-only sur éléments)
+- L'API GraphQL (`/api/graphql`) est l'API **complète** utilisée par le frontend SysON lui-même
+- GraphQL offre `queryBasedObjects` / `queryBasedString` (requêtes AQL dynamiques) — le killer feature
+- GraphQL offre les mutations CRUD complètes (create, rename, delete), le search, l'evaluation d'expressions
+- Zéro dépendance : c'est du `fetch()` + JSON, on code le client nous-mêmes
+
+### 5.2. Architecture du client GraphQL
+
+```
+lib/syson/src/api/
+├── graphql-client.ts     # Client HTTP GraphQL (fetch, retry, error handling)
+├── queries.ts            # Toutes les queries GraphQL (strings)
+├── mutations.ts          # Toutes les mutations GraphQL (strings)
+└── types.ts              # Types TS pour les réponses GraphQL
+```
+
+**Le client est trivial :**
+
+```typescript
+// lib/syson/src/api/graphql-client.ts
+export class SysonGraphQLClient {
+  constructor(
+    private baseUrl: string = Deno.env.get("SYSON_URL") || "http://localhost:8080",
+  ) {}
+
+  async query<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+    const response = await fetch(`${this.baseUrl}/api/graphql`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (!response.ok) {
+      throw new Error(`[lib/syson] GraphQL HTTP error: ${response.status} ${await response.text()}`);
+    }
+    const result = await response.json();
+    if (result.errors?.length) {
+      throw new Error(`[lib/syson] GraphQL error: ${result.errors.map((e: any) => e.message).join(", ")}`);
+    }
+    return result.data as T;
+  }
+
+  async mutate<T>(mutation: string, variables?: Record<string, unknown>): Promise<T> {
+    return this.query<T>(mutation, variables);
+  }
+}
+```
+
+**Zéro deps externes.** Le client est ~30 lignes de code. Les queries/mutations sont des
+strings template, typées en sortie par les interfaces dans `types.ts`.
+
+### 5.3. API GraphQL de référence (Sirius Web)
+
+SysON est construit sur Sirius Web. Le schéma GraphQL est distribué dans les fichiers
+`.graphqls` du repo `eclipse-sirius/sirius-web`. Voici les opérations qu'on utilise.
+
+#### 5.3.1. Concepts clés
+
+- **`editingContextId`** : identifiant du contexte d'édition = **project ID** (obtenu via `project.currentEditingContext.id`)
+- **`id` dans chaque mutation** : UUID client-generated pour corréler request/response. On génère avec `crypto.randomUUID()`
+- **Workflow de création** : `createProject` → `createDocument` (avec stereotype) → `createRootObject` → `createChild` (récursif)
+- **`queryBasedObjects`** : exécute des expressions AQL (Acceleo Query Language) sur n'importe quel objet — c'est comme un REPL
+
+#### 5.3.2. Queries
+
+**Lister les projets :**
+```graphql
+query ListProjects($after: String, $first: Int, $filter: ProjectFilter) {
+  viewer {
+    projects(after: $after, first: $first, filter: $filter) {
+      edges { node { id name natures { name } } cursor }
+      pageInfo { count hasNextPage endCursor }
+    }
+  }
+}
+# filter: { name: { contains: "..." } }
+```
+
+**Obtenir un projet + editing context :**
+```graphql
+query GetProject($projectId: ID!) {
+  viewer {
+    project(projectId: $projectId) {
+      id name
+      natures { name }
+      currentEditingContext { id }
+    }
+  }
+}
+```
+
+**Lire un objet :**
+```graphql
+query GetObject($editingContextId: ID!, $objectId: ID!) {
+  viewer {
+    editingContext(editingContextId: $editingContextId) {
+      object(objectId: $objectId) { id kind label iconURLs }
+    }
+  }
+}
+```
+
+**Requête AQL dynamique (le killer feature) :**
+```graphql
+query QueryAQL($editingContextId: ID!, $objectId: ID!, $query: String!) {
+  viewer {
+    editingContext(editingContextId: $editingContextId) {
+      object(objectId: $objectId) {
+        id label
+        queryBasedString(query: $query)     # pour les attributs string
+        queryBasedObjects(query: $query) {  # pour les collections d'objets
+          id kind label iconURLs
+        }
+      }
+    }
+  }
+}
+# Exemples AQL :
+# "aql:self.ownedElement"          → enfants directs
+# "aql:self.eAllContents()"        → tous les descendants
+# "aql:self.name"                  → nom de l'élément
+# "aql:self.oclIsKindOf(sysml::PartUsage)" → filtrage par type
+```
+
+**Recherche full-text :**
+```graphql
+query SearchElements($editingContextId: ID!, $query: SearchQuery!) {
+  viewer {
+    editingContext(editingContextId: $editingContextId) {
+      search(query: $query) {
+        ... on SearchSuccessPayload {
+          result { matches { id kind label iconURLs } }
+        }
+      }
+    }
+  }
+}
+# SearchQuery: { text, matchCase, matchWholeWord, useRegularExpression, searchInAttributes, searchInLibraries }
+```
+
+**Lister les descriptions de création enfants (pour savoir quels types on peut créer) :**
+```graphql
+query GetChildCreationDescriptions($editingContextId: ID!, $containerId: ID!) {
+  viewer {
+    editingContext(editingContextId: $editingContextId) {
+      childCreationDescriptions(containerId: $containerId) {
+        id label iconURL
+      }
+    }
+  }
+}
+# Retourne : "New PartUsage", "New RequirementUsage", "New Package", etc.
+```
+
+**Lister les stéréotypes (pour créer un document/modèle) :**
+```graphql
+query GetStereotypes($editingContextId: ID!) {
+  viewer {
+    editingContext(editingContextId: $editingContextId) {
+      stereotypes { edges { node { id label } } }
+    }
+  }
+}
+```
+
+#### 5.3.3. Mutations
+
+**Créer un projet :**
+```graphql
+mutation CreateProject($input: CreateProjectInput!) {
+  createProject(input: $input) {
+    ... on CreateProjectSuccessPayload { id project { id name } }
+    ... on ErrorPayload { id message }
+  }
+}
+# input: { id: UUID, name: String!, templateId: ID!, libraryIds: [String!]! }
+```
+
+**Créer un document (modèle SysML) :**
+```graphql
+mutation CreateDocument($input: CreateDocumentInput!) {
+  createDocument(input: $input) {
+    ... on CreateDocumentSuccessPayload { id document { id name kind } }
+    ... on ErrorPayload { id message }
+  }
+}
+# input: { id: UUID, editingContextId: ID!, stereotypeId: ID!, name: String! }
+```
+
+**Créer un root object (Package racine) :**
+```graphql
+mutation CreateRootObject($input: CreateRootObjectInput!) {
+  createRootObject(input: $input) {
+    ... on CreateRootObjectSuccessPayload { id object { id kind label } }
+    ... on ErrorPayload { id message }
+  }
+}
+# input: { id: UUID, editingContextId, documentId, domainId: "sysml", rootObjectCreationDescriptionId }
+```
+
+**Créer un enfant (PartUsage, RequirementUsage, etc.) :**
+```graphql
+mutation CreateChild($input: CreateChildInput!) {
+  createChild(input: $input) {
+    ... on CreateChildSuccessPayload { id object { id kind label } messages { body level } }
+    ... on ErrorPayload { id message }
+  }
+}
+# input: { id: UUID, editingContextId, objectId: parentId, childCreationDescriptionId }
+```
+
+**Renommer un élément :**
+```graphql
+mutation RenameTreeItem($input: RenameTreeItemInput!) {
+  renameTreeItem(input: $input) {
+    ... on SuccessPayload { id }
+    ... on ErrorPayload { id message }
+  }
+}
+# input: { id: UUID, editingContextId, representationId, treeItemId, newLabel }
+```
+
+**Supprimer un élément :**
+```graphql
+mutation DeleteTreeItem($input: DeleteTreeItemInput!) {
+  deleteTreeItem(input: $input) {
+    ... on SuccessPayload { id }
+    ... on ErrorPayload { id message }
+  }
+}
+# input: { id: UUID, editingContextId, representationId, treeItemId }
+```
+
+**Éditer une propriété texte (via form/property sheet) :**
+```graphql
+mutation EditTextfield($input: EditTextfieldInput!) {
+  editTextfield(input: $input) {
+    ... on SuccessPayload { id }
+    ... on ErrorPayload { id message }
+  }
+}
+# input: { id: UUID, editingContextId, representationId, textfieldId, newValue }
+```
+
+**Évaluer une expression AQL (mutation) :**
+```graphql
+mutation EvaluateExpression($input: EvaluateExpressionInput!) {
+  evaluateExpression(input: $input) {
+    ... on EvaluateExpressionSuccessPayload {
+      result {
+        ... on ObjectExpressionResult { value { id kind label } }
+        ... on ObjectsExpressionResult { value { id kind label } }
+        ... on StringExpressionResult { value }
+        ... on BooleanExpressionResult { value }
+        ... on IntExpressionResult { value }
+      }
+    }
+  }
+}
+# input: { id: UUID, editingContextId, expression: "aql:...", selectedObjectIds: [ID!]! }
+```
+
+**Supprimer un projet :**
+```graphql
+mutation DeleteProject($input: DeleteProjectInput!) {
+  deleteProject(input: $input) {
+    ... on SuccessPayload { id }
+    ... on ErrorPayload { id message }
+  }
+}
+# input: { id: UUID, projectId }
+```
+
+**Créer une représentation (diagramme, table) :**
+```graphql
+mutation CreateRepresentation($input: CreateRepresentationInput!) {
+  createRepresentation(input: $input) {
+    ... on CreateRepresentationSuccessPayload { id representation { id label kind } }
+    ... on ErrorPayload { id message }
+  }
+}
+# input: { id: UUID, editingContextId, objectId, representationDescriptionId, representationName }
+```
+
+#### 5.3.4. Workflow typique de création d'un modèle SysML
+
+```
+1. createProject(name: "Satellite-v2", templateId, libraryIds: [])
+   → project.id = editingContextId
+
+2. getStereotypes(editingContextId) → trouver le stereotype "SysML v2"
+   createDocument(editingContextId, stereotypeId, name: "Model")
+   → document.id
+
+3. getDomains(editingContextId) → domainId = "sysml"
+   getRootObjectCreationDescriptions(editingContextId, domainId)
+   → trouver "Package"
+   createRootObject(editingContextId, documentId, domainId, descriptionId)
+   → rootPackage.id
+
+4. getChildCreationDescriptions(editingContextId, rootPackage.id)
+   → "New PartUsage", "New RequirementUsage", "New Package", etc.
+   createChild(editingContextId, parentId, childCreationDescriptionId)
+   → element.id
+
+5. renameTreeItem(editingContextId, representationId, element.id, "Propulsion Module")
+   editTextfield(...) pour les autres propriétés
+
+6. Répéter 4-5 pour construire l'arbre SysML complet
+```
+
+### 5.4. Catégories de tools MCP
 
 | Category | Prefix | Description | Tools |
 |----------|--------|-------------|-------|
-| `project` | `syson_` | CRUD projets et commits SysON | `syson_project_list`, `syson_project_create`, `syson_project_get`, `syson_commit_list` |
-| `element` | `syson_` | CRUD éléments SysML v2 (parts, requirements, etc.) | `syson_element_create`, `syson_element_get`, `syson_element_update`, `syson_element_delete` |
-| `query` | `syson_` | Requêtes sur le modèle (traversal, search) | `syson_query_elements`, `syson_query_relationships`, `syson_query_requirements_trace` |
-| `import` | `syson_` | Import/export textuel SysML v2 | `syson_import_textual`, `syson_export_textual` |
+| `project` | `syson_` | CRUD projets SysON | `syson_project_list`, `syson_project_create`, `syson_project_get`, `syson_project_delete` |
+| `element` | `syson_` | CRUD éléments SysML v2 (parts, reqs, packages) | `syson_element_create`, `syson_element_get`, `syson_element_children`, `syson_element_rename`, `syson_element_delete` |
+| `query` | `syson_` | Requêtes AQL, search, traversal | `syson_query_aql`, `syson_search`, `syson_query_requirements_trace` |
+| `model` | `syson_` | Gestion modèle/document SysML | `syson_model_create`, `syson_model_stereotypes`, `syson_model_child_types` |
+| `agent` | `syson_` | Agent tools (sampling) | `syson_agent_architecture_suggest`, `syson_agent_requirements_analyze`, `syson_agent_impact_assess` |
 
-### 5.3. Structure de fichiers
+### 5.5. Structure de fichiers
 
 ```
 lib/syson/
@@ -262,70 +581,186 @@ lib/syson/
 ├── mod.ts                 # Public API exports
 ├── server.ts              # MCP server bootstrap (HTTP + stdio)
 ├── src/
-│   ├── client.ts          # SysonToolsClient
+│   ├── client.ts          # SysonToolsClient (category-aware)
 │   ├── api/
-│   │   ├── syson-rest.ts  # Client HTTP vers SysON REST API (SysML v2)
-│   │   └── types.ts       # Types SysML v2 API (Project, Commit, Element)
+│   │   ├── graphql-client.ts  # Client HTTP GraphQL custom (fetch, retry, errors)
+│   │   ├── queries.ts         # Queries GraphQL (template strings)
+│   │   ├── mutations.ts       # Mutations GraphQL (template strings)
+│   │   └── types.ts           # Types TS (Project, Element, SearchResult, etc.)
 │   └── tools/
-│       ├── types.ts       # SysonToolCategory
+│       ├── types.ts       # SysonToolCategory type
 │       ├── mod.ts         # Tool aggregation
-│       ├── project.ts     # Project/commit tools
+│       ├── project.ts     # Project CRUD tools
 │       ├── element.ts     # Element CRUD tools
-│       ├── query.ts       # Query/traversal tools
-│       └── import.ts      # Import/export tools
+│       ├── query.ts       # AQL query + search tools
+│       ├── model.ts       # Model/document management tools
+│       └── agent.ts       # Agent tools (sampling, Phase 3)
 └── tests/
+    ├── api/
+    │   └── graphql-client_test.ts   # Tests client GraphQL (mock fetch)
     └── tools/
         ├── project_test.ts
         ├── element_test.ts
-        └── query_test.ts
+        ├── query_test.ts
+        └── model_test.ts
 ```
 
-### 5.4. Exemple de tool
+### 5.6. Exemple de tool (GraphQL)
 
 ```typescript
+// lib/syson/src/tools/project.ts
+import type { MiniTool } from "./types.ts";
+import { getSysonClient } from "../api/graphql-client.ts";
+import { LIST_PROJECTS } from "../api/queries.ts";
+import type { ListProjectsResult } from "../api/types.ts";
+
 export const projectTools: MiniTool[] = [
   {
     name: "syson_project_list",
-    description: "List all SysML v2 projects in SysON",
+    description: "List all SysML v2 projects in SysON with optional name filter",
     category: "project",
     inputSchema: {
       type: "object",
       properties: {
-        page: { type: "number", description: "Page number (default: 0)" },
-        size: { type: "number", description: "Page size (default: 20)" },
+        filter: { type: "string", description: "Filter projects by name (contains)" },
+        first: { type: "number", description: "Number of results (default: 20)" },
       },
     },
-    handler: async ({ page, size }) => {
-      const api = getSysonApi(); // configured with SYSON_URL env var
-      return await api.getProjects({ page: page ?? 0, size: size ?? 20 });
+    handler: async ({ filter, first }) => {
+      const client = getSysonClient();
+      const data = await client.query<ListProjectsResult>(LIST_PROJECTS, {
+        first: first ?? 20,
+        filter: filter ? { name: { contains: filter } } : undefined,
+      });
+      return data.viewer.projects.edges.map(e => ({
+        id: e.node.id,
+        name: e.node.name,
+        natures: e.node.natures?.map(n => n.name) ?? [],
+      }));
+    },
+  },
+  {
+    name: "syson_project_create",
+    description: "Create a new SysML v2 project in SysON with a SysML model document",
+    category: "project",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Project name" },
+      },
+      required: ["name"],
+    },
+    handler: async ({ name }) => {
+      const client = getSysonClient();
+      // 1. Create project
+      // 2. Create SysML document (auto-detect stereotype)
+      // 3. Create root package
+      // Returns { projectId, editingContextId, documentId, rootPackageId }
     },
   },
 ];
 ```
 
-### 5.5. Configuration
+### 5.7. Configuration
 
 ```env
 SYSON_URL=http://localhost:8080    # URL de l'instance SysON (Docker)
 ```
 
-Le client REST est configurable via variable d'environnement. Pas de credentials
-pour l'instant (SysON community n'a pas d'auth), mais le bridge est prêt pour
-ajouter un header `Authorization` quand SysON le supportera.
+Le client GraphQL est configurable via variable d'environnement. Pas de credentials
+pour l'instant (SysON community n'a pas d'auth), mais le client est prêt pour
+ajouter un header `Authorization: Bearer <token>` quand SysON le supportera.
 
-### 5.6. Cas d'usage cross-lib
+### 5.8. Cas d'usage cross-lib
 
 `lib/syson` permet de connecter les données PLM au modèle système :
 
 ```
-1. syson_element_create → crée parts, requirements, interfaces dans le modèle SysML v2
-2. syson_query_requirements_trace → vérifie quels requirements sont couverts
-3. plm_bom_generate → génère la BOM depuis le modèle SysON (via syson_query_elements)
-4. plm_change_impact → trace l'impact d'un changement à travers le modèle
+1. syson_project_create → crée un projet avec modèle SysML v2
+2. syson_element_create → crée parts, requirements, interfaces dans le modèle
+3. syson_query_aql → requêtes AQL dynamiques (traversal, filtrage par type)
+4. syson_search → recherche full-text dans le modèle
+5. syson_query_requirements_trace → vérifie quels requirements sont couverts
+6. plm_bom_generate → génère la BOM depuis le modèle SysON (via syson_element_children)
+7. plm_change_impact → trace l'impact d'un changement à travers le modèle
 ```
 
 Le modèle SysON devient la **source de vérité** pour la structure produit.
 Les tools PLM lisent et écrivent dans ce modèle.
+
+### 5.9. Sampling + Elicitation pour lib/syson
+
+#### 5.9.1. Agent tools (Sampling)
+
+Les agent tools utilisent MCP Sampling pour déléguer du raisonnement au LLM.
+Ils **composent** les tools déterministes de lib/syson.
+
+| Tool | Description | Compose | Pourquoi sampling |
+|------|-------------|---------|-------------------|
+| `syson_agent_architecture_suggest` | Proposer une décomposition SysML (packages, parts, interfaces) à partir d'un cahier des charges texte | `syson_element_create`, `syson_model_child_types` | Interprétation de texte → structure SysML v2 |
+| `syson_agent_requirements_analyze` | Analyser un set de requirements, détecter conflits/redondances/manques | `syson_query_aql`, `syson_search` | Raisonnement sémantique sur contraintes, pas du calcul |
+| `syson_agent_impact_assess` | Évaluer l'impact d'un changement d'élément sur le reste du modèle | `syson_query_aql`, `syson_element_children` | Raisonnement causal (si je change X, quel effet sur Y, Z) |
+
+**Pattern d'implémentation (identique à `lib/std/src/tools/agent.ts`) :**
+
+```typescript
+// lib/syson/src/tools/agent.ts
+export const agentTools: MiniTool[] = [
+  {
+    name: "syson_agent_architecture_suggest",
+    description: "Suggest a SysML v2 architecture decomposition from a text specification",
+    category: "agent",
+    handler: async ({ specification, projectId }) => {
+      const sampling = getSamplingClient(); // fail-fast si pas dispo
+      // 1. Query le modèle existant (déterministe)
+      const existingModel = await sysonQueryAql(projectId, "aql:self.eAllContents()");
+      // 2. Envoie au LLM via sampling
+      const result = await sampling.createMessage({
+        messages: [{ role: "user", content: `Given this specification:\n${specification}\n\nAnd existing model:\n${JSON.stringify(existingModel)}\n\nSuggest SysML v2 decomposition...` }],
+        tools: [/* syson tools for the LLM to create elements */],
+        toolChoice: "auto",
+      });
+      return result;
+    },
+  },
+];
+```
+
+#### 5.9.2. Elicitation pour lib/syson
+
+L'elicitation permet au tool de **demander des informations à l'utilisateur** en cours
+d'exécution. Cas d'usage concrets :
+
+| Tool | Quand | Elicitation (form) | Schema |
+|------|-------|---------------------|--------|
+| `syson_element_create` | Type d'élément ambigu | "Quel type d'élément ?" | `{ type: enum["PartUsage", "RequirementUsage", "Package", "InterfaceUsage", "ConstraintUsage"] }` |
+| `syson_agent_architecture_suggest` | Choix de décomposition | "Quelle approche préférez-vous ?" | `{ approach: enum["functional", "physical", "hybrid"], depth: number }` |
+| `syson_agent_requirements_analyze` | Priorisation des findings | "Quels aspects prioriser ?" | `{ focus: enum["conflicts", "gaps", "redundancies", "all"], criticality_threshold: enum["safety", "functional", "all"] }` |
+
+**Note :** L'elicitation nécessite d'abord l'implémentation du handler `elicitation/create`
+dans `lib/server/src/concurrent-server.ts`. C'est un enrichissement framework-level,
+pas spécifique à lib/syson.
+
+#### 5.9.3. Prompts (workflow templates) pour lib/syson
+
+```
+prompts/list → [
+  { name: "syson_new_system",        description: "Create a complete SysML v2 system model from a text spec" },
+  { name: "syson_requirements_audit", description: "Audit requirements coverage and traceability" },
+  { name: "syson_architecture_review", description: "Review architecture decomposition for completeness" },
+]
+```
+
+#### 5.9.4. Resources pour lib/syson
+
+```
+resources/list → [
+  { uri: "syson://projects",                    name: "List of SysON projects" },
+  { uri: "syson://projects/{id}/model",         name: "Full SysML model tree" },
+  { uri: "syson://projects/{id}/requirements",  name: "Requirements list" },
+  { uri: "syson://projects/{id}/traceability",  name: "Traceability matrix" },
+]
+```
 
 ---
 
@@ -477,78 +912,163 @@ composent fonctionnent. Raisons :
 - [x] `lib/plm/` — types, client, server, deno.json, 4 fichiers de tools (14 tools stubbed)
 - [x] Import maps dans le workspace root (`@casys/mcp-mbe`, `@casys/mcp-plm`)
 
-### Phase 1 — lib/syson : Bridge MCP vers SysON
+### Phase 1 — lib/syson : Bridge MCP vers SysON (GraphQL)
 
-**Étape 1.0 : Déployer SysON**
-- [ ] Docker compose pour SysON (instance locale, port 8080)
-- [ ] Vérifier l'accès à l'API REST SysML v2 (Swagger)
-- [ ] Créer un projet de test, valider CRUD via curl/HTTP
+**Étape 1.0 : Déployer SysON (Docker)**
+- [ ] Écrire `docker-compose.syson.yml` (SysON + PostgreSQL, port 8080)
+- [ ] `docker compose up` et vérifier l'accès `http://localhost:8080`
+- [ ] Vérifier l'endpoint GraphQL `POST /api/graphql` via curl
+- [ ] Créer un projet de test manuellement dans l'UI SysON
+- [ ] Valider le CRUD via curl GraphQL (query ListProjects, mutation CreateProject)
+- [ ] Documenter les templates disponibles (getProjectTemplates)
 
-**Étape 1.1 : Scaffold lib/syson**
-- [ ] `lib/syson/` — deno.json, types, client, server
-- [ ] `lib/syson/src/api/syson-rest.ts` — client HTTP vers SysON REST API
-- [ ] Import map workspace : `@casys/mcp-syson`
-- [ ] 4 fichiers de tools : project.ts, element.ts, query.ts, import.ts
+**Étape 1.1 : Client GraphQL custom (zéro deps)**
+- [ ] `lib/syson/deno.json` — package config, import map entry `@casys/mcp-syson`
+- [ ] `lib/syson/src/api/graphql-client.ts` — classe `SysonGraphQLClient` (fetch, retry, error handling)
+- [ ] `lib/syson/src/api/types.ts` — interfaces TS pour les types GraphQL (Project, EditingContext, Object, etc.)
+- [ ] `lib/syson/src/api/queries.ts` — toutes les query strings GraphQL (ListProjects, GetProject, GetObject, QueryAQL, Search, GetChildCreationDescriptions, GetStereotypes, GetDomains, GetRootObjectCreationDescriptions)
+- [ ] `lib/syson/src/api/mutations.ts` — toutes les mutation strings GraphQL (CreateProject, DeleteProject, CreateDocument, CreateRootObject, CreateChild, RenameTreeItem, DeleteTreeItem, EditTextfield, EvaluateExpression, CreateRepresentation)
+- [ ] `lib/syson/tests/api/graphql-client_test.ts` — tests unitaires avec mock fetch
+- [ ] Vérifier que le client fonctionne contre SysON Docker (test d'intégration rapide)
 
-**Étape 1.2 : Tools project + element (CRUD de base)**
-- [ ] `syson_project_list`, `syson_project_create`, `syson_project_get`
-- [ ] `syson_commit_list`
-- [ ] `syson_element_create`, `syson_element_get`, `syson_element_update`, `syson_element_delete`
-- [ ] Tests : CRUD projet + éléments contre SysON Docker
+**Étape 1.2 : Scaffold MCP server lib/syson**
+- [ ] `lib/syson/src/tools/types.ts` — `SysonToolCategory` type (`"project" | "element" | "query" | "model" | "agent"`)
+- [ ] `lib/syson/src/client.ts` — `SysonToolsClient` (pattern identique à lib/std)
+- [ ] `lib/syson/src/tools/mod.ts` — agrégation de tous les tools
+- [ ] `lib/syson/mod.ts` — exports publics
+- [ ] `lib/syson/server.ts` — bootstrap MCP (ConcurrentMCPServer, port 3009)
+- [ ] Ajouter `@casys/mcp-syson` dans l'import map du workspace root
 
-**Étape 1.3 : Tools query + import**
-- [ ] `syson_query_elements` — recherche d'éléments par type/nom
-- [ ] `syson_query_relationships` — traversal des relations (allocations, dependencies)
-- [ ] `syson_query_requirements_trace` — traçabilité requirement → composant
-- [ ] `syson_import_textual`, `syson_export_textual` — SysML v2 textual notation
-- [ ] Tests : queries sur un modèle de test
+**Étape 1.3 : Tools project (CRUD projets)**
+- [ ] `syson_project_list` — lister projets avec filtre par nom
+- [ ] `syson_project_create` — créer projet + document SysML + root package (workflow complet)
+- [ ] `syson_project_get` — obtenir un projet par ID avec editing context
+- [ ] `syson_project_delete` — supprimer un projet
+- [ ] `lib/syson/tests/tools/project_test.ts` — tests unitaires (mock client)
+- [ ] Test d'intégration : cycle complet create → list → get → delete contre SysON Docker
+
+**Étape 1.4 : Tools model (gestion modèle SysML)**
+- [ ] `syson_model_stereotypes` — lister les stéréotypes disponibles (pour créer un document)
+- [ ] `syson_model_child_types` — lister les types d'enfants créables pour un conteneur donné
+- [ ] `syson_model_create` — créer un document SysML dans un projet (avec stéréotype)
+- [ ] `lib/syson/tests/tools/model_test.ts` — tests unitaires
+
+**Étape 1.5 : Tools element (CRUD éléments SysML)**
+- [ ] `syson_element_create` — créer un élément SysML enfant (PartUsage, RequirementUsage, Package, etc.)
+- [ ] `syson_element_get` — lire un élément par ID (kind, label, iconURLs)
+- [ ] `syson_element_children` — lire les enfants d'un élément (via AQL `self.ownedElement`)
+- [ ] `syson_element_rename` — renommer un élément
+- [ ] `syson_element_delete` — supprimer un élément
+- [ ] `lib/syson/tests/tools/element_test.ts` — tests unitaires (mock client)
+- [ ] Test d'intégration : cycle complet create → get → rename → children → delete
+
+**Étape 1.6 : Tools query (AQL, search, traversal)**
+- [ ] `syson_query_aql` — exécuter une requête AQL arbitraire sur un objet (queryBasedObjects/queryBasedString)
+- [ ] `syson_search` — recherche full-text dans le modèle (SearchQuery)
+- [ ] `syson_query_requirements_trace` — traçabilité requirement → composant (AQL spécialisé)
+- [ ] `lib/syson/tests/tools/query_test.ts` — tests unitaires
+- [ ] Test d'intégration : requêtes AQL sur un modèle de test pré-créé
+
+**Étape 1.7 : Validation end-to-end**
+- [ ] Scénario complet : créer projet → créer modèle → créer Package → créer PartUsage + RequirementUsage → query → search → delete
+- [ ] Vérifier la cohérence entre lib/syson et l'UI SysON (ce qu'on crée via MCP est visible dans l'UI)
+- [ ] Documenter les gotchas et limitations rencontrées
 
 ### Phase 2 — lib/plm : Tools métier
 
 **Étape 2.1 : `plm_bom_generate` (compose lib/syson)**
-- [ ] Extraire hiérarchie assemblage depuis le modèle SysON (via syson_query_elements)
+- [ ] Extraire hiérarchie assemblage depuis le modèle SysON (via `syson_element_children` + `syson_query_aql`)
 - [ ] Extraire quantités, part numbers, niveaux
-- [ ] Format de sortie : hierarchical, flat, indented
+- [ ] Format de sortie : hierarchical JSON, flat list, indented text
 - [ ] Tests : BOM d'un assemblage simple (5-10 pièces)
 
 **Étape 2.2 : `plm_bom_cost` + `plm_bom_flatten`**
 - [ ] Modèles de costing : raw_material (volume × prix/kg), machining (feature-based)
-- [ ] Flatten : aggrégation des quantités sur tous les niveaux
+- [ ] Flatten : agrégation des quantités sur tous les niveaux
+- [ ] Tests unitaires
 
-**Étape 2.3 : Change management + Quality**
-- [ ] `plm_ecr_create`, `plm_eco_create`, `plm_change_impact`
-- [ ] `plm_inspection_plan`, `plm_fair_generate`, `plm_control_plan`
+**Étape 2.3 : Change management**
+- [ ] `plm_ecr_create` — créer une Engineering Change Request
+- [ ] `plm_eco_create` — créer une Engineering Change Order
+- [ ] `plm_change_impact` — analyser l'impact via `syson_query_aql`
+- [ ] `plm_change_approve` — workflow d'approbation (statut)
+- [ ] Tests unitaires
 
-**Étape 2.4 : Planning**
-- [ ] `plm_routing_create`, `plm_work_instruction`, `plm_cycle_time`
+**Étape 2.4 : Quality**
+- [ ] `plm_inspection_plan` — générer un plan d'inspection
+- [ ] `plm_fair_generate` — générer un First Article Inspection Report
+- [ ] `plm_control_plan` — générer un plan de contrôle
+- [ ] Tests unitaires
 
-### Phase 3 — Agent tools (MCP Sampling)
+**Étape 2.5 : Planning**
+- [ ] `plm_routing_create` — créer une gamme de fabrication
+- [ ] `plm_work_instruction` — générer des instructions opérateur
+- [ ] `plm_cycle_time` — estimer le temps de cycle
+- [ ] Tests unitaires
+
+### Phase 3 — Agent tools (MCP Sampling + Elicitation)
 
 **Prérequis :** Phases 1 et 2 complétées et testées.
 
-- [ ] `lib/syson/src/tools/agent.ts` — `syson_agent_architecture_suggest`, `syson_agent_requirements_analyze`
-- [ ] `lib/plm/src/tools/agent.ts` — `plm_agent_change_assess`, `plm_agent_work_instruction`, `plm_agent_cost_optimize`
-- [ ] Injection du `SamplingClient` dans les servers SysON/PLM (pattern identique à lib/std)
+**Étape 3.1 : Agent tools lib/syson (Sampling)**
+- [ ] `syson_agent_architecture_suggest` — proposer une décomposition SysML à partir d'un texte
+- [ ] `syson_agent_requirements_analyze` — analyser requirements, détecter conflits/manques
+- [ ] `syson_agent_impact_assess` — évaluer l'impact d'un changement sur le modèle
+- [ ] Injection du `SamplingClient` dans `lib/syson/server.ts` (pattern `lib/std/server.ts`)
 - [ ] Tests avec mocks de sampling (pas de LLM réel dans les tests unitaires)
+
+**Étape 3.2 : Agent tools lib/plm (Sampling)**
+- [ ] `plm_agent_change_assess` — évaluer un ECR, résumer l'impact, recommander
+- [ ] `plm_agent_work_instruction` — générer des instructions opérateur en langage naturel
+- [ ] `plm_agent_cost_optimize` — suggérer des pistes d'optimisation coût sur une BOM
+- [ ] Tests avec mocks de sampling
+
+**Étape 3.3 : Elicitation (form mode) — lib/server d'abord**
+- [ ] Implémenter `elicitation/create` handler dans `lib/server/src/concurrent-server.ts`
+- [ ] Ajouter `ElicitationClient` interface (symétrique à `SamplingClient`)
+- [ ] Wiring dans le serveur MCP (callback client → serveur → client)
+- [ ] Tests unitaires du handler elicitation
+- [ ] Intégrer dans `syson_element_create` : demander le type si ambigu
+- [ ] Intégrer dans `plm_ecr_create` : demander raison + priorité
+- [ ] Intégrer dans `plm_bom_cost` : demander modèle de costing + quantité
+
+**Étape 3.4 : Prompts (workflow templates)**
+- [ ] Implémenter `prompts/list` + `prompts/get` handlers dans lib/server
+- [ ] `syson_new_system` — prompt workflow : texte → modèle SysML complet
+- [ ] `syson_requirements_audit` — prompt workflow : audit couverture requirements
+- [ ] `plm_new_part` — prompt workflow : création pièce complète (model + BOM + inspection)
+- [ ] `plm_change_request` — prompt workflow : ECR → ECO → approbation
+
+**Étape 3.5 : Resources**
+- [ ] Exposer `syson://projects` — liste navigable des projets
+- [ ] Exposer `syson://projects/{id}/model` — arbre modèle SysML navigable
+- [ ] Exposer `syson://projects/{id}/requirements` — liste requirements
+- [ ] Exposer `plm://bom/{assembly_id}` — BOM navigable
+- [ ] Exposer `plm://changes/pending` — ECR/ECO en attente
 
 ### Phase 4 — Intégration Gateway + Discovery
 
-- [ ] Enregistrer les tools PLM/SysON dans le discovery engine (GraphRAG)
-- [ ] Générer embeddings BGE-M3 pour les 25+ tools domaine
+- [ ] Enregistrer les tools SysON/PLM dans le discovery engine (GraphRAG)
+- [ ] Générer embeddings BGE-M3 pour les 30+ tools domaine
 - [ ] DAG suggestions pour workflows cross-lib (std + plm + syson)
 - [ ] Capabilities auto-capture pour les patterns métier récurrents
+- [ ] Tests e2e : un scénario DAG qui traverse std + syson + plm
 
 ### Phase future — Extensions
 
 **lib/mbe (si besoin d'import CAD) :**
 - [ ] STEP/IGES parsing via opencascade.js (WASM) dans Deno
 - [ ] GD&T, tolerance stacking, material database
-- [ ] Import de données CAD dans le modèle SysON
+- [ ] Import de données CAD dans le modèle SysON via lib/syson
 
 **Odoo/LibrePLM (si besoin de production) :**
 - [ ] Déployer Odoo (Docker) avec modules Manufacturing + PLM + Quality
 - [ ] Bridge `lib/plm` → API Odoo pour les données de production
 - [ ] Sync SysON → Odoo : pousser les structures produit validées en production
+
+**MCP Tasks (long-running operations) :**
+- [ ] Implémenter Tasks handler dans lib/server (quand spec stabilisée)
+- [ ] Utiliser pour les opérations longues (gros modèles, imports massifs)
 
 ---
 
@@ -557,7 +1077,7 @@ composent fonctionnent. Raisons :
 | # | Decision | Choice | Rationale | Date |
 |---|----------|--------|-----------|------|
 | 1 | Validation | AJV via lib/server | Cohérent avec lib/std, JSON Schema standard | 2026-02-15 |
-| 2 | Naming | `mbe_` / `plm_` prefix | Évite collisions, discovery claire | 2026-02-15 |
+| 2 | Naming | `mbe_` / `plm_` / `syson_` prefix | Évite collisions, discovery claire | 2026-02-15 |
 | 3 | Categories | Separate type unions | Extensible indépendamment de lib/std | 2026-02-15 |
 | 4 | Server ports | 3009 / 3010 | Suite logique après lib/std (3008) | 2026-02-15 |
 | 5 | Dependency | plm → server, syson → server | Pas de dépendance sur std. plm consomme syson via cross-lib | 2026-02-15 |
@@ -565,9 +1085,12 @@ composent fonctionnent. Raisons :
 | 7 | Agent tools | Dans chaque lib (agent.ts) | Même pattern que lib/std, les agents composent les tools de leur domaine | 2026-02-15 |
 | 8 | Agent timing | Après tools déterministes | Les agents composent les tools — il faut que ceux-ci marchent d'abord | 2026-02-15 |
 | 9 | Protocol features | Exploiter elicitation + prompts + resources | Pas seulement tools+sampling — le protocole MCP offre d'autres primitives pertinentes | 2026-02-15 |
-| 10 | MBSE backend | SysON (Docker, SysML v2, REST API) | Web-based, pas d'UI à construire, API standardisée OMG, interop Capella | 2026-02-15 |
+| 10 | MBSE backend | SysON (Docker, SysML v2, GraphQL API) | Web-based, pas d'UI à construire, GraphQL = API complète utilisée par le frontend SysON | 2026-02-15 |
 | 11 | PLM backend (future) | Odoo/LibrePLM (quand production nécessaire) | Open-source, API complète, modules PLM/Manufacturing/Quality existants | 2026-02-15 |
 | 12 | Client strategy | SysON = UI MBSE, pas d'UI custom | On ne reconstruit pas d'UI — SysON fournit les diagrammes, PML Desktop pour le graph MCP | 2026-02-15 |
+| **13** | **API SysON** | **GraphQL custom client, zéro deps** | **REST API = sous-ensemble limité. GraphQL = API complète (CRUD, AQL, search, expressions). Client trivial (~30 LOC), pas de SDK tiers fragile** | **2026-02-15** |
+| **14** | **Elicitation** | **Form mode pour inputs simples, MCP Apps UI pour interactions riches** | **Elicitation form = schema primitif (string/number/bool/enum), suffisant pour les choix basiques. MCP Apps = HTML interactif pour les interactions complexes** | **2026-02-15** |
+| **15** | **Sampling strategy** | **Agent tools composent tools déterministes** | **Le LLM raisonne (sampling), les tools calculent (déterministe). Pas de LLM pour du CRUD.** | **2026-02-15** |
 
 ---
 
@@ -698,14 +1221,15 @@ une adoption future. En attendant, on utilise les `notifications` pour le progre
 
 | Priorité | Feature | Où | Pré-requis | Phase |
 |----------|---------|----|----|-------|
-| **P0** | Tools | lib/mbe, lib/plm, lib/syson | — | Phase 0 (DONE mbe/plm), Phase 1 (syson) |
-| **P0** | SysON bridge | lib/syson | SysON Docker déployé | Phase 1 |
-| **P1** | Sampling (agent tools) | lib/mbe, lib/plm | Tools déterministes | Phase 4 |
-| **P2** | Resources (material DB, BOM, SysML models) | lib/mbe, lib/plm, lib/syson | Tools implémentés | Phase 5 |
-| **P3** | Elicitation (form mode) | lib/server d'abord | Handler `elicitation/create` dans ConcurrentMCPServer | Phase 4-5 |
-| **P3** | Prompts (workflow templates) | lib/server d'abord | Handler `prompts/list` + `prompts/get` | Phase 5 |
-| **P4** | Odoo bridge | lib/plm | Odoo Docker déployé | Phase 6 (future) |
-| **P5** | Tasks | lib/server | Spec stabilisée | Future |
+| **P0** | Tools déterministes | lib/syson, lib/plm | SysON Docker | Phase 1 (syson), Phase 2 (plm) |
+| **P0** | Client GraphQL custom | lib/syson/src/api/ | Zéro deps, juste fetch | Phase 1.1 |
+| **P1** | Sampling (agent tools) | lib/syson, lib/plm | Tools déterministes opérationnels | Phase 3.1-3.2 |
+| **P1** | Elicitation (form mode) | lib/server d'abord, puis lib/syson + lib/plm | Handler `elicitation/create` dans ConcurrentMCPServer | Phase 3.3 |
+| **P2** | Prompts (workflow templates) | lib/server d'abord, puis lib/syson + lib/plm | Handler `prompts/list` + `prompts/get` | Phase 3.4 |
+| **P2** | Resources | lib/syson, lib/plm | Tools implémentés | Phase 3.5 |
+| **P3** | Gateway + Discovery | src/mcp/ | Phases 1-2 complètes | Phase 4 |
+| **P4** | Odoo bridge | lib/plm | Odoo Docker déployé | Future |
+| **P5** | Tasks (long-running) | lib/server | Spec MCP stabilisée | Future |
 
 **Note importante :** L'implémentation de l'elicitation et des prompts nécessite d'abord
 un travail dans `lib/server/src/concurrent-server.ts` pour câbler les handlers MCP
@@ -728,7 +1252,7 @@ qui fournit l'UI intégrée (diagrammes SysML v2, navigation, édition).
 - **Web-based** — tourne dans le browser, pas d'install client
 - **Docker** — `docker compose up`, DB incluse, prêt en 5 min
 - **SysML v2** — standard OMG, notation textuelle machine-readable
-- **API REST standardisée** — CRUD projets, commits, éléments, Swagger inclus
+- **Deux APIs** — REST (SysML v2 standard, basique) + **GraphQL** (API complète : CRUD, AQL, search, expressions)
 - **Diagrammes inclus** — General View, Interconnection View, etc.
 - **Interop Capella** — migration possible vers Capella si besoin enterprise
 - **Open-source** (Eclipse Public License)
@@ -752,7 +1276,7 @@ qui fournit l'UI intégrée (diagrammes SysML v2, navigation, édition).
           │           │       │plm   │syson │
           │           └───────┴──────┴──┬───┘
           │                                   │
-          │          REST API (SysML v2)       │
+          │     GraphQL API (/api/graphql)     │
           └──────────────►┌───────────┐◄──────┘
                           │   SysON   │
                           │  (Docker) │
@@ -842,6 +1366,8 @@ les résultats, il ne parse pas.
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | SysON "not yet intended for production use" | Instabilité, breaking changes API | Utiliser pour prototypage, suivre les releases (cycle 8 semaines), migrer vers Capella si besoin enterprise |
-| SysON API change entre versions | Casse lib/syson | Abstraire l'API dans `syson-rest.ts`, adapter au même endroit si breaking change |
-| Sampling non disponible en mode standalone | Limite Phase 3 | Les agent tools dégradent gracieusement (throw si pas de SamplingClient) — fail-fast policy |
+| SysON GraphQL schema change entre versions | Casse lib/syson | Toutes les queries/mutations sont dans `queries.ts` et `mutations.ts` — un seul endroit à adapter. Le client GraphQL est custom, pas de code généré à re-générer |
+| GraphQL schema non documenté officiellement | Risque de dépendre d'API interne | Le schema est stable (utilisé par le frontend SysON lui-même). Les fichiers `.graphqls` dans le repo Sirius Web font référence |
+| Sampling non disponible en mode standalone | Limite Phase 3 | Les agent tools fail-fast (throw si pas de SamplingClient) — policy no-silent-fallbacks |
+| Elicitation non supportée par Claude Code | Limite Phase 3.3 | On implémente quand même dans lib/server. MCP Apps UI en alternative. PML Desktop = client custom qui supporte tout |
 | Deux backends (SysON + Odoo futur) = complexité sync | Données dupliquées ou incohérentes | SysON = source de vérité conception, Odoo = production. Bridge unidirectionnel SysON → Odoo |
