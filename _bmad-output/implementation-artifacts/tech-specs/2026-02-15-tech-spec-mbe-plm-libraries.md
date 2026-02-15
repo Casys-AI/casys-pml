@@ -1,4 +1,4 @@
-# Tech Spec: lib/mbe & lib/plm — MCP Tool Libraries for Model-Based Engineering & PLM
+# Tech Spec: lib/mbe, lib/plm & lib/syson — MCP Tool Libraries for MBSE & PLM
 
 **Date:** 2026-02-15
 **Status:** Draft
@@ -15,15 +15,22 @@ Casys PML Cloud dispose d'une infrastructure MCP mature :
 - **DAG engine** — exécution parallèle, checkpoints, sandbox
 - **Discovery** — GraphRAG + BGE-M3 embeddings, semantic search
 
-L'objectif est d'étendre cet écosystème avec deux nouvelles bibliothèques de tools domaine :
+L'objectif est d'étendre cet écosystème avec trois nouvelles bibliothèques de tools domaine :
 
 | Library | Scope | Rôle |
 |---------|-------|------|
 | **lib/mbe** | Model-Based Engineering | Primitives géométriques, GD&T, matériaux, PMI |
 | **lib/plm** | Product Lifecycle Management | BOM, ECR/ECO, qualité, planning |
+| **lib/syson** | MBSE (SysON bridge) | Bridge MCP vers l'API REST SysML v2 de SysON |
+
+**Architecture globale :** SysON (open-source, web-based, Docker) sert de **backend MBSE** avec
+son UI intégrée (diagrammes SysML v2, requirements, architecture). `lib/syson` est le bridge
+MCP qui permet aux agents et aux autres libs (mbe, plm) d'interagir avec les modèles SysON
+via son API REST standardisée OMG. **Pas d'UI custom à construire** — SysON fournit l'UI.
 
 `lib/mbe` fournit les briques de base (données CAD, tolerances, matériaux).
 `lib/plm` consomme `lib/mbe` pour les workflows métier (nomenclatures, gestion du changement, inspection).
+`lib/syson` connecte le tout au modèle système (requirements → architecture → composants).
 
 ---
 
@@ -32,16 +39,22 @@ L'objectif est d'étendre cet écosystème avec deux nouvelles bibliothèques de
 ### 2.1. Positionnement dans l'écosystème
 
 ```
-┌─────────────────────────────────────────────────┐
-│                  MCP Gateway                     │
-│          (src/mcp/gateway-server.ts)             │
-├──────────┬──────────┬───────────┬───────────────┤
-│ lib/std  │ lib/mbe  │ lib/plm   │ lib/server    │
-│ 461 tools│ geometry │ bom       │ ConcurrentMCP │
-│ system   │ tolerance│ change    │ AJV validation│
-│ data     │ material │ quality   │ middleware    │
-│ agent    │ model    │ planning  │ auth + rate   │
-└──────────┴──────────┴───────────┴───────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                      MCP Gateway                          │
+│              (src/mcp/gateway-server.ts)                  │
+├──────────┬──────────┬───────────┬───────────┬────────────┤
+│ lib/std  │ lib/mbe  │ lib/plm   │ lib/syson │ lib/server │
+│ 461 tools│ geometry │ bom       │ projects  │ Concurrent │
+│ system   │ tolerance│ change    │ elements  │ AJV valid. │
+│ data     │ material │ quality   │ relations │ middleware │
+│ agent    │ model    │ planning  │ queries   │ auth+rate  │
+└──────────┴──────────┴───────────┴─────┬─────┴────────────┘
+                                        │ REST API (SysML v2)
+                                  ┌─────▼─────┐
+                                  │   SysON   │
+                                  │  (Docker) │
+                                  │  :8080    │
+                                  └───────────┘
 ```
 
 ### 2.2. Dépendances
@@ -49,10 +62,15 @@ L'objectif est d'étendre cet écosystème avec deux nouvelles bibliothèques de
 ```
 lib/plm ──depends──> lib/mbe ──depends──> lib/server
                                               │
+lib/syson ──depends───────────────────────────┤
+                                              │
 lib/std ──depends──────────────────────────────┘
 ```
 
-`lib/mbe` et `lib/plm` n'ont **aucune dépendance** sur `lib/std` — ils sont indépendants et ne partagent que `lib/server` pour l'infrastructure MCP.
+`lib/mbe`, `lib/plm` et `lib/syson` n'ont **aucune dépendance** sur `lib/std` — ils sont
+indépendants et ne partagent que `lib/server` pour l'infrastructure MCP.
+
+`lib/syson` communique avec SysON (instance Docker) via REST API — pas d'import direct.
 
 ### 2.3. Pattern de tool (identique à lib/std)
 
@@ -210,7 +228,102 @@ export const bomTools: MiniTool[] = [
 
 ---
 
-## 5. Validation : AJV via lib/server
+## 5. lib/syson — Bridge MCP vers SysON (MBSE)
+
+### 5.1. Principe
+
+`lib/syson` est un **bridge MCP** : il expose des tools MCP qui appellent l'API REST
+SysML v2 de SysON. Les agents et les autres libs interagissent avec les modèles MBSE
+via ces tools, sans connaître les détails de l'API SysON.
+
+**SysON fournit l'UI** (diagrammes, navigation, édition graphique). `lib/syson` fournit
+l'accès programmatique.
+
+### 5.2. Catégories de tools
+
+| Category | Prefix | Description | Tools |
+|----------|--------|-------------|-------|
+| `project` | `syson_` | CRUD projets et commits SysON | `syson_project_list`, `syson_project_create`, `syson_project_get`, `syson_commit_list` |
+| `element` | `syson_` | CRUD éléments SysML v2 (parts, requirements, etc.) | `syson_element_create`, `syson_element_get`, `syson_element_update`, `syson_element_delete` |
+| `query` | `syson_` | Requêtes sur le modèle (traversal, search) | `syson_query_elements`, `syson_query_relationships`, `syson_query_requirements_trace` |
+| `import` | `syson_` | Import/export textuel SysML v2 | `syson_import_textual`, `syson_export_textual` |
+
+### 5.3. Structure de fichiers
+
+```
+lib/syson/
+├── deno.json              # Package config
+├── mod.ts                 # Public API exports
+├── server.ts              # MCP server bootstrap (HTTP + stdio)
+├── src/
+│   ├── client.ts          # SysonToolsClient
+│   ├── api/
+│   │   ├── syson-rest.ts  # Client HTTP vers SysON REST API (SysML v2)
+│   │   └── types.ts       # Types SysML v2 API (Project, Commit, Element)
+│   └── tools/
+│       ├── types.ts       # SysonToolCategory
+│       ├── mod.ts         # Tool aggregation
+│       ├── project.ts     # Project/commit tools
+│       ├── element.ts     # Element CRUD tools
+│       ├── query.ts       # Query/traversal tools
+│       └── import.ts      # Import/export tools
+└── tests/
+    └── tools/
+        ├── project_test.ts
+        ├── element_test.ts
+        └── query_test.ts
+```
+
+### 5.4. Exemple de tool
+
+```typescript
+export const projectTools: MiniTool[] = [
+  {
+    name: "syson_project_list",
+    description: "List all SysML v2 projects in SysON",
+    category: "project",
+    inputSchema: {
+      type: "object",
+      properties: {
+        page: { type: "number", description: "Page number (default: 0)" },
+        size: { type: "number", description: "Page size (default: 20)" },
+      },
+    },
+    handler: async ({ page, size }) => {
+      const api = getSysonApi(); // configured with SYSON_URL env var
+      return await api.getProjects({ page: page ?? 0, size: size ?? 20 });
+    },
+  },
+];
+```
+
+### 5.5. Configuration
+
+```env
+SYSON_URL=http://localhost:8080    # URL de l'instance SysON (Docker)
+```
+
+Le client REST est configurable via variable d'environnement. Pas de credentials
+pour l'instant (SysON community n'a pas d'auth), mais le bridge est prêt pour
+ajouter un header `Authorization` quand SysON le supportera.
+
+### 5.6. Cas d'usage cross-lib
+
+`lib/syson` permet de connecter les données MBE/PLM au modèle système :
+
+```
+1. mbe_step_parse → extrait feature tree d'un STEP
+2. syson_element_create → crée les parts correspondantes dans le modèle SysML v2
+3. syson_query_requirements_trace → vérifie quels requirements sont couverts
+4. plm_bom_generate → génère la BOM depuis le modèle SysON
+```
+
+Le modèle SysON devient la **source de vérité** pour la structure produit.
+Les tools MBE/PLM lisent et écrivent dans ce modèle.
+
+---
+
+## 6. Validation : AJV via lib/server (inchangé)
 
 Les deux bibliothèques utilisent **AJV** (JSON Schema) via `lib/server/SchemaValidator` :
 
@@ -275,6 +388,8 @@ if (import.meta.main) {
 - `lib/std` : 3008
 - `lib/mbe` : 3009
 - `lib/plm` : 3010
+- `lib/syson` : 3011
+- SysON (externe, Docker) : 8080
 
 ---
 
@@ -357,9 +472,35 @@ composent fonctionnent. Raisons :
 - [x] `lib/plm/` — types, client, server, deno.json, 4 fichiers de tools (14 tools stubbed)
 - [x] Import maps dans le workspace root (`@casys/mcp-mbe`, `@casys/mcp-plm`)
 
-### Phase 1 — lib/mbe : Tools déterministes
+### Phase 1 — lib/syson : Bridge MCP vers SysON
 
-**Étape 1.1 : `mbe_step_parse` (brique zéro)**
+**Étape 1.0 : Déployer SysON**
+- [ ] Docker compose pour SysON (instance locale, port 8080)
+- [ ] Vérifier l'accès à l'API REST SysML v2 (Swagger)
+- [ ] Créer un projet de test, valider CRUD via curl/HTTP
+
+**Étape 1.1 : Scaffold lib/syson**
+- [ ] `lib/syson/` — deno.json, types, client, server
+- [ ] `lib/syson/src/api/syson-rest.ts` — client HTTP vers SysON REST API
+- [ ] Import map workspace : `@casys/mcp-syson`
+- [ ] 4 fichiers de tools : project.ts, element.ts, query.ts, import.ts
+
+**Étape 1.2 : Tools project + element (CRUD de base)**
+- [ ] `syson_project_list`, `syson_project_create`, `syson_project_get`
+- [ ] `syson_commit_list`
+- [ ] `syson_element_create`, `syson_element_get`, `syson_element_update`, `syson_element_delete`
+- [ ] Tests : CRUD projet + éléments contre SysON Docker
+
+**Étape 1.3 : Tools query + import**
+- [ ] `syson_query_elements` — recherche d'éléments par type/nom
+- [ ] `syson_query_relationships` — traversal des relations (allocations, dependencies)
+- [ ] `syson_query_requirements_trace` — traçabilité requirement → composant
+- [ ] `syson_import_textual`, `syson_export_textual` — SysML v2 textual notation
+- [ ] Tests : queries sur un modèle de test
+
+### Phase 2 — lib/mbe : Tools déterministes
+
+**Étape 2.1 : `mbe_step_parse` (brique zéro)**
 - [ ] Intégrer opencascade.js (WASM) dans Deno — import + instantiation du module WASM
 - [ ] Créer `lib/mbe/src/occt/wasm-bridge.ts` — bridge TypeScript pour opencascade.js
 - [ ] Implémenter le handler : load STEP → extract feature tree → return JSON
@@ -367,58 +508,64 @@ composent fonctionnent. Raisons :
 - [ ] Test : parser un assemblage multi-pièces et valider la hiérarchie
 - [ ] Benchmark perf WASM sur fichiers de taille croissante (1 MB → 50 MB)
 
-**Étape 1.2 : `mbe_material_lookup` (standalone, pas de dépendance géométrique)**
+**Étape 2.2 : `mbe_material_lookup` (standalone, pas de dépendance géométrique)**
 - [ ] Choisir source de données : base embarquée (JSON/SQLite) ou API externe (MatWeb)
 - [ ] Implémenter lookup par désignation (AL6061-T6, 316L, Ti-6Al-4V, etc.)
 - [ ] Couvrir les propriétés : densité, yield, UTS, élongation, dureté, conductivité thermique
 - [ ] Implémenter cross-reference standards (AMS ↔ DIN ↔ EN ↔ JIS)
 - [ ] Tests : lookup de 10 matériaux courants aéro/auto
 
-**Étape 1.3 : `mbe_tolerance_stack` (pur calcul, testable isolément)**
+**Étape 2.3 : `mbe_tolerance_stack` (pur calcul, testable isolément)**
 - [ ] Implémenter worst-case (arithmétique)
 - [ ] Implémenter RSS (Root Sum of Squares) avec niveau de confiance
 - [ ] Implémenter Monte Carlo (distribution normale)
 - [ ] Tests : valider contre des cas connus (textbook tolerance stacks)
 
-**Étape 1.4 : Remaining geometry + model tools**
+**Étape 2.4 : Remaining geometry + model tools**
 - [ ] `mbe_iges_parse`, `mbe_feature_tree`, `mbe_bounding_box`, `mbe_mass_properties`
 - [ ] `mbe_pmi_extract`, `mbe_mbd_validate`, `mbe_model_compare`
 - [ ] `mbe_gdt_parse`, `mbe_datum_reference`
 
-### Phase 2 — lib/plm : Tools métier
+### Phase 3 — lib/plm : Tools métier
 
-**Étape 2.1 : `plm_bom_generate` (compose mbe_step_parse)**
-- [ ] Extraire hiérarchie assemblage depuis STEP (dépend de 1.1)
+**Étape 3.1 : `plm_bom_generate` (compose mbe_step_parse)**
+- [ ] Extraire hiérarchie assemblage depuis STEP (dépend de 2.1)
 - [ ] Extraire quantités, part numbers, niveaux
 - [ ] Format de sortie : hierarchical, flat, indented
 - [ ] Tests : BOM d'un assemblage simple (5-10 pièces)
 
-**Étape 2.2 : `plm_bom_cost` + `plm_bom_flatten`**
+**Étape 3.2 : `plm_bom_cost` + `plm_bom_flatten`**
 - [ ] Modèles de costing : raw_material (volume × prix/kg), machining (feature-based)
 - [ ] Flatten : aggrégation des quantités sur tous les niveaux
 
-**Étape 2.3 : Change management + Quality**
+**Étape 3.3 : Change management + Quality**
 - [ ] `plm_ecr_create`, `plm_eco_create`, `plm_change_impact`
 - [ ] `plm_inspection_plan`, `plm_fair_generate`, `plm_control_plan`
 
-**Étape 2.4 : Planning**
+**Étape 3.4 : Planning**
 - [ ] `plm_routing_create`, `plm_work_instruction`, `plm_cycle_time`
 
-### Phase 3 — Agent tools (MCP Sampling)
+### Phase 4 — Agent tools (MCP Sampling)
 
-**Prérequis :** Étapes 1.1 à 1.3 complétées et testées.
+**Prérequis :** Étapes 2.1 à 2.3 complétées et testées.
 
 - [ ] `lib/mbe/src/tools/agent.ts` — `mbe_agent_suggest_tolerances`, `mbe_agent_material_recommend`, `mbe_agent_design_review`
 - [ ] `lib/plm/src/tools/agent.ts` — `plm_agent_change_assess`, `plm_agent_work_instruction`, `plm_agent_cost_optimize`
 - [ ] Injection du `SamplingClient` dans les servers MBE/PLM (pattern identique à lib/std)
 - [ ] Tests avec mocks de sampling (pas de LLM réel dans les tests unitaires)
 
-### Phase 4 — Intégration Gateway + Discovery
+### Phase 5 — Intégration Gateway + Discovery
 
-- [ ] Enregistrer les tools MBE/PLM dans le discovery engine (GraphRAG)
-- [ ] Générer embeddings BGE-M3 pour les 29+ tools domaine
-- [ ] DAG suggestions pour workflows cross-lib (std + mbe + plm)
+- [ ] Enregistrer les tools MBE/PLM/SysON dans le discovery engine (GraphRAG)
+- [ ] Générer embeddings BGE-M3 pour les 40+ tools domaine
+- [ ] DAG suggestions pour workflows cross-lib (std + mbe + plm + syson)
 - [ ] Capabilities auto-capture pour les patterns métier récurrents
+
+### Phase 6 (future) — Backend PLM : Odoo/LibrePLM
+
+- [ ] Déployer Odoo (Docker) avec modules Manufacturing + PLM + Quality
+- [ ] Bridge `lib/plm` → API Odoo pour les données de production
+- [ ] Sync SysON → Odoo : pousser les structures produit validées en production
 
 ---
 
@@ -435,7 +582,9 @@ composent fonctionnent. Raisons :
 | 7 | Agent tools | Dans chaque lib (agent.ts) | Même pattern que lib/std, les agents composent les tools de leur domaine | 2026-02-15 |
 | 8 | Agent timing | Après tools déterministes | Les agents composent les tools — il faut que ceux-ci marchent d'abord | 2026-02-15 |
 | 9 | Protocol features | Exploiter elicitation + prompts + resources | Pas seulement tools+sampling — le protocole MCP offre d'autres primitives pertinentes | 2026-02-15 |
-| 10 | Client independence | Implémenter toutes les features, pas seulement celles de Claude Code | On construit notre propre client si nécessaire (Minetest/Lua). MCP Apps UI comme alternative à l'URL mode elicitation | 2026-02-15 |
+| 10 | MBSE backend | SysON (Docker, SysML v2, REST API) | Web-based, pas d'UI à construire, API standardisée OMG, interop Capella | 2026-02-15 |
+| 11 | PLM backend (future) | Odoo/LibrePLM (quand production nécessaire) | Open-source, API complète, modules PLM/Manufacturing/Quality existants | 2026-02-15 |
+| 12 | Client strategy | SysON = UI MBSE, pas d'UI custom | On ne reconstruit pas d'UI — SysON fournit les diagrammes, PML Desktop pour le graph MCP | 2026-02-15 |
 
 ---
 
@@ -566,13 +715,13 @@ une adoption future. En attendant, on utilise les `notifications` pour le progre
 
 | Priorité | Feature | Où | Pré-requis | Phase |
 |----------|---------|----|----|-------|
-| **P0** | Tools | lib/mbe, lib/plm | — | Phase 0 (DONE) |
-| **P1** | Sampling (agent tools) | lib/mbe, lib/plm | Tools déterministes | Phase 3 |
-| **P2** | Resources (material DB, BOM) | lib/mbe, lib/plm | Tools implémentés | Phase 4 |
-| **P2** | MCP Apps UI (rich interactions) | lib/mbe, lib/plm | Resources implémentées | Phase 4 |
-| **P3** | Elicitation (form mode) | lib/server d'abord | Handler `elicitation/create` dans ConcurrentMCPServer | Phase 3-4 |
-| **P3** | Prompts (workflow templates) | lib/server d'abord | Handler `prompts/list` + `prompts/get` | Phase 4 |
-| **P4** | Elicitation (URL mode) | lib/server | OAuth flows vers ERP — ou MCP Apps UI en alternative | Future |
+| **P0** | Tools | lib/mbe, lib/plm, lib/syson | — | Phase 0 (DONE mbe/plm), Phase 1 (syson) |
+| **P0** | SysON bridge | lib/syson | SysON Docker déployé | Phase 1 |
+| **P1** | Sampling (agent tools) | lib/mbe, lib/plm | Tools déterministes | Phase 4 |
+| **P2** | Resources (material DB, BOM, SysML models) | lib/mbe, lib/plm, lib/syson | Tools implémentés | Phase 5 |
+| **P3** | Elicitation (form mode) | lib/server d'abord | Handler `elicitation/create` dans ConcurrentMCPServer | Phase 4-5 |
+| **P3** | Prompts (workflow templates) | lib/server d'abord | Handler `prompts/list` + `prompts/get` | Phase 5 |
+| **P4** | Odoo bridge | lib/plm | Odoo Docker déployé | Phase 6 (future) |
 | **P5** | Tasks | lib/server | Spec stabilisée | Future |
 
 **Note importante :** L'implémentation de l'elicitation et des prompts nécessite d'abord
@@ -580,78 +729,75 @@ un travail dans `lib/server/src/concurrent-server.ts` pour câbler les handlers 
 correspondants. Ce n'est pas spécifique à MBE/PLM — c'est un enrichissement du framework
 serveur qui bénéficie à toutes les libs (std, mbe, plm).
 
-**Position sur la compatibilité client :** On implémente **toutes** les features utiles
-dans lib/server, indépendamment du support Claude Code. Si Claude Code ne supporte pas
-l'elicitation, on construit notre propre client MCP dans **Minetest/Lua** (client 3D
-interactif avec UI native). Le client Minetest communique avec les serveurs MCP via
-HTTP + SSE et supporte toutes les features du protocole (elicitation, prompts, resources,
-sampling). On ne sacrifie pas de fonctionnalité pour une limitation client.
+**Position sur la compatibilité client :** SysON fournit l'UI MBSE (diagrammes SysML v2,
+navigation modèle). Pour l'interaction MCP, on utilise Claude Code, PML Desktop, ou le
+dashboard web existant. Pas d'UI custom à construire.
 
 ---
 
-## 11. Client MCP : Minetest/Lua
+## 11. Backend MBSE : SysON
 
-### 11.1. Pourquoi Minetest
+### 11.1. Pourquoi SysON
 
-Le client MCP principal n'est **pas** Claude Code ni un dashboard web classique.
-C'est **Minetest** — un moteur 3D voxel open-source (C++/Lua) — qui sert de front-end
-interactif pour piloter les tools MBE/PLM.
+On ne reconstruit pas d'UI MBSE/PLM. **SysON** est un outil MBSE open-source web-based
+qui fournit l'UI intégrée (diagrammes SysML v2, navigation, édition).
 
-Avantages :
-- **Visualisation 3D native** — idéal pour afficher géométries, assemblages, BOM trees
-- **API Lua complète** — scripting facile pour l'UI, les formulaires, les workflows
-- **Mod system extensible** — chaque domaine (MBE, PLM) peut être un mod Lua
-- **Open-source** (LGPL 2.1) — pas de dépendance propriétaire
-- **Léger** — tourne sur des configs modestes, pas besoin de GPU gaming
+- **Web-based** — tourne dans le browser, pas d'install client
+- **Docker** — `docker compose up`, DB incluse, prêt en 5 min
+- **SysML v2** — standard OMG, notation textuelle machine-readable
+- **API REST standardisée** — CRUD projets, commits, éléments, Swagger inclus
+- **Diagrammes inclus** — General View, Interconnection View, etc.
+- **Interop Capella** — migration possible vers Capella si besoin enterprise
+- **Open-source** (Eclipse Public License)
 
-### 11.2. Architecture client Minetest ↔ MCP
+### 11.2. Architecture SysON ↔ MCP
 
 ```
-┌──────────────────────────────────┐
-│         Minetest Client          │
-│  ┌─────────┐  ┌──────────────┐  │
-│  │ Mod MBE │  │  Mod PLM     │  │
-│  │ (Lua)   │  │  (Lua)       │  │
-│  └────┬────┘  └──────┬───────┘  │
-│       │              │          │
-│  ┌────▼──────────────▼───────┐  │
-│  │  MCP Client Lua           │  │
-│  │  (HTTP + SSE + JSON-RPC)  │  │
-│  └────────────┬──────────────┘  │
-└───────────────┼──────────────────┘
-                │ HTTP/SSE
-    ┌───────────▼───────────┐
-    │    MCP Gateway         │
-    ├───────┬───────┬───────┤
-    │lib/std│lib/mbe│lib/plm│
-    └───────┴───────┴───────┘
+┌───────────────────────────────────────────────────┐
+│              Utilisateur                           │
+│  ┌─────────────┐  ┌────────────┐  ┌────────────┐ │
+│  │ SysON UI    │  │ Claude Code│  │ PML Desktop│ │
+│  │ (browser)   │  │ (terminal) │  │ (Tauri)    │ │
+│  │ diagrammes  │  │ MCP client │  │ MCP client │ │
+│  └──────┬──────┘  └─────┬──────┘  └─────┬──────┘ │
+└─────────┼───────────────┼────────────────┼────────┘
+          │               │                │
+          │ direct    ┌───▼────────────────▼──────┐
+          │           │       MCP Gateway          │
+          │           ├───────┬──────┬─────┬──────┤
+          │           │lib/std│lib/  │lib/ │lib/  │
+          │           │       │mbe   │plm  │syson │
+          │           └───────┴──────┴─────┴──┬───┘
+          │                                   │
+          │          REST API (SysML v2)       │
+          └──────────────►┌───────────┐◄──────┘
+                          │   SysON   │
+                          │  (Docker) │
+                          │  :8080    │
+                          └───────────┘
 ```
 
-### 11.3. Implémentation côté Lua
+**Deux chemins vers SysON :**
+1. **Direct** — l'utilisateur navigue dans SysON UI pour voir/éditer les diagrammes
+2. **Via MCP** — les agents et tools lisent/écrivent dans SysON via `lib/syson`
 
-Le client MCP en Lua doit supporter :
+### 11.3. PLM backend futur : Odoo (Phase 2)
 
-| Feature MCP | Implémentation Lua |
-|-------------|-------------------|
-| tools/call | `minetest.request_http(url, callback)` → JSON-RPC |
-| sampling | Afficher le prompt dans un formspec, envoyer la réponse |
-| elicitation (form) | Formspec natif Minetest (champs texte, dropdown, checkbox) |
-| elicitation (URL) | Ouvrir un browser ou afficher une iframe dans un HUD |
-| resources | Lire et afficher dans des panels Minetest (inventaires, etc.) |
-| prompts | Menu de sélection (slash commands) dans le chat Minetest |
-| notifications | Afficher dans le HUD ou le chat |
+Quand le besoin de production/fabrication se concrétise, on ajoute **Odoo/LibrePLM**
+comme backend PLM. `lib/plm` bridge alors vers l'API Odoo :
 
-Les **formspecs** Minetest sont parfaits pour l'elicitation — c'est déjà un système
-de formulaires dynamiques avec fields, dropdowns, checkboxes, boutons.
+- BOM réelles → module Manufacturing Odoo
+- ECR/ECO → module PLM Odoo
+- Qualité → module Quality Odoo
+- Achats, stock → modules Odoo natifs
 
-### 11.4. Ce que ça change pour lib/mbe et lib/plm
+Le modèle SysON reste la source de vérité pour la conception (requirements, architecture).
+Odoo gère la production. Les MCP tools font le pont.
 
-Rien côté serveur. Les libs MCP restent identiques — le protocole MCP est agnostique au
-client. Que ce soit Claude Code, un dashboard web ou Minetest/Lua, les serveurs MCP
-exposent la même interface JSON-RPC.
+### 11.4. Ce que ça change
 
-La seule implication est qu'on doit s'assurer que les **formats de réponse** des tools
-sont exploitables côté Lua (JSON standard, pas de types exotiques).
+**Pas d'UI custom à construire.** SysON = UI MBSE. Odoo (futur) = UI PLM.
+Les MCP tools = couche d'intelligence et d'automatisation par-dessus.
 
 ---
 
@@ -691,9 +837,8 @@ la géométrie structurée (feature tree, topologie, matériaux, tolerances).
 
 ### 12.4. Décision
 
-**OCCT côté serveur (Deno), pas côté client (Minetest).** Le parsing STEP est une
-responsabilité serveur pour rester **client-agnostique**. Que le client soit Minetest,
-Claude Code ou un dashboard web, le parsing fonctionne pareil.
+**OCCT côté serveur (Deno).** Le parsing STEP est une responsabilité serveur pour rester
+**client-agnostique**. Les données extraites alimentent le modèle SysON via `lib/syson`.
 
 Approche retenue :
 
@@ -704,8 +849,8 @@ Approche retenue :
 2. **Phase future (si besoin) : OCCT natif via Deno FFI** — si les perfs WASM ne suffisent
    pas pour les gros fichiers (>50 MB), on migre vers les bindings natifs.
 
-**Retiré :** l'option "parsing côté Minetest via luaocc" est écartée — ça mélangerait les
-responsabilités et rendrait le système dépendant du client.
+Le parsing côté client est exclu — le client (SysON, Claude Code, PML Desktop) consomme
+les résultats, il ne parse pas.
 
 ---
 
@@ -717,5 +862,6 @@ responsabilités et rendrait le système dépendant du client.
 | Pas de base matériaux open-source complète | Limite étape 1.2 | Commencer avec une DB embarquée (~50 matériaux courants), étendre après |
 | Sampling non disponible en mode standalone | Limite Phase 3 | Les agent tools dégradent gracieusement (throw si pas de SamplingClient) — fail-fast policy |
 | Performance FFI sur gros fichiers STEP (>100 MB) | Perf étape 1.1 | Implémenter streaming + timeout configurable |
-| Client Lua HTTP dans Minetest limité (pas de SSE natif) | Limite features temps-réel | Utiliser polling ou mod Lua HTTP avancé (luasocket, curl FFI) |
-| Tentation de parser côté client (Minetest) | Architecture floue, perd l'agnosticisme client | OCCT toujours côté serveur Deno — Minetest = pure UI/client |
+| SysON "not yet intended for production use" | Instabilité, breaking changes API | Utiliser pour prototypage, suivre les releases (cycle 8 semaines), migrer vers Capella si besoin enterprise |
+| SysON API change entre versions | Casse lib/syson | Abstraire l'API dans `syson-rest.ts`, adapter au même endroit si breaking change |
+| Deux backends (SysON + Odoo futur) = complexité sync | Données dupliquées ou incohérentes | SysON = source de vérité conception, Odoo = production. Bridge unidirectionnel SysON → Odoo |
