@@ -37,11 +37,25 @@ Demain quelqu'un publie un MCP server `deploy_kubernetes` ou `train_model`. Ca d
 
 C'est plus **LLVM que x86**. LLVM n'a pas 8 instructions fixes. Il a un IR riche et extensible. La valeur c'est les passes d'optimisation sur l'IR, pas la restriction du jeu d'instructions.
 
-### Taxonomie interne (pour le routeur ML)
+### Le routeur ML : SHGAT (GNN) + GRU — 4 dimensions
 
-Le SHGAT utilise des categories semantiques comme VocabNodes L1 pour le clustering et le message passing hierarchique. Ces categories (read, transform, emit, etc.) sont une taxonomie interne au routeur, pas une contrainte sur ce que l'agent peut faire. Elles evoluent avec l'usage.
+Le routeur PML n'est pas un simple matching vectoriel. C'est un GNN (Graph Neural Network) + un modele sequentiel qui operent sur 4 dimensions complementaires :
 
-PML a deja 63 operations code:* (array, string, object, math, logical, json, binary, control). Les VocabNodes L1 du SHGAT organisent ces operations et les tools externes en clusters semantiques pour ameliorer le routing.
+**1. Semantique** — embeddings des descriptions de tools. "De quoi parle cet outil ?" Similarite cosine, le socle. Necessaire mais insuffisant seul (~85-90% plafond).
+
+**2. Structurel (GNN message passing)** — le SHGAT propage l'information a travers les edges du graphe de tools. Les VocabNodes L1 (categories semantiques : read, transform, emit, etc.) servent de clusters hierarchiques. Le message passing L0 tools ↔ L1 categories enrichit les representations au-dela de l'embedding isole. C'est du raisonnement structurel, pas juste vectoriel.
+
+**3. Types I/O (edges de compatibilite schema)** [A AJOUTER] — si tool A output `{rows: Array<Record>}` et tool B accepte `Array<Record>` en input, un edge de compatibilite de type connecte A → B dans le graphe SHGAT. Le GNN apprend non seulement "ces tools sont semantiquement proches" mais "ces tools se connectent au niveau donnees." Deux sources :
+- **code:*** → output schema statiquement typable (derive du code, gratuit)
+- **MCP externes** → output schema infere progressivement depuis les traces (PGO applique au typage)
+
+Les edges I/O schema se construisent incrementalement. En phase cold, seuls les edges code:* existent. Plus les traces s'accumulent, plus les edges MCP externes apparaissent. Le graphe SHGAT s'enrichit avec l'usage — le flywheel s'applique aussi au typage.
+
+**4. Temporel (GRU)** — le GRU predit la sequence de tools autoregressivement. "Apres A, quel tool vient ?" Capture les patterns d'ordonnancement que le GNN seul ne voit pas.
+
+Ces 4 dimensions combinees (semantique + structure + types + temporel) depassent tout ce qui existe dans la litterature. Aucun systeme publie ne combine GNN + sequence + type matching pour le routing d'agents.
+
+PML a deja 63 operations code:* (array, string, object, math, logical, json, binary, control). Les VocabNodes L1 du SHGAT organisent ces operations et les tools externes en clusters semantiques.
 
 ## La compilation en 3 phases
 
@@ -138,6 +152,8 @@ La trace produite par `execute` alimente `TraceHistory`, qui ameliore `route` et
 | GRU adaptatif | route | Online learning | Regret minimization |
 | ISA ouverte × composition | lower | Dataflow programming | Kahn process networks (1974) |
 | Sampling compile | optimize | Distillation / caching | Knowledge distillation (Hinton et al. 2015) |
+| Edges I/O schema | route | Type checking / inference | Hindley-Milner, gradual typing |
+| Schema inference depuis traces | route | Profile-guided type inference | Flow-sensitive typing |
 
 ### Ce que ca implique
 
@@ -145,6 +161,27 @@ La trace produite par `execute` alimente `TraceHistory`, qui ameliore `route` et
 2. **Determinisme du plan** : meme intent + meme ToolSet = meme DAG. L'execution reste non-deterministe pour les MCP externes (I/O, reseau). Le determinisme est une propriete du PLAN, pas de l'execution.
 3. **Optimisabilite** : le compilateur peut transformer le DAG sans changer la semantique (fusion, reordonnancement, parallelisation)
 4. **Composabilite** : la cloture garantit que tout workflow est reutilisable comme brique
+
+## Prior art et positionnement
+
+### Ce qui existe (et ce que PML fait differemment)
+
+| Travail | Ce qu'il fait | Limite | PML |
+|---------|--------------|--------|-----|
+| **LLMCompiler** (Berkeley, ICML 2024) | DAG + execution parallele, 3.7x speedup | Le planner est un LLM | ML routing (GNN+GRU), pas LLM-in-the-loop |
+| **DSPy** (Stanford, 2023+) | Compile prompts et few-shot, 25-65% gain | Ne compile pas away du LLM | Compile les chemins eux-memes, 0 token a l'execution |
+| **Voyager** (NVIDIA, 2023) | Skills compilees en JS, replay sans LLM | Domain-specific (Minecraft) | Generalise a tout workflow MCP |
+| **AgentDistill** (2025) | "MCP Boxes" reutilisables, training-free | Frame comme augmentation de modele | Frame comme artefact standalone versionne |
+| **Graph-Memoized Reasoning** (2025) | Sous-graphes de raisonnement reutilisables | Theorique, pas d'implementation | Implementation prod (DAG compiler + tracing) |
+| **Microsoft Trace** (NeurIPS 2024) | PGO pour agents, feedback via DAG | Optimise les parametres | Optimise les chemins + compile les patterns |
+| **SPAgent / SpecCache** (2025) | Execution speculative, predit les tool calls | Fallback LLM sur cache miss | Compilation persistante, pas speculative |
+
+### Ce que personne ne fait (valide par recherche, fev 2026)
+
+1. **Pipeline compilation unifie cold/warm/hot** — le JIT applique comme lifecycle complet d'un agent n'existe pas comme concept nomme
+2. **Intelligence comme artefact deployable et versionne** — un DAG qu'on peut tester, diffter, rollback, et composer (pas un modele, pas un prompt)
+3. **Compilation des noeuds sampling** — zero travaux dans l'ecosysteme MCP
+4. **GNN + sequence + types I/O pour le routing** — aucun systeme publie ne combine ces 4 dimensions
 
 ## Pourquoi compiler — et pourquoi maintenant
 
@@ -170,6 +207,7 @@ Unix pipes (1973), SQL (1970s), MapReduce (2004) : compositionalite + compilateu
 - Relay fonctionnel (--expose a 23/41 tests, cloud routing casse) — prerequis pour tout le reste
 - `pml publish --dag <workflow_id>` (3-4 jours APRES relay)
 - Chainage parse→lower→route dans un pipeline unifie (aujourd'hui modules separes)
+- Edges I/O schema dans le SHGAT (statiques pour code:*, inferes pour MCP externes)
 - Fusion des code:* consecutifs dans le sandbox (operator fusion, ~2-3 semaines)
 - Gestion d'erreurs au niveau DAG (operateur fallback `!`)
 - Benchmarks d'overhead reels (latence MCP STDIO, gain fusion)
