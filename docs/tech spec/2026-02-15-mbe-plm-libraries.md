@@ -435,7 +435,7 @@ composent fonctionnent. Raisons :
 | 7 | Agent tools | Dans chaque lib (agent.ts) | Même pattern que lib/std, les agents composent les tools de leur domaine | 2026-02-15 |
 | 8 | Agent timing | Après tools déterministes | Les agents composent les tools — il faut que ceux-ci marchent d'abord | 2026-02-15 |
 | 9 | Protocol features | Exploiter elicitation + prompts + resources | Pas seulement tools+sampling — le protocole MCP offre d'autres primitives pertinentes | 2026-02-15 |
-| 10 | Client independence | Implémenter toutes les features, pas seulement celles de Claude Code | On construit notre propre client si nécessaire (dashboard Fresh). MCP Apps UI comme alternative à l'URL mode elicitation | 2026-02-15 |
+| 10 | Client independence | Implémenter toutes les features, pas seulement celles de Claude Code | On construit notre propre client si nécessaire (Minetest/Lua). MCP Apps UI comme alternative à l'URL mode elicitation | 2026-02-15 |
 
 ---
 
@@ -582,12 +582,131 @@ serveur qui bénéficie à toutes les libs (std, mbe, plm).
 
 **Position sur la compatibilité client :** On implémente **toutes** les features utiles
 dans lib/server, indépendamment du support Claude Code. Si Claude Code ne supporte pas
-l'elicitation, on construira notre propre client MCP (le dashboard Fresh supporte déjà
-HTTP + SSE). On ne sacrifie pas de fonctionnalité pour une limitation client.
+l'elicitation, on construit notre propre client MCP dans **Minetest/Lua** (client 3D
+interactif avec UI native). Le client Minetest communique avec les serveurs MCP via
+HTTP + SSE et supporte toutes les features du protocole (elicitation, prompts, resources,
+sampling). On ne sacrifie pas de fonctionnalité pour une limitation client.
 
 ---
 
-## 11. Risks & Mitigations
+## 11. Client MCP : Minetest/Lua
+
+### 11.1. Pourquoi Minetest
+
+Le client MCP principal n'est **pas** Claude Code ni un dashboard web classique.
+C'est **Minetest** — un moteur 3D voxel open-source (C++/Lua) — qui sert de front-end
+interactif pour piloter les tools MBE/PLM.
+
+Avantages :
+- **Visualisation 3D native** — idéal pour afficher géométries, assemblages, BOM trees
+- **API Lua complète** — scripting facile pour l'UI, les formulaires, les workflows
+- **Mod system extensible** — chaque domaine (MBE, PLM) peut être un mod Lua
+- **Open-source** (LGPL 2.1) — pas de dépendance propriétaire
+- **Léger** — tourne sur des configs modestes, pas besoin de GPU gaming
+
+### 11.2. Architecture client Minetest ↔ MCP
+
+```
+┌──────────────────────────────────┐
+│         Minetest Client          │
+│  ┌─────────┐  ┌──────────────┐  │
+│  │ Mod MBE │  │  Mod PLM     │  │
+│  │ (Lua)   │  │  (Lua)       │  │
+│  └────┬────┘  └──────┬───────┘  │
+│       │              │          │
+│  ┌────▼──────────────▼───────┐  │
+│  │  MCP Client Lua           │  │
+│  │  (HTTP + SSE + JSON-RPC)  │  │
+│  └────────────┬──────────────┘  │
+└───────────────┼──────────────────┘
+                │ HTTP/SSE
+    ┌───────────▼───────────┐
+    │    MCP Gateway         │
+    ├───────┬───────┬───────┤
+    │lib/std│lib/mbe│lib/plm│
+    └───────┴───────┴───────┘
+```
+
+### 11.3. Implémentation côté Lua
+
+Le client MCP en Lua doit supporter :
+
+| Feature MCP | Implémentation Lua |
+|-------------|-------------------|
+| tools/call | `minetest.request_http(url, callback)` → JSON-RPC |
+| sampling | Afficher le prompt dans un formspec, envoyer la réponse |
+| elicitation (form) | Formspec natif Minetest (champs texte, dropdown, checkbox) |
+| elicitation (URL) | Ouvrir un browser ou afficher une iframe dans un HUD |
+| resources | Lire et afficher dans des panels Minetest (inventaires, etc.) |
+| prompts | Menu de sélection (slash commands) dans le chat Minetest |
+| notifications | Afficher dans le HUD ou le chat |
+
+Les **formspecs** Minetest sont parfaits pour l'elicitation — c'est déjà un système
+de formulaires dynamiques avec fields, dropdowns, checkboxes, boutons.
+
+### 11.4. Ce que ça change pour lib/mbe et lib/plm
+
+Rien côté serveur. Les libs MCP restent identiques — le protocole MCP est agnostique au
+client. Que ce soit Claude Code, un dashboard web ou Minetest/Lua, les serveurs MCP
+exposent la même interface JSON-RPC.
+
+La seule implication est qu'on doit s'assurer que les **formats de réponse** des tools
+sont exploitables côté Lua (JSON standard, pas de types exotiques).
+
+---
+
+## 12. OpenCASCADE (OCCT) — Explications
+
+### 12.1. C'est quoi ?
+
+**OpenCASCADE Technology (OCCT)** est une bibliothèque C++ open-source pour la modélisation
+3D CAD. C'est le **standard industriel open-source** pour manipuler des géométries CAD :
+
+- **STEP parser** — lit les fichiers `.stp`/`.step` (formats ISO 10303 AP203/AP214/AP242)
+- **IGES parser** — lit les fichiers `.igs`/`.iges` (ancien format, encore très utilisé)
+- **BRep kernel** — Boundary Representation : surfaces, courbes, topologie solide
+- **Feature extraction** — faces, edges, vertices, volumes, centres de masse
+- **Boolean operations** — union, soustraction, intersection de solides
+- **Tolerance data** — accès aux GD&T et PMI intégrés dans les fichiers STEP AP242
+
+C'est la brique qui permet à `mbe_step_parse` de lire un fichier STEP et d'en extraire
+la géométrie structurée (feature tree, topologie, matériaux, tolerances).
+
+### 12.2. Qui l'utilise ?
+
+- **FreeCAD** — son noyau CAD est OCCT
+- **KiCAD** — utilise OCCT pour le 3D des PCBs
+- **Open Cascade SAS** — l'entreprise française qui maintient le projet (basée à Guyancourt)
+- **Dassault Systèmes** — historiquement lié à OCCT (ancêtre de CAS.CADE)
+- Des centaines de logiciels CAD industriels (aéro, auto, naval)
+
+### 12.3. Alternatives à OCCT pour le STEP parsing
+
+| Option | Avantages | Inconvénients |
+|--------|-----------|---------------|
+| **OCCT via Deno FFI** | Standard industriel, lecture complète STEP/IGES, BRep natif | C++ lourd à compiler, bindings FFI à écrire |
+| **opencascade.js (WASM)** | Plus simple à intégrer, tourne dans Deno directement | Moins performant (WASM overhead), limité en accès fichier |
+| **STEP parser custom (TypeScript)** | Zero dépendance native, tout en Deno | Énorme effort, STEP est un format très complexe (ISO 10303) |
+| **pythonocc + subprocess** | OCCT en Python, plus accessible | Dépendance Python, overhead subprocess |
+| **Minetest intégration directe** | OCCT/Lua bindings existent (luaocc) | Mélange responsabilités client/serveur |
+
+### 12.4. Décision recommandée
+
+Pour la Phase 1 (étape 1.1), **deux voies pragmatiques** :
+
+1. **opencascade.js (WASM)** — démarrer avec ça car l'intégration dans Deno est plus simple
+   (import WASM, pas de compilation C++). Suffisant pour les cas simples.
+
+2. **OCCT natif via FFI** — migrer plus tard si les perfs WASM ne suffisent pas
+   (gros assemblages, fichiers >50 MB).
+
+On peut aussi explorer une troisième voie : parser les fichiers STEP **côté Minetest** (il
+existe des bindings Lua pour OCCT — `luaocc`) et exposer les résultats via le protocole MCP.
+Ça ferait du client Minetest le parser, et le serveur MBE consommerait les données parsées.
+
+---
+
+## 13. Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
@@ -595,3 +714,5 @@ HTTP + SSE). On ne sacrifie pas de fonctionnalité pour une limitation client.
 | Pas de base matériaux open-source complète | Limite étape 1.2 | Commencer avec une DB embarquée (~50 matériaux courants), étendre après |
 | Sampling non disponible en mode standalone | Limite Phase 3 | Les agent tools dégradent gracieusement (throw si pas de SamplingClient) — fail-fast policy |
 | Performance FFI sur gros fichiers STEP (>100 MB) | Perf étape 1.1 | Implémenter streaming + timeout configurable |
+| Client Lua HTTP dans Minetest limité (pas de SSE natif) | Limite features temps-réel | Utiliser polling ou mod Lua HTTP avancé (luasocket, curl FFI) |
+| Parsing STEP dans Minetest (luaocc) mélange responsabilités | Architecture floue | Garder le parsing côté serveur MCP, Minetest = pure UI/client |
