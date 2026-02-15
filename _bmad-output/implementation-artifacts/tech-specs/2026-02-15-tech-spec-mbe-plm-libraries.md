@@ -1,4 +1,4 @@
-# Tech Spec: lib/mbe, lib/plm & lib/syson — MCP Tool Libraries for MBSE & PLM
+# Tech Spec: lib/syson & lib/plm — MCP Tool Libraries for MBSE & PLM
 
 **Date:** 2026-02-15
 **Status:** Draft
@@ -15,22 +15,22 @@ Casys PML Cloud dispose d'une infrastructure MCP mature :
 - **DAG engine** — exécution parallèle, checkpoints, sandbox
 - **Discovery** — GraphRAG + BGE-M3 embeddings, semantic search
 
-L'objectif est d'étendre cet écosystème avec trois nouvelles bibliothèques de tools domaine :
+L'objectif est d'étendre cet écosystème avec deux nouvelles bibliothèques de tools domaine :
 
-| Library | Scope | Rôle |
-|---------|-------|------|
-| **lib/mbe** | Model-Based Engineering | Primitives géométriques, GD&T, matériaux, PMI |
-| **lib/plm** | Product Lifecycle Management | BOM, ECR/ECO, qualité, planning |
-| **lib/syson** | MBSE (SysON bridge) | Bridge MCP vers l'API REST SysML v2 de SysON |
+| Library | Scope | Rôle | Phase |
+|---------|-------|------|-------|
+| **lib/syson** | MBSE (SysON bridge) | Bridge MCP vers l'API REST SysML v2 de SysON | **Phase 1 (MVP)** |
+| **lib/plm** | Product Lifecycle Management | BOM, ECR/ECO, qualité, planning | Phase 2 |
+| ~~lib/mbe~~ | ~~Model-Based Engineering~~ | ~~Primitives géométriques, GD&T, matériaux, PMI~~ | Future (si besoin CAD) |
 
 **Architecture globale :** SysON (open-source, web-based, Docker) sert de **backend MBSE** avec
 son UI intégrée (diagrammes SysML v2, requirements, architecture). `lib/syson` est le bridge
-MCP qui permet aux agents et aux autres libs (mbe, plm) d'interagir avec les modèles SysON
-via son API REST standardisée OMG. **Pas d'UI custom à construire** — SysON fournit l'UI.
+MCP qui permet aux agents et à lib/plm d'interagir avec les modèles SysON via son API REST
+standardisée OMG. **Pas d'UI custom à construire** — SysON fournit l'UI et les diagrammes.
 
-`lib/mbe` fournit les briques de base (données CAD, tolerances, matériaux).
-`lib/plm` consomme `lib/mbe` pour les workflows métier (nomenclatures, gestion du changement, inspection).
-`lib/syson` connecte le tout au modèle système (requirements → architecture → composants).
+`lib/syson` = source de vérité (requirements → architecture → composants → traçabilité).
+`lib/plm` = workflows métier (nomenclatures, gestion du changement, qualité).
+`lib/mbe` = **reporté** — parsing CAD (STEP/IGES, OCCT) n'est pas nécessaire pour le MVP MBSE/PLM.
 
 ---
 
@@ -39,38 +39,39 @@ via son API REST standardisée OMG. **Pas d'UI custom à construire** — SysON 
 ### 2.1. Positionnement dans l'écosystème
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│                      MCP Gateway                          │
-│              (src/mcp/gateway-server.ts)                  │
-├──────────┬──────────┬───────────┬───────────┬────────────┤
-│ lib/std  │ lib/mbe  │ lib/plm   │ lib/syson │ lib/server │
-│ 461 tools│ geometry │ bom       │ projects  │ Concurrent │
-│ system   │ tolerance│ change    │ elements  │ AJV valid. │
-│ data     │ material │ quality   │ relations │ middleware │
-│ agent    │ model    │ planning  │ queries   │ auth+rate  │
-└──────────┴──────────┴───────────┴─────┬─────┴────────────┘
-                                        │ REST API (SysML v2)
-                                  ┌─────▼─────┐
-                                  │   SysON   │
-                                  │  (Docker) │
-                                  │  :8080    │
-                                  └───────────┘
+┌─────────────────────────────────────────────────────┐
+│                    MCP Gateway                       │
+│            (src/mcp/gateway-server.ts)               │
+├──────────┬───────────┬───────────┬──────────────────┤
+│ lib/std  │ lib/syson  │ lib/plm   │ lib/server      │
+│ 461 tools│ projects  │ bom       │ ConcurrentMCP   │
+│ system   │ elements  │ change    │ AJV validation  │
+│ data     │ relations │ quality   │ middleware      │
+│ agent    │ queries   │ planning  │ auth + rate     │
+└──────────┴─────┬─────┴───────────┴──────────────────┘
+                 │ REST API (SysML v2)
+           ┌─────▼─────┐
+           │   SysON   │
+           │  (Docker) │
+           │  :8080    │
+           └───────────┘
 ```
 
 ### 2.2. Dépendances
 
 ```
-lib/plm ──depends──> lib/mbe ──depends──> lib/server
-                                              │
-lib/syson ──depends───────────────────────────┤
-                                              │
-lib/std ──depends──────────────────────────────┘
+lib/plm ──depends──> lib/server
+                         │
+lib/syson ──depends──────┤
+                         │
+lib/std ──depends────────┘
 ```
 
-`lib/mbe`, `lib/plm` et `lib/syson` n'ont **aucune dépendance** sur `lib/std` — ils sont
+`lib/plm` et `lib/syson` n'ont **aucune dépendance** sur `lib/std` — ils sont
 indépendants et ne partagent que `lib/server` pour l'infrastructure MCP.
 
 `lib/syson` communique avec SysON (instance Docker) via REST API — pas d'import direct.
+`lib/plm` peut consommer des données du modèle SysON via `lib/syson` (cross-lib calls).
 
 ### 2.3. Pattern de tool (identique à lib/std)
 
@@ -111,12 +112,17 @@ export const geometryTools: MiniTool[] = [
 
 ---
 
-## 3. lib/mbe — Model-Based Engineering
+## 3. ~~lib/mbe~~ — REPORTÉ (phase future)
 
-### 3.1. Catégories de tools
+> **lib/mbe est reporté.** Le MVP se concentre sur lib/syson (MBSE) + lib/plm (PLM).
+> lib/mbe (parsing CAD via OCCT, matériaux, tolerances) sera ajouté si/quand le besoin
+> d'importer des données CAD se concrétise. Les sections ci-dessous sont conservées
+> comme référence pour l'implémentation future.
 
-| Category | Prefix | Description | Tools (Phase 1) |
-|----------|--------|-------------|-----------------|
+### 3.1. Catégories de tools (future)
+
+| Category | Prefix | Description | Tools |
+|----------|--------|-------------|-------|
 | `geometry` | `mbe_` | STEP/IGES parsing, BRep queries, feature extraction | `mbe_step_parse`, `mbe_iges_parse`, `mbe_feature_tree`, `mbe_brep_query`, `mbe_bounding_box`, `mbe_mass_properties` |
 | `tolerance` | `mbe_` | GD&T ISO 1101, tolerance stacking, datum refs | `mbe_gdt_parse`, `mbe_tolerance_stack`, `mbe_datum_reference`, `mbe_tolerance_zone` |
 | `material` | `mbe_` | Material DB lookups, property queries, equivalents | `mbe_material_lookup`, `mbe_material_properties`, `mbe_material_equivalent`, `mbe_material_compliance` |
@@ -309,17 +315,17 @@ ajouter un header `Authorization` quand SysON le supportera.
 
 ### 5.6. Cas d'usage cross-lib
 
-`lib/syson` permet de connecter les données MBE/PLM au modèle système :
+`lib/syson` permet de connecter les données PLM au modèle système :
 
 ```
-1. mbe_step_parse → extrait feature tree d'un STEP
-2. syson_element_create → crée les parts correspondantes dans le modèle SysML v2
-3. syson_query_requirements_trace → vérifie quels requirements sont couverts
-4. plm_bom_generate → génère la BOM depuis le modèle SysON
+1. syson_element_create → crée parts, requirements, interfaces dans le modèle SysML v2
+2. syson_query_requirements_trace → vérifie quels requirements sont couverts
+3. plm_bom_generate → génère la BOM depuis le modèle SysON (via syson_query_elements)
+4. plm_change_impact → trace l'impact d'un changement à travers le modèle
 ```
 
 Le modèle SysON devient la **source de vérité** pour la structure produit.
-Les tools MBE/PLM lisent et écrivent dans ce modèle.
+Les tools PLM lisent et écrivent dans ce modèle.
 
 ---
 
@@ -386,9 +392,8 @@ if (import.meta.main) {
 
 **Ports par défaut :**
 - `lib/std` : 3008
-- `lib/mbe` : 3009
+- `lib/syson` : 3009
 - `lib/plm` : 3010
-- `lib/syson` : 3011
 - SysON (externe, Docker) : 8080
 
 ---
@@ -498,71 +503,49 @@ composent fonctionnent. Raisons :
 - [ ] `syson_import_textual`, `syson_export_textual` — SysML v2 textual notation
 - [ ] Tests : queries sur un modèle de test
 
-### Phase 2 — lib/mbe : Tools déterministes
+### Phase 2 — lib/plm : Tools métier
 
-**Étape 2.1 : `mbe_step_parse` (brique zéro)**
-- [ ] Intégrer opencascade.js (WASM) dans Deno — import + instantiation du module WASM
-- [ ] Créer `lib/mbe/src/occt/wasm-bridge.ts` — bridge TypeScript pour opencascade.js
-- [ ] Implémenter le handler : load STEP → extract feature tree → return JSON
-- [ ] Test : parser un fichier STEP simple (boîte, cylindre) et valider le feature tree
-- [ ] Test : parser un assemblage multi-pièces et valider la hiérarchie
-- [ ] Benchmark perf WASM sur fichiers de taille croissante (1 MB → 50 MB)
-
-**Étape 2.2 : `mbe_material_lookup` (standalone, pas de dépendance géométrique)**
-- [ ] Choisir source de données : base embarquée (JSON/SQLite) ou API externe (MatWeb)
-- [ ] Implémenter lookup par désignation (AL6061-T6, 316L, Ti-6Al-4V, etc.)
-- [ ] Couvrir les propriétés : densité, yield, UTS, élongation, dureté, conductivité thermique
-- [ ] Implémenter cross-reference standards (AMS ↔ DIN ↔ EN ↔ JIS)
-- [ ] Tests : lookup de 10 matériaux courants aéro/auto
-
-**Étape 2.3 : `mbe_tolerance_stack` (pur calcul, testable isolément)**
-- [ ] Implémenter worst-case (arithmétique)
-- [ ] Implémenter RSS (Root Sum of Squares) avec niveau de confiance
-- [ ] Implémenter Monte Carlo (distribution normale)
-- [ ] Tests : valider contre des cas connus (textbook tolerance stacks)
-
-**Étape 2.4 : Remaining geometry + model tools**
-- [ ] `mbe_iges_parse`, `mbe_feature_tree`, `mbe_bounding_box`, `mbe_mass_properties`
-- [ ] `mbe_pmi_extract`, `mbe_mbd_validate`, `mbe_model_compare`
-- [ ] `mbe_gdt_parse`, `mbe_datum_reference`
-
-### Phase 3 — lib/plm : Tools métier
-
-**Étape 3.1 : `plm_bom_generate` (compose mbe_step_parse)**
-- [ ] Extraire hiérarchie assemblage depuis STEP (dépend de 2.1)
+**Étape 2.1 : `plm_bom_generate` (compose lib/syson)**
+- [ ] Extraire hiérarchie assemblage depuis le modèle SysON (via syson_query_elements)
 - [ ] Extraire quantités, part numbers, niveaux
 - [ ] Format de sortie : hierarchical, flat, indented
 - [ ] Tests : BOM d'un assemblage simple (5-10 pièces)
 
-**Étape 3.2 : `plm_bom_cost` + `plm_bom_flatten`**
+**Étape 2.2 : `plm_bom_cost` + `plm_bom_flatten`**
 - [ ] Modèles de costing : raw_material (volume × prix/kg), machining (feature-based)
 - [ ] Flatten : aggrégation des quantités sur tous les niveaux
 
-**Étape 3.3 : Change management + Quality**
+**Étape 2.3 : Change management + Quality**
 - [ ] `plm_ecr_create`, `plm_eco_create`, `plm_change_impact`
 - [ ] `plm_inspection_plan`, `plm_fair_generate`, `plm_control_plan`
 
-**Étape 3.4 : Planning**
+**Étape 2.4 : Planning**
 - [ ] `plm_routing_create`, `plm_work_instruction`, `plm_cycle_time`
 
-### Phase 4 — Agent tools (MCP Sampling)
+### Phase 3 — Agent tools (MCP Sampling)
 
-**Prérequis :** Étapes 2.1 à 2.3 complétées et testées.
+**Prérequis :** Phases 1 et 2 complétées et testées.
 
-- [ ] `lib/mbe/src/tools/agent.ts` — `mbe_agent_suggest_tolerances`, `mbe_agent_material_recommend`, `mbe_agent_design_review`
+- [ ] `lib/syson/src/tools/agent.ts` — `syson_agent_architecture_suggest`, `syson_agent_requirements_analyze`
 - [ ] `lib/plm/src/tools/agent.ts` — `plm_agent_change_assess`, `plm_agent_work_instruction`, `plm_agent_cost_optimize`
-- [ ] Injection du `SamplingClient` dans les servers MBE/PLM (pattern identique à lib/std)
+- [ ] Injection du `SamplingClient` dans les servers SysON/PLM (pattern identique à lib/std)
 - [ ] Tests avec mocks de sampling (pas de LLM réel dans les tests unitaires)
 
-### Phase 5 — Intégration Gateway + Discovery
+### Phase 4 — Intégration Gateway + Discovery
 
-- [ ] Enregistrer les tools MBE/PLM/SysON dans le discovery engine (GraphRAG)
-- [ ] Générer embeddings BGE-M3 pour les 40+ tools domaine
-- [ ] DAG suggestions pour workflows cross-lib (std + mbe + plm + syson)
+- [ ] Enregistrer les tools PLM/SysON dans le discovery engine (GraphRAG)
+- [ ] Générer embeddings BGE-M3 pour les 25+ tools domaine
+- [ ] DAG suggestions pour workflows cross-lib (std + plm + syson)
 - [ ] Capabilities auto-capture pour les patterns métier récurrents
 
-### Phase 6 (future) — Backend PLM : Odoo/LibrePLM
+### Phase future — Extensions
 
+**lib/mbe (si besoin d'import CAD) :**
+- [ ] STEP/IGES parsing via opencascade.js (WASM) dans Deno
+- [ ] GD&T, tolerance stacking, material database
+- [ ] Import de données CAD dans le modèle SysON
+
+**Odoo/LibrePLM (si besoin de production) :**
 - [ ] Déployer Odoo (Docker) avec modules Manufacturing + PLM + Quality
 - [ ] Bridge `lib/plm` → API Odoo pour les données de production
 - [ ] Sync SysON → Odoo : pousser les structures produit validées en production
@@ -577,8 +560,8 @@ composent fonctionnent. Raisons :
 | 2 | Naming | `mbe_` / `plm_` prefix | Évite collisions, discovery claire | 2026-02-15 |
 | 3 | Categories | Separate type unions | Extensible indépendamment de lib/std | 2026-02-15 |
 | 4 | Server ports | 3009 / 3010 | Suite logique après lib/std (3008) | 2026-02-15 |
-| 5 | Dependency | plm → mbe → server | mbe ne dépend pas de std | 2026-02-15 |
-| 6 | STEP parsing | opencascade.js (WASM) dans Deno, FFI natif en fallback | WASM plus simple à intégrer (pas de compilation C++). Migrer vers FFI si perf insuffisante. Toujours côté serveur (client-agnostique) | 2026-02-15 |
+| 5 | Dependency | plm → server, syson → server | Pas de dépendance sur std. plm consomme syson via cross-lib | 2026-02-15 |
+| 6 | lib/mbe | Reporté à phase future | Pas nécessaire pour le MVP MBSE/PLM. SysON couvre la modélisation, pas besoin de parsing CAD | 2026-02-15 |
 | 7 | Agent tools | Dans chaque lib (agent.ts) | Même pattern que lib/std, les agents composent les tools de leur domaine | 2026-02-15 |
 | 8 | Agent timing | Après tools déterministes | Les agents composent les tools — il faut que ceux-ci marchent d'abord | 2026-02-15 |
 | 9 | Protocol features | Exploiter elicitation + prompts + resources | Pas seulement tools+sampling — le protocole MCP offre d'autres primitives pertinentes | 2026-02-15 |
@@ -764,10 +747,10 @@ qui fournit l'UI intégrée (diagrammes SysML v2, navigation, édition).
           │               │                │
           │ direct    ┌───▼────────────────▼──────┐
           │           │       MCP Gateway          │
-          │           ├───────┬──────┬─────┬──────┤
-          │           │lib/std│lib/  │lib/ │lib/  │
-          │           │       │mbe   │plm  │syson │
-          │           └───────┴──────┴─────┴──┬───┘
+          │           ├───────┬───────┬──────┤
+          │           │lib/std│lib/  │lib/  │
+          │           │       │plm   │syson │
+          │           └───────┴──────┴──┬───┘
           │                                   │
           │          REST API (SysML v2)       │
           └──────────────►┌───────────┐◄──────┘
@@ -858,10 +841,7 @@ les résultats, il ne parse pas.
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| opencascade.js WASM trop lent sur gros fichiers | Dégrade étape 1.1 | Benchmark tôt, migrer vers FFI natif si >5s sur fichiers courants |
-| Pas de base matériaux open-source complète | Limite étape 1.2 | Commencer avec une DB embarquée (~50 matériaux courants), étendre après |
-| Sampling non disponible en mode standalone | Limite Phase 3 | Les agent tools dégradent gracieusement (throw si pas de SamplingClient) — fail-fast policy |
-| Performance FFI sur gros fichiers STEP (>100 MB) | Perf étape 1.1 | Implémenter streaming + timeout configurable |
 | SysON "not yet intended for production use" | Instabilité, breaking changes API | Utiliser pour prototypage, suivre les releases (cycle 8 semaines), migrer vers Capella si besoin enterprise |
 | SysON API change entre versions | Casse lib/syson | Abstraire l'API dans `syson-rest.ts`, adapter au même endroit si breaking change |
+| Sampling non disponible en mode standalone | Limite Phase 3 | Les agent tools dégradent gracieusement (throw si pas de SamplingClient) — fail-fast policy |
 | Deux backends (SysON + Odoo futur) = complexité sync | Données dupliquées ou incohérentes | SysON = source de vérité conception, Odoo = production. Bridge unidirectionnel SysON → Odoo |
