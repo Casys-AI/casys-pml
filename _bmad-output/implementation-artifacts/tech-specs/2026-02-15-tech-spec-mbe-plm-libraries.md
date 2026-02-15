@@ -6,7 +6,9 @@
 
 ---
 
-## 1. Context
+## 1. Context & Vision
+
+### 1.1. L'objectif : générer des produits d'ingénierie, pas des workflows
 
 Casys PML Cloud dispose d'une infrastructure MCP mature :
 
@@ -15,7 +17,98 @@ Casys PML Cloud dispose d'une infrastructure MCP mature :
 - **DAG engine** — exécution parallèle, checkpoints, sandbox
 - **Discovery** — GraphRAG + BGE-M3 embeddings, semantic search
 
-L'objectif est d'étendre cet écosystème avec deux nouvelles bibliothèques de tools domaine :
+L'objectif n'est pas de construire un "wrapper API" autour de SysON. **L'objectif est de
+permettre à un ingénieur de décrire ce qu'il veut et de générer un produit d'ingénierie
+complet** : modèle SysML v2 + BOM + estimation coût + plan qualité — en 5 minutes au lieu
+de 2 semaines.
+
+PML ne crée pas des workflows chiants. **PML génère des produits composites** en orchestrant
+intelligemment les outils MBSE et PLM. La différence est fondamentale :
+
+```
+Workflow chiant :                              Produit d'ingénierie :
+"Étape 1: créer projet"                       "Crée le modèle satellite depuis ce cahier des charges"
+"Étape 2: créer package"                              ↓
+"Étape 3: créer part"                         PML compile un DAG de 50+ opérations :
+"Étape 4: créer requirement"                    ├── syson_project_create
+  ... x50 étapes manuelles                     ├── syson_element_create × 30 (en parallèle)
+                                                ├── syson_query_aql (vérification traçabilité)
+                                                ├── plm_bom_generate (BOM depuis modèle)
+                                                ├── plm_bom_cost (estimation coût)
+                                                └── plm_inspection_plan (plan qualité)
+                                                       ↓
+                                                Résultat : produit d'ingénierie complet en 5 min
+```
+
+### 1.2. Ce que PML apporte que SysON seul ne fait pas
+
+PML n'est **pas** un outil MBSE (SysON l'est), **pas** un PLM (Odoo l'est), **pas** une UI de diagrammes (SysON l'est).
+
+PML est la **couche d'orchestration intelligente** entre ces outils — le "cerveau" qui sait
+comment les combiner, dans quel ordre, avec quelle optimisation, et qui apprend en continu.
+
+**5 valeurs uniques :**
+
+1. **Compilation cross-domaine** — Un intent traverse SysON (architecture) → PLM (BOM, costing) → qualité → rapport. PML compile cette chaîne en DAG déterministe. Aucun autre outil ne fait ça.
+
+2. **Parallélisation automatique** — PML analyse les dépendances et exécute en parallèle (Layer 0: packages, Layer 1: parts, Layer 2: relations). 3-5x plus rapide qu'un script séquentiel.
+
+3. **Mémoire procédurale** — Après 10 exécutions similaires, le workflow est compilé (warm → hot). Zéro LLM, exécution instantanée. L'expertise du senior est capitalisée en artefact réutilisable.
+
+4. **Traçabilité DAG 7D** — Chaque exécution est tracée : tools appelés, timing par noeud, dépendances causales, checkpoints HIL. Audit/compliance (DO-178C, ISO 26262, EN 9100), debug, optimisation.
+
+5. **Orchestration distribuée** (vision long terme) — Un seul `pml_execute` traverse les frontières organisationnelles (SysON chez l'équipe système, Odoo chez la production, plans qualité chez le sous-traitant).
+
+**Analogie :** SysON est le compilateur C. Odoo est le linker. PML est le build system (Make/CMake) qui orchestre, gère les dépendances, parallélise, cache les artefacts, et apprend les patterns récurrents.
+
+### 1.3. Stratégie : showcase d'abord, vertical ensuite
+
+**Phase Showcase (maintenant → +3 mois) :**
+- lib/syson + lib/plm = démo technique impressionnante
+- **Le wow moment** : "Donne-moi un cahier des charges satellite, PML construit le modèle SysML v2, génère la BOM, estime le coût, et crée le plan qualité. 5 minutes."
+- Objectif : **crédibilité technique**, pas revenue
+- Public cible : conférences (INCOSE, Eclipse Con), blog technique, vidéo LinkedIn, repo open-source lib/syson
+- Visuellement puissant : on voit le modèle se construire dans SysON UI en temps réel
+
+**Phase Vertical (si traction → +6-12 mois) :**
+- Packaging : PML for MBSE/PLM
+- Pricing tiered : PME 29-99€/mois, ETI 500-2000€/mois, consulting OEM 200-500€/consultant
+- Features : prompts pré-configurés (`syson_new_system`, `plm_change_request`), onboarding assisté
+- Go-to-market : partenariats avec cabinets consulting MBSE (Sopra Steria, Capgemini Engineering)
+- Signal de pivot : si 0 intérêt après 3 mois → lib/syson/plm reste dans le portfolio démo, focus horizontal
+
+### 1.4. Stratégie open-source : lib/syson ouvert, PML engine propriétaire
+
+```
+Open source (lib/syson) :                    Propriétaire (PML) :
+├── Client GraphQL SysON                     ├── DAG compilation
+├── MCP tools (syson_*)                      ├── SHGAT+GRU routing
+├── Types SysML v2                           ├── 7D tracing
+├── Tests                                    ├── Mémoire procédurale
+└── Documentation                            ├── Sandbox executor
+                                             ├── Gateway
+                                             └── Cloud dashboard
+```
+
+**Repo séparé :** `Casys-AI/mcp-syson` — Licence MIT ou Apache 2.0.
+
+**Pourquoi :** Le bridge GraphQL est trivial (~30 LOC). N'importe qui peut le réécrire. La valeur est dans ce que PML fait AVEC ces tools. Open-source le bridge = adoption communauté SysON (on devient le "Prisma pour SysON") + funnel open-core (dev essaie lib/syson → découvre PML → adopte PML). Les industriels (aéro, défense) veulent pouvoir auditer ce qui parle à leur SysON.
+
+### 1.5. Le flywheel
+
+```
+Plus de workflows exécutés
+  → Plus de traces (mémoire procédurale)
+    → Meilleur routing ML (SHGAT apprend les patterns MBSE)
+      → Plus de workflows compilés (warm/hot = 0 LLM)
+        → Coût réduit, vitesse augmentée
+          → Plus d'utilisateurs
+            → Plus de workflows exécutés (boucle)
+```
+
+Les données d'entraînement MBSE/PLM sont rares et précieuses. Qui les a = moat.
+
+### 1.6. Scope technique
 
 | Library | Scope | Rôle | Phase |
 |---------|-------|------|-------|
@@ -1091,6 +1184,9 @@ composent fonctionnent. Raisons :
 | **13** | **API SysON** | **GraphQL custom client, zéro deps** | **REST API = sous-ensemble limité. GraphQL = API complète (CRUD, AQL, search, expressions). Client trivial (~30 LOC), pas de SDK tiers fragile** | **2026-02-15** |
 | **14** | **Elicitation** | **Form mode pour inputs simples, MCP Apps UI pour interactions riches** | **Elicitation form = schema primitif (string/number/bool/enum), suffisant pour les choix basiques. MCP Apps = HTML interactif pour les interactions complexes** | **2026-02-15** |
 | **15** | **Sampling strategy** | **Agent tools composent tools déterministes** | **Le LLM raisonne (sampling), les tools calculent (déterministe). Pas de LLM pour du CRUD.** | **2026-02-15** |
+| **16** | **Go-to-market** | **Showcase d'abord, vertical ensuite** | **Phase showcase (3 mois) : démo technique cross-domain (cahier des charges → modèle SysML + BOM + costing + qualité en 5 min). Crédibilité technique, pas revenue. Si traction → phase vertical (6-12 mois) : packaging PML for MBSE, pricing tiered, partenariats consulting MBSE. Si 0 intérêt → portfolio démo, focus horizontal.** | **2026-02-15** |
+| **17** | **Open-source strategy** | **lib/syson open-source, PML engine propriétaire** | **Bridge GraphQL trivial (~30 LOC), aucun moat à le garder fermé. Open-source = adoption communauté SysON (devenir le "Prisma pour SysON"), funnel open-core (lib/syson → PML), signal de confiance industriels. Repo séparé `Casys-AI/mcp-syson`, licence MIT/Apache 2.0. PML engine (DAG compilation, SHGAT routing, mémoire procédurale, tracing 7D) = propriétaire.** | **2026-02-15** |
+| **18** | **Framing produit** | **Génération de produits d'ingénierie, pas de workflows** | **PML ne crée pas des workflows séquentiels chiants. PML génère des produits composites (modèle + BOM + costing + qualité) à partir d'un intent. La différence : l'utilisateur décrit ce qu'il veut, pas comment le faire.** | **2026-02-15** |
 
 ---
 
