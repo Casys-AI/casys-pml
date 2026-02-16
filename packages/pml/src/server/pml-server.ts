@@ -61,6 +61,7 @@ export class PmlServer {
       version: PACKAGE_VERSION,
       maxConcurrent: 10,
       backpressureStrategy: "queue",
+      expectResources: true,
       logger: (msg) => config.logger.debug(`[server] ${msg}`),
     });
 
@@ -358,10 +359,10 @@ export class PmlServer {
    * @param mimeType - MIME type (default: "text/html")
    */
   registerUiResource(resourceUri: string, htmlContent: string, mimeType = "text/html"): void {
-    try {
-      // Extract a human-readable name from the URI (e.g., "chart-viewer" from "ui://mcp-std/chart-viewer")
-      const name = resourceUri.split("/").pop() ?? resourceUri;
+    // Extract a human-readable name from the URI (e.g., "chart-viewer" from "ui://mcp-std/chart-viewer")
+    const name = resourceUri.split("/").pop() ?? resourceUri;
 
+    try {
       this.server.registerResource(
         { uri: resourceUri, name, description: `Tool UI: ${name}` },
         () => ({
@@ -371,9 +372,19 @@ export class PmlServer {
         }),
       );
     } catch (error) {
-      // Duplicate URI — already registered (e.g., multiple servers expose same UI)
-      this.config.logger.debug?.(
-        `[pml-server] UI resource already registered: ${resourceUri}`,
+      const message = error instanceof Error ? error.message : String(error);
+
+      // Duplicate URI is expected (multiple servers may expose same UI)
+      if (message.includes("already registered")) {
+        this.config.logger.debug?.(
+          `[pml-server] UI resource already registered (skipped): ${resourceUri}`,
+        );
+        return;
+      }
+
+      // Any other error is unexpected — fail-fast per no-silent-fallbacks policy
+      throw new Error(
+        `[pml-server] Failed to register UI resource ${resourceUri}: ${message}`,
       );
     }
   }

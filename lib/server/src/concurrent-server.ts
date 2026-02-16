@@ -15,6 +15,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -184,6 +186,7 @@ export class ConcurrentMCPServer {
   private resources = new Map<string, RegisteredResourceInfo>();
   private options: ConcurrentServerOptions;
   private started = false;
+  private resourceHandlersInstalled = false;
 
   // Middleware pipeline
   private customMiddlewares: Middleware[] = [];
@@ -258,6 +261,63 @@ export class ConcurrentMCPServer {
 
     // Setup MCP protocol handlers
     this.setupHandlers();
+
+    // Pre-declare resources capability so resources can be added after start()
+    if (options.expectResources) {
+      this.installResourceHandlers();
+    }
+  }
+
+  /**
+   * Pre-install resources/list and resources/read handlers on the low-level
+   * SDK Server. This declares the `resources` capability BEFORE transport
+   * connection, allowing dynamic resource registration after start().
+   *
+   * The handlers read from `this.resources` Map which is populated lazily
+   * by registerResource() calls (e.g., after async MCP discovery).
+   */
+  private installResourceHandlers(): void {
+    const server = this.mcpServer.server;
+
+    // Declare resources capability before transport connects
+    server.registerCapabilities({ resources: {} });
+
+    // resources/list — returns currently registered resources
+    server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      return {
+        resources: Array.from(this.resources.values()).map((r) => ({
+          uri: r.resource.uri,
+          name: r.resource.name,
+          description: r.resource.description,
+          mimeType: r.resource.mimeType ?? MCP_APP_MIME_TYPE,
+        })),
+      };
+    });
+
+    // resources/read — serve resource content by URI
+    server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const uri = request.params.uri;
+      const info = this.resources.get(uri);
+      if (!info) {
+        throw new Error(`Resource not found: ${uri}`);
+      }
+
+      try {
+        const content = await info.handler(new URL(uri));
+        const finalContent = this.applyResourceCsp(content);
+        return { contents: [finalContent] };
+      } catch (error) {
+        this.log(
+          `[ERROR] Resource handler failed for ${uri}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        throw error;
+      }
+    });
+
+    this.resourceHandlersInstalled = true;
+    this.log("Resources capability pre-declared (expectResources: true)");
   }
 
   /**
@@ -648,34 +708,39 @@ export class ConcurrentMCPServer {
       );
     }
 
-    // Register with SDK - wraps our handler to SDK format
-    // SDK expects: { contents: ResourceContent[] }
-    // Our handler returns: ResourceContent
-    this.mcpServer.registerResource(
-      resource.name,
-      resource.uri,
-      {
-        description: resource.description,
-        mimeType: resource.mimeType ?? MCP_APP_MIME_TYPE,
-      },
-      async (uri: URL) => {
-        try {
-          const content = await handler(uri);
-          const finalContent = this.applyResourceCsp(content);
-          return { contents: [finalContent] };
-        } catch (error) {
-          this.log(
-            `[ERROR] Resource handler failed for ${uri}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          );
-          throw error;
-        }
-      },
-    );
+    if (this.resourceHandlersInstalled) {
+      // expectResources mode: handlers are already installed on the low-level
+      // server. Just add to our internal registry — the handlers read from
+      // this.resources dynamically.
+      this.resources.set(resource.uri, { resource, handler });
+    } else {
+      // Standard mode: register via SDK (must be called before start())
+      this.mcpServer.registerResource(
+        resource.name,
+        resource.uri,
+        {
+          description: resource.description,
+          mimeType: resource.mimeType ?? MCP_APP_MIME_TYPE,
+        },
+        async (uri: URL) => {
+          try {
+            const content = await handler(uri);
+            const finalContent = this.applyResourceCsp(content);
+            return { contents: [finalContent] };
+          } catch (error) {
+            this.log(
+              `[ERROR] Resource handler failed for ${uri}: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+            throw error;
+          }
+        },
+      );
 
-    // Track in our registry
-    this.resources.set(resource.uri, { resource, handler });
+      // Track in our registry
+      this.resources.set(resource.uri, { resource, handler });
+    }
 
     this.log(`Registered resource: ${resource.name} (${resource.uri})`);
   }

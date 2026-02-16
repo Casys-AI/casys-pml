@@ -84,6 +84,7 @@ export function parseExecuteLocallyResponse(
       tools_used: (parsed.tools_used ?? []) as ExecuteLocallyResponse["tools_used"],
       workflowId: (parsed.workflowId ?? parsed.workflow_id) as string | undefined,
       dag: parsed.dag as ExecuteLocallyResponse["dag"],
+      ui_orchestration: parsed.ui_orchestration as ExecuteLocallyResponse["ui_orchestration"],
     };
   } catch {
     return null;

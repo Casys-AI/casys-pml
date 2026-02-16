@@ -25,6 +25,7 @@
     "@std/dotenv": "jsr:@std/dotenv@^0.225.0",
     "@std/testing": "jsr:@std/testing@^1.0.16",
     "@std/testing/mock": "jsr:@std/testing@^1.0.16/mock",
+    "@std/testing/time": "jsr:@std/testing@^1.0.16/time",
     "hono": "jsr:@hono/hono@^4",
     "hono/cors": "jsr:@hono/hono@^4/cors",
     "@casys/mcp-server": "../../lib/server/mod.ts",

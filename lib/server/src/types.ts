@@ -100,6 +100,19 @@ export interface ConcurrentServerOptions {
    * ```
    */
   resourceCsp?: import("./security/csp.ts").CspOptions;
+
+  /**
+   * Pre-declare the `resources` capability before transport connection.
+   *
+   * When true, installs `resources/list` and `resources/read` handlers at
+   * construction time (before start/startHttp). Resources can then be added
+   * dynamically after startup via registerResource() without hitting the
+   * SDK's "Cannot register capabilities after connecting to transport" error.
+   *
+   * Use this when resources are discovered asynchronously (e.g., MCP relay/proxy
+   * that discovers child servers after the stdio handshake).
+   */
+  expectResources?: boolean;
 }
 
 // ============================================

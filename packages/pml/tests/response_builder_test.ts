@@ -11,6 +11,7 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import { buildMcpSuccessResult, buildMcpLocalResult } from "../src/cli/shared/response-builder.ts";
 import type { CollectedUiResource, UiOrchestration } from "../src/types/ui-orchestration.ts";
 import type { LocalExecutionResult } from "../src/cli/shared/types.ts";
+import { PendingWorkflowStore } from "../src/workflow/pending-store.ts";
 
 // ============================================================================
 // Story 16.3: No UI / Single UI
@@ -199,11 +200,7 @@ Deno.test("buildMcpSuccessResult - composite HTML is NOT in content text", () =>
 const stubApprovalCtx = {
   code: "return 1",
   fqdnMap: {} as Record<string, string>,
-  pendingWorkflowStore: {
-    set: () => {},
-    get: () => undefined,
-    delete: () => false,
-  },
+  pendingWorkflowStore: new PendingWorkflowStore(),
 };
 
 Deno.test("buildMcpLocalResult - success: includes executed_locally and result", () => {
