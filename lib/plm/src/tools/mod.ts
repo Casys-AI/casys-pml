@@ -8,22 +8,34 @@ export type { PlmTool, PlmToolCategory, PlmToolHandler } from "./types.ts";
 
 // Tool categories
 export { bomTools } from "./bom.ts";
+export { changeTools } from "./change.ts";
+export { qualityTools } from "./quality.ts";
+export { planningTools } from "./planning.ts";
 export { agentTools, createAgenticSamplingClient, setSamplingClient } from "./agent.ts";
 
 // Imports for combined arrays
 import { bomTools } from "./bom.ts";
+import { changeTools } from "./change.ts";
+import { qualityTools } from "./quality.ts";
+import { planningTools } from "./planning.ts";
 import { agentTools } from "./agent.ts";
 import type { PlmTool } from "./types.ts";
 
 /** All PLM tools combined */
 export const allTools: PlmTool[] = [
   ...bomTools,
+  ...changeTools,
+  ...qualityTools,
+  ...planningTools,
   ...agentTools,
 ];
 
 /** Tools organized by category */
 export const toolsByCategory: Record<string, PlmTool[]> = {
   bom: bomTools,
+  change: changeTools,
+  quality: qualityTools,
+  planning: planningTools,
   agent: agentTools,
 };
 

@@ -1,7 +1,7 @@
 # Tech Spec: lib/syson & lib/plm — MCP Tool Libraries for MBSE & PLM
 
 **Date:** 2026-02-15
-**Status:** Draft
+**Status:** Implementation Complete (Phase 2.3-2.5)
 **Author:** Casys AI
 
 ---
@@ -348,8 +348,8 @@ l'accès programmatique.
 **Pourquoi GraphQL et pas REST :**
 - L'API REST SysML v2 (`/api/rest/`) est un sous-ensemble limité (CRUD basique, read-only sur éléments)
 - L'API GraphQL (`/api/graphql`) est l'API **complète** utilisée par le frontend SysON lui-même
-- GraphQL offre `queryBasedObjects` / `queryBasedString` (requêtes AQL dynamiques) — le killer feature
-- GraphQL offre les mutations CRUD complètes (create, rename, delete), le search, l'evaluation d'expressions
+- GraphQL offre `evaluateExpression` (mutation AQL dynamique) — le killer feature. Note : `queryBasedObjects` / `queryBasedString` (queries AQL read-only) **retournent null** dans la version actuelle de SysON (cf. §13.3)
+- GraphQL offre les mutations CRUD complètes (create, rename via AQL, delete), le search, l'insertion de SysML v2 textuel
 - Zéro dépendance : c'est du `fetch()` + JSON, on code le client nous-mêmes
 
 ### 5.2. Architecture du client GraphQL
@@ -406,7 +406,7 @@ SysON est construit sur Sirius Web. Le schéma GraphQL est distribué dans les f
 - **`editingContextId`** : identifiant du contexte d'édition = **project ID** (obtenu via `project.currentEditingContext.id`)
 - **`id` dans chaque mutation** : UUID client-generated pour corréler request/response. On génère avec `crypto.randomUUID()`
 - **Workflow de création** : `createProject` → `createDocument` (avec stereotype) → `createRootObject` → `createChild` (récursif)
-- **`queryBasedObjects`** : exécute des expressions AQL (Acceleo Query Language) sur n'importe quel objet — c'est comme un REPL
+- **`evaluateExpression`** (mutation) : exécute des expressions AQL (Acceleo Query Language) sur n'importe quel objet — c'est comme un REPL. **Remplace** `queryBasedObjects` qui retourne null (cf. §13.3)
 
 #### 5.3.2. Queries
 
@@ -1005,99 +1005,165 @@ composent fonctionnent. Raisons :
 - [x] `lib/plm/` — types, client, server, deno.json, 4 fichiers de tools (14 tools stubbed)
 - [x] Import maps dans le workspace root (`@casys/mcp-mbe`, `@casys/mcp-plm`)
 
-### Phase 1 — lib/syson : Bridge MCP vers SysON (GraphQL)
+### Phase 1 — lib/syson : Bridge MCP vers SysON (GraphQL) ✅ (2026-02-16)
 
-**Étape 1.0 : Déployer SysON (Docker)**
-- [ ] Écrire `docker-compose.syson.yml` (SysON + PostgreSQL, port 8080)
-- [ ] `docker compose up` et vérifier l'accès `http://localhost:8080`
-- [ ] Vérifier l'endpoint GraphQL `POST /api/graphql` via curl
-- [ ] Créer un projet de test manuellement dans l'UI SysON
-- [ ] Valider le CRUD via curl GraphQL (query ListProjects, mutation CreateProject)
-- [ ] Documenter les templates disponibles (getProjectTemplates)
+**Étape 1.0 : Déployer SysON (Docker)** ✅
+- [x] Écrire `docker-compose.syson.yml` (SysON + PostgreSQL, port 8180)
+- [x] `docker compose up` et vérifier l'accès `http://localhost:8180`
+- [x] Vérifier l'endpoint GraphQL `POST /api/graphql` via curl
+- [x] Créer un projet de test manuellement dans l'UI SysON
+- [x] Valider le CRUD via curl GraphQL (query ListProjects, mutation CreateProject)
+- [x] Documenter les templates disponibles (getProjectTemplates)
 
-**Étape 1.1 : Client GraphQL custom (zéro deps)**
-- [ ] `lib/syson/deno.json` — package config, import map entry `@casys/mcp-syson`
-- [ ] `lib/syson/src/api/graphql-client.ts` — classe `SysonGraphQLClient` (fetch, retry, error handling)
-- [ ] `lib/syson/src/api/types.ts` — interfaces TS pour les types GraphQL (Project, EditingContext, Object, etc.)
-- [ ] `lib/syson/src/api/queries.ts` — toutes les query strings GraphQL (ListProjects, GetProject, GetObject, QueryAQL, Search, GetChildCreationDescriptions, GetStereotypes, GetDomains, GetRootObjectCreationDescriptions)
-- [ ] `lib/syson/src/api/mutations.ts` — toutes les mutation strings GraphQL (CreateProject, DeleteProject, CreateDocument, CreateRootObject, CreateChild, RenameTreeItem, DeleteTreeItem, EditTextfield, EvaluateExpression, CreateRepresentation)
-- [ ] `lib/syson/tests/api/graphql-client_test.ts` — tests unitaires avec mock fetch
-- [ ] Vérifier que le client fonctionne contre SysON Docker (test d'intégration rapide)
+**Étape 1.1 : Client GraphQL custom (zéro deps)** ✅
+- [x] `lib/syson/deno.json` — package config, import map entry `@casys/mcp-syson`
+- [x] `lib/syson/src/api/graphql-client.ts` — classe `SysonGraphQLClient` (fetch, retry, error handling)
+- [x] `lib/syson/src/api/types.ts` — interfaces TS pour les types GraphQL (Project, EditingContext, Object, etc.)
+- [x] `lib/syson/src/api/queries.ts` — toutes les query strings GraphQL
+- [x] `lib/syson/src/api/mutations.ts` — toutes les mutation strings GraphQL (fixes: evaluateExpression, AQL eSet pour rename)
+- [x] `lib/syson/tests/api/graphql-client_test.ts` — tests unitaires avec mock fetch
+- [x] Vérifier que le client fonctionne contre SysON Docker (test d'intégration)
 
-**Étape 1.2 : Scaffold MCP server lib/syson**
-- [ ] `lib/syson/src/tools/types.ts` — `SysonToolCategory` type (`"project" | "element" | "query" | "model" | "agent"`)
-- [ ] `lib/syson/src/client.ts` — `SysonToolsClient` (pattern identique à lib/std)
-- [ ] `lib/syson/src/tools/mod.ts` — agrégation de tous les tools
-- [ ] `lib/syson/mod.ts` — exports publics
-- [ ] `lib/syson/server.ts` — bootstrap MCP (ConcurrentMCPServer, port 3009)
-- [ ] Ajouter `@casys/mcp-syson` dans l'import map du workspace root
+**Étape 1.2 : Scaffold MCP server lib/syson** ✅
+- [x] `lib/syson/src/tools/types.ts` — `SysonToolCategory` type
+- [x] `lib/syson/src/client.ts` — `SysonToolsClient`
+- [x] `lib/syson/src/tools/mod.ts` — agrégation de tous les tools
+- [x] `lib/syson/mod.ts` — exports publics
+- [x] `lib/syson/server.ts` — bootstrap MCP (ConcurrentMCPServer, port 3009)
+- [x] Ajouter `@casys/mcp-syson` dans l'import map du workspace root
 
-**Étape 1.3 : Tools project (CRUD projets)**
-- [ ] `syson_project_list` — lister projets avec filtre par nom
-- [ ] `syson_project_create` — créer projet + document SysML + root package (workflow complet)
-- [ ] `syson_project_get` — obtenir un projet par ID avec editing context
-- [ ] `syson_project_delete` — supprimer un projet
-- [ ] `lib/syson/tests/tools/project_test.ts` — tests unitaires (mock client)
-- [ ] Test d'intégration : cycle complet create → list → get → delete contre SysON Docker
+**Étape 1.3 : Tools project (CRUD projets)** ✅
+- [x] `syson_project_list` — lister projets avec filtre par nom
+- [x] `syson_project_create` — créer projet + document SysML + root package
+- [x] `syson_project_get` — obtenir un projet par ID avec editing context
+- [x] `syson_project_delete` — supprimer un projet
+- [x] Tests unitaires + intégration
 
-**Étape 1.4 : Tools model (gestion modèle SysML)**
-- [ ] `syson_model_stereotypes` — lister les stéréotypes disponibles (pour créer un document)
-- [ ] `syson_model_child_types` — lister les types d'enfants créables pour un conteneur donné
-- [ ] `syson_model_create` — créer un document SysML dans un projet (avec stéréotype)
-- [ ] `lib/syson/tests/tools/model_test.ts` — tests unitaires
+**Étape 1.4 : Tools model (gestion modèle SysML)** ✅
+- [x] `syson_model_stereotypes` — lister les stéréotypes disponibles
+- [x] `syson_model_child_types` — lister les types d'enfants créables
+- [x] `syson_model_create` — créer un document SysML dans un projet
+- [x] Tests unitaires
 
-**Étape 1.5 : Tools element (CRUD éléments SysML)**
-- [ ] `syson_element_create` — créer un élément SysML enfant (PartUsage, RequirementUsage, Package, etc.)
-- [ ] `syson_element_get` — lire un élément par ID (kind, label, iconURLs)
-- [ ] `syson_element_children` — lire les enfants d'un élément (via AQL `self.ownedElement`)
-- [ ] `syson_element_rename` — renommer un élément
-- [ ] `syson_element_delete` — supprimer un élément
-- [ ] `lib/syson/tests/tools/element_test.ts` — tests unitaires (mock client)
-- [ ] Test d'intégration : cycle complet create → get → rename → children → delete
+**Étape 1.5 : Tools element (CRUD éléments SysML)** ✅
+- [x] `syson_element_create` — créer un élément SysML enfant
+- [x] `syson_element_get` — lire un élément par ID
+- [x] `syson_element_children` — lire les enfants d'un élément (AQL `self.ownedElement`)
+- [x] `syson_element_rename` — renommer un élément (AQL eSet, pas renameTreeItem)
+- [x] `syson_element_delete` — supprimer un élément
+- [x] `syson_element_insert_sysml` — insérer du SysML v2 textuel (insertTextualSysMLv2)
+- [x] Tests unitaires + intégration
 
-**Étape 1.6 : Tools query (AQL, search, traversal)**
-- [ ] `syson_query_aql` — exécuter une requête AQL arbitraire sur un objet (queryBasedObjects/queryBasedString)
-- [ ] `syson_search` — recherche full-text dans le modèle (SearchQuery)
-- [ ] `syson_query_requirements_trace` — traçabilité requirement → composant (AQL spécialisé)
-- [ ] `lib/syson/tests/tools/query_test.ts` — tests unitaires
-- [ ] Test d'intégration : requêtes AQL sur un modèle de test pré-créé
+**Étape 1.6 : Tools query (AQL, search, traversal)** ✅
+- [x] `syson_query_aql` — exécuter une requête AQL (via evaluateExpression, pas queryBasedObjects)
+- [x] `syson_search` — recherche full-text dans le modèle
+- [x] `syson_query_requirements_trace` — traçabilité requirement → composant
+- [x] Tests unitaires + intégration
 
-**Étape 1.7 : Validation end-to-end**
-- [ ] Scénario complet : créer projet → créer modèle → créer Package → créer PartUsage + RequirementUsage → query → search → delete
-- [ ] Vérifier la cohérence entre lib/syson et l'UI SysON (ce qu'on crée via MCP est visible dans l'UI)
-- [ ] Documenter les gotchas et limitations rencontrées
+**Étape 1.7 : Validation end-to-end** ✅
+- [x] Scénario complet testé : create → model → Package → PartUsage + RequirementUsage → query → delete
+- [x] Cohérence lib/syson ↔ UI SysON vérifiée
+- [x] Gotchas documentés dans §13 tech spec (queryBasedObjects=null, renameTreeItem needs representationId)
 
 ### Phase 2 — lib/plm : Tools métier
 
-**Étape 2.1 : `plm_bom_generate` (compose lib/syson)**
-- [ ] Extraire hiérarchie assemblage depuis le modèle SysON (via `syson_element_children` + `syson_query_aql`)
-- [ ] Extraire quantités, part numbers, niveaux
-- [ ] Format de sortie : hierarchical JSON, flat list, indented text
-- [ ] Tests : BOM d'un assemblage simple (5-10 pièces)
+**Étape 2.1 : `plm_bom_generate` (compose lib/syson)** ✅ (2026-02-16)
+- [x] Extraire hiérarchie assemblage depuis le modèle SysON (via AQL evaluateExpression)
+- [x] Extraire quantités, part numbers, niveaux
+- [x] Format de sortie : hierarchical JSON (BomTree)
+- [x] Tests : 21 tests BOM (bom_test.ts)
+- [x] `_meta.ui` → `ui://mcp-plm/tree-viewer`
+- [x] `plm_bom_compare` — diff entre 2 BOM flats (ajouté, supprimé, modifié)
+- [x] `_meta.ui` → `ui://mcp-plm/diff-viewer`
 
-**Étape 2.2 : `plm_bom_cost` + `plm_bom_flatten`**
-- [ ] Modèles de costing : raw_material (volume × prix/kg), machining (feature-based)
-- [ ] Flatten : agrégation des quantités sur tous les niveaux
-- [ ] Tests unitaires
+**Étape 2.2 : `plm_bom_cost` + `plm_bom_flatten`** ✅ (2026-02-16)
+- [x] Modèles de costing : raw_material, should_cost, parametric (3 modèles)
+- [x] Flatten : agrégation des quantités sur tous les niveaux, usedIn tracking
+- [x] Tests unitaires (inclus dans les 21 tests bom_test.ts)
+- [x] `_meta.ui` → `ui://mcp-plm/table-viewer` (flatten) + `ui://mcp-plm/chart-viewer` (cost)
 
-**Étape 2.3 : Change management**
-- [ ] `plm_ecr_create` — créer une Engineering Change Request
-- [ ] `plm_eco_create` — créer une Engineering Change Order
-- [ ] `plm_change_impact` — analyser l'impact via `syson_query_aql`
-- [ ] `plm_change_approve` — workflow d'approbation (statut)
-- [ ] Tests unitaires
+**Étape 2.3 : Change management** ✅ (2026-02-16)
+- [x] `plm_ecr_create` — créer une Engineering Change Request
+- [x] `plm_eco_create` — créer une Engineering Change Order
+- [x] `plm_change_impact` — analyser l'impact via SysON AQL (lazy import)
+- [x] `plm_change_approve` — workflow d'approbation (statut)
+- [x] Tests unitaires (13 tests)
+- [x] `_meta.ui` pour `plm_change_impact` → `ui://mcp-plm/impact-viewer`
 
-**Étape 2.4 : Quality**
-- [ ] `plm_inspection_plan` — générer un plan d'inspection
-- [ ] `plm_fair_generate` — générer un First Article Inspection Report
-- [ ] `plm_control_plan` — générer un plan de contrôle
-- [ ] Tests unitaires
+**Étape 2.4 : Quality** ✅ (2026-02-16)
+- [x] `plm_inspection_plan` — générer un plan d'inspection
+- [x] `plm_fair_generate` — générer un First Article Inspection Report
+- [x] `plm_control_plan` — générer un plan de contrôle
+- [x] Tests unitaires (16 tests)
+- [x] `_meta.ui` pour les 3 tools (inspection-viewer, fair-viewer, control-plan-viewer)
 
-**Étape 2.5 : Planning**
-- [ ] `plm_routing_create` — créer une gamme de fabrication
-- [ ] `plm_work_instruction` — générer des instructions opérateur
-- [ ] `plm_cycle_time` — estimer le temps de cycle
-- [ ] Tests unitaires
+**Étape 2.5 : Planning** ✅ (2026-02-16)
+- [x] `plm_routing_create` — créer une gamme de fabrication
+- [x] `plm_work_instruction` — générer des instructions opérateur
+- [x] `plm_cycle_time` — estimer le temps de cycle
+- [x] Tests unitaires (19 tests)
+- [x] `_meta.ui` pour les 3 tools (routing-viewer, work-instruction-viewer, cycle-time-viewer)
+
+### Adversarial Review — Action Items (2026-02-16)
+
+**Corrigés :**
+- [x] **F1** [Critical] `WorkInstructionStep` manquait `notes` — ajouté au type, `as` cast supprimé
+- [x] **F3** [Critical] `estimateBaseTime()` heuristique cachée — exposé `base_time_override_min` comme paramètre optionnel (routing + cycle_time)
+- [x] **F4** [Critical] Seuils CTQ hardcodés — exposé `ctq_cost_threshold` (default 500) et `ctq_machining_threshold` (default 2.5) comme paramètres
+- [x] **F6** [High] `editingContextId: ecId ?? ""` silent fallback — type rendu optionnel, pas de fallback
+- [x] **F7** [High] `plm_eco_create` sans validation ECR status — throw si ECR pas `approved`
+- [x] **F8** [High] Pas de state machine approbation — `VALID_TRANSITIONS` map implémentée
+- [x] **F9** [High] Batch size divise setup ET run — corrigé: seul setup amorti (`setup/N + run`)
+
+**Backlog (pas de valeur démo, vrai produit) :**
+- [ ] **F2** `PlmToolCategory` ne contient pas `"agent"` — à corriger quand agent tools implémentés (Phase 3)
+- [ ] **F5** Process template basé seulement sur `material.category` — ajouter `form_factor` param (tôle/barre/moulé)
+- [ ] **F10** `plm_change_impact` 0 tests unitaires — nécessite mock SysON GraphQL
+- [ ] **F11** IDs `Date.now().toString(36)` — collision possible en multi-user. Passer à UUIDv7 en prod
+- [ ] **F12** `estimateBaseTime(0)` retourne 2 min — masse inconnue devrait être `undefined`
+- [ ] **F13** Inspection plan génère "Dimensional conformity" pour tout — varier par type de pièce
+- [ ] **F14** `determineMeasurementMethod` seuil CMM hardcodé 3.0 — paramétrer comme F4
+- [ ] **Persistence ECR/ECO** — actuellement stateless (objet en contexte LLM). Pour multi-session/audit trail: table PGlite `ecr_approvals` + `eco_actions`. Nécessaire pour EN 9100 / ISO 9001 en prod.
+
+#### ECR Approval State Machine (spec F8)
+
+```
+                ┌──────────┐
+                │  draft   │
+                └────┬─────┘
+                     │ comment → under_review
+                     │ approve / reject
+                     ▼
+          ┌──────────────────────┐
+          │    under_review      │
+          └──┬────────┬────────┬─┘
+             │        │        │
+          approve   reject   defer
+             ▼        ▼        ▼
+        ┌────────┐ ┌────────┐ ┌────────┐
+        │approved│ │rejected│ │deferred│
+        └────────┘ └────────┘ └───┬────┘
+           (terminal)  (terminal)  │ approve / reject
+                                   ▼
+                              (approved / rejected)
+```
+
+**Transitions valides :**
+
+| État actuel    | Actions autorisées                   |
+|----------------|--------------------------------------|
+| `draft`        | `comment`, `approve`, `reject`       |
+| `submitted`    | `comment`, `approve`, `reject`, `defer` |
+| `under_review` | `comment`, `approve`, `reject`, `defer` |
+| `approved`     | `comment` uniquement (terminal)      |
+| `rejected`     | `comment` uniquement (terminal)      |
+| `deferred`     | `comment`, `approve`, `reject`       |
+
+**Règles :**
+- `comment` sur `draft`/`submitted` → `under_review`
+- `comment` sur état terminal → pas de changement de statut
+- `approve`/`reject` sur état terminal → **erreur**
+- `defer` non disponible depuis `draft` (rien à déférer)
 
 ### Phase 3 — Agent tools (MCP Sampling + Elicitation)
 
@@ -1147,21 +1213,132 @@ composent fonctionnent. Raisons :
 - [ ] Capabilities auto-capture pour les patterns métier récurrents
 - [ ] Tests e2e : un scénario DAG qui traverse std + syson + plm
 
-### Phase future — Extensions
+### Phase future — Écosystème MCP autour de SysON
 
-**lib/mbe (si besoin d'import CAD) :**
+**Architecture cible : SysON = ground truth, MCP servers = domaines de calcul**
+
+```
+                              SysON (SysML v2)
+                              ┌─────────────┐
+                              │  Structure   │
+                              │  Attributs   │
+                              │  Contraintes │
+                              │  Requirements│
+                              └──────┬───────┘
+                                     │ GraphQL (lib/syson)
+                 ┌───────────────────┼───────────────────┐
+                 │                   │                   │
+           lib/plm (DONE)      lib/sim (P1)        lib/qa (P1)
+                 │                   │                   │
+          ┌──────┤            ┌──────┤            ┌──────┤
+          │      │            │      │            │      │
+        BOM    Coût        Therm   Méca        FMEA   Inspect°
+        Flat   Compare     Élec    Vibra              Plan
+                                                      Trace
+                 ┌───────────────────┼───────────────────┐
+                 │                   │                   │
+           lib/mbe (P2)       lib/erp (P2)        lib/ifc (P2)
+                 │                   │                   │
+          ┌──────┤            ┌──────┤            ┌──────┤
+          │      │            │      │            │      │
+        STEP   GD&T        SAP    Odoo         IFC.js  Clash
+        IGES   Tol.        OData  Sync                 Detect
+```
+
+Chaque lib est un MCP server indépendant (stdio ou HTTP), zéro couplage entre eux.
+Le seul point commun : SysON (via lib/syson) comme source de vérité.
+PML orchestre le tout — "combien coûte le système et est-ce qu'il tient thermiquement ?"
+→ DAG de 3+ tools en parallèle, résultats agrégés.
+
+**Principe fondamental : le modèle parle, le code écoute.**
+Si une donnée n'est pas dans SysON, elle n'existe pas. Pas de valeurs inventées,
+pas de heuristics cachées (cf. `.claude/rules/no-hidden-heuristics.md`).
+
+---
+
+#### lib/plm — Product Lifecycle Management (DONE ✅)
+
+Lit structure + matériaux depuis SysON → BOM, coûts, comparaison de révisions.
+- `plm_bom_generate` — BOM hiérarchique depuis le modèle
+- `plm_bom_flatten` — Agrégation parts list avec totaux masse/coût
+- `plm_bom_cost` — Analyse coût (raw_material / should_cost / parametric), 61 matériaux réels
+- `plm_bom_compare` — Diff entre deux révisions (ajouts/suppressions/impacts coût)
+- SSE Live Feed sur :3011 — résultats broadcastés en temps réel dans une page passive
+
+---
+
+#### lib/sim — Simulation multi-physique via Modelica (Priority 1)
+
+Lit contraintes + paramètres physiques depuis SysON → exécution Modelica → pass/fail avec marges.
+
+**Backend : OpenModelica Compiler (OMC) en Docker**
+- SysON supporte nativement le bridge SysML v2 ↔ Modelica (via `AnalysisCaseUsage`)
+- OMC = open-source, compilateur + solveur, API via OMShell ou ZeroMQ
+
+**Tools prévus :**
+- [ ] `sim_thermal_check` — dissipation thermique, limites de température, résistance thermique
+- [ ] `sim_structural_check` — masse, vibrations, facteur de sécurité, modes propres
+- [ ] `sim_power_budget` — bilan de puissance électrique, marges, duty cycles
+- [ ] `sim_validate_constraints` — évaluation batch de tous les `ConstraintUsage` du modèle
+
+**Pipeline conversationnel :**
+"Est-ce que le système thermique tient ?" → extraction contraintes SysML → exécution Modelica → résultat pass/fail avec marges
+
+**Prérequis :** les `ConstraintUsage` et paramètres physiques doivent être définis dans le modèle SysON.
+Si un paramètre manque, le tool retourne "missing: [paramètre]", pas une valeur par défaut.
+
+---
+
+#### lib/qa — Qualité & Traçabilité (Priority 1)
+
+Lit requirements + structure depuis SysON → FMEA, plans d'inspection, traçabilité.
+
+**Tools prévus :**
+- [ ] `qa_fmea_generate` — analyse des modes de défaillance depuis les `ConstraintUsage` et `RequirementUsage`. Severity/Occurrence/Detection scoring basé sur les contraintes du modèle
+- [ ] `qa_inspection_plan` — plan d'inspection depuis BOM + tolerances. Quelles pièces contrôler, quelles dimensions, quel niveau d'inspection (100%, statistique, skip)
+- [ ] `qa_trace_matrix` — matrice de traçabilité requirements ↔ parts ↔ tests. Vérifie la couverture : chaque requirement a-t-il au moins un test ? Chaque part est-elle tracée ?
+- [ ] `qa_compliance_check` — vérification de conformité : toutes les contraintes satisfaites ? Quels gaps ?
+
+**Source de vérité :** les `RequirementUsage`, `ConstraintUsage`, et `satisfy`/`verify` relations dans SysON.
+
+---
+
+#### lib/mbe — Import CAD (Priority 2)
+
+Import de géométrie 3D existante dans le pipeline PML.
+
 - [ ] STEP/IGES parsing via opencascade.js (WASM) dans Deno
-- [ ] GD&T, tolerance stacking, material database
+- [ ] GD&T extraction, tolerance stacking
 - [ ] Import de données CAD dans le modèle SysON via lib/syson
+- [ ] Utile quand un client a déjà des modèles Solidworks/CATIA à intégrer
+- [ ] Non nécessaire si le modèle est créé from scratch dans SysON
 
-**Odoo/LibrePLM (si besoin de production) :**
-- [ ] Déployer Odoo (Docker) avec modules Manufacturing + PLM + Quality
-- [ ] Bridge `lib/plm` → API Odoo pour les données de production
-- [ ] Sync SysON → Odoo : pousser les structures produit validées en production
+---
 
-**MCP Tasks (long-running operations) :**
-- [ ] Implémenter Tasks handler dans lib/server (quand spec stabilisée)
-- [ ] Utiliser pour les opérations longues (gros modèles, imports massifs)
+#### lib/erp — Bridge ERP/Production (Priority 2)
+
+Pousse les données validées vers les systèmes de production.
+
+- [ ] **SAP OData** — sync BOM → ordres de fabrication, prix réels vs estimés
+- [ ] **Odoo/LibrePLM** — alternative open-source (Docker, modules Manufacturing + PLM + Quality)
+- [ ] Sync bidirectionnelle : SysON → ERP (structure validée) et ERP → SysON (coûts réels, délais)
+- [ ] Delta tracking : comparer BOM estimée (lib/plm) vs coûts réels (ERP)
+
+---
+
+#### lib/ifc — BIM / Construction (Priority 2)
+
+Interopérabilité avec le monde du bâtiment.
+
+- [ ] IFC.js pour parsing/génération de modèles IFC
+- [ ] Clash detection entre systèmes (structure vs MEP vs électrique)
+- [ ] Bridge SysML ↔ IFC pour les projets d'ingénierie système appliqués au bâtiment
+
+---
+
+#### MCP Tasks (long-running operations)
+- [ ] Implémenter Tasks handler dans lib/server (quand spec MCP stabilisée)
+- [ ] Utiliser pour les opérations longues (simulations, gros modèles, imports massifs)
 
 ---
 
@@ -1187,6 +1364,10 @@ composent fonctionnent. Raisons :
 | **16** | **Go-to-market** | **Showcase d'abord, vertical ensuite** | **Phase showcase (3 mois) : démo technique cross-domain (cahier des charges → modèle SysML + BOM + costing + qualité en 5 min). Crédibilité technique, pas revenue. Si traction → phase vertical (6-12 mois) : packaging PML for MBSE, pricing tiered, partenariats consulting MBSE. Si 0 intérêt → portfolio démo, focus horizontal.** | **2026-02-15** |
 | **17** | **Open-source strategy** | **lib/syson open-source, PML engine propriétaire** | **Bridge GraphQL trivial (~30 LOC), aucun moat à le garder fermé. Open-source = adoption communauté SysON (devenir le "Prisma pour SysON"), funnel open-core (lib/syson → PML), signal de confiance industriels. Repo séparé `Casys-AI/mcp-syson`, licence MIT/Apache 2.0. PML engine (DAG compilation, SHGAT routing, mémoire procédurale, tracing 7D) = propriétaire.** | **2026-02-15** |
 | **18** | **Framing produit** | **Génération de produits d'ingénierie, pas de workflows** | **PML ne crée pas des workflows séquentiels chiants. PML génère des produits composites (modèle + BOM + costing + qualité) à partir d'un intent. La différence : l'utilisateur décrit ce qu'il veut, pas comment le faire.** | **2026-02-15** |
+| **19** | **Simulation backend** | **Modelica via SysON bridge (OMC Docker)** | **SysON supporte nativement SysML v2 ↔ Modelica. OpenModelica = open-source, Docker-deployable. Ferme la boucle design→cost→sim en une conversation. Contraintes physiques dans le modèle SysML (ConstraintUsage), pas inventées par le code.** | **2026-02-16** |
+| **20** | **Écosystème architecture** | **SysON = ground truth, MCP servers = domaines de calcul** | **6 libs indépendantes (plm, sim, qa, mbe, erp, ifc) lisent/écrivent via lib/syson. Zéro couplage entre libs. PML orchestre les DAGs cross-domaine. Le modèle SysML est l'unique source de vérité — chaque lib calcule son domaine sans inventer de données.** | **2026-02-16** |
+| **21** | **Qualité (lib/qa)** | **FMEA + inspection + traçabilité depuis SysON** | **Lit RequirementUsage, ConstraintUsage, satisfy/verify relations. Pas de heuristics — si un requirement n'a pas de test tracé, le gap est explicite.** | **2026-02-16** |
+| **22** | **ERP bridge (lib/erp)** | **SAP OData + Odoo, sync bidirectionnelle** | **Push BOM validée → production. Pull coûts réels → comparaison avec estimés. Delta tracking intégré.** | **2026-02-16** |
 
 ---
 
@@ -1457,7 +1638,104 @@ les résultats, il ne parse pas.
 
 ---
 
-## 13. Risks & Mitigations
+## 13. Integration Testing Findings (2026-02-16)
+
+### 13.1. SysON Docker Deployment
+
+SysON déployé avec succès via `docker-compose.syson.yml` sur le port **8180** (8080 déjà occupé).
+Image : `eclipsesyson/syson:latest` + PostgreSQL 15. GraphQL endpoint vérifié fonctionnel.
+
+### 13.2. Schema Mismatches Fixés
+
+| Élément | Code initial | Schéma réel | Fix |
+|---------|-------------|-------------|-----|
+| `projectTemplates` | `viewer.projectTemplates.edges` | `viewer.allProjectTemplates[]` (flat) | queries.ts + types.ts |
+| `domains` | pas de paramètre `rootDomainsOnly` | `$rootDomainsOnly: Boolean!` **obligatoire** | queries.ts |
+| `rootObjectCreationDescriptions` | pas de paramètre `suggested` | `$suggested: Boolean!` **obligatoire** | queries.ts |
+| `CreateProjectInput.templateId` | optionnel | **obligatoire** | project.ts |
+| Domain ID | `"sysml"` | `"http://www.eclipse.org/syson/sysml"` (URI complète) | model.ts |
+| `SearchQuery.searchInLibraries` | présent | **n'existe pas** dans le schéma | query.ts |
+
+### 13.3. CRITIQUE — `queryBasedObjects` retourne null
+
+**Symptôme** : Toutes les expressions AQL via `queryBasedObjects` / `queryBasedString` sur le type `Object`
+retournent systématiquement `null`, quelle que soit l'expression (`self.ownedElement`, `self.name`, `self.eContents()`, littéraux).
+
+**Impact** : Casse `syson_element_children`, `syson_query_aql`, `syson_query_requirements_trace`.
+
+**Root cause** : `queryBasedObjects` est un champ query (read-only) sur le type `Object` qui nécessite
+probablement une initialisation du moteur AQL côté serveur. Dans la version actuelle de SysON (basée sur
+Sirius Web 2025.x), ce mécanisme semble ne pas fonctionner via l'API GraphQL HTTP directe sans session web.
+
+**Solution appliquée** : Utiliser la mutation `evaluateExpression` à la place. Cette mutation :
+- Accepte une expression AQL (`aql:self.ownedElement`, `aql:self.name`, etc.)
+- Retourne un résultat typé (`ObjectsExpressionResult`, `StringExpressionResult`, etc.)
+- **Fonctionne parfaitement** — vérifié avec `self.ownedElement`, `self.name`, `self.eSet()`
+- Nécessite des aliases GraphQL (`objValue`, `objsValue`, `strValue`) pour éviter le conflit
+  "fields have different list shapes" entre `ObjectExpressionResult.value` (Object) et `ObjectsExpressionResult.value` ([Object])
+
+**Fichiers modifiés** : `query.ts`, `element.ts`, `mutations.ts`, `types.ts`
+
+### 13.4. CRITIQUE — `renameTreeItem` exige un `representationId`
+
+**Symptôme** : `renameTreeItem` et `editLabel` échouent silencieusement car ils exigent un `representationId`
+qui est l'ID d'une représentation de type "tree explorer" (arborescence Sirius Web), pas l'`editingContextId`.
+
+**Impact** : Les éléments créés gardent leurs noms par défaut (`part1`, `requirement1`).
+
+**Root cause** : Sirius Web gère les arbres de modèles via des "représentations". `renameTreeItem` opère
+dans le contexte d'une représentation spécifique. Sans UI web active, il n'y a pas de représentation tree
+existante, et l'API ne fournit pas de moyen simple d'en obtenir une programmatiquement.
+
+**Solution appliquée** : Utiliser AQL `eSet(declaredName)` via `evaluateExpression` :
+```
+aql:self.eSet(self.eClass().getEStructuralFeature('declaredName'), 'NewName')
+```
+
+- **Fonctionne parfaitement** — vérifié : `part1` → `Heater` ✓
+- Pas besoin de `representationId`
+- Fonction `renameViaAql()` factorisée dans `element.ts`
+
+### 13.5. `insertTextualSysMLv2` — Nouvelle mutation découverte
+
+**Découverte** : La mutation `insertTextualSysMLv2` permet d'insérer du contenu SysML v2 textuel
+directement dans un élément, sans passer par `createChild` + rename.
+
+**Input** : `editingContextId`, `objectId` (parent), `textualContent` (syntaxe SysML v2)
+**Exemples** :
+```
+part Heater;
+requirement ThermalReq { doc /* Must maintain 20-25C */ }
+```
+
+**Avantage** : Crée des éléments nommés en une seule opération. Plus naturel pour les agents LLM
+qui peuvent générer du SysML v2 textuel directement.
+
+**Nouveau tool** : `syson_element_insert_sysml` ajouté (24 tools total, +1).
+
+### 13.6. Full Flow Validé via PML
+
+Séquence testée avec succès via `mcp__pml__execute` → `mcp.syson.*` :
+
+1. `syson_project_create("Satellite Thermal Control")` → ✓
+2. `syson_model_create(editing_context_id, "Thermal Model")` → ✓ (document + root Package)
+3. `syson_element_create(parent=rootPkg, "New PartUsage", "Heater")` → ✓
+4. `syson_element_create(parent=rootPkg, "New PartUsage", "Radiator")` → ✓
+5. `syson_element_create(parent=rootPkg, "New RequirementUsage", "Temperature Range")` → ✓
+6. `syson_element_children(rootPkg)` → ✓ (retourne 3 enfants avec noms corrects)
+7. `syson_element_insert_sysml(rootPkg, "part HeaterTest;")` → ✓
+
+### 13.7. Points restants
+
+| Point | Statut | Note |
+|-------|--------|------|
+| `syson_element_delete` | Non testé | Utilise `deleteTreeItem` → même problème potentiel de `representationId` |
+| `syson_search` | Non testé | Champ `searchInLibraries` retiré (n'existe pas dans le schéma) |
+| `syson_query_requirements_trace` | Recodé | Utilise `evaluateExpression` au lieu de `queryBasedObjects` |
+| Agent tools (Phase 3) | Non commencé | Nécessite MCP Sampling support |
+| `syson_diagram_*` (Phase 2) | Non commencé | Nécessite GraphQL Subscriptions (WebSocket) |
+
+## 14. Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|

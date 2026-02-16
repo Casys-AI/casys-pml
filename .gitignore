@@ -158,3 +158,5 @@ styled-system-studio
 
 ## garage
 data/
+# But keep lib/plm/src/data/ (type definitions, not raw data)
+!lib/plm/src/data/
