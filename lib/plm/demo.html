@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PML Live Feed</title>
+<style>
+  :root { --bg: #08080a; --surface: #131316; --surface2: #1a1a1f; --border: #27272e; --text: #e4e4e8; --muted: #717179; --accent: #FFB86F; --green: #4ade80; --red: #f87171; --blue: #60a5fa; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .shell { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+  header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+  header h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+  header .tag { font-size: 0.65rem; background: var(--surface2); color: var(--muted); padding: 0.15rem 0.5rem; border-radius: 9999px; border: 1px solid var(--border); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; transition: background 0.3s; }
+  .status-dot.connected { background: var(--green); }
+  .hint { color: var(--muted); font-size: 0.75rem; margin-left: auto; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 4rem 1rem; color: var(--muted); }
+  .empty .icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.4; }
+  .empty p { font-size: 0.85rem; }
+
+  /* Feed */
+  .feed { display: flex; flex-direction: column; gap: 1rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .card-header { padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.5rem; }
+  .card-header .tool-name { font-size: 0.8rem; font-weight: 600; font-family: 'SF Mono', monospace; }
+  .card-header .timestamp { color: var(--muted); font-size: 0.65rem; margin-left: auto; }
+  .card-header .duration { color: var(--blue); font-size: 0.65rem; font-family: 'SF Mono', monospace; }
+  .card-body { padding: 0.85rem; }
+  .card.error .card-header { border-bottom-color: var(--red); }
+  .card.error .tool-name { color: var(--red); }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+  th { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 2px solid var(--border); color: var(--accent); font-weight: 600; white-space: nowrap; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: 'SF Mono', monospace; }
+  tr:hover td { background: rgba(255,184,111,0.04); }
+
+  /* Totals */
+  .totals { display: flex; gap: 1rem; margin-top: 0.75rem; flex-wrap: wrap; }
+  .total-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.85rem; }
+  .total-label { color: var(--muted); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .total-value { font-size: 1.1rem; font-weight: 700; color: var(--accent); margin-top: 0.15rem; }
+
+  /* Tree */
+  .tree-node { margin-left: 1.25rem; border-left: 1px solid var(--border); }
+  .tree-root { margin-left: 0; border-left: none; }
+  .tree-item { padding: 0.25rem 0 0.25rem 0.75rem; font-size: 0.8rem; display: flex; align-items: baseline; gap: 0.4rem; }
+  .tree-root > .tree-item { padding-left: 0; }
+  .tree-item .icon { font-size: 0.7rem; }
+  .tree-item .name { font-weight: 600; }
+  .tree-item .meta { color: var(--muted); font-size: 0.7rem; }
+
+  /* Cost bars */
+  .cost-bar-wrap { display: flex; align-items: center; width: 100px; }
+  .cost-bar { height: 14px; min-width: 0; }
+  .cost-bar:first-child { border-radius: 3px 0 0 3px; }
+  .cost-bar:last-child { border-radius: 0 3px 3px 0; }
+  .cost-bar:only-child { border-radius: 3px; }
+  .cost-bar.material { background: var(--accent); }
+  .cost-bar.machining { background: var(--blue); }
+  .cost-bar.overhead { background: var(--muted); }
+
+  /* JSON */
+  .json-view { font-family: 'SF Mono', monospace; font-size: 0.7rem; color: var(--muted); white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; background: var(--bg); border-radius: 6px; padding: 0.6rem; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header>
+  <h1>PML Live Feed</h1>
+  <span class="tag">SSE Push</span>
+  <span id="statusDot" class="status-dot"></span>
+  <span class="hint">Waiting for tool calls from Claude...</span>
+</header>
+
+<div id="feed" class="feed">
+  <div class="empty" id="emptyState">
+    <div class="icon">~</div>
+    <p>Call a PLM tool from Claude and the result will appear here.</p>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ─── SSE Connection ──────────────────────────────────────────
+
+const FEED_URL = `${location.origin}/feed`;
+let es = null;
+let reconnectTimer = null;
+
+function connectSSE() {
+  const dot = document.getElementById('statusDot');
+  es = new EventSource(FEED_URL);
+
+  es.onopen = () => {
+    dot.className = 'status-dot connected';
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  };
+
+  es.onmessage = (ev) => {
+    try {
+      const event = JSON.parse(ev.data);
+      hideEmpty();
+      if (event.isError) {
+        addErrorCard(event.toolName, event.result?.error || 'Unknown error');
+      } else {
+        addResultCard(event.toolName, event.result, event.durationMs);
+      }
+    } catch (e) {
+      console.warn('Feed parse error:', e);
+    }
+  };
+
+  es.onerror = () => {
+    dot.className = 'status-dot';
+    es.close();
+    // Reconnect after 2s
+    reconnectTimer = setTimeout(connectSSE, 2000);
+  };
+}
+
+function hideEmpty() {
+  const el = document.getElementById('emptyState');
+  if (el) el.remove();
+}
+
+// ─── Card Rendering ──────────────────────────────────────────
+
+function addResultCard(name, data, ms) {
+  const feed = document.getElementById('feed');
+  const card = document.createElement('div');
+  card.className = 'card';
+  const body = renderResult(name, data);
+  card.innerHTML = `
+    <div class="card-header">
+      <span class="tool-name">${esc(name)}</span>
+      <span class="duration">${ms === 0 ? '&lt;1ms' : ms + 'ms'}</span>
+      <span class="timestamp">${ts()}</span>
+    </div>
+    <div class="card-body">${body}</div>`;
+  feed.appendChild(card);
+  card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+function addErrorCard(name, msg) {
+  const feed = document.getElementById('feed');
+  const card = document.createElement('div');
+  card.className = 'card error';
+  card.innerHTML = `
+    <div class="card-header"><span class="tool-name">${esc(name)}</span><span class="timestamp">${ts()}</span></div>
+    <div class="card-body"><div style="color:var(--red); font-size:0.8rem;">${esc(msg)}</div></div>`;
+  feed.appendChild(card);
+  card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+function ts() { return new Date().toLocaleTimeString(); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+// ─── Smart Renderers ─────────────────────────────────────────
+
+function renderResult(toolName, data) {
+  if (data?.root && data?.metadata) return renderBomTree(data);
+  if (data?.rows && data?.totals) return renderFlatTable(data);
+  if (data?.parts && Array.isArray(data.parts)) return renderCostTable(data);
+  if (data?.children && data?.parentId) return renderChildrenList(data);
+  return `<div class="json-view">${esc(JSON.stringify(data, null, 2))}</div>`;
+}
+
+function renderBomTree(data) {
+  const meta = data.metadata || {};
+  let html = `<div style="margin-bottom:0.5rem; font-size:0.75rem; color:var(--muted);">
+    ${esc(meta.productName || '?')} rev.${esc(meta.revision || '?')} &mdash; ${meta.uniquePartsCount} parts
+  </div>`;
+  html += '<div class="tree-root">' + renderTreeNode(data.root) + '</div>';
+  return html;
+}
+
+function renderTreeNode(node) {
+  if (!node) return '';
+  const it = node.item || {};
+  const isAsm = (node.children || []).length > 0;
+  const icon = isAsm ? '\u{1F4E6}' : '\u{1F529}';
+  const mat = it.material ? ` \u00B7 ${esc(it.material.materialId)} ${it.material.mass_kg}kg` : '';
+  let html = `<div class="tree-item"><span class="icon">${icon}</span><span class="name">${esc(it.name || '?')}</span><span class="meta">${esc(it.partNumber || '')} qty:${it.quantity || 1}${mat}</span></div>`;
+  if (node.children?.length) {
+    html += '<div class="tree-node">';
+    for (const c of node.children) html += renderTreeNode(c);
+    html += '</div>';
+  }
+  return html;
+}
+
+function renderFlatTable(flat) {
+  const rows = flat.rows || [];
+  const totals = flat.totals || {};
+  let html = `<table><thead><tr>
+    <th>Part #</th><th>Name</th><th>Qty</th><th>Material</th>
+    <th>Mass (kg)</th><th>Cost (\u20AC)</th><th>Used In</th>
+  </tr></thead><tbody>`;
+  for (const r of rows) {
+    html += `<tr>
+      <td style="font-family:'SF Mono',monospace; font-size:0.7rem;">${esc(r.partNumber)}</td>
+      <td>${esc(r.name)}</td>
+      <td class="num">${r.totalQuantity}</td>
+      <td>${esc(r.materialId || '\u2014')}</td>
+      <td class="num">${r.totalMass_kg != null ? r.totalMass_kg.toFixed(2) : '\u2014'}</td>
+      <td class="num">${r.totalCost != null ? r.totalCost.toFixed(2) : '\u2014'}</td>
+      <td style="color:var(--muted); font-size:0.7rem;">${(r.usedIn || []).map(esc).join(', ') || '\u2014'}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  html += `<div class="totals">
+    <div class="total-card"><div class="total-label">Total Mass</div><div class="total-value">${(totals.totalMass_kg || 0).toFixed(2)} kg</div></div>
+    <div class="total-card"><div class="total-label">Material Cost</div><div class="total-value">\u20AC${(totals.totalCost || 0).toFixed(2)}</div></div>
+    <div class="total-card"><div class="total-label">Unique Parts</div><div class="total-value">${totals.uniqueParts || 0}</div></div>
+  </div>`;
+  return html;
+}
+
+function renderCostTable(cost) {
+  const parts = (cost.parts || []).filter(p => p.totalCost > 0);
+  let grandTotal = 0;
+  let html = `<table><thead><tr>
+    <th>Part #</th><th>Name</th><th>Qty</th>
+    <th>Breakdown</th><th>Unit \u20AC</th><th>Total \u20AC</th>
+  </tr></thead><tbody>`;
+  for (const p of parts) {
+    grandTotal += p.totalCost || 0;
+    const matVal = p.materialCostPerUnit || 0;
+    const machVal = p.machiningCostPerUnit || 0;
+    const ovhVal = p.overheadCostPerUnit || 0;
+    const rowTotal = matVal + machVal + ovhVal;
+    const matPct = rowTotal > 0 ? (matVal / rowTotal * 100).toFixed(1) : '0';
+    const machPct = rowTotal > 0 ? (machVal / rowTotal * 100).toFixed(1) : '0';
+    const ovhPct = rowTotal > 0 ? (ovhVal / rowTotal * 100).toFixed(1) : '0';
+    html += `<tr>
+      <td style="font-family:'SF Mono',monospace; font-size:0.7rem;">${esc(p.partNumber)}</td>
+      <td>${esc(p.name)}</td>
+      <td class="num">${p.quantity}</td>
+      <td><div class="cost-bar-wrap">
+        <span class="cost-bar material" style="width:${matPct}%" title="Material: \u20AC${matVal.toFixed(2)}"></span>
+        <span class="cost-bar machining" style="width:${machPct}%" title="Machining: \u20AC${machVal.toFixed(2)}"></span>
+        <span class="cost-bar overhead" style="width:${ovhPct}%" title="Overhead: \u20AC${ovhVal.toFixed(2)}"></span>
+      </div></td>
+      <td class="num">${(p.unitCost||0).toFixed(2)}</td>
+      <td class="num" style="font-weight:700">${(p.totalCost||0).toFixed(2)}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  html += `<div class="totals">
+    <div class="total-card"><div class="total-label">Grand Total</div><div class="total-value" style="color:var(--green)">\u20AC${grandTotal.toFixed(2)}</div></div>
+  </div>
+  <div style="margin-top:0.5rem; display:flex; gap:1rem; font-size:0.65rem; color:var(--muted);">
+    <span><span class="cost-bar material" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> Material</span>
+    <span><span class="cost-bar machining" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> Machining</span>
+    <span><span class="cost-bar overhead" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> Overhead</span>
+  </div>`;
+  return html;
+}
+
+function renderChildrenList(data) {
+  const children = data.children || [];
+  let html = `<div style="font-size:0.75rem; color:var(--muted); margin-bottom:0.5rem;">Parent: ${esc(data.parentId)} &mdash; ${children.length} children</div>`;
+  html += '<table><thead><tr><th>Kind</th><th>Label</th><th>ID</th></tr></thead><tbody>';
+  for (const c of children) {
+    const kind = (c.kind || '').split('entity=')[1] || c.kind;
+    html += `<tr><td style="color:var(--blue)">${esc(kind)}</td><td>${esc(c.label)}</td><td style="font-family:'SF Mono',monospace;font-size:0.65rem;color:var(--muted)">${esc(c.id)}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+// ─── Init ────────────────────────────────────────────────────
+connectSSE();
+</script>
+</body>
+</html>

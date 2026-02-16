@@ -350,7 +350,12 @@ export const discoverTool: MCPTool = {
  */
 export const adminTool: MCPTool = {
   name: "admin",
-  description: "Manage capabilities: rename, merge. Administrative operations.",
+  description:
+    "Manage capabilities: rename, merge.\n" +
+    "RENAME: action='rename', target='current:name', namespace='newNs', action_name='newAction'.\n" +
+    "  Example: {action:'rename', target:'code:exec_abc123', namespace:'syson', action_name:'createProject'}\n" +
+    "MERGE: action='merge', target='keep:this', source='delete:this'.\n" +
+    "  Example: {action:'merge', target:'syson:createProject', source:'code:exec_abc123'}",
   inputSchema: {
     type: "object",
     properties: {
@@ -359,41 +364,43 @@ export const adminTool: MCPTool = {
         enum: ["rename", "merge"],
         description: "The admin action to perform.",
       },
-      // For rename
+      // For rename: target + new metadata
       target: {
         type: "string",
-        description: "Capability name (namespace:action) or UUID to modify.",
+        description:
+          "RENAME: capability to modify (namespace:action or UUID). " +
+          "MERGE: capability to KEEP (the survivor).",
       },
       namespace: {
         type: "string",
-        description: "New namespace for the capability.",
+        description: "RENAME only. New namespace (lowercase, no underscore/colon). E.g. 'syson', 'db', 'git'.",
       },
       action_name: {
         type: "string",
-        description: "New action name for the capability.",
+        description: "RENAME only. New action name (camelCase/snake_case). E.g. 'createProject', 'listTables'.",
       },
       description: {
         type: "string",
-        description: "New description for the capability.",
+        description: "RENAME only. New description for the capability.",
       },
       tags: {
         type: "array",
         items: { type: "string" },
-        description: "New tags for the capability.",
+        description: "RENAME only. New tags for the capability.",
       },
       visibility: {
         type: "string",
         enum: ["private", "project", "org", "public"],
-        description: "New visibility level for the capability.",
+        description: "RENAME only. New visibility level.",
       },
-      // For merge
+      // For merge: source = the one to delete
       source: {
         type: "string",
-        description: "Source capability (name, UUID, or FQDN) - will be deleted after merge.",
+        description: "MERGE only. Capability to DELETE after merge (name, UUID, or FQDN). Its usage stats are merged into target.",
       },
       prefer_source_code: {
         type: "boolean",
-        description: "If true, use source's code_snippet even if older. Default: use newest.",
+        description: "MERGE only. If true, use source's code_snippet even if older. Default: use newest.",
       },
     },
     required: ["action"],

@@ -27,7 +27,7 @@ import type {
 /**
  * Extract mutation result, throwing on ErrorPayload.
  */
-function unwrapMutation<T extends Record<string, unknown>>(
+function unwrapMutation<T extends object>(
   result: T,
   operationName: string,
 ): Record<string, unknown> {
@@ -150,7 +150,7 @@ export const modelTools: SysonTool[] = [
       name,
       stereotype_id,
       create_root_package,
-      root_package_name,
+      root_package_name: _root_package_name,
     }) => {
       const client = getSysonClient();
       const ecId = editing_context_id as string;
@@ -204,16 +204,19 @@ export const modelTools: SysonTool[] = [
         // Get domains to find "sysml"
         const domains = await client.query<GetDomainsResult>(GET_DOMAINS, {
           editingContextId: ecId,
+          rootDomainsOnly: true,
         });
         const sysmlDomain = domains.viewer.editingContext.domains.find(
-          (d) => d.id.toLowerCase() === "sysml" || d.label.toLowerCase().includes("sysml"),
+          (d) =>
+            d.id.toLowerCase().includes("sysml") ||
+            d.label.toLowerCase().includes("sysml"),
         );
 
         if (sysmlDomain) {
           // Get root object creation descriptions for the domain
           const rootDescs = await client.query<GetRootObjectCreationDescriptionsResult>(
             GET_ROOT_OBJECT_CREATION_DESCRIPTIONS,
-            { editingContextId: ecId, domainId: sysmlDomain.id },
+            { editingContextId: ecId, domainId: sysmlDomain.id, suggested: true },
           );
 
           const packageDesc = rootDescs.viewer.editingContext.rootObjectCreationDescriptions.find(
@@ -263,6 +266,7 @@ export const modelTools: SysonTool[] = [
       const client = getSysonClient();
       const data = await client.query<GetDomainsResult>(GET_DOMAINS, {
         editingContextId: editing_context_id as string,
+        rootDomainsOnly: true,
       });
 
       return {

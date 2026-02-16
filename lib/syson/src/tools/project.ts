@@ -22,7 +22,7 @@ import type {
  * Extract mutation result, throwing on ErrorPayload.
  * Follows no-silent-fallbacks policy — fail-fast on errors.
  */
-function unwrapMutation<T extends Record<string, unknown>>(
+function unwrapMutation<T extends object>(
   result: T,
   operationName: string,
 ): Record<string, unknown> {
@@ -139,14 +139,23 @@ export const projectTools: SysonTool[] = [
       let resolvedTemplateId = template_id as string | undefined;
       if (!resolvedTemplateId) {
         const templates = await client.query<GetProjectTemplatesResult>(GET_PROJECT_TEMPLATES);
-        const sysonTemplate = templates.viewer.projectTemplates.edges.find(
-          (e) =>
-            e.node.label.toLowerCase().includes("syson") ||
-            e.node.label.toLowerCase().includes("sysml"),
+        const sysonTemplate = templates.viewer.allProjectTemplates.find(
+          (t) =>
+            t.label.toLowerCase().includes("sysmlv2") ||
+            t.label.toLowerCase().includes("syson") ||
+            t.label.toLowerCase().includes("sysml"),
         );
         if (sysonTemplate) {
-          resolvedTemplateId = sysonTemplate.node.id;
+          resolvedTemplateId = sysonTemplate.id;
         }
+      }
+
+      // templateId is required by the API
+      if (!resolvedTemplateId) {
+        throw new Error(
+          "[lib/syson] syson_project_create: No SysML template found and no template_id provided. " +
+            "Use syson_project_templates to list available templates.",
+        );
       }
 
       const mutationId = crypto.randomUUID();
@@ -154,7 +163,7 @@ export const projectTools: SysonTool[] = [
         input: {
           id: mutationId,
           name: name as string,
-          ...(resolvedTemplateId && { templateId: resolvedTemplateId }),
+          templateId: resolvedTemplateId,
           libraryIds: [],
         },
       });
@@ -218,9 +227,9 @@ export const projectTools: SysonTool[] = [
       const data = await client.query<GetProjectTemplatesResult>(GET_PROJECT_TEMPLATES);
 
       return {
-        templates: data.viewer.projectTemplates.edges.map((e) => ({
-          id: e.node.id,
-          label: e.node.label,
+        templates: data.viewer.allProjectTemplates.map((t) => ({
+          id: t.id,
+          label: t.label,
         })),
       };
     },

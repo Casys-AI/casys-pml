@@ -113,20 +113,20 @@ export const GET_STEREOTYPES = `
 `;
 
 export const GET_DOMAINS = `
-  query GetDomains($editingContextId: ID!) {
+  query GetDomains($editingContextId: ID!, $rootDomainsOnly: Boolean!) {
     viewer {
       editingContext(editingContextId: $editingContextId) {
-        domains { id label }
+        domains(rootDomainsOnly: $rootDomainsOnly) { id label }
       }
     }
   }
 `;
 
 export const GET_ROOT_OBJECT_CREATION_DESCRIPTIONS = `
-  query GetRootObjectCreationDescriptions($editingContextId: ID!, $domainId: ID!) {
+  query GetRootObjectCreationDescriptions($editingContextId: ID!, $domainId: ID!, $suggested: Boolean!) {
     viewer {
       editingContext(editingContextId: $editingContextId) {
-        rootObjectCreationDescriptions(domainId: $domainId) {
+        rootObjectCreationDescriptions(domainId: $domainId, suggested: $suggested) {
           id label
         }
       }
@@ -137,9 +137,7 @@ export const GET_ROOT_OBJECT_CREATION_DESCRIPTIONS = `
 export const GET_PROJECT_TEMPLATES = `
   query GetProjectTemplates {
     viewer {
-      projectTemplates {
-        edges { node { id label } }
-      }
+      allProjectTemplates { id label }
     }
   }
 `;

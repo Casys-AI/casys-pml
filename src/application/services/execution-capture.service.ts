@@ -478,8 +478,10 @@ export class ExecutionCaptureService {
     const resolvedTools = await Promise.all(
       toolIds.map(async (toolId) => {
         try {
-          // Skip code:* pseudo-tools (filter, map, split, etc.)
-          if (toolId.startsWith("code:")) {
+          // Skip internal pseudo-tools handled by code-task-executor:
+          // - code:* (filter, map, split, etc.)
+          // - loop:* (forOf, while, etc.)
+          if (toolId.startsWith("code:") || toolId.startsWith("loop:")) {
             return toolId;
           }
 

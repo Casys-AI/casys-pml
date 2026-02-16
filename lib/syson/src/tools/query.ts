@@ -2,21 +2,47 @@
  * SysON Query Tools
  *
  * AQL queries, full-text search, and model traversal.
- * AQL (Acceleo Query Language) via queryBasedObjects/queryBasedString is the killer feature.
+ * Uses evaluateExpression mutation (not queryBasedObjects which returns null in current SysON).
  *
  * @module lib/syson/tools/query
  */
 
 import type { SysonTool } from "./types.ts";
 import { getSysonClient } from "../api/graphql-client.ts";
-import { QUERY_BASED_OBJECTS, QUERY_BASED_STRING, SEARCH_ELEMENTS } from "../api/queries.ts";
+import { SEARCH_ELEMENTS } from "../api/queries.ts";
 import { EVALUATE_EXPRESSION } from "../api/mutations.ts";
 import type {
   EvaluateExpressionResult,
-  QueryBasedObjectsResult,
-  QueryBasedStringResult,
   SearchResult,
 } from "../api/types.ts";
+
+/**
+ * Helper: evaluate an AQL expression via the evaluateExpression mutation.
+ * Returns the typed result from the EvaluateExpressionSuccessPayload.
+ */
+async function evalAql(
+  ecId: string,
+  expression: string,
+  selectedObjectIds: string[],
+) {
+  const client = getSysonClient();
+  const mutationId = crypto.randomUUID();
+
+  const data = await client.mutate<EvaluateExpressionResult>(EVALUATE_EXPRESSION, {
+    input: {
+      id: mutationId,
+      editingContextId: ecId,
+      expression,
+      selectedObjectIds,
+    },
+  });
+
+  const result = data.evaluateExpression;
+  if (result.__typename === "ErrorPayload") {
+    throw new Error(`[lib/syson] evaluateExpression failed: ${result.message}`);
+  }
+  return result.result;
+}
 
 export const queryTools: SysonTool[] = [
   {
@@ -45,53 +71,51 @@ export const queryTools: SysonTool[] = [
             "AQL expression starting with 'aql:'. E.g. 'aql:self.ownedElement', " +
             "'aql:self.eAllContents()->select(e | e.oclIsKindOf(sysml::RequirementUsage))'",
         },
-        return_type: {
-          type: "string",
-          enum: ["objects", "string"],
-          description:
-            "Expected return type. 'objects' for collections, 'string' for scalar values. Default: objects",
-        },
       },
       required: ["editing_context_id", "object_id", "expression"],
     },
-    handler: async ({ editing_context_id, object_id, expression, return_type }) => {
-      const client = getSysonClient();
+    handler: async ({ editing_context_id, object_id, expression }) => {
       const ecId = editing_context_id as string;
       const objId = object_id as string;
       const expr = expression as string;
-      const rtype = (return_type as string) ?? "objects";
 
-      if (rtype === "string") {
-        const data = await client.query<QueryBasedStringResult>(QUERY_BASED_STRING, {
-          editingContextId: ecId,
-          objectId: objId,
-          query: expr,
-        });
-        return {
-          objectId: objId,
-          expression: expr,
-          result: data.viewer.editingContext.object.queryBasedString,
-        };
+      const exprResult = await evalAql(ecId, expr, [objId]);
+
+      switch (exprResult.__typename) {
+        case "ObjectExpressionResult":
+          return {
+            objectId: objId,
+            expression: expr,
+            type: "object",
+            result: {
+              id: exprResult.objValue.id,
+              kind: exprResult.objValue.kind,
+              label: exprResult.objValue.label,
+            },
+          };
+        case "ObjectsExpressionResult":
+          return {
+            objectId: objId,
+            expression: expr,
+            type: "objects",
+            results: exprResult.objsValue.map((o) => ({
+              id: o.id,
+              kind: o.kind,
+              label: o.label,
+            })),
+            count: exprResult.objsValue.length,
+          };
+        case "StringExpressionResult":
+          return { objectId: objId, expression: expr, type: "string", result: exprResult.strValue };
+        case "BooleanExpressionResult":
+          return { objectId: objId, expression: expr, type: "boolean", result: exprResult.boolValue };
+        case "IntExpressionResult":
+          return { objectId: objId, expression: expr, type: "int", result: exprResult.intValue };
+        case "VoidExpressionResult":
+          return { objectId: objId, expression: expr, type: "void", result: null };
+        default:
+          return { objectId: objId, expression: expr, type: "unknown", result: exprResult };
       }
-
-      // Default: objects
-      const data = await client.query<QueryBasedObjectsResult>(QUERY_BASED_OBJECTS, {
-        editingContextId: ecId,
-        objectId: objId,
-        query: expr,
-      });
-
-      return {
-        objectId: objId,
-        expression: expr,
-        results: data.viewer.editingContext.object.queryBasedObjects.map((obj) => ({
-          id: obj.id,
-          kind: obj.kind,
-          label: obj.label,
-          iconURLs: obj.iconURLs ?? [],
-        })),
-        count: data.viewer.editingContext.object.queryBasedObjects.length,
-      };
     },
   },
 
@@ -138,7 +162,6 @@ export const queryTools: SysonTool[] = [
           matchWholeWord: (whole_word as boolean) ?? false,
           useRegularExpression: (use_regex as boolean) ?? false,
           searchInAttributes: true,
-          searchInLibraries: false,
         },
       });
 
@@ -168,6 +191,7 @@ export const queryTools: SysonTool[] = [
     description:
       "Evaluate an AQL expression as a mutation (EvaluateExpression). " +
       "Returns typed results: objects, strings, booleans, or integers. " +
+      "Can also modify the model (e.g. eSet to rename). " +
       "Useful for expressions that modify the model or need typed return values.",
     category: "query",
     inputSchema: {
@@ -190,53 +214,40 @@ export const queryTools: SysonTool[] = [
       required: ["editing_context_id", "expression", "selected_object_ids"],
     },
     handler: async ({ editing_context_id, expression, selected_object_ids }) => {
-      const client = getSysonClient();
-      const mutationId = crypto.randomUUID();
+      const exprResult = await evalAql(
+        editing_context_id as string,
+        expression as string,
+        selected_object_ids as string[],
+      );
 
-      const data = await client.mutate<EvaluateExpressionResult>(EVALUATE_EXPRESSION, {
-        input: {
-          id: mutationId,
-          editingContextId: editing_context_id as string,
-          expression: expression as string,
-          selectedObjectIds: selected_object_ids as string[],
-        },
-      });
-
-      const result = data.evaluateExpression;
-
-      if (result.__typename === "ErrorPayload") {
-        throw new Error(
-          `[lib/syson] evaluateExpression failed: ${result.message}`,
-        );
-      }
-
-      const exprResult = result.result;
       switch (exprResult.__typename) {
         case "ObjectExpressionResult":
           return {
             type: "object",
             value: {
-              id: exprResult.value.id,
-              kind: exprResult.value.kind,
-              label: exprResult.value.label,
+              id: exprResult.objValue.id,
+              kind: exprResult.objValue.kind,
+              label: exprResult.objValue.label,
             },
           };
         case "ObjectsExpressionResult":
           return {
             type: "objects",
-            value: exprResult.value.map((o) => ({
+            value: exprResult.objsValue.map((o) => ({
               id: o.id,
               kind: o.kind,
               label: o.label,
             })),
-            count: exprResult.value.length,
+            count: exprResult.objsValue.length,
           };
         case "StringExpressionResult":
-          return { type: "string", value: exprResult.value };
+          return { type: "string", value: exprResult.strValue };
         case "BooleanExpressionResult":
-          return { type: "boolean", value: exprResult.value };
+          return { type: "boolean", value: exprResult.boolValue };
         case "IntExpressionResult":
-          return { type: "int", value: exprResult.value };
+          return { type: "int", value: exprResult.intValue };
+        case "VoidExpressionResult":
+          return { type: "void", value: null };
         default:
           return { type: "unknown", raw: exprResult };
       }
@@ -264,40 +275,50 @@ export const queryTools: SysonTool[] = [
       required: ["editing_context_id", "root_id"],
     },
     handler: async ({ editing_context_id, root_id }) => {
-      const client = getSysonClient();
       const ecId = editing_context_id as string;
       const rootId = root_id as string;
 
-      // Find all RequirementUsage elements
-      const reqData = await client.query<QueryBasedObjectsResult>(QUERY_BASED_OBJECTS, {
-        editingContextId: ecId,
-        objectId: rootId,
-        query:
-          "aql:self.eAllContents()->select(e | e.oclIsKindOf(sysml::RequirementUsage))",
-      });
+      // Find all RequirementUsage elements via evaluateExpression
+      const reqResult = await evalAql(
+        ecId,
+        "aql:self.eAllContents()->select(e | e.oclIsKindOf(sysml::RequirementUsage))",
+        [rootId],
+      );
 
-      const requirements = reqData.viewer.editingContext.object.queryBasedObjects;
+      if (reqResult.__typename !== "ObjectsExpressionResult") {
+        return {
+          rootId,
+          requirementsCount: 0,
+          traces: [],
+          error: `Unexpected result type: ${reqResult.__typename}`,
+        };
+      }
+
+      const requirements = reqResult.objsValue;
 
       // For each requirement, find satisfy relationships
       const traces = [];
       for (const req of requirements) {
         try {
-          const satisfyData = await client.query<QueryBasedObjectsResult>(QUERY_BASED_OBJECTS, {
-            editingContextId: ecId,
-            objectId: req.id,
-            query: "aql:self.ownedElement->select(e | e.oclIsKindOf(sysml::SatisfyRequirementUsage))",
-          });
+          const satisfyResult = await evalAql(
+            ecId,
+            "aql:self.ownedElement->select(e | e.oclIsKindOf(sysml::SatisfyRequirementUsage))",
+            [req.id],
+          );
 
-          traces.push({
-            requirement: { id: req.id, label: req.label },
-            satisfiedBy: satisfyData.viewer.editingContext.object.queryBasedObjects.map((s) => ({
+          const satisfiedBy = satisfyResult.__typename === "ObjectsExpressionResult"
+            ? satisfyResult.objsValue.map((s) => ({
               id: s.id,
               label: s.label,
               kind: s.kind,
-            })),
+            }))
+            : [];
+
+          traces.push({
+            requirement: { id: req.id, label: req.label },
+            satisfiedBy,
           });
         } catch {
-          // If the AQL query fails for a specific requirement, include it with empty traces
           traces.push({
             requirement: { id: req.id, label: req.label },
             satisfiedBy: [],

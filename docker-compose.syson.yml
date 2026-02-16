@@ -1,0 +1,52 @@
+# SysON — SysML v2 MBSE backend for lib/syson
+# Source: https://github.com/eclipse-syson/syson/blob/main/docker-compose.yml
+#
+# Usage:
+#   docker compose -f docker-compose.syson.yml up -d
+#   Open http://localhost:8180
+#
+# GraphQL endpoint: POST http://localhost:8180/api/graphql
+
+services:
+  syson-db:
+    image: postgres:15
+    container_name: syson-postgres
+    environment:
+      POSTGRES_DB: syson
+      POSTGRES_USER: syson
+      POSTGRES_PASSWORD: syson
+    volumes:
+      - syson-postgres-data:/var/lib/postgresql/data
+    networks:
+      - syson
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U syson"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  syson-app:
+    image: eclipsesyson/syson:latest
+    container_name: syson-app
+    ports:
+      - "8180:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://syson-db/syson
+      SPRING_DATASOURCE_USERNAME: syson
+      SPRING_DATASOURCE_PASSWORD: syson
+      SIRIUS_COMPONENTS_CORS_ALLOWEDORIGINPATTERNS: "*"
+      SERVER_PORT: 8080
+    depends_on:
+      syson-db:
+        condition: service_healthy
+    networks:
+      - syson
+    restart: unless-stopped
+
+networks:
+  syson:
+    driver: bridge
+
+volumes:
+  syson-postgres-data:

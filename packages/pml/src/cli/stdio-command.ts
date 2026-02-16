@@ -9,6 +9,7 @@
  */
 
 import { Command } from "@cliffy/command";
+import { BaseHandler, setup as setupLog } from "@std/log";
 import {
   initializePmlContext,
   shutdownPmlContext,
@@ -38,6 +39,16 @@ export function createStdioCommand(): Command<any> {
     .option("--expose <capabilities:string[]>", "Expose specific capabilities as named MCP tools")
     .option("--only [only:boolean]", "Only expose specified capabilities (hide discover/execute/admin)", { default: false })
     .action(async (options: { expose?: string[]; only?: boolean }) => {
+      // Redirect @std/log to stderr — the default ConsoleHandler uses console.log()
+      // which writes to stdout, corrupting the JSON-RPC channel in stdio mode.
+      class StderrHandler extends BaseHandler {
+        override log(msg: string): void { console.error(msg); }
+      }
+      setupLog({
+        handlers: { stderr: new StderrHandler("DEBUG") },
+        loggers: { default: { level: "DEBUG", handlers: ["stderr"] } },
+      });
+
       // Initialize PML context (shared init flow)
       const ctx = await initializePmlContext({
         expose: options.expose,
@@ -137,13 +148,23 @@ export function createStdioCommand(): Command<any> {
         })();
       }
 
-      // Start stdio server
-      try {
-        await pmlServer.start();
-      } finally {
-        await pmlServer.shutdown();
-        await shutdownPmlContext(ctx);
-        stdioLog.debug("Shutdown complete");
-      }
+      // Start stdio server — connects StdioServerTransport to process.stdin/stdout
+      await pmlServer.start();
+
+      // Block until stdin closes (parent process disconnects).
+      // Without this, the Cliffy action handler returns immediately after start()
+      // and cleanup runs, killing the server before any request is processed.
+      // The SDK's transport 'data' listener on process.stdin handles MCP requests;
+      // we listen for 'end'/'close' to know when the client is gone.
+      const nodeProcess = (await import("node:process")).default;
+      await new Promise<void>((resolve) => {
+        nodeProcess.stdin.on("end", resolve);
+        nodeProcess.stdin.on("close", resolve);
+      });
+
+      // Cleanup after client disconnects
+      await pmlServer.shutdown();
+      await shutdownPmlContext(ctx);
+      stdioLog.debug("Shutdown complete");
     });
 }

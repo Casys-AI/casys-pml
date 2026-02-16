@@ -35,7 +35,7 @@ import {
   normalizeToolId,
   type RoutingDbClient,
 } from "../../../capabilities/routing-resolver.ts";
-import { isPureOperation } from "../../../capabilities/pure-operations.ts";
+import { isInternalOperation } from "../../../capabilities/pure-operations.ts";
 import { getUserScope, resolveToolFqdn } from "../../../lib/user.ts";
 import { saveWorkflowState } from "../../../cache/workflow-state-cache.ts";
 import type { LearningContext } from "../../../cache/types.ts";
@@ -317,13 +317,14 @@ export class ExecuteDirectUseCase {
       });
 
       // Step 5.5: Hybrid routing check (Story 14 - PML Execute Hybrid Routing)
-      // Extract all tools/capabilities from tasks, excluding JS code operations
-      // (code:filter, code:map, code:add etc.) which are handled in-process by the executor.
-      // Note: code:exec_* capabilities are NOT pure operations and must be routed normally.
+      // Extract all tools/capabilities from tasks, excluding internal pseudo-tools:
+      // - code:* (filter, map, add etc.) — pure JS operations handled by code-task-executor
+      // - loop:* (forOf, while etc.) — loop constructs handled by code-task-executor
+      // Note: code:exec_* capabilities are NOT internal and must be routed normally.
       // Normalize tool IDs: mcp.server.action -> server:action for routing lookup
       const toolsUsed = optimizedDAG.tasks
         .map((t) => (t as { tool?: string }).tool)
-        .filter((t): t is string => !!t && !isPureOperation(t))
+        .filter((t): t is string => !!t && !isInternalOperation(t))
         .map(normalizeToolId);
 
       if (toolsUsed.length > 0) {

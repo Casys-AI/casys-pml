@@ -128,6 +128,36 @@ export function isCodeOperation(toolId: string): boolean {
 }
 
 /**
+ * Check if a tool ID is a loop operation (starts with "loop:")
+ *
+ * Loop operations (forOf, while, etc.) are internal pseudo-tools
+ * handled by the code-task-executor, not MCP tool resolution.
+ *
+ * @param toolId Tool identifier
+ * @returns true if this is a loop operation
+ */
+export function isLoopOperation(toolId: string): boolean {
+  return toolId.startsWith("loop:");
+}
+
+/**
+ * Check if a tool ID is an internal pseudo-tool (code:* or loop:*)
+ * that should NOT be routed to MCP tool resolution or FQDN lookup.
+ *
+ * NOTE: code:exec_* are learned capabilities, NOT internal pseudo-tools.
+ * They must be routed normally via MCP/capability resolution.
+ *
+ * @param toolId Tool identifier
+ * @returns true if this is an internal pseudo-tool
+ */
+export function isInternalOperation(toolId: string): boolean {
+  if (isLoopOperation(toolId)) return true;
+  // code:exec_* are capabilities, not pseudo-tools
+  if (toolId.startsWith("code:exec_")) return false;
+  return isCodeOperation(toolId);
+}
+
+/**
  * Get the operation name from a code operation tool ID
  *
  * @param toolId Tool identifier (e.g., "code:filter")

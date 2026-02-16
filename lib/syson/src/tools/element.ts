@@ -2,6 +2,8 @@
  * SysON Element Tools
  *
  * CRUD operations on SysML v2 elements (PartUsage, RequirementUsage, Package, etc.)
+ * Rename uses AQL eSet(declaredName) via evaluateExpression (renameTreeItem requires representationId).
+ * Children listing uses evaluateExpression (queryBasedObjects returns null in current SysON).
  *
  * @module lib/syson/tools/element
  */
@@ -9,21 +11,25 @@
 import type { SysonTool } from "./types.ts";
 import { getSysonClient } from "../api/graphql-client.ts";
 import { GET_CHILD_CREATION_DESCRIPTIONS, GET_OBJECT } from "../api/queries.ts";
-import { QUERY_BASED_OBJECTS } from "../api/queries.ts";
-import { CREATE_CHILD, DELETE_TREE_ITEM, RENAME_TREE_ITEM } from "../api/mutations.ts";
+import {
+  CREATE_CHILD,
+  DELETE_TREE_ITEM,
+  EVALUATE_EXPRESSION,
+  INSERT_TEXTUAL_SYSMLV2,
+} from "../api/mutations.ts";
 import type {
   CreateChildResult,
   DeleteTreeItemResult,
+  EvaluateExpressionResult,
   GetChildCreationDescriptionsResult,
   GetObjectResult,
-  QueryBasedObjectsResult,
-  RenameTreeItemResult,
+  InsertTextualSysMLv2Result,
 } from "../api/types.ts";
 
 /**
  * Extract mutation result, throwing on ErrorPayload.
  */
-function unwrapMutation<T extends Record<string, unknown>>(
+function unwrapMutation<T extends object>(
   result: T,
   operationName: string,
 ): Record<string, unknown> {
@@ -34,6 +40,29 @@ function unwrapMutation<T extends Record<string, unknown>>(
     );
   }
   return payload;
+}
+
+/**
+ * Rename an element using AQL eSet on declaredName.
+ * This is the reliable way — renameTreeItem requires a representationId we don't have.
+ */
+async function renameViaAql(ecId: string, elementId: string, newName: string): Promise<void> {
+  const client = getSysonClient();
+  const mutationId = crypto.randomUUID();
+
+  const data = await client.mutate<EvaluateExpressionResult>(EVALUATE_EXPRESSION, {
+    input: {
+      id: mutationId,
+      editingContextId: ecId,
+      expression: `aql:self.eSet(self.eClass().getEStructuralFeature('declaredName'), '${newName.replace(/'/g, "\\'")}')`,
+      selectedObjectIds: [elementId],
+    },
+  });
+
+  const result = data.evaluateExpression;
+  if (result.__typename === "ErrorPayload") {
+    throw new Error(`[lib/syson] rename via AQL failed: ${result.message}`);
+  }
 }
 
 export const elementTools: SysonTool[] = [
@@ -62,7 +91,7 @@ export const elementTools: SysonTool[] = [
         },
         name: {
           type: "string",
-          description: "Name for the new element (renames after creation)",
+          description: "Name for the new element (renames after creation via AQL)",
         },
       },
       required: ["editing_context_id", "parent_id", "child_type"],
@@ -121,23 +150,12 @@ export const elementTools: SysonTool[] = [
         label: element.label,
       };
 
-      // Rename if name provided
+      // Rename if name provided — uses AQL eSet(declaredName)
       if (name) {
         try {
-          const renameId = crypto.randomUUID();
-          await client.mutate<RenameTreeItemResult>(RENAME_TREE_ITEM, {
-            input: {
-              id: renameId,
-              editingContextId: ecId,
-              representationId: ecId, // tree representation
-              treeItemId: element.id,
-              newLabel: name as string,
-            },
-          });
+          await renameViaAql(ecId, element.id, name as string);
           result.label = name;
         } catch (renameError) {
-          // Rename failure is non-fatal — element was created.
-          // Log warning per no-silent-fallbacks policy.
           console.error(
             `[lib/syson] Warning: element created but rename failed: ${
               (renameError as Error).message
@@ -191,7 +209,7 @@ export const elementTools: SysonTool[] = [
     name: "syson_element_children",
     description:
       "List the direct children of a SysML element. " +
-      "Uses AQL query 'aql:self.ownedElement' under the hood.",
+      "Uses evaluateExpression with 'aql:self.ownedElement'.",
     category: "element",
     inputSchema: {
       type: "object",
@@ -209,27 +227,46 @@ export const elementTools: SysonTool[] = [
     },
     handler: async ({ editing_context_id, element_id }) => {
       const client = getSysonClient();
-      const data = await client.query<QueryBasedObjectsResult>(QUERY_BASED_OBJECTS, {
-        editingContextId: editing_context_id as string,
-        objectId: element_id as string,
-        query: "aql:self.ownedElement",
+      const ecId = editing_context_id as string;
+      const elemId = element_id as string;
+      const mutationId = crypto.randomUUID();
+
+      const data = await client.mutate<EvaluateExpressionResult>(EVALUATE_EXPRESSION, {
+        input: {
+          id: mutationId,
+          editingContextId: ecId,
+          expression: "aql:self.ownedElement",
+          selectedObjectIds: [elemId],
+        },
       });
+
+      const result = data.evaluateExpression;
+      if (result.__typename === "ErrorPayload") {
+        throw new Error(`[lib/syson] syson_element_children failed: ${result.message}`);
+      }
+
+      const exprResult = result.result;
+      if (exprResult.__typename !== "ObjectsExpressionResult") {
+        return { parentId: element_id, children: [], count: 0 };
+      }
 
       return {
         parentId: element_id,
-        children: data.viewer.editingContext.object.queryBasedObjects.map((obj) => ({
+        children: exprResult.objsValue.map((obj) => ({
           id: obj.id,
           kind: obj.kind,
           label: obj.label,
-          iconURLs: obj.iconURLs ?? [],
         })),
+        count: exprResult.objsValue.length,
       };
     },
   },
 
   {
     name: "syson_element_rename",
-    description: "Rename a SysML element in the model tree.",
+    description:
+      "Rename a SysML element. Uses AQL eSet on declaredName " +
+      "(renameTreeItem requires a tree representationId which is not available via API).",
     category: "element",
     inputSchema: {
       type: "object",
@@ -246,30 +283,15 @@ export const elementTools: SysonTool[] = [
           type: "string",
           description: "New name for the element",
         },
-        representation_id: {
-          type: "string",
-          description:
-            "Representation ID (tree explorer). If omitted, uses editingContextId.",
-        },
       },
       required: ["editing_context_id", "element_id", "new_name"],
     },
-    handler: async ({ editing_context_id, element_id, new_name, representation_id }) => {
-      const client = getSysonClient();
-      const ecId = editing_context_id as string;
-      const mutationId = crypto.randomUUID();
-
-      const data = await client.mutate<RenameTreeItemResult>(RENAME_TREE_ITEM, {
-        input: {
-          id: mutationId,
-          editingContextId: ecId,
-          representationId: (representation_id as string) ?? ecId,
-          treeItemId: element_id as string,
-          newLabel: new_name as string,
-        },
-      });
-
-      unwrapMutation(data, "renameTreeItem");
+    handler: async ({ editing_context_id, element_id, new_name }) => {
+      await renameViaAql(
+        editing_context_id as string,
+        element_id as string,
+        new_name as string,
+      );
       return { id: element_id, newName: new_name };
     },
   },
@@ -313,6 +335,52 @@ export const elementTools: SysonTool[] = [
 
       unwrapMutation(data, "deleteTreeItem");
       return { deleted: true, elementId: element_id };
+    },
+  },
+
+  {
+    name: "syson_element_insert_sysml",
+    description:
+      "Insert SysML v2 textual syntax into an element. " +
+      "Creates child elements from textual SysML notation. " +
+      "Examples: 'part Heater;', 'requirement TempRange { doc /* ... */ }'. " +
+      "The textual content is parsed and added as children of the target element.",
+    category: "element",
+    inputSchema: {
+      type: "object",
+      properties: {
+        editing_context_id: {
+          type: "string",
+          description: "Editing context ID",
+        },
+        parent_id: {
+          type: "string",
+          description: "ID of the parent element to insert into",
+        },
+        sysml_text: {
+          type: "string",
+          description:
+            "SysML v2 textual content. E.g. 'part Heater;', " +
+            "'requirement ThermalReq { doc /* Must maintain 20-25C */ }'",
+        },
+      },
+      required: ["editing_context_id", "parent_id", "sysml_text"],
+    },
+    handler: async ({ editing_context_id, parent_id, sysml_text }) => {
+      const client = getSysonClient();
+      const mutationId = crypto.randomUUID();
+
+      const data = await client.mutate<InsertTextualSysMLv2Result>(INSERT_TEXTUAL_SYSMLV2, {
+        input: {
+          id: mutationId,
+          editingContextId: editing_context_id as string,
+          objectId: parent_id as string,
+          textualContent: sysml_text as string,
+        },
+      });
+
+      unwrapMutation(data, "insertTextualSysMLv2");
+      return { inserted: true, parentId: parent_id, text: sysml_text };
     },
   },
 ];

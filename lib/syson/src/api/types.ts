@@ -178,9 +178,7 @@ export interface GetRootObjectCreationDescriptionsResult {
 
 export interface GetProjectTemplatesResult {
   viewer: {
-    projectTemplates: {
-      edges: GqlEdge<GqlProjectTemplate>[];
-    };
+    allProjectTemplates: GqlProjectTemplate[];
   };
 }
 
@@ -241,17 +239,26 @@ export interface EditTextfieldResult {
     | { __typename: "ErrorPayload"; id: string; message: string };
 }
 
+// Field names use aliases (objValue, objsValue, strValue, etc.)
+// to avoid GraphQL "fields have different list shapes" conflict
 export interface EvaluateExpressionResult {
   evaluateExpression:
     | {
       __typename: "EvaluateExpressionSuccessPayload";
       result:
-        | { __typename: "ObjectExpressionResult"; value: GqlObject }
-        | { __typename: "ObjectsExpressionResult"; value: GqlObject[] }
-        | { __typename: "StringExpressionResult"; value: string }
-        | { __typename: "BooleanExpressionResult"; value: boolean }
-        | { __typename: "IntExpressionResult"; value: number };
+        | { __typename: "ObjectExpressionResult"; objValue: GqlObject }
+        | { __typename: "ObjectsExpressionResult"; objsValue: GqlObject[] }
+        | { __typename: "StringExpressionResult"; strValue: string }
+        | { __typename: "BooleanExpressionResult"; boolValue: boolean }
+        | { __typename: "IntExpressionResult"; intValue: number }
+        | { __typename: "VoidExpressionResult" };
     }
+    | { __typename: "ErrorPayload"; id: string; message: string };
+}
+
+export interface InsertTextualSysMLv2Result {
+  insertTextualSysMLv2:
+    | { __typename: "SuccessPayload"; id: string }
     | { __typename: "ErrorPayload"; id: string; message: string };
 }
 
