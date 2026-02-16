@@ -1154,6 +1154,7 @@ export class PMLGatewayServer {
         healthChecker: this.healthChecker,
         mcpClients: this.mcpClients,
         db: this.db,
+        embeddingModel: this.embeddingModel ?? undefined,
       },
       handleListTools: (request: unknown) => this.handleListTools(request),
       handleCallTool: (request: unknown, userId?: string, isPackageClient?: boolean) =>

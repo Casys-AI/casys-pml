@@ -17,6 +17,7 @@ import {
   VALID_NAME_PATTERN,
 } from "./types.ts";
 import { ensureUiCacheReady } from "../services/ui-cache-service.ts";
+import { generateEmbeddings } from "../vector/embeddings.ts";
 
 /**
  * Normalize userId to valid UUID.
@@ -224,6 +225,21 @@ export async function handleToolsSync(
     }
 
     log.info(`[tools/sync] User ${userId?.slice(0, 8) ?? rawUserId}: synced ${syncedTools} tools, ${syncedObservations} observations, ${cachedUis} UIs`);
+
+    // Generate embeddings for new/modified tools (fire-and-forget)
+    // generateEmbeddings() checks cache validity — only processes tools whose
+    // description or input_schema changed, so renames/updates are covered.
+    if (syncedTools > 0 && ctx.embeddingModel) {
+      generateEmbeddings(db, ctx.embeddingModel)
+        .then((stats) => {
+          if (stats.newlyGenerated > 0) {
+            log.info(`[tools/sync] Embeddings: ${stats.newlyGenerated} generated, ${stats.cachedCount} cached (${stats.duration.toFixed(1)}s)`);
+          }
+        })
+        .catch((err) => {
+          log.warn(`[tools/sync] Background embedding generation failed: ${err}`);
+        });
+    }
 
     return jsonResponse({
       synced: syncedTools,
