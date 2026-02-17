@@ -200,10 +200,11 @@ async function main() {
         const ms = Math.round(performance.now() - t0);
         // Extract the actual data from MCP content format
         let parsed: unknown = result;
-        if (result?.content) {
-          for (const c of result.content) {
+        const r = result as Record<string, unknown>;
+        if (r?.content) {
+          for (const c of r.content as Array<{ type: string; text?: string }>) {
             if (c.type === "text") {
-              try { parsed = JSON.parse(c.text); } catch { parsed = c.text; }
+              try { parsed = JSON.parse(c.text!); } catch { parsed = c.text; }
               break;
             }
           }

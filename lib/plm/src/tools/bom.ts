@@ -329,6 +329,7 @@ function costPart(row: BomFlatRow, model: CostingModel): PartCostBreakdown {
   let materialCostPerUnit = 0;
   let machiningCostPerUnit = 0;
   let overheadCostPerUnit = 0;
+  let warning: string | undefined;
 
   if (mat) {
     const unitMass = qty > 0 ? mass / qty : 0;
@@ -358,6 +359,13 @@ function costPart(row: BomFlatRow, model: CostingModel): PartCostBreakdown {
   } else if (row.totalCost != null && qty > 0) {
     // Fallback: use existing unit cost (e.g. for fasteners/electronics priced per unit)
     materialCostPerUnit = row.totalCost / qty;
+  } else {
+    // No material, no pre-existing cost → explicitly warn
+    if (!row.materialId && mass > 0) {
+      warning = `No material attribute — cost cannot be calculated. Add 'attribute material = "material-id";' to the SysML model.`;
+    } else if (!row.materialId) {
+      warning = "No material and no mass — cost is zero.";
+    }
   }
 
   const unitCost = materialCostPerUnit + machiningCostPerUnit + overheadCostPerUnit;
@@ -371,6 +379,7 @@ function costPart(row: BomFlatRow, model: CostingModel): PartCostBreakdown {
     overheadCostPerUnit: round2(overheadCostPerUnit),
     unitCost: round2(unitCost),
     totalCost: round2(unitCost * qty),
+    ...(warning && { warning }),
   };
 }
 
@@ -497,9 +506,9 @@ export const bomTools: PlmTool[] = [
   {
     name: "plm_bom_generate",
     description:
-      "Generate a hierarchical Bill of Materials (BOM) from a SysON SysML v2 model. " +
-      "Traverses the model tree starting from a root element, extracting parts, assemblies, " +
-      "quantities, and material assignments. Returns a tree structure suitable for visualization.",
+      "Generate a hierarchical BOM from a SysON model. " +
+      "Step 1 of the BOM pipeline: generate → flatten → cost. " +
+      "Returns a BomTree object — pass it to plm_bom_flatten as 'bom_tree'.",
     category: "bom",
     inputSchema: {
       type: "object",
@@ -571,9 +580,10 @@ export const bomTools: PlmTool[] = [
   {
     name: "plm_bom_flatten",
     description:
-      "Flatten a hierarchical BOM tree into an aggregated parts list. " +
-      "Consolidates quantities across all levels, computes total mass and cost per part, " +
-      "and tracks where each part is used. Input is a BomTree (from plm_bom_generate).",
+      "Flatten a hierarchical BOM into an aggregated parts list. " +
+      "Step 2 of the BOM pipeline: generate → flatten → cost. " +
+      "Takes 'bom_tree' (output of plm_bom_generate). " +
+      "Returns a BomFlat object — pass it to plm_bom_cost as 'bom_flat'.",
     category: "bom",
     inputSchema: {
       type: "object",
@@ -640,11 +650,11 @@ export const bomTools: PlmTool[] = [
   {
     name: "plm_bom_cost",
     description:
-      "Compute cost analysis for a flattened BOM using real material prices. " +
-      "Supports three costing models: 'raw_material' (mass × price/kg), " +
-      "'should_cost' (material + machining + overhead), " +
-      "'parametric' (regression-based with batch size effects). " +
-      "Uses 61 real material prices from LME, MatWeb, and supplier catalogs.",
+      "Compute cost analysis for a flattened BOM. " +
+      "Step 3 of the BOM pipeline: generate → flatten → cost. " +
+      "Takes 'bom_flat' (output of plm_bom_flatten). " +
+      "Each item needs 'material' + 'mass' attributes in the SysML model for non-zero costs. " +
+      "Models: raw_material, should_cost (default), parametric.",
     category: "bom",
     inputSchema: {
       type: "object",
@@ -703,7 +713,9 @@ export const bomTools: PlmTool[] = [
       const totalOverhead = parts.reduce((s, p) => s + p.overheadCostPerUnit * p.quantity, 0);
       const totalCost = totalMaterial + totalMachining + totalOverhead;
 
-      return {
+      const itemsWithoutMaterial = parts.filter((p) => p.warning).length;
+
+      const result: CostResult & { itemsWithoutMaterial?: number; warnings?: string[] } = {
         model: modelType,
         parts,
         totals: {
@@ -719,7 +731,17 @@ export const bomTools: PlmTool[] = [
         },
         currency: "EUR",
         computedAt: new Date().toISOString(),
-      } satisfies CostResult;
+      };
+
+      if (itemsWithoutMaterial > 0) {
+        result.itemsWithoutMaterial = itemsWithoutMaterial;
+        result.warnings = [
+          `${itemsWithoutMaterial}/${parts.length} items have no material — their cost is 0€. ` +
+          `Add 'attribute material = "material-id";' to each part in the SysML model.`,
+        ];
+      }
+
+      return result;
     },
   },
 
@@ -730,9 +752,8 @@ export const bomTools: PlmTool[] = [
     name: "plm_bom_compare",
     description:
       "Compare two flattened BOMs to detect changes between revisions. " +
-      "Identifies added/removed parts, quantity changes, material changes, and cost impact. " +
-      "Each change is classified by severity (info, warning, critical). " +
-      "Returns a diff summary with impact assessment (mass delta, cost delta).",
+      "Takes two BomFlat objects (from plm_bom_flatten) as 'baseline' and 'comparison'. " +
+      "Returns added/removed parts, quantity and material changes, cost impact with severity.",
     category: "bom",
     inputSchema: {
       type: "object",

@@ -205,6 +205,8 @@ export interface PartCostBreakdown {
   unitCost: number;
   /** Total cost (unitCost * quantity) */
   totalCost: number;
+  /** Warning if cost could not be computed (e.g. missing material) */
+  warning?: string;
 }
 
 /** Complete costing result for a BOM */

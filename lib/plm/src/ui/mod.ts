@@ -20,8 +20,13 @@ export interface UIResourceMeta {
   tools: string[];
 }
 
+/** Known namespace prefixes that map to dist/ in this module */
+const UI_NAMESPACES = ["mcp-plm", "mcp-syson"];
+
 /**
- * Auto-discover UI resources from dist/ folder
+ * Auto-discover UI resources from dist/ folder.
+ * Registers each viewer under all known namespaces so that
+ * both `ui://mcp-plm/bom-tree-viewer` and `ui://mcp-syson/diagram-viewer` resolve.
  */
 function discoverUiResources(): Record<string, UIResourceMeta> {
   const resources: Record<string, UIResourceMeta> = {};
@@ -31,15 +36,18 @@ function discoverUiResources(): Record<string, UIResourceMeta> {
     for (const entry of Deno.readDirSync(distPath)) {
       if (entry.isDirectory) {
         const uiName = entry.name;
-        const uri = `ui://mcp-plm/${uiName}`;
 
         try {
           Deno.statSync(`${distPath}/${uiName}/index.html`);
-          resources[uri] = {
+          const meta: UIResourceMeta = {
             name: uiName.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
-            description: `PLM UI: ${uiName}`,
+            description: `UI: ${uiName}`,
             tools: [],
           };
+          // Register under all known namespaces
+          for (const ns of UI_NAMESPACES) {
+            resources[`ui://${ns}/${uiName}`] = meta;
+          }
         } catch {
           // No index.html, skip
         }
@@ -90,9 +98,13 @@ export function registerUiBundle(uri: string, html: string): void {
   UI_BUNDLES[uri] = html;
 }
 
-/** Convert ui:// URI to file path */
+/**
+ * Convert ui:// URI to file path.
+ * Generic: extracts the viewer name from any ui://NS/viewer-name pattern
+ * and resolves it from the local dist/ folder.
+ */
 function uriToPath(uri: string): string | null {
-  const match = uri.match(/^ui:\/\/mcp-plm\/(.+)$/);
+  const match = uri.match(/^ui:\/\/[^/]+\/(.+)$/);
   if (match) {
     const uiName = match[1];
     const distPath = new URL(`./dist/${uiName}/index.html`, import.meta.url).pathname;
