@@ -57,9 +57,18 @@ function broadcastFeedEvent(event: FeedEvent) {
   console.error(`[feed] broadcast ${event.toolName}`);
 }
 
-function startFeedServer(port: number, demoHtmlPath: string) {
+function startFeedServer(port: number, demoHtmlPath: string, toolViewers: Record<string, string>) {
+  const toolViewersJson = JSON.stringify(toolViewers);
+
   Deno.serve({ port, hostname: "0.0.0.0" }, async (req) => {
     const url = new URL(req.url);
+
+    // Tool → viewer mapping for demo page (dynamic from _meta.ui)
+    if (url.pathname === "/tools-meta") {
+      return new Response(toolViewersJson, {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
 
     // SSE feed endpoint
     if (url.pathname === "/feed") {
@@ -97,6 +106,28 @@ function startFeedServer(port: number, demoHtmlPath: string) {
     // CORS preflight
     if (req.method === "OPTIONS") {
       return new Response(null, { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST", "Access-Control-Allow-Headers": "Content-Type" } });
+    }
+
+    // Serve UI viewer HTML from dist/ (for MCP Apps iframe embedding)
+    // Searches lib/plm and lib/sim dist paths so any MCP server's viewers are available.
+    const uiMatch = url.pathname.match(/^\/ui\/([a-z-]+)$/);
+    if (uiMatch) {
+      const uiName = uiMatch[1];
+      // Derive workspace root: lib/plm/server.ts → go up 2 levels
+      const libRoot = new URL("../", import.meta.url).pathname;
+      const searchPaths = [
+        `${libRoot}plm/src/ui/dist/${uiName}/index.html`,
+        `${libRoot}sim/src/ui/dist/${uiName}/index.html`,
+      ];
+      for (const uiPath of searchPaths) {
+        try {
+          const html = await Deno.readTextFile(uiPath);
+          return new Response(html, {
+            headers: { "Content-Type": "text/html", "Access-Control-Allow-Origin": "*" },
+          });
+        } catch { /* try next path */ }
+      }
+      return new Response(`UI viewer "${uiName}" not found (searched: ${searchPaths.join(", ")})`, { status: 404 });
     }
 
     // Serve demo.html at root
@@ -228,13 +259,27 @@ async function main() {
     }
   }
 
+  // Build tool → viewer mapping from _meta.ui.resourceUri
+  const toolViewers: Record<string, string> = {};
+  for (const tool of toolsClient.listTools()) {
+    const uri = tool._meta?.ui?.resourceUri;
+    if (uri) {
+      // Extract viewer name from "ui://mcp-plm/{viewer-name}"
+      const match = uri.match(/^ui:\/\/[^/]+\/(.+)$/);
+      if (match) {
+        toolViewers[tool.name] = match[1];
+      }
+    }
+  }
+  console.error(`[mcp-plm] Tool viewers: ${Object.keys(toolViewers).length} tools with UI`);
+
   // Start server
   if (httpFlag) {
     // Start feed SSE server alongside the MCP server
     const feedPortArg = args.find((arg) => arg.startsWith("--feed-port="));
     const feedPort = feedPortArg ? parseInt(feedPortArg.split("=")[1], 10) : DEFAULT_FEED_PORT;
     const demoHtmlPath = new URL("./demo.html", import.meta.url).pathname;
-    startFeedServer(feedPort, demoHtmlPath);
+    startFeedServer(feedPort, demoHtmlPath, toolViewers);
 
     const httpServer = await server.startHttp({
       port: httpPort,

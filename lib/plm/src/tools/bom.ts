@@ -522,7 +522,7 @@ export const bomTools: PlmTool[] = [
     },
     _meta: {
       ui: {
-        resourceUri: "ui://mcp-plm/tree-viewer",
+        resourceUri: "ui://mcp-plm/bom-tree-viewer",
       },
     },
     handler: async (args) => {
@@ -561,8 +561,7 @@ export const bomTools: PlmTool[] = [
         totalItemsCount: counts.total,
       };
 
-      const tree: BomTree = { root, metadata };
-      return tree;
+      return { root, metadata } satisfies BomTree;
     },
   },
 
@@ -599,6 +598,9 @@ export const bomTools: PlmTool[] = [
     },
     handler: (args) => {
       const tree = args.bom_tree as BomTree;
+      if (!tree?.root || !tree?.metadata) {
+        throw new Error("Invalid bom_tree input: expected BomTree with root and metadata");
+      }
       const sortBy = (args.sort_by as string) || "partNumber";
 
       const rows = new Map<string, BomFlatRow>();
@@ -677,7 +679,7 @@ export const bomTools: PlmTool[] = [
     },
     _meta: {
       ui: {
-        resourceUri: "ui://mcp-plm/chart-viewer",
+        resourceUri: "ui://mcp-plm/bom-cost-viewer",
       },
     },
     handler: (args) => {
@@ -701,7 +703,7 @@ export const bomTools: PlmTool[] = [
       const totalOverhead = parts.reduce((s, p) => s + p.overheadCostPerUnit * p.quantity, 0);
       const totalCost = totalMaterial + totalMachining + totalOverhead;
 
-      const result: CostResult = {
+      return {
         model: modelType,
         parts,
         totals: {
@@ -717,9 +719,7 @@ export const bomTools: PlmTool[] = [
         },
         currency: "EUR",
         computedAt: new Date().toISOString(),
-      };
-
-      return result;
+      } satisfies CostResult;
     },
   },
 
@@ -750,7 +750,7 @@ export const bomTools: PlmTool[] = [
     },
     _meta: {
       ui: {
-        resourceUri: "ui://mcp-plm/diff-viewer",
+        resourceUri: "ui://mcp-plm/bom-diff-viewer",
       },
     },
     handler: (args) => {
