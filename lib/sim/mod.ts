@@ -34,6 +34,7 @@ export type {
 
 // Re-export individual tool arrays
 export { constraintTools } from "./src/tools/mod.ts";
+export { valueTools } from "./src/tools/mod.ts";
 
 // Re-export evaluator for direct use
 export { evaluate, evaluateConstraint, evaluateAll, toValueMap } from "./src/evaluator/evaluator.ts";

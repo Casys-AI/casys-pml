@@ -335,7 +335,7 @@ Chaque `Edge` a :
 | 2 | Tester résolution auto E2E (sans valeurs manuelles) | ~15 min | P0 | **DONE** (sauf bug signe `-40`) |
 | 3 | Fix signe négatif (OperatorExpression `-` unaire) | ~15 min | P0 | **DONE** (à tester) |
 | 4 | Créer `sim_set_value` tool (ou valider eSet AQL) | ~1h | P1 | TODO |
-| 5 | Implémenter tools `syson_diagram_*` (list, create, drop, arrange) | ~2h | P1 | TODO |
+| 5 | Implémenter tools `syson_diagram_*` (list, create, drop, arrange) | ~2h | P1 | **DONE** |
 | 6 | Créer viewer diagramme (iframe SysON ou screenshot) | ~1h | P1 | TODO |
 | 7 | Auto-broadcast sim results au feed | ~30 min | P2 | TODO |
 | 8 | Scripter la démo E2E complète | ~1h | P1 | TODO |
@@ -348,3 +348,98 @@ Chaque `Edge` a :
 - **Performance resolver** : chaque attribut = 3 appels AQL (find + check operator + read value). Pour N attributs = 3N appels parallélisés. Acceptable pour <20 attributs.
 - **WebSocket subscription** : récupérer les données du diagramme nécessite une connexion WebSocket persistante — plus complexe qu'une simple query. L'option iframe SysON évite ce problème.
 - **`dropOnDiagram` nécessite un `representationDescriptionId`** pour `createRepresentation` : il faut trouver l'ID du type de diagramme "General View" dans SysON. À investiguer via l'API `representationDescriptions`.
+
+## 8. Issues Démo Coffee Machine (2026-02-17)
+
+Problèmes rencontrés pendant la démo live de création d'un modèle SysML complet (CoffeeMachine, 7 parts, 4 contraintes, BOM + coûts).
+
+### 8.1 [P0] Diagramme SysON — Snapshot vide (0 bytes)
+
+**Symptôme** : `syson_diagram_create` + `syson_diagram_drop` + `syson_diagram_arrange` fonctionnent sans erreur, mais le snapshot du diagramme retourne 0 bytes. Le viewer ne montre rien.
+
+**Cause probable** : Les données du diagramme transitent par une **subscription WebSocket** (`diagramEvent`), pas par une query REST. Le sandbox PML ne supporte pas les WebSocket subscriptions longues — la subscription timeout avant que le rendu ne soit prêt.
+
+**Fichiers** : `lib/syson/src/tools/diagram.ts`
+
+**Fix proposé** :
+- **Court terme** : Abandonner le snapshot via API. Utiliser l'option C (§5.4) — iframe SysON embedded dans un viewer MCP App.
+- **Long terme** : Implémenter un client WebSocket dans le serveur SysON (pas dans le sandbox PML) qui récupère le rendu du diagramme et l'expose via une query synchrone.
+
+**Effort** : ~2h (iframe viewer) / ~1j (WebSocket client)
+
+### 8.2 [P1] Boucle for + MCP = Timeout dans le sandbox PML
+
+**Symptôme** : Un `for (const p of parts) { await mcp.syson.syson_element_insert_sysml(...) }` dans le sandbox PML timeout après ~30s avec "MCP server syson unreachable".
+
+**Cause** : Le sandbox PML exécute le code dans un worker isolé. Les appels MCP séquentiels dans une boucle accumulent la latence (7 × ~4s = 28s) et dépassent le timeout du worker.
+
+**Workaround actuel** : Faire N appels `mcp__pml__execute` parallèles au lieu d'une boucle dans un seul appel.
+
+**Fix proposé** :
+- Augmenter le timeout du sandbox worker à 120s (configurable via `SIM_SANDBOX_TIMEOUT`).
+- OU: supporter `Promise.all()` dans le sandbox pour paralléliser les appels MCP internes.
+
+**Fichiers** : `src/application/use-cases/execute/sandbox-executor.ts`
+
+**Effort** : ~1h
+
+### 8.3 [P2] Noms de paramètres BOM incohérents
+
+**Symptôme** : `plm_bom_generate` attend `root_element_id`, `plm_bom_flatten` attend `bom_tree`, `plm_bom_cost` attend `bom_flat`. L'agent (et l'humain) se trompe systématiquement au premier essai.
+
+**Cause** : Chaque tool a été conçu indépendamment. Le chaînage generate → flatten → cost n'est pas documenté dans les descriptions des tools.
+
+**Fix proposé** :
+1. Ajouter dans la description de chaque tool BOM le chaînage attendu :
+   - `plm_bom_generate` : "Returns `bom_tree` — pass to `plm_bom_flatten`."
+   - `plm_bom_flatten` : "Takes `bom_tree` from `plm_bom_generate`. Returns `bom_flat` — pass to `plm_bom_cost`."
+   - `plm_bom_cost` : "Takes `bom_flat` from `plm_bom_flatten`."
+2. Ajouter un tool composite `plm_bom_pipeline` qui fait generate+flatten+cost en un appel.
+
+**Fichiers** : `lib/plm/src/tools/bom.ts`
+
+**Effort** : ~30 min (descriptions) / ~1h (pipeline tool)
+
+### 8.4 [P1] BOM coût = 0€ sans feedback
+
+**Symptôme** : L'agent génère un BOM, lance le costing, et obtient 0€ pour tous les items. Aucun message d'erreur — les items ont juste `material: null, cost: 0`.
+
+**Cause** : Le costing requiert un attribut `material` (ex: `"aisi-304"`) sur chaque part SysML en plus de `mass`. Sans `material`, le tool retourne 0 silencieusement — violation de la policy **no-hidden-heuristics** (pas de warning explicite).
+
+**Fix proposé** :
+1. Quand `material` est absent sur un item, ajouter un champ `warning: "No material attribute — cost cannot be calculated"` dans le résultat.
+2. Ajouter un `summary.itemsWithoutMaterial: N` dans le rapport de costing.
+3. Documenter dans la description de `plm_bom_cost` : "Each item must have `material` (material ID from the database) and `mass_kg`. Items without material will have cost = 0 with a warning."
+
+**Fichiers** : `lib/plm/src/tools/bom.ts` (handler de `plm_bom_cost`)
+
+**Effort** : ~30 min
+
+### 8.5 [P1] Parser AST — Références imbriquées non supportées
+
+**Symptôme** : 3 contraintes sur 4 échouent avec `"Unknown AST node kind: LiteralRational"`. Seule `massConstraint` (références au même niveau : `totalMass ≤ maxAllowedMass`) fonctionne.
+
+**Cause** : Les contraintes `temperatureConstraint`, `pressureConstraint`, `extractionConstraint` utilisent des attributs imbriqués dans des sous-parts (`boiler.temperature >= 90.0`). Le parser AST (`lib/sim/src/evaluator/ast-parser.ts`) ne gère pas les `FeatureChainExpression` (accès `part.attribute`) ni les `LiteralRational` comme noeud enfant direct d'un `OperatorExpression` (il attend un `FeatureReferenceExpression` ou un `LiteralExpression`).
+
+**Fix proposé** :
+1. Ajouter le support de `LiteralRational` et `LiteralInteger` comme opérandes directs dans `parseAstNode()`.
+2. Ajouter le support de `FeatureChainExpression` pour les paths imbriqués (`boiler.temperature` → `FeatureChainExpression` contenant 2 `FeatureReferenceExpression`).
+3. Dans le resolver, supporter la résolution de paths imbriqués (`boiler.temperature` → naviguer vers le part `boiler`, puis lire l'attribut `temperature`).
+
+**Fichiers** :
+- `lib/sim/src/evaluator/ast-parser.ts` (parseAstNode, gestion LiteralRational + FeatureChainExpression)
+- `lib/sim/src/evaluator/resolver.ts` (résolution de paths multi-niveaux)
+
+**Effort** : ~2-3h
+
+### 8.6 Résumé des priorités
+
+| # | Issue | Priorité | Effort | Impact démo |
+|---|-------|----------|--------|-------------|
+| 8.5 | Parser AST — refs imbriquées | **P1** | 2-3h | 3/4 contraintes cassées |
+| 8.4 | BOM coût 0€ sans warning | **P1** | 30 min | Confusion utilisateur |
+| 8.2 | Boucle for timeout sandbox | **P1** | 1h | Workaround existe |
+| 8.3 | Noms params BOM incohérents | **P2** | 30 min | Erreurs de chaînage |
+| 8.1 | Diagramme snapshot vide | **P0→P2** | 2h+ | Contourné par iframe |
+
+**Recommandation** : Fixer 8.5 en premier (débloquer les contraintes), puis 8.4 (feedback coûts), puis 8.2 (confort). 8.1 et 8.3 sont des améliorations de confort.

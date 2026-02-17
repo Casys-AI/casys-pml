@@ -45,6 +45,7 @@ export type SysonToolCategory =
   | "element"
   | "query"
   | "model"
+  | "diagram"
   // Agent tools (MCP Sampling) — Phase 3
   | "agent";
 

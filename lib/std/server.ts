@@ -150,6 +150,11 @@ async function main() {
         categories ? ` - categories: ${categories.join(", ")}` : ""
       }`,
     );
+
+    Deno.addSignalListener("SIGINT", () => {
+      console.error("[mcp-std] SIGINT received, exiting...");
+      Deno.exit(0);
+    });
   }
 }
 

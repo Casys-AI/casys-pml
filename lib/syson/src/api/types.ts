@@ -271,3 +271,35 @@ export interface CreateRepresentationResult {
     }
     | { __typename: "ErrorPayload"; id: string; message: string };
 }
+
+export interface ListRepresentationsResult {
+  viewer: {
+    editingContext: {
+      representations: {
+        edges: GqlEdge<GqlRepresentation>[];
+      };
+    };
+  };
+}
+
+export interface GetRepresentationDescriptionsResult {
+  viewer: {
+    editingContext: {
+      representationDescriptions: {
+        edges: GqlEdge<{ id: string; label: string }>[];
+      };
+    };
+  };
+}
+
+export interface DropOnDiagramResult {
+  dropOnDiagram:
+    | { __typename: "DropOnDiagramSuccessPayload"; id: string }
+    | { __typename: "ErrorPayload"; id: string; message: string };
+}
+
+export interface ArrangeAllResult {
+  arrangeAll:
+    | { __typename: "SuccessPayload"; id: string }
+    | { __typename: "ErrorPayload"; id: string; message: string };
+}

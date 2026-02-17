@@ -44,8 +44,8 @@ export const modelTools: SysonTool[] = [
   {
     name: "syson_model_stereotypes",
     description:
-      "List available stereotypes (document types) for a project. " +
-      "Needed to create a new SysML document via syson_model_create.",
+      "List available document stereotypes (e.g., SysML v2). " +
+      "Needed by syson_model_create if auto-detection fails.",
     category: "model",
     inputSchema: {
       type: "object",
@@ -75,8 +75,9 @@ export const modelTools: SysonTool[] = [
   {
     name: "syson_model_child_types",
     description:
-      "List the types of child elements that can be created under a given container. " +
-      'Returns labels like "New PartUsage", "New RequirementUsage", "New Package", etc.',
+      "List what types of child elements can be created under a container. " +
+      "Returns labels like 'New PartUsage', 'New Package'. " +
+      "Use the label with syson_element_create's child_type parameter.",
     category: "model",
     inputSchema: {
       type: "object",
@@ -115,9 +116,10 @@ export const modelTools: SysonTool[] = [
   {
     name: "syson_model_create",
     description:
-      "Create a new SysML document in a project. " +
-      "If no stereotype is specified, auto-detects the SysML v2 stereotype. " +
-      "Optionally creates a root Package.",
+      "Create a SysML document inside a project. Auto-detects the SysML stereotype. " +
+      "By default creates a root Package — this is the top-level container for your model. " +
+      "Call after syson_project_create. Then use syson_element_insert_sysml or syson_element_create " +
+      "to add parts, attributes, constraints, etc. under the root package.",
     category: "model",
     inputSchema: {
       type: "object",
@@ -250,7 +252,7 @@ export const modelTools: SysonTool[] = [
 
   {
     name: "syson_model_domains",
-    description: "List available metamodel domains for a project (e.g. 'sysml').",
+    description: "List available metamodel domains (e.g., 'sysml'). Rarely needed directly.",
     category: "model",
     inputSchema: {
       type: "object",

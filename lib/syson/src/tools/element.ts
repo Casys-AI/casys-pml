@@ -69,9 +69,9 @@ export const elementTools: SysonTool[] = [
   {
     name: "syson_element_create",
     description:
-      "Create a new SysML element as a child of an existing element. " +
-      "Use syson_model_child_types to discover available element types for a container. " +
-      "The child_type can be a description ID or a label like 'New PartUsage'.",
+      "Create a single SysML element under a parent (e.g., PartUsage, Package). " +
+      "Pass child_type as a label like 'New PartUsage' — it auto-resolves to the correct type. " +
+      "For bulk creation or complex structures, prefer syson_element_insert_sysml instead.",
     category: "element",
     inputSchema: {
       type: "object",
@@ -172,7 +172,7 @@ export const elementTools: SysonTool[] = [
   {
     name: "syson_element_get",
     description:
-      "Get a SysML element by ID. Returns kind, label, and icon URLs.",
+      "Get a single element by ID. Returns its kind, label, and type.",
     category: "element",
     inputSchema: {
       type: "object",
@@ -208,8 +208,9 @@ export const elementTools: SysonTool[] = [
   {
     name: "syson_element_children",
     description:
-      "List the direct children of a SysML element. " +
-      "Uses evaluateExpression with 'aql:self.ownedElement'.",
+      "List direct children of an element. Use to browse the model tree. " +
+      "Returns ID, kind, and label for each child. " +
+      "Start from the root package ID (from syson_model_create) and drill down.",
     category: "element",
     inputSchema: {
       type: "object",
@@ -264,9 +265,7 @@ export const elementTools: SysonTool[] = [
 
   {
     name: "syson_element_rename",
-    description:
-      "Rename a SysML element. Uses AQL eSet on declaredName " +
-      "(renameTreeItem requires a tree representationId which is not available via API).",
+    description: "Rename an element in the model.",
     category: "element",
     inputSchema: {
       type: "object",
@@ -298,7 +297,7 @@ export const elementTools: SysonTool[] = [
 
   {
     name: "syson_element_delete",
-    description: "Delete a SysML element from the model tree. This action is irreversible.",
+    description: "Delete an element and all its children. Irreversible.",
     category: "element",
     inputSchema: {
       type: "object",
@@ -341,10 +340,12 @@ export const elementTools: SysonTool[] = [
   {
     name: "syson_element_insert_sysml",
     description:
-      "Insert SysML v2 textual syntax into an element. " +
-      "Creates child elements from textual SysML notation. " +
-      "Examples: 'part Heater;', 'requirement TempRange { doc /* ... */ }'. " +
-      "The textual content is parsed and added as children of the target element.",
+      "Insert SysML v2 textual notation as children of an element. " +
+      "Best way to create complex structures in one call. " +
+      "Examples: 'part heater : HeaterAssembly;', " +
+      "'attribute totalMass : Real = 2.86;', " +
+      "'constraint massConstraint { totalMass <= maxAllowedMass }'. " +
+      "Accepts multiple statements separated by newlines.",
     category: "element",
     inputSchema: {
       type: "object",

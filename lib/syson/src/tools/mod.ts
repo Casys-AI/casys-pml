@@ -11,6 +11,7 @@ export { projectTools } from "./project.ts";
 export { modelTools } from "./model.ts";
 export { elementTools } from "./element.ts";
 export { queryTools } from "./query.ts";
+export { diagramTools } from "./diagram.ts";
 export { agentTools, createAgenticSamplingClient, setSamplingClient } from "./agent.ts";
 
 // Imports for combined arrays
@@ -18,6 +19,7 @@ import { projectTools } from "./project.ts";
 import { modelTools } from "./model.ts";
 import { elementTools } from "./element.ts";
 import { queryTools } from "./query.ts";
+import { diagramTools } from "./diagram.ts";
 import { agentTools } from "./agent.ts";
 import type { SysonTool } from "./types.ts";
 
@@ -27,6 +29,7 @@ export const allTools: SysonTool[] = [
   ...modelTools,
   ...elementTools,
   ...queryTools,
+  ...diagramTools,
   ...agentTools,
 ];
 
@@ -36,6 +39,7 @@ export const toolsByCategory: Record<string, SysonTool[]> = {
   model: modelTools,
   element: elementTools,
   query: queryTools,
+  diagram: diagramTools,
   agent: agentTools,
 };
 

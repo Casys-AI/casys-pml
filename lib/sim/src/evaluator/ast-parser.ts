@@ -37,10 +37,13 @@ const UNARY_OPS = new Set<string>(["not", "-"]);
 const LITERAL_KINDS = new Set([
   "LiteralInteger",
   "LiteralReal",
+  "LiteralRational",
   "sysml::LiteralInteger",
   "sysml::LiteralReal",
+  "sysml::LiteralRational",
   "kerml::LiteralInteger",
   "kerml::LiteralReal",
+  "kerml::LiteralRational",
 ]);
 
 /** SysON kind strings for feature references */
@@ -62,6 +65,13 @@ const INVOCATION_KINDS = new Set([
   "InvocationExpression",
   "sysml::InvocationExpression",
   "kerml::InvocationExpression",
+]);
+
+/** SysON kind strings for feature chain expressions (nested paths like boiler.temperature) */
+const CHAIN_KINDS = new Set([
+  "FeatureChainExpression",
+  "sysml::FeatureChainExpression",
+  "kerml::FeatureChainExpression",
 ]);
 
 // ============================================================================
@@ -108,6 +118,11 @@ export function parseAstNode(node: SysonAstNode): ConstraintExpr {
   // Invocation expressions (function calls)
   if (INVOCATION_KINDS.has(normalized.kind)) {
     return parseInvocation(node);
+  }
+
+  // Feature chain expressions (nested paths: boiler.temperature)
+  if (CHAIN_KINDS.has(normalized.kind)) {
+    return parseChain(node);
   }
 
   // Boolean literals
@@ -234,6 +249,52 @@ function parseInvocation(node: SysonAstNode): ConstraintExpr {
     name,
     args: children.map(parseAstNode),
   };
+}
+
+/**
+ * Parse a FeatureChainExpression into a ref with a multi-segment featurePath.
+ *
+ * SysML v2 represents `boiler.temperature` as:
+ *   FeatureChainExpression
+ *   ├── FeatureReferenceExpression (boiler)
+ *   └── FeatureReferenceExpression (temperature)
+ *
+ * We collect all segments into a single ["boiler", "temperature"] path.
+ */
+function parseChain(node: SysonAstNode): ConstraintExpr {
+  const children = node.children ?? [];
+
+  if (children.length === 0) {
+    throw new Error(`[lib/sim] FeatureChainExpression has no children`);
+  }
+
+  // Collect feature names from each child FeatureReferenceExpression
+  const segments: string[] = [];
+  let lastElementId: string | undefined;
+
+  for (const child of children) {
+    const childKind = normalizeKind(child.kind);
+    if (REF_KINDS.has(childKind)) {
+      const refName = (child.props?.referentName as string)
+        ?? child.children?.[0]?.label
+        ?? child.label;
+      if (refName) segments.push(refName);
+      lastElementId = (child.props?.referentId as string)
+        ?? child.children?.[0]?.id
+        ?? child.id;
+    } else {
+      // Non-ref child in a chain — recurse (could be an expression)
+      return parseAstNode(child);
+    }
+  }
+
+  if (segments.length === 0) {
+    throw new Error(`[lib/sim] FeatureChainExpression could not extract any path segments`);
+  }
+
+  const result: ConstraintExpr = { kind: "ref", featurePath: segments };
+  if (lastElementId) (result as any).elementId = lastElementId;
+  return result;
 }
 
 // ============================================================================

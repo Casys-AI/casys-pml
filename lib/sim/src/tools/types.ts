@@ -7,7 +7,7 @@
  */
 
 /** Sim tool category identifier */
-export type SimToolCategory = "constraint";
+export type SimToolCategory = "constraint" | "value";
 
 /** Sim tool handler function type */
 export type SimToolHandler = (args: Record<string, unknown>) => Promise<unknown> | unknown;

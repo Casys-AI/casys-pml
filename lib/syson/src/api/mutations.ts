@@ -127,3 +127,23 @@ export const CREATE_REPRESENTATION = `
     }
   }
 `;
+
+export const DROP_ON_DIAGRAM = `
+  mutation DropOnDiagram($input: DropOnDiagramInput!) {
+    dropOnDiagram(input: $input) {
+      ... on DropOnDiagramSuccessPayload {
+        __typename id
+      }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;
+
+export const ARRANGE_ALL = `
+  mutation ArrangeAll($input: ArrangeAllInput!) {
+    arrangeAll(input: $input) {
+      ... on SuccessPayload { __typename id }
+      ... on ErrorPayload { __typename id message }
+    }
+  }
+`;

@@ -284,9 +284,9 @@ export const agentTools: SysonTool[] = [
   {
     name: "syson_agent_delegate",
     description:
-      "Delegate a complex MBSE task to an autonomous agent with full SysON tool access. " +
-      "The agent can query models, create elements, run AQL, and search. " +
-      "Use for multi-step tasks like 'create a thermal subsystem with 5 parts'.",
+      "Delegate a multi-step MBSE task to an autonomous agent. " +
+      "The agent can query, create, and modify model elements autonomously. " +
+      "Use for complex tasks like 'create a thermal subsystem with parts and constraints'.",
     category: "agent",
     inputSchema: {
       type: "object",
@@ -366,9 +366,8 @@ You have access to SysON tools for querying and modifying SysML v2 models:
   {
     name: "syson_agent_analyze_model",
     description:
-      "Analyze a SysML v2 model and return structured insights: " +
-      "element counts by type, hierarchy depth, requirements coverage, etc. " +
-      "The agent uses AQL to explore the model autonomously.",
+      "Analyze a model and return structured insights: element counts, " +
+      "hierarchy depth, requirements coverage. Choose a focus area.",
     category: "agent",
     inputSchema: {
       type: "object",
@@ -453,9 +452,9 @@ Return your analysis as JSON with keys: summary, metrics, findings, recommendati
   {
     name: "syson_agent_generate_sysml",
     description:
-      "Generate SysML v2 model elements from a natural language description. " +
+      "Generate model elements from a natural language description. " +
       "Describe a system in plain text and the agent creates packages, parts, " +
-      "requirements, interfaces, etc. in SysON.",
+      "requirements, and interfaces automatically.",
     category: "agent",
     inputSchema: {
       type: "object",
@@ -537,8 +536,8 @@ When done, list all elements you created with their IDs and names.`;
   {
     name: "syson_agent_review",
     description:
-      "Review a SysML v2 model for quality, completeness, and best practices. " +
-      "Checks naming conventions, requirement traceability, structural patterns, etc.",
+      "Review a model for quality and best practices. " +
+      "Checks naming, requirement traceability, completeness, and structure.",
     category: "agent",
     inputSchema: {
       type: "object",
@@ -642,9 +641,9 @@ Return a structured JSON review:
   {
     name: "syson_agent_impact",
     description:
-      "Analyze the impact of changing or removing a SysML element. " +
-      "Finds all dependent elements: usage references, satisfy relationships, " +
-      "interface connections, contained children.",
+      "Analyze the impact of changing or removing an element. " +
+      "Finds all dependents: references, satisfy relationships, " +
+      "connections, and contained children. Returns a risk assessment.",
     category: "agent",
     inputSchema: {
       type: "object",

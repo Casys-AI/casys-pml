@@ -26,7 +26,7 @@
  * @module lib/syson/server
  */
 
-import { ConcurrentMCPServer, SamplingBridge } from "@casys/mcp-server";
+import { ConcurrentMCPServer, MCP_APP_MIME_TYPE, SamplingBridge } from "@casys/mcp-server";
 import { SysonToolsClient } from "./src/client.ts";
 import { createAgenticSamplingClient, setSamplingClient } from "./src/tools/agent.ts";
 
@@ -85,6 +85,45 @@ async function main() {
   }
 
   server.registerTools(mcpTools, handlers);
+
+  // Register UI resources from tools with _meta.ui
+  // Viewers are built in lib/plm/src/ui/dist/ (shared build pipeline)
+  for (const tool of toolsClient.listTools()) {
+    const ui = tool._meta?.ui;
+    if (ui?.resourceUri) {
+      const viewerMatch = ui.resourceUri.match(/^ui:\/\/[^/]+\/(.+)$/);
+      if (viewerMatch) {
+        const viewerName = viewerMatch[1];
+        // Look for built viewer in lib/plm/src/ui/dist/
+        const distPath = new URL(
+          `../plm/src/ui/dist/${viewerName}/index.html`,
+          import.meta.url,
+        ).pathname;
+
+        try {
+          Deno.statSync(distPath);
+          server.registerResource(
+            {
+              uri: ui.resourceUri,
+              name: viewerName.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+              description: `SysON UI: ${viewerName}`,
+              mimeType: MCP_APP_MIME_TYPE,
+            },
+            async () => {
+              const html = await Deno.readTextFile(distPath);
+              return { uri: ui.resourceUri, mimeType: MCP_APP_MIME_TYPE, text: html };
+            },
+          );
+          console.error(`[mcp-syson] Registered UI resource: ${ui.resourceUri}`);
+        } catch {
+          console.error(
+            `[mcp-syson] Warning: UI not found for ${ui.resourceUri} at ${distPath}. ` +
+            `Run 'cd lib/plm/src/ui && node build-all.mjs' first.`,
+          );
+        }
+      }
+    }
+  }
 
   // Start server
   if (httpFlag) {

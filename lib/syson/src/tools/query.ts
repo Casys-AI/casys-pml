@@ -48,11 +48,13 @@ export const queryTools: SysonTool[] = [
   {
     name: "syson_query_aql",
     description:
-      "Execute an AQL (Acceleo Query Language) expression on a SysML element. " +
-      "This is the most powerful query tool — like a REPL on the model. " +
-      "Examples: 'aql:self.ownedElement', 'aql:self.eAllContents()', " +
-      "'aql:self.name', 'aql:self.oclIsKindOf(sysml::PartUsage)'. " +
-      "Returns objects (for collection queries) or a string (for scalar queries).",
+      "Run an AQL query on a model element. The most powerful query tool — " +
+      "can read any property, filter by type, traverse relationships. " +
+      "Common expressions: " +
+      "'aql:self.ownedElement' (direct children), " +
+      "'aql:self.eAllContents()' (all descendants), " +
+      "'aql:self.eAllContents()->select(e | e.oclIsKindOf(sysml::PartUsage))' (filter by type). " +
+      "Can also mutate the model (e.g., eSet to change properties).",
     category: "query",
     inputSchema: {
       type: "object",
@@ -122,8 +124,8 @@ export const queryTools: SysonTool[] = [
   {
     name: "syson_search",
     description:
-      "Full-text search across all elements in a SysON project model. " +
-      "Supports case-sensitive, whole-word, and regex matching.",
+      "Full-text search across all elements in a project. " +
+      "Find elements by name or content. Supports regex.",
     category: "query",
     inputSchema: {
       type: "object",
@@ -189,10 +191,9 @@ export const queryTools: SysonTool[] = [
   {
     name: "syson_query_eval",
     description:
-      "Evaluate an AQL expression as a mutation (EvaluateExpression). " +
-      "Returns typed results: objects, strings, booleans, or integers. " +
-      "Can also modify the model (e.g. eSet to rename). " +
-      "Useful for expressions that modify the model or need typed return values.",
+      "Evaluate an AQL expression on multiple elements at once. " +
+      "Like syson_query_aql but accepts an array of object IDs as context. " +
+      "Use when you need to query across multiple elements simultaneously.",
     category: "query",
     inputSchema: {
       type: "object",
@@ -258,7 +259,7 @@ export const queryTools: SysonTool[] = [
     name: "syson_query_requirements_trace",
     description:
       "Trace requirements to their satisfying elements. " +
-      "For each requirement, finds which parts/components satisfy it using AQL.",
+      "Shows which parts satisfy which requirements, with coverage metrics.",
     category: "query",
     inputSchema: {
       type: "object",

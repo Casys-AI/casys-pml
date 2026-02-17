@@ -112,12 +112,58 @@ editHistory:
 | MCP Apps UI Orchestration | UI components from capabilities, live updates | Q3 2026 |
 | CasysDB Native Engine | Purpose-built Rust vector+graph database | 2027 |
 
+### Phase 4: Distributed Orchestration 🔭 VISION
+**Horizon 6-12 mois | 2026-2027**
+**Positionnement :** "The control plane for distributed AI agents"
+**Tagline :** "One agent. Many machines. Full control."
+
+PML evolves from a local MCP gateway into a **distributed orchestration platform** for autonomous AI agents operating across multiple machines. The relay tunnel becomes the communication bus connecting PML instances, enabling agents to transparently access resources (GPU, DB, filesystem, APIs) on any machine — securely, traced, and intelligently routed.
+
+**Analogie :** Kubernetes + Istio + Jaeger pour agents MCP.
+
+| # | Pilier | Description | Briques existantes | Effort restant |
+|---|--------|-------------|-------------------|----------------|
+| 1 | **Discovery** | Catalogue unifie de toutes les capabilities sur toutes les machines. DNS pour MCP tools. | `--expose`, `capability-resolver`, `registerToolLive()` | Catalogue UI, search |
+| 2 | **Routing** | Routing intelligent : disponibilite, capacite, cout, localite. Smart routing cross-machine. | `_meta.device` (spike), `TunnelStore.pickTunnel()` | Tunnel SSE, smart routing |
+| 3 | **Tracing distribue** | DAG unifie cross-machine. `_meta.device` dans chaque noeud = distributed tracing natif MCP. | Tracing DAG, `TraceTaskResult` | `_meta.device` propagation (~2-3h) |
+| 4 | **Policy engine** | Regles declaratives : quel agent, quelle capability, quand, combien. Zero-trust pour agents IA. | OAuth2/JWT, rate limiting, HIL, sandbox, AJV | Agent allowlist (~2-3j) |
+| 5 | **Scheduling** | Agents autonomes planifies : cron, triggers, evenements. Monitoring et alerting. | — | A construire |
+| 6 | **State & Rollback** | Checkpoints, snapshots, rollback automatique. Undo pour agents autonomes. | Tracing DAG (liste d'actions) | Checkpoints a construire |
+| 7 | **Agent-to-Agent** | Delegation multi-agent cross-machine. Orchestration multi-agent distribuee. | Relay tunnel (transport) | Protocole a definir |
+| 8 | **Marketplace** | Catalogue versionne, partage inter-equipes/orgs, billing integre. | `--publish`, `code_url`, Smithery BYOH | UI, billing, reviews |
+
+**Architecture en 4 couches :**
+
+```
+┌─────────────────────────────────────┐
+│  Marketplace / Catalog              │  ← partager
+├─────────────────────────────────────┤
+│  Policy / Security / Allowlist      │  ← controler
+├─────────────────────────────────────┤
+│  Routing / Scheduling / State       │  ← orchestrer
+├─────────────────────────────────────┤
+│  Discovery / Tracing / Relay        │  ← voir
+└─────────────────────────────────────┘
+         ↕ Relay tunnel (bus) ↕
+    ┌──────┐  ┌──────┐  ┌──────┐
+    │ PML  │  │ PML  │  │ PML  │
+    │ GPU  │  │ DB   │  │ API  │
+    └──────┘  └──────┘  └──────┘
+```
+
+**Use case enterprise :** PML comme gateway securise — les agents IA passent par PML Gateway (proxy), qui route vers les machines internes avec audit trail complet. Le DSI achete : "controle et visibilite sur ce que font les agents IA dans votre infra."
+
+**Prerequis Phase 3 :** `handleJsonRpc()` dans lib/server (~1-2 sem), tunnel SSE (~3-4j), tunnel store (~1-2j), relay proxy (~2-3j).
+
+**Ref :** [Vision Orchestration Distribuee](research/2026-02-14-vision-orchestration-distribuee.md) | [Panel MCP On-Demand](research/2026-02-14-panel-mcp-on-demand-feasibility.md) | [Spike Relay Publish](spikes/2026-02-13-spike-relay-publish-capability-exposure.md)
+
 ### Scope Boundaries
 
 **In Scope:**
 - MCP stdio and SSE protocols
 - Local-first architecture with optional cloud sync
 - Open-source core with commercial add-ons
+- Distributed orchestration via relay tunnel (Phase 4)
 
 **Out of Scope (Deferred):**
 - Non-MCP protocols (REST, GraphQL adapters)

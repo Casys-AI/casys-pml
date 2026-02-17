@@ -141,3 +141,31 @@ export const GET_PROJECT_TEMPLATES = `
     }
   }
 `;
+
+export const LIST_REPRESENTATIONS = `
+  query ListRepresentations($editingContextId: ID!) {
+    viewer {
+      editingContext(editingContextId: $editingContextId) {
+        representations {
+          edges {
+            node { id label kind }
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const GET_REPRESENTATION_DESCRIPTIONS = `
+  query GetRepresentationDescriptions($editingContextId: ID!, $objectId: ID!) {
+    viewer {
+      editingContext(editingContextId: $editingContextId) {
+        representationDescriptions(objectId: $objectId) {
+          edges {
+            node { id label }
+          }
+        }
+      }
+    }
+  }
+`;

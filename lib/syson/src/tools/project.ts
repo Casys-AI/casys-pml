@@ -39,8 +39,8 @@ export const projectTools: SysonTool[] = [
   {
     name: "syson_project_list",
     description:
-      "List SysML v2 projects in SysON with optional name filter. " +
-      "Returns project ID, name, and natures.",
+      "List all SysML projects. Returns project IDs needed by all other tools. " +
+      "Start here to find the project you want to work with.",
     category: "project",
     inputSchema: {
       type: "object",
@@ -81,8 +81,8 @@ export const projectTools: SysonTool[] = [
   {
     name: "syson_project_get",
     description:
-      "Get a SysON project by ID. Returns project details including editingContextId " +
-      "(needed for all subsequent operations on this project).",
+      "Get a project by ID. Returns the editingContextId which is required " +
+      "by every other syson_* tool. Always call this after syson_project_list.",
     category: "project",
     inputSchema: {
       type: "object",
@@ -113,8 +113,9 @@ export const projectTools: SysonTool[] = [
   {
     name: "syson_project_create",
     description:
-      "Create a new SysML v2 project in SysON. " +
-      "Optionally specify a template. Returns project ID and editingContextId.",
+      "Create a new SysML project. Auto-selects the SysML template if none specified. " +
+      "Returns project ID and editingContextId. " +
+      "After creating, use syson_model_create to add a SysML document with a root Package.",
     category: "project",
     inputSchema: {
       type: "object",
@@ -186,7 +187,7 @@ export const projectTools: SysonTool[] = [
 
   {
     name: "syson_project_delete",
-    description: "Delete a SysON project by ID. This action is irreversible.",
+    description: "Permanently delete a project and all its contents. Irreversible.",
     category: "project",
     inputSchema: {
       type: "object",
@@ -216,7 +217,8 @@ export const projectTools: SysonTool[] = [
 
   {
     name: "syson_project_templates",
-    description: "List available project templates in SysON.",
+    description:
+      "List available project templates. Use a template ID with syson_project_create.",
     category: "project",
     inputSchema: {
       type: "object",

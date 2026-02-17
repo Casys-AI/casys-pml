@@ -21,6 +21,29 @@ import { parseAstNode } from "../evaluator/ast-parser.ts";
 import { resolveValues } from "../evaluator/resolver.ts";
 
 // ============================================================================
+// Feed broadcast (fire-and-forget)
+// ============================================================================
+
+const BROADCAST_URL = (typeof Deno !== "undefined" ? Deno.env.get("SIM_BROADCAST_URL") : undefined)
+  ?? "http://localhost:3011/broadcast";
+
+function broadcastToFeed(toolName: string, result: unknown, durationMs = 0): void {
+  fetch(BROADCAST_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      toolName,
+      result,
+      durationMs,
+      timestamp: new Date().toISOString(),
+      isError: false,
+    }),
+  }).catch(() => {
+    // Silently ignore — feed may not be running
+  });
+}
+
+// ============================================================================
 // SysON GraphQL (lazy import)
 // ============================================================================
 
@@ -196,20 +219,23 @@ export const constraintTools: SimTool[] = [
   {
     name: "sim_constraint_extract",
     description:
-      "Extract all ConstraintUsage definitions from a SysON model element. " +
-      "Walks the element's children to find constraints, then parses their " +
-      "expression AST into a structured format. Requires SysON connection.",
+      "Extract constraint definitions from a SysML element. " +
+      "Returns structured constraints (operator, operands, thresholds). " +
+      "Pass the result to sim_constraint_evaluate to check pass/fail. " +
+      "For a one-shot extract+evaluate, use sim_validate instead.",
     category: "constraint",
     inputSchema: {
       type: "object",
       properties: {
         editing_context_id: {
           type: "string",
-          description: "SysON editing context ID",
+          description: "SysON project UUID. Obtain via syson_project_list.",
         },
         element_id: {
           type: "string",
-          description: "Root element ID to search for constraints",
+          description:
+            "UUID of the SysML element to scan for constraints (e.g., a package or part). " +
+            "Obtain via syson_element_children.",
         },
       },
       required: ["editing_context_id", "element_id"],
@@ -284,10 +310,10 @@ export const constraintTools: SimTool[] = [
   {
     name: "sim_constraint_evaluate",
     description:
-      "Evaluate extracted constraints against provided or auto-resolved values. " +
-      "If 'values' is provided, evaluation is fully offline (no SysON needed). " +
-      "If 'values' is omitted and editing_context_id is provided, values are " +
-      "resolved from the SysON model automatically.",
+      "Evaluate constraints and return pass/fail with margins. " +
+      "Pass 'values' directly for offline evaluation, " +
+      "or provide editing_context_id + element_id to auto-resolve values from the model. " +
+      "For a one-shot workflow, use sim_validate instead.",
     category: "constraint",
     inputSchema: {
       type: "object",
@@ -295,21 +321,27 @@ export const constraintTools: SimTool[] = [
         constraints: {
           type: "array",
           items: { type: "object" },
-          description: "Array of ExtractedConstraint objects (from sim_constraint_extract)",
+          description:
+            "Array of ExtractedConstraint objects. Obtain from sim_constraint_extract.",
         },
         values: {
           type: "object",
           description:
-            "Map of feature path → numeric value (e.g., {\"totalMass\": 450}). " +
-            "If omitted, values are resolved from SysON model.",
+            "Feature name → numeric value map for offline evaluation. " +
+            "Example: {\"totalMass\": 2.86, \"maxAllowedMass\": 5}. " +
+            "Omit to auto-resolve values from SysON model (requires editing_context_id + element_id).",
         },
         editing_context_id: {
           type: "string",
-          description: "SysON editing context ID (required if values not provided)",
+          description:
+            "SysON project UUID for online value resolution. " +
+            "Required if 'values' is omitted. Obtain via syson_project_list.",
         },
         element_id: {
           type: "string",
-          description: "Root element ID for value resolution (required if values not provided)",
+          description:
+            "UUID of the SysML element for online value resolution. " +
+            "Required if 'values' is omitted. Obtain via syson_element_children.",
         },
       },
       required: ["constraints"],
@@ -352,26 +384,31 @@ export const constraintTools: SimTool[] = [
   {
     name: "sim_validate",
     description:
-      "Validate all constraints on a SysON model element in one step. " +
-      "Combines extraction + resolution + evaluation. " +
-      "Returns a full validation report with pass/fail status and margins.",
+      "Validate a model element against all its constraints in one call. " +
+      "Extracts constraints, resolves values from the model, evaluates pass/fail, " +
+      "and returns a report with margins. Broadcasts to the live feed. " +
+      "Pass 'values' to override specific parameters for what-if scenarios " +
+      "(e.g., {\"totalMass\": 6.5} to test over-budget mass).",
     category: "constraint",
     inputSchema: {
       type: "object",
       properties: {
         editing_context_id: {
           type: "string",
-          description: "SysON editing context ID",
+          description: "SysON project UUID. Obtain via syson_project_list.",
         },
         element_id: {
           type: "string",
-          description: "Element ID to validate",
+          description:
+            "UUID of the SysML element to validate (e.g., a system or package with ConstraintUsages). " +
+            "Obtain via syson_element_children.",
         },
         values: {
           type: "object",
           description:
-            "Optional pre-resolved values (e.g., {\"totalMass\": 450}). " +
-            "Missing values will be resolved from the model.",
+            "Optional overrides for value resolution. " +
+            "Example: {\"totalMass\": 6.5} to test a what-if scenario. " +
+            "Missing keys are auto-resolved from the SysON model.",
         },
       },
       required: ["editing_context_id", "element_id"],
@@ -471,6 +508,9 @@ export const constraintTools: SimTool[] = [
         resolvedValues: Object.fromEntries(values),
         validatedAt: new Date().toISOString(),
       };
+
+      // Auto-broadcast to feed (fire-and-forget)
+      broadcastToFeed("sim_validate", { ...report, _viewerOverride: "validation-viewer" });
 
       return report;
     },

@@ -18,6 +18,7 @@ files_created:
   [
     "packages/pml/src/cli/shared/capability-resolver.ts",
     "packages/pml/src/cli/shared/exposed-handler.ts",
+    "packages/pml/src/loader/call-http.ts",
     "packages/pml/tests/capability_resolver_test.ts",
     "packages/pml/tests/exposed_handler_test.ts",
     "packages/pml/tests/call_http_test.ts",
@@ -496,10 +497,9 @@ if (exposedCap) {
 
 **72/72 tests pass** — breakdown:
 - byok(17) + loader_core(7) + loader_hil(6) + loader_env(3) — existing tests, zero regressions
-- call_http(5) — new: resolveEnvHeaders + callHttp patterns
-- capability_resolver(8) — new: sanitizeToolName + resolveExposedCapabilities
-- exposed_handler(10) — new: findExposedCapability + handleExposedCall
-- sanitizeToolName(6) + buildExposedToolDefinitions(6) + resolveExposedCapabilities(4) — new
+- call_http(12) — new: resolveEnvHeaders(6) + callHttp direct tests(6)
+- capability_resolver(19) — new: sanitizeToolName(8) + buildExposedToolDefinitions(3) + resolveExposedCapabilities(5, parallel)
+- exposed_handler(10) — new: findExposedCapability + handleExposedCall (AJV schema cached)
 
 ### Code Review Findings (found & fixed)
 
@@ -517,7 +517,15 @@ if (exposedCap) {
 |---|---|---|---|
 | 1 | **`oauth_connect` not wired** | HIGH | **FIXED** — `ensureDependency()` now checks `dep.authUrl` on HTTP deps with missing env vars → returns `OAuthConnectApprovalRequired`. Also wired in `handleApprovalDenial()` and `formatApprovalRequired()`. Added `authUrl` field to `McpDependency`. |
 | 2 | **No AJV validation at exposed handler level** | MEDIUM | **FIXED** — `handleExposedCall()` now validates `ctx.args` against `cap.inputSchema` with AJV before `forwardToCloud()`. Returns `-32602` (Invalid params) with detailed error messages. |
-| 3 | **`callHttp` tests are pattern-based** | LOW | Acknowledged — private method testing. Existing patterns cover the logic. |
+| 3 | **`callHttp` tests are pattern-based** | LOW | **FIXED** — Extracted `callHttp()` from private method to standalone `loader/call-http.ts`. Tests now import and test it directly. |
+
+### Post-commit refinements (2026-02-13)
+
+| # | Issue | Fix |
+|---|---|---|
+| 1 | **Sequential capability resolution** — `resolveExposedCapabilities()` used `for...of + await`, slow with 10+ capabilities | **FIXED** — Replaced with `Promise.allSettled()` for parallel resolution. Errors collected and reported grouped. |
+| 2 | **AJV schema not cached** — `ajv.compile()` called on every `handleExposedCall()` invocation | **FIXED** — Added `schemaCache` Map keyed by FQDN. Schema compiled once, reused on subsequent calls. |
+| 3 | **`callHttp` untestable** — Private method on `CapabilityLoader`, tests simulated the pattern instead of testing directly | **FIXED** — Extracted to standalone `packages/pml/src/loader/call-http.ts`. `capability-loader.ts` now imports and calls `callHttp()`. Tests import and test the function directly with fetch mocks. |
 
 ### Pre-existing Issues (not introduced by this work)
 
