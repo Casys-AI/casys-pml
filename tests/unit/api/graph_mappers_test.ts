@@ -138,3 +138,4 @@ Deno.test("REGRESSION Issue 6: executedPath with UUIDs must be resolvable", () =
   assertEquals(result?.[1], "test:my_cap");
   assertEquals(result?.[1]?.includes("-"), false, "UUID should be resolved, not passed through");
 });
+

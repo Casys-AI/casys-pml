@@ -176,3 +176,4 @@ Deno.test("getFusionMetadata - unknown task ID returns isFused: false gracefully
   assertEquals(fusionMeta.isFused, false);
   assertEquals(fusionMeta.logicalOperations, undefined);
 });
+

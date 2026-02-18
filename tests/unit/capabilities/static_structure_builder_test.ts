@@ -928,3 +928,4 @@ Deno.test("inferDecisions - handles null/undefined structure gracefully", () => 
   );
   assertEquals(decisions2.length, 0);
 });
+

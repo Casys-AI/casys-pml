@@ -322,3 +322,54 @@ Deno.test("per-priority: undefined intent text defaults to empty", async () => {
   assertEquals(result.isColdStart, false);
   assertEquals(result.predicted >= 0 && result.predicted <= 1, true);
 });
+
+// ============================================================================
+// Test: UUID and internal ops are filtered before SHGAT prediction
+// ============================================================================
+
+Deno.test("per-priority: UUIDs in executedPath are filtered before SHGAT prediction", async () => {
+  const shgat = createTestSHGAT({ withTools: true, withCapabilities: true });
+  const embeddingProvider = createMockEmbeddingProvider();
+
+  // Path with UUID noise - should produce same prediction as clean path
+  const resultWithUUID = await calculateTDError(shgat, embeddingProvider, {
+    intentText: "test intent",
+    executedPath: [
+      "tool1",
+      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "tool2",
+    ],
+    success: true,
+  });
+
+  const resultClean = await calculateTDError(shgat, embeddingProvider, {
+    intentText: "test intent",
+    executedPath: ["tool1", "tool2"],
+    success: true,
+  });
+
+  // Both should produce identical predictions since UUIDs are filtered
+  assertAlmostEquals(resultWithUUID.predicted, resultClean.predicted, 0.001);
+  assertAlmostEquals(resultWithUUID.priority, resultClean.priority, 0.001);
+});
+
+Deno.test("per-priority: code: and loop: ops are filtered before SHGAT prediction", async () => {
+  const shgat = createTestSHGAT({ withTools: true, withCapabilities: true });
+  const embeddingProvider = createMockEmbeddingProvider();
+
+  const resultWithOps = await calculateTDError(shgat, embeddingProvider, {
+    intentText: "test intent",
+    executedPath: ["tool1", "code:filter", "loop:forOf", "tool2"],
+    success: true,
+  });
+
+  const resultClean = await calculateTDError(shgat, embeddingProvider, {
+    intentText: "test intent",
+    executedPath: ["tool1", "tool2"],
+    success: true,
+  });
+
+  assertAlmostEquals(resultWithOps.predicted, resultClean.predicted, 0.001);
+  assertAlmostEquals(resultWithOps.priority, resultClean.priority, 0.001);
+});
+

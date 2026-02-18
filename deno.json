@@ -19,8 +19,8 @@
   },
   "nodeModulesDir": "auto",
   "tasks": {
-    "dev": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --watch-exclude=lib/ --allow-all --env --unstable-worker-options --unstable-kv --unstable-otel --unstable-ffi src/main.ts serve --port 3003 --config config/.mcp-servers.json",
-    "dev:api": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --watch-exclude=lib/ --allow-all --env --unstable-worker-options --unstable-broadcast-channel --unstable-kv --unstable-otel --unstable-ffi src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --watch-exclude=lib/,.env --allow-all --env --unstable-worker-options --unstable-kv --unstable-otel --unstable-ffi src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev:api": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --watch-exclude=lib/,.env --allow-all --env --unstable-worker-options --unstable-broadcast-channel --unstable-kv --unstable-otel --unstable-ffi src/main.ts serve --port 3003 --config config/.mcp-servers.json",
     "db:backup": "deno run --allow-all scripts/backup-db.ts",
     "db:backup:prod": "deno run --allow-all scripts/backup-db.ts .pml.db .pml.db.last",
     "db:cleanup": "deno run --allow-all scripts/cleanup-db.ts",

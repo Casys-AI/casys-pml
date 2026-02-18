@@ -794,3 +794,4 @@ Deno.test("ExecutionTraceStore - handles failed trace with error message", async
 
   await db.close();
 });
+
