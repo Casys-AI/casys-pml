@@ -77,6 +77,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
       <DashboardLayout
         user={user}
         isCloudMode={isCloudMode}
+        activePage="dashboard"
         rightPanel={
           <>
             <MetricsPanel apiBase={apiBase} apiKey={apiKey} position="sidebar" />

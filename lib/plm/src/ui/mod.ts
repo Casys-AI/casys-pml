@@ -20,13 +20,11 @@ export interface UIResourceMeta {
   tools: string[];
 }
 
-/** Known namespace prefixes that map to dist/ in this module */
-const UI_NAMESPACES = ["mcp-plm", "mcp-syson"];
+const NAMESPACE = "mcp-plm";
 
 /**
  * Auto-discover UI resources from dist/ folder.
- * Registers each viewer under all known namespaces so that
- * both `ui://mcp-plm/bom-tree-viewer` and `ui://mcp-syson/diagram-viewer` resolve.
+ * Each viewer is registered under ui://mcp-plm/ namespace only.
  */
 function discoverUiResources(): Record<string, UIResourceMeta> {
   const resources: Record<string, UIResourceMeta> = {};
@@ -39,15 +37,11 @@ function discoverUiResources(): Record<string, UIResourceMeta> {
 
         try {
           Deno.statSync(`${distPath}/${uiName}/index.html`);
-          const meta: UIResourceMeta = {
+          resources[`ui://${NAMESPACE}/${uiName}`] = {
             name: uiName.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
-            description: `UI: ${uiName}`,
+            description: `PLM UI: ${uiName}`,
             tools: [],
           };
-          // Register under all known namespaces
-          for (const ns of UI_NAMESPACES) {
-            resources[`ui://${ns}/${uiName}`] = meta;
-          }
         } catch {
           // No index.html, skip
         }
@@ -99,23 +93,22 @@ export function registerUiBundle(uri: string, html: string): void {
 }
 
 /**
- * Convert ui:// URI to file path.
- * Generic: extracts the viewer name from any ui://NS/viewer-name pattern
- * and resolves it from the local dist/ folder.
+ * Convert ui://mcp-plm/viewer-name URI to file path.
  */
 function uriToPath(uri: string): string | null {
-  const match = uri.match(/^ui:\/\/[^/]+\/(.+)$/);
-  if (match) {
-    const uiName = match[1];
-    const distPath = new URL(`./dist/${uiName}/index.html`, import.meta.url).pathname;
-    try {
-      Deno.statSync(distPath);
-      return distPath;
-    } catch {
-      return null;
-    }
+  const prefix = `ui://${NAMESPACE}/`;
+  if (!uri.startsWith(prefix)) return null;
+
+  const uiName = uri.slice(prefix.length);
+  if (!uiName || uiName.includes("..")) return null;
+
+  const distPath = new URL(`./dist/${uiName}/index.html`, import.meta.url).pathname;
+  try {
+    Deno.statSync(distPath);
+    return distPath;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 /** List all available UI resources */

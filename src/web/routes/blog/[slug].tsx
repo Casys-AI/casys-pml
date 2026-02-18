@@ -161,7 +161,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
               >
                 GitHub
               </a>
-              <a href="/dashboard" class="text-pml-text-muted no-underline text-sm hover:text-pml-accent">Dashboard</a>
+              <a href="/dashboard" class="text-pml-text-muted no-underline text-sm hover:text-pml-accent">App</a>
             </div>
           </div>
         </footer>

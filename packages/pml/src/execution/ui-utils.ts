@@ -52,6 +52,30 @@ function isObject(value: unknown): value is Record<string, unknown> {
  * }
  * ```
  */
+/**
+ * Parse MCP content envelope to extract the actual data payload.
+ *
+ * MCP tool results are wrapped: `{ content: [{ type: "text", text: "{...}" }], _meta: {...} }`.
+ * This extracts the parsed data from `content[0].text`.
+ * Returns the original value if it's not an MCP envelope.
+ */
+export function extractResultData(result: unknown): unknown {
+  if (!isObject(result)) return result;
+  const r = result as { content?: Array<{ type: string; text?: string }> };
+  if (r.content) {
+    for (const c of r.content) {
+      if (c.type === "text" && c.text) {
+        try {
+          return JSON.parse(c.text);
+        } catch {
+          return c.text;
+        }
+      }
+    }
+  }
+  return result;
+}
+
 export function extractUiMeta(result: unknown): ExtractedUiMeta | null {
   if (!isObject(result)) {
     return null;

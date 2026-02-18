@@ -76,6 +76,8 @@ export interface SandboxExecutorOptions {
   executionTimeoutMs?: number;
   /** RPC timeout for individual tool calls */
   rpcTimeoutMs?: number;
+  /** Callback fired when a tool returns _meta.ui. For real-time SSE feed. */
+  onUiCollected?: (ui: CollectedUiResource, parsedResult: unknown) => void;
 }
 
 /**

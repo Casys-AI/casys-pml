@@ -12,9 +12,10 @@ interface HeaderProps {
   } | null;
   isCloudMode?: boolean;
   children?: ComponentChildren;
+  activePage?: "dashboard";
 }
 
-export default function Header({ user, isCloudMode, children }: HeaderProps) {
+export default function Header({ user, isCloudMode, children, activePage }: HeaderProps) {
   return (
     <header
       class="flex items-center justify-between px-5 py-3"
@@ -56,6 +57,25 @@ export default function Header({ user, isCloudMode, children }: HeaderProps) {
         </svg>
         Casys PML
       </a>
+
+      {/* Nav */}
+      <nav class="flex items-center gap-1 ml-4">
+        {[
+          { href: "/dashboard", label: "Dashboard", key: "dashboard" as const },
+        ].map(({ href, label, key }) => (
+          <a
+            key={key}
+            href={href}
+            class={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activePage === key
+                ? "text-[#FFB86F] bg-[rgba(255,184,111,0.1)]"
+                : "text-[#d5c3b5] hover:text-[#FFB86F] hover:bg-[rgba(255,184,111,0.05)]"
+            }`}
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
 
       {/* Center: Search slot (portal target) */}
       <div id="header-search-slot" class="flex-1 flex justify-center px-4">

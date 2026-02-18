@@ -148,7 +148,7 @@ function Footer({ isCloudMode }: FooterProps) {
           ))}
           {!isCloudMode && (
             <a href="/dashboard" class="text-stone-500 no-underline text-[0.8rem] transition-colors duration-200 hover:text-pml-accent">
-              Dashboard
+              App
             </a>
           )}
         </div>

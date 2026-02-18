@@ -15,6 +15,7 @@ interface DashboardLayoutProps {
     avatarUrl?: string;
   } | null;
   isCloudMode?: boolean;
+  activePage?: "dashboard";
 }
 
 export default function DashboardLayout({
@@ -23,6 +24,7 @@ export default function DashboardLayout({
   rightPanel,
   user,
   isCloudMode,
+  activePage,
 }: DashboardLayoutProps) {
   return (
     <div
@@ -33,7 +35,7 @@ export default function DashboardLayout({
       }}
     >
       {/* Header - Top */}
-      <Header user={user} isCloudMode={isCloudMode} />
+      <Header user={user} isCloudMode={isCloudMode} activePage={activePage} />
 
       {/* Main content area */}
       <div class="flex flex-1 min-h-0">

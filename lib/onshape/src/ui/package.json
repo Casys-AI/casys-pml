@@ -1,0 +1,26 @@
+{
+  "name": "@casys/mcp-onshape-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build-all.mjs",
+    "dev:doclist": "UI_NAME=doclist-viewer vite --config vite.single.config.mjs",
+    "dev:bom": "UI_NAME=bom-viewer vite --config vite.single.config.mjs",
+    "dev:3d": "UI_NAME=3d-viewer vite --config vite.single.config.mjs",
+    "dev:mass": "UI_NAME=mass-viewer vite --config vite.single.config.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "preact": "^10.28.2",
+    "three": "^0.172.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.2",
+    "@tailwindcss/vite": "^4.1.18",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.5.3",
+    "vite": "^6.2.0",
+    "vite-plugin-singlefile": "^2.0.3"
+  }
+}

@@ -177,11 +177,13 @@ function getLayoutCss(layout: UiLayout): string {
         .layout-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+          grid-auto-rows: 1fr;
           gap: 8px;
           height: 100vh;
           padding: 8px;
+          box-sizing: border-box;
         }
-        .layout-grid > iframe { border: 1px solid var(--pml-border-color); border-radius: 4px; min-height: 300px; }
+        .layout-grid > iframe { border: 1px solid var(--pml-border-color); border-radius: 4px; width: 100%; height: 100%; }
       `;
     case "stack":
       return `

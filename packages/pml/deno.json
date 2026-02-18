@@ -36,7 +36,7 @@
   },
   "tasks": {
     "dev": "deno run --watch -A --env-file=.env --unstable-worker-options src/cli/mod.ts serve",
-    "serve": "deno run -A --unstable-worker-options src/cli/mod.ts serve",
+    "serve": "deno run -A --env-file=.env --unstable-worker-options src/cli/mod.ts serve",
     "stdio": "deno run -A --unstable-worker-options src/cli/mod.ts stdio",
     "compile": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts -o ~/.deno/bin/pml ./src/cli/mod.ts",
     "compile:linux": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts --target x86_64-unknown-linux-gnu -o dist/pml-linux-x64 ./src/cli/mod.ts",

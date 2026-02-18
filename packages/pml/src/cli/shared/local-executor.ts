@@ -7,6 +7,7 @@
 import type { LocalExecutionResult, ContinueWorkflowParams, Logger, PendingApprovalState, DAGTask } from "./types.ts";
 import { SandboxExecutor } from "../../execution/mod.ts";
 import { CapabilityLoader } from "../../loader/mod.ts";
+import type { CollectedUiResource } from "../../types/ui-orchestration.ts";
 
 /**
  * Execute code locally via SandboxExecutor (hybrid routing).
@@ -32,12 +33,14 @@ export async function executeLocalCode(
   logger?: Logger,
   serverWorkflowId?: string,
   dagTasks?: DAGTask[],
+  onUiCollected?: (ui: CollectedUiResource, parsedResult: unknown) => void,
 ): Promise<LocalExecutionResult> {
   const apiKey = Deno.env.get("PML_API_KEY");
 
   const executor = new SandboxExecutor({
     cloudUrl,
     apiKey,
+    onUiCollected,
   });
 
   // Track if we hit an approval_required during execution

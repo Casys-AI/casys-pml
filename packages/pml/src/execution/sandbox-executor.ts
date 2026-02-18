@@ -33,7 +33,7 @@ import type {
   ToolCallHandler,
   ToolCallRecord,
 } from "./types.ts";
-import { extractUiMeta } from "./ui-utils.ts";
+import { extractUiMeta, extractResultData } from "./ui-utils.ts";
 import type { CollectedUiResource } from "../types/ui-orchestration.ts";
 
 /**
@@ -85,12 +85,14 @@ export class SandboxExecutor {
   private readonly apiKey?: string;
   private readonly executionTimeoutMs: number;
   private readonly rpcTimeoutMs: number;
+  private readonly onUiCollected?: (ui: CollectedUiResource, parsedResult: unknown) => void;
 
   constructor(options: SandboxExecutorOptions) {
     this.cloudUrl = options.cloudUrl;
     this.apiKey = options.apiKey ?? Deno.env.get("PML_API_KEY");
     this.executionTimeoutMs = options.executionTimeoutMs ?? 300_000; // 5 min default
     this.rpcTimeoutMs = options.rpcTimeoutMs ?? 30_000; // 30s default
+    this.onUiCollected = options.onUiCollected;
   }
 
   /**
@@ -207,12 +209,14 @@ export class SandboxExecutor {
     if (success) {
       const uiMeta = extractUiMeta(result);
       if (uiMeta) {
-        ctx.collectedUi.push({
+        const collected: CollectedUiResource = {
           source: method,
           resourceUri: uiMeta.resourceUri,
           context: { ...uiMeta.context, _args: args },
           slot: ctx.collectedUi.length,
-        });
+        };
+        ctx.collectedUi.push(collected);
+        this.onUiCollected?.(collected, extractResultData(result));
       }
     }
 
