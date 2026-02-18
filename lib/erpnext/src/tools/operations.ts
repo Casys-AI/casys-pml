@@ -12,6 +12,51 @@ import type { FrappeFilter } from "../api/types.ts";
 import type { ErpNextTool } from "./types.ts";
 
 export const operationsTools: ErpNextTool[] = [
+  // ── Generic Create ──────────────────────────────────────────────────────────
+
+  {
+    name: "erpnext_doc_create",
+    description:
+      "Create any ERPNext document. Works on any DocType including master data " +
+      "(Company, Item Group, UOM, Territory, Customer Group, Supplier Group, Warehouse Type, etc.). " +
+      "For DocTypes with 'Prompt' naming, include a 'name' field in data. Returns the created document.",
+    category: "operations",
+    inputSchema: {
+      type: "object",
+      properties: {
+        doctype: {
+          type: "string",
+          description: "ERPNext DocType name (e.g. 'Company', 'Item Group', 'Warehouse Type')",
+        },
+        data: {
+          type: "object",
+          description:
+            "Document fields as key-value pairs. Include 'name' for DocTypes with Prompt naming.",
+          additionalProperties: true,
+        },
+      },
+      required: ["doctype", "data"],
+    },
+    handler: async (input, ctx) => {
+      if (!input.doctype) {
+        throw new Error("[erpnext_doc_create] 'doctype' is required");
+      }
+      if (!input.data || typeof input.data !== "object") {
+        throw new Error("[erpnext_doc_create] 'data' must be an object with document fields");
+      }
+
+      const doc = await ctx.client.create(
+        input.doctype as string,
+        input.data as Record<string, unknown>,
+      );
+
+      return {
+        data: doc,
+        message: `${input.doctype} ${doc.name} created successfully`,
+      };
+    },
+  },
+
   // ── Generic Update ────────────────────────────────────────────────────────
 
   {

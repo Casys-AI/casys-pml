@@ -1,6 +1,6 @@
 # @casys/mcp-erpnext
 
-MCP server for [ERPNext](https://erpnext.com) / Frappe ERP — **97 tools** across **11 categories**, with interactive UI viewers.
+MCP server for [ERPNext](https://erpnext.com) / Frappe ERP — **100 tools** across **12 categories**, with interactive UI viewers.
 
 Connect any MCP-compatible AI agent (Claude Desktop, PML, custom) to your ERPNext instance via the standard [Model Context Protocol](https://modelcontextprotocol.io).
 
@@ -50,7 +50,28 @@ Load only the categories you need:
 deno run --allow-all server.ts --categories=sales,inventory
 ```
 
-## Tools (97)
+## Fresh Instance Setup
+
+On a fresh ERPNext instance (no setup wizard), you need to create master data before using business tools. Use `erpnext_doc_create` for prerequisites:
+
+```
+1. Warehouse Types: Transit, Default
+2. UOMs: Nos, Kg, Unit, Set, Meter
+3. Item Groups: All Item Groups (is_group=1), then Products, Raw Material (parent=All Item Groups)
+4. Territories: All Territories (is_group=1), then France, etc.
+5. Customer Groups: All Customer Groups (is_group=1), then Commercial, etc.
+6. Supplier Groups: All Supplier Groups (is_group=1), then Hardware, etc.
+7. Company: requires Warehouse Types to exist first
+```
+
+## Tools (100)
+
+### Setup (2)
+
+| Tool | DocType | Operations |
+|------|---------|-----------|
+| `erpnext_company_list` | Company | List companies |
+| `erpnext_company_create` | Company | Create (name, abbr, currency, country, domain) |
 
 ### Sales (17)
 
@@ -88,12 +109,13 @@ deno run --allow-all server.ts --categories=sales,inventory
 | `erpnext_stock_entry_get` | Stock Entry | Get with item details |
 | `erpnext_stock_entry_create` | Stock Entry | Create (type + items + warehouses) |
 
-### Purchasing (10)
+### Purchasing (11)
 
 | Tool | DocType | Operations |
 |------|---------|-----------|
 | `erpnext_supplier_list` | Supplier | List + filters (group, type, disabled) |
 | `erpnext_supplier_get` | Supplier | Get by name |
+| `erpnext_supplier_create` | Supplier | Create (name, group, type, country, currency) |
 | `erpnext_purchase_order_list` | Purchase Order | List + filters (supplier, status, dates) |
 | `erpnext_purchase_order_get` | Purchase Order | Get with line items |
 | `erpnext_purchase_order_create` | Purchase Order | Create (supplier + items + schedule_date) |
@@ -193,12 +215,13 @@ deno run --allow-all server.ts --categories=sales,inventory
 | `erpnext_asset_maintenance_get` | Asset Maintenance | Get with maintenance tasks |
 | `erpnext_asset_category_list` | Asset Category | List all categories |
 
-### Generic Operations (6)
+### Generic Operations (7)
 
 These tools work with **any** ERPNext DocType:
 
 | Tool | Operation | Notes |
 |------|-----------|-------|
+| `erpnext_doc_create` | Create | Any DocType — essential for master data setup |
 | `erpnext_doc_get` | Get | Any document by DocType + name |
 | `erpnext_doc_list` | List | Any DocType with fields, filters, limit, order_by |
 | `erpnext_doc_update` | Update | Partial patch — pass only fields to change |
@@ -263,7 +286,8 @@ src/
     manufacturing.ts  # 7 manufacturing tools
     crm.ts            # 8 CRM tools
     assets.ts         # 8 asset tools
-    operations.ts     # 6 generic CRUD tools
+    operations.ts     # 7 generic CRUD tools
+    setup.ts          # 2 company/setup tools
     mod.ts            # Registry
     types.ts          # Tool interface
   client.ts           # ErpNextToolsClient

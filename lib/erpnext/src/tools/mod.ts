@@ -18,6 +18,7 @@ import { manufacturingTools } from "./manufacturing.ts";
 import { crmTools } from "./crm.ts";
 import { assetsTools } from "./assets.ts";
 import { operationsTools } from "./operations.ts";
+import { setupTools } from "./setup.ts";
 import type { ErpNextTool, ErpNextToolCategory } from "./types.ts";
 
 export {
@@ -32,6 +33,7 @@ export {
   crmTools,
   assetsTools,
   operationsTools,
+  setupTools,
 };
 export type { ErpNextTool, ErpNextToolCategory };
 
@@ -48,6 +50,7 @@ export const toolsByCategory: Record<string, ErpNextTool[]> = {
   crm: crmTools,
   assets: assetsTools,
   operations: operationsTools,
+  setup: setupTools,
 };
 
 /** Flat array of all tools */
@@ -63,6 +66,7 @@ export const allTools: ErpNextTool[] = [
   ...crmTools,
   ...assetsTools,
   ...operationsTools,
+  ...setupTools,
 ];
 
 /** Get tools for a specific category */

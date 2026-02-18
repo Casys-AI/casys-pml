@@ -107,13 +107,11 @@ export async function initializePmlContext(
   const workspaceResult = resolveWorkspaceWithDetails(SILENT_LOGGER);
   const workspace = workspaceResult.path;
 
-  // 2. Load .env
-  if (!Deno.env.get("PML_API_KEY")) {
-    try {
-      await reloadEnv(workspace);
-    } catch (e) {
-      logger.debug(`Failed to load .env: ${e instanceof Error ? e.message : e}`);
-    }
+  // 2. Load .env (always — mcpServers env vars like ERPNEXT_URL need it too)
+  try {
+    await reloadEnv(workspace);
+  } catch (e) {
+    logger.debug(`Failed to load .env: ${e instanceof Error ? e.message : e}`);
   }
 
   // 3. Validate PML_API_KEY

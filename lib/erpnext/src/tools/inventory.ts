@@ -17,7 +17,7 @@ export const inventoryTools: ErpNextTool[] = [
     _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List ERPNext Items. Returns active items by default. " +
-      "Fields: name, item_code, item_name, item_group, uom, is_stock_item, standard_rate. " +
+      "Fields: name, item_code, item_name, item_group, stock_uom, is_stock_item, standard_rate. " +
       "Filterable by item_group, is_stock_item.",
     category: "inventory",
     inputSchema: {
@@ -54,7 +54,7 @@ export const inventoryTools: ErpNextTool[] = [
           "item_code",
           "item_name",
           "item_group",
-          "uom",
+          "stock_uom",
           "is_stock_item",
           "standard_rate",
         ],

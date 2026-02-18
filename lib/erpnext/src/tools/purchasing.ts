@@ -91,6 +91,51 @@ export const purchasingTools: ErpNextTool[] = [
     },
   },
 
+  {
+    name: "erpnext_supplier_create",
+    description:
+      "Create a new ERPNext Supplier. Requires supplier_name and supplier_group. " +
+      "Returns the created supplier document.",
+    category: "purchasing",
+    inputSchema: {
+      type: "object",
+      properties: {
+        supplier_name: { type: "string", description: "Supplier company or person name" },
+        supplier_group: { type: "string", description: "Supplier Group (e.g. 'Hardware', 'Services')" },
+        supplier_type: {
+          type: "string",
+          description: "Company or Individual (default Company)",
+        },
+        country: { type: "string", description: "Country name" },
+        default_currency: { type: "string", description: "Currency code (e.g. EUR, USD)" },
+      },
+      required: ["supplier_name", "supplier_group"],
+    },
+    handler: async (input, ctx) => {
+      if (!input.supplier_name) {
+        throw new Error("[erpnext_supplier_create] 'supplier_name' is required");
+      }
+      if (!input.supplier_group) {
+        throw new Error("[erpnext_supplier_create] 'supplier_group' is required");
+      }
+
+      const data: Record<string, unknown> = {
+        supplier_name: input.supplier_name,
+        supplier_group: input.supplier_group,
+        supplier_type: (input.supplier_type as string) ?? "Company",
+      };
+      if (input.country) data.country = input.country;
+      if (input.default_currency) data.default_currency = input.default_currency;
+
+      const doc = await ctx.client.create("Supplier", data);
+
+      return {
+        data: doc,
+        message: `Supplier ${doc.name} created successfully`,
+      };
+    },
+  },
+
   // ── Purchase Orders ───────────────────────────────────────────────────────
 
   {
