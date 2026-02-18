@@ -14,6 +14,7 @@ export const deliveryTools: ErpNextTool[] = [
 
   {
     name: "erpnext_delivery_note_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Delivery Notes. Filterable by customer, status, date range. " +
       "Fields: name, customer, posting_date, status, total_qty, grand_total.",
@@ -156,6 +157,7 @@ export const deliveryTools: ErpNextTool[] = [
 
   {
     name: "erpnext_shipment_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Shipments. Filterable by status, pickup_from date range. " +
       "Fields: name, status, pickup_date, delivery_date, carrier, shipment_amount.",

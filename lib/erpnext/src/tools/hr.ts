@@ -14,6 +14,7 @@ export const hrTools: ErpNextTool[] = [
 
   {
     name: "erpnext_employee_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Employees. Filterable by department, status. " +
       "Fields: name, employee_name, designation, department, company, status, date_of_joining.",
@@ -92,6 +93,7 @@ export const hrTools: ErpNextTool[] = [
 
   {
     name: "erpnext_attendance_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Attendance records. Filterable by employee, date range. " +
       "Fields: name, employee, employee_name, attendance_date, status.",
@@ -145,6 +147,7 @@ export const hrTools: ErpNextTool[] = [
 
   {
     name: "erpnext_leave_application_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Leave Applications. Filterable by employee, status, leave_type. " +
       "Fields: name, employee, employee_name, leave_type, from_date, to_date, status.",
@@ -272,6 +275,7 @@ export const hrTools: ErpNextTool[] = [
 
   {
     name: "erpnext_salary_slip_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Salary Slips. Filterable by employee, status, date range. " +
       "Fields: name, employee, employee_name, posting_date, start_date, end_date, gross_pay, net_pay, status.",
@@ -356,6 +360,7 @@ export const hrTools: ErpNextTool[] = [
 
   {
     name: "erpnext_payroll_entry_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Payroll Entries. Filterable by company, status. " +
       "Fields: name, company, posting_date, payroll_frequency, status.",
@@ -401,6 +406,7 @@ export const hrTools: ErpNextTool[] = [
 
   {
     name: "erpnext_expense_claim_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Expense Claims. Filterable by employee, status, approval_status. " +
       "Fields: name, employee, employee_name, posting_date, total_claimed_amount, status, approval_status.",
@@ -519,6 +525,7 @@ export const hrTools: ErpNextTool[] = [
 
   {
     name: "erpnext_leave_balance",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "Get leave balance (allocations) for an employee. " +
       "Returns Leave Allocations with leave_type, total_leaves_allocated, new_leaves_allocated.",

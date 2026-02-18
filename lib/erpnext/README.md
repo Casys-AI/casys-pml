@@ -216,6 +216,16 @@ Three interactive [MCP Apps](https://github.com/anthropics/mcp-apps-sdk) viewers
 | `invoice-viewer` | Single invoice display (header, items, totals, payment status) |
 | `stock-viewer` | Stock balance table with color-coded qty badges |
 
+### Roadmap
+
+Planned viewers for future releases:
+
+| Viewer | Priority | Description |
+|--------|----------|-------------|
+| `document-viewer` | P2 | Single document detail view (for all `_get` tools) |
+| `chart-viewer` | P2 | GL entries, balance sheet, P&L charts (accounting) |
+| `gantt-viewer` | P3 | Project/task timeline visualization |
+
 ### Building UI viewers
 
 ```bash

@@ -15,6 +15,7 @@ export const crmTools: ErpNextTool[] = [
 
   {
     name: "erpnext_lead_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List CRM Leads. Filterable by status, lead_owner, source. " +
       "Fields: name, lead_name, company_name, status, lead_owner, source, email_id, mobile_no.",
@@ -137,6 +138,7 @@ export const crmTools: ErpNextTool[] = [
 
   {
     name: "erpnext_opportunity_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List CRM Opportunities. Filterable by status, opportunity_owner, opportunity_from. " +
       "Fields: name, opportunity_from, party_name, status, opportunity_amount, currency, probability, opportunity_owner.",
@@ -218,6 +220,7 @@ export const crmTools: ErpNextTool[] = [
 
   {
     name: "erpnext_contact_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Contacts. Filterable by company_name, status. " +
       "Fields: name, first_name, last_name, company_name, email_id, mobile_no, status.",
@@ -290,6 +293,7 @@ export const crmTools: ErpNextTool[] = [
 
   {
     name: "erpnext_campaign_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List CRM Campaigns. " +
       "Fields: name, campaign_name, campaign_type, start_date, end_date, description.",

@@ -15,6 +15,7 @@ export const manufacturingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_bom_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Bills of Materials (BOM). Filterable by item, is_active, is_default. " +
       "Fields: name, item, item_name, quantity, uom, is_active, is_default, total_cost.",
@@ -96,6 +97,7 @@ export const manufacturingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_work_order_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Work Orders. Filterable by production_item, status, date range. " +
       "Fields: name, production_item, qty, produced_qty, status, planned_start_date, planned_end_date.",
@@ -232,6 +234,7 @@ export const manufacturingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_job_card_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Job Cards (production operations tracking). Filterable by work_order, status, operation. " +
       "Fields: name, work_order, operation, status, for_quantity, total_completed_qty, workstation.",

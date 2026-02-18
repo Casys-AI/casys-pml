@@ -15,6 +15,7 @@ export const assetsTools: ErpNextTool[] = [
 
   {
     name: "erpnext_asset_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Fixed Assets. Filterable by status, asset_category, location, custodian. " +
       "Fields: name, asset_name, asset_category, status, purchase_date, gross_purchase_amount, " +
@@ -155,6 +156,7 @@ export const assetsTools: ErpNextTool[] = [
 
   {
     name: "erpnext_asset_movement_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Asset Movements (transfers between locations/custodians). " +
       "Fields: name, transaction_date, purpose, company.",
@@ -224,6 +226,7 @@ export const assetsTools: ErpNextTool[] = [
 
   {
     name: "erpnext_asset_maintenance_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Asset Maintenance records. Filterable by asset_name, maintenance_status. " +
       "Fields: name, asset_name, asset_category, maintenance_team, maintenance_status.",
@@ -295,6 +298,7 @@ export const assetsTools: ErpNextTool[] = [
 
   {
     name: "erpnext_asset_category_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Asset Categories. " +
       "Fields: name, asset_category_name.",

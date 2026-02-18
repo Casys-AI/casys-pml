@@ -52,6 +52,8 @@ export interface ErpNextTool {
   category: ErpNextToolCategory;
   /** JSON Schema for tool input parameters */
   inputSchema: JSONSchema;
+  /** MCP Apps UI metadata (optional) */
+  _meta?: { ui: { resourceUri: string } };
   /** Execute the tool and return a JSON-serializable result */
   handler: (
     input: Record<string, unknown>,
@@ -64,13 +66,16 @@ export interface MCPToolWireFormat {
   name: string;
   description: string;
   inputSchema: JSONSchema;
+  _meta?: { ui: { resourceUri: string } };
 }
 
 /** Convert an ErpNextTool to MCP wire format */
 export function toMCPWireFormat(tool: ErpNextTool): MCPToolWireFormat {
-  return {
+  const wire: MCPToolWireFormat = {
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,
   };
+  if (tool._meta) wire._meta = tool._meta;
+  return wire;
 }

@@ -236,6 +236,7 @@ export const operationsTools: ErpNextTool[] = [
 
   {
     name: "erpnext_doc_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List any ERPNext documents by DocType. Useful for DocTypes not covered " +
       "by dedicated tools. Supports field selection, filters (as JSON array), and limit.",

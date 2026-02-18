@@ -15,6 +15,7 @@ export const accountingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_account_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Chart of Accounts. Filterable by root_type and is_group. " +
       "Fields: name, account_name, account_type, root_type, parent_account, is_group. " +
@@ -65,6 +66,7 @@ export const accountingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_journal_entry_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Journal Entries. Filterable by date range and voucher_type. " +
       "Fields: name, voucher_type, posting_date, total_debit, total_credit, remark.",
@@ -134,6 +136,7 @@ export const accountingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_payment_entry_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Payment Entries. Filterable by payment_type, party_type, date range. " +
       "Fields: name, payment_type, party_type, party, posting_date, paid_amount, currency. " +

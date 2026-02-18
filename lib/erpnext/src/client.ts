@@ -44,6 +44,7 @@ export interface MCPToolWireFormat {
   name: string;
   description: string;
   inputSchema: JSONSchema;
+  _meta?: { ui: { resourceUri: string } };
 }
 
 // ============================================================================
@@ -76,11 +77,15 @@ export class ErpNextToolsClient {
 
   /** Convert tools to MCP wire format (for server registration) */
   toMCPFormat(): MCPToolWireFormat[] {
-    return this.tools.map((t) => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: t.inputSchema as JSONSchema,
-    }));
+    return this.tools.map((t) => {
+      const wire: MCPToolWireFormat = {
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema as JSONSchema,
+      };
+      if (t._meta) wire._meta = t._meta;
+      return wire;
+    });
   }
 
   /**

@@ -14,6 +14,7 @@ export const salesTools: ErpNextTool[] = [
 
   {
     name: "erpnext_customer_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List ERPNext customers. Returns active customers by default. " +
       "Fields: name, customer_name, customer_group, territory, email_id, disabled.",
@@ -171,6 +172,7 @@ export const salesTools: ErpNextTool[] = [
 
   {
     name: "erpnext_sales_order_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Sales Orders. Filterable by customer, status, date range. " +
       "Fields: name, customer, transaction_date, status, grand_total, currency.",
@@ -417,6 +419,7 @@ export const salesTools: ErpNextTool[] = [
 
   {
     name: "erpnext_sales_invoice_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Sales Invoices. Filterable by customer, status, date range. " +
       "Fields: name, customer, posting_date, due_date, status, grand_total, outstanding_amount.",
@@ -475,6 +478,7 @@ export const salesTools: ErpNextTool[] = [
 
   {
     name: "erpnext_sales_invoice_get",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/invoice-viewer" } },
     description:
       "Get a single Sales Invoice by name (e.g. SINV-00001). Returns full document with line items.",
     category: "sales",
@@ -602,6 +606,7 @@ export const salesTools: ErpNextTool[] = [
 
   {
     name: "erpnext_quotation_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Quotations. Filterable by party_name, status. " +
       "Fields: name, party_name, transaction_date, status, grand_total.",

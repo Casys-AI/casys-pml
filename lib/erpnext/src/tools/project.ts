@@ -14,6 +14,7 @@ export const projectTools: ErpNextTool[] = [
 
   {
     name: "erpnext_project_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Projects. Filterable by status. " +
       "Fields: name, project_name, status, percent_complete, expected_start_date, " +
@@ -89,6 +90,7 @@ export const projectTools: ErpNextTool[] = [
 
   {
     name: "erpnext_task_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Tasks. Filterable by project, status, priority. " +
       "Fields: name, subject, project, status, priority, exp_start_date, exp_end_date, progress.",
@@ -274,6 +276,7 @@ export const projectTools: ErpNextTool[] = [
 
   {
     name: "erpnext_timesheet_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Timesheets. Filterable by employee, project. " +
       "Fields: name, employee, start_date, end_date, status, total_hours.",

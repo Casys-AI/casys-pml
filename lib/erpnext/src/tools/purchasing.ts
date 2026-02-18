@@ -15,6 +15,7 @@ export const purchasingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_supplier_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List ERPNext suppliers. Returns active suppliers by default. " +
       "Fields: name, supplier_name, supplier_group, supplier_type, email_id, disabled.",
@@ -94,6 +95,7 @@ export const purchasingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_purchase_order_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Purchase Orders. Filterable by supplier, status, date range. " +
       "Fields: name, supplier, transaction_date, schedule_date, status, grand_total, currency.",
@@ -243,6 +245,7 @@ export const purchasingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_purchase_invoice_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Purchase Invoices (bills from suppliers). Filterable by supplier, status, date range. " +
       "Fields: name, supplier, posting_date, due_date, status, grand_total, outstanding_amount.",
@@ -324,6 +327,7 @@ export const purchasingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_purchase_receipt_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Purchase Receipts (goods received notes). Filterable by supplier, status, date range. " +
       "Fields: name, supplier, posting_date, status, total_qty, grand_total.",
@@ -397,6 +401,7 @@ export const purchasingTools: ErpNextTool[] = [
 
   {
     name: "erpnext_supplier_quotation_list",
+    _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
     description:
       "List Supplier Quotations (RFQ responses from suppliers). Filterable by supplier, status. " +
       "Fields: name, supplier, transaction_date, status, grand_total.",
