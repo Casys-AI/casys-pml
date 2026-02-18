@@ -129,19 +129,8 @@ function renderBox(title: string, content: string[], width = 60): string {
 }
 
 function stripAnsi(str: string): string {
+  // deno-lint-ignore no-control-regex
   return str.replace(/\x1b\[[0-9;]*m/g, "");
-}
-
-function progressBar(current: number, total: number, width = 30, label = ""): string {
-  const percent = Math.min(1, current / total);
-  const filled = Math.round(percent * width);
-  const empty = width - filled;
-
-  const bar = c.brightGreen(sym.bars[7].repeat(filled)) + c.gray(sym.bars[0].repeat(empty));
-  const pct = c.bold((percent * 100).toFixed(0).padStart(3) + "%");
-  const counter = c.dim(`${current}/${total}`);
-
-  return `${label}[${bar}] ${pct} ${counter}`;
 }
 
 function sparkline(values: number[], width = 20, color = c.brightGreen): string {
@@ -165,100 +154,6 @@ function sparkline(values: number[], width = 20, color = c.brightGreen): string 
   }).join("");
 }
 
-/**
- * Multi-window sparklines showing trends at different time scales
- * Superimposes short/medium/long term trends
- */
-function multiWindowSparklines(
-  values: number[],
-  windows: { size: number; label: string; color: (s: string) => string }[],
-  width = 30
-): string[] {
-  const lines: string[] = [];
-
-  for (const { size, label, color } of windows) {
-    const slice = values.slice(-size);
-    if (slice.length === 0) {
-      lines.push(`${c.dim(label.padEnd(8))} ${c.dim("─".repeat(width))}`);
-      continue;
-    }
-
-    // Calculate trend
-    const first = slice[0];
-    const last = slice[slice.length - 1];
-    const delta = last - first;
-    const pctChange = first !== 0 ? (delta / Math.abs(first)) * 100 : 0;
-
-    const trend = delta > 0.001
-      ? c.brightGreen(`↑${Math.abs(pctChange).toFixed(1)}%`)
-      : delta < -0.001
-        ? c.brightRed(`↓${Math.abs(pctChange).toFixed(1)}%`)
-        : c.dim("─0%");
-
-    const spark = sparkline(slice, width, color);
-    const current = last.toFixed(4);
-
-    lines.push(`${c.dim(label.padEnd(8))} ${spark} ${color(current)} ${trend}`);
-  }
-
-  return lines;
-}
-
-/**
- * Renders a compact metrics dashboard with multi-window graphs
- */
-function renderMetricsDashboard(
-  label: string,
-  values: number[],
-  format: (n: number) => string = (n) => n.toFixed(4),
-  isHigherBetter = true
-): string[] {
-  const windows = [
-    { size: 5, label: "5 bat", color: c.brightCyan },
-    { size: 20, label: "20 bat", color: c.brightYellow },
-    { size: 1000, label: "all", color: c.brightGreen },
-  ];
-
-  const lines: string[] = [];
-  lines.push(`${c.bold(label)}`);
-
-  if (values.length === 0) {
-    lines.push(`  ${c.dim("No data yet...")}`);
-    return lines;
-  }
-
-  const current = values[values.length - 1];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-
-  // Header stats
-  lines.push(`  ${c.dim("Current:")} ${c.bold(format(current))}  ${c.dim("Min:")} ${format(min)}  ${c.dim("Max:")} ${format(max)}  ${c.dim("Avg:")} ${format(avg)}`);
-  lines.push("");
-
-  // Multi-window sparklines
-  for (const { size, label: wLabel, color } of windows) {
-    const slice = values.slice(-size);
-    if (slice.length < 2) continue;
-
-    const first = slice[0];
-    const last = slice[slice.length - 1];
-    const delta = last - first;
-    const pctChange = first !== 0 ? (delta / Math.abs(first)) * 100 : 0;
-
-    const trendIcon = delta > 0.001
-      ? (isHigherBetter ? c.brightGreen("↑") : c.brightRed("↑"))
-      : delta < -0.001
-        ? (isHigherBetter ? c.brightRed("↓") : c.brightGreen("↓"))
-        : c.dim("─");
-
-    const spark = sparkline(slice, 25, color);
-
-    lines.push(`  ${c.dim(wLabel.padEnd(7))} ${spark} ${trendIcon}${Math.abs(pctChange).toFixed(1).padStart(5)}%`);
-  }
-
-  return lines;
-}
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
@@ -274,82 +169,6 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
-// ============================================================================
-// Spinner Class
-// ============================================================================
-
-class Spinner {
-  private interval: number | null = null;
-  private frame = 0;
-  private text: string;
-
-  constructor(text: string) {
-    this.text = text;
-  }
-
-  start() {
-    term.hideCursor();
-    this.interval = setInterval(() => {
-      const spinner = c.cyan(sym.spinner[this.frame % sym.spinner.length]);
-      term.clearLine();
-      Deno.stdout.writeSync(new TextEncoder().encode(`  ${spinner} ${this.text}`));
-      this.frame++;
-    }, 80);
-  }
-
-  stop(success = true) {
-    if (this.interval) clearInterval(this.interval);
-    term.clearLine();
-    const icon = success ? c.green(sym.check) : c.red(sym.cross);
-    console.log(`  ${icon} ${this.text}`);
-    term.showCursor();
-  }
-
-  update(text: string) {
-    this.text = text;
-  }
-}
-
-// ============================================================================
-// Training Monitor
-// ============================================================================
-
-interface TrainingMetrics {
-  epoch: number;
-  batch: number;
-  totalBatches: number;
-  loss: number;
-  accuracy: number;
-  learningRate: number;
-  temperature: number;
-  batchTime: number;
-  lossHistory: number[];
-  accHistory: number[];
-}
-
-function renderMetricsPanel(metrics: TrainingMetrics, startTime: number): string {
-  const elapsed = Date.now() - startTime;
-  const progress = metrics.batch / metrics.totalBatches;
-  const eta = progress > 0 ? (elapsed / progress) - elapsed : 0;
-
-  const content = [
-    "",
-    `  ${c.bold("Epoch")}     ${c.brightYellow(metrics.epoch.toString())}`,
-    `  ${c.bold("Progress")}  ${progressBar(metrics.batch, metrics.totalBatches, 25)}`,
-    "",
-    `  ${c.bold("Loss")}      ${c.brightMagenta(metrics.loss.toFixed(4))}  ${sparkline(metrics.lossHistory.slice(-20), 15)}`,
-    `  ${c.bold("Accuracy")}  ${c.brightGreen((metrics.accuracy * 100).toFixed(1) + "%")}  ${sparkline(metrics.accHistory.slice(-20), 15)}`,
-    "",
-    `  ${c.bold("τ (temp)")} ${c.cyan(metrics.temperature.toFixed(3))}`,
-    `  ${c.bold("Batch")}     ${c.dim(formatDuration(metrics.batchTime) + "/batch")}`,
-    "",
-    `  ${c.dim("Elapsed")}   ${formatDuration(elapsed)}`,
-    `  ${c.dim("ETA")}       ${formatDuration(eta)}`,
-    "",
-  ];
-
-  return renderBox(`${sym.brain} SHGAT Training`, content, 50);
-}
 
 // ============================================================================
 // Main Script
@@ -385,7 +204,6 @@ ${c.bold("Examples:")}
 
 const EPOCHS = Number(args.epochs);
 const BATCH_SIZE = Number(args["batch-size"]);
-const QUIET = args.quiet;
 const DATABASE_URL = Deno.env.get("DATABASE_URL");
 
 if (!DATABASE_URL) {
@@ -433,19 +251,22 @@ try {
   `;
 
   const capabilities = caps
+    // deno-lint-ignore no-explicit-any
     .map((c: any) => ({
       id: c.id,
       embedding: parseVector(c.embedding),
       toolsUsed: c.tools_used ?? [],
       successRate: c.success_rate ?? 0.5,
     }))
-    .filter((c: any) => c.embedding?.length > 0);
+    .filter((c: { embedding: number[] | null }) => c.embedding && c.embedding.length > 0);
 
   loadingStatus.caps = capabilities.length;
   loadingStatus.phase = "traces";
 
   const traces = await sql`
-    SELECT et.capability_id, wp.intent_embedding, et.success, et.executed_path
+    SELECT et.capability_id,
+           COALESCE(et.intent_embedding, wp.intent_embedding) as intent_embedding,
+           et.success, et.executed_path
     FROM execution_trace et
     JOIN workflow_pattern wp ON wp.pattern_id = et.capability_id
     WHERE et.capability_id IS NOT NULL AND wp.intent_embedding IS NOT NULL
@@ -462,6 +283,7 @@ try {
     capToTools.set(cap.id, new Set(cap.toolsUsed));
   }
 
+  // deno-lint-ignore no-explicit-any
   const examples: any[] = [];
   for (const trace of traces) {
     if (!capToTools.has(trace.capability_id)) continue;
@@ -506,17 +328,16 @@ try {
   // Additional tools
   const toolsInCaps = new Set<string>();
   for (const cap of capabilities) cap.toolsUsed.forEach((t: string) => toolsInCaps.add(t));
+  // deno-lint-ignore no-explicit-any
   const additionalTools = [...new Set(examples.flatMap((e: any) => e.contextTools))].filter(t => !toolsInCaps.has(t));
 
   const startTime = Date.now();
 
   // Metrics collectors for dashboard
   const batchTimes: number[] = [];
-  const batchLosses: number[] = [];      // Per-batch loss estimates
   const epochLosses: number[] = [];
   const epochAccuracies: number[] = [];
   const epochTemperatures: number[] = [];
-  let currentEpoch = 0;
   let currentBatch = 0;
   let totalBatches = 0;
   let phase = "init";
@@ -590,7 +411,6 @@ try {
       const parsedEpoch = parseInt(epochMatch[1]);
       // Only record if this is a new epoch (avoid duplicates) and within bounds
       if (parsedEpoch === epochLosses.length && epochLosses.length < EPOCHS) {
-        currentEpoch = parsedEpoch + 1;
         epochLosses.push(parseFloat(epochMatch[2]));
         epochAccuracies.push(parseFloat(epochMatch[3]));
         epochTemperatures.push(parseFloat(epochMatch[4]));
@@ -629,6 +449,7 @@ try {
   // =========================================================================
   const embeddingDim = capabilities[0]?.embedding?.length ?? 1024;
 
+  // deno-lint-ignore no-inner-declarations
   function renderDashboard() {
     const elapsed = Date.now() - startTime;
     const lines: string[] = [];
@@ -671,7 +492,6 @@ try {
     const avgBatch = batchTimes.length > 0 ? batchTimes.reduce((a, b) => a + b, 0) / batchTimes.length : 0;
     const lastBatch = batchTimes.length > 0 ? batchTimes[batchTimes.length - 1] : 0;
     const minBatch = batchTimes.length > 0 ? Math.min(...batchTimes) : 0;
-    const maxBatch = batchTimes.length > 0 ? Math.max(...batchTimes) : 0;
     const btSparkAll = sparkline(batchTimes, 35, c.brightGreen);
 
     const lastLoss = epochLosses.length > 0 ? epochLosses[epochLosses.length - 1].toFixed(4) : "------";
@@ -920,7 +740,6 @@ try {
       if (epochLosses.length > 1) {
         console.log(`  ${c.bold("Loss (per epoch)")}`);
         const lossMin = Math.min(...epochLosses);
-        const lossMax = Math.max(...epochLosses);
         console.log(`  ${c.dim("Start:")} ${epochLosses[0].toFixed(4)}  ${c.dim("End:")} ${epochLosses[epochLosses.length - 1].toFixed(4)}  ${c.dim("Best:")} ${lossMin.toFixed(4)}`);
         console.log();
         console.log(`  ${c.dim("All".padEnd(8))} ${sparkline(epochLosses, 30, c.brightMagenta)}`);
