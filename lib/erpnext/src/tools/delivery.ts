@@ -56,9 +56,10 @@ export const deliveryTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Delivery Note",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -206,9 +207,10 @@ export const deliveryTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Shipment",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

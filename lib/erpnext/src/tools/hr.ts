@@ -61,9 +61,10 @@ export const hrTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Employee",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -136,9 +137,10 @@ export const hrTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Attendance",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -194,9 +196,10 @@ export const hrTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Leave Application",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -328,9 +331,10 @@ export const hrTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Salary Slip",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -395,9 +399,10 @@ export const hrTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Payroll Entry",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -457,9 +462,10 @@ export const hrTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Expense Claim",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -555,10 +561,11 @@ export const hrTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Leave Allocation",
         employee: input.employee as string,
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

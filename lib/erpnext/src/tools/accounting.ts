@@ -55,9 +55,10 @@ export const accountingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Account",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -104,9 +105,10 @@ export const accountingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Journal Entry",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -191,9 +193,10 @@ export const accountingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Payment Entry",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

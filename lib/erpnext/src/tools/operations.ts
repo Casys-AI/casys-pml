@@ -183,8 +183,10 @@ export const operationsTools: ErpNextTool[] = [
         throw new Error("[erpnext_doc_submit] 'name' is required");
       }
 
+      // Fetch fresh doc first — frappe.client.submit requires `modified` for optimistic locking
+      const doc = await ctx.client.get(input.doctype as string, input.name as string);
       const result = await ctx.client.callMethod("frappe.client.submit", {
-        doc: { doctype: input.doctype as string, name: input.name as string },
+        doc: { ...doc, doctype: input.doctype as string },
       });
 
       return {
@@ -332,9 +334,10 @@ export const operationsTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: input.doctype as string,
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

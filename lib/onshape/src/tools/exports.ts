@@ -190,7 +190,7 @@ export const exportTools: OnshapeTool[] = [
         query,
       );
 
-      return { data: result, _meta: { ui: "3d-viewer" } };
+      return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/3d-viewer" } } };
     },
   },
 

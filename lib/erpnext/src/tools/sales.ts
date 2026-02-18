@@ -52,9 +52,10 @@ export const salesTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Customer",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -214,9 +215,10 @@ export const salesTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Sales Order",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -374,8 +376,10 @@ export const salesTools: ErpNextTool[] = [
         throw new Error("[erpnext_sales_order_submit] 'name' is required");
       }
 
+      // Fetch fresh doc — frappe.client.submit requires `modified` for optimistic locking
+      const doc = await ctx.client.get("Sales Order", input.name as string);
       const result = await ctx.client.callMethod("frappe.client.submit", {
-        doc: { doctype: "Sales Order", name: input.name as string },
+        doc: { ...doc, doctype: "Sales Order" },
       });
 
       return {
@@ -469,9 +473,10 @@ export const salesTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Sales Invoice",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -496,7 +501,7 @@ export const salesTools: ErpNextTool[] = [
       const doc = await ctx.client.get("Sales Invoice", input.name as string);
       return {
         data: doc,
-        _meta: { ui: "invoice-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/invoice-viewer" } },
       };
     },
   },
@@ -591,8 +596,10 @@ export const salesTools: ErpNextTool[] = [
         throw new Error("[erpnext_sales_invoice_submit] 'name' is required");
       }
 
+      // Fetch fresh doc — frappe.client.submit requires `modified` for optimistic locking
+      const doc = await ctx.client.get("Sales Invoice", input.name as string);
       const result = await ctx.client.callMethod("frappe.client.submit", {
-        doc: { doctype: "Sales Invoice", name: input.name as string },
+        doc: { ...doc, doctype: "Sales Invoice" },
       });
 
       return {
@@ -640,9 +647,10 @@ export const salesTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Quotation",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

@@ -69,9 +69,10 @@ export const assetsTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Asset",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -194,9 +195,10 @@ export const assetsTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Asset Movement",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -266,9 +268,10 @@ export const assetsTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Asset Maintenance",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -320,9 +323,10 @@ export const assetsTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Asset Category",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

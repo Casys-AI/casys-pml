@@ -334,7 +334,7 @@ export const assemblyTools: OnshapeTool[] = [
       const result = await ctx.client.get(
         `/assemblies/d/${did}/${wvmType}/${wvmId}/e/${eid}/features`,
       );
-      return { data: result, _meta: { ui: "doclist-viewer" } };
+      return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/doclist-viewer" } } };
     },
   },
 
@@ -393,7 +393,7 @@ export const assemblyTools: OnshapeTool[] = [
         `/assemblies/d/${did}/${wvmType}/${wvmId}/e/${eid}/bom`,
         query,
       );
-      return { data: result, _meta: { ui: "bom-viewer" } };
+      return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/bom-viewer" } } };
     },
   },
 
@@ -425,7 +425,7 @@ export const assemblyTools: OnshapeTool[] = [
       const result = await ctx.client.get(
         `/assemblies/d/${did}/${wvmType}/${wvmId}/e/${eid}/massproperties`,
       );
-      return { data: result, _meta: { ui: "mass-viewer" } };
+      return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/mass-viewer" } } };
     },
   },
 
@@ -582,7 +582,7 @@ export const assemblyTools: OnshapeTool[] = [
         `/assemblies/d/${did}/${wvmType}/${wvmId}/e/${eid}/shadedviews`,
         query,
       );
-      return { data: result, _meta: { ui: "3d-viewer" } };
+      return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/3d-viewer" } } };
     },
   },
 
@@ -613,7 +613,7 @@ export const assemblyTools: OnshapeTool[] = [
       const result = await ctx.client.get(
         `/assemblies/d/${did}/${wvmType}/${wvmId}/e/${eid}/explodedviews`,
       );
-      return { data: result, _meta: { ui: "doclist-viewer" } };
+      return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/doclist-viewer" } } };
     },
   },
 ];

@@ -65,9 +65,10 @@ export const manufacturingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "BOM",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -148,9 +149,10 @@ export const manufacturingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Work Order",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -280,9 +282,10 @@ export const manufacturingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Job Card",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

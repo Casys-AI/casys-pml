@@ -128,7 +128,7 @@ export const partTools: OnshapeTool[] = [
       const result = await ctx.client.get(
         `/parts/d/${did}/${wvm}/${wvmId}/e/${eid}/partid/${pid}/massproperties`,
       );
-      return { data: result, _meta: { ui: "mass-viewer" } };
+      return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/mass-viewer" } } };
     },
   },
 
@@ -217,7 +217,7 @@ export const partTools: OnshapeTool[] = [
         `/parts/d/${did}/${wvm}/${wvmId}/e/${eid}/partid/${pid}/shadedviews`,
         query,
       );
-      return { data: result, _meta: { ui: "3d-viewer" } };
+      return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/3d-viewer" } } };
     },
   },
 

@@ -64,9 +64,10 @@ export const inventoryTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Item",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -228,9 +229,10 @@ export const inventoryTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Bin",
         count: docs.length,
         data: docs,
-        _meta: { ui: "stock-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/stock-viewer" } },
       };
     },
   },
@@ -270,9 +272,10 @@ export const inventoryTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Warehouse",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -328,9 +331,10 @@ export const inventoryTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Stock Entry",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

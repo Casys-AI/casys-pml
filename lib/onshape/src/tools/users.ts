@@ -83,7 +83,7 @@ export const userTools: OnshapeTool[] = [
       return {
         count: items.length,
         data: items,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-onshape/doclist-viewer" } },
       };
     },
   },

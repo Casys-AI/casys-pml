@@ -58,9 +58,10 @@ export const projectTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Project",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -141,9 +142,10 @@ export const projectTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Task",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -314,9 +316,10 @@ export const projectTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Timesheet",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

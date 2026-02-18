@@ -66,9 +66,10 @@ export const crmTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Lead",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -188,9 +189,10 @@ export const crmTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Opportunity",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -262,9 +264,10 @@ export const crmTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Contact",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -327,9 +330,10 @@ export const crmTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Campaign",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

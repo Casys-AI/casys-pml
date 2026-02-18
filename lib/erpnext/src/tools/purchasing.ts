@@ -63,9 +63,10 @@ export const purchasingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Supplier",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -191,9 +192,10 @@ export const purchasingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Purchase Order",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -340,9 +342,10 @@ export const purchasingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Purchase Invoice",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -414,9 +417,10 @@ export const purchasingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Purchase Receipt",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },
@@ -480,9 +484,10 @@ export const purchasingTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Supplier Quotation",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

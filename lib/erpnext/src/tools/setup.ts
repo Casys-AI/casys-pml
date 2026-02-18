@@ -35,9 +35,10 @@ export const setupTools: ErpNextTool[] = [
       });
 
       return {
+        doctype: "Company",
         count: docs.length,
         data: docs,
-        _meta: { ui: "doclist-viewer" },
+        _meta: { ui: { resourceUri: "ui://mcp-erpnext/doclist-viewer" } },
       };
     },
   },

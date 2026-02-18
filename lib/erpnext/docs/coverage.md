@@ -1,6 +1,6 @@
 # ERPNext MCP Library - Coverage
 
-## Covered (97 tools, 11 categories)
+## Covered (100 tools, 12 categories)
 
 ### Sales (17 tools)
 
@@ -80,10 +80,18 @@
 | `erpnext_timesheet_list` | Timesheet | List + filters (employee, project, status) | doclist-viewer |
 | `erpnext_timesheet_get` | Timesheet | Get by name (with time log details) | - |
 
-### Generic Operations (6 tools)
+### Setup (2 tools)
 
 | Tool | DocType | Operations | UI Viewer |
 |------|---------|-----------|-----------|
+| `erpnext_company_list` | Company | List companies (name, abbr, currency, country) | doclist-viewer |
+| `erpnext_company_create` | Company | Create company (name, abbr, currency, country, domain) | - |
+
+### Generic Operations (7 tools)
+
+| Tool | DocType | Operations | UI Viewer |
+|------|---------|-----------|-----------|
+| `erpnext_doc_create` | Any | Create any document (doctype + data object) | - |
 | `erpnext_doc_update` | Any | Update any document (partial patch) | - |
 | `erpnext_doc_delete` | Any | Delete any document (Draft only) | - |
 | `erpnext_doc_submit` | Any | Submit any submittable document | - |
@@ -91,12 +99,13 @@
 | `erpnext_doc_get` | Any | Get any document by DocType + name | - |
 | `erpnext_doc_list` | Any | List any DocType with field/filter/limit control | doclist-viewer |
 
-### Purchasing (10 tools)
+### Purchasing (11 tools)
 
 | Tool | DocType | Operations | UI Viewer |
 |------|---------|-----------|-----------|
 | `erpnext_supplier_list` | Supplier | List + filters (group, type, disabled) | doclist-viewer |
 | `erpnext_supplier_get` | Supplier | Get by name | - |
+| `erpnext_supplier_create` | Supplier | Create (name, group, type, country, currency) | - |
 | `erpnext_purchase_order_list` | Purchase Order | List + filters (supplier, status, dates) | doclist-viewer |
 | `erpnext_purchase_order_get` | Purchase Order | Get by name (with line items) | - |
 | `erpnext_purchase_order_create` | Purchase Order | Create (supplier + items + schedule_date) | - |
@@ -170,6 +179,8 @@ The `operations.ts` tools provide generic CRUD for any ERPNext DocType:
 | **List** | `erpnext_doc_list` | Full control: fields, filters, limit, order_by |
 
 Specific DocTypes also have dedicated submit/cancel tools: `erpnext_sales_order_submit/cancel`, `erpnext_sales_invoice_submit`.
+
+> **Note**: All submit handlers fetch the doc first (`GET`) to pass `modified` for optimistic locking. See `docs/known-issues.md` for details.
 
 ---
 
@@ -258,6 +269,8 @@ Specific DocTypes also have dedicated submit/cancel tools: `erpnext_sales_order_
 ---
 
 ## Production Hardening (TODO avant usage réel)
+
+> Voir aussi `docs/known-issues.md` pour les bugs connus et fixes appliqués.
 
 La lib fonctionne pour du prototypage/dev. Avant de brancher sur un vrai ERPNext :
 
