@@ -51,6 +51,7 @@ import type {
   MCPResource,
   MCPTool,
   QueueMetrics,
+  ResourceContent,
   ResourceHandler,
   ToolHandler,
 } from "./types.ts";
@@ -886,6 +887,18 @@ export class ConcurrentMCPServer {
       this.samplingBridge.cancelAll();
     }
 
+    // Close all SSE clients BEFORE shutting down HTTP server.
+    // Deno.serve().shutdown() waits for all connections to drain,
+    // so long-lived SSE connections must be closed first to avoid blocking.
+    for (const [sessionId, clients] of this.sseClients) {
+      for (const client of clients) {
+        try {
+          client.controller.close();
+        } catch { /* already closed */ }
+      }
+      this.sseClients.delete(sessionId);
+    }
+
     // Stop HTTP server if running
     if (this.httpServer) {
       await this.httpServer.shutdown();
@@ -1005,6 +1018,7 @@ export class ConcurrentMCPServer {
             "Accept",
             "Authorization",
             "mcp-session-id",
+            "mcp-protocol-version",
             "last-event-id",
           ],
           exposeHeaders: ["Content-Length", "mcp-session-id"],
@@ -1142,6 +1156,13 @@ export class ConcurrentMCPServer {
         },
       });
     };
+
+    // Custom routes (registered before MCP catch-all)
+    if (options.customRoutes) {
+      for (const route of options.customRoutes) {
+        app[route.method](route.path, (c) => route.handler(c.req.raw));
+      }
+    }
 
     // MCP endpoint - GET opens SSE stream for server→client messages (Streamable HTTP spec)
     // deno-lint-ignore no-explicit-any
@@ -1797,6 +1818,17 @@ export class ConcurrentMCPServer {
    */
   getResourceInfo(uri: string): MCPResource | undefined {
     return this.resources.get(uri)?.resource;
+  }
+
+  /**
+   * Read resource content by URI.
+   * Invokes the registered handler directly (no MCP protocol round-trip).
+   * Returns null if the resource is not registered.
+   */
+  async readResourceContent(uri: string): Promise<ResourceContent | null> {
+    const entry = this.resources.get(uri);
+    if (!entry) return null;
+    return await entry.handler(new URL(uri));
   }
 
   /**

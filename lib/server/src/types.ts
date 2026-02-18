@@ -450,6 +450,16 @@ export interface HttpServerOptions {
   ipRateLimit?: HttpRateLimitOptions;
 
   /**
+   * Custom HTTP routes registered alongside MCP protocol routes.
+   * Uses Web standard Request/Response (no framework dependency).
+   */
+  customRoutes?: Array<{
+    method: "get" | "post";
+    path: string;
+    handler: (req: Request) => Response | Promise<Response>;
+  }>;
+
+  /**
    * Callback when server is ready
    * @param info - Server address info
    */
