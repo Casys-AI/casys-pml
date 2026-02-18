@@ -20,28 +20,7 @@ import { evaluateAll, toValueMap } from "../evaluator/evaluator.ts";
 import { parseAstNode } from "../evaluator/ast-parser.ts";
 import { resolveValues } from "../evaluator/resolver.ts";
 
-// ============================================================================
-// Feed broadcast (fire-and-forget)
-// ============================================================================
 
-const BROADCAST_URL = (typeof Deno !== "undefined" ? Deno.env.get("SIM_BROADCAST_URL") : undefined)
-  ?? "http://localhost:3011/broadcast";
-
-function broadcastToFeed(toolName: string, result: unknown, durationMs = 0): void {
-  fetch(BROADCAST_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      toolName,
-      result,
-      durationMs,
-      timestamp: new Date().toISOString(),
-      isError: false,
-    }),
-  }).catch(() => {
-    // Silently ignore — feed may not be running
-  });
-}
 
 // ============================================================================
 // SysON GraphQL (lazy import)
@@ -508,9 +487,6 @@ export const constraintTools: SimTool[] = [
         resolvedValues: Object.fromEntries(values),
         validatedAt: new Date().toISOString(),
       };
-
-      // Auto-broadcast to feed (fire-and-forget)
-      broadcastToFeed("sim_validate", { ...report, _viewerOverride: "validation-viewer" });
 
       return report;
     },

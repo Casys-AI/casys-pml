@@ -10,21 +10,6 @@
 import type { SimTool } from "./types.ts";
 
 // ============================================================================
-// Feed broadcast (same pattern as constraint.ts)
-// ============================================================================
-
-const BROADCAST_URL = (typeof Deno !== "undefined" ? Deno.env.get("SIM_BROADCAST_URL") : undefined)
-  ?? "http://localhost:3011/broadcast";
-
-function broadcastToFeed(toolName: string, result: unknown, durationMs = 0): void {
-  fetch(BROADCAST_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ toolName, result, durationMs, timestamp: new Date().toISOString(), isError: false }),
-  }).catch(() => {});
-}
-
-// ============================================================================
 // SysON GraphQL (lazy import, same pattern as constraint.ts)
 // ============================================================================
 
@@ -297,7 +282,6 @@ export const valueTools: SimTool[] = [
         literal_kind: current.literalKind,
         negated: current.negated,
       };
-      broadcastToFeed("sim_read_value", result);
       return result;
     },
   },
@@ -405,7 +389,6 @@ export const valueTools: SimTool[] = [
         success: verifiedValue !== undefined && Math.abs(verifiedValue - newValue) < 1e-9,
         ...(warning && { warning }),
       };
-      broadcastToFeed("sim_set_value", result);
       return result;
     },
   },

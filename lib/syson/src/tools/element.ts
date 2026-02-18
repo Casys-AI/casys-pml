@@ -226,6 +226,11 @@ export const elementTools: SysonTool[] = [
       },
       required: ["editing_context_id", "element_id"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-syson/model-explorer-viewer",
+      },
+    },
     handler: async ({ editing_context_id, element_id }) => {
       const client = getSysonClient();
       const ecId = editing_context_id as string;

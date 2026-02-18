@@ -76,6 +76,11 @@ export const queryTools: SysonTool[] = [
       },
       required: ["editing_context_id", "object_id", "expression"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-syson/query-results-viewer",
+      },
+    },
     handler: async ({ editing_context_id, object_id, expression }) => {
       const ecId = editing_context_id as string;
       const objId = object_id as string;
@@ -153,6 +158,11 @@ export const queryTools: SysonTool[] = [
       },
       required: ["editing_context_id", "text"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-syson/query-results-viewer",
+      },
+    },
     handler: async ({ editing_context_id, text, match_case, whole_word, use_regex }) => {
       const client = getSysonClient();
 
@@ -175,15 +185,16 @@ export const queryTools: SysonTool[] = [
       }
 
       const matches = searchResponse.result?.matches ?? [];
+      const results = matches.map((m) => ({
+        id: m.id,
+        kind: m.kind,
+        label: m.label,
+        iconURLs: m.iconURLs ?? [],
+      }));
       return {
         query: text,
-        matches: matches.map((m) => ({
-          id: m.id,
-          kind: m.kind,
-          label: m.label,
-          iconURLs: m.iconURLs ?? [],
-        })),
-        count: matches.length,
+        results,
+        count: results.length,
       };
     },
   },
@@ -214,6 +225,11 @@ export const queryTools: SysonTool[] = [
       },
       required: ["editing_context_id", "expression", "selected_object_ids"],
     },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-syson/query-results-viewer",
+      },
+    },
     handler: async ({ editing_context_id, expression, selected_object_ids }) => {
       const exprResult = await evalAql(
         editing_context_id as string,
@@ -221,11 +237,13 @@ export const queryTools: SysonTool[] = [
         selected_object_ids as string[],
       );
 
+      const expr = expression as string;
       switch (exprResult.__typename) {
         case "ObjectExpressionResult":
           return {
             type: "object",
-            value: {
+            expression: expr,
+            result: {
               id: exprResult.objValue.id,
               kind: exprResult.objValue.kind,
               label: exprResult.objValue.label,
@@ -234,7 +252,8 @@ export const queryTools: SysonTool[] = [
         case "ObjectsExpressionResult":
           return {
             type: "objects",
-            value: exprResult.objsValue.map((o) => ({
+            expression: expr,
+            results: exprResult.objsValue.map((o) => ({
               id: o.id,
               kind: o.kind,
               label: o.label,
@@ -242,15 +261,15 @@ export const queryTools: SysonTool[] = [
             count: exprResult.objsValue.length,
           };
         case "StringExpressionResult":
-          return { type: "string", value: exprResult.strValue };
+          return { type: "string", expression: expr, result: exprResult.strValue };
         case "BooleanExpressionResult":
-          return { type: "boolean", value: exprResult.boolValue };
+          return { type: "boolean", expression: expr, result: exprResult.boolValue };
         case "IntExpressionResult":
-          return { type: "int", value: exprResult.intValue };
+          return { type: "int", expression: expr, result: exprResult.intValue };
         case "VoidExpressionResult":
-          return { type: "void", value: null };
+          return { type: "void", expression: expr, result: null };
         default:
-          return { type: "unknown", raw: exprResult };
+          return { type: "unknown", expression: expr, raw: exprResult };
       }
     },
   },
@@ -274,6 +293,11 @@ export const queryTools: SysonTool[] = [
         },
       },
       required: ["editing_context_id", "root_id"],
+    },
+    _meta: {
+      ui: {
+        resourceUri: "ui://mcp-syson/requirements-trace-viewer",
+      },
     },
     handler: async ({ editing_context_id, root_id }) => {
       const ecId = editing_context_id as string;
@@ -328,14 +352,19 @@ export const queryTools: SysonTool[] = [
         }
       }
 
+      const satisfied = traces.filter((t) => t.satisfiedBy.length > 0).length;
+      const unsatisfied = traces.filter((t) => t.satisfiedBy.length === 0).length;
+      const total = requirements.length;
+
       return {
         rootId,
-        requirementsCount: requirements.length,
+        requirementsCount: total,
         traces,
         coverage: {
-          total: requirements.length,
-          satisfied: traces.filter((t) => t.satisfiedBy.length > 0).length,
-          unsatisfied: traces.filter((t) => t.satisfiedBy.length === 0).length,
+          total,
+          satisfied,
+          unsatisfied,
+          percentage: total > 0 ? Math.round((satisfied / total) * 100) : 0,
         },
       };
     },

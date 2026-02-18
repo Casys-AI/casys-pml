@@ -14,24 +14,6 @@
 import type { SysonTool } from "./types.ts";
 import { getSysonClient } from "../api/graphql-client.ts";
 
-// ── Feed broadcast (fire-and-forget, same pattern as lib/sim) ───────────────
-const BROADCAST_URL =
-  (typeof Deno !== "undefined" ? Deno.env.get("DIAGRAM_BROADCAST_URL") : undefined) ??
-  "http://localhost:3011/broadcast";
-
-function broadcastToFeed(toolName: string, result: unknown, durationMs = 0): void {
-  fetch(BROADCAST_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      toolName,
-      result,
-      durationMs,
-      timestamp: new Date().toISOString(),
-      isError: false,
-    }),
-  }).catch(() => { /* feed server not running, ignore */ });
-}
 import {
   LIST_REPRESENTATIONS,
   GET_REPRESENTATION_DESCRIPTIONS,
@@ -700,11 +682,10 @@ export const diagramTools: SysonTool[] = [
     },
     _meta: {
       ui: {
-        resourceUri: "ui://mcp-plm/diagram-viewer",
+        resourceUri: "ui://mcp-syson/diagram-viewer",
       },
     },
     handler: async ({ editing_context_id, diagram_id }) => {
-      const t0 = performance.now();
       const client = getSysonClient();
       const baseUrl = client.url;
       const ecId = editing_context_id as string;
@@ -722,13 +703,6 @@ export const diagramTools: SysonTool[] = [
         edges: edges.map((e) => ({ id: e.id, sourceId: e.sourceId, targetId: e.targetId, label: e.label })),
         svg,
       };
-
-      // Auto-broadcast to feed (fire-and-forget)
-      const ms = Math.round(performance.now() - t0);
-      broadcastToFeed("syson_diagram_snapshot", {
-        ...result,
-        _viewerOverride: "diagram-viewer",
-      }, ms);
 
       return result;
     },

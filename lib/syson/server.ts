@@ -29,6 +29,7 @@
 import { ConcurrentMCPServer, MCP_APP_MIME_TYPE, SamplingBridge } from "@casys/mcp-server";
 import { SysonToolsClient } from "./src/client.ts";
 import { createAgenticSamplingClient, setSamplingClient } from "./src/tools/agent.ts";
+import { UI_RESOURCES, loadUiHtml } from "./src/ui/mod.ts";
 
 const DEFAULT_HTTP_PORT = 3009;
 
@@ -87,40 +88,31 @@ async function main() {
   server.registerTools(mcpTools, handlers);
 
   // Register UI resources from tools with _meta.ui
-  // Viewers are built in lib/plm/src/ui/dist/ (shared build pipeline)
+  const registeredUris = new Set<string>();
   for (const tool of toolsClient.listTools()) {
     const ui = tool._meta?.ui;
-    if (ui?.resourceUri) {
-      const viewerMatch = ui.resourceUri.match(/^ui:\/\/[^/]+\/(.+)$/);
-      if (viewerMatch) {
-        const viewerName = viewerMatch[1];
-        // Look for built viewer in lib/plm/src/ui/dist/
-        const distPath = new URL(
-          `../plm/src/ui/dist/${viewerName}/index.html`,
-          import.meta.url,
-        ).pathname;
-
-        try {
-          Deno.statSync(distPath);
-          server.registerResource(
-            {
-              uri: ui.resourceUri,
-              name: viewerName.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
-              description: `SysON UI: ${viewerName}`,
-              mimeType: MCP_APP_MIME_TYPE,
-            },
-            async () => {
-              const html = await Deno.readTextFile(distPath);
-              return { uri: ui.resourceUri, mimeType: MCP_APP_MIME_TYPE, text: html };
-            },
-          );
-          console.error(`[mcp-syson] Registered UI resource: ${ui.resourceUri}`);
-        } catch {
-          console.error(
-            `[mcp-syson] Warning: UI not found for ${ui.resourceUri} at ${distPath}. ` +
-            `Run 'cd lib/plm/src/ui && node build-all.mjs' first.`,
-          );
-        }
+    if (ui?.resourceUri && !registeredUris.has(ui.resourceUri)) {
+      registeredUris.add(ui.resourceUri);
+      const resourceMeta = UI_RESOURCES[ui.resourceUri];
+      if (resourceMeta) {
+        server.registerResource(
+          {
+            uri: ui.resourceUri,
+            name: resourceMeta.name,
+            description: resourceMeta.description,
+            mimeType: MCP_APP_MIME_TYPE,
+          },
+          async () => {
+            const html = await loadUiHtml(ui.resourceUri);
+            return { uri: ui.resourceUri, mimeType: MCP_APP_MIME_TYPE, text: html };
+          },
+        );
+        console.error(`[mcp-syson] Registered UI resource: ${ui.resourceUri}`);
+      } else {
+        console.error(
+          `[mcp-syson] Warning: No UI resource found for ${ui.resourceUri}. ` +
+          `Run 'cd lib/syson/src/ui && node build-all.mjs' first.`,
+        );
       }
     }
   }
