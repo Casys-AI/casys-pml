@@ -35,13 +35,14 @@ const logger = getLogger("default");
  * - wp.description → intentText
  * - wp.intent_embedding → intentEmbedding
  *
- * This ensures renaming a capability instantly updates all associated traces.
+ * Per-trace intent_embedding (real user intent) takes priority over capability description.
+ * COALESCE fallback ensures backward compatibility for pre-047 traces.
  */
 const SELECT_TRACE_WITH_INTENT = `
   SELECT
     et.*,
-    wp.description AS intent_text,
-    wp.intent_embedding AS intent_embedding
+    COALESCE(et.initial_context->>'intent', wp.description) AS intent_text,
+    COALESCE(et.intent_embedding, wp.intent_embedding) AS intent_embedding
   FROM execution_trace et
   LEFT JOIN workflow_pattern wp ON wp.pattern_id = et.capability_id
 `;
@@ -128,8 +129,11 @@ export class ExecutionTraceStore {
       taskResultsCount: trace.taskResults.length,
     });
 
-    // Note: intent_text and intent_embedding are no longer stored in execution_trace
-    // They are retrieved via JOIN on workflow_pattern (migration 030)
+    // Migration 047: Store real user intent embedding (not capability description).
+    // COALESCE in SELECT_TRACE_WITH_INTENT falls back to wp.intent_embedding for old traces.
+    const intentEmbeddingStr = trace.intentEmbedding && trace.intentEmbedding.length > 0
+      ? `[${(trace.intentEmbedding as number[]).join(",")}]`
+      : null;
 
     // Migration 039: created_by column removed, user_id is now UUID FK
     // id: Use provided trace.id or let DB generate via gen_random_uuid()
@@ -137,10 +141,11 @@ export class ExecutionTraceStore {
       `INSERT INTO execution_trace (
         id, capability_id, initial_context, success, duration_ms,
         error_message, user_id, executed_path, decisions,
-        task_results, priority, parent_trace_id
+        task_results, priority, parent_trace_id, intent_embedding
       ) VALUES (
         COALESCE($1, gen_random_uuid()),
-        $2, $3::jsonb, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12
+        $2, $3::jsonb, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12,
+        $13::vector
       )
       RETURNING *`,
       [
@@ -156,6 +161,7 @@ export class ExecutionTraceStore {
         sanitizedResults, // postgres.js auto-serializes to JSONB
         trace.priority ?? DEFAULT_TRACE_PRIORITY,
         trace.parentTraceId ?? null,
+        intentEmbeddingStr,
       ],
     );
 

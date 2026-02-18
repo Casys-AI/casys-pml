@@ -15,6 +15,19 @@
 import type { ExecutionTrace } from "../../capabilities/types.ts";
 
 /**
+ * Pattern matching UUID v4/v7 strings that appear as capability IDs in executedPath.
+ * These fragment pathKey calculations and must be filtered out.
+ */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+
+/**
+ * Filter UUID entries from an executed path, keeping only tool/capability identifiers.
+ */
+function cleanExecutedPath(executedPath: string[]): string[] {
+  return executedPath.filter((t) => !UUID_PATTERN.test(t));
+}
+
+/**
  * Features computed for a specific execution path
  *
  * These features provide context about how well a path has performed
@@ -60,7 +73,7 @@ export function extractPathLevelFeatures(
   const pathStats = new Map<string, { success: number; total: number; traces: ExecutionTrace[] }>();
 
   for (const trace of traces) {
-    const pathKey = (trace.executedPath ?? []).join("->");
+    const pathKey = cleanExecutedPath(trace.executedPath ?? []).join("->");
     const stats = pathStats.get(pathKey) ?? { success: 0, total: 0, traces: [] };
     stats.total++;
     if (trace.success) stats.success++;
@@ -132,7 +145,7 @@ function calculateDecisionSuccessRate(traces: ExecutionTrace[]): number {
  * @returns Path key string (e.g., "fs:read->json:parse")
  */
 export function getPathKey(trace: ExecutionTrace): string {
-  return (trace.executedPath ?? []).join("->");
+  return cleanExecutedPath(trace.executedPath ?? []).join("->");
 }
 
 /**

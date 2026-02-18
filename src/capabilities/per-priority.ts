@@ -20,6 +20,22 @@ import { getLogger } from "../telemetry/logger.ts";
 
 const logger = getLogger("default");
 
+/**
+ * Pattern matching UUID v4/v7 strings that appear as capability IDs in executedPath.
+ * These don't exist in SHGAT vocab and dilute predictions with default 0.5 scores.
+ */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+
+/**
+ * Filter UUIDs and internal ops (code:*, loop:*) from an executed path
+ * before passing to SHGAT for prediction.
+ */
+function cleanPathForSHGAT(executedPath: string[]): string[] {
+  return executedPath.filter(
+    (t) => !UUID_PATTERN.test(t) && !t.startsWith("code:") && !t.startsWith("loop:"),
+  );
+}
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -128,7 +144,7 @@ export async function calculateTDError(
   }
 
   // Get SHGAT prediction for the path
-  const executedPath = trace.executedPath ?? [];
+  const executedPath = cleanPathForSHGAT(trace.executedPath ?? []);
   const predicted = shgat.predictPathSuccess(intentEmbedding, executedPath);
 
   // Calculate TD Error

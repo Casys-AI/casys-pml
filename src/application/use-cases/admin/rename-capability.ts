@@ -230,6 +230,11 @@ export class RenameCapabilityUseCase {
             const msg = error instanceof Error ? error.message : String(error);
             log.warn(`[RenameCapability] Failed to update embedding: ${msg}`);
           }
+        } else {
+          log.warn(
+            `[RenameCapability] embeddingModel not available — intent_embedding for ${newDisplayName} is now STALE. ` +
+            `Discovery by intent will return outdated results until embeddings are regenerated.`,
+          );
         }
       }
 

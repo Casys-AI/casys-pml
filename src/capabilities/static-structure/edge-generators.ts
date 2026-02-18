@@ -174,6 +174,51 @@ export function generateSequenceEdges(
       }
     }
   }
+
+  // Fallback heuristic for code:* nodes without arguments or chainedFrom.
+  // These nodes are data transformations that always depend on a previous step,
+  // but extractArgumentValue() couldn't resolve the input (complex expression).
+  // Connect to the most recent task node in the same scope to prevent TIMEOUT.
+  // Conservative: may over-sequentialize, but never causes incorrect parallel execution.
+  for (const [_scope2, scopeNodes2] of scopeGroups) {
+    const taskNodes2 = scopeNodes2.filter(
+      (n) =>
+        (n.type === "task" || n.type === "capability" || n.type === "decision") &&
+        (n.metadata?.executable !== false),
+    );
+
+    for (let j = 0; j < taskNodes2.length; j++) {
+      const node = taskNodes2[j];
+      if (
+        node.type !== "task" ||
+        !(node as Extract<InternalNode, { type: "task" }>).tool?.startsWith("code:") ||
+        (node as Extract<InternalNode, { type: "task" }>).arguments ||
+        node.metadata?.chainedFrom
+      ) {
+        continue;
+      }
+
+      // Find the most recent task node before this one in the same scope
+      const prev = taskNodes2[j - 1];
+      if (!prev) continue;
+
+      const edgeKey = `${prev.id}->${node.id}:sequence`;
+      if (edgeSet.has(edgeKey)) continue;
+
+      logger.debug("Creating fallback sequence edge for code:* without arguments", {
+        from: prev.id,
+        to: node.id,
+        tool: (node as Extract<InternalNode, { type: "task" }>).tool,
+      });
+
+      edges.push({
+        from: prev.id,
+        to: node.id,
+        type: "sequence",
+      });
+      edgeSet.add(edgeKey);
+    }
+  }
 }
 
 /**

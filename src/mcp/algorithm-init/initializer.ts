@@ -40,6 +40,27 @@ import pako from "pako";
 import { decode as msgpackDecode } from "npm:@msgpack/msgpack@3.0.0-beta2";
 
 // ==========================================================================
+// Helpers
+// ==========================================================================
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+
+/**
+ * Filter raw executed_path entries to keep only valid MCP tool IDs.
+ * Removes:
+ * - UUID capability IDs (leaked from executed_path, cause noise in SHGAT training)
+ * - Internal ops: code:* (filter, map, split...) and loop:* (forOf, forEach...)
+ */
+export function filterContextTools(path: string[] | null | undefined): string[] {
+  if (!path) return [];
+  return path.filter(t =>
+    !UUID_PATTERN.test(t) &&
+    !t.startsWith("code:") &&
+    !t.startsWith("loop:")
+  );
+}
+
+// ==========================================================================
 // Types
 // ==========================================================================
 
@@ -778,7 +799,7 @@ export class AlgorithmInitializer {
 
         examples.push({
           intentEmbedding,
-          contextTools: trace.executed_path ?? [],
+          contextTools: filterContextTools(trace.executed_path),
           candidateId: trace.capability_id,
           outcome: trace.success ? 1.0 : 0.0,
           negativeCapIds,

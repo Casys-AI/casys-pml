@@ -81,6 +81,17 @@ function isUUID(s: string): boolean {
   return UUID_PATTERN.test(s);
 }
 
+/** UUID prefix pattern (matches v4 and v7) for path cleanup */
+const UUID_PREFIX_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+
+/**
+ * Filter UUIDs from a path for pathKey lookup.
+ * Must match the logic in path-level-features.ts cleanExecutedPath().
+ */
+function cleanPathForLookup(path: string[]): string[] {
+  return path.filter((t) => !UUID_PREFIX_PATTERN.test(t));
+}
+
 /**
  * Select negatives from the middle tier for semi-hard negative mining
  *
@@ -286,7 +297,7 @@ export function traceToTrainingExamples(
   const outcome = trace.success ? 1 : 0;
 
   // Get path-level features for weighting (optional enhancement)
-  const pathKey = flatPath.join("->");
+  const pathKey = cleanPathForLookup(trace.executedPath ?? []).join("->");
   const features = pathFeatures.get(pathKey);
 
   // Apply outcome weighting based on path features
@@ -536,12 +547,12 @@ export async function trainSHGATOnPathTracesSubprocess(
   const allExamples: TrainingExample[] = [];
   const exampleToTraceId: string[] = [];
 
-  // Note: Since migration 030, intentEmbedding comes from capability via JOIN.
-  // No need to regenerate embeddings - use trace.intentEmbedding directly.
+  // Intent embeddings: COALESCE(trace.intent_embedding, workflow_pattern.intent_embedding)
+  // - trace.intent_embedding = real user intent at execution time (diverse, per-trace)
+  // - wp.intent_embedding = capability description embedding (fallback for pre-047 traces)
 
   // Generate examples for each trace
   for (const trace of traces) {
-    // Use intentEmbedding from JOIN (comes from workflow_pattern.intent_embedding)
     const intentEmbedding = trace.intentEmbedding;
     if (!intentEmbedding || intentEmbedding.length === 0) {
       log.debug("[PER-Subprocess] Skipping trace without intent embedding", {

@@ -96,6 +96,7 @@ import { createToolObservationsFkMigration } from "./migrations/043_tool_observa
 import { createUiMetadataMigration } from "./migrations/044_ui_metadata.ts";
 import { createObservedConfigMigration } from "./migrations/045_observed_config.ts";
 import { createUiOrchestrationDefaultMigration } from "./migrations/046_ui_orchestration_default.ts";
+import { createRestoreTraceIntentEmbeddingMigration } from "./migrations/047_restore_trace_intent_embedding.ts";
 
 /**
  * Migration definition
@@ -460,5 +461,6 @@ export function getAllMigrations(): Migration[] {
     createUiMetadataMigration(), // Story 16.6: UI metadata columns for MCP Apps orchestration
     createObservedConfigMigration(), // Tech-spec 01.5: observed_args → observed_config JSONB
     createUiOrchestrationDefaultMigration(), // Story 16.6 review: DEFAULT for ui_orchestration
+    createRestoreTraceIntentEmbeddingMigration(), // Restore per-trace intent embedding for diverse SHGAT training
   ];
 }
