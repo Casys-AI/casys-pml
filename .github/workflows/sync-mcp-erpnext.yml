@@ -1,0 +1,94 @@
+# Sync MCP ERPNext to public repository
+# Syncs lib/erpnext/ folder to @casys/mcp-erpnext package
+
+name: Sync MCP ERPNext
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/erpnext/**"
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+
+      - name: Clone mcp-erpnext repo
+        run: |
+          git clone https://x-access-token:${{ secrets.PUBLIC_REPO_PAT }}@github.com/Casys-AI/mcp-erpnext.git mcp-erpnext-repo
+          cd mcp-erpnext-repo
+          git checkout main || git checkout -b main
+
+      - name: Sync lib/erpnext/ folder
+        run: |
+          # Remove existing files (except .git)
+          find mcp-erpnext-repo -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          # Copy lib/erpnext/ contents to root of public repo
+          cp -r lib/erpnext/* mcp-erpnext-repo/
+
+          # Copy hidden files (.gitignore, .github)
+          if [ -d "lib/erpnext/.github" ]; then
+            cp -r lib/erpnext/.github mcp-erpnext-repo/
+          fi
+          if [ -f "lib/erpnext/.gitignore" ]; then
+            cp lib/erpnext/.gitignore mcp-erpnext-repo/
+          fi
+
+          # Add LICENSE (use lib/erpnext/LICENSE if it exists, otherwise root LICENSE)
+          if [ -f "lib/erpnext/LICENSE" ]; then
+            cp lib/erpnext/LICENSE mcp-erpnext-repo/LICENSE
+          else
+            cp LICENSE mcp-erpnext-repo/LICENSE
+          fi
+
+      - name: Commit and push
+        run: |
+          cd mcp-erpnext-repo
+          git add -A
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to sync"
+            exit 0
+          fi
+
+          # Get the commit message from the triggering commit
+          COMMIT_MSG=$(git log -1 --format="%s" ${{ github.sha }} 2>/dev/null || echo "Sync from pml-cloud")
+
+          git commit -m "$COMMIT_MSG" -m "Synced from pml-cloud"
+          git push origin main
+
+      - name: Create version tag if needed
+        run: |
+          cd mcp-erpnext-repo
+
+          # Get version from deno.json
+          VERSION=$(grep '"version"' deno.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
+          TAG="v$VERSION"
+
+          echo "Current version: $VERSION"
+          echo "Tag to check: $TAG"
+
+          # Check if tag already exists
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
+            echo "Tag $TAG already exists, skipping"
+          else
+            echo "Creating tag $TAG"
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "Tag $TAG created and pushed"
+          fi
