@@ -96,11 +96,11 @@ Consumers normalize at read time via `normalizeToolId()`. The write paths that p
 | Action | Priority | Status |
 |---|---|---|
 | Document decision (this ADR) | P0 | **DONE** |
-| **Normalize `toolsUsed` in `rowToCapability` (L908)** | **P1** | TODO — `.map(normalizeToolId)`. Fixes 10+ consumers in one line. `Capability.toolsUsed` contract = short format. |
-| Fix SQL `searchByContext` (L806) — normalize inside query | P1 | TODO — `WHERE tool = ANY($1)` compares DB-FQDN vs input-short. `rowToCapability` fix doesn't help here (SQL-level comparison). |
-| Remove redundant normalizations in `post-execution.service.ts:266`, `initializer.ts:421` | P1 | TODO — becomes no-op after rowToCapability fix |
-| Align `execute-direct.use-case.ts` server branch to resolve FQDN before write | P2 | TODO |
-| Align `worker-bridge.ts` to resolve FQDN before write | P2 | TODO |
+| **Normalize `toolsUsed` in `rowToCapability` (L911)** | **P1** | **DONE** — `.map(normalizeToolId).filter(Boolean)` |
+| Fix SQL `searchByContext` (L807) — normalize inside query | P1 | **DONE** — inline `CASE WHEN tool LIKE '%.%.%.%'` |
+| Remove redundant normalizations in `post-execution.service.ts:266`, `initializer.ts:421` | P1 | **DONE** — kept as defensive (initializer reads DB directly, not via rowToCapability) |
+| Align `execute-direct.use-case.ts` server branch to resolve FQDN before write | P2 | **DONE** — `resolveToolIdsToFqdns()` shared from `lib/user.ts` |
+| Align `worker-bridge.ts` to resolve FQDN before write | P2 | **DONE** — both main + loop save paths |
 | Do NOT re-run the normalization migration on new data | P0 | Noted |
 | Update tech spec 2026-02-18 to reflect this decision | P0 | **DONE** |
 
