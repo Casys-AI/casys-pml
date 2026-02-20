@@ -100,16 +100,249 @@ function normalizeParamName(s: string): string[] {
     .filter(Boolean);
 }
 
+// ---------------------------------------------------------------------------
+// Service-aware matching (Tier 1) — restricts candidate pool to same service
+// ---------------------------------------------------------------------------
+
+/**
+ * Explicit aliases for cases where names differ between n8n and MCP.
+ * Most services match automatically via identity or fuzzy prefix;
+ * only add here when the names are genuinely different.
+ */
+const SERVICE_ALIASES: Record<string, string[]> = {
+  google_sheets: ["googlesheets", "googlesuper", "gsheets", "google_sheets"],
+  google_drive: ["googledrive", "gdrive", "google_drive"],
+  google_calendar: ["googlecalendar", "gcal", "google_calendar"],
+  google_tasks: ["googletasks", "google_tasks"],
+  google_slides: ["googleslides", "google_slides"],
+  google_docs: ["googledocs", "google_docs"],
+  slack: ["slack", "slackbot"],
+  discord: ["discord", "discordbot"],
+  postgres: ["postgres", "postgresql"],
+  mysql: ["mysql", "mariadb"],
+  mongodb: ["mongodb", "mongo"],
+  jira: ["jira", "atlassian"],
+  outlook: ["microsoft_outlook", "microsoftoutlook"],
+  whatsapp: ["whats_app", "whatsapp"],
+  hackernews: ["hacker_news", "hackernews"],
+  quickbooks: ["quick_books", "quickbooks"],
+  microsoft_teams: ["microsoft_teams", "microsoftteams"],
+  // Generic operation nodes — mapped to virtual service groups
+  http: ["httprequest", "http_request", "http_request_tool", "tool_http_request"],
+  file_reader: ["extractfromfile", "extract_from_file", "html_extract", "htmlextract"],
+};
+
+/**
+ * Tool-level service overrides for tools where server name is too generic.
+ * Applies AFTER the normal server-based extraction (e.g. std:* tools where
+ * "std" is filtered out). Checked in order, first match wins.
+ */
+const TOOL_SERVICE_OVERRIDES: [RegExp, string][] = [
+  [/^std:http_/, "http"],
+  [/^std:curl_fetch$/, "http"],
+  [/^fetch:fetch$/, "http"],
+  [/^smithery-ai\/fetch:fetch_url$/, "http"],
+  [/^filesystem:read_/, "file_reader"],
+  [/^xiaobenyang.*:read_pdf$/, "file_reader"],
+  [/^kodeyai.*pdf.*:/, "file_reader"],
+  [/^std:transform_csv_parse$/, "file_reader"],
+  [/^std:jq$/, "file_reader"],
+  [/^std:format_xml$/, "file_reader"],
+];
+
+/** Reverse lookup: alias → canonical service name */
+const ALIAS_TO_CANONICAL = new Map<string, string>();
+for (const [canonical, aliases] of Object.entries(SERVICE_ALIASES)) {
+  for (const alias of aliases) ALIAS_TO_CANONICAL.set(alias, canonical);
+}
+
+/**
+ * Normalize a service-like string to a canonical form:
+ * 1. Check explicit alias table (for non-obvious mappings)
+ * 2. Return as-is if ≥ 3 chars (identity match — "gmail" = "gmail")
+ */
+function normalizeServiceName(raw: string): string | null {
+  const lower = raw.toLowerCase();
+  const aliased = ALIAS_TO_CANONICAL.get(lower);
+  if (aliased) return aliased;
+  return lower.length >= 3 ? lower : null;
+}
+
+/**
+ * Extract service name from an MCP tool ID.
+ * Handles: "gmail:GMAIL_*", "org/repo-name:tool", "std:tool"
+ * Strips common suffixes: -mcp, -server, -bot, -api
+ */
+function extractServiceFromMcpId(toolId: string): string | null {
+  const server = toolId.split(":")[0].toLowerCase();
+
+  // Org-scoped: "org/repo-name" → clean the repo part first
+  if (server.includes("/")) {
+    const repo = server.split("/").pop()!
+      .replace(/^mcp[-_]?/, "").replace(/[-_]?mcp$/, "")
+      .replace(/[-_]?server$/, "").replace(/[-_]?bot$/, "")
+      .replace(/[-_]?api$/, "");
+    const cleaned = normalizeServiceName(repo);
+    if (cleaned) return cleaned;
+    // Fallback: use the full org/repo as identity (for unique servers)
+    return server;
+  }
+
+  // Simple server name: "gmail", "slack", "std"
+  const direct = normalizeServiceName(server);
+  if (direct && direct !== "std" && direct !== "exa") return direct;
+
+  // Tool-level overrides for generic servers (std:http_get → "http")
+  for (const [regex, svc] of TOOL_SERVICE_OVERRIDES) {
+    if (regex.test(toolId)) return svc;
+  }
+
+  return null;
+}
+
+/**
+ * n8n node name suffixes that are NOT part of the service name.
+ * These get stripped before matching: "telegramTrigger" → "telegram",
+ * "gmailTool" → "gmail", "googleSheetsTool" → "google_sheets".
+ */
+const IGNORED_N8N_SUFFIXES = new Set([
+  "trigger", "tool", "v2", "v3", "v4", "new",
+]);
+
+/**
+ * Extract service name from an n8n node type key.
+ * Handles: "n8n-nodes-base.gmail:send", "@n8n/n8n-nodes-langchain.openAi",
+ *          "@custom/n8n-nodes-foo.bar", "n8n-nodes-base.telegramTrigger"
+ *
+ * Returns the FULL joined camelCase segments (minus non-service suffixes),
+ * so "microsoftExcel" → "microsoft_excel" (not just "microsoft").
+ * This prevents false matches like microsoft_excel → microsoft_teams.
+ */
+function extractServiceFromN8nKey(n8nKey: string): string | null {
+  let base = n8nKey
+    .replace(/^n8n-nodes-base\./, "")
+    .replace(/^@n8n\/n8n-nodes-langchain\./, "")
+    .replace(/^@[^/]+\/[^.]+\./, "");
+  base = base.split(":")[0];
+  const lower = base.toLowerCase();
+
+  // 1. Check alias table for full name: "googleSheets" → "googlesheets" → alias "google_sheets"
+  const aliased = ALIAS_TO_CANONICAL.get(lower);
+  if (aliased) return aliased;
+
+  // 2. Split camelCase: "microsoftExcel" → ["microsoft", "excel"]
+  const segments = base.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase().split("_");
+  if (segments.length > 1) {
+    // Remove non-service suffixes: "telegramTrigger" → ["telegram"]
+    const filtered = segments.filter(s => !IGNORED_N8N_SUFFIXES.has(s));
+    if (filtered.length === 0) return null;
+
+    // Try full joined name in alias table: "microsoft_outlook" → "outlook"
+    const fullJoined = filtered.join("_");
+    const fullAliased = ALIAS_TO_CANONICAL.get(fullJoined);
+    if (fullAliased) return fullAliased;
+
+    // Return the full joined name: "microsoft_excel", "microsoft_teams", etc.
+    // This prevents "microsoft" from matching unrelated Microsoft services
+    return fullJoined.length >= 3 ? fullJoined : null;
+  }
+
+  // 3. Identity fallback for simple names: "gmail", "slack", "airtable"
+  return lower.length >= 3 ? lower : null;
+}
+
+/**
+ * Build a unified service index across both n8n and MCP tool IDs.
+ * Uses fuzzy matching: if an n8n service name and MCP server name share
+ * a common prefix ≥ 4 chars, they're considered the same service.
+ * Returns Map<canonicalService, toolIndices[]>
+ */
+function buildServiceIndex(
+  allToolIds: string[],
+  n8nKeys: string[],
+): { serviceToolIndices: Map<string, number[]>; n8nServiceMap: Map<string, string> } {
+  // Step 1: Extract raw service names from MCP tools
+  const mcpServiceRaw = new Map<number, string>(); // toolIdx → raw service
+  for (let i = 0; i < allToolIds.length; i++) {
+    const svc = extractServiceFromMcpId(allToolIds[i]);
+    if (svc) mcpServiceRaw.set(i, svc);
+  }
+
+  // Step 2: Extract raw service names from n8n keys
+  const n8nServiceRaw = new Map<string, string>(); // n8nKey → raw service
+  for (const key of n8nKeys) {
+    const svc = extractServiceFromN8nKey(key);
+    if (svc) n8nServiceRaw.set(key, svc);
+  }
+
+  // Step 3: Build MCP service → indices
+  const serviceToolIndices = new Map<string, number[]>();
+  for (const [idx, svc] of mcpServiceRaw) {
+    let arr = serviceToolIndices.get(svc);
+    if (!arr) { arr = []; serviceToolIndices.set(svc, arr); }
+    arr.push(idx);
+  }
+
+  // Step 4: For n8n services not directly in MCP index, try fuzzy prefix match
+  const n8nServiceMap = new Map<string, string>(); // n8nKey → matched canonical service
+  const mcpServices = [...serviceToolIndices.keys()];
+  for (const [key, n8nSvc] of n8nServiceRaw) {
+    if (serviceToolIndices.has(n8nSvc)) {
+      // Direct match
+      n8nServiceMap.set(key, n8nSvc);
+    } else {
+      // Fuzzy: find MCP service where one is prefix of the other
+      // Requires: min 4 chars overlap AND ratio >= 0.65 (prevents "agent" → "agentmail")
+      let bestMatch: string | null = null;
+      let bestOverlap = 0;
+      for (const mcpSvc of mcpServices) {
+        const shorter = n8nSvc.length <= mcpSvc.length ? n8nSvc : mcpSvc;
+        const longer = n8nSvc.length <= mcpSvc.length ? mcpSvc : n8nSvc;
+        const ratio = shorter.length / longer.length;
+        if (longer.startsWith(shorter) && shorter.length >= 4 && ratio >= 0.65 && shorter.length > bestOverlap) {
+          bestMatch = mcpSvc;
+          bestOverlap = shorter.length;
+        }
+      }
+      if (bestMatch) {
+        n8nServiceMap.set(key, bestMatch);
+      }
+    }
+  }
+
+  return { serviceToolIndices, n8nServiceMap };
+}
+
+// ---------------------------------------------------------------------------
+// CRUD verb matching (Tier 2) — boosts tools with matching operation verb
+// ---------------------------------------------------------------------------
+
+const CRUD_VERBS: Record<string, string[]> = {
+  create: ["create", "add", "insert", "post", "new", "append"],
+  read: ["get", "read", "fetch", "retrieve", "find", "search", "list", "query"],
+  update: ["update", "edit", "modify", "patch", "set"],
+  delete: ["delete", "remove", "destroy", "drop"],
+  send: ["send", "publish", "notify", "forward"],
+};
+
+function extractCrudVerb(n8nKey: string): string | null {
+  const parts = n8nKey.split(":");
+  if (parts.length < 2) return null;
+  const op = parts[1].toLowerCase();
+  for (const [verb, synonyms] of Object.entries(CRUD_VERBS)) {
+    if (synonyms.some((s) => op.includes(s))) return verb;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+
 /**
  * n8n node type prefixes that have no MCP equivalent.
  * These are AI/LLM orchestration, triggers, and internal plumbing nodes
  * that would pollute the training data with low-similarity noise.
  */
 const EXCLUDED_N8N_PREFIXES = [
-  // LangChain nodes are NO LONGER blanket-excluded — the Smithery gap filter
-  // handles them automatically: nodes with genuine PML equivalents
-  // (textSplitter→code:split, openAi:chat→std:agent_generate, etc.) pass through,
-  // while nodes without PML equivalents (googleGemini:video etc.) get filtered.
   // Trigger nodes — already partially filtered at scrape time, catch remaining
   "n8n-nodes-base.webhook",
   "n8n-nodes-base.cronTrigger",
@@ -117,7 +350,7 @@ const EXCLUDED_N8N_PREFIXES = [
   "n8n-nodes-base.pollingTrigger",
   "n8n-nodes-base.emailReadImap", // trigger variant
   "n8n-nodes-base.formTrigger",
-  // Internal plumbing
+  // Internal plumbing (flow control, not tools)
   "n8n-nodes-base.wait",
   "n8n-nodes-base.merge",
   "n8n-nodes-base.splitInBatches",
@@ -128,6 +361,26 @@ const EXCLUDED_N8N_PREFIXES = [
   "n8n-nodes-base.function",
   "n8n-nodes-base.functionItem",
   "n8n-nodes-base.code",
+  // LLM provider/config nodes — these configure which model to use, not tool actions.
+  // No MCP equivalent exists (MCP = tools, LLM = orchestrator). Keeping them
+  // creates random mappings (openAi:chat → chatwork, gemini → random) that add noise.
+  "@n8n/n8n-nodes-langchain.lmChat",       // lmChatOpenAi, lmChatAnthropic, lmChatGroq, etc.
+  "@n8n/n8n-nodes-langchain.lmOpen",       // lmOpenAi, lmOpenHuggingFace
+  "@n8n/n8n-nodes-langchain.embeddings",   // embeddingsOpenAi, embeddingsCohere, etc.
+  "@n8n/n8n-nodes-langchain.openAi",       // openAi:chat, openAi:assistant, etc.
+  "@n8n/n8n-nodes-langchain.googleGemini", // googleGemini:document, etc.
+  "@n8n/n8n-nodes-langchain.anthropic",
+  "@n8n/n8n-nodes-langchain.ollama",       // ollama LLM provider
+  "@n8n/n8n-nodes-langchain.lmOllama",     // ollama LLM provider variant
+  "@n8n/n8n-nodes-langchain.ollamaTool",   // ollama tool wrapper
+  "@n8n/n8n-nodes-langchain.chat",         // chatTrigger → chatwork false positive
+  "@n8n/n8n-nodes-langchain.chatTrigger",  // chat trigger
+  "@n8n/n8n-nodes-langchain.manualChatTrigger", // manual trigger
+  "@n8n/n8n-nodes-langchain.modelSelector", // model config, not a tool
+  "n8n-nodes-base.openAi",                 // openAi:chatcompletion, etc.
+  "n8n-nodes-base.mistralAi",
+  // Browser automation with no MCP equivalent (airtop → airtable false positive)
+  "n8n-nodes-base.airtop",
 ];
 
 function isExcludedN8nNode(n8nKey: string): boolean {
@@ -220,7 +473,7 @@ async function main() {
   // ---------------------------------------------------------------------------
 
   const TEMPERATURE = 0.005;
-  const MIN_COSINE_SIM = 0.70;
+  const MIN_COSINE_SIM = 0.80;
 
   // Combined vocab arrays — PML first (indices 0..643), then Smithery additions
   const allToolIds: string[] = [...mcpToolIds];
@@ -347,58 +600,135 @@ async function main() {
     throw new Error(`[targets] Invalid --schema-alpha value. Must be between 0 and 1.`);
   }
   const useSchemaBlend = SCHEMA_ALPHA < 1.0;
+  const useServiceMatch = !process.argv.includes("--no-service-match");
 
   console.log(
-    `\n[targets] Phase 2: Computing soft target distributions (T=${TEMPERATURE}, vocab=${allToolIds.length}, schema_alpha=${SCHEMA_ALPHA})...`,
+    `\n[targets] Phase 2: Computing soft target distributions (T=${TEMPERATURE}, vocab=${allToolIds.length}, schema_alpha=${SCHEMA_ALPHA}, service_match=${useServiceMatch})...`,
   );
 
   // Pre-compute normalized param token sets for all MCP tools in expanded vocab
-  // This avoids redundant normalization in the N×M inner loop.
   const allToolParamTokens: Set<string>[] = new Array(allToolIds.length);
-  if (useSchemaBlend) {
-    for (let i = 0; i < allToolIds.length; i++) {
-      const toolId = allToolIds[i];
-      // Smithery tools have param names in smitheryToolParams; PML tools don't (empty set → score 0)
-      const params = smitheryToolParams[toolId] || [];
-      allToolParamTokens[i] = new Set(params.flatMap(normalizeParamName));
+  for (let i = 0; i < allToolIds.length; i++) {
+    const toolId = allToolIds[i];
+    const params = smitheryToolParams[toolId] || [];
+    allToolParamTokens[i] = new Set(params.flatMap(normalizeParamName));
+  }
+
+  // Build service index with fuzzy matching between n8n and MCP service names
+  let serviceToolIndices = new Map<string, number[]>();
+  let n8nServiceMap = new Map<string, string>();
+  if (useServiceMatch) {
+    const svcResult = buildServiceIndex(allToolIds, n8nEntries.map(([k]) => k));
+    serviceToolIndices = svcResult.serviceToolIndices;
+    n8nServiceMap = svcResult.n8nServiceMap;
+    console.log(
+      `[targets] Service index: ${serviceToolIndices.size} services, ` +
+        `${[...serviceToolIndices.values()].reduce((s, a) => s + a.length, 0)} tools indexed, ` +
+        `${n8nServiceMap.size} n8n nodes matched`,
+    );
+    for (const [svc, indices] of [...serviceToolIndices.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 15)) {
+      console.log(`[targets]   ${svc}: ${indices.length} tools`);
     }
   }
+
+  // Pre-compute lowercased tool IDs for CRUD verb matching
+  const toolNameLower = allToolIds.map((id) => id.toLowerCase());
 
   const softTargetCache = new Map<string, { probs: number[]; topToolId: string; topSim: number }>();
   let computed = 0;
   let excludedLowSim = 0;
   let schemaChangedTopTool = 0;
+  let tierCounts = [0, 0, 0]; // tier 1, 2, 3
+  const tierServiceHits = new Map<string, number>(); // service → count for Tier 1
 
   for (const [n8nKey, n8nEmb] of n8nEntries) {
     const cosineSims = allToolEmbeddings.map((emb) => cosineSimilarity(n8nEmb as number[], emb));
+    const n8nParams = n8nNodeParams.get(n8nKey) || [];
+    const n8nTokens = n8nParams.length > 0 ? new Set(n8nParams.flatMap(normalizeParamName)) : null;
 
-    // Blend cosine + schema similarity
     let similarities: number[];
-    if (useSchemaBlend) {
-      const n8nParams = n8nNodeParams.get(n8nKey) || [];
-      if (n8nParams.length > 0) {
-        const n8nTokens = new Set(n8nParams.flatMap(normalizeParamName));
-        similarities = new Array(cosineSims.length);
-        for (let i = 0; i < cosineSims.length; i++) {
-          const mcpTokens = allToolParamTokens[i];
-          let schemaSim = 0;
-          if (mcpTokens.size > 0) {
+    let tier = 3;
+
+    // ---- Tier 1: Service Name Match — restricted candidate pool ----
+    if (useServiceMatch) {
+      const n8nService = n8nServiceMap.get(n8nKey);
+      const svcIndices = n8nService ? serviceToolIndices.get(n8nService) : undefined;
+
+      if (svcIndices && svcIndices.length >= 2) {
+        // Score within same-service tools: cosine + schema boost (never degrades)
+        let bestIdx = -1;
+        let bestScore = -Infinity;
+        for (const idx of svcIndices) {
+          let score = cosineSims[idx];
+          // Schema Jaccard boosts the cosine score, never degrades it
+          if (n8nTokens && allToolParamTokens[idx].size > 0) {
             let intersection = 0;
             for (const t of n8nTokens) {
-              if (mcpTokens.has(t)) intersection++;
+              if (allToolParamTokens[idx].has(t)) intersection++;
             }
-            const unionSize = new Set([...n8nTokens, ...mcpTokens]).size;
-            schemaSim = unionSize > 0 ? intersection / unionSize : 0;
+            const unionSize = new Set([...n8nTokens, ...allToolParamTokens[idx]]).size;
+            const schemaScore = unionSize > 0 ? intersection / unionSize : 0;
+            // Boost: cosine + 0.2 * schema (so schema can only add up to +0.2)
+            score = cosineSims[idx] + 0.2 * schemaScore;
           }
-          similarities[i] = SCHEMA_ALPHA * cosineSims[i] + (1 - SCHEMA_ALPHA) * schemaSim;
+          if (score > bestScore) { bestScore = score; bestIdx = idx; }
         }
+
+        if (bestScore > 0.60 && bestIdx >= 0) {
+          // Tier 1 success: softmax over service tools only (suppress others)
+          similarities = new Array(cosineSims.length).fill(-10);
+          for (const idx of svcIndices) {
+            let score = cosineSims[idx];
+            if (n8nTokens && allToolParamTokens[idx].size > 0) {
+              let intersection = 0;
+              for (const t of n8nTokens) {
+                if (allToolParamTokens[idx].has(t)) intersection++;
+              }
+              const unionSize = new Set([...n8nTokens, ...allToolParamTokens[idx]]).size;
+              const schemaScore = unionSize > 0 ? intersection / unionSize : 0;
+              score = cosineSims[idx] + 0.2 * schemaScore;
+            }
+            similarities[idx] = score;
+          }
+          tier = 1;
+          tierServiceHits.set(n8nService!, (tierServiceHits.get(n8nService!) || 0) + 1);
+        }
+      }
+    }
+
+    // ---- Tier 2: CRUD Boost + Schema blend (full vocab) ----
+    if (tier === 3) {
+      const crudVerb = extractCrudVerb(n8nKey);
+
+      if (crudVerb || (useSchemaBlend && n8nTokens)) {
+        const crudSynonyms = crudVerb ? CRUD_VERBS[crudVerb] : null;
+        similarities = new Array(cosineSims.length);
+        for (let i = 0; i < cosineSims.length; i++) {
+          let score = cosineSims[i];
+          // Schema blend
+          if (n8nTokens && allToolParamTokens[i].size > 0) {
+            let intersection = 0;
+            for (const t of n8nTokens) {
+              if (allToolParamTokens[i].has(t)) intersection++;
+            }
+            const unionSize = new Set([...n8nTokens, ...allToolParamTokens[i]]).size;
+            const schemaSim = unionSize > 0 ? intersection / unionSize : 0;
+            score = SCHEMA_ALPHA * cosineSims[i] + (1 - SCHEMA_ALPHA) * schemaSim;
+          }
+          // CRUD verb boost
+          if (crudSynonyms && crudSynonyms.some((v) => toolNameLower[i].includes(v))) {
+            score += 0.03;
+          }
+          similarities[i] = score;
+        }
+        tier = 2;
       } else {
-        // No n8n params available — pure cosine fallback
+        // Tier 3: pure cosine fallback
         similarities = cosineSims;
       }
-    } else {
-      similarities = cosineSims;
     }
+
+    tierCounts[tier - 1]++;
 
     // Find top-1
     let maxIdx = 0;
@@ -406,8 +736,8 @@ async function main() {
       if (similarities[i] > similarities[maxIdx]) maxIdx = i;
     }
 
-    // Also find what the cosine-only top-1 would have been (for stats)
-    if (useSchemaBlend && similarities !== cosineSims) {
+    // Track how often the tier system changed the top-1 vs pure cosine
+    {
       let cosMaxIdx = 0;
       for (let i = 1; i < cosineSims.length; i++) {
         if (cosineSims[i] > cosineSims[cosMaxIdx]) cosMaxIdx = i;
@@ -438,15 +768,45 @@ async function main() {
 
   console.log(`[targets] Excluded by low sim (<${MIN_COSINE_SIM}): ${excludedLowSim}`);
   console.log(`[targets] Kept: ${softTargetCache.size} node types with good MCP matches`);
-  if (useSchemaBlend) {
+  console.log(
+    `[targets] Tier dispatch: T1=${tierCounts[0]} (${
+      n8nEntries.length > 0 ? ((tierCounts[0] / n8nEntries.length) * 100).toFixed(1) : 0
+    }%) T2=${tierCounts[1]} (${
+      n8nEntries.length > 0 ? ((tierCounts[1] / n8nEntries.length) * 100).toFixed(1) : 0
+    }%) T3=${tierCounts[2]} (${
+      n8nEntries.length > 0 ? ((tierCounts[2] / n8nEntries.length) * 100).toFixed(1) : 0
+    }%)`,
+  );
+  if (tierServiceHits.size > 0) {
     console.log(
-      `[targets] Schema similarity stats: ${schemaChangedTopTool}/${computed} mappings changed top-1 tool (${
-        computed > 0 ? ((schemaChangedTopTool / computed) * 100).toFixed(1) : 0
-      }%)`,
+      `[targets] Tier 1 services: ${[...tierServiceHits.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([s, c]) => `${s}=${c}`)
+        .join(", ")}`,
     );
   }
+  console.log(
+    `[targets] Top-1 changed vs cosine-only: ${schemaChangedTopTool}/${computed} (${
+      computed > 0 ? ((schemaChangedTopTool / computed) * 100).toFixed(1) : 0
+    }%)`,
+  );
 
-  // Log sample mappings
+  // Log sample Tier 1 mappings (service-matched — most interesting)
+  if (useServiceMatch && tierServiceHits.size > 0) {
+    console.log("\n[targets] Tier 1 sample mappings (service-matched):");
+    const shownServices = new Set<string>();
+    let t1shown = 0;
+    for (const [key, { topToolId, topSim }] of softTargetCache) {
+      const svc = n8nServiceMap.get(key);
+      if (!svc || shownServices.has(svc) || !tierServiceHits.has(svc)) continue;
+      shownServices.add(svc);
+      const displayName = smitheryToolNames[topToolId] || topToolId;
+      console.log(`  [${svc}] ${key} → ${displayName} (sim=${topSim.toFixed(3)})`);
+      if (++t1shown >= 20) break;
+    }
+  }
+
+  // Log sample general mappings
   console.log("\n[targets] Sample mappings (n8n → best MCP match):");
   let shown = 0;
   for (const [key, { topToolId, topSim }] of softTargetCache) {
@@ -454,6 +814,52 @@ async function main() {
     const displayName = smitheryToolNames[topToolId] || topToolId;
     console.log(`  ${key} → ${displayName} (sim=${topSim.toFixed(3)})`);
     shown++;
+  }
+
+  // Export mapping summary for notebook analysis
+  const MAPPING_SUMMARY_PATH = resolve(DATA_DIR, "n8n-mcp-mapping-summary.json");
+  {
+    // Build per-node tier info
+    const tierMap = new Map<string, number>();
+    // Re-determine tiers (we tracked counts but not per-key — rebuild from n8nServiceMap)
+    for (const [key] of n8nEntries) {
+      if (!softTargetCache.has(key)) continue;
+      const svc = n8nServiceMap.get(key);
+      const svcIndices = svc ? serviceToolIndices.get(svc) : undefined;
+      if (svcIndices && svcIndices.length >= 2) {
+        tierMap.set(key, 1);
+      } else {
+        const crudVerb = extractCrudVerb(key);
+        const n8nParams = n8nNodeParams.get(key) || [];
+        if (crudVerb || (useSchemaBlend && n8nParams.length > 0)) {
+          tierMap.set(key, 2);
+        } else {
+          tierMap.set(key, 3);
+        }
+      }
+    }
+
+    const mappings: Record<string, { mcp: string; tier: number; service: string | null; sim: number }> = {};
+    for (const [key, { topToolId, topSim }] of softTargetCache) {
+      mappings[key] = {
+        mcp: topToolId,
+        tier: tierMap.get(key) ?? 3,
+        service: n8nServiceMap.get(key) ?? null,
+        sim: parseFloat(topSim.toFixed(4)),
+      };
+    }
+
+    const summary = {
+      stats: {
+        tier1: tierCounts[0], tier2: tierCounts[1], tier3: tierCounts[2],
+        total: softTargetCache.size,
+        avgTopSim: parseFloat((Array.from(softTargetCache.values()).reduce((s, v) => s + v.topSim, 0) / softTargetCache.size).toFixed(4)),
+      },
+      mappings,
+    };
+    writeFileSync(MAPPING_SUMMARY_PATH, JSON.stringify(summary));
+    const sizeMB = (statSync(MAPPING_SUMMARY_PATH).size / 1024 / 1024).toFixed(1);
+    console.log(`\n[targets] Mapping summary: ${MAPPING_SUMMARY_PATH} (${sizeMB} MB)`);
   }
 
   // Convert workflows to TransitionExamples
