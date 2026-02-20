@@ -28,8 +28,9 @@ interface SpawnTrainingInput {
   existingParams?: Record<string, unknown>;
   /** Database URL for saving params directly (avoids stdout size limits) */
   databaseUrl?: string;
-  /** Additional tools with embeddings (from examples' contextTools not in any capability) */
-  additionalToolsWithEmbeddings?: Array<{ id: string; embedding: number[] | null }>;
+  /** Real tool embeddings (BGE-M3) keyed by tool_id in short format (e.g. "std:psql_query").
+   *  Passed to createSHGATFromCapabilities so all tools get real embeddings, not random defaults. */
+  toolEmbeddings?: Record<string, number[]>;
   /** Fixed temperature for InfoNCE (omit for cosine annealing) */
   temperature?: number;
   /** Use PER sampling (default: true) */
@@ -88,7 +89,7 @@ export async function spawnSHGATTraining(
     },
     existingParams: input.existingParams,
     databaseUrl,
-    additionalToolsWithEmbeddings: input.additionalToolsWithEmbeddings,
+    toolEmbeddings: input.toolEmbeddings,
   };
 
   // Use temp file for IPC - KV has 64KB limit, pipes block with large data

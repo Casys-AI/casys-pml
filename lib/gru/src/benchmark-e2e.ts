@@ -46,7 +46,12 @@ import type { GRUTrainingResult } from "./training/train-loop.ts";
 
 // SHGAT adapter (pure JS — no TF.js dependency)
 import { SHGATAdapter } from "../../shgat-for-gru/src/index.ts";
-import type { GraphNode, OBTrainedParams } from "../../shgat-for-gru/src/types.ts";
+import type { CooccurrenceEntry, GraphNode, OBTrainedParams } from "../../shgat-for-gru/src/types.ts";
+
+// Paper-style two-phase MP (Fujita n-SuHGAT)
+import { PaperMP } from "../../shgat-for-gru/src/paper-mp.ts";
+import { trainPaperMP } from "../../shgat-for-gru/src/train-paper-mp.ts";
+import type { TrainExample } from "../../shgat-for-gru/src/train-paper-mp.ts";
 
 // V→V co-occurrence enrichment (pure JS, from shgat-for-gru)
 import {
@@ -97,9 +102,38 @@ const DATABASE_URL = process.env.DATABASE_URL ||
 // Usage: SHGAT_PARAMS=path/to/shgat-params.json deno run ...
 const SHGAT_PARAMS_PATH = process.env.SHGAT_PARAMS || "";
 
+// NO_SHGAT=true → skip all SHGAT processing, use raw BGE-M3 embeddings (pure GRU baseline)
+const NO_SHGAT = process.env["NO_SHGAT"] === "true";
+// SHGAT_RANDOM=true → use random orthogonal projections for MP (no trained params, ADR frozen mode)
+const SHGAT_RANDOM = process.env["SHGAT_RANDOM"] === "true";
+// SHGAT_PAPER=true → paper-style two-phase MP (Fujita n-SuHGAT), ~500K params, random init
+const SHGAT_PAPER = process.env["SHGAT_PAPER"] === "true";
+// V2V_ONLY=true → V→V co-occurrence enrichment only, no message passing
+// Decomposes the gap: is V→V or MP the culprit?
+const V2V_ONLY = process.env["V2V_ONLY"] === "true";
+// PAPER_WF=true → add n8n workflows as hyperedges in SHGAT_PAPER mode (alongside capabilities)
+const PAPER_WF = process.env["PAPER_WF"] === "true";
+// TRAIN_PAPER=true → train PaperMP W/W1 via InfoNCE before GRU benchmark
+const TRAIN_PAPER = process.env["TRAIN_PAPER"] === "true";
+// PAPER_PARAMS=path → load pre-trained PaperMP params from JSON (skip training)
+const PAPER_PARAMS = process.env["PAPER_PARAMS"] || "";
+// NO_EDGES=true → force linear context fallback (ignore static_structure edges)
+// Used for A/B testing causal edges vs linear context
+const NO_EDGES = process.env["NO_EDGES"] === "true";
+// FULL_GRAPH=true → load provides/sequence edges from tool_dependency into V2V co-occurrence
+const FULL_GRAPH = process.env["FULL_GRAPH"] === "true";
+// Helper: modes without SHGAT graph (no adapter, no standalone scoring)
+const NO_GRAPH = NO_SHGAT || V2V_ONLY;
+
 console.log("=== GRU + SHGAT-TF End-to-End Benchmark ===");
 console.log(`    Date: ${new Date().toISOString()}`);
-if (SHGAT_PARAMS_PATH) console.log(`    SHGAT params: ${SHGAT_PARAMS_PATH}`);
+if (NO_SHGAT) console.log(`    Mode: NO_SHGAT (raw BGE-M3 embeddings, pure GRU baseline)`);
+else if (V2V_ONLY) console.log(`    Mode: V2V_ONLY (V→V co-occurrence enrichment, no MP)`);
+else if (SHGAT_PAPER) console.log(`    Mode: SHGAT_PAPER (paper-style two-phase MP${PAPER_WF ? " + wf hyperedges" : ""}${TRAIN_PAPER ? " + TRAINING" : ""}${PAPER_PARAMS ? " + pre-trained" : ""})`);
+else if (SHGAT_RANDOM) console.log(`    Mode: SHGAT_RANDOM (frozen MP with random orthogonal projections)`);
+else if (SHGAT_PARAMS_PATH) console.log(`    SHGAT params: ${SHGAT_PARAMS_PATH}`);
+else console.log(`    Mode: SHGAT trained (params from DB)${FULL_GRAPH ? " + FULL_GRAPH" : ""}${PAPER_WF ? " + WF hyperedges" : ""}`);
+if (NO_EDGES) console.log(`    Context: NO_EDGES (force linear fallback, ignore static_structure edges)`);
 console.log();
 
 // --- Step 0: Init TensorFlow.js ---
@@ -222,22 +256,34 @@ for (const row of capDepRows) {
   }
 }
 
-// Tool-to-cap from execution traces (L0 only)
+// Tool-to-cap from workflow_pattern.dag_structure.tools_used (L0 only)
+// NOTE: task_results->>'tool' is null for most traces — use dag_structure instead.
 const toolToCapSet: Set<string>[] = toolIds.map(() => new Set());
 const traceToolCaps = await sql`
   SELECT DISTINCT
-    et.capability_id,
-    jsonb_array_elements(et.task_results)->>'tool' as tool_id
-  FROM execution_trace et
-  WHERE et.task_results IS NOT NULL
-    AND jsonb_array_length(et.task_results) > 0
-    AND et.capability_id IN (
-      SELECT pattern_id FROM workflow_pattern WHERE intent_embedding IS NOT NULL
-    )
+    wp.pattern_id as capability_id,
+    jsonb_array_elements_text(wp.dag_structure->'tools_used') as tool_id
+  FROM workflow_pattern wp
+  WHERE wp.hierarchy_level = 0
+    AND wp.intent_embedding IS NOT NULL
+    AND wp.dag_structure ? 'tools_used'
+    AND jsonb_array_length(wp.dag_structure->'tools_used') > 0
 `;
 
 for (const row of traceToolCaps) {
-  const toolIdx = toolIdToIdx.get(row.tool_id);
+  // Normalize FQDN: pml.mcp.std.psql_query.db48 -> std:psql_query
+  const rawToolId: string = row.tool_id ?? "";
+  let toolId = rawToolId;
+  if (rawToolId.startsWith("pml.mcp.") || rawToolId.startsWith("local.")) {
+    const parts = rawToolId.split(".");
+    // pml.mcp.<server>.<action>.<hash> or local.<project>.<server>.<action>.<hash>
+    const serverIdx = rawToolId.startsWith("pml.mcp.") ? 2 : 2;
+    if (parts.length >= serverIdx + 2) {
+      toolId = `${parts[serverIdx]}:${parts[serverIdx + 1]}`;
+    }
+  }
+
+  const toolIdx = toolIdToIdx.get(toolId);
   if (
     toolIdx !== undefined &&
     capEmbeddings.has(row.capability_id) &&
@@ -395,161 +441,656 @@ const toolCapMap: ToolCapabilityMap = {
 console.log(`      ToolCapabilityMap: ${toolIds.length} tools x ${numCaps} caps`);
 console.log(`      Graph: maxLevel=${maxLevel}, using ALL levels`);
 
-// --- Step 4: Load SHGAT params via adapter ---
+// --- Steps 4-6: SHGAT loading + enrichment (conditional on mode) ---
 const shgatAdapter = new SHGATAdapter();
+let enrichedToolEmbeddings: Map<string, number[]>;
+let enrichmentMs = 0;
+let cooccurrenceEdgeCount = 0; // hoisted for results JSON (cooccurrence is block-scoped)
 
-if (SHGAT_PARAMS_PATH && existsSync(SHGAT_PARAMS_PATH)) {
-  console.log(`\n[4/9] Loading SHGAT params from file: ${SHGAT_PARAMS_PATH}`);
-  const shgatExportConfig = shgatAdapter.loadParams(SHGAT_PARAMS_PATH);
-  console.log(`      Config: numHeads=${shgatExportConfig.numHeads}, headDim=${shgatExportConfig.headDim}, embDim=${shgatExportConfig.embeddingDim}`);
-} else {
-  // --- Legacy: load from DB, convert to OBTrainedParams ---
-  console.log("\n[4/9] Loading SHGAT params from DB...");
-  const paramsRow = await sql`
-    SELECT
-      params->>'format' as format,
-      decode(params->>'data', 'base64') as compressed_bytes,
-      updated_at
-    FROM shgat_params ORDER BY created_at DESC LIMIT 1
-  `;
+if (NO_SHGAT) {
+  // ============ Mode A: Pure GRU baseline — raw BGE-M3 embeddings ============
+  console.log("\n[4-6/11] SKIPPED — NO_SHGAT mode: using raw BGE-M3 embeddings");
+  enrichedToolEmbeddings = new Map<string, number[]>();
+  for (let i = 0; i < toolIds.length; i++) {
+    enrichedToolEmbeddings.set(toolIds[i], rawToolEmbeddings.get(toolIds[i])!);
+  }
+  // Adapter stays empty — no graph, no scoring. E2E sections guard with `if (!NO_SHGAT)`.
+  console.log(`      Using ${enrichedToolEmbeddings.size} raw tool embeddings (no V→V, no MP)`);
 
-  if (paramsRow.length === 0) {
-    console.error("FATAL: No SHGAT params found in DB!");
-    await sql.end();
-    process.exit(1);
+} else if (V2V_ONLY) {
+  // ============ Mode V: V→V co-occurrence only — no message passing ============
+  console.log("\n[4/11] SKIPPED — V2V_ONLY mode: no SHGAT/PaperMP initialization");
+  console.log("\n[5/11] V→V co-occurrence enrichment (V2V_ONLY mode)...");
+  const v2vStart = performance.now();
+
+  const workflowToolLists: string[][] = [];
+  if (existsSync(N8N_SHGAT_PAIRS_PATH)) {
+    const n8nPairsForV2V: Array<{ positiveToolIds: string[] }> = JSON.parse(
+      readFileSync(N8N_SHGAT_PAIRS_PATH, "utf-8"),
+    );
+    for (const pair of n8nPairsForV2V) {
+      workflowToolLists.push(pair.positiveToolIds);
+    }
+  }
+  for (const [, children] of capToToolChildren) {
+    if (children.length >= 2) workflowToolLists.push(children);
   }
 
-  const paramsFormat = paramsRow[0].format as string;
-  const compressed = paramsRow[0].compressed_bytes as Uint8Array;
-  console.log(`      Last updated: ${paramsRow[0].updated_at}`);
-  console.log(`      Compressed: ${(compressed.length / 1024 / 1024).toFixed(1)}MB, format: ${paramsFormat}`);
-
-  const decompressedBytes = pako.ungzip(compressed);
-  // deno-lint-ignore no-explicit-any
-  let loadedRaw: Record<string, any>;
-  if (paramsFormat === "msgpack+gzip+base64") {
-    const { decode: msgpackDecode } = await import("@msgpack/msgpack");
-    loadedRaw = msgpackDecode(decompressedBytes) as Record<string, unknown>;
-  } else {
-    loadedRaw = JSON.parse(new TextDecoder().decode(decompressedBytes));
-  }
-
-  // Convert to OBTrainedParams format
-  if ("W_up" in loadedRaw) {
-    // Autograd format → convert (transposes W matrices)
-    shgatAdapter.setParams(SHGATAdapter.convertAutogradToOB(loadedRaw));
-  } else {
-    // Legacy/OB format — use directly
-    shgatAdapter.setParams(loadedRaw as OBTrainedParams);
-  }
-  const cfg = shgatAdapter.getConfig();
-  console.log(`      Config: numHeads=${cfg.numHeads}, headDim=${cfg.headDim}`);
-}
-
-// --- Step 5: V→V co-occurrence enrichment (before V→E→V) ---
-console.log("\n[5/11] V→V co-occurrence enrichment...");
-const v2vStart = performance.now();
-
-// Build co-occurrence from n8n workflow tool lists
-const workflowToolLists: string[][] = [];
-if (existsSync(N8N_SHGAT_PAIRS_PATH)) {
-  const n8nPairsForV2V: Array<{ positiveToolIds: string[] }> = JSON.parse(
-    readFileSync(N8N_SHGAT_PAIRS_PATH, "utf-8"),
+  const cooccurrence = buildCooccurrenceFromWorkflows(workflowToolLists, toolIdToIdx);
+  cooccurrenceEdgeCount = cooccurrence.length;
+  console.log(
+    `      Built co-occurrence: ${cooccurrence.length} edges from ${workflowToolLists.length} workflows`,
   );
-  for (const pair of n8nPairsForV2V) {
-    workflowToolLists.push(pair.positiveToolIds);
+
+  const H_raw: number[][] = toolIds.map((id) => rawToolEmbeddings.get(id)!);
+  const H_v2v_enriched = v2vEnrich(H_raw, cooccurrence, { residualWeight: 0.3 });
+
+  let v2vDelta = 0;
+  for (let i = 0; i < H_raw.length; i++) {
+    for (let j = 0; j < H_raw[i].length; j++) {
+      v2vDelta += Math.abs(H_v2v_enriched[i][j] - H_raw[i][j]);
+    }
   }
-}
-// Also add PML cap-to-tool connections as co-occurrence sources
-for (const [, children] of capToToolChildren) {
-  if (children.length >= 2) workflowToolLists.push(children);
-}
+  const v2vTime = ((performance.now() - v2vStart) / 1000).toFixed(2);
+  console.log(
+    `      V→V enrichment: avg_delta=${(v2vDelta / H_raw.length).toFixed(4)}, applied, time=${v2vTime}s`,
+  );
 
-const cooccurrence = buildCooccurrenceFromWorkflows(workflowToolLists, toolIdToIdx);
-console.log(
-  `      Built co-occurrence: ${cooccurrence.length} edges from ${workflowToolLists.length} workflows`,
-);
+  console.log("\n[6/11] SKIPPED — V2V_ONLY mode: no message passing");
 
-// Apply V→V enrichment to raw tool embeddings
-const H_raw: number[][] = toolIds.map((id) => rawToolEmbeddings.get(id)!);
-const SKIP_V2V = process.env["SKIP_V2V"] === "true";
-const H_v2v_enriched = SKIP_V2V ? H_raw : v2vEnrich(H_raw, cooccurrence, { residualWeight: 0.3 });
-
-// Measure V→V enrichment delta
-let v2vDelta = 0;
-for (let i = 0; i < H_raw.length; i++) {
-  for (let j = 0; j < H_raw[i].length; j++) {
-    v2vDelta += Math.abs(H_v2v_enriched[i][j] - H_raw[i][j]);
+  // Use V→V-enriched embeddings directly (no MP)
+  enrichedToolEmbeddings = new Map<string, number[]>();
+  for (let i = 0; i < toolIds.length; i++) {
+    enrichedToolEmbeddings.set(toolIds[i], H_v2v_enriched[i]);
   }
-}
-const v2vTime = ((performance.now() - v2vStart) / 1000).toFixed(2);
-console.log(
-  `      V→V enrichment: avg_delta=${(v2vDelta / H_raw.length).toFixed(4)}, ${
-    SKIP_V2V ? "SKIPPED" : "applied"
-  }, time=${v2vTime}s`,
-);
+  console.log(`      Using ${enrichedToolEmbeddings.size} V→V-enriched tool embeddings (no MP)`);
 
-// --- Step 6: Build SHGAT graph & enrich embeddings (V→E→V) ---
-console.log("\n[6/11] Building graph & enriching embeddings (V→V enriched → V↔E^0↔E^1↔E^2)...");
-const mpStart = performance.now();
-
-// Build GraphNode[] from V→V-enriched tools + capability embeddings
-const shgatGraphNodes: GraphNode[] = [];
-for (let i = 0; i < toolIds.length; i++) {
-  shgatGraphNodes.push({
-    id: toolIds[i],
-    embedding: H_v2v_enriched[i],
-    children: [],
-    level: 0,
+} else if (SHGAT_PAPER) {
+  // ============ Mode P: Paper-style two-phase MP (Fujita n-SuHGAT) ============
+  console.log("\n[4/11] SHGAT_PAPER: initializing paper-style two-phase MP...");
+  const paperAlpha = TRAIN_PAPER ? 0.5 : 0.3;
+  const paperMP = new PaperMP({
+    embDim: embeddingDim,
+    projDim: 256,
+    residualAlpha: paperAlpha,
+    activation: "leaky_relu",
+    seed: SPLIT_SEED,
   });
-}
-for (let level = 0; level <= maxLevel; level++) {
-  const levelCaps = capIdsByLevel.get(level) || [];
-  for (const capId of levelCaps) {
-    const emb = capEmbeddings.get(capId);
-    if (!emb) continue;
-    const children = level === 0
-      ? (capToToolChildren.get(capId) ?? [])
-      : (capToCapChildren.get(capId) ?? []);
-    if (children.length === 0) continue;
-    shgatGraphNodes.push({ id: capId, embedding: emb, children, level });
+  console.log(`      PaperMP: projDim=256, alpha=${paperAlpha}, params=${paperMP.getParamCount()}, seed=${SPLIT_SEED}`);
+
+  // Still need adapter with random params for K-head scoring in E2E section
+  shgatAdapter.initRandomParams(embeddingDim, 16, 64, maxLevel + 1, SPLIT_SEED);
+
+  // --- Step 5: V→V co-occurrence enrichment ---
+  console.log("\n[5/11] V→V co-occurrence enrichment...");
+  const v2vStart = performance.now();
+
+  const workflowToolLists: string[][] = [];
+  if (existsSync(N8N_SHGAT_PAIRS_PATH)) {
+    const n8nPairsForV2V: Array<{ positiveToolIds: string[] }> = JSON.parse(
+      readFileSync(N8N_SHGAT_PAIRS_PATH, "utf-8"),
+    );
+    for (const pair of n8nPairsForV2V) {
+      workflowToolLists.push(pair.positiveToolIds);
+    }
   }
+  for (const [, children] of capToToolChildren) {
+    if (children.length >= 2) workflowToolLists.push(children);
+  }
+
+  const cooccurrence = buildCooccurrenceFromWorkflows(workflowToolLists, toolIdToIdx);
+  cooccurrenceEdgeCount = cooccurrence.length;
+  console.log(
+    `      Built co-occurrence: ${cooccurrence.length} edges from ${workflowToolLists.length} workflows`,
+  );
+
+  const H_raw: number[][] = toolIds.map((id) => rawToolEmbeddings.get(id)!);
+  const SKIP_V2V = process.env["SKIP_V2V"] === "true";
+  const H_v2v_enriched = SKIP_V2V ? H_raw : v2vEnrich(H_raw, cooccurrence, { residualWeight: 0.3 });
+
+  let v2vDelta = 0;
+  for (let i = 0; i < H_raw.length; i++) {
+    for (let j = 0; j < H_raw[i].length; j++) {
+      v2vDelta += Math.abs(H_v2v_enriched[i][j] - H_raw[i][j]);
+    }
+  }
+  const v2vTime = ((performance.now() - v2vStart) / 1000).toFixed(2);
+  console.log(
+    `      V→V enrichment: avg_delta=${(v2vDelta / H_raw.length).toFixed(4)}, ${
+      SKIP_V2V ? "SKIPPED" : "applied"
+    }, time=${v2vTime}s`,
+  );
+
+  // --- Step 6: Build graph & enrich with paper-style MP ---
+  console.log("\n[6/11] Paper-style two-phase MP (V→E→V)...");
+
+  // Build GraphNode[] from V→V-enriched tools + capability embeddings
+  const shgatGraphNodes: GraphNode[] = [];
+  for (let i = 0; i < toolIds.length; i++) {
+    shgatGraphNodes.push({
+      id: toolIds[i],
+      embedding: H_v2v_enriched[i],
+      children: [],
+      level: 0,
+    });
+  }
+  for (let level = 0; level <= maxLevel; level++) {
+    const levelCaps = capIdsByLevel.get(level) || [];
+    for (const capId of levelCaps) {
+      const emb = capEmbeddings.get(capId);
+      if (!emb) continue;
+      const children = level === 0
+        ? (capToToolChildren.get(capId) ?? [])
+        : (capToCapChildren.get(capId) ?? []);
+      if (children.length === 0) continue;
+      shgatGraphNodes.push({ id: capId, embedding: emb, children, level });
+    }
+  }
+
+  // --- PAPER_WF: add n8n workflows as additional L1 hyperedges ---
+  let wfHyperedgeCount = 0;
+  if (PAPER_WF && existsSync(N8N_SHGAT_PAIRS_PATH)) {
+    console.log(`      Loading n8n workflows as hyperedges (PAPER_WF=true)...`);
+    const n8nPairs: Array<{
+      workflowId: number;
+      workflowName: string;
+      intentEmbedding: number[];
+      positiveToolIds: string[];
+    }> = JSON.parse(readFileSync(N8N_SHGAT_PAIRS_PATH, "utf-8"));
+
+    // Deduplicate by workflowId, filter by size and vocab coverage
+    const seenWf = new Set<number>();
+    const l0IdSet = new Set(toolIds);
+    for (const pair of n8nPairs) {
+      if (seenWf.has(pair.workflowId)) continue;
+      seenWf.add(pair.workflowId);
+
+      // Filter children to those in our vocab
+      const mappedChildren = pair.positiveToolIds.filter((id) => l0IdSet.has(id));
+      // 3-20 tools per workflow, min 2 in vocab
+      if (mappedChildren.length < 2 || pair.positiveToolIds.length < 3 || pair.positiveToolIds.length > 20) continue;
+
+      shgatGraphNodes.push({
+        id: `n8n:wf:${pair.workflowId}`,
+        embedding: pair.intentEmbedding,
+        children: mappedChildren,
+        level: 0, // same level as capabilities (L1 hyperedges connecting L0 tools)
+      });
+      wfHyperedgeCount++;
+    }
+    console.log(
+      `      Added ${wfHyperedgeCount} workflow hyperedges (from ${seenWf.size} unique workflows, filtered 3-20 tools, ≥2 in vocab)`,
+    );
+  }
+
+  const paperGraph = paperMP.buildGraph(shgatGraphNodes);
+  console.log(
+    `      Graph: ${paperGraph.l0Ids.length} L0 nodes, ${
+      Array.from(paperGraph.nodeIdsByLevel.entries())
+        .map(([l, ids]) => `L${l}:${ids.length}`)
+        .join(", ")
+    } higher nodes${wfHyperedgeCount > 0 ? ` (incl. ${wfHyperedgeCount} wf hyperedges)` : ""}, maxLevel=${paperGraph.maxLevel}`,
+  );
+
+  // --- PAPER_PARAMS: load pre-trained PaperMP params ---
+  if (PAPER_PARAMS && existsSync(PAPER_PARAMS)) {
+    console.log(`\n[6b/11] Loading pre-trained PaperMP params from ${PAPER_PARAMS}...`);
+    const saved = JSON.parse(readFileSync(PAPER_PARAMS, "utf-8"));
+    paperMP.setParams(saved.bestW, saved.bestW1);
+    console.log(`      Loaded: R@1=${saved.bestR1?.toFixed?.(1) ?? "?"}% from epoch ${saved.bestEpoch ?? "?"}`);
+  }
+
+  // --- TRAIN_PAPER: train PaperMP via InfoNCE ---
+  if (TRAIN_PAPER) {
+    console.log("\n[6b/11] Training PaperMP via InfoNCE contrastive...");
+    // Load execution traces for training (minimal: intent + target tools)
+    const paperTraceRows = await sql`
+      SELECT
+        wp.intent_embedding::text as intent_embedding,
+        et.task_results,
+        et.id as trace_id
+      FROM execution_trace et
+      JOIN workflow_pattern wp ON et.capability_id = wp.pattern_id
+      WHERE et.task_results IS NOT NULL
+        AND jsonb_array_length(et.task_results) >= 1
+        AND wp.intent_embedding IS NOT NULL
+      ORDER BY et.executed_at DESC
+    `;
+    console.log(`      Loaded ${paperTraceRows.length} execution traces`);
+
+    // Convert to TrainExample[] (each step = one example)
+    const allPaperExamples: (TrainExample & { traceId: string })[] = [];
+    for (const row of paperTraceRows) {
+      const intentEmb = parseEmbedding(row.intent_embedding as string);
+      if (!intentEmb || intentEmb.length !== embeddingDim) continue;
+      const tasks = row.task_results as Array<{ tool?: string }>;
+      for (const task of tasks) {
+        if (!task.tool) continue;
+        const idx = toolIdToIdx.get(task.tool);
+        if (idx === undefined) continue;
+        allPaperExamples.push({
+          intentEmbedding: intentEmb,
+          targetToolIdx: idx,
+          traceId: row.trace_id as string,
+        });
+      }
+    }
+    console.log(`      Extracted ${allPaperExamples.length} prod training examples`);
+
+    // Load n8n contrastive pairs (intent + positive tools per workflow)
+    const n8nPairsPath = resolve(__dirname, "../data/n8n-shgat-contrastive-pairs.json");
+    if (existsSync(n8nPairsPath)) {
+      const n8nPairs: Array<{
+        intentEmbedding: number[];
+        positiveToolIds: string[];
+        workflowId: number;
+      }> = JSON.parse(readFileSync(n8nPairsPath, "utf-8"));
+      let n8nCount = 0;
+      const n8nRng = seededRng(SPLIT_SEED + 13);
+      for (const pair of n8nPairs) {
+        if (!pair.intentEmbedding || pair.intentEmbedding.length !== embeddingDim) continue;
+        for (const toolId of pair.positiveToolIds) {
+          const idx = toolIdToIdx.get(toolId);
+          if (idx === undefined) continue;
+          // Subsample: keep ~5K examples (probability = 5000 / estimated 30K total)
+          if (n8nRng() > 0.18) continue;
+          allPaperExamples.push({
+            intentEmbedding: pair.intentEmbedding,
+            targetToolIdx: idx,
+            traceId: `n8n-${pair.workflowId}`,
+          });
+          n8nCount++;
+        }
+      }
+      console.log(`      + ${n8nCount} n8n contrastive examples (from ${n8nPairs.length} workflows)`);
+    }
+    console.log(`      Total: ${allPaperExamples.length} training examples`);
+
+    // Split 80/20 by trace (seeded, same as GRU split)
+    const paperTraceIds = [...new Set(allPaperExamples.map((ex) => ex.traceId))];
+    const paperRng = seededRng(SPLIT_SEED + 7);
+    for (let i = paperTraceIds.length - 1; i > 0; i--) {
+      const j = Math.floor(paperRng() * (i + 1));
+      [paperTraceIds[i], paperTraceIds[j]] = [paperTraceIds[j], paperTraceIds[i]];
+    }
+    const paperSplitIdx = Math.floor(paperTraceIds.length * 0.8);
+    const paperTrainIds = new Set(paperTraceIds.slice(0, paperSplitIdx));
+    const paperTrainExamples = allPaperExamples.filter((ex) => paperTrainIds.has(ex.traceId));
+    const paperTestExamples = allPaperExamples.filter((ex) => !paperTrainIds.has(ex.traceId));
+    console.log(`      Split: ${paperTrainExamples.length} train / ${paperTestExamples.length} test (${paperTraceIds.length} traces)`);
+
+    // Train
+    const trainResult = trainPaperMP(paperMP, toolIds, paperTrainExamples, paperTestExamples, {
+      epochs: 15,
+      lr: 0.005,
+      batchSize: 64,
+      temperature: 0.07,
+      patience: 5,
+      seed: SPLIT_SEED,
+    });
+
+    // Save trained params
+    const paramsPath = resolve(__dirname, "../data/paper-mp-trained.json");
+    writeFileSync(paramsPath, JSON.stringify({
+      bestW: trainResult.bestW,
+      bestW1: trainResult.bestW1,
+      bestR1: trainResult.bestR1,
+      bestMRR: trainResult.bestMRR,
+      bestEpoch: trainResult.bestEpoch,
+      config: paperMP.getConfig(),
+      history: trainResult.history,
+    }));
+    console.log(`      Saved trained params to ${paramsPath}`);
+  }
+
+  const enrichResult = paperMP.enrich();
+  enrichedToolEmbeddings = enrichResult.l0Embeddings;
+  enrichmentMs = enrichResult.enrichmentMs;
+
+  // Also build graph for shgatAdapter (needed for standalone scoring in step 7d)
+  shgatAdapter.buildGraph(shgatGraphNodes);
+
+} else {
+  // ============ Load SHGAT params ============
+  if (SHGAT_RANDOM) {
+    // Mode B: Frozen MP — random orthogonal projections (ADR 2026-02-08)
+    console.log("\n[4/11] SHGAT_RANDOM: initializing random orthogonal projections...");
+    const cfg = shgatAdapter.initRandomParams(embeddingDim, 16, 64, maxLevel + 1, SPLIT_SEED);
+    console.log(`      Config: numHeads=${cfg.numHeads}, headDim=${cfg.headDim}, embDim=${cfg.embeddingDim}`);
+  } else if (SHGAT_PARAMS_PATH && existsSync(SHGAT_PARAMS_PATH)) {
+    console.log(`\n[4/11] Loading SHGAT params from file: ${SHGAT_PARAMS_PATH}`);
+    const shgatExportConfig = shgatAdapter.loadParams(SHGAT_PARAMS_PATH);
+    console.log(`      Config: numHeads=${shgatExportConfig.numHeads}, headDim=${shgatExportConfig.headDim}, embDim=${shgatExportConfig.embeddingDim}`);
+  } else {
+    // --- Legacy: load from DB, convert to OBTrainedParams ---
+    console.log("\n[4/11] Loading SHGAT params from DB...");
+    const paramsRow = await sql`
+      SELECT
+        params->>'format' as format,
+        decode(params->>'data', 'base64') as compressed_bytes,
+        updated_at
+      FROM shgat_params ORDER BY created_at DESC LIMIT 1
+    `;
+
+    if (paramsRow.length === 0) {
+      console.error("FATAL: No SHGAT params found in DB!");
+      await sql.end();
+      process.exit(1);
+    }
+
+    const paramsFormat = paramsRow[0].format as string;
+    const compressed = paramsRow[0].compressed_bytes as Uint8Array;
+    console.log(`      Last updated: ${paramsRow[0].updated_at}`);
+    console.log(`      Compressed: ${(compressed.length / 1024 / 1024).toFixed(1)}MB, format: ${paramsFormat}`);
+
+    const decompressedBytes = pako.ungzip(compressed);
+    // deno-lint-ignore no-explicit-any
+    let loadedRaw: Record<string, any>;
+    if (paramsFormat === "msgpack+gzip+base64") {
+      const { decode: msgpackDecode } = await import("@msgpack/msgpack");
+      loadedRaw = msgpackDecode(decompressedBytes) as Record<string, unknown>;
+    } else {
+      loadedRaw = JSON.parse(new TextDecoder().decode(decompressedBytes));
+    }
+
+    // Convert to OBTrainedParams format
+    if ("W_up" in loadedRaw) {
+      // Autograd format → convert (transposes W matrices)
+      shgatAdapter.setParams(SHGATAdapter.convertAutogradToOB(loadedRaw));
+    } else {
+      // Legacy/OB format — use directly
+      shgatAdapter.setParams(loadedRaw as OBTrainedParams);
+    }
+    const cfg = shgatAdapter.getConfig();
+    console.log(`      Config: numHeads=${cfg.numHeads}, headDim=${cfg.headDim}`);
+  }
+
+  // ============ Step 5: V→V co-occurrence enrichment ============
+  console.log("\n[5/11] V→V co-occurrence enrichment...");
+  const v2vStart = performance.now();
+
+  // Build co-occurrence from n8n workflow tool lists
+  const workflowToolLists: string[][] = [];
+  if (existsSync(N8N_SHGAT_PAIRS_PATH)) {
+    const n8nPairsForV2V: Array<{ positiveToolIds: string[] }> = JSON.parse(
+      readFileSync(N8N_SHGAT_PAIRS_PATH, "utf-8"),
+    );
+    for (const pair of n8nPairsForV2V) {
+      workflowToolLists.push(pair.positiveToolIds);
+    }
+  }
+  // Also add PML cap-to-tool connections as co-occurrence sources
+  for (const [, children] of capToToolChildren) {
+    if (children.length >= 2) workflowToolLists.push(children);
+  }
+
+  let cooccurrence = buildCooccurrenceFromWorkflows(workflowToolLists, toolIdToIdx);
+  console.log(
+    `      Built co-occurrence: ${cooccurrence.length} edges from ${workflowToolLists.length} workflows`,
+  );
+
+  // --- FULL_GRAPH: load provides/sequence edges from tool_dependency ---
+  if (FULL_GRAPH) {
+    console.log("      Loading provides/sequence edges from tool_dependency (FULL_GRAPH=true)...");
+    const depEdges = await sql`
+      SELECT from_tool_id, to_tool_id, edge_type, confidence_score, edge_source, observed_count
+      FROM tool_dependency
+      WHERE edge_type IN ('provides', 'sequence')
+    `;
+    const extraEntries: CooccurrenceEntry[] = [];
+    let matched = 0;
+    for (const row of depEdges) {
+      const fromIdx = toolIdToIdx.get(row.from_tool_id as string);
+      const toIdx = toolIdToIdx.get(row.to_tool_id as string);
+      if (fromIdx === undefined || toIdx === undefined) continue;
+      matched++;
+      // Typed weights: provides×observed=0.70, provides×inferred=0.49, sequence×observed=0.50, sequence×inferred=0.35
+      const isObserved = (row.edge_source as string) === "observed";
+      const baseWeight = (row.edge_type as string) === "provides"
+        ? (isObserved ? 0.70 : 0.49)
+        : (isObserved ? 0.50 : 0.35);
+      const weight = baseWeight * Math.log2(1 + (row.observed_count as number || 1));
+      extraEntries.push({ from: fromIdx, to: toIdx, weight });
+      extraEntries.push({ from: toIdx, to: fromIdx, weight }); // symmetric
+    }
+    cooccurrence = cooccurrence.concat(extraEntries);
+    console.log(
+      `      Added ${extraEntries.length} edges from ${matched}/${depEdges.length} dependency rows (provides+sequence)`,
+    );
+  }
+
+  cooccurrenceEdgeCount = cooccurrence.length;
+
+  // Apply V→V enrichment to raw tool embeddings
+  const H_raw: number[][] = toolIds.map((id) => rawToolEmbeddings.get(id)!);
+  const SKIP_V2V = process.env["SKIP_V2V"] === "true";
+  const H_v2v_enriched = SKIP_V2V ? H_raw : v2vEnrich(H_raw, cooccurrence, { residualWeight: 0.3 });
+
+  // Measure V→V enrichment delta
+  let v2vDelta = 0;
+  for (let i = 0; i < H_raw.length; i++) {
+    for (let j = 0; j < H_raw[i].length; j++) {
+      v2vDelta += Math.abs(H_v2v_enriched[i][j] - H_raw[i][j]);
+    }
+  }
+  const v2vTime = ((performance.now() - v2vStart) / 1000).toFixed(2);
+  console.log(
+    `      V→V enrichment: avg_delta=${(v2vDelta / H_raw.length).toFixed(4)}, ${
+      SKIP_V2V ? "SKIPPED" : "applied"
+    }, time=${v2vTime}s`,
+  );
+
+  // ============ Step 6: Build SHGAT graph & enrich (V→E→V) ============
+  console.log("\n[6/11] Building graph & enriching embeddings (V→V enriched → V↔E^0↔E^1↔E^2)...");
+  const mpStart = performance.now();
+
+  // Build GraphNode[] from V→V-enriched tools + capability embeddings
+  const shgatGraphNodes: GraphNode[] = [];
+  for (let i = 0; i < toolIds.length; i++) {
+    shgatGraphNodes.push({
+      id: toolIds[i],
+      embedding: H_v2v_enriched[i],
+      children: [],
+      level: 0,
+    });
+  }
+  for (let level = 0; level <= maxLevel; level++) {
+    const levelCaps = capIdsByLevel.get(level) || [];
+    for (const capId of levelCaps) {
+      const emb = capEmbeddings.get(capId);
+      if (!emb) continue;
+      const children = level === 0
+        ? (capToToolChildren.get(capId) ?? [])
+        : (capToCapChildren.get(capId) ?? []);
+      if (children.length === 0) continue;
+      shgatGraphNodes.push({ id: capId, embedding: emb, children, level });
+    }
+  }
+
+  // --- PAPER_WF: add n8n workflows as L1 hyperedges in default mode too ---
+  let defaultWfHyperedgeCount = 0;
+  if (PAPER_WF && existsSync(N8N_SHGAT_PAIRS_PATH)) {
+    console.log(`      Loading n8n workflows as hyperedges (PAPER_WF=true)...`);
+    const n8nPairs: Array<{
+      workflowId: number;
+      workflowName: string;
+      intentEmbedding: number[];
+      positiveToolIds: string[];
+    }> = JSON.parse(readFileSync(N8N_SHGAT_PAIRS_PATH, "utf-8"));
+
+    const seenWf = new Set<number>();
+    const l0IdSet = new Set(toolIds);
+    for (const pair of n8nPairs) {
+      if (seenWf.has(pair.workflowId)) continue;
+      seenWf.add(pair.workflowId);
+      const mappedChildren = pair.positiveToolIds.filter((id) => l0IdSet.has(id));
+      if (mappedChildren.length < 2 || pair.positiveToolIds.length < 3 || pair.positiveToolIds.length > 20) continue;
+      shgatGraphNodes.push({
+        id: `n8n:wf:${pair.workflowId}`,
+        embedding: pair.intentEmbedding,
+        children: mappedChildren,
+        level: 0, // L1 hyperedges connecting L0 tools
+      });
+      defaultWfHyperedgeCount++;
+    }
+    console.log(
+      `      Added ${defaultWfHyperedgeCount} workflow hyperedges (from ${seenWf.size} unique workflows)`,
+    );
+  }
+
+  const shgatGraph = shgatAdapter.buildGraph(shgatGraphNodes);
+  console.log(
+    `      Graph: ${shgatGraph.l0Ids.length} L0 nodes, ${
+      Array.from(shgatGraph.nodeIdsByLevel.entries())
+        .map(([l, ids]) => `L${l}:${ids.length}`)
+        .join(", ")
+    } higher nodes${defaultWfHyperedgeCount > 0 ? ` (incl. ${defaultWfHyperedgeCount} wf hyperedges)` : ""}, maxLevel=${shgatGraph.maxLevel}`,
+  );
+
+  // Enrich embeddings via multi-head attention message passing
+  const enrichResult = shgatAdapter.enrichEmbeddings();
+  enrichedToolEmbeddings = enrichResult.l0Embeddings;
+  enrichmentMs = enrichResult.enrichmentMs;
 }
 
-const shgatGraph = shgatAdapter.buildGraph(shgatGraphNodes);
-console.log(
-  `      Graph: ${shgatGraph.toolIds.length} tools, ${
-    Array.from(shgatGraph.capIdsByLevel.entries())
-      .map(([l, ids]) => `L${l}:${ids.length}`)
-      .join(", ")
-  } caps, maxLevel=${shgatGraph.maxLevel}`,
-);
+// --- Baseline embeddings for delta comparison (available in all modes) ---
+const H_baseline: number[][] = toolIds.map((id) => rawToolEmbeddings.get(id)!);
 
-// Enrich embeddings via multi-head attention message passing
-const { toolEmbeddings: enrichedToolEmbeddings, enrichmentMs } = shgatAdapter.enrichEmbeddings();
+function cosineSim(a: number[] | Float64Array, b: number[] | Float64Array): number {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-10);
+}
 
-const mpTime = (enrichmentMs / 1000).toFixed(2);
-console.log(`      Message passing complete in ${mpTime}s`);
-console.log(`      Enriched ${enrichedToolEmbeddings.size} tool embeddings`);
-
-// Measure enrichment quality
-let totalDelta = 0;
-let maxDelta = 0;
+// Split tools by hierarchy status (used in all modes)
+const hierToolIndices: number[] = [];
+const orphToolIndices: number[] = [];
 for (let i = 0; i < toolIds.length; i++) {
-  const enriched = enrichedToolEmbeddings.get(toolIds[i])!;
-  let delta = 0;
-  for (let j = 0; j < enriched.length; j++) {
-    delta += Math.abs(enriched[j] - H_v2v_enriched[i][j]);
-  }
-  totalDelta += delta;
-  maxDelta = Math.max(maxDelta, delta);
+  if (toolToCapIds[i].length > 0) hierToolIndices.push(i);
+  else orphToolIndices.push(i);
 }
-const avgDelta = totalDelta / toolIds.length;
-console.log(
-  `      Embedding delta: avg=${avgDelta.toFixed(2)}, max=${maxDelta.toFixed(2)} (higher = more enrichment)`,
-);
 
-logMemory("      ");
+let hierAvgDelta = 0, orphAvgDelta = 0, deltaRatio = 0;
+let rawIntraMean = 0, enrichedIntraMean = 0, simImprovement = 0;
+let intraPairs = 0;
+let avgDelta = 0;
+
+if (!NO_SHGAT) {
+  const mpTime = (enrichmentMs / 1000).toFixed(2);
+  console.log(`      Message passing complete in ${mpTime}s`);
+  console.log(`      Enriched ${enrichedToolEmbeddings.size} tool embeddings`);
+
+  // Measure enrichment quality vs raw
+  let totalDelta = 0;
+  let maxDelta = 0;
+  for (let i = 0; i < toolIds.length; i++) {
+    const enriched = enrichedToolEmbeddings.get(toolIds[i])!;
+    let delta = 0;
+    for (let j = 0; j < enriched.length; j++) {
+      delta += Math.abs(enriched[j] - H_baseline[i][j]);
+    }
+    totalDelta += delta;
+    maxDelta = Math.max(maxDelta, delta);
+  }
+  avgDelta = totalDelta / toolIds.length;
+  console.log(
+    `      Embedding delta: avg=${avgDelta.toFixed(2)}, max=${maxDelta.toFixed(2)} (higher = more enrichment)`,
+  );
+
+  logMemory("      ");
+
+  // --- Step 6b: SHGAT Enrichment Quality Analysis ---
+  console.log("\n[6b/11] SHGAT Enrichment Quality Analysis...");
+
+  // 1) MP delta split by hierarchy status
+  let hierDeltaSum = 0, orphDeltaSum = 0;
+  for (const i of hierToolIndices) {
+    const enriched = enrichedToolEmbeddings.get(toolIds[i])!;
+    for (let j = 0; j < enriched.length; j++) {
+      hierDeltaSum += Math.abs(enriched[j] - H_baseline[i][j]);
+    }
+  }
+  for (const i of orphToolIndices) {
+    const enriched = enrichedToolEmbeddings.get(toolIds[i])!;
+    for (let j = 0; j < enriched.length; j++) {
+      orphDeltaSum += Math.abs(enriched[j] - H_baseline[i][j]);
+    }
+  }
+  hierAvgDelta = hierToolIndices.length > 0 ? hierDeltaSum / hierToolIndices.length : 0;
+  orphAvgDelta = orphToolIndices.length > 0 ? orphDeltaSum / orphToolIndices.length : 0;
+  deltaRatio = orphAvgDelta > 0.001 ? hierAvgDelta / orphAvgDelta : Infinity;
+
+  console.log(`      Connected (hier): ${hierToolIndices.length} tools, avg MP delta: ${hierAvgDelta.toFixed(2)}`);
+  console.log(`      Orphan tools:     ${orphToolIndices.length} tools, avg MP delta: ${orphAvgDelta.toFixed(2)}`);
+  console.log(`      Delta ratio (hier/orph): ${deltaRatio.toFixed(2)}x ${deltaRatio > 2 ? "(MP enriches connected tools more — good)" : "(low ratio — MP not discriminating)"}`);
+
+  // 2) Intra-capability cosine similarity (before vs after MP enrichment)
+  const capGroupsForSim: Array<{ capId: string; toolIndices: number[] }> = [];
+  for (const [capId, children] of capToToolChildren) {
+    const indices = children
+      .map((id) => toolIdToIdx.get(id))
+      .filter((i): i is number => i !== undefined);
+    if (indices.length >= 3 && indices.length <= 50) capGroupsForSim.push({ capId, toolIndices: indices });
+  }
+
+  let rawIntraSimSum = 0, enrichedIntraSimSum = 0;
+  const MAX_SIM_GROUPS = 300;
+  const sampledGroups = capGroupsForSim.slice(0, MAX_SIM_GROUPS);
+
+  for (const group of sampledGroups) {
+    for (let a = 0; a < group.toolIndices.length; a++) {
+      for (let b = a + 1; b < group.toolIndices.length; b++) {
+        const ia = group.toolIndices[a], ib = group.toolIndices[b];
+        rawIntraSimSum += cosineSim(H_baseline[ia], H_baseline[ib]);
+        enrichedIntraSimSum += cosineSim(
+          enrichedToolEmbeddings.get(toolIds[ia])!,
+          enrichedToolEmbeddings.get(toolIds[ib])!,
+        );
+        intraPairs++;
+      }
+    }
+  }
+
+  rawIntraMean = intraPairs > 0 ? rawIntraSimSum / intraPairs : 0;
+  enrichedIntraMean = intraPairs > 0 ? enrichedIntraSimSum / intraPairs : 0;
+  simImprovement = enrichedIntraMean - rawIntraMean;
+
+  console.log(`      Intra-cap cosine sim (${sampledGroups.length} groups, ${intraPairs} pairs):`);
+  console.log(`        Before MP: ${rawIntraMean.toFixed(4)}`);
+  console.log(`        After MP:  ${enrichedIntraMean.toFixed(4)}`);
+  console.log(`        Delta:     ${simImprovement >= 0 ? "+" : ""}${simImprovement.toFixed(4)} ${simImprovement > 0 ? "(clustering improved)" : "(no improvement)"}`);
+} else {
+  console.log(`      ${enrichedToolEmbeddings.size} tool embeddings (raw, no enrichment)`);
+  logMemory("      ");
+}
+
+// 3) SHGAT standalone scoring eval on prod test (quick, before GRU training)
+//    Uses K-head attention scoring to rank tools for each test intent
+//    We need prod test intents — but we haven't loaded traces yet.
+//    So we compute this lazily after step 7 and store results here.
+let shgatStandaloneR1 = 0, shgatStandaloneR3 = 0, shgatStandaloneR5 = 0;
+let shgatStandaloneTotal = 0;
+let shgatStandaloneMRR = 0;
+// Split by hier/orph
+let shgatHierR1 = 0, shgatHierTotal = 0;
+let shgatOrphR1 = 0, shgatOrphTotal = 0;
+
+const shgatEnrichmentStats = {
+  hierTools: hierToolIndices.length,
+  orphTools: orphToolIndices.length,
+  hierAvgDelta,
+  orphAvgDelta,
+  deltaRatio,
+  rawIntraMean,
+  enrichedIntraMean,
+  simImprovement,
+  intraPairs,
+  capGroupsSampled: NO_GRAPH ? 0 : intraPairs,
+};
 
 // --- Step 7: Load traces & generate transition examples ---
 console.log("\n[7/11] Loading execution traces...");
@@ -558,8 +1099,9 @@ const traceRows = await sql`
     et.id,
     et.task_results,
     et.success,
-    wp.intent_embedding::text as intent_embedding,
-    wp.pattern_id as capability_id
+    COALESCE(et.intent_embedding, wp.intent_embedding)::text as intent_embedding,
+    wp.pattern_id as capability_id,
+    wp.dag_structure->'static_structure'->'edges' as static_edges
   FROM execution_trace et
   JOIN workflow_pattern wp ON et.capability_id = wp.pattern_id
   WHERE et.task_results IS NOT NULL
@@ -570,7 +1112,7 @@ const traceRows = await sql`
 
 console.log(`      ${traceRows.length} traces (incl. single-tool)`);
 
-const prodExamples: (TransitionExample & { _traceId: string })[] = [];
+const prodExamples: (TransitionExample & { _traceId: string; _capId: string })[] = [];
 const tracePathsForEval: Array<{
   intentEmbedding: number[];
   actualPath: string[];
@@ -578,7 +1120,7 @@ const tracePathsForEval: Array<{
 }> = [];
 const singleToolSeen = new Set<string>();
 let singleToolCount = 0, multiToolCount = 0;
-let dagAwareCount = 0, linearFallbackCount = 0;
+let edgesCount = 0, dagAwareCount = 0, linearFallbackCount = 0;
 
 function embedHash(emb: number[]): string {
   return emb.slice(0, 8).map((v) => v.toFixed(4)).join(",");
@@ -586,13 +1128,23 @@ function embedHash(emb: number[]): string {
 
 const validToolIdSet = new Set(enrichedToolEmbeddings.keys());
 
+// Map traceId → capabilityId for capability-level eval
+const traceIdToCapId = new Map<string, string>();
+
 for (const trace of traceRows) {
   const intentEmbedding = parseEmbedding(trace.intent_embedding);
   if (!intentEmbedding) continue;
 
+  traceIdToCapId.set(trace.id, trace.capability_id);
+
   const taskResults = trace.task_results as TaskResultWithLayer[];
 
-  // Use DAG-aware example generation (P0-1 fix)
+  // Parse static structure edges if available (P1 DAG causal fix)
+  // NO_EDGES=true → force linear fallback for A/B testing
+  const staticEdges = NO_EDGES ? undefined :
+    (Array.isArray(trace.static_edges) ? trace.static_edges : undefined);
+
+  // Use DAG-aware example generation with edges → layerIndex → linear fallback
   const traceResult = buildDAGAwareExamples(
     trace.id,
     intentEmbedding,
@@ -600,16 +1152,14 @@ for (const trace of traceRows) {
     validToolIdSet,
     singleToolSeen,
     embedHash,
+    staticEdges,
   );
 
   if (traceResult.isSingleTool) singleToolCount++;
   if (traceResult.isMultiTool) {
     multiToolCount++;
-    // Check if this trace used DAG-aware context
-    const hasLayers = taskResults.some((t: TaskResultWithLayer) =>
-      (t.layer_index ?? t.layerIndex ?? -1) >= 0
-    );
-    if (hasLayers) dagAwareCount++;
+    if (traceResult.contextMode === "edges") edgesCount++;
+    else if (traceResult.contextMode === "layerIndex") dagAwareCount++;
     else linearFallbackCount++;
 
     // Also build the path for E2E eval (linear order for path comparison)
@@ -619,14 +1169,17 @@ for (const trace of traceRows) {
     tracePathsForEval.push({ intentEmbedding, actualPath: toolSequence, traceId: trace.id });
   }
 
-  prodExamples.push(...traceResult.examples);
+  // Attach _capId to each example for capability-level eval
+  for (const ex of traceResult.examples) {
+    prodExamples.push({ ...ex, _capId: trace.capability_id });
+  }
 }
 
 console.log(
   `      Prod: ${prodExamples.length} examples (${singleToolCount} single, ${multiToolCount} multi-tool)`,
 );
 console.log(
-  `      DAG-aware context: ${dagAwareCount} traces, linear fallback: ${linearFallbackCount} traces`,
+  `      Context mode: edges=${edgesCount}, layerIndex=${dagAwareCount}, linear=${linearFallbackCount} traces`,
 );
 console.log(`      ${tracePathsForEval.length} multi-tool traces for end-to-end eval`);
 
@@ -945,6 +1498,178 @@ console.log(
   `      Jaccard: ${toolIds.length}x${toolIds.length}, Bigram from ${allTraces.length} traces`,
 );
 
+// --- Step 7d: Prod-style Scoring Eval (capability K-head + cosine BGE tools) ---
+let shgatMRR = 0;
+
+// === 7d-A: Cosine BGE tool scoring (like prod vectorSearch.searchTools) ===
+// This is what prod does for tool discovery — cosine(intent, raw_BGE_embedding)
+console.log(`\n[7d/11] Prod-style scoring eval (prod test)...`);
+console.log(`      7d-A: Cosine BGE tool scoring (raw embeddings, like prod pgvector)...`);
+
+let bgeToolR1 = 0, bgeToolR3 = 0, bgeToolR5 = 0, bgeToolMRRSum = 0;
+let bgeToolTotal = 0;
+
+// Pre-compute norms for all raw tool embeddings
+const rawToolNorms = new Float64Array(toolIds.length);
+for (let i = 0; i < toolIds.length; i++) {
+  const emb = rawToolEmbeddings.get(toolIds[i])!;
+  let norm = 0;
+  for (let d = 0; d < emb.length; d++) norm += emb[d] * emb[d];
+  rawToolNorms[i] = Math.sqrt(norm);
+}
+
+for (const ex of prodTest) {
+  // Compute cosine(intent, rawEmb[t]) for all tools
+  let intentNorm = 0;
+  for (let d = 0; d < ex.intentEmbedding.length; d++) intentNorm += ex.intentEmbedding[d] * ex.intentEmbedding[d];
+  intentNorm = Math.sqrt(intentNorm);
+
+  const scores: Array<{ idx: number; score: number }> = [];
+  for (let t = 0; t < toolIds.length; t++) {
+    const rawEmb = rawToolEmbeddings.get(toolIds[t])!;
+    let dot = 0;
+    for (let d = 0; d < rawEmb.length; d++) dot += ex.intentEmbedding[d] * rawEmb[d];
+    scores.push({ idx: t, score: dot / (intentNorm * rawToolNorms[t] + 1e-10) });
+  }
+  scores.sort((a, b) => b.score - a.score);
+
+  const rank = scores.findIndex((s) => toolIds[s.idx] === ex.targetToolId);
+  bgeToolTotal++;
+  if (rank === 0) bgeToolR1++;
+  if (rank >= 0 && rank < 3) bgeToolR3++;
+  if (rank >= 0 && rank < 5) bgeToolR5++;
+  if (rank >= 0) bgeToolMRRSum += 1 / (rank + 1);
+}
+
+const bgeMRR = bgeToolTotal > 0 ? bgeToolMRRSum / bgeToolTotal : 0;
+console.log(`      BGE Tool R@1: ${bgeToolR1}/${bgeToolTotal} (${(bgeToolR1 / Math.max(bgeToolTotal, 1) * 100).toFixed(1)}%)`);
+console.log(`      BGE Tool R@3: ${bgeToolR3}/${bgeToolTotal} (${(bgeToolR3 / Math.max(bgeToolTotal, 1) * 100).toFixed(1)}%)`);
+console.log(`      BGE Tool R@5: ${bgeToolR5}/${bgeToolTotal} (${(bgeToolR5 / Math.max(bgeToolTotal, 1) * 100).toFixed(1)}%)`);
+console.log(`      BGE Tool MRR: ${bgeMRR.toFixed(3)}`);
+
+// === 7d-B: Capability-level scoring (cosine BGE on cap embeddings) ===
+// This mirrors what SHGAT K-head does in prod (scoreAllCapabilities), but here
+// we use cosine as baseline — K-head eval requires the SHGAT adapter with prod params.
+console.log(`\n      7d-B: Capability-level scoring...`);
+
+// Build list of PML capabilities (not n8n, which are synthetic)
+const pmlCapIds = [...capEmbeddings.keys()].filter(id => !id.startsWith("n8n:"));
+console.log(`      PML capabilities: ${pmlCapIds.length} (excluding ${capEmbeddings.size - pmlCapIds.length} n8n)`);
+
+let capCosR1 = 0, capCosR3 = 0, capCosMRRSum = 0, capCosTotal = 0;
+let capCoverage1 = 0, capCoverage3 = 0, capCoverage5 = 0, capCoverageTotal = 0;
+
+// Deduplicate: one eval per (traceId, intentEmbedding) — avoid counting the same trace multiple times
+const seenTraceForCapEval = new Set<string>();
+
+for (const ex of prodTest) {
+  const capId = ex._capId;
+  if (!capId || !capEmbeddings.has(capId)) continue;
+  if (seenTraceForCapEval.has(ex._traceId)) continue;
+  seenTraceForCapEval.add(ex._traceId);
+
+  // Cosine(intent, cap_embedding) for all PML capabilities
+  let intentNorm = 0;
+  for (let d = 0; d < ex.intentEmbedding.length; d++) intentNorm += ex.intentEmbedding[d] * ex.intentEmbedding[d];
+  intentNorm = Math.sqrt(intentNorm);
+
+  const capScores: Array<{ capId: string; score: number }> = [];
+  for (const cId of pmlCapIds) {
+    const capEmb = capEmbeddings.get(cId)!;
+    let dot = 0, capNorm = 0;
+    for (let d = 0; d < capEmb.length; d++) {
+      dot += ex.intentEmbedding[d] * capEmb[d];
+      capNorm += capEmb[d] * capEmb[d];
+    }
+    capScores.push({ capId: cId, score: dot / (intentNorm * Math.sqrt(capNorm) + 1e-10) });
+  }
+  capScores.sort((a, b) => b.score - a.score);
+
+  // Cap R@K: is the correct capability in the top-K?
+  const capRank = capScores.findIndex((s) => s.capId === capId);
+  capCosTotal++;
+  if (capRank === 0) capCosR1++;
+  if (capRank >= 0 && capRank < 3) capCosR3++;
+  if (capRank >= 0) capCosMRRSum += 1 / (capRank + 1);
+
+  // Coverage@K: do the tools of top-K capabilities contain the target tool?
+  capCoverageTotal++;
+  for (const topK of [1, 3, 5]) {
+    const topCapTools = new Set<string>();
+    for (let k = 0; k < Math.min(topK, capScores.length); k++) {
+      const children = capToToolChildren.get(capScores[k].capId) ?? [];
+      for (const t of children) topCapTools.add(t);
+    }
+    if (topCapTools.has(ex.targetToolId)) {
+      if (topK === 1) capCoverage1++;
+      if (topK === 3) capCoverage3++;
+      if (topK === 5) capCoverage5++;
+    }
+  }
+}
+
+const capCosMRR = capCosTotal > 0 ? capCosMRRSum / capCosTotal : 0;
+console.log(`      Cap Cosine R@1: ${capCosR1}/${capCosTotal} (${(capCosR1 / Math.max(capCosTotal, 1) * 100).toFixed(1)}%)`);
+console.log(`      Cap Cosine R@3: ${capCosR3}/${capCosTotal} (${(capCosR3 / Math.max(capCosTotal, 1) * 100).toFixed(1)}%)`);
+console.log(`      Cap Cosine MRR: ${capCosMRR.toFixed(3)}`);
+console.log(`      Tool Coverage@1: ${capCoverage1}/${capCoverageTotal} (${(capCoverage1 / Math.max(capCoverageTotal, 1) * 100).toFixed(1)}%)`);
+console.log(`      Tool Coverage@3: ${capCoverage3}/${capCoverageTotal} (${(capCoverage3 / Math.max(capCoverageTotal, 1) * 100).toFixed(1)}%)`);
+console.log(`      Tool Coverage@5: ${capCoverage5}/${capCoverageTotal} (${(capCoverage5 / Math.max(capCoverageTotal, 1) * 100).toFixed(1)}%)`);
+
+// === 7d-C: SHGAT K-head scoring (if graph available) ===
+if (NO_GRAPH) {
+  console.log(`\n      7d-C: SHGAT K-head scoring: SKIPPED (${NO_SHGAT ? "NO_SHGAT" : "V2V_ONLY"} mode)`);
+} else {
+  console.log(`\n      7d-C: SHGAT K-head scoring (adapter scoreNodes on tools)...`);
+
+  // Ensure graph is built for adapter scoring
+  if (!shgatAdapter.hasGraph()) {
+    const scoringGraphNodes: GraphNode[] = [];
+    for (let i = 0; i < toolIds.length; i++) {
+      scoringGraphNodes.push({ id: toolIds[i], embedding: [...enrichedToolEmbeddings.get(toolIds[i])!], children: [], level: 0 });
+    }
+    for (let level = 0; level <= maxLevel; level++) {
+      const levelCaps = capIdsByLevel.get(level) || [];
+      for (const capId of levelCaps) {
+        const emb = capEmbeddings.get(capId);
+        if (!emb) continue;
+        const children = level === 0 ? (capToToolChildren.get(capId) ?? []) : (capToCapChildren.get(capId) ?? []);
+        if (children.length === 0) continue;
+        scoringGraphNodes.push({ id: capId, embedding: emb, children, level });
+      }
+    }
+    shgatAdapter.buildGraph(scoringGraphNodes);
+    shgatAdapter.enrichEmbeddings();
+  }
+
+  const hierToolSet = new Set(hierToolIndices.map((i) => toolIds[i]));
+
+  for (const ex of prodTest) {
+    const topK = shgatAdapter.scoreNodes(ex.intentEmbedding, 5).topK;
+    const rank = topK.findIndex((r) => r.nodeId === ex.targetToolId);
+    shgatStandaloneTotal++;
+    if (rank === 0) shgatStandaloneR1++;
+    if (rank >= 0 && rank < 3) shgatStandaloneR3++;
+    if (rank >= 0 && rank < 5) shgatStandaloneR5++;
+    if (rank >= 0) shgatStandaloneMRR += 1 / (rank + 1);
+
+    if (hierToolSet.has(ex.targetToolId)) {
+      shgatHierTotal++;
+      if (rank === 0) shgatHierR1++;
+    } else {
+      shgatOrphTotal++;
+      if (rank === 0) shgatOrphR1++;
+    }
+  }
+
+  shgatMRR = shgatStandaloneTotal > 0 ? shgatStandaloneMRR / shgatStandaloneTotal : 0;
+  console.log(`      SHGAT standalone R@1: ${shgatStandaloneR1}/${shgatStandaloneTotal} (${(shgatStandaloneR1 / Math.max(shgatStandaloneTotal, 1) * 100).toFixed(1)}%)`);
+  console.log(`      SHGAT standalone R@3: ${shgatStandaloneR3}/${shgatStandaloneTotal} (${(shgatStandaloneR3 / Math.max(shgatStandaloneTotal, 1) * 100).toFixed(1)}%)`);
+  console.log(`      SHGAT standalone R@5: ${shgatStandaloneR5}/${shgatStandaloneTotal} (${(shgatStandaloneR5 / Math.max(shgatStandaloneTotal, 1) * 100).toFixed(1)}%)`);
+  console.log(`      SHGAT standalone MRR: ${shgatMRR.toFixed(3)}`);
+}
+console.log(`      Split: hier R@1=${shgatHierR1}/${shgatHierTotal} (${(shgatHierR1 / Math.max(shgatHierTotal, 1) * 100).toFixed(1)}%), orph R@1=${shgatOrphR1}/${shgatOrphTotal} (${(shgatOrphR1 / Math.max(shgatOrphTotal, 1) * 100).toFixed(1)}%)`);
+
 // --- Step 8: Train GRU CompactInformedGRU (mixed prod+n8n) ---
 const TERM_THRESHOLD = parseFloat(process.env["TERM_THRESHOLD"] || "0.5");
 const FOCAL_GAMMA = parseFloat(process.env["FOCAL_GAMMA"] || "2.0");
@@ -1099,8 +1824,14 @@ const scoringMode = "K-head";
 function shgatRetrieveTopK(
   intentEmb: number[],
   k: number,
-): Array<{ toolId: string; score: number }> {
-  return shgatAdapter.scoreTools(intentEmb, k).topK;
+): Array<{ nodeId: string; score: number }> {
+  if (!shgatAdapter.hasGraph()) {
+    throw new Error(
+      "[shgatRetrieveTopK] No SHGAT graph built. " +
+      "In NO_SHGAT mode, callers MUST guard with `if (!NO_SHGAT)` instead of calling this."
+    );
+  }
+  return shgatAdapter.scoreNodes(intentEmb, k).topK;
 }
 
 console.log(`\n      SHGAT scoring mode: ${scoringMode}`);
@@ -1163,6 +1894,120 @@ for (let t = 0; t < Math.min(diagSamples.length, 5); t++) {
   console.log(`           ${probs.join("\n           ")}`);
 }
 
+// --- Extended KPIs: Termination P/R, Hit@1 by position, Confusion ---
+console.log("\n      --- Extended KPIs (full step-by-step sweep, all test traces) ---");
+
+// Per-position accuracy
+const positionStats: Array<{ correct: number; total: number }> = [];
+// Termination precision/recall
+let termTP = 0, termFP = 0, termFN = 0, termTN = 0;
+// Confusion: target → { predicted → count } (only when wrong)
+const confusionWrong = new Map<string, Map<string, number>>();
+
+for (const { intentEmbedding, actualPath } of testTracePathsForEval) {
+  for (let step = 0; step <= actualPath.length; step++) {
+    const context = actualPath.slice(0, step);
+    const pred = model.predictNextTopK(intentEmbedding, context, 3);
+    const isEnd = step === actualPath.length;
+
+    // Termination P/R
+    if (pred.shouldTerminate && isEnd) termTP++;
+    else if (pred.shouldTerminate && !isEnd) termFP++;
+    else if (!pred.shouldTerminate && isEnd) termFN++;
+    else termTN++;
+
+    // Per-position Hit@1 (only for non-terminal steps)
+    if (!isEnd) {
+      if (!positionStats[step]) positionStats[step] = { correct: 0, total: 0 };
+      positionStats[step].total++;
+      if (pred.ranked[0]?.toolId === actualPath[step]) {
+        positionStats[step].correct++;
+      } else {
+        // Confusion tracking
+        const target = actualPath[step];
+        const predicted = pred.ranked[0]?.toolId ?? "?";
+        if (!confusionWrong.has(target)) confusionWrong.set(target, new Map());
+        const m = confusionWrong.get(target)!;
+        m.set(predicted, (m.get(predicted) || 0) + 1);
+      }
+    }
+  }
+}
+
+// Display Termination P/R
+const termPrecision = termTP + termFP > 0 ? termTP / (termTP + termFP) : 0;
+const termRecall = termTP + termFN > 0 ? termTP / (termTP + termFN) : 0;
+const termF1 = termPrecision + termRecall > 0
+  ? 2 * termPrecision * termRecall / (termPrecision + termRecall)
+  : 0;
+console.log(`      Termination:  P=${(termPrecision * 100).toFixed(1)}%  R=${(termRecall * 100).toFixed(1)}%  F1=${(termF1 * 100).toFixed(1)}%  (TP=${termTP} FP=${termFP} FN=${termFN} TN=${termTN})`);
+
+// Display Hit@1 by position
+console.log("      Hit@1 by position:");
+for (let p = 0; p < Math.min(positionStats.length, 8); p++) {
+  const s = positionStats[p];
+  if (!s || s.total === 0) continue;
+  const acc = (s.correct / s.total * 100).toFixed(1);
+  const bar = "#".repeat(Math.round(s.correct / s.total * 20));
+  console.log(`        pos=${p} (ctx=${p}): ${acc.padStart(5)}% (${s.correct}/${s.total}) ${bar}`);
+}
+
+// Display top confused pairs
+const confusionPairs: Array<{ target: string; predicted: string; count: number }> = [];
+confusionWrong.forEach((preds, target) => {
+  preds.forEach((count, predicted) => {
+    confusionPairs.push({ target, predicted, count });
+  });
+});
+confusionPairs.sort((a, b) => b.count - a.count);
+console.log("      Top confused tool pairs (target → predicted, count):");
+for (let i = 0; i < Math.min(confusionPairs.length, 15); i++) {
+  const { target, predicted, count } = confusionPairs[i];
+  console.log(`        ${target} → ${predicted} (${count}x)`);
+}
+
+// --- Hit@1 split: connected (MP-enriched) vs orphan tools ---
+console.log("\n      --- Hit@1 by MP connectivity (connected vs orphan) ---");
+
+// A tool is "connected" if it has at least one parent capability in the hierarchy
+const connectedToolIdSet = new Set<string>();
+for (let i = 0; i < toolIds.length; i++) {
+  if (toolToCapIds[i].length > 0) connectedToolIdSet.add(toolIds[i]);
+}
+
+let mpConnHit1 = 0, mpConnHit3 = 0, mpConnTotal = 0;
+let mpOrphHit1 = 0, mpOrphHit3 = 0, mpOrphTotal = 0;
+
+for (const { intentEmbedding, actualPath } of testTracePathsForEval) {
+  for (let step = 0; step < actualPath.length; step++) {
+    const context = actualPath.slice(0, step);
+    const pred = model.predictNextTopK(intentEmbedding, context, 3);
+    const target = actualPath[step];
+    const top1 = pred.ranked[0]?.toolId;
+    const inTop3 = pred.ranked.slice(0, 3).some(r => r.toolId === target);
+
+    if (connectedToolIdSet.has(target)) {
+      mpConnTotal++;
+      if (top1 === target) mpConnHit1++;
+      if (inTop3) mpConnHit3++;
+    } else {
+      mpOrphTotal++;
+      if (top1 === target) mpOrphHit1++;
+      if (inTop3) mpOrphHit3++;
+    }
+  }
+}
+
+const mpConnH1Pct = mpConnTotal > 0 ? (mpConnHit1 / mpConnTotal * 100) : 0;
+const mpConnH3Pct = mpConnTotal > 0 ? (mpConnHit3 / mpConnTotal * 100) : 0;
+const mpOrphH1Pct = mpOrphTotal > 0 ? (mpOrphHit1 / mpOrphTotal * 100) : 0;
+const mpOrphH3Pct = mpOrphTotal > 0 ? (mpOrphHit3 / mpOrphTotal * 100) : 0;
+const mpDeltaPP = mpConnH1Pct - mpOrphH1Pct;
+
+console.log(`      Connected tools (in hierarchy):  Hit@1=${mpConnH1Pct.toFixed(1)}%  Hit@3=${mpConnH3Pct.toFixed(1)}%  (${mpConnHit1}/${mpConnTotal})`);
+console.log(`      Orphan tools (no MP benefit):    Hit@1=${mpOrphH1Pct.toFixed(1)}%  Hit@3=${mpOrphH3Pct.toFixed(1)}%  (${mpOrphHit1}/${mpOrphTotal})`);
+console.log(`      MP delta (connected - orphan):   ${mpDeltaPP > 0 ? "+" : ""}${mpDeltaPP.toFixed(1)}pp`);
+
 // --- Standard E2E eval with buildPath ---
 console.log("\n      --- E2E Path Building (test set only) ---");
 let pathExactMatch = 0;
@@ -1170,6 +2015,10 @@ let pathFirstToolMatch = 0;
 let pathLengthMatch = 0;
 let totalPathLenDiff = 0;
 let firstNCorrect = 0;
+
+// Length distribution tracking
+const actualLengths: number[] = [];
+const predictedLengths: number[] = [];
 
 const maxSamples = testTracePathsForEval.length;
 const sampleTraces = testTracePathsForEval;
@@ -1179,6 +2028,10 @@ for (let t = 0; t < sampleTraces.length; t++) {
   const firstTool = actualPath[0];
 
   const predictedPath = await model.buildPath(intentEmbedding, firstTool);
+
+  // Collect lengths for distribution
+  actualLengths.push(actualPath.length);
+  predictedLengths.push(predictedPath.length);
 
   const exactMatch = predictedPath.length === actualPath.length &&
     predictedPath.every((tool, i) => tool === actualPath[i]);
@@ -1293,6 +2146,26 @@ console.log(
 console.log(`      Greedy len diff: ${(totalPathLenDiff / maxSamples).toFixed(2)}`);
 console.log(`      Beam len diff:   ${(beamTotalLenDiff / maxSamples).toFixed(2)}`);
 
+// --- Length Distribution ---
+console.log("\n      --- Length Distribution (actual vs predicted) ---");
+const maxLen = Math.max(...actualLengths, ...predictedLengths, 1);
+const actualLenHist = new Array(maxLen + 1).fill(0);
+const predLenHist = new Array(maxLen + 1).fill(0);
+for (const l of actualLengths) actualLenHist[l]++;
+for (const l of predictedLengths) predLenHist[l]++;
+console.log("      Len | Actual | Predicted | Delta");
+for (let l = 1; l <= maxLen; l++) {
+  if (actualLenHist[l] === 0 && predLenHist[l] === 0) continue;
+  const delta = predLenHist[l] - actualLenHist[l];
+  const sign = delta >= 0 ? "+" : "";
+  console.log(
+    `        ${String(l).padStart(2)} |  ${String(actualLenHist[l]).padStart(3)}  |    ${String(predLenHist[l]).padStart(3)}    | ${sign}${delta}`,
+  );
+}
+const avgActual = actualLengths.reduce((s, l) => s + l, 0) / actualLengths.length;
+const avgPred = predictedLengths.reduce((s, l) => s + l, 0) / predictedLengths.length;
+console.log(`      Avg length: actual=${avgActual.toFixed(2)}, predicted=${avgPred.toFixed(2)} (bias=${(avgPred - avgActual >= 0 ? "+" : "")}${(avgPred - avgActual).toFixed(2)})`);
+
 // --- Step 9b: TRUE E2E — Compare SHGAT-first vs GRU-first vs Multi-start ---
 console.log(`\n      --- 9b) True E2E: 3 modes compared (no ground truth for first tool) ---\n`);
 
@@ -1331,19 +2204,22 @@ function pathFirstN(pred: string[], actual: string[]) {
 for (let t = 0; t < sampleTraces.length; t++) {
   const { intentEmbedding, actualPath } = sampleTraces[t];
 
-  // --- Mode A: SHGAT picks first tool ---
-  const shgatTop = shgatRetrieveTopK(intentEmbedding, 3);
-  const shgatFirst = shgatTop[0].toolId;
-  const shgatTop3Ids = shgatTop.map((x) => x.toolId);
-  if (shgatFirst === actualPath[0]) modes.shgat.first1++;
-  if (shgatTop3Ids.includes(actualPath[0])) modes.shgat.first3++;
-  const shgatGreedy = await model.buildPath(intentEmbedding, shgatFirst);
-  const shgatBeamRes = model.buildPathBeam(intentEmbedding, shgatFirst, BEAM_WIDTH);
-  const shgatBeam = shgatBeamRes[0]?.path ?? [shgatFirst];
-  if (pathExact(shgatGreedy, actualPath)) modes.shgat.greedy++;
-  if (pathFirstN(shgatGreedy, actualPath)) modes.shgat.firstN++;
-  if (pathExact(shgatBeam, actualPath)) modes.shgat.beam++;
-  if (pathFirstN(shgatBeam, actualPath)) modes.shgat.beamFirstN++;
+  // --- Mode A: SHGAT picks first tool (requires graph — skip in NO_GRAPH) ---
+  let shgatGreedy: string[] = [];
+  if (!NO_GRAPH) {
+    const shgatTop = shgatRetrieveTopK(intentEmbedding, 3);
+    const shgatFirst = shgatTop[0].nodeId;
+    const shgatTop3Ids = shgatTop.map((x) => x.nodeId);
+    if (shgatFirst === actualPath[0]) modes.shgat.first1++;
+    if (shgatTop3Ids.includes(actualPath[0])) modes.shgat.first3++;
+    shgatGreedy = await model.buildPath(intentEmbedding, shgatFirst);
+    const shgatBeamRes = model.buildPathBeam(intentEmbedding, shgatFirst, BEAM_WIDTH);
+    const shgatBeam = shgatBeamRes[0]?.path ?? [shgatFirst];
+    if (pathExact(shgatGreedy, actualPath)) modes.shgat.greedy++;
+    if (pathFirstN(shgatGreedy, actualPath)) modes.shgat.firstN++;
+    if (pathExact(shgatBeam, actualPath)) modes.shgat.beam++;
+    if (pathFirstN(shgatBeam, actualPath)) modes.shgat.beamFirstN++;
+  }
 
   // --- Mode B: GRU picks first tool (empty context) ---
   const gruAutoStart = model.buildPathAutoStart(intentEmbedding);
@@ -1376,11 +2252,13 @@ for (let t = 0; t < sampleTraces.length; t++) {
     console.log(
       `      [${String(t + 1).padStart(2)}] "${sampleTraces[t].actualPath.join(" -> ")}"`,
     );
-    console.log(
-      `           SHGAT→GRU:  [${shgatGreedy.join(" -> ")}] ${
-        pathExact(shgatGreedy, actualPath) ? "EXACT" : ""
-      }`,
-    );
+    if (!NO_GRAPH) {
+      console.log(
+        `           SHGAT→GRU:  [${shgatGreedy.join(" -> ")}] ${
+          pathExact(shgatGreedy, actualPath) ? "EXACT" : ""
+        }`,
+      );
+    }
     console.log(
       `           GRU-first:  [${gruGreedy.join(" -> ")}] ${
         pathExact(gruGreedy, actualPath) ? "EXACT" : ""
@@ -1398,7 +2276,9 @@ const n = sampleTraces.length;
 console.log(`\n      --- True E2E Comparison (${n} test traces) ---`);
 console.log(`      ${"Mode".padEnd(15)} | 1st@1  | 1st@3  | Greedy | First-N | Beam@${BEAM_WIDTH}`);
 console.log(`      ${"-".repeat(70)}`);
-for (const m of [modes.shgat, modes.gru, modes.multi]) {
+const modesToShow = NO_GRAPH ? [modes.gru, modes.multi] : [modes.shgat, modes.gru, modes.multi];
+if (NO_GRAPH) console.log(`      (SHGAT-first skipped — ${NO_SHGAT ? "NO_SHGAT" : "V2V_ONLY"} mode, no graph available)`);
+for (const m of modesToShow) {
   console.log(
     `      ${m.label.padEnd(15)} | ${(m.first1 / n * 100).toFixed(1).padStart(5)}% | ${
       (m.first3 / n * 100).toFixed(1).padStart(5)
@@ -1486,17 +2366,25 @@ if (n8nEval.length > 0) {
     if (actualPath.length < 2) continue;
     n8nWfCount++;
 
-    // SHGAT picks the first tool
-    const topTools = shgatRetrieveTopK(wf.intentEmbedding, 1);
-    const shgatFirst = topTools[0].toolId;
+    // Pick first tool: SHGAT if available, GRU-first otherwise
+    let firstTool: string;
+    if (NO_GRAPH) {
+      const autoStart = model.buildPathAutoStart(wf.intentEmbedding);
+      firstTool = autoStart.path[0] ?? "";
+    } else {
+      const topTools = shgatRetrieveTopK(wf.intentEmbedding, 1);
+      firstTool = topTools[0].nodeId;
+    }
 
     // GRU builds path
-    const predictedPath = await model.buildPath(wf.intentEmbedding, shgatFirst);
+    const predictedPath = firstTool
+      ? await model.buildPath(wf.intentEmbedding, firstTool)
+      : [];
 
     const exact = predictedPath.length === actualPath.length &&
       predictedPath.every((t, i) => t === actualPath[i]);
     if (exact) n8nPathExact++;
-    if (shgatFirst === actualPath[0]) n8nPathFirstToolOk++;
+    if (firstTool === actualPath[0]) n8nPathFirstToolOk++;
 
     // Tool set match (same tools, maybe different order)
     const predSet = new Set(predictedPath);
@@ -1506,10 +2394,11 @@ if (n8nEval.length > 0) {
     }
 
     if (n8nWfCount <= 10) {
-      const firstOk = shgatFirst === actualPath[0] ? "OK" : `MISS(${shgatFirst})`;
+      const firstOk = firstTool === actualPath[0] ? "OK" : `MISS(${firstTool})`;
+      const modeLabel = NO_GRAPH ? "GRU→GRU" : "SHGAT→GRU";
       console.log(`      [${n8nWfCount}] first=${firstOk} ${exact ? "EXACT" : "MISS"}`);
       console.log(`           n8n actual:  [${actualPath.join(" -> ")}]`);
-      console.log(`           SHGAT→GRU:   [${predictedPath.join(" -> ")}]`);
+      console.log(`           ${modeLabel}:   [${predictedPath.join(" -> ")}]`);
     }
   }
 
@@ -1578,9 +2467,17 @@ for (let i = 0; i < namedIntentRows.length; i++) {
   const intentEmb = parseEmbedding(row.intent_embedding);
   if (!intentEmb) continue;
 
-  const topTools = shgatRetrieveTopK(intentEmb, 5);
-  const firstTool = topTools[0].toolId;
-  const predictedPath = await model.buildPath(intentEmb, firstTool);
+  let topToolsDisplay: Array<{ nodeId: string; score: number }> = [];
+  let predictedPath: string[];
+  if (NO_GRAPH) {
+    const autoStart = model.buildPathAutoStart(intentEmb);
+    predictedPath = autoStart.path;
+    topToolsDisplay = autoStart.firstToolRanked.slice(0, 5).map((r) => ({ nodeId: r.toolId, score: r.score }));
+  } else {
+    topToolsDisplay = shgatRetrieveTopK(intentEmb, 5);
+    const firstTool = topToolsDisplay[0].nodeId;
+    predictedPath = await model.buildPath(intentEmb, firstTool);
+  }
 
   // Parse example trace from DB
   let exampleStr = "N/A";
@@ -1595,10 +2492,11 @@ for (let i = 0; i < namedIntentRows.length; i++) {
     } catch { /* ignore */ }
   }
 
+  const retrievalLabel = NO_GRAPH ? "GRU top-3" : "SHGAT top-3";
   console.log(`      [${i + 1}] "${row.description}"`);
   console.log(
-    `           SHGAT top-3: ${
-      topTools.slice(0, 3).map((t) => `${t.toolId}(${t.score.toFixed(3)})`).join(", ")
+    `           ${retrievalLabel}: ${
+      topToolsDisplay.slice(0, 3).map((t) => `${t.nodeId}(${t.score.toFixed(3)})`).join(", ")
     }`,
   );
   console.log(`           Predicted:   [${predictedPath.join(" -> ")}]`);
@@ -1667,9 +2565,17 @@ for (let i = 0; i < customIntents.length; i++) {
     continue;
   }
 
-  const topTools = shgatRetrieveTopK(intentEmb, 5);
-  const firstTool = topTools[0].toolId;
-  const predictedPath = await model.buildPath(intentEmb, firstTool);
+  let topToolsDisp: Array<{ nodeId: string; score: number }> = [];
+  let predictedPath: string[];
+  if (NO_GRAPH) {
+    const autoStart = model.buildPathAutoStart(intentEmb);
+    predictedPath = autoStart.path;
+    topToolsDisp = autoStart.firstToolRanked.slice(0, 5).map((r) => ({ nodeId: r.toolId, score: r.score }));
+  } else {
+    topToolsDisp = shgatRetrieveTopK(intentEmb, 5);
+    const firstTool = topToolsDisp[0].nodeId;
+    predictedPath = await model.buildPath(intentEmb, firstTool);
+  }
 
   // Check if predicted path contains the hint tools (order-aware partial match)
   const hintSet = new Set(ci.toolHints);
@@ -1678,12 +2584,13 @@ for (let i = 0; i < customIntents.length; i++) {
   const verdict = coverage >= 0.8 ? "GOOD" : coverage >= 0.5 ? "PARTIAL" : "MISS";
   if (coverage >= 0.5) syntheticHits++;
 
+  const retLabel = NO_GRAPH ? "GRU top-3" : "SHGAT top-3";
   console.log(
     `      [${i + 1}] "${ci.name}" → ${verdict} (${(coverage * 100).toFixed(0)}% tool coverage)`,
   );
   console.log(
-    `           SHGAT top-3: ${
-      topTools.slice(0, 3).map((t) => `${t.toolId}(${t.score.toFixed(3)})`).join(", ")
+    `           ${retLabel}: ${
+      topToolsDisp.slice(0, 3).map((t) => `${t.nodeId}(${t.score.toFixed(3)})`).join(", ")
     }`,
   );
   console.log(`           Predicted:   [${predictedPath.join(" -> ")}]`);
@@ -1700,11 +2607,34 @@ console.log(
 console.log(
   `\n=== SUMMARY (termThreshold=${TERM_THRESHOLD}, shgatScoring=${scoringMode}, seed=${SPLIT_SEED}) ===`,
 );
+console.log(`  --- SHGAT Enrichment Quality ---`);
+console.log(`  SHGAT params:            ${SHGAT_PARAMS_PATH || "from DB"}`);
 console.log(`  SHGAT levels used:       L0, L1, L2 (all trained)`);
 console.log(`  SHGAT scoring:           ${scoringMode}`);
-console.log(`  Message passing:         V <-> E^0 <-> E^1 <-> E^2`);
-console.log(`  MP time:                 ${mpTime}s`);
-console.log(`  Embedding delta (avg):   ${avgDelta.toFixed(2)}`);
+if (NO_SHGAT) {
+  console.log(`  Mode:                    NO_SHGAT (raw BGE-M3, pure GRU baseline)`);
+} else if (V2V_ONLY) {
+  console.log(`  Mode:                    V2V_ONLY (V→V co-occurrence, no MP)`);
+} else if (SHGAT_PAPER) {
+  console.log(`  Mode:                    SHGAT_PAPER (paper-style two-phase MP${PAPER_WF ? " + wf hyperedges" : ""})`);
+  console.log(`  MP time:                 ${(enrichmentMs / 1000).toFixed(2)}s`);
+  console.log(`  MP delta hier/orph:      ${hierAvgDelta.toFixed(2)} / ${orphAvgDelta.toFixed(2)} (ratio: ${deltaRatio.toFixed(2)}x)`);
+  console.log(`  Intra-cap cosine sim:    ${rawIntraMean.toFixed(4)} → ${enrichedIntraMean.toFixed(4)} (Δ=${simImprovement >= 0 ? "+" : ""}${simImprovement.toFixed(4)})`);
+  console.log(`  SHGAT standalone R@1:    ${(shgatStandaloneR1 / Math.max(shgatStandaloneTotal, 1) * 100).toFixed(1)}% (hier: ${(shgatHierR1 / Math.max(shgatHierTotal, 1) * 100).toFixed(1)}%, orph: ${(shgatOrphR1 / Math.max(shgatOrphTotal, 1) * 100).toFixed(1)}%)`);
+  console.log(`  SHGAT standalone MRR:    ${shgatMRR.toFixed(3)}`);
+} else {
+  console.log(`  Mode:                    ${SHGAT_RANDOM ? "SHGAT_RANDOM (frozen MP)" : "SHGAT trained"}`);
+  console.log(`  MP time:                 ${(enrichmentMs / 1000).toFixed(2)}s`);
+  console.log(`  MP delta hier/orph:      ${hierAvgDelta.toFixed(2)} / ${orphAvgDelta.toFixed(2)} (ratio: ${deltaRatio.toFixed(2)}x)`);
+  console.log(`  Intra-cap cosine sim:    ${rawIntraMean.toFixed(4)} → ${enrichedIntraMean.toFixed(4)} (Δ=${simImprovement >= 0 ? "+" : ""}${simImprovement.toFixed(4)})`);
+  console.log(`  SHGAT standalone R@1:    ${(shgatStandaloneR1 / Math.max(shgatStandaloneTotal, 1) * 100).toFixed(1)}% (hier: ${(shgatHierR1 / Math.max(shgatHierTotal, 1) * 100).toFixed(1)}%, orph: ${(shgatOrphR1 / Math.max(shgatOrphTotal, 1) * 100).toFixed(1)}%)`);
+  console.log(`  SHGAT standalone MRR:    ${shgatMRR.toFixed(3)}`);
+}
+console.log(`  --- Prod-style Scoring (7d) ---`);
+console.log(`  BGE Tool R@1:            ${(bgeToolR1 / Math.max(bgeToolTotal, 1) * 100).toFixed(1)}%  R@3: ${(bgeToolR3 / Math.max(bgeToolTotal, 1) * 100).toFixed(1)}%  MRR: ${bgeMRR.toFixed(3)}`);
+console.log(`  Cap Cosine R@1:          ${(capCosR1 / Math.max(capCosTotal, 1) * 100).toFixed(1)}%  R@3: ${(capCosR3 / Math.max(capCosTotal, 1) * 100).toFixed(1)}%  MRR: ${capCosMRR.toFixed(3)}`);
+console.log(`  Tool Coverage@1/3/5:     ${(capCoverage1 / Math.max(capCoverageTotal, 1) * 100).toFixed(1)}% / ${(capCoverage3 / Math.max(capCoverageTotal, 1) * 100).toFixed(1)}% / ${(capCoverage5 / Math.max(capCoverageTotal, 1) * 100).toFixed(1)}%`);
+console.log(`  --- GRU Training ---`);
 console.log(
   `  Training:                ${mixedTrain.length} mixed (${oversampledProd.length} prod ${PROD_OVERSAMPLE}x + ${n8nExamples.length} n8n)`,
 );
@@ -1752,6 +2682,15 @@ for (const m of [modes.shgat, modes.gru, modes.multi]) {
     }% | ${(m.beam / n * 100).toFixed(1).padStart(5)}%`,
   );
 }
+console.log(`  --- Extended KPIs ---`);
+console.log(`  Termination P/R/F1:      P=${(termPrecision * 100).toFixed(1)}% R=${(termRecall * 100).toFixed(1)}% F1=${(termF1 * 100).toFixed(1)}%`);
+console.log(`  Hit@1 by position:       ${positionStats.slice(0, 6).map((s, i) => `pos${i}=${s ? (s.correct / s.total * 100).toFixed(0) : "?"}%`).join("  ")}`);
+console.log(`  Length bias:             avg actual=${avgActual.toFixed(2)} vs predicted=${avgPred.toFixed(2)} (${avgPred - avgActual >= 0 ? "+" : ""}${(avgPred - avgActual).toFixed(2)})`);
+console.log(`  Top confused pair:       ${confusionPairs[0] ? `${confusionPairs[0].target} → ${confusionPairs[0].predicted} (${confusionPairs[0].count}x)` : "none"}`);
+console.log(`  --- MP Impact (connected vs orphan) ---`);
+console.log(`  Connected Hit@1/3:       ${mpConnH1Pct.toFixed(1)}% / ${mpConnH3Pct.toFixed(1)}%  (${mpConnTotal} steps)`);
+console.log(`  Orphan Hit@1/3:          ${mpOrphH1Pct.toFixed(1)}% / ${mpOrphH3Pct.toFixed(1)}%  (${mpOrphTotal} steps)`);
+console.log(`  MP delta:                ${mpDeltaPP > 0 ? "+" : ""}${mpDeltaPP.toFixed(1)}pp Hit@1`);
 console.log(`  --- n8n Generalization (held-out workflows) ---`);
 console.log(`  n8n eval examples:       ${n8nEval.length} (${n8nEvalKeys.size} workflows)`);
 console.log(
@@ -1763,7 +2702,7 @@ logMemory("  ");
 
 // --- Step 11: K-fold Cross-Validation (P0-2) ---
 const K_FOLDS = parseInt(process.env["K_FOLDS"] || "5", 10);
-const RUN_KFOLD = process.env["KFOLD"] !== "false"; // enabled by default, set KFOLD=false to skip
+const RUN_KFOLD = process.env["KFOLD"] === "true"; // disabled by default, set KFOLD=true to enable
 
 if (RUN_KFOLD && K_FOLDS >= 2) {
   console.log(`\n=== K-FOLD CROSS-VALIDATION (K=${K_FOLDS}, seed=${SPLIT_SEED}) ===`);
@@ -1870,12 +2809,14 @@ const results = {
     epochs: EPOCHS,
     batchSize: BATCH_SIZE,
     seed: SPLIT_SEED,
+    shgatParams: SHGAT_PARAMS_PATH || "from DB",
     vocabTools: enrichedToolEmbeddings.size,
     vocabTotal: model.getToolToIndex().size,
     n8nCaps: capIdsByLevel.get(0)?.length ?? 0,
-    v2v: !SKIP_V2V,
-    v2vResidualWeight: SKIP_V2V ? 0 : 0.3,
-    v2vCooccurrenceEdges: cooccurrence.length,
+    mode: NO_SHGAT ? "NO_SHGAT" : V2V_ONLY ? "V2V_ONLY" : SHGAT_PAPER ? (PAPER_WF ? "SHGAT_PAPER+WF" : "SHGAT_PAPER") : SHGAT_RANDOM ? "SHGAT_RANDOM" : "SHGAT_TRAINED",
+    v2v: process.env["SKIP_V2V"] !== "true",
+    v2vResidualWeight: process.env["SKIP_V2V"] === "true" ? 0 : 0.3,
+    v2vCooccurrenceEdges: cooccurrenceEdgeCount,
     n8nWeight: N8N_LOSS_WEIGHT,
     prodOversample: PROD_OVERSAMPLE,
     focalGamma: FOCAL_GAMMA,
@@ -1889,6 +2830,22 @@ const results = {
     n8nEvalExamples: n8nEval.length,
     mixedTrainTotal: mixedTrain.length,
   },
+  shgat: {
+    enrichment: shgatEnrichmentStats,
+    standalone: {
+      r1: shgatStandaloneR1 / Math.max(shgatStandaloneTotal, 1),
+      r3: shgatStandaloneR3 / Math.max(shgatStandaloneTotal, 1),
+      r5: shgatStandaloneR5 / Math.max(shgatStandaloneTotal, 1),
+      mrr: shgatMRR,
+      total: shgatStandaloneTotal,
+      hierR1: shgatHierR1 / Math.max(shgatHierTotal, 1),
+      hierTotal: shgatHierTotal,
+      orphR1: shgatOrphR1 / Math.max(shgatOrphTotal, 1),
+      orphTotal: shgatOrphTotal,
+    },
+    mpTimeMs: enrichmentMs,
+    avgEmbeddingDelta: avgDelta,
+  },
   training: {
     epochLog,
     bestTestNextAcc,
@@ -1899,6 +2856,12 @@ const results = {
     finalMRR,
     bestMRR,
     trainTimeSeconds: parseFloat(trainTime),
+  },
+  extendedKpis: {
+    termination: { precision: termPrecision, recall: termRecall, f1: termF1, tp: termTP, fp: termFP, fn: termFN, tn: termTN },
+    hitByPosition: positionStats.map((s, i) => ({ position: i, accuracy: s ? s.correct / s.total : 0, total: s?.total ?? 0 })),
+    lengthDistribution: { avgActual, avgPredicted: avgPred, bias: avgPred - avgActual, actualHist: actualLenHist, predictedHist: predLenHist },
+    topConfusedPairs: confusionPairs.slice(0, 20).map(({ target, predicted, count }) => ({ target, predicted, count })),
   },
 };
 try {

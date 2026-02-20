@@ -75,8 +75,9 @@ interface WorkerInput {
   existingParams?: Record<string, unknown>;
   /** Database URL for saving params directly (avoids stdout size limits) */
   databaseUrl?: string;
-  /** Additional tools with embeddings (from examples' contextTools not in any capability) */
-  additionalToolsWithEmbeddings?: Array<{ id: string; embedding: number[] | null }>;
+  /** Real tool embeddings keyed by tool_id (short format). Used by createSHGATFromCapabilities
+   *  so all tools get real BGE-M3 embeddings instead of random defaults. */
+  toolEmbeddings?: Record<string, number[]>;
 }
 
 interface WorkerOutput {
@@ -209,7 +210,16 @@ async function main() {
       throw new Error("No examples provided for training");
     }
 
-    // Create SHGAT from capabilities
+    // Build tool embeddings Map from input
+    const toolEmbeddingsMap = new Map<string, number[]>();
+    if (input.toolEmbeddings) {
+      for (const [id, emb] of Object.entries(input.toolEmbeddings)) {
+        toolEmbeddingsMap.set(id, emb);
+      }
+      logDebug(`[SHGAT Worker] Received ${toolEmbeddingsMap.size} real tool embeddings`);
+    }
+
+    // Create SHGAT from capabilities with real tool embeddings
     logDebug(`[SHGAT Worker] Creating SHGAT graph...`);
     const startCreate = Date.now();
     const shgatPartialConfig: Partial<SHGATConfig> = {};
@@ -220,24 +230,27 @@ async function main() {
       shgatPartialConfig.projectionBlendAlpha = 0.5;
       shgatPartialConfig.projectionTemperature = 0.07;
     }
-    const shgat = createSHGATFromCapabilities(input.capabilities, shgatPartialConfig);
+    // Pass toolEmbeddingsMap so createSHGATFromCapabilities uses real BGE-M3 embeddings
+    // instead of generateDefaultToolEmbedding() for tools referenced by capabilities
+    const shgat = toolEmbeddingsMap.size > 0
+      ? createSHGATFromCapabilities(input.capabilities, toolEmbeddingsMap, shgatPartialConfig)
+      : createSHGATFromCapabilities(input.capabilities, shgatPartialConfig);
     logDebug(`[SHGAT Worker] SHGAT created in ${Date.now() - startCreate}ms`);
 
-    // Register additional tools from examples (not in any capability's toolsUsed)
-    if (input.additionalToolsWithEmbeddings && input.additionalToolsWithEmbeddings.length > 0) {
+    // Register any remaining tools from examples that aren't yet in the graph
+    {
       const embeddingDim = input.capabilities[0]?.embedding.length || 1024;
-      let realCount = 0;
-      let generatedCount = 0;
-      for (const tool of input.additionalToolsWithEmbeddings) {
-        if (!shgat.hasToolNode(tool.id)) {
-          // Use real embedding if available, otherwise generate fallback
-          const embedding = tool.embedding ?? generateDefaultToolEmbedding(tool.id, embeddingDim);
-          shgat.registerTool({ id: tool.id, embedding });
-          if (tool.embedding) realCount++;
-          else generatedCount++;
+      let added = 0;
+      for (const ex of input.examples) {
+        for (const toolId of (ex.contextTools ?? [])) {
+          if (toolId && !shgat.hasToolNode(toolId)) {
+            const embedding = toolEmbeddingsMap.get(toolId) ?? generateDefaultToolEmbedding(toolId, embeddingDim);
+            shgat.registerTool({ id: toolId, embedding });
+            added++;
+          }
         }
       }
-      logDebug(`[SHGAT Worker] Registered ${realCount} tools with real embeddings, ${generatedCount} with generated`);
+      if (added > 0) logDebug(`[SHGAT Worker] Registered ${added} tools from examples`);
     }
 
     // Import existing params for incremental training (live/PER mode)
