@@ -18,6 +18,7 @@ import {
 } from "./types.ts";
 import { ensureUiCacheReady } from "../services/ui-cache-service.ts";
 import { generateEmbeddings } from "../vector/embeddings.ts";
+import { eventBus } from "../events/mod.ts";
 
 /**
  * Normalize userId to valid UUID.
@@ -116,6 +117,7 @@ export async function handleToolsSync(
     let syncedObservations = 0;
     // Track first tool_id per server for FK compliance in tool_observations
     const serverFirstToolId = new Map<string, string>();
+    const syncedToolIds: string[] = [];
 
     for (const result of tools) {
       // Skip servers with errors
@@ -158,6 +160,7 @@ export async function handleToolsSync(
           });
 
           syncedTools++;
+          syncedToolIds.push(toolId);
           // Track first tool_id for this server (for FK in tool_observations)
           if (!serverFirstToolId.has(result.serverName)) {
             serverFirstToolId.set(result.serverName, toolId);
@@ -234,6 +237,12 @@ export async function handleToolsSync(
         .then((stats) => {
           if (stats.newlyGenerated > 0) {
             log.info(`[tools/sync] Embeddings: ${stats.newlyGenerated} generated, ${stats.cachedCount} cached (${stats.duration.toFixed(1)}s)`);
+            // Notify SHGAT to register newly embedded tools (live discovery)
+            eventBus.emit({
+              type: "mcp.server.tools.changed",
+              source: "tools-sync",
+              payload: { toolIds: syncedToolIds },
+            });
           }
         })
         .catch((err) => {

@@ -101,8 +101,10 @@ Deno.test("normalizeToolId converts JS format to canonical format", () => {
   assertEquals(normalizeToolId("std:fetch_url"), "std:fetch_url");
   assertEquals(normalizeToolId("fetch:fetch"), "fetch:fetch");
 
-  // FQDN format → unchanged
-  assertEquals(normalizeToolId("alice.default.startup.fullProfile"), "alice.default.startup.fullProfile");
+  // FQDN format (4+ dot parts, not starting with mcp.) → namespace:action
+  assertEquals(normalizeToolId("alice.default.startup.fullProfile"), "startup:fullProfile");
+  assertEquals(normalizeToolId("pml.mcp.std.psql_query.db48"), "std:psql_query");
+  assertEquals(normalizeToolId("local.default.meta.myFunc.a1b2"), "meta:myFunc");
 
   console.log("✓ normalizeToolId works correctly for all formats");
 });

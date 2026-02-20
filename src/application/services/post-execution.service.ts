@@ -24,6 +24,7 @@ import { trainSHGATOnPathTracesSubprocess } from "../../graphrag/learning/mod.ts
 import { trainingLock } from "../../graphrag/learning/mod.ts";
 import { type AdaptiveThresholdManager, updateThompsonSampling } from "../../mcp/adaptive-threshold.ts";
 import { enrichToolOutputSchema } from "../../capabilities/output-schema-inferrer.ts";
+import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
 
 // ============================================================================
 // Interfaces
@@ -81,7 +82,8 @@ function parseCapabilityWithEmbedding(row: CapabilityRow): ParsedCapability | nu
   return {
     id: row.id,
     embedding,
-    toolsUsed: row.tools_used ?? [],
+    // Normalize FQDN → short format (dag_structure.tools_used stores FQDN)
+    toolsUsed: (row.tools_used ?? []).map(normalizeToolId).filter(Boolean),
     successRate: row.success_rate,
   };
 }
@@ -251,7 +253,9 @@ export class PostExecutionService {
       const embedding = await embeddingModel.encode(intent);
 
       // Register any new tools (with generated embeddings)
-      for (const toolId of toolsCalled) {
+      // Normalize FQDN → short format for consistency with tool_embedding IDs
+      const normalizedToolsCalled = toolsCalled.map(normalizeToolId).filter(Boolean);
+      for (const toolId of normalizedToolsCalled) {
         if (!shgat.hasToolNode(toolId)) {
           const toolEmbedding = await embeddingModel.encode(toolId.replace(":", " "));
           shgat.registerTool({ id: toolId, embedding: toolEmbedding });
@@ -259,7 +263,8 @@ export class PostExecutionService {
       }
 
       // Build members: tools + child capabilities
-      const toolMembers = (capability.toolsUsed ?? toolsCalled).map((id) => ({
+      const normalizedToolsUsed = (capability.toolsUsed ?? normalizedToolsCalled).map(normalizeToolId).filter(Boolean);
+      const toolMembers = normalizedToolsUsed.map((id) => ({
         type: "tool" as const,
         id,
       }));
@@ -278,7 +283,7 @@ export class PostExecutionService {
         successRate: capability.successRate,
         children: capability.children,
         parents: capability.parents,
-        toolsUsed: capability.toolsUsed ?? toolsCalled,
+        toolsUsed: normalizedToolsUsed,
       });
 
       log.debug("[PostExecutionService] SHGAT nodes registered", {

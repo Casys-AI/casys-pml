@@ -19,6 +19,7 @@ import { sanitizeForStorage } from "../../utils/mod.ts";
 import { DEFAULT_TRACE_PRIORITY } from "../../capabilities/mod.ts";
 import { isCodeOperation, isPureOperation } from "../../capabilities/pure-operations.ts";
 import { getOperationCategory } from "../../capabilities/operation-descriptions.ts";
+import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
 
 /**
  * Graph interface for sync operations
@@ -179,8 +180,8 @@ export async function syncGraphFromDatabase(
   `);
 
   for (const dep of deps) {
-    const from = dep.from_tool_id as string;
-    const to = dep.to_tool_id as string;
+    const from = normalizeToolId(dep.from_tool_id as string) || (dep.from_tool_id as string);
+    const to = normalizeToolId(dep.to_tool_id as string) || (dep.to_tool_id as string);
 
     // Create missing nodes (e.g., code:* operations not in tool_schema)
     ensureToolNode(graph, from);
@@ -259,8 +260,10 @@ export async function syncGraphFromDatabase(
     }
 
     // Create "contains" edges from capability to each tool
-    for (const toolId of tools) {
-      if (!toolId || typeof toolId !== "string") continue;
+    for (const rawToolId of tools) {
+      if (!rawToolId || typeof rawToolId !== "string") continue;
+      // Normalize FQDN → short format for consistency with tool_embedding
+      const toolId = normalizeToolId(rawToolId) || rawToolId;
 
       ensureToolNode(graph, toolId);
 

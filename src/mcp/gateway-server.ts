@@ -398,6 +398,18 @@ export class PMLGatewayServer {
       });
     });
 
+    // Live SHGAT registration: when tools are synced + embedded, register them
+    // so they're immediately discoverable without server restart
+    eventBus.on("mcp.server.tools.changed", (event) => {
+      if (!this.shgat || !this.db) return;
+      const toolIds = (event.payload as { toolIds?: string[] })?.toolIds;
+      if (!toolIds || toolIds.length === 0) return;
+
+      this.registerNewToolsInSHGAT(toolIds).catch((err) => {
+        log.warn(`[Gateway] Live SHGAT tool registration failed: ${err}`);
+      });
+    });
+
     // Create use cases
     const executeDirectUC = new ExecuteDirectUseCase({
       capabilityRepo,
@@ -1093,6 +1105,42 @@ export class PMLGatewayServer {
   /**
    * Initialize algorithms via AlgorithmInitializer (Story 10.7)
    */
+  /**
+   * Register newly synced tools in the live SHGAT graph.
+   * Fetches embeddings from DB and calls shgat.registerTool() for each unknown tool.
+   */
+  private async registerNewToolsInSHGAT(toolIds: string[]): Promise<void> {
+    if (!this.shgat || !this.db) return;
+
+    // Only register tools SHGAT doesn't already know
+    const unknownIds = toolIds.filter((id) => !this.shgat!.hasToolNode(id));
+    if (unknownIds.length === 0) return;
+
+    const placeholders = unknownIds.map((_, i) => `$${i + 1}`).join(", ");
+    const rows = await this.db.query(
+      `SELECT tool_id, embedding::text FROM tool_embedding WHERE tool_id IN (${placeholders})`,
+      unknownIds,
+    );
+
+    let registered = 0;
+    for (const row of rows) {
+      const toolId = row.tool_id as string;
+      const embStr = row.embedding as string;
+      if (!embStr) continue;
+
+      const embedding: number[] = embStr.startsWith("[")
+        ? JSON.parse(embStr)
+        : embStr.replace(/^\[|\]$/g, "").split(",").map(Number);
+
+      this.shgat!.registerTool({ id: toolId, embedding });
+      registered++;
+    }
+
+    if (registered > 0) {
+      log.info(`[Gateway] Live SHGAT: registered ${registered} new tools (${unknownIds.length} requested)`);
+    }
+  }
+
   private async initializeAlgorithms(): Promise<void> {
     if (!this.embeddingModel) {
       log.warn("[Gateway] No embedding model - SHGAT/DR-DSP disabled, discover/suggestions degraded");
