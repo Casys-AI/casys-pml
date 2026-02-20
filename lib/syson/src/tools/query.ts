@@ -76,11 +76,6 @@ export const queryTools: SysonTool[] = [
       },
       required: ["editing_context_id", "object_id", "expression"],
     },
-    _meta: {
-      ui: {
-        resourceUri: "ui://mcp-syson/query-results-viewer",
-      },
-    },
     handler: async ({ editing_context_id, object_id, expression }) => {
       const ecId = editing_context_id as string;
       const objId = object_id as string;

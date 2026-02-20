@@ -41,25 +41,42 @@ interface ChildrenData {
 // SysML kind → icon + color
 // ============================================================================
 
+// Supports both "sysml::PartUsage" and "siriusComponents://semantic?domain=sysml&entity=PartUsage"
 const KIND_MAP: Record<string, { icon: string; color: string }> = {
-  "sysml::PartUsage":          { icon: "\u25A0", color: "text-blue-400" },
-  "sysml::PartDefinition":     { icon: "\u25A1", color: "text-blue-300" },
-  "sysml::AttributeUsage":     { icon: "\u25C6", color: "text-emerald-400" },
-  "sysml::AttributeDefinition":{ icon: "\u25C7", color: "text-emerald-300" },
-  "sysml::RequirementUsage":   { icon: "\u2605", color: "text-amber-400" },
-  "sysml::RequirementDefinition": { icon: "\u2606", color: "text-amber-300" },
-  "sysml::Package":            { icon: "\u25B6", color: "text-purple-400" },
-  "sysml::ItemUsage":          { icon: "\u25CF", color: "text-cyan-400" },
-  "sysml::PortUsage":          { icon: "\u25D0", color: "text-orange-400" },
-  "sysml::ConnectionUsage":    { icon: "\u2194", color: "text-pink-400" },
-  "sysml::AllocationUsage":    { icon: "\u21D2", color: "text-violet-400" },
-  "sysml::ConstraintUsage":    { icon: "\u26A0", color: "text-yellow-400" },
-  "sysml::ActionUsage":        { icon: "\u25B7", color: "text-teal-400" },
+  "PartUsage":            { icon: "\u25A0", color: "text-blue-400" },
+  "PartDefinition":       { icon: "\u25A1", color: "text-blue-300" },
+  "AttributeUsage":       { icon: "\u25C6", color: "text-emerald-400" },
+  "AttributeDefinition":  { icon: "\u25C7", color: "text-emerald-300" },
+  "RequirementUsage":     { icon: "\u2605", color: "text-amber-400" },
+  "RequirementDefinition":{ icon: "\u2606", color: "text-amber-300" },
+  "Package":              { icon: "\u25B6", color: "text-purple-400" },
+  "ItemUsage":            { icon: "\u25CF", color: "text-cyan-400" },
+  "PortUsage":            { icon: "\u25D0", color: "text-orange-400" },
+  "ConnectionUsage":      { icon: "\u2194", color: "text-pink-400" },
+  "InterfaceUsage":       { icon: "\u27A1", color: "text-pink-400" },
+  "AllocationUsage":      { icon: "\u21D2", color: "text-violet-400" },
+  "ConstraintUsage":      { icon: "\u26A0", color: "text-yellow-400" },
+  "ActionUsage":          { icon: "\u25B7", color: "text-teal-400" },
+  "ViewUsage":            { icon: "\u25AD", color: "text-indigo-400" },
+  "FeatureMembership":    { icon: "\u2022", color: "text-fg-dim" },
+  "LiteralString":        { icon: "\u201C", color: "text-green-400" },
+  "LiteralRational":      { icon: "\u0023", color: "text-green-400" },
+  "LiteralInteger":       { icon: "\u0023", color: "text-green-400" },
 };
 
+/** Extract the short entity name from any kind format */
+function extractEntityName(kind: string): string {
+  // "siriusComponents://semantic?domain=sysml&entity=PartUsage"
+  const entityMatch = kind.match(/[?&]entity=([^&]+)/);
+  if (entityMatch) return entityMatch[1];
+  // "sysml::PartUsage"
+  if (kind.includes("::")) return kind.split("::").pop()!;
+  return kind;
+}
+
 function kindInfo(kind: string): { icon: string; color: string; shortKind: string } {
-  const match = KIND_MAP[kind];
-  const shortKind = kind.includes("::") ? kind.split("::").pop()! : kind;
+  const shortKind = extractEntityName(kind);
+  const match = KIND_MAP[shortKind];
   return match
     ? { ...match, shortKind }
     : { icon: "\u25CB", color: "text-fg-muted", shortKind };

@@ -299,14 +299,15 @@ async function renderSvg(
     }
   }
 
-  // Emit nodes — skip orphan nodes not connected to any edge
+  // Emit nodes — skip orphan nodes only when there ARE edges in the diagram
+  const hasEdges = resolvedEdges.length > 0;
   for (const n of nodes) {
     const lines = n.label.split("\n");
     const stereotype = lines.length >= 2 ? lines[0] : "";
     const name = lines.length >= 2 ? lines[1] : lines[0];
     const isInterface = stereotype.includes("interface");
 
-    if (!connectedNodeIds.has(n.id)) continue; // skip orphans
+    if (hasEdges && !connectedNodeIds.has(n.id)) continue; // skip orphans only when diagram has edges
 
     const nodeId = `n_${n.id.replace(/[^a-zA-Z0-9]/g, "_")}`;
     if (isInterface) {
