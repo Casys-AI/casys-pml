@@ -417,6 +417,99 @@ Deno.test("flattenExecutedPath - flattens hierarchical paths", async () => {
   assertEquals(flat, ["A", "B", "B1", "B2", "C"]);
 });
 
+Deno.test("flattenExecutedPath - prefers taskResults over executedPath", async () => {
+  const mockTraceStore = {
+    getChildTraces: async (_id: string) => [],
+  } as unknown as import("../../../src/capabilities/execution-trace-store.ts").ExecutionTraceStore;
+
+  const trace: ExecutionTrace = {
+    id: "t1",
+    executedAt: new Date(),
+    success: true,
+    durationMs: 100,
+    decisions: [],
+    // executedPath has corrupted UUIDs
+    executedPath: ["0a01917e-79d0-4580-8619-65f5de42ca11", "std:psql_query"],
+    // taskResults has clean data
+    taskResults: [
+      { taskId: "t1", tool: "std:psql_query", args: {}, result: null, success: true, durationMs: 10, layerIndex: 0 },
+      { taskId: "t2", tool: "filesystem:read_file", args: {}, result: null, success: true, durationMs: 20, layerIndex: 1 },
+    ],
+    priority: 0.5,
+  };
+
+  const flat = await flattenExecutedPath(trace, mockTraceStore);
+  // Should use taskResults (no UUIDs), not executedPath
+  assertEquals(flat, ["std:psql_query", "filesystem:read_file"]);
+});
+
+Deno.test("flattenExecutedPath - normalizes FQDN from taskResults", async () => {
+  const mockTraceStore = {
+    getChildTraces: async (_id: string) => [],
+  } as unknown as import("../../../src/capabilities/execution-trace-store.ts").ExecutionTraceStore;
+
+  const trace: ExecutionTrace = {
+    id: "t1",
+    executedAt: new Date(),
+    success: true,
+    durationMs: 100,
+    decisions: [],
+    taskResults: [
+      { taskId: "t1", tool: "pml.mcp.std.psql_query.db48", args: {}, result: null, success: true, durationMs: 10, layerIndex: 0 },
+      { taskId: "t2", tool: "pml.mcp.filesystem.read_file.4ff0", args: {}, result: null, success: true, durationMs: 20, layerIndex: 0 },
+    ],
+    priority: 0.5,
+  };
+
+  const flat = await flattenExecutedPath(trace, mockTraceStore);
+  assertEquals(flat, ["std:psql_query", "filesystem:read_file"]);
+});
+
+Deno.test("flattenExecutedPath - filters internal operations (code:map, loop:forOf)", async () => {
+  const mockTraceStore = {
+    getChildTraces: async (_id: string) => [],
+  } as unknown as import("../../../src/capabilities/execution-trace-store.ts").ExecutionTraceStore;
+
+  const trace: ExecutionTrace = {
+    id: "t1",
+    executedAt: new Date(),
+    success: true,
+    durationMs: 100,
+    decisions: [],
+    taskResults: [
+      { taskId: "t1", tool: "std:psql_query", args: {}, result: null, success: true, durationMs: 10, layerIndex: 0 },
+      { taskId: "t2", tool: "code:map", args: {}, result: null, success: true, durationMs: 5, layerIndex: 1 },
+      { taskId: "t3", tool: "loop:forOf", args: {}, result: null, success: true, durationMs: 5, layerIndex: 1 },
+      { taskId: "t4", tool: "filesystem:write_file", args: {}, result: null, success: true, durationMs: 20, layerIndex: 2 },
+    ],
+    priority: 0.5,
+  };
+
+  const flat = await flattenExecutedPath(trace, mockTraceStore);
+  // code:map and loop:forOf are internal operations, should be filtered out
+  assertEquals(flat, ["std:psql_query", "filesystem:write_file"]);
+});
+
+Deno.test("flattenExecutedPath - falls back to executedPath when taskResults empty", async () => {
+  const mockTraceStore = {
+    getChildTraces: async (_id: string) => [],
+  } as unknown as import("../../../src/capabilities/execution-trace-store.ts").ExecutionTraceStore;
+
+  const trace: ExecutionTrace = {
+    id: "t1",
+    executedAt: new Date(),
+    success: true,
+    durationMs: 100,
+    decisions: [],
+    taskResults: [],
+    executedPath: ["std:psql_query", "filesystem:read_file"],
+    priority: 0.5,
+  };
+
+  const flat = await flattenExecutedPath(trace, mockTraceStore);
+  assertEquals(flat, ["std:psql_query", "filesystem:read_file"]);
+});
+
 // ============================================================================
 // AC8: PER Sampling Produces High-Priority Biased Distribution
 // ============================================================================

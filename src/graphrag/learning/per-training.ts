@@ -26,6 +26,8 @@ import { extractPathLevelFeatures, type PathLevelFeatures } from "./path-level-f
 import { spawnSHGATTraining } from "../algorithms/shgat/spawn-training.ts";
 import { getLogger } from "../../telemetry/logger.ts";
 import type { DbClient } from "../../db/types.ts";
+import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
+import { isInternalOperation } from "../../capabilities/pure-operations.ts";
 
 const log = getLogger("default");
 
@@ -209,18 +211,28 @@ export async function flattenExecutedPath(
   trace: ExecutionTrace,
   traceStore: ExecutionTraceStore,
 ): Promise<string[]> {
-  const executedPath = trace.executedPath ?? [];
+  // Primary source: task_results (0 UUIDs, 0 nulls, structured data)
+  // Fallback: executed_path (16.8% UUIDs, 7% FQDN — corrupted legacy)
+  const toolsFromTaskResults = extractToolsFromTaskResults(trace);
 
-  if (executedPath.length === 0) {
+  const rawPath = toolsFromTaskResults.length > 0
+    ? toolsFromTaskResults
+    : (trace.executedPath ?? []);
+
+  if (rawPath.length === 0) {
     return [];
   }
+
+  // Normalize all tool IDs and filter internal operations (code:map, loop:forOf etc.)
+  const normalizedPath = rawPath
+    .map(normalizeToolId)
+    .filter((id) => id.length > 0 && !isInternalOperation(id));
 
   // Get child traces for this trace
   const childTraces = await traceStore.getChildTraces(trace.id);
 
   if (childTraces.length === 0) {
-    // No children, return as-is
-    return executedPath;
+    return normalizedPath;
   }
 
   // Build a map of capability ID → child trace for efficient lookup
@@ -234,7 +246,7 @@ export async function flattenExecutedPath(
   // Flatten path by expanding each node
   const flatPath: string[] = [];
 
-  for (const nodeId of executedPath) {
+  for (const nodeId of normalizedPath) {
     // Add the node itself
     flatPath.push(nodeId);
 
@@ -248,6 +260,36 @@ export async function flattenExecutedPath(
   }
 
   return flatPath;
+}
+
+/**
+ * Extract ordered tool IDs from task_results (structured, no UUIDs, no nulls).
+ *
+ * Orders by layerIndex ASC (parallel groups), then by array position within each layer.
+ * Resolves $cap:uuid references via resolvedTool when available.
+ */
+function extractToolsFromTaskResults(trace: ExecutionTrace): string[] {
+  if (!trace.taskResults || trace.taskResults.length === 0) {
+    return [];
+  }
+
+  // Sort by layerIndex (stable sort preserves array order within same layer)
+  const sorted = [...trace.taskResults].sort((a, b) =>
+    (a.layerIndex ?? 0) - (b.layerIndex ?? 0)
+  );
+
+  const tools: string[] = [];
+  for (const tr of sorted) {
+    // Use resolvedTool for $cap:uuid references, otherwise use tool directly
+    const toolId = tr.tool.startsWith("$cap:") && tr.resolvedTool
+      ? tr.resolvedTool
+      : tr.tool;
+    if (toolId) {
+      tools.push(toolId);
+    }
+  }
+
+  return tools;
 }
 
 // ============================================================================
@@ -586,62 +628,37 @@ export async function trainSHGATOnPathTracesSubprocess(
     };
   }
 
-  // Step 5: Find additional tools from examples not in any capability
-  const toolsInCaps = new Set<string>();
+  // Step 5: Collect ALL unique tool IDs and load real embeddings
+  const allToolIds = new Set<string>();
   for (const cap of capabilities) {
-    for (const tool of cap.toolsUsed) {
-      toolsInCaps.add(tool);
-    }
+    for (const tool of cap.toolsUsed) allToolIds.add(tool);
   }
-
-  const additionalToolIds: string[] = [];
   for (const ex of allExamples) {
     for (const tool of ex.contextTools) {
-      // Skip UUIDs (capability IDs) - they have embeddings in workflow_pattern, not tool_embedding
-      if (isUUID(tool)) continue;
-      if (!toolsInCaps.has(tool) && !additionalToolIds.includes(tool)) {
-        additionalToolIds.push(tool);
-      }
+      if (!isUUID(tool)) allToolIds.add(tool);
     }
   }
 
-  // Load real embeddings for additional tools if dbClient available
-  const toolEmbeddingsMap = new Map<string, number[]>();
-  if (dbClient && additionalToolIds.length > 0) {
-    // Debug: log what tools we're searching for
-    log.info(`[PER-Subprocess] Searching for additionalToolIds: ${JSON.stringify(additionalToolIds.slice(0, 10))}${additionalToolIds.length > 10 ? '...' : ''}`);
+  const toolEmbeddingsForWorker: Record<string, number[]> = {};
+  if (dbClient && allToolIds.size > 0) {
     try {
-      // CRITICAL-8 Fix: pgvector can't cast directly to float8[], select as-is
       const rows = await dbClient.query(
-        `SELECT tool_id, embedding
-         FROM tool_embedding
-         WHERE tool_id = ANY($1)`,
-        [additionalToolIds],
+        `SELECT tool_id, embedding FROM tool_embedding WHERE tool_id = ANY($1)`,
+        [[...allToolIds]],
       ) as Array<{ tool_id: string; embedding: number[] | string }>;
       for (const row of rows) {
         const emb = parseEmbeddingFromRow(row.embedding);
-        if (emb === null) {
-          log.warn(`[PER-Subprocess] Failed to parse embedding for ${row.tool_id}`);
-          continue;
-        }
-        toolEmbeddingsMap.set(row.tool_id, emb);
+        if (emb === null) continue;
+        toolEmbeddingsForWorker[row.tool_id] = emb;
       }
       log.info(
-        `[PER-Subprocess] Loaded ${toolEmbeddingsMap.size}/${additionalToolIds.length} tool embeddings from DB`,
+        `[PER-Subprocess] Loaded ${Object.keys(toolEmbeddingsForWorker).length}/${allToolIds.size} tool embeddings from DB`,
       );
     } catch (e) {
       log.warn(`[PER-Subprocess] Failed to load tool embeddings: ${e}`);
     }
   }
 
-  // Build additional tools with embeddings (real if available, null for fallback)
-  const additionalToolsWithEmbeddings = additionalToolIds.map((id) => ({
-    id,
-    embedding: toolEmbeddingsMap.get(id) ?? null,
-  }));
-
-  // Capabilities keep their original toolsUsed (no hack)
-  // Include parents/children for multi-level hierarchy training
   const capsForWorker = capabilities.map((c) => ({
     id: c.id,
     embedding: c.embedding,
@@ -660,7 +677,7 @@ export async function trainSHGATOnPathTracesSubprocess(
     epochs,
     batchSize,
     existingParams: shgat.exportParams(),
-    additionalToolsWithEmbeddings, // Real embeddings when available
+    toolEmbeddings: toolEmbeddingsForWorker,
     // Live learning config (Story 11.6)
     temperature,      // undefined = use annealing
     usePER,           // undefined = default true
