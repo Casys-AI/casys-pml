@@ -1061,14 +1061,24 @@ export class WorkerBridge {
   private buildTaskResults(sortedTraces: TraceEvent[]): TraceTaskResult[] {
     return sortedTraces
       .filter((t): t is ToolTraceEvent => t.type === "tool_end")
-      .map((t, idx) => ({
-        taskId: `task-${idx}`,
-        tool: t.tool,
-        args: (t.args ?? {}) as Record<string, JsonValue>,
-        result: (t.result ?? null) as JsonValue,
-        success: t.success ?? false,
-        durationMs: t.durationMs ?? 0,
-      }));
+      .map((t, idx) => {
+        // deno-lint-ignore no-explicit-any
+        const trace = t as any;
+        const base: TraceTaskResult = {
+          taskId: `task-${idx}`,
+          tool: t.tool,
+          args: (t.args ?? {}) as Record<string, JsonValue>,
+          result: (t.result ?? null) as JsonValue,
+          success: t.success ?? false,
+          durationMs: t.durationMs ?? 0,
+        };
+        // Loop metadata — propagate from trace to task result for TraceTimeline display
+        if (trace.loopId) base.loopId = trace.loopId;
+        if (trace.loopType) base.loopType = trace.loopType;
+        if (trace.loopCondition) base.loopCondition = trace.loopCondition;
+        if (trace.bodyTools) base.bodyTools = trace.bodyTools;
+        return base;
+      });
   }
 
   /**

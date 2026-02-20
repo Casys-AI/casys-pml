@@ -89,8 +89,10 @@ export function buildTaskResults(
     );
 
     // Loop abstraction: get iteration count from actual traces
-    const toolName = physicalTask?.tool || "unknown";
-    const loopId = physicalTask?.metadata?.loopId as string | undefined;
+    // deno-lint-ignore no-explicit-any
+    const task = physicalTask as any;
+    const toolName = task?.tool || "unknown";
+    const loopId = task?.metadata?.loopId as string | undefined;
     const loopIterations = loopId ? (toolCallCounts.get(toolName) || 1) : undefined;
 
     return {
@@ -107,8 +109,9 @@ export function buildTaskResults(
       // Loop abstraction
       loopId,
       loopIteration: loopIterations,
-      loopType: physicalTask?.metadata?.loopType as TraceTaskResult["loopType"],
-      loopCondition: physicalTask?.metadata?.loopCondition as string | undefined,
+      loopType: task?.metadata?.loopType as TraceTaskResult["loopType"],
+      loopCondition: task?.metadata?.loopCondition as string | undefined,
+      bodyTools: task?.metadata?.bodyTools as string[] | undefined,
     };
   });
 }
