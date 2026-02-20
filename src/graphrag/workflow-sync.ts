@@ -223,8 +223,8 @@ export class WorkflowSyncService {
         } else {
           // Create new edge with edge_source='user' and confidence=0.90
           await this.db.query(
-            `INSERT INTO tool_dependency (from_tool_id, to_tool_id, observed_count, confidence_score, edge_source)
-             VALUES ($1, $2, 1, 0.90, 'user')`,
+            `INSERT INTO tool_dependency (from_tool_id, to_tool_id, observed_count, confidence_score, edge_source, edge_type)
+             VALUES ($1, $2, 1, 0.90, 'user', 'dependency')`,
             [edge.from, edge.to],
           );
           created++;
