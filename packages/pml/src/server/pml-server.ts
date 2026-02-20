@@ -1116,6 +1116,24 @@ function embedViewer(iframe, data) {
       iframe.contentWindow.postMessage({ jsonrpc: '2.0', id: msg.id, result: {} }, '*');
       return;
     }
+    if (msg.method === 'ui/call-tool' && msg.id != null) {
+      fetch('/call-tool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: msg.params?.name, arguments: msg.params?.arguments ?? {} }),
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+          iframe.contentWindow.postMessage({ jsonrpc: '2.0', id: msg.id, result: result }, '*');
+        })
+        .catch(function(err) {
+          iframe.contentWindow.postMessage({
+            jsonrpc: '2.0', id: msg.id,
+            error: { code: -32000, message: String(err) },
+          }, '*');
+        });
+      return;
+    }
   }
   window.addEventListener('message', onMessage);
   var observer = new MutationObserver(function() {
