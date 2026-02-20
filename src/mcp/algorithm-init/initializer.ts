@@ -23,42 +23,25 @@ import type { CapabilityStore } from "../../capabilities/capability-store.ts";
 import type { EmbeddingModelInterface } from "../../vector/embeddings.ts";
 import {
   type SHGAT,
-  type TrainingExample,
   type ToolGraphFeatures,
 } from "../../graphrag/algorithms/shgat.ts";
-import { NUM_NEGATIVES } from "../../graphrag/algorithms/shgat/types.ts";
-import { spawnSHGATTraining } from "../../graphrag/algorithms/shgat/spawn-training.ts";
 import type { DRDSP } from "../../graphrag/algorithms/dr-dsp.ts";
 import { GraphSyncController } from "../graph-sync/mod.ts";
-import { trainingLock } from "../../graphrag/learning/mod.ts";
 import {
   AlgorithmFactory,
   type AlgorithmCapabilityInput,
 } from "../../infrastructure/patterns/factory/algorithm-factory.ts";
 import { loadAllProvidesEdges } from "../../graphrag/provides-edge-calculator.ts";
+import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
+import { cleanToolIds } from "../../capabilities/trace-path.ts";
 import pako from "pako";
 import { decode as msgpackDecode } from "npm:@msgpack/msgpack@3.0.0-beta2";
 
-// ==========================================================================
-// Helpers
-// ==========================================================================
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
-
 /**
- * Filter raw executed_path entries to keep only valid MCP tool IDs.
- * Removes:
- * - UUID capability IDs (leaked from executed_path, cause noise in SHGAT training)
- * - Internal ops: code:* (filter, map, split...) and loop:* (forOf, forEach...)
+ * @deprecated Use cleanToolIds from trace-path.ts directly.
+ * Kept as re-export for backward compatibility with train-shgat-standalone.ts.
  */
-export function filterContextTools(path: string[] | null | undefined): string[] {
-  if (!path) return [];
-  return path.filter(t =>
-    !UUID_PATTERN.test(t) &&
-    !t.startsWith("code:") &&
-    !t.startsWith("loop:")
-  );
-}
+export const filterContextTools = cleanToolIds;
 
 // ==========================================================================
 // Types
@@ -78,14 +61,6 @@ interface ContainsEdge {
 
 // Re-use AlgorithmCapabilityInput from factory
 type CapabilityWithEmbedding = AlgorithmCapabilityInput;
-
-interface TraceRow {
-  capability_id: string;
-  intent_text: string | null;
-  intent_embedding: string | null;
-  success: boolean;
-  executed_path: string[] | null;
-}
 
 interface TraceToolRow {
   task_results: string | Array<{ tool?: string }>;
@@ -439,7 +414,11 @@ export class AlgorithmInitializer {
       .map((c) => ({
         id: c.id,
         embedding: c.embedding,
-        toolsUsed: c.tools_used ?? [],
+        // Normalize FQDN → short format (e.g. "pml.mcp.std.psql_query.db48" → "std:psql_query")
+        // dag_structure.tools_used stores FQDN but tool_embedding.tool_id uses short format.
+        // Without this, createSHGATFromCapabilities registers tools with FQDN IDs that don't
+        // match any real embedding, causing random embeddings to be used for message passing.
+        toolsUsed: (c.tools_used ?? []).map(normalizeToolId).filter(Boolean),
         successRate: c.success_rate,
         children: childrenMap.get(c.id),
         parents: parentsMap.get(c.id),
@@ -454,9 +433,9 @@ export class AlgorithmInitializer {
     if (!this.shgat || !this.deps.graphEngine) return;
 
     try {
-      // Register/update all tools from graphEngine with real embeddings
-      // NOTE: Tools from capabilities may have been registered with default embeddings
-      // during createSHGATFromCapabilities. We MUST update them with real embeddings.
+      // Register/update all tools from graphEngine with real embeddings.
+      // Since toolsUsed are normalized to short format (e.g. "std:psql_query"),
+      // these will correctly match and update existing nodes from createSHGATFromCapabilities.
       const graphToolIds = this.deps.graphEngine.getGraph().nodes();
       let registeredCount = 0;
       let updatedCount = 0;
@@ -605,321 +584,4 @@ export class AlgorithmInitializer {
     return { toolRecency, toolCooccurrence };
   }
 
-  // ==========================================================================
-  // Private: Training
-  // ==========================================================================
-
-  /**
-   * @deprecated Kept for reference - batch training at startup disabled.
-   * Use `deno task train` or live training via train-shgat.use-case.ts instead.
-   */
-  // @ts-ignore: Kept for reference, may be re-enabled later
-  // deno-lint-ignore require-await
-  private async _trainOnTraces(): Promise<void> {
-    if (!this.shgat) return;
-
-    if (!trainingLock.acquire("BATCH")) {
-      log.info(`[AlgorithmInitializer] Skipping training - another in progress`);
-      return;
-    }
-
-    try {
-      const traces = (await this.deps.db.query(`
-        SELECT
-          et.capability_id,
-          wp.description AS intent_text,
-          wp.intent_embedding,
-          et.success,
-          et.executed_path
-        FROM execution_trace et
-        JOIN workflow_pattern wp ON wp.pattern_id = et.capability_id
-        WHERE et.capability_id IS NOT NULL
-          AND wp.intent_embedding IS NOT NULL
-        ORDER BY et.priority DESC
-        LIMIT 500
-      `)) as unknown as TraceRow[];
-
-      if (traces.length === 0) {
-        log.info(`[AlgorithmInitializer] No traces yet - will train when available`);
-        return;
-      }
-
-      log.info(`[AlgorithmInitializer] Training on ${traces.length} traces...`);
-
-      // Build map of ALL embeddings (capabilities + tools) for negative sampling
-      const allEmbeddings = new Map<string, number[]>();
-      for (const cap of this.capabilities) {
-        allEmbeddings.set(cap.id, cap.embedding);
-      }
-
-      // Note: tools are NOT added to negative pool - only capabilities are used as negatives
-      // Tools and capabilities are different entity types; mixing them confuses contrastive learning
-      log.debug(`[Training] Negative pool: ${this.capabilities.length} caps (tools excluded)`);
-
-      // Build capability → toolsUsed map for exclusion during sampling
-      const capToTools = new Map<string, Set<string>>();
-      for (const cap of this.capabilities) {
-        capToTools.set(cap.id, new Set(cap.toolsUsed));
-      }
-
-      // @deprecated - Tool clusters no longer needed since tools are excluded from negatives
-      // Keeping empty map for backward compatibility with traceToTrainingExamples signature
-      const toolClusters = new Map<string, Set<string>>();
-      // log.debug(`[Training] Tool clusters disabled (tools excluded from negatives)`);
-
-      const examples: TrainingExample[] = [];
-
-      // Helper: cosine similarity
-      const cosineSim = (a: number[], b: number[]): number => {
-        let dot = 0, normA = 0, normB = 0;
-        for (let i = 0; i < Math.min(a.length, b.length); i++) {
-          dot += a[i] * b[i];
-          normA += a[i] * a[i];
-          normB += b[i] * b[i];
-        }
-        const denom = Math.sqrt(normA) * Math.sqrt(normB);
-        return denom > 0 ? dot / denom : 0;
-      };
-
-      // Helper: compute percentile
-      const percentile = (arr: number[], p: number): number => {
-        if (arr.length === 0) return 0;
-        const sorted = [...arr].sort((a, b) => a - b);
-        const idx = Math.floor((p / 100) * (sorted.length - 1));
-        return sorted[idx];
-      };
-
-      // Compute global similarity distribution for adaptive thresholds
-      const allSims: number[] = [];
-      for (const trace of traces) {
-        if (!trace.intent_embedding) continue;
-        let intentEmb: number[];
-        try {
-          const cleaned = trace.intent_embedding.replace(/^\[|\]$/g, "");
-          intentEmb = cleaned.split(",").map(Number);
-        } catch { continue; }
-
-        // Get tools to exclude for this anchor capability
-        const anchorTools = capToTools.get(trace.capability_id) ?? new Set();
-
-        for (const [itemId, emb] of allEmbeddings) {
-          // Skip the anchor capability itself
-          if (itemId === trace.capability_id) continue;
-          // Skip tools that belong to this anchor capability
-          if (anchorTools.has(itemId)) continue;
-          allSims.push(cosineSim(intentEmb, emb));
-        }
-      }
-
-      // Adaptive thresholds: P25-P75 for semi-hard range (classic)
-      // PER will handle curriculum learning by prioritizing harder examples
-      let SEMI_HARD_MIN = allSims.length > 0 ? percentile(allSims, 25) : 0.15;
-      let SEMI_HARD_MAX = allSims.length > 0 ? percentile(allSims, 75) : 0.65;
-
-      // Ensure minimum spread of 0.1 for semi-hard range
-      const MIN_SPREAD = 0.1;
-      if (SEMI_HARD_MAX - SEMI_HARD_MIN < MIN_SPREAD) {
-        SEMI_HARD_MIN = SEMI_HARD_MAX - MIN_SPREAD;
-        log.debug(`[Training] Spread too narrow, expanded to: [${SEMI_HARD_MIN.toFixed(2)}, ${SEMI_HARD_MAX.toFixed(2)}]`);
-      }
-
-      // Log distribution
-      const easyCount = allSims.filter(s => s < SEMI_HARD_MIN).length;
-      const semiHardCount = allSims.filter(s => s >= SEMI_HARD_MIN && s <= SEMI_HARD_MAX).length;
-      const hardCount = allSims.filter(s => s > SEMI_HARD_MAX).length;
-      log.info(`[Training] Similarity distribution: easy=${easyCount} (< ${SEMI_HARD_MIN.toFixed(2)}), ` +
-        `semi-hard=${semiHardCount} [${SEMI_HARD_MIN.toFixed(2)}-${SEMI_HARD_MAX.toFixed(2)}], ` +
-        `hard=${hardCount} (> ${SEMI_HARD_MAX.toFixed(2)})`);
-
-      for (const trace of traces) {
-        // Ensure this is a valid capability (not a tool)
-        if (!capToTools.has(trace.capability_id)) continue;
-
-        // Get anchor embedding - required for anchor-based filtering
-        const anchorEmb = allEmbeddings.get(trace.capability_id);
-        if (!anchorEmb) continue;
-
-        // Parse intent embedding for training examples (model learns intent→capability)
-        if (!trace.intent_embedding) continue;
-        let intentEmbedding: number[];
-        try {
-          const cleaned = trace.intent_embedding.replace(/^\[|\]$/g, "");
-          intentEmbedding = cleaned.split(",").map(Number);
-        } catch {
-          continue;
-        }
-
-        // Get tools to exclude for this anchor capability
-        const anchorTools = capToTools.get(trace.capability_id)!;
-
-        // Build expanded exclusion set: anchor tools + their similar tools (cluster)
-        const excludedTools = new Set<string>();
-        for (const toolId of anchorTools) {
-          excludedTools.add(toolId);
-          const cluster = toolClusters.get(toolId);
-          if (cluster) {
-            for (const similarTool of cluster) {
-              excludedTools.add(similarTool);
-            }
-          }
-        }
-
-        // Compute similarity to INTENT for all candidates
-        const candidatesWithSim: Array<{ id: string; sim: number }> = [];
-        for (const [itemId, emb] of allEmbeddings) {
-          // Skip the anchor capability itself
-          if (itemId === trace.capability_id) continue;
-          // Skip tools in the exclusion cluster (anchor's tools + similar tools)
-          if (excludedTools.has(itemId)) continue;
-          const sim = cosineSim(intentEmbedding, emb);
-          candidatesWithSim.push({ id: itemId, sim });
-        }
-
-        // Sort ALL candidates by similarity descending (hard → easy)
-        // Store ALL negatives for curriculum learning (train-worker samples from dynamic tiers)
-        const allSorted = [...candidatesWithSim].sort((a, b) => b.sim - a.sim);
-        const allNegativesSorted = allSorted.map(c => c.id);
-
-        // Default negativeCapIds: sample from middle third for backward compatibility
-        const total = allNegativesSorted.length;
-        let negativeCapIds: string[];
-        if (total >= NUM_NEGATIVES * 3) {
-          // Enough for 3 tiers: use middle third
-          const tierSize = Math.floor(total / 3);
-          const middleStart = tierSize;
-          negativeCapIds = allNegativesSorted.slice(middleStart, middleStart + NUM_NEGATIVES);
-        } else if (total >= NUM_NEGATIVES) {
-          // Not enough for tiers: use middle slice
-          const start = Math.floor((total - NUM_NEGATIVES) / 2);
-          negativeCapIds = allNegativesSorted.slice(start, start + NUM_NEGATIVES);
-        } else {
-          // Not enough negatives: use all available
-          negativeCapIds = allNegativesSorted;
-        }
-
-        examples.push({
-          intentEmbedding,
-          contextTools: filterContextTools(trace.executed_path),
-          candidateId: trace.capability_id,
-          outcome: trace.success ? 1.0 : 0.0,
-          negativeCapIds,
-          // Curriculum learning: ALL negatives sorted hard → easy
-          // train-worker samples from dynamic tier based on accuracy
-          allNegativesSorted,
-        });
-      }
-
-      if (examples.length === 0) {
-        log.info(`[AlgorithmInitializer] No valid examples - skipping`);
-        return;
-      }
-
-      // Collect all tools already known from capabilities
-      const toolsInCaps = new Set<string>();
-      for (const cap of this.capabilities) {
-        for (const tool of cap.toolsUsed) {
-          toolsInCaps.add(tool);
-        }
-      }
-
-      // Find additional tools from examples not in any capability
-      // Helper: check if string is a UUID (capability ID) vs tool ID (has colon like "code:filter")
-      const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-
-      const additionalToolIds: string[] = [];
-      for (const ex of examples) {
-        for (const tool of ex.contextTools) {
-          // Skip UUIDs (capability IDs) - they have embeddings in workflow_pattern, not tool_embedding
-          if (isUUID(tool)) continue;
-          if (!toolsInCaps.has(tool) && !additionalToolIds.includes(tool)) {
-            additionalToolIds.push(tool);
-          }
-        }
-      }
-
-      // Load real embeddings for additional tools from tool_embedding table
-      const toolEmbeddingsMap = new Map<string, number[]>();
-      if (additionalToolIds.length > 0) {
-        try {
-          // CRITICAL-8 Fix: pgvector can't cast directly to float8[], select as-is
-          const rows = await this.deps.db.query(
-            `SELECT tool_id, embedding
-             FROM tool_embedding
-             WHERE tool_id = ANY($1)`,
-            [additionalToolIds],
-          ) as Array<{ tool_id: string; embedding: number[] | string }>;
-          for (const row of rows) {
-            // Handle array, string, or pgvector format (PGlite vs PostgreSQL)
-            let emb: number[];
-            if (Array.isArray(row.embedding)) {
-              emb = row.embedding;
-            } else if (typeof row.embedding === 'string') {
-              // pgvector returns "[1,2,3]" format, parse it
-              try {
-                emb = JSON.parse(row.embedding);
-              } catch (parseErr) {
-                log.warn(`[AlgorithmInitializer] Failed to parse embedding for ${row.tool_id}: ${parseErr}`);
-                continue;
-              }
-            } else {
-              log.warn(`[AlgorithmInitializer] Invalid embedding type for ${row.tool_id}: ${typeof row.embedding}`);
-              continue;
-            }
-            toolEmbeddingsMap.set(row.tool_id, emb);
-          }
-          log.info(
-            `[AlgorithmInitializer] Loaded ${toolEmbeddingsMap.size}/${additionalToolIds.length} tool embeddings from DB`,
-          );
-        } catch (e) {
-          log.warn(`[AlgorithmInitializer] Failed to load tool embeddings: ${e}`);
-        }
-      }
-
-      // Build additional tools with embeddings (real if available, null for fallback)
-      const additionalToolsWithEmbeddings = additionalToolIds.map((id) => ({
-        id,
-        embedding: toolEmbeddingsMap.get(id) ?? null, // null = worker will generate
-      }));
-
-      // Each capability keeps its own toolsUsed (no hack needed)
-      // Include parents/children for multi-level hierarchy training
-      const capsForWorker = this.capabilities.map((c) => ({
-        id: c.id,
-        embedding: c.embedding,
-        toolsUsed: c.toolsUsed,
-        successRate: c.successRate,
-        parents: c.parents,
-        children: c.children,
-      }));
-
-      const result = await spawnSHGATTraining({
-        capabilities: capsForWorker,
-        examples,
-        epochs: 25, // 25 optimal: test acc peaks at 18-21, overfits after
-        batchSize: 32,
-        additionalToolsWithEmbeddings, // Tools with real embeddings when available
-      });
-
-      if (result.success && this.shgat) {
-        if (result.savedToDb) {
-          await this.loadSHGATParams();
-          log.info(
-            `[AlgorithmInitializer] Training complete: loss=${result.finalLoss?.toFixed(4)}`,
-          );
-        } else if (result.params) {
-          this.shgat.importParams(result.params);
-          log.info(
-            `[AlgorithmInitializer] Training complete: loss=${result.finalLoss?.toFixed(4)}`,
-          );
-          await this.saveSHGATParams();
-        }
-      } else if (!result.success) {
-        log.warn(`[AlgorithmInitializer] Training failed: ${result.error}`);
-      }
-    } catch (error) {
-      log.warn(`[AlgorithmInitializer] Training error: ${error}`);
-    } finally {
-      trainingLock.release("BATCH");
-    }
-  }
 }
