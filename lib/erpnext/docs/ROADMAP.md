@@ -88,10 +88,11 @@ The SDK also provides `app.sendMessage()` to inject messages into the host conve
 - **Error surfaces**: `callServerTool` errors (permissions, validation) must be shown inline, not silently swallowed.
 - **Host capability check**: Before enabling interactive features, check `app.getHostCapabilities()?.serverTools` — not all hosts support proxied tool calls.
 
-### TIER 2 — New Viewers (P1)
+### TIER 2 — New Viewers & Infrastructure (P1)
 
-| Viewer / Tool | Type | Description |
-|---------------|------|-------------|
+| Item | Type | Description |
+|------|------|-------------|
+| **HTTP Auth (OAuth/JWT)** | Infrastructure | `@casys/mcp-server` has a full auth pipeline (Bearer/JWT/JWKS, presets for Auth0/Google/GitHub, per-tool scope enforcement, RFC 9728). Needs validation with mcp-erpnext: wire auth config, test scope-per-tool (e.g. `erpnext:read` vs `erpnext:write`), document setup. Prerequisite for multi-user deployment. |
 | BOM Cost Breakdown | chart-viewer (treemap) | Bill of Materials cost hierarchy |
 | Bank Reconciliation Status | New viewer | Match bank transactions to GL entries |
 | HR Overview | kpi-viewer + chart-viewer | Headcount, attendance, leave balance |
