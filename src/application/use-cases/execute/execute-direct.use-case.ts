@@ -36,7 +36,7 @@ import {
   type RoutingDbClient,
 } from "../../../capabilities/routing-resolver.ts";
 import { isInternalOperation } from "../../../capabilities/pure-operations.ts";
-import { getUserScope, resolveToolFqdn } from "../../../lib/user.ts";
+import { getUserScope, resolveToolFqdn, resolveToolIdsToFqdns } from "../../../lib/user.ts";
 import { saveWorkflowState } from "../../../cache/workflow-state-cache.ts";
 import type { LearningContext } from "../../../cache/types.ts";
 import { computeLayerIndexForTasks } from "../../../dag/mod.ts";
@@ -673,6 +673,20 @@ export class ExecuteDirectUseCase {
       toolsCalled,
     );
 
+    // ADR-068: Resolve tool IDs to FQDNs for dag_structure.tools_used storage
+    const toolsUsedFqdns = await resolveToolIdsToFqdns(
+      toolsCalled,
+      await getUserScope(this.userId ?? null),
+      {
+        lookupCapability: this.deps.capabilityRegistry?.resolveByName
+          ? async (id, s) => await this.deps.capabilityRegistry!.resolveByName!(id, s)
+          : undefined,
+        lookupMcpTool: this.deps.mcpRegistry
+          ? async (fqdn) => await this.deps.mcpRegistry!.getByFqdnWithoutHash(fqdn)
+          : undefined,
+      },
+    );
+
     // Save capability
     // Note: traceData.id is the pre-generated trace UUID from entry point (execute-handler-facade.ts)
     // This ensures trace.id in DB matches the traceId used in sandbox (AC1 - ADR-041)
@@ -681,7 +695,7 @@ export class ExecuteDirectUseCase {
       intent,
       durationMs: Math.round(executionTimeMs),
       success: true,
-      toolsUsed: toolsCalled,
+      toolsUsed: toolsUsedFqdns,
       traceData: {
         id: executionTraceId, // Pre-generated trace ID for parent-child hierarchy (ADR-041)
         parentTraceId, // Parent trace ID for nested execution (ADR-041)

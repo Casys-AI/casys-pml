@@ -37,6 +37,7 @@ import { normalizeVariableNames, transformCapabilityRefs, transformLiteralsToArg
 import { eventBus } from "../events/mod.ts";
 import { calculateCapabilityRisk } from "../mcp/adaptive-threshold.ts";
 import { getUserScope } from "../lib/user.ts";
+import { normalizeToolId } from "./routing-resolver.ts";
 
 const logger = getLogger("default");
 
@@ -516,9 +517,14 @@ export class CapabilityStore {
     }
 
     // Update hierarchy_level: parent level = max(child levels) + 1
-    // If no children (maxChildLevel = -1), level stays 0
-    const finalHierarchyLevel = maxChildLevel >= 0 ? maxChildLevel + 1 : 0;
-    if (maxChildLevel >= 0) {
+    // L0 = no tools used (bare capability, theoretical)
+    // L1 = uses MCP tools only (most common case)
+    // L2+ = calls other capabilities (nested)
+    const usesTools = capabilityTools.length > 0;
+    const finalHierarchyLevel = maxChildLevel >= 0
+      ? maxChildLevel + 1          // calls other caps → above them
+      : (usesTools ? 1 : 0);      // uses tools → L1, nothing → L0
+    if (finalHierarchyLevel > 0) {
       try {
         await this.db.query(
           `UPDATE workflow_pattern SET hierarchy_level = $1 WHERE pattern_id = $2`,
@@ -795,10 +801,15 @@ export class CapabilityStore {
         SELECT
           ct.*,
           -- Count how many context tools are in this capability's tools_used
+          -- ADR-068: DB may store FQDN (pml.mcp.std.psql_query.db48), $1 is short (std:psql_query)
+          -- Normalize FQDN to short format inline: take parts[3]:parts[4] (0-indexed) when 4+ dot-parts
           (
             SELECT COUNT(*)
             FROM jsonb_array_elements_text(ct.tools_used_arr) as tool
-            WHERE tool = ANY($1::text[])
+            WHERE CASE
+              WHEN tool LIKE '%.%.%.%' THEN split_part(tool, '.', 3) || ':' || split_part(tool, '.', 4)
+              ELSE tool
+            END = ANY($1::text[])
           ) as matching_count,
           -- Total tools in capability
           jsonb_array_length(ct.tools_used_arr) as total_tools
@@ -900,7 +911,8 @@ export class CapabilityStore {
           ? JSON.parse(row.dag_structure)
           : row.dag_structure;
         if (Array.isArray(dagStruct?.tools_used)) {
-          toolsUsed = dagStruct.tools_used;
+          // ADR-068: DB stores FQDN (pml.mcp.std.psql_query.db48), Capability contract = short (std:psql_query)
+          toolsUsed = dagStruct.tools_used.map(normalizeToolId).filter(Boolean);
         }
         // Extract tool invocations for sequence visualization
         if (Array.isArray(dagStruct?.tool_invocations)) {

@@ -46,7 +46,7 @@ import { CapabilityCodeGenerator } from "../capabilities/code-generator.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import { eventBus } from "../events/mod.ts";
 import { RpcRouter } from "./rpc-router.ts";
-import { getUserScope } from "../lib/user.ts";
+import { getUserScope, resolveToolIdsToFqdns } from "../lib/user.ts";
 import { uuidv7 } from "../utils/uuid.ts";
 
 const logger = getLogger("default");
@@ -421,12 +421,23 @@ export class WorkerBridge {
           const taskResults = this.buildTaskResults(sortedTraces);
           const executedPath = this.buildExecutedPath(sortedTraces);
 
+          // ADR-068: Resolve short tool IDs to FQDN before DB storage
+          const toolsUsedFqdns = await resolveToolIdsToFqdns(
+            this.getToolsCalled(),
+            await getUserScope(this.userId ?? null),
+            {
+              lookupCapability: this.capabilityRegistry?.resolveByName
+                ? async (id, s) => await this.capabilityRegistry!.resolveByName!(id, s)
+                : undefined,
+            },
+          );
+
           const { trace } = await this.capabilityStore.saveCapability({
             code: this.lastExecutedCode,
             intent: this.lastIntent,
             durationMs: Math.round(result.executionTimeMs),
             success: true,
-            toolsUsed: this.getToolsCalled(),
+            toolsUsed: toolsUsedFqdns,
             toolInvocations,
             // Story 11.2: Include traceData for execution trace persistence
             traceData: {
@@ -652,12 +663,23 @@ export class WorkerBridge {
             bodyTools: loopMetadata.bodyTools,
           };
 
+          // ADR-068: Resolve loop body tools to FQDN before DB storage
+          const loopToolsFqdns = await resolveToolIdsToFqdns(
+            loopMetadata.bodyTools || [],
+            await getUserScope(this.userId ?? null),
+            {
+              lookupCapability: this.capabilityRegistry?.resolveByName
+                ? async (id, s) => await this.capabilityRegistry!.resolveByName!(id, s)
+                : undefined,
+            },
+          );
+
           const { capability } = await this.capabilityStore.saveCapability({
             code: completeCode,
             intent,
             durationMs,
             success: true,
-            toolsUsed: loopMetadata.bodyTools || [],
+            toolsUsed: loopToolsFqdns,
             traceData: {
               initialContext: (context ?? {}) as Record<string, JsonValue>,
               executedPath,
@@ -694,7 +716,7 @@ export class WorkerBridge {
                   workflowPatternId: capability.id,
                   hash,
                   userId: this.userId,  // Multi-tenant: associate capability with user
-                  toolsUsed: loopMetadata.bodyTools || [],
+                  toolsUsed: loopToolsFqdns,
                 });
 
                 logger.info("Registered loop capability in registry", {

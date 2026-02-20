@@ -18,7 +18,7 @@ import type { TraceTaskResult } from "../../capabilities/types/mod.ts";
 import type { IDAGConverter, OptimizedDAG } from "../../infrastructure/di/adapters/execute/dag-converter-adapter.ts";
 import type { TaskResult } from "../../dag/types.ts";
 import { getFusionMetadata } from "../../dag/trace-generator.ts";
-import { getUserScope, resolveToolFqdn, type UserScope } from "../../lib/user.ts";
+import { getUserScope, resolveToolIdsToFqdns } from "../../lib/user.ts";
 import { eventBus } from "../../events/event-bus.ts";
 import { getToolDisplayName } from "../../capabilities/tool-id-utils.ts";
 
@@ -143,7 +143,14 @@ export class ExecutionCaptureService {
       // toolsUsed for DB storage: use FQDNs from ctx.toolsUsed or resolve from executedPath
       const toolsUsed = ctx.toolsUsed && ctx.toolsUsed.length > 0
         ? ctx.toolsUsed  // Already FQDNs
-        : await this.resolveToolsToFqdns(executedPath, await getUserScope(effectiveUserId ?? null));
+        : await resolveToolIdsToFqdns(executedPath, await getUserScope(effectiveUserId ?? null), {
+            lookupCapability: this.deps.capabilityRegistry?.resolveByName
+              ? async (id, s) => await this.deps.capabilityRegistry!.resolveByName(id, s)
+              : undefined,
+            lookupMcpTool: this.deps.mcpRegistry
+              ? async (fqdnWithoutHash) => await this.deps.mcpRegistry!.getByFqdnWithoutHash(fqdnWithoutHash)
+              : undefined,
+          });
 
       // 1. Save to workflow_pattern (UPSERT via code hash)
       // Skip zone events - we'll emit them AFTER registry.create() to avoid race condition
@@ -461,48 +468,5 @@ export class ExecutionCaptureService {
     return name.charAt(0).toUpperCase() + name.slice(1);
   }
 
-  /**
-   * Resolve tool IDs to FQDNs for hierarchical trace matching (Issue 6 fix).
-   *
-   * When capability A calls capability B, A's trace needs FQDNs so the server
-   * can match parent executed_path entries with child capability_id (UUID).
-   *
-   * @param toolIds - Array of tool IDs (namespace:action format)
-   * @param scope - User scope for FQDN resolution
-   * @returns Array of FQDNs (or original ID if resolution fails)
-   */
-  private async resolveToolsToFqdns(
-    toolIds: string[],
-    scope: UserScope,
-  ): Promise<string[]> {
-    const resolvedTools = await Promise.all(
-      toolIds.map(async (toolId) => {
-        try {
-          // Skip internal pseudo-tools handled by code-task-executor:
-          // - code:* (filter, map, split, etc.)
-          // - loop:* (forOf, while, etc.)
-          if (toolId.startsWith("code:") || toolId.startsWith("loop:")) {
-            return toolId;
-          }
-
-          const fqdn = await resolveToolFqdn(toolId, scope, {
-            lookupCapability: this.deps.capabilityRegistry?.resolveByName
-              ? async (id, s) => await this.deps.capabilityRegistry!.resolveByName(id, s)
-              : undefined,
-            lookupMcpTool: this.deps.mcpRegistry
-              ? async (fqdnWithoutHash) => await this.deps.mcpRegistry!.getByFqdnWithoutHash(fqdnWithoutHash)
-              : undefined,
-          });
-
-          return fqdn;
-        } catch (error) {
-          // If resolution fails, keep original ID (fallback)
-          log.debug(`[ExecutionCaptureService] Failed to resolve ${toolId} to FQDN: ${error}`);
-          return toolId;
-        }
-      }),
-    );
-
-    return resolvedTools;
-  }
+  // ADR-068: resolveToolsToFqdns moved to shared resolveToolIdsToFqdns in lib/user.ts
 }

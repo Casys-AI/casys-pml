@@ -248,3 +248,36 @@ export async function resolveToolFqdn(
   // 4. Not found in any registry
   throw new Error(`Tool not found: ${toolId} (checked capability_records and pml_registry)`);
 }
+
+/**
+ * Batch-resolve tool IDs to FQDNs for DB storage (ADR-068).
+ *
+ * Skips internal pseudo-tools (code:*, loop:*) — they pass through unchanged.
+ * Falls back to original ID if resolution fails (graceful degradation).
+ *
+ * @param toolIds - Tool IDs in short format ("std:psql_query")
+ * @param scope - User scope for registry lookup
+ * @param options - Lookup functions (same as resolveToolFqdn)
+ * @returns Array of FQDNs (or original ID if resolution fails)
+ */
+export async function resolveToolIdsToFqdns(
+  toolIds: string[],
+  scope: UserScope,
+  options: ResolveFqdnOptions = {},
+): Promise<string[]> {
+  return Promise.all(
+    toolIds.map(async (toolId) => {
+      try {
+        // Internal pseudo-tools are not MCP tools — keep as-is
+        if (toolId.startsWith("code:") || toolId.startsWith("loop:")) {
+          return toolId;
+        }
+        return await resolveToolFqdn(toolId, scope, options);
+      } catch {
+        // Resolution failed — keep original ID rather than losing data
+        log.debug(`[resolveToolIdsToFqdns] Failed to resolve ${toolId} to FQDN, keeping original`);
+        return toolId;
+      }
+    }),
+  );
+}
