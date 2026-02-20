@@ -26,8 +26,7 @@ import { extractPathLevelFeatures, type PathLevelFeatures } from "./path-level-f
 import { spawnSHGATTraining } from "../algorithms/shgat/spawn-training.ts";
 import { getLogger } from "../../telemetry/logger.ts";
 import type { DbClient } from "../../db/types.ts";
-import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
-import { isInternalOperation } from "../../capabilities/pure-operations.ts";
+import { getCleanToolPath } from "../../capabilities/trace-path.ts";
 
 const log = getLogger("default");
 
@@ -83,16 +82,6 @@ function isUUID(s: string): boolean {
   return UUID_PATTERN.test(s);
 }
 
-/** UUID prefix pattern (matches v4 and v7) for path cleanup */
-const UUID_PREFIX_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
-
-/**
- * Filter UUIDs from a path for pathKey lookup.
- * Must match the logic in path-level-features.ts cleanExecutedPath().
- */
-function cleanPathForLookup(path: string[]): string[] {
-  return path.filter((t) => !UUID_PREFIX_PATTERN.test(t));
-}
 
 /**
  * Select negatives from the middle tier for semi-hard negative mining
@@ -211,22 +200,13 @@ export async function flattenExecutedPath(
   trace: ExecutionTrace,
   traceStore: ExecutionTraceStore,
 ): Promise<string[]> {
-  // Primary source: task_results (0 UUIDs, 0 nulls, structured data)
-  // Fallback: executed_path (16.8% UUIDs, 7% FQDN — corrupted legacy)
-  const toolsFromTaskResults = extractToolsFromTaskResults(trace);
+  // getCleanToolPath: taskResults primary, executedPath fallback
+  // normalizes FQDN, filters UUIDs + internal ops (code:*, loop:*)
+  const normalizedPath = getCleanToolPath(trace);
 
-  const rawPath = toolsFromTaskResults.length > 0
-    ? toolsFromTaskResults
-    : (trace.executedPath ?? []);
-
-  if (rawPath.length === 0) {
+  if (normalizedPath.length === 0) {
     return [];
   }
-
-  // Normalize all tool IDs and filter internal operations (code:map, loop:forOf etc.)
-  const normalizedPath = rawPath
-    .map(normalizeToolId)
-    .filter((id) => id.length > 0 && !isInternalOperation(id));
 
   // Get child traces for this trace
   const childTraces = await traceStore.getChildTraces(trace.id);
@@ -262,35 +242,6 @@ export async function flattenExecutedPath(
   return flatPath;
 }
 
-/**
- * Extract ordered tool IDs from task_results (structured, no UUIDs, no nulls).
- *
- * Orders by layerIndex ASC (parallel groups), then by array position within each layer.
- * Resolves $cap:uuid references via resolvedTool when available.
- */
-function extractToolsFromTaskResults(trace: ExecutionTrace): string[] {
-  if (!trace.taskResults || trace.taskResults.length === 0) {
-    return [];
-  }
-
-  // Sort by layerIndex (stable sort preserves array order within same layer)
-  const sorted = [...trace.taskResults].sort((a, b) =>
-    (a.layerIndex ?? 0) - (b.layerIndex ?? 0)
-  );
-
-  const tools: string[] = [];
-  for (const tr of sorted) {
-    // Use resolvedTool for $cap:uuid references, otherwise use tool directly
-    const toolId = tr.tool.startsWith("$cap:") && tr.resolvedTool
-      ? tr.resolvedTool
-      : tr.tool;
-    if (toolId) {
-      tools.push(toolId);
-    }
-  }
-
-  return tools;
-}
 
 // ============================================================================
 // Multi-Example Generation (AC11)
@@ -339,7 +290,7 @@ export function traceToTrainingExamples(
   const outcome = trace.success ? 1 : 0;
 
   // Get path-level features for weighting (optional enhancement)
-  const pathKey = cleanPathForLookup(trace.executedPath ?? []).join("->");
+  const pathKey = getCleanToolPath(trace).join("->");
   const features = pathFeatures.get(pathKey);
 
   // Apply outcome weighting based on path features

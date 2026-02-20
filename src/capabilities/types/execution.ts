@@ -174,7 +174,11 @@ export interface ExecutionTrace {
   durationMs: number;
   /** Error message if execution failed */
   errorMessage?: string;
-  /** Array of node IDs in execution order */
+  /**
+   * @deprecated Use taskResults instead. This field contains mixed UUIDs, FQDNs and
+   * internal ops. Kept for UI display and legacy compatibility. Use getCleanToolPath()
+   * from trace-path.ts for any compute/ML usage.
+   */
   executedPath?: string[];
   /** Branch decisions made during execution */
   decisions: BranchDecision[];

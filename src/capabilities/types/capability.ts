@@ -151,7 +151,11 @@ export interface SaveCapabilityInput {
     id?: string;
     /** Input context for this execution */
     initialContext?: Record<string, JsonValue>;
-    /** Path of executed nodes */
+    /**
+     * @deprecated Use taskResults instead. This field contains mixed UUIDs, FQDNs and
+     * internal ops. Kept for UI display and legacy compatibility. Use getCleanToolPath()
+     * from trace-path.ts for any compute/ML usage.
+     */
     executedPath?: string[];
     /** Branch decisions made during execution */
     decisions?: BranchDecision[];

@@ -16,39 +16,10 @@
 import type { SHGAT } from "../graphrag/algorithms/shgat.ts";
 import type { ExecutionTraceStore, SaveTraceInput } from "./execution-trace-store.ts";
 import type { ExecutionTrace } from "./types.ts";
-import { normalizeToolId } from "./routing-resolver.ts";
-import { isInternalOperation } from "./pure-operations.ts";
+import { getCleanToolPath } from "./trace-path.ts";
 import { getLogger } from "../telemetry/logger.ts";
 
 const logger = getLogger("default");
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
-
-/**
- * Get clean tool path from a trace for SHGAT prediction.
- * Primary: task_results (structured, 0% corruption).
- * Fallback: executedPath (legacy, may contain UUIDs/FQDN).
- */
-function cleanPathForSHGAT(trace: Pick<ExecutionTrace, "executedPath"> & Partial<Pick<ExecutionTrace, "taskResults">>): string[] {
-  let raw: string[] = [];
-  if (trace.taskResults && trace.taskResults.length > 0) {
-    const sorted = [...trace.taskResults].sort((a, b) =>
-      (a.layerIndex ?? 0) - (b.layerIndex ?? 0)
-    );
-    for (const tr of sorted) {
-      const toolId = tr.tool.startsWith("$cap:") && tr.resolvedTool
-        ? tr.resolvedTool
-        : tr.tool;
-      if (toolId) raw.push(toolId);
-    }
-  }
-  if (raw.length === 0) {
-    raw = trace.executedPath ?? [];
-  }
-  return raw
-    .map(normalizeToolId)
-    .filter((id) => id.length > 0 && !UUID_PATTERN.test(id) && !isInternalOperation(id));
-}
 
 // ============================================================================
 // Constants
@@ -158,7 +129,7 @@ export async function calculateTDError(
   }
 
   // Get SHGAT prediction for the path
-  const executedPath = cleanPathForSHGAT(trace);
+  const executedPath = getCleanToolPath(trace);
   const predicted = shgat.predictPathSuccess(intentEmbedding, executedPath);
 
   // Calculate TD Error

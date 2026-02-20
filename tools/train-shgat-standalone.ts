@@ -7,6 +7,8 @@
 import "@std/dotenv/load";
 import { parseArgs } from "@std/cli/parse-args";
 import { NUM_NEGATIVES } from "../src/graphrag/algorithms/shgat/types.ts";
+import { normalizeToolId } from "../src/capabilities/routing-resolver.ts";
+import { cleanToolIds } from "../src/capabilities/trace-path.ts";
 import postgres from "postgres";
 
 // ============================================================================
@@ -255,7 +257,7 @@ try {
     .map((c: any) => ({
       id: c.id,
       embedding: parseVector(c.embedding),
-      toolsUsed: c.tools_used ?? [],
+      toolsUsed: (c.tools_used ?? []).map(normalizeToolId).filter(Boolean),
       successRate: c.success_rate ?? 0.5,
     }))
     .filter((c: { embedding: number[] | null }) => c.embedding && c.embedding.length > 0);
@@ -314,7 +316,7 @@ try {
 
     examples.push({
       intentEmbedding: intentEmb,
-      contextTools: trace.executed_path ?? [],
+      contextTools: cleanToolIds(trace.executed_path),
       candidateId: trace.capability_id,
       outcome: trace.success ? 1.0 : 0.0,
       negativeCapIds,
@@ -325,11 +327,24 @@ try {
   loadingStatus.examples = examples.length;
   loadingStatus.phase = "ready";
 
-  // Additional tools
-  const toolsInCaps = new Set<string>();
-  for (const cap of capabilities) cap.toolsUsed.forEach((t: string) => toolsInCaps.add(t));
+  // Load real tool embeddings for ALL tools (cap + example)
+  const allToolIds = new Set<string>();
+  for (const cap of capabilities) cap.toolsUsed.forEach((t: string) => allToolIds.add(t));
   // deno-lint-ignore no-explicit-any
-  const additionalTools = [...new Set(examples.flatMap((e: any) => e.contextTools))].filter(t => !toolsInCaps.has(t));
+  for (const ex of examples) for (const t of (ex as any).contextTools) allToolIds.add(t);
+
+  const toolEmbeddings: Record<string, number[]> = {};
+  if (allToolIds.size > 0) {
+    const rows = await sql`
+      SELECT tool_id, embedding FROM tool_embedding
+      WHERE tool_id = ANY(${[...allToolIds]})
+    `;
+    for (const row of rows) {
+      const emb = parseVector(row.embedding);
+      if (emb) toolEmbeddings[row.tool_id] = emb;
+    }
+    console.error(`  Loaded ${Object.keys(toolEmbeddings).length}/${allToolIds.size} tool embeddings`);
+  }
 
   const startTime = Date.now();
 
@@ -357,7 +372,7 @@ try {
       useProjectionHead: Deno.env.get("SHGAT_USE_PROJECTION_HEAD") === "true",
     },
     databaseUrl: DATABASE_URL,
-    additionalTools,
+    toolEmbeddings,
   };
 
   const tempFile = await Deno.makeTempFile({ prefix: "shgat-", suffix: ".json" });

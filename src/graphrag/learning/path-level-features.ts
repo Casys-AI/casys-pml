@@ -13,37 +13,7 @@
  */
 
 import type { ExecutionTrace } from "../../capabilities/types.ts";
-import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
-import { isInternalOperation } from "../../capabilities/pure-operations.ts";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
-
-/**
- * Get clean tool path from a trace: task_results primary, executedPath fallback.
- * Normalizes FQDN and filters UUIDs + internal ops (code:*, loop:*).
- */
-function getCleanToolPath(trace: ExecutionTrace): string[] {
-  // Primary: task_results (structured, 0% corruption)
-  let raw: string[] = [];
-  if (trace.taskResults && trace.taskResults.length > 0) {
-    const sorted = [...trace.taskResults].sort((a, b) =>
-      (a.layerIndex ?? 0) - (b.layerIndex ?? 0)
-    );
-    for (const tr of sorted) {
-      const toolId = tr.tool.startsWith("$cap:") && tr.resolvedTool
-        ? tr.resolvedTool
-        : tr.tool;
-      if (toolId) raw.push(toolId);
-    }
-  }
-  // Fallback: executedPath (legacy, may contain UUIDs/FQDN)
-  if (raw.length === 0) {
-    raw = trace.executedPath ?? [];
-  }
-  return raw
-    .map(normalizeToolId)
-    .filter((id) => id.length > 0 && !UUID_PATTERN.test(id) && !isInternalOperation(id));
-}
+import { getCleanToolPath } from "../../capabilities/trace-path.ts";
 
 /**
  * Features computed for a specific execution path
