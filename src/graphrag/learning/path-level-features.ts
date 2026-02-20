@@ -13,18 +13,36 @@
  */
 
 import type { ExecutionTrace } from "../../capabilities/types.ts";
+import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
+import { isInternalOperation } from "../../capabilities/pure-operations.ts";
 
-/**
- * Pattern matching UUID v4/v7 strings that appear as capability IDs in executedPath.
- * These fragment pathKey calculations and must be filtered out.
- */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
 
 /**
- * Filter UUID entries from an executed path, keeping only tool/capability identifiers.
+ * Get clean tool path from a trace: task_results primary, executedPath fallback.
+ * Normalizes FQDN and filters UUIDs + internal ops (code:*, loop:*).
  */
-function cleanExecutedPath(executedPath: string[]): string[] {
-  return executedPath.filter((t) => !UUID_PATTERN.test(t));
+function getCleanToolPath(trace: ExecutionTrace): string[] {
+  // Primary: task_results (structured, 0% corruption)
+  let raw: string[] = [];
+  if (trace.taskResults && trace.taskResults.length > 0) {
+    const sorted = [...trace.taskResults].sort((a, b) =>
+      (a.layerIndex ?? 0) - (b.layerIndex ?? 0)
+    );
+    for (const tr of sorted) {
+      const toolId = tr.tool.startsWith("$cap:") && tr.resolvedTool
+        ? tr.resolvedTool
+        : tr.tool;
+      if (toolId) raw.push(toolId);
+    }
+  }
+  // Fallback: executedPath (legacy, may contain UUIDs/FQDN)
+  if (raw.length === 0) {
+    raw = trace.executedPath ?? [];
+  }
+  return raw
+    .map(normalizeToolId)
+    .filter((id) => id.length > 0 && !UUID_PATTERN.test(id) && !isInternalOperation(id));
 }
 
 /**
@@ -73,7 +91,7 @@ export function extractPathLevelFeatures(
   const pathStats = new Map<string, { success: number; total: number; traces: ExecutionTrace[] }>();
 
   for (const trace of traces) {
-    const pathKey = cleanExecutedPath(trace.executedPath ?? []).join("->");
+    const pathKey = getCleanToolPath(trace).join("->");
     const stats = pathStats.get(pathKey) ?? { success: 0, total: 0, traces: [] };
     stats.total++;
     if (trace.success) stats.success++;
@@ -145,7 +163,7 @@ function calculateDecisionSuccessRate(traces: ExecutionTrace[]): number {
  * @returns Path key string (e.g., "fs:read->json:parse")
  */
 export function getPathKey(trace: ExecutionTrace): string {
-  return cleanExecutedPath(trace.executedPath ?? []).join("->");
+  return getCleanToolPath(trace).join("->");
 }
 
 /**
