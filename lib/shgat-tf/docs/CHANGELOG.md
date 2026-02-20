@@ -1,5 +1,88 @@
 # SHGAT-TF Changelog
 
+## 2026-02-15 — Training defaults overhaul + n8n data cleanup
+
+### Nouveaux defauts train-ob.ts
+
+| Param | Ancien | Nouveau | Raison |
+|---|---|---|---|
+| `--kl-batch-size` | 128 | **30000** | Tout le dataset en 1 forward/backward. ~700MB RAM, largement dans les 10GB. 1 update KL/epoch = gradient stable |
+| `--kl-accum` | 4 | **1** | Plus besoin d'accumuler avec batch=30K |
+| `--kl-subsample` | 2000 | **0** (all) | Utilise les 30K exemples n8n au lieu d'en sous-echantillonner 2K |
+| `--kl-isolate-khead` | ON (implicite) | **OFF** (flag opt-in) | Flag inverse: `--kl-isolate-khead` pour activer l'isolation. Defaut = KL met a jour W_q/W_k |
+
+### Commande recommandee
+
+```bash
+DENO_V8_FLAGS=--max-old-space-size=10240 deno run -A tools/train-ob.ts \
+  --kl --kl-weight 0.02 --kl-isolate-khead --seed 42 --epochs 20 --lr 0.001 --eval-every 2
+```
+
+### n8n mapping improvements (build-soft-targets.ts)
+
+- **Service overrides** pour `std:*` tools: `std:http_get/post/request`, `std:curl_fetch` → service `http`; `filesystem:read_*`, `std:jq`, `std:transform_csv_parse` → service `file_reader`
+- **Aliases n8n**: `httpRequest` → `http`, `extractFromFile` → `file_reader`
+- **LLM provider exclusions**: openAi, gemini, mistral, anthropic, ollama, airtop + variants langchain (121 nodes exclus total)
+- **Tier 1**: 33.9% (676/1993) — +3.5pts grace aux 24 nodes http + 16 nodes file_reader
+
+### Resultats run 11 (kl=0.02, isolate, 30K, batch=2048)
+
+| Epoch | R@1 | MRR | |∇| | MP Δ |
+|---|---|---|---|---|
+| 2 | 3.7% | 0.111 | 0.7 | 1.54 |
+| 4 | 6.5% | 0.160 | 5.0 | 2.15 |
+| 6 | 0.9% | 0.022 | 58.9 | 2.80 |
+| 8 | 26.2% | 0.345 | 43.1 | 7.41 |
+| 10 | **35.5%** | **0.447** | 11.7 | 9.07 |
+
+**Insight**: gradients instables a LR=0.005 (explosion epoch 6-7). Le best arrive quand le cosine decay ramene le LR a ~0.0001. Run 12 baisse LR a 0.001 + 20 epochs.
+
+### GRU E2E avec SHGAT 26% (run 8 params)
+
+- Hit@1=60.9% (vs 65.7% baseline sans SHGAT trained) — regression
+- GRU-first 1st@1=76% (+13pts) mais E2E exact=16% (-20pts)
+- MP delta=79 (vs 388 non-entraine) — enrichissement trop faible
+- SHGAT standalone pousse `psql_tables` en top partout (mode collapse K-head)
+
+---
+
+## 2026-02-14 — KL gradient isolation for K-head scoring
+
+### Probleme
+
+Le KL loss n8n degradait les performances SHGAT (28.0% → 24.3% Hit@1) car le gradient
+KL modifiait W_q et W_k (scoring heads) avec un objectif "smooth distribution" antagoniste
+avec l'objectif InfoNCE "sharp discrimination".
+
+### Solution: `--kl-isolate-khead` (defaut: ON)
+
+Quand active (defaut), le gradient KL ne traverse plus W_q et W_k :
+
+| Composant | InfoNCE | KL (ancien) | KL (nouveau) |
+|---|---|---|---|
+| W_q, W_k | gradient | gradient | **bloque** |
+| W_intent | gradient | gradient | gradient |
+| MP weights | gradient (via _epochDH) | gradient (via _epochDH) | gradient (via _epochDH) |
+
+Le KL continue d'enrichir W_intent (projection intent) et les poids MP (relations structurelles),
+mais le scoring K-head reste exclusivement optimise par InfoNCE (contrastive, discriminatif).
+
+### Utilisation
+
+```bash
+# Defaut: KL isole (recommande)
+deno run ... --kl --kl-weight 0.2
+
+# Ancien comportement: KL touche aussi W_q/W_k
+deno run ... --kl --kl-update-khead
+```
+
+### Fichiers modifies
+
+- `lib/shgat-tf/tools/train-ob.ts` — flag `KL_ISOLATE_KHEAD`, 3 blocs conditionnes
+
+---
+
 ## 2026-02-14 — Eval metrics + best model checkpoint + epochs default 10
 
 ### Changements

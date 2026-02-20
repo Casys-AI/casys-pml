@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --unstable-ffi --allow-ffi --allow-read --allow-write --allow-env
+#!/usr/bin/env -S DENO_V8_FLAGS=--max-old-space-size=10240 deno run --unstable-ffi --allow-ffi --allow-read --allow-write --allow-env
 /**
  * SHGAT-TF OB Training — Manual backward + OpenBLAS FFI
  *
@@ -138,6 +138,7 @@ Options:
   --kl-subsample <n>   Max n8n examples per epoch (default: 2000, 0=all)
   --kl-batch-size <n>  KL batch size (default: 128, larger = fewer backward passes)
   --kl-accum <n>       KL gradient accumulation steps (default: 4, 1=no accum)
+  --kl-update-khead    Let KL update W_q/W_k (default: isolated, KL only updates W_intent+MP)
   --msgpack            Use msgpack.gz loader instead of Parquet (default: Parquet)
   --data-path <path>   Path to msgpack.gz dataset (only with --msgpack)
   --help               Show this help
@@ -157,9 +158,10 @@ const KL_WARMUP = parseInt(getArg("kl-warmup", "3"), 10);
 const KL_WEIGHT_PLATEAU = parseFloat(getArg("kl-weight", "0.2"));
 const MP_LR_SCALE = parseFloat(getArg("mp-lr-scale", "1.0"));
 const EVAL_EVERY = Math.max(1, parseInt(getArg("eval-every", "2"), 10));
-const KL_SUBSAMPLE = parseInt(getArg("kl-subsample", "2000"), 10);
-const KL_BATCH_SIZE = parseInt(getArg("kl-batch-size", "128"), 10);
-const KL_ACCUM_STEPS = Math.max(1, parseInt(getArg("kl-accum", "4"), 10));
+const KL_SUBSAMPLE = parseInt(getArg("kl-subsample", "0"), 10);
+const KL_BATCH_SIZE = parseInt(getArg("kl-batch-size", "30000"), 10);
+const KL_ACCUM_STEPS = Math.max(1, parseInt(getArg("kl-accum", "1"), 10));
+const KL_ISOLATE_KHEAD = Deno.args.includes("--kl-isolate-khead"); // default: false (KL updates W_q/W_k)
 
 // ==========================================================================
 // Seeded PRNG (mulberry32 — inlined from parameters.ts to avoid TF.js import)
@@ -547,7 +549,7 @@ console.log(`    Epochs: ${EPOCHS}, Batch: ${BATCH_SIZE}, LR: ${LEARNING_RATE} (
 console.log(`    \u03C4: ${TAU_START}\u2192${TAU_END}`);
 console.log(`    KL: ${USE_KL}, KL warmup: ${KL_WARMUP}ep, KL weight: ${KL_WEIGHT_PLATEAU}`);
 console.log(`    MP LR scale: ${MP_LR_SCALE}, Seed: ${SEED}`);
-console.log(`    KL subsample: ${KL_SUBSAMPLE > 0 ? KL_SUBSAMPLE : 'all'}, KL batch: ${KL_BATCH_SIZE}, KL accum: ${KL_ACCUM_STEPS}`);
+console.log(`    KL subsample: ${KL_SUBSAMPLE > 0 ? KL_SUBSAMPLE : 'all'}, KL batch: ${KL_BATCH_SIZE}, KL accum: ${KL_ACCUM_STEPS}, KL isolate K-head: ${KL_ISOLATE_KHEAD}`);
 console.log(`    Eval every: ${EVAL_EVERY}\n`);
 
 // ---- Load dataset ----
@@ -767,6 +769,38 @@ function serializeParams() {
 console.log(`\n${C.bold}${C.bgBlue} SHGAT-TF Training ${C.reset} ${EPOCHS} epochs\n`);
 const trainingStartMs = Date.now();
 let bestHit1 = 0, bestMRR = 0, bestEpoch = 0;
+
+/** Per-epoch log for report JSON */
+interface EpochLogEntry {
+  epoch: number;
+  lr: number;
+  tau: number;
+  klWeight: number;
+  infoLoss: number;
+  hierLoss: number;
+  klLoss: number;
+  trainAcc: number;
+  testHit1: number;
+  testHit3: number;
+  testHit5: number;
+  testMRR: number;
+  testNDCG5: number;
+  hierR1: number;
+  orphR1: number;
+  gradNorm: number;
+  weightNormIntent: number;
+  weightNormWq: number;
+  weightNormWk: number;
+  mpDeltaHier: number;
+  mpDeltaOrph: number;
+  silhouette: number;
+  scoreMean: number;
+  scoreStd: number;
+  top1ModeCount: number;  // how many test examples map to the single most predicted tool
+  top1UniqueTools: number;  // number of distinct tools in top-1 predictions
+  durationMs: number;
+}
+const epochLog: EpochLogEntry[] = [];
 
 /** Epoch durations for ETA calculation */
 const epochDurationsMs: number[] = [];
@@ -1329,30 +1363,27 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
           }
 
           // Weight gradient: dW_q[h] += dQ_batch^T @ intentProjBatch
-          //   transpose(dQ_batch) is [headDim, T], intentProjBatch is [T, embDim]
-          //   result: [headDim, embDim]
-          // Uses matmulTranspose(A, B) = A @ B^T, so we need:
-          //   matmulTranspose(intentProjBatch, dQ_batch)^T
-          // But that gives [T, T]. Wrong approach.
-          //
-          // Correct: matmul(transpose(dQ_batch), intentProjBatch)
-          //   = [headDim, T] @ [T, embDim] = [headDim, embDim]
-          // This hits BLAS when T >= 10 (which it always is, T~768).
-          const dQ_T = math.transpose(dQ_batch);      // [headDim, T]
-          const dK_T = math.transpose(dK_batch);      // [headDim, T]
+          // dW_k[h] += dK_batch^T @ nodeEmbBatch
+          // When KL_ISOLATE_KHEAD=true, skip W_q/W_k weight updates from KL.
+          // This prevents KL's "smooth distribution" gradient from polluting
+          // the scoring heads, while still allowing gradient flow to W_intent
+          // and MP weights via the input gradients below.
+          if (!KL_ISOLATE_KHEAD) {
+            const dQ_T = math.transpose(dQ_batch);      // [headDim, T]
+            const dK_T = math.transpose(dK_batch);      // [headDim, T]
 
-          const dWq_h = math.matmul(dQ_T, intentProjBatch); // [headDim, embDim]
-          const dWk_h = math.matmul(dK_T, nodeEmbBatch);    // [headDim, embDim]
+            const dWq_h = math.matmul(dQ_T, intentProjBatch); // [headDim, embDim]
+            const dWk_h = math.matmul(dK_T, nodeEmbBatch);    // [headDim, embDim]
 
-          // Add to gradient accumulators in-place
-          const gradDWq = grads.khead.dW_q[h];
-          const gradDWk = grads.khead.dW_k[h];
-          for (let r = 0; r < headDim; r++) {
-            const gqr = gradDWq[r], dqr = dWq_h[r];
-            const gkr = gradDWk[r], dkr = dWk_h[r];
-            for (let c = 0; c < embDim; c++) {
-              gqr[c] += dqr[c];
-              gkr[c] += dkr[c];
+            const gradDWq = grads.khead.dW_q[h];
+            const gradDWk = grads.khead.dW_k[h];
+            for (let r = 0; r < headDim; r++) {
+              const gqr = gradDWq[r], dqr = dWq_h[r];
+              const gkr = gradDWk[r], dkr = dWk_h[r];
+              for (let c = 0; c < embDim; c++) {
+                gqr[c] += dqr[c];
+                gkr[c] += dkr[c];
+              }
             }
           }
 
@@ -1421,9 +1452,11 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
         // Normalize accumulated gradients by number of accumulated batches
         if (accumCount > 1) {
           const invAccum = 1 / accumCount;
-          for (let h = 0; h < NUM_HEADS; h++) {
-            for (const row of grads.khead.dW_q[h]) for (let d = 0; d < row.length; d++) row[d] *= invAccum;
-            for (const row of grads.khead.dW_k[h]) for (let d = 0; d < row.length; d++) row[d] *= invAccum;
+          if (!KL_ISOLATE_KHEAD) {
+            for (let h = 0; h < NUM_HEADS; h++) {
+              for (const row of grads.khead.dW_q[h]) for (let d = 0; d < row.length; d++) row[d] *= invAccum;
+              for (const row of grads.khead.dW_k[h]) for (let d = 0; d < row.length; d++) row[d] *= invAccum;
+            }
           }
           for (const row of grads.dW_intent) for (let d = 0; d < row.length; d++) row[d] *= invAccum;
         }
@@ -1433,10 +1466,12 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
         epochGradNormSqSum += klGN.total * klGN.total;
         epochGradBatches++;
 
-        // Adam step: K-head + W_intent only (MP deferred)
-        for (let h = 0; h < NUM_HEADS; h++) {
-          adam.step(`W_q_${h}`, headParams[h].W_q, grads.khead.dW_q[h]);
-          adam.step(`W_k_${h}`, headParams[h].W_k, grads.khead.dW_k[h]);
+        // Adam step: W_intent always; W_q/W_k only if KL is allowed to update them
+        if (!KL_ISOLATE_KHEAD) {
+          for (let h = 0; h < NUM_HEADS; h++) {
+            adam.step(`W_q_${h}`, headParams[h].W_q, grads.khead.dW_q[h]);
+            adam.step(`W_k_${h}`, headParams[h].W_k, grads.khead.dW_k[h]);
+          }
         }
         adam.step("W_intent", W_intent, grads.dW_intent);
 
@@ -1566,6 +1601,11 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     const scale = 1.0 / Math.sqrt(config.headDim);
     let validCount = 0;
 
+    // Extended metrics accumulators
+    let ndcg5Sum = 0;
+    let scoreMeanSum = 0, scoreVarSum = 0;
+    const top1Predictions = new Map<number, number>(); // l0Idx → count
+
     for (const ex of testSample) {
       const intentProjected = math.matVecBlas(W_intent, ex.intentEmbedding);
       const targetIdx = graph.l0Ids.indexOf(ex.targetToolId);
@@ -1602,6 +1642,24 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       if (rank <= 5) hit5++;
       rr += 1 / rank;
 
+      // NDCG@5: DCG = 1/log2(rank+1) if rank<=5, IDCG = 1/log2(2) = 1.0
+      if (rank <= 5) ndcg5Sum += 1.0 / Math.log2(rank + 1);
+
+      // Score distribution stats (collect mean/variance online)
+      let sMean = 0;
+      for (let i = 0; i < numL0; i++) sMean += scores[i];
+      sMean /= numL0;
+      let sVar = 0;
+      for (let i = 0; i < numL0; i++) { const d = scores[i] - sMean; sVar += d * d; }
+      sVar /= numL0;
+      scoreMeanSum += sMean;
+      scoreVarSum += sVar;
+
+      // Mode collapse detection: track top-1 predicted tool
+      let top1Idx = 0;
+      for (let i = 1; i < numL0; i++) { if (scores[i] > scores[top1Idx]) top1Idx = i; }
+      top1Predictions.set(top1Idx, (top1Predictions.get(top1Idx) || 0) + 1);
+
       // Track R@1 by hierarchy status
       const hasAnc = graph.l0Ancestors[targetIdx] && graph.l0Ancestors[targetIdx].size > 0;
       if (hasAnc) { hierTotal++; if (rank <= 1) hierHit1++; }
@@ -1613,6 +1671,15 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     testHit3 = hit3 / count;
     testHit5 = hit5 / count;
     testMRR = rr / count;
+    const testNDCG5 = ndcg5Sum / count;
+    const avgScoreMean = scoreMeanSum / count;
+    const avgScoreStd = Math.sqrt(scoreVarSum / count);
+
+    // Mode collapse: most predicted tool + unique count
+    let top1ModeCount = 0;
+    let top1ModeToolIdx = -1;
+    top1Predictions.forEach((cnt, idx) => { if (cnt > top1ModeCount) { top1ModeCount = cnt; top1ModeToolIdx = idx; } });
+    const top1UniqueTools = top1Predictions.size;
 
     const isNewBest = testHit1 > bestHit1;
     if (isNewBest) { bestHit1 = testHit1; bestEpoch = epoch + 1; }
@@ -1624,14 +1691,23 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       `  ${C.blue}📊 EVAL${C.reset} ` +
       `${r1Color}R@1=${(testHit1 * 100).toFixed(1)}%${C.reset} ` +
       `R@3=${(testHit3 * 100).toFixed(1)}% R@5=${(testHit5 * 100).toFixed(1)}% ` +
-      `MRR=${testMRR.toFixed(3)} ${C.dim}(${validCount} test, ${formatDuration(evalMs)})${C.reset}`,
+      `MRR=${testMRR.toFixed(3)} NDCG@5=${testNDCG5.toFixed(3)} ${C.dim}(${validCount} test, ${formatDuration(evalMs)})${C.reset}`,
     );
     console.log(
       `  ${C.dim}   Best R@1=${(bestHit1 * 100).toFixed(1)}% MRR=${bestMRR.toFixed(3)} (epoch ${bestEpoch})${C.reset}`,
     );
+    // Score distribution + mode collapse
+    const modeToolName = top1ModeToolIdx >= 0 ? graph.l0Ids[top1ModeToolIdx] : "?";
+    const collapseWarning = top1ModeCount > validCount * 0.3 ? ` ${C.red}⚠ MODE COLLAPSE${C.reset}` : "";
+    console.log(
+      `  ${C.dim}   Scores: μ=${avgScoreMean.toFixed(4)} σ=${avgScoreStd.toFixed(4)} | ` +
+      `Top-1 mode: ${modeToolName} (${top1ModeCount}/${validCount}=${(top1ModeCount / validCount * 100).toFixed(0)}%), ` +
+      `${top1UniqueTools} unique tools${C.reset}${collapseWarning}`,
+    );
 
     // ---- Metric 1: MP delta norm (H_final vs H_init) ----
     // How much did MP change embeddings? Split by hierarchical vs orphan.
+    let evalMpDeltaHier = 0, evalMpDeltaOrph = 0;
     {
       let hierDeltaSum = 0, hierCount = 0;
       let orphDeltaSum = 0, orphCount = 0;
@@ -1649,6 +1725,8 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       }
       const hierAvg = hierCount > 0 ? hierDeltaSum / hierCount : 0;
       const orphAvg = orphCount > 0 ? orphDeltaSum / orphCount : 0;
+      evalMpDeltaHier = hierAvg;
+      evalMpDeltaOrph = orphAvg;
       console.log(
         `  ${C.dim}   MP Δ: hier=${hierAvg.toFixed(4)} (${hierCount}) orph=${orphAvg.toFixed(4)} (${orphCount})${C.reset}`,
       );
@@ -1666,6 +1744,7 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
     // ---- Metric 3: Silhouette intra-capability ----
     // For L0 tools with L1 ancestors: avg cosine sim to siblings under same cap
     // vs avg cosine sim to random tools from other caps.
+    let evalSilhouette = 0;
     {
       const cosine = math.cosineSimilarity;
       // Group hierarchical L0 by their first L1 ancestor
@@ -1714,10 +1793,66 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       const totalInter = multiGroups.reduce((s, g) => s + g.length, 0);
       const avgInter = totalInter > 0 ? interSim / totalInter : 0;
       const silhouette = avgIntra - avgInter; // higher = better clustering
+      evalSilhouette = silhouette;
       console.log(
         `  ${C.dim}   Silhouette: intra=${avgIntra.toFixed(4)} inter=${avgInter.toFixed(4)} ` +
         `Δ=${silhouette.toFixed(4)} (${nGroups} caps ≥2 tools)${C.reset}`,
       );
+    }
+
+    // ---- Metric 4: Weight norms (detect instability / explosion) ----
+    {
+      // W_intent: [embDim, embDim]
+      let wIntentNormSq = 0;
+      for (const row of W_intent) for (const v of row) wIntentNormSq += v * v;
+      const wIntentNorm = Math.sqrt(wIntentNormSq);
+
+      // W_q / W_k: average norm across heads
+      let wqNormSum = 0, wkNormSum = 0;
+      for (let h = 0; h < NUM_HEADS; h++) {
+        let qSq = 0, kSq = 0;
+        for (const row of headParams[h].W_q) for (const v of row) qSq += v * v;
+        for (const row of headParams[h].W_k) for (const v of row) kSq += v * v;
+        wqNormSum += Math.sqrt(qSq);
+        wkNormSum += Math.sqrt(kSq);
+      }
+      const wqNorm = wqNormSum / NUM_HEADS;
+      const wkNorm = wkNormSum / NUM_HEADS;
+
+      console.log(
+        `  ${C.dim}   Weights: |W_intent|=${wIntentNorm.toFixed(2)} |W_q|=${wqNorm.toFixed(2)} |W_k|=${wkNorm.toFixed(2)}${C.reset}`,
+      );
+
+      // ---- Build epoch log entry ----
+      epochLog.push({
+        epoch: epoch + 1,
+        lr: epochLR,
+        tau,
+        klWeight,
+        infoLoss,
+        hierLoss,
+        klLoss,
+        trainAcc: epochAcc,
+        testHit1: testHit1 * 100,
+        testHit3: testHit3 * 100,
+        testHit5: testHit5 * 100,
+        testMRR,
+        testNDCG5,
+        hierR1: hierTotal > 0 ? hierHit1 / hierTotal * 100 : 0,
+        orphR1: orphTotal > 0 ? orphHit1 / orphTotal * 100 : 0,
+        gradNorm: epochGradNorm,
+        weightNormIntent: wIntentNorm,
+        weightNormWq: wqNorm,
+        weightNormWk: wkNorm,
+        mpDeltaHier: evalMpDeltaHier,
+        mpDeltaOrph: evalMpDeltaOrph,
+        silhouette: evalSilhouette,
+        scoreMean: avgScoreMean,
+        scoreStd: avgScoreStd,
+        top1ModeCount,
+        top1UniqueTools,
+        durationMs: elapsedMs,
+      });
     }
 
     // Save best model checkpoint (overwrite previous best)
@@ -1726,6 +1861,79 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
       Deno.writeTextFileSync(bestPath, JSON.stringify(serializeParams()));
       console.log(`  ${C.green}💾 Best model saved${C.reset} ${C.dim}→ ${bestPath}${C.reset}`);
     }
+  } else {
+    // Non-eval epoch: still log loss/grad data
+    epochLog.push({
+      epoch: epoch + 1, lr: epochLR, tau, klWeight,
+      infoLoss, hierLoss, klLoss, trainAcc: epochAcc,
+      testHit1: -1, testHit3: -1, testHit5: -1, testMRR: -1, testNDCG5: -1,
+      hierR1: -1, orphR1: -1, gradNorm: epochGradNorm,
+      weightNormIntent: 0, weightNormWq: 0, weightNormWk: 0,
+      mpDeltaHier: 0, mpDeltaOrph: 0, silhouette: 0,
+      scoreMean: 0, scoreStd: 0, top1ModeCount: 0, top1UniqueTools: 0,
+      durationMs: elapsedMs,
+    });
+  }
+
+  // ---- MP Health Metrics (every epoch) ----
+  // Track gradient signal reaching MP and MP param magnitudes
+  {
+    // dH norm: how much gradient signal flows FROM scoring heads TO MP
+    let dhNormSq = 0;
+    for (const row of _epochDH) for (const v of row) dhNormSq += v * v;
+    const dhNorm = Math.sqrt(dhNormSq);
+
+    // dE norm per level: gradient signal from HIER contrastive
+    const deNorms: string[] = [];
+    _epochDE.forEach((rows, level) => {
+      let normSq = 0;
+      for (const row of rows) for (const v of row) normSq += v * v;
+      deNorms.push(`L${level}=${Math.sqrt(normSq).toExponential(2)}`);
+    });
+
+    // MP param norms per level
+    const mpParamNorms: string[] = [];
+    for (const [level, lp] of levelParams) {
+      let wcSq = 0, wpSq = 0;
+      for (let h = 0; h < NUM_HEADS; h++) {
+        for (const row of lp.W_child[h]) for (const v of row) wcSq += v * v;
+        for (const row of lp.W_parent[h]) for (const v of row) wpSq += v * v;
+      }
+      let aUpSq = 0;
+      for (const row of lp.a_upward) for (const v of row) aUpSq += v * v;
+      const aUpNorm = Math.sqrt(aUpSq);
+      let aDownSq = 0;
+      for (const row of lp.a_downward) for (const v of row) aDownSq += v * v;
+      const aDownNorm = Math.sqrt(aDownSq);
+      mpParamNorms.push(
+        `L${level}:|Wc|=${Math.sqrt(wcSq / NUM_HEADS).toFixed(2)} |Wp|=${Math.sqrt(wpSq / NUM_HEADS).toFixed(2)} ` +
+        `|a↑|=${aUpNorm.toFixed(3)} |a↓|=${aDownNorm.toFixed(3)}`
+      );
+    }
+
+    // H_final norm stats (are embeddings collapsing or exploding?)
+    const hNorms: number[] = [];
+    for (let i = 0; i < graph.l0Ids.length; i++) {
+      let sq = 0;
+      const hf = H_final[i];
+      for (let d = 0; d < hf.length; d++) sq += hf[d] * hf[d];
+      hNorms.push(Math.sqrt(sq));
+    }
+    hNorms.sort((a, b) => a - b);
+    const hMin = hNorms[0];
+    const hMedian = hNorms[Math.floor(hNorms.length / 2)];
+    const hMax = hNorms[hNorms.length - 1];
+    const hMean = hNorms.reduce((s, v) => s + v, 0) / hNorms.length;
+
+    console.log(
+      `  ${C.cyan}MP health${C.reset} ${C.dim}|dH|=${dhNorm.toExponential(2)} |dE|=[${deNorms.join(",")}]${C.reset}`
+    );
+    console.log(
+      `  ${C.dim}   ${mpParamNorms.join("  ")}${C.reset}`
+    );
+    console.log(
+      `  ${C.dim}   H_final norms: min=${hMin.toFixed(3)} med=${hMedian.toFixed(3)} mean=${hMean.toFixed(3)} max=${hMax.toFixed(3)}${C.reset}`
+    );
   }
 }
 
@@ -1750,9 +1958,10 @@ console.log(`Params (best R@1)   \u2192 ${resolve(GRU_DATA_DIR, "shgat-params-ob
 const report = {
   timestamp: new Date().toISOString(),
   mode: "ob-manual-backward",
-  config: { EPOCHS, BATCH_SIZE, KL_BATCH_SIZE, KL_ACCUM_STEPS, LEARNING_RATE, LR_WARMUP, TAU_START, TAU_END, SEED, USE_KL, KL_WARMUP, KL_WEIGHT_PLATEAU, MP_LR_SCALE },
+  config: { EPOCHS, BATCH_SIZE, KL_BATCH_SIZE, KL_ACCUM_STEPS, LEARNING_RATE, LR_WARMUP, TAU_START, TAU_END, SEED, USE_KL, KL_WARMUP, KL_WEIGHT_PLATEAU, KL_ISOLATE_KHEAD, MP_LR_SCALE, EVAL_EVERY, NUM_HEADS, HEAD_DIM },
   dataset: { nodes: ds.nodes.length, leaves: ds.leafIds.length, embDim: ds.embeddingDim, prodTrain: ds.prodTrain.length, prodTest: ds.prodTest.length, n8nTrain: ds.n8nTrain.length, n8nEval: ds.n8nEval.length },
   results: { bestHit1, bestMRR, bestEpoch, totalTimeSec: +(totalMs / 1000).toFixed(1), peakRssMB: Math.round(Deno.memoryUsage().rss / 1024 / 1024) },
+  epochLog,
 };
 const reportPath = resolve(GRU_DATA_DIR, `shgat-training-report-ob-${runId}.json`);
 Deno.writeTextFileSync(reportPath, JSON.stringify(report, null, 2));
