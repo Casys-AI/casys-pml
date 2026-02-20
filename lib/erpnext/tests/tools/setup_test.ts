@@ -57,7 +57,7 @@ Deno.test("erpnext_company_list - returns formatted result with _meta.ui", async
 
   assertEquals(result.count, 1);
   assertEquals((result.data as unknown[]).length, 1);
-  assertEquals((result._meta as { ui: string }).ui, "doclist-viewer");
+  assertEquals((result._meta as { ui: { resourceUri: string } }).ui.resourceUri, "ui://mcp-erpnext/doclist-viewer");
 });
 
 Deno.test("erpnext_company_list - has _meta.ui on tool definition", () => {

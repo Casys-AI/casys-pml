@@ -7,10 +7,17 @@
  * @module lib/erpnext/src/ui/doclist-viewer
  */
 
-import { useState, useMemo, useCallback, CSSProperties } from "react";
-import { McpDataLoader } from "~/shared/McpDataLoader";
+import { useState, useEffect, useMemo, useCallback, CSSProperties } from "react";
+import { App } from "@modelcontextprotocol/ext-apps";
 import { colors, fonts, styles, formatNumber } from "~/shared/theme";
 import { ErpNextBrandHeader, ErpNextBrandFooter } from "~/shared/ErpNextBrand";
+
+// ============================================================================
+// MCP App
+// ============================================================================
+
+const app = new App({ name: "Doclist Viewer", version: "1.0.0" });
+let appConnected = false;
 
 // ============================================================================
 // Types
@@ -48,6 +55,38 @@ function StatusCell({ value }: { value: string }) {
   const scheme = DOC_STATUS[value];
   if (!scheme) return <span>{value}</span>;
   return <span style={styles.badge(scheme.color, scheme.bg)}>{value}</span>;
+}
+
+// ============================================================================
+// Loading Skeleton
+// ============================================================================
+
+function LoadingSkeleton() {
+  return (
+    <div style={{ padding: 24 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="skeleton"
+            style={{
+              height: i === 1 ? 32 : 20,
+              width: i === 1 ? "40%" : `${60 + i * 8}%`,
+            }}
+          />
+        ))}
+        <div style={{ marginTop: 8 }}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="skeleton"
+              style={{ height: 36, marginBottom: 2 }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ============================================================================
@@ -119,13 +158,34 @@ function exportCsv(columns: string[], rows: Record<string, unknown>[], doctype?:
 // ============================================================================
 
 export function DoclistViewer() {
+  const [data, setData] = useState<DoclistData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    app.connect().then(() => { appConnected = true; }).catch(() => {});
+
+    app.ontoolresult = (result: { content?: Array<{ type: string; text?: string }> }) => {
+      setLoading(false);
+      const text = result.content?.find((c) => c.type === "text")?.text;
+      if (text) {
+        try { setData(JSON.parse(text)); } catch (e) { console.error("Parse error:", e); }
+      }
+    };
+
+    app.ontoolinputpartial = () => setLoading(true);
+  }, []);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ErpNextBrandHeader />
       <div style={{ flex: 1 }}>
-        <McpDataLoader<DoclistData> empty={<DoclistEmptyState />}>
-          {(data) => <DoclistContent data={data} />}
-        </McpDataLoader>
+        {loading ? (
+          <LoadingSkeleton />
+        ) : !data ? (
+          <DoclistEmptyState />
+        ) : (
+          <DoclistContent data={data} />
+        )}
       </div>
       <ErpNextBrandFooter />
     </div>
@@ -208,7 +268,7 @@ function DoclistContent({ data }: { data: DoclistData }) {
   }, []);
 
   return (
-    <div style={{ padding: 16, fontFamily: fonts.sans }} className="animate-fade-in">
+    <div style={{ padding: 16, fontFamily: fonts.sans }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
         <div>

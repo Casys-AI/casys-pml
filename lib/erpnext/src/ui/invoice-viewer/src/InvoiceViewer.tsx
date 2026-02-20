@@ -7,10 +7,18 @@
  * @module lib/erpnext/src/ui/invoice-viewer
  */
 
-import { McpDataLoader } from "~/shared/McpDataLoader";
+import { useState, useEffect } from "react";
+import { App } from "@modelcontextprotocol/ext-apps";
 import { colors, fonts, styles, formatCurrency } from "~/shared/theme";
 import { ErpNextBrandHeader, ErpNextBrandFooter } from "~/shared/ErpNextBrand";
 import { CSSProperties } from "react";
+
+// ============================================================================
+// MCP App
+// ============================================================================
+
+const app = new App({ name: "Invoice Viewer", version: "1.0.0" });
+let appConnected = false;
 
 // ============================================================================
 // Types
@@ -64,6 +72,38 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ============================================================================
+// Loading Skeleton
+// ============================================================================
+
+function LoadingSkeleton() {
+  return (
+    <div style={{ padding: 24 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="skeleton"
+            style={{
+              height: i === 1 ? 32 : 20,
+              width: i === 1 ? "40%" : `${60 + i * 8}%`,
+            }}
+          />
+        ))}
+        <div style={{ marginTop: 8 }}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="skeleton"
+              style={{ height: 36, marginBottom: 2 }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Empty State (invoice-specific)
 // ============================================================================
 
@@ -94,13 +134,34 @@ function InvoiceEmptyState() {
 // ============================================================================
 
 export function InvoiceViewer() {
+  const [data, setData] = useState<InvoiceData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    app.connect().then(() => { appConnected = true; }).catch(() => {});
+
+    app.ontoolresult = (result: { content?: Array<{ type: string; text?: string }> }) => {
+      setLoading(false);
+      const text = result.content?.find((c) => c.type === "text")?.text;
+      if (text) {
+        try { setData(JSON.parse(text)); } catch (e) { console.error("Parse error:", e); }
+      }
+    };
+
+    app.ontoolinputpartial = () => setLoading(true);
+  }, []);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ErpNextBrandHeader />
       <div style={{ flex: 1 }}>
-        <McpDataLoader<InvoiceData> empty={<InvoiceEmptyState />}>
-          {(data) => <InvoiceContent data={data} />}
-        </McpDataLoader>
+        {loading ? (
+          <LoadingSkeleton />
+        ) : !data ? (
+          <InvoiceEmptyState />
+        ) : (
+          <InvoiceContent data={data} />
+        )}
       </div>
       <ErpNextBrandFooter />
     </div>
@@ -118,7 +179,7 @@ function InvoiceContent({ data }: { data: InvoiceData }) {
   const taxes = data.total_taxes_and_charges ?? (data.grand_total - netTotal);
 
   return (
-    <div style={{ padding: 16, fontFamily: fonts.sans, maxWidth: 720 }} className="animate-fade-in">
+    <div style={{ padding: 16, fontFamily: fonts.sans, maxWidth: 720 }}>
       {/* Header */}
       <div style={{
         display: "flex", justifyContent: "space-between", alignItems: "flex-start",

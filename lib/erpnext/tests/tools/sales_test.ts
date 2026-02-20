@@ -61,7 +61,7 @@ Deno.test("erpnext_customer_list - returns formatted result", async () => {
 
   assertEquals(result.count, 2);
   assertEquals((result.data as unknown[]).length, 2);
-  assertEquals((result._meta as { ui: string }).ui, "doclist-viewer");
+  assertEquals((result._meta as { ui: { resourceUri: string } }).ui.resourceUri, "ui://mcp-erpnext/doclist-viewer");
 });
 
 Deno.test("erpnext_customer_list - passes limit parameter", async () => {
@@ -193,6 +193,6 @@ Deno.test("erpnext_sales_invoice_list - returns invoices with _meta.ui", async (
   const result = await tool.handler({}, makeCtx(mockClient)) as Record<string, unknown>;
 
   assertEquals(result.count, 1);
-  // Sales invoices list uses invoice viewer (shows invoice-specific columns)
-  assertEquals(typeof (result._meta as { ui: string }).ui, "string");
+  // Sales invoices list uses doclist viewer
+  assertEquals((result._meta as { ui: { resourceUri: string } }).ui.resourceUri, "ui://mcp-erpnext/doclist-viewer");
 });

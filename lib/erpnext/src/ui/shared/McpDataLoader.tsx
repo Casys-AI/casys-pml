@@ -34,16 +34,71 @@ export function McpDataLoader<T>({ children, empty }: McpDataLoaderProps<T>) {
       return;
     }
 
-    // Listen for postMessage
+    // Listen for postMessage (MCP Apps JSON-RPC protocol + legacy)
+    let mcpInitialized = false;
+
     function handleMessage(event: MessageEvent) {
-      if (event.data && typeof event.data === "object") {
-        const payload = event.data.mcpData ?? event.data;
-        setData(payload as T);
-        setLoading(false);
+      if (!event.data || typeof event.data !== "object") return;
+      const msg = event.data;
+
+      // MCP Apps JSON-RPC protocol
+      if (msg.jsonrpc === "2.0") {
+        // Response to our ui/initialize request
+        if (msg.id === "mcp-init" && msg.result) {
+          // Send initialized notification → host will send tool-input + tool-result
+          window.parent.postMessage(
+            { jsonrpc: "2.0", method: "ui/notifications/initialized" },
+            "*"
+          );
+          mcpInitialized = true;
+          return;
+        }
+
+        // tool-result: extract data from content[0].text
+        if (msg.method === "ui/notifications/tool-result") {
+          const textContent = msg.params?.content?.find(
+            (c: { type: string; text?: string }) => c.type === "text"
+          );
+          if (textContent?.text) {
+            try {
+              setData(JSON.parse(textContent.text) as T);
+              setLoading(false);
+            } catch {
+              console.error("[McpDataLoader] Failed to parse tool-result text");
+            }
+          }
+          return;
+        }
+
+        // tool-input: ignore (we only care about result)
+        if (msg.method === "ui/notifications/tool-input") return;
+
+        return;
       }
+
+      // Legacy: direct mcpData or raw object
+      const payload = msg.mcpData ?? msg;
+      setData(payload as T);
+      setLoading(false);
     }
 
     window.addEventListener("message", handleMessage);
+
+    // Initiate MCP Apps handshake if inside iframe
+    if (window.parent !== window) {
+      window.parent.postMessage(
+        {
+          jsonrpc: "2.0",
+          id: "mcp-init",
+          method: "ui/initialize",
+          params: {
+            clientInfo: { name: "ERPNext Viewer", version: "1.0.0" },
+            capabilities: {},
+          },
+        },
+        "*"
+      );
+    }
 
     // Timeout: stop loading after 10s
     const timer = setTimeout(() => setLoading(false), 10_000);

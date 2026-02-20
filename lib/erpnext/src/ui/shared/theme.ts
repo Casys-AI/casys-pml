@@ -1,32 +1,51 @@
 /**
- * ERPNext UI Theme — CSS-in-JS style objects
+ * ERPNext UI Theme — CSS-in-JS style objects using CSS custom properties
  *
- * Provides reusable style fragments for consistent look
- * across all ERPNext MCP Apps viewers.
+ * All colors reference CSS variables defined in global.css,
+ * which automatically switch between light and dark mode
+ * via @media (prefers-color-scheme).
+ *
+ * For inline styles (CSSProperties), use `cssVar()` helper.
  */
 
 import { CSSProperties } from "react";
 
+/** Read a CSS custom property at runtime */
+function cssVar(name: string): string {
+  return `var(${name})`;
+}
+
 export const colors = {
-  bg: { root: "#08080a", surface: "#111113", elevated: "#18181b", hover: "#1f1f23", active: "#27272a" },
-  text: { primary: "#e7e5e4", secondary: "#a8a29e", muted: "#78716c", faint: "#57534e" },
-  accent: "#0089FF",
-  accentDim: "rgba(0,137,255,0.15)",
-  border: "#27272a",
-  borderSubtle: "#1f1f23",
-  success: "#4ade80",
-  successDim: "rgba(74,222,128,0.12)",
-  error: "#f87171",
-  errorDim: "rgba(248,113,113,0.12)",
-  warning: "#fbbf24",
-  warningDim: "rgba(251,191,36,0.12)",
-  info: "#60a5fa",
-  infoDim: "rgba(96,165,250,0.12)",
+  bg: {
+    root: cssVar("--bg-root"),
+    surface: cssVar("--bg-surface"),
+    elevated: cssVar("--bg-elevated"),
+    hover: cssVar("--bg-hover"),
+    active: cssVar("--bg-active"),
+  },
+  text: {
+    primary: cssVar("--text-primary"),
+    secondary: cssVar("--text-secondary"),
+    muted: cssVar("--text-muted"),
+    faint: cssVar("--text-faint"),
+  },
+  accent: cssVar("--accent"),
+  accentDim: cssVar("--accent-dim"),
+  border: cssVar("--border"),
+  borderSubtle: cssVar("--border-subtle"),
+  success: cssVar("--success"),
+  successDim: cssVar("--success-dim"),
+  error: cssVar("--error"),
+  errorDim: cssVar("--error-dim"),
+  warning: cssVar("--warning"),
+  warningDim: cssVar("--warning-dim"),
+  info: cssVar("--info"),
+  infoDim: cssVar("--info-dim"),
 } as const;
 
 export const fonts = {
-  sans: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-  mono: "'SF Mono', 'Cascadia Code', 'Fira Code', monospace",
+  sans: cssVar("--font-sans"),
+  mono: cssVar("--font-mono"),
 } as const;
 
 // Reusable style fragments
