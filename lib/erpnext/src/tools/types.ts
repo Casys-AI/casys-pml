@@ -22,7 +22,8 @@ export type ErpNextToolCategory =
   | "manufacturing"
   | "crm"
   | "assets"
-  | "setup";
+  | "setup"
+  | "analytics";
 
 /** JSON Schema for tool inputs (MCP wire format) */
 export type JSONSchema = {

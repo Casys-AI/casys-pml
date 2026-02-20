@@ -41,6 +41,8 @@ const UI_VIEWERS = [
   "invoice-viewer",
   "stock-viewer",
   "doclist-viewer",
+  "order-pipeline-viewer",
+  "chart-viewer",
 ];
 
 async function main() {
