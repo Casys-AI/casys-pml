@@ -26,6 +26,7 @@ import type {
   FrappeListResponse,
   FrappeMethodResponse,
 } from "./types.ts";
+import { env } from "../runtime.ts";
 
 export interface FrappeClientConfig {
   /** ERPNext base URL, e.g. http://localhost:8000 */
@@ -259,9 +260,9 @@ let _client: FrappeClient | null = null;
 export function getFrappeClient(): FrappeClient {
   if (_client) return _client;
 
-  const url = Deno.env.get("ERPNEXT_URL");
-  const apiKey = Deno.env.get("ERPNEXT_API_KEY");
-  const apiSecret = Deno.env.get("ERPNEXT_API_SECRET");
+  const url = env("ERPNEXT_URL");
+  const apiKey = env("ERPNEXT_API_KEY");
+  const apiSecret = env("ERPNEXT_API_SECRET");
 
   if (!url) {
     throw new Error(

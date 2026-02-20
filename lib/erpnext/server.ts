@@ -33,6 +33,13 @@
 
 import { ConcurrentMCPServer, MCP_APP_MIME_TYPE } from "@casys/mcp-server";
 import { ErpNextToolsClient } from "./src/client.ts";
+import {
+  getArgs,
+  statSync,
+  readTextFile,
+  onSignal,
+  exit,
+} from "./src/runtime.ts";
 
 const DEFAULT_HTTP_PORT = 3012;
 
@@ -43,10 +50,12 @@ const UI_VIEWERS = [
   "doclist-viewer",
   "order-pipeline-viewer",
   "chart-viewer",
+  "kpi-viewer",
+  "funnel-viewer",
 ];
 
 async function main() {
-  const args = Deno.args;
+  const args = getArgs();
 
   // Category filtering
   const categoriesArg = args.find((arg) => arg.startsWith("--categories="));
@@ -95,8 +104,7 @@ async function main() {
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
 
-    try {
-      Deno.statSync(distPath);
+    if (statSync(distPath)) {
       server.registerResource(
         {
           uri: resourceUri,
@@ -105,12 +113,12 @@ async function main() {
           mimeType: MCP_APP_MIME_TYPE,
         },
         async () => {
-          const html = await Deno.readTextFile(distPath);
+          const html = await readTextFile(distPath);
           return { uri: resourceUri, mimeType: MCP_APP_MIME_TYPE, text: html };
         },
       );
       console.error(`[mcp-erpnext] Registered UI resource: ${resourceUri}`);
-    } catch {
+    } else {
       console.error(
         `[mcp-erpnext] Warning: UI not built for ${resourceUri}. ` +
           `Run 'cd lib/erpnext/src/ui && node build-all.mjs' first.`,
@@ -137,9 +145,9 @@ async function main() {
       },
     });
 
-    Deno.addSignalListener("SIGINT", () => {
+    onSignal("SIGINT", () => {
       console.error("[mcp-erpnext] Shutting down...");
-      Deno.exit(0);
+      exit(0);
     });
   } else {
     await server.start();
@@ -149,5 +157,5 @@ async function main() {
 
 main().catch((err) => {
   console.error("[mcp-erpnext] Fatal error:", err);
-  Deno.exit(1);
+  exit(1);
 });

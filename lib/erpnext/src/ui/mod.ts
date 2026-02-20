@@ -9,6 +9,8 @@
  * @module lib/erpnext/src/ui
  */
 
+import { statSync, readDirSync, readTextFile } from "../runtime.ts";
+
 /**
  * Metadata for UI resources
  */
@@ -29,24 +31,17 @@ function discoverUiResources(): Record<string, UIResourceMeta> {
   const distPath = new URL("./dist", import.meta.url).pathname;
 
   try {
-    for (const entry of Deno.readDirSync(distPath)) {
-      if (entry.isDirectory) {
-        const uiName = entry.name;
-
-        try {
-          Deno.statSync(`${distPath}/${uiName}/index.html`);
-          const meta: UIResourceMeta = {
-            name: uiName
-              .split("-")
-              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-              .join(" "),
-            description: `ERPNext UI: ${uiName}`,
-            tools: [],
-          };
-          resources[`ui://${UI_NAMESPACE}/${uiName}`] = meta;
-        } catch {
-          // No index.html in directory, skip
-        }
+    for (const uiName of readDirSync(distPath)) {
+      if (statSync(`${distPath}/${uiName}/index.html`)) {
+        const meta: UIResourceMeta = {
+          name: uiName
+            .split("-")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" "),
+          description: `ERPNext UI: ${uiName}`,
+          tools: [],
+        };
+        resources[`ui://${UI_NAMESPACE}/${uiName}`] = meta;
       }
     }
   } catch (e) {
@@ -77,7 +72,7 @@ export async function loadUiHtml(uri: string): Promise<string> {
   const uiPath = uriToPath(uri);
   if (uiPath) {
     try {
-      return await Deno.readTextFile(uiPath);
+      return await readTextFile(uiPath);
     } catch (e) {
       console.error(`[mcp-erpnext/ui] Failed to load UI from ${uiPath}:`, e);
     }
@@ -104,11 +99,8 @@ function uriToPath(uri: string): string | null {
   if (match) {
     const uiName = match[1];
     const distPath = new URL(`./dist/${uiName}/index.html`, import.meta.url).pathname;
-    try {
-      Deno.statSync(distPath);
+    if (statSync(distPath)) {
       return distPath;
-    } catch {
-      return null;
     }
   }
   return null;
