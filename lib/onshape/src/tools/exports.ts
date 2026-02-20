@@ -154,8 +154,9 @@ export const exportTools: OnshapeTool[] = [
     name: "onshape_export_gltf",
     _meta: { ui: { resourceUri: "ui://mcp-onshape/3d-viewer" } },
     description:
-      "Export a Part Studio to glTF format (synchronous). Returns the glTF JSON directly. " +
-      "Useful for 3D web viewers and AR/VR applications.",
+      "Export a Part Studio or Assembly to glTF format (synchronous). Returns the glTF JSON directly. " +
+      "Useful for 3D web viewers and AR/VR applications. " +
+      "Use source_type='assembly' for Assembly elements (default: 'partstudio').",
     category: "export",
     inputSchema: {
       type: "object",
@@ -168,9 +169,14 @@ export const exportTools: OnshapeTool[] = [
         },
         wvm_id: { type: "string", description: "Workspace, version, or microversion ID (24-char hex)" },
         eid: { type: "string", description: "Element ID (24-char hex)" },
+        source_type: {
+          type: "string",
+          description: "Source element type: 'partstudio' or 'assembly' (default 'partstudio')",
+          enum: ["partstudio", "assembly"],
+        },
         part_ids: {
           type: "string",
-          description: "Comma-separated part IDs to export (default: all parts)",
+          description: "Comma-separated part IDs to export (partstudio only, default: all parts)",
         },
       },
       required: ["did", "wvm_id", "eid"],
@@ -181,13 +187,15 @@ export const exportTools: OnshapeTool[] = [
       if (!input.eid) throw new Error("[onshape_export_gltf] 'eid' is required");
 
       const wvm = (input.wvm_type as string) ?? "w";
+      const sourceType = (input.source_type as string) ?? "partstudio";
+      const endpoint = sourceType === "assembly" ? "assemblies" : "partstudios";
 
       const query: Record<string, string | number | boolean | undefined> = {};
-      if (input.part_ids) query.partIds = input.part_ids as string;
+      if (input.part_ids && sourceType !== "assembly") query.partIds = input.part_ids as string;
 
-      const result = await ctx.client.get(
-        `/partstudios/d/${input.did as string}/${wvm}/${input.wvm_id as string}/e/${input.eid as string}/gltf`,
-        query,
+      const result = await ctx.client.request<unknown>("GET",
+        `/${endpoint}/d/${input.did as string}/${wvm}/${input.wvm_id as string}/e/${input.eid as string}/gltf`,
+        { query, accept: "model/gltf+json, */*" },
       );
 
       return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/3d-viewer" } } };

@@ -151,6 +151,8 @@ export class OnshapeClient {
       body?: unknown;
       query?: Record<string, string | number | boolean | undefined>;
       rawResponse?: boolean;
+      /** Override the Accept header (default: "application/json") */
+      accept?: string;
     },
   ): Promise<T> {
     // Build URL with query params
@@ -178,7 +180,7 @@ export class OnshapeClient {
     );
     const headers: Record<string, string> = {
       ...authHeaders,
-      Accept: "application/json",
+      Accept: options?.accept ?? "application/json",
     };
     if (hasBody) {
       headers["Content-Type"] = "application/json";
@@ -227,9 +229,9 @@ export class OnshapeClient {
     // Parse response
     let responseBody: unknown;
     const respContentType = response.headers.get("content-type") ?? "";
-    if (respContentType.includes("application/json")) {
+    if (respContentType.includes("application/json") || respContentType.includes("+json")) {
       responseBody = await response.json();
-    } else if (respContentType.includes("image/") || respContentType.includes("application/octet-stream")) {
+    } else if (respContentType.includes("image/") || respContentType.includes("application/octet-stream") || respContentType.includes("model/gltf-binary")) {
       // Binary response (thumbnails, exports)
       if (options?.rawResponse) {
         responseBody = await response.arrayBuffer();

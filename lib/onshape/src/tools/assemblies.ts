@@ -389,11 +389,30 @@ export const assemblyTools: OnshapeTool[] = [
         query.generateIfAbsent = input.generateIfAbsent as boolean;
       }
 
+      // deno-lint-ignore no-explicit-any
       const result = await ctx.client.get(
         `/assemblies/d/${did}/${wvmType}/${wvmId}/e/${eid}/bom`,
         query,
-      );
-      return { data: result, _meta: { ui: { resourceUri: "ui://mcp-onshape/bom-viewer" } } };
+      ) as Record<string, any>;
+
+      // Trim to viewer-relevant fields only (raw API is ~128KB with verbose metadata)
+      // Keep all headers so the viewer can pick columns that have actual data (Name is often visible:false but contains part names)
+      // deno-lint-ignore no-explicit-any
+      const headers: any[] = result.headers ?? [];
+      const allIds = new Set(headers.map((h: any) => h.id));
+      const trimmedHeaders = headers.map((h: any) => ({ id: h.id, name: h.name, visible: h.visible }));
+      // deno-lint-ignore no-explicit-any
+      const trimmedRows = (result.rows ?? []).map((row: any) => ({
+        indentLevel: row.indentLevel ?? 0,
+        headerIdToValue: Object.fromEntries(
+          Object.entries(row.headerIdToValue ?? {}).filter(([id]) => allIds.has(id)),
+        ),
+      }));
+
+      return {
+        data: { formatVersion: result.formatVersion, headers: trimmedHeaders, rows: trimmedRows },
+        _meta: { ui: { resourceUri: "ui://mcp-onshape/bom-viewer" } },
+      };
     },
   },
 

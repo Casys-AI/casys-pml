@@ -190,8 +190,10 @@ export function ThreeDViewer() {
       try {
         const text = result.content?.find((c) => c.type === "text")?.text;
         if (!text) { setData(null); return; }
-        const parsed = JSON.parse(text) as ViewerData;
-        setData(parsed);
+        const raw = JSON.parse(text) as { data?: ViewerData } & ViewerData;
+        // Tools wrap result in { data: ... } — unwrap if needed
+        const parsed = (raw.data && typeof raw.data === "object") ? raw.data : raw;
+        setData(parsed as ViewerData);
         setImageIdx(0);
         setImgZoom(1);
         setImgPan({ x: 0, y: 0 });
@@ -206,19 +208,21 @@ export function ThreeDViewer() {
   // ---------- fitCamera helper ----------
 
   const fitCamera = useCallback(() => {
-    const scene = sceneRef.current;
+    const model = modelRef.current;
     const camera = cameraRef.current;
     const controls = controlsRef.current;
-    if (!scene || !camera || !controls) return;
+    if (!model || !camera || !controls) return;
 
-    const box = new THREE.Box3().setFromObject(scene);
+    const box = new THREE.Box3().setFromObject(model);
     if (box.isEmpty()) return;
 
     boundingBoxRef.current = box;
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    const distance = maxDim * 1.5;
+    // Use FOV to guarantee the model fills ~80% of the viewport
+    const fovRad = (camera.fov * Math.PI) / 180;
+    const distance = (maxDim / 2) / Math.tan(fovRad / 2) * 1.4;
 
     camera.position.set(
       center.x + distance * 0.6,
@@ -226,7 +230,7 @@ export function ThreeDViewer() {
       center.z + distance * 0.8
     );
     camera.lookAt(center);
-    camera.near = distance * 0.01;
+    camera.near = distance * 0.001;
     camera.far = distance * 100;
     camera.updateProjectionMatrix();
 
