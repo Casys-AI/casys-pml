@@ -33,7 +33,7 @@ Add to your MCP config (e.g. `.pml.json` or `claude_desktop_config.json`):
 }
 ```
 
-### HTTP mode
+### HTTP mode (dev/testing)
 
 ```bash
 ERPNEXT_URL=http://localhost:8000 \
@@ -294,8 +294,13 @@ This produces a `dist-node/` directory with:
 ```bash
 cd dist-node
 npm install
+# stdio mode (standard — for Claude Desktop / PML config)
+tsx server.ts
+# HTTP mode (dev/testing only)
 tsx server.ts --http --port=3012
 ```
+
+> **Note**: `@casys/mcp-server` must be published to npm before installing `@casys/mcp-erpnext` dependencies.
 
 ## Environment Variables
 
