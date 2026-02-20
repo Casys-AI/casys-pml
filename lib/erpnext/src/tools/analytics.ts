@@ -1141,8 +1141,6 @@ export const analyticsTools: ErpNextTool[] = [
         sinceDate = `${now.getFullYear()}-01-01`;
       }
 
-      type FrappeFilter = [string, string, string | number | boolean | null];
-
       // Leads use "creation", the rest use "transaction_date"
       const leadFilters: FrappeFilter[] = sinceDate ? [["creation", ">=", sinceDate]] : [];
       const txnFilters: FrappeFilter[] = sinceDate ? [["transaction_date", ">=", sinceDate]] : [];

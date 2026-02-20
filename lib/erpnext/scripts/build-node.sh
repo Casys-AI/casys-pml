@@ -70,12 +70,12 @@ cat > "$DIST_DIR/package.json" <<'PKGJSON'
     "serve": "tsx server.ts --http --port=3012"
   },
   "dependencies": {
-    "@casys/mcp-server": "^0.8.0",
-    "@modelcontextprotocol/sdk": "^1.15.1"
+    "@casys/mcp-server": "*",
+    "@modelcontextprotocol/sdk": "*"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "tsx": "^4.0.0"
+    "typescript": "*",
+    "tsx": "*"
   },
   "engines": {
     "node": ">=20.0.0"

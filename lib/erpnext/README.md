@@ -1,6 +1,6 @@
 # @casys/mcp-erpnext
 
-MCP server for [ERPNext](https://erpnext.com) / Frappe ERP — **100 tools** across **12 categories**, with interactive UI viewers.
+MCP server for [ERPNext](https://erpnext.com) / Frappe ERP — **119 tools** across **13 categories**, with **7 interactive UI viewers**.
 
 Connect any MCP-compatible AI agent (Claude Desktop, PML, custom) to your ERPNext instance via the standard [Model Context Protocol](https://modelcontextprotocol.io).
 
@@ -64,7 +64,7 @@ On a fresh ERPNext instance (no setup wizard), you need to create master data be
 7. Company: requires Warehouse Types to exist first
 ```
 
-## Tools (100)
+## Tools (119)
 
 ### Setup (2)
 
@@ -229,25 +229,45 @@ These tools work with **any** ERPNext DocType:
 | `erpnext_doc_submit` | Submit | Any submittable document |
 | `erpnext_doc_cancel` | Cancel | Any submitted document |
 
+### Analytics (19)
+
+Tools that return shaped data for chart, pipeline, KPI, and funnel viewers.
+
+| Tool | Viewer | Description |
+|------|--------|-------------|
+| `erpnext_order_pipeline` | order-pipeline-viewer | Sales orders kanban by status |
+| `erpnext_purchase_pipeline` | order-pipeline-viewer | Purchase orders kanban by status |
+| `erpnext_stock_chart` | chart-viewer | Bar chart of stock levels by item/warehouse |
+| `erpnext_sales_chart` | chart-viewer | Revenue by customer, item, or status (bar/donut) |
+| `erpnext_revenue_trend` | chart-viewer | Monthly revenue trend (line/area, per customer) |
+| `erpnext_order_breakdown` | chart-viewer | Orders by customer/status (stacked-bar/pie/donut) |
+| `erpnext_revenue_vs_orders` | chart-viewer | Revenue bars + order count line (dual axis) |
+| `erpnext_stock_treemap` | chart-viewer | Stock value treemap by item or warehouse |
+| `erpnext_product_radar` | chart-viewer | Radar comparing items (stock, value, orders, revenue) |
+| `erpnext_price_vs_qty` | chart-viewer | Scatter: selling price vs quantity ordered |
+| `erpnext_ar_aging` | chart-viewer | AR aging buckets (0-30, 31-60, 61-90, 90+ days) |
+| `erpnext_gross_profit` | chart-viewer | Revenue bars + margin % line by item/customer |
+| `erpnext_profit_loss` | chart-viewer | P&L: income vs expenses per month + net profit |
+| `erpnext_kpi_revenue` | kpi-viewer | Revenue MTD with delta vs previous month + sparkline |
+| `erpnext_kpi_outstanding` | kpi-viewer | Outstanding receivables (count + total) |
+| `erpnext_kpi_orders` | kpi-viewer | Orders this month with delta vs last month |
+| `erpnext_kpi_gross_margin` | kpi-viewer | Gross margin % based on valuation rates |
+| `erpnext_kpi_overdue` | kpi-viewer | Overdue invoices count + value |
+| `erpnext_sales_funnel` | funnel-viewer | Lead → Opportunity → Quotation → Order funnel |
+
 ## UI Viewers
 
-Three interactive [MCP Apps](https://github.com/anthropics/mcp-apps-sdk) viewers are included, registered as `ui://mcp-erpnext/{name}`:
+Seven interactive [MCP Apps](https://github.com/anthropics/mcp-apps-sdk) viewers, registered as `ui://mcp-erpnext/{name}`:
 
-| Viewer | Usage |
-|--------|-------|
-| `doclist-viewer` | Generic table with sort, filter, pagination, CSV export |
+| Viewer | Description |
+|--------|-------------|
+| `doclist-viewer` | Generic document table with sort, filter, pagination, CSV export |
 | `invoice-viewer` | Single invoice display (header, items, totals, payment status) |
 | `stock-viewer` | Stock balance table with color-coded qty badges |
-
-### Roadmap
-
-Planned viewers for future releases:
-
-| Viewer | Priority | Description |
-|--------|----------|-------------|
-| `document-viewer` | P2 | Single document detail view (for all `_get` tools) |
-| `chart-viewer` | P2 | GL entries, balance sheet, P&L charts (accounting) |
-| `gantt-viewer` | P3 | Project/task timeline visualization |
+| `chart-viewer` | Universal chart renderer (12 chart types via Recharts) |
+| `order-pipeline-viewer` | Sales/Purchase Order kanban by status |
+| `kpi-viewer` | Single metric card with delta, sparkline, trend indicator |
+| `funnel-viewer` | Trapezoid sales funnel with conversion rates between stages |
 
 ### Building UI viewers
 
@@ -255,6 +275,26 @@ Planned viewers for future releases:
 cd src/ui
 npm install
 node build-all.mjs
+```
+
+## Node.js Compatibility
+
+The server runs natively on Deno. For Node.js environments, use the build script:
+
+```bash
+cd lib/erpnext
+./scripts/build-node.sh
+```
+
+This produces a `dist-node/` directory with:
+- `runtime.ts` replaced by `runtime.node.ts` (uses `node:fs` instead of `Deno.*`)
+- Relative imports rewritten `.ts` → `.js` for Node ESM
+- Generated `package.json` with `tsx` as runner
+
+```bash
+cd dist-node
+npm install
+tsx server.ts --http --port=3012
 ```
 
 ## Environment Variables
@@ -271,6 +311,8 @@ node build-all.mjs
 mod.ts              # Public API
 server.ts           # MCP server (stdio + HTTP)
 deno.json           # Package config
+scripts/
+  build-node.sh     # Node.js distribution builder
 src/
   api/
     frappe-client.ts  # Frappe REST HTTP client
@@ -278,7 +320,7 @@ src/
   tools/
     sales.ts          # 17 sales tools
     inventory.ts      # 9 inventory tools
-    purchasing.ts     # 10 purchasing tools
+    purchasing.ts     # 11 purchasing tools
     accounting.ts     # 6 accounting tools
     hr.ts             # 12 HR tools
     project.ts        # 9 project tools
@@ -288,17 +330,25 @@ src/
     assets.ts         # 8 asset tools
     operations.ts     # 7 generic CRUD tools
     setup.ts          # 2 company/setup tools
+    analytics.ts      # 19 analytics tools (charts, KPIs, pipelines, funnel)
     mod.ts            # Registry
     types.ts          # Tool interface
   client.ts           # ErpNextToolsClient
+  runtime.ts          # Deno runtime shim
+  runtime.node.ts     # Node.js runtime shim
   ui/
     doclist-viewer/   # Generic document list
     invoice-viewer/   # Invoice display
     stock-viewer/     # Stock balance display
+    chart-viewer/     # Universal chart renderer (Recharts)
+    order-pipeline-viewer/  # Kanban pipeline
+    kpi-viewer/       # Single metric card
+    funnel-viewer/    # Sales funnel
     shared/           # Shared theme + branding
 tests/
 docs/
   coverage.md         # Full coverage matrix
+  ROADMAP.md          # Viewer & analytics roadmap
 ```
 
 ## Development
