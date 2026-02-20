@@ -63,15 +63,18 @@ export interface GraphNode {
   level: number;
 }
 
-/** Connectivity matrices for MP */
+/** Connectivity matrices for MP (aligned with train-ob.ts naming) */
 export interface GraphStructure {
-  toolIds: string[];
-  toolIdxMap: Map<string, number>;
-  capIdsByLevel: Map<number, string[]>;
-  /** toolToCapMatrix[capIdx][toolIdx] = 1 if tool is child of cap */
-  toolToCapMatrix: number[][];
-  /** capToCapMatrices[level][parentIdx][childIdx] = 1 */
-  capToCapMatrices: Map<number, number[][]>;
+  /** L0 leaf node IDs (tools) */
+  l0Ids: string[];
+  /** L0 ID → index lookup */
+  l0IdxMap: Map<string, number>;
+  /** Non-L0 node IDs grouped by orchestration level */
+  nodeIdsByLevel: Map<number, string[]>;
+  /** l0ToL1Matrix[l1Idx][l0Idx] = 1 if L0 node is child of L1 node */
+  l0ToL1Matrix: number[][];
+  /** interLevelMatrices[level][parentIdx][childIdx] = 1 */
+  interLevelMatrices: Map<number, number[][]>;
   maxLevel: number;
 }
 
@@ -81,9 +84,9 @@ export interface GraphStructure {
 
 /** Sparse co-occurrence matrix entry */
 export interface CooccurrenceEntry {
-  /** Source tool index */
+  /** Source L0 node index */
   from: number;
-  /** Target tool index */
+  /** Target L0 node index */
   to: number;
   /** Co-occurrence weight (frequency-based, normalized) */
   weight: number;
@@ -105,22 +108,25 @@ export interface VertexToVertexConfig {
 
 /** Result of enriching embeddings via SHGAT MP */
 export interface EnrichedEmbeddings {
-  /** Tool ID → enriched 1024D embedding */
-  toolEmbeddings: Map<string, number[]>;
+  /** L0 node ID → enriched embedding (1024D) */
+  l0Embeddings: Map<string, number[]>;
   /** Time taken for enrichment (ms) */
   enrichmentMs: number;
 }
 
-/** K-head scoring result for a single tool */
-export interface ToolScore {
-  toolId: string;
+/** K-head scoring result for a single node (L0 = tool, L1+ = capability) */
+export interface NodeScore {
+  nodeId: string;
   score: number;
 }
 
-/** Result of scoring tools for an intent */
+/** @deprecated Use NodeScore instead */
+export type ToolScore = NodeScore;
+
+/** Result of scoring nodes for an intent */
 export interface ScoringResult {
-  /** Top-K tools sorted by score descending */
-  topK: ToolScore[];
+  /** Top-K nodes sorted by score descending */
+  topK: NodeScore[];
   /** Time taken for scoring (ms) */
   scoringMs: number;
 }

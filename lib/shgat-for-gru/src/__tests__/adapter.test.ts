@@ -5,8 +5,8 @@
  * - setParams / loadParams
  * - buildGraph connectivity
  * - enrichEmbeddings (MP forward changes embeddings)
- * - scoreTools (K-head scoring, sorted output)
- * - scoreToolIds (sparse scoring subset)
+ * - scoreNodes (K-head scoring, sorted output, with K cache)
+ * - scoreNodeIds (sparse scoring subset)
  * - Error handling (no params, no graph)
  */
 
@@ -142,37 +142,37 @@ describe("SHGATAdapter", () => {
       adapter.setParams(params);
       const graph = adapter.buildGraph(graphNodes);
 
-      assert.equal(graph.toolIds.length, 3);
-      assert.ok(graph.toolIds.includes("tool_1"));
-      assert.ok(graph.toolIds.includes("tool_2"));
-      assert.ok(graph.toolIds.includes("tool_3"));
+      assert.equal(graph.l0Ids.length, 3);
+      assert.ok(graph.l0Ids.includes("tool_1"));
+      assert.ok(graph.l0Ids.includes("tool_2"));
+      assert.ok(graph.l0Ids.includes("tool_3"));
     });
 
-    it("builds correct toolToCapMatrix", () => {
+    it("builds correct l0ToL1Matrix", () => {
       const adapter = new SHGATAdapter();
       adapter.setParams(params);
       const graph = adapter.buildGraph(graphNodes);
 
       // level-0 caps: cap_A, cap_B
-      const level0Caps = graph.capIdsByLevel.get(0)!;
+      const level0Caps = graph.nodeIdsByLevel.get(0)!;
       assert.equal(level0Caps.length, 2);
 
       // toolToCapMatrix[capIdx][toolIdx]
       const capAIdx = level0Caps.indexOf("cap_A");
       const capBIdx = level0Caps.indexOf("cap_B");
-      const t1Idx = graph.toolIdxMap.get("tool_1")!;
-      const t2Idx = graph.toolIdxMap.get("tool_2")!;
-      const t3Idx = graph.toolIdxMap.get("tool_3")!;
+      const t1Idx = graph.l0IdxMap.get("tool_1")!;
+      const t2Idx = graph.l0IdxMap.get("tool_2")!;
+      const t3Idx = graph.l0IdxMap.get("tool_3")!;
 
       // cap_A -> tool_1, tool_2
-      assert.equal(graph.toolToCapMatrix[capAIdx][t1Idx], 1);
-      assert.equal(graph.toolToCapMatrix[capAIdx][t2Idx], 1);
-      assert.equal(graph.toolToCapMatrix[capAIdx][t3Idx], 0);
+      assert.equal(graph.l0ToL1Matrix[capAIdx][t1Idx], 1);
+      assert.equal(graph.l0ToL1Matrix[capAIdx][t2Idx], 1);
+      assert.equal(graph.l0ToL1Matrix[capAIdx][t3Idx], 0);
 
       // cap_B -> tool_2, tool_3
-      assert.equal(graph.toolToCapMatrix[capBIdx][t1Idx], 0);
-      assert.equal(graph.toolToCapMatrix[capBIdx][t2Idx], 1);
-      assert.equal(graph.toolToCapMatrix[capBIdx][t3Idx], 1);
+      assert.equal(graph.l0ToL1Matrix[capBIdx][t1Idx], 0);
+      assert.equal(graph.l0ToL1Matrix[capBIdx][t2Idx], 1);
+      assert.equal(graph.l0ToL1Matrix[capBIdx][t3Idx], 1);
     });
 
     it("getGraph throws if no graph built", () => {
@@ -205,14 +205,14 @@ describe("SHGATAdapter", () => {
         }
       }
 
-      const { toolEmbeddings, enrichmentMs } = adapter.enrichEmbeddings();
+      const { l0Embeddings, enrichmentMs } = adapter.enrichEmbeddings();
 
-      assert.equal(toolEmbeddings.size, 3);
+      assert.equal(l0Embeddings.size, 3);
       assert.ok(enrichmentMs >= 0);
 
       // At least one tool embedding should have changed
       let anyChanged = false;
-      for (const [id, enriched] of toolEmbeddings) {
+      for (const [id, enriched] of l0Embeddings) {
         const raw = rawEmbs.get(id)!;
         for (let d = 0; d < EMB_DIM; d++) {
           if (Math.abs(enriched[d] - raw[d]) > 1e-10) {
@@ -236,8 +236,8 @@ describe("SHGATAdapter", () => {
       a2.buildGraph(graphNodes);
       const r2 = a2.enrichEmbeddings();
 
-      for (const [id, emb1] of r1.toolEmbeddings) {
-        const emb2 = r2.toolEmbeddings.get(id)!;
+      for (const [id, emb1] of r1.l0Embeddings) {
+        const emb2 = r2.l0Embeddings.get(id)!;
         for (let d = 0; d < EMB_DIM; d++) {
           assert.ok(
             Math.abs(emb1[d] - emb2[d]) < 1e-12,
@@ -248,15 +248,15 @@ describe("SHGATAdapter", () => {
     });
   });
 
-  describe("scoreTools", () => {
-    it("returns sorted scores for all tools", () => {
+  describe("scoreNodes", () => {
+    it("returns sorted scores for all nodes", () => {
       const adapter = new SHGATAdapter();
       adapter.setParams(params);
       adapter.buildGraph(graphNodes);
       adapter.enrichEmbeddings();
 
       const intent = makeVector(EMB_DIM, seededRng(99));
-      const { topK, scoringMs } = adapter.scoreTools(intent, 3);
+      const { topK, scoringMs } = adapter.scoreNodes(intent, 3);
 
       assert.equal(topK.length, 3);
       assert.ok(scoringMs >= 0);
@@ -266,9 +266,9 @@ describe("SHGATAdapter", () => {
         assert.ok(topK[i - 1].score >= topK[i].score, "Scores must be descending");
       }
 
-      // Each entry has toolId and score
+      // Each entry has nodeId and score
       for (const entry of topK) {
-        assert.ok(typeof entry.toolId === "string");
+        assert.ok(typeof entry.nodeId === "string");
         assert.ok(typeof entry.score === "number");
         assert.ok(!isNaN(entry.score));
       }
@@ -280,7 +280,7 @@ describe("SHGATAdapter", () => {
       adapter.buildGraph(graphNodes);
 
       const intent = makeVector(EMB_DIM, seededRng(99));
-      const { topK } = adapter.scoreTools(intent, 2);
+      const { topK } = adapter.scoreNodes(intent, 2);
       assert.equal(topK.length, 2);
     });
 
@@ -291,7 +291,7 @@ describe("SHGATAdapter", () => {
       // No enrichEmbeddings() call
 
       const intent = makeVector(EMB_DIM, seededRng(99));
-      const { topK } = adapter.scoreTools(intent, 3);
+      const { topK } = adapter.scoreNodes(intent, 3);
       assert.equal(topK.length, 3);
 
       // Scores should be finite numbers
@@ -303,22 +303,56 @@ describe("SHGATAdapter", () => {
     it("throws without params", () => {
       const adapter = new SHGATAdapter();
       const intent = makeVector(EMB_DIM, seededRng(99));
-      assert.throws(() => adapter.scoreTools(intent), /No params loaded/);
+      assert.throws(() => adapter.scoreNodes(intent), /No params loaded/);
     });
-  });
 
-  describe("scoreToolIds", () => {
-    it("scores only specified tool IDs", () => {
+    it("K cache: second call is faster than first", () => {
       const adapter = new SHGATAdapter();
       adapter.setParams(params);
       adapter.buildGraph(graphNodes);
       adapter.enrichEmbeddings();
 
       const intent = makeVector(EMB_DIM, seededRng(99));
-      const results = adapter.scoreToolIds(intent, ["tool_1", "tool_3"]);
+      // First call builds cache
+      const r1 = adapter.scoreNodes(intent, 3);
+      // Second call uses cache — scores should be identical
+      const r2 = adapter.scoreNodes(intent, 3);
+
+      assert.equal(r1.topK.length, r2.topK.length);
+      for (let i = 0; i < r1.topK.length; i++) {
+        assert.equal(r1.topK[i].nodeId, r2.topK[i].nodeId);
+        assert.ok(Math.abs(r1.topK[i].score - r2.topK[i].score) < 1e-10);
+      }
+    });
+
+    it("deprecated scoreTools alias works", () => {
+      const adapter = new SHGATAdapter();
+      adapter.setParams(params);
+      adapter.buildGraph(graphNodes);
+
+      const intent = makeVector(EMB_DIM, seededRng(99));
+      const r1 = adapter.scoreNodes(intent, 3);
+      const r2 = adapter.scoreTools(intent, 3);
+
+      assert.equal(r1.topK.length, r2.topK.length);
+      for (let i = 0; i < r1.topK.length; i++) {
+        assert.equal(r1.topK[i].nodeId, r2.topK[i].nodeId);
+      }
+    });
+  });
+
+  describe("scoreNodeIds", () => {
+    it("scores only specified node IDs", () => {
+      const adapter = new SHGATAdapter();
+      adapter.setParams(params);
+      adapter.buildGraph(graphNodes);
+      adapter.enrichEmbeddings();
+
+      const intent = makeVector(EMB_DIM, seededRng(99));
+      const results = adapter.scoreNodeIds(intent, ["tool_1", "tool_3"]);
 
       assert.equal(results.length, 2);
-      const ids = results.map((r) => r.toolId);
+      const ids = results.map((r) => r.nodeId);
       assert.ok(ids.includes("tool_1"));
       assert.ok(ids.includes("tool_3"));
       assert.ok(!ids.includes("tool_2"));
@@ -330,23 +364,23 @@ describe("SHGATAdapter", () => {
       adapter.buildGraph(graphNodes);
 
       const intent = makeVector(EMB_DIM, seededRng(99));
-      const results = adapter.scoreToolIds(intent, ["tool_1", "tool_2", "tool_3"]);
+      const results = adapter.scoreNodeIds(intent, ["tool_1", "tool_2", "tool_3"]);
 
       for (let i = 1; i < results.length; i++) {
         assert.ok(results[i - 1].score >= results[i].score);
       }
     });
 
-    it("skips unknown tool IDs silently", () => {
+    it("skips unknown node IDs silently", () => {
       const adapter = new SHGATAdapter();
       adapter.setParams(params);
       adapter.buildGraph(graphNodes);
 
       const intent = makeVector(EMB_DIM, seededRng(99));
-      const results = adapter.scoreToolIds(intent, ["tool_1", "unknown_tool"]);
+      const results = adapter.scoreNodeIds(intent, ["tool_1", "unknown_node"]);
 
       assert.equal(results.length, 1);
-      assert.equal(results[0].toolId, "tool_1");
+      assert.equal(results[0].nodeId, "tool_1");
     });
   });
 
@@ -388,34 +422,34 @@ describe("SHGATAdapter", () => {
       adapter.setParams(params2);
       const graph = adapter.buildGraph(nodes);
 
-      assert.equal(graph.toolIds.length, 3);
+      assert.equal(graph.l0Ids.length, 3);
       assert.equal(graph.maxLevel, 1);
-      assert.equal(graph.capIdsByLevel.get(0)!.length, 2);
-      assert.equal(graph.capIdsByLevel.get(1)!.length, 1);
-      assert.ok(graph.capToCapMatrices.has(1));
+      assert.equal(graph.nodeIdsByLevel.get(0)!.length, 2);
+      assert.equal(graph.nodeIdsByLevel.get(1)!.length, 1);
+      assert.ok(graph.interLevelMatrices.has(1));
 
       // Enrichment should work with 2 levels
-      const { toolEmbeddings } = adapter.enrichEmbeddings();
-      assert.equal(toolEmbeddings.size, 3);
+      const { l0Embeddings } = adapter.enrichEmbeddings();
+      assert.equal(l0Embeddings.size, 3);
 
       // Scoring should also work
       const intent = makeVector(EMB_DIM, rng2);
-      const { topK } = adapter.scoreTools(intent, 3);
+      const { topK } = adapter.scoreNodes(intent, 3);
       assert.equal(topK.length, 3);
     });
   });
 
-  describe("getToolIds", () => {
+  describe("getL0Ids", () => {
     it("returns empty array if no graph", () => {
       const adapter = new SHGATAdapter();
-      assert.deepEqual(adapter.getToolIds(), []);
+      assert.deepEqual(adapter.getL0Ids(), []);
     });
 
     it("returns tool IDs after buildGraph", () => {
       const adapter = new SHGATAdapter();
       adapter.setParams(params);
       adapter.buildGraph(graphNodes);
-      const ids = adapter.getToolIds();
+      const ids = adapter.getL0Ids();
       assert.equal(ids.length, 3);
     });
   });

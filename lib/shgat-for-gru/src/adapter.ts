@@ -7,15 +7,15 @@
  * Responsibilities:
  * 1. Load OB-trained SHGAT params (JSON from train-ob.ts)
  * 2. Build graph connectivity from node list
- * 3. Enrich tool embeddings via message passing (V↔E forward)
- * 4. K-head scoring for tool retrieval (intent → top-K tools)
+ * 3. Enrich L0 node embeddings via message passing (V↔E forward)
+ * 4. K-head scoring for node retrieval (intent → top-K nodes)
  *
  * Usage:
  *   const adapter = new SHGATAdapter();
  *   adapter.loadParams("path/to/shgat-params-ob-xxx.json");
  *   adapter.buildGraph(nodes);
  *   const enriched = adapter.enrichEmbeddings(rawToolEmbeddings);
- *   const topK = adapter.scoreTools(intentEmbedding, 5);
+ *   const topK = adapter.scoreNodes(intentEmbedding, 5);
  *
  * @module shgat-for-gru/adapter
  */
@@ -29,7 +29,7 @@ import type {
   GraphStructure,
   EnrichedEmbeddings,
   ScoringResult,
-  ToolScore,
+  NodeScore,
   SHGATExportConfig,
 } from "./types.ts";
 
@@ -82,6 +82,11 @@ export class SHGATAdapter {
   private nodeEmbeddings: Map<string, number[]> = new Map();
   private enrichedEmbs: Map<string, number[]> | null = null;
 
+  // Pre-computed K projections cache: K_cached[h] = allNodeEmbs @ W_k[h]^T
+  // Shape: K_cached[h][l0Idx] = number[headDim]
+  // Invalidated when params or embeddings change.
+  private kCache: { l0Ids: string[]; K_h: number[][][] } | null = null;
+
   // ---------- 1. Load params ----------
 
   /**
@@ -101,6 +106,7 @@ export class SHGATAdapter {
       this.params = raw as OBTrainedParams;
     }
     this.enrichedEmbs = null;
+    this.kCache = null;
     return this.params.config;
   }
 
@@ -108,11 +114,105 @@ export class SHGATAdapter {
   setParams(params: OBTrainedParams): void {
     this.params = params;
     this.enrichedEmbs = null;
+    this.kCache = null;
   }
 
   getConfig(): SHGATExportConfig {
     if (!this.params) throw new Error("[SHGATAdapter] No params loaded. Call loadParams() first.");
     return this.params.config;
+  }
+
+  /** Check if graph has been built (useful for conditional scoring). */
+  hasGraph(): boolean {
+    return this.graph !== null;
+  }
+
+  /**
+   * Initialize random orthogonal projections (no training needed).
+   * Per the ADR (2026-02-08): JL lemma guarantees distance preservation.
+   * Uses seeded PRNG for reproducibility.
+   *
+   * @param embDim - Embedding dimension (e.g. 1024 for BGE-M3)
+   * @param numHeads - Number of attention heads (default 16)
+   * @param headDim - Dimension per head (default 64, numHeads*headDim should = embDim)
+   * @param levels - Number of hierarchy levels to create params for (default 2: L0→L1, L1→L2)
+   * @param seed - PRNG seed for reproducibility
+   */
+  initRandomParams(
+    embDim: number,
+    numHeads = 16,
+    headDim = 64,
+    levels = 2,
+    seed = 42,
+  ): SHGATExportConfig {
+    // Seeded PRNG (mulberry32)
+    let s = seed | 0;
+    const rng = () => {
+      s = s + 0x6D2B79F5 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+
+    // Random normal via Box-Muller
+    const randn = () => {
+      const u1 = rng(), u2 = rng();
+      return Math.sqrt(-2 * Math.log(u1 + 1e-10)) * Math.cos(2 * Math.PI * u2);
+    };
+
+    // Generate random matrix [rows × cols] with glorot scale
+    const randomMatrix = (rows: number, cols: number): number[][] => {
+      const scale = Math.sqrt(2.0 / (rows + cols));
+      return Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => randn() * scale),
+      );
+    };
+
+    // Generate random attention vector [2 * headDim]
+    const randomAttention = (dim: number): number[] =>
+      Array.from({ length: dim }, () => randn() * 0.01);
+
+    // Build level params
+    const levelParams: Record<string, LevelParams> = {};
+    for (let level = 0; level < levels; level++) {
+      const W_child: number[][][] = [];
+      const W_parent: number[][][] = [];
+      const a_upward: number[][] = [];
+      const a_downward: number[][] = [];
+      for (let h = 0; h < numHeads; h++) {
+        W_child.push(randomMatrix(headDim, embDim));
+        W_parent.push(randomMatrix(headDim, embDim));
+        a_upward.push(randomAttention(2 * headDim));
+        a_downward.push(randomAttention(2 * headDim));
+      }
+      levelParams[String(level)] = { W_child, W_parent, a_upward, a_downward };
+    }
+
+    // Build head params (K-head scoring — random projections)
+    const headParams: HeadParams[] = [];
+    for (let h = 0; h < numHeads; h++) {
+      headParams.push({
+        W_q: randomMatrix(headDim, embDim),
+        W_k: randomMatrix(headDim, embDim),
+        W_v: [],
+        a: [],
+      });
+    }
+
+    // W_intent: [embDim × embDim] — random orthogonal-ish projection
+    const W_intent = randomMatrix(embDim, embDim);
+
+    const config: SHGATExportConfig = {
+      numHeads,
+      headDim,
+      embeddingDim: embDim,
+    };
+
+    this.params = { headParams, W_intent, levelParams, config };
+    this.enrichedEmbs = null;
+    this.kCache = null;
+
+    return config;
   }
 
   // ---------- Static converters ----------
@@ -192,92 +292,93 @@ export class SHGATAdapter {
       this.nodeEmbeddings.set(n.id, n.embedding);
     }
 
-    // Identify leaves (tools) = nodes with no children
-    const toolIds: string[] = [];
-    const capIds: string[] = [];
+    // Identify L0 leaves = nodes with no children
+    const l0Ids: string[] = [];
+    const higherNodeIds: string[] = [];
     for (const n of nodes) {
       if (n.children.length === 0) {
-        toolIds.push(n.id);
+        l0Ids.push(n.id);
       } else {
-        capIds.push(n.id);
+        higherNodeIds.push(n.id);
       }
     }
 
-    const toolIdxMap = new Map<string, number>();
-    for (let i = 0; i < toolIds.length; i++) toolIdxMap.set(toolIds[i], i);
+    const l0IdxMap = new Map<string, number>();
+    for (let i = 0; i < l0Ids.length; i++) l0IdxMap.set(l0Ids[i], i);
 
-    // Group capabilities by level
-    const capIdsByLevel = new Map<number, string[]>();
-    for (const id of capIds) {
+    // Group non-L0 nodes by orchestration level
+    const nodeIdsByLevel = new Map<number, string[]>();
+    for (const id of higherNodeIds) {
       const node = idToNode.get(id)!;
       const level = node.level;
-      if (!capIdsByLevel.has(level)) capIdsByLevel.set(level, []);
-      capIdsByLevel.get(level)!.push(id);
+      if (!nodeIdsByLevel.has(level)) nodeIdsByLevel.set(level, []);
+      nodeIdsByLevel.get(level)!.push(id);
     }
 
     // Build connectivity matrices
-    // Level 0 caps → tools (toolToCapMatrix)
-    const level0Caps = capIdsByLevel.get(0) ?? [];
-    const level0CapIdx = new Map<string, number>();
-    for (let i = 0; i < level0Caps.length; i++) level0CapIdx.set(level0Caps[i], i);
+    // L0→L1: l0ToL1Matrix[l1Idx][l0Idx] = 1
+    const l1Nodes = nodeIdsByLevel.get(0) ?? [];
+    const l1IdxMap = new Map<string, number>();
+    for (let i = 0; i < l1Nodes.length; i++) l1IdxMap.set(l1Nodes[i], i);
 
-    const toolToCapMatrix: number[][] = Array.from(
-      { length: level0Caps.length },
-      () => new Array(toolIds.length).fill(0),
+    const l0ToL1Matrix: number[][] = Array.from(
+      { length: l1Nodes.length },
+      () => new Array(l0Ids.length).fill(0),
     );
 
-    for (const capId of level0Caps) {
-      const cap = idToNode.get(capId)!;
-      const capIdx = level0CapIdx.get(capId)!;
-      for (const childId of cap.children) {
-        const toolIdx = toolIdxMap.get(childId);
-        if (toolIdx !== undefined) {
-          toolToCapMatrix[capIdx][toolIdx] = 1;
+    for (const l1Id of l1Nodes) {
+      const node = idToNode.get(l1Id)!;
+      const l1Idx = l1IdxMap.get(l1Id)!;
+      for (const childId of node.children) {
+        const l0Idx = l0IdxMap.get(childId);
+        if (l0Idx !== undefined) {
+          l0ToL1Matrix[l1Idx][l0Idx] = 1;
         }
       }
     }
 
-    // Higher-level cap→cap matrices
-    const capToCapMatrices = new Map<number, number[][]>();
-    const levels = [...capIdsByLevel.keys()].sort((a, b) => a - b);
+    // Higher-level inter-level matrices
+    const interLevelMatrices = new Map<number, number[][]>();
+    const levels = [...nodeIdsByLevel.keys()].sort((a, b) => a - b);
     for (let li = 1; li < levels.length; li++) {
       const parentLevel = levels[li];
       const childLevel = levels[li - 1];
-      const parentCaps = capIdsByLevel.get(parentLevel)!;
-      const childCaps = capIdsByLevel.get(childLevel)!;
-      const childCapIdx = new Map<string, number>();
-      for (let i = 0; i < childCaps.length; i++) childCapIdx.set(childCaps[i], i);
+      const parentNodes = nodeIdsByLevel.get(parentLevel)!;
+      const childNodes = nodeIdsByLevel.get(childLevel)!;
+      const childIdxMap = new Map<string, number>();
+      for (let i = 0; i < childNodes.length; i++) childIdxMap.set(childNodes[i], i);
 
       const matrix: number[][] = Array.from(
-        { length: parentCaps.length },
-        () => new Array(childCaps.length).fill(0),
+        { length: parentNodes.length },
+        () => new Array(childNodes.length).fill(0),
       );
-      for (let pi = 0; pi < parentCaps.length; pi++) {
-        const parent = idToNode.get(parentCaps[pi])!;
+      for (let pi = 0; pi < parentNodes.length; pi++) {
+        const parent = idToNode.get(parentNodes[pi])!;
         for (const childId of parent.children) {
-          const ci = childCapIdx.get(childId);
+          const ci = childIdxMap.get(childId);
           if (ci !== undefined) matrix[pi][ci] = 1;
         }
       }
-      capToCapMatrices.set(parentLevel, matrix);
+      interLevelMatrices.set(parentLevel, matrix);
     }
 
     const maxLevel = levels.length > 0 ? levels[levels.length - 1] : -1;
 
-    this.graph = { toolIds, toolIdxMap, capIdsByLevel, toolToCapMatrix, capToCapMatrices, maxLevel };
+    this.graph = { l0Ids, l0IdxMap, nodeIdsByLevel, l0ToL1Matrix, interLevelMatrices, maxLevel };
     this.enrichedEmbs = null;
+    this.kCache = null;
     return this.graph;
   }
 
   // ---------- 3. Enrich embeddings (MP forward) ----------
 
   /**
-   * Enrich tool embeddings via SHGAT message passing.
+   * Enrich L0 node embeddings via SHGAT message passing.
    *
    * Implements the upward (V→E) and downward (E→V) phases using the
    * trained W_child, W_parent, a_upward, a_downward parameters.
    *
-   * Returns enriched tool embeddings (post-MP).
+   * Returns enriched L0 embeddings (post-MP).
    */
   enrichEmbeddings(): EnrichedEmbeddings {
     if (!this.params) throw new Error("[SHGATAdapter] No params loaded.");
@@ -285,15 +386,15 @@ export class SHGATAdapter {
 
     const t0 = Date.now();
     const { headParams, levelParams: levelParamsObj, config } = this.params;
-    const { toolIds, capIdsByLevel, toolToCapMatrix, capToCapMatrices } = this.graph;
+    const { l0Ids, nodeIdsByLevel, l0ToL1Matrix, interLevelMatrices } = this.graph;
     const { numHeads, headDim, embeddingDim } = config;
 
-    // Collect initial embeddings
-    const H: number[][] = toolIds.map((id) => [...(this.nodeEmbeddings.get(id) ?? [])]);
+    // Collect initial L0 embeddings
+    const H: number[][] = l0Ids.map((id) => [...(this.nodeEmbeddings.get(id) ?? [])]);
 
-    // Capability embeddings by level
+    // Higher-level node embeddings by level
     const E = new Map<number, number[][]>();
-    for (const [level, ids] of capIdsByLevel) {
+    for (const [level, ids] of nodeIdsByLevel) {
       E.set(level, ids.map((id) => [...(this.nodeEmbeddings.get(id) ?? [])]));
     }
 
@@ -303,8 +404,8 @@ export class SHGATAdapter {
       lpMap.set(parseInt(key, 10), lp);
     }
 
-    // --- Upward phase: tools → level-0 caps → level-1 caps → ... ---
-    const levels = [...capIdsByLevel.keys()].sort((a, b) => a - b);
+    // --- Upward phase: L0 → level-0 nodes → level-1 nodes → ... ---
+    const levels = [...nodeIdsByLevel.keys()].sort((a, b) => a - b);
 
     for (const level of levels) {
       const lp = lpMap.get(level);
@@ -313,8 +414,8 @@ export class SHGATAdapter {
       const parentEmbs = E.get(level)!;
       const childEmbs = level === levels[0] ? H : (E.get(levels[levels.indexOf(level) - 1]) ?? []);
       const connectivity = level === levels[0]
-        ? toolToCapMatrix
-        : (capToCapMatrices.get(level) ?? []);
+        ? l0ToL1Matrix
+        : (interLevelMatrices.get(level) ?? []);
 
       // For each parent, aggregate children via attention
       for (let pi = 0; pi < parentEmbs.length; pi++) {
@@ -387,8 +488,8 @@ export class SHGATAdapter {
       const parentEmbs = E.get(level)!;
       const childEmbs = level === levels[0] ? H : (E.get(levels[li - 1]) ?? []);
       const connectivity = level === levels[0]
-        ? toolToCapMatrix
-        : (capToCapMatrices.get(level) ?? []);
+        ? l0ToL1Matrix
+        : (interLevelMatrices.get(level) ?? []);
 
       // For each child, aggregate from parents
       const numChildren = childEmbs.length;
@@ -448,65 +549,123 @@ export class SHGATAdapter {
 
     // Build result map
     const result = new Map<string, number[]>();
-    for (let i = 0; i < toolIds.length; i++) {
-      result.set(toolIds[i], H[i]);
+    for (let i = 0; i < l0Ids.length; i++) {
+      result.set(l0Ids[i], H[i]);
     }
 
     this.enrichedEmbs = result;
-    return { toolEmbeddings: result, enrichmentMs: Date.now() - t0 };
+    this.kCache = null; // Invalidate K cache — embeddings changed
+    return { l0Embeddings: result, enrichmentMs: Date.now() - t0 };
   }
 
   // ---------- 4. K-head scoring ----------
 
+  // ---------- K-projection cache ----------
+
   /**
-   * Score all tools for a given intent embedding using K-head multi-head attention.
-   * Returns top-K tools sorted by score descending.
+   * Build or return cached K projections for all L0 nodes.
+   * K_h[h][l0Idx] = W_k[h] @ nodeEmb  (shape: [numHeads][numL0][headDim])
+   *
+   * Pre-computing this avoids N × numHeads matVec calls per scoreNodes() call.
+   * Instead, scoreNodes() only needs numHeads dot products per node (cheap).
    */
-  scoreTools(intentEmbedding: number[], topK = 10): ScoringResult {
+  private ensureKCache(): { l0Ids: string[]; K_h: number[][][] } {
+    if (this.kCache) return this.kCache;
+    if (!this.params) throw new Error("[SHGATAdapter] No params loaded.");
+
+    const embs = this.enrichedEmbs ?? this.buildRawEmbsMap();
+    const { headParams, config } = this.params;
+    const { numHeads } = config;
+
+    // Ordered L0 node list for index-based lookup
+    const l0Ids: string[] = [];
+    const embMatrix: number[][] = [];
+    for (const [nodeId, emb] of embs) {
+      l0Ids.push(nodeId);
+      embMatrix.push(emb);
+    }
+
+    const numNodes = l0Ids.length;
+    // K_h[h] = embMatrix @ W_k[h]^T → [numNodes, headDim]
+    const K_h: number[][][] = [];
+    for (let h = 0; h < numHeads; h++) {
+      const W_k = headParams[h].W_k; // [headDim, embDim]
+      const headDim = W_k.length;
+      const embDim = W_k[0].length;
+      const K_head: number[][] = new Array(numNodes);
+
+      for (let t = 0; t < numNodes; t++) {
+        const nodeEmb = embMatrix[t];
+        const k = new Array<number>(headDim);
+        for (let d = 0; d < headDim; d++) {
+          let sum = 0;
+          const wRow = W_k[d];
+          for (let j = 0; j < embDim; j++) sum += wRow[j] * nodeEmb[j];
+          k[d] = sum;
+        }
+        K_head[t] = k;
+      }
+      K_h.push(K_head);
+    }
+
+    this.kCache = { l0Ids, K_h };
+    return this.kCache;
+  }
+
+  /**
+   * Score all L0 nodes for a given intent embedding using K-head multi-head attention.
+   * Returns top-K nodes sorted by score descending.
+   *
+   * Uses pre-computed K projections (cached) — first call builds the cache (~1-2s),
+   * subsequent calls are ~100x faster (just Q projection + dot products).
+   */
+  scoreNodes(intentEmbedding: number[], topK = 10): ScoringResult {
     if (!this.params) throw new Error("[SHGATAdapter] No params loaded.");
     if (!this.graph) throw new Error("[SHGATAdapter] No graph built.");
 
-    const embs = this.enrichedEmbs ?? this.buildRawEmbsMap();
     const t0 = Date.now();
-
     const { headParams, W_intent, config } = this.params;
     const { numHeads, headDim } = config;
     const scale = 1.0 / Math.sqrt(headDim);
 
-    // Project intent
+    // Project intent → Q per head (16 matVec, fast)
     const intentProjected = matVec(W_intent, intentEmbedding);
-
-    // Q projections per head (computed once)
     const Q_h: number[][] = [];
     for (let h = 0; h < numHeads; h++) {
       Q_h.push(matVec(headParams[h].W_q, intentProjected));
     }
 
-    // Score each tool
-    const scores: ToolScore[] = [];
-    for (const [toolId, toolEmb] of embs) {
+    // Get pre-computed K projections
+    const { l0Ids: nodeIds, K_h } = this.ensureKCache();
+    const numNodes = nodeIds.length;
+
+    // Score: for each node, sum dot(Q_h, K_cached_h) across heads
+    const scores: NodeScore[] = new Array(numNodes);
+    for (let t = 0; t < numNodes; t++) {
       let totalScore = 0;
       for (let h = 0; h < numHeads; h++) {
-        const K_h = matVec(headParams[h].W_k, toolEmb);
-        totalScore += dot(Q_h[h], K_h) * scale;
+        totalScore += dot(Q_h[h], K_h[h][t]) * scale;
       }
-      scores.push({ toolId, score: totalScore / numHeads });
+      scores[t] = { nodeId: nodeIds[t], score: totalScore / numHeads };
     }
 
     // Sort descending and take top-K
     scores.sort((a, b) => b.score - a.score);
-    const topKResult = scores.slice(0, topK);
+    return { topK: scores.slice(0, topK), scoringMs: Date.now() - t0 };
+  }
 
-    return { topK: topKResult, scoringMs: Date.now() - t0 };
+  /** @deprecated Use scoreNodes instead */
+  scoreTools(intentEmbedding: number[], topK = 10): ScoringResult {
+    return this.scoreNodes(intentEmbedding, topK);
   }
 
   /**
-   * Score a specific set of tool IDs (for sparse scoring, e.g., candidates only).
+   * Score a specific set of node IDs (for sparse scoring, e.g., candidates only).
+   * Uses K cache for consistency and speed when available.
    */
-  scoreToolIds(intentEmbedding: number[], toolIds: string[]): ToolScore[] {
+  scoreNodeIds(intentEmbedding: number[], nodeIdsToScore: string[]): NodeScore[] {
     if (!this.params) throw new Error("[SHGATAdapter] No params loaded.");
 
-    const embs = this.enrichedEmbs ?? this.buildRawEmbsMap();
     const { headParams, W_intent, config } = this.params;
     const { numHeads, headDim } = config;
     const scale = 1.0 / Math.sqrt(headDim);
@@ -517,18 +676,44 @@ export class SHGATAdapter {
       Q_h.push(matVec(headParams[h].W_q, intentProjected));
     }
 
-    const results: ToolScore[] = [];
-    for (const toolId of toolIds) {
-      const toolEmb = embs.get(toolId);
-      if (!toolEmb) continue;
+    // Use K cache if available, fall back to per-node matVec
+    const cache = this.kCache;
+    if (cache) {
+      const idxMap = new Map<string, number>();
+      for (let i = 0; i < cache.l0Ids.length; i++) idxMap.set(cache.l0Ids[i], i);
+
+      const results: NodeScore[] = [];
+      for (const nodeId of nodeIdsToScore) {
+        const idx = idxMap.get(nodeId);
+        if (idx === undefined) continue;
+        let totalScore = 0;
+        for (let h = 0; h < numHeads; h++) {
+          totalScore += dot(Q_h[h], cache.K_h[h][idx]) * scale;
+        }
+        results.push({ nodeId, score: totalScore / numHeads });
+      }
+      return results.sort((a, b) => b.score - a.score);
+    }
+
+    // Fallback: compute K on the fly (no cache available)
+    const embs = this.enrichedEmbs ?? this.buildRawEmbsMap();
+    const results: NodeScore[] = [];
+    for (const nodeId of nodeIdsToScore) {
+      const nodeEmb = embs.get(nodeId);
+      if (!nodeEmb) continue;
       let totalScore = 0;
       for (let h = 0; h < numHeads; h++) {
-        const K_h = matVec(headParams[h].W_k, toolEmb);
+        const K_h = matVec(headParams[h].W_k, nodeEmb);
         totalScore += dot(Q_h[h], K_h) * scale;
       }
-      results.push({ toolId, score: totalScore / numHeads });
+      results.push({ nodeId, score: totalScore / numHeads });
     }
     return results.sort((a, b) => b.score - a.score);
+  }
+
+  /** @deprecated Use scoreNodeIds instead */
+  scoreToolIds(intentEmbedding: number[], toolIds: string[]): NodeScore[] {
+    return this.scoreNodeIds(intentEmbedding, toolIds);
   }
 
   // ---------- Getters ----------
@@ -543,8 +728,13 @@ export class SHGATAdapter {
     return this.graph;
   }
 
+  getL0Ids(): string[] {
+    return this.graph?.l0Ids ?? [];
+  }
+
+  /** @deprecated Use getL0Ids instead */
   getToolIds(): string[] {
-    return this.graph?.toolIds ?? [];
+    return this.getL0Ids();
   }
 
   // ---------- Private ----------
@@ -552,7 +742,7 @@ export class SHGATAdapter {
   private buildRawEmbsMap(): Map<string, number[]> {
     const map = new Map<string, number[]>();
     if (this.graph) {
-      for (const id of this.graph.toolIds) {
+      for (const id of this.graph.l0Ids) {
         const emb = this.nodeEmbeddings.get(id);
         if (emb) map.set(id, emb);
       }
