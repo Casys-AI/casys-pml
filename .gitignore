@@ -160,3 +160,7 @@ styled-system-studio
 data/
 # But keep lib/plm/src/data/ (type definitions, not raw data)
 !lib/plm/src/data/
+# Model weights (too large for git)
+**/gru-weights*.json
+**/shgat-weights*.json
+**/*-weights-latest.json
