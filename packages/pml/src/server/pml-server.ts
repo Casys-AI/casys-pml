@@ -87,14 +87,14 @@ export class PmlServer {
     // Register PML meta-tools (skip in --only mode)
     for (const tool of toolDefs) {
       if (this.context.onlyMode) continue;
-      this.server.registerTool(tool, (args) => this.handleTool(tool.name, args));
+      this.server.registerTool(tool, (args: Record<string, unknown>) => this.handleTool(tool.name, args));
     }
 
     // Register exposed capability tools (--expose flag)
     if (this.context.exposedCapabilities.length > 0) {
       const exposedTools = buildExposedToolDefinitions(this.context.exposedCapabilities);
       for (const tool of exposedTools) {
-        this.server.registerTool(tool, (args) => this.handleExposed(tool.name, args));
+        this.server.registerTool(tool, (args: Record<string, unknown>) => this.handleExposed(tool.name, args));
       }
     }
   }
