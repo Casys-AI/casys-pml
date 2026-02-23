@@ -9,7 +9,7 @@
  *
  * Story 14.8: E2E Integration Testing
  *
- * @module tests/e2e/mock-cloud-server
+ * @module tests/fixtures/mock-cloud-server
  */
 
 /**

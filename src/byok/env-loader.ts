@@ -94,6 +94,45 @@ export function getKey(name: string): string | undefined {
 }
 
 /**
+ * Resolve environment variable references in HTTP header values.
+ *
+ * Replaces `${VAR}` patterns in header values with the corresponding
+ * `Deno.env.get(VAR)` value. Throws a clear error if any referenced
+ * env var is missing (fail-fast, no silent fallbacks).
+ *
+ * @param headers - Header template with `${VAR}` references
+ * @returns Resolved headers with actual env var values
+ * @throws Error if any referenced env var is not set
+ *
+ * @example
+ * ```ts
+ * const resolved = resolveEnvHeaders({
+ *   "Authorization": "Bearer ${TAVILY_API_KEY}",
+ *   "X-Custom": "static-value",
+ * });
+ * // → { "Authorization": "Bearer tvly-abc123...", "X-Custom": "static-value" }
+ * ```
+ */
+export function resolveEnvHeaders(
+  headers: Record<string, string>,
+): Record<string, string> {
+  const resolved: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    resolved[key] = value.replace(/\$\{(\w+)\}/g, (_, envVar: string) => {
+      const val = Deno.env.get(envVar);
+      if (!val) {
+        throw new Error(
+          `Missing env var ${envVar} required for HTTP header "${key}". ` +
+          `Add ${envVar}=<value> to your .env file.`,
+        );
+      }
+      return val;
+    });
+  }
+  return resolved;
+}
+
+/**
  * Check if a .env file exists in the workspace.
  *
  * @param workspace - Workspace root path

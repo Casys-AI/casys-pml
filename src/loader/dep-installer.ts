@@ -193,8 +193,11 @@ export class DepInstaller {
    * @returns Installation result
    */
   async install(dep: McpDependency): Promise<InstallResult> {
-    logDebug(`Installing ${dep.name}@${dep.version}: ${dep.install}`);
+    logDebug(`Installing ${dep.name}@${dep.version}: ${dep.install ?? "(no install cmd)"}`);
 
+    if (!dep.install) {
+      throw new InstallError(dep, `No install command for ${dep.name} — HTTP deps should not reach installer`);
+    }
     const { cmd, args } = parseInstallCommand(dep.install);
 
     // Check if command exists

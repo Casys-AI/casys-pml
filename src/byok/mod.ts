@@ -33,7 +33,7 @@ export {
 } from "./types.ts";
 
 // Env loader (.env file)
-export { envFileExists, getKey, reloadEnv } from "./env-loader.ts";
+export { envFileExists, getKey, reloadEnv, resolveEnvHeaders } from "./env-loader.ts";
 
 // PML env manager (.pml.json) - DEPRECATED
 // These functions are no longer used. API keys are now managed

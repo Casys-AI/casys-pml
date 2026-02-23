@@ -46,6 +46,22 @@ export function extractContinueWorkflow(
 }
 
 /**
+ * Type guard to check if parsed JSON is a valid execute_locally response.
+ */
+function isExecuteLocallyResponse(
+  parsed: unknown,
+): parsed is { status: string; code: string; [key: string]: unknown } {
+  return (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    "status" in parsed &&
+    (parsed as Record<string, unknown>).status === "execute_locally" &&
+    "code" in parsed &&
+    typeof (parsed as Record<string, unknown>).code === "string"
+  );
+}
+
+/**
  * Parse execute_locally response from server.
  *
  * @param content - Text content from MCP response
@@ -55,17 +71,21 @@ export function parseExecuteLocallyResponse(
   content: string,
 ): ExecuteLocallyResponse | null {
   try {
-    const parsed = JSON.parse(content);
-    if (parsed.status === "execute_locally" && parsed.code) {
-      return {
-        status: parsed.status,
-        code: parsed.code,
-        client_tools: parsed.client_tools ?? parsed.clientTools ?? [],
-        tools_used: parsed.tools_used ?? [],
-        workflowId: parsed.workflowId ?? parsed.workflow_id,
-      };
+    const parsed: unknown = JSON.parse(content);
+
+    if (!isExecuteLocallyResponse(parsed)) {
+      return null;
     }
-    return null;
+
+    return {
+      status: parsed.status,
+      code: parsed.code,
+      client_tools: (parsed.client_tools ?? parsed.clientTools ?? []) as string[],
+      tools_used: (parsed.tools_used ?? []) as ExecuteLocallyResponse["tools_used"],
+      workflowId: (parsed.workflowId ?? parsed.workflow_id) as string | undefined,
+      dag: parsed.dag as ExecuteLocallyResponse["dag"],
+      ui_orchestration: parsed.ui_orchestration as ExecuteLocallyResponse["ui_orchestration"],
+    };
   } catch {
     return null;
   }

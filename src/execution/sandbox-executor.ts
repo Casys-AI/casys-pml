@@ -8,25 +8,53 @@
  * - Package-side execution when server returns `execute_locally`
  * - CapabilityLoader for sandboxed capability execution
  *
+ * ## UI Collection (Story 16.3 — re-wired Epic 16)
+ *
+ * Per SEP-1865, both `tools/list` (static) and `tools/call` (dynamic) can carry
+ * `_meta.ui`. The sandbox collects UI metadata from tool call responses using
+ * `extractUiMeta()`. This enables the package-side MCP path (Option B) to
+ * return `_meta.ui` to clients (Claude Desktop, Cursor, etc.).
+ *
+ * Server-side collection via `UiCollector` handles the dashboard path (Option A)
+ * separately — no duplication.
+ *
  * @module execution/sandbox-executor
  */
 
 import * as log from "@std/log";
+import { uuidv7 } from "../utils/uuid.ts";
 import { SandboxWorker } from "../sandbox/mod.ts";
 import type { SandboxResult } from "../sandbox/mod.ts";
 import { resolveToolRouting } from "../routing/mod.ts";
 import type {
+  SandboxExecuteOptions,
   SandboxExecutionResult,
   SandboxExecutorOptions,
   ToolCallHandler,
   ToolCallRecord,
 } from "./types.ts";
+import { extractUiMeta, extractResultData } from "./ui-utils.ts";
+import type { CollectedUiResource } from "../types/ui-orchestration.ts";
 
 /**
  * Log debug message for sandbox operations.
  */
 function logDebug(message: string): void {
   log.debug(`[pml:sandbox-executor] ${message}`);
+}
+
+/**
+ * Context for RPC call handling.
+ * Groups mutable state accessed during tool call processing.
+ */
+interface RpcCallContext {
+  clientToolHandler: ToolCallHandler | undefined;
+  traceId: string;
+  fqdnMap: Map<string, string> | undefined;
+  toolsCalled: string[];
+  toolCallRecords: ToolCallRecord[];
+  /** Story 16.3: UI resources collected from tool responses */
+  collectedUi: CollectedUiResource[];
 }
 
 /**
@@ -57,56 +85,51 @@ export class SandboxExecutor {
   private readonly apiKey?: string;
   private readonly executionTimeoutMs: number;
   private readonly rpcTimeoutMs: number;
+  private readonly onUiCollected?: (ui: CollectedUiResource, parsedResult: unknown) => void;
 
   constructor(options: SandboxExecutorOptions) {
     this.cloudUrl = options.cloudUrl;
     this.apiKey = options.apiKey ?? Deno.env.get("PML_API_KEY");
     this.executionTimeoutMs = options.executionTimeoutMs ?? 300_000; // 5 min default
     this.rpcTimeoutMs = options.rpcTimeoutMs ?? 30_000; // 30s default
+    this.onUiCollected = options.onUiCollected;
   }
 
   /**
    * Execute code in an isolated sandbox with hybrid routing.
    *
    * @param code - TypeScript code to execute
-   * @param context - Context/arguments passed to the code
-   * @param clientToolHandler - Handler for client-routed tool calls
+   * @param options - Execution options (context, handlers, fqdnMap)
    * @returns Execution result
    */
   async execute(
     code: string,
-    context: Record<string, unknown>,
-    clientToolHandler?: ToolCallHandler,
+    options: SandboxExecuteOptions,
   ): Promise<SandboxExecutionResult> {
+    const { context, clientToolHandler, workflowId, fqdnMap } = options;
+
     logDebug(`Executing code in sandbox (${code.length} chars)`);
+
+    // Use provided workflowId or generate new one (ADR-041: unified ID for traces + HIL)
+    const traceId = workflowId ?? uuidv7();
+    logDebug(`Workflow/Trace ID: ${traceId}${workflowId ? " (continued)" : " (new)"}`);
 
     const toolsCalled: string[] = [];
     const toolCallRecords: ToolCallRecord[] = [];
+    const collectedUi: CollectedUiResource[] = [];
     const startTime = Date.now();
 
     // Create sandbox with hybrid RPC handler
     const sandbox = new SandboxWorker({
       onRpc: async (method: string, args: unknown) => {
-        toolsCalled.push(method);
-        const callStart = Date.now();
-        let result: unknown;
-        let success = true;
-        try {
-          result = await this.routeToolCall(method, args, clientToolHandler);
-        } catch (error) {
-          success = false;
-          result = error instanceof Error ? error.message : String(error);
-          throw error; // Re-throw to propagate the error
-        } finally {
-          toolCallRecords.push({
-            tool: method,
-            args,
-            result,
-            success,
-            durationMs: Date.now() - callStart,
-          });
-        }
-        return result;
+        return await this.handleRpcCall(method, args, {
+          clientToolHandler,
+          traceId,
+          fqdnMap,
+          toolsCalled,
+          toolCallRecords,
+          collectedUi,
+        });
       },
       executionTimeoutMs: this.executionTimeoutMs,
       rpcTimeoutMs: this.rpcTimeoutMs,
@@ -117,6 +140,9 @@ export class SandboxExecutor {
 
       const durationMs = Date.now() - startTime;
 
+      // Story 16.3: Only include collectedUi when non-empty (tests expect absent, not empty array)
+      const uiResult = collectedUi.length > 0 ? { collectedUi } : {};
+
       if (!result.success) {
         logDebug(`Sandbox execution failed: ${result.error?.message}`);
         return {
@@ -125,6 +151,8 @@ export class SandboxExecutor {
           durationMs,
           toolsCalled,
           toolCallRecords,
+          traceId,
+          ...uiResult,
         };
       }
 
@@ -135,10 +163,64 @@ export class SandboxExecutor {
         durationMs,
         toolsCalled,
         toolCallRecords,
+        traceId,
+        ...uiResult,
       };
     } finally {
       sandbox.shutdown();
     }
+  }
+
+  /**
+   * Handle an RPC call from the sandbox worker.
+   * Routes the tool call, records execution metrics, and collects UI metadata.
+   *
+   * Story 16.3: After each tool call, extracts `_meta.ui` from the response
+   * and builds a `CollectedUiResource` with source, resourceUri, context + _args.
+   */
+  private async handleRpcCall(
+    method: string,
+    args: unknown,
+    ctx: RpcCallContext,
+  ): Promise<unknown> {
+    ctx.toolsCalled.push(method);
+    const callStart = Date.now();
+    let result: unknown;
+    let success = true;
+
+    try {
+      result = await this.routeToolCall(method, args, ctx.clientToolHandler, ctx.traceId);
+    } catch (error) {
+      success = false;
+      result = error instanceof Error ? error.message : String(error);
+      throw error;
+    } finally {
+      const toolFqdn = ctx.fqdnMap?.get(method) ?? method;
+      ctx.toolCallRecords.push({
+        tool: toolFqdn,
+        args,
+        result,
+        success,
+        durationMs: Date.now() - callStart,
+      });
+    }
+
+    // Story 16.3: Collect _meta.ui from tool response if present
+    if (success) {
+      const uiMeta = extractUiMeta(result);
+      if (uiMeta) {
+        const collected: CollectedUiResource = {
+          source: method,
+          resourceUri: uiMeta.resourceUri,
+          context: { ...uiMeta.context, _args: args },
+          slot: ctx.collectedUi.length,
+        };
+        ctx.collectedUi.push(collected);
+        this.onUiCollected?.(collected, extractResultData(result));
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -152,7 +234,8 @@ export class SandboxExecutor {
   private async routeToolCall(
     toolId: string,
     args: unknown,
-    clientHandler?: ToolCallHandler,
+    clientHandler: ToolCallHandler | undefined,
+    parentTraceId: string,
   ): Promise<unknown> {
     const routing = resolveToolRouting(toolId);
 
@@ -164,11 +247,11 @@ export class SandboxExecutor {
           `Client tool ${toolId} requires handler but none provided`,
         );
       }
-      return clientHandler(toolId, args);
+      return await clientHandler(toolId, args, parentTraceId);
     }
 
     // Server routing - forward to cloud
-    return this.callServer(toolId, args);
+    return await this.callServer(toolId, args);
   }
 
   /**

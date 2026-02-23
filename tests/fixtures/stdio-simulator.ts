@@ -6,10 +6,10 @@
  *
  * Story 14.8: E2E Integration Testing
  *
- * @module tests/e2e/stdio-simulator
+ * @module tests/fixtures/stdio-simulator
  */
 
-import type { E2ETestContext } from "./test-harness.ts";
+import type { E2ETestContext } from "../e2e/test-harness.ts";
 
 /**
  * JSON-RPC request structure.
@@ -501,7 +501,7 @@ export class StdioSimulator {
       "status" in data &&
       (data as Record<string, unknown>).status === "approval_required"
     ) {
-      const approvalData = data as {
+      const approvalData = data as unknown as {
         approval_type: string;
         workflow_id: string;
         context?: unknown;

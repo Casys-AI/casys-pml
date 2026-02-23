@@ -15,7 +15,7 @@ import {
   teardownE2EContext,
   type E2ETestContext,
 } from "./test-harness.ts";
-import { createMockServer } from "./mock-cloud-server.ts";
+import { createMockServer } from "../fixtures/mock-cloud-server.ts";
 import { CapabilityLoader } from "../../src/loader/capability-loader.ts";
 import {
   initializeRouting,

@@ -1,13 +1,14 @@
 /**
  * Trace Syncer for packages/pml
  *
- * Story 14.5b: Async batch sync of execution traces to cloud.
+ * Story 14.5b / ADR-041: Batch sync of execution traces to cloud.
  *
- * The TraceSyncer handles:
- * - Queuing traces for batch sync
- * - Periodic flush to cloud API
- * - Retry logic for failed syncs
- * - Graceful degradation in standalone mode
+ * TraceSyncer is a simple queue + explicit flush mechanism:
+ * - Enqueue traces during execution (no auto-sync)
+ * - Sort by dependency (parents before children)
+ * - Flush explicitly at end of complete execution
+ *
+ * This ensures FK constraints are satisfied (parent traces exist before children).
  *
  * @module tracing/syncer
  */
@@ -19,6 +20,7 @@ import type {
 } from "./types.ts";
 import { DEFAULT_SYNC_CONFIG } from "./types.ts";
 import * as log from "@std/log";
+import { uuidv7 } from "../utils/uuid.ts";
 
 /**
  * Log debug message for tracing operations.
@@ -35,7 +37,7 @@ function logWarn(message: string): void {
 }
 
 /**
- * TraceSyncer - Async batch sync of traces to cloud.
+ * TraceSyncer - Queue + explicit flush for trace sync.
  *
  * In standalone mode (cloudUrl = null), traces are only logged locally.
  *
@@ -43,16 +45,15 @@ function logWarn(message: string): void {
  * ```typescript
  * const syncer = new TraceSyncer({
  *   cloudUrl: "https://pml.casys.ai",
- *   batchSize: 10,
- *   flushIntervalMs: 5000,
- *   maxRetries: 3,
  *   apiKey: "pml_xxx",
  * });
  *
- * // Enqueue traces (non-blocking)
- * syncer.enqueue(trace);
+ * // Enqueue traces during execution
+ * syncer.enqueue(trace1);
+ * syncer.enqueue(trace2);
  *
- * // Manual flush (optional)
+ * // Sort and flush at end of execution
+ * syncer.sortQueueByDependency();
  * await syncer.flush();
  *
  * // Cleanup on shutdown
@@ -62,9 +63,6 @@ function logWarn(message: string): void {
 export class TraceSyncer {
   /** Queue of traces pending sync */
   private queue: LocalExecutionTrace[] = [];
-
-  /** Timer for periodic flush */
-  private flushTimer: number | null = null;
 
   /** Whether syncer is active */
   private active = true;
@@ -78,9 +76,7 @@ export class TraceSyncer {
   constructor(config: Partial<TraceSyncConfig> = {}) {
     this.config = { ...DEFAULT_SYNC_CONFIG, ...config };
 
-    // Start periodic flush timer if cloud URL is configured
     if (this.config.cloudUrl) {
-      this.startFlushTimer();
       logDebug(`TraceSyncer started - cloud URL: ${this.config.cloudUrl}`);
     } else {
       logDebug("TraceSyncer started - standalone mode (no sync)");
@@ -90,8 +86,8 @@ export class TraceSyncer {
   /**
    * Enqueue a trace for sync.
    *
-   * Non-blocking - trace is added to queue for batch sync.
-   * In standalone mode, trace is logged but not synced.
+   * Non-blocking - trace is added to queue.
+   * In standalone mode, trace is logged but not queued.
    *
    * @param trace - Sanitized trace to sync
    */
@@ -109,19 +105,12 @@ export class TraceSyncer {
 
     this.queue.push(trace);
     logDebug(`Trace queued: ${trace.capabilityId} (queue size: ${this.queue.length})`);
-
-    // Flush immediately if batch size reached
-    if (this.queue.length >= this.config.batchSize) {
-      this.flush().catch((error) => {
-        logWarn(`Batch flush failed: ${error}`);
-      });
-    }
   }
 
   /**
-   * Flush queued traces to cloud.
+   * Flush all queued traces to cloud.
    *
-   * Sends current batch to cloud API. Failed traces are re-queued
+   * Sends traces in batches to cloud API. Failed traces are re-queued
    * for retry up to maxRetries times.
    */
   async flush(): Promise<void> {
@@ -129,26 +118,30 @@ export class TraceSyncer {
       return;
     }
 
-    // Take a batch from queue
-    const batch = this.queue.splice(0, this.config.batchSize);
+    // Flush all traces in batches
+    while (this.queue.length > 0) {
+      const batch = this.queue.splice(0, this.config.batchSize);
 
-    logDebug(`Flushing ${batch.length} traces to cloud`);
+      logDebug(`Flushing ${batch.length} traces to cloud`);
 
-    try {
-      const response = await this.sendBatch(batch);
+      try {
+        const response = await this.sendBatch(batch);
 
-      if (response.stored === batch.length) {
-        logDebug(`Successfully synced ${response.stored} traces`);
-        // Clear retry counts for synced traces
-        for (const trace of batch) {
-          this.retryCount.delete(this.getTraceKey(trace));
+        if (response.stored === batch.length) {
+          logDebug(`Successfully synced ${response.stored} traces`);
+          // Clear retry counts for synced traces
+          for (const trace of batch) {
+            this.retryCount.delete(this.getTraceKey(trace));
+          }
+        } else if (response.errors && response.errors.length > 0) {
+          logWarn(`Partial sync: ${response.stored}/${batch.length} - errors: ${response.errors.join(", ")}`);
         }
-      } else if (response.errors && response.errors.length > 0) {
-        logWarn(`Partial sync: ${response.stored}/${batch.length} - errors: ${response.errors.join(", ")}`);
+      } catch (error) {
+        // Re-queue failed batch for retry
+        this.handleSyncFailure(batch, error);
+        // Stop flushing on error to avoid infinite loop
+        break;
       }
-    } catch (error) {
-      // Re-queue failed batch for retry
-      this.handleSyncFailure(batch, error);
     }
   }
 
@@ -213,39 +206,7 @@ export class TraceSyncer {
    * Generate a unique key for a trace (for retry tracking).
    */
   private getTraceKey(trace: LocalExecutionTrace): string {
-    return `${trace.capabilityId}:${trace.timestamp}`;
-  }
-
-  /**
-   * Start the periodic flush timer.
-   */
-  private startFlushTimer(): void {
-    if (this.flushTimer !== null) {
-      return;
-    }
-
-    this.flushTimer = setInterval(() => {
-      if (this.queue.length > 0) {
-        this.flush().catch((error) => {
-          logWarn(`Periodic flush failed: ${error}`);
-        });
-      }
-    }, this.config.flushIntervalMs);
-
-    // Mark as unref so it doesn't keep the process alive
-    if (typeof Deno !== "undefined") {
-      Deno.unrefTimer(this.flushTimer);
-    }
-  }
-
-  /**
-   * Stop the periodic flush timer.
-   */
-  private stopFlushTimer(): void {
-    if (this.flushTimer !== null) {
-      clearInterval(this.flushTimer);
-      this.flushTimer = null;
-    }
+    return `${trace.traceId}:${trace.timestamp}`;
   }
 
   /**
@@ -253,6 +214,56 @@ export class TraceSyncer {
    */
   getQueueSize(): number {
     return this.queue.length;
+  }
+
+  /**
+   * Get a copy of the current queue (for testing/debugging).
+   */
+  getQueue(): LocalExecutionTrace[] {
+    return [...this.queue];
+  }
+
+  /**
+   * Sort the queue so parent traces come before children.
+   *
+   * Traces without parentTraceId are considered roots and go first.
+   * This ensures FK constraints are satisfied when inserting in order.
+   */
+  sortQueueByDependency(): void {
+    if (this.queue.length <= 1) return;
+
+    // Build a map of traceId -> trace for quick lookup
+    const traceMap = new Map<string, LocalExecutionTrace>();
+    for (const trace of this.queue) {
+      if (trace.traceId) {
+        traceMap.set(trace.traceId, trace);
+      }
+    }
+
+    // Topological sort: traces without parentTraceId first, then children
+    const sorted: LocalExecutionTrace[] = [];
+    const visited = new Set<string>();
+
+    const visit = (trace: LocalExecutionTrace) => {
+      const traceId = trace.traceId ?? uuidv7();
+      if (visited.has(traceId)) return;
+
+      // Visit parent first if it's in the queue
+      if (trace.parentTraceId && traceMap.has(trace.parentTraceId)) {
+        const parent = traceMap.get(trace.parentTraceId)!;
+        visit(parent);
+      }
+
+      visited.add(traceId);
+      sorted.push(trace);
+    };
+
+    for (const trace of this.queue) {
+      visit(trace);
+    }
+
+    this.queue = sorted;
+    logDebug(`Queue sorted by dependency: ${sorted.length} traces`);
   }
 
   /**
@@ -272,7 +283,7 @@ export class TraceSyncer {
   /**
    * Shutdown the syncer.
    *
-   * Stops the flush timer and attempts to flush remaining traces.
+   * Flushes remaining traces if any.
    */
   async shutdown(): Promise<void> {
     if (!this.active) {
@@ -280,12 +291,12 @@ export class TraceSyncer {
     }
 
     this.active = false;
-    this.stopFlushTimer();
 
     // Final flush attempt
     if (this.queue.length > 0 && this.config.cloudUrl) {
       logDebug(`Shutdown: flushing ${this.queue.length} remaining traces`);
       try {
+        this.sortQueueByDependency();
         await this.flush();
       } catch (error) {
         logWarn(`Shutdown flush failed: ${error}`);

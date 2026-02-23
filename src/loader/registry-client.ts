@@ -195,6 +195,10 @@ function validateMetadata(data: unknown): CapabilityMetadata {
     integrity: typeof obj.integrity === "string" ? obj.integrity : undefined,
     // Include install info for stdio/http types
     install: obj.install as CapabilityMetadata["install"],
+    // Include parameters schema for validation
+    parametersSchema: obj.parametersSchema as Record<string, unknown> | undefined,
+    // Issue 6 fix: Tools used by this capability (FQDNs for nested trace matching)
+    toolsUsed: Array.isArray(obj.toolsUsed) ? obj.toolsUsed as string[] : undefined,
   };
 }
 
@@ -486,11 +490,13 @@ export class RegistryClient {
    *
    * @param namespace - Tool namespace or FQDN
    * @param lockfileManager - Lockfile manager for integrity tracking
+   * @param existingWorkflowId - Optional: reuse existing workflowId (from execute_locally flow)
    * @returns Fetch result or approval required
    */
   async fetchWithIntegrity(
     namespace: string,
     lockfileManager: LockfileManager,
+    existingWorkflowId?: string,
   ): Promise<RegistryFetchResult | IntegrityApprovalRequired> {
     // Fetch metadata normally
     const result = await this.fetch(namespace);
@@ -509,6 +515,7 @@ export class RegistryClient {
       metadata.fqdn,
       serverIntegrity,
       mcpType,
+      existingWorkflowId,
     );
 
     // If approval required, return that instead

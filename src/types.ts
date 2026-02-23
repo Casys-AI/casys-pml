@@ -58,14 +58,20 @@ export interface PmlConfig {
    * Keys are saved after HIL approval for future use.
    */
   env?: Record<string, string>;
+  /**
+   * User-defined MCP servers (BYOK model).
+   * PML discovers tools from these servers at startup via tools/list.
+   * Same format as .mcp.json but managed by PML for tool discovery.
+   */
+  mcpServers?: Record<string, McpServerConfig>;
 }
 
 /**
  * MCP server configuration
  */
 export interface McpServerConfig {
-  /** Transport type */
-  type: "http" | "stdio";
+  /** Transport type (defaults to "stdio" if omitted) */
+  type?: "http" | "stdio";
   /** Server URL (for http type) */
   url?: string;
   /** Command to run (for stdio type) */

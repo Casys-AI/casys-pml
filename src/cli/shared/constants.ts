@@ -18,11 +18,11 @@ export const SILENT_LOGGER = {
 
 /**
  * PML base tools - forwarded to cloud server.
- * Names match src/mcp/tools/definitions.ts (pml:discover, pml:execute, pml:admin)
+ * Names match src/mcp/tools/definitions.ts (pml_discover, pml_execute, pml_admin)
  */
 export const PML_TOOLS = [
   {
-    name: "pml:discover",
+    name: "discover",
     description: "Search, list, lookup, or get details for tools and capabilities",
     inputSchema: {
       type: "object",
@@ -36,7 +36,7 @@ export const PML_TOOLS = [
     },
   },
   {
-    name: "pml:execute",
+    name: "execute",
     description: "Execute code",
     inputSchema: {
       type: "object",
@@ -54,7 +54,7 @@ export const PML_TOOLS = [
     },
   },
   {
-    name: "pml:admin",
+    name: "admin",
     description: "Manage capabilities: rename, merge",
     inputSchema: {
       type: "object",
@@ -75,7 +75,7 @@ export const PML_TOOLS = [
  */
 export const PML_TOOLS_FULL = [
   {
-    name: "pml:discover",
+    name: "discover",
     description:
       "Search, list, lookup, or get details for MCP tools and learned capabilities. Supports semantic search (intent), glob listing (pattern), exact lookup (name), and full metadata (id).",
     inputSchema: {
@@ -116,7 +116,7 @@ export const PML_TOOLS_FULL = [
     },
   },
   {
-    name: "pml:execute",
+    name: "execute",
     description:
       "Execute intent with optional code. With code: runs and learns. Without: returns suggestions.",
     inputSchema: {
@@ -155,7 +155,7 @@ export const PML_TOOLS_FULL = [
     },
   },
   {
-    name: "pml:admin",
+    name: "admin",
     description: "Manage capabilities: rename, merge. Administrative operations.",
     inputSchema: {
       type: "object",
@@ -204,7 +204,7 @@ export const PML_TOOLS_FULL = [
     },
   },
   {
-    name: "pml:abort",
+    name: "abort",
     description: "Stop a running workflow immediately.",
     inputSchema: {
       type: "object",
@@ -222,7 +222,7 @@ export const PML_TOOLS_FULL = [
     },
   },
   {
-    name: "pml:replan",
+    name: "replan",
     description: "Add new tasks to a running workflow based on discovered context.",
     inputSchema: {
       type: "object",

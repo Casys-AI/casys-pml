@@ -14,9 +14,11 @@ const TEST_DIR = await Deno.makeTempDir({ prefix: "pml_test_" });
 Deno.test("init - creates .mcp.json and .pml.json", async () => {
   const testDir = await Deno.makeTempDir({ dir: TEST_DIR });
   const originalCwd = Deno.cwd();
+  const originalEnv = Deno.env.get("PML_WORKSPACE");
 
   try {
     Deno.chdir(testDir);
+    Deno.env.set("PML_WORKSPACE", testDir);
 
     const result = await initProject({ yes: true });
 
@@ -25,15 +27,19 @@ Deno.test("init - creates .mcp.json and .pml.json", async () => {
     assertEquals(await exists(join(testDir, ".pml.json")), true);
   } finally {
     Deno.chdir(originalCwd);
+    if (originalEnv) Deno.env.set("PML_WORKSPACE", originalEnv);
+    else Deno.env.delete("PML_WORKSPACE");
   }
 });
 
 Deno.test("init - .mcp.json has correct structure", async () => {
   const testDir = await Deno.makeTempDir({ dir: TEST_DIR });
   const originalCwd = Deno.cwd();
+  const originalEnv = Deno.env.get("PML_WORKSPACE");
 
   try {
     Deno.chdir(testDir);
+    Deno.env.set("PML_WORKSPACE", testDir);
 
     await initProject({ yes: true, port: 4000 });
 
@@ -48,15 +54,19 @@ Deno.test("init - .mcp.json has correct structure", async () => {
     assertEquals(config.mcpServers.pml.env, undefined);
   } finally {
     Deno.chdir(originalCwd);
+    if (originalEnv) Deno.env.set("PML_WORKSPACE", originalEnv);
+    else Deno.env.delete("PML_WORKSPACE");
   }
 });
 
 Deno.test("init - .pml.json has correct structure", async () => {
   const testDir = await Deno.makeTempDir({ dir: TEST_DIR });
   const originalCwd = Deno.cwd();
+  const originalEnv = Deno.env.get("PML_WORKSPACE");
 
   try {
     Deno.chdir(testDir);
+    Deno.env.set("PML_WORKSPACE", testDir);
 
     await initProject({
       yes: true,
@@ -67,8 +77,9 @@ Deno.test("init - .pml.json has correct structure", async () => {
     const content = await Deno.readTextFile(join(testDir, ".pml.json"));
     const config = JSON.parse(content);
 
-    // Basic structure
-    assertEquals(config.version, "0.1.0");
+    // Basic structure - version should match package version
+    assertEquals(typeof config.version, "string");
+    assertEquals(config.version.match(/^\d+\.\d+\.\d+$/) !== null, true);
     assertEquals(config.workspace, "."); // Portable - dynamic detection via resolveWorkspace()
 
     // Cloud config - apiKey removed (loaded from .env directly)
@@ -90,15 +101,19 @@ Deno.test("init - .pml.json has correct structure", async () => {
     assertEquals(config.permissions.ask.length, 0);
   } finally {
     Deno.chdir(originalCwd);
+    if (originalEnv) Deno.env.set("PML_WORKSPACE", originalEnv);
+    else Deno.env.delete("PML_WORKSPACE");
   }
 });
 
 Deno.test("init - backs up existing .mcp.json with --yes", async () => {
   const testDir = await Deno.makeTempDir({ dir: TEST_DIR });
   const originalCwd = Deno.cwd();
+  const originalEnv = Deno.env.get("PML_WORKSPACE");
 
   try {
     Deno.chdir(testDir);
+    Deno.env.set("PML_WORKSPACE", testDir);
 
     // Create existing config
     const existingConfig = { existing: { type: "stdio", command: "test" } };
@@ -119,15 +134,19 @@ Deno.test("init - backs up existing .mcp.json with --yes", async () => {
     assertEquals(JSON.parse(backupContent), existingConfig);
   } finally {
     Deno.chdir(originalCwd);
+    if (originalEnv) Deno.env.set("PML_WORKSPACE", originalEnv);
+    else Deno.env.delete("PML_WORKSPACE");
   }
 });
 
 Deno.test("init - force overwrites without backup", async () => {
   const testDir = await Deno.makeTempDir({ dir: TEST_DIR });
   const originalCwd = Deno.cwd();
+  const originalEnv = Deno.env.get("PML_WORKSPACE");
 
   try {
     Deno.chdir(testDir);
+    Deno.env.set("PML_WORKSPACE", testDir);
 
     // Create existing config
     await Deno.writeTextFile(
@@ -142,15 +161,19 @@ Deno.test("init - force overwrites without backup", async () => {
     assertEquals(await exists(join(testDir, ".mcp.json.backup")), false);
   } finally {
     Deno.chdir(originalCwd);
+    if (originalEnv) Deno.env.set("PML_WORKSPACE", originalEnv);
+    else Deno.env.delete("PML_WORKSPACE");
   }
 });
 
 Deno.test("init - sets API key when provided", async () => {
   const testDir = await Deno.makeTempDir({ dir: TEST_DIR });
   const originalCwd = Deno.cwd();
+  const originalEnv = Deno.env.get("PML_WORKSPACE");
 
   try {
     Deno.chdir(testDir);
+    Deno.env.set("PML_WORKSPACE", testDir);
 
     await initProject({ yes: true, apiKey: "test-key-123" });
 
@@ -160,6 +183,8 @@ Deno.test("init - sets API key when provided", async () => {
     assertEquals(config.mcpServers.pml.env.PML_API_KEY, "test-key-123");
   } finally {
     Deno.chdir(originalCwd);
+    if (originalEnv) Deno.env.set("PML_WORKSPACE", originalEnv);
+    else Deno.env.delete("PML_WORKSPACE");
   }
 });
 

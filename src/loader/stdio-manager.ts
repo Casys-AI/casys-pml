@@ -37,6 +37,7 @@ function logDebug(message: string): void {
 
 /**
  * Check if dependency is mcp-std (uses jsr:@casys/mcp-std).
+ * Only returns true if explicitly using jsr:@casys/mcp-std, not just named "std".
  */
 function isMcpStd(dep: McpDependency): boolean {
   // Check args for jsr:@casys/mcp-std
@@ -47,10 +48,7 @@ function isMcpStd(dep: McpDependency): boolean {
   if (dep.install?.includes("@casys/mcp-std")) {
     return true;
   }
-  // Check by name
-  if (dep.name === "std" || dep.name === "mcp-std") {
-    return true;
-  }
+  // Don't match by name alone - user may have custom std server
   return false;
 }
 
@@ -79,8 +77,8 @@ function parseCommand(dep: McpDependency): { cmd: string; args: string[] } {
     };
   }
 
-  // Parse from install command
-  const parts = dep.install.trim().split(/\s+/);
+  // Parse from install command (always present for stdio deps)
+  const parts = (dep.install ?? "").trim().split(/\s+/);
   return {
     cmd: parts[0],
     args: parts.slice(1),
@@ -115,19 +113,57 @@ async function resolveStdBinary(dep: McpDependency): Promise<{ cmd: string; args
  * - Idle timeout and shutdown
  * - Crash detection and auto-restart
  */
+/**
+ * Options for crash handling.
+ */
+interface CrashHandlerOptions {
+  /** Maximum restart attempts */
+  maxRetries: number;
+  /** Callback when crash is detected */
+  onCrash?: (name: string, error: string) => void;
+}
+
 export class StdioManager {
   private readonly processes = new Map<string, StdioProcess>();
   private readonly idleTimeoutMs: number;
   private readonly idleTimers = new Map<string, number>();
+  private readonly restartCounts = new Map<string, number>();
+  private readonly crashOptions: CrashHandlerOptions;
+  // F4 Fix: Track processes currently restarting to prevent race conditions
+  private readonly restartingProcesses = new Set<string>();
+  private readonly restartPromises = new Map<string, Promise<void>>();
 
-  constructor(idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS) {
+  constructor(
+    idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
+    crashOptions: Partial<CrashHandlerOptions> = {},
+  ) {
     this.idleTimeoutMs = idleTimeoutMs;
+    this.crashOptions = {
+      maxRetries: crashOptions.maxRetries ?? 3,
+      onCrash: crashOptions.onCrash,
+    };
   }
 
   /**
    * Get or spawn a process for a dependency.
    */
   async getOrSpawn(dep: McpDependency): Promise<StdioProcess> {
+    // F4 Fix: Wait if process is currently restarting
+    if (this.restartingProcesses.has(dep.name)) {
+      logDebug(`${dep.name} is restarting, waiting...`);
+      const restartPromise = this.restartPromises.get(dep.name);
+      if (restartPromise) {
+        await restartPromise;
+      }
+      // After restart completes, check if process exists now
+      const restarted = this.processes.get(dep.name);
+      if (restarted) {
+        this.resetIdleTimer(dep.name);
+        return restarted;
+      }
+      // Restart failed, fall through to spawn
+    }
+
     const existing = this.processes.get(dep.name);
     if (existing) {
       this.resetIdleTimer(dep.name);
@@ -158,13 +194,18 @@ export class StdioManager {
     logDebug(`Spawning ${dep.name}: ${cmd} ${args.join(" ")}`);
 
     try {
+      // Merge base env (from .env) with dependency-specific env vars
+      // dep.env takes precedence over base env
+      const baseEnv = Deno.env.toObject();
+      const processEnv = dep.env ? { ...baseEnv, ...dep.env } : baseEnv;
+
       const command = new Deno.Command(cmd, {
         args,
         stdin: "piped",
         stdout: "piped",
         stderr: "piped",
-        // Pass current env vars including those loaded from .env via reloadEnv()
-        env: Deno.env.toObject(),
+        // Pass merged env vars: base (.env) + dep-specific (mcpServers[name].env)
+        env: processEnv,
       });
 
       const process = command.spawn();
@@ -248,7 +289,13 @@ export class StdioManager {
           const { value, done } = await proc.reader.read();
 
           if (done) {
-            logDebug(`${name} stdout closed`);
+            // Check if this is an unexpected closure (process still in our map)
+            if (this.processes.has(name)) {
+              logDebug(`${name} stdout closed unexpectedly, attempting restart...`);
+              this.handleCrash(name, proc.dep, "Process terminated unexpectedly");
+            } else {
+              logDebug(`${name} stdout closed (expected shutdown)`);
+            }
             break;
           }
 
@@ -402,6 +449,70 @@ export class StdioManager {
     await proc.writer.write(serializeMessage(request));
 
     return responsePromise;
+  }
+
+  /**
+   * Handle unexpected process crash with auto-restart.
+   * F4 Fix: Uses restartingProcesses set to prevent race conditions.
+   *
+   * @param name - Process name
+   * @param dep - Original dependency config for respawn
+   * @param reason - Crash reason for logging
+   */
+  private handleCrash(name: string, dep: McpDependency, reason: string): void {
+    // F4 Fix: Mark as restarting to block concurrent getOrSpawn calls
+    if (this.restartingProcesses.has(name)) {
+      logDebug(`${name} already restarting, ignoring duplicate crash`);
+      return;
+    }
+    this.restartingProcesses.add(name);
+
+    // Create promise that resolves when restart completes
+    const restartPromise = this.doRestart(name, dep, reason);
+    this.restartPromises.set(name, restartPromise);
+
+    // Clean up after restart completes
+    restartPromise.finally(() => {
+      this.restartingProcesses.delete(name);
+      this.restartPromises.delete(name);
+    });
+  }
+
+  /**
+   * Internal restart logic.
+   */
+  private async doRestart(name: string, dep: McpDependency, reason: string): Promise<void> {
+    // Clean up crashed process
+    this.processes.delete(name);
+
+    // Notify callback if provided
+    this.crashOptions.onCrash?.(name, reason);
+
+    // Check restart count
+    const restartCount = (this.restartCounts.get(name) ?? 0) + 1;
+    this.restartCounts.set(name, restartCount);
+
+    if (restartCount > this.crashOptions.maxRetries) {
+      logDebug(`${name} crashed ${restartCount} times, giving up (max: ${this.crashOptions.maxRetries})`);
+      return;
+    }
+
+    // Exponential backoff: 1s, 2s, 4s
+    const backoffMs = 1000 * Math.pow(2, restartCount - 1);
+    logDebug(`${name} restart attempt ${restartCount}/${this.crashOptions.maxRetries} in ${backoffMs}ms`);
+
+    await new Promise((r) => setTimeout(r, backoffMs));
+
+    // Attempt restart
+    try {
+      await this.spawn(dep);
+      logDebug(`${name} restarted successfully (attempt ${restartCount})`);
+      // Reset count on successful restart
+      this.restartCounts.delete(name);
+    } catch (error) {
+      logDebug(`${name} restart failed (attempt ${restartCount}): ${error}`);
+      // Will retry on next crash detection
+    }
   }
 
   /**

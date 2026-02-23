@@ -121,3 +121,17 @@ export {
 // Lockfile Types (Story 14.7 - re-export for convenience)
 export type { IntegrityApprovalRequired } from "../lockfile/types.ts";
 export { LockfileManager } from "../lockfile/mod.ts";
+
+// UI Orchestration Types (Epic 16 - re-export for convenience)
+export type {
+  CollectedUiResource,
+  CompositeUiDescriptor,
+  McpUiCsp,
+  McpUiPermissions,
+  McpUiResourceMeta,
+  McpUiToolMeta,
+  ResolvedSyncRule,
+  UiLayout,
+  UiOrchestration,
+  UiSyncRule,
+} from "../types/mod.ts";

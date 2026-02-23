@@ -4,12 +4,14 @@
  * Creates and manages isolated Deno Workers for capability code execution.
  * Workers run with `permissions: "none"` - complete isolation.
  *
+ * Delegates message handling to RpcBridge - SandboxWorker manages lifecycle only.
+ *
  * @module sandbox/execution/worker-runner
  */
 
 import * as log from "@std/log";
+import { uuidv7 } from "../../utils/uuid.ts";
 import type {
-  PromiseResolver,
   RpcHandler,
   SandboxError,
   SandboxResult,
@@ -19,6 +21,7 @@ import {
   SANDBOX_EXECUTION_TIMEOUT_MS,
   SANDBOX_RPC_TIMEOUT_MS,
 } from "../constants.ts";
+import { RpcBridge } from "./rpc-bridge.ts";
 
 /**
  * Log debug message for sandbox operations.
@@ -33,6 +36,9 @@ function logDebug(message: string): void {
  * Each SandboxWorker instance runs capability code in a completely isolated
  * Deno Worker with `permissions: "none"`. The capability code can ONLY
  * interact with the outside world via mcp.* RPC calls.
+ *
+ * Lifecycle management (Worker creation, timeout, shutdown) is handled here.
+ * Message passing (RPC, results, errors) is delegated to RpcBridge.
  *
  * @example
  * ```ts
@@ -49,15 +55,10 @@ function logDebug(message: string): void {
  */
 export class SandboxWorker {
   private worker: Worker | null = null;
+  private bridge: RpcBridge | null = null;
   private readonly onRpc: RpcHandler;
   private readonly executionTimeoutMs: number;
   private readonly rpcTimeoutMs: number;
-
-  /** Pending execution request (only one at a time) */
-  private pendingExecution: PromiseResolver | null = null;
-
-  /** Current execution ID */
-  private currentExecutionId: string | null = null;
 
   /** Whether the sandbox has been shut down */
   private isShutdown = false;
@@ -88,31 +89,16 @@ export class SandboxWorker {
     }
 
     const startTime = Date.now();
+    // Generate execution ID early for cleanup tracking
+    const executionId = uuidv7();
 
     try {
-      // Create worker if not exists
-      if (!this.worker) {
+      // Create worker and bridge if not exists
+      if (!this.worker || !this.bridge) {
         await this.initializeWorker();
       }
 
-      // Generate execution ID
-      const executionId = crypto.randomUUID();
-      this.currentExecutionId = executionId;
-
       logDebug(`Executing in sandbox: ${executionId}`);
-
-      // Create execution promise
-      const resultPromise = new Promise<unknown>((resolve, reject) => {
-        this.pendingExecution = { resolve, reject };
-
-        // Send execute message to worker
-        this.worker!.postMessage({
-          type: "execute",
-          id: executionId,
-          code,
-          args,
-        });
-      });
 
       // Create timeout promise
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -121,8 +107,11 @@ export class SandboxWorker {
         }, this.executionTimeoutMs);
       });
 
-      // Race execution against timeout
-      const result = await Promise.race([resultPromise, timeoutPromise]);
+      // Race execution against timeout - delegate to RpcBridge
+      const result = await Promise.race([
+        this.bridge!.execute(executionId, code, args),
+        timeoutPromise,
+      ]);
 
       const durationMs = Date.now() - startTime;
       logDebug(`Execution completed in ${durationMs}ms`);
@@ -138,6 +127,14 @@ export class SandboxWorker {
 
       logDebug(`Execution failed after ${durationMs}ms: ${sandboxError.message}`);
 
+      // Cancel pending execution in RpcBridge to prevent memory leak
+      if (this.bridge) {
+        this.bridge.cancelExecution(
+          executionId,
+          `External timeout: ${sandboxError.message}`,
+        );
+      }
+
       // Terminate worker on timeout to clean up
       if (sandboxError.code === "EXECUTION_TIMEOUT") {
         this.terminateWorker();
@@ -148,16 +145,14 @@ export class SandboxWorker {
         error: sandboxError,
         durationMs,
       };
-    } finally {
-      this.pendingExecution = null;
-      this.currentExecutionId = null;
     }
   }
 
   /**
-   * Initialize the sandbox Worker.
+   * Initialize the sandbox Worker and RpcBridge.
    *
    * Creates a Worker with `permissions: "none"` for complete isolation.
+   * Delegates message handling to RpcBridge via factory method.
    */
   private async initializeWorker(): Promise<void> {
     logDebug("Initializing sandbox Worker");
@@ -173,166 +168,61 @@ export class SandboxWorker {
       },
     );
 
-    // Setup message handler
-    this.worker.onmessage = this.handleWorkerMessage.bind(this);
-    this.worker.onerror = this.handleWorkerError.bind(this);
+    // Create RpcBridge with factory (handles transport internally)
+    this.bridge = RpcBridge.forWorker(this.worker, this.onRpc, this.rpcTimeoutMs);
 
     // Wait for worker to be ready (small delay for initialization)
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    logDebug("Sandbox Worker initialized");
+    logDebug("Sandbox Worker initialized with RpcBridge");
   }
 
   /**
-   * Handle messages from the Worker.
+   * Detect sandbox error code from error message and code property.
    */
-  private async handleWorkerMessage(event: MessageEvent): Promise<void> {
-    const data = event.data;
-    const type = data.type;
-
-    logDebug(`Worker message: type=${type}`);
-
-    switch (type) {
-      case "result":
-        // Execution succeeded
-        if (this.pendingExecution && data.id === this.currentExecutionId) {
-          this.pendingExecution.resolve(data.value);
-        }
-        break;
-
-      case "error":
-        // Execution failed
-        if (this.pendingExecution && data.id === this.currentExecutionId) {
-          const error = new Error(data.error);
-          (error as Error & { code?: string }).code = data.code;
-          this.pendingExecution.reject(error);
-        }
-        break;
-
-      case "rpc":
-        // mcp.* call from sandbox
-        await this.handleRpcRequest(data);
-        break;
+  private detectErrorCode(message: string, code?: string): SandboxError["code"] {
+    if (message.includes("timeout") || message.includes("Timeout")) {
+      return "EXECUTION_TIMEOUT";
     }
-  }
-
-  /**
-   * Handle RPC request from Worker (mcp.* call).
-   */
-  private async handleRpcRequest(request: {
-    rpcId: string;
-    method: string;
-    args: unknown;
-  }): Promise<void> {
-    const { rpcId, method, args } = request;
-
-    logDebug(`RPC request: ${method} (${rpcId})`);
-
-    try {
-      // Set up timeout
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error(`RPC timeout: ${method}`));
-        }, this.rpcTimeoutMs);
-      });
-
-      // Execute RPC with timeout
-      const result = await Promise.race([
-        this.onRpc(method, args),
-        timeoutPromise,
-      ]);
-
-      // Send response back to Worker
-      this.worker?.postMessage({
-        type: "rpc_response",
-        id: rpcId,
-        result,
-      });
-
-      logDebug(`RPC response: ${method} (${rpcId})`);
-    } catch (error) {
-      // Send error back to Worker
-      this.worker?.postMessage({
-        type: "rpc_error",
-        id: rpcId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      logDebug(`RPC error: ${method} (${rpcId}) - ${error}`);
+    if (message.includes("PermissionDenied") || code === "PERMISSION_DENIED") {
+      return "PERMISSION_DENIED";
     }
-  }
-
-  /**
-   * Handle Worker error.
-   */
-  private handleWorkerError(event: ErrorEvent): void {
-    logDebug(`Worker error: ${event.message}`);
-
-    if (this.pendingExecution) {
-      const error = new Error(`Worker error: ${event.message}`);
-      (error as Error & { code?: string }).code = "WORKER_TERMINATED";
-      this.pendingExecution.reject(error);
+    if (message.includes("Worker") || code === "WORKER_TERMINATED") {
+      return "WORKER_TERMINATED";
     }
-
-    // Terminate and mark as shutdown
-    this.terminateWorker();
+    return "CODE_ERROR";
   }
 
   /**
    * Format an error into SandboxError.
    */
   private formatError(error: unknown): SandboxError {
-    if (error instanceof Error) {
-      // Check for specific error types
-      const message = error.message;
-      const code = (error as Error & { code?: string }).code;
-
-      if (message.includes("timeout") || message.includes("Timeout")) {
-        return {
-          code: "EXECUTION_TIMEOUT",
-          message: message,
-          stack: error.stack,
-        };
-      }
-
-      if (message.includes("PermissionDenied") || code === "PERMISSION_DENIED") {
-        return {
-          code: "PERMISSION_DENIED",
-          message: message,
-          stack: error.stack,
-        };
-      }
-
-      if (message.includes("Worker") || code === "WORKER_TERMINATED") {
-        return {
-          code: "WORKER_TERMINATED",
-          message: message,
-          stack: error.stack,
-        };
-      }
-
-      return {
-        code: "CODE_ERROR",
-        message: message,
-        stack: error.stack,
-      };
+    if (!(error instanceof Error)) {
+      return { code: "CODE_ERROR", message: String(error) };
     }
 
+    const code = (error as Error & { code?: string }).code;
     return {
-      code: "CODE_ERROR",
-      message: String(error),
+      code: this.detectErrorCode(error.message, code),
+      message: error.message,
+      stack: error.stack,
     };
   }
 
   /**
-   * Terminate the Worker.
+   * Terminate the Worker and close the bridge.
+   *
+   * Note: RpcBridge.close() calls transport.close() which terminates the worker,
+   * so we only need to call bridge.close() - no separate worker.terminate().
    */
   private terminateWorker(): void {
-    if (this.worker) {
-      this.worker.terminate();
-      this.worker = null;
-      logDebug("Worker terminated");
+    if (this.bridge) {
+      this.bridge.close();
+      this.bridge = null;
     }
+    // Worker is terminated by bridge.close() -> transport.close()
+    this.worker = null;
+    logDebug("Worker terminated");
   }
 
   /**
@@ -344,15 +234,7 @@ export class SandboxWorker {
     if (this.isShutdown) return;
 
     this.isShutdown = true;
-
-    // Reject pending execution
-    if (this.pendingExecution) {
-      this.pendingExecution.reject(new Error("Sandbox shut down"));
-      this.pendingExecution = null;
-    }
-
     this.terminateWorker();
-
     logDebug("Sandbox shut down");
   }
 

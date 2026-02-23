@@ -19,6 +19,7 @@ import type { LocalExecutionTrace } from "../src/tracing/mod.ts";
  */
 function createTestTrace(capabilityId: string, success = true): LocalExecutionTrace {
   return {
+    traceId: `trace-${crypto.randomUUID().slice(0, 8)}`,
     capabilityId,
     success,
     durationMs: 100,
@@ -66,8 +67,7 @@ Deno.test({
   fn: async () => {
     const syncer = new TraceSyncer({
       cloudUrl: "https://test.example.com",
-      flushIntervalMs: 60000, // Long interval to prevent auto-flush
-    });
+          });
 
     const trace = createTestTrace("test:cap");
     syncer.enqueue(trace);
@@ -85,8 +85,7 @@ Deno.test({
   fn: async () => {
     const syncer = new TraceSyncer({
       cloudUrl: "https://test.example.com",
-      flushIntervalMs: 60000,
-      batchSize: 10, // Larger batch to prevent auto-flush
+            batchSize: 10, // Larger batch to prevent auto-flush
     });
 
     syncer.enqueue(createTestTrace("test:cap1"));
@@ -112,8 +111,7 @@ Deno.test("TraceSyncer: isActive returns false after shutdown", async () => {
 Deno.test("TraceSyncer: drops traces after shutdown", async () => {
   const syncer = new TraceSyncer({
     cloudUrl: "https://test.example.com",
-    flushIntervalMs: 60000,
-  });
+      });
 
   await syncer.shutdown();
 
@@ -131,8 +129,7 @@ Deno.test({
     const syncer = new TraceSyncer({
       cloudUrl: "https://test.example.com",
       batchSize: 3,
-      flushIntervalMs: 60000,
-    });
+          });
 
     // Add traces (note: batch flush is async and may fail due to no real server)
     // We're just testing that the syncer doesn't crash
@@ -154,8 +151,7 @@ Deno.test({
     const syncer = new TraceSyncer({
       cloudUrl: "https://custom.example.com",
       batchSize: 20,
-      flushIntervalMs: 10000,
-      maxRetries: 5,
+            maxRetries: 5,
       apiKey: "test_key",
     });
 
@@ -206,8 +202,7 @@ Deno.test({
   fn: async () => {
     const syncer = new TraceSyncer({
       cloudUrl: "https://test.example.com",
-      flushIntervalMs: 60000,
-    });
+          });
 
     // Should not throw
     await syncer.flush();

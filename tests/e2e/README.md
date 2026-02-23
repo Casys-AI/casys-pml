@@ -54,7 +54,7 @@ Deno.test("My E2E test", async () => {
 Simulates the PML cloud for testing:
 
 ```typescript
-import { createMockServer } from "./mock-cloud-server.ts";
+import { createMockServer } from "../fixtures/mock-cloud-server.ts";
 
 const server = await createMockServer({ port: 3099 });
 
@@ -81,12 +81,12 @@ server.simulateOffline();
 server.shutdown();
 ```
 
-### Stdio Simulator (`stdio-simulator.ts`)
+### Stdio Simulator (`../fixtures/stdio-simulator.ts`)
 
 Simulates Claude Code interacting with `pml stdio`:
 
 ```typescript
-import { StdioSimulator } from "./stdio-simulator.ts";
+import { StdioSimulator } from "../fixtures/stdio-simulator.ts";
 
 const stdio = new StdioSimulator(ctx, { debug: true });
 await stdio.start();

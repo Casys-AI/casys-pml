@@ -210,6 +210,7 @@ Deno.test("sanitizeTaskResult: sanitizes args and result", () => {
 
 Deno.test("sanitizeTrace: sanitizes entire trace", () => {
   const trace: LocalExecutionTrace = {
+    traceId: "test-trace-id",
     capabilityId: "test:capability",
     success: true,
     error: "Token sk-test1234567890test1234567890 expired",

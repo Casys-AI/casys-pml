@@ -4,6 +4,9 @@
  * Handles bidirectional message passing between main thread and sandbox Worker.
  * Routes mcp.* calls from sandbox to appropriate handlers.
  *
+ * Supports both direct Worker usage (backward compatible) and MessageTransport
+ * abstraction for flexibility with different transport mechanisms.
+ *
  * @module sandbox/execution/rpc-bridge
  */
 
@@ -13,6 +16,8 @@ import type {
   RpcHandler,
   RpcRequestMessage,
 } from "../types.ts";
+import type { MessageTransport, ProtocolAdapter } from "../transport/types.ts";
+import { DenoWorkerTransport } from "../transport/deno-worker-transport.ts";
 import { SANDBOX_RPC_TIMEOUT_MS } from "../constants.ts";
 
 /**
@@ -23,47 +28,128 @@ function logDebug(message: string): void {
 }
 
 /**
- * RPC Bridge for Worker communication.
+ * Check if value is a Worker (has postMessage and terminate methods).
+ */
+function isWorker(value: unknown): value is Worker {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "postMessage" in value &&
+    typeof (value as Worker).postMessage === "function" &&
+    "terminate" in value &&
+    typeof (value as Worker).terminate === "function"
+  );
+}
+
+/**
+ * RPC Bridge for Worker/Transport communication.
  *
  * Handles:
- * - Sending execute requests to Worker
- * - Receiving results from Worker
- * - Receiving mcp.* RPC requests from Worker
- * - Sending RPC responses back to Worker
+ * - Sending execute requests to Worker/Transport
+ * - Receiving results from Worker/Transport
+ * - Receiving mcp.* RPC requests from Worker/Transport
+ * - Sending RPC responses back to Worker/Transport
+ * - Optional protocol adaptation (e.g., JSON-RPC ↔ internal format)
  *
  * @example
  * ```ts
+ * // Direct Worker usage (backward compatible)
  * const bridge = new RpcBridge(worker, async (method, args) => {
- *   // Route mcp.* calls to appropriate handler
  *   return await stdioManager.call(method, args);
  * });
+ *
+ * // With MessageTransport
+ * const transport = new DenoWorkerTransport(worker);
+ * const bridge = new RpcBridge(transport, onRpc);
+ *
+ * // With protocol adapter (for MCP Apps iframes)
+ * const bridge = new RpcBridge(iframeTransport, onRpc, 30000, adapter);
  *
  * const result = await bridge.execute(code, args);
  * ```
  */
+/**
+ * Handler for init messages (MCP Apps ui/initialize).
+ * Return value is sent as the init response result.
+ */
+export type InitHandler = (id?: string) => unknown | Promise<unknown>;
+
 export class RpcBridge {
-  private readonly worker: Worker;
+  private readonly transport: MessageTransport;
   private readonly onRpc: RpcHandler;
   private readonly rpcTimeoutMs: number;
+  private readonly adapter?: ProtocolAdapter;
+  private readonly onInit?: InitHandler;
 
   /** Pending execution requests */
   private readonly pendingExecute = new Map<string, PromiseResolver>();
 
   /** Whether the bridge is shut down */
-  private shutdown = false;
+  private isShutdown = false;
 
-  constructor(
+  /**
+   * Create an RpcBridge for a Worker.
+   *
+   * Factory method that wraps the Worker in DenoWorkerTransport.
+   *
+   * @param worker - Worker instance
+   * @param onRpc - Handler for mcp.* calls
+   * @param rpcTimeoutMs - Timeout for RPC calls
+   * @param onInit - Optional handler for init messages
+   * @returns Configured RpcBridge
+   *
+   * @example
+   * ```ts
+   * const worker = new Worker(url, { deno: { permissions: "none" } });
+   * const bridge = RpcBridge.forWorker(worker, async (method, args) => {
+   *   return await handleRpc(method, args);
+   * });
+   * ```
+   */
+  static forWorker(
     worker: Worker,
     onRpc: RpcHandler,
     rpcTimeoutMs = SANDBOX_RPC_TIMEOUT_MS,
+    onInit?: InitHandler,
+  ): RpcBridge {
+    return new RpcBridge(
+      new DenoWorkerTransport(worker),
+      onRpc,
+      rpcTimeoutMs,
+      undefined, // No adapter for Workers
+      onInit,
+    );
+  }
+
+  /**
+   * Create an RpcBridge.
+   *
+   * @param transportOrWorker - MessageTransport or Worker (backward compatible)
+   * @param onRpc - Handler for mcp.* calls
+   * @param rpcTimeoutMs - Timeout for RPC calls
+   * @param adapter - Optional protocol adapter for message transformation
+   * @param onInit - Optional handler for init messages (returns custom init response)
+   */
+  constructor(
+    transportOrWorker: MessageTransport | Worker,
+    onRpc: RpcHandler,
+    rpcTimeoutMs = SANDBOX_RPC_TIMEOUT_MS,
+    adapter?: ProtocolAdapter,
+    onInit?: InitHandler,
   ) {
-    this.worker = worker;
+    // Wrap Worker in DenoWorkerTransport for backward compatibility
+    this.transport = isWorker(transportOrWorker)
+      ? new DenoWorkerTransport(transportOrWorker)
+      : transportOrWorker;
+
     this.onRpc = onRpc;
     this.rpcTimeoutMs = rpcTimeoutMs;
+    this.adapter = adapter;
+    this.onInit = onInit;
 
     // Setup message handler
-    this.worker.onmessage = this.handleMessage.bind(this);
-    this.worker.onerror = this.handleError.bind(this);
+    this.transport.onMessage(this.handleMessage.bind(this));
+    this.transport.onError?.(this.handleError.bind(this));
   }
 
   /**
@@ -72,56 +158,176 @@ export class RpcBridge {
    * @param id - Unique execution ID
    * @param code - Capability code to execute
    * @param args - Arguments for the capability
+   * @param timeoutMs - Optional execution timeout (defaults to no internal timeout)
    * @returns Execution result
    * @throws Error if execution fails or times out
    */
-  async execute(id: string, code: string, args: unknown): Promise<unknown> {
-    if (this.shutdown) {
+  execute(
+    id: string,
+    code: string,
+    args: unknown,
+    timeoutMs?: number,
+  ): Promise<unknown> {
+    if (this.isShutdown) {
       throw new Error("RpcBridge has been shut down");
     }
 
     return new Promise((resolve, reject) => {
-      // Store pending request
-      this.pendingExecute.set(id, { resolve, reject });
+      let timeoutId: number | undefined;
 
-      // Send execute message to Worker
-      this.worker.postMessage({
+      // Wrapper to clean up timeout when resolved/rejected
+      const cleanupAndResolve = (value: unknown) => {
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
+        this.pendingExecute.delete(id);
+        resolve(value);
+      };
+
+      const cleanupAndReject = (error: Error) => {
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
+        this.pendingExecute.delete(id);
+        reject(error);
+      };
+
+      // Store pending request with cleanup wrappers
+      this.pendingExecute.set(id, {
+        resolve: cleanupAndResolve,
+        reject: cleanupAndReject,
+      });
+
+      // Optional internal timeout for cleanup
+      if (timeoutMs !== undefined && timeoutMs > 0) {
+        timeoutId = setTimeout(() => {
+          if (this.pendingExecute.has(id)) {
+            this.pendingExecute.delete(id);
+            reject(new Error(`Execution timeout after ${timeoutMs}ms`));
+          }
+        }, timeoutMs);
+      }
+
+      // Send execute message
+      const message = {
         type: "execute",
         id,
         code,
         args,
-      });
+      };
+
+      this.transport.send(
+        this.adapter ? this.adapter.toExternal(message) : message,
+      );
 
       logDebug(`Sent execute request: ${id}`);
     });
   }
 
   /**
-   * Handle incoming messages from Worker.
+   * Cancel a pending execution.
+   *
+   * Used by SandboxWorker when external timeout triggers to prevent memory leaks.
+   *
+   * @param id - Execution ID to cancel
+   * @param reason - Optional reason for cancellation
    */
-  private async handleMessage(event: MessageEvent): Promise<void> {
-    if (this.shutdown) return;
+  cancelExecution(id: string, reason = "Execution cancelled"): void {
+    const pending = this.pendingExecute.get(id);
+    if (pending) {
+      this.pendingExecute.delete(id);
+      pending.reject(new Error(reason));
+      logDebug(`Execution cancelled: ${id} - ${reason}`);
+    }
+  }
 
-    const data = event.data;
-    const type = data.type;
+  /**
+   * Handle incoming messages from Worker/Transport.
+   */
+  private async handleMessage(rawData: unknown): Promise<void> {
+    if (this.isShutdown) return;
 
-    logDebug(`Received message: type=${type} id=${data.id || data.rpcId}`);
+    // Apply adapter transformation if provided
+    const data = this.adapter
+      ? this.adapter.toInternal(rawData)
+      : rawData;
+
+    // Adapter filtered out the message
+    if (!data) return;
+
+    const message = data as { type?: string; id?: string; rpcId?: string };
+    const type = message.type;
+
+    logDebug(`Received message: type=${type} id=${message.id || message.rpcId}`);
 
     switch (type) {
       case "result":
-        this.handleResult(data.id, data.value);
+        this.handleResult(
+          (data as { id: string; value: unknown }).id,
+          (data as { value: unknown }).value,
+        );
         break;
 
       case "error":
-        this.handleExecuteError(data.id, data.error, data.code);
+        this.handleExecuteError(
+          (data as { id: string }).id,
+          (data as { error: string }).error,
+          (data as { code?: string }).code,
+        );
         break;
 
       case "rpc":
         await this.handleRpcRequest(data as RpcRequestMessage);
         break;
 
+      case "init":
+        // Handle init messages (from MCP Apps)
+        await this.handleInit((data as { id?: string }).id);
+        break;
+
+      case "context_update":
+        // Handle context updates (from MCP Apps event routing)
+        logDebug(`Context update received: ${JSON.stringify(data)}`);
+        break;
+
       default:
         logDebug(`Unknown message type: ${type}`);
+    }
+  }
+
+  /**
+   * Handle init message (MCP Apps ui/initialize).
+   */
+  private async handleInit(id?: string): Promise<void> {
+    logDebug(`Init request received: ${id}`);
+
+    try {
+      // Use custom init handler if provided, otherwise default response
+      const result = this.onInit
+        ? await Promise.resolve(this.onInit(id))
+        : { status: "ok" };
+
+      // Send init response
+      const response = {
+        type: "init_response",
+        id,
+        result,
+      };
+
+      this.transport.send(
+        this.adapter ? this.adapter.toExternal(response) : response,
+      );
+
+      logDebug(`Init response sent: ${id}`);
+    } catch (error) {
+      // Send error response
+      const errorResponse = {
+        type: "rpc_error",
+        id,
+        error: error instanceof Error ? error.message : String(error),
+      };
+
+      this.transport.send(
+        this.adapter ? this.adapter.toExternal(errorResponse) : errorResponse,
+      );
+
+      logDebug(`Init error: ${id} - ${error}`);
     }
   }
 
@@ -169,7 +375,7 @@ export class RpcBridge {
       // Set up timeout for RPC call
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
-          reject(new Error(`RPC call ${method} timed out after ${this.rpcTimeoutMs}ms`));
+          reject(new Error(`RPC timeout: ${method}`));
         }, this.rpcTimeoutMs);
       });
 
@@ -179,35 +385,43 @@ export class RpcBridge {
         timeoutPromise,
       ]);
 
-      // Send response back to Worker
-      this.worker.postMessage({
+      // Send response back
+      const response = {
         type: "rpc_response",
         id: rpcId,
         result,
-      });
+      };
+
+      this.transport.send(
+        this.adapter ? this.adapter.toExternal(response) : response,
+      );
 
       logDebug(`RPC response: ${method} (${rpcId}) - success`);
     } catch (error) {
-      // Send error back to Worker
-      this.worker.postMessage({
+      // Send error back
+      const errorResponse = {
         type: "rpc_error",
         id: rpcId,
         error: error instanceof Error ? error.message : String(error),
-      });
+      };
+
+      this.transport.send(
+        this.adapter ? this.adapter.toExternal(errorResponse) : errorResponse,
+      );
 
       logDebug(`RPC error: ${method} (${rpcId}) - ${error}`);
     }
   }
 
   /**
-   * Handle Worker error.
+   * Handle Transport error.
    */
-  private handleError(event: ErrorEvent): void {
-    logDebug(`Worker error: ${event.message}`);
+  private handleError(error: Error): void {
+    logDebug(`Transport error: ${error.message}`);
 
     // Reject all pending executions
     for (const [id, pending] of this.pendingExecute) {
-      pending.reject(new Error(`Worker error: ${event.message}`));
+      pending.reject(new Error(`Transport error: ${error.message}`));
       this.pendingExecute.delete(id);
     }
   }
@@ -218,7 +432,7 @@ export class RpcBridge {
    * Rejects all pending requests and marks bridge as shut down.
    */
   close(): void {
-    this.shutdown = true;
+    this.isShutdown = true;
 
     // Reject all pending executions
     for (const [id, pending] of this.pendingExecute) {
@@ -226,6 +440,16 @@ export class RpcBridge {
       this.pendingExecute.delete(id);
     }
 
+    // Close the transport
+    this.transport.close();
+
     logDebug("RpcBridge closed");
+  }
+
+  /**
+   * Check if bridge is shut down.
+   */
+  get shutdown(): boolean {
+    return this.isShutdown;
   }
 }

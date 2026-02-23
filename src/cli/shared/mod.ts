@@ -41,3 +41,22 @@ export { formatApprovalRequired } from "./approval-formatter.ts";
 
 // Local executor
 export { executeLocalCode } from "./local-executor.ts";
+
+// Response builder (Story 16.3: MCP response with _meta.ui)
+export { buildMcpSuccessResult, buildMcpLocalResult, type ApprovalContext } from "./response-builder.ts";
+
+// Capability resolver (--expose flag)
+export {
+  resolveExposedCapabilities,
+  buildExposedToolDefinitions,
+  sanitizeToolName,
+  type ExposedCapability,
+} from "./capability-resolver.ts";
+
+// Exposed capability handler (--expose execution routing)
+export {
+  handleExposedCall,
+  findExposedCapability,
+  type ExposedCallResult,
+  type ExposedCallContext,
+} from "./exposed-handler.ts";

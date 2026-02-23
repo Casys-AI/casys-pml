@@ -34,17 +34,26 @@ import { resolveToolRouting } from "../routing/mod.ts";
 import { SandboxWorker } from "../sandbox/mod.ts";
 import type { SandboxResult } from "../sandbox/mod.ts";
 import { TraceCollector, TraceSyncer } from "../tracing/mod.ts";
-import type { TraceSyncConfig } from "../tracing/mod.ts";
+import type { TraceSyncConfig, LocalExecutionTrace, JsonValue } from "../tracing/mod.ts";
 import { sanitize } from "../byok/sanitizer.ts";
 import {
   checkKeys,
   pauseForMissingKeys,
   reloadEnv,
 } from "../byok/mod.ts";
+import { callHttp } from "./call-http.ts";
 // Note: getRequiredKeys removed - now using metadata.install.envRequired from registry
 import { LockfileManager } from "../lockfile/mod.ts";
 import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
 import { loaderLog } from "../logging.ts";
+import { uuidv7 } from "../utils/uuid.ts";
+import AjvModule from "ajv";
+import type { ErrorObject } from "ajv";
+
+// Singleton AJV instance for schema validation
+// deno-lint-ignore no-explicit-any
+const Ajv = (AjvModule as any).default || AjvModule;
+const ajv = new Ajv({ allErrors: true, strict: false });
 
 /**
  * Log debug message for loader operations.
@@ -55,6 +64,36 @@ function logDebug(message: string): void {
 }
 
 /**
+ * Validate arguments against a JSON Schema using AJV.
+ *
+ * @param args - Arguments to validate
+ * @param schema - JSON Schema
+ * @returns Array of validation errors (empty if valid)
+ */
+function validateArgsAgainstSchema(
+  args: unknown,
+  schema: Record<string, unknown>,
+): string[] {
+  const validate = ajv.compile(schema);
+  const valid = validate(args);
+
+  if (valid) {
+    return [];
+  }
+
+  // Format AJV errors into readable messages
+  return (validate.errors ?? []).map((err: ErrorObject) => {
+    const path = err.instancePath || "/";
+    const message = err.message || "validation failed";
+    if (err.keyword === "required") {
+      const missing = (err.params as { missingProperty?: string })?.missingProperty;
+      return `Missing required field: '${missing}'`;
+    }
+    return `${path}: ${message}`;
+  });
+}
+
+/**
  * Default permissions: ask for everything (safe defaults).
  */
 const DEFAULT_PERMISSIONS: PmlPermissions = {
@@ -62,6 +101,56 @@ const DEFAULT_PERMISSIONS: PmlPermissions = {
   deny: [],
   ask: ["*"],
 };
+
+/**
+ * Handle approval denial by throwing appropriate error.
+ * Extracted to reduce duplication in load/loadByFqdn methods.
+ */
+function handleApprovalDenial(approvalResult: ApprovalRequiredResult): never {
+  if (approvalResult.approvalType === "tool_permission") {
+    throw new LoaderError(
+      "PERMISSION_DENIED",
+      `Tool ${approvalResult.toolId} was not approved by user`,
+      { toolId: approvalResult.toolId },
+    );
+  }
+  if (approvalResult.approvalType === "api_key_required") {
+    throw new LoaderError(
+      "API_KEY_NOT_CONFIGURED",
+      `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
+      { missingKeys: approvalResult.missingKeys },
+    );
+  }
+  if (approvalResult.approvalType === "oauth_connect") {
+    throw new LoaderError(
+      "API_KEY_NOT_CONFIGURED",
+      `OAuth authentication not completed for ${approvalResult.toolId}. Auth URL: ${approvalResult.authUrl}`,
+      { toolId: approvalResult.toolId, authUrl: approvalResult.authUrl },
+    );
+  }
+  // For other approval types, throw generic error
+  throw new LoaderError(
+    "PERMISSION_DENIED",
+    `Approval was denied`,
+    { approvalType: approvalResult.approvalType },
+  );
+}
+
+/**
+ * Handle integrity approval rejection.
+ * Extracted to reduce duplication.
+ */
+function handleIntegrityRejection(integrityApproval: IntegrityApprovalRequired): never {
+  throw new LoaderError(
+    "DEPENDENCY_INTEGRITY_FAILED",
+    `User rejected integrity change for ${integrityApproval.fqdnBase}`,
+    {
+      fqdnBase: integrityApproval.fqdnBase,
+      oldHash: integrityApproval.oldHash,
+      newHash: integrityApproval.newHash,
+    },
+  );
+}
 
 /**
  * Options for creating a capability loader.
@@ -133,8 +222,40 @@ export class CapabilityLoader {
    */
   private readonly approvedTools = new Set<string>();
 
+  /**
+   * Stack of active trace IDs for parent-child linking.
+   * When a capability calls another capability, the current traceId
+   * becomes the parentTraceId for the nested call.
+   */
+  private readonly traceIdStack: string[] = [];
+
+  /**
+   * Pending traces collected during execution.
+   * ADR-041: Traces are NOT synced during execution to avoid FK violations.
+   * They are collected here and flushed at the end via flushTraces().
+   */
+  private pendingTraces: LocalExecutionTrace[] = [];
+
+  /**
+   * Map of toolId (namespace:action) to FQDN for trace recording.
+   * Issue 6 fix: Use FQDN in taskResults.tool so server can resolve to UUID.
+   */
+  private fqdnMap: Map<string, string> = new Map();
+
   /** Whether initialization is complete */
   private initialized = false;
+
+  /**
+   * Get the root workflow ID for approval_required responses.
+   * ADR-041: Uses the root traceId from traceIdStack if available,
+   * otherwise generates a new one. This ensures the same ID is used
+   * for traces and HIL continuation.
+   */
+  private getRootWorkflowId(): string {
+    return this.traceIdStack.length > 0
+      ? this.traceIdStack[0]
+      : uuidv7();
+  }
 
   private constructor(
     options: CapabilityLoaderOptions,
@@ -222,75 +343,48 @@ export class CapabilityLoader {
     let metadata: CapabilityMetadata;
 
     if (this.lockfileManager) {
-      // Story 14.7: Use fetchWithIntegrity for lockfile validation
-      const fetchResult = await this.registryClient.fetchWithIntegrity(
-        namespace,
-        this.lockfileManager,
-      );
-
-      // Check if integrity approval is required
-      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
-        const integrityApproval = fetchResult as IntegrityApprovalRequired;
-
-        // Handle continueWorkflow for integrity approval
-        if (continueWorkflow?.approved === true) {
-          // User approved - continue fetch with approval
-          const approvedResult = await this.registryClient.continueFetchWithApproval(
-            namespace,
-            this.lockfileManager,
-            true,
-          );
-          metadata = approvedResult.metadata;
-        } else if (continueWorkflow?.approved === false) {
-          // User rejected - throw error
-          throw new LoaderError(
-            "DEPENDENCY_INTEGRITY_FAILED",
-            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
-            {
-              fqdnBase: integrityApproval.fqdnBase,
-              oldHash: integrityApproval.oldHash,
-              newHash: integrityApproval.newHash,
-            },
-          );
-        } else {
-          // Return approval request (HIL pause)
-          return integrityApproval;
-        }
+      // If user already approved integrity change, skip re-validation (same fix as FQDN path)
+      if (continueWorkflow?.approved === true) {
+        const approvedResult = await this.registryClient.continueFetchWithApproval(
+          namespace,
+          this.lockfileManager,
+          true,
+        );
+        metadata = approvedResult.metadata;
       } else {
-        // No approval needed - extract metadata
-        metadata = (fetchResult as { metadata: CapabilityMetadata }).metadata;
+        // Story 14.7: Use fetchWithIntegrity for lockfile validation
+        const fetchResult = await this.registryClient.fetchWithIntegrity(
+          namespace,
+          this.lockfileManager,
+        );
+
+        // Check if integrity approval is required
+        if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+          const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+          if (continueWorkflow?.approved === false) {
+            handleIntegrityRejection(integrityApproval);
+          } else {
+            return integrityApproval;
+          }
+        } else {
+          metadata = (fetchResult as { metadata: CapabilityMetadata }).metadata;
+        }
       }
     } else {
-      // No lockfile manager - use simple fetch
       const { metadata: fetchedMetadata } = await this.registryClient.fetch(namespace);
       metadata = fetchedMetadata;
     }
 
-    // 2. Check and install dependencies
-    // If continueWorkflow.approved is true, force install (user approved)
-    const forceInstall = continueWorkflow?.approved === true;
-    const approvalResult = await this.ensureDependencies(
-      metadata,
-      forceInstall,
-    );
+    this.populateFqdnMapFromToolsUsed(metadata.toolsUsed);
 
-    // If approval is required and not yet approved, return the approval request
+    // Check and install dependencies
+    const forceInstall = continueWorkflow?.approved === true;
+    const approvalResult = await this.ensureDependencies(metadata, forceInstall);
+
     if (approvalResult) {
       if (continueWorkflow?.approved === false) {
-        // Handle denial based on approval type
-        if (approvalResult.approvalType === "tool_permission") {
-          throw new LoaderError(
-            "PERMISSION_DENIED",
-            `Tool ${approvalResult.toolId} was not approved by user`,
-            { toolId: approvalResult.toolId },
-          );
-        } else if (approvalResult.approvalType === "api_key_required") {
-          throw new LoaderError(
-            "API_KEY_NOT_CONFIGURED",
-            `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
-            { missingKeys: approvalResult.missingKeys },
-          );
-        }
+        handleApprovalDenial(approvalResult);
       }
       return approvalResult;
     }
@@ -323,68 +417,44 @@ export class CapabilityLoader {
     } else if (metadata.type === "stdio") {
       // Stdio types are executed via subprocess - no code to load
       logDebug(`Stdio capability registered: ${namespace} (subprocess)`);
-    } else {
-      // http types should never reach here (server-routed)
-      logDebug(`HTTP capability registered: ${namespace} (should be server-routed)`);
+    } else if (metadata.type === "http") {
+      // HTTP types execute via direct fetch() client-side — no code to load
+      logDebug(`HTTP capability registered: ${namespace} (client-side fetch)`);
     }
 
     // 4. For client-routed stdio types, build the dependency object for approval/install checks
     // All client-routed tools need local installation. For stdio, the MCP itself must be installed.
     // For deno, mcpDeps are already checked via ensureDependencies() above.
-    // Special case: "std" uses binary distribution - no install approval needed
     let stdioDep: McpDependency | null = null;
     const serverName = namespace.split(":")[0];
 
-    if (metadata.routing === "client" && metadata.type === "stdio") {
-      if (serverName === "std") {
-        // std uses binary distribution - binary-resolver will download automatically
-        stdioDep = {
-          name: "std",
-          type: "stdio" as const,
-          install: "binary", // Marker for binary distribution
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-        };
+    // Tech-spec 01.5: All stdio servers (including std) use metadata.install from registry
+    // std is detected by isMcpStd() in stdio-manager via args containing @casys/mcp-std
+    if (metadata.routing === "client" && metadata.type === "stdio" && metadata.install) {
+      stdioDep = {
+        name: serverName,
+        type: "stdio" as const,
+        install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+        version: "latest",
+        integrity: metadata.integrity ?? "",
+        command: metadata.install.command,
+        args: metadata.install.args,
+        // Story 14.6: envRequired from registry metadata (dynamic key detection)
+        envRequired: metadata.install.envRequired,
+      };
 
-        // std still needs tool_permission approval before first use
-        // Always check return - env vars may still be missing after approval
-        const toolIdForPermission = `${serverName}:*`;
-        const stdApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolIdForPermission,
-        );
-        if (stdApproval) {
-          logDebug(`std binary requires approval before download`);
-          return stdApproval;
-        }
-      } else if (metadata.install) {
-        // Other stdio servers use standard install flow
-        stdioDep = {
-          name: serverName,
-          type: "stdio" as const,
-          install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-          command: metadata.install.command,
-          args: metadata.install.args,
-          // Story 14.6: envRequired from registry metadata (dynamic key detection)
-          envRequired: metadata.install.envRequired,
-        };
-
-        // Check if this stdio MCP needs approval to install
-        // Always check return - env vars may still be missing after approval
-        // Use serverName:* as toolId for permission matching (not FQDN namespace)
-        const toolIdForPermission = `${serverName}:*`;
-        const stdioApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolIdForPermission,
-        );
-        if (stdioApproval) {
-          logDebug(`Stdio MCP ${namespace} requires approval to install`);
-          return stdioApproval;
-        }
+      // Check if this stdio MCP needs approval to install
+      // Always check return - env vars may still be missing after approval
+      // Use serverName:* as toolId for permission matching (not FQDN namespace)
+      const toolIdForPermission = `${serverName}:*`;
+      const stdioApproval = await this.ensureDependency(
+        stdioDep,
+        continueWorkflow?.approved ?? false,
+        toolIdForPermission,
+      );
+      if (stdioApproval) {
+        logDebug(`Stdio MCP ${namespace} requires approval to install`);
+        return stdioApproval;
       }
     }
 
@@ -498,12 +568,16 @@ export class CapabilityLoader {
    * @param fqdn - Full FQDN (e.g., "alice.default.fs.listDirectory")
    * @param args - Tool arguments
    * @param continueWorkflow - Optional: approval from previous call
+   * @param parentTraceId - Optional: trace ID of parent execution (ADR-041)
+   * @param serverWorkflowId - Optional: workflowId from execute_locally flow for LearningContext correlation
    * @returns Tool result or ApprovalRequiredResult
    */
   async callWithFqdn(
     fqdn: string,
     args: unknown,
     continueWorkflow?: ContinueWorkflowParams,
+    parentTraceId?: string,
+    serverWorkflowId?: string,
   ): Promise<unknown | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Extract action from FQDN: org.project.namespace.action[.hash]
     const parts = fqdn.split(".");
@@ -517,13 +591,26 @@ export class CapabilityLoader {
     const action = parts[3]; // 4th segment is the action
 
     // Load capability by FQDN
-    const loadResult = await this.loadByFqdn(fqdn, continueWorkflow);
+    const loadResult = await this.loadByFqdn(fqdn, continueWorkflow, serverWorkflowId);
 
     if (CapabilityLoader.isApprovalRequired(loadResult)) {
       return loadResult;
     }
 
-    return loadResult.call(action, args);
+    // ADR-041: Push parent trace ID onto stack before execution
+    // This links nested capability traces to their parent
+    if (parentTraceId) {
+      this.traceIdStack.push(parentTraceId);
+    }
+
+    try {
+      return await loadResult.call(action, args);
+    } finally {
+      // Pop parent trace ID from stack
+      if (parentTraceId) {
+        this.traceIdStack.pop();
+      }
+    }
   }
 
   /**
@@ -534,11 +621,13 @@ export class CapabilityLoader {
    *
    * @param fqdn - Full FQDN (e.g., "alice.default.fs.listDirectory")
    * @param continueWorkflow - Optional: approval from previous call
+   * @param serverWorkflowId - Optional: workflowId from execute_locally flow for LearningContext correlation
    * @returns Loaded capability or approval required result
    */
   private async loadByFqdn(
     fqdn: string,
     continueWorkflow?: ContinueWorkflowParams,
+    serverWorkflowId?: string,
   ): Promise<LoadedCapability | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Check cache (using FQDN as key)
     const cached = this.loadedCapabilities.get(fqdn);
@@ -550,6 +639,7 @@ export class CapabilityLoader {
       const fetchResult = await this.registryClient.fetchWithIntegrity(
         fqdn,
         this.lockfileManager,
+        serverWorkflowId,
       );
 
       // If hash changed, need re-approval even for cached capability
@@ -557,29 +647,17 @@ export class CapabilityLoader {
         const integrityApproval = fetchResult as IntegrityApprovalRequired;
 
         if (continueWorkflow?.approved === true) {
-          // User approved integrity change - invalidate cache and reload
           this.loadedCapabilities.delete(fqdn);
           logDebug(`Integrity changed and approved - reloading ${fqdn}`);
         } else if (continueWorkflow?.approved === false) {
-          throw new LoaderError(
-            "DEPENDENCY_INTEGRITY_FAILED",
-            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
-            {
-              fqdnBase: integrityApproval.fqdnBase,
-              oldHash: integrityApproval.oldHash,
-              newHash: integrityApproval.newHash,
-            },
-          );
+          handleIntegrityRejection(integrityApproval);
         } else {
-          // Need approval - return the approval request (HIL pause)
           return integrityApproval;
         }
       } else {
-        // Integrity OK - return cached capability
         return cached;
       }
     } else if (cached) {
-      // No lockfile manager - return cached directly
       logDebug(`Capability cache hit (FQDN): ${fqdn}`);
       return cached;
     }
@@ -590,47 +668,43 @@ export class CapabilityLoader {
     let metadata: CapabilityMetadata;
 
     if (this.lockfileManager) {
-      // Use fetchWithIntegrity - accepts FQDNs (toolNameToFqdn passes them through)
-      const fetchResult = await this.registryClient.fetchWithIntegrity(
-        fqdn,
-        this.lockfileManager,
-      );
-
-      // Check if integrity approval is required (hash changed)
-      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
-        const integrityApproval = fetchResult as IntegrityApprovalRequired;
-
-        if (continueWorkflow?.approved === true) {
-          // User approved - continue fetch with approval
-          const approvedResult = await this.registryClient.continueFetchWithApproval(
-            fqdn,
-            this.lockfileManager,
-            true,
-          );
-          metadata = approvedResult.metadata;
-        } else if (continueWorkflow?.approved === false) {
-          // User rejected
-          throw new LoaderError(
-            "DEPENDENCY_INTEGRITY_FAILED",
-            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
-            {
-              fqdnBase: integrityApproval.fqdnBase,
-              oldHash: integrityApproval.oldHash,
-              newHash: integrityApproval.newHash,
-            },
-          );
-        } else {
-          // Need approval - return the approval request (HIL pause)
-          return integrityApproval;
-        }
+      // If user already approved integrity change, skip re-validation and go straight
+      // to fetch+update. Re-calling fetchWithIntegrity would re-detect the same hash
+      // change and create an infinite approval loop.
+      if (continueWorkflow?.approved === true) {
+        const approvedResult = await this.registryClient.continueFetchWithApproval(
+          fqdn,
+          this.lockfileManager,
+          true,
+        );
+        metadata = approvedResult.metadata;
       } else {
-        metadata = (fetchResult as RegistryFetchResult).metadata;
+        // Use fetchWithIntegrity - accepts FQDNs (toolNameToFqdn passes them through)
+        const fetchResult = await this.registryClient.fetchWithIntegrity(
+          fqdn,
+          this.lockfileManager,
+          serverWorkflowId,
+        );
+
+        // Check if integrity approval is required (hash changed)
+        if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+          const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+          if (continueWorkflow?.approved === false) {
+            handleIntegrityRejection(integrityApproval);
+          } else {
+            return integrityApproval;
+          }
+        } else {
+          metadata = (fetchResult as RegistryFetchResult).metadata;
+        }
       }
     } else {
-      // No lockfile manager - fetch without integrity validation (backward compat)
       const { metadata: fetchedMetadata } = await this.registryClient.fetchByFqdn(fqdn);
       metadata = fetchedMetadata;
     }
+
+    this.populateFqdnMapFromToolsUsed(metadata.toolsUsed);
 
     // Check and install dependencies
     const forceInstall = continueWorkflow?.approved === true;
@@ -638,19 +712,7 @@ export class CapabilityLoader {
 
     if (approvalResult) {
       if (continueWorkflow?.approved === false) {
-        if (approvalResult.approvalType === "tool_permission") {
-          throw new LoaderError(
-            "PERMISSION_DENIED",
-            `Tool ${approvalResult.toolId} was not approved by user`,
-            { toolId: approvalResult.toolId },
-          );
-        } else if (approvalResult.approvalType === "api_key_required") {
-          throw new LoaderError(
-            "API_KEY_NOT_CONFIGURED",
-            `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
-            { missingKeys: approvalResult.missingKeys },
-          );
-        }
+        handleApprovalDenial(approvalResult);
       }
       return approvalResult;
     }
@@ -695,51 +757,29 @@ export class CapabilityLoader {
     // DEBUG: Log metadata for permission check
     loaderLog.info(`[loadByFqdn] ${fqdn} → routing=${metadata.routing}, type=${metadata.type}, namespace=${namespace}`);
 
-    if (metadata.routing === "client" && metadata.type === "stdio") {
-      if (namespace === "std") {
-        stdioDep = {
-          name: "std",
-          type: "stdio" as const,
-          install: "binary", // Marker for binary distribution
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-        };
+    // Tech-spec 01.5: All stdio servers (including std) use metadata.install from registry
+    if (metadata.routing === "client" && metadata.type === "stdio" && metadata.install) {
+      stdioDep = {
+        name: namespace,
+        type: "stdio" as const,
+        install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+        version: "latest",
+        integrity: metadata.integrity ?? "",
+        command: metadata.install.command,
+        args: metadata.install.args,
+        envRequired: metadata.install.envRequired,
+      };
 
-        // std still needs tool_permission approval before first use (same as load())
-        // Always check return - env vars may still be missing after approval
-        const toolIdForPermission = `${namespace}:*`;
-        const stdApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolIdForPermission,
-        );
-        if (stdApproval) {
-          logDebug(`std binary requires approval before download (FQDN: ${fqdn})`);
-          return stdApproval;
-        }
-      } else if (metadata.install) {
-        stdioDep = {
-          name: namespace,
-          type: "stdio" as const,
-          install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
-          version: "latest",
-          integrity: metadata.integrity ?? "",
-          command: metadata.install.command,
-          args: metadata.install.args,
-          envRequired: metadata.install.envRequired,
-        };
-
-        // Always check ensureDependency return - even after approval,
-        // env vars may still be missing (user didn't add key to .env)
-        const stdioApproval = await this.ensureDependency(
-          stdioDep,
-          continueWorkflow?.approved ?? false,
-          toolId,
-        );
-        if (stdioApproval) {
-          logDebug(`Stdio MCP ${fqdn} requires approval to install`);
-          return stdioApproval;
-        }
+      // Always check ensureDependency return - even after approval,
+      // env vars may still be missing (user didn't add key to .env)
+      const stdioApproval = await this.ensureDependency(
+        stdioDep,
+        continueWorkflow?.approved ?? false,
+        toolId,
+      );
+      if (stdioApproval) {
+        logDebug(`Stdio MCP ${fqdn} requires approval to install`);
+        return stdioApproval;
       }
     }
 
@@ -837,12 +877,32 @@ export class CapabilityLoader {
       const keyCheck = checkKeys(requiredKeys);
 
       if (!keyCheck.allValid) {
-        // Return HIL pause instead of throwing error
-        // Note: Continuation handling is now managed by stdio-command.ts
+        // HTTP deps with authUrl: return oauth_connect instead of api_key_required.
+        // This gives the user an auth URL to authenticate externally.
+        if (dep.type === "http" && dep.authUrl) {
+          logDebug(`HTTP dep ${dep.name} needs OAuth — authUrl: ${dep.authUrl}`);
+          return {
+            approvalRequired: true,
+            approvalType: "oauth_connect" as const,
+            workflowId: uuidv7(),
+            toolId: toolId ?? `${dep.name}:*`,
+            authUrl: dep.authUrl,
+            description: `Authenticate with ${dep.name}: open the URL below, complete the auth flow, then add the token to your .env file and click Continue.\n\nMissing keys: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`,
+          };
+        }
+
+        // Standard api_key_required for stdio deps and HTTP deps without authUrl
         logDebug(`Missing env vars for ${dep.name}: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`);
         const approval = pauseForMissingKeys(keyCheck);
         return approval;
       }
+    }
+
+    // HTTP deps don't need installation — they use direct fetch().
+    // Once env vars are satisfied (checked above), the dep is ready.
+    if (dep.type === "http") {
+      logDebug(`HTTP dep ${dep.name} ready (no installation needed)`);
+      return null;
     }
 
     // Check if already installed with correct version
@@ -897,11 +957,12 @@ export class CapabilityLoader {
     }
 
     // Permission is "ask" - return unified tool_permission approval
+    // ADR-041: Use root workflowId for trace consistency
     loaderLog.info(`⏸ APPROVAL_REQUIRED: ${effectiveToolId} (install ${dep.name}@${dep.version})`);
     return {
       approvalRequired: true,
       approvalType: "tool_permission",
-      workflowId: crypto.randomUUID(),
+      workflowId: this.getRootWorkflowId(),
       toolId: effectiveToolId,
       namespace: dep.name,
       needsInstallation: true,
@@ -964,8 +1025,40 @@ export class CapabilityLoader {
   ): Promise<unknown> {
     logDebug(`Executing ${meta.fqdn} in sandbox`);
 
-    // Story 14.5b: Create trace collector if tracing is enabled
-    const traceCollector = this.tracingEnabled ? new TraceCollector() : null;
+    // Fail-fast: Validate arguments against schema if available
+    if (meta.parametersSchema) {
+      const validationErrors = validateArgsAgainstSchema(args, meta.parametersSchema);
+      if (validationErrors.length > 0) {
+        throw new LoaderError(
+          "VALIDATION_ERROR",
+          `Invalid arguments for ${meta.fqdn}: ${validationErrors.join(", ")}`,
+          {
+            fqdn: meta.fqdn,
+            errors: validationErrors,
+            schema: meta.parametersSchema,
+          },
+        );
+      }
+      logDebug(`Arguments validated against schema for ${meta.fqdn}`);
+    }
+
+    // Story 14.5b + ADR-041: Create trace collector with parent-child linking
+    // If there's an active parent trace, pass its ID as parentTraceId
+    const parentTraceId = this.traceIdStack.length > 0
+      ? this.traceIdStack[this.traceIdStack.length - 1]
+      : undefined;
+
+    const traceCollector = this.tracingEnabled
+      ? new TraceCollector({ parentTraceId })
+      : null;
+
+    // Push this trace's ID onto the stack for any nested calls
+    if (traceCollector) {
+      this.traceIdStack.push(traceCollector.getTraceId());
+    }
+
+    // Track approval from inner sandbox so we can bubble it up properly
+    let pendingApproval: { approval: unknown; toolId: string } | null = null;
 
     // Create sandbox with RPC handler that records mcp.* calls
     const sandbox = new SandboxWorker({
@@ -981,6 +1074,11 @@ export class CapabilityLoader {
 
         try {
           callResult = await this.routeMcpCall(meta, namespace, action, rpcArgs);
+          // Bubble approval up — don't let the capability swallow it as data
+          if (CapabilityLoader.isApprovalRequired(callResult)) {
+            pendingApproval = { approval: callResult, toolId: `${namespace}:${action}` };
+            throw new Error(`__APPROVAL_REQUIRED__:${namespace}:${action}`);
+          }
           return callResult;
         } catch (error) {
           callSuccess = false;
@@ -988,10 +1086,12 @@ export class CapabilityLoader {
           throw error;
         } finally {
           // Story 14.5b: Record the mcp.* call in trace collector
+          // Issue 6 fix: Use FQDN if available so server can resolve to UUID
           if (traceCollector) {
             const callDuration = Date.now() - callStart;
+            const toolId = this.fqdnMap.get(rpcMethod) ?? rpcMethod;
             traceCollector.recordMcpCall(
-              rpcMethod,
+              toolId,
               rpcArgs,
               callResult,
               callDuration,
@@ -1007,14 +1107,29 @@ export class CapabilityLoader {
       const result: SandboxResult = await sandbox.execute(code, args);
 
       if (!result.success) {
-        // Story 14.5b: Finalize trace with failure
+        // If a tool inside the capability required approval, bubble it up
+        // as the approval object (not as an error) so clientToolHandler
+        // can detect it via isApprovalRequired() and populate pendingWorkflowStore
+        // TS can't track closure mutations — pendingApproval is set inside handleRpcCall callback
+        const bubbledApproval = pendingApproval as { approval: unknown; toolId: string } | null;
+        if (bubbledApproval) {
+          logDebug(`Sandbox aborted due to inner approval: ${bubbledApproval.toolId} — bubbling up`);
+          if (traceCollector) {
+            const trace = traceCollector.finalize(meta.fqdn, false, `approval_required:${bubbledApproval.toolId}`);
+            this.pendingTraces.push(trace);
+          }
+          return bubbledApproval.approval;
+        }
+
+        // ADR-041: Finalize trace with failure - add to pending (not synced yet)
         if (traceCollector) {
           const trace = traceCollector.finalize(
             meta.fqdn,
             false,
             result.error?.message,
           );
-          this.traceSyncer.enqueue(trace);
+          this.pendingTraces.push(trace);
+          logDebug(`Pending trace added (failure): ${meta.fqdn}`);
         }
 
         // Convert sandbox error to LoaderError
@@ -1030,16 +1145,20 @@ export class CapabilityLoader {
         );
       }
 
-      // Story 14.5b: Finalize trace with success and enqueue for sync
+      // ADR-041: Finalize trace with success - add to pending (not synced yet)
       if (traceCollector) {
         const trace = traceCollector.finalize(meta.fqdn, true);
-        this.traceSyncer.enqueue(trace);
-        logDebug(`Trace collected: ${meta.fqdn} - ${trace.taskResults.length} mcp.* calls`);
+        this.pendingTraces.push(trace);
+        logDebug(`Pending trace added: ${meta.fqdn} - ${trace.taskResults.length} mcp.* calls`);
       }
 
       logDebug(`Sandbox execution completed in ${result.durationMs}ms`);
       return result.value;
     } finally {
+      // Pop trace ID from stack (must happen even on error)
+      if (traceCollector) {
+        this.traceIdStack.pop();
+      }
       // Always clean up sandbox
       sandbox.shutdown();
     }
@@ -1112,10 +1231,11 @@ export class CapabilityLoader {
 
         logDebug(`Tool ${toolId} requires approval (needsInstallation: ${needsInstallation})`);
 
+        // ADR-041: Use root workflowId for trace consistency
         return {
           approvalRequired: true,
           approvalType: "tool_permission",
-          workflowId: crypto.randomUUID(),
+          workflowId: this.getRootWorkflowId(),
           toolId,
           namespace,
           needsInstallation,
@@ -1141,6 +1261,20 @@ export class CapabilityLoader {
       return this.callStdio(dep, namespace, action, args);
     }
 
+    // HTTP-type deps: client-side fetch (no subprocess needed)
+    if (dep && dep.type === "http") {
+      const url = dep.httpUrl;
+      if (!url) {
+        throw new LoaderError(
+          "HTTP_CALL_FAILED",
+          `HTTP dep ${namespace} missing httpUrl — cannot execute client-side`,
+          { namespace, dep: dep.name },
+        );
+      }
+      logDebug(`HTTP call: ${namespace}:${action} → ${url}`);
+      return callHttp(url, namespace, action, args, dep.httpHeaders ?? {});
+    }
+
     // Check routing configuration
     const routing = resolveToolRouting(toolId);
 
@@ -1163,6 +1297,35 @@ export class CapabilityLoader {
   approveToolForSession(toolId: string): void {
     this.approvedTools.add(toolId);
     logDebug(`Approved ${toolId} for session`);
+  }
+
+  /**
+   * Approve an integrity change for a tool before re-execution.
+   * Called after user approves an integrity approval via continue_workflow.
+   *
+   * Updates the lockfile with the new hash so subsequent nested calls
+   * (inside meta-capabilities) don't re-trigger the same integrity check.
+   * Without this, integrity approvals for nested tool calls cause an infinite loop.
+   *
+   * @param toolId - Full tool ID (e.g., "std:data_address")
+   */
+  async approveIntegrityForSession(toolId: string): Promise<void> {
+    if (!this.lockfileManager) {
+      logDebug(`No lockfileManager — skipping integrity approval for ${toolId}`);
+      return;
+    }
+
+    try {
+      const result = await this.registryClient.continueFetchWithApproval(
+        toolId,
+        this.lockfileManager,
+        true,
+      );
+      logDebug(`Integrity approved for ${toolId} → lockfile updated (fqdn: ${result.metadata.fqdn})`);
+    } catch (error) {
+      // Log but don't throw — the re-execution will handle it
+      logDebug(`Failed to pre-approve integrity for ${toolId}: ${error}`);
+    }
   }
 
   /**
@@ -1268,6 +1431,192 @@ export class CapabilityLoader {
   clearCache(): void {
     this.loadedCapabilities.clear();
     this.registryClient.clearCache();
+  }
+
+  /**
+   * Enqueue a trace to pending list (for later flush).
+   *
+   * ADR-041: Traces are collected during execution and only flushed at the end.
+   * This ensures parent traces exist before children (FK constraint).
+   *
+   * @param trace - Trace to add to pending list
+   */
+  enqueuePendingTrace(trace: LocalExecutionTrace): void {
+    this.pendingTraces.push(trace);
+    logDebug(`Pending trace added: ${trace.capabilityId} (total: ${this.pendingTraces.length})`);
+  }
+
+  /**
+   * Get and clear pending traces.
+   *
+   * Returns the current pending traces and clears the list.
+   * Used for testing and for manual trace handling.
+   *
+   * @returns Array of pending traces (list is cleared after call)
+   */
+  getPendingTraces(): LocalExecutionTrace[] {
+    const traces = this.pendingTraces;
+    this.pendingTraces = [];
+    return traces;
+  }
+
+  /**
+   * Enqueue a trace for the direct code execution (parent trace).
+   *
+   * This creates a trace entry for the outer SandboxExecutor execution,
+   * which serves as the parent for any capability traces created during execution.
+   *
+   * @param traceId - Trace ID generated by SandboxExecutor
+   * @param success - Whether execution succeeded
+   * @param durationMs - Execution duration in milliseconds
+   * @param error - Error message if failed
+   * @param toolCallRecords - Records of tool calls made during execution
+   */
+  /**
+   * Enqueue a trace for direct code execution (no registered capability).
+   *
+   * @param traceId - Trace ID generated by SandboxExecutor
+   * @param success - Whether execution succeeded
+   * @param durationMs - Execution duration in milliseconds
+   * @param error - Error message if failed
+   * @param toolCallRecords - Records of tool calls made during execution
+   * @param workflowId - Workflow ID for server-side capability creation
+   * @param dagTasks - Story 11.4: DAG tasks with layerIndex from server (execute_locally)
+   */
+  enqueueDirectExecutionTrace(
+    traceId: string,
+    success: boolean,
+    durationMs: number,
+    error?: string,
+    toolCallRecords?: Array<{ tool: string; args: unknown; result: unknown; success: boolean; durationMs: number }>,
+    workflowId?: string,
+    dagTasks?: Array<{ id: string; tool: string; layerIndex: number }>,
+  ): void {
+    // DEBUG: Log incoming data for layerIndex debugging
+    logDebug(`[enqueueDirectExecutionTrace] dagTasks: ${dagTasks?.length ?? 0}, toolCallRecords: ${toolCallRecords?.length ?? 0}`);
+    if (dagTasks?.[0]) {
+      logDebug(`[enqueueDirectExecutionTrace] dagTasks[0].tool: ${dagTasks[0].tool}, layerIndex: ${dagTasks[0].layerIndex}`);
+    }
+    if (toolCallRecords?.[0]) {
+      logDebug(`[enqueueDirectExecutionTrace] toolCallRecords[0].tool: ${toolCallRecords[0].tool}`);
+    }
+
+    // Story 11.4: Build tool→layerIndex map from DAG tasks
+    // If same tool appears multiple times, use first occurrence (sequential matching)
+    const toolLayerMap = new Map<string, number[]>();
+    if (dagTasks) {
+      for (const task of dagTasks) {
+        const layers = toolLayerMap.get(task.tool) ?? [];
+        layers.push(task.layerIndex);
+        toolLayerMap.set(task.tool, layers);
+      }
+    }
+
+    // Track which layer index to use for each tool (for multiple occurrences)
+    const toolOccurrenceIndex = new Map<string, number>();
+
+    const trace: LocalExecutionTrace = {
+      traceId,
+      parentTraceId: undefined, // Direct execution has no parent
+      workflowId, // Server will create capability using stored LearningContext
+      // capabilityId omitted - server creates it when workflowId is present
+      success,
+      error,
+      durationMs,
+      taskResults: (toolCallRecords ?? []).map((r, i) => {
+        // Story 11.4: Look up layerIndex from DAG tasks
+        let layerIndex: number | undefined;
+        if (dagTasks) {
+          // Issue 7 fix: Convert short format to FQDN for lookup (dagTasks uses FQDN)
+          const fqdn = this.fqdnMap.get(r.tool);
+          const layers = toolLayerMap.get(fqdn ?? r.tool);
+          logDebug(`[enqueueDirectExecutionTrace] lookup r.tool=${r.tool}, fqdn=${fqdn}, layers=${JSON.stringify(layers)}`);
+          if (layers && layers.length > 0) {
+            const occIdx = toolOccurrenceIndex.get(r.tool) ?? 0;
+            layerIndex = layers[occIdx] ?? layers[layers.length - 1];
+            toolOccurrenceIndex.set(r.tool, occIdx + 1);
+            logDebug(`[enqueueDirectExecutionTrace] layerIndex resolved: ${layerIndex}`);
+          }
+        }
+
+        return {
+          taskId: `t${i + 1}`,
+          tool: this.fqdnMap.get(r.tool) ?? r.tool, // Issue 6: Use FQDN for UUID resolution
+          args: (r.args ?? {}) as Record<string, JsonValue>,
+          result: r.result as JsonValue,
+          success: r.success,
+          durationMs: r.durationMs,
+          timestamp: new Date().toISOString(),
+          layerIndex,
+        };
+      }),
+      decisions: [],
+      timestamp: new Date().toISOString(),
+    };
+    this.pendingTraces.push(trace);
+    logDebug(`Direct execution trace added: ${traceId} (workflowId: ${workflowId ?? "none"})`);
+  }
+
+  /**
+   * Set the FQDN map for trace recording.
+   * Issue 6 fix: Use FQDN in taskResults.tool so server can resolve to UUID.
+   *
+   * @param map - Map of toolId (namespace:action) to FQDN
+   */
+  setFqdnMap(map: Map<string, string>): void {
+    this.fqdnMap = map;
+  }
+
+  /**
+   * Populate fqdnMap from capability's toolsUsed metadata.
+   *
+   * Issue 6 fix: When loading a capability that calls other capabilities/tools,
+   * we need to populate fqdnMap so that nested calls use FQDNs in traces.
+   * This allows the server to resolve FQDNs to UUIDs for hierarchical trace matching.
+   *
+   * @param toolsUsed - Array of FQDNs from capability metadata
+   */
+  private populateFqdnMapFromToolsUsed(toolsUsed: string[] | undefined): void {
+    if (!toolsUsed || toolsUsed.length === 0) {
+      return;
+    }
+
+    for (const fqdn of toolsUsed) {
+      // Skip non-FQDN entries (like code:* pseudo-tools)
+      if (!fqdn.includes(".")) {
+        continue;
+      }
+
+      // Extract name from FQDN: "org.project.namespace.action.hash" → "namespace:action"
+      const parts = fqdn.split(".");
+      if (parts.length >= 4) {
+        const namespace = parts[2];
+        const action = parts[3];
+        const name = `${namespace}:${action}`;
+        this.fqdnMap.set(name, fqdn);
+        logDebug(`[fqdnMap] Added ${name} → ${fqdn}`);
+      }
+    }
+  }
+
+  /**
+   * Flush pending traces with dependency ordering.
+   *
+   * ADR-041: Moves all pending traces to syncer, sorts by dependency,
+   * then flushes to cloud. Parents are saved before children (FK constraint).
+   *
+   * Call this at the end of a complete execution before returning results.
+   */
+  async flushTraces(): Promise<void> {
+    // Move all pending traces to syncer
+    for (const trace of this.pendingTraces) {
+      this.traceSyncer.enqueue(trace);
+    }
+    this.pendingTraces = [];
+
+    // Sort and flush
+    this.traceSyncer.sortQueueByDependency();
+    await this.traceSyncer.flush();
   }
 
   /**

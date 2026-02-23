@@ -72,8 +72,8 @@ const mcp: Record<string, Record<string, (args: unknown) => Promise<unknown>>> =
       // Return a proxy for the namespace
       return new Proxy({} as Record<string, (args: unknown) => Promise<unknown>>, {
         get: (_innerTarget, action: string) => {
-          // Return an async function that sends RPC
-          return async (args: unknown): Promise<unknown> => {
+          // Return a function that sends RPC and returns a Promise
+          return (args: unknown): Promise<unknown> => {
             const rpcId = `rpc-${++rpcIdCounter}`;
 
             return new Promise((resolve, reject) => {

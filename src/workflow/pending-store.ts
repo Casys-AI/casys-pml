@@ -15,6 +15,7 @@
  */
 
 import type { McpDependency } from "../loader/types.ts";
+import { uuidv7 } from "../utils/uuid.ts";
 
 // =============================================================================
 // Types
@@ -23,7 +24,20 @@ import type { McpDependency } from "../loader/types.ts";
 /**
  * Type of approval required.
  */
-export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity";
+export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity" | "oauth_connect";
+
+/**
+ * DAG task with layerIndex for TraceTimeline visualization.
+ * Story 11.4: Stored for HIL continuation flows.
+ * Aligned with DAGTask from types.ts.
+ */
+export interface PendingDAGTask {
+  id: string;
+  tool: string;
+  arguments?: Record<string, unknown>;
+  dependsOn: string[];
+  layerIndex: number;
+}
 
 /**
  * A pending workflow awaiting user approval.
@@ -59,6 +73,8 @@ export interface PendingWorkflow {
   };
   /** FQDN map for multi-tenant tool resolution (server-provided) */
   fqdnMap?: Record<string, string>;
+  /** Story 11.4: DAG tasks with layerIndex for trace recording */
+  dagTasks?: PendingDAGTask[];
 }
 
 // =============================================================================
@@ -128,7 +144,7 @@ export class PendingWorkflowStore {
     // Clean up expired workflows on each create
     this.cleanup();
 
-    const id = crypto.randomUUID();
+    const id = uuidv7();
     this.workflows.set(id, {
       code,
       toolId,
@@ -167,7 +183,9 @@ export class PendingWorkflowStore {
       dependency?: McpDependency;
       missingKeys?: string[];
       integrityInfo?: { fqdnBase: string; newHash: string; oldHash: string };
+      authUrl?: string;
       fqdnMap?: Record<string, string>;
+      dagTasks?: PendingDAGTask[];
     },
   ): void {
     // Clean up expired workflows
@@ -184,6 +202,7 @@ export class PendingWorkflowStore {
       missingKeys: options?.missingKeys,
       integrityInfo: options?.integrityInfo,
       fqdnMap: options?.fqdnMap,
+      dagTasks: options?.dagTasks,
     });
   }
 

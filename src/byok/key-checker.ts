@@ -104,6 +104,18 @@ export function checkKey(name: string, requiredBy: string): KeyCheckResult {
 }
 
 /**
+ * Placeholder patterns with their human-readable descriptions.
+ */
+const PLACEHOLDER_DESCRIPTIONS: Array<{ pattern: RegExp; description: string }> = [
+  { pattern: /^x{2,}$/i, description: 'placeholder value "xxx"' },
+  { pattern: /^your[-_]?key/i, description: 'placeholder "your-key..."' },
+  { pattern: /^<.*>$/, description: 'placeholder "<...>"' },
+  { pattern: /^TODO$/i, description: '"TODO"' },
+  { pattern: /^CHANGE[-_]?ME$/i, description: '"CHANGE_ME"' },
+  { pattern: /^placeholder$/i, description: '"placeholder"' },
+];
+
+/**
  * Get validation error message for a key.
  *
  * Useful for detailed error messages showing why a key is invalid.
@@ -122,31 +134,13 @@ export function getKeyValidationError(name: string): string | null {
     return `${name} is empty`;
   }
 
-  // Check for specific placeholder patterns
   const trimmed = value.trim();
 
-  if (/^x{2,}$/i.test(trimmed)) {
-    return `${name} contains placeholder value "xxx"`;
-  }
-
-  if (/^your[-_]?key/i.test(trimmed)) {
-    return `${name} contains placeholder "your-key..."`;
-  }
-
-  if (/^<.*>$/.test(trimmed)) {
-    return `${name} contains placeholder "<...>"`;
-  }
-
-  if (/^TODO$/i.test(trimmed)) {
-    return `${name} contains "TODO"`;
-  }
-
-  if (/^CHANGE[-_]?ME$/i.test(trimmed)) {
-    return `${name} contains "CHANGE_ME"`;
-  }
-
-  if (/^placeholder$/i.test(trimmed)) {
-    return `${name} contains "placeholder"`;
+  // Check for specific placeholder patterns with descriptive messages
+  for (const { pattern, description } of PLACEHOLDER_DESCRIPTIONS) {
+    if (pattern.test(trimmed)) {
+      return `${name} contains ${description}`;
+    }
   }
 
   // Generic check for any other invalid pattern
@@ -156,5 +150,5 @@ export function getKeyValidationError(name: string): string | null {
     }
   }
 
-  return null; // Valid
+  return null;
 }

@@ -101,12 +101,80 @@ Display the package version.
 ```json
 {
   "version": "0.1.0",
-  "workspace": "/path/to/project",
-  "cloudUrl": "https://pml.casys.ai",
-  "port": 3003,
-  "mcpRegistry": "jsr:@casys/pml-mcp-{name}"
+  "workspace": ".",
+  "cloud": {
+    "url": "https://pml.casys.ai"
+  },
+  "permissions": {
+    "allow": [],
+    "deny": [],
+    "ask": []
+  },
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    },
+    "exa": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "exa-mcp-server"],
+      "env": {
+        "EXA_API_KEY": "${EXA_API_KEY}"
+      }
+    }
+  }
 }
 ```
+
+## MCP Tool Discovery
+
+PML automatically discovers tools from your configured MCP servers and syncs them to the cloud for config-aware suggestions.
+
+### How It Works
+
+1. At startup (`pml serve` or `pml stdio`), PML reads `mcpServers` from `.pml.json`
+2. Spawns each MCP server and calls `tools/list` to discover available tools
+3. Validates tool schemas (supports JSON Schema draft-07 and draft-2020-12)
+4. Syncs discovered tools to PML cloud (only tool metadata - no secrets or paths)
+
+### Configuration
+
+Add MCP servers to your `.pml.json`:
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "my-mcp-server"],
+      "env": {
+        "API_KEY": "${MY_API_KEY}"
+      }
+    },
+    "http-server": {
+      "type": "http",
+      "url": "https://api.example.com/mcp"
+    }
+  }
+}
+```
+
+- `type`: `"stdio"` (default) or `"http"`
+- `command`: Command to run (stdio only)
+- `args`: Command arguments (stdio only)
+- `env`: Environment variables with `${VAR}` substitution
+- `url`: Server URL (http only)
+
+### What Gets Synced
+
+Only public tool metadata is synced to the cloud:
+
+- Server name (e.g., "filesystem")
+- Tool name, description, and input schema
+
+**Not synced**: workspace paths, commands, args, env vars, API keys
 
 ## Environment Variables
 

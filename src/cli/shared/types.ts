@@ -7,6 +7,7 @@
  */
 
 import type { ToolCallRecord } from "../../execution/types.ts";
+import type { CollectedUiResource } from "../../types/ui-orchestration.ts";
 import type {
   ApprovalRequiredResult,
   IntegrityApprovalRequired,
@@ -22,7 +23,7 @@ import type {
  * - Approval required (HIL pause for dependency/API key/integrity)
  */
 export type LocalExecutionResult =
-  | { status: "success"; result: unknown; durationMs: number; toolCallRecords: ToolCallRecord[] }
+  | { status: "success"; result: unknown; durationMs: number; toolCallRecords: ToolCallRecord[]; collectedUi?: CollectedUiResource[] }
   | { status: "error"; error: string }
   | { status: "approval_required"; approval: ApprovalRequiredResult | IntegrityApprovalRequired; toolId: string };
 
@@ -45,6 +46,27 @@ export interface ResolvedTool {
 }
 
 /**
+ * Task from DAG with layerIndex for TraceTimeline visualization.
+ * Story 11.4: Server computes layerIndex, client uses it.
+ */
+export interface DAGTask {
+  id: string;
+  tool: string;
+  arguments?: Record<string, unknown>;
+  dependsOn: string[];
+  /** Parallel execution layer (0 = no dependencies) */
+  layerIndex: number;
+}
+
+/**
+ * DAG structure included in execute_locally response.
+ * Story 11.4: Includes layerIndex for each task.
+ */
+export interface ExecuteLocallyDAG {
+  tasks: DAGTask[];
+}
+
+/**
  * Parsed execute_locally response from server.
  */
 export interface ExecuteLocallyResponse {
@@ -54,6 +76,13 @@ export interface ExecuteLocallyResponse {
   /** Resolved tools with FQDNs from server (multi-tenant) */
   tools_used: ResolvedTool[];
   workflowId?: string;
+  /** Story 11.4: DAG with layerIndex for TraceTimeline */
+  dag?: ExecuteLocallyDAG;
+  /** Story 16.3: UI orchestration for composite generation (from capability_records) */
+  ui_orchestration?: {
+    layout: "split" | "tabs" | "grid" | "stack";
+    sync?: Array<{ from: string; event: string; to: string; action: string }>;
+  };
 }
 
 /**
