@@ -8,8 +8,8 @@
 
 import { assertEquals, assertExists, assertGreater } from "jsr:@std/assert@1";
 import {
-  AlgorithmFactory,
   type AlgorithmCapabilityInput,
+  AlgorithmFactory,
   type DRDSPCapabilityInput,
 } from "../../../../../src/infrastructure/patterns/factory/algorithm-factory.ts";
 
@@ -96,8 +96,8 @@ Deno.test("AlgorithmFactory - createEmptySHGAT", async (t) => {
     assertExists(shgat);
   });
 
-  await t.step("allows dynamic capability registration", () => {
-    const shgat = AlgorithmFactory.createEmptySHGAT();
+  await t.step("allows dynamic capability registration", async () => {
+    const shgat = await AlgorithmFactory.createEmptySHGAT();
 
     // Should be able to register capabilities dynamically without throwing
     shgat.registerCapability({

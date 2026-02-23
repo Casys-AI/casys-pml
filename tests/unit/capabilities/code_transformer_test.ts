@@ -9,7 +9,10 @@
  */
 
 import { assertEquals, assertExists } from "jsr:@std/assert@1.0.11";
-import { transformCapabilityRefs, transformLiteralsToArgs } from "../../../src/capabilities/code-transformer.ts";
+import {
+  transformCapabilityRefs,
+  transformLiteralsToArgs,
+} from "../../../src/capabilities/code-transformer.ts";
 import type { CapabilityRegistry, Scope } from "../../../src/capabilities/capability-registry.ts";
 import type { CapabilityRecord } from "../../../src/capabilities/types.ts";
 
@@ -43,7 +46,7 @@ class MockCapabilityRegistry implements Partial<CapabilityRegistry> {
       hash: "xxxx",
       usageCount: 1,
       visibility: "public",
-      userId: null,
+      userId: undefined,
       createdAt: new Date(),
       updatedAt: new Date(),
       version: 1,
@@ -791,9 +794,17 @@ for (const file of files) {
     // files array should be replaced
     assertEquals(result.code.includes("args.files"), true);
     // The loop variable `file` in `for (const file of` should NOT be replaced
-    assertEquals(result.code.includes("for (const file of"), true, "Loop variable was incorrectly replaced!");
+    assertEquals(
+      result.code.includes("for (const file of"),
+      true,
+      "Loop variable was incorrectly replaced!",
+    );
     // The `path: file` inside loop should use the loop variable, NOT args.file
-    assertEquals(result.code.includes("path: file"), true, "Loop body variable was incorrectly replaced!");
+    assertEquals(
+      result.code.includes("path: file"),
+      true,
+      "Loop body variable was incorrectly replaced!",
+    );
     assertEquals(result.code.includes("path: args.file"), false);
   },
 });

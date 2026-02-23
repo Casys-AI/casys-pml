@@ -12,11 +12,7 @@
  */
 
 import { assertEquals, assertExists, assertGreater } from "@std/assert";
-import {
-  capabilityToHyperedge,
-  DRDSP,
-  type Hyperedge,
-} from "../../../../src/graphrag/algorithms/dr-dsp.ts";
+import { capabilityToHyperedge, DRDSP } from "../../../../src/graphrag/algorithms/dr-dsp.ts";
 
 // ============================================================================
 // Test Fixtures

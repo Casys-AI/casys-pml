@@ -15,10 +15,7 @@ import * as log from "@std/log";
 import type { RouteContext } from "../mcp/routing/types.ts";
 import { jsonResponse } from "../mcp/routing/types.ts";
 import { ensureUiCacheReady } from "../services/ui-cache-service.ts";
-import {
-  createMcpResourceFetcher,
-  parseResourceUri,
-} from "../services/mcp-resource-fetcher.ts";
+import { createMcpResourceFetcher, parseResourceUri } from "../services/mcp-resource-fetcher.ts";
 import { buildCspHeader } from "../../lib/server/src/security/csp.ts";
 
 /** CSP header for MCP App iframes (deny-all baseline, allow inline + self) */
@@ -38,7 +35,7 @@ const MCP_APP_CSP = buildCspHeader({ allowInline: true });
  * - 503: MCP server not connected and no cache available
  */
 export async function handleUiResourceGet(
-  req: Request,
+  _req: Request,
   url: URL,
   ctx: RouteContext,
   corsHeaders: Record<string, string>,
@@ -96,7 +93,7 @@ export async function handleUiResourceGet(
     if (result && result.content.length > MAX_UI_CONTENT_SIZE) {
       log.warn(
         `[API /ui/resource] UI resource too large: ${resourceUri} (${result.content.length} bytes). ` +
-        `Max allowed: ${MAX_UI_CONTENT_SIZE} bytes.`,
+          `Max allowed: ${MAX_UI_CONTENT_SIZE} bytes.`,
       );
       return jsonResponse(
         { error: "UI resource exceeds maximum allowed size (5MB)" },

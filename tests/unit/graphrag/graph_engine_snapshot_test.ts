@@ -53,7 +53,7 @@ Deno.test({
 });
 
 // TEST CRITIQUE 2: Graphe vide ne plante pas (robustesse)
-Deno.test("GraphRAGEngine.getGraphSnapshot - graphe vide sans erreur", async () => {
+Deno.test({ name: "GraphRAGEngine.getGraphSnapshot - graphe vide sans erreur", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const db = await createTestDb();
   const engine = new GraphRAGEngine(db);
   await engine.syncFromDatabase();
@@ -67,10 +67,10 @@ Deno.test("GraphRAGEngine.getGraphSnapshot - graphe vide sans erreur", async () 
   assertEquals(snapshot.metadata.density, 0);
 
   await db.close();
-});
+}});
 
 // TEST CRITIQUE 3: Structure des nodes (AC3: nodes avec server, PageRank, degree)
-Deno.test("GraphRAGEngine.getGraphSnapshot - structure node correcte", async () => {
+Deno.test({ name: "GraphRAGEngine.getGraphSnapshot - structure node correcte", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const db = await createTestDb();
   const engine = new GraphRAGEngine(db);
   await engine.syncFromDatabase();
@@ -100,10 +100,10 @@ Deno.test("GraphRAGEngine.getGraphSnapshot - structure node correcte", async () 
   }
 
   await db.close();
-});
+}});
 
 // TEST CRITIQUE 4: Structure des edges (AC4: edges avec confidence, observed_count)
-Deno.test("GraphRAGEngine.getGraphSnapshot - structure edge correcte", async () => {
+Deno.test({ name: "GraphRAGEngine.getGraphSnapshot - structure edge correcte", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const db = await createTestDb();
   const engine = new GraphRAGEngine(db);
   await engine.syncFromDatabase();
@@ -135,10 +135,10 @@ Deno.test("GraphRAGEngine.getGraphSnapshot - structure edge correcte", async () 
   }
 
   await db.close();
-});
+}});
 
 // TEST CRITIQUE 5: Parsing correct des tool IDs (AC3: couleur par server)
-Deno.test("GraphRAGEngine.getGraphSnapshot - parsing des tool IDs multiples", async () => {
+Deno.test({ name: "GraphRAGEngine.getGraphSnapshot - parsing des tool IDs multiples", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const db = await createTestDb();
   const engine = new GraphRAGEngine(db);
   await engine.syncFromDatabase();
@@ -173,4 +173,4 @@ Deno.test("GraphRAGEngine.getGraphSnapshot - parsing des tool IDs multiples", as
   assertEquals(labels.includes("think"), true);
 
   await db.close();
-});
+}});

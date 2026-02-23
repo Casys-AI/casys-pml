@@ -24,9 +24,7 @@ function makeTrace(
   return {
     id: "trace-1",
     capabilityId: "cap-1",
-    success: overrides.success,
     durationMs: 100,
-    executedPath: overrides.executedPath,
     decisions: [],
     taskResults: [],
     priority: 0.5,

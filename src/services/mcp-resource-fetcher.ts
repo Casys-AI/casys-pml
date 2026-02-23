@@ -125,40 +125,25 @@ export class McpResourceFetcher implements ResourceFetcher {
     client: MCPClientBase,
     resourceUri: string,
   ): Promise<{ content: string; mimeType?: string } | null> {
-    // Note: MCPClientBase doesn't have a generic RPC method, so we need to
-    // extend the client interface or use a workaround.
-    //
-    // For now, we'll use a type assertion to call the resources/read method
-    // if available. Servers implementing MCP Apps spec should support this.
-    const extendedClient = client as MCPClientBase & {
-      readResource?: (
-        uri: string,
-      ) => Promise<{ contents: Array<{ uri: string; mimeType?: string; text?: string }> }>;
-    };
-
-    if (typeof extendedClient.readResource !== "function") {
+    // MCPClientBase.readResource returns MCPResourceContent | null directly.
+    // Check if the client supports resources/read.
+    if (typeof client.readResource !== "function") {
       log.warn(
         `[McpResourceFetcher] Server ${client.serverId} doesn't support resources/read. ` +
-        `UI resources from this server will NOT be available.`,
+          `UI resources from this server will NOT be available.`,
       );
       return null;
     }
 
-    const response = await extendedClient.readResource(resourceUri);
+    const response = await client.readResource(resourceUri);
 
-    if (!response.contents || response.contents.length === 0) {
-      return null;
-    }
-
-    // Return the first content item that matches our URI
-    const content = response.contents.find((c) => c.uri === resourceUri);
-    if (!content || !content.text) {
+    if (!response || !response.text) {
       return null;
     }
 
     return {
-      content: content.text,
-      mimeType: content.mimeType,
+      content: response.text,
+      mimeType: response.mimeType,
     };
   }
 }

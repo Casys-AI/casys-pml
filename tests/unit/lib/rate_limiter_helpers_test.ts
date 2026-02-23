@@ -12,6 +12,8 @@ Deno.test("getRateLimitKey - cloud mode uses user_id", () => {
   const authResult: AuthResult = {
     user_id: "user-123",
     username: "alice",
+    org: "test-org",
+    project: "test-project",
   };
 
   const key = getRateLimitKey(authResult, "192.168.1.1");
@@ -22,6 +24,8 @@ Deno.test("getRateLimitKey - cloud mode with different user", () => {
   const authResult: AuthResult = {
     user_id: "uuid-456-def",
     username: "bob",
+    org: "test-org",
+    project: "test-project",
   };
 
   const key = getRateLimitKey(authResult, "10.0.0.1");
@@ -32,6 +36,8 @@ Deno.test("getRateLimitKey - local mode disabled returns shared key", () => {
   const authResult: AuthResult = {
     user_id: "local",
     username: "local",
+    org: "test-org",
+    project: "test-project",
   };
 
   // Default behavior (no env var)
@@ -53,6 +59,8 @@ Deno.test("getRateLimitKey - local mode IP uses IP address", () => {
     const authResult: AuthResult = {
       user_id: "local",
       username: "local",
+      org: "test-org",
+      project: "test-project",
     };
 
     const key = getRateLimitKey(authResult, "192.168.1.1");
@@ -69,6 +77,8 @@ Deno.test("getRateLimitKey - local mode IP with different IP", () => {
     const authResult: AuthResult = {
       user_id: "local",
       username: "local",
+      org: "test-org",
+      project: "test-project",
     };
 
     const key = getRateLimitKey(authResult, "10.20.30.40");
@@ -85,6 +95,8 @@ Deno.test("getRateLimitKey - local mode IP without IP provided falls back to sha
     const authResult: AuthResult = {
       user_id: "local",
       username: "local",
+      org: "test-org",
+      project: "test-project",
     };
 
     const key = getRateLimitKey(authResult); // no IP
@@ -101,6 +113,8 @@ Deno.test("getRateLimitKey - explicitly disabled mode", () => {
     const authResult: AuthResult = {
       user_id: "local",
       username: "local",
+      org: "test-org",
+      project: "test-project",
     };
 
     const key = getRateLimitKey(authResult, "1.2.3.4");

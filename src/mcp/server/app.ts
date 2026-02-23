@@ -18,8 +18,8 @@ import { RateLimiter } from "@casys/mcp-server";
 import { getRateLimitKey } from "../../lib/rate-limiter-helpers.ts";
 import type { EventsStreamManager } from "../../server/events-stream.ts";
 import {
-  isPublicRoute,
   buildCorsHeaders,
+  isPublicRoute,
   PROMETHEUS_ROUTE,
   validatePrometheusToken,
 } from "../routing/middleware.ts";
@@ -41,14 +41,13 @@ import {
 // Package session management
 import {
   getSessionStore,
-  type RegisterRequest,
   type HeartbeatRequest,
+  type RegisterRequest,
   type UnregisterRequest,
 } from "../sessions/mod.ts";
 
 // User helpers for scope resolution
 import { getUserScope } from "../../lib/user.ts";
-
 
 // Types for Hono context
 interface AppEnv {
@@ -144,8 +143,8 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
     }
 
     // Rate limiting
-    const clientIp =
-      c.req.header("x-forwarded-for") || c.req.header("cf-connecting-ip") || "unknown";
+    const clientIp = c.req.header("x-forwarded-for") || c.req.header("cf-connecting-ip") ||
+      "unknown";
     const rateLimitKey = getRateLimitKey(authResult, clientIp);
 
     let limiter: RateLimiter | null = null;
@@ -215,7 +214,11 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
       const sessionStore = getSessionStore();
       const response = sessionStore.register(body, userId, scope);
 
-      log.info(`[PML] Package registered: ${body.clientId.slice(0, 8)} v${body.version} scope=${scope.org}.${scope.project}`);
+      log.info(
+        `[PML] Package registered: ${
+          body.clientId.slice(0, 8)
+        } v${body.version} scope=${scope.org}.${scope.project}`,
+      );
       return c.json(response);
     } catch (error) {
       log.error(`[PML] Register failed: ${error}`);
@@ -294,7 +297,11 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
       const isPackageClient = sessionStore.isPackageClient(sessionId);
 
       // DEBUG: Log session header
-      log.info(`[MCP] POST /mcp sessionId=${sessionId?.slice(0, 8) ?? "none"} isPackageClient=${isPackageClient}`);
+      log.info(
+        `[MCP] POST /mcp sessionId=${
+          sessionId?.slice(0, 8) ?? "none"
+        } isPackageClient=${isPackageClient}`,
+      );
 
       const response = await deps.handleJsonRpc(body, userId, isPackageClient);
       return c.json(response);
@@ -406,8 +413,8 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
     const routeCtx = c.get("routeCtx");
     const corsHdrs = c.get("corsHeaders");
     const url = new URL(c.req.raw.url);
-    const response = handleToolsRoutes(c.req.raw, url, routeCtx, corsHdrs);
-    return response || c.json({ error: "Not found" }, 404);
+    const response = await handleToolsRoutes(c.req.raw, url, routeCtx, corsHdrs);
+    return response ?? c.json({ error: "Not found" }, 404);
   });
 
   // Traces API (Story 14.5b: Client-routed capability creation)

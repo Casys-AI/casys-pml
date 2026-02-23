@@ -79,17 +79,7 @@ async function handleCatalogEntries(
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
   try {
-    const rows = await ctx.db!.query<{
-      record_type: "mcp-tool" | "capability";
-      id: string;
-      name: string;
-      description: string | null;
-      routing: "local" | "cloud";
-      server_id: string | null;
-      namespace: string | null;
-      action: string | null;
-      has_ui: boolean;
-    }>(`
+    const rows = await ctx.db!.query(`
       SELECT
         r.record_type,
         r.id,
@@ -108,15 +98,15 @@ async function handleCatalogEntries(
     `);
 
     const entries: CatalogEntry[] = rows.map((row) => ({
-      recordType: row.record_type,
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      routing: row.routing,
-      serverId: row.server_id,
-      namespace: row.namespace,
-      action: row.action,
-      hasUi: row.has_ui,
+      recordType: row.record_type as "mcp-tool" | "capability",
+      id: row.id as string,
+      name: row.name as string,
+      description: row.description as string | null,
+      routing: row.routing as "local" | "cloud",
+      serverId: row.server_id as string | null,
+      namespace: row.namespace as string | null,
+      action: row.action as string | null,
+      hasUi: row.has_ui as boolean,
     }));
 
     return jsonResponse(entries, 200, {
@@ -125,9 +115,7 @@ async function handleCatalogEntries(
     });
   } catch (error) {
     log.error(
-      `[Catalog] Error loading entries: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      `[Catalog] Error loading entries: ${error instanceof Error ? error.message : String(error)}`,
     );
     return jsonResponse(
       { error: "internal_error", message: "Failed to load catalog entries" },
@@ -163,15 +151,8 @@ async function handleCatalogToolDetail(
   const toolId = decodeURIComponent(pathMatch[1]);
 
   try {
-    const rows = await ctx.db!.query<{
-      tool_id: string;
-      name: string;
-      description: string | null;
-      routing: "local" | "cloud";
-      server_id: string;
-      input_schema: Record<string, unknown> | null;
-      ui_meta: { resourceUri: string; emits?: string[]; accepts?: string[] } | null;
-    }>(`
+    const rows = await ctx.db!.query(
+      `
       SELECT
         tool_id,
         name,
@@ -183,7 +164,9 @@ async function handleCatalogToolDetail(
       FROM tool_schema
       WHERE tool_id = $1
       LIMIT 1
-    `, [toolId]);
+    `,
+      [toolId],
+    );
 
     if (rows.length === 0) {
       return jsonResponse(
@@ -196,7 +179,9 @@ async function handleCatalogToolDetail(
     const row = rows[0];
 
     // Handle double-encoded JSON for ui_meta
-    let uiMeta = row.ui_meta;
+    let uiMeta = row.ui_meta as
+      | { resourceUri: string; emits?: string[]; accepts?: string[] }
+      | null;
     if (typeof uiMeta === "string") {
       try {
         uiMeta = JSON.parse(uiMeta);
@@ -206,7 +191,7 @@ async function handleCatalogToolDetail(
     }
 
     // Handle double-encoded JSON for input_schema
-    let inputSchema = row.input_schema;
+    let inputSchema = row.input_schema as Record<string, unknown> | null;
     if (typeof inputSchema === "string") {
       try {
         inputSchema = JSON.parse(inputSchema);
@@ -216,11 +201,11 @@ async function handleCatalogToolDetail(
     }
 
     const tool: ToolDetail = {
-      id: row.tool_id,
-      name: row.name,
-      description: row.description,
-      routing: row.routing,
-      serverId: row.server_id,
+      id: row.tool_id as string,
+      name: row.name as string,
+      description: row.description as string | null,
+      routing: row.routing as "local" | "cloud",
+      serverId: row.server_id as string,
       inputSchema,
       uiMeta,
     };
@@ -266,17 +251,8 @@ async function handleCatalogCapabilityDetail(
   const capabilityId = decodeURIComponent(pathMatch[1]);
 
   try {
-    const rows = await ctx.db!.query<{
-      id: string;
-      name: string;
-      action: string | null;
-      namespace: string | null;
-      description: string | null;
-      routing: "local" | "cloud";
-      code: string | null;
-      tools_used: string[] | null;
-      parameters_schema: ParametersSchema | null;
-    }>(`
+    const rows = await ctx.db!.query(
+      `
       SELECT
         pr.id,
         pr.name,
@@ -292,7 +268,9 @@ async function handleCatalogCapabilityDetail(
       WHERE pr.id = $1
         AND pr.record_type = 'capability'
       LIMIT 1
-    `, [capabilityId]);
+    `,
+      [capabilityId],
+    );
 
     if (rows.length === 0) {
       return jsonResponse(
@@ -305,15 +283,15 @@ async function handleCatalogCapabilityDetail(
     const row = rows[0];
 
     const capability: CapabilityDetail = {
-      id: row.id,
-      name: row.name,
-      action: row.action,
-      namespace: row.namespace,
-      description: row.description,
-      routing: row.routing,
-      code: row.code,
-      toolsUsed: row.tools_used || [],
-      inputSchema: row.parameters_schema,
+      id: row.id as string,
+      name: row.name as string,
+      action: row.action as string | null,
+      namespace: row.namespace as string | null,
+      description: row.description as string | null,
+      routing: row.routing as "local" | "cloud",
+      code: row.code as string | null,
+      toolsUsed: (row.tools_used as string[]) ?? [],
+      inputSchema: row.parameters_schema as ParametersSchema | null,
     };
 
     return jsonResponse(capability, 200, corsHeaders);

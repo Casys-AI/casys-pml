@@ -16,6 +16,7 @@ import {
 } from "../../../src/capabilities/static-structure/edge-generators.ts";
 import type { StaticStructureEdge } from "../../../src/capabilities/types.ts";
 import type { InternalNode } from "../../../src/capabilities/static-structure/types.ts";
+import type { ArgumentsStructure } from "../../../src/capabilities/types/static-analysis.ts";
 
 // =============================================================================
 // Helpers
@@ -27,7 +28,7 @@ function makeTaskNode(
   position: number,
   opts: {
     parentScope?: string;
-    arguments?: Record<string, { type: string; expression?: string; value?: unknown }>;
+    arguments?: ArgumentsStructure;
     chainedFrom?: string;
     executable?: boolean;
   } = {},
@@ -121,9 +122,9 @@ Deno.test("MCP tool without arguments does NOT get fallback edge (only code:*)",
 Deno.test("multiple code:* without arguments chain sequentially", () => {
   const nodes: InternalNode[] = [
     makeTaskNode("n1", "std:psql_query", 0),
-    makeTaskNode("n2", "code:map", 1),           // no arguments → fallback to n1
-    makeTaskNode("n3", "code:greaterThan", 2),    // no arguments → fallback to n2
-    makeTaskNode("n4", "code:filter", 3),         // no arguments → fallback to n3
+    makeTaskNode("n2", "code:map", 1), // no arguments → fallback to n1
+    makeTaskNode("n3", "code:greaterThan", 2), // no arguments → fallback to n2
+    makeTaskNode("n4", "code:filter", 3), // no arguments → fallback to n3
   ];
 
   const edges = getSequenceEdges(nodes);
@@ -140,7 +141,7 @@ Deno.test("multiple code:* without arguments chain sequentially", () => {
 Deno.test("code:* fallback respects scope boundaries", () => {
   const nodes: InternalNode[] = [
     makeTaskNode("n1", "std:psql_query", 0, { parentScope: undefined }),
-    makeTaskNode("n2", "code:filter", 1, { parentScope: "d1:true" }),  // different scope
+    makeTaskNode("n2", "code:filter", 1, { parentScope: "d1:true" }), // different scope
   ];
 
   const edges = getSequenceEdges(nodes);
@@ -156,7 +157,7 @@ Deno.test("code:* fallback does not duplicate existing chained edges", () => {
   const nodes: InternalNode[] = [
     makeTaskNode("n1", "code:filter", 0),
     makeTaskNode("n2", "code:map", 1, { chainedFrom: "n1" }),
-    makeTaskNode("n3", "code:join", 2),  // no arguments → fallback to n2
+    makeTaskNode("n3", "code:join", 2), // no arguments → fallback to n2
   ];
 
   const edges = getSequenceEdges(nodes);
@@ -171,8 +172,8 @@ Deno.test("code:* fallback does not duplicate existing chained edges", () => {
 Deno.test("non-executable code:* nodes are skipped by fallback", () => {
   const nodes: InternalNode[] = [
     makeTaskNode("n1", "std:psql_query", 0),
-    makeTaskNode("n2", "code:greaterThan", 1, { executable: false }),  // nested in callback
-    makeTaskNode("n3", "code:filter", 2),  // executable, no arguments → fallback to n1 (n2 skipped)
+    makeTaskNode("n2", "code:greaterThan", 1, { executable: false }), // nested in callback
+    makeTaskNode("n3", "code:filter", 2), // executable, no arguments → fallback to n1 (n2 skipped)
   ];
 
   const edges = getSequenceEdges(nodes);
@@ -189,7 +190,7 @@ Deno.test("mixed: some code:* have arguments, some don't", () => {
     makeTaskNode("n2", "code:map", 1, {
       arguments: { input: { type: "reference", expression: "n1" } },
     }),
-    makeTaskNode("n3", "code:split", 2),  // no arguments → fallback to n2
+    makeTaskNode("n3", "code:split", 2), // no arguments → fallback to n2
   ];
 
   const edges = getSequenceEdges(nodes);
