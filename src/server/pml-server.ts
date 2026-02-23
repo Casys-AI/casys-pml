@@ -65,7 +65,7 @@ export class PmlServer {
       maxConcurrent: 10,
       backpressureStrategy: "queue",
       expectResources: true,
-      logger: (msg) => config.logger.debug(`[server] ${msg}`),
+      logger: (msg: string) => config.logger.debug(`[server] ${msg}`),
     });
 
     this.registerTools();

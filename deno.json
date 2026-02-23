@@ -28,7 +28,7 @@
     "@std/testing/time": "jsr:@std/testing@^1.0.16/time",
     "hono": "jsr:@hono/hono@^4",
     "hono/cors": "jsr:@hono/hono@^4/cors",
-    "@casys/mcp-server": "../../lib/server/mod.ts",
+    "@casys/mcp-server": "jsr:@casys/mcp-server@^0.8.0",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.15.1",
     "jose": "npm:jose@^6.0.0",
     "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0",
