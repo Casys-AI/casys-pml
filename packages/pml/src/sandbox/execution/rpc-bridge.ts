@@ -303,6 +303,11 @@ export class RpcBridge {
         ? await Promise.resolve(this.onInit(id))
         : { status: "ok" };
 
+      if (this.isShutdown || this.transport.closed) {
+        logDebug(`Init response dropped (transport closed): ${id}`);
+        return;
+      }
+
       // Send init response
       const response = {
         type: "init_response",
@@ -316,6 +321,11 @@ export class RpcBridge {
 
       logDebug(`Init response sent: ${id}`);
     } catch (error) {
+      if (this.isShutdown || this.transport.closed) {
+        logDebug(`Init error dropped (transport closed): ${id} - ${error}`);
+        return;
+      }
+
       // Send error response
       const errorResponse = {
         type: "rpc_error",
@@ -385,6 +395,12 @@ export class RpcBridge {
         timeoutPromise,
       ]);
 
+      // Transport may have been closed while awaiting RPC (e.g. parallel calls where one fails)
+      if (this.isShutdown || this.transport.closed) {
+        logDebug(`RPC response dropped (transport closed): ${method} (${rpcId})`);
+        return;
+      }
+
       // Send response back
       const response = {
         type: "rpc_response",
@@ -398,6 +414,12 @@ export class RpcBridge {
 
       logDebug(`RPC response: ${method} (${rpcId}) - success`);
     } catch (error) {
+      // Transport may have been closed while awaiting RPC (e.g. parallel calls where one fails)
+      if (this.isShutdown || this.transport.closed) {
+        logDebug(`RPC error dropped (transport closed): ${method} (${rpcId}) - ${error}`);
+        return;
+      }
+
       // Send error back
       const errorResponse = {
         type: "rpc_error",
