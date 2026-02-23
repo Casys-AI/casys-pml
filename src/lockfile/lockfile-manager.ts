@@ -61,6 +61,8 @@ export class LockfileManager {
   private autoCreate: boolean;
   private autoApproveNew: boolean;
   private lockfile: Lockfile | null = null;
+  /** Serializes concurrent save() calls to prevent race conditions on the temp file */
+  private saveQueue: Promise<void> = Promise.resolve();
 
   constructor(options: LockfileManagerOptions = {}) {
     this.lockfilePath = options.lockfilePath || getLockfilePath(options.workspace);
@@ -103,8 +105,16 @@ export class LockfileManager {
 
   /**
    * Save lockfile to disk.
+   *
+   * Serialized via saveQueue to prevent concurrent writes from racing
+   * on the same temp file (causes "No such file or directory" on rename).
    */
-  async save(): Promise<void> {
+  save(): Promise<void> {
+    this.saveQueue = this.saveQueue.then(() => this.doSave(), () => this.doSave());
+    return this.saveQueue;
+  }
+
+  private async doSave(): Promise<void> {
     if (!this.lockfile) {
       throw new Error("Lockfile not loaded");
     }

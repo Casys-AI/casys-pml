@@ -27,6 +27,11 @@
  */
 export interface MessageTransport {
   /**
+   * Check if transport has been closed.
+   */
+  readonly closed: boolean;
+
+  /**
    * Send a message to the other side.
    *
    * @param message - Message to send (will be serialized)
