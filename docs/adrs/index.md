@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+_71 ADRs | Last updated: 2026-02-24_
+
 Index des décisions d'architecture du projet Casys PML.
 
 ## Status Legend
@@ -98,6 +100,7 @@ Index des décisions d'architecture du projet Casys PML.
 | 066  | [Garage Object Storage](./ADR-66-adr-garage-object-storage.md)                              | accepted   | done           | S3-compatible storage for UI cache                    |
 | 067  | [MCP Apps Host Bridge](./ADR-67-adr-mcp-apps-host-bridge.md)                                | accepted   | done           | Bridge MCP Apps UI to Telegram/LINE                   |
 | 068  | [FQDN Canonical Format](./ADR-068-fqdn-canonical-format-dag-structure.md)                   | accepted   | partial        | FQDN = format canonique de dag_structure.tools_used   |
+| 069  | [task_results Single Source](./ADR-069-task-results-single-source.md)                        | accepted   | done           | task_results = source unique, executed_path deprecated |
 
 ---
 
@@ -107,7 +110,7 @@ Index des décisions d'architecture du projet Casys PML.
 
 ADR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 016, 020, 020b, 021, 021b,
 023, 024, 025, 026, 028, 030, 032, 036, 040, 041, 042, 043, 044, 045, 046, 047, 050, 051, 052, 053,
-054, 055, 056, 057, 058, 059, 060, 062, 063, 064, 065, 066, 067, 068
+054, 055, 056, 057, 058, 059, 060, 062, 063, 064, 065, 066, 067, 068, 069
 
 ### Draft (3)
 
@@ -148,6 +151,10 @@ ADR-028, ADR-032, ADR-063
 ### Partial (3)
 
 ADR-006, ADR-017, ADR-068
+
+### Done (added)
+
+ADR-069
 
 ### Not Started (9)
 
