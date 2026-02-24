@@ -1,45 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 459" width="850" height="459">
   <!-- svg-source:excalidraw — sycophancy-timeline.excalidraw -->
   <rect x="0" y="0" width="850" height="459" fill="#08080a"/>
-  <text x="332" y="40" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="20" fill="#f0ede8" text-anchor="middle">The Sycophancy Pendulum: A Timeline of Overcorrections</text>
+  <text x="332" y="40" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#f0ede8" text-anchor="middle">The Sycophancy Pendulum: A Timeline of Overcorrections</text>
   <path d="M20 229 L720 229" fill="none" stroke="#666666" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round"/>
-  <text x="730" y="231" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#666666" text-anchor="start">-- balance --</text>
-  <text x="730" y="121" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#ef4444" text-anchor="start">TOO NICE ^</text>
-  <text x="730" y="341" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#60a5fa" text-anchor="start">TOO BLUNT v</text>
+  <text x="730" y="231" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#666666" text-anchor="start">-- balance --</text>
+  <text x="730" y="121" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#ef4444" text-anchor="start">TOO NICE ^</text>
+  <text x="730" y="341" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#60a5fa" text-anchor="start">TOO BLUNT v</text>
   <ellipse cx="68" cy="137" rx="8" ry="8" fill="#ff6b6b" stroke="#ef4444" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#ef4444" text-anchor="start" y="99">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#ef4444" text-anchor="start" y="99">
     <tspan x="30">Oct 2023</tspan>
     <tspan x="30" dy="13">Anthropic paper:</tspan>
     <tspan x="30" dy="13">&quot;sycophancy in LMs&quot;</tspan>
     <tspan x="30" dy="13">IRL 2024</tspan>
   </text>
   <ellipse cx="218" cy="107" rx="8" ry="8" fill="#ff6b6b" stroke="#ef4444" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#ef4444" text-anchor="start" y="163">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#ef4444" text-anchor="start" y="163">
     <tspan x="122">Apr 25, 2025</tspan>
     <tspan x="122" dy="13">GPT-4o update</tspan>
     <tspan x="122" dy="13">&quot;shit on a stick&quot;</tspan>
     <tspan x="122" dy="13">PRAISED</tspan>
   </text>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="start" y="254">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#4ade80" text-anchor="start" y="254">
     <tspan x="280">Apr 29, 2025</tspan>
     <tspan x="280" dy="13">OpenAI ROLLBACK</tspan>
     <tspan x="280" dy="13">&quot;we messed up&quot;</tspan>
   </text>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="start" y="344">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#60a5fa" text-anchor="start" y="344">
     <tspan x="420">Aug 2025</tspan>
     <tspan x="420" dy="13">GPT-5: sycophancy</tspan>
     <tspan x="420" dy="13">14.5% -&gt; 6%</tspan>
     <tspan x="420" dy="13">Users: &quot;TOO CURT!&quot;</tspan>
   </text>
   <ellipse cx="598" cy="187" rx="8" ry="8" fill="#3a2a0a" stroke="#fbbf24" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#fbbf24" text-anchor="start" y="139">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#fbbf24" text-anchor="start" y="139">
     <tspan x="560">Aug 2025 (24h later)</tspan>
     <tspan x="560" dy="13">OpenAI restores</tspan>
     <tspan x="560" dy="13">GPT-4o access</tspan>
     <tspan x="560" dy="13">+ 4 personality presets</tspan>
   </text>
   <path d="M68 137 L218 107 L318 227 L468 317 L598 187" fill="none" stroke="#ef4444" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="13" fill="#9ca3af" text-anchor="middle" y="412">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#9ca3af" text-anchor="middle" y="412">
     <tspan x="370">The pattern: Every &quot;fix&quot; overshoots. Users want warmth, researchers want honesty.</tspan>
     <tspan x="370" dy="16.9">Maybe both are right -- and the answer is calibration, not personality.</tspan>
   </text>

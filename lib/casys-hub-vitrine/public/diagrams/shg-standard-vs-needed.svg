@@ -6,31 +6,31 @@
 
   <rect x="0" y="0" width="380" height="180" fill="#08080a"/>
   <rect x="20" y="20" width="140" height="100" rx="8" fill="#1f1f23" stroke="#ef4444" stroke-width="2"/>
-  <text x="90" y="38" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#ef4444" text-anchor="middle">Standard Graph</text>
+  <text x="90" y="38" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#ef4444" text-anchor="middle">Standard Graph</text>
   <rect x="35" y="55" width="45" height="25" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="57" y="69" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#60a5fa" text-anchor="middle">GitHub</text>
+  <text x="57" y="69" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">GitHub</text>
   <rect x="65" y="85" width="55" height="25" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="92.5" y="99" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#60a5fa" text-anchor="middle">Filesystem</text>
+  <text x="92.5" y="99" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">Filesystem</text>
   <rect x="100" y="55" width="45" height="25" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="122" y="69" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#60a5fa" text-anchor="middle">AWS</text>
+  <text x="122" y="69" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">AWS</text>
   <path d="M83 67 L98 67" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
   <path d="M65 78 L90 85" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
   <rect x="180" y="20" width="180" height="140" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="270" y="38" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">What We Need</text>
+  <text x="270" y="38" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#4ade80" text-anchor="middle">What We Need</text>
   <rect x="190" y="45" width="160" height="105" rx="6" fill="#2a2520" stroke="#fbbf24" stroke-width="1"/>
-  <text x="270" y="59" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="middle">Deploy to Prod</text>
+  <text x="270" y="59" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#fbbf24" text-anchor="middle">Deploy to Prod</text>
   <rect x="200" y="68" width="70" height="35" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="235.5" y="81" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#a78bfa" text-anchor="middle">Tests</text>
+  <text x="235.5" y="81" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#a78bfa" text-anchor="middle">Tests</text>
   <rect x="205" y="85" width="25" height="15" rx="2" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="218" y="95" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#60a5fa" text-anchor="middle">Jest</text>
+  <text x="218" y="95" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#60a5fa" text-anchor="middle">Jest</text>
   <rect x="235" y="85" width="30" height="15" rx="2" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="250.5" y="95" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#60a5fa" text-anchor="middle">Cov</text>
+  <text x="250.5" y="95" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#60a5fa" text-anchor="middle">Cov</text>
   <rect x="200" y="110" width="40" height="20" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="220.5" y="122" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#60a5fa" text-anchor="middle">GitHub</text>
+  <text x="220.5" y="122" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">GitHub</text>
   <rect x="250" y="110" width="40" height="20" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="270.5" y="122" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#60a5fa" text-anchor="middle">Docker</text>
+  <text x="270.5" y="122" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">Docker</text>
   <rect x="300" y="110" width="40" height="20" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="320.5" y="122" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#60a5fa" text-anchor="middle">AWS</text>
+  <text x="320.5" y="122" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">AWS</text>
   <path d="M232 92 L232 92" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M245 120 L245 120" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M295 120 L295 120" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>

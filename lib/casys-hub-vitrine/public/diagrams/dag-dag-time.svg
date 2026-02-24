@@ -5,17 +5,15 @@
   </defs>
 
   <rect x="0" y="0" width="245" height="160" fill="#08080a"/>
-  <g transform="translate(5 0)">
-  <rect x="20" y="20" width="200" height="120" rx="12" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="120" y="40" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#4ade80" text-anchor="middle">DAG: 2 seconds</text>
-  <rect x="35" y="55" width="60" height="30" rx="6" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
-  <text x="65" y="74" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">1s</text>
-  <rect x="35" y="100" width="60" height="30" rx="6" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
-  <text x="65" y="119" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">1s</text>
-  <rect x="145" y="77" width="60" height="30" rx="6" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
-  <text x="175" y="96" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">1s</text>
-  <path d="M100 75 L140 87" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <path d="M100 110 L140 98" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <text x="22.5" y="101" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="16" fill="#4ade80" text-anchor="middle">∥</text>
-  </g>
+  <rect x="25" y="20" width="200" height="120" rx="12" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="125" y="40" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#4ade80" text-anchor="middle">DAG: 2 seconds</text>
+  <rect x="40" y="55" width="60" height="30" rx="6" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
+  <text x="70" y="74" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="middle">1s</text>
+  <rect x="40" y="100" width="60" height="30" rx="6" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
+  <text x="70" y="119" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="middle">1s</text>
+  <rect x="150" y="77" width="60" height="30" rx="6" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
+  <text x="180" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="middle">1s</text>
+  <path d="M105 75 L145 87" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M105 110 L145 98" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <text x="27.5" y="101" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#4ade80" text-anchor="middle">∥</text>
 </svg>

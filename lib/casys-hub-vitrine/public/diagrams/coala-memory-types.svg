@@ -7,35 +7,35 @@
 
   <rect x="0" y="0" width="600" height="400" fill="#08080a"/>
   <rect x="20" y="20" width="200" height="80" rx="12" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="120" y="44" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#4ade80" text-anchor="middle">Short-term</text>
+  <text x="120" y="44" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#4ade80" text-anchor="middle">Short-term</text>
   <rect x="40" y="55" width="160" height="35" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#f0ede8" text-anchor="middle" y="70">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#f0ede8" text-anchor="middle" y="70">
     <tspan x="120">Working Memory</tspan>
     <tspan x="120" dy="13">Current workflow state</tspan>
   </text>
   <rect x="260" y="20" width="320" height="80" rx="12" fill="#1f1f23" stroke="#FFB86F" stroke-width="2"/>
-  <text x="420" y="44" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#FFB86F" text-anchor="middle">Long-term</text>
+  <text x="420" y="44" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#FFB86F" text-anchor="middle">Long-term</text>
   <rect x="270" y="55" width="90" height="35" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle" y="69">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle" y="69">
     <tspan x="315">Episodic</tspan>
     <tspan x="315" dy="11.7">Past experiences</tspan>
   </text>
   <rect x="375" y="55" width="90" height="35" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle" y="69">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle" y="69">
     <tspan x="420">Semantic</tspan>
     <tspan x="420" dy="11.7">Facts &amp; constraints</tspan>
   </text>
   <rect x="480" y="55" width="90" height="35" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle" y="69">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle" y="69">
     <tspan x="525">Procedural</tspan>
     <tspan x="525" dy="11.7">Skills &amp; capabilities</tspan>
   </text>
   <rect x="220" y="150" width="140" height="50" rx="8" fill="#2d2d35" stroke="#60a5fa" stroke-width="2"/>
-  <text x="290" y="179" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#60a5fa" text-anchor="middle">Decision Engine</text>
+  <text x="290" y="179" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#60a5fa" text-anchor="middle">Decision Engine</text>
   <rect x="220" y="250" width="140" height="40" rx="8" fill="#2d2d35" stroke="#f472b6" stroke-width="2"/>
-  <text x="290" y="276" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#f472b6" text-anchor="middle">Action</text>
+  <text x="290" y="276" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f472b6" text-anchor="middle">Action</text>
   <rect x="220" y="340" width="140" height="40" rx="8" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
-  <text x="290" y="366" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#fbbf24" text-anchor="middle">Learning</text>
+  <text x="290" y="366" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#fbbf24" text-anchor="middle">Learning</text>
   <path d="M120 100 L240 150" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M315 100 L315 145" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M420 100 L320 150" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>

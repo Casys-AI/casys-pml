@@ -11,57 +11,57 @@
 
   <rect x="0" y="0" width="620" height="250" fill="#08080a"/>
   <rect x="20" y="20" width="180" height="90" rx="12" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="110" y="39" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">Loop 1: Execution (ms)</text>
+  <text x="110" y="39" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#4ade80" text-anchor="middle">Loop 1: Execution (ms)</text>
   <rect x="30" y="50" width="45" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="52.5" y="65" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle">Task</text>
+  <text x="52.5" y="65" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle">Task</text>
   <rect x="87" y="50" width="45" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="110" y="65" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle">Event</text>
+  <text x="110" y="65" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle">Event</text>
   <rect x="144" y="50" width="45" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="167.5" y="65" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle">State</text>
+  <text x="167.5" y="65" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle">State</text>
   <path d="M78 62 L84 62" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M135 62 L141 62" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M165 78 L165 98 L52 98 L52 73" fill="none" stroke="#4ade80" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
   <rect x="220" y="20" width="180" height="90" rx="12" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
-  <text x="310" y="39" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#60a5fa" text-anchor="middle">Loop 2: Adaptation (sec)</text>
+  <text x="310" y="39" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#60a5fa" text-anchor="middle">Loop 2: Adaptation (sec)</text>
   <rect x="230" y="50" width="50" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="255" y="64" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Discover</text>
+  <text x="255" y="64" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Discover</text>
   <rect x="290" y="50" width="50" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="315.5" y="64" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Decide</text>
+  <text x="315.5" y="64" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Decide</text>
   <rect x="350" y="50" width="40" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="370" y="64" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Replan</text>
+  <text x="370" y="64" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Replan</text>
   <path d="M283 62 L288 62" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M343 62 L348 62" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M370 78 L370 98 L255 98 L255 73" fill="none" stroke="#60a5fa" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-60a5fa)"/>
   <rect x="420" y="20" width="180" height="90" rx="12" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
-  <text x="510" y="39" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#fbbf24" text-anchor="middle">Loop 3: Learning (min)</text>
+  <text x="510" y="39" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#fbbf24" text-anchor="middle">Loop 3: Learning (min)</text>
   <rect x="430" y="50" width="50" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="455" y="64" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Complete</text>
+  <text x="455" y="64" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Complete</text>
   <rect x="490" y="50" width="50" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="515.5" y="64" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Extract</text>
+  <text x="515.5" y="64" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Extract</text>
   <rect x="550" y="50" width="40" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="570" y="64" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Update</text>
+  <text x="570" y="64" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Update</text>
   <path d="M483 62 L488 62" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M543 62 L548 62" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M570 78 L570 98 L455 98 L455 73" fill="none" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
   <rect x="120" y="140" width="180" height="90" rx="12" fill="#1f1f23" stroke="#f472b6" stroke-width="2"/>
-  <text x="210" y="159" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f472b6" text-anchor="middle">Loop 4: Emergence (hours)</text>
+  <text x="210" y="159" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f472b6" text-anchor="middle">Loop 4: Emergence (hours)</text>
   <rect x="130" y="170" width="50" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="155.5" y="184" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Patterns</text>
+  <text x="155.5" y="184" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Patterns</text>
   <rect x="190" y="170" width="50" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="215.5" y="184" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Cluster</text>
+  <text x="215.5" y="184" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Cluster</text>
   <rect x="250" y="170" width="40" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="270" y="184" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Cap</text>
+  <text x="270" y="184" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Cap</text>
   <path d="M183 182 L188 182" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M243 182 L248 182" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M270 198 L270 218 L155 218 L155 193" fill="none" stroke="#f472b6" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f472b6)"/>
   <rect x="320" y="140" width="180" height="90" rx="12" fill="#1f1f23" stroke="#c084fc" stroke-width="2"/>
-  <text x="410" y="159" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#c084fc" text-anchor="middle">Loop 5: Evolution (days)</text>
+  <text x="410" y="159" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#c084fc" text-anchor="middle">Loop 5: Evolution (days)</text>
   <rect x="330" y="170" width="50" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="355" y="184" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Caps</text>
+  <text x="355" y="184" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Caps</text>
   <rect x="390" y="170" width="50" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="415" y="184" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Meta-Cap</text>
+  <text x="415" y="184" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Meta-Cap</text>
   <rect x="450" y="170" width="40" height="25" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="470" y="184" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Deepen</text>
+  <text x="470" y="184" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Deepen</text>
   <path d="M383 182 L388 182" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M443 182 L448 182" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M470 198 L470 218 L355 218 L355 193" fill="none" stroke="#c084fc" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-c084fc)"/>

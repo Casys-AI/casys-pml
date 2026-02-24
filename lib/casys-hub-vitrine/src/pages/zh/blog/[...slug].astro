@@ -34,6 +34,13 @@ if (!entry) {
 
 const { Content } = await entry.render();
 
+// Lookup EN version for OG tags (always show English in social previews)
+const bareSlug = entry.slug.replace('zh/', '');
+const enPosts = await getCollection('blog', ({ data, id }) => !data.draft && id.startsWith('en/'));
+const enVersion = enPosts.find(p => p.slug.replace('en/', '') === bareSlug);
+const ogTitle = enVersion?.data.title;
+const ogDescription = enVersion?.data.description;
+
 // Articles similaires
 const allPosts = await getCollection('blog', ({ data, id }) => !data.draft && id.startsWith('zh/'));
 const relatedPosts = allPosts
@@ -50,7 +57,7 @@ function getPostSlug(post: typeof allPosts[0]) {
 }
 ---
 
-<BlogLayout title={entry.data.title} locale={locale} description={entry.data.description} slug={entry.slug.replace('zh/', '')}>
+<BlogLayout title={entry.data.title} locale={locale} description={entry.data.description} slug={entry.slug.replace('zh/', '')} ogTitle={ogTitle} ogDescription={ogDescription}>
   <!-- Navigation retour -->
   <nav class="back-nav">
     <a href="/zh/blog" class="back-link">

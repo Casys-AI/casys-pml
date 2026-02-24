@@ -7,34 +7,32 @@
   </defs>
 
   <rect x="0" y="0" width="320" height="390" fill="#08080a"/>
-  <g transform="translate(0 10)">
-  <text x="100" y="28" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="18" fill="#FFB86F" text-anchor="middle">Graceful Degradation</text>
-  <rect x="60" y="50" width="80" height="40" rx="8" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
-  <text x="100" y="76" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#f0ede8" text-anchor="middle">Query</text>
-  <path d="M100 90 L100 120" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <path d="M100 120l50 30 -50 30 -50 -30Z" fill="#2d2d35" stroke="#FFB86F" stroke-width="2" stroke-linejoin="round"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle" y="146">
+  <text x="100" y="38" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#FFB86F" text-anchor="middle">Graceful Degradation</text>
+  <rect x="60" y="60" width="80" height="40" rx="8" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
+  <text x="100" y="86" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle">Query</text>
+  <path d="M100 100 L100 130" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M100 130l50 30 -50 30 -50 -30Z" fill="#2d2d35" stroke="#FFB86F" stroke-width="2" stroke-linejoin="round"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="middle" y="156">
     <tspan x="100">Strategic</tspan>
     <tspan x="100" dy="14.3">Match?</tspan>
   </text>
-  <text x="172.5" y="150" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">Yes</text>
-  <path d="M150 150 L200 150" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
-  <rect x="200" y="130" width="100" height="40" rx="8" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
-  <text x="250" y="151" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Use Capability</text>
-  <text x="115" y="195" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#ce9178" text-anchor="middle">No</text>
-  <path d="M100 180 L100 220" fill="none" stroke="#ce9178" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ce9178)"/>
-  <path d="M100 220l50 30 -50 30 -50 -30Z" fill="#2d2d35" stroke="#FFB86F" stroke-width="2" stroke-linejoin="round"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle" y="246">
+  <text x="172.5" y="160" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#4ade80" text-anchor="middle">Yes</text>
+  <path d="M150 160 L200 160" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <rect x="200" y="140" width="100" height="40" rx="8" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="250" y="161" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="middle">Use Capability</text>
+  <text x="115" y="205" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#ce9178" text-anchor="middle">No</text>
+  <path d="M100 190 L100 230" fill="none" stroke="#ce9178" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ce9178)"/>
+  <path d="M100 230l50 30 -50 30 -50 -30Z" fill="#2d2d35" stroke="#FFB86F" stroke-width="2" stroke-linejoin="round"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="middle" y="256">
     <tspan x="100">Tactical</tspan>
     <tspan x="100" dy="14.3">Match?</tspan>
   </text>
-  <text x="172.5" y="250" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">Yes</text>
-  <path d="M150 250 L200 250" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
-  <rect x="200" y="230" width="100" height="40" rx="8" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
-  <text x="250" y="251" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Use Tools</text>
-  <text x="115" y="295" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#ce9178" text-anchor="middle">No</text>
-  <path d="M100 280 L100 320" fill="none" stroke="#ce9178" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ce9178)"/>
-  <rect x="60" y="320" width="80" height="40" rx="8" fill="#2d2d35" stroke="#ce9178" stroke-width="2"/>
-  <text x="100" y="341" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Ask User</text>
-  </g>
+  <text x="172.5" y="260" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#4ade80" text-anchor="middle">Yes</text>
+  <path d="M150 260 L200 260" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <rect x="200" y="240" width="100" height="40" rx="8" fill="#2d2d35" stroke="#4ade80" stroke-width="2"/>
+  <text x="250" y="261" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="middle">Use Tools</text>
+  <text x="115" y="305" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#ce9178" text-anchor="middle">No</text>
+  <path d="M100 290 L100 330" fill="none" stroke="#ce9178" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ce9178)"/>
+  <rect x="60" y="330" width="80" height="40" rx="8" fill="#2d2d35" stroke="#ce9178" stroke-width="2"/>
+  <text x="100" y="351" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="middle">Ask User</text>
 </svg>

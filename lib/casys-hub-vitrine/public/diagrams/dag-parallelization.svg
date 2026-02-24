@@ -5,35 +5,33 @@
   </defs>
 
   <rect x="0" y="0" width="560" height="345" fill="#08080a"/>
-  <g transform="translate(0 10)">
-  <text x="280" y="24" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#60a5fa" text-anchor="middle">DAG Parallelization</text>
-  <rect x="20" y="40" width="520" height="50" rx="4" fill="#1f1f23" stroke="#60a5fa" stroke-width="1"/>
-  <text x="30" y="53" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">Layer 0</text>
-  <rect x="240" y="55" width="80" height="28" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="280" y="74" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#4ade80" text-anchor="middle">A</text>
-  <path d="M280 88 L280 108" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <rect x="20" y="115" width="520" height="50" rx="4" fill="#1f1f23" stroke="#4ade80" stroke-width="1"/>
-  <text x="30" y="128" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">Layer 1</text>
-  <text x="530" y="128" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#4ade80" text-anchor="end">← PARALLEL</text>
-  <rect x="100" y="130" width="80" height="28" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="140" y="149" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#4ade80" text-anchor="middle">B</text>
-  <rect x="240" y="130" width="80" height="28" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="280" y="149" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#4ade80" text-anchor="middle">C</text>
-  <rect x="380" y="130" width="80" height="28" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="420" y="149" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#4ade80" text-anchor="middle">E</text>
-  <path d="M280 163 L280 183" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <rect x="20" y="190" width="520" height="50" rx="4" fill="#1f1f23" stroke="#fbbf24" stroke-width="1"/>
-  <text x="30" y="203" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">Layer 2</text>
-  <text x="530" y="203" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#fbbf24" text-anchor="end">← PARALLEL</text>
-  <rect x="170" y="205" width="80" height="28" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
-  <text x="210" y="224" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#fbbf24" text-anchor="middle">D</text>
-  <rect x="310" y="205" width="80" height="28" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
-  <text x="350" y="224" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#fbbf24" text-anchor="middle">F</text>
-  <path d="M280 238 L280 258" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <rect x="20" y="265" width="520" height="50" rx="4" fill="#1f1f23" stroke="#a78bfa" stroke-width="1"/>
-  <text x="30" y="278" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">Layer 3</text>
-  <text x="530" y="278" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#a78bfa" text-anchor="end">← FINAL</text>
-  <rect x="240" y="280" width="80" height="28" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="280" y="299" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#a78bfa" text-anchor="middle">G</text>
-  </g>
+  <text x="280" y="34" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#60a5fa" text-anchor="middle">DAG Parallelization</text>
+  <rect x="20" y="50" width="520" height="50" rx="4" fill="#1f1f23" stroke="#60a5fa" stroke-width="1"/>
+  <text x="30" y="63" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">Layer 0</text>
+  <rect x="240" y="65" width="80" height="28" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="280" y="84" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#4ade80" text-anchor="middle">A</text>
+  <path d="M280 98 L280 118" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="20" y="125" width="520" height="50" rx="4" fill="#1f1f23" stroke="#4ade80" stroke-width="1"/>
+  <text x="30" y="138" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">Layer 1</text>
+  <text x="530" y="138" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#4ade80" text-anchor="end">← PARALLEL</text>
+  <rect x="100" y="140" width="80" height="28" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="140" y="159" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#4ade80" text-anchor="middle">B</text>
+  <rect x="240" y="140" width="80" height="28" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="280" y="159" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#4ade80" text-anchor="middle">C</text>
+  <rect x="380" y="140" width="80" height="28" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="420" y="159" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#4ade80" text-anchor="middle">E</text>
+  <path d="M280 173 L280 193" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="20" y="200" width="520" height="50" rx="4" fill="#1f1f23" stroke="#fbbf24" stroke-width="1"/>
+  <text x="30" y="213" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">Layer 2</text>
+  <text x="530" y="213" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#fbbf24" text-anchor="end">← PARALLEL</text>
+  <rect x="170" y="215" width="80" height="28" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
+  <text x="210" y="234" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#fbbf24" text-anchor="middle">D</text>
+  <rect x="310" y="215" width="80" height="28" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
+  <text x="350" y="234" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#fbbf24" text-anchor="middle">F</text>
+  <path d="M280 248 L280 268" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="20" y="275" width="520" height="50" rx="4" fill="#1f1f23" stroke="#a78bfa" stroke-width="1"/>
+  <text x="30" y="288" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">Layer 3</text>
+  <text x="530" y="288" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#a78bfa" text-anchor="end">← FINAL</text>
+  <rect x="240" y="290" width="80" height="28" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
+  <text x="280" y="309" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#a78bfa" text-anchor="middle">G</text>
 </svg>

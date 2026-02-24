@@ -1,0 +1,163 @@
+---
+title: "Et si l'IA avait juste besoin d'un process ?"
+description: "J'ai voulu faire tourner des agents IA. J'ai fini par faire du management par les processus. Un diagramme vieux de 45 ans m'avait devancé."
+author: "Erwan Lee Pesle"
+date: 2026-02-24
+tags:
+  - agents
+  - ai
+  - management
+  - process
+category: "Industrie"
+language: fr
+snippet: "On a dépensé des milliards pour rendre les modèles plus intelligents. Et si la vraie performance venait d'un diagramme de processus vieux de 45 ans ?"
+featured: true
+draft: false
+---
+
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+# Et si l'IA avait juste besoin d'un process ?
+
+> J'ai reproduit le management par les processus — sans le savoir. Et ça marche.
+
+---
+
+**J'ai essayé OpenClaw la semaine dernière.** Le bridge open-source qui connecte Claude à WhatsApp, Telegram et Signal — celui dont on parlait dans [le dernier article](/blog/ai-moves-to-messaging). 135 000 étoiles GitHub en trois mois. L'heure de tester.
+
+Trois heures plus tard, je n'étais plus dans OpenClaw. J'étais dans [Windmill](https://www.windmill.dev/) — un orchestrateur de workflows — en train de structurer des pipelines pour mes agents.
+
+Et c'est là que j'ai eu un moment de déjà-vu.
+
+Ce que j'étais en train de faire, je l'avais déjà vu. Pas dans un repo GitHub. Dans un cours d'école d'ingénieur, il y a dix ans.
+
+Je donnais de la **documentation** à mes agents. Je leur assignais des **outils**. Je constituais des **équipes** spécialisées. Je mesurais leur **performance**.
+
+Sans y penser, sans l'avoir planifié, j'étais en train de reproduire ce qu'on m'avait appris en management de la qualité.
+
+---
+
+## Le diagramme Tortue
+
+Il y a un outil qu'on utilise dans l'industrie depuis les années 80 pour décrire n'importe quel processus. Ça s'appelle le **diagramme Tortue** — probablement parce que ça ressemble vaguement à une tortue vue de dessus, avec ses quatre pattes. C'est un pilier du management de la qualité, popularisé notamment par Philip Crosby dans sa démarche de « zéro défaut ».
+
+L'idée est simple. Pour tout processus, on se pose quatre questions :
+
+- **Avec quoi ?** — Les outils et équipements nécessaires
+- **Avec qui ?** — Les compétences et les rôles
+- **Comment ?** — Les procédures, la documentation
+- **Combien ?** — Les indicateurs de performance
+
+Au centre : le processus. À gauche : les entrées. À droite : les sorties.
+
+C'est un truc de cols blancs avec des classeurs. D'usines. De chaînes de production. Rien à voir avec l'IA.
+
+Et pourtant.
+
+---
+
+## La même forme, partout
+
+Voici ce qui m'a arrêté. Quand on met des agents IA dans un workflow, on retrouve exactement les mêmes cases.
+
+| Diagramme Tortue | Orchestration d'agents |
+| --- | --- |
+| **Avec quoi** — machines, logiciels | MCP tools, APIs, function calling |
+| **Avec qui** — personnel qualifié | Agents spécialisés, assignés par tâche |
+| **Comment** — procédures, documentation | System prompts, context files, CLAUDE.md |
+| **Combien** — taux de conformité | Tokens consommés, latence, taux d'hallucination |
+| **Entrées** — matières premières | Intent utilisateur, contexte conversationnel |
+| **Sorties** — produit conforme | Résultat structuré, action exécutée |
+
+<ExcalidrawDiagram src="turtle-process-agents" alt="The Turtle Diagram: Process Management → AI Agent Orchestration" />
+
+La correspondance est troublante. Pas parce qu'elle est forcée — parce qu'elle est *naturelle*. Personne ne s'est assis en disant « appliquons le management qualité aux LLMs ». Ça s'est fait tout seul. Tous ceux qui ont sérieusement essayé de faire fonctionner des agents dans un workflow ont convergé vers ce pattern — sans le connaître.
+
+La même forme émerge indépendamment du contexte. Parce que c'est la structure minimale pour qu'un travail soit accompli correctement par une entité qui exécute des instructions — qu'elle soit en chair ou en silicium.
+
+---
+
+## L'économie de parole
+
+Un agent sans process, c'est un LLM avec l'intégralité de son espace latent comme terrain de jeu. Il peut aller n'importe où. Et c'est exactement ce qu'il fait. Il compense l'absence de cadre par de la verbosité — il « couvre ses bases » en générant plus, comme un stagiaire sans fiche de poste qui fait un peu de tout pour montrer qu'il est utile.
+
+Un agent dans un process, c'est un LLM dont l'espace est contraint. Il sait ce qu'il doit faire, avec quoi, et comment on mesure le résultat. Il produit moins de tokens. Plus pertinents.
+
+David Byrne chantait en 1977 : *"You're talking a lot, but you're not saying anything."* Il ne parlait pas des LLMs. Mais la phrase capture exactement le phénomène. Un agent verbeux n'est pas un agent stupide. C'est un agent **sans contrainte de processus**.
+
+Les tokens gaspillés. Les hallucinations qu'il faut vérifier. Les itérations de rework quand la première sortie était hors sujet. Ce ne sont pas des problèmes d'intelligence. Ce sont des problèmes de process.
+
+Et le process, c'est gratuit. Le coût de sa mise en place est toujours inférieur au coût de son absence.
+
+---
+
+## Les orchestrateurs ne disent pas leur nom
+
+Quand j'ai pris du recul sur ce que Windmill me faisait faire, j'ai réalisé que tous ces outils — Windmill, n8n, Make, les autres — sont en réalité des **outils de management de processus** déguisés en outils d'automatisation.
+
+Regardez ce qu'ils vous demandent quand vous intégrez un agent :
+
+1. **Documenter** le contexte et les instructions
+2. **Lister** les outils disponibles et les permissions
+3. **Assigner** un agent à chaque étape
+4. **Définir** les critères de succès et d'erreur
+5. **Itérer** quand la sortie n'est pas bonne
+
+C'est du management de la qualité. Habillé en YAML.
+
+Et la spécialisation fonctionne ici comme partout ailleurs : un pipeline de cinq agents spécialisés surpasse systématiquement un agent généraliste qui essaie de tout faire dans un seul prompt.
+
+---
+
+## Les cinq niveaux de Crosby
+
+Crosby avait formalisé une grille de maturité en cinq étapes pour décrire comment une organisation apprend à maîtriser la qualité — de l'incertitude totale jusqu'au réflexe. En cartographiant les équipes que je croise dans leur rapport aux agents, je retrouve exactement les mêmes paliers.
+
+| Maturité | Process humain (Crosby) | Orchestration d'agents |
+| --- | --- | --- |
+| **1 — Incertitude** | "On n'a pas de process" | "On copy-paste des prompts dans ChatGPT" |
+| **2 — Éveil** | "On commence à documenter" | "On a un system prompt et quelques outils" |
+| **3 — Illumination** | "On mesure et on améliore" | "Des workflows structurés avec du monitoring" |
+| **4 — Sagesse** | "Le process fait partie de la culture" | "Un pipeline CI/CD pour l'orchestration" |
+| **5 — Certitude** | "La qualité va de soi" | "Les agents s'auto-évaluent et s'adaptent" |
+
+<ExcalidrawDiagram src="process-maturity-agents" alt="Crosby's Quality Maturity Grid → Agent Orchestration Maturity" />
+
+La plupart des gens que je connais sont entre le niveau 1 et le niveau 2. Ceux qui construisent des produits sérieux avec des agents sont au niveau 3. Le niveau 5, je ne l'ai encore vu nulle part.
+
+Quelques constats en vrac, tirés de mon expérience :
+
+**Trop de process tue le process.** Trop de contexte sature la context window. La performance se dégrade. Le process optimal n'est pas le process maximal — c'est le process *suffisant*. Un « good enough » qui s'applique non pas [à la personnalité](/blog/personality-is-just-friction), mais à la structure.
+
+**Trop de spécialisation crée de la fragilité.** Un workflow d'agents hyper-spécialisés casse dès qu'une étape échoue. La résilience vient de l'équilibre entre spécialisation et adaptabilité.
+
+**Rien de tout ça n'est nouveau.** C'est documenté depuis des décennies. On n'a pas besoin d'inventer de nouvelles théories pour piloter des agents. On a besoin de relire ce qu'on savait déjà.
+
+---
+
+## La question que personne ne pose
+
+Pourquoi personne n'en parle ?
+
+Peut-être parce que « les agents marchent mieux quand on leur donne un process » est une conclusion profondément ennuyeuse. Ce n'est pas un paper qui fait la une de Hacker News. Ce n'est pas un benchmark spectaculaire. Ce n'est pas un nouveau modèle avec un acronyme de cinq lettres.
+
+**La structure bat le talent.** Un modèle moyen dans un bon process surpasse un modèle excellent sans process. C'est vrai pour les humains. C'est encore plus vrai pour les agents — parce que les agents *sont* des processus. Ils exécutent des instructions. Ils consomment des inputs. Ils produisent des outputs. Le diagramme Tortue n'est pas une métaphore pour eux. C'est une **spécification**.
+
+---
+
+## La qualité est gratuite. Les tokens ne le sont pas.
+
+Ce qui m'a frappé en revenant de mon détour par Windmill, ce n'est pas que les agents « aient besoin de management ». C'est que **la structure du travail bien fait ne dépend pas de qui l'exécute** — humain, robot, agent IA. Elle dépend de la nature du travail lui-même.
+
+En 2026, la traduction est limpide :
+
+- Le coût d'un workflow bien structuré : quelques heures de conception
+- Le coût d'un agent sans process : des milliers de tokens gaspillés, des hallucinations à vérifier, du rework humain pour corriger la sortie
+
+Les modèles changent. Les frameworks changent. Les outils changent. Mais la structure du travail bien fait, elle, ne change pas.
+
+Les ingénieurs qualité le savaient dans les années 80. On vient de le redécouvrir avec des GPUs.
+
+---
+
+*Plus de réflexions sur l'orchestration d'agents sur [casys.ai](https://casys.ai).*

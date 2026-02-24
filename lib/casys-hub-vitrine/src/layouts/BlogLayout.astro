@@ -8,9 +8,13 @@ export interface Props {
   locale?: 'en' | 'fr' | 'zh';
   description?: string;
   slug?: string;
+  ogTitle?: string;
+  ogDescription?: string;
 }
 
-const { title, locale = 'en', description, slug } = Astro.props;
+const { title, locale = 'en', description, slug, ogTitle, ogDescription } = Astro.props;
+const effectiveOgTitle = ogTitle || title;
+const effectiveOgDescription = ogDescription || description;
 const siteUrl = import.meta.env.PUBLIC_SITE_URL as string | undefined;
 const ogImage = slug
   ? `${siteUrl || ''}/og/blog/${slug}.png`
@@ -149,16 +153,16 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     </script>
 
     <title>{title}</title>
-    <meta property="og:type" content="article" />
-    <meta property="og:title" content={title} />
-    {description && <meta property="og:description" content={description} />}
     {description && <meta name="description" content={description} />}
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content={effectiveOgTitle} />
+    {effectiveOgDescription && <meta property="og:description" content={effectiveOgDescription} />}
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
-    {description && <meta name="twitter:description" content={description} />}
+    <meta name="twitter:title" content={effectiveOgTitle} />
+    {effectiveOgDescription && <meta name="twitter:description" content={effectiveOgDescription} />}
     <meta name="twitter:image" content={ogImage} />
   </head>
 

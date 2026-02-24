@@ -12,18 +12,29 @@ export const prerender = true;
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
-  return posts.map((post) => {
-    // slug is like "en/ai-moves-to-messaging" — strip locale prefix
+
+  // Group by slug (without locale prefix), prefer EN version for OG image
+  const bySlug = new Map<string, typeof posts[0]>();
+  for (const post of posts) {
     const slug = post.slug.replace(/^(en|fr|zh)\//, '');
-    return {
-      params: { slug },
-      props: { title: post.data.title, category: post.data.category || 'Blog' },
-    };
-  });
+    const existing = bySlug.get(slug);
+    if (!existing || post.id.startsWith('en/')) {
+      bySlug.set(slug, post);
+    }
+  }
+
+  return [...bySlug.entries()].map(([slug, post]) => ({
+    params: { slug },
+    props: {
+      title: post.data.title,
+      category: post.data.category || 'Blog',
+      description: post.data.snippet || post.data.description || '',
+    },
+  }));
 };
 
 export const GET: APIRoute = async ({ props }) => {
-  const { title, category } = props as { title: string; category: string };
+  const { title, category, description } = props as { title: string; category: string; description: string };
 
   return generateOgImage({
     type: 'div',
@@ -111,7 +122,7 @@ export const GET: APIRoute = async ({ props }) => {
             ],
           },
         },
-        // Main content: title
+        // Main content: title + description
         {
           type: 'div',
           props: {
@@ -120,13 +131,14 @@ export const GET: APIRoute = async ({ props }) => {
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
+              gap: '16px',
             },
             children: [
               {
                 type: 'div',
                 props: {
                   style: {
-                    fontSize: title.length > 60 ? '48px' : '56px',
+                    fontSize: title.length > 60 ? '44px' : '52px',
                     fontWeight: 700,
                     color: '#f5f0ea',
                     lineHeight: 1.15,
@@ -135,6 +147,23 @@ export const GET: APIRoute = async ({ props }) => {
                   children: title,
                 },
               },
+              ...(description
+                ? [
+                    {
+                      type: 'div',
+                      props: {
+                        style: {
+                          fontSize: '22px',
+                          fontWeight: 600,
+                          color: '#a89b8c',
+                          lineHeight: 1.4,
+                          maxWidth: '900px',
+                        },
+                        children: description,
+                      },
+                    },
+                  ]
+                : []),
             ],
           },
         },

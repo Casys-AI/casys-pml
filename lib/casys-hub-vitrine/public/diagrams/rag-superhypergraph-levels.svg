@@ -6,29 +6,29 @@
 
   <rect x="0" y="0" width="440" height="250" fill="#08080a"/>
   <rect x="150" y="20" width="140" height="50" rx="10" fill="#1f1f23" stroke="#f472b6" stroke-width="2"/>
-  <text x="220" y="34" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f472b6" text-anchor="middle">Level 2: Meta-Capability</text>
+  <text x="220" y="34" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f472b6" text-anchor="middle">Level 2: Meta-Capability</text>
   <rect x="165" y="42" width="110" height="22" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="220" y="56" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle">Deploy Full Stack</text>
+  <text x="220" y="56" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle">Deploy Full Stack</text>
   <rect x="50" y="100" width="340" height="50" rx="10" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
-  <text x="220" y="114" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="middle">Level 1: Capabilities</text>
+  <text x="220" y="114" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#fbbf24" text-anchor="middle">Level 1: Capabilities</text>
   <rect x="65" y="122" width="55" height="22" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="92.5" y="136" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle">Build</text>
+  <text x="92.5" y="136" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle">Build</text>
   <rect x="192" y="122" width="55" height="22" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="219.5" y="136" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle">Test</text>
+  <text x="219.5" y="136" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle">Test</text>
   <rect x="320" y="122" width="60" height="22" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="350" y="136" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f0ede8" text-anchor="middle">Release</text>
+  <text x="350" y="136" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f0ede8" text-anchor="middle">Release</text>
   <rect x="20" y="180" width="400" height="50" rx="10" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="220" y="194" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">Level 0: Tools</text>
+  <text x="220" y="194" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">Level 0: Tools</text>
   <rect x="35" y="202" width="65" height="22" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="67.5" y="215" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">npm_install</text>
+  <text x="67.5" y="215" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">npm_install</text>
   <rect x="110" y="202" width="65" height="22" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="142.5" y="215" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">tsc_compile</text>
+  <text x="142.5" y="215" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">tsc_compile</text>
   <rect x="185" y="202" width="65" height="22" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="217.5" y="215" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">jest_run</text>
+  <text x="217.5" y="215" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">jest_run</text>
   <rect x="260" y="202" width="70" height="22" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="295" y="215" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">docker_build</text>
+  <text x="295" y="215" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">docker_build</text>
   <rect x="340" y="202" width="65" height="22" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="372.5" y="215" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">aws_push</text>
+  <text x="372.5" y="215" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">aws_push</text>
   <path d="M190 70 L95 95" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M220 70 L220 95" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M250 70 L350 118" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>

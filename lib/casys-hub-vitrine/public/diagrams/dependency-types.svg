@@ -8,44 +8,42 @@
   </defs>
 
   <rect x="0" y="0" width="580" height="245" fill="#08080a"/>
-  <g transform="translate(0 10)">
-  <text x="290" y="24" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#60a5fa" text-anchor="middle">Dependency Edge Types</text>
-  <rect x="20" y="40" width="260" height="80" rx="6" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
-  <text x="150" y="58" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">Sequence</text>
-  <rect x="35" y="70" width="80" height="35" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="75" y="88" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#60a5fa" text-anchor="middle">read_file</text>
-  <path d="M120 87 L180 87" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-60a5fa)"/>
-  <rect x="185" y="70" width="80" height="35" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="225" y="88" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#60a5fa" text-anchor="middle">write_file</text>
-  <text x="155" y="115" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#888888" text-anchor="middle">A is used before B (temporal order)</text>
-  <rect x="300" y="40" width="260" height="80" rx="6" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="430" y="58" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">Contains</text>
-  <rect x="315" y="65" width="230" height="45" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="430" y="75" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#4ade80" text-anchor="middle">Capability: process_data</text>
-  <rect x="325" y="82" width="60" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1"/>
-  <text x="355" y="95" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#4ade80" text-anchor="middle">read</text>
-  <path d="M390 93 L420 93" fill="none" stroke="#4ade80" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
-  <rect x="425" y="82" width="60" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1"/>
-  <text x="455" y="94" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="6" fill="#4ade80" text-anchor="middle">transform</text>
-  <path d="M490 93 L520 93" fill="none" stroke="#4ade80" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
-  <rect x="475" y="82" width="60" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1"/>
-  <text x="505" y="95" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#4ade80" text-anchor="middle">write</text>
-  <text x="430" y="119" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#888888" text-anchor="middle">A contains B (composition)</text>
-  <rect x="20" y="135" width="260" height="80" rx="6" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
-  <text x="150" y="153" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">Dependency</text>
-  <rect x="35" y="165" width="80" height="35" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
-  <text x="75" y="183" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#fbbf24" text-anchor="middle">read_file</text>
-  <path d="M120 182 L180 182" fill="none" stroke="#fbbf24" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
-  <rect x="185" y="165" width="80" height="35" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
-  <text x="225" y="183" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#fbbf24" text-anchor="middle">parse_json</text>
-  <text x="155" y="210" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#888888" text-anchor="middle">B needs result of A (data flow)</text>
-  <rect x="300" y="135" width="260" height="80" rx="6" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
-  <text x="430" y="153" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#a78bfa" text-anchor="middle">Alternative</text>
-  <rect x="315" y="165" width="80" height="35" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="355" y="183" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#a78bfa" text-anchor="middle">write_file</text>
-  <path d="M400 177 L460 177" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-a78bfa)" marker-start="url(#ah-a78bfa)"/>
-  <rect x="465" y="165" width="80" height="35" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
-  <text x="505" y="183" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#a78bfa" text-anchor="middle">save_json</text>
-  <text x="430" y="210" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#888888" text-anchor="middle">A and B serve same purpose</text>
-  </g>
+  <text x="290" y="34" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#60a5fa" text-anchor="middle">Dependency Edge Types</text>
+  <rect x="20" y="50" width="260" height="80" rx="6" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+  <text x="150" y="68" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#60a5fa" text-anchor="middle">Sequence</text>
+  <rect x="35" y="80" width="80" height="35" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
+  <text x="75" y="98" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">read_file</text>
+  <path d="M120 97 L180 97" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-60a5fa)"/>
+  <rect x="185" y="80" width="80" height="35" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
+  <text x="225" y="98" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">write_file</text>
+  <text x="155" y="125" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#888888" text-anchor="middle">A is used before B (temporal order)</text>
+  <rect x="300" y="50" width="260" height="80" rx="6" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="430" y="68" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#4ade80" text-anchor="middle">Contains</text>
+  <rect x="315" y="75" width="230" height="45" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="430" y="85" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#4ade80" text-anchor="middle">Capability: process_data</text>
+  <rect x="325" y="92" width="60" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1"/>
+  <text x="355" y="105" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#4ade80" text-anchor="middle">read</text>
+  <path d="M390 103 L420 103" fill="none" stroke="#4ade80" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <rect x="425" y="92" width="60" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1"/>
+  <text x="455" y="104" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="6" fill="#4ade80" text-anchor="middle">transform</text>
+  <path d="M490 103 L520 103" fill="none" stroke="#4ade80" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <rect x="475" y="92" width="60" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1"/>
+  <text x="505" y="105" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#4ade80" text-anchor="middle">write</text>
+  <text x="430" y="129" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#888888" text-anchor="middle">A contains B (composition)</text>
+  <rect x="20" y="145" width="260" height="80" rx="6" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
+  <text x="150" y="163" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#fbbf24" text-anchor="middle">Dependency</text>
+  <rect x="35" y="175" width="80" height="35" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
+  <text x="75" y="193" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#fbbf24" text-anchor="middle">read_file</text>
+  <path d="M120 192 L180 192" fill="none" stroke="#fbbf24" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+  <rect x="185" y="175" width="80" height="35" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
+  <text x="225" y="193" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#fbbf24" text-anchor="middle">parse_json</text>
+  <text x="155" y="220" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#888888" text-anchor="middle">B needs result of A (data flow)</text>
+  <rect x="300" y="145" width="260" height="80" rx="6" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+  <text x="430" y="163" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#a78bfa" text-anchor="middle">Alternative</text>
+  <rect x="315" y="175" width="80" height="35" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
+  <text x="355" y="193" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#a78bfa" text-anchor="middle">write_file</text>
+  <path d="M400 187 L460 187" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-a78bfa)" marker-start="url(#ah-a78bfa)"/>
+  <rect x="465" y="175" width="80" height="35" rx="4" fill="#2d2d35" stroke="#a78bfa" stroke-width="1"/>
+  <text x="505" y="193" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#a78bfa" text-anchor="middle">save_json</text>
+  <text x="430" y="220" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#888888" text-anchor="middle">A and B serve same purpose</text>
 </svg>

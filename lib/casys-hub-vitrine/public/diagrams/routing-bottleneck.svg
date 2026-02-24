@@ -5,27 +5,25 @@
   </defs>
 
   <rect x="0" y="0" width="520" height="298" fill="#08080a"/>
-  <g transform="translate(-20 12)">
-  <text x="280" y="22" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#f0ede8" text-anchor="middle">User Intent</text>
-  <path d="M240 28 L140 58" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <path d="M320 28 L420 58" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <rect x="40" y="64" width="200" height="56" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
-  <text x="190" y="85" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="13" fill="#60a5fa" text-anchor="middle">LLM Router</text>
-  <text x="190" y="101" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#60a5fa" text-anchor="middle">8B params · GPU · ~1s</text>
-  <text x="190" y="114" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="middle">re-reads full history as text</text>
-  <rect x="320" y="64" width="200" height="56" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="470" y="85" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="13" fill="#4ade80" text-anchor="middle">Specialized Router</text>
-  <text x="470" y="101" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">&lt;1M params · CPU · &lt;10ms</text>
-  <text x="470" y="114" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="middle">graph structure + sequence memory</text>
-  <path d="M140 120 L140 220" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <path d="M420 120 L420 150" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <rect x="320" y="156" width="200" height="50" rx="10" fill="#1f1f23" stroke="#fbbf24" stroke-width="3"/>
-  <text x="470" y="177" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="13" fill="#fbbf24" text-anchor="middle">MCP Sampling</text>
-  <text x="470" y="192" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#fbbf24" text-anchor="middle">LLM when reasoning adds value</text>
-  <path d="M420 206 L420 220" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <rect x="60" y="226" width="160" height="40" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
-  <text x="190" y="252" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#a78bfa" text-anchor="middle">Tool Selected</text>
-  <rect x="340" y="226" width="160" height="40" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
-  <text x="470" y="252" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#a78bfa" text-anchor="middle">Tool Selected</text>
-  </g>
+  <text x="260" y="34" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle">User Intent</text>
+  <path d="M220 40 L120 70" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M300 40 L400 70" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="20" y="76" width="200" height="56" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+  <text x="170" y="97" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#60a5fa" text-anchor="middle">LLM Router</text>
+  <text x="170" y="113" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#60a5fa" text-anchor="middle">8B params · GPU · ~1s</text>
+  <text x="170" y="126" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">re-reads full history as text</text>
+  <rect x="300" y="76" width="200" height="56" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="450" y="97" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#4ade80" text-anchor="middle">Specialized Router</text>
+  <text x="450" y="113" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">&lt;1M params · CPU · &lt;10ms</text>
+  <text x="450" y="126" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">graph structure + sequence memory</text>
+  <path d="M120 132 L120 232" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <path d="M400 132 L400 162" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="300" y="168" width="200" height="50" rx="10" fill="#1f1f23" stroke="#fbbf24" stroke-width="3"/>
+  <text x="450" y="189" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="middle">MCP Sampling</text>
+  <text x="450" y="204" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#fbbf24" text-anchor="middle">LLM when reasoning adds value</text>
+  <path d="M400 218 L400 232" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="40" y="238" width="160" height="40" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+  <text x="170" y="264" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#a78bfa" text-anchor="middle">Tool Selected</text>
+  <rect x="320" y="238" width="160" height="40" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+  <text x="450" y="264" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#a78bfa" text-anchor="middle">Tool Selected</text>
 </svg>

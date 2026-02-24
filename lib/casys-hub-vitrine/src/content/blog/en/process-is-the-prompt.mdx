@@ -1,0 +1,163 @@
+---
+title: "What If AI Just Needed a Process?"
+description: "I tried to get AI agents to work. I ended up doing process management. A 45-year-old diagram had beaten me to it."
+author: "Erwan Lee Pesle"
+date: 2026-02-24
+tags:
+  - agents
+  - ai
+  - management
+  - process
+category: "Industry"
+language: en
+snippet: "We've spent billions making models smarter. What if the real performance boost came from a 45-year-old process diagram?"
+featured: true
+draft: false
+---
+
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+# What If AI Just Needed a Process?
+
+> I reinvented process management — without realizing it. And it works.
+
+---
+
+**I tried OpenClaw last week.** The open-source bridge that connects Claude to WhatsApp, Telegram and Signal — the one we discussed in [the last post](/blog/ai-moves-to-messaging). 135,000 GitHub stars in three months. Time to test it.
+
+Three hours later, I was no longer in OpenClaw. I was in [Windmill](https://www.windmill.dev/) — a workflow orchestrator — structuring pipelines for my agents.
+
+That's when I had a moment of déjà vu.
+
+What I was doing, I'd seen before. Not in a GitHub repo. In an engineering school class, ten years ago.
+
+I was giving my agents **documentation**. I was assigning them **tools**. I was building specialized **teams**. I was measuring their **performance**.
+
+Without thinking about it, without planning it, I was reproducing what I'd been taught in quality management.
+
+---
+
+## The Turtle Diagram
+
+There's a tool that's been used in industry since the 1980s to describe any process. It's called the **Turtle Diagram** — probably because it vaguely looks like a turtle seen from above, with its four legs. It's a pillar of quality management, popularized by Philip Crosby in his "zero defects" approach.
+
+The idea is simple. For any process, you ask four questions:
+
+- **With what?** — The tools and equipment needed
+- **With whom?** — The skills and roles
+- **How?** — The procedures, the documentation
+- **How much?** — The performance indicators
+
+In the center: the process itself. On the left: inputs. On the right: outputs.
+
+It's a thing from white-collar workers with binders. Factories. Production lines. Nothing to do with AI.
+
+And yet.
+
+---
+
+## The Same Shape, Everywhere
+
+Here's what stopped me. When you put AI agents in a workflow, you find exactly the same boxes.
+
+| Turtle Diagram | Agent Orchestration |
+| --- | --- |
+| **With what** — machines, software | MCP tools, APIs, function calling |
+| **With whom** — trained staff | Specialized agents, assigned by task |
+| **How** — procedures, documentation | System prompts, context files, CLAUDE.md |
+| **How much** — conformity rate | Tokens consumed, latency, hallucination rate |
+| **Inputs** — raw materials | User intent, conversational context |
+| **Outputs** — conforming product | Structured result, executed action |
+
+<ExcalidrawDiagram src="turtle-process-agents" alt="The Turtle Diagram: Process Management → AI Agent Orchestration" />
+
+The correspondence is striking. Not because it's forced — because it's *natural*. Nobody sat down and said "let's apply quality management to LLMs." It happened on its own. Everyone who's seriously tried to get agents working in a workflow has converged on this pattern — without knowing it.
+
+The same shape emerges regardless of context. Because it's the minimal structure for work to be done correctly by an entity that follows instructions — whether it's made of flesh or silicon.
+
+---
+
+## The Economy of Speech
+
+An agent without a process is an LLM with its entire latent space as playground. It can go anywhere. And that's exactly what it does. It compensates for the lack of structure with verbosity — it "covers its bases" by generating more, like an intern without a job description who does a bit of everything to look useful.
+
+An agent in a process is an LLM whose space is constrained. It knows what to do, with what, and how the result is measured. It produces fewer tokens. More relevant ones.
+
+David Byrne sang in 1977: *"You're talking a lot, but you're not saying anything."* He wasn't talking about LLMs. But the line captures the phenomenon exactly. A verbose agent isn't a stupid agent. It's an agent **without process constraints**.
+
+Wasted tokens. Hallucinations that need checking. Rework iterations when the first output was off-topic. These aren't intelligence problems. They're process problems.
+
+And process is free. The cost of setting it up is always less than the cost of its absence.
+
+---
+
+## Orchestrators Won't Say Their Name
+
+When I stepped back and looked at what Windmill was making me do, I realized that all these tools — Windmill, n8n, Make, the rest — are actually **process management tools** disguised as automation tools.
+
+Look at what they ask you to do when you integrate an agent:
+
+1. **Document** the context and instructions
+2. **List** the available tools and permissions
+3. **Assign** an agent to each step
+4. **Define** success and failure criteria
+5. **Iterate** when the output isn't right
+
+That's quality management. Dressed in YAML.
+
+And specialization works here like everywhere else: a pipeline of five specialized agents consistently outperforms a generalist agent trying to do everything in a single prompt.
+
+---
+
+## Crosby's Five Levels
+
+Crosby formalized a five-stage maturity grid to describe how an organization learns to master quality — from total uncertainty to reflex. When I map the teams I know and their relationship with agents, I find exactly the same levels.
+
+| Maturity | Human Process (Crosby) | Agent Orchestration |
+| --- | --- | --- |
+| **1 — Uncertainty** | "We have no process" | "We copy-paste prompts into ChatGPT" |
+| **2 — Awakening** | "We're starting to document" | "We have a system prompt and a few tools" |
+| **3 — Enlightenment** | "We measure and improve" | "Structured workflows with monitoring" |
+| **4 — Wisdom** | "Process is part of the culture" | "A CI/CD pipeline for orchestration" |
+| **5 — Certainty** | "Quality is a reflex" | "Self-evaluating agents, adaptive workflows" |
+
+<ExcalidrawDiagram src="process-maturity-agents" alt="Crosby's Quality Maturity Grid → Agent Orchestration Maturity" />
+
+Most people I know are between level 1 and level 2. Those building serious products with agents are at level 3. Level 5, I haven't seen anywhere yet.
+
+A few observations from experience:
+
+**Too much process kills the process.** Too much context saturates the context window. Performance degrades. The optimal process isn't the maximal process — it's the *sufficient* process. A "good enough" that applies not to [personality](/blog/personality-is-just-friction), but to structure.
+
+**Too much specialization creates fragility.** A workflow of hyper-specialized agents breaks the moment one step fails. Resilience comes from the balance between specialization and adaptability.
+
+**None of this is new.** It's been documented for decades. We don't need to invent new theories to run agents. We need to reread what we already knew.
+
+---
+
+## The Question Nobody's Asking
+
+Why is nobody talking about this?
+
+Maybe because "agents work better when you give them a process" is a profoundly boring conclusion. It's not a paper that makes the front page of Hacker News. It's not a spectacular benchmark. It's not a new model with a five-letter acronym.
+
+**Structure beats talent.** An average model in a good process outperforms an excellent model without one. It's true for humans. It's even more true for agents — because agents *are* processes. They execute instructions. They consume inputs. They produce outputs. The Turtle Diagram isn't a metaphor for them. It's a **specification**.
+
+---
+
+## Quality Is Free. Tokens Are Not.
+
+What struck me coming back from my Windmill detour wasn't that agents "need management." It's that **the structure of well-done work doesn't depend on who does it** — human, robot, AI agent. It depends on the nature of the work itself.
+
+In 2026, the translation is clear:
+
+- The cost of a well-structured workflow: a few hours of design
+- The cost of an agent without a process: thousands of wasted tokens, hallucinations to verify, human rework to fix the output
+
+Models change. Frameworks change. Tools change. But the structure of well-done work doesn't.
+
+Quality engineers knew this in the 1980s. We just rediscovered it with GPUs.
+
+---
+
+*More thoughts on agent orchestration at [casys.ai](https://casys.ai).*

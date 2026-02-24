@@ -6,17 +6,17 @@
 
   <rect x="0" y="0" width="450" height="179" fill="#08080a"/>
   <rect x="20" y="20" width="160" height="130" rx="12" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="100" y="39" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">Tools (Atomic)</text>
+  <text x="100" y="39" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#4ade80" text-anchor="middle">Tools (Atomic)</text>
   <rect x="35" y="55" width="90" height="30" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
-  <text x="80" y="73" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#f0ede8" text-anchor="middle">git_commit</text>
+  <text x="80" y="73" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#f0ede8" text-anchor="middle">git_commit</text>
   <rect x="35" y="92" width="90" height="30" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
-  <text x="80" y="110" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#f0ede8" text-anchor="middle">docker_build</text>
+  <text x="80" y="110" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#f0ede8" text-anchor="middle">docker_build</text>
   <rect x="75" y="129" width="90" height="30" rx="6" fill="#2d2d35" stroke="#a78bfa" stroke-width="2"/>
-  <text x="120" y="147" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#f0ede8" text-anchor="middle">aws_deploy</text>
+  <text x="120" y="147" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#f0ede8" text-anchor="middle">aws_deploy</text>
   <rect x="280" y="50" width="150" height="70" rx="12" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
-  <text x="355" y="69" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#fbbf24" text-anchor="middle">Capability (Pattern)</text>
+  <text x="355" y="69" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#fbbf24" text-anchor="middle">Capability (Pattern)</text>
   <rect x="295" y="82" width="120" height="30" rx="6" fill="#2d2d35" stroke="#f472b6" stroke-width="2"/>
-  <text x="355" y="101" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="middle">Deploy to Prod</text>
+  <text x="355" y="101" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="middle">Deploy to Prod</text>
   <path d="M130 70 L275 95" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M130 107 L275 97" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M170 143 L275 98" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>

@@ -5,55 +5,53 @@
   </defs>
 
   <rect x="0" y="0" width="660" height="415" fill="#08080a"/>
-  <g transform="translate(-20 0)">
-  <text x="40" y="34" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#f0ede8" text-anchor="start">PML CLI Workflow</text>
-  <rect x="40" y="60" width="160" height="140" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
-  <text x="120" y="82" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#60a5fa" text-anchor="middle">pml init</text>
-  <text x="120" y="101" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="middle">Initialize from config</text>
-  <text x="55" y="123" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">1. Read MCP config</text>
-  <text x="55" y="138" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">2. Connect to servers</text>
-  <text x="55" y="153" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">3. Discover tools</text>
-  <text x="55" y="168" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">4. Generate embeddings</text>
-  <text x="55" y="183" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">5. Store in database</text>
-  <path d="M205 130 L255 130" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <rect x="260" y="60" width="200" height="140" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="360" y="82" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#4ade80" text-anchor="middle">pml serve</text>
-  <text x="360" y="101" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="middle">Start MCP gateway server</text>
-  <rect x="275" y="112" width="80" height="35" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="315" y="127" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">stdio</text>
-  <text x="315" y="139" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#666666" text-anchor="middle">Claude Code</text>
-  <rect x="365" y="112" width="80" height="35" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="405" y="127" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">HTTP</text>
-  <text x="405" y="139" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#666666" text-anchor="middle">+ Dashboard</text>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#888888" text-anchor="start" y="166">
-    <tspan x="275">--port 3001</tspan>
-    <tspan x="275" dy="10.4">--no-speculative</tspan>
-    <tspan x="275" dy="10.4">--no-cache</tspan>
+  <text x="20" y="34" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="start">PML CLI Workflow</text>
+  <rect x="20" y="60" width="160" height="140" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+  <text x="100" y="82" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#60a5fa" text-anchor="middle">pml init</text>
+  <text x="100" y="101" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#888888" text-anchor="middle">Initialize from config</text>
+  <text x="35" y="123" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">1. Read MCP config</text>
+  <text x="35" y="138" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">2. Connect to servers</text>
+  <text x="35" y="153" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">3. Discover tools</text>
+  <text x="35" y="168" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">4. Generate embeddings</text>
+  <text x="35" y="183" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">5. Store in database</text>
+  <path d="M185 130 L235 130" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="240" y="60" width="200" height="140" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="340" y="82" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#4ade80" text-anchor="middle">pml serve</text>
+  <text x="340" y="101" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#888888" text-anchor="middle">Start MCP gateway server</text>
+  <rect x="255" y="112" width="80" height="35" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="295" y="127" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">stdio</text>
+  <text x="295" y="139" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">Claude Code</text>
+  <rect x="345" y="112" width="80" height="35" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="385" y="127" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">HTTP</text>
+  <text x="385" y="139" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">+ Dashboard</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#888888" text-anchor="start" y="166">
+    <tspan x="255">--port 3001</tspan>
+    <tspan x="255" dy="10.4">--no-speculative</tspan>
+    <tspan x="255" dy="10.4">--no-cache</tspan>
   </text>
-  <path d="M465 130 L515 130" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <rect x="520" y="60" width="140" height="140" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
-  <text x="590" y="82" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#a78bfa" text-anchor="middle">pml status</text>
-  <text x="590" y="101" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="middle">Show gateway status</text>
-  <text x="535" y="123" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#4ade80" text-anchor="start">• Gateway: Running</text>
-  <text x="535" y="138" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">• MCP Servers: 3</text>
-  <text x="535" y="153" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">• Tools: 35</text>
-  <text x="535" y="168" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">• Avg latency: 45ms</text>
-  <text x="535" y="183" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="start">• Cache hits: 78%</text>
-  <text x="40" y="236" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="start">Exit Codes</text>
-  <rect x="40" y="245" width="300" height="80" rx="4" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
-  <text x="55" y="264" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="start">0 - Success</text>
-  <text x="55" y="279" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f87171" text-anchor="start">1 - General error</text>
-  <text x="55" y="294" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f87171" text-anchor="start">2 - Config error</text>
-  <text x="55" y="309" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f87171" text-anchor="start">3 - Connection error</text>
-  <text x="55" y="324" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#f87171" text-anchor="start">4 - Database error</text>
-  <text x="370" y="236" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#f0ede8" text-anchor="start">Global Options</text>
-  <rect x="370" y="245" width="290" height="80" rx="4" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
-  <text x="385" y="264" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">--help, -h     Show help</text>
-  <text x="385" y="279" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">--version, -v  Show version</text>
-  <text x="385" y="294" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">--quiet, -q    Suppress output</text>
-  <text x="385" y="309" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#888888" text-anchor="start">--verbose      Debug logging</text>
-  <rect x="40" y="345" width="620" height="50" rx="4" fill="#1e293b" stroke="#22d3ee" stroke-width="1"/>
-  <text x="55" y="361" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#22d3ee" text-anchor="start">Full Setup:</text>
-  <text x="55" y="378" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#888888" text-anchor="start">./pml init --config mcp-servers.json &amp;&amp; ./pml serve --config mcp-servers.json</text>
-  </g>
+  <path d="M445 130 L495 130" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="500" y="60" width="140" height="140" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+  <text x="570" y="82" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#a78bfa" text-anchor="middle">pml status</text>
+  <text x="570" y="101" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#888888" text-anchor="middle">Show gateway status</text>
+  <text x="515" y="123" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#4ade80" text-anchor="start">• Gateway: Running</text>
+  <text x="515" y="138" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">• MCP Servers: 3</text>
+  <text x="515" y="153" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">• Tools: 35</text>
+  <text x="515" y="168" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">• Avg latency: 45ms</text>
+  <text x="515" y="183" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="start">• Cache hits: 78%</text>
+  <text x="20" y="236" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="start">Exit Codes</text>
+  <rect x="20" y="245" width="300" height="80" rx="4" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
+  <text x="35" y="264" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="start">0 - Success</text>
+  <text x="35" y="279" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f87171" text-anchor="start">1 - General error</text>
+  <text x="35" y="294" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f87171" text-anchor="start">2 - Config error</text>
+  <text x="35" y="309" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f87171" text-anchor="start">3 - Connection error</text>
+  <text x="35" y="324" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#f87171" text-anchor="start">4 - Database error</text>
+  <text x="350" y="236" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f0ede8" text-anchor="start">Global Options</text>
+  <rect x="350" y="245" width="290" height="80" rx="4" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
+  <text x="365" y="264" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#888888" text-anchor="start">--help, -h     Show help</text>
+  <text x="365" y="279" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#888888" text-anchor="start">--version, -v  Show version</text>
+  <text x="365" y="294" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#888888" text-anchor="start">--quiet, -q    Suppress output</text>
+  <text x="365" y="309" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#888888" text-anchor="start">--verbose      Debug logging</text>
+  <rect x="20" y="345" width="620" height="50" rx="4" fill="#1e293b" stroke="#22d3ee" stroke-width="1"/>
+  <text x="35" y="361" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#22d3ee" text-anchor="start">Full Setup:</text>
+  <text x="35" y="378" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#888888" text-anchor="start">./pml init --config mcp-servers.json &amp;&amp; ./pml serve --config mcp-servers.json</text>
 </svg>

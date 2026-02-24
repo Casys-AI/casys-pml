@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1010 660" width="1010" height="660">
+  <!-- svg-source:excalidraw — turtle-process-agents.excalidraw -->
+  <defs>
+    <marker id="ah-f0ede8" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#f0ede8"/></marker>
+    <marker id="ah-4ade80" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#4ade80"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="1010" height="660" fill="#08080a"/>
+  <text x="500" y="40" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#f0ede8" text-anchor="middle">The Turtle Diagram: Process Management → Agent Orchestration</text>
+  <rect x="340" y="290" width="320" height="70" rx="8" fill="#2d2d35" stroke="#fbbf24" stroke-width="2"/>
+  <text x="500" y="330" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="22" fill="#fbbf24" text-anchor="middle">PROCESS</text>
+  <rect x="30" y="80" width="300" height="150" rx="8" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
+  <text x="50" y="108" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#60a5fa" text-anchor="start">WITH WHAT — Tools</text>
+  <text x="50" y="143" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">Machines, Software, Equipment</text>
+  <text x="50" y="173" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start">→ MCP Tools, APIs, Functions</text>
+  <rect x="670" y="80" width="300" height="150" rx="8" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
+  <text x="690" y="108" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#60a5fa" text-anchor="start">WITH WHOM — People</text>
+  <text x="690" y="143" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">Trained Staff, Defined Roles</text>
+  <text x="690" y="173" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start">→ Specialized Agents, Task Force</text>
+  <rect x="30" y="430" width="300" height="150" rx="8" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
+  <text x="50" y="458" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#60a5fa" text-anchor="start">HOW — Documentation</text>
+  <text x="50" y="493" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">Procedures, Work Instructions</text>
+  <text x="50" y="523" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start">→ System Prompts, Context Files</text>
+  <rect x="670" y="430" width="300" height="150" rx="8" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
+  <text x="690" y="458" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#60a5fa" text-anchor="start">HOW MUCH — KPIs</text>
+  <text x="690" y="493" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">Conformity Rate, Cycle Time</text>
+  <text x="690" y="523" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start">→ Token Usage, Hallucination Rate</text>
+  <text x="20" y="322" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="start">INPUTS</text>
+  <path d="M120 325 L320 325" fill="none" stroke="#f0ede8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f0ede8)"/>
+  <path d="M680 325 L880 325" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <text x="900" y="322" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#4ade80" text-anchor="start">OUTPUTS</text>
+  <path d="M400 290 L180 230" fill="none" stroke="#666666" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M600 290 L820 230" fill="none" stroke="#666666" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M400 360 L180 430" fill="none" stroke="#666666" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M600 360 L820 430" fill="none" stroke="#666666" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="300" y="632" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#666666" text-anchor="start">■ Traditional Process</text>
+  <text x="530" y="632" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#fbbf24" text-anchor="start">■ AI Agent Equivalent</text>
+</svg>

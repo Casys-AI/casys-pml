@@ -6,38 +6,38 @@
 
   <rect x="0" y="0" width="630" height="240" fill="#08080a"/>
   <rect x="20" y="80" width="100" height="80" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
-  <text x="70" y="124" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#a78bfa" text-anchor="middle">Agent</text>
+  <text x="70" y="124" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#a78bfa" text-anchor="middle">Agent</text>
   <rect x="180" y="20" width="240" height="200" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
-  <text x="300" y="42" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#60a5fa" text-anchor="middle">PML Gateway</text>
+  <text x="300" y="42" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#60a5fa" text-anchor="middle">PML Gateway</text>
   <rect x="195" y="55" width="100" height="35" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="245" y="75" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">Router</text>
+  <text x="245" y="75" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#60a5fa" text-anchor="middle">Router</text>
   <rect x="305" y="55" width="100" height="35" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="355" y="75" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">Memory</text>
+  <text x="355" y="75" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#60a5fa" text-anchor="middle">Memory</text>
   <rect x="195" y="100" width="100" height="35" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="245" y="120" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">Search</text>
+  <text x="245" y="120" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#60a5fa" text-anchor="middle">Search</text>
   <rect x="305" y="100" width="100" height="35" rx="4" fill="#2d2d35" stroke="#60a5fa" stroke-width="1"/>
-  <text x="355" y="120" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">Learning</text>
+  <text x="355" y="120" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#60a5fa" text-anchor="middle">Learning</text>
   <rect x="220" y="150" width="160" height="55" rx="4" fill="#2d2d35" stroke="#fbbf24" stroke-width="1"/>
-  <text x="300" y="168" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">Multiplexer</text>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#888888" text-anchor="middle" y="183">
+  <text x="300" y="168" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#fbbf24" text-anchor="middle">Multiplexer</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#888888" text-anchor="middle" y="183">
     <tspan x="300">Connection Pool</tspan>
     <tspan x="300" dy="10.4">&amp; Health Check</tspan>
   </text>
   <rect x="480" y="20" width="130" height="200" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text x="545" y="41" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">MCP Servers</text>
+  <text x="545" y="41" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#4ade80" text-anchor="middle">MCP Servers</text>
   <rect x="495" y="55" width="100" height="30" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="545" y="72" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">filesystem</text>
+  <text x="545" y="72" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">filesystem</text>
   <rect x="495" y="95" width="100" height="30" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="545" y="112" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">github</text>
+  <text x="545" y="112" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">github</text>
   <rect x="495" y="135" width="100" height="30" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="545" y="152" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">postgres</text>
+  <text x="545" y="152" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">postgres</text>
   <rect x="495" y="175" width="100" height="30" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
-  <text x="545" y="192" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">fetch</text>
+  <text x="545" y="192" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">fetch</text>
   <path d="M125 110 L175 110" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M175 130 L125 130" fill="none" stroke="#666666" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M425 100 L475 100" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
   <path d="M475 140 L425 140" fill="none" stroke="#666666" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <text x="150" y="103" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="middle">request</text>
-  <text x="150" y="146" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#666666" text-anchor="middle">response</text>
-  <text x="450" y="92" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="7" fill="#666666" text-anchor="middle">JSON-RPC</text>
+  <text x="150" y="103" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">request</text>
+  <text x="150" y="146" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">response</text>
+  <text x="450" y="92" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">JSON-RPC</text>
 </svg>

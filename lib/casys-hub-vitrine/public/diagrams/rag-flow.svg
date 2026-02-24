@@ -8,35 +8,33 @@
   </defs>
 
   <rect x="0" y="0" width="470" height="262" fill="#08080a"/>
-  <g transform="translate(0 -20)">
-  <rect x="20" y="40" width="80" height="200" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle" y="140">
+  <rect x="20" y="20" width="80" height="200" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#4ade80" text-anchor="middle" y="120">
     <tspan x="60">User</tspan>
     <tspan x="60" dy="13">Query</tspan>
   </text>
-  <rect x="130" y="40" width="80" height="200" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle" y="140">
+  <rect x="130" y="20" width="80" height="200" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#60a5fa" text-anchor="middle" y="120">
     <tspan x="170">Vector</tspan>
     <tspan x="170" dy="13">Index</tspan>
   </text>
-  <rect x="240" y="40" width="100" height="200" rx="8" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle" y="140">
+  <rect x="240" y="20" width="100" height="200" rx="8" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#fbbf24" text-anchor="middle" y="120">
     <tspan x="290">SuperHyper</tspan>
     <tspan x="290" dy="13">Graph</tspan>
   </text>
-  <rect x="370" y="40" width="80" height="200" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
-  <text x="410" y="140" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="10" fill="#a78bfa" text-anchor="middle">Results</text>
-  <path d="M60 60 L125 60" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
-  <text x="90" y="53" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="8" fill="#f0ede8" text-anchor="middle">Deploy my app</text>
-  <rect x="125" y="85" width="220" height="50" rx="6" fill="#0f1f1a" stroke="#4ade80" stroke-width="1"/>
-  <text x="235" y="99" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle">Tool Discovery (Additive)</text>
-  <path d="M175 110 L235 110" fill="none" stroke="#4ade80" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
-  <path d="M295 120 L365 120" fill="none" stroke="#4ade80" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
-  <rect x="125" y="150" width="220" height="50" rx="6" fill="#1f1a0f" stroke="#fbbf24" stroke-width="1"/>
-  <text x="235" y="164" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#fbbf24" text-anchor="middle">Capability Discovery (Multiplicative)</text>
-  <path d="M175 175 L235 175" fill="none" stroke="#fbbf24" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
-  <path d="M295 185 L365 185" fill="none" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
-  <path d="M410 210 L410 240 L60 240" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-a78bfa)"/>
-  <text x="220" y="259" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="9" fill="#a78bfa" text-anchor="middle">Ordered results</text>
-  </g>
+  <rect x="370" y="20" width="80" height="200" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+  <text x="410" y="120" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#a78bfa" text-anchor="middle">Results</text>
+  <path d="M60 40 L125 40" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <text x="90" y="33" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#f0ede8" text-anchor="middle">Deploy my app</text>
+  <rect x="125" y="65" width="220" height="50" rx="6" fill="#0f1f1a" stroke="#4ade80" stroke-width="1"/>
+  <text x="235" y="79" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">Tool Discovery (Additive)</text>
+  <path d="M175 90 L235 90" fill="none" stroke="#4ade80" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <path d="M295 100 L365 100" fill="none" stroke="#4ade80" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <rect x="125" y="130" width="220" height="50" rx="6" fill="#1f1a0f" stroke="#fbbf24" stroke-width="1"/>
+  <text x="235" y="144" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#fbbf24" text-anchor="middle">Capability Discovery (Multiplicative)</text>
+  <path d="M175 155 L235 155" fill="none" stroke="#fbbf24" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+  <path d="M295 165 L365 165" fill="none" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+  <path d="M410 190 L410 220 L60 220" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-a78bfa)"/>
+  <text x="220" y="239" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#a78bfa" text-anchor="middle">Ordered results</text>
 </svg>

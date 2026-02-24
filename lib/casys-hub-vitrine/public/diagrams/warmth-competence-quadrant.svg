@@ -5,17 +5,17 @@
   </defs>
 
   <rect x="0" y="0" width="650" height="822" fill="#08080a"/>
-  <text x="325.56" y="40.89" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="20" fill="#f0ede8" text-anchor="middle">The Warmth-Competence Grid: Where Does AI Land?</text>
-  <text x="380" y="71" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#666666" text-anchor="middle">(Fiske &amp; Cuddy, Stereotype Content Model, 2002)</text>
+  <text x="325.56" y="40.89" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#f0ede8" text-anchor="middle">The Warmth-Competence Grid: Where Does AI Land?</text>
+  <text x="380" y="71" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#666666" text-anchor="middle">(Fiske &amp; Cuddy, Stereotype Content Model, 2002)</text>
   <path d="M100 452 L100 102" fill="none" stroke="#f0ede8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f0ede8)"/>
   <path d="M100 452 L600 452" fill="none" stroke="#f0ede8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f0ede8)"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#f0ede8" text-anchor="start" y="266">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="start" y="266">
     <tspan x="20">WARMTH</tspan>
     <tspan x="20" dy="18.2">(trust)</tspan>
   </text>
-  <text x="320" y="481" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="14" fill="#f0ede8" text-anchor="start">COMPETENCE --&gt;</text>
+  <text x="320" y="481" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="start">COMPETENCE --&gt;</text>
   <rect x="110" y="102" width="230" height="160" rx="20" fill="#1a3a1a" stroke="#4ade80" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="13" fill="#4ade80" text-anchor="start" y="125">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#4ade80" text-anchor="start" y="125">
     <tspan x="130">HIGH WARMTH</tspan>
     <tspan x="130" dy="16.9">LOW COMPETENCE</tspan>
     <tspan x="130" dy="16.9">= PITY</tspan>
@@ -24,7 +24,7 @@
     <tspan x="130" dy="16.9">&quot;bless their heart&quot;</tspan>
   </text>
   <rect x="360" y="102" width="230" height="160" rx="20" fill="#1a2744" stroke="#60a5fa" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="13" fill="#60a5fa" text-anchor="start" y="125">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#60a5fa" text-anchor="start" y="125">
     <tspan x="380">HIGH WARMTH</tspan>
     <tspan x="380" dy="16.9">HIGH COMPETENCE</tspan>
     <tspan x="380" dy="16.9">= ADMIRATION</tspan>
@@ -33,7 +33,7 @@
     <tspan x="380" dy="16.9">doctors, teachers</tspan>
   </text>
   <rect x="110" y="282" width="230" height="160" rx="20" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="13" fill="#ef4444" text-anchor="start" y="305">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#ef4444" text-anchor="start" y="305">
     <tspan x="130">LOW WARMTH</tspan>
     <tspan x="130" dy="16.9">LOW COMPETENCE</tspan>
     <tspan x="130" dy="16.9">= CONTEMPT</tspan>
@@ -42,7 +42,7 @@
     <tspan x="130" dy="16.9">&quot;your call is important&quot;</tspan>
   </text>
   <rect x="360" y="282" width="230" height="160" rx="20" fill="#3a2a0a" stroke="#fbbf24" stroke-width="2"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="13" fill="#fbbf24" text-anchor="start" y="337.22">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start" y="337.22">
     <tspan x="382.22">LOW WARMTH</tspan>
     <tspan x="382.22" dy="16.9">HIGH COMPETENCE</tspan>
     <tspan x="382.22" dy="16.9">= ENVY / DISTRUST</tspan>
@@ -51,13 +51,13 @@
     <tspan x="382.22" dy="16.9">&quot;evil genius&quot;</tspan>
   </text>
   <path d="M524 131l20 20 -20 20 -20 -20Z" fill="#ff6b6b" stroke="#ef4444" stroke-width="3" stroke-linejoin="round"/>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="12" fill="#ef4444" text-anchor="start" y="157">
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#ef4444" text-anchor="start" y="157">
     <tspan x="550">&lt;-- AI</tspan>
     <tspan x="550" dy="15.6">agents</tspan>
     <tspan x="550" dy="15.6">today</tspan>
   </text>
-  <text x="381.11" y="310.11" font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="11" fill="#ef4444" text-anchor="start">People WANT us here? ^</text>
-  <text font-family="\"Inter\", \"Segoe UI\", system-ui, -apple-system, sans-serif" font-size="13" fill="#9ca3af" text-anchor="start" y="505">
+  <text x="381.11" y="310.11" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#ef4444" text-anchor="start">People WANT us here? ^</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#9ca3af" text-anchor="start" y="505">
     <tspan x="120">Key insight: AI agents sit in the ADMIRATION quadrant (high warmth + high competence).</tspan>
     <tspan x="120" dy="16.9">So why does the discourse want to push them to LOW WARMTH for &quot;personality&quot;?</tspan>
   </text>
