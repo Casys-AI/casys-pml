@@ -1,49 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 897 515" width="897" height="515">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 997 578" width="997" height="578">
   <!-- svg-source:excalidraw — process-maturity-agents.excalidraw -->
   <defs>
     <marker id="ah-f0ede8" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#f0ede8"/></marker>
   </defs>
 
-  <rect x="0" y="0" width="897" height="515" fill="#08080a"/>
-  <text x="467" y="40" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#f0ede8" text-anchor="middle">Crosby's Quality Maturity Grid → Agent Orchestration</text>
-  <text x="77" y="83" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">LEVEL</text>
-  <text x="257" y="83" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">TRADITIONAL PROCESS</text>
-  <text x="587" y="83" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">AGENT ORCHESTRATION</text>
-  <path d="M57 95 L877 95" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-  <rect x="57" y="105" width="820" height="70" rx="6" fill="#1f1f23" stroke="transparent" stroke-width="0"/>
-  <text x="92" y="138" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#ef4444" text-anchor="middle">1</text>
-  <text x="117" y="137" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#ef4444" text-anchor="start">Uncertainty</text>
-  <text x="257" y="138" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">No documented processes</text>
-  <text x="587" y="138" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#ef4444" text-anchor="start">Copy-paste prompts into ChatGPT</text>
-  <rect x="57" y="185" width="820" height="70" rx="6" fill="#1a1a1e" stroke="transparent" stroke-width="0"/>
-  <text x="92" y="218" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#fbbf24" text-anchor="middle">2</text>
-  <text x="117" y="217" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#fbbf24" text-anchor="start">Awakening</text>
-  <text x="257" y="218" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">Starting to document</text>
-  <text x="587" y="218" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start">System prompt + a few MCP tools</text>
-  <rect x="57" y="265" width="820" height="70" rx="6" fill="#1f1f23" stroke="transparent" stroke-width="0"/>
-  <text x="92" y="298" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#60a5fa" text-anchor="middle">3</text>
-  <text x="117" y="297" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#60a5fa" text-anchor="start">Enlightenment</text>
-  <text x="257" y="298" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">Measuring and improving</text>
-  <text x="587" y="298" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#60a5fa" text-anchor="start">Structured workflows with metrics</text>
-  <rect x="57" y="345" width="820" height="70" rx="6" fill="#1a1a1e" stroke="transparent" stroke-width="0"/>
-  <text x="92" y="378" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#a78bfa" text-anchor="middle">4</text>
-  <text x="117" y="377" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#a78bfa" text-anchor="start">Wisdom</text>
-  <text x="257" y="378" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">Process integrated in culture</text>
-  <text x="587" y="378" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#a78bfa" text-anchor="start">CI/CD pipeline for agent orchestration</text>
-  <rect x="57" y="425" width="820" height="70" rx="6" fill="#1f1f23" stroke="transparent" stroke-width="0"/>
-  <text x="92" y="458" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#4ade80" text-anchor="middle">5</text>
-  <text x="117" y="457" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#4ade80" text-anchor="start">Certainty</text>
-  <text x="257" y="458" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="start">Quality is a reflex</text>
-  <text x="587" y="458" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#4ade80" text-anchor="start">Self-evaluating agents, adaptive workflows</text>
-  <path d="M42 485 L42 115" fill="none" stroke="#f0ede8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f0ede8)"/>
-  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#666666" text-anchor="middle" y="280">
+  <rect x="0" y="0" width="997" height="578" fill="#08080a"/>
+  <text x="517" y="44" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="24" fill="#f0ede8" text-anchor="middle">Crosby's Quality Maturity Grid → Agent Orchestration</text>
+  <text x="77" y="91" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">LEVEL</text>
+  <text x="277" y="91" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">TRADITIONAL PROCESS</text>
+  <text x="617" y="91" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">AGENT ORCHESTRATION</text>
+  <path d="M57 108 L977 108" fill="none" stroke="#666666" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="57" y="118" width="920" height="80" rx="6" fill="#1f1f23" stroke="transparent" stroke-width="0"/>
+  <text x="97" y="159" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="24" fill="#ef4444" text-anchor="middle">1</text>
+  <text x="122" y="156" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#ef4444" text-anchor="start">Uncertainty</text>
+  <text x="277" y="158" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">No documented processes</text>
+  <text x="617" y="158" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#ef4444" text-anchor="start">Copy-paste prompts into ChatGPT</text>
+  <rect x="57" y="208" width="920" height="80" rx="6" fill="#1a1a1e" stroke="transparent" stroke-width="0"/>
+  <text x="97" y="249" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="24" fill="#fbbf24" text-anchor="middle">2</text>
+  <text x="122" y="246" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#fbbf24" text-anchor="start">Awakening</text>
+  <text x="277" y="248" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">Starting to document</text>
+  <text x="617" y="248" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#fbbf24" text-anchor="start">System prompt + a few MCP tools</text>
+  <rect x="57" y="298" width="920" height="80" rx="6" fill="#1f1f23" stroke="transparent" stroke-width="0"/>
+  <text x="97" y="339" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="24" fill="#60a5fa" text-anchor="middle">3</text>
+  <text x="122" y="336" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#60a5fa" text-anchor="start">Enlightenment</text>
+  <text x="277" y="338" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">Measuring and improving</text>
+  <text x="617" y="338" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#60a5fa" text-anchor="start">Structured workflows with metrics</text>
+  <rect x="57" y="388" width="920" height="80" rx="6" fill="#1a1a1e" stroke="transparent" stroke-width="0"/>
+  <text x="97" y="429" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="24" fill="#a78bfa" text-anchor="middle">4</text>
+  <text x="122" y="426" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#a78bfa" text-anchor="start">Wisdom</text>
+  <text x="277" y="428" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">Process integrated in culture</text>
+  <text x="617" y="428" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#a78bfa" text-anchor="start">CI/CD pipeline for orchestration</text>
+  <rect x="57" y="478" width="920" height="80" rx="6" fill="#1f1f23" stroke="transparent" stroke-width="0"/>
+  <text x="97" y="519" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="24" fill="#4ade80" text-anchor="middle">5</text>
+  <text x="122" y="516" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#4ade80" text-anchor="start">Certainty</text>
+  <text x="277" y="518" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">Quality is a reflex</text>
+  <text x="617" y="518" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#4ade80" text-anchor="start">Self-evaluating, adaptive agents</text>
+  <path d="M42 550 L42 120" fill="none" stroke="#f0ede8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f0ede8)"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#666666" text-anchor="middle" y="312">
     <tspan x="28">M</tspan>
-    <tspan x="28" dy="13">A</tspan>
-    <tspan x="28" dy="13">T</tspan>
-    <tspan x="28" dy="13">U</tspan>
-    <tspan x="28" dy="13">R</tspan>
-    <tspan x="28" dy="13">I</tspan>
-    <tspan x="28" dy="13">T</tspan>
-    <tspan x="28" dy="13">Y</tspan>
+    <tspan x="28" dy="15.6">A</tspan>
+    <tspan x="28" dy="15.6">T</tspan>
+    <tspan x="28" dy="15.6">U</tspan>
+    <tspan x="28" dy="15.6">R</tspan>
+    <tspan x="28" dy="15.6">I</tspan>
+    <tspan x="28" dy="15.6">T</tspan>
+    <tspan x="28" dy="15.6">Y</tspan>
   </text>
 </svg>
