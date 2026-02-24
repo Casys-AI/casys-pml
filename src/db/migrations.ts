@@ -97,8 +97,8 @@ import { createUiMetadataMigration } from "./migrations/044_ui_metadata.ts";
 import { createObservedConfigMigration } from "./migrations/045_observed_config.ts";
 import { createUiOrchestrationDefaultMigration } from "./migrations/046_ui_orchestration_default.ts";
 import { createRestoreTraceIntentEmbeddingMigration } from "./migrations/047_restore_trace_intent_embedding.ts";
-import { createGRUParamsMigration } from "./migrations/048_gru_params.ts";
-import { createCapabilityNameHistoryMigration } from "./migrations/049_capability_name_history.ts";
+import { createGRUParamsMigration } from "./migrations/049_gru_params.ts";
+import { createCapabilityNameHistoryMigration } from "./migrations/050_capability_name_history.ts";
 import { createToolSchemaHashMigration } from "./migrations/051_tool_schema_hash.ts";
 
 /**
