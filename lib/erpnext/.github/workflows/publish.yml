@@ -6,12 +6,80 @@ on:
       - main
 
 jobs:
-  publish:
+  publish-jsr:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v5
-      - name: Publish package
+      - name: Publish to JSR
         run: npx jsr publish
+
+  publish-npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Build UI viewers
+        run: |
+          cd src/ui
+          npm ci
+          node build-all.mjs
+
+      - name: Build Node.js bundle
+        run: |
+          bash scripts/build-node.sh
+          cd dist-node
+          npm install
+          npx esbuild server.ts \
+            --bundle \
+            --platform=node \
+            --target=node20 \
+            --format=esm \
+            --outfile=bin/mcp-erpnext.mjs \
+            --external:'node:*'
+          sed -i '1s/^/#!\/usr\/bin\/env node\n/' bin/mcp-erpnext.mjs
+          chmod +x bin/mcp-erpnext.mjs
+          cp -r src/ui/dist bin/ui-dist
+          cp README.md bin/README.md 2>/dev/null || cp ../README.md bin/README.md 2>/dev/null || true
+
+      - name: Set version in package.json
+        run: |
+          VERSION=$(grep '"version"' deno.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
+          cd dist-node/bin
+          cat > package.json << EOF
+          {
+            "name": "@casys/mcp-erpnext",
+            "version": "$VERSION",
+            "description": "MCP server for ERPNext — 120 tools for sales, inventory, accounting, HR, projects, analytics with interactive UI viewers",
+            "type": "module",
+            "bin": {
+              "mcp-erpnext": "mcp-erpnext.mjs"
+            },
+            "files": [
+              "mcp-erpnext.mjs",
+              "ui-dist/**/*"
+            ],
+            "keywords": ["mcp", "erpnext", "frappe", "erp", "model-context-protocol", "claude", "ai", "tools"],
+            "engines": { "node": ">=20.0.0" },
+            "repository": { "type": "git", "url": "https://github.com/Casys-AI/mcp-erpnext" },
+            "license": "MIT"
+          }
+          EOF
+
+      - name: Publish to npm
+        run: |
+          cd dist-node/bin
+          npm publish --access public || echo "Version already published, skipping"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

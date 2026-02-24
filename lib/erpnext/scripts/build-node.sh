@@ -84,6 +84,9 @@ cat > "$DIST_DIR/package.json" <<'PKGJSON'
 }
 PKGJSON
 
+# Copy README for npm
+cp "$ROOT_DIR/README.md" "$DIST_DIR/README.md" 2>/dev/null || true
+
 echo "[build-node] Done! Output: $DIST_DIR"
 echo ""
 echo "Next steps:"
