@@ -275,6 +275,12 @@ export class RpcRouter {
   ): Promise<RpcRouteResult> {
     const client = this.config.mcpClients.get(server);
     if (!client) {
+      logger.warn("[RpcRouter.routeToMcpServer] MCP client not found", {
+        server,
+        tool,
+        availableServers: Array.from(this.config.mcpClients.keys()),
+        mcpClientsSize: this.config.mcpClients.size,
+      });
       return {
         success: false,
         error: `MCP server "${server}" unreachable`,

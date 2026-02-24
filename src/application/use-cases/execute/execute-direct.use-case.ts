@@ -321,10 +321,28 @@ export class ExecuteDirectUseCase {
       // - code:* (filter, map, add etc.) — pure JS operations handled by code-task-executor
       // - loop:* (forOf, while etc.) — loop constructs handled by code-task-executor
       // Note: code:exec_* capabilities are NOT internal and must be routed normally.
+      // Bug fix: Also extract bodyTools from loop task metadata — loop:forOf is internal
+      // but its body tools (e.g., std:psql_query) need routing detection.
       // Normalize tool IDs: mcp.server.action -> server:action for routing lookup
+      type TaskWithMeta = { tool?: string; metadata?: { bodyTools?: string[] } };
       const toolsUsed = optimizedDAG.tasks
-        .map((t) => (t as { tool?: string }).tool)
-        .filter((t): t is string => !!t && !isInternalOperation(t))
+        .flatMap((t) => {
+          const task = t as TaskWithMeta;
+          const tools: string[] = [];
+          // Include the task's own tool if not internal
+          if (task.tool && !isInternalOperation(task.tool)) {
+            tools.push(task.tool);
+          }
+          // Include loop body tools (hidden inside loop:forOf/while tasks)
+          if (task.metadata?.bodyTools) {
+            for (const bt of task.metadata.bodyTools) {
+              if (!isInternalOperation(bt)) {
+                tools.push(bt);
+              }
+            }
+          }
+          return tools;
+        })
         .map(normalizeToolId);
 
       if (toolsUsed.length > 0) {
@@ -396,11 +414,22 @@ export class ExecuteDirectUseCase {
               }))
             )}`);
 
+            // Generate intent embedding for learning (same as server-routed path)
+            let intentEmbedding: number[] | undefined;
+            if (this.deps.embeddingModel) {
+              try {
+                intentEmbedding = await this.deps.embeddingModel.encode(intent);
+              } catch (err) {
+                log.warn("[ExecuteDirectUseCase] Failed to generate embedding for client-routed execution", { error: String(err) });
+              }
+            }
+
             // Build LearningContext for capability creation when trace is received
             const learningContext: LearningContext = {
               code,
               intent,
               staticStructure,
+              intentEmbedding,
               toolsUsed: toolsWithFqdn.map(t => t.fqdn), // FQDNs for capability registration
               userId: this.userId ?? undefined,
               traceId: request.executionTraceId, // Pre-generated trace ID (ADR-041)
