@@ -100,7 +100,7 @@ development_status:
   epic-3.5: done
   3.5-1-dag-suggester-speculative-execution: done # Code Review APPROVED 2025-11-26, 14 unit tests passing
   3.5-2-confidence-based-speculation-rollback: done # Code Review APPROVED 2025-11-28, 46 tests passing, production-ready
-  epic-3.5-retrospective: optional
+  epic-3.5-retrospective: completed # Retrospective completed 2026-02-24
 
   # Epic 4: Episodic Memory & Adaptive Learning (ADR-008)
   # 2 stories, 4.5-5.5h
@@ -124,7 +124,7 @@ development_status:
   epic-5: done # Both stories completed 2025-11-27
   5-1-search-tools-semantic-graph-hybrid: done
   5-2-workflow-templates-graph-bootstrap: done # Code Review APPROVED 2025-11-27, 52 tests passing
-  epic-5-retrospective: optional
+  epic-5-retrospective: completed # Retrospective completed 2026-02-24
 
   # Epic 6: Real-time Graph Monitoring & Observability
   # 6 stories (4 original + 6-5 added 2025-12-08 + 6-6 added 2025-12-29), ~12-17h
@@ -139,7 +139,7 @@ development_status:
   6-4-graph-explorer-search-interface: done # Code Review APPROVED 2025-12-04, 11 tests passing, all 11 ACs validated
   6-5-eventbus-broadcast-channel: done # Code review PASSED 2025-12-09, ADR-036, 43 tests
   6-6-admin-analytics-dashboard: done # User activity, errors, system health - cloud-only (src/cloud/admin/) - Story says done 2025-12-29
-  epic-6-retrospective: optional
+  epic-6-retrospective: completed # Retrospective completed 2026-02-24
 
   # Epic 7: Emergent Capabilities & Learning System
   # ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities System)
@@ -207,7 +207,7 @@ development_status:
   10-7b-shgat-scoring-integration: merged # MERGED into 10.7 - SHGAT scoring + persistence (migration 010)
   10-7c-thompson-sampling-integration: done # Code Review APPROVED 2025-12-23: 25 tests passing, Thompson integrated into AdaptiveThresholdManager
   10-8-pml-get-task-result: backlog
-  epic-10-retrospective: optional
+  epic-10-retrospective: completed # Retrospective completed 2026-02-24
 
   # Epic 11: Learning from Execution Traces
   # Epic: epic-11-learning-from-traces.md
@@ -223,7 +223,7 @@ development_status:
   11-4-definition-invocation-views: done # Story created 2025-12-23, toggle UI exists, needs API + wiring
   11-5-dry-run-mode: moved-to-12.8 # 2026-01-13: Moved to Epic 12.8 (Exploratory Dry-Run)
   11-6-shgat-training-per-sampling: done # Code Review APPROVED 2025-12-24: 19 tests passing, AC8/AC9/AC10 tests added
-  epic-11-retrospective: optional
+  epic-11-retrospective: completed # Retrospective completed 2026-02-24
 
   # Epic 12: Speculative Execution with Arguments
   # Epic: epic-12-speculative-execution-arguments.md
@@ -268,7 +268,7 @@ development_status:
   13-7-pml-stdlib-unification: done # lib/std/cap.ts - PmlStdServer + CapModule (cap:list, cap:lookup, cap:rename, cap:whois)
   13-8-unified-pml-registry-view: done # VIEW pml_registry, record_type in pml:discover, migration 031
   13-9-routing-inheritance: done # Code Review 2025-12-30, 24 tests passing, routing inferred from tools_used
-  epic-13-retrospective: optional
+  epic-13-retrospective: completed # Retrospective completed 2026-02-24
   # NOTE: Fork & Merge (cap:fork, cap:merge) deferred to Epic 14+
 
   # Epic 14: JSR Package Local/Cloud MCP Routing
@@ -297,7 +297,7 @@ development_status:
   14-10-standalone-capability-distribution: backlog # pml add/run/remove/list for standalone caps
   # Phase 5: Distribution (~2 days)
   14-11-binary-distribution-deno-compile: done # deno compile for Linux/macOS/Windows, install.sh, pml upgrade
-  epic-14-retrospective: optional
+  epic-14-retrospective: completed # Retrospective completed 2026-02-24
 
   # Epic 15: CasysDB Native Engine (Rust)
   # Epic: epic-15-casysdb-native-engine.md
