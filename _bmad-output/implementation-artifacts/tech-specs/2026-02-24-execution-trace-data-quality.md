@@ -1,8 +1,10 @@
 # Tech Spec: Execution Trace Data Quality — task_results comme source unique
 
 **Date** : 2026-02-24
+**Status** : Implémenté (commit `20cb43e5`, 2026-02-24)
 **Contexte** : Audit SHGAT enrichment a révélé que le GRU training ne voit ni les capabilities ni le contenu des boucles dans les séquences d'exécution.
 **Suite de** : `2026-02-24-shgat-audit-findings.md`
+**ADR** : ADR-069
 
 ---
 
