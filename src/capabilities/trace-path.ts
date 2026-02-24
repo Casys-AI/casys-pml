@@ -13,7 +13,7 @@
 
 import type { ExecutionTrace } from "./types.ts";
 import { normalizeToolId } from "./routing-resolver.ts";
-import { isInternalOperation } from "./pure-operations.ts";
+import { isInternalOperation, isLoopOperation } from "./pure-operations.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
 
@@ -38,6 +38,13 @@ export function getCleanToolPath(
         tr.tool.startsWith("$cap:") && tr.resolvedTool
           ? tr.resolvedTool
           : tr.tool;
+      // Loop entries: expand bodyTools (deduplicated static list) instead of opaque loop:* entry
+      if (isLoopOperation(toolId)) {
+        if (tr.bodyTools && tr.bodyTools.length > 0) {
+          raw.push(...tr.bodyTools);
+        }
+        continue;
+      }
       if (toolId) raw.push(toolId);
     }
   }

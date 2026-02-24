@@ -684,7 +684,7 @@ export class WorkerBridge {
               initialContext: (context ?? {}) as Record<string, JsonValue>,
               executedPath,
               decisions: [],
-              taskResults: [loopTaskResult],
+              taskResults: [loopTaskResult, ...this.buildTaskResults(this.getSortedTraces())],
             },
           });
 
@@ -1056,28 +1056,44 @@ export class WorkerBridge {
   }
 
   /**
-   * Build task results from tool traces for execution trace persistence
+   * Build task results from tool AND capability traces for execution trace persistence.
+   * Captures both tool_end and capability_end events so that capabilities appear
+   * in task_results sequences (used by GRU training via getCleanToolPath).
    */
   private buildTaskResults(sortedTraces: TraceEvent[]): TraceTaskResult[] {
     return sortedTraces
-      .filter((t): t is ToolTraceEvent => t.type === "tool_end")
+      .filter(isEndTraceEvent)
       .map((t, idx) => {
-        // deno-lint-ignore no-explicit-any
-        const trace = t as any;
-        const base: TraceTaskResult = {
+        if (t.type === "tool_end") {
+          const toolTrace = t as ToolTraceEvent;
+          // deno-lint-ignore no-explicit-any
+          const trace = t as any;
+          const base: TraceTaskResult = {
+            taskId: `task-${idx}`,
+            tool: toolTrace.tool,
+            args: (toolTrace.args ?? {}) as Record<string, JsonValue>,
+            result: (toolTrace.result ?? null) as JsonValue,
+            success: toolTrace.success ?? false,
+            durationMs: toolTrace.durationMs ?? 0,
+          };
+          // Loop metadata — propagate from trace to task result for TraceTimeline display
+          if (trace.loopId) base.loopId = trace.loopId;
+          if (trace.loopType) base.loopType = trace.loopType;
+          if (trace.loopCondition) base.loopCondition = trace.loopCondition;
+          if (trace.bodyTools) base.bodyTools = trace.bodyTools;
+          return base;
+        }
+        // capability_end — use FQDN when available, fallback to capability name
+        const capTrace = t as CapabilityTraceEvent;
+        return {
           taskId: `task-${idx}`,
-          tool: t.tool,
-          args: (t.args ?? {}) as Record<string, JsonValue>,
-          result: (t.result ?? null) as JsonValue,
-          success: t.success ?? false,
-          durationMs: t.durationMs ?? 0,
-        };
-        // Loop metadata — propagate from trace to task result for TraceTimeline display
-        if (trace.loopId) base.loopId = trace.loopId;
-        if (trace.loopType) base.loopType = trace.loopType;
-        if (trace.loopCondition) base.loopCondition = trace.loopCondition;
-        if (trace.bodyTools) base.bodyTools = trace.bodyTools;
-        return base;
+          tool: capTrace.capabilityFqdn ?? capTrace.capability,
+          args: (capTrace.args ?? {}) as Record<string, JsonValue>,
+          result: (capTrace.result ?? null) as JsonValue,
+          success: capTrace.success ?? false,
+          durationMs: capTrace.durationMs ?? 0,
+          isCapabilityCall: true,
+        } as TraceTaskResult;
       });
   }
 

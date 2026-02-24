@@ -92,7 +92,7 @@ export class CapabilityCodeGenerator {
     throw new Error("Capability depth exceeded (max: ${MAX_DEPTH}). Possible cycle detected.");
   }
   __capabilityDepth = __depth + 1;
-  __trace({ type: "capability_start", capability: "${name}", capabilityId: "${capability.id}", args });
+  __trace({ type: "capability_start", capability: "${name}", capabilityId: "${capability.id}"${capability.fqdn ? `, capabilityFqdn: "${capability.fqdn}"` : ""}, args });
   let __capSuccess = true;
   let __capError = null;
   let __capResult = undefined;
@@ -106,7 +106,7 @@ export class CapabilityCodeGenerator {
     throw e;
   } finally {
     __capabilityDepth = __depth;
-    __trace({ type: "capability_end", capability: "${name}", capabilityId: "${capability.id}", success: __capSuccess, error: __capError?.message, result: __capResult, durationMs: Date.now() - __capStartTime });
+    __trace({ type: "capability_end", capability: "${name}", capabilityId: "${capability.id}"${capability.fqdn ? `, capabilityFqdn: "${capability.fqdn}"` : ""}, success: __capSuccess, error: __capError?.message, result: __capResult, durationMs: Date.now() - __capStartTime });
   }
 }`;
   }

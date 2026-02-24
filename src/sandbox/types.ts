@@ -336,6 +336,8 @@ export interface CapabilityTraceEvent extends BaseTraceEvent {
   capability: string;
   /** Capability UUID */
   capabilityId: string;
+  /** Capability FQDN (e.g., "local.default.fs.ls.a7f3") — for task_results persistence */
+  capabilityFqdn?: string;
 }
 
 /**
