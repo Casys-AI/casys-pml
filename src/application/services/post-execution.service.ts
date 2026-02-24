@@ -22,6 +22,7 @@ import type { DbClient } from "../../db/types.ts";
 import type { StaticStructure, TraceTaskResult } from "../../capabilities/types/mod.ts";
 import { trainSHGATOnPathTracesSubprocess } from "../../graphrag/learning/mod.ts";
 import { trainingLock } from "../../graphrag/learning/mod.ts";
+import type { AlgorithmInitializer } from "../../mcp/algorithm-init/initializer.ts";
 import { type AdaptiveThresholdManager, updateThompsonSampling } from "../../mcp/adaptive-threshold.ts";
 import { enrichToolOutputSchema } from "../../capabilities/output-schema-inferrer.ts";
 import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
@@ -88,6 +89,7 @@ function parseCapabilityWithEmbedding(row: CapabilityRow): ParsedCapability | nu
   };
 }
 
+
 /**
  * Dependencies for PostExecutionService
  */
@@ -102,6 +104,8 @@ export interface PostExecutionServiceDeps {
   adaptiveThresholdManager?: AdaptiveThresholdManager;
   /** Callback to save SHGAT params after training */
   onSHGATParamsUpdated?: () => Promise<void>;
+  /** AlgorithmInitializer for GRU training + hot reload */
+  algorithmInitializer?: AlgorithmInitializer;
 }
 
 /**
@@ -161,6 +165,7 @@ export class PostExecutionService {
     );
 
     // 6. PER batch training (background, non-blocking)
+    // GRU training is chained after SHGAT (inside runPERBatchTraining)
     this.runPERBatchTraining().catch((err) => {
       const errMsg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
       log.warn(`[PostExecutionService] PER training failed: ${errMsg}`);
@@ -492,6 +497,227 @@ export class PostExecutionService {
       log.warn(`[PostExecutionService] PER training failed: ${errMsg}`);
     } finally {
       trainingLock.release("PER");
+
+      // Chain: GRU trains AFTER SHGAT, every trace (background, non-blocking)
+      this.runGRUBatchTraining().catch((err) => {
+        log.warn(`[PostExecutionService] GRU training (post-SHGAT) failed: ${err}`);
+      });
+    }
+  }
+
+  /**
+   * Run GRU batch training via Node subprocess.
+   *
+   * Collects recent execution traces as GRU TransitionExamples,
+   * loads tool embeddings, and spawns training.
+   * After training, hot-reloads weights into the running GRU.
+   */
+  async runGRUBatchTraining(): Promise<void> {
+    const { algorithmInitializer, db } = this.deps;
+
+    if (!algorithmInitializer?.getGRU()?.isReady() || !db) {
+      return;
+    }
+
+    if (!trainingLock.acquire("GRU")) {
+      log.debug("[PostExecutionService] Skipping GRU training - lock held");
+      return;
+    }
+
+    try {
+      // 1. Load recent traces with intent embeddings
+      const traces = await db.query(`
+        SELECT
+          et.task_results,
+          et.intent_embedding,
+          et.success
+        FROM execution_trace et
+        WHERE et.task_results IS NOT NULL
+          AND jsonb_typeof(et.task_results) = 'array'
+          AND jsonb_array_length(et.task_results) > 1
+          AND et.intent_embedding IS NOT NULL
+        ORDER BY et.executed_at DESC
+        LIMIT 200
+      `) as unknown as Array<{
+        task_results: string | Array<{ tool?: string }>;
+        intent_embedding: number[] | string;
+        success: boolean;
+      }>;
+
+      if (traces.length < 20) {
+        log.debug(`[PostExecutionService] GRU: not enough traces (${traces.length} < 20)`);
+        return;
+      }
+
+      // 2. Load rename history to resolve old capability names in traces.
+      // Traces contain tools in two formats:
+      //   - short: "namespace:action" (old_name column)
+      //   - FQDN: "org.project.namespace.action.hash" (old_fqdn column)
+      // We index both formats so resolveToolName works regardless of input format.
+      let renameMap = new Map<string, string>();
+      try {
+        const renameRows = await db.query(
+          "SELECT old_name, new_name, old_fqdn, new_fqdn FROM capability_name_history ORDER BY renamed_at ASC",
+        ) as Array<{ old_name: string; new_name: string; old_fqdn: string; new_fqdn: string }>;
+        for (const row of renameRows) {
+          renameMap.set(row.old_name, row.new_name);
+          // Also map FQDN → new short name (normalizeToolId will produce short form)
+          if (row.old_fqdn) renameMap.set(row.old_fqdn, row.new_name);
+        }
+        // Follow chains: A->B, B->C => A->C
+        for (const [oldName, newName] of renameMap) {
+          let current = newName;
+          while (renameMap.has(current)) current = renameMap.get(current)!;
+          if (current !== newName) renameMap.set(oldName, current);
+        }
+      } catch {
+        // Table may not exist yet (migration pending) — proceed without
+        renameMap = new Map();
+      }
+      const resolveToolName = (name: string): string => renameMap.get(name) ?? name;
+
+      // 3. Build GRU TransitionExamples from traces
+      const examples: Array<{
+        intentEmbedding: number[];
+        contextToolIds: string[];
+        targetToolId: string;
+        isTerminal: number;
+        isSingleTool: boolean;
+      }> = [];
+
+      for (const trace of traces) {
+        let taskResults: Array<{ tool?: string }> = [];
+        try {
+          taskResults = typeof trace.task_results === "string"
+            ? JSON.parse(trace.task_results)
+            : trace.task_results;
+        } catch { continue; }
+
+        const tools = taskResults
+          .map(t => t.tool)
+          .filter((t): t is string => !!t)
+          .map(normalizeToolId)
+          .filter(Boolean)
+          .map(t => resolveToolName(t!)) as string[];
+
+        if (tools.length < 1) continue;
+
+        let intentEmb: number[];
+        if (Array.isArray(trace.intent_embedding)) {
+          intentEmb = trace.intent_embedding;
+        } else if (typeof trace.intent_embedding === "string") {
+          try { intentEmb = JSON.parse(trace.intent_embedding); } catch { continue; }
+        } else { continue; }
+
+        // One example per transition in the trace
+        for (let i = 0; i < tools.length; i++) {
+          examples.push({
+            intentEmbedding: intentEmb,
+            contextToolIds: tools.slice(0, i),
+            targetToolId: tools[i],
+            isTerminal: i === tools.length - 1 ? 1 : 0,
+            isSingleTool: tools.length === 1,
+          });
+        }
+      }
+
+      if (examples.length < 50) {
+        log.debug(`[PostExecutionService] GRU: not enough examples (${examples.length} < 50)`);
+        return;
+      }
+
+      // 3. Load tool embeddings (prefer SHGAT-enriched over raw BGE-M3)
+      const allToolIds = new Set<string>();
+      for (const ex of examples) {
+        allToolIds.add(ex.targetToolId);
+        for (const t of ex.contextToolIds) allToolIds.add(t);
+      }
+
+      const toolEmbeddings: Record<string, number[]> = {};
+
+      // Try SHGAT embeddings first (graph-enriched via message passing)
+      const shgat = this.deps.shgat;
+      if (shgat) {
+        const shgatEmbs = shgat.getToolEmbeddings();
+        for (const toolId of allToolIds) {
+          const emb = shgatEmbs.get(toolId);
+          if (emb) toolEmbeddings[toolId] = emb;
+        }
+        log.debug(`[PostExecutionService] GRU: ${Object.keys(toolEmbeddings).length}/${allToolIds.size} tools from SHGAT embeddings`);
+      }
+
+      // Fallback to DB for missing tools
+      const missingToolIds = [...allToolIds].filter(id => !toolEmbeddings[id]);
+      if (missingToolIds.length > 0) {
+        const rows = await db.query(
+          `SELECT tool_id, embedding FROM tool_embedding WHERE tool_id = ANY($1)`,
+          [missingToolIds],
+        ) as Array<{ tool_id: string; embedding: number[] | string }>;
+        for (const row of rows) {
+          const emb = Array.isArray(row.embedding) ? row.embedding
+            : typeof row.embedding === "string" ? (() => { try { return JSON.parse(row.embedding); } catch { return null; } })()
+            : null;
+          if (emb) toolEmbeddings[row.tool_id] = emb;
+        }
+      }
+
+      // 4. Load capability data (cap→tool hierarchy) with normalized names
+      let capabilityData: Array<{ id: string; embedding: number[]; toolChildren: string[]; level: number }> | undefined;
+      try {
+        const capRows = await db.query(
+          `SELECT DISTINCT ON (cr.namespace, cr.action)
+            cr.namespace || ':' || cr.action as cap_name,
+            wp.intent_embedding as embedding,
+            wp.dag_structure->'tools_used' as tools_used,
+            COALESCE(wp.hierarchy_level, 1) as level
+          FROM workflow_pattern wp
+          JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+          WHERE wp.code_snippet IS NOT NULL
+            AND wp.intent_embedding IS NOT NULL
+            AND wp.dag_structure->'tools_used' IS NOT NULL
+          ORDER BY cr.namespace, cr.action, wp.last_used DESC
+          LIMIT 500`,
+        ) as unknown as Array<{ cap_name: string; embedding: number[] | string; tools_used: string[] | null; level: number }>;
+
+        const parsed: Array<{ id: string; embedding: number[]; toolChildren: string[]; level: number }> = [];
+        for (const row of capRows) {
+          let emb: number[];
+          if (Array.isArray(row.embedding)) {
+            emb = row.embedding;
+          } else if (typeof row.embedding === "string") {
+            try { emb = JSON.parse(row.embedding); } catch { continue; }
+          } else { continue; }
+          if (!Array.isArray(emb) || emb.length === 0) continue;
+
+          const toolChildren = (row.tools_used ?? [])
+            .map(normalizeToolId)
+            .filter(Boolean) as string[];
+          if (toolChildren.length === 0) continue;
+
+          parsed.push({ id: row.cap_name, embedding: emb, toolChildren, level: row.level });
+        }
+
+        if (parsed.length > 0) {
+          capabilityData = parsed;
+        }
+      } catch (e) {
+        log.debug(`[PostExecutionService] GRU: could not load capability data: ${e}`);
+      }
+
+      log.info(`[PostExecutionService] GRU training: ${examples.length} examples, ${Object.keys(toolEmbeddings).length} tool embeddings, ${capabilityData?.length ?? 0} caps`);
+
+      // 5. Train + hot reload
+      const result = await algorithmInitializer.triggerGRUTraining(examples, toolEmbeddings, capabilityData);
+
+      if (result.success) {
+        log.info(`[PostExecutionService] GRU training done: loss=${result.finalLoss?.toFixed(4)}, acc=${result.finalAccuracy?.toFixed(2)}`);
+      } else {
+        log.warn(`[PostExecutionService] GRU training failed: ${result.error}`);
+      }
+    } catch (error) {
+      log.warn(`[PostExecutionService] GRU training error: ${error}`);
+    } finally {
+      trainingLock.release("GRU");
     }
   }
 }

@@ -21,6 +21,7 @@ import type { SHGAT } from "../../graphrag/algorithms/shgat.ts";
 import type { DRDSP } from "../../graphrag/algorithms/dr-dsp.ts";
 import type { CheckpointManager } from "../../dag/checkpoint-manager.ts";
 import type { CapabilityRegistry } from "../../capabilities/capability-registry.ts";
+import type { IGRUInference } from "../../graphrag/algorithms/gru/types.ts";
 
 import { buildContainer, type AppConfig, type EventBus } from "./container.ts";
 
@@ -117,6 +118,8 @@ export interface BootstrapOptions {
   capabilityRegistry?: CapabilityRegistry;
   /** CapModule for cap_* tool routing */
   capModule?: import("../../mcp/handlers/cap-handler.ts").CapModule;
+  /** GRU inference engine for next-tool prediction */
+  gru?: IGRUInference;
 }
 
 /**
@@ -153,8 +156,6 @@ export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
     mcpClients,
     config = {},
     // Phase 3.1: Execute dependencies
-    shgat,
-    drdsp,
     checkpointManager,
     capabilityRegistry,
   } = options;
@@ -167,11 +168,8 @@ export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
 
   // Phase 3.1: Create execute adapters
   const executeDAGSuggester = new ExecuteDAGSuggesterAdapter({
-    shgat,
-    drdsp,
     embeddingModel: embeddingModel as EmbeddingModelInterface,
-    capabilityRepo: capabilityRepoAdapter,
-    capabilityRegistry,
+    gru: options.gru,
   });
 
   const workflowRepo = new WorkflowRepositoryAdapter({

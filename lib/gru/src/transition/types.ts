@@ -121,7 +121,13 @@ export interface CompactGRUConfig {
   n8nLossWeight: number;
 
   /**
-   * Number of non-leaf vocabulary nodes (level > 0) in the unified vocabulary.
+   * Hierarchy soft label alpha: fraction of target probability spread to
+   * parent caps (if target is a tool) or child tools (if target is a cap).
+   * 0 = disabled (standard one-hot), 0.2 = 20% to hierarchy neighbors.
+   */
+  hierarchyAlpha: number;
+
+  /**
    * Set automatically by setToolVocabulary when higher-level nodes are provided.
    * vocabSize = numTools + numVocabNodes.
    */
@@ -169,6 +175,9 @@ export const DEFAULT_CONFIG: CompactGRUConfig = {
 
   // n8n augmentation
   n8nLossWeight: 0.3,
+
+  // Hierarchy soft labels
+  hierarchyAlpha: 0.2,
 
   // Non-leaf vocabulary nodes (caps, meta-caps)
   numVocabNodes: 0,

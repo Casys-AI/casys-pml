@@ -1,9 +1,8 @@
 /**
  * DAG Suggester Adapter
  *
- * Adapts existing SHGAT + DR-DSP infrastructure to the IDAGSuggester interface.
- *
- * Phase 3.1: Execute Handler → Use Cases refactoring
+ * Suggests tool DAGs from natural language intent.
+ * Strategy: GRU path prediction only. No fallback.
  *
  * @module infrastructure/di/adapters/execute/dag-suggester-adapter
  */
@@ -12,57 +11,9 @@ import * as log from "@std/log";
 import type {
   IDAGSuggester,
   SuggestionResult,
-  CapabilityMatch,
   DAGSuggestion,
 } from "../../../../domain/interfaces/dag-suggester.ts";
-import type { ICapabilityRepository } from "../../../../domain/interfaces/capability-repository.ts";
-import type { HypergraphNode } from "../../../../graphrag/algorithms/dr-dsp.ts";
-
-/**
- * SHGAT scorer interface (from existing infrastructure)
- * SHGAT scores both capabilities (level 1+) and tools (level 0)
- */
-export interface SHGATScorerInfra {
-  scoreAllCapabilities(intentEmbedding: number[]): Array<{
-    capabilityId: string;
-    score: number;
-    headScores?: number[];
-    headWeights?: number[];
-    recursiveContribution?: number;
-    featureContributions?: {
-      semantic?: number;
-      structure?: number;
-      temporal?: number;
-      reliability?: number;
-    };
-  }>;
-  /** Score tools (level 0 nodes) - same scoring as capabilities */
-  scoreAllTools?(intentEmbedding: number[]): Array<{
-    toolId: string;
-    score: number;
-  }>;
-}
-
-/**
- * DR-DSP pathfinder interface (from existing infrastructure)
- * Now aligned with SHGAT - supports tools AND capabilities as nodes
- * DR-DSP is for pathfinding, NOT scoring (SHGAT does scoring)
- */
-export interface DRDSPPathfinder {
-  findShortestHyperpath(source: string, target: string): {
-    found: boolean;
-    path: string[];
-    nodeSequence: string[];
-    hyperedges: Array<{ id: string }>;
-    totalWeight: number;
-  };
-  /** Get node by ID (aligned model) - returns HypergraphNode */
-  getNode?(id: string): HypergraphNode | undefined;
-  /** Get all capability nodes */
-  getCapabilityNodes?(): Map<string, HypergraphNode>;
-  /** Get all tool nodes */
-  getToolNodes?(): Map<string, HypergraphNode>;
-}
+import type { IGRUInference } from "../../../../graphrag/algorithms/gru/types.ts";
 
 /**
  * Embedding model interface
@@ -72,25 +23,20 @@ export interface EmbeddingModelInfra {
 }
 
 /**
- * Capability registry interface for resolving callName
- */
-export interface CapabilityRegistryInfra {
-  getByWorkflowPatternId(capabilityId: string): Promise<{ namespace: string; action: string } | null>;
-}
-
-/**
  * Dependencies for DAGSuggesterAdapter
  */
 export interface DAGSuggesterAdapterDeps {
-  shgat?: SHGATScorerInfra;
-  drdsp?: DRDSPPathfinder;
   embeddingModel?: EmbeddingModelInfra;
-  capabilityRepo: ICapabilityRepository;
-  capabilityRegistry?: CapabilityRegistryInfra;
+  gru?: IGRUInference;
 }
 
+/** Minimum GRU confidence to use its prediction */
+const GRU_CONFIDENCE_THRESHOLD = 0.15;
+
 /**
- * Adapts SHGAT + DR-DSP to IDAGSuggester interface
+ * Suggests tool DAGs from intent.
+ *
+ * GRU only. If GRU is not ready or confidence is too low, returns confidence: 0.
  */
 export class DAGSuggesterAdapter implements IDAGSuggester {
   private deps: DAGSuggesterAdapterDeps;
@@ -99,38 +45,21 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
     this.deps = deps;
   }
 
-  /**
-   * Set SHGAT scorer (lazy initialization after algorithms are loaded)
-   */
-  setSHGAT(shgat: SHGATScorerInfra): void {
-    this.deps = { ...this.deps, shgat };
-  }
-
-  /**
-   * Set DR-DSP pathfinder (lazy initialization after algorithms are loaded)
-   */
-  setDRDSP(drdsp: DRDSPPathfinder): void {
-    this.deps = { ...this.deps, drdsp };
-  }
-
-  /**
-   * Set embedding model (lazy initialization)
-   */
   setEmbeddingModel(embeddingModel: EmbeddingModelInfra): void {
     this.deps = { ...this.deps, embeddingModel };
+  }
+
+  setGRU(gru: IGRUInference): void {
+    this.deps = { ...this.deps, gru };
   }
 
   /**
    * Generate DAG suggestion from natural language intent.
    *
-   * Strategy:
-   * 1. Score both capabilities AND tools with SHGAT
-   * 2. Compare best capability vs best tool
-   * 3. If best score >= threshold, return capability OR tool directly
-   * 4. If below threshold, use DR-DSP to compose path
+   * GRU only. No fallback. If GRU is not ready or not confident, returns confidence: 0.
    */
   async suggest(intent: string, correlationId?: string, precomputedEmbedding?: number[]): Promise<SuggestionResult> {
-    if (!this.deps.shgat) {
+    if (!this.deps.gru?.isReady()) {
       return { confidence: 0 };
     }
 
@@ -140,58 +69,59 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
         return { confidence: 0 };
       }
 
-      // Score both capabilities AND tools with SHGAT
-      const capResults = this.deps.shgat.scoreAllCapabilities(intentEmbedding);
-      const toolResults = this.deps.shgat.scoreAllTools?.(intentEmbedding) ?? [];
+      const gru = this.deps.gru;
+      const first = gru.predictFirstTool(intentEmbedding);
 
-      const bestCap = capResults[0];
-      const bestTool = toolResults[0];
-
-      if (!bestCap && !bestTool) {
+      if (first.score < GRU_CONFIDENCE_THRESHOLD) {
+        log.debug("[DAGSuggesterAdapter] GRU confidence too low", {
+          correlationId,
+          gruScore: first.score,
+          threshold: GRU_CONFIDENCE_THRESHOLD,
+        });
         return { confidence: 0 };
       }
 
-      const GOOD_MATCH_THRESHOLD = 0.6;
-      const bestCapScore = bestCap?.score ?? 0;
-      const bestToolScore = bestTool?.score ?? 0;
-
-      // Case 1: Best capability wins
-      if (bestCapScore >= bestToolScore && bestCapScore >= GOOD_MATCH_THRESHOLD) {
-        const result = await this.buildCapabilitySuggestion(bestCap, bestCapScore, correlationId);
-        if (result) {
-          return result;
-        }
+      const beamResults = gru.buildPathBeam(intentEmbedding, first.toolId, 3);
+      const bestBeam = beamResults[0];
+      if (!bestBeam || bestBeam.path.length === 0) {
+        return { confidence: 0 };
       }
 
-      // Case 2: Best tool wins
-      if (bestToolScore > bestCapScore && bestToolScore >= GOOD_MATCH_THRESHOLD) {
-        return this.buildToolSuggestion(bestTool, correlationId);
-      }
-
-      // Case 3: Below threshold - use DR-DSP composition
-      log.debug("[DAGSuggesterAdapter] Below threshold, using DR-DSP composition", {
+      log.info("[DAGSuggesterAdapter] GRU prediction", {
         correlationId,
-        bestCapScore,
-        bestToolScore,
-        threshold: GOOD_MATCH_THRESHOLD,
+        firstTool: first.toolId,
+        firstScore: first.score,
+        pathLength: bestBeam.path.length,
+        beamScore: bestBeam.score,
       });
 
-      const composed = await this.composeWithDRDSP(intentEmbedding, correlationId);
-
-      if (bestCap) {
-        return { ...composed, bestMatch: this.toCapabilityMatch(bestCap) };
-      }
-
-      return composed;
+      return {
+        suggestedDag: this.pathToDAG(bestBeam.path),
+        confidence: first.score,
+        canSpeculate: first.score >= 0.5,
+      };
     } catch (error) {
-      log.error(`[DAGSuggesterAdapter] Suggestion failed: ${error}`);
+      log.error(`[DAGSuggesterAdapter] GRU prediction failed: ${error}`);
       return { confidence: 0 };
     }
   }
 
-  /**
-   * Resolve intent embedding from precomputed value or generate via model.
-   */
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  private pathToDAG(path: string[]): DAGSuggestion {
+    return {
+      tasks: path.map((toolId, index) => ({
+        id: `task_${index}`,
+        callName: toolId,
+        type: "tool" as const,
+        inputSchema: undefined,
+        dependsOn: index > 0 ? [`task_${index - 1}`] : [],
+      })),
+    };
+  }
+
   private async resolveEmbedding(intent: string, precomputed?: number[]): Promise<number[] | null> {
     if (precomputed && precomputed.length > 0) {
       return precomputed;
@@ -203,263 +133,4 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
     return embedding && embedding.length > 0 ? embedding : null;
   }
 
-  /**
-   * Build a suggestion result for a capability match.
-   */
-  private async buildCapabilitySuggestion(
-    bestCap: { capabilityId: string; score: number; headScores?: number[]; headWeights?: number[]; recursiveContribution?: number; featureContributions?: { semantic?: number; structure?: number; temporal?: number; reliability?: number } },
-    bestCapScore: number,
-    correlationId?: string,
-  ): Promise<SuggestionResult | null> {
-    const capability = await this.deps.capabilityRepo.findById(bestCap.capabilityId);
-    if (!capability) {
-      return null;
-    }
-
-    const callName = await this.resolveCallName(capability.id, capability.fqdn);
-    const suggestedDag: DAGSuggestion = {
-      tasks: [{
-        id: "task_0",
-        callName: callName || bestCap.capabilityId,
-        type: "capability",
-        inputSchema: capability.parametersSchema,
-        dependsOn: [],
-      }],
-    };
-
-    log.info("[DAGSuggesterAdapter] Good match - returning capability directly", {
-      correlationId,
-      capabilityId: capability.id,
-      callName,
-      score: bestCapScore,
-    });
-
-    return {
-      suggestedDag,
-      confidence: bestCapScore,
-      bestMatch: this.toCapabilityMatch(bestCap),
-      canSpeculate: bestCapScore >= 0.7 && capability.successRate >= 0.8,
-    };
-  }
-
-  /**
-   * Build a suggestion result for a tool match.
-   */
-  private buildToolSuggestion(
-    bestTool: { toolId: string; score: number },
-    correlationId?: string,
-  ): SuggestionResult {
-    const suggestedDag: DAGSuggestion = {
-      tasks: [{
-        id: "task_0",
-        callName: bestTool.toolId,
-        type: "tool",
-        inputSchema: undefined,
-        dependsOn: [],
-      }],
-    };
-
-    log.info("[DAGSuggesterAdapter] Good match - returning tool directly", {
-      correlationId,
-      toolId: bestTool.toolId,
-      score: bestTool.score,
-    });
-
-    return {
-      suggestedDag,
-      confidence: bestTool.score,
-      canSpeculate: false,
-    };
-  }
-
-  /**
-   * Convert raw SHGAT result to CapabilityMatch.
-   */
-  private toCapabilityMatch(raw: {
-    capabilityId: string;
-    score: number;
-    headScores?: number[];
-    headWeights?: number[];
-    recursiveContribution?: number;
-    featureContributions?: { semantic?: number; structure?: number; temporal?: number; reliability?: number };
-  }): CapabilityMatch {
-    return {
-      capabilityId: raw.capabilityId,
-      score: raw.score,
-      headScores: raw.headScores,
-      headWeights: raw.headWeights,
-      recursiveContribution: raw.recursiveContribution,
-      featureContributions: raw.featureContributions,
-    };
-  }
-
-  /**
-   * Compose a DAG using DR-DSP when no good capability match exists
-   * - SHGAT scores the tools (level 0 nodes)
-   * - DR-DSP finds the path between relevant tools
-   */
-  private async composeWithDRDSP(
-    intentEmbedding: number[],
-    correlationId?: string,
-  ): Promise<SuggestionResult> {
-    // Need both SHGAT (for scoring) and DR-DSP (for pathfinding)
-    if (!this.deps.shgat?.scoreAllTools) {
-      log.debug("[DAGSuggesterAdapter] No SHGAT.scoreAllTools available for composition");
-      return { confidence: 0 };
-    }
-
-    // Score tools using SHGAT (not DR-DSP!)
-    const toolScores = this.deps.shgat.scoreAllTools(intentEmbedding);
-    if (toolScores.length === 0) {
-      return { confidence: 0 };
-    }
-
-    // Get top tools (threshold for relevance)
-    const TOOL_RELEVANCE_THRESHOLD = 0.3;
-    const relevantTools = toolScores.filter((t) => t.score >= TOOL_RELEVANCE_THRESHOLD);
-
-    if (relevantTools.length === 0) {
-      return { confidence: 0 };
-    }
-
-    // If only one relevant tool, return it directly
-    if (relevantTools.length === 1) {
-      const suggestedDag: DAGSuggestion = {
-        tasks: [{
-          id: "task_0",
-          callName: relevantTools[0].toolId,
-          type: "tool",
-          inputSchema: undefined,
-          dependsOn: [],
-        }],
-      };
-
-      return {
-        suggestedDag,
-        confidence: relevantTools[0].score,
-        canSpeculate: false,
-      };
-    }
-
-    // Multiple relevant tools - find path between top 2 using DR-DSP
-    const startTool = relevantTools[0].toolId;
-    const endTool = relevantTools[1].toolId;
-
-    // Use DR-DSP for pathfinding if available
-    if (this.deps.drdsp) {
-      const pathResult = this.deps.drdsp.findShortestHyperpath(startTool, endTool);
-
-      if (pathResult.found && pathResult.nodeSequence.length > 0) {
-        const suggestedDag = this.buildDAGFromPathWithTypes(pathResult.nodeSequence);
-
-        log.info("[DAGSuggesterAdapter] DR-DSP composition found path", {
-          correlationId,
-          pathLength: pathResult.nodeSequence.length,
-          tasksCount: suggestedDag.tasks.length,
-          startTool,
-          endTool,
-        });
-
-        // Confidence is average of tool scores in path
-        const avgConfidence = relevantTools.slice(0, 2).reduce((sum, t) => sum + t.score, 0) / 2;
-
-        return {
-          suggestedDag,
-          confidence: avgConfidence,
-          canSpeculate: false, // Composed paths require user validation
-        };
-      }
-    }
-
-    // Fallback: just return top tools as sequence (no DR-DSP or no path found)
-    const suggestedDag: DAGSuggestion = {
-      tasks: relevantTools.slice(0, 3).map((t, index) => ({
-        id: `task_${index}`,
-        callName: t.toolId,
-        type: "tool" as const,
-        inputSchema: undefined,
-        dependsOn: index > 0 ? [`task_${index - 1}`] : [],
-      })),
-    };
-
-    const avgConfidence = relevantTools.slice(0, 3).reduce((sum, t) => sum + t.score, 0) / Math.min(relevantTools.length, 3);
-
-    return {
-      suggestedDag,
-      confidence: avgConfidence,
-      canSpeculate: false,
-    };
-  }
-
-  /**
-   * Build DAG from path, preserving node types (tool vs capability)
-   */
-  private buildDAGFromPathWithTypes(nodeSequence: string[]): DAGSuggestion {
-    const tasks = nodeSequence.map((nodeId, index) => {
-      // Check if node is capability (DR-DSP aligned has this info)
-      const node = this.deps.drdsp?.getNode?.(nodeId);
-      const nodeType = node?.type ?? "tool";
-
-      return {
-        id: `task_${index}`,
-        callName: nodeId,
-        type: nodeType,
-        inputSchema: undefined,
-        dependsOn: index > 0 ? [`task_${index - 1}`] : [],
-      };
-    });
-
-    return { tasks };
-  }
-
-  /**
-   * Score all capabilities for an intent (raw SHGAT scoring)
-   */
-  scoreCapabilities(intentEmbedding: number[]): CapabilityMatch[] {
-    if (!this.deps.shgat) {
-      return [];
-    }
-
-    return this.deps.shgat.scoreAllCapabilities(intentEmbedding).map((r) => ({
-      capabilityId: r.capabilityId,
-      score: r.score,
-      headScores: r.headScores,
-      headWeights: r.headWeights,
-      recursiveContribution: r.recursiveContribution,
-      featureContributions: r.featureContributions,
-    }));
-  }
-
-  /**
-   * Resolve namespace:action callName from registry or FQDN
-   */
-  private async resolveCallName(capabilityId: string, fqdn?: string): Promise<string | undefined> {
-    log.debug("[DAGSuggesterAdapter] resolveCallName called", {
-      capabilityId,
-      fqdn,
-      hasRegistry: !!this.deps.capabilityRegistry,
-    });
-
-    // Try registry first
-    if (this.deps.capabilityRegistry) {
-      const record = await this.deps.capabilityRegistry.getByWorkflowPatternId(capabilityId);
-      log.debug("[DAGSuggesterAdapter] resolveCallName: registry result", {
-        found: !!record,
-        callName: record ? `${record.namespace}:${record.action}` : null,
-      });
-      if (record) {
-        return `${record.namespace}:${record.action}`;
-      }
-    }
-
-    // Fallback: parse from FQDN (format: org.project.namespace.action.hash)
-    if (fqdn) {
-      const parts = fqdn.split(".");
-      if (parts.length >= 5) {
-        return `${parts[2]}:${parts[3]}`;
-      }
-    }
-
-    return undefined;
-  }
 }

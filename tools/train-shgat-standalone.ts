@@ -8,7 +8,6 @@ import "@std/dotenv/load";
 import { parseArgs } from "@std/cli/parse-args";
 import { NUM_NEGATIVES } from "../src/graphrag/algorithms/shgat/types.ts";
 import { normalizeToolId } from "../src/capabilities/routing-resolver.ts";
-import { cleanToolIds } from "../src/capabilities/trace-path.ts";
 import postgres from "postgres";
 
 // ============================================================================
@@ -268,11 +267,15 @@ try {
   const traces = await sql`
     SELECT et.capability_id,
            COALESCE(et.intent_embedding, wp.intent_embedding) as intent_embedding,
-           et.success, et.executed_path
+           et.success, et.task_results
     FROM execution_trace et
     JOIN workflow_pattern wp ON wp.pattern_id = et.capability_id
-    WHERE et.capability_id IS NOT NULL AND wp.intent_embedding IS NOT NULL
-    ORDER BY et.priority DESC LIMIT 500
+    WHERE et.capability_id IS NOT NULL
+      AND wp.intent_embedding IS NOT NULL
+      AND et.task_results IS NOT NULL
+      AND jsonb_typeof(et.task_results) = 'array'
+      AND jsonb_array_length(et.task_results) >= 1
+    ORDER BY et.executed_at DESC
   `;
 
   loadingStatus.traces = traces.length;
@@ -291,6 +294,14 @@ try {
     if (!capToTools.has(trace.capability_id)) continue;
     const intentEmb = parseVector(trace.intent_embedding);
     if (!intentEmb) continue;
+
+    // Extract context tools from task_results (0% corruption vs 37.7% for executed_path)
+    const taskResults = (trace.task_results ?? []) as Array<{ tool?: string }>;
+    const contextTools = taskResults
+      .map((t: { tool?: string }) => t.tool)
+      .filter((t: string | undefined): t is string => !!t)
+      .map(normalizeToolId)
+      .filter(Boolean) as string[];
 
     const anchorTools = capToTools.get(trace.capability_id)!;
     const candidates: Array<{id: string; sim: number}> = [];
@@ -316,7 +327,7 @@ try {
 
     examples.push({
       intentEmbedding: intentEmb,
-      contextTools: cleanToolIds(trace.executed_path),
+      contextTools,
       candidateId: trace.capability_id,
       outcome: trace.success ? 1.0 : 0.0,
       negativeCapIds,

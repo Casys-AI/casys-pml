@@ -34,6 +34,17 @@ import {
 import { loadAllProvidesEdges } from "../../graphrag/provides-edge-calculator.ts";
 import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
 import { cleanToolIds } from "../../capabilities/trace-path.ts";
+import type { IGRUInference } from "../../graphrag/algorithms/gru/types.ts";
+import { GRUInference } from "../../graphrag/algorithms/gru/gru-inference.ts";
+import {
+  loadGRUWeightsFile,
+  loadGRUWeightsFromDb,
+  buildVocabulary,
+  computeStructuralMatrices,
+  type GRUWeightsFile,
+} from "../../graphrag/algorithms/gru/gru-loader.ts";
+import type { ToolCapabilityMap, SpawnGRUTrainingInput } from "../../graphrag/algorithms/gru/types.ts";
+import { spawnGRUTraining } from "../../graphrag/algorithms/gru/spawn-training.ts";
 import pako from "pako";
 import { decode as msgpackDecode } from "npm:@msgpack/msgpack@3.0.0-beta2";
 
@@ -88,6 +99,7 @@ export interface AlgorithmInitializerDeps {
 export interface AlgorithmInitResult {
   shgat: SHGAT | null;
   drdsp: DRDSP | null;
+  gru: IGRUInference | null;
   graphSyncController: GraphSyncController | null;
   capabilitiesLoaded: number;
 }
@@ -102,6 +114,7 @@ export interface AlgorithmInitResult {
 export class AlgorithmInitializer {
   private shgat: SHGAT | null = null;
   private drdsp: DRDSP | null = null;
+  private gru: IGRUInference | null = null;
   private graphSyncController: GraphSyncController | null = null;
   private capabilities: CapabilityWithEmbedding[] = [];
 
@@ -120,6 +133,7 @@ export class AlgorithmInitializer {
       return {
         shgat: null,
         drdsp: null,
+        gru: null,
         graphSyncController: null,
         capabilitiesLoaded: 0,
       };
@@ -178,9 +192,13 @@ export class AlgorithmInitializer {
         log.info(`[AlgorithmInitializer] No SHGAT params - run 'deno task train' to train`);
       }
 
+      // 8. Initialize GRU inference (independent of SHGAT params, needs tool IDs from SHGAT)
+      await this.initializeGRU();
+
       return {
         shgat: this.shgat,
         drdsp: this.drdsp,
+        gru: this.gru,
         graphSyncController: this.graphSyncController,
         capabilitiesLoaded: this.capabilities.length,
       };
@@ -189,6 +207,7 @@ export class AlgorithmInitializer {
       return {
         shgat: null,
         drdsp: null,
+        gru: null,
         graphSyncController: null,
         capabilitiesLoaded: 0,
       };
@@ -207,6 +226,97 @@ export class AlgorithmInitializer {
    */
   getDRDSP(): DRDSP | null {
     return this.drdsp;
+  }
+
+  /**
+   * Get GRU inference instance
+   */
+  getGRU(): IGRUInference | null {
+    return this.gru;
+  }
+
+  /**
+   * Reload GRU weights from DB after training.
+   * Updates weights in-place on the existing GRUInference instance.
+   */
+  async reloadGRUWeights(): Promise<boolean> {
+    if (!this.gru) {
+      log.warn("[AlgorithmInitializer] Cannot reload GRU weights — GRU not initialized");
+      return false;
+    }
+
+    try {
+      const result = await loadGRUWeightsFromDb(this.deps.db);
+      if (!result) {
+        log.warn("[AlgorithmInitializer] No GRU weights in DB to reload");
+        return false;
+      }
+
+      const gruInstance = this.gru as GRUInference;
+      gruInstance.setWeights(result.weights);
+
+      // Rebuild vocab if DB weights include embedded vocab (from training)
+      if (result.vocab) {
+        const vocab = buildVocabulary(
+          result.vocab.toolIds,
+          result.vocab.vocabNodes,
+          result.weights.similarityHeadKernel,
+        );
+
+        const expectedVocab = result.weights.similarityHeadKernel[0]?.length ?? 0;
+        if (vocab.vocabSize === expectedVocab) {
+          gruInstance.setVocabulary(vocab);
+          log.info(
+            `[AlgorithmInitializer] GRU weights + vocab reloaded from DB: ${vocab.vocabSize} vocab ` +
+            `(${result.vocab.toolIds.length} tools, ${result.vocab.vocabNodes.length} nodes)`,
+          );
+        } else {
+          log.warn(
+            `[AlgorithmInitializer] GRU DB vocab mismatch: built ${vocab.vocabSize}, ` +
+            `weights expect ${expectedVocab}. Weights reloaded, vocab kept as-is.`,
+          );
+        }
+      } else {
+        log.info("[AlgorithmInitializer] GRU weights reloaded from DB (no embedded vocab)");
+      }
+
+      return true;
+    } catch (error) {
+      log.error(`[AlgorithmInitializer] Failed to reload GRU weights: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Trigger GRU training subprocess, then hot-reload weights.
+   *
+   * @param examples - Training examples (from execution traces)
+   * @param toolEmbeddings - Tool embeddings keyed by tool ID
+   * @returns Training result
+   */
+  async triggerGRUTraining(
+    examples: SpawnGRUTrainingInput["examples"],
+    toolEmbeddings: Record<string, number[]>,
+    capabilityData?: SpawnGRUTrainingInput["capabilityData"],
+  ): Promise<{ success: boolean; finalLoss?: number; finalAccuracy?: number; error?: string }> {
+    if (!this.gru) {
+      return { success: false, error: "GRU not initialized" };
+    }
+
+    const result = await spawnGRUTraining({
+      examples,
+      toolEmbeddings,
+      capabilityData,
+      existingWeightsPath: "lib/gru/gru-weights-latest.json",
+      epochs: 5,
+      learningRate: 0.001,
+    });
+
+    if (result.success && result.savedToDb) {
+      await this.reloadGRUWeights();
+    }
+
+    return result;
   }
 
   /**
@@ -337,6 +447,211 @@ export class AlgorithmInitializer {
     } catch (error) {
       log.debug(`[AlgorithmInitializer] Could not load SHGAT params: ${error}`);
       return { loaded: false };
+    }
+  }
+
+  // ==========================================================================
+  // Private: GRU Initialization
+  // ==========================================================================
+
+  /**
+   * Initialize GRU inference engine.
+   *
+   * Loads weights (DB first, file fallback), builds vocabulary from
+   * SHGAT tool IDs + capability hierarchy, computes structural matrices
+   * (Jaccard + bigram) from execution traces.
+   */
+  private async initializeGRU(): Promise<void> {
+    try {
+      // 1. Load weights — file first (with embedded vocab), DB fallback (live-trained)
+      let weights: GRUWeightsFile["weights"] | null = null;
+      let savedVocab: GRUWeightsFile["vocab"] | undefined;
+
+      const weightsPath = "lib/gru/gru-weights-prod.json";
+      try {
+        const file = await loadGRUWeightsFile(weightsPath);
+        weights = file.weights;
+        savedVocab = file.vocab;
+        log.info(
+          `[AlgorithmInitializer] GRU weights loaded from file: ${weightsPath}` +
+          (savedVocab ? ` (with embedded vocab: ${savedVocab.toolIds.length} tools, ${savedVocab.vocabNodes.length} nodes)` : ""),
+        );
+      } catch {
+        // File not found — try DB
+        const dbResult = await loadGRUWeightsFromDb(this.deps.db);
+        if (dbResult) {
+          weights = dbResult.weights;
+          savedVocab = dbResult.vocab;
+          log.info(
+            "[AlgorithmInitializer] GRU weights loaded from DB" +
+            (savedVocab ? ` (with embedded vocab: ${savedVocab.toolIds.length} tools, ${savedVocab.vocabNodes.length} nodes)` : " (no embedded vocab)"),
+          );
+        } else {
+          log.warn("[AlgorithmInitializer] GRU weights not available (file not found, DB empty)");
+          return;
+        }
+      }
+
+      // 2. Build vocabulary
+      // If weights file includes vocab mapping, use it (guaranteed match with training).
+      // Otherwise fall back to DB query (ORDER BY tool_id must match training).
+      let toolIds: string[];
+      let vocabNodes: Array<{ id: string; level?: number; children?: string[] }>;
+
+      if (savedVocab) {
+        toolIds = savedVocab.toolIds;
+        vocabNodes = savedVocab.vocabNodes;
+        log.info(`[AlgorithmInitializer] GRU vocab from weights file: ${toolIds.length} tools, ${vocabNodes.length} nodes`);
+      } else {
+        // Fallback: reconstruct from DB (must match training order)
+        const toolRows = await this.deps.db.query(
+          "SELECT tool_id FROM tool_embedding ORDER BY tool_id",
+        ) as Array<{ tool_id: string }>;
+        toolIds = toolRows.map((r) => r.tool_id);
+
+        if (toolIds.length === 0) {
+          log.warn("[AlgorithmInitializer] GRU: No tools in tool_embedding table");
+          return;
+        }
+
+        vocabNodes = [];
+        for (const cap of this.capabilities) {
+          if (cap.toolsUsed && cap.toolsUsed.length > 0) {
+            vocabNodes.push({ id: cap.id, children: cap.toolsUsed });
+          }
+        }
+        log.warn("[AlgorithmInitializer] GRU vocab from DB fallback — may mismatch training if caps changed");
+      }
+
+      const vocab = buildVocabulary(toolIds, vocabNodes, weights.similarityHeadKernel);
+
+      // Vocab size sanity check
+      const expectedVocab = weights.similarityHeadKernel[0]?.length ?? 0;
+      if (vocab.vocabSize !== expectedVocab) {
+        log.error(
+          `[AlgorithmInitializer] GRU vocab MISMATCH: built ${vocab.vocabSize} (${toolIds.length} tools + ${vocabNodes.length} nodes), ` +
+          `weights expect ${expectedVocab}. GRU will NOT be loaded — predictions would be wrong.`,
+        );
+        return;
+      }
+
+      // 3. Build tool-capability map for structural bias + transition features
+      const toolCapMap = this.buildToolCapabilityMap(toolIds);
+
+      // 4. Load traces for bigram matrix
+      const traces = await this.loadTracesForBigram();
+      const toolToIndex = vocab.nodeToIndex;
+
+      // 5. Compute structural matrices
+      const structural = computeStructuralMatrices(
+        traces,
+        toolToIndex,
+        toolIds.length,
+        toolCapMap,
+      );
+
+      // 6. Wire up GRU
+      const gru = new GRUInference();
+      gru.setWeights(weights);
+      gru.setVocabulary(vocab);
+      gru.setStructuralMatrices(structural);
+
+      this.gru = gru;
+      log.info(
+        `[AlgorithmInitializer] GRU ready: ${vocab.vocabSize} vocab, ` +
+        `${toolIds.length} tools, ${traces.length} traces for bigram, ` +
+        `toolCapMap: ${toolCapMap ? `${toolCapMap.numTools}×${toolCapMap.numCapabilities}` : "none"}`,
+      );
+    } catch (error) {
+      log.error(`[AlgorithmInitializer] GRU initialization failed: ${error}`);
+      this.gru = null;
+    }
+  }
+
+  /**
+   * Build binary tool×capability matrix from capabilities data.
+   * Returns null if no capability data available.
+   */
+  private buildToolCapabilityMap(toolIds: string[]): ToolCapabilityMap | undefined {
+    if (this.capabilities.length === 0) return undefined;
+
+    // Collect all unique capability IDs that have tools
+    const capsWithTools = this.capabilities.filter(
+      (c) => c.toolsUsed && c.toolsUsed.length > 0,
+    );
+    if (capsWithTools.length === 0) return undefined;
+
+    const capIds = capsWithTools.map((c) => c.id);
+    const capToIdx = new Map<string, number>();
+    for (let i = 0; i < capIds.length; i++) {
+      capToIdx.set(capIds[i], i);
+    }
+
+    const toolToIdx = new Map<string, number>();
+    for (let i = 0; i < toolIds.length; i++) {
+      toolToIdx.set(toolIds[i], i);
+    }
+
+    const numTools = toolIds.length;
+    const numCaps = capIds.length;
+    const matrix = new Float32Array(numTools * numCaps);
+
+    for (const cap of capsWithTools) {
+      const capIdx = capToIdx.get(cap.id);
+      if (capIdx === undefined) continue;
+      for (const tool of cap.toolsUsed!) {
+        const toolIdx = toolToIdx.get(tool);
+        if (toolIdx !== undefined) {
+          matrix[toolIdx * numCaps + capIdx] = 1;
+        }
+      }
+    }
+
+    return { matrix, numTools, numCapabilities: numCaps };
+  }
+
+  /**
+   * Load execution traces as tool ID sequences for bigram matrix computation.
+   */
+  private async loadTracesForBigram(): Promise<string[][]> {
+    try {
+      const rows = (await this.deps.db.query(`
+        SELECT task_results
+        FROM execution_trace
+        WHERE task_results IS NOT NULL
+          AND jsonb_typeof(task_results) = 'array'
+          AND jsonb_array_length(task_results) > 1
+        ORDER BY executed_at DESC
+        LIMIT 1000
+      `)) as unknown as Array<{ task_results: string | Array<{ tool?: string }> }>;
+
+      const traces: string[][] = [];
+      for (const row of rows) {
+        let taskResults: Array<{ tool?: string }> = [];
+        try {
+          taskResults =
+            typeof row.task_results === "string"
+              ? JSON.parse(row.task_results)
+              : row.task_results;
+        } catch {
+          continue;
+        }
+
+        const tools = taskResults
+          .map((t) => t.tool)
+          .filter((t): t is string => !!t)
+          .map(normalizeToolId)
+          .filter(Boolean) as string[];
+
+        if (tools.length > 1) {
+          traces.push(tools);
+        }
+      }
+
+      return traces;
+    } catch (error) {
+      log.warn(`[AlgorithmInitializer] Could not load traces for GRU bigram: ${error}`);
+      return [];
     }
   }
 

@@ -173,6 +173,32 @@ export class RenameCapabilityUseCase {
 
       // Execute capability_records update if we have fields to update
       if (updates.length > 1) {
+        // Record rename history BEFORE the update so old names in execution traces
+        // can be resolved to current names during GRU training.
+        if (namespace !== undefined || actionName !== undefined) {
+          const newNs = namespace ?? record.namespace;
+          const newAct = actionName ?? record.action;
+          try {
+            // userId may be "local" (non-UUID) in dev mode — only pass valid UUIDs
+            const validUserId = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId) ? userId : null;
+            await db.exec(
+              `INSERT INTO capability_name_history
+                 (capability_id, org, project, old_namespace, old_action, old_hash,
+                  new_namespace, new_action, new_hash, user_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+              [
+                record.id, record.org, record.project,
+                record.namespace, record.action, record.hash,
+                newNs, newAct, record.hash,
+                validUserId,
+              ],
+            );
+            log.info(`[RenameCapability] Recorded rename history: ${record.namespace}:${record.action} → ${newNs}:${newAct}`);
+          } catch (histErr) {
+            log.warn(`[RenameCapability] Could not record name history: ${histErr}`);
+          }
+        }
+
         params.push(record.id);
         await db.query(
           `UPDATE capability_records

@@ -83,6 +83,12 @@ export class CompactInformedGRU {
   private jaccardMatrix: Float32Array | null = null;
   private bigramMatrix: Float32Array | null = null;
 
+  // Hierarchy maps for soft labels (built in setToolVocabulary)
+  // tool index → cap indices that contain this tool
+  private toolIdxToCapIndices = new Map<number, number[]>();
+  // cap index → child tool/cap indices
+  private capIdxToChildIndices = new Map<number, number[]>();
+
   // Temperature state (mutated during annealing)
   private currentTemperature: number;
 
@@ -341,24 +347,50 @@ export class CompactInformedGRU {
     (this.config as { numCapabilities: number }).numCapabilities = toolCapMap.numCapabilities;
 
     // Register higher-level nodes (level 1+) — indices numTools..vocabSize-1
+    // Iterate until stable: L1 caps (children=tools) first, then L2 (children=L1), etc.
     let numVocabNodes = 0;
     if (higherLevelNodes && higherLevelNodes.length > 0) {
-      for (const node of higherLevelNodes) {
-        if (node.level === 0) continue; // Leaf nodes must come from tools map
+      const pending = higherLevelNodes.filter(n => n.level > 0);
+      let prevSize = -1;
+      while (this.nodeToIndex.size !== prevSize) {
+        prevSize = this.nodeToIndex.size;
+        for (const node of pending) {
+          if (this.nodeToIndex.has(node.id)) continue;
 
-        // Only include nodes whose children are all in the vocabulary
-        const allChildrenKnown = (node.children ?? []).every(
-          (cid) => this.nodeToIndex.has(cid),
-        );
-        if (!allChildrenKnown) continue;
+          const allChildrenKnown = (node.children ?? []).every(
+            (cid) => this.nodeToIndex.has(cid),
+          );
+          if (!allChildrenKnown) continue;
 
-        this.nodeToIndex.set(node.id, idx);
-        this.indexToNode.set(idx, node);
-        idx++;
-        numVocabNodes++;
+          this.nodeToIndex.set(node.id, idx);
+          this.indexToNode.set(idx, node);
+          idx++;
+          numVocabNodes++;
+        }
       }
     }
     (this.config as { numVocabNodes: number }).numVocabNodes = numVocabNodes;
+
+    // Build hierarchy maps for soft labels
+    this.toolIdxToCapIndices.clear();
+    this.capIdxToChildIndices.clear();
+    for (const [nodeIdx, node] of this.indexToNode) {
+      if (node.level > 0 && node.children && node.children.length > 0) {
+        const childIndices: number[] = [];
+        for (const childId of node.children) {
+          const childIdx = this.nodeToIndex.get(childId);
+          if (childIdx === undefined) continue;
+          childIndices.push(childIdx);
+          // Register reverse mapping: child → parent caps
+          const existing = this.toolIdxToCapIndices.get(childIdx) ?? [];
+          existing.push(nodeIdx);
+          this.toolIdxToCapIndices.set(childIdx, existing);
+        }
+        if (childIndices.length > 0) {
+          this.capIdxToChildIndices.set(nodeIdx, childIndices);
+        }
+      }
+    }
 
     // Rebuild model with correct dimensions
     if (this.model) {
@@ -694,7 +726,12 @@ export class CompactInformedGRU {
     const softTargetsArr: number[][] = []; // [batch, vocabSize] soft target distributions
 
     for (const ex of examples) {
-      targetIndices.push(this.nodeToIndex.get(ex.targetToolId) ?? 0);
+      // WARN: If targetToolId is not in vocab, it falls back to index 0 (wrong label).
+      // Callers SHOULD filter examples upstream (see train-worker-prod.ts).
+      // This fallback exists only to avoid a crash mid-batch — it is NOT silent,
+      // the worker logs filtered count before calling trainStep.
+      const targetIdx = this.nodeToIndex.get(ex.targetToolId);
+      targetIndices.push(targetIdx ?? 0);
       termTargets.push(ex.isTerminal);
       singleToolMask.push(ex.isSingleTool ? 0 : 1);
 
@@ -742,6 +779,43 @@ export class CompactInformedGRU {
       (w: any) => w.val as tf.Variable,
     );
 
+    // --- Build hierarchy soft targets ---
+    // Instead of one-hot, spread alpha probability to parent caps (tool target)
+    // or child tools (cap target). This teaches the model the tree structure.
+    const alpha = this.config.hierarchyAlpha;
+    let hierarchyTargetTensor: tf.Tensor2D | null = null;
+    if (alpha > 0 && (this.toolIdxToCapIndices.size > 0 || this.capIdxToChildIndices.size > 0)) {
+      const hierArr = new Float32Array(batchSize * vs);
+      for (let b = 0; b < batchSize; b++) {
+        const tIdx = targetIndices[b];
+        const offset = b * vs;
+
+        // Check if this target has hierarchy neighbors
+        const parentCaps = this.toolIdxToCapIndices.get(tIdx);
+        const childTools = this.capIdxToChildIndices.get(tIdx);
+
+        if (parentCaps && parentCaps.length > 0) {
+          // Target is a tool with parent caps: spread alpha to parents
+          hierArr[offset + tIdx] = 1 - alpha;
+          const share = alpha / parentCaps.length;
+          for (const capIdx of parentCaps) {
+            hierArr[offset + capIdx] += share;
+          }
+        } else if (childTools && childTools.length > 0) {
+          // Target is a cap with child tools: spread alpha to children
+          hierArr[offset + tIdx] = 1 - alpha;
+          const share = alpha / childTools.length;
+          for (const childIdx of childTools) {
+            hierArr[offset + childIdx] += share;
+          }
+        } else {
+          // No hierarchy info — pure one-hot
+          hierArr[offset + tIdx] = 1;
+        }
+      }
+      hierarchyTargetTensor = tf.tensor2d(hierArr, [batchSize, vs]);
+    }
+
     let lossVal = 0;
     let nextToolLossVal = 0;
     let terminationLossVal = 0;
@@ -764,9 +838,13 @@ export class CompactInformedGRU {
       // --- (a) Focal CE with label smoothing, masked for single-tool ---
       const clipped = probs.clipByValue(1e-7, 1 - 1e-7);
 
+      // One-hot for focal weight (always based on primary target, not softened)
       const oneHot = tf.oneHot(targetIdxTensor, vs).toFloat();
-      const smoothedLabels = oneHot.mul(1 - eps).add(eps / vs);
+      // Hierarchy-aware target: spreads probability to parent/child nodes
+      const baseTarget = hierarchyTargetTensor ?? oneHot;
+      const smoothedLabels = baseTarget.mul(1 - eps).add(eps / vs);
 
+      // Focal weight uses primary target probability (not hierarchy-softened)
       const pTarget = tf.sum(tf.mul(clipped, oneHot), -1);
       const focalWeight = focalGamma > 0
         ? tf.pow(tf.sub(1, pTarget), focalGamma)
@@ -891,7 +969,7 @@ export class CompactInformedGRU {
     });
 
     // Cleanup
-    dispose([
+    const tensorsToDispose = [
       inputs.contextTensor,
       inputs.transFeatsTensor,
       inputs.intentTensor,
@@ -903,7 +981,9 @@ export class CompactInformedGRU {
       n8nMaskTensor,
       prodMaskTensor,
       softTargetsTensor,
-    ]);
+    ];
+    if (hierarchyTargetTensor) tensorsToDispose.push(hierarchyTargetTensor);
+    dispose(tensorsToDispose);
 
     return {
       loss: lossVal,

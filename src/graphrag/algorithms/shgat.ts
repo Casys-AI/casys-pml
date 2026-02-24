@@ -1994,9 +1994,47 @@ export class SHGAT {
   }
 
   /**
-   * Get all tool embeddings for negative sampling in training
+   * Get tool embeddings — enriched via message passing when available.
+   *
+   * Calls forward() lazily (cached) to run V→E→V message passing,
+   * then returns the enriched H. Falls back to raw BGE-M3 if forward
+   * fails (no params, empty graph, etc.).
    */
   getToolEmbeddings(): Map<string, number[]> {
+    const log = getLogger();
+
+    // Try enriched embeddings from message passing (lazy, cached)
+    try {
+      const { H } = this.forward();
+      const toolIds = this.graphBuilder.getToolIds();
+      if (H.length === toolIds.length && H.length > 0) {
+        const result = new Map<string, number[]>();
+        for (let i = 0; i < toolIds.length; i++) {
+          result.set(toolIds[i], H[i]);
+        }
+        log.debug(`[SHGAT] getToolEmbeddings: ${result.size} enriched (message-passing)`);
+        return result;
+      }
+    } catch {
+      // Forward pass failed — fall through to raw
+    }
+
+    // Fallback: raw BGE-M3 from graph builder
+    log.warn("[SHGAT] getToolEmbeddings: forward() unavailable — returning raw BGE-M3");
+    const result = new Map<string, number[]>();
+    for (const [toolId, tool] of this.graphBuilder.getToolNodes()) {
+      if (tool.embedding) {
+        result.set(toolId, tool.embedding);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Get raw (un-enriched) tool embeddings from graph builder.
+   * Use this when you explicitly need the original BGE-M3 embeddings.
+   */
+  getRawToolEmbeddings(): Map<string, number[]> {
     const result = new Map<string, number[]>();
     for (const [toolId, tool] of this.graphBuilder.getToolNodes()) {
       if (tool.embedding) {
