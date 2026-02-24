@@ -1,5 +1,5 @@
 /**
- * Migration 049: Capability Name History
+ * Migration 050: Capability Name History
  *
  * Tracks capability renames so that old names in execution traces
  * can be mapped to current names during GRU training.

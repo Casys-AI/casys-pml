@@ -252,9 +252,9 @@ export function buildVocabulary(
   const numTools = toolIds.length;
 
   if (numTools + vocabNodes.length !== vocabSize) {
-    log.warn(
-      `[GRU Loader] Vocab size mismatch: ${numTools} tools + ${vocabNodes.length} nodes = ${numTools + vocabNodes.length}, expected ${vocabSize}`,
-    );
+    const msg = `[GRU Loader] Vocab size mismatch: ${numTools} tools + ${vocabNodes.length} nodes = ${numTools + vocabNodes.length}, expected ${vocabSize}. Weights and vocab are incompatible.`;
+    log.error(msg);
+    throw new Error(msg);
   }
 
   const nodeToIndex = new Map<string, number>();

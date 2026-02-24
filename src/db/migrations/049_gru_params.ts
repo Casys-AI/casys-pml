@@ -1,5 +1,5 @@
 /**
- * Migration 048: GRU Parameters Persistence
+ * Migration 049: GRU Parameters Persistence
  *
  * Creates table for persisting GRU transition model weights.
  * Same pattern as shgat_params (migration 027).
