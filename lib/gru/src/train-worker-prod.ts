@@ -14,6 +14,7 @@ import * as fs from "node:fs";
 import { CompactInformedGRU } from "./transition/gru-model.ts";
 import { initTensorFlow } from "./tf/mod.ts";
 import type { TransitionExample, ToolCapabilityMap, VocabNode } from "./transition/types.ts";
+import { createMLflowClient, type MLflowClient } from "../../mlflow/client.ts";
 
 interface CapabilityDataEntry {
   id: string;
@@ -74,10 +75,20 @@ async function main() {
     process.exit(1);
   }
 
+  // MLflow tracking (no-op if MLFLOW_TRACKING_URI not set)
+  let mlflow: MLflowClient | null = null;
+
   try {
     console.error("[GRU Worker] Reading input data...");
     const raw = fs.readFileSync(tempFile, "utf-8");
     const input: TrainingInput = JSON.parse(raw);
+
+    mlflow = createMLflowClient(
+      process.env.MLFLOW_TRACKING_URI,
+      "gru-training",
+      `gru-${new Date().toISOString().slice(0, 16)}`,
+      { model: "gru" },
+    );
 
     console.error(`[GRU Worker] Initializing TensorFlow...`);
     await initTensorFlow();
@@ -222,6 +233,22 @@ async function main() {
 
     console.error(`[GRU Worker] Training for ${epochs} epochs, batch=${batchSize}${hasTest ? `, eval every ${evalEvery} epochs` : ""}...`);
 
+    // MLflow: log hyperparameters
+    if (mlflow) {
+      await mlflow.startRun({
+        epochs: String(epochs),
+        learning_rate: String(input.config.learningRate),
+        batch_size: String(batchSize),
+        embedding_dim: String(embeddingDim),
+        vocab_size: String(toolIds.length),
+        num_caps: String(higherLevelNodes.length),
+        train_examples: String(transitionExamples.length),
+        test_examples: String(input.testExamples?.length ?? 0),
+        eval_every: String(evalEvery),
+        warm_start: String(!!input.existingWeightsPath),
+      });
+    }
+
     let lastLoss = 0;
     let lastAcc = 0;
 
@@ -250,16 +277,29 @@ async function main() {
       lastAcc = (epochAcc / batchCount) * 100;
 
       // Periodic eval on test set
+      let testHit1Pct: number | undefined;
+      let testTermPct: number | undefined;
       const isEvalEpoch = hasTest && evalEvery > 0 && ((epoch + 1) % evalEvery === 0 || epoch === epochs - 1);
       if (isEvalEpoch) {
         const testResult = evaluate(model, input.testExamples!, nodeToIndex);
-        const testHit1 = (testResult.hit1 / testResult.total * 100).toFixed(1);
-        const testTerm = (testResult.termAcc / testResult.total * 100).toFixed(1);
+        testHit1Pct = testResult.hit1 / testResult.total * 100;
+        testTermPct = testResult.termAcc / testResult.total * 100;
         console.error(
-          `[GRU Worker] Epoch ${epoch + 1}/${epochs}: train_loss=${lastLoss.toFixed(4)}, train_acc=${lastAcc.toFixed(1)}% | test_hit1=${testHit1}%, test_term=${testTerm}% (${testResult.total} ex)`,
+          `[GRU Worker] Epoch ${epoch + 1}/${epochs}: train_loss=${lastLoss.toFixed(4)}, train_acc=${lastAcc.toFixed(1)}% | test_hit1=${testHit1Pct.toFixed(1)}%, test_term=${testTermPct.toFixed(1)}% (${testResult.total} ex)`,
         );
       } else {
         console.error(`[GRU Worker] Epoch ${epoch + 1}/${epochs}: loss=${lastLoss.toFixed(4)}, acc=${lastAcc.toFixed(1)}%`);
+      }
+
+      // MLflow: log epoch metrics
+      if (mlflow) {
+        const m: Record<string, number> = {
+          train_loss: lastLoss,
+          train_accuracy: lastAcc / 100,
+        };
+        if (testHit1Pct !== undefined) m.test_hit1 = testHit1Pct / 100;
+        if (testTermPct !== undefined) m.test_term_accuracy = testTermPct / 100;
+        await mlflow.logMetrics(m, epoch);
       }
     }
 
@@ -283,6 +323,28 @@ async function main() {
     fs.writeFileSync(weightsFile, JSON.stringify({ ...exported, vocab: vocabMeta }));
     console.error(`[GRU Worker] Weights written to ${weightsFile}`);
 
+    // MLflow: end run + publish model version with weights artifact
+    if (mlflow) {
+      await mlflow.endRun("FINISHED");
+
+      // Upload weights as artifact (typically ~25MB)
+      const weightsContent = fs.readFileSync(weightsFile, "utf-8");
+      await mlflow.uploadArtifact("gru-weights.json", weightsContent);
+
+      await mlflow.publishModelVersion("gru", {
+        finalLoss: lastLoss,
+        finalAccuracy: lastAcc / 100,
+        epochs,
+        learningRate: input.config.learningRate,
+        batchSize,
+        vocabSize: toolIds.length,
+        numCaps: higherLevelNodes.length,
+        trainExamples: transitionExamples.length,
+        testExamples: input.testExamples?.length ?? 0,
+        warmStart: !!input.existingWeightsPath,
+      });
+    }
+
     // Cleanup
     model.dispose();
 
@@ -294,6 +356,8 @@ async function main() {
       weightsFile,
     }));
   } catch (error) {
+    if (mlflow) await mlflow.endRun("FAILED").catch(() => {});
+
     console.log(JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : String(error),

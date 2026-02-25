@@ -164,6 +164,27 @@ services:
       - monitoring
     restart: unless-stopped
 
+  # MLflow - ML experiment tracking (SHGAT + GRU training)
+  # UI: http://localhost:5000
+  # Set MLFLOW_TRACKING_URI=http://localhost:5000 in .env to enable worker logging
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.21.3
+    container_name: pml-mlflow
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - pml-mlflow-data:/mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+      --serve-artifacts
+    networks:
+      - monitoring
+    restart: unless-stopped
+
 networks:
   monitoring:
     driver: bridge
@@ -173,3 +194,4 @@ volumes:
   pml-loki-data:
   pml-prometheus-data:
   pml-grafana-data:
+  pml-mlflow-data:

@@ -29,6 +29,7 @@ import { NUM_NEGATIVES } from "./types.ts";
 import { initBlasAcceleration } from "./utils/math.ts";
 import { PERBuffer, annealBeta, annealTemperature } from "./training/per-buffer.ts";
 import { getLogger, setupLogger } from "../../../telemetry/logger.ts";
+import { createMLflowClient, type MLflowClient } from "../../../../lib/mlflow/client.ts";
 import postgres from "postgres";
 import pako from "pako";
 import { encode as msgpackEncode } from "npm:@msgpack/msgpack@3.0.0-beta2";
@@ -201,6 +202,15 @@ async function main() {
   const input: WorkerInput = JSON.parse(inputJson);
   logDebug(`[SHGAT Worker] Loaded: ${input.capabilities?.length} caps, ${input.examples?.length} examples`);
 
+  // MLflow tracking (no-op if MLFLOW_TRACKING_URI not set)
+  const mlflowMode = input.config.usePER !== false ? "PER" : "uniform";
+  const mlflow: MLflowClient | null = createMLflowClient(
+    Deno.env.get("MLFLOW_TRACKING_URI"),
+    "shgat-training",
+    `shgat-${mlflowMode}-${new Date().toISOString().slice(0, 16)}`,
+    { model: "shgat", mode: mlflowMode },
+  );
+
   try {
     // Validate input
     if (!input.capabilities || input.capabilities.length === 0) {
@@ -278,6 +288,21 @@ async function main() {
 
     // Apply custom learning rate
     shgat.setLearningRate(learningRate);
+
+    // MLflow: start run with hyperparameters
+    if (mlflow) {
+      await mlflow.startRun({
+        epochs: String(epochs),
+        batch_size: String(batchSize),
+        temperature: String(fixedTemperature ?? "anneal"),
+        use_per: String(usePER),
+        use_curriculum: String(useCurriculum),
+        learning_rate: String(learningRate),
+        use_projection_head: String(useProjectionHead),
+        num_examples: String(input.examples.length),
+        num_capabilities: String(input.capabilities.length),
+      });
+    }
 
     // Split examples: 80% train, 20% held-out test set for health check
     const shuffled = [...input.examples].sort(() => Math.random() - 0.5);
@@ -471,12 +496,31 @@ async function main() {
             );
             degradationDetected = true;
             earlyStopEpoch = epoch;
-            break; // Early stop
           }
 
           lastTestAccuracy = testAccuracy;
         }
       }
+
+      // MLflow: log epoch metrics
+      if (mlflow) {
+        const m: Record<string, number> = {
+          loss: finalLoss,
+          train_accuracy: finalAccuracy,
+          temperature,
+          epoch_duration_ms: epochDuration,
+        };
+        if (lastTestAccuracy > 0) m.test_accuracy = lastTestAccuracy;
+        if (perBuffer) {
+          const s = perBuffer.getStats();
+          m.per_priority_min = s.min;
+          m.per_priority_max = s.max;
+          m.beta = beta;
+        }
+        await mlflow.logMetrics(m, epoch);
+      }
+
+      if (degradationDetected) break;
     }
 
     // Save params directly to DB if URL provided
@@ -514,8 +558,29 @@ async function main() {
       },
     };
 
+    if (mlflow) {
+      await mlflow.endRun("FINISHED");
+      await mlflow.publishModelVersion("shgat", {
+        finalLoss,
+        finalAccuracy,
+        testAccuracy: lastTestAccuracy,
+        degradationDetected,
+        earlyStopEpoch,
+        epochs,
+        batchSize,
+        learningRate,
+        numExamples: input.examples.length,
+        numCapabilities: input.capabilities.length,
+        trainSize: trainSet.length,
+        testSize: testSet.length,
+        savedToDb,
+      });
+    }
+
     console.log(JSON.stringify(output));
   } catch (error) {
+    if (mlflow) await mlflow.endRun("FAILED").catch(() => {});
+
     const output: WorkerOutput = {
       success: false,
       error: error instanceof Error ? error.message : String(error),
