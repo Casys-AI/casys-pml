@@ -47,7 +47,8 @@ jobs:
             --target=node20 \
             --format=esm \
             --outfile=bin/mcp-erpnext.mjs \
-            --external:'node:*'
+            --external:'node:*' \
+            --banner:js='import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
           sed -i '1s/^/#!\/usr\/bin\/env node\n/' bin/mcp-erpnext.mjs
           chmod +x bin/mcp-erpnext.mjs
           cp -r src/ui/dist bin/ui-dist

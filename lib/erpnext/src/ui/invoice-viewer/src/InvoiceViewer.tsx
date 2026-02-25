@@ -144,7 +144,11 @@ export function InvoiceViewer() {
       setLoading(false);
       const text = result.content?.find((c) => c.type === "text")?.text;
       if (text) {
-        try { setData(JSON.parse(text)); } catch (e) { console.error("Parse error:", e); }
+        try {
+          const parsed = JSON.parse(text);
+          // Unwrap ERPNext { data: {...} } envelope if present
+          setData(parsed.data ?? parsed);
+        } catch (e) { console.error("Parse error:", e); }
       }
     };
 

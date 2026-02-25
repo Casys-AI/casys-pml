@@ -1,6 +1,6 @@
 # @casys/mcp-erpnext
 
-MCP server for [ERPNext](https://erpnext.com) / Frappe ERP — **119 tools** across **13 categories**, with **7 interactive UI viewers**.
+MCP server for [ERPNext](https://erpnext.com) / Frappe ERP — **120 tools** across **13 categories**, with **7 interactive UI viewers**.
 
 Connect any MCP-compatible AI agent (Claude Desktop, PML, custom) to your ERPNext instance via the standard [Model Context Protocol](https://modelcontextprotocol.io).
 
@@ -13,11 +13,27 @@ Generate API credentials in ERPNext:
 2. Section **API Access** → **Generate Keys**
 3. Copy `API Key` and `API Secret`
 
-### stdio mode (Claude Desktop / PML)
+### Claude Desktop / Claude Code (npm)
 
-Add to your MCP config (e.g. `.pml.json` or `claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "erpnext": {
+      "command": "npx",
+      "args": ["-y", "@casys/mcp-erpnext"],
+      "env": {
+        "ERPNEXT_URL": "http://localhost:8000",
+        "ERPNEXT_API_KEY": "your-api-key",
+        "ERPNEXT_API_SECRET": "your-api-secret"
+      }
+    }
+  }
+}
+```
 
-**Deno:**
+> Zero dependencies — single self-contained bundle. Requires Node >= 20.
+
+### Deno (stdio)
 
 ```json
 {
@@ -35,45 +51,13 @@ Add to your MCP config (e.g. `.pml.json` or `claude_desktop_config.json`):
 }
 ```
 
-**Node.js** (via `dist-node/`):
-
-```json
-{
-  "mcpServers": {
-    "erpnext": {
-      "command": "npx",
-      "args": ["tsx", "dist-node/server.ts"],
-      "env": {
-        "ERPNEXT_URL": "http://localhost:8000",
-        "ERPNEXT_API_KEY": "your-api-key",
-        "ERPNEXT_API_SECRET": "your-api-secret"
-      }
-    }
-  }
-}
-```
-
-> Requires Node >= 20. Run `cd dist-node && npm install` first.
-
 ### HTTP mode
 
-**Deno:**
-
 ```bash
 ERPNEXT_URL=http://localhost:8000 \
 ERPNEXT_API_KEY=xxx \
 ERPNEXT_API_SECRET=xxx \
-deno run --allow-all server.ts --http --port=3012
-```
-
-**Node.js:**
-
-```bash
-cd dist-node && npm install
-ERPNEXT_URL=http://localhost:8000 \
-ERPNEXT_API_KEY=xxx \
-ERPNEXT_API_SECRET=xxx \
-npx tsx server.ts --http --port=3012
+npx -y @casys/mcp-erpnext --http --port=3012
 ```
 
 ### Category filtering
@@ -81,7 +65,7 @@ npx tsx server.ts --http --port=3012
 Load only the categories you need:
 
 ```bash
-deno run --allow-all server.ts --categories=sales,inventory
+npx -y @casys/mcp-erpnext --categories=sales,inventory
 ```
 
 ## Fresh Instance Setup
@@ -98,7 +82,7 @@ On a fresh ERPNext instance (no setup wizard), you need to create master data be
 7. Company: requires Warehouse Types to exist first
 ```
 
-## Tools (119)
+## Tools (120)
 
 ### Setup (2)
 
@@ -311,30 +295,19 @@ npm install
 node build-all.mjs
 ```
 
-## Node.js Compatibility
+## npm Package
 
-The server runs natively on Deno. For Node.js environments, use the build script:
+The npm package (`@casys/mcp-erpnext`) is a single self-contained bundle (1.3MB) with zero runtime dependencies. UI viewers are embedded.
+
+To rebuild for npm from source:
 
 ```bash
 cd lib/erpnext
-./scripts/build-node.sh
+deno task ui:build           # Build UI viewers
+./scripts/build-node.sh      # Generate dist-node/
+cd dist-node && npx esbuild server.ts --bundle --platform=node --target=node20 --format=esm --outfile=bin/mcp-erpnext.mjs --external:'node:*'
+cd bin && npm publish --access public
 ```
-
-This produces a `dist-node/` directory with:
-- `runtime.ts` replaced by `runtime.node.ts` (uses `node:fs` instead of `Deno.*`)
-- Relative imports rewritten `.ts` → `.js` for Node ESM
-- Generated `package.json` with `tsx` as runner
-
-```bash
-cd dist-node
-npm install
-# stdio mode (Claude Desktop / PML config)
-tsx server.ts
-# HTTP mode (with auth via @casys/mcp-server)
-tsx server.ts --http --port=3012
-```
-
-> **Note**: `@casys/mcp-server` must be published to npm before installing `@casys/mcp-erpnext` dependencies.
 
 ## Environment Variables
 
