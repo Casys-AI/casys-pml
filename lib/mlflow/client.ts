@@ -30,25 +30,32 @@ export class MLflowClient {
     this.tags = config.tags ?? {};
   }
 
-  private async post(endpoint: string, body: unknown): Promise<Record<string, unknown> | null> {
+  private consecutiveErrors = 0;
+  private static readonly CIRCUIT_BREAKER_THRESHOLD = 3;
+
+  private async post(endpoint: string, body: unknown, timeoutMs = 10000): Promise<Record<string, unknown> | null> {
     if (this.disabled) return null;
     try {
       const res = await fetch(`${this.baseUrl}/api/2.0/mlflow${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        console.error(`[MLflow] ${endpoint} failed (${res.status}): ${text}`);
+        console.error(`[MLflow] ${endpoint} failed (${res.status}): ${text.slice(0, 200)}`);
         return null;
       }
+      this.consecutiveErrors = 0;
       return (await res.json()) as Record<string, unknown>;
     } catch (e) {
-      console.error(`[MLflow] ${endpoint} error: ${e instanceof Error ? e.message : e}`);
-      this.disabled = true;
-      console.error("[MLflow] Tracking disabled for this run (connection failed)");
+      this.consecutiveErrors++;
+      console.error(`[MLflow] ${endpoint} error (${this.consecutiveErrors}/${MLflowClient.CIRCUIT_BREAKER_THRESHOLD}): ${e instanceof Error ? e.message : e}`);
+      if (this.consecutiveErrors >= MLflowClient.CIRCUIT_BREAKER_THRESHOLD) {
+        this.disabled = true;
+        console.error("[MLflow] Tracking disabled for this run (circuit breaker tripped)");
+      }
       return null;
     }
   }
@@ -132,7 +139,7 @@ export class MLflowClient {
     return true;
   }
 
-  /** Log metrics for a given step (epoch). */
+  /** Log metrics for a given step (epoch). Uses 30s timeout for CPU-bound workers. */
   async logMetrics(metrics: Record<string, number>, step: number): Promise<void> {
     if (!this.runId || this.disabled) return;
 
@@ -148,7 +155,7 @@ export class MLflowClient {
       metrics: metricList,
       params: [],
       tags: [],
-    });
+    }, 30000);
   }
 
   /** End the run. Await this to ensure clean closure. */
@@ -240,10 +247,10 @@ export class MLflowClient {
     return null;
   }
 
-  /** Set an alias (e.g., "production", "champion") on a model version. */
+  /** Set an alias (e.g., "champion", "production") on a model version. */
   async setModelAlias(modelName: string, alias: string, version: string): Promise<boolean> {
     if (this.disabled) return false;
-    const result = await this.post("/registered-models/set-alias", {
+    const result = await this.post("/registered-models/alias", {
       name: modelName,
       alias,
       version,
@@ -262,7 +269,7 @@ export class MLflowClient {
   async publishModelVersion(
     modelName: string,
     summary: Record<string, unknown>,
-    alias = "latest",
+    alias = "champion",
   ): Promise<string | null> {
     // Upload summary as artifact
     await this.uploadArtifact("summary.json", JSON.stringify(summary, null, 2));
