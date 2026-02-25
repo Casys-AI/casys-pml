@@ -20,7 +20,7 @@ await build({
   },
   package: {
     name: "@casys/mcp-bridge",
-    version: "0.1.0",
+    version: "0.2.0",
     description:
       "Bridge MCP Apps interactive UIs to messaging platforms (Telegram Mini Apps, LINE LIFF)",
     license: "MIT",

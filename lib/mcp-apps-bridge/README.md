@@ -1,5 +1,6 @@
 # @casys/mcp-bridge
 
+[![npm](https://img.shields.io/npm/v/@casys/mcp-bridge)](https://www.npmjs.com/package/@casys/mcp-bridge)
 [![JSR](https://jsr.io/badges/@casys/mcp-bridge)](https://jsr.io/@casys/mcp-bridge)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -25,11 +26,11 @@ Telegram Mini App / LINE LIFF WebView
 ## Install
 
 ```bash
+# npm
+npm install @casys/mcp-bridge
+
 # Deno
 deno add jsr:@casys/mcp-bridge
-
-# npm (via JSR)
-npx jsr add @casys/mcp-bridge
 ```
 
 ---
