@@ -1548,6 +1548,24 @@ export class ConcurrentMCPServer {
           }
         }
 
+        // MCP protocol methods we don't implement — return empty results
+        if (method === "ping") {
+          return c.json({ jsonrpc: "2.0", id, result: {} });
+        }
+        if (method === "prompts/list") {
+          return c.json({ jsonrpc: "2.0", id, result: { prompts: [] } });
+        }
+        if (method === "logging/setLevel") {
+          return c.json({ jsonrpc: "2.0", id, result: {} });
+        }
+        if (method === "completion/complete") {
+          return c.json({
+            jsonrpc: "2.0",
+            id,
+            result: { completion: { values: [] } },
+          });
+        }
+
         // Handle notifications: must have a method and no id (JSON-RPC 2.0 notification)
         if (method && !id) {
           return new Response(null, { status: 202 });
