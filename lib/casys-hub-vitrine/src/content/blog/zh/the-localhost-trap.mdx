@@ -1,0 +1,132 @@
+---
+title: "Localhost 陷阱 — 為什麼你的 AI Agent 無法互相溝通"
+description: "你把 Agent 容器化了，也把編排器容器化了。現在它們看不到彼此。問題不在 Docker，而是一個 40 年來沒人質疑的網路假設。"
+author: "Erwan Lee Pesle"
+date: 2026-02-26
+tags:
+  - agents
+  - docker
+  - networking
+  - infrastructure
+  - devops
+category: "基礎設施"
+language: zh
+snippet: "127.0.0.1 在容器內外的意義完全不同。這個事實搞壞了大多數 AI Agent 的部署。"
+featured: true
+draft: false
+---
+
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+# Localhost 陷阱
+
+> Agent 在跑。編排器在跑。它們在同一台機器上。它們無法通訊。歡迎來到正式環境。
+
+---
+
+**這個場景每週都在上演。** 有人架了一個 AI Gateway — OpenClaw、LiteLLM，隨便哪個 — 跑得好好的。然後加了一個 Docker 裡的編排器 — Windmill、n8n、Temporal — 接上一個需要回呼 Gateway 的工作流。指向 `http://localhost:18789`。
+
+Connection refused。
+
+檢查服務。在跑。從主機 curl。有回應。從容器裡面 curl。沒反應。
+
+服務就在那裡。同一台機器上。在 RAM 裡只隔幾個位元組。但在容器內部，`localhost` 指向的是一台*不同的機器*。
+
+---
+
+<ExcalidrawDiagram src="localhost-trap" alt="Localhost 陷阱：127.0.0.1 代表「這台機器」— 但每個容器都是獨立的機器" />
+
+## 那個假設
+
+`127.0.0.1` 是計算機領域中被過度使用的地址。它的意思是「這台機器」— 除了在它不是的時候。
+
+Docker 建立容器時，會建立一個**網路命名空間**。容器有自己的 loopback 介面，自己的 `127.0.0.1`。當 Docker 裡的編排器呼叫 `localhost`，它是在跟*自己*說話 — 不是主機、不是你的 Gateway、什麼都不是。
+
+這不是 bug。是設計。網路隔離是容器的核心價值之一。但它製造了一個直到踩到才看得見的陷阱，因為同一個地址在不同位置代表不同的東西。
+
+而這對 AI Agent 特別重要：**整個 Agent 技術棧都假設本地通訊。**
+
+MCP 伺服器綁定在 localhost。Gateway 綁定在 localhost。Tool Server 綁定在 localhost。[MCP 規範](https://modelcontextprotocol.io)描述的 `stdio` 和 `SSE` 傳輸 — 都假設客戶端和伺服器在同一台主機上。只要把這個技術棧的*任何*部分容器化，假設就崩了。
+
+---
+
+## 顯而易見的方案（以及為什麼它們是錯的）
+
+**「綁定到 0.0.0.0。」**
+
+這會把你的 Gateway 暴露給整個網路。如果你在 VPS 上，那就是暴露給整個網際網路。你的 Gateway — 那個控制你 AI Agent、存取你的工具、訊息帳號、檔案的東西 — 任何掃描你 IP 的人都能連上。
+
+**「用 Docker host 模式。」**
+
+`network_mode: host` 完全移除容器的網路隔離。編排器可以連到 `localhost:18789` 了 — 但它也能連到主機上的所有其他服務。你把一個問題換成了更大的問題。
+
+**「用 `host.docker.internal`。」**
+
+Docker Desktop 在 Mac 和 Windows 上提供這個 DNS 名稱。Linux 上沒有 — 至少不是預設的。你可以在 Compose 裡加 `extra_hosts`，但你只是搬移了問題，沒有解決。
+
+---
+
+## Socat：無聊但有效的解決方案
+
+[socat](http://www.dest-unreach.org/socat/) 是 2004 年的 Unix 工具。它連接兩個資料流。就這樣。
+
+```
+容器 (172.19.0.x) ──→ Bridge Gateway (172.19.0.1:18789)
+                              │
+                            socat
+                              │
+                        127.0.0.1:18789 (主機服務)
+```
+
+<ExcalidrawDiagram src="socat-bridge" alt="Socat Bridge：容器 → Docker Bridge Gateway (172.19.0.1) → socat → 主機 Loopback (127.0.0.1)" />
+
+一行指令：
+
+```bash
+socat TCP-LISTEN:18789,bind=172.19.0.1,fork,reuseaddr TCP:127.0.0.1:18789
+```
+
+socat 監聽 Docker Bridge 的 IP — Docker 網路的 Gateway 地址 — 並將每個連線轉發到主機的 loopback。容器能連到 `172.19.0.1` 因為那是它的預設 Gateway。主機服務保持在 `127.0.0.1`。外部什麼都看不到。
+
+**三個限制條件全部滿足。**
+
+---
+
+## 為什麼這對 AI 很重要
+
+這不是 Docker 的問題。這是 **Agent 基礎設施**的問題。
+
+Agent 生態系統正在收斂到一個模式：一個 Gateway 在 Agent 和外部世界之間做中介。OpenClaw 這樣做。LangGraph Cloud 也是。CrewAI、AutoGen 也是。Gateway 持有 Session 狀態、工具策略、訊息通道、記憶體。一切都經過它。
+
+同時，工作流編排器正在成為 Agent 的流程層。我們[之前論證過](/blog/process-is-the-prompt) Agent 需要流程，而編排器提供流程 — Windmill、n8n、Temporal、Prefect。
+
+兩者一起跑，就需要它們互相通訊。而它們做不到 — 因為一個在容器裡，另一個不在。
+
+**每個正式的 AI 部署都會撞上這面牆。** 協議（MCP、A2A）處理應用層。沒人處理網路層 — 那個讓所有東西運作的無聊管道。
+
+---
+
+## 通用模式
+
+| 主機服務 | 容器化客戶端 | 需要 Bridge |
+| --- | --- | --- |
+| AI Gateway (OpenClaw, LiteLLM) | 編排器 (Windmill, n8n) | ✅ |
+| MCP 伺服器 | Docker 化的 Agent | ✅ |
+| 本地 LLM (Ollama) | 任何容器化應用 | ✅ |
+| Localhost 資料庫 | 容器化 API | ✅ |
+
+---
+
+## 不舒服的結論
+
+你 AI Agent 基礎設施中最重要的層不是模型、協議或框架。**是網路。** 具體來說，是 `localhost` 代表你以為的意思這個假設。
+
+修復方案：一個 20 年的 Unix 工具、一個 systemd 服務、一條防火牆規則。設定時間：五分鐘。設定行數：十二行。
+
+**最好的基礎設施是裝好就忘掉的那種。** Docker Bridge 上的 socat 正是如此 — 無聊、看不見、但撐住一切。
+
+就像水管該有的樣子。
+
+---
+
+*這裡描述的 socat bridge 模式在 CasYs 的正式環境中使用，連接 Windmill 編排器到 OpenClaw Gateway。完整指南 — 包括 systemd 單元、防火牆規則和健康檢查 — 以 [OpenClaw skill](https://clawhub.com) 的形式提供。*
