@@ -1157,6 +1157,29 @@ const traceRows = await sql`
 
 console.log(`      ${traceRows.length} traces (incl. single-tool)`);
 
+// Intent exact dedup: remove strictly identical re-executions (same cap + same intent embedding).
+// Many caps get re-executed N times with the exact same prompt → duplicate training data.
+// Only strict dedup (exact embedding match), NOT fuzzy — similar-but-different intents are kept.
+const dedupedTraceRows: typeof traceRows[number][] = [];
+{
+  const seen = new Set<string>();
+  for (const trace of traceRows) {
+    const emb = parseEmbedding(trace.intent_embedding);
+    if (!emb) continue;
+    // Group by resolved cap name (or raw capability_id for cap-less traces)
+    const rawCapName = trace.cap_name as string | null;
+    const groupKey = rawCapName ? resolveToolName(rawCapName) : (trace.capability_id as string);
+    // Hash full intent embedding — only exact re-executions are deduped
+    const intentKey = emb.map((v: number) => v.toFixed(6)).join(",");
+    const dedupKey = `${groupKey}::${intentKey}`;
+    if (seen.has(dedupKey)) continue;
+    seen.add(dedupKey);
+    dedupedTraceRows.push(trace);
+  }
+  const removed = traceRows.length - dedupedTraceRows.length;
+  console.log(`      Intent exact dedup: ${traceRows.length} → ${dedupedTraceRows.length} traces (removed ${removed} duplicates)`);
+}
+
 const prodExamples: (TransitionExample & { _traceId: string; _capId: string })[] = [];
 const tracePathsForEval: Array<{
   intentEmbedding: number[];
@@ -1181,7 +1204,7 @@ const traceIdToCapId = new Map<string, string>();
 let capTerminalCount = 0;
 let consecutiveDedupCount = 0;
 
-for (const trace of traceRows) {
+for (const trace of dedupedTraceRows) {
   const intentEmbedding = parseEmbedding(trace.intent_embedding);
   if (!intentEmbedding) continue;
 
@@ -1583,7 +1606,7 @@ console.log(
 console.log(`\n[7c/11] Computing structural bias...`);
 const jaccardMatrix = computeJaccardMatrix(toolCapMap);
 const allTraces: string[][] = [];
-for (const trace of traceRows) {
+for (const trace of dedupedTraceRows) {
   const taskResults = trace.task_results as Array<{ tool?: string }>;
   const toolSeq = taskResults
     .map((t) => t.tool ? resolveToolName(normalizeToolId(t.tool)) : null)
