@@ -111,6 +111,7 @@ export default function MobileMenu(): JSX.Element {
           transitionTimingFunction: "cubic-bezier(0.32, 0.72, 0, 1)",
         }}
         aria-hidden={!isOpen.value}
+        inert={!isOpen.value ? true : undefined}
       >
         <div class="flex items-center justify-between px-6 py-5 border-b border-pml-accent/[0.08]">
           <span class="font-serif text-2xl font-normal text-pml-accent tracking-tight">

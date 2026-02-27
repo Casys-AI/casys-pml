@@ -47,7 +47,7 @@ export function IntelligenceSection() {
             <span class="block text-pml-accent italic">makes it smarter.</span>
           </h2>
 
-          <p class="text-[0.95rem] sm:text-sm leading-relaxed text-stone-500 mb-8">
+          <p class="text-[0.95rem] sm:text-sm leading-relaxed text-stone-400 mb-8">
             The more workflows run, the better the system gets. Network effects
             that compound — impossible to catch up once you start.
           </p>
@@ -62,7 +62,7 @@ export function IntelligenceSection() {
                   <h3 class="font-sans text-[0.85rem] font-semibold text-stone-200 mb-0.5">
                     {feature.title}
                   </h3>
-                  <p class="text-[0.8rem] leading-relaxed text-stone-500">
+                  <p class="text-[0.8rem] leading-relaxed text-stone-400">
                     {feature.desc}
                   </p>
                 </div>

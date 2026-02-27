@@ -20,7 +20,7 @@ export function BetaSignupSection() {
       <h2 class="font-serif text-[clamp(1.5rem,3vw,2.25rem)] font-normal text-stone-100 text-center mb-2">
         Join the Beta
       </h2>
-      <p class="font-sans text-[0.95rem] text-stone-500 text-center mb-8 leading-relaxed">
+      <p class="font-sans text-[0.95rem] text-stone-400 text-center mb-8 leading-relaxed">
         Be among the first to give your agents procedural memory.
       </p>
 
@@ -31,7 +31,7 @@ export function BetaSignupSection() {
       >
         <div class="flex flex-col gap-4 mb-5">
           <div class="flex flex-col gap-1.5">
-            <label class="font-mono text-[0.65rem] font-medium text-stone-500 uppercase tracking-wide" for="beta-name">
+            <label class="font-mono text-[0.65rem] font-medium text-stone-400 uppercase tracking-wide" for="beta-name">
               Name
             </label>
             <input
@@ -45,7 +45,7 @@ export function BetaSignupSection() {
           </div>
 
           <div class="flex flex-col gap-1.5">
-            <label class="font-mono text-[0.65rem] font-medium text-stone-500 uppercase tracking-wide" for="beta-email">
+            <label class="font-mono text-[0.65rem] font-medium text-stone-400 uppercase tracking-wide" for="beta-email">
               Email
             </label>
             <input
@@ -59,7 +59,7 @@ export function BetaSignupSection() {
           </div>
 
           <div class="flex flex-col gap-1.5">
-            <label class="font-mono text-[0.65rem] font-medium text-stone-500 uppercase tracking-wide" for="beta-use-case">
+            <label class="font-mono text-[0.65rem] font-medium text-stone-400 uppercase tracking-wide" for="beta-use-case">
               How will you use PML? <span class="font-normal text-stone-600 normal-case">(optional)</span>
             </label>
             <textarea

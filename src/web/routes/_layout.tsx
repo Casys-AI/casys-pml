@@ -7,11 +7,13 @@ import { Head } from "fresh/runtime";
 
 export default function RootLayout({ Component }: { Component: () => JSX.Element }) {
   return (
-    <>
+    <html lang="en">
       <Head>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
-      <Component />
-    </>
+      <body>
+        <Component />
+      </body>
+    </html>
   );
 }

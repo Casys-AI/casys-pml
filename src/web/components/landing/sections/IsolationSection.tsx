@@ -27,7 +27,7 @@ export function IsolationSection() {
             <span class="block text-violet-400 italic">not reckless.</span>
           </h2>
 
-          <p class="text-[0.95rem] sm:text-sm leading-relaxed text-stone-500 mb-8">
+          <p class="text-[0.95rem] sm:text-sm leading-relaxed text-stone-400 mb-8">
             AI agents shouldn't have the keys to everything. Actions run in isolation
             — they can't access your data or tools without going through controlled
             checkpoints. Sensitive operations always ask before acting.
@@ -43,7 +43,7 @@ export function IsolationSection() {
               </div>
               <div class="flex-1 pt-0.5">
                 <span class="font-sans text-[0.85rem] font-semibold text-stone-200">Sandboxed Execution</span>
-                <p class="text-[0.8rem] leading-relaxed text-stone-500 mt-0.5">Code runs in isolated workers with no direct access</p>
+                <p class="text-[0.8rem] leading-relaxed text-stone-400 mt-0.5">Code runs in isolated workers with no direct access</p>
               </div>
             </div>
 
@@ -56,7 +56,7 @@ export function IsolationSection() {
               </div>
               <div class="flex-1 pt-0.5">
                 <span class="font-sans text-[0.85rem] font-semibold text-stone-200">Human-in-the-Loop</span>
-                <p class="text-[0.8rem] leading-relaxed text-stone-500 mt-0.5">Dangerous actions require explicit approval</p>
+                <p class="text-[0.8rem] leading-relaxed text-stone-400 mt-0.5">Dangerous actions require explicit approval</p>
               </div>
             </div>
 
@@ -69,7 +69,7 @@ export function IsolationSection() {
               </div>
               <div class="flex-1 pt-0.5">
                 <span class="font-sans text-[0.85rem] font-semibold text-stone-200">Audit Trail</span>
-                <p class="text-[0.8rem] leading-relaxed text-stone-500 mt-0.5">Every action logged for transparency</p>
+                <p class="text-[0.8rem] leading-relaxed text-stone-400 mt-0.5">Every action logged for transparency</p>
               </div>
             </div>
           </div>

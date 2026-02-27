@@ -21,7 +21,7 @@ export function QuickStartSection() {
       <h2 class="font-serif text-[clamp(1.5rem,3vw,2.25rem)] font-normal text-stone-100 text-center mb-2">
         {quickStart.title}
       </h2>
-      <p class="font-sans text-[0.95rem] text-stone-500 text-center mb-10">
+      <p class="font-sans text-[0.95rem] text-stone-400 text-center mb-10">
         {quickStart.subtitle}
       </p>
 
@@ -44,7 +44,7 @@ export function QuickStartSection() {
               <h3 class="font-sans text-[0.85rem] font-semibold text-stone-200 mb-1">
                 {step.title}
               </h3>
-              <p class="font-sans text-[0.75rem] text-stone-500 mb-2.5 leading-relaxed">
+              <p class="font-sans text-[0.75rem] text-stone-400 mb-2.5 leading-relaxed">
                 {step.description}
               </p>
 

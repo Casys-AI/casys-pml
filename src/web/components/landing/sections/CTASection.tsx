@@ -14,7 +14,7 @@ export function CTASection() {
           <h2 class="font-serif text-[clamp(1.5rem,3vw,2rem)] font-normal text-stone-100 mb-3">
             {cta.title}
           </h2>
-          <p class="text-[0.95rem] text-stone-500 mb-6 leading-relaxed">
+          <p class="text-[0.95rem] text-stone-400 mb-6 leading-relaxed">
             {cta.description}
           </p>
 

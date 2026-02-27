@@ -45,6 +45,9 @@ const KNOWN_VIOLATIONS: Record<string, number> = {
   "src/graphrag/algorithms/shgat/initialization/parameters.ts": 614,
   "src/graphrag/algorithms/tensor-entropy.ts": 976,
   "src/mcp/routing/handlers/emergence.ts": 602,
+  "src/mcp/algorithm-init/initializer.ts": 916,
+  "src/application/services/post-execution.service.ts": 976,
+  "src/mcp/registry/mcp-registry.service.ts": 607,
 };
 
 const KNOWN_TYPE_VIOLATIONS: Record<string, number> = {

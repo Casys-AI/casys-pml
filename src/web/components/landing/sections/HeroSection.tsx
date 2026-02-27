@@ -73,7 +73,7 @@ export function HeroSection() {
           </h1>
 
           {/* Description */}
-          <p class="text-lg sm:text-[0.95rem] leading-relaxed text-stone-500 mb-8 opacity-0 animate-fade-up-delay-2">
+          <p class="text-lg sm:text-[0.95rem] leading-relaxed text-stone-400 mb-8 opacity-0 animate-fade-up-delay-2">
             Build AI workflows once, run them with Claude, GPT, Gemini, or your local Ollama.
             Every tool call traced. Debug in seconds, not hours.
           </p>
