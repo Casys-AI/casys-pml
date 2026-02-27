@@ -21,7 +21,7 @@ export interface Props {
 const { title, locale = 'en', description, slug, ogTitle, ogDescription, datePublished, dateModified, author, tags, category } = Astro.props;
 const effectiveOgTitle = ogTitle || title;
 const effectiveOgDescription = ogDescription || description;
-const siteUrl = import.meta.env.PUBLIC_SITE_URL as string | undefined;
+const siteUrl = (import.meta.env.PUBLIC_SITE_URL as string | undefined)?.trim();
 const ogImage = slug
   ? `${siteUrl || ''}/og/blog/${slug}.png`
   : `${siteUrl || ''}/og/home.png`;
