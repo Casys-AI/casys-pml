@@ -199,13 +199,13 @@ socat listens on the Docker bridge IP — the gateway address of the Docker netw
 
 ---
 
-## The Full Setup — ITIL-Style Naming
+## The Full Setup — Self-Documenting Names
 
 socat without firewall rules doesn't work — packets get dropped silently. And without a naming convention, you end up with `socat-bridge-1`, `socat-bridge-2`, and no idea which is which three months later.
 
-Here's the production setup we use, with a naming convention borrowed from ITIL service management: **one bridge per (network, port)**, named to be self-documenting.
+Here's the production setup we use: **one bridge per (network, port)**, named `socat-<source_network>-<target_service>-<port>` so you know what each one does three months later.
 
-<ExcalidrawDiagram src="socat-bridge-itil" alt="ITIL-named socat bridges: one per (network, port), shared by all containers" />
+<ExcalidrawDiagram src="socat-bridge-itil" alt="Self-documenting socat bridges: one per (network, port), shared by all containers" />
 
 ### Naming Convention
 

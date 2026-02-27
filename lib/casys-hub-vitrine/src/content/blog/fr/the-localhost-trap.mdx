@@ -199,13 +199,13 @@ socat écoute sur l'IP du bridge Docker — l'adresse gateway du réseau Docker 
 
 ---
 
-## Le setup complet — Nommage style ITIL
+## Le setup complet — Nommage auto-documenté
 
 socat sans règles firewall ne marche pas — les paquets sont droppés silencieusement. Et sans convention de nommage, vous vous retrouvez avec `socat-bridge-1`, `socat-bridge-2`, et aucune idée de quoi est quoi trois mois plus tard.
 
-Voici le setup de production que nous utilisons, avec une convention de nommage empruntée à la gestion de services ITIL : **un bridge par (réseau, port)**, nommé pour être auto-documenté.
+Voici le setup de production que nous utilisons : **un bridge par (réseau, port)**, nommé `socat-<réseau_source>-<service_cible>-<port>` pour savoir à quoi chacun sert trois mois plus tard.
 
-<ExcalidrawDiagram src="socat-bridge-itil" alt="Bridges socat nommés ITIL : un par (réseau, port), partagé par tous les containers" />
+<ExcalidrawDiagram src="socat-bridge-itil" alt="Bridges socat auto-documentés : un par (réseau, port), partagé par tous les containers" />
 
 ### Convention de nommage
 
