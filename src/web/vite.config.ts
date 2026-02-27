@@ -30,7 +30,9 @@ export default defineConfig(({ mode }) => {
     build: {
       sourcemap: false, // Suppress sourcemap warnings
       rollupOptions: {
-        // Externalize AWS SDK (transitive dep, not used at runtime in Fresh)
+        // @aws-sdk/client-s3 (used by ui-cache-service for Garage S3) has internal version
+        // mismatches that break Rollup SSR bundling. Safe to externalize since it runs
+        // server-side via Deno, not in the Vite bundle.
         external: [/^@aws-sdk\//, /^@smithy\//],
       },
     },
