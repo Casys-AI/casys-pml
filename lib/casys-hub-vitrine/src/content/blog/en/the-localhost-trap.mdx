@@ -88,14 +88,6 @@ Unless you add a bridge.
 
 Here's what it does for our problem:
 
-```
-Container (172.19.0.x) ──→ Bridge gateway (172.19.0.1:18789)
-                                    │
-                                  socat
-                                    │
-                              127.0.0.1:18789 (host service)
-```
-
 <ExcalidrawDiagram src="socat-bridge" alt="The Socat Bridge: Container → Docker Bridge Gateway (172.19.0.1) → socat → Host Loopback (127.0.0.1)" />
 
 One line:

@@ -70,14 +70,6 @@ Docker Desktop 在 Mac 和 Windows 上提供這個 DNS 名稱。Linux 上沒有 
 
 [socat](http://www.dest-unreach.org/socat/) 是 2004 年的 Unix 工具。它連接兩個資料流。就這樣。
 
-```
-容器 (172.19.0.x) ──→ Bridge Gateway (172.19.0.1:18789)
-                              │
-                            socat
-                              │
-                        127.0.0.1:18789 (主機服務)
-```
-
 <ExcalidrawDiagram src="socat-bridge" alt="Socat Bridge：容器 → Docker Bridge Gateway (172.19.0.1) → socat → 主機 Loopback (127.0.0.1)" />
 
 一行指令：
