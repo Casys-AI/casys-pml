@@ -83,27 +83,11 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 以下是你在实践中会遇到的所有组合，从最简单到最复杂。
 
-<ExcalidrawDiagram src="four-scenarios" alt="四个生产场景：localhost 在 AI 网关和 Docker 容器之间断裂的位置" />
-
 ### 场景 1：主机网关 + Docker 编排器
 
 最常见的情况。OpenClaw 直接运行在主机上。Windmill / n8n / Kestra / Temporal 运行在 Docker 中。
 
-```
-┌─────────────────────────────────────────┐
-│  主机                                    │
-│                                         │
-│  OpenClaw Gateway (127.0.0.1:18789)     │
-│         ▲                               │
-│         │ ← socat 桥接                   │
-│         ▼                               │
-│  ┌──────────────────────────────┐       │
-│  │ Docker: windmill_default     │       │
-│  │  Windmill / n8n / Kestra     │       │
-│  │  → 通过桥接调用网关           │       │
-│  └──────────────────────────────┘       │
-└─────────────────────────────────────────┘
-```
+<ExcalidrawDiagram src="scenario-1-host-orchestrator" alt="场景 1：主机网关通过 socat 桥接转发到 Docker 编排器" />
 
 **问题：** 容器无法访问主机上的 `localhost:18789`。
 **解决方案：** 在 Docker 网络的网关 IP 上放一个 socat 桥接。
@@ -112,21 +96,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 你在隔离的 Docker 容器中运行客户代理——每个客户有自己的沙箱，有自己的文件系统、工具和环境。代理需要回调 OpenClaw 网关。
 
-```
-┌─────────────────────────────────────────┐
-│  主机                                    │
-│                                         │
-│  OpenClaw Gateway (127.0.0.1:18789)     │
-│         ▲                               │
-│         │ ← socat 桥接                   │
-│         ▼                               │
-│  ┌──────────────┐  ┌──────────────┐     │
-│  │ 沙箱：        │  │ 沙箱：        │    │
-│  │ 客户 A        │  │ 客户 B        │    │
-│  │ (代理+工具)   │  │ (代理+工具)    │   │
-│  └──────────────┘  └──────────────┘     │
-└─────────────────────────────────────────┘
-```
+<ExcalidrawDiagram src="scenario-2-host-sandboxes" alt="场景 2：主机网关通过 socat 桥接转发到多个 Docker 代理沙箱" />
 
 **问题：** 与场景 1 相同，但有多个容器——可能在不同的 Docker 网络上。
 **解决方案：** 需要访问的**每个 Docker 网络**一个 socat 桥接。如果所有沙箱共享一个网络，一个桥接就够了。
@@ -135,21 +105,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 OpenClaw 和编排器都在 Docker 中运行，但在**不同的 Docker 网络**上。当你通过不同的 Compose 文件分别安装它们时就会发生这种情况。
 
-```
-┌──────────────────────────────────────────┐
-│  主机                                     │
-│                                          │
-│  ┌─────────────────────┐                 │
-│  │ Docker: openclaw_net │                 │
-│  │  OpenClaw Gateway    │                 │
-│  └─────────┬───────────┘                 │
-│            │ ← 共享 Docker 网络           │
-│  ┌─────────┴───────────┐                 │
-│  │ Docker: windmill_net │                 │
-│  │  Windmill Workers    │                 │
-│  └─────────────────────┘                 │
-└──────────────────────────────────────────┘
-```
+<ExcalidrawDiagram src="scenario-3-docker-docker" alt="场景 3：两个 Docker 容器在共享网络上，直接 DNS 解析" />
 
 **问题：** 不同 Docker 网络上的容器看不到彼此。
 **解决方案：** 创建一个共享的 Docker 网络并将两个服务都连接上去。不需要 socat——只需 Docker 到 Docker 的 DNS 解析。或者如果你不想修改 Compose 文件，也可以用 socat。
@@ -162,31 +118,30 @@ docker network create shared_internal
 #     external: true
 ```
 
-### 场景 4：全 Docker — OpenClaw + 编排器 + MCP 服务器
+### 场景 4：多租户 — docker0 上隔离的客户实例
 
-全部容器化。OpenClaw、编排器、MCP 服务器、Ollama，整个技术栈。这是最干净的架构——但需要最多的前期网络规划。
+真正的生产用例。每个客户在独立的 Docker 容器中拥有自己的 OpenClaw 实例。所有容器运行在默认的 `bridge` 网络（docker0）上。它们通过共享的 socat 桥接访问主机服务（主网关、Windmill、Ollama……）。它们**看不到彼此** —— 这是 docker0 的默认隔离。
 
-**解决方案：** 一个共享的 Docker 网络用于服务间通信。每个服务获得一个 DNS 名称。不再有 `localhost`——全部使用容器名或服务名。
+<ExcalidrawDiagram src="scenario-4-multitenant" alt="场景 4：多租户架构，客户容器在 docker0 上隔离，共享 socat 桥接到主机服务" />
 
-```yaml
-# docker-compose.yml
-services:
-  openclaw:
-    image: openclaw/gateway
-    networks: [internal]
-  windmill:
-    image: windmill/windmill
-    networks: [internal]
-  mcp-server:
-    image: your-mcp-server
-    networks: [internal]
+**为什么不用共享的 Docker 网络？** 如果你把所有客户实例放在同一个自定义 Docker 网络上，它们可以通过容器名互相解析。客户 A 可以访问客户 B 的 API、读取其环境变量，甚至更糟。在多租户环境中，共享网络是一个**安全漏洞**。
 
-networks:
-  internal:
-    driver: bridge
+**为什么用 docker0 + socat 桥接？**
+
+1. **客户间隔离。** docker0（默认桥接）不提供容器间的 DNS 解析。容器无法发现或访问彼此——这正是多租户所需要的。
+2. **共享桥接。** 每个端口一个 socat 桥接服务*所有*客户。不需要每个客户一个桥接——桥接监听在 docker0 的网关 IP（172.17.0.1）上，docker0 上的每个容器都能访问。
+3. **无需多客户 Compose。** 每个客户是一个独立的 `docker run`。没有共享的 Compose 文件，没有网络纠缠，没有"重启一个客户导致另一个崩溃"的场景。
+
+```bash
+# 启动客户实例——默认落在 docker0 上
+docker run -d --name client-acme openclaw/sandbox
+
+# 一个 socat 桥接服务 docker0 上的所有客户
+# socat-bridge-docker0-18789 → 转发到主机网关
+# socat-bridge-docker0-8000  → 转发到主机 Windmill
 ```
 
-网关 URL 变成 `http://openclaw:18789` 而不是 `http://localhost:18789`。干净，不需要桥接。但这意味着要完全投入容器化——当你快速迭代时这并不总是实际的。
+客户共享基础设施（网关、编排器、LLM），但看不到彼此的数据或流量。隔离而不重复。
 
 ---
 

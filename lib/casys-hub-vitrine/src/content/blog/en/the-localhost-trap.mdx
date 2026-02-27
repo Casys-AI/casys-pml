@@ -83,27 +83,11 @@ The [MCP spec](https://modelcontextprotocol.io) describes `stdio` and `SSE` tran
 
 Here's every combination you'll encounter in practice, from simplest to most complex.
 
-<ExcalidrawDiagram src="four-scenarios" alt="Four production scenarios: where localhost breaks between AI gateway and Docker containers" />
-
 ### Scenario 1: Host Gateway + Docker Orchestrator
 
 The most common case. OpenClaw runs directly on the host. Windmill / n8n / Kestra / Temporal runs in Docker.
 
-```
-┌─────────────────────────────────────────┐
-│  HOST                                   │
-│                                         │
-│  OpenClaw Gateway (127.0.0.1:18789)     │
-│         ▲                               │
-│         │ ← socat bridge                │
-│         ▼                               │
-│  ┌──────────────────────────────┐       │
-│  │ Docker: windmill_default     │       │
-│  │  Windmill / n8n / Kestra     │       │
-│  │  → calls gateway via bridge  │       │
-│  └──────────────────────────────┘       │
-└─────────────────────────────────────────┘
-```
+<ExcalidrawDiagram src="scenario-1-host-orchestrator" alt="Scenario 1: Host gateway with socat bridge forwarding to Docker orchestrator" />
 
 **Problem:** Container can't reach `localhost:18789` on the host.
 **Solution:** One socat bridge on the Docker network's gateway IP.
@@ -112,21 +96,7 @@ The most common case. OpenClaw runs directly on the host. Windmill / n8n / Kestr
 
 You run client agents in isolated Docker containers — each client gets their own sandbox with their own filesystem, tools, and environment. The agents need to call back to the OpenClaw gateway.
 
-```
-┌─────────────────────────────────────────┐
-│  HOST                                   │
-│                                         │
-│  OpenClaw Gateway (127.0.0.1:18789)     │
-│         ▲                               │
-│         │ ← socat bridge                │
-│         ▼                               │
-│  ┌──────────────┐  ┌──────────────┐     │
-│  │ Sandbox:      │  │ Sandbox:      │    │
-│  │ Client A      │  │ Client B      │    │
-│  │ (agent + tools)│ │ (agent + tools)│   │
-│  └──────────────┘  └──────────────┘     │
-└─────────────────────────────────────────┘
-```
+<ExcalidrawDiagram src="scenario-2-host-sandboxes" alt="Scenario 2: Host gateway with socat bridge forwarding to multiple Docker agent sandboxes" />
 
 **Problem:** Same as Scenario 1, but with multiple containers — possibly on different Docker networks.
 **Solution:** One socat bridge **per Docker network** that needs access. If all sandboxes share a network, one bridge is enough.
@@ -135,21 +105,7 @@ You run client agents in isolated Docker containers — each client gets their o
 
 Both OpenClaw and the orchestrator run in Docker, but on **different Docker networks**. This happens when you install them separately via different Compose files.
 
-```
-┌──────────────────────────────────────────┐
-│  HOST                                    │
-│                                          │
-│  ┌─────────────────────┐                 │
-│  │ Docker: openclaw_net │                 │
-│  │  OpenClaw Gateway    │                 │
-│  └─────────┬───────────┘                 │
-│            │ ← shared Docker network      │
-│  ┌─────────┴───────────┐                 │
-│  │ Docker: windmill_net │                 │
-│  │  Windmill Workers    │                 │
-│  └─────────────────────┘                 │
-└──────────────────────────────────────────┘
-```
+<ExcalidrawDiagram src="scenario-3-docker-docker" alt="Scenario 3: Two Docker containers on a shared network, direct DNS resolution" />
 
 **Problem:** Containers on different Docker networks can't see each other.
 **Solution:** Create a shared Docker network and attach both services to it. No socat needed — just Docker-to-Docker DNS resolution. Or use socat if you don't want to modify the Compose files.
@@ -162,31 +118,30 @@ docker network create shared_internal
 #     external: true
 ```
 
-### Scenario 4: Full Docker — OpenClaw + Orchestrator + MCP Servers
+### Scenario 4: Multi-Tenant — Isolated Client Instances on docker0
 
-Everything containerized. OpenClaw, the orchestrator, MCP servers, Ollama, the whole stack. This is the cleanest architecture — but requires the most upfront network planning.
+The real production use case. Each client gets their own OpenClaw instance in a separate Docker container. All containers run on the default `bridge` network (docker0). They reach host services (main gateway, Windmill, Ollama…) through shared socat bridges. They **cannot see each other** — that's docker0's default isolation.
 
-**Solution:** A single shared Docker network for inter-service communication. Each service gets a DNS name. No `localhost` anywhere — everything uses container names or service names.
+<ExcalidrawDiagram src="scenario-4-multitenant" alt="Scenario 4: Multi-tenant architecture with isolated client containers on docker0, shared socat bridges to host services" />
 
-```yaml
-# docker-compose.yml
-services:
-  openclaw:
-    image: openclaw/gateway
-    networks: [internal]
-  windmill:
-    image: windmill/windmill
-    networks: [internal]
-  mcp-server:
-    image: your-mcp-server
-    networks: [internal]
+**Why not a shared Docker network?** If you put all client instances on the same custom Docker network, they can resolve each other by container name. Client A could reach Client B's API, read their environment, or worse. A shared network is a **security breach** in a multi-tenant setup.
 
-networks:
-  internal:
-    driver: bridge
+**Why docker0 + socat bridges?**
+
+1. **Inter-client isolation.** docker0 (the default bridge) doesn't provide DNS resolution between containers. Containers can't discover or reach each other — exactly what you want for multi-tenancy.
+2. **Shared bridges.** One socat bridge per port serves *all* clients. You don't need one bridge per client — the bridge listens on docker0's gateway IP (172.17.0.1), which every container on docker0 can reach.
+3. **No multi-client Compose.** Each client is a standalone `docker run`. No shared Compose file, no network entanglement, no "restart one client and break another" scenarios.
+
+```bash
+# Launch a client instance — it lands on docker0 by default
+docker run -d --name client-acme openclaw/sandbox
+
+# One socat bridge serves all clients on docker0
+# socat-bridge-docker0-18789 → forwards to host gateway
+# socat-bridge-docker0-8000  → forwards to host Windmill
 ```
 
-The gateway URL becomes `http://openclaw:18789` instead of `http://localhost:18789`. Clean, no bridges needed. But it means committing to full containerization — which isn't always practical when you're iterating fast.
+The clients share the infrastructure (gateway, orchestrator, LLMs) but can't see each other's data or traffic. Isolation without duplication.
 
 ---
 
