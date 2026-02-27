@@ -83,6 +83,8 @@ La [spec MCP](https://modelcontextprotocol.io) décrit les transports `stdio` et
 
 Voici toutes les combinaisons que vous rencontrerez en pratique, de la plus simple à la plus complexe.
 
+<ExcalidrawDiagram src="four-scenarios" alt="Quatre scénarios de production : où localhost casse entre la gateway IA et les containers Docker" />
+
 ### Scénario 1 : Gateway sur l'hôte + Orchestrateur Docker
 
 Le cas le plus courant. OpenClaw tourne directement sur l'hôte. Windmill / n8n / Kestra / Temporal tourne dans Docker.
@@ -247,6 +249,8 @@ socat écoute sur l'IP du bridge Docker — l'adresse gateway du réseau Docker 
 socat sans règles firewall ne marche pas — les paquets sont droppés silencieusement. Et sans convention de nommage, vous vous retrouvez avec `socat-bridge-1`, `socat-bridge-2`, et aucune idée de quoi est quoi trois mois plus tard.
 
 Voici le setup de production que nous utilisons, avec une convention de nommage empruntée à la gestion de services ITIL : **un bridge par (réseau, port)**, nommé pour être auto-documenté.
+
+<ExcalidrawDiagram src="socat-bridge-itil" alt="Bridges socat nommés ITIL : un par (réseau, port), partagé par tous les containers" />
 
 ### Convention de nommage
 
