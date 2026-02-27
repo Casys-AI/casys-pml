@@ -1,0 +1,505 @@
+---
+title: "MCP Gateway : Pourquoi Vos Agents IA en Ont Besoin"
+description: "17 000 outils MCP sur Smithery. Aucun context window ne peut tous les contenir. Un MCP gateway est la couche de routage manquante entre vos clients IA et vos serveurs MCP."
+author: "Erwan Lee Pesle"
+date: 2026-02-27
+tags:
+  - mcp
+  - mcp-gateway
+  - routing
+  - multi-agent
+  - infrastructure
+category: "Product"
+language: fr
+snippet: "17 000 outils MCP sur Smithery. Aucun context window ne peut tous les contenir. Voici pourquoi vous avez besoin d'un MCP gateway — et comment en construire un."
+featured: true
+draft: false
+---
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+## Le probleme que personne n'avait prevu
+
+Il y a plus de 17 000 outils MCP sur [Smithery](https://smithery.ai) aujourd'hui. Il y a six mois, il y en avait 4 000. D'ici la fin de l'annee, on depassera les 50 000.
+
+Aucun context window ne peut tous les contenir. Ni le million de tokens de Claude. Ni les 128K de GPT. Ni les 2M de Gemini — parce que meme si vous pouviez faire rentrer les schemas, les performances se degradent bien avant d'atteindre la limite. Un MCP gateway est la couche qui resout ce probleme. Et si vous construisez quoi que ce soit de serieux avec MCP, vous en avez besoin.
+
+Voici pourquoi, comment on a construit le notre, et quelles sont vos options.
+
+---
+
+## Qu'est-ce qu'un MCP gateway ?
+
+<ExcalidrawDiagram src="gateway-architecture" alt="Architecture du PML Gateway : Agent → Router + Search + Memory + Learning → Multiplexer → Serveurs MCP" />
+
+Un MCP gateway est une couche d'agregation entre les clients IA (Claude, GPT, votre modele local) et plusieurs serveurs MCP. Au lieu que chaque client se connecte directement a chaque serveur, toutes les connexions passent par le gateway.
+
+C'est un reverse proxy pour MCP. Nginx ne sert pas de pages web — il route les requetes vers les services qui le font. Un MCP gateway n'execute pas d'outils — il route les appels vers les serveurs MCP qui le font.
+
+Mais contrairement a Nginx, un bon gateway fait plus que transmettre des paquets. Il decide **quels outils le LLM devrait voir**. C'est la partie difficile.
+
+L'architecture minimale :
+
+```
+┌─────────────┐
+│  Client IA   │  (Claude, GPT, modele local)
+│  (MCP Host)  │
+└──────┬───────┘
+       │ Protocole MCP (SSE / Streamable HTTP)
+       ▼
+┌──────────────────────┐
+│    MCP Gateway       │  ← agregation + decouverte + routage
+│  (endpoint unique)   │
+└──┬───────┬───────┬───┘
+   │       │       │
+   ▼       ▼       ▼
+┌──────┐┌──────┐┌──────┐
+│MCP   ││MCP   ││MCP   │  (filesystem, database, GitHub, etc.)
+│Srv 1 ││Srv 2 ││Srv N │
+└──────┘└──────┘└──────┘
+```
+
+Le client voit un seul serveur MCP. Derriere, il y en a N. Le gateway gere la decouverte, la deduplication, le routage, et — s'il est intelligent — la **selection d'outils**.
+
+---
+
+## Pourquoi les connexions MCP directes ne passent pas a l'echelle
+
+L'architecture MCP par defaut est point-a-point : un client, un serveur, une connexion. Ca marche tres bien quand on a 3 serveurs et 20 outils. Ca casse quand on arrive a 30 serveurs et 2 000 outils.
+
+### La taxe sur le context window
+
+Chaque outil MCP a un schema — nom, description, types des parametres, types de retour. Un schema typique fait 200 a 500 tokens. Connectez le serveur GitHub MCP et vous avez ~91 outils. Ca represente environ [22% du context window](https://eclipsesource.com/blogs/2026/01/22/mcp-context-overload/) de Claude, consommes avant que l'utilisateur n'ait tape un mot.
+
+Un utilisateur de Reddit [a mesure](https://medium.com/@joe.njenga/claude-code-just-cut-mcp-context-bloat-by-46-9-51k-tokens-down-to-8-5k-with-new-tool-search-ddf9e905f734) 67 000 tokens consommes rien qu'en connectant quatre serveurs MCP a Claude Code. Quatre serveurs. Deux tiers du contexte. Disparus.
+
+Anthropic a reconnu le probleme directement en janvier 2026 : quand les schemas MCP depassent **10% du contexte**, Claude Code bascule en mode [Tool Search](https://www.anthropic.com/engineering/advanced-tool-use) — les outils sont charges a la demande via recherche au lieu d'etre precharges. De 51K tokens a 8,5K.
+
+C'est Anthropic qui admet le probleme. Mais Tool Search est un palliatif cote client. Ca ne fonctionne que dans Claude Code. Pas dans l'API, pas dans les modeles locaux, pas dans les agents custom.
+
+Un gateway resout ca au niveau de l'infrastructure — pour tous les clients.
+
+### Le probleme d'interference
+
+[Microsoft Research](https://www.microsoft.com/en-us/research/blog/tool-space-interference-in-the-mcp-era-designing-for-agent-compatibility-at-scale/) a publie des travaux sur ce qu'ils appellent "tool-space interference" : quand trop d'outils sont dans le contexte, ils interferent entre eux. Le modele confond des outils similaires et les performances baissent — meme sur des outils qu'il maitrise bien.
+
+Ce n'est pas un bug du modele. C'est de la theorie de l'information. Plus d'options avec des descriptions similaires = plus d'entropie = de pires decisions. Le correctif n'est pas un modele plus gros. Le correctif est de presenter moins d'options, mieux selectionnees.
+
+### Le LLM ne peut pas router ce qu'il ne voit pas
+
+Voici le paradoxe. Le LLM doit voir les outils pour choisir le bon. Mais montrer tous les outils lui fait choisir le mauvais. Et il ne peut pas chercher des outils dont il ignore l'existence.
+
+Quelque chose d'externe doit pre-filtrer. C'est le role du gateway.
+
+---
+
+## La regle des 10% et ce qu'elle signifie pour vous
+
+Le seuil d'Anthropic est clair : quand les schemas d'outils depassent 10% du contexte, les performances chutent. Faisons le calcul.
+
+Claude Opus 4.6 a un context window effectif de ~200K tokens. 10%, c'est 20K tokens. A ~300 tokens par schema en moyenne, ca fait environ **65 outils** avant de toucher le mur.
+
+65 outils, ca parait beaucoup. Ca ne l'est pas. Le serveur GitHub seul en a 91. Ajoutez un serveur de base de donnees (15-20 outils), un serveur filesystem (10-15 outils), et un serveur Slack (20+ outils) — vous etes a 150+ outils avec quatre serveurs. Largement au-dessus du seuil.
+
+L'alternative : un gateway qui n'expose que les 5 a 10 outils pertinents pour la tache en cours. Ca fait 1 500-3 000 tokens. Moins de 2% du contexte. Le modele recoit des signaux clairs, l'utilisateur garde son context window, et la precision augmente.
+
+---
+
+## Comment construire un MCP gateway
+
+### La version la plus simple possible
+
+A sa base, un MCP gateway est un serveur qui proxie vers d'autres serveurs MCP. Voici le squelette en TypeScript :
+
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+
+// Le gateway est lui-meme un serveur MCP
+const gateway = new McpServer({
+  name: "mcp-gateway",
+  version: "1.0.0",
+});
+
+// Registre des serveurs MCP en aval
+const servers = new Map<string, McpClient>();
+
+// Enregistrer un serveur en aval
+async function registerServer(name: string, url: string) {
+  const client = new McpClient({ name: `gateway-to-${name}` });
+  const transport = new SSEClientTransport(new URL(url));
+  await client.connect(transport);
+
+  // Recuperer tous les outils de ce serveur
+  const { tools } = await client.listTools();
+
+  // Enregistrer chaque outil sur le gateway, namespace
+  for (const tool of tools) {
+    gateway.tool(
+      `${name}__${tool.name}`,         // namespace : "github__create_issue"
+      tool.description ?? "",
+      tool.inputSchema.properties ?? {},
+      async (args) => {
+        // Proxier l'appel vers le serveur en aval
+        const result = await client.callTool(tool.name, args);
+        return result;
+      }
+    );
+  }
+
+  servers.set(name, client);
+}
+
+// Connecter vos serveurs MCP
+await registerServer("github", "http://localhost:3001/sse");
+await registerServer("postgres", "http://localhost:3002/sse");
+await registerServer("filesystem", "http://localhost:3003/sse");
+```
+
+Ca donne un endpoint unique qui agrege plusieurs serveurs MCP. Le client IA se connecte a une seule URL de gateway et voit tous les outils de tous les serveurs en aval, espaces de noms pour eviter les collisions.
+
+**Mais ca n'est que de l'agregation.** Ca ne resout ni la decouverte ni le routage. Tous les outils sont toujours exposes au client. Vous avez fusionne les schemas, pas reduit leur nombre.
+
+### Ajouter la decouverte : le gateway a un cerveau
+
+La vraie valeur du gateway, c'est de decider quels outils montrer. C'est la que ca devient interessant.
+
+```typescript
+// Le gateway expose un outil de decouverte
+gateway.tool(
+  "discover",
+  "Trouver les bons outils pour une tache",
+  {
+    intent: { type: "string", description: "Ce que vous essayez de faire" },
+    limit: { type: "number", description: "Nombre max d'outils a retourner" },
+  },
+  async ({ intent, limit = 5 }) => {
+    // Scorer chaque outil par rapport a l'intent
+    const scored = await Promise.all(
+      getAllTools().map(async (tool) => ({
+        tool,
+        score: await computeRelevance(intent, tool),
+      }))
+    );
+
+    // Retourner le top-K
+    const topK = scored
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(topK.map(t => ({
+          name: t.tool.name,
+          description: t.tool.description,
+          score: t.score,
+        }))),
+      }],
+    };
+  }
+);
+```
+
+Maintenant le LLM peut demander "de quels outils j'ai besoin pour cette tache ?" et le gateway retourne une shortlist calibree. Le context window reste propre.
+
+La version naive utilise la similarite cosinus sur des embeddings pour `computeRelevance`. Ca suffit pour un prototype. Pour la production, il faut plus.
+
+### Connexion client : une URL, tous les outils
+
+Du point de vue du client, le gateway est juste un autre serveur MCP. Claude Desktop, Cursor, ou n'importe quel client compatible MCP se connecte de la meme facon :
+
+```json
+{
+  "mcpServers": {
+    "gateway": {
+      "url": "http://localhost:4000/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+Une connexion. Une URL. Derriere, le gateway gere les connexions a 5, 10 ou 50 serveurs MCP. Le client ne sait pas et s'en fiche.
+
+Pour l'acces programmatique (agents custom, scripts), la connexion est aussi simple :
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+const client = new Client({ name: "mon-agent" });
+const transport = new SSEClientTransport(
+  new URL("http://localhost:4000/sse")
+);
+await client.connect(transport);
+
+// Decouvrir les outils pertinents
+const discovery = await client.callTool("discover", {
+  intent: "interroger la base de donnees de production",
+  limit: 5,
+});
+
+// Utiliser les outils suggeres
+const result = await client.callTool("postgres__psql_query", {
+  query: "SELECT * FROM user_activity WHERE date > '2026-02-01'",
+});
+```
+
+---
+
+## Ce qu'on a construit : PML comme MCP gateway
+
+<ExcalidrawDiagram src="routing-bottleneck" alt="LLM Router (8B, GPU, secondes) vs Routeur specialise (graphe + sequence, sub-1M, CPU, millisecondes) avec MCP Sampling" />
+
+Chez [CasYs](/), on construit PML (Procedural Memory Layer) — un MCP gateway qui va au-dela de l'agregation et de la recherche par embeddings.
+
+L'intuition de depart : le routage d'outils n'est pas un probleme de langage. C'est un **probleme de graphe** (quels outils sont lies ?) et un **probleme de sequence** (dans quel ordre ?). On a developpe cette analyse en detail dans ["20 000 $ pour router 16 agents"](/blog/routing-agents-without-new-protocol).
+
+PML combine trois systemes :
+
+### 1. Decouverte par GraphRAG (SHGAT)
+
+Au lieu d'une recherche plate par embeddings, PML construit un **hypergraphe** de relations entre outils. Les outils qui apparaissent ensemble dans des workflows reels sont connectes. Les capacites (abstractions de niveau superieur comme "deployer en staging") lient les outils sous-jacents.
+
+Le reseau SHGAT (Sparse Hypergraph Attention) apprend des poids d'attention sur ce graphe. Quand vous demandez "deployer en staging", il ne se contente pas de trouver les outils avec "deploy" dans la description — il active le sous-graphe entier des outils que de vrais utilisateurs ont combines pour des workflows de deploiement.
+
+C'est la difference entre [similaire et lie](/blog/graphrag-vs-vectorrag). La recherche par embeddings trouve le similaire. GraphRAG trouve le lie. Pour le routage d'outils, le lie gagne.
+
+### 2. Prediction de sequence (GRU)
+
+Une fois les bons outils decouverts, l'ordre compte. "Lancer les tests" avant "deployer" — pas apres.
+
+PML utilise un GRU (Gated Recurrent Unit) entraine sur des milliers de sequences de workflows reels provenant des templates d'automatisation [n8n](https://n8n.io). Etant donne la sequence d'outils en cours, il predit l'outil suivant le plus probable.
+
+Moins d'un million de parametres au total. Inference sous 10ms sur CPU. Pas de GPU necessaire.
+
+### 3. La couche gateway
+
+PML s'expose comme un serveur MCP standard. N'importe quel client MCP — Claude Desktop, Cursor, un agent custom — se connecte a PML et beneficie de la decouverte et du routage intelligents sans savoir que tout ca existe.
+
+```typescript
+// PML discover — GraphRAG + GRU combines
+const tools = await mcp.pml.discover({
+  intent: "mettre en place un pipeline CI/CD pour un projet Deno",
+  limit: 8,
+});
+
+// PML execute — executer un workflow multi-etapes
+const result = await mcp.pml.execute({
+  intent: "Creer un workflow GitHub Actions pour Deno CI",
+  code: `
+    const repo = await mcp.github.get_repository({ owner: "mon-org", repo: "mon-projet" });
+    const workflow = await mcp.filesystem.write_file({
+      path: ".github/workflows/ci.yml",
+      content: generateCIWorkflow(repo),
+    });
+    return workflow;
+  `,
+});
+```
+
+Le gateway gere le cycle de vie des serveurs, le pooling de connexions, le namespacing des outils, le cache des schemas, et — cruciallement — les decisions de routage.
+
+### Integration cross-plateforme avec `@casys/mcp-bridge`
+
+Un gateway ne sert pas uniquement des IDE. Les agents vivent dans Telegram, LINE, Slack. [`@casys/mcp-bridge`](https://jsr.io/@casys/mcp-bridge) est notre librairie de bridge MCP pour les plateformes de messagerie. Elle traduit les interactions de messagerie en appels MCP standard — ce qui signifie qu'un agent Telegram peut interroger le meme gateway que Claude Desktop, avec les memes outils, le meme routage, la meme decouverte.
+
+### Serveurs MCP domaine-specifique derriere le gateway
+
+Le vrai interet du pattern gateway, c'est qu'il permet d'integrer des serveurs MCP specialises sans complexifier le client. Par exemple, [`@casys/mcp-erpnext`](https://www.npmjs.com/package/@casys/mcp-erpnext) expose un ERP complet (gestion de stock, facturation, achats) comme un ensemble d'outils MCP. Connecte derriere le gateway, un agent peut interroger l'ERP sans savoir que c'est un serveur dedie — le gateway route l'appel vers le bon serveur en fonction de l'intent.
+
+C'est le principe fondamental : le gateway absorbe la complexite pour que le client reste simple.
+
+---
+
+## Comparatif des approches MCP gateway
+
+Chaque projet n'a pas les memes besoins. Voici un comparatif honnete.
+
+| Critere | MCP direct (sans gateway) | Tool Search Anthropic | LangChain / LangGraph | Gateway custom | PML (CasYs) |
+| --- | --- | --- | --- | --- | --- |
+| **Complexite de setup** | Nulle | Nulle (Claude Code seul) | Moyenne | Elevee | Moyenne |
+| **Agregation multi-serveurs** | Non (N connexions) | Non | Oui (via toolkits) | Oui | Oui |
+| **Decouverte d'outils** | Tous charges | Recherche par embeddings | Recherche par embeddings | Votre implementation | GraphRAG + GRU |
+| **Prediction de sequence** | Non | Non | Non | Votre implementation | Oui (entraine sur workflows reels) |
+| **Reduction du contexte** | Aucune | ~83% reduction | Partielle | Variable | 95%+ reduction |
+| **Latence de routage** | N/A | ~50-100ms | ~100-500ms (appel LLM) | Variable | Sub-10ms (CPU) |
+| **Compatible tout client** | Oui | Claude seul | LangChain seul | Variable | Oui (MCP standard) |
+| **Open source** | N/A | Non | Oui | Le votre | Oui |
+| **GPU necessaire** | Non | Non | Souvent (routage LLM) | Variable | Non |
+| **Apprentissage depuis l'usage** | Non | Non | Non | Votre implementation | Oui (patterns de workflow) |
+
+Les compromis, sans emballage.
+
+### Connexions MCP directes
+
+**Quand ca marche :** Vous avez moins de 5 serveurs et moins de 50 outils au total. La taxe sur le contexte est acceptable. Pas besoin de decouverte dynamique.
+
+**Quand ca casse :** Vous ajoutez un sixieme serveur et le modele commence a confondre `github__create_issue` avec `jira__create_issue`. Ou vous depassez le seuil des 10% et vous ne comprenez pas pourquoi la qualite des reponses baisse.
+
+**Verdict :** Bien pour les prototypes. Dangereux en production.
+
+### Tool Search d'Anthropic
+
+**Ce que ca fait bien :** Contexte reduit de 51K a 8,5K tokens dans Claude Code. C'est automatique — pas de setup.
+
+**Le piege :** Ca ne fonctionne que dans Claude Code. Pas dans Claude Desktop, pas dans l'API, pas dans aucun autre client. C'est une fonctionnalite produit, pas une solution d'infrastructure. Si vous construisez des agents sur l'API Claude, vous n'en beneficiez pas.
+
+**Verdict :** Parfait si vous vivez integralement dans Claude Code. Inutile partout ailleurs.
+
+### LangChain / LangGraph
+
+**Ce que ca fait bien :** Ecosysteme mature. Bonnes abstractions pour la gestion des outils. Communaute active.
+
+**Le piege :** Les decisions de routage passent typiquement par le LLM lui-meme — ce qui signifie que vous payez un appel LLM juste pour decider quel outil utiliser, avant de payer l'appel LLM qui utilise effectivement l'outil. Double la latence, double le cout. Et vous etes enfermes dans l'ecosysteme LangChain. Votre logique de routage ne fonctionne pas en dehors.
+
+**Verdict :** Raisonnable si vous etes deja dans l'ecosysteme LangChain et que la latence/le cout ne sont pas des contraintes.
+
+### Gateway custom
+
+**Ce que ca fait bien :** Vous controlez tout. Vous pouvez optimiser pour votre cas d'usage exact.
+
+**Le piege :** Vous devez tout construire. Decouverte, routage, gestion des connexions, gestion d'erreurs, logique de reconnexion, cache des schemas, deduplication des namespaces. On construit PML depuis plus d'un an. Ce n'est pas un projet de week-end.
+
+**Verdict :** A du sens si votre cas d'usage est etroit et bien defini. Sinon, vous passerez des mois a reinventer des roues.
+
+---
+
+## Les chiffres qui comptent
+
+Voici les benchmarks qui expliquent pourquoi on a construit PML de cette facon.
+
+**GPT-5.2 echoue sur 42% des taches MCP.** Le leaderboard [MCPMark](https://mcpmark.ai/leaderboard) — la reference pour le tool use en conditions reelles sur 5 serveurs et des taches multi-etapes — place GPT-5.2 en tete a 57,5% Pass@1. Claude Opus 4.5 fait 42,3%. Ce sont les meilleurs modeles du monde, et ils echouent sur presque la moitie des taches MCP.
+
+Le gateway aide en reduisant l'espace de recherche. Au lieu de choisir parmi 200 outils, le modele choisit parmi 5. La precision augmente parce que les options sont plus propres.
+
+**Routage sub-10ms.** Le pipeline SHGAT + GRU de PML tourne en moins de 10 millisecondes sur un CPU standard. Pas de GPU, pas d'endpoint d'inference cloud, pas de cold start. La decision de routage est prise avant que le LLM ait fini de lire le prompt.
+
+Comparons avec le routage par LLM : 500ms a 2s pour un appel API, plus le cout des tokens. Pour chaque selection d'outil dans un workflow multi-etapes. Un workflow de 10 etapes avec routage LLM ajoute 5 a 20 secondes de pur overhead de routage. Avec PML, ca ajoute 100 millisecondes au total.
+
+**Reduction de contexte de 95%+.** Au lieu de charger 2 000 schemas d'outils (600K+ tokens), le gateway retourne 5 a 10 schemas pertinents (~2K tokens). Le modele travaille avec un contexte propre et focalise.
+
+---
+
+## Configurer PML comme gateway
+
+### Configuration
+
+PML lit la configuration de ses serveurs MCP en aval depuis `.pml.json` a la racine du projet :
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/projects"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "postgres": {
+      "url": "http://localhost:3002/sse",
+      "transport": "sse"
+    },
+    "erpnext": {
+      "command": "npx",
+      "args": ["-y", "@casys/mcp-erpnext"],
+      "env": {
+        "ERPNEXT_URL": "${ERPNEXT_URL}",
+        "ERPNEXT_API_KEY": "${ERPNEXT_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+PML se connecte a chaque serveur, indexe tous les outils, construit le graphe de relations, et expose un endpoint MCP unique.
+
+### Lancer le gateway
+
+```bash
+# Demarrer PML comme gateway
+pml serve --port 4000
+
+# Avec logs detailles
+pml serve --port 4000 --log-level debug
+```
+
+### Connecter les clients
+
+N'importe quel client compatible MCP pointe vers l'URL du gateway. Claude Desktop :
+
+```json
+{
+  "mcpServers": {
+    "pml": {
+      "url": "http://localhost:4000/sse"
+    }
+  }
+}
+```
+
+Cursor, Windsurf, ou n'importe quel autre MCP host — meme pattern. Une URL. Tous les outils. Routage intelligent.
+
+---
+
+## Quand vous n'avez PAS besoin d'un gateway
+
+Je ne vais pas pretendre que tout le monde en a besoin. Vous n'en avez pas besoin si :
+
+- **Vous avez moins de 30 outils.** La taxe sur le contexte est gerable. Les connexions directes sont plus simples.
+- **Vous utilisez un seul serveur MCP.** Pas d'agregation necessaire. Pas de collision de namespaces.
+- **Votre cas d'usage est statique.** Les memes 5 outils, a chaque fois, pas de decouverte necessaire. Codez-les en dur.
+- **Vous prototypez.** Livrez d'abord, optimisez ensuite. Ajoutez le gateway quand le nombre d'outils devient un probleme.
+
+Mais si vous construisez un systeme d'agents en production — un qui se connecte a plusieurs serveurs MCP, doit gerer des centaines d'outils, et doit selectionner les bons de facon fiable — vous avez besoin d'un gateway. La question est de savoir si vous le construisez vous-meme ou si vous en utilisez un existant.
+
+---
+
+## Le piege du localhost
+
+Si vous faites tourner vos serveurs MCP en local et que votre gateway ou vos agents tournent dans des conteneurs Docker, vous allez tomber dans [le piege du localhost](/blog/the-localhost-trap). `127.0.0.1` a l'interieur d'un conteneur ne pointe pas vers l'hote. Votre gateway ne peut pas atteindre les serveurs MCP sur l'interface loopback de l'hote.
+
+C'est le probleme de deploiement le plus courant qu'on voit. Le correctif est un bridge socat — un utilitaire Unix vieux de 20 ans qui redirige le trafic depuis l'IP du bridge Docker vers localhost. Cinq minutes de setup. Mais c'est invisible jusqu'a ce que ca casse, et quand ca casse, vous obtenez des timeouts silencieux sans message d'erreur.
+
+Lisez l'[article complet sur le piege du localhost](/blog/the-localhost-trap) avant de deployer une infrastructure MCP dans des conteneurs.
+
+---
+
+## Ce qui arrive pour le pattern MCP gateway
+
+L'ecosysteme MCP evolue vite. La [spec MCP](https://modelcontextprotocol.io) inclut deja des primitives qui rendent les gateways plus puissants :
+
+![La spécification officielle du Model Context Protocol](/images/screenshots/modelcontextprotocol-spec.png)
+
+**Transport Streamable HTTP.** Le transport recent remplace SSE pour la communication serveur-a-serveur. Les gateways peuvent l'utiliser dans les deux sens — vers les clients (upstream) et vers les serveurs (downstream).
+
+**`sampling/createMessage`.** Le gateway peut renvoyer des requetes au LLM hote pour du raisonnement complexe — reformuler des intents ambigus, valider des plans multi-etapes, ou synthetiser des outputs. Ca transforme le gateway en couche d'orchestration, pas juste en proxy. On a explore ca en detail dans notre [article sur le routage d'agents](/blog/routing-agents-without-new-protocol).
+
+**Annotations d'outils.** La spec supporte maintenant des metadonnees sur les outils — categories, indications de cout, attentes de latence. Un gateway intelligent peut utiliser ces annotations pour de meilleures decisions de routage sans aucun ML.
+
+Le pattern est clair : les gateways vont devenir de l'infrastructure standard pour les systemes d'agents, comme les API gateways sont devenus standard pour les microservices. Les outils sont la. La spec le supporte. La question est a quelle vitesse l'ecosysteme le construit.
+
+---
+
+## L'essentiel
+
+L'ecosysteme MCP a resolu le probleme du protocole. [Un standard, une compatibilite universelle](/blog/why-mcp-protocol) — n'importe quel outil peut parler a n'importe quel modele. C'etait la partie difficile. Du moins, c'est ce qu'on croyait.
+
+La nouvelle difficulte, c'est l'echelle. 17 000 outils. Des context windows qui ne peuvent pas les contenir. Des modeles qui perdent en precision quand ils voient trop d'options. Le protocole est universel, mais le catalogue d'outils est ingeaable sans couche de routage.
+
+Le gateway est cette couche de routage. Au minimum, il agrege plusieurs serveurs MCP derriere un endpoint unique. Au mieux, il selectionne intelligemment les outils que le LLM devrait voir, en fonction de la tache, du contexte, et de l'historique de ce qui a marche avant.
+
+Vous pouvez en construire un basique en un week-end. Un bon en un mois. Ou vous pouvez en utiliser un qui a ete entraine sur des milliers de workflows reels et qui route en moins de 10 millisecondes sur CPU.
+
+L'infrastructure avec le moins de friction gagne. Pour MCP, cette infrastructure est le gateway.
+
+---
+
+*PML est open source. Explorez la [documentation](https://pml.casys.ai), le [repository GitHub](https://github.com/Casys-AI/casys-pml), ou rejoignez le [Discord](https://discord.gg/casys) pour voir comment on construit la couche gateway pour MCP.*
+
+*Cet article reference [MCPMark](https://mcpmark.ai/leaderboard) (LobeHub), [Smithery](https://smithery.ai), la [specification MCP](https://modelcontextprotocol.io), les [travaux de Microsoft Research sur l'interference entre outils](https://www.microsoft.com/en-us/research/blog/tool-space-interference-in-the-mcp-era-designing-for-agent-compatibility-at-scale/), et le [blog technique d'Anthropic sur l'utilisation avancee des outils](https://www.anthropic.com/engineering/advanced-tool-use).*

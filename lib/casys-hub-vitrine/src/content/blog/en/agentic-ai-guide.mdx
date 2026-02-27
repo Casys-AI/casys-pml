@@ -1,0 +1,277 @@
+---
+title: "Agentic AI: From Chatbots to Autonomous Systems That Actually Work"
+description: "What agentic AI really means in 2026, how it differs from chatbots and copilots, and the infrastructure you need to build production-grade AI agents."
+author: "David Aames"
+date: 2026-02-27
+tags: ["agentic-ai", "ai-agents", "mcp", "context-engineering", "production"]
+category: "Industry"
+language: en
+snippet: "Agentic AI is the most overused term in tech. Here's what it actually means and what infrastructure you need."
+featured: true
+draft: false
+---
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+## The Agentic AI Hype vs Reality
+
+Most agentic AI is just chatbots with extra steps.
+
+This is not a cynical take. It is a diagnostic. Walk through the demos: a natural language interface, a few tool calls, maybe a multi-turn conversation. That is not an agent. That is a chatbot with an API wrapper. Calling it "agentic" because it can hit a database and format the result is the same category error as calling a calculator "reasoning" because it produces correct numbers.
+
+In February 2026, "agentic AI" is simultaneously the most important architectural shift in software and the most abused marketing term in the industry. Gartner predicts 40% of enterprise applications will embed AI agents by end of 2026, up from under 5% in 2025. Surveys show 100% of enterprises plan to expand agentic AI usage. And yet fewer than one in four organizations have successfully scaled any of it to production.
+
+The gap is infrastructure. Not intelligence.
+
+This guide is about that gap: what truly agentic systems require, what most implementations are actually missing, and what a production-grade agentic stack looks like when you build it honestly.
+
+---
+
+## The Agentic Spectrum
+
+Not all AI systems are equally agentic. There is a spectrum, and understanding where something sits on it matters before you choose your architecture.
+
+**Chatbots** respond to inputs. They have no state beyond the conversation window, no tools, no persistent memory. They generate text. GPT-3.5 with a system prompt lives here. So does most "AI-powered customer service."
+
+**Copilots** augment a human in a specific tool. They have access to the user's current document, IDE, or spreadsheet. They suggest, autocomplete, and explain. GitHub Copilot lives here. So does most "AI integration" you see in SaaS products. They can call tools, but they do not plan across them.
+
+**Agents** execute goals, not just respond to prompts. An agent receives an objective, decomposes it into steps, selects and calls tools, evaluates intermediate results, and adjusts. It has memory within a session and can recover from failures. A single-purpose agent that writes and runs database migrations qualifies. So does an agent that monitors a production system and pages the on-call engineer with a diagnosis already attached.
+
+**Autonomous systems** coordinate multiple agents, maintain persistent state across sessions, self-correct based on feedback loops, and handle tasks that are genuinely ambiguous. They reason about *which* agents to delegate to. They have governance layers. They are observable. This is where the gap between demo and production becomes brutal.
+
+Most enterprise "AI agent" projects are copilots marketed as autonomous systems. The difference is not a matter of prompting harder.
+
+<ExcalidrawDiagram src="agentic-ai-spectrum" alt="The Agentic AI Spectrum: from chatbots to autonomous systems" />
+
+---
+
+## What Makes AI Truly Agentic
+
+Five properties separate real agentic systems from chatbots wearing a costume.
+
+**1. Tool use with genuine selection logic**
+
+Not "the model can call functions." Every chat API supports that now. Genuine tool use means the system has access to dozens or hundreds of tools, and it selects the right one based on semantic understanding of intent, not keyword matching or hardcoded routing. A system with 5 tools hardcoded in the system prompt is not doing tool selection. A system with 200 tools routed via embeddings and graph attention is.
+
+**2. Planning across multiple steps**
+
+A single tool call is not planning. Planning is decomposing a goal into a directed graph of dependent subtasks, executing them in the right order, handling failures in individual steps without abandoning the whole objective, and revising the plan when intermediate results change the picture. Most implementations do linear chains. Real agents execute DAGs.
+
+**3. Memory that survives the session**
+
+In-context memory is a crutch. A system that "knows" things only because they are in the current conversation window has no real memory — it has a long prompt. Agentic systems need persistent memory: state that survives between sessions, knowledge graphs that accumulate structure over time, embeddings that capture semantic relationships between past executions. Without this, every session starts cold.
+
+**4. Self-correction**
+
+When a tool call fails, does the system throw an exception, or does it analyze the error, adjust its approach, and try again? When an intermediate result looks wrong, does the system continue blindly or flag the anomaly? Self-correction is not retrying with the same input three times. It is recognizing that the current plan is failing and generating a different one.
+
+**5. Observability**
+
+This one is non-obvious but critical. A system that cannot be observed cannot be trusted with autonomy. Production agentic AI requires execution traces, tool call logs, latency per step, failure attribution, and deterministic replays of any execution. Without observability, debugging a failed agent run is archaeology. With it, you know exactly which tool call at which step produced the wrong result.
+
+---
+
+## The Infrastructure Gap
+
+Here is the part that conference talks skip.
+
+You cannot build a production agentic system on top of a chat completions API, a vector database, and optimism. Chat completions are stateless by design. They have no concept of a running process, a tool registry, a session with persistent state, or a execution graph with recoverable steps. They are extraordinarily powerful text transformers. They are not an agent runtime.
+
+What agentic AI actually requires:
+
+### Tool Orchestration: The Gateway Problem
+
+An agent that can call one API is a script. An agent that can dynamically discover and call hundreds of tools — each with its own schema, authentication, and error modes — needs an orchestration layer.
+
+The **Model Context Protocol (MCP)** is the emerging standard for this. MCP defines a unified protocol for tools to expose their capabilities to AI models: structured schemas, explicit input/output contracts, and a transport layer that works both locally (stdio) and over the network (HTTP). Instead of each AI integration being a custom API client, MCP creates a common interface.
+
+But having MCP servers is not the same as having a gateway. You need a layer that:
+- Discovers which tools are available across multiple MCP servers
+- Routes requests to the right server based on intent
+- Handles authentication per server without leaking credentials to the model
+- Aggregates results and formats them for the model's context
+- Logs every tool call for observability
+
+Without this layer, "MCP support" means "can call one or two hardcoded MCP servers." That is not orchestration.
+
+### Context Management: What the Agent Sees
+
+The model only reasons about what is in its context window. This sounds obvious. The implication is less obvious: **what you put in the context window is the primary lever for agent quality, not the model itself.**
+
+An agent with GPT-5 and garbage context will perform worse than an agent with GPT-4 and excellent context. This is not theoretical. It is observable in every production deployment.
+
+Context for agentic systems has four layers:
+
+1. **Static context**: System instructions, tool schemas, agent role definitions. Set once, rarely changes.
+2. **Dynamic retrieval**: Relevant documents, history, and structured data fetched based on the current query. This is where GraphRAG matters.
+3. **Session state**: What has already happened in this execution. Which tools have been called. What their results were. The current plan.
+4. **Tool discovery**: Which tools are available *for this specific intent*. Not all 200 tools. The right 5-10, selected by semantic similarity and usage history.
+
+Filling a 128K context window with everything does not solve this problem. It makes it worse. Long contexts degrade model performance on specific retrieval tasks. You need targeted, structured context — not a dump.
+
+### Execution Graphs: DAGs, Not Chains
+
+Most agentic frameworks use chains: step A, then step B, then step C. Chains work for simple workflows and break immediately when:
+- Steps B and C are independent and could run in parallel
+- Step B fails and C does not depend on it
+- You need to branch based on intermediate results
+- You want to retry step B with a different strategy without rerunning A
+
+Production agentic systems need directed acyclic graphs (DAGs) as their execution model. Each node is a task. Edges are dependencies. The runtime executes nodes in topological order, parallelizes independent branches, and handles failures at the node level rather than aborting the entire execution.
+
+### State Tracking: Memory That Matters
+
+Session memory, short-term and long-term, needs to be explicit architecture — not an afterthought. An agentic system that helps a plant operator across a shift needs to remember what it did three hours ago. An agent that handles procurement across multiple sessions needs to know what it negotiated last week.
+
+This is not "just use a vector database." Vector databases give you semantic retrieval. They do not give you structured state, execution history, or the ability to query *relationships* between past executions. That requires a knowledge graph layer — and it requires being deliberate about what you persist and in what form.
+
+---
+
+## MCP: The Missing Layer for Agentic AI
+
+<ExcalidrawDiagram src="gateway-architecture" alt="Agentic AI Infrastructure with MCP Gateway" />
+
+The Model Context Protocol was designed to solve exactly the tool integration problem that makes agentic AI brittle in production. Before MCP, every AI integration was bespoke: a custom function, a custom schema, a custom error handler, wired directly into the model's prompt. Adding a new tool meant modifying the agent code. Debugging a tool failure meant tracing through application logic.
+
+MCP separates tool definition from tool consumption. A tool exposes its capabilities through a standard interface. The model calls it through a standard protocol. The agent code never changes when you add a new tool.
+
+In practice, this means:
+
+```typescript
+// Without MCP: Tool is hardcoded in the agent
+const result = await callERPAPI({
+  endpoint: "/api/v1/inventory",
+  method: "GET",
+  auth: process.env.ERP_TOKEN,
+  params: { warehouse: "WH-001" }
+});
+
+// With MCP: Tool is discovered and called through the gateway
+const result = await mcp.erpnext.get_inventory({
+  warehouse: "WH-001"
+});
+// Auth, schema validation, error handling: handled by the MCP server
+```
+
+The second version does not just look cleaner. It is fundamentally different architecture. The MCP server — in this case [@casys/mcp-erpnext](https://jsr.io/@casys/mcp-erpnext) — owns the ERPNext integration: authentication, schema validation, retry logic, and structured output. The agent owns the orchestration. Neither bleeds into the other's responsibility.
+
+[@casys/mcp-server](https://jsr.io/@casys/mcp-server) provides the framework for building these servers in TypeScript: tool registration with Zod schemas, automatic JSON-RPC handling, both stdio and HTTP transports, and the middleware pipeline for auth and rate limiting. Building a new MCP server for a new system takes hours, not weeks.
+
+![The @casys/mcp-server open source framework on GitHub](/images/screenshots/github-casys-mcp-server.png)
+
+[![Real-world agentic AI: an agent creates an ERPNext invoice autonomously via MCP — watch the full demo](/images/screenshots/erpnext-mcp-demo.jpg)](https://youtu.be/gG-nFCrzfPU)
+
+For multi-server orchestration — where an agent needs to coordinate across ERPNext, a PLM system, a CMMS, and a custom sensor API simultaneously — you need a gateway. PML (Procedural Memory Layer) is that gateway: it aggregates MCP servers, routes tool calls based on learned semantic similarity, and provides the observability layer that lets you trace exactly what happened in any agent execution.
+
+<ExcalidrawDiagram src="mcp-ecosystem-2026" alt="The MCP ecosystem powering agentic AI in 2026" />
+
+---
+
+## Context Engineering for Agents
+
+<ExcalidrawDiagram src="context-engineering-four-pillars" alt="The Four Pillars of Agent Context" />
+
+Tool orchestration handles *what* the agent can do. Context engineering handles *what* it knows.
+
+The naive implementation: inject everything into the context window and let the model sort it out. This fails at scale because context window size is finite, relevant information is sparse, and diluting a 4K context of relevant data with 120K of noise degrades performance.
+
+The right approach is selective, dynamic context construction — building the context window the agent needs *for this specific step*, not a static dump.
+
+At casys.ai, this runs on three layers:
+
+**GraphRAG with SHGAT**: Tools and capabilities are not independent. They form a graph: some tools are frequently used together, some capabilities subsume others, some sequences are nearly universal for certain intents. SHGAT (Scalable Heterogeneous Graph Attention) processes this graph to produce embeddings that capture structural relationships, not just surface similarity. When an agent needs to find the right tool for a step, SHGAT-enriched embeddings retrieve tools that are *contextually appropriate*, not just keyword-matched.
+
+**GRU transition prediction**: Given the tools already used in this execution, which tool is most likely to come next? This is a sequence prediction problem, and a GRU (Gated Recurrent Unit) trained on thousands of real agent executions solves it. Instead of presenting all available tools at every step, the system presents the tools most likely to be relevant given execution history. Context stays focused.
+
+**Capability-aware routing**: Not every tool call needs to go to a tool. Some objectives are better served by a *capability* — a higher-order operation composed of multiple tools. The routing layer distinguishes between low-level tools ("read this file") and capabilities ("migrate this database schema"), and routes accordingly. This means agents can express intent at the right level of abstraction.
+
+This is not theoretical. The GRU-based routing system achieves over 60% Hit@1 accuracy on tool prediction — meaning the first tool suggested is the correct one in more than 60% of cases. For context: random baseline is under 1% with 920 tools in the vocabulary.
+
+---
+
+## Real-World Agentic Patterns
+
+### Industrial: PLM + ERP + MES Orchestration
+
+A manufacturing site in 2026 runs 10-15 systems that have never talked to each other directly. A line manager asking "why is yield down on line 3 this week?" needs data from the MES (real-time production), the ERP (material batch history via [@casys/mcp-erpnext](https://jsr.io/@casys/mcp-erpnext)), the PLM (last BOM revision date), and the CMMS (maintenance work done this week).
+
+A chain-based agent fails this. It has no way to express "get MES data AND ERP data in parallel, then join results." A DAG-based agentic system with MCP orchestration handles it naturally: the two retrieval steps are independent nodes in the execution graph, the join is a dependent step that triggers when both complete.
+
+The agentic stack here: PML gateway aggregating `mcp-erpnext`, an MES MCP server, a PLM MCP server, and a CMMS MCP server. The agent sees 40 relevant tools selected from 200+ via SHGAT routing. It executes a 6-step DAG. Total latency: under 8 seconds.
+
+### Cross-Platform: AI Agents on Telegram and LINE
+
+Enterprise AI agents increasingly need to live where workers already are, not in a separate dashboard. [@casys/mcp-bridge](https://jsr.io/@casys/mcp-bridge) solves this: it bridges MCP tool execution to messaging platforms, specifically Telegram Mini Apps and LINE LIFF.
+
+The agent logic is identical. The execution layer is MCP. The surface — the interface the human sees — is a Telegram chat or a LINE message thread. The bridge handles the platform-specific auth, the message formatting, and the lifecycle of mini apps within the conversation.
+
+This matters because the alternative is building and maintaining a separate integration for each platform. That path leads to three divergent codebases for the same underlying agent. The bridge pattern keeps a single agent, multiple surfaces.
+
+### Enterprise: Multi-Server Orchestration
+
+The PML gateway pattern becomes critical when you have more than two or three MCP servers. Each server has its own capabilities, its own auth, its own performance characteristics. Without a gateway, the agent needs to know about all of them explicitly.
+
+With PML as the gateway:
+1. The agent declares an *intent* — not a specific tool call
+2. PML discovers the relevant tools across all registered servers using SHGAT + GRU routing
+3. PML executes the DAG, handling inter-server calls as needed
+4. The agent receives structured results with full execution traces
+
+This also solves the capability evolution problem. When a new MCP server is added, the agent does not need to be updated. PML discovers the new tools, integrates them into the routing graph, and they become available automatically.
+
+---
+
+## The Agentic Stack in 2026
+
+What a production agentic system actually looks like, component by component:
+
+| Layer | Purpose | Implementation |
+|-------|---------|----------------|
+| **LLM** | Reasoning, language understanding | GPT-5, Claude Opus 4, Gemini 3 |
+| **MCP Servers** | Tool definitions and execution | `@casys/mcp-server`, `@casys/mcp-erpnext`, custom servers |
+| **MCP Bridge** | Cross-platform tool surface | `@casys/mcp-bridge` (Telegram, LINE) |
+| **Gateway** | Multi-server orchestration, routing | PML with SHGAT + GRU routing |
+| **Context Engine** | Dynamic context construction | GraphRAG, SHGAT embeddings, capability-aware retrieval |
+| **Memory** | Persistent state, execution history | PostgreSQL + pgvector, knowledge graph |
+| **Execution Engine** | DAG-based task execution | Workflow patterns with topological sort |
+| **Observability** | Traces, logs, replay | Per-step execution traces, tool call logs |
+| **Governance** | Auth, rate limiting, approval flows | OAuth2, HIL checkpoints, audit trails |
+
+Each layer has a reason to exist. Omit any one of them and you have a gap that will manifest as a production failure. The most commonly omitted: observability (you find out tools are failing from user complaints), governance (the agent takes irreversible actions without checkpoints), and the context engine (the agent calls the wrong tools because selection is hardcoded).
+
+---
+
+## Common Mistakes Building Agentic Systems
+
+These are the patterns that sound reasonable in design reviews and fail in production.
+
+**Chain-of-thought is not planning.** Having the model emit "let me think step by step" before answering is useful for reasoning quality. It is not a planning system. A planning system decomposes a goal into executable steps, assigns each step to a tool, handles dependencies between steps, and recovers from step-level failures. CoT produces better text. It does not execute DAGs.
+
+**RAG is not knowledge.** Retrieving relevant documents and inserting them into context is retrieval-augmented generation. It is not a knowledge graph. The difference matters when your agent needs to reason about *relationships* between entities, not just retrieve relevant text. "Which batch of material was used in the run that produced these defective parts?" is a graph query. No amount of document retrieval answers it without structured relationship data.
+
+**Streaming text is not streaming actions.** Progressive text output gives users the feeling that "something is happening." It does not mean the agent is executing steps progressively and that you can observe or interrupt individual steps. Real streaming action execution means each tool call in the DAG is visible, attributable, and cancellable as it runs. The UI reflecting this is the last thing you build — observability in the execution engine is the first.
+
+**Tool count is not capability.** Exposing 500 tools to an agent does not make it more capable. It makes it more confused. The naive approach — inject all tool schemas into the system prompt — hits context limits, degrades model performance on tool selection, and creates false confidence. The right approach is dynamic tool selection: the agent sees the 5-10 tools most relevant to its current step, not everything.
+
+**Autonomy without governance is a liability.** An agent that can send emails, modify records, and approve purchase orders without any human checkpoint is not impressive. It is an incident waiting to happen. Production agentic systems have explicit approval gates on irreversible or high-impact actions. The gate can be automated (policy-based) or human-in-the-loop, but it has to exist. "The model usually makes the right call" is not governance.
+
+---
+
+## Getting Started
+
+If you are building toward production agentic AI rather than another demo, the order of operations matters.
+
+**Start with observability, not features.** Before you wire your first tool, decide how you will trace execution. Every tool call should be logged: which tool, which input, which output, how long it took, whether it succeeded. Without this foundation, debugging is guesswork and regression testing is impossible.
+
+**Build the tool layer first, the agent second.** Define your MCP servers, test them independently, validate their schemas. An agent is only as reliable as its tools. Brittle tools make brittle agents. Use [@casys/mcp-server](https://jsr.io/@casys/mcp-server) to standardize tool registration and validation from day one.
+
+**Use a gateway from the start.** Even if you have two MCP servers, run them through a gateway. The pattern of direct tool calls wired into agent logic does not scale. PML as gateway means adding a third, fourth, or tenth server is configuration, not code change.
+
+**Route by intent, not by tool name.** Hardcoding which tool handles which query is maintenance debt. The moment a tool is renamed or replaced, the routing breaks. Intent-based routing via semantic embeddings (SHGAT + GRU) degrades gracefully: a new tool that handles an existing intent gets discovered automatically.
+
+**Treat capabilities as first-class citizens.** Not every user intent maps to a single tool call. Some map to a workflow: a sequence of tools that together accomplish a higher-order objective. Model those workflows explicitly as capabilities, register them in the gateway, and let the routing system match intent to capability, not just to tool. This is what separates an agent that can query a database from an agent that can "reconcile the Q4 inventory with the shipping records and flag discrepancies."
+
+The infrastructure is the hard part. The model is already good enough. The gap between "impressive demo" and "production system that earns trust" is everything described above — and the only way across it is building it deliberately, component by component.
+
+---
+
+*Want to go deeper? [Context Engineering: The Real Bottleneck of AI Agents](/blog/context-engineering-guide) covers how to build the context layer. [MCP Server in Production](/blog/mcp-server-guide) covers building production-grade tool servers. For the complete framework, explore [PML](https://casys.ai) — the MCP gateway with GraphRAG routing built for production agentic systems.*

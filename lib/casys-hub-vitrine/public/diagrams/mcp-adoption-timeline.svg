@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 180" font-family="'Inter','Segoe UI',system-ui,sans-serif">
+  <rect width="740" height="180" fill="#08080a" rx="8"/>
+
+  <!-- Title -->
+  <text x="370" y="22" text-anchor="middle" fill="#94a3b8" font-size="12" font-weight="600">MCP ADOPTION TIMELINE</text>
+
+  <!-- Main timeline line -->
+  <line x1="40" y1="80" x2="700" y2="80" stroke="#334155" stroke-width="2"/>
+
+  <!-- Milestone 1: Nov 2024 -->
+  <circle cx="80" cy="80" r="8" fill="#6366f1" stroke="#08080a" stroke-width="2"/>
+  <line x1="80" y1="88" x2="80" y2="108" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="80" y="122" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="600">Nov 2024</text>
+  <text x="80" y="136" text-anchor="middle" fill="#cbd5e1" font-size="9">Anthropic</text>
+  <text x="80" y="148" text-anchor="middle" fill="#64748b" font-size="8">launches MCP</text>
+
+  <!-- Milestone 2: Mar 2025 -->
+  <circle cx="210" cy="80" r="8" fill="#f59e0b" stroke="#08080a" stroke-width="2"/>
+  <line x1="210" y1="72" x2="210" y2="52" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="210" y="46" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">Mar 2025</text>
+  <text x="210" y="34" text-anchor="middle" fill="#cbd5e1" font-size="9">OpenAI adopts</text>
+
+  <!-- Milestone 3: Mid 2025 -->
+  <circle cx="340" cy="80" r="8" fill="#4ade80" stroke="#08080a" stroke-width="2"/>
+  <line x1="340" y1="88" x2="340" y2="108" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="340" y="122" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">Mid 2025</text>
+  <text x="340" y="136" text-anchor="middle" fill="#cbd5e1" font-size="9">Google, Microsoft</text>
+  <text x="340" y="148" text-anchor="middle" fill="#64748b" font-size="8">join ecosystem</text>
+
+  <!-- Milestone 4: Late 2025 -->
+  <circle cx="470" cy="80" r="8" fill="#a78bfa" stroke="#08080a" stroke-width="2"/>
+  <line x1="470" y1="72" x2="470" y2="52" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="470" y="46" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600">Late 2025</text>
+  <text x="470" y="34" text-anchor="middle" fill="#cbd5e1" font-size="9">Linux Foundation</text>
+
+  <!-- Milestone 5: 2026 -->
+  <circle cx="600" cy="80" r="10" fill="#4ade80" stroke="#4ade80" stroke-width="0"/>
+  <circle cx="600" cy="80" r="14" fill="none" stroke="#4ade80" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="600" cy="80" r="18" fill="none" stroke="#4ade80" stroke-width="1" opacity="0.3"/>
+  <line x1="600" y1="98" x2="600" y2="108" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="600" y="122" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="700">2026</text>
+  <text x="600" y="136" text-anchor="middle" fill="#cbd5e1" font-size="9">10,000+ servers</text>
+  <text x="600" y="148" text-anchor="middle" fill="#64748b" font-size="8">Industry standard</text>
+
+  <!-- Arrow at end -->
+  <polygon points="700,80 690,74 690,86" fill="#334155"/>
+</svg>

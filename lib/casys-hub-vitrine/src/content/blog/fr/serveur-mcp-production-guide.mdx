@@ -15,6 +15,7 @@ snippet: "Construire un serveur MCP qui tient en production. Code TypeScript, co
 featured: true
 draft: false
 ---
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 ## Le vrai probleme avec les serveurs MCP
 
@@ -29,6 +30,10 @@ Si vous ne connaissez pas encore MCP, commencez par [MCP : Le USB-C des Outils I
 ---
 
 ## Ce qu'un serveur MCP doit gerer
+
+<ExcalidrawDiagram src="mcp-architecture" alt="Architecture MCP : Client ↔ Protocole ↔ Serveur ↔ Outils et Ressources" />
+
+<ExcalidrawDiagram src="mcp-n-times-m" alt="Le problème N×M d'intégration : sans MCP vs avec MCP" />
 
 Avant de parler de framework, listons ce qu'un serveur MCP en production doit supporter. Pas la spec minimale -- la realite d'un service qui tourne 24/7 avec des clients qui ne sont pas tous bien eleves.
 
@@ -90,6 +95,8 @@ Mais des que vous voulez du HTTP, de l'auth, du rate limiting... vous etes seul.
 C'est le probleme qu'on a resolu avec [`@casys/mcp-server`](https://jsr.io/@casys/mcp-server). Le pitch est simple : **le Hono pour MCP**. Minimaliste, rapide, production-ready.
 
 Construit avec Deno, compatible Node.js. Publie sur [JSR](https://jsr.io/@casys/mcp-server) et [npm](https://www.npmjs.com/package/@casys/mcp-server). Le meme serveur MCP, les deux runtimes.
+
+![Le package @casys/mcp-server sur JSR avec un score parfait de 100%](/images/screenshots/jsr-casys-mcp-server.png)
 
 ### Un serveur MCP en 15 lignes
 
@@ -290,6 +297,8 @@ MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
 
 ## Pipeline de middleware
 
+<ExcalidrawDiagram src="mcp-server-middleware-pipeline" alt="Pipeline middleware @casys/mcp-server : Rate Limit → Auth → Validation → Backpressure → Handler" />
+
 Comme Hono ou Express, le framework offre un pipeline de middleware composable. Chaque requete MCP traverse la chaine avant d'atteindre le handler de l'outil.
 
 Le pipeline par defaut inclut :
@@ -353,6 +362,8 @@ import { startToolCallSpan, endToolCallSpan } from "@casys/mcp-server";
 
 ## Comparatif : SDK officiel vs @casys/mcp-server vs from scratch
 
+<ExcalidrawDiagram src="mcp-ecosystem-2026" alt="L'écosystème MCP en 2026" />
+
 Avant de choisir, voici un comparatif objectif. Le SDK officiel est la reference du protocole. `@casys/mcp-server` est construit *par-dessus* ce SDK -- ce n'est pas un fork, c'est une couche de production.
 
 | Fonctionnalite | SDK officiel | @casys/mcp-server | From scratch |
@@ -382,6 +393,8 @@ Le choix depend de votre contexte :
 ---
 
 ## Deployer un serveur MCP en production
+
+<ExcalidrawDiagram src="mcp-server-deployment" alt="Architecture de deploiement : Clients → Caddy (TLS) → MCP Server → PostgreSQL, avec Prometheus et OpenTelemetry" />
 
 Un serveur MCP qui tourne en `deno run` dans un terminal, ce n'est pas de la production. Voici deux approches eprouvees : Docker et systemd.
 
@@ -666,6 +679,74 @@ npx @modelcontextprotocol/inspector --url https://mcp.example.com
 L'inspector affiche les outils disponibles, permet d'envoyer des appels de test, et montre les reponses JSON-RPC brutes.
 
 Pour les tests automatises, utilisez le client SDK programmatique montre plus haut. Connectez-vous a votre serveur, appelez chaque outil avec des parametres connus, et verifiez les reponses. Integrez ca dans votre CI.
+
+---
+
+## @casys/mcp-server vs FastMCP : Choisir le Bon Framework
+
+Quand on cherche un framework de **serveur MCP** prêt pour la production, on tombe inévitablement sur [FastMCP](https://gofastmcp.com/) (Python) en face de `@casys/mcp-server` (TypeScript). Les deux résolvent le même problème fondamental : combler l'écart entre le SDK MCP brut et un serveur qu'on peut vraiment déployer. Le choix se fait moins sur les fonctionnalités que sur le runtime qui correspond à votre stack.
+
+### FastMCP : l'option Python-native
+
+FastMCP est un projet solide. Parti comme initiative communautaire, il a été intégré au SDK Python officiel MCP, puis relancé en tant que framework autonome. Aujourd'hui, il revendique plus de 15 000 étoiles GitHub et est téléchargé un million de fois par jour. FastMCP 3.0 a revu son architecture autour de trois primitives -- composants, providers, transforms -- avec une mise en avant de la composition dynamique d'outils.
+
+Ce que FastMCP fait bien :
+- **Écosystème Python massif** : accès direct à NumPy, pandas, Hugging Face, LangChain, SQLAlchemy -- toutes les bibliothèques ML que vous utilisez déjà
+- **Prototypage rapide** : le pattern `@mcp.tool()` donne un outil fonctionnel en trois lignes
+- **Auth FastMCP 3.0** : autorisation granulaire par composant, CIMD, flux Azure OBO, validation JWT
+- **Communauté active** : 66+ contributeurs, adoption large, beaucoup de ressources disponibles
+
+Ce que FastMCP ne couvre pas bien dans un stack TypeScript :
+- Il faut déployer un runtime Python à côté de vos services Node.js/Deno
+- Pas d'intégration native avec l'écosystème TypeScript (Cursor, Claude Code, la plupart des extensions IDE sont TypeScript-first)
+- Pas d'endpoint Prometheus intégré ; l'observabilité demande du câblage manuel
+- L'auth fine-grained nécessite des bibliothèques tierces comme Cerbos -- pas aussi batteries-included qu'il n'y paraît
+
+### @casys/mcp-server : TypeScript-native, conçu pour l'écosystème IA
+
+`@casys/mcp-server` est conçu pour les équipes qui tournent déjà en TypeScript. Les différenciateurs ne sont pas des listes de features -- ce sont des choix d'architecture :
+
+- **Même langage que vos clients** : Claude Code, Cursor, les extensions VS Code et la majorité des SDK clients MCP sont TypeScript. Votre serveur, vos tests et votre client partagent le même langage, le même système de types, le même monorepo si vous le souhaitez.
+- **API inspirée de Hono** : si vous avez déjà écrit du middleware Hono ou Koa, le pipeline en modèle oignon est immédiatement familier
+- **Streaming-first** : SSE + Streamable HTTP intégrés dès le premier `startHttp()`, pas en plugin
+- **Observable par défaut** : Prometheus `/metrics` et spans OpenTelemetry font partie du framework de base, pas d'un module optionnel
+- **Profondeur d'écosystème** : `@casys/mcp-bridge` (Telegram / LINE Mini Apps), `@casys/mcp-erpnext` (outils métier ERPNext), publié sur JSR et npm sous le scope `@casys`
+
+[![Un agent IA crée une facture ERPNext via @casys/mcp-erpnext — voir la démo](/images/screenshots/erpnext-mcp-demo.jpg)](https://youtu.be/gG-nFCrzfPU)
+
+### Tableau comparatif
+
+| Fonctionnalité | FastMCP (Python) | @casys/mcp-server (TypeScript) |
+|---|---|---|
+| Langage | Python | TypeScript |
+| Runtime | CPython, uv | Deno + Node.js |
+| Étoiles GitHub | ~15 000+ | En croissance |
+| Auth (OAuth2/JWT) | Par composant, CIMD, Azure OBO | 4 presets OIDC, JwtAuthProvider, scopes par outil |
+| Pipeline middleware | Providers + transforms | Modèle oignon (style Hono) |
+| Rate limiting | Manuel / tiers | Intégré par IP, token, outil |
+| Métriques Prometheus | Non intégré | Endpoint `/metrics` inclus |
+| Traces OpenTelemetry | Non intégré | Spans automatiques par appel |
+| Streaming (SSE) | Supporté | Intégré, sessions gérées |
+| Déploiement | Process Python, Docker | systemd, Docker, Caddy TLS |
+| Écosystème | Bibliothèques ML Python | mcp-bridge, mcp-erpnext, JSR+npm |
+| **MCP server TypeScript** | Non | Oui (natif) |
+| **MCP server Python** | Oui (natif) | Non |
+
+### Quand choisir l'un ou l'autre
+
+**Choisissez FastMCP si :**
+- Votre backend est déjà Python
+- Vous avez besoin d'accès direct aux bibliothèques ML (NumPy, Hugging Face, pandas)
+- Votre équipe est Python-first et ne veut pas gérer un second runtime
+- Vous construisez des pipelines de données ML qui alimentent des outils MCP
+
+**Choisissez @casys/mcp-server si :**
+- Votre stack est TypeScript (Node.js, Deno, ou les deux)
+- Vous voulez de l'observabilité production sans câbler des outils tiers
+- Votre serveur MCP s'intègre à Telegram, LINE ou d'autres plateformes de messagerie via `@casys/mcp-bridge`
+- Vous voulez un seul langage pour le serveur, le client, les tests et l'outillage IDE
+
+La réponse honnête : pour les équipes Python, FastMCP s'impose naturellement. Pour les équipes TypeScript, `@casys/mcp-server` est l'équivalent -- mêmes exigences de production, mais dans le langage que votre équipe utilise déjà partout où l'outillage IA est développé aujourd'hui.
 
 ---
 

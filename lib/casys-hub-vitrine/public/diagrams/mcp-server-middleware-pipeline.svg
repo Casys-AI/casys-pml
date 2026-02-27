@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 180" width="700" height="180">
+  <!-- svg-source:excalidraw — mcp-server-middleware-pipeline.excalidraw -->
+  <defs>
+    <marker id="ah-fbbf24" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#fbbf24"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="700" height="180" fill="#08080a"/>
+  <text x="350" y="24" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#888888" text-anchor="middle">@casys/mcp-server — Middleware Pipeline (Onion Model)</text>
+
+  <!-- Request -->
+  <rect x="15" y="65" width="70" height="50" rx="6" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+  <text x="50" y="88" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#a78bfa" text-anchor="middle">Request</text>
+  <text x="50" y="102" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">tools/call</text>
+
+  <!-- Arrow 1 -->
+  <path d="M90 90 L113 90" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+
+  <!-- Rate Limit -->
+  <rect x="118" y="55" width="80" height="70" rx="6" fill="#1f1f23" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="158" y="82" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#ef4444" text-anchor="middle" font-weight="600">Rate Limit</text>
+  <text x="158" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">IP / token / tool</text>
+  <text x="158" y="113" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#ef4444" text-anchor="middle">429 if exceeded</text>
+
+  <!-- Arrow 2 -->
+  <path d="M203 90 L226 90" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+
+  <!-- Auth -->
+  <rect x="231" y="55" width="75" height="70" rx="6" fill="#1f1f23" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="268" y="82" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#60a5fa" text-anchor="middle" font-weight="600">Auth</text>
+  <text x="268" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">JWT / OAuth2</text>
+  <text x="268" y="113" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#60a5fa" text-anchor="middle">scope check</text>
+
+  <!-- Arrow 3 -->
+  <path d="M311 90 L334 90" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+
+  <!-- Validation -->
+  <rect x="339" y="55" width="80" height="70" rx="6" fill="#1f1f23" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="379" y="82" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#a78bfa" text-anchor="middle" font-weight="600">Validation</text>
+  <text x="379" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">JSON Schema</text>
+  <text x="379" y="113" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#a78bfa" text-anchor="middle">ajv</text>
+
+  <!-- Arrow 4 -->
+  <path d="M424 90 L447 90" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+
+  <!-- Backpressure -->
+  <rect x="452" y="55" width="80" height="70" rx="6" fill="#1f1f23" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="492" y="78" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#fbbf24" text-anchor="middle" font-weight="600">Backpressure</text>
+  <text x="492" y="92" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">queue / drop</text>
+  <text x="492" y="106" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">maxConcurrent</text>
+  <text x="492" y="118" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#fbbf24" text-anchor="middle">503 if saturated</text>
+
+  <!-- Arrow 5 -->
+  <path d="M537 90 L560 90" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+
+  <!-- Handler -->
+  <rect x="565" y="55" width="115" height="70" rx="6" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="622" y="82" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#4ade80" text-anchor="middle" font-weight="600">Your Handler</text>
+  <text x="622" y="98" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">Business logic</text>
+  <text x="622" y="112" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#4ade80" text-anchor="middle">+ custom middleware</text>
+
+  <!-- Bottom labels -->
+  <text x="270" y="155" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#666666" text-anchor="middle">Built-in (automatic)</text>
+  <text x="622" y="155" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#4ade80" text-anchor="middle">Your code</text>
+
+  <!-- Bracket for built-in -->
+  <path d="M118 140 L530 140" fill="none" stroke="#666666" stroke-width="1" stroke-dasharray="4 3"/>
+  <path d="M565 140 L680 140" fill="none" stroke="#4ade80" stroke-width="1" stroke-dasharray="4 3"/>
+</svg>

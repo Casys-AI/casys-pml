@@ -196,8 +196,8 @@ export const en = {
     ],
   },
   whatWeDo: {
-    title: "What We Do",
-    subtitle: "Context engineering combining exploration, open source, and consulting",
+    title: "Context Engineering & MCP Infrastructure",
+    subtitle: "Applied research, open source tools, and agentic architecture consulting",
     cards: [
       {
         id: "research",
@@ -251,7 +251,7 @@ export const en = {
     ],
   },
   projects: {
-    title: "Our Projects",
+    title: "Open Source MCP Tools",
     subtitle:
       "Open source tools for the MCP ecosystem. From protocol tooling to graph intelligence.",
     featured: {
@@ -401,15 +401,15 @@ export const en = {
           icon: "mail",
         },
         secondary: {
-          text: "Email",
-          url: "#contact",
-          icon: "email",
+          text: "GitHub",
+          url: "https://github.com/Casys-AI",
+          icon: "code",
         },
       },
     },
   },
   blog: {
-    title: "From the Blog",
+    title: "Blog: AI Research & Architecture",
     subtitle: "Insights on AI architecture, tool orchestration, and what we are building",
     readMore: "Read",
     viewAll: "View all articles",
@@ -1192,8 +1192,8 @@ export const en = {
   // USE CASES PAGE
   // ========================================
   useCases: {
-    pageTitle: "Our Work",
-    heroTitle: "Our Work",
+    pageTitle: "Production Use Cases",
+    heroTitle: "Production Use Cases",
     heroSubtitle:
       "We build MCP infrastructure for production. Here's what that looks like — real challenges, real solutions, real metrics.",
     labelChallenge: "Challenge",

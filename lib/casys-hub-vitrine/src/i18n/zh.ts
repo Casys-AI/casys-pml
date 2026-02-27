@@ -176,8 +176,8 @@ export const zh: Translations = {
     ],
   },
   whatWeDo: {
-    title: "我们做什么",
-    subtitle: "结合探索、开源和咨询的上下文工程",
+    title: "Context Engineering 与 MCP 基础设施",
+    subtitle: "应用研究、开源工具与智能体架构咨询",
     cards: [
       {
         id: "research",
@@ -228,7 +228,7 @@ export const zh: Translations = {
     ],
   },
   projects: {
-    title: "我们的项目",
+    title: "开源 MCP 工具",
     subtitle: "MCP 生态系统的开源工具。从协议工具到图智能。",
     featured: {
       name: "Casys PML",
@@ -373,15 +373,15 @@ export const zh: Translations = {
           icon: "mail",
         },
         secondary: {
-          text: "发送邮件",
-          url: "#contact",
-          icon: "email",
+          text: "GitHub",
+          url: "https://github.com/Casys-AI",
+          icon: "code",
         },
       },
     },
   },
   blog: {
-    title: "博客文章",
+    title: "博客：AI 研究与架构",
     subtitle: "关于 AI 架构、工具编排以及我们正在构建的内容",
     readMore: "阅读",
     viewAll: "查看所有文章",
@@ -1102,8 +1102,8 @@ export const zh: Translations = {
   // USE CASES PAGE
   // ========================================
   useCases: {
-    pageTitle: "我们的工作",
-    heroTitle: "我们的工作",
+    pageTitle: "生产环境案例",
+    heroTitle: "生产环境案例",
     heroSubtitle:
       "我们为生产环境构建 MCP 基础设施。以下是实际案例——真实的挑战、真实的解决方案、真实的指标。",
     labelChallenge: "挑战",

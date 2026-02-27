@@ -24,11 +24,15 @@ const metaDescription = metaDescriptions[locale] ?? metaDescriptions.en;
   "description": metaDescription,
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Cross-platform",
-  "url": "https://casys.ai/mcp-server",
+  "url": "https://mcp-server.casys.ai",
   "softwareVersion": "0.8.0",
   "author": { "@type": "Organization", "name": "Casys AI", "url": "https://casys.ai" },
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-  "license": "https://opensource.org/licenses/MIT"
+  "license": "https://opensource.org/licenses/MIT",
+  "programmingLanguage": "TypeScript",
+  "runtimePlatform": ["Deno", "Node.js"],
+  "codeRepository": "https://github.com/Casys-AI/mcp-server",
+  "downloadUrl": "https://jsr.io/@casys/mcp-server"
 }}>
   <McpServerHeader slot="header" />
   <slot />

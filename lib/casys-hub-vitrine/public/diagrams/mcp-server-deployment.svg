@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 260" width="600" height="260">
+  <!-- svg-source:excalidraw — mcp-server-deployment.excalidraw -->
+  <defs>
+    <marker id="ah-60a5fa" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#60a5fa"/></marker>
+    <marker id="ah-4ade80" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#4ade80"/></marker>
+    <marker id="ah-fbbf24" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#fbbf24"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="600" height="260" fill="#08080a"/>
+  <text x="300" y="22" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#888888" text-anchor="middle">Production Deployment Architecture</text>
+
+  <!-- Internet -->
+  <rect x="20" y="95" width="80" height="50" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+  <text x="60" y="118" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#a78bfa" text-anchor="middle">Clients</text>
+  <text x="60" y="132" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">Claude, GPT...</text>
+
+  <!-- Arrow to Caddy -->
+  <path d="M105 120 L148 120" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-60a5fa)"/>
+  <text x="127" y="113" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#60a5fa" text-anchor="middle">HTTPS</text>
+
+  <!-- Caddy -->
+  <rect x="153" y="80" width="100" height="80" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+  <text x="203" y="108" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#60a5fa" text-anchor="middle" font-weight="600">Caddy</text>
+  <text x="203" y="124" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">Auto TLS</text>
+  <text x="203" y="136" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">Reverse Proxy</text>
+  <text x="203" y="148" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#60a5fa" text-anchor="middle">Let's Encrypt</text>
+
+  <!-- Arrow to MCP Server -->
+  <path d="M258 120 L298 120" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <text x="278" y="113" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#4ade80" text-anchor="middle">:3000</text>
+
+  <!-- MCP Server -->
+  <rect x="303" y="55" width="140" height="130" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="373" y="78" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#4ade80" text-anchor="middle" font-weight="600">MCP Server</text>
+  <text x="373" y="92" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">@casys/mcp-server</text>
+
+  <!-- Sub-boxes inside MCP Server -->
+  <rect x="313" y="102" width="56" height="24" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="341" y="117" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#4ade80" text-anchor="middle">Auth</text>
+
+  <rect x="377" y="102" width="56" height="24" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="405" y="117" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#4ade80" text-anchor="middle">Metrics</text>
+
+  <rect x="313" y="132" width="56" height="24" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="341" y="147" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#4ade80" text-anchor="middle">Tools</text>
+
+  <rect x="377" y="132" width="56" height="24" rx="4" fill="#2d2d35" stroke="#4ade80" stroke-width="1"/>
+  <text x="405" y="147" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#4ade80" text-anchor="middle">SSE</text>
+
+  <!-- Arrow to DB -->
+  <path d="M448 120 L488 120" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+
+  <!-- PostgreSQL -->
+  <rect x="493" y="85" width="90" height="70" rx="8" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
+  <text x="538" y="115" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#fbbf24" text-anchor="middle" font-weight="600">PostgreSQL</text>
+  <text x="538" y="132" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">or any backend</text>
+
+  <!-- Monitoring labels -->
+  <rect x="153" y="195" width="120" height="40" rx="6" fill="#1f1f23" stroke="#a78bfa" stroke-width="1"/>
+  <text x="213" y="213" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#a78bfa" text-anchor="middle">Prometheus</text>
+  <text x="213" y="226" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">GET /metrics</text>
+
+  <rect x="303" y="195" width="120" height="40" rx="6" fill="#1f1f23" stroke="#a78bfa" stroke-width="1"/>
+  <text x="363" y="213" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#a78bfa" text-anchor="middle">OpenTelemetry</text>
+  <text x="363" y="226" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">Traces + Spans</text>
+
+  <!-- Dashed lines to monitoring -->
+  <path d="M373 185 L363 195" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4 3"/>
+  <path d="M373 185 L213 195" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4 3"/>
+
+  <!-- Deployment options -->
+  <text x="373" y="46" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#666666" text-anchor="middle">Docker | systemd | Deno Deploy</text>
+</svg>

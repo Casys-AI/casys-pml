@@ -22,7 +22,7 @@ const t = useTranslations(locale).mcpBridgeComparison;
         <tbody>
           {t.rows.map(([feature, custom, bridge]) => (
             <tr>
-              <td class="cmp-feature">{feature}</td>
+              <th scope="row" class="cmp-feature">{feature}</th>
               <td class="cmp-cell">{custom === true ? '\u2713' : custom === false ? '\u2014' : custom}</td>
               <td class="cmp-cell cmp-fw">{bridge === true ? '\u2713' : bridge === false ? '\u2014' : bridge}</td>
             </tr>
@@ -83,11 +83,17 @@ const t = useTranslations(locale).mcpBridgeComparison;
     background: var(--md-sys-color-surface-container-lowest);
   }
 
-  .cmp-table tr:last-child td { border-bottom: none; }
+  .cmp-table tr:last-child td,
+  .cmp-table tr:last-child th.cmp-feature { border-bottom: none; }
 
   .cmp-feature {
     font-weight: 500;
     color: var(--md-sys-color-on-surface);
+    text-align: left;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-lowest);
+    font-size: 0.875rem;
   }
 
   .cmp-cell {

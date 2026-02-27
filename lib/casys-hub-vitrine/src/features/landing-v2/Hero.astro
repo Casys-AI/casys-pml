@@ -46,7 +46,6 @@ const t = useTranslations(locale).hero;
   /* ===== EDITORIAL AUTHORITY HERO ===== */
   section {
     position: relative;
-    min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -58,11 +57,11 @@ const t = useTranslations(locale).hero;
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 120px 48px 60px;
+    padding: 32px 48px 48px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 64px;
+    gap: 40px;
     position: relative;
     z-index: 2;
   }
@@ -241,11 +240,9 @@ const t = useTranslations(locale).hero;
 
   /* Mobile */
   @media (max-width: 768px) {
-    section { min-height: 100svh; }
-
     .hero-container {
-      padding: 100px 16px 40px;
-      gap: 48px;
+      padding: 24px 16px 32px;
+      gap: 32px;
     }
 
     .hero-title {
@@ -288,7 +285,7 @@ const t = useTranslations(locale).hero;
   }
 
   @media (max-width: 380px) {
-    .hero-container { padding: 80px 12px 32px; }
+    .hero-container { padding: 16px 12px 24px; }
     .hero-title { font-size: 1.75rem; }
   }
 

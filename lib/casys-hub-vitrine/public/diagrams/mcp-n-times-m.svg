@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 320" font-family="'Inter','Segoe UI',system-ui,sans-serif">
+  <rect width="760" height="320" fill="#08080a" rx="8"/>
+
+  <!-- Title -->
+  <text x="380" y="28" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="600">THE INTEGRATION PROBLEM</text>
+
+  <!-- LEFT: Without MCP (spaghetti) -->
+  <text x="180" y="58" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="600">WITHOUT MCP — N × M connectors</text>
+
+  <!-- AI Models (left column) -->
+  <rect x="30" y="80" width="100" height="28" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="80" y="99" text-anchor="middle" fill="#a5b4fc" font-size="11">Claude</text>
+  <rect x="30" y="120" width="100" height="28" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="80" y="139" text-anchor="middle" fill="#a5b4fc" font-size="11">GPT-5</text>
+  <rect x="30" y="160" width="100" height="28" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="80" y="179" text-anchor="middle" fill="#a5b4fc" font-size="11">Gemini</text>
+  <rect x="30" y="200" width="100" height="28" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="80" y="219" text-anchor="middle" fill="#a5b4fc" font-size="11">Llama 4</text>
+
+  <!-- Tools (right column, left side) -->
+  <rect x="230" y="80" width="100" height="28" rx="6" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="280" y="99" text-anchor="middle" fill="#fbbf24" font-size="11">PostgreSQL</text>
+  <rect x="230" y="120" width="100" height="28" rx="6" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="280" y="139" text-anchor="middle" fill="#fbbf24" font-size="11">GitHub</text>
+  <rect x="230" y="160" width="100" height="28" rx="6" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="280" y="179" text-anchor="middle" fill="#fbbf24" font-size="11">Slack</text>
+  <rect x="230" y="200" width="100" height="28" rx="6" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="280" y="219" text-anchor="middle" fill="#fbbf24" font-size="11">ERPNext</text>
+
+  <!-- Spaghetti lines (16 connections, messy) -->
+  <g opacity="0.35" stroke="#ef4444" stroke-width="1" fill="none">
+    <line x1="130" y1="94" x2="230" y2="94"/>
+    <line x1="130" y1="94" x2="230" y2="134"/>
+    <line x1="130" y1="94" x2="230" y2="174"/>
+    <line x1="130" y1="94" x2="230" y2="214"/>
+    <line x1="130" y1="134" x2="230" y2="94"/>
+    <line x1="130" y1="134" x2="230" y2="134"/>
+    <line x1="130" y1="134" x2="230" y2="174"/>
+    <line x1="130" y1="134" x2="230" y2="214"/>
+    <line x1="130" y1="174" x2="230" y2="94"/>
+    <line x1="130" y1="174" x2="230" y2="134"/>
+    <line x1="130" y1="174" x2="230" y2="174"/>
+    <line x1="130" y1="174" x2="230" y2="214"/>
+    <line x1="130" y1="214" x2="230" y2="94"/>
+    <line x1="130" y1="214" x2="230" y2="134"/>
+    <line x1="130" y1="214" x2="230" y2="174"/>
+    <line x1="130" y1="214" x2="230" y2="214"/>
+  </g>
+
+  <!-- Count -->
+  <text x="180" y="260" text-anchor="middle" fill="#ef4444" font-size="22" font-weight="700">16</text>
+  <text x="180" y="278" text-anchor="middle" fill="#94a3b8" font-size="11">custom integrations</text>
+
+  <!-- Divider -->
+  <line x1="380" y1="50" x2="380" y2="300" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- RIGHT: With MCP (clean hub) -->
+  <text x="570" y="58" text-anchor="middle" fill="#4ade80" font-size="12" font-weight="600">WITH MCP — N + M adapters</text>
+
+  <!-- AI Models (left column, right side) -->
+  <rect x="420" y="80" width="100" height="28" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="470" y="99" text-anchor="middle" fill="#a5b4fc" font-size="11">Claude</text>
+  <rect x="420" y="120" width="100" height="28" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="470" y="139" text-anchor="middle" fill="#a5b4fc" font-size="11">GPT-5</text>
+  <rect x="420" y="160" width="100" height="28" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="470" y="179" text-anchor="middle" fill="#a5b4fc" font-size="11">Gemini</text>
+  <rect x="420" y="200" width="100" height="28" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="470" y="219" text-anchor="middle" fill="#a5b4fc" font-size="11">Llama 4</text>
+
+  <!-- MCP Hub (center) -->
+  <rect x="545" y="120" width="50" height="88" rx="10" fill="#0f2a1a" stroke="#4ade80" stroke-width="2"/>
+  <text x="570" y="155" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="700">M</text>
+  <text x="570" y="168" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="700">C</text>
+  <text x="570" y="181" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="700">P</text>
+
+  <!-- Tools (right column, right side) -->
+  <rect x="620" y="80" width="100" height="28" rx="6" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="670" y="99" text-anchor="middle" fill="#fbbf24" font-size="11">PostgreSQL</text>
+  <rect x="620" y="120" width="100" height="28" rx="6" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="670" y="139" text-anchor="middle" fill="#fbbf24" font-size="11">GitHub</text>
+  <rect x="620" y="160" width="100" height="28" rx="6" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="670" y="179" text-anchor="middle" fill="#fbbf24" font-size="11">Slack</text>
+  <rect x="620" y="200" width="100" height="28" rx="6" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="670" y="219" text-anchor="middle" fill="#fbbf24" font-size="11">ERPNext</text>
+
+  <!-- Clean lines: Models → MCP -->
+  <g stroke="#4ade80" stroke-width="1.5" opacity="0.7">
+    <line x1="520" y1="94" x2="545" y2="148"/>
+    <line x1="520" y1="134" x2="545" y2="155"/>
+    <line x1="520" y1="174" x2="545" y2="170"/>
+    <line x1="520" y1="214" x2="545" y2="185"/>
+  </g>
+
+  <!-- Clean lines: MCP → Tools -->
+  <g stroke="#4ade80" stroke-width="1.5" opacity="0.7">
+    <line x1="595" y1="148" x2="620" y2="94"/>
+    <line x1="595" y1="155" x2="620" y2="134"/>
+    <line x1="595" y1="170" x2="620" y2="174"/>
+    <line x1="595" y1="185" x2="620" y2="214"/>
+  </g>
+
+  <!-- Count -->
+  <text x="570" y="260" text-anchor="middle" fill="#4ade80" font-size="22" font-weight="700">8</text>
+  <text x="570" y="278" text-anchor="middle" fill="#94a3b8" font-size="11">standard adapters</text>
+
+  <!-- Bottom comparison -->
+  <text x="380" y="308" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="500">Add 1 new tool: <tspan fill="#ef4444">+4 connectors</tspan> vs <tspan fill="#4ade80">+1 adapter</tspan></text>
+</svg>

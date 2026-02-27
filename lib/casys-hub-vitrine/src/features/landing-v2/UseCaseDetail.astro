@@ -103,7 +103,7 @@ const paragraphs = (text: string) => text.split('\n\n').filter(Boolean);
               ) : uc.diagram ? (
                 <ExcalidrawDiagram src={uc.diagram} alt={uc.visualCaption?.[locale] || uc.visualCaption?.en || uc.title[locale] || uc.title.en} />
               ) : null}
-              {uc.visualCaption && (
+              {!uc.diagram && uc.visualCaption && (
                 <span class="visual-caption">
                   {uc.visualCaption[locale] || uc.visualCaption.en}
                 </span>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 280" width="660" height="280">
+  <!-- svg-source:excalidraw — context-engineering-four-pillars.excalidraw -->
+  <defs>
+    <marker id="ah-60a5fa" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#60a5fa"/></marker>
+    <marker id="ah-a78bfa" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#a78bfa"/></marker>
+    <marker id="ah-fbbf24" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#fbbf24"/></marker>
+    <marker id="ah-4ade80" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#4ade80"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="660" height="280" fill="#08080a"/>
+  <text x="330" y="24" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#888888" text-anchor="middle">The Four Pillars of Context Engineering</text>
+
+  <!-- Pillar 1: Tool Context -->
+  <rect x="20" y="48" width="145" height="130" rx="8" fill="#1f1f23" stroke="#60a5fa" stroke-width="2"/>
+  <text x="92" y="72" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#60a5fa" text-anchor="middle" font-weight="600">Tool Context</text>
+  <text x="92" y="92" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#888888" text-anchor="middle">Which tools to show?</text>
+  <line x1="40" y1="102" x2="144" y2="102" stroke="#333" stroke-width="1"/>
+  <text x="92" y="118" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">MCP Discovery</text>
+  <text x="92" y="132" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#60a5fa" text-anchor="middle">SHGAT Routing</text>
+  <text x="92" y="148" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">17K tools → top 8</text>
+  <text x="92" y="166" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#ef4444" text-anchor="middle">10% rule (Anthropic)</text>
+
+  <!-- Pillar 2: Data Context -->
+  <rect x="180" y="48" width="145" height="130" rx="8" fill="#1f1f23" stroke="#a78bfa" stroke-width="2"/>
+  <text x="252" y="72" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#a78bfa" text-anchor="middle" font-weight="600">Data Context</text>
+  <text x="252" y="92" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#888888" text-anchor="middle">Which data to inject?</text>
+  <line x1="200" y1="102" x2="305" y2="102" stroke="#333" stroke-width="1"/>
+  <text x="252" y="118" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#a78bfa" text-anchor="middle">GraphRAG</text>
+  <text x="252" y="132" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#a78bfa" text-anchor="middle">Cross-system join</text>
+  <text x="252" y="148" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">ERP + MES + PLM</text>
+  <text x="252" y="166" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">temporal relevance</text>
+
+  <!-- Pillar 3: Sequence Context -->
+  <rect x="340" y="48" width="145" height="130" rx="8" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
+  <text x="412" y="72" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#fbbf24" text-anchor="middle" font-weight="600">Sequence Context</text>
+  <text x="412" y="92" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#888888" text-anchor="middle">What comes next?</text>
+  <line x1="360" y1="102" x2="465" y2="102" stroke="#333" stroke-width="1"/>
+  <text x="412" y="118" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#fbbf24" text-anchor="middle">GRU Prediction</text>
+  <text x="412" y="132" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#fbbf24" text-anchor="middle">Procedural Memory</text>
+  <text x="412" y="148" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">sub-1M params</text>
+  <text x="412" y="166" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">sub-10ms CPU</text>
+
+  <!-- Pillar 4: Session Context -->
+  <rect x="500" y="48" width="145" height="130" rx="8" fill="#1f1f23" stroke="#4ade80" stroke-width="2"/>
+  <text x="572" y="72" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#4ade80" text-anchor="middle" font-weight="600">Session Context</text>
+  <text x="572" y="92" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#888888" text-anchor="middle">What to remember?</text>
+  <line x1="520" y1="102" x2="625" y2="102" stroke="#333" stroke-width="1"/>
+  <text x="572" y="118" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#4ade80" text-anchor="middle">Knowledge Graph</text>
+  <text x="572" y="132" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="8" fill="#4ade80" text-anchor="middle">Context Caching</text>
+  <text x="572" y="148" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">invalidation</text>
+  <text x="572" y="166" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="7" fill="#666666" text-anchor="middle">summarization</text>
+
+  <!-- Arrows down to unified bar -->
+  <path d="M92 178 L92 205" fill="none" stroke="#60a5fa" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-60a5fa)"/>
+  <path d="M252 178 L252 205" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-a78bfa)"/>
+  <path d="M412 178 L412 205" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-fbbf24)"/>
+  <path d="M572 178 L572 205" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+
+  <!-- MCP Gateway bar -->
+  <rect x="20" y="210" width="625" height="50" rx="8" fill="#1f1f23" stroke="#fbbf24" stroke-width="2"/>
+  <text x="330" y="235" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="middle" font-weight="600">MCP Gateway (PML)</text>
+  <text x="330" y="250" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#888888" text-anchor="middle">Curated, structured, budget-constrained context delivered to the model</text>
+</svg>

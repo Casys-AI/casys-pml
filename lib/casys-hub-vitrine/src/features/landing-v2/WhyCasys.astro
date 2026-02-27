@@ -2,6 +2,7 @@
 import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
 const content = useTranslations(locale).whyCasys;
+const social = useTranslations(locale).socialProof;
 ---
 
 <section id="why-casys">
@@ -91,6 +92,27 @@ const content = useTranslations(locale).whyCasys;
 
     </div>
 
+    <!-- Open Source Track Record (merged from SocialProof) -->
+    <div class="github-proof">
+      <h3>{social.githubTitle}</h3>
+      <div class="repo-cards">
+        {social.repos.map((repo: any) => (
+          <a href={repo.url} class="repo-card" target="_blank" rel="noopener noreferrer">
+            <div class="repo-header">
+              <span class="material-symbols-rounded repo-icon">code</span>
+              <span class="repo-name">{repo.name}</span>
+              <span class="repo-stars">{repo.stars}</span>
+            </div>
+            <span class="repo-desc">{repo.description}</span>
+          </a>
+        ))}
+      </div>
+      <a href="https://github.com/Casys-AI" class="github-cta" target="_blank" rel="noopener noreferrer">
+        <span>{social.githubCta}</span>
+        <span class="material-symbols-rounded">arrow_forward</span>
+      </a>
+    </div>
+
     <!-- Bottom Line -->
     <div class="bottom-line">
       <p class="bottom-line-text">{content.bottomLine.text}</p>
@@ -116,7 +138,7 @@ const content = useTranslations(locale).whyCasys;
      ======================================== */
 
   section {
-    padding: 80px 0;
+    padding: 56px 0;
     background: var(--md-sys-color-surface-container-low);
   }
 
@@ -322,6 +344,96 @@ const content = useTranslations(locale).whyCasys;
     font-size: 20px;
   }
 
+  /* GitHub Open Source Track Record */
+  .github-proof {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 48px;
+  }
+
+  .github-proof h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .repo-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .repo-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 20px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+  }
+
+  .repo-card:hover {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .repo-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .repo-icon {
+    font-size: 18px;
+    color: var(--md-sys-color-primary);
+  }
+
+  .repo-name {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    flex-grow: 1;
+  }
+
+  .repo-stars {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .repo-desc {
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.5;
+  }
+
+  .github-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--md-sys-color-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    align-self: flex-start;
+  }
+
+  .github-cta:hover {
+    text-decoration: underline;
+  }
+
+  .github-cta .material-symbols-rounded {
+    font-size: 18px;
+  }
+
   /* Tablet: 2-column grid */
   @media (max-width: 1024px) {
     .bento-grid {
@@ -350,7 +462,7 @@ const content = useTranslations(locale).whyCasys;
   /* Mobile: Single column */
   @media (max-width: 768px) {
     section {
-      padding: 40px 0;
+      padding: 32px 0;
     }
 
     .bento-grid {
@@ -460,5 +572,40 @@ const content = useTranslations(locale).whyCasys;
   html[data-theme="dark"] #why-casys .bottom-line-cta.secondary:hover {
     border-color: var(--casys-warm-accent);
     background: rgba(255, 184, 111, 0.1);
+  }
+
+  /* GitHub Repos */
+  html[data-theme="dark"] #why-casys .github-proof h3 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #why-casys .repo-card {
+    background: var(--casys-warm-surface);
+    border-color: var(--casys-warm-border-accent);
+  }
+
+  html[data-theme="dark"] #why-casys .repo-card:hover {
+    border-color: var(--casys-warm-border-accent-hover);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  html[data-theme="dark"] #why-casys .repo-icon {
+    color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #why-casys .repo-name {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #why-casys .repo-stars {
+    color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #why-casys .repo-desc {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  html[data-theme="dark"] #why-casys .github-cta {
+    color: var(--casys-warm-accent);
   }
 </style>

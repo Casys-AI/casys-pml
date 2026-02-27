@@ -55,7 +55,7 @@ const resolvedDescription = description || metaDescriptionFallback;
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Instrument+Serif:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
 
     <script>
       // Auto language redirect (client-only): redirect to /fr, /zh-TW or /zh based on browser language
@@ -99,25 +99,33 @@ const resolvedDescription = description || metaDescriptionFallback;
       "@type": "Organization",
       "name": "Casys",
       "alternateName": "Casys AI",
-      "url": "https://casys.ai",
-      "logo": "https://casys.ai/icons/logo.svg",
-      "description": "Applied AI research lab specializing in MCP infrastructure, knowledge graphs, and agentic systems.",
+      "url": siteUrl || "https://casys.ai",
+      "logo": `${siteUrl || "https://casys.ai"}/icons/logo.svg`,
+      "description": resolvedDescription,
       "founder": {
         "@type": "Person",
         "name": "Erwan Lee Pesle"
       },
+      "foundingDate": "2024",
       "sameAs": [
         "https://github.com/Casys-AI",
-        "https://discord.gg/fuPg8drR",
+        "https://discord.gg/casys",
+        "https://jsr.io/@casys",
         "https://www.linkedin.com/company/casys-ai"
       ],
+      "knowsAbout": ["Model Context Protocol", "MCP Server", "GraphRAG", "Context Engineering", "AI Agents"],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "technical support",
+        "url": "https://discord.gg/casys"
+      },
       "areaServed": ["FR", "TW", "US", "JP"]
     })} />
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "Casys",
-      "url": "https://casys.ai",
+      "url": siteUrl || "https://casys.ai",
       "inLanguage": ["en", "fr", "zh", "zh-TW"]
     })} />
     <style is:inline>

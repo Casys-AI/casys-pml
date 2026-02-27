@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 360" font-family="'Inter','Segoe UI',system-ui,sans-serif">
+  <rect width="680" height="360" fill="#08080a" rx="8"/>
+
+  <!-- Title -->
+  <text x="340" y="26" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="600">GRAPHRAG: KNOWLEDGE GRAPH + RETRIEVAL</text>
+
+  <!-- Edges (drawn first, behind nodes) -->
+  <g stroke-width="2" fill="none" opacity="0.6">
+    <!-- psql_query → Database -->
+    <path d="M160,100 Q200,80 270,90" stroke="#60a5fa" marker-end="url(#arrowBlue)"/>
+    <!-- Database → read_file -->
+    <path d="M320,115 Q350,160 350,180" stroke="#a78bfa" marker-end="url(#arrowPurple)"/>
+    <!-- read_file → Data Pipeline cap -->
+    <path d="M380,200 Q430,200 470,170" stroke="#4ade80" marker-end="url(#arrowGreen)"/>
+    <!-- Data Pipeline → git_commit -->
+    <path d="M530,150 Q560,130 570,110" stroke="#fbbf24" marker-end="url(#arrowAmber)"/>
+    <!-- ERPNext → Database -->
+    <path d="M200,260 Q230,200 270,120" stroke="#60a5fa"/>
+    <!-- Data Pipeline → Report Gen -->
+    <path d="M530,170 Q540,220 510,260" stroke="#a78bfa" marker-end="url(#arrowPurple)"/>
+    <!-- Report Gen → send_email -->
+    <path d="M450,280 Q380,290 310,280" stroke="#fbbf24" marker-end="url(#arrowAmber)"/>
+    <!-- git_commit → CI/CD -->
+    <path d="M620,110 Q650,150 630,200" stroke="#4ade80" marker-end="url(#arrowGreen)"/>
+    <!-- CI/CD → Report Gen -->
+    <path d="M600,230 Q560,260 530,275" stroke="#60a5fa"/>
+  </g>
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#a78bfa"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4ade80"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#fbbf24"/>
+    </marker>
+  </defs>
+
+  <!-- Nodes: Tools (L0) = circles -->
+  <circle cx="120" cy="100" r="30" fill="#0c1929" stroke="#60a5fa" stroke-width="2"/>
+  <text x="120" y="96" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">psql</text>
+  <text x="120" y="108" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">_query</text>
+
+  <circle cx="340" cy="200" r="30" fill="#0c1929" stroke="#60a5fa" stroke-width="2"/>
+  <text x="340" y="196" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">read</text>
+  <text x="340" y="208" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">_file</text>
+
+  <circle cx="590" cy="100" r="30" fill="#0c1929" stroke="#60a5fa" stroke-width="2"/>
+  <text x="590" y="96" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">git</text>
+  <text x="590" y="108" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">_commit</text>
+
+  <circle cx="270" cy="280" r="30" fill="#0c1929" stroke="#60a5fa" stroke-width="2"/>
+  <text x="270" y="276" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">send</text>
+  <text x="270" y="288" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">_email</text>
+
+  <!-- Nodes: Capabilities (L1) = rounded rectangles -->
+  <rect x="260" y="78" width="90" height="36" rx="18" fill="#0f1a2e" stroke="#a78bfa" stroke-width="2"/>
+  <text x="305" y="100" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">Database</text>
+
+  <rect x="460" y="140" width="120" height="36" rx="18" fill="#0f1a2e" stroke="#a78bfa" stroke-width="2"/>
+  <text x="520" y="162" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">Data Pipeline</text>
+
+  <rect x="460" y="260" width="110" height="36" rx="18" fill="#0f1a2e" stroke="#a78bfa" stroke-width="2"/>
+  <text x="515" y="282" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">Report Gen</text>
+
+  <rect x="590" y="210" width="70" height="36" rx="18" fill="#0f1a2e" stroke="#a78bfa" stroke-width="2"/>
+  <text x="625" y="232" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">CI/CD</text>
+
+  <!-- Nodes: External systems = hexagons (approximated with path) -->
+  <rect x="140" y="240" width="90" height="36" rx="4" fill="#1a1a0a" stroke="#fbbf24" stroke-width="2" stroke-dasharray="4,2"/>
+  <text x="185" y="262" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">ERPNext</text>
+
+  <!-- Edge labels -->
+  <text x="210" y="78" text-anchor="middle" fill="#475569" font-size="8" font-style="italic">queries</text>
+  <text x="365" y="158" text-anchor="middle" fill="#475569" font-size="8" font-style="italic">reads config</text>
+  <text x="430" y="188" text-anchor="middle" fill="#475569" font-size="8" font-style="italic">feeds</text>
+  <text x="580" y="78" text-anchor="middle" fill="#475569" font-size="8" font-style="italic">commits</text>
+
+  <!-- Legend -->
+  <g transform="translate(30,320)">
+    <circle cx="8" cy="0" r="6" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
+    <text x="20" y="4" fill="#64748b" font-size="9">Tool (L0)</text>
+    <rect x="100" y="-7" width="30" height="14" rx="7" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="136" y="4" fill="#64748b" font-size="9">Capability (L1)</text>
+    <rect x="240" y="-7" width="30" height="14" rx="2" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="3,1"/>
+    <text x="276" y="4" fill="#64748b" font-size="9">External System</text>
+    <text x="420" y="4" fill="#475569" font-size="9">Edges = co-execution frequency (SHGAT attention weights)</text>
+  </g>
+</svg>

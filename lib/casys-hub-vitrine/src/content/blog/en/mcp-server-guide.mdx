@@ -1,0 +1,945 @@
+---
+title: "MCP Server in Production: The Complete TypeScript Guide"
+description: "How to build and deploy a production-ready MCP server in TypeScript. Complete guide with code examples, SDK comparison, OAuth2 auth, middleware pipeline, and Docker/systemd deployment."
+author: "Erwan Lee Pesle"
+date: 2026-02-27
+tags:
+  - mcp
+  - mcp-server
+  - production
+  - typescript
+  - infrastructure
+category: "Product"
+language: en
+snippet: "Build a production MCP server in TypeScript — from first tool registration to deployment with auth, rate limiting, and observability."
+featured: true
+draft: false
+---
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+## The Real Problem with MCP Servers
+
+Building an MCP server that responds to `tools/list` and `tools/call` takes an hour. Building one that survives production -- with authentication, rate limiting, observability, concurrency control, and graceful shutdown -- takes three weeks.
+
+It is the same gap that separates an Express script printing "hello world" from an HTTP service handling 500 requests per second without falling over. The [Model Context Protocol](https://modelcontextprotocol.io) defines the *what* -- message formats, transports, the initialization lifecycle. It says nothing about the *how* of running a real service.
+
+This guide is what I wish I had when we deployed our first MCP servers at casys.ai. We will start from scratch, build a complete MCP server in TypeScript, and deploy it on a VPS with Docker and systemd. No theory. Working code.
+
+If you are not yet familiar with MCP, start with [MCP: The USB-C of AI Tools](/blog/why-mcp-protocol) for context. If you already know why MCP matters and want to build, stay here.
+
+---
+
+## What a Production MCP Server Must Handle
+
+<ExcalidrawDiagram src="mcp-architecture" alt="MCP Architecture: Client ↔ Protocol ↔ Server ↔ Tools & Resources" />
+
+Before choosing a framework, let us list what a production MCP server actually needs to support. Not the spec minimum -- the reality of a service running 24/7 with clients that are not always well-behaved.
+
+**The MCP protocol itself:**
+- Capability negotiation (`initialize`)
+- Tool listing and execution (`tools/list`, `tools/call`)
+- Resource listing and reading (`resources/list`, `resources/read`)
+- Two transports: `stdio` (local process) and Streamable HTTP (network)
+
+**Everything the spec does not cover:**
+- Authentication and authorization (OAuth2, JWT, scopes per tool)
+- Rate limiting per IP, per token, per tool
+- Input schema validation before execution
+- Concurrency control (not 200 simultaneous queries against your database)
+- Backpressure when the server is saturated
+- Prometheus metrics, OpenTelemetry traces
+- CORS, CSP, maximum request body size
+- Signal handling (SIGTERM, graceful shutdown)
+
+Ignore any one of these and you have a ticking time bomb. An MCP server without rate limiting is a DDoS waiting to happen. An MCP server without input validation is an injection waiting for its moment.
+
+---
+
+## Option 1: The Official SDK
+
+The most natural starting point is the [official MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) (`@modelcontextprotocol/sdk`). It is the reference implementation. Here is what a minimal MCP server looks like with it:
+
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+
+const server = new McpServer({
+  name: "my-server",
+  version: "1.0.0",
+});
+
+server.tool(
+  "greet",
+  "Greet a user by name",
+  { name: z.string() },
+  async ({ name }) => ({
+    content: [{ type: "text", text: `Hello, ${name}!` }],
+  }),
+);
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+This works. Your MCP server responds to Claude, GPT, or any MCP client. For a prototype or a local tool, it is enough.
+
+But the moment you need HTTP transport, authentication, rate limiting, or observability, you are on your own. The SDK gives you the protocol. Everything else is your problem. You will write Express or Hono middleware, manually wire up SSE, manage sessions, implement your own rate limiter. Every MCP server you build starts from zero.
+
+---
+
+## Option 2: The @casys/mcp-server Framework
+
+This is the problem we solved with [`@casys/mcp-server`](https://jsr.io/@casys/mcp-server). The pitch is simple: **the Hono for MCP**. Minimal, fast, production-ready.
+
+Built with Deno, compatible with Node.js. Published on [JSR](https://jsr.io/@casys/mcp-server) and [npm](https://www.npmjs.com/package/@casys/mcp-server). Same MCP server, both runtimes.
+
+![The @casys/mcp-server package on JSR with a perfect 100% score](/images/screenshots/jsr-casys-mcp-server.png)
+
+### An MCP Server in 15 Lines
+
+```typescript
+import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "my-server",
+  version: "1.0.0",
+  maxConcurrent: 10,
+  backpressureStrategy: "queue",
+});
+
+server.registerTool(
+  {
+    name: "greet",
+    description: "Greet a user by name",
+    inputSchema: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    },
+  },
+  ({ name }) => `Hello, ${name}!`,
+);
+
+// STDIO transport — works with Claude Desktop, Cursor, etc.
+await server.start();
+```
+
+That is a complete MCP server. `tools/list` returns your tool with its schema. `tools/call` executes it with automatic parameter validation. Concurrency control is built in -- no more than 10 simultaneous calls, the rest are queued.
+
+### Switch to HTTP in One Line
+
+The same server, exposed over the network with production protections:
+
+```typescript
+// Instead of server.start() for stdio:
+await server.startHttp({
+  port: 3000,
+  requireAuth: true,
+  corsOrigins: ["https://app.example.com"],
+  maxBodyBytes: 1_048_576,          // 1 MB
+  ipRateLimit: {
+    maxRequests: 60,
+    windowMs: 60_000,
+  },
+});
+```
+
+That gives you an MCP server with:
+- Streamable HTTP + SSE built in
+- Authentication required (OAuth2/JWT)
+- CORS allowlist
+- Request body size limit (413 if exceeded)
+- Per-IP rate limiting (429 if exceeded)
+
+No middleware to write. No Express configuration. No hand-rolled SSE plumbing.
+
+---
+
+## Registering Tools: Schemas and Types
+
+The core of an MCP server is its tools. Each tool has a name, a description, a JSON Schema for inputs, and a handler. Here is a realistic example -- a tool that queries a PostgreSQL database:
+
+```typescript
+server.registerTool(
+  {
+    name: "query_database",
+    description: "Execute a read-only SQL query against PostgreSQL",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sql: {
+          type: "string",
+          description: "The SQL SELECT query to execute",
+        },
+        params: {
+          type: "array",
+          items: { type: "string" },
+          description: "Parameterized query values",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  async ({ sql, params }) => {
+    // The framework validates inputs against the schema
+    // BEFORE calling this handler.
+    // If "sql" is missing or not a string, the client
+    // gets a clean MCP error — not a crash.
+
+    if (!sql.trim().toUpperCase().startsWith("SELECT")) {
+      throw new Error("Only SELECT queries are allowed");
+    }
+
+    const result = await pool.query(sql, params ?? []);
+    return JSON.stringify(result.rows, null, 2);
+  },
+);
+```
+
+A few things to note:
+
+1. **Validation is automatic.** The framework validates every call against the `inputSchema` before invoking the handler. No need to manually check that `sql` exists and is a string.
+
+2. **Errors are clean.** An error thrown in the handler is caught and returned as a standard MCP error. The client never sees a raw stack trace.
+
+3. **The schema is the documentation.** MCP clients (Claude, GPT, Cursor) use the schema and description to decide when and how to call your tool. A precise schema means a more effective agent. A vague schema means the agent guesses -- and it often guesses wrong.
+
+---
+
+## Registering Resources
+
+Tools are not everything. MCP also defines [resources](https://modelcontextprotocol.io/docs/concepts/resources) -- data the client can read. An MCP server can expose files, configurations, query results as structured resources.
+
+```typescript
+server.registerResource(
+  {
+    uri: "config://app/settings",
+    name: "Application Settings",
+    description: "Current application configuration",
+    mimeType: "application/json",
+  },
+  async () => ({
+    text: JSON.stringify(await loadConfig(), null, 2),
+  }),
+);
+```
+
+Resources are useful for giving an AI agent contextual information without a tool call. A database schema, an API spec, a system status page -- anything the model should be able to read before deciding which tool to call.
+
+---
+
+## OAuth2 / JWT Authentication
+
+An MCP server exposed on the network without authentication is an open vulnerability. The framework integrates OAuth2/JWT auth with presets for the most common providers.
+
+### Built-in OAuth2 Presets
+
+```typescript
+import {
+  ConcurrentMCPServer,
+  createGoogleAuthProvider,
+  createAuth0AuthProvider,
+  createGitHubAuthProvider,
+  createOIDCAuthProvider,
+} from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "secure-server",
+  version: "1.0.0",
+  auth: {
+    provider: createGoogleAuthProvider({
+      audience: "https://my-mcp.example.com",
+      resource: "https://my-mcp.example.com",
+    }),
+  },
+});
+```
+
+Four presets available: Google, Auth0, GitHub (Actions OIDC), and a generic OIDC preset for any compatible provider (Keycloak, Okta, etc.).
+
+You can also build a fully custom provider with `JwtAuthProvider`:
+
+```typescript
+import { JwtAuthProvider } from "@casys/mcp-server";
+
+const provider = new JwtAuthProvider({
+  issuer: "https://my-idp.example.com",
+  audience: "https://my-mcp.example.com",
+  resource: "https://my-mcp.example.com",
+  authorizationServers: ["https://my-idp.example.com"],
+});
+```
+
+### Scopes Per Tool
+
+You can restrict access to specific tools by OAuth2 scope:
+
+```typescript
+server.registerTool(
+  {
+    name: "delete_user",
+    description: "Delete a user account permanently",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: "string", description: "The user ID to delete" },
+      },
+      required: ["userId"],
+    },
+    requiredScopes: ["admin:write"],
+  },
+  async ({ userId }) => {
+    await userService.delete(userId);
+    return { deleted: userId };
+  },
+);
+```
+
+A token without the `admin:write` scope receives a 403 before the handler is ever called. This is not application-level authorization bolted on after the fact -- it is evaluated in the middleware pipeline, before your code runs.
+
+### YAML Configuration
+
+For teams that prefer to separate configuration from code, the framework also loads auth configuration from a YAML file:
+
+```yaml
+# mcp-server.yaml
+auth:
+  provider: auth0
+  audience: https://my-mcp.example.com
+  resource: https://my-mcp.example.com
+  domain: my-tenant.auth0.com
+  scopesSupported: [read, write, admin]
+```
+
+Environment variables take precedence in production:
+
+```bash
+MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
+```
+
+Configuration priority: code > environment variables > YAML file.
+
+---
+
+## Middleware Pipeline
+
+<ExcalidrawDiagram src="mcp-server-middleware-pipeline" alt="@casys/mcp-server middleware pipeline: Rate Limit → Auth → Validation → Backpressure → Your Handler" />
+
+Like Hono or Koa, the framework offers a composable middleware pipeline. Every MCP request passes through the chain before reaching the tool handler.
+
+The built-in pipeline runs in this order:
+
+```
+Rate limiting -> Auth -> Custom middleware -> Scope check -> Schema validation -> Backpressure -> Handler
+```
+
+The built-in pipeline includes:
+- **Rate limiting** -- per IP, per token, per tool
+- **Auth** -- token verification and scope extraction
+- **Schema validation** -- automatic JSON Schema validation (AJV)
+- **Backpressure** -- queue or reject when the server is saturated
+- **Metrics** -- Prometheus counters, OpenTelemetry spans
+
+You can insert your own middleware at the custom layer:
+
+```typescript
+import { ConcurrentMCPServer } from "@casys/mcp-server";
+import type { Middleware, MiddlewareContext } from "@casys/mcp-server";
+
+const timingMiddleware: Middleware = async (
+  context: MiddlewareContext,
+  next,
+) => {
+  const start = performance.now();
+  const result = await next(context);
+  const duration = (performance.now() - start).toFixed(0);
+  console.log(`[${context.toolName}] ${duration}ms`);
+  return result;
+};
+
+const auditMiddleware: Middleware = async (
+  context: MiddlewareContext,
+  next,
+) => {
+  console.log(
+    JSON.stringify({
+      event: "tool_call",
+      tool: context.toolName,
+      user: context.auth?.sub ?? "anonymous",
+      timestamp: new Date().toISOString(),
+    }),
+  );
+  return next(context);
+};
+
+server.use(timingMiddleware);
+server.use(auditMiddleware);
+```
+
+The onion model means your middleware wraps the handler. `next()` calls the next layer inward; whatever comes after `next()` runs on the way back out. If you have written Koa or Hono middleware, this is the same pattern.
+
+---
+
+## Observability: Metrics and Traces
+
+An MCP server in production without observability is flying blind. The framework integrates two layers out of the box.
+
+### Prometheus Metrics
+
+The `GET /metrics` endpoint exposes:
+
+- **Counters**: tool call counts by tool name and status, auth events, rate limit triggers
+- **Histograms**: tool call latency distribution (p50, p95, p99)
+- **Gauges**: active requests, queue length, SSE connections, server uptime
+
+```bash
+curl http://localhost:3000/metrics
+# mcp_tool_calls_total{tool="query_database",status="success"} 1247
+# mcp_tool_call_duration_seconds_bucket{tool="query_database",le="0.1"} 1189
+# mcp_active_requests 3
+# mcp_queue_length 0
+# mcp_sse_connections 2
+```
+
+Point Grafana at this endpoint and you have a complete monitoring dashboard.
+
+### OpenTelemetry Traces
+
+Every tool call automatically creates an OTel span with relevant attributes:
+
+```
+mcp.tool.call {
+  tool.name: "query_database"
+  server.name: "my-server"
+  transport: "http"
+  session.id: "abc123"
+  duration_ms: 42
+  success: true
+}
+```
+
+Enable tracing in Deno:
+
+```bash
+OTEL_DENO=true deno run --unstable-otel --allow-all server.ts
+```
+
+Export spans to Jaeger, Grafana Tempo, or Datadog via the standard OpenTelemetry SDK. No custom instrumentation required -- the framework creates spans for every tool call, auth event, and rate limit decision.
+
+### Structured Logging
+
+The framework logs in JSON format by default when running in HTTP mode. Every log entry includes the tool name, session ID, duration, and status. Pipe to any log aggregator.
+
+---
+
+## Comparison: Official SDK vs @casys/mcp-server vs From Scratch
+
+Before choosing, here is an honest comparison. The official SDK is the protocol reference. `@casys/mcp-server` is built *on top of* that SDK -- it is not a fork, it is a production layer.
+
+| Feature | Official SDK | @casys/mcp-server | From scratch |
+|---|---|---|---|
+| MCP protocol compliance | Full | Full (built on SDK) | Must implement |
+| stdio + HTTP transports | stdio + manual SSE | Both built in | Must implement |
+| Middleware pipeline | No | Onion model (Hono-style) | Must implement |
+| OAuth2 / JWT auth | No | 4 OIDC presets built in | Must implement |
+| Rate limiting | No | Per IP, token, tool | Must implement |
+| Schema validation | No | Automatic (AJV) | Must implement |
+| Concurrency control | No | Queue + backpressure | Must implement |
+| Prometheus metrics | No | Built-in `/metrics` | Must implement |
+| OpenTelemetry traces | No | Automatic spans | Must implement |
+| CORS allowlist | No | Built in | Must implement |
+| Body size limit (413) | No | Built in | Must implement |
+| YAML + env config | No | Built in | Must implement |
+| Sampling bridge | No | Bidirectional LLM delegation | Must implement |
+| Deno + Node.js | Node.js only | Both | Your choice |
+| Community | Large | Growing | Just you |
+| Lines of code to start | ~15 | ~15 | ~200+ |
+
+The choice depends on your context:
+
+- **Prototype or local tool**: the official SDK is fine. It is the right pick if your MCP server runs in `stdio` on the user's machine and never touches a network.
+- **Production service**: `@casys/mcp-server` saves you three weeks of plumbing. Auth, rate limiting, observability -- all there from the first `startHttp()`.
+- **From scratch**: avoid unless you have very specific constraints (non-TypeScript runtime, custom transport). You will reimplement what the two options above already provide.
+
+---
+
+## Connecting Your MCP Server to the Ecosystem
+
+An MCP server does not exist in isolation. Once you have tools running, you often need to connect them to platforms beyond Claude Desktop or Cursor.
+
+### @casys/mcp-bridge -- Cross-Platform Messaging
+
+[`@casys/mcp-bridge`](https://www.npmjs.com/package/@casys/mcp-bridge) bridges MCP servers to messaging platforms. It lets you expose your MCP tools as a Telegram bot, a LINE chatbot, or any messaging interface. The bridge handles the message parsing, session management, and response formatting. Your MCP server stays unchanged.
+
+This matters because most end users are not developers sitting in an IDE. They are on Telegram, LINE, or a custom chat UI. The bridge lets you reuse the same MCP server for both developer tools and end-user interfaces.
+
+### @casys/mcp-erpnext -- A Real-World Domain-Specific MCP Server
+
+[`@casys/mcp-erpnext`](https://www.npmjs.com/package/@casys/mcp-erpnext) is a standalone MCP server that connects AI agents to [ERPNext](https://erpnext.com), the open-source ERP system. It exposes invoices, purchase orders, stock levels, and accounting data as MCP tools.
+
+It is a good example of what a domain-specific MCP server looks like in practice: focused scope, strong input validation, read-only defaults with explicit write permissions. If you are building an MCP server for a specific business domain, study its structure.
+
+[![AI agent creating an ERPNext invoice via @casys/mcp-erpnext — watch the demo](/images/screenshots/erpnext-mcp-demo.jpg)](https://youtu.be/gG-nFCrzfPU)
+
+---
+
+## Deploying to Production
+
+<ExcalidrawDiagram src="mcp-server-deployment" alt="Production deployment: Clients → Caddy (TLS) → MCP Server (@casys/mcp-server) → PostgreSQL, with Prometheus and OpenTelemetry monitoring" />
+
+An MCP server running in `deno run` in a terminal is not production. Here are two proven approaches: Docker and systemd.
+
+### Docker Deployment
+
+```dockerfile
+# Dockerfile
+FROM denoland/deno:2.1.4
+
+WORKDIR /app
+
+# Cache dependencies
+COPY deno.json deno.lock ./
+RUN deno install
+
+# Copy source code
+COPY . .
+
+# Compile for faster cold starts
+RUN deno cache mod.ts
+
+# MCP server HTTP port
+EXPOSE 3000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Start
+CMD ["deno", "run", "--allow-net", "--allow-read", "--allow-env", "mod.ts"]
+```
+
+With a `docker-compose.yml`:
+
+```yaml
+version: "3.8"
+services:
+  mcp-server:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - MCP_AUTH_AUDIENCE=https://my-mcp.example.com
+      - MCP_AUTH_PROVIDER=google
+      - DATABASE_URL=postgresql://user:pass@db:5432/mydb
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    networks:
+      - internal
+
+  db:
+    image: postgres:16-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+
+networks:
+  internal:
+```
+
+If your MCP server runs inside Docker and needs to communicate with services on the host (Ollama, another MCP server, a local database), read [The Localhost Trap](/blog/the-localhost-trap). Docker networking is the invisible wall that breaks most first deployments.
+
+### systemd Deployment
+
+For direct deployment on a VPS, systemd is the most reliable option:
+
+```ini
+# /etc/systemd/system/mcp-server.service
+[Unit]
+Description=MCP Server - My Tools
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=mcp
+Group=mcp
+WorkingDirectory=/opt/mcp-server
+ExecStart=/home/mcp/.deno/bin/deno run \
+  --allow-net \
+  --allow-read \
+  --allow-env \
+  mod.ts
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=MCP_AUTH_PROVIDER=google
+Environment=MCP_AUTH_AUDIENCE=https://my-mcp.example.com
+Environment=PORT=3000
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mcp-server/data
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now mcp-server
+sudo journalctl -u mcp-server -f
+```
+
+### Reverse Proxy with Caddy
+
+In production, your MCP server should sit behind a reverse proxy that handles TLS:
+
+```
+# /etc/caddy/Caddyfile
+mcp.example.com {
+    reverse_proxy localhost:3000
+}
+```
+
+Caddy handles Let's Encrypt certificates automatically. Your MCP server is now accessible over HTTPS with zero TLS configuration on your end.
+
+---
+
+## Connecting Clients
+
+An MCP server without a client is useless. Here is how to connect the most common ones.
+
+### Claude Desktop / Claude Code
+
+In your Claude configuration file (`claude_desktop_config.json` for Desktop, `.mcp.json` at project root for Claude Code):
+
+```json
+{
+  "mcpServers": {
+    "my-tools": {
+      "command": "deno",
+      "args": ["run", "--allow-net", "--allow-read", "--allow-env", "mod.ts"],
+      "cwd": "/path/to/your/server"
+    }
+  }
+}
+```
+
+For a remote HTTP MCP server:
+
+```json
+{
+  "mcpServers": {
+    "my-tools": {
+      "url": "https://mcp.example.com",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
+    }
+  }
+}
+```
+
+### Cursor / VS Code
+
+Same principle. Editors that support MCP accept either `stdio` or HTTP configuration. Check your editor's documentation for the exact config file format and location.
+
+### Programmatic Clients
+
+Any client that implements the MCP protocol can connect. The official SDK provides a `Client` class for TypeScript:
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const transport = new StreamableHTTPClientTransport(
+  new URL("https://mcp.example.com/mcp"),
+);
+
+const client = new Client({ name: "my-app", version: "1.0.0" });
+await client.connect(transport);
+
+// List available tools
+const tools = await client.listTools();
+console.log(`${tools.tools.length} tools available`);
+
+// Call a tool
+const result = await client.callTool({
+  name: "query_database",
+  arguments: { sql: "SELECT COUNT(*) FROM users" },
+});
+console.log(result.content);
+```
+
+This is useful for integration tests, monitoring scripts, or building your own AI orchestration layer on top of MCP.
+
+---
+
+## Multi-Server Architecture
+
+In practice, you will not put everything in a single MCP server. You will have one for the database, one for the filesystem, one for your business API. That is the right instinct -- each MCP server should have a clear responsibility.
+
+The challenge is routing. When an agent has 50 tools spread across 5 MCP servers, how does it pick the right one? This is a fundamental problem we explored in depth in [$20,000 to Route 16 Agents](/blog/routing-agents-without-new-protocol). The short answer: intelligent routing should not be delegated to the LLM alone.
+
+The architecture for MCP servers in production:
+
+```
+MCP Client (Claude, GPT, Cursor...)
+    |
+    v
+Reverse proxy (Caddy, nginx)
+    |
+    +-- MCP Server: database-tools  (port 3001)
+    +-- MCP Server: file-tools      (port 3002)
+    +-- MCP Server: api-tools       (port 3003)
+    +-- MCP Server: admin-tools     (port 3004)
+```
+
+Each MCP server is an independent systemd service or Docker container. The reverse proxy routes by path or subdomain. Each server has its own credentials, rate limits, and scopes.
+
+When you outgrow this pattern -- when tool count exceeds what fits in a context window, or when you need dynamic tool selection based on conversation state -- you need an [MCP gateway](/blog/mcp-gateway-guide). A gateway aggregates tools from multiple servers and presents a curated subset to the LLM based on the current context. That is a separate architectural layer, and we cover it in detail in the linked article.
+
+---
+
+## Common Mistakes
+
+After deploying dozens of MCP servers in production, here are the mistakes I see most often.
+
+### 1. No Input Validation
+
+The MCP client sends whatever it wants. If your handler trusts the parameters without validating them, you have a vulnerability. `@casys/mcp-server` validates automatically against the schema -- but if you use the raw SDK, this is your responsibility. Validate everything. Trust nothing from the wire.
+
+### 2. No Rate Limiting
+
+An AI agent can loop and call the same tool 1,000 times per minute. Without rate limiting, your database goes down, your external API bills you, or your server saturates. Put a rate limiter in place. Always.
+
+### 3. Vague Schemas
+
+```typescript
+// BAD — the schema says nothing
+inputSchema: { type: "object" }
+
+// GOOD — the schema is precise and documented
+inputSchema: {
+  type: "object",
+  properties: {
+    query: {
+      type: "string",
+      description: "SQL SELECT query to execute",
+    },
+    limit: {
+      type: "number",
+      minimum: 1,
+      maximum: 100,
+      default: 10,
+      description: "Maximum number of rows to return",
+    },
+  },
+  required: ["query"],
+  additionalProperties: false,
+}
+```
+
+A precise schema helps the agent call your tool correctly on the first try. A vague schema forces the agent to guess -- and it will often get it wrong. Think of your schema as a function signature: the more explicit, the fewer bugs.
+
+### 4. No Graceful Shutdown
+
+Your MCP server receives a SIGTERM (deployment, restart, scaling event). If it drops SSE connections abruptly, clients lose their sessions. Handle the signal properly -- finish in-flight requests, close SSE connections, drain the queue, then exit.
+
+### 5. stdout Pollution in stdio Mode
+
+In `stdio` transport, stdout is the MCP communication channel. If your code does a `console.log()`, it corrupts the JSON-RPC stream and the client crashes. Use stderr for logging in stdio mode. This catches everyone at least once.
+
+---
+
+## Testing
+
+### mcp-inspector
+
+The official SDK provides a command-line testing tool: `mcp-inspector`. It is the fastest way to verify that your MCP server works:
+
+```bash
+# Install the inspector
+npx @modelcontextprotocol/inspector
+
+# Test an MCP server in stdio mode
+npx @modelcontextprotocol/inspector deno run --allow-net mod.ts
+
+# Test an HTTP MCP server
+npx @modelcontextprotocol/inspector --url https://mcp.example.com
+```
+
+The inspector shows available tools, lets you send test calls, and displays raw JSON-RPC responses. Use it during development to verify your schemas and handlers before connecting a real AI client.
+
+### Programmatic Testing
+
+For automated tests, use the programmatic client shown earlier. Connect to your server, call each tool with known parameters, and verify the responses. Integrate this into your CI pipeline.
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { describe, it, expect } from "vitest";
+
+describe("MCP Server", () => {
+  it("should list tools", async () => {
+    const transport = new StdioClientTransport({
+      command: "deno",
+      args: ["run", "--allow-all", "mod.ts"],
+    });
+
+    const client = new Client({ name: "test", version: "1.0.0" });
+    await client.connect(transport);
+
+    const { tools } = await client.listTools();
+    expect(tools.length).toBeGreaterThan(0);
+    expect(tools.find((t) => t.name === "query_database")).toBeDefined();
+
+    await client.close();
+  });
+
+  it("should validate input schemas", async () => {
+    const transport = new StdioClientTransport({
+      command: "deno",
+      args: ["run", "--allow-all", "mod.ts"],
+    });
+
+    const client = new Client({ name: "test", version: "1.0.0" });
+    await client.connect(transport);
+
+    // Missing required field "sql" should return an error
+    const result = await client.callTool({
+      name: "query_database",
+      arguments: {},
+    });
+    expect(result.isError).toBe(true);
+
+    await client.close();
+  });
+});
+```
+
+Test your MCP server like you test any other service: unit tests for handlers, integration tests with a real client, and smoke tests in CI against a running instance.
+
+---
+
+## @casys/mcp-server vs FastMCP: Choosing the Right Framework
+
+When looking for a production-ready **MCP server** framework, you will inevitably encounter [FastMCP](https://gofastmcp.com/) (Python) alongside `@casys/mcp-server` (TypeScript). Both solve the same core problem -- the gap between the raw MCP SDK and a server you can actually ship. The choice is less about features and more about which runtime fits your stack.
+
+### FastMCP: The Python-Native Option
+
+FastMCP is genuinely impressive. It started as a community project, was absorbed into the official MCP Python SDK, and then relaunched as a standalone framework. Today it claims over 15,000 GitHub stars and is downloaded a million times a day. FastMCP 3.0 rebuilt the architecture around three primitives -- components, providers, and transforms -- with a strong focus on dynamic tool composition and a Python-idiomatic developer experience.
+
+What FastMCP does well:
+- **Large Python ecosystem**: direct access to NumPy, pandas, Hugging Face, LangChain, SQLAlchemy, and every ML library you already use
+- **Quick prototyping**: the `@mcp.tool()` decorator pattern means a working tool in three lines
+- **FastMCP 3.0 auth**: granular per-component authorization, CIMD (Client ID Metadata Document), Azure OBO flow, JWT validation
+- **Active community**: 66+ contributors, wide adoption, many tutorials
+
+FastMCP's limitations in a TypeScript-first stack:
+- You need a Python runtime deployed alongside your Node.js/Deno services
+- No native integration with the TypeScript tooling ecosystem (Cursor, Claude Code, most AI IDE extensions are TypeScript-first)
+- Authentication requires third-party libraries like Cerbos for fine-grained policies; not as batteries-included as it appears
+- No Prometheus metrics endpoint built in; observability requires manual wiring
+
+### @casys/mcp-server: TypeScript-Native, Built for the AI IDE Stack
+
+`@casys/mcp-server` was designed for teams already running TypeScript backends. The key differentiators are not feature counts -- they are architectural decisions:
+
+- **Same language as your clients**: Claude Code, Cursor, VS Code extensions, and most MCP client SDKs are TypeScript. Your server, your tests, and your client are all in the same language, same type system, same monorepo if you want.
+- **Hono-inspired API**: if you have written Hono or Koa middleware, the onion-model pipeline is immediately familiar
+- **Streaming-first**: SSE + Streamable HTTP transport built in from the first `startHttp()`, not a plugin
+- **Observable by default**: Prometheus `/metrics` and OpenTelemetry spans are part of the core framework, not optional add-ons
+- **Ecosystem depth**: `@casys/mcp-bridge` (Telegram / LINE Mini Apps), `@casys/mcp-erpnext` (ERPNext domain tools), published on both JSR and npm under the `@casys` scope
+
+### Comparison Table
+
+| Feature | FastMCP (Python) | @casys/mcp-server (TypeScript) |
+|---|---|---|
+| Language | Python | TypeScript |
+| Runtime | CPython, uv | Deno + Node.js |
+| GitHub stars | ~15,000+ | Growing |
+| Auth (OAuth2/JWT) | Per-component, CIMD, Azure OBO | 4 OIDC presets, JwtAuthProvider, per-tool scopes |
+| Middleware pipeline | Providers + transforms model | Onion model (Hono-style) |
+| Rate limiting | Manual / third-party | Built-in per IP, token, tool |
+| Prometheus metrics | Not built-in | `/metrics` endpoint included |
+| OpenTelemetry traces | Not built-in | Automatic spans per tool call |
+| Streaming (SSE) | Supported | Built-in, session-managed |
+| Deployment | Python process, Docker | systemd, Docker, Caddy TLS |
+| Ecosystem | ML/AI Python libraries | mcp-bridge, mcp-erpnext, JSR+npm |
+| MCP Server TypeScript | No | Yes (native) |
+| MCP Server Python | Yes (native) | No |
+
+### When to Choose Each
+
+**Choose FastMCP if:**
+- Your backend is already Python
+- You need direct access to ML libraries (NumPy, Hugging Face, pandas)
+- Your team is Python-first and does not want a second runtime
+- You are building ML data pipelines that feed into MCP tools
+
+**Choose @casys/mcp-server if:**
+- Your stack is TypeScript (Node.js, Deno, or both)
+- You need production-grade observability without wiring up third-party tools
+- Your MCP server integrates with Telegram, LINE, or messaging platforms via `@casys/mcp-bridge`
+- You want a single language for server, client, tests, and IDE tooling
+
+The honest answer: for Python shops, FastMCP is the obvious pick. For TypeScript shops, `@casys/mcp-server` is the equivalent -- built for the same production requirements, but in the language your team already uses everywhere AI tooling is being built today.
+
+---
+
+## Recap
+
+Building a functional MCP server is trivial. Building one that survives production requires handling auth, rate limiting, validation, concurrency, observability, deployment, and monitoring.
+
+Two paths:
+
+1. **The official SDK** + three weeks of plumbing for each MCP server. Good for prototypes and local tools.
+2. **`@casys/mcp-server`** + one `startHttp()` call with production protections built in. Good for services that need to run 24/7.
+
+The framework is open source, published on [JSR](https://jsr.io/@casys/mcp-server) and [npm](https://www.npmjs.com/package/@casys/mcp-server), and built on top of the official SDK -- not against it. It is a production layer, not a protocol replacement.
+
+```bash
+# Deno
+deno add jsr:@casys/mcp-server
+
+# Node.js (npm)
+npm install @casys/mcp-server
+```
+
+The source code is on [GitHub](https://github.com/Casys-AI/mcp-server). Issues are open. PRs are welcome.
+
+If you are deploying MCP servers and hitting walls -- auth flows, Docker networking, multi-agent routing, observability gaps -- we have probably hit the same ones. [Get in touch](https://casys.ai).
+
+---
+
+**Related articles:**
+
+- [MCP: The USB-C of AI Tools](/blog/why-mcp-protocol) -- what MCP is and why it matters
+- [The Localhost Trap](/blog/the-localhost-trap) -- Docker networking gotchas when deploying AI stacks
+- [$20,000 to Route 16 Agents](/blog/routing-agents-without-new-protocol) -- the routing problem with multiple MCP servers
+- [MCP Gateway: Why Your AI Agents Need One](/blog/mcp-gateway-guide) -- when you outgrow direct server connections
+- [GraphRAG vs Vector RAG](/blog/graphrag-vs-vectorrag) -- the intelligence layer behind tool routing
+
+**Resources:**
+
+- [Model Context Protocol specification](https://modelcontextprotocol.io)
+- [@casys/mcp-server on JSR](https://jsr.io/@casys/mcp-server)
+- [@casys/mcp-server on npm](https://www.npmjs.com/package/@casys/mcp-server)
+- [Source code on GitHub](https://github.com/Casys-AI/mcp-server)

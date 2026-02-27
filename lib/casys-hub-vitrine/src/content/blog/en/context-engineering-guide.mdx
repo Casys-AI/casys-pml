@@ -1,0 +1,396 @@
+---
+title: "Context Engineering: The Real Bottleneck of AI Agents in 2026"
+description: "Context engineering determines what your AI sees — not what you tell it. A complete guide covering MCP, GraphRAG, tool routing, industrial knowledge management, and practical TypeScript examples."
+author: "Erwan Lee Pesle"
+date: 2026-02-27
+tags:
+  - context-engineering
+  - mcp
+  - graphrag
+  - agents
+  - knowledge-management
+category: "Industry"
+language: en
+snippet: "Prompt engineering optimizes the question. Context engineering optimizes everything the model sees before answering. That's the real lever."
+featured: true
+draft: false
+---
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+## The Term Everyone Misuses
+
+February 2026. The phrase **context engineering** is showing up in conference talks, product docs, Twitter threads, and VC pitch decks. Like every useful term in tech, it risks being drained of meaning before anyone agrees on what it actually is.
+
+So let's define it now.
+
+**Prompt engineering** is how you phrase your request. Word choice. Instruction structure. "Be concise." "Reason step by step." "Output as JSON." It is about the form of the question.
+
+**Context engineering** is what you put *in the model's context window* before it starts reasoning. Which documents, which tool schemas, which structured data, which conversation history, which system instructions. It is the *what*, not the *how*.
+
+The distinction sounds subtle. It is fundamental. Because current models -- GPT-5, Claude Opus 4, Gemini 3 -- are good enough to reason on what they see. The problem is that they don't see the right things.
+
+An agent with a perfect prompt and the wrong context will hallucinate confidently. An agent with a mediocre prompt and the right context will usually get the job done.
+
+**Context engineering is the real bottleneck of AI agents in 2026.**
+
+---
+
+## Why Prompt Engineering Isn't Enough Anymore
+
+A year ago, optimizing a prompt could improve results by 30%. Today, the margin is thin. Models understand natural instructions. They handle formats, constraints, nuances. The delta between a good prompt and an average prompt shrinks with every model generation.
+
+What doesn't shrink is the delta between an agent with the right context and one without.
+
+Take a concrete case. A plant operator asks an agent:
+
+> "What's the status of line 3?"
+
+With prompt engineering alone, you optimize the phrasing. You add "respond in JSON," "include yield metrics," "be specific about downtime causes."
+
+With a **context-centered approach**, you ask different questions entirely: does the agent *see* the MES (Manufacturing Execution System) data? Does it have access to the maintenance schedule from the CMMS? Does it know the downtime history for this line from the ERP?
+
+Without that data in its context, the best prompt in the world is useless. The model will hallucinate, or respond "I don't have access to that information" -- which is worse, because it's true.
+
+This is not a hypothetical. On [MCPMark](https://mcpmark.ai/leaderboard), even GPT-5.2 only achieves 57.5% correct tool usage in MCP benchmarks. The bottleneck isn't the model's reasoning. It's the context it reasons over.
+
+---
+
+## The Industrial Problem: 15 Systems, 15 Silos
+
+Here is the reality of a manufacturing site in 2026:
+
+| System | Function | Key Data |
+| ------ | -------- | -------- |
+| **ERP** (SAP, ERPNext) | Finance, procurement, inventory | Costs, material availability, suppliers |
+| **MES** | Real-time production monitoring | Yield, downtime, throughput |
+| **PLM** (SysON, Teamcenter) | Product lifecycle management | BOMs, revisions, design specs |
+| **CMMS** | Maintenance | Failure history, preventive schedules |
+| **CRM** | Customer relations | Orders, complaints, delivery timelines |
+| **SCADA** | Shop-floor supervision | Sensors, alarms, machine states |
+| **QMS** | Quality | Non-conformities, audits, corrective actions |
+
+Each system has its own API. Its own data model. Its own naming conventions. Its own auth scheme. Its own query limitations.
+
+An agent answering "What's the status of line 3?" needs to cross at least three of these systems. And today, in 90% of cases, nobody has wired the bridges.
+
+**Context engineering in an industrial environment is the problem of aggregating 15 sources into a coherent set the model can consume.**
+
+This is not a model problem. It is an infrastructure problem. No amount of scaling parameters will fix the fact that your ERP runs SAP with a BAPI interface, your MES exposes OPC-UA, and your CMMS has a REST API from 2014 with XML responses. The model needs to see unified, structured data. Getting it there is engineering work.
+
+---
+
+## RAG, GraphRAG, and Context Engineering: Don't Confuse Them
+
+<ExcalidrawDiagram src="context-engineering-hierarchy" alt="Context Engineering hierarchy: RAG (vector retrieval) ⊂ GraphRAG (relational retrieval) ⊂ Context Engineering (full orchestration)" />
+
+Before going further, let's clarify the hierarchy. Because context engineering is not RAG with a new name.
+
+| Approach | What It Does | Limitation |
+| -------- | ------------ | ---------- |
+| **Classical RAG** | Retrieves documents by vector embedding similarity, injects relevant chunks | Only captures textual similarity. Ignores relationships between concepts. |
+| **GraphRAG** | Builds a knowledge graph, traverses relationships to find relevant context | Better at "related" vs "similar" ([details here](/blog/graphrag-vs-vectorrag)), but still focused on information retrieval |
+| **Context Engineering** | Orchestrates *everything* entering context: available tools, retrieved data, conversation history, session state, business rules | The complete framework. RAG and GraphRAG are *components* within it |
+
+[Microsoft's GraphRAG paper](https://arxiv.org/abs/2404.16130) popularized the idea that a knowledge graph improves contextual retrieval. That's correct. But GraphRAG doesn't handle "which tools should the model see" or "which conversation history to keep." Context engineering encompasses all of that.
+
+At Casys, we use a custom GraphRAG with a Sparse Hypergraph Attention mechanism (SHGAT) that learns tool relationships from real execution workflows. It understands that `git commit` is *related to* `git push` even though the two strings share no lexical similarity. But SHGAT is one component among others in our full context management pipeline.
+
+---
+
+## The Four Pillars of Context Management
+
+<ExcalidrawDiagram src="context-engineering-four-pillars" alt="The four pillars of context engineering: Tool Context (MCP), Data Context (GraphRAG), Sequence Context (GRU), Session Context (Memory) — all flowing into the MCP Gateway" />
+
+After building an MCP gateway that aggregates dozens of tool servers, here's the taxonomy we use internally. Four dimensions to manage simultaneously.
+
+### 1. Tool Context -- What to Show the Model
+
+This is the most immediate problem. A registry like [Smithery](https://smithery.ai) lists 17,000+ MCP tools. No context window can contain them all. And you shouldn't try.
+
+We discussed this in [the article on agent routing](/blog/routing-agents-without-new-protocol): when MCP tool schemas exceed 10% of the context, model performance degrades. Microsoft Research calls this "tool-space interference" -- more tools in context, less precision on each.
+
+The solution is not to load everything. It is to **select** the relevant tools *before* the model reasons. This is context engineering applied to tooling.
+
+In practice, using the [MCP protocol](/blog/why-mcp-protocol) and a gateway:
+
+```typescript
+// Contextual discovery: only load relevant tools
+const tools = await mcp.pml.discover({
+  intent: "production line status check",
+  limit: 8,
+  filter: { type: "tool" }
+});
+
+// Result: 8 tools ranked by relevance
+// - mes:get_line_status     (score: 0.94)
+// - cmms:get_maintenance    (score: 0.87)
+// - erp:get_production_order (score: 0.82)
+// ... not the other 17,000
+```
+
+The model sees 8 tools instead of 17,000. Its context window is preserved. Its precision on those 8 tools is maximized.
+
+### 2. Data Context -- What Information to Inject
+
+Once the right tools are identified, you need to fetch data and structure it for consumption. Classical RAG does retrieval by vector similarity. Useful, but insufficient for cross-system scenarios.
+
+Context engineering adds:
+- **Graph traversal**: follow relationships between entities (an order -> its line items -> their components -> their stock levels)
+- **Cross-system aggregation**: combine the BOM from PLM with costs from ERP and availability from MES
+- **Temporal relevance filtering**: yesterday's data is more relevant than data from six months ago
+
+```typescript
+// Cross-system aggregation via MCP
+const lineStatus = await mcp.mes.get_line_status({ line: 3 });
+const maintenance = await mcp.cmms.get_next_maintenance({
+  equipment: lineStatus.equipmentId
+});
+const productionOrder = await mcp.erp.get_production_order({
+  line: 3,
+  status: "active"
+});
+
+// The context injected into the model contains all 3 sources
+// The model can now cross-reference:
+// - current yield (MES)
+// - next scheduled maintenance (CMMS)
+// - active order and deadline (ERP)
+```
+
+The model doesn't need to figure out how to call three APIs. The context pipeline does the aggregation. The model receives structured, pre-joined data and reasons over it.
+
+### 3. Sequence Context -- What Comes Next
+
+This is the dimension almost nobody addresses. An agent doesn't perform isolated actions -- it executes workflows. And in workflows, order matters.
+
+At Casys, we use a GRU (Gated Recurrent Unit) trained on thousands of real execution workflows to predict the next tool. Not an 8-billion-parameter LLM -- a recurrent network with under 258K parameters that runs in single-digit milliseconds on CPU.
+
+```typescript
+// Sequential prediction: what logically follows?
+const history = ["erp:get_production_order", "mes:get_line_status"];
+const nextTools = await gru.predictNext(history, { topK: 3 });
+
+// Result:
+// 1. cmms:get_maintenance_schedule (0.73)
+// 2. qms:get_nonconformities       (0.18)
+// 3. scada:get_alarms               (0.05)
+
+// Context is enriched BEFORE the model decides
+```
+
+This sequential context is invisible to a classical RAG system. It doesn't come from a document -- it comes from accumulated experience. "When someone checked production then machine status, they check maintenance next in 73% of cases." This is procedural memory, not document search.
+
+The key numbers: **sub-10ms latency, CPU-only inference, 258K parameters.** Compare that to using GPT-5 for tool selection at 1-2 seconds of GPU time and 200B+ parameters. You don't need a giant model to make context decisions. You need a small, specialized model purpose-built for context routing.
+
+### 4. Session Context -- Conversational State
+
+The fourth pillar is the most neglected: managing state across the conversation. After 10 exchanges, what's still relevant? What can be summarized? What must be preserved verbatim?
+
+Google introduced "context caching" in Gemini -- the ability to pre-load a block of context and reuse it at reduced cost across multiple requests. It's an infrastructure optimization (fewer tokens, lower latency), but it illustrates the problem: **managing session context is an engineering problem, not a model problem.**
+
+The approaches diverge:
+
+- **LangChain/LangGraph**: conversational memory with automatic summarization. Pragmatic, but loses details.
+- **MemGPT/Letta**: memory pagination inspired by operating systems. Elegant in theory, complex to operate.
+- **Casys PML**: persistent knowledge graph with event-driven invalidation. Entities and relationships are stored, not raw messages.
+
+None of these approaches is universally better. The right choice depends on the use case. What is universal: **not managing session context is not an option** once you move past the prototype stage.
+
+---
+
+## The MCP Gateway as a Context Aggregation Layer
+
+<ExcalidrawDiagram src="gateway-architecture" alt="PML Gateway architecture: Agent → Router + Search + Memory + Learning → Multiplexer → MCP Servers (filesystem, github, postgres, fetch)" />
+
+Let's return to the concrete industrial problem. 15 systems, 15 APIs, one agent that needs to see them all.
+
+The **Model Context Protocol** (MCP) standardizes the connection between an agent and its tools. It's the [USB-C of AI tools](/blog/why-mcp-protocol). One protocol, every system.
+
+But a protocol alone isn't enough. You need an orchestration layer that:
+1. **Discovers** available tools across all connected MCP servers
+2. **Selects** the most relevant for the current request
+3. **Routes** execution to the right server
+4. **Aggregates** results into a coherent context
+5. **Learns** from usage patterns to improve selection over time
+
+This is what we call an **MCP Gateway**. And it is, concretely, context engineering in action.
+
+```typescript
+// MCP Gateway architecture -- context orchestration
+import { MCPGateway } from "@casys/pml";
+
+const gateway = new MCPGateway({
+  servers: {
+    erp:   { transport: "stdio", command: "mcp-erpnext" },
+    mes:   { transport: "sse",   url: "http://mes.local:3010/mcp" },
+    cmms:  { transport: "stdio", command: "mcp-cmms" },
+    plm:   { transport: "sse",   url: "http://syson.local:8180/mcp" },
+    scada: { transport: "stdio", command: "mcp-scada" },
+  },
+  // GraphRAG for tool relationships
+  graphrag: { enabled: true, shgat: true },
+  // GRU for sequential prediction
+  sequenceModel: { enabled: true, weightsPath: "gru-weights-prod.json" },
+});
+
+// User intent triggers the context pipeline
+const context = await gateway.buildContext({
+  intent: "Why is line 3 showing declining yield?",
+  sessionHistory: conversation.messages,
+  maxTools: 10,
+  maxTokens: 8000,  // Context budget for data
+});
+
+// context.tools     -> 10 relevant tools (MES, CMMS, ERP...)
+// context.data      -> Pre-fetched data from the gateway
+// context.sequence  -> Predicted next steps
+// context.graph     -> Relevant knowledge subgraph
+```
+
+The model receives a context that is **curated, structured, and sized**. Not a dump of 15 APIs. Not 17,000 tool schemas. The necessary and sufficient.
+
+This is where context engineering diverges from the "[localhost trap](/blog/the-localhost-trap)" mindset. It works on your laptop with two mock servers. It breaks in production with 15 real systems, intermittent connections, and data that doesn't always match its schema. The gateway handles that complexity so the model doesn't have to.
+
+---
+
+## What Others Are Doing (and What's Missing)
+
+Context engineering is not a concept invented by any single company. It's a problem everyone building production agents encounters. But the approaches differ significantly.
+
+### Microsoft: GraphRAG + Context Protocol
+
+Microsoft published [GraphRAG](https://arxiv.org/abs/2404.16130) in 2024 -- a framework that builds a knowledge graph from unstructured documents, then uses that graph to answer questions. It's RAG enriched by structure.
+
+Their limitation: GraphRAG is document-centric. It doesn't handle tool discovery, cross-system routing, or sequence prediction. It's an excellent brick in a context strategy, not a complete solution.
+
+### LangChain: The Swiss Army Knife
+
+LangChain and LangGraph offer context management primitives: conversational memory, retrieval chains, agent executors. The ecosystem is rich. The community is massive.
+
+Their limitation: it's a toolkit, not an architecture. Every developer assembles their own stack. The result ranges from "clean" to "unmanageable spaghetti" depending on the team. And critically, there's no native component for tool routing at industrial scale.
+
+### Google: Context Caching + Gemini
+
+Google took a pragmatic angle with context caching in Gemini -- reducing cost and latency by reusing context blocks. It's infrastructure optimization, not semantic context management.
+
+### What's Missing Everywhere
+
+None of these approaches addresses the full problem:
+
+| Dimension | Microsoft GraphRAG | LangChain | Google Gemini | Casys PML |
+| --------- | ------------------ | --------- | ------------- | --------- |
+| Document retrieval | Graph-based | Vector-based | Vector-based | Graph (SHGAT) |
+| Tool discovery | No | Basic | No | GraphRAG + embeddings |
+| Cross-system routing | No | Manual | No | MCP Gateway automatic |
+| Sequence prediction | No | No | No | GRU sub-1M params |
+| Context budgeting | No | Partial | Context caching | Token budget per source |
+| Continuous learning | No | No | No | Real workflows -> graph |
+
+Industrial context management requires all four pillars simultaneously. Not just one.
+
+---
+
+## How to Implement Context Engineering: A Roadmap
+
+If you're building AI agents for an environment with multiple systems, here's a pragmatic roadmap. Four steps, roughly in order of dependency.
+
+### Step 1: Inventory Your Context Sources
+
+Before writing any code, list your systems, their APIs, and the data they expose. This is the least glamorous and most important work. If you don't know what your systems contain, no framework will guess it for you.
+
+Build a table. System name, API type (REST, GraphQL, SOAP, gRPC, OPC-UA), auth mechanism, data freshness, query limitations. This inventory becomes your context map.
+
+### Step 2: Standardize Access with MCP
+
+Wrap each system in an MCP server. One standard schema, one standard protocol. It takes time, but it's a one-shot investment that unlocks everything downstream.
+
+```typescript
+// An MCP server for your ERP -- standard structure
+const server = new MCPServer({
+  name: "erp",
+  tools: [
+    {
+      name: "get_production_order",
+      description: "Retrieve active production orders for a given line",
+      inputSchema: {
+        type: "object",
+        properties: {
+          line: { type: "number", description: "Line number" },
+          status: { type: "string", enum: ["active", "planned", "completed"] }
+        }
+      }
+    },
+    // ... other tools
+  ]
+});
+```
+
+The [MCP specification](https://modelcontextprotocol.io) defines the contract. You implement the bridge. Once your ERP speaks MCP, any MCP-compatible agent can use it. We built `@casys/mcp-erpnext` specifically for ERPNext -- same pattern applies to any system.
+
+### Step 3: Add Relational Context via Knowledge Graph
+
+Once your tools are standardized, connect them through a knowledge graph. You don't need a full GraphRAG deployment on day one -- even a simple co-occurrence graph ("these tools are frequently used together") significantly improves discovery.
+
+Start by logging which tools get called in sequence. After a few hundred workflows, patterns emerge. Tool A is almost always followed by Tool B. Capability X always requires tools Y and Z. These relationships become edges in your graph, and the graph becomes a context signal that pure vector search misses.
+
+### Step 4: Budget Your Context
+
+This is the part everyone forgets. Your context window is not infinite. Even with a million tokens, injecting *everything* is counterproductive (tool-space interference). Define a budget by source:
+
+- Tool schemas: max 10% of context
+- Retrieved data: max 40%
+- Conversation history: max 30%
+- System instructions: max 20%
+
+These ratios are starting points, not dogma. Adjust based on measurement. The point is to have a budget at all. Most teams don't, and their agents drown in their own context.
+
+---
+
+## Process IS the Context
+
+There's a direct link between context engineering and the process management approach we discussed in [a recent article](/blog/process-is-the-prompt). The Turtle diagram -- a quality management tool that's 45 years old -- asks exactly the right questions for structuring an agent's context:
+
+- **With what?** -> Which tools (MCP servers) does the agent have access to?
+- **With whom?** -> Which specialized agents are involved?
+- **How?** -> Which procedures (system prompts, context files) guide execution?
+- **How much?** -> Which metrics (tokens, latency, success rate) measure context quality?
+
+This is not a new problem. It's the information management problem reformulated for the age of agents. Industrial companies that already know how to structure their processes have a massive advantage -- they already know the answers to the four questions. They just lack the tooling to connect those answers to models.
+
+Quality management frameworks like ISO 9001, IATF 16949, and AS9100 already force organizations to document their inputs, outputs, resources, and measurement criteria for every process. Context engineering is, in many ways, those same principles applied to the information supply chain of an AI agent.
+
+---
+
+## Mistakes to Avoid
+
+After building and iterating on these systems for months, here are the most frequent traps.
+
+**1. Stuffing everything into the system prompt.** It's tempting. It's simple. It doesn't scale. A 50,000-token system prompt is a model that struggles with everything. Context must be dynamic, not static. The system prompt should contain instructions and constraints. The data should come from the pipeline.
+
+**2. Confusing RAG with context management.** RAG is a component. Context engineering is the architecture that decides *when* to use RAG, *what* to retrieve, and *how* to combine it with other sources. If your entire context strategy is "embed and retrieve," you're missing three pillars.
+
+**3. Ignoring the context budget.** More context is not always better. Beyond a threshold, the model drowns. Managing context well means knowing *what not to show*. This is counterintuitive for teams used to thinking "more data = better."
+
+**4. Not measuring.** If you don't measure context quality -- action success rate, tool selection accuracy, tokens consumed, latency per context assembly -- you're optimizing blind. Context engineering is engineering. Engineering without metrics is guesswork.
+
+**5. Building silent fallbacks.** When a context source fails, do not silently substitute default data. The agent must know it's missing something and say so. An explicitly incomplete context is better than a complete but fabricated one. A model confidently answering with wrong data is worse than a model saying "I can't access MES right now." We wrote an [internal policy](/blog/the-localhost-trap) about this after learning the hard way.
+
+---
+
+## Conclusion: Context Is the Product
+
+The race for bigger models, wider context windows, higher benchmarks -- all of that has value. But in a production environment, what separates a useful agent from a frustrating one is rarely the model. It's the context.
+
+Think about it from the user's perspective. They don't care which model you're running. They care whether the agent found the right data, called the right tools, and gave them a correct answer in under five seconds. Every one of those outcomes is determined by context engineering, not by model architecture.
+
+**Context engineering** is not a fad. It's the missing discipline between "we have a good model" and "we have an agent that works in production." It's the invisible infrastructure that determines whether your agent sees the right data, the right tools, at the right moment.
+
+And it is, fundamentally, a software engineering problem. Not data science. Not prompt crafting. Software engineering -- rigorous, testable, measurable.
+
+The tools exist. [MCP](https://modelcontextprotocol.io) standardizes tool access. GraphRAG structures relational knowledge. Lightweight sequence models predict what comes next. The missing piece is the discipline to assemble them into a coherent pipeline and measure the results.
+
+That's exactly what we're building at [Casys](https://casys.ai) -- an MCP gateway that makes context management its core job. Discovery, routing, GraphRAG, sequential prediction, all open source.
+
+![casys.ai — production MCP servers and context engineering tools](/images/screenshots/casys-ai-homepage.png)
+
+If this resonates, join the conversation on [Discord](https://discord.gg/casys). We talk context engineering, MCP, industrial agents -- without pretense.

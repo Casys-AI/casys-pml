@@ -146,7 +146,7 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Instrument+Serif:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
 
     <script>
       // Auto theme sync with system preference
@@ -194,18 +194,19 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     {slug && blogBaseUrl && (
       <script type="application/ld+json" set:html={JSON.stringify({
         "@context": "https://schema.org",
-        "@type": "Article",
+        "@type": "BlogPosting",
         "headline": title,
         "description": description || t.blogSubtitle,
         ...(siteUrl && { "image": ogImage }),
         ...(datePublished && { "datePublished": datePublished }),
         ...(dateModified && { "dateModified": dateModified }),
         "author": author
-          ? { "@type": "Person", "name": author }
+          ? { "@type": "Person", "name": author, "url": "https://casys.ai/about" }
           : { "@type": "Organization", "name": "Casys AI", "url": "https://casys.ai" },
         "publisher": {
           "@type": "Organization",
           "name": "Casys AI",
+          "url": "https://casys.ai",
           "logo": {
             "@type": "ImageObject",
             "url": "https://casys.ai/icons/logo.svg"
@@ -213,11 +214,22 @@ function getPostSlug(post: typeof sortedPosts[0]) {
         },
         "mainEntityOfPage": {
           "@type": "WebPage",
-          "@id": `${blogBaseUrl}/${slug}`
+          "@id": canonicalUrl || `${blogBaseUrl}/${slug}`
         },
         ...(tags?.length && { "keywords": tags.join(", ") }),
         ...(category && { "articleSection": category }),
-        "inLanguage": locale
+        "inLanguage": locale === 'zh' ? 'zh-CN' : locale
+      }).replace(/</g, '\\u003c')} />
+    )}
+    {slug && siteUrl && (
+      <script type="application/ld+json" set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": t.home, "item": `${siteUrl}${localePrefix || '/'}` },
+          { "@type": "ListItem", "position": 2, "name": "Blog", "item": `${siteUrl}${localePrefix}/blog` },
+          { "@type": "ListItem", "position": 3, "name": title }
+        ]
       }).replace(/</g, '\\u003c')} />
     )}
   </head>
