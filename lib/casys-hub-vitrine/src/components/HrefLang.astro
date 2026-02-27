@@ -12,11 +12,12 @@ export interface Props {
 
 const { siteUrl } = Astro.props;
 const SITE_URL = siteUrl || 'https://casys.ai';
-const LOCALES = ['en', 'fr', 'zh'] as const;
+const LOCALES = ['en', 'fr', 'zh', 'zh-TW'] as const;
 const LOCALE_PREFIXES: Record<string, string> = {
   en: '',
   fr: '/fr',
   zh: '/zh',
+  'zh-TW': '/zh-TW',
 };
 
 const pathname = Astro.url.pathname;
@@ -31,7 +32,7 @@ const pathname = Astro.url.pathname;
  *   /          -> /
  */
 function getBasePath(path: string): string {
-  for (const prefix of ['/fr', '/zh']) {
+  for (const prefix of ['/fr', '/zh-TW', '/zh']) {
     if (path === prefix || path === `${prefix}/`) {
       return '/';
     }

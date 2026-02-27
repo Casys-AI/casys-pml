@@ -31,7 +31,7 @@ const PASSTHROUGH_PREFIXES = [
 ];
 
 // Supported i18n locale prefixes
-const LOCALE_PREFIXES = ['fr', 'zh'];
+const LOCALE_PREFIXES = ['fr', 'zh-TW', 'zh'];
 
 export default function middleware(request: Request) {
   const url = new URL(request.url);

@@ -15,7 +15,7 @@ const locale = (Astro as any).currentLocale ?? 'en';
 const pathname = Astro.url.pathname;
 const siteUrl = (import.meta.env.PUBLIC_SITE_URL as string | undefined)?.trim();
 const canonicalUrl = siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
-const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN' } as const;
+const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN', 'zh-TW': 'zh_TW' } as const;
 const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
 
 // Meta tags based on business positioning
@@ -23,6 +23,7 @@ const metaTitles = {
   en: 'Casys - Applied AI Research | Open Source Tools & Consulting',
   fr: 'Casys - Applied AI Research | Outils Open Source & Consulting',
   zh: 'Casys - 应用 AI 研究 | 开源工具与咨询',
+  'zh-TW': 'Casys - 應用 AI 研究 | 開源工具與諮詢',
 } as const;
 const metaTitle = metaTitles[locale as keyof typeof metaTitles] ?? metaTitles.en;
 
@@ -30,6 +31,7 @@ const metaDescriptions = {
   en: 'Applied AI research lab. We explore AI architectures, build open-source tools (MCP Gateway, MCP Standard Tools), and share what we learn. 10+ years expertise: KM → Graph → Agents. Consulting available.',
   fr: 'Lab de recherche IA appliquée. Outils open-source MCP Gateway & Standard Tools. 15+ ans d\'expertise KM, Graph, Agents. Consulting disponible.',
   zh: '应用 AI 研究实验室。我们探索 AI 架构，构建开源工具（MCP Gateway、MCP 标准工具），并分享所学。10+ 年经验：KM → Graph → Agents。提供咨询服务。',
+  'zh-TW': '應用 AI 研究實驗室。我們探索 AI 架構，建構開源工具（MCP Gateway、MCP 標準工具），並分享所學。10+ 年經驗：KM → Graph → Agents。提供諮詢服務。',
 } as const;
 const metaDescriptionFallback = metaDescriptions[locale as keyof typeof metaDescriptions] ?? metaDescriptions.en;
 
@@ -56,15 +58,16 @@ const resolvedDescription = description || metaDescriptionFallback;
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
     <script>
-      // Auto language redirect (client-only): redirect to /fr or /zh based on browser language
+      // Auto language redirect (client-only): redirect to /fr, /zh-TW or /zh based on browser language
       (function () {
         try {
           var path = location.pathname;
-          if (!path.startsWith('/fr') && !path.startsWith('/zh')) {
+          if (!path.startsWith('/fr') && !path.startsWith('/zh-TW') && !path.startsWith('/zh')) {
             var lang = (navigator.languages && navigator.languages[0]) || navigator.language || '';
             lang = String(lang || '').toLowerCase();
             var prefix = '';
             if (lang.startsWith('fr')) prefix = '/fr';
+            else if (lang === 'zh-tw' || lang.startsWith('zh-hant')) prefix = '/zh-TW';
             else if (lang.startsWith('zh')) prefix = '/zh';
             if (prefix) {
               var target = path === '/' ? prefix + '/' : (prefix + path);
@@ -115,7 +118,7 @@ const resolvedDescription = description || metaDescriptionFallback;
       "@type": "WebSite",
       "name": "Casys",
       "url": "https://casys.ai",
-      "inLanguage": ["en", "fr", "zh"]
+      "inLanguage": ["en", "fr", "zh", "zh-TW"]
     })} />
     <style is:inline>
       /* ============================================

@@ -9,11 +9,12 @@
 import { en } from './en';
 import { fr } from './fr';
 import { zh } from './zh';
+import { zh_TW } from './zh-TW';
 
 /** The full translation shape, derived from the English source of truth */
 export type Translations = typeof en;
 
-const locales: Record<string, Translations> = { en, fr, zh };
+const locales: Record<string, Translations> = { en, fr, zh, 'zh-TW': zh_TW };
 
 /**
  * Returns typed translations for the given locale.
@@ -23,4 +24,4 @@ export function useTranslations(locale: string): Translations {
   return locales[locale] ?? en;
 }
 
-export { en, fr, zh };
+export { en, fr, zh, zh_TW };

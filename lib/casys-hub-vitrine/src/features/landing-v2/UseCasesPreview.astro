@@ -45,7 +45,7 @@ const localePath = locale === 'en' ? '' : `/${locale}`;
               {(uc.punchline[locale] || uc.punchline.en)}
             </p>
             <span class="read-link">
-              {locale === 'fr' ? 'Lire le cas' : locale === 'zh' ? '阅读案例' : 'Read case study'}
+              {locale === 'fr' ? 'Lire le cas' : locale === 'zh' ? '阅读案例' : locale === 'zh-TW' ? '閱讀案例' : 'Read case study'}
               <span aria-hidden="true">&rarr;</span>
             </span>
           </div>
@@ -56,7 +56,7 @@ const localePath = locale === 'en' ? '' : `/${locale}`;
     <!-- View all CTA -->
     <div class="view-all-wrapper">
       <a href={`${localePath}/use-cases`} class="view-all-link">
-        {locale === 'fr' ? 'Tous les cas' : locale === 'zh' ? '所有案例' : 'All case studies'}
+        {locale === 'fr' ? 'Tous les cas' : locale === 'zh' ? '所有案例' : locale === 'zh-TW' ? '所有案例' : 'All case studies'}
         <span aria-hidden="true">&rarr;</span>
       </a>
     </div>

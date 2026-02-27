@@ -17,9 +17,10 @@ function escapeXml(text: string): string {
 }
 
 // Flatten docs navigation tree to get all URLs
+// Note: item.href already includes the /docs/ prefix (e.g. "/docs/admin")
 function flattenDocsNav(items: DocNavItem[], urls: string[] = []): string[] {
   for (const item of items) {
-    urls.push(`/docs/${item.href}`);
+    urls.push(item.href);
     if (item.children && item.children.length > 0) {
       flattenDocsNav(item.children, urls);
     }

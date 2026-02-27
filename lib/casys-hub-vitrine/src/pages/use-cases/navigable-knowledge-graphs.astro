@@ -6,6 +6,6 @@ import { useCases } from '../../content/use-cases';
 const uc = useCases.find(c => c.id === 'navigable-knowledge-graphs')!;
 ---
 
-<LandingLayout title={`${uc.title.en} — Casys AI`}>
+<LandingLayout title={`${uc.title.en} — Casys AI`} description="How an engineering firm turned opaque Excel files into a navigable knowledge graph. Making cross-domain expertise visible and traceable.">
   <UseCaseDetail useCase={uc} />
 </LandingLayout>

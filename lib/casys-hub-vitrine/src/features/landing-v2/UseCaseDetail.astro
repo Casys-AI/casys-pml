@@ -61,7 +61,7 @@ const paragraphs = (text: string) => text.split('\n\n').filter(Boolean);
           <div class="step-content">
             <div class="block-label">
               <span class="material-symbols-rounded label-icon">description</span>
-              {locale === 'fr' ? 'Le contexte' : locale === 'zh' ? '背景' : 'The Situation'}
+              {locale === 'fr' ? 'Le contexte' : locale === 'zh' ? '背景' : locale === 'zh-TW' ? '背景' : 'The Situation'}
             </div>
             {paragraphs(uc.situation[locale] || uc.situation.en).map(p => (
               <p class="narrative-text" set:html={p} />
@@ -173,7 +173,7 @@ const paragraphs = (text: string) => text.split('\n\n').filter(Boolean);
             </a>
             <a href={`${localePath}/use-cases`} class="cta-btn secondary">
               <span class="material-symbols-rounded">arrow_back</span>
-              <span>{locale === 'fr' ? 'Tous les cas' : locale === 'zh' ? '所有案例' : 'All Use Cases'}</span>
+              <span>{locale === 'fr' ? 'Tous les cas' : locale === 'zh' ? '所有案例' : locale === 'zh-TW' ? '所有案例' : 'All Use Cases'}</span>
             </a>
           </div>
         </div>

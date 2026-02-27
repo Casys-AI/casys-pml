@@ -1,0 +1,17 @@
+---
+import EngineLayout from '../../features/engine/EngineLayout.astro';
+import EngineContent from '../../features/engine/EngineContent.astro';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const pageTitles: Record<string, string> = {
+  en: 'Casys Engine - ML Routing Layer for PML',
+  fr: 'Casys Engine - Couche de Routage ML pour PML',
+  zh: 'Casys Engine - PML ML Routing Layer',
+  'zh-TW': 'Casys Engine - PML ML 路由層',
+};
+const pageTitle = pageTitles[locale] ?? pageTitles.en;
+---
+
+<EngineLayout title={pageTitle}>
+  <EngineContent />
+</EngineLayout>

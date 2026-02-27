@@ -1,0 +1,13 @@
+---
+import McpStdLayout from '../../features/mcp-std/McpStdLayout.astro';
+import McpStdContent from '../../features/mcp-std/McpStdContent.astro';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const pageTitle = locale === 'zh-TW'
+  ? '508 個 AI Agent MCP 工具 — @casys/mcp-std | Casys AI'
+  : '508 MCP Tools for AI Agents — @casys/mcp-std | Casys AI';
+---
+
+<McpStdLayout title={pageTitle}>
+  <McpStdContent />
+</McpStdLayout>

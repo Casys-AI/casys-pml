@@ -1,0 +1,107 @@
+---
+title: "MCP：AI 工具的 USB-C"
+description: "还记得每部手机都有不同充电器的时代吗？AI 工具今天面临同样的问题。MCP 正在解决这个问题。"
+author: "Erwan Lee Pesle"
+date: 2025-12-18
+tags:
+  - pml
+  - mcp-server
+  - mcp
+  - 工具
+  - 互操作性
+category: "产品"
+language: zh-TW
+snippet: "还记得每部手机都有不同充电器的时代吗？AI 工具今天面临同样的问题。MCP 正在解决这个问题。"
+featured: false
+draft: false
+---
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+## 充电器的烦恼
+
+还记得 2010 年吗？每个手机品牌都有自己专属的充电器。出门旅行意味着要带一堆线缆。
+
+然后 USB-C 出现了。一根线，所有设备通用。
+
+**AI 工具今天面临着同样的问题。**
+
+每个 AI 服务商都有自己的工具接入方式：
+- OpenAI 用一种方式
+- Anthropic 用另一种方式
+- Google 又是另一套
+- 以此类推……
+
+为一个平台开发了工具？想用在其他平台上，得重新开发。
+
+<ExcalidrawDiagram src="mcp-without" alt="没有 MCP：N 个适配器" />
+
+## MCP 登场
+
+**Model Context Protocol**（模型上下文协议）就是 AI 工具的 USB-C。
+
+一个标准，处处通用。
+
+<ExcalidrawDiagram src="mcp-with" alt="有了 MCP：一个标准" />
+
+开发一次工具，就能在 Claude、GPT、本地模型以及未来出现的任何模型上运行。
+
+## 这对你意味着什么
+
+### 1. 不再被绑定
+
+今天在用 Claude？很好。明天想试试 GPT？你的工具可以直接带过去。
+
+你不再需要和某一家 AI 服务商"绑定"了。
+
+### 2. 更多工具，更少麻烦
+
+MCP 生态系统正在快速增长：
+- 文件管理
+- GitHub 集成
+- 数据库访问
+- 网页浏览
+- 还有数百个更多……
+
+这些工具开箱即用。不需要额外配置，不需要费力集成。
+
+### 3. 面向未来
+
+新的 AI 模型不断涌现。有了 MCP，它们可以直接使用你现有的工具。
+
+你在工具上的投入不会过时。
+
+## PML 在 MCP 之上做了什么
+
+PML 连接 MCP 工具，并让它们变得更智能：
+
+| 没有 PML | 有了 PML |
+| ----------- | -------- |
+| 你自己选择用哪个工具 | PML 推荐合适的工具 |
+| 你手动串联工具 | PML 自动构建工作流 |
+| 工具各自孤立 | 工具学会协同工作 |
+
+MCP 提供连接。PML 提供智能。
+
+## 生态效应
+
+真正令人兴奋的是：越多工具支持 MCP，整个生态就越强大。
+
+- **工具开发者**触达更多用户
+- **AI 开发者**获得更多能力
+- **用户**得到更好的 AI 助手
+
+当大家认同同一个标准时，每个人都是赢家。
+
+## 总结
+
+MCP 正在为 AI 工具做 USB-C 为硬件设备做过的事。
+
+一个标准。全面兼容。告别那一堆线缆。
+
+PML 基于 MCP 构建，因为我们相信开放标准。你的工具应该在任何地方都能用，而不是只服务于某一家服务商。
+
+**AI 的未来是互联互通的。MCP 就是那根连接线。**
+
+---
+
+*了解更多请访问 [modelcontextprotocol.io](https://modelcontextprotocol.io)*

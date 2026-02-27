@@ -72,7 +72,7 @@ const localePath = locale === 'en' ? '' : `/${locale}`;
                 </div>
                 <div class="card-footer">
                   <span class="read-link">
-                    {locale === 'fr' ? 'Lire le cas' : locale === 'zh' ? '阅读案例' : 'Read case study'}
+                    {locale === 'fr' ? 'Lire le cas' : locale === 'zh' ? '阅读案例' : locale === 'zh-TW' ? '閱讀案例' : 'Read case study'}
                     <span class="material-symbols-rounded arrow-icon">arrow_forward</span>
                   </span>
                 </div>
@@ -92,14 +92,14 @@ const localePath = locale === 'en' ? '' : `/${locale}`;
             <div class="card-header">
               <span class="case-tag placeholder-tag">
                 <span class="material-symbols-rounded tag-icon">schedule</span>
-                {locale === 'fr' ? 'Bientot' : locale === 'zh' ? '即将推出' : 'Coming Soon'}
+                {locale === 'fr' ? 'Bientot' : locale === 'zh' ? '即将推出' : locale === 'zh-TW' ? '即將推出' : 'Coming Soon'}
               </span>
             </div>
             <h3>
-              {locale === 'fr' ? "D'autres cas a venir" : locale === 'zh' ? '更多案例即将推出' : 'More cases coming'}
+              {locale === 'fr' ? "D'autres cas a venir" : locale === 'zh' ? '更多案例即将推出' : locale === 'zh-TW' ? '更多案例即將推出' : 'More cases coming'}
             </h3>
             <p class="card-excerpt">
-              {locale === 'fr' ? 'Nous documentons activement nos missions et nos projets internes. Revenez bientot.' : locale === 'zh' ? '我们正在积极记录项目。请稍后回来查看。' : 'We\'re actively documenting our engagements and internal projects. Check back soon.'}
+              {locale === 'fr' ? 'Nous documentons activement nos missions et nos projets internes. Revenez bientot.' : locale === 'zh' ? '我们正在积极记录项目。请稍后回来查看。' : locale === 'zh-TW' ? '我們正在積極記錄專案。請稍後回來查看。' : 'We\'re actively documenting our engagements and internal projects. Check back soon.'}
             </p>
             <div class="placeholder-pattern" aria-hidden="true">
               <span class="material-symbols-rounded pattern-icon">auto_awesome</span>

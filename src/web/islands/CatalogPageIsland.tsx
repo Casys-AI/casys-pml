@@ -267,6 +267,7 @@ function BentoPreview({ item, index }: BentoPreviewProps) {
 
   return (
     <a
+      id={item.id}
       ref={containerRef}
       href={item.href}
       class={`relative bg-[#0a0a0c] border border-[rgba(78,205,196,0.12)] rounded-lg overflow-hidden no-underline cursor-pointer transition-all duration-200 ease-out animate-[bentoIn_0.3s_ease-out_both] hover:border-[rgba(78,205,196,0.5)] hover:-translate-y-[3px] hover:shadow-[0_12px_32px_-8px_rgba(78,205,196,0.25),0_0_0_1px_rgba(78,205,196,0.1)] ${sizeClasses}`}
@@ -529,7 +530,7 @@ export default function CatalogPageIsland({
           description: comp.description,
           type: "ui" as ItemType,
           category: `ui-${catId}`,
-          href: `/catalog/ui/${comp.id}`,
+          href: `#ui-${comp.id}`,
           hasUi: true,
           resourceUri: comp.resourceUri,
           bentoSize: getComponentBentoSize(comp.id),

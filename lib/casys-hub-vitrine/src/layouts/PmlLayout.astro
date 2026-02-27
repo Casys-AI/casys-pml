@@ -14,13 +14,14 @@ const locale = (Astro as any).currentLocale ?? 'en';
 const pathname = Astro.url.pathname;
 const siteUrl = (import.meta.env.PUBLIC_SITE_URL as string | undefined)?.trim();
 const canonicalUrl = siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
-const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN' } as const;
+const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN', 'zh-TW': 'zh_TW' } as const;
 const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
 
 const metaDescriptions = {
   en: 'Procedural Memory Layer for AI Agents. One gateway, any model, full observability. Build AI workflows once, run with Claude, GPT, Gemini, or Ollama.',
   fr: 'Couche de Mémoire Procédurale pour Agents AI. Un gateway, tout modèle, observabilité complète. Construisez des workflows AI une fois, exécutez avec Claude, GPT, Gemini ou Ollama.',
   zh: 'AI 代理的程序化记忆层。一个网关，任何模型，完整可观测性。构建一次 AI 工作流，使用 Claude、GPT、Gemini 或 Ollama 运行。',
+  'zh-TW': 'AI 代理的程序化記憶層。一個閘道，任何模型，完整可觀測性。建構一次 AI 工作流，使用 Claude、GPT、Gemini 或 Ollama 執行。',
 } as const;
 const metaDescriptionFallback = metaDescriptions[locale as keyof typeof metaDescriptions] ?? metaDescriptions.en;
 const resolvedDescription = description || metaDescriptionFallback;
@@ -48,6 +49,14 @@ const navTranslations = {
     catalog: '目录',
     docs: '文档',
     beta: '测试版',
+    github: 'GitHub',
+  },
+  'zh-TW': {
+    brand: 'Casys PML',
+    capabilities: '能力',
+    catalog: '目錄',
+    docs: '文件',
+    beta: '測試版',
     github: 'GitHub',
   },
 } as const;
@@ -130,7 +139,7 @@ const nav = navTranslations[locale as keyof typeof navTranslations] ?? navTransl
     <!-- PML Header -->
     <header class="pml-header">
       <div class="pml-header-container">
-        <a href={locale === 'fr' ? '/fr/pml' : locale === 'zh' ? '/zh/pml' : '/pml'} class="pml-logo">
+        <a href={locale === 'fr' ? '/fr/pml' : locale === 'zh' ? '/zh/pml' : locale === 'zh-TW' ? '/zh-TW/pml' : '/pml'} class="pml-logo">
           <img src="/icons/logo.svg" alt="Casys Logo" class="pml-logo-img" />
           <span class="pml-logo-text">{nav.brand}</span>
         </a>

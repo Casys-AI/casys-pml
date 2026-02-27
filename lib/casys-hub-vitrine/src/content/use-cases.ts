@@ -32,10 +32,10 @@ export interface UseCase {
 export const pageIntro = {
   /** Stats bar — verifiable numbers from the codebase */
   stats: [
-    { value: '508', label: { en: 'MCP tools shipped', fr: 'outils MCP livrés', zh: '已发布的 MCP 工具' } },
-    { value: '4', label: { en: 'open-source packages', fr: 'packages open source', zh: '开源包' } },
-    { value: '137+', label: { en: 'tests passing', fr: 'tests passants', zh: '通过的测试' } },
-    { value: '21ms', label: { en: 'p95 discovery latency', fr: 'latence p95 de découverte', zh: 'p95 发现延迟' } },
+    { value: '508', label: { en: 'MCP tools shipped', fr: 'outils MCP livrés', zh: '已发布的 MCP 工具', 'zh-TW': '已發布的 MCP 工具' } },
+    { value: '4', label: { en: 'open-source packages', fr: 'packages open source', zh: '开源包', 'zh-TW': '開源套件' } },
+    { value: '137+', label: { en: 'tests passing', fr: 'tests passants', zh: '通过的测试', 'zh-TW': '通過的測試' } },
+    { value: '21ms', label: { en: 'p95 discovery latency', fr: 'latence p95 de découverte', zh: 'p95 发现延迟', 'zh-TW': 'p95 發現延遲' } },
   ],
 };
 
@@ -48,6 +48,7 @@ export const useCases: UseCase[] = [
       en: 'From Dashboard Fatigue to Chat-First Workflows',
       fr: 'De la fatigue des dashboards au chat-first',
       zh: '从仪表板疲劳到聊天优先工作流',
+      'zh-TW': '從儀表板疲勞到聊天優先工作流',
     },
     situation: {
       en: `A coaching startup built their operations on a stack that's become the norm for small teams: a <strong>no-code platform</strong> for scheduling, <strong>Make</strong> (formerly Integromat) for automations, <strong>Grafana</strong> for metrics, <strong>Google Calendar</strong> for bookings, and <strong>Slack</strong> for everything else.
@@ -67,6 +68,12 @@ Une fois terminé, Make déclenche des automatisations pour réserver les créne
 每周一，教练打开排程面板，导航到正确视图，点击<em>"添加课程"</em>——然后逐一填写每个字段：日期、时间、课程类型、客户姓名。每周的每节课都要重复这个操作。
 
 完成后，Make 触发自动化来预留日历时段并发送客户通知。要查看一周概况，切换到 Grafana。要与客户确认，切换到 Slack。<strong>五个应用，五个界面，五个心智模型</strong>——而这只是一个上午的任务。`,
+
+      'zh-TW': `一家教練新創公司在如今小團隊的標準技術棧上建構了營運體系：<strong>無代碼平台</strong>做排程，<strong>Make</strong>（前身 Integromat）做自動化，<strong>Grafana</strong> 看指標，<strong>Google 日曆</strong>做預約，<strong>Slack</strong> 處理其他一切。
+
+每週一，教練打開排程面板，導航到正確視圖，點擊<em>「新增課程」</em>——然後逐一填寫每個欄位：日期、時間、課程類型、客戶姓名。每週的每堂課都要重複這個操作。
+
+完成後，Make 觸發自動化來預留日曆時段並發送客戶通知。要查看一週概況，切換到 Grafana。要與客戶確認，切換到 Slack。<strong>五個應用，五個介面，五個心智模型</strong>——而這只是一個上午的任務。`,
     },
     friction: {
       en: `The core problem isn't that any single tool is bad — it's that <strong>every task requires a different app</strong> with a different interface.
@@ -98,6 +105,16 @@ Le workflow marche techniquement, mais le coût humain — <strong>la charge cog
 摩擦不在某个步骤——而在于<strong>持续的上下文切换</strong>。每个微任务都把你拉进不同的工具、不同的心智模型、不同的登录界面。结果是：人们因为<em>"又要开一个标签页"</em>而不去查看指标。因为界面藏在三层点击之后而忘记触发自动化。
 
 工作流技术上可行，但人力成本——<strong>在五个界面间切换的认知负担</strong>——才是真正的瓶颈。`,
+
+      'zh-TW': `核心問題不在於某個工具不好——而在於<strong>每項任務都需要不同的應用</strong>和不同的介面。
+
+想新增三堂教練課？打開面板，等待載入，在介面中點擊，逐欄位填寫表單。本可以用一句話描述的事情——<em>「週二上午給 Alice、Bob 和 Carol 排三堂教練課」</em>——要花<strong>10分鐘點擊</strong>。
+
+想看伺服器是否健康？打開 Grafana，導航到正確面板，檢查指標。想觸發自動化？打開 Make，找到正確場景，手動執行。
+
+摩擦不在某個步驟——而在於<strong>持續的上下文切換</strong>。每個微任務都把你拉進不同的工具、不同的心智模型、不同的登入介面。結果是：人們因為<em>「又要開一個分頁」</em>而不去查看指標。因為介面藏在三層點擊之後而忘記觸發自動化。
+
+工作流技術上可行，但人力成本——<strong>在五個介面間切換的認知負擔</strong>——才是真正的瓶頸。`,
     },
     shift: {
       en: `With <strong>MCP Apps</strong>, the entire paradigm flips. Instead of going to each tool, <strong>the tools come to you</strong> — right inside your existing chat.
@@ -129,11 +146,22 @@ C'est <strong>le nouveau no-code</strong> : au lieu de designer des workflows da
 这不仅仅是把聊天当成现有工具的遥控器。关键洞察是：<strong>组件已预构建</strong>（表单、表格、图表、日历），AI 根据请求即时组合它们。
 
 这是<strong>新的无代码</strong>：不再在可视编辑器中设计工作流，而是描述你想要什么，系统从多个 MCP 服务器实时组装复合界面。一次对话，多个数据源，一个统一界面——按需组装。`,
+
+      'zh-TW': `透過 <strong>MCP Apps</strong>，整個範式被顛覆。不再是你去找每個工具，而是<strong>工具來找你</strong>——直接在你現有的聊天中。
+
+教練打開 Claude、ChatGPT 或任何相容 MCP 的客戶端，說出需求：<em>「安排週二上午三堂教練課。」</em>排程表單出現<strong>在對話中</strong>，預填智慧預設值。確認後，日曆時段即被預留，通知即被發送——全程不離開聊天。
+
+需要檢查伺服器狀態？<em>「給我看這週的 Grafana 指標。」</em>即時儀表板內嵌渲染，無需開啟分頁。需要觸發 Make 自動化？用自然語言描述——正確的場景自動觸發。
+
+這不僅僅是把聊天當成現有工具的遙控器。關鍵洞察是：<strong>元件已預建構</strong>（表單、表格、圖表、日曆），AI 根據請求即時組合它們。
+
+這是<strong>新的無代碼</strong>：不再在視覺化編輯器中設計工作流，而是描述你想要什麼，系統從多個 MCP 伺服器即時組裝複合介面。一次對話，多個資料來源，一個統一介面——按需組裝。`,
     },
     punchline: {
       en: 'The interface comes to you — you don\'t go to the interface.',
       fr: "L'interface vient à toi — c'est pas toi qui vas à l'interface.",
       zh: '界面主动来找你——而不是你去找界面。',
+      'zh-TW': '介面主動來找你——而不是你去找介面。',
     },
     stack: ['MCP Apps Protocol', '@casys/mcp-std', 'PML Gateway'],
     diagram: 'uc-chat-first',
@@ -141,6 +169,7 @@ C'est <strong>le nouveau no-code</strong> : au lieu de designer des workflows da
       en: 'From 5 scattered apps to a single composable chat interface',
       fr: 'De 5 apps dispersées à une seule interface chat composable',
       zh: '从5个分散的应用到单一的可组合聊天界面',
+      'zh-TW': '從5個分散的應用到單一的可組合聊天介面',
     },
     visual: '/images/use-cases/scenario-modeler.png',
   },
@@ -152,6 +181,7 @@ C'est <strong>le nouveau no-code</strong> : au lieu de designer des workflows da
       en: 'From Static Pipelines to Plannable MCP Workflows',
       fr: 'Des pipelines statiques aux workflows MCP planifiables',
       zh: '从静态管道到可规划的 MCP 工作流',
+      'zh-TW': '從靜態管線到可規劃的 MCP 工作流',
     },
     situation: {
       en: `An industrial engineering consulting firm needed an <strong>AI assistant for their field technicians</strong>. The goal: a conversational interface that could run diagnostics on equipment, restart production systems, and modify operational parameters — but with <strong>mandatory human approval before any action</strong> that could affect live infrastructure.
@@ -171,6 +201,12 @@ Un technicien pouvait dire <em>"lance un diagnostic complet sur la turbine 3"</e
 当时，<strong>Model Context Protocol 还不存在</strong>。工具生态由 Python 框架主导。我们用 <strong>LangGraph</strong> 结合 <a href="https://github.com/crazyyanchao/llmcompiler" target="_blank" rel="noopener">llmcompiler</a> 构建了第一版，这是一个实现了 <a href="https://github.com/SqueezeAILab/LLMCompiler" target="_blank" rel="noopener">LLMCompiler</a> 架构（ICML 2024，SqueezeAILab）的 Python 包。理论上这个方案很优雅：用 <strong>Pydantic 模式</strong>声明每个工具的输入和输出，然后让 DAG 规划器将用户请求分解为可并行执行的步骤。
 
 技术人员可以说<em>"对涡轮机 3 运行完整诊断"</em>，规划器就会构建一个依赖图——查询设备数据库、调度诊断程序、准备合规报告。每个步骤分发给对应的执行器。它确实可以工作。`,
+
+      'zh-TW': `一家<strong>工業工程顧問公司</strong>需要為其現場技術人員建構一個 AI 助手。目標是：一個對話式介面，能夠對設備執行診斷、重啟生產系統、修改運行參數——但在任何可能影響線上基礎設施的操作前，必須有<strong>強制性的人工審批</strong>。
+
+當時，<strong>Model Context Protocol 還不存在</strong>。工具生態由 Python 框架主導。我們用 <strong>LangGraph</strong> 結合 <a href="https://github.com/crazyyanchao/llmcompiler" target="_blank" rel="noopener">llmcompiler</a> 建構了第一版，這是一個實現了 <a href="https://github.com/SqueezeAILab/LLMCompiler" target="_blank" rel="noopener">LLMCompiler</a> 架構（ICML 2024，SqueezeAILab）的 Python 套件。理論上這個方案很優雅：用 <strong>Pydantic 模式</strong>宣告每個工具的輸入和輸出，然後讓 DAG 規劃器將使用者請求分解為可平行執行的步驟。
+
+技術人員可以說<em>「對渦輪機 3 執行完整診斷」</em>，規劃器就會建構一個依賴圖——查詢設備資料庫、排程診斷程序、準備合規報告。每個步驟分發給對應的執行器。它確實可以運作。`,
     },
     friction: {
       en: `The problems surfaced the moment we tried to add <strong>safety checkpoints</strong>. LangGraph supports interrupts, but wiring Human-in-the-Loop into a DAG planner meant custom state management at every branching node. <em>"Confirm before restarting production line B"</em> — sounds like a one-line requirement, but in practice it demanded hand-coded serialization of pending actions, a bespoke UI layer for presenting confirmations, and careful orchestration to resume the graph after approval.
@@ -196,6 +232,14 @@ Enfin, l'architecture était <strong>captive de Python</strong>. Le cabinet voul
 规划器还<strong>对运行时模式完全盲目</strong>。它能将请求分解为并行任务，但无法从过去的执行中学习。如果技术人员总是在诊断 A 后执行校准 B，系统无从知晓。每次运行都从零开始。
 
 最后，架构<strong>绑定于 Python</strong>。咨询公司想用 TypeScript 构建技术人员界面的前端，但 LangGraph 强制要求 Python 后端。两个运行时、两条依赖链、两套部署管道——本应是统一技术栈的东西。对运维团队来说是永久性的额外负担。（讽刺的是，LangGraph 后来推出了 TypeScript 版本——但静态模式的根本问题依然存在。）`,
+
+      'zh-TW': `問題在我們試圖新增<strong>安全檢查點</strong>時立即暴露。LangGraph 支援中斷，但在 DAG 規劃器中接入 Human-in-the-Loop 意味著每個分支節點都需要自訂狀態管理。<em>「在重啟生產線 B 之前確認」</em>——聽起來像是一行需求，但實際上需要手寫的待處理操作序列化、專門的 UI 層來展示確認介面，以及精心編排的審批後恢復邏輯。
+
+除了 HIL，架構本身存在<strong>根本性的僵化</strong>。Pydantic 模式是靜態的——在 Python 編譯時定義。每次新增工具或修改輸入簽名，都需要重新部署整個管線。規劃器只能使用編譯時已知的工具。
+
+規劃器還<strong>對執行時模式完全盲目</strong>。它能將請求分解為平行任務，但無法從過去的執行中學習。如果技術人員總是在診斷 A 後執行校準 B，系統無從知曉。每次執行都從零開始。
+
+最後，架構<strong>綁定於 Python</strong>。顧問公司想用 TypeScript 建構技術人員介面的前端，但 LangGraph 強制要求 Python 後端。兩個執行環境、兩條依賴鏈、兩套部署管線——本應是統一技術棧的東西。對維運團隊來說是永久性的額外負擔。（諷刺的是，LangGraph 後來推出了 TypeScript 版本——但靜態模式的根本問題依然存在。）`,
     },
     shift: {
       en: `With the <strong>MCP Engine</strong>, the same architecture becomes dynamic, language-agnostic, and safe by default. Each diagnostic tool, each database query, each report generator is now an <strong>MCP server</strong> — a self-describing service with machine-readable capabilities that any client can discover at runtime. No recompilation. No redeployment. A new tool is deployed and it's immediately plannable.
@@ -233,11 +277,24 @@ L'étape suivante est un <strong>modèle de transition GRU</strong> — un rése
 这两个机制是互补的，而非冗余。审批门控在执行<em>之前</em>询问<em>"我们应该这样做吗？"</em>。Elicitation 在执行<em>过程中</em>询问<em>"我们需要更多上下文才能继续"</em>。两者结合，覆盖了安全关键工具调用的完整生命周期——无需自定义状态管理，无需定制 UI。这是协议内置的功能。
 
 下一步是 <strong>GRU 转换模型</strong>——一个在历史执行轨迹上训练的神经网络，学习预测最可能的下一个工具和工作流的终止步骤。如果技术人员始终按 A 然后 B 然后 C 的模式操作，系统就会主动建议。不是僵硬的规则——而是随着实践演变而<strong>适应的观察模式</strong>。这是当前的研发方向，建立在工业客户帮助验证的基础之上。`,
+
+      'zh-TW': `透過 <strong>MCP Engine</strong>，同樣的架構變得動態、語言無關，並且預設安全。每個診斷工具、每個資料庫查詢、每個報告產生器現在都是一個 <strong>MCP 伺服器</strong>——一個自描述服務，具有機器可讀的能力，任何客戶端都能在執行時發現。無需重新編譯。無需重新部署。新工具部署後立即可規劃。
+
+在安全方面，引擎提供了<strong>兩個互補的 Human-in-the-Loop 機制</strong>，分別作用於工具生命週期的不同階段。
+
+第一個是<strong>審批閘道（Approval Gate）</strong>。在 Deno 沙箱中執行，MCP 呼叫在到達 MCP 伺服器<em>之前</em>就被攔截。技術人員能看到即將發生的操作——<em>「重啟第 7 單元的冷卻系統？」</em>——然後批准或拒絕。沒有人工確認，什麼都不會執行。這是主要的安全層：<strong>我們應該呼叫這個工具嗎？</strong>
+
+第二個是 <strong><a href="https://modelcontextprotocol.io/specification/draft/client/elicitation" target="_blank" rel="noopener">MCP Elicitation</a></strong>（MCP 規範，2025年6月發布）。它處理的是不同的場景：工具已經開始執行，但<em>伺服器本身</em>需要額外資訊才能繼續。它會暫停並向客戶端發送結構化請求——對回應進行 <a href="https://thenewstack.io/how-elicitation-in-mcp-brings-human-in-the-loop-to-ai-tools/" target="_blank" rel="noopener">JSON Schema 驗證</a>。<em>「對渦輪機 3 的診斷需要選擇測試設定檔：標準、擴展還是壓力測試？」</em>技術人員選擇後，伺服器繼續執行。
+
+這兩個機制是互補的，而非冗餘。審批閘道在執行<em>之前</em>詢問<em>「我們應該這樣做嗎？」</em>。Elicitation 在執行<em>過程中</em>詢問<em>「我們需要更多上下文才能繼續」</em>。兩者結合，覆蓋了安全關鍵工具呼叫的完整生命週期——無需自訂狀態管理，無需定製 UI。這是協定內建的功能。
+
+下一步是 <strong>GRU 轉換模型</strong>——一個在歷史執行軌跡上訓練的神經網路，學習預測最可能的下一個工具和工作流的終止步驟。如果技術人員始終按 A 然後 B 然後 C 的模式操作，系統就會主動建議。不是僵硬的規則——而是隨著實踐演變而<strong>適應的觀察模式</strong>。這是當前的研發方向，建立在工業客戶幫助驗證的基礎之上。`,
     },
     punchline: {
       en: 'The safety checkpoint isn\'t bolted on — it\'s built into the protocol.',
       fr: 'Le point de contrôle n\'est pas boulonné après coup — il est intégré au protocole.',
       zh: '安全检查点不是后期加装的——它内建于协议之中。',
+      'zh-TW': '安全檢查點不是後期加裝的——它內建於協定之中。',
     },
     stack: ['MCP Engine', 'Deno Sandbox', 'MCP Elicitation', 'LLMCompiler (legacy)', 'PML Gateway'],
     diagram: 'uc-plannable-workflows',
@@ -245,6 +302,7 @@ L'étape suivante est un <strong>modèle de transition GRU</strong> — un rése
       en: 'Two complementary human-in-the-loop checkpoints: Approval Gate and Elicitation',
       fr: 'Deux points de contrôle humain complémentaires : Approval Gate et Elicitation',
       zh: '两个互补的人机协作检查点：审批门和信息征询',
+      'zh-TW': '兩個互補的人機協作檢查點：審批閘道和資訊徵詢',
     },
   },
   {
@@ -255,6 +313,7 @@ L'étape suivante est un <strong>modèle de transition GRU</strong> — un rése
       en: 'From Opaque Spreadsheets to Navigable Knowledge',
       fr: 'Des tableurs opaques à la connaissance navigable',
       zh: '从不透明的电子表格到可导航的知识',
+      'zh-TW': '從不透明的試算表到可導航的知識',
     },
     situation: {
       en: `An <strong>industrial engineering consultancy</strong> specialising in advanced manufacturing regularly responds to complex tenders. Each response mobilises dozens of calculation formulas — sizing, costing, process parameters — spread across several <strong>domains of expertise</strong>. Each domain in the manufacturing flow maintains its own formulas, its own assumptions, its own specialists.
@@ -268,6 +327,10 @@ Quand un appel d'offres arrive, le directeur de l'innovation constitue une équi
       zh: `一家专注于先进制造的<strong>工业工程咨询公司</strong>定期参与复杂的招标项目。每次投标都需要调用数十个计算公式——尺寸设计、成本核算、工艺参数——分布在多个<strong>专业领域</strong>中。制造流程中的每个领域都有自己的公式、自己的假设、自己的专家。
 
 当一份招标书到来时，创新总监组建一支跨领域团队。每位领域负责人打开自己的电子表格，运行计算，产出部分结果。最终标书应该是这些部分的连贯总和——<strong>一个数字，背后是数十个相互依赖的公式</strong>，分别由彼此很少看到对方工作的人维护。`,
+
+      'zh-TW': `一家專注於先進製造的<strong>工業工程顧問公司</strong>定期參與複雜的招標專案。每次投標都需要調用數十個計算公式——尺寸設計、成本核算、製程參數——分布在多個<strong>專業領域</strong>中。製造流程中的每個領域都有自己的公式、自己的假設、自己的專家。
+
+當一份招標書到來時，創新總監組建一支跨領域團隊。每位領域負責人打開自己的試算表，執行計算，產出部分結果。最終標書應該是這些部分的連貫總和——<strong>一個數字，背後是數十個相互依賴的公式</strong>，分別由彼此很少看到對方工作的人維護。`,
     },
     friction: {
       en: `The formulas live inside <strong>opaque Excel files</strong>. Nobody knows which assumptions feed which calculation. Worse: different domains produce contradictory answers for the same parameters — and these contradictions remain <strong>invisible until the consolidation meeting</strong>.
@@ -293,6 +356,14 @@ Le vrai coût n'est pas seulement le temps — même si les heures passées en r
 一位领域负责人修改了一个输入假设。对最终报价的下游影响是什么？没有人知道——除非手动追踪另外三个电子表格，由三个不同的人维护，基于三种不同的建模规范。<strong>每次参数变更都是一次盲赌。</strong>
 
 真正的成本不仅仅是时间——尽管汇总会议耗费的工时相当可观。更重要的是<strong>一致性</strong>。投标书带着内部矛盾发出去，没有人发现，因为承载知识的工具——电子表格——从来就不是为展示事物之间的关联而设计的。`,
+
+      'zh-TW': `公式藏在<strong>不透明的 Excel 檔案</strong>中。沒有人知道哪些假設支撐著哪個計算。更糟的是：不同領域對同一參數給出矛盾的答案——而這些矛盾在<strong>彙總會議之前完全不可見</strong>。
+
+用創辦人自己的話說，這些會議變得<em>「沒完沒了。」</em>每個領域都在捍衛自己的參數。這既是技術問題，也是政治問題。問題不在於誰算錯了——而在於<strong>沒有人能看到端到端的結果</strong>。討論從<em>「最佳答案是什麼？」</em>滑向了<em>「誰是對的？」</em>
+
+一位領域負責人修改了一個輸入假設。對最終報價的下游影響是什麼？沒有人知道——除非手動追蹤另外三個試算表，由三個不同的人維護，基於三種不同的建模規範。<strong>每次參數變更都是一次盲賭。</strong>
+
+真正的成本不僅僅是時間——儘管彙總會議耗費的工時相當可觀。更重要的是<strong>一致性</strong>。投標書帶著內部矛盾發出去，沒有人發現，因為承載知識的工具——試算表——從來就不是為展示事物之間的關聯而設計的。`,
     },
     shift: {
       en: `Each Excel formula is parsed and translated into a page in a <strong>knowledge graph</strong>. Variables become pages. Formulas become pages. When the output of one formula feeds the input of another, that cross-reference becomes a <strong>navigable link</strong>.
@@ -324,11 +395,22 @@ Ce client a cristallisé le problème que PML a été conçu pour résoudre. Nav
 这个概念的运作方式类似<strong>产品物料清单</strong>（BOM），但用于计算。就像 BOM 将物理产品分解为具有明确父子关系的组成部分一样，这个图谱将投标响应分解为具有明确输入-输出依赖关系的组成公式。结构让不可见的变为可见。
 
 这个客户的挑战凝练了 PML 旨在解决的问题。导航相互依赖的知识图谱、追踪决策路径、测试参数组合——这正是 <strong>MCP Engine</strong> 在规模化层面的目标。当前的研发方向：一个代理将接收招标书，像产品 BOM 一样分解依赖关系，探索图谱路径，并提出最优组合——每一步都<strong>可追踪、确定性的</strong>。这一愿景正在积极建设中，借鉴了产品生命周期管理和基于模型的系统工程原则。`,
+
+      'zh-TW': `每個 Excel 公式被解析並轉化為<strong>知識圖譜</strong>中的一個頁面。變數變成頁面。公式變成頁面。當一個公式的輸出作為另一個公式的輸入時，這種交叉引用變成一個<strong>可導航的連結</strong>。
+
+不透明的試算表變成了一個依賴關係顯式化的系統。工程師點擊一個成本參數，立即看到每個消費它的公式、它跨越的每個領域、它影響的每個下游輸出。<em>「這非常好，因為我可以導航——我可以看到哪些元素影響哪些東西，」</em>創新總監在首次展示時說。
+
+領域之間的矛盾不會消失——但它們變得<strong>可見</strong>，因此可以解決。當兩個領域對同一變數使用不同的值時，圖譜將衝突顯示為兩個來源不同的傳入連結。彙總會議上不再有意外。不再是<em>「誰是對的？」</em>——而是一個所有人都能追蹤的依賴結構共享視圖。
+
+這個概念的運作方式類似<strong>產品物料清單</strong>（BOM），但用於計算。就像 BOM 將實體產品分解為具有明確父子關係的組成部分一樣，這個圖譜將投標回應分解為具有明確輸入-輸出依賴關係的組成公式。結構讓不可見的變為可見。
+
+這個客戶的挑戰凝練了 PML 旨在解決的問題。導航相互依賴的知識圖譜、追蹤決策路徑、測試參數組合——這正是 <strong>MCP Engine</strong> 在規模化層面的目標。當前的研發方向：一個代理將接收招標書，像產品 BOM 一樣分解依賴關係，探索圖譜路徑，並提出最優組合——每一步都<strong>可追蹤、確定性的</strong>。這一願景正在積極建設中，借鑑了產品生命週期管理和基於模型的系統工程原則。`,
     },
     punchline: {
       en: 'The question was never to replace the experts — it was to make their expertise visible.',
       fr: "La question n'a jamais été de remplacer les experts — mais de rendre leur expertise visible.",
       zh: '问题从来不是取代专家——而是让他们的专业知识变得可见。',
+      'zh-TW': '問題從來不是取代專家——而是讓他們的專業知識變得可見。',
     },
     stack: ['Knowledge Graph', 'Obsidian', 'Excel Parsing', 'MCP Engine (R&D)'],
     diagram: 'uc-knowledge-graph',
@@ -336,6 +418,7 @@ Ce client a cristallisé le problème que PML a été conçu pour résoudre. Nav
       en: 'Opaque spreadsheets become a navigable dependency graph with visible conflicts',
       fr: 'Les tableurs opaques deviennent un graphe de dépendances navigable avec les conflits visibles',
       zh: '不透明的电子表格变成可导航的依赖图谱，冲突清晰可见',
+      'zh-TW': '不透明的試算表變成可導航的依賴圖譜，衝突清晰可見',
     },
   },
 ];

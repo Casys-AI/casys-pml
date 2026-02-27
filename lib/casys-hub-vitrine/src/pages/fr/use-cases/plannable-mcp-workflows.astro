@@ -6,6 +6,6 @@ import { useCases } from '../../../content/use-cases';
 const uc = useCases.find(c => c.id === 'plannable-mcp-workflows')!;
 ---
 
-<LandingLayout title={`${uc.title.fr} — Casys AI`}>
+<LandingLayout title={`${uc.title.fr} — Casys AI`} description="Des pipelines statiques LangGraph aux workflows dynamiques MCP Engine avec Human-in-the-Loop intégré. Cas d'usage IA industrielle.">
   <UseCaseDetail useCase={uc} />
 </LandingLayout>

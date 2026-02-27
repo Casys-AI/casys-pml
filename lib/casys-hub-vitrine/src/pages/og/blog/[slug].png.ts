@@ -16,7 +16,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
   // Group by slug (without locale prefix), prefer EN version for OG image
   const bySlug = new Map<string, typeof posts[0]>();
   for (const post of posts) {
-    const slug = post.slug.replace(/^(en|fr|zh)\//, '');
+    const slug = post.slug.replace(/^[a-z]{2}(-[a-z]+)?\//, '');
     const existing = bySlug.get(slug);
     if (!existing || post.id.startsWith('en/')) {
       bySlug.set(slug, post);

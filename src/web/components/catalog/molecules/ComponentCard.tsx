@@ -37,7 +37,7 @@ export default function ComponentCard({
   return (
     <>
       <a
-        href={`/catalog/ui/${component.id}`}
+        href={`#${component.id}`}
         class={`cc-card cc-card--${component.category}`}
         onClick={(e) => {
           if (onSelect) {

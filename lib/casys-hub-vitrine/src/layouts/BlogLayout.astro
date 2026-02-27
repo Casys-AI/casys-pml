@@ -6,7 +6,7 @@ import HrefLang from '../components/HrefLang.astro';
 
 export interface Props {
   title: string;
-  locale?: 'en' | 'fr' | 'zh';
+  locale?: 'en' | 'fr' | 'zh' | 'zh-TW';
   description?: string;
   slug?: string;
   ogTitle?: string;
@@ -70,6 +70,19 @@ const labels = {
     others: '更多',
     general: '通用',
   },
+  'zh-TW': {
+    blogTitle: 'CASYS 部落格',
+    blogSubtitle: 'CASYS 開發相關文章與動態。',
+    allArticles: '所有文章',
+    recentArticles: '最新文章',
+    byCategory: '按類別',
+    popularTags: '熱門標籤',
+    search: '搜尋',
+    subscribe: '訂閱更新',
+    home: '首頁',
+    others: '更多',
+    general: '通用',
+  },
 };
 
 const t = labels[locale];
@@ -117,7 +130,7 @@ function getPostSlug(post: typeof sortedPosts[0]) {
 ---
 
 <!DOCTYPE html>
-<html lang={locale === 'zh' ? 'zh-CN' : locale}>
+<html lang={locale === 'zh' ? 'zh-CN' : locale === 'zh-TW' ? 'zh-TW' : locale}>
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description || t.blogSubtitle} />
@@ -283,7 +296,7 @@ function getPostSlug(post: typeof sortedPosts[0]) {
                   >
                     <span class="blog-nav-link-title">{post.data.title}</span>
                     <span class="blog-nav-link-meta">
-                      <span>{post.data.date.toLocaleDateString(locale === 'zh' ? 'zh-CN' : locale)}</span>
+                      <span>{post.data.date.toLocaleDateString(locale === 'zh' ? 'zh-CN' : locale === 'zh-TW' ? 'zh-TW' : locale)}</span>
                       {post.data.category && (
                         <>
                           <span class="blog-nav-link-dot">&middot;</span>
