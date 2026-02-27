@@ -282,20 +282,6 @@ export const quickStart = {
 };
 
 // =============================================================================
-// BLOG SECTION
-// =============================================================================
-
-export const blog = {
-  label: "Blog",
-  title: "Insights & Updates",
-  description: "Technical deep dives and product updates.",
-  cta: {
-    label: "View All Posts →",
-    href: "/blog",
-  },
-};
-
-// =============================================================================
 // BETA SIGNUP SECTION
 // =============================================================================
 
@@ -346,7 +332,6 @@ export const navigation = {
   links: [
     { href: "#catalog", label: "Catalog" },
     { href: "/docs", label: "Docs" },
-    { href: "/blog", label: "Blog" },
     { href: "#beta", label: "Beta", highlight: true },
   ],
   github: "https://github.com/Casys-AI/casys-pml",

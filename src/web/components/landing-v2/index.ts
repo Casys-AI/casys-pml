@@ -22,6 +22,5 @@ export { ProblemSection } from "./sections/ProblemSection.tsx";
 export { SolutionSection } from "./sections/SolutionSection.tsx";
 export { CatalogPreviewSectionV2 } from "./sections/CatalogPreviewSectionV2.tsx";
 export { QuickStartSectionV2 } from "./sections/QuickStartSectionV2.tsx";
-export { BlogSectionV2 } from "./sections/BlogSectionV2.tsx";
 export { BetaSignupSectionV2 } from "./sections/BetaSignupSectionV2.tsx";
 export { CTASectionV2 } from "./sections/CTASectionV2.tsx";

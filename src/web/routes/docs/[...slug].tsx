@@ -74,7 +74,6 @@ export default function DocsPage({ data }: { data: DocsPageData }) {
             </a>
             <nav class="flex items-center gap-3 md:gap-8">
               <a href="/" class="hidden md:inline text-stone-400 no-underline text-sm font-medium transition-colors duration-200 hover:text-pml-accent">Home</a>
-              <a href="/blog" class="hidden md:inline text-stone-400 no-underline text-sm font-medium transition-colors duration-200 hover:text-pml-accent">Blog</a>
               <a href="/docs" class="hidden md:inline text-pml-accent no-underline text-sm font-medium">Docs</a>
               <a
                 href="https://github.com/Casys-AI/casys-pml"

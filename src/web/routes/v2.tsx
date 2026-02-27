@@ -10,7 +10,6 @@
 import { page } from "fresh";
 import type { FreshContext } from "fresh";
 import { Head } from "fresh/runtime";
-import { formatDate, getPosts, type Post } from "../utils/posts.ts";
 import type { AuthState } from "./_middleware.ts";
 
 // Components
@@ -21,7 +20,6 @@ import {
   SolutionSection,
   CatalogPreviewSectionV2,
   QuickStartSectionV2,
-  BlogSectionV2,
   BetaSignupSectionV2,
   CTASectionV2,
 } from "../components/landing-v2/index.ts";
@@ -31,7 +29,6 @@ import { GoogleAnalytics } from "../components/GoogleAnalytics.tsx";
 import { meta, footer } from "../content/landing-v2.ts";
 
 interface LandingV2PageData {
-  latestPosts: Post[];
   isCloudMode: boolean;
   user: AuthState["user"];
 }
@@ -47,27 +44,15 @@ export const handler = {
       });
     }
 
-    try {
-      const posts = await getPosts();
-      const latestPosts = posts.slice(0, 3);
-      return page({
-        latestPosts,
-        isCloudMode: ctx.state.isCloudMode,
-        user: ctx.state.user,
-      });
-    } catch (error) {
-      console.error("Error loading posts for landing v2:", error);
-      return page({
-        latestPosts: [],
-        isCloudMode: ctx.state.isCloudMode,
-        user: ctx.state.user,
-      });
-    }
+    return page({
+      isCloudMode: ctx.state.isCloudMode,
+      user: ctx.state.user,
+    });
   },
 };
 
 export default function LandingV2Page({ data }: { data: LandingV2PageData }) {
-  const { latestPosts, isCloudMode, user } = data;
+  const { isCloudMode, user } = data;
 
   return (
     <>
@@ -114,7 +99,6 @@ export default function LandingV2Page({ data }: { data: LandingV2PageData }) {
           <SolutionSection />
           <CatalogPreviewSectionV2 />
           <QuickStartSectionV2 />
-          <BlogSectionV2 posts={latestPosts} formatDate={formatDate} />
           <BetaSignupSectionV2 />
           <CTASectionV2 />
         </main>

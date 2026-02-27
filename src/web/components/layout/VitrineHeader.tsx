@@ -11,7 +11,7 @@ import type { ComponentChildren } from "preact";
 import MobileMenu from "../../islands/MobileMenu.tsx";
 
 interface VitrineHeaderProps {
-  activePage?: "home" | "docs" | "blog" | "catalog";
+  activePage?: "home" | "docs" | "catalog";
   user?: {
     username: string;
     avatarUrl?: string;
@@ -31,7 +31,6 @@ export default function VitrineHeader({
   const navLinks = [
     { href: "/#catalog", label: "Capabilities", page: null },
     { href: "/docs", label: "Docs", page: "docs" as const },
-    { href: "/blog", label: "Blog", page: "blog" as const },
     { href: "/#beta", label: "Beta", page: null, highlight: true },
   ];
 

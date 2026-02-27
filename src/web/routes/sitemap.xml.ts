@@ -1,9 +1,8 @@
 /**
  * sitemap.xml - Dynamic sitemap for SEO
- * Lists all public pages: home, blog posts, docs
+ * Lists all public pages: home, docs
  */
 
-import { getPosts } from "../utils/posts.ts";
 import { type DocNavItem, getDocsNavigation } from "../utils/docs.ts";
 
 const SITE_URL = "https://pml.casys.ai";
@@ -47,29 +46,11 @@ export const handler = {
       });
 
       urls.push({
-        loc: `${SITE_URL}/blog`,
-        lastmod: formatDate(now),
-        priority: "0.9",
-        changefreq: "daily",
-      });
-
-      urls.push({
         loc: `${SITE_URL}/docs`,
         lastmod: formatDate(now),
         priority: "0.9",
         changefreq: "weekly",
       });
-
-      // Blog posts
-      const posts = await getPosts();
-      for (const post of posts) {
-        urls.push({
-          loc: `${SITE_URL}/blog/${post.slug}`,
-          lastmod: formatDate(post.date),
-          priority: "0.8",
-          changefreq: "monthly",
-        });
-      }
 
       // Documentation pages
       try {

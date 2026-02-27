@@ -10,7 +10,6 @@
 import { page } from "fresh";
 import type { FreshContext } from "fresh";
 import { Head } from "fresh/runtime";
-import { formatDate, getPosts, type Post } from "../utils/posts.ts";
 import type { AuthState } from "./_middleware.ts";
 
 // Components
@@ -22,7 +21,6 @@ import {
   IsolationSection,
   CatalogPreviewSection,
   QuickStartSection,
-  BlogSection,
   BetaSignupSection,
   CTASection,
 } from "../components/landing/index.ts";
@@ -32,34 +30,21 @@ import { GoogleAnalytics } from "../components/GoogleAnalytics.tsx";
 import { meta, footer } from "../content/landing.ts";
 
 interface LandingPageData {
-  latestPosts: Post[];
   isCloudMode: boolean;
   user: AuthState["user"];
 }
 
 export const handler = {
   async GET(ctx: FreshContext<AuthState>) {
-    try {
-      const posts = await getPosts();
-      const latestPosts = posts.slice(0, 3);
-      return page({
-        latestPosts,
-        isCloudMode: ctx.state.isCloudMode,
-        user: ctx.state.user,
-      });
-    } catch (error) {
-      console.error("Error loading posts for landing page:", error);
-      return page({
-        latestPosts: [],
-        isCloudMode: ctx.state.isCloudMode,
-        user: ctx.state.user,
-      });
-    }
+    return page({
+      isCloudMode: ctx.state.isCloudMode,
+      user: ctx.state.user,
+    });
   },
 };
 
 export default function LandingPage({ data }: { data: LandingPageData }) {
-  const { latestPosts, isCloudMode, user } = data;
+  const { isCloudMode, user } = data;
 
   return (
     <>
@@ -107,7 +92,6 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
           <IsolationSection />
           <CatalogPreviewSection />
           <QuickStartSection />
-          <BlogSection posts={latestPosts} formatDate={formatDate} />
           <BetaSignupSection />
           <CTASection />
         </main>

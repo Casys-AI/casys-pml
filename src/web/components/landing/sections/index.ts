@@ -13,6 +13,5 @@ export { IsolationSection } from "./IsolationSection.tsx";
 export { CatalogPreviewSection } from "./CatalogPreviewSection.tsx";
 export { CodeToUiShowcase } from "./CodeToUiShowcase.tsx";
 export { QuickStartSection } from "./QuickStartSection.tsx";
-export { BlogSection } from "./BlogSection.tsx";
 export { BetaSignupSection } from "./BetaSignupSection.tsx";
 export { CTASection } from "./CTASection.tsx";

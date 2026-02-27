@@ -10,7 +10,6 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { href: "/", label: "Home" },
   { href: "/docs", label: "Docs" },
-  { href: "/blog", label: "Blog" },
   { href: "/catalog", label: "Catalog" },
   { href: "https://github.com/Casys-AI/casys-pml", label: "GitHub", isExternal: true },
 ];
