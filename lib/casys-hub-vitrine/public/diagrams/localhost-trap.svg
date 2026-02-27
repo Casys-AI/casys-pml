@@ -24,8 +24,8 @@
   <text x="620" y="328" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#ef4444" text-anchor="middle">127.0.0.1 → itself ❌</text>
   <path d="M480 225 L340 255" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ef4444)"/>
   <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#ef4444" text-anchor="middle" y="294">
-    <tspan x="410">Connection</tspan>
-    <tspan x="410" dy="18.2">Refused</tspan>
+    <tspan x="410">Timeout</tspan>
+    <tspan x="410" dy="18.2">(30s silence)</tspan>
   </text>
   <rect x="60" y="270" width="280" height="60" rx="6" fill="#1a3a1a" stroke="#4ade80" stroke-width="1"/>
   <text x="200" y="296" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#4ade80" text-anchor="middle">Host loopback (isolated)</text>

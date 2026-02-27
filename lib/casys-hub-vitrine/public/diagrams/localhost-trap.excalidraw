@@ -65,7 +65,10 @@
       "seed": 2,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3, "value": 12 },
+      "roundness": {
+        "type": 3,
+        "value": 12
+      },
       "boundElements": [],
       "updated": 1740000000000,
       "link": null,
@@ -130,7 +133,10 @@
       "seed": 4,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3, "value": 8 },
+      "roundness": {
+        "type": 3,
+        "value": 8
+      },
       "boundElements": [],
       "updated": 1740000000000,
       "link": null,
@@ -195,7 +201,10 @@
       "seed": 6,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3, "value": 12 },
+      "roundness": {
+        "type": 3,
+        "value": 12
+      },
       "boundElements": [],
       "updated": 1740000000000,
       "link": null,
@@ -260,7 +269,10 @@
       "seed": 8,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3, "value": 8 },
+      "roundness": {
+        "type": 3,
+        "value": 8
+      },
       "boundElements": [],
       "updated": 1740000000000,
       "link": null,
@@ -325,7 +337,10 @@
       "seed": 10,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3, "value": 6 },
+      "roundness": {
+        "type": 3,
+        "value": 6
+      },
       "boundElements": [],
       "updated": 1740000000000,
       "link": null,
@@ -342,7 +357,7 @@
       "y": 302,
       "width": 220,
       "height": 30,
-      "text": "127.0.0.1 → itself ❌",
+      "text": "127.0.0.1 \u2192 itself \u274c",
       "fontSize": 16,
       "fontFamily": 1,
       "textAlign": "center",
@@ -368,7 +383,7 @@
       "isDeleted": false,
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "127.0.0.1 → itself ❌",
+      "originalText": "127.0.0.1 \u2192 itself \u274c",
       "autoResize": true,
       "lineHeight": 1.75
     },
@@ -399,7 +414,16 @@
       "versionNonce": 12,
       "index": "ab",
       "isDeleted": false,
-      "points": [[0, 0], [-140, 30]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -140,
+          30
+        ]
+      ],
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
@@ -412,7 +436,7 @@
       "y": 270,
       "width": 120,
       "height": 50,
-      "text": "Connection\nRefused",
+      "text": "Timeout\n(30s silence)",
       "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
@@ -438,7 +462,7 @@
       "isDeleted": false,
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "Connection\nRefused",
+      "originalText": "Timeout\n(30s silence)",
       "autoResize": true,
       "lineHeight": 1.75
     },
@@ -460,7 +484,10 @@
       "seed": 14,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3, "value": 6 },
+      "roundness": {
+        "type": 3,
+        "value": 6
+      },
       "boundElements": [],
       "updated": 1740000000000,
       "link": null,
@@ -534,7 +561,16 @@
       "versionNonce": 16,
       "index": "af",
       "isDeleted": false,
-      "points": [[0, 0], [0, 330]]
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          330
+        ]
+      ]
     },
     {
       "id": "wall-label",
