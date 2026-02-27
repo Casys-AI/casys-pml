@@ -26,9 +26,9 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 **Here's a scene that plays out every week.** Someone sets up an AI gateway — OpenClaw, LiteLLM, whatever — and it works beautifully. Then they add an orchestrator in Docker — Windmill, n8n, Temporal — and connect a workflow that needs to callback to the gateway. They point it at `http://localhost:18789`.
 
-Connection refused.
+Timeout. Thirty seconds of nothing, then failure.
 
-They check the service. It's running. They curl it from the host. It responds. They curl it from inside the container. Nothing.
+They check the service. It's running. They curl it from the host. It responds instantly. They curl it from inside the container. The request hangs, then dies. Not even a clean "connection refused" — just silence. The packets leave the container, hit the firewall, and vanish. That's the insidious part: it *looks* like a slow service, not a network problem.
 
 The service is right there. On the same machine. Inches away in RAM. And yet, from inside the container, `localhost` points to a *different* machine.
 
@@ -46,7 +46,7 @@ This isn't a bug. It's by design. Network isolation is half the point of contain
 
 And here's why it matters for AI agents specifically: **the entire agentic stack assumes local communication.**
 
-MCP servers bind to localhost. Gateways bind to localhost. Tool servers bind to localhost. The [MCP spec](https://modelcontextprotocol.io) describes `stdio` and `SSE` transports — both assume the client and server share a host. The moment you containerize *any* part of this stack, the assumption breaks.
+MCP servers bind to localhost. Gateways bind to localhost. Tool servers bind to localhost. The [MCP spec](https://modelcontextprotocol.io) describes `stdio` and `SSE` transports — `stdio` requires the same host by definition, and while SSE *can* technically work over a network, in practice most MCP servers listen on localhost. The moment you containerize *any* part of this stack, the assumption breaks.
 
 ---
 
@@ -108,6 +108,10 @@ socat listens on the Docker bridge IP — the gateway address of the Docker netw
 
 **Three constraints satisfied.** The host service remains localhost-bound. The container can reach it. The network sees nothing.
 
+But socat alone isn't enough. You also need **firewall rules** — without them, the packets reach the bridge IP but get silently dropped. This is the part that will cost you hours: socat is running, the service is running, but requests from the container just *hang*. No error, no rejection, just a 30-second timeout. The fix is a single UFW rule scoped to the Docker bridge interface (see below). It's not optional.
+
+> **Watch out for multi-network workers.** A Docker container can be attached to multiple networks — for example, `windmill_default` *and* `shared_internal`. Each network has its own bridge IP. You need a socat instance and a firewall rule for **each network** the worker is on. Check all networks: `docker inspect <container> --format '{{json .NetworkSettings.Networks}}'`.
+
 ---
 
 ## Why This Matters for AI
@@ -124,9 +128,9 @@ The moment you run both, you need them to talk. And they can't — because one i
 
 ---
 
-## Making It Production-Ready
+## The Full Setup
 
-A raw socat command works for testing. For production, you want:
+socat without firewall rules doesn't work — packets get dropped silently. Here's the complete setup:
 
 **1. A systemd service per Docker network**
 
@@ -145,7 +149,9 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-**2. Firewall rules scoped to Docker bridges**
+**2. Firewall rules scoped to Docker bridges (mandatory)**
+
+Without this, socat listens but packets from the container are silently dropped by the host firewall. This is the step that causes 30-second timeouts with no error message.
 
 ```bash
 # Find the Linux bridge for the Docker network
@@ -155,6 +161,8 @@ BRIDGE_ID=$(docker network inspect windmill_default --format '{{.Id}}' | cut -c1
 ufw allow in on br-${BRIDGE_ID} to any port 18789 proto tcp
 ```
 
+If your worker is on multiple Docker networks, repeat for each bridge.
+
 **3. Variables, not hardcoded IPs**
 
 Docker bridge IPs can change if you recreate networks. Store the gateway URL in your orchestrator's variable system and update it in one place.
@@ -162,18 +170,12 @@ Docker bridge IPs can change if you recreate networks. Store the gateway URL in 
 **4. A test endpoint**
 
 ```typescript
-// Windmill health check script
+// Windmill health check — simple GET that returns 200 if the bridge works
 export async function main() {
-  const res = await fetch("http://172.19.0.1:18789/tools/invoke", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer ${TOKEN}",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ tool: "session_status", args: {} }),
+  const res = await fetch("http://172.19.0.1:18789/", {
     signal: AbortSignal.timeout(5000)
   });
-  return { status: res.status, ok: (await res.json()).ok };
+  return { status: res.status, reachable: res.ok };
 }
 ```
 

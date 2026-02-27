@@ -26,9 +26,9 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 **Voilà une scène qui se joue chaque semaine.** Quelqu'un installe une gateway IA — OpenClaw, LiteLLM, peu importe — et ça marche nickel. Puis il ajoute un orchestrateur dans Docker — Windmill, n8n, Temporal — et branche un workflow qui doit rappeler la gateway. Il pointe sur `http://localhost:18789`.
 
-Connection refused.
+Timeout. Trente secondes de rien, puis échec.
 
-Il vérifie le service. Il tourne. Il curl depuis l'hôte. Ça répond. Il curl depuis le container. Rien.
+Il vérifie le service. Il tourne. Il curl depuis l'hôte. Ça répond instantanément. Il curl depuis le container. La requête pend, puis meurt. Même pas un "connection refused" propre — juste du silence. Les paquets quittent le container, tapent le firewall, et disparaissent. C'est ça le piège : ça *ressemble* à un service lent, pas à un problème réseau.
 
 Le service est là. Sur la même machine. À quelques octets de distance en RAM. Et pourtant, depuis l'intérieur du container, `localhost` pointe vers une *autre* machine.
 
@@ -46,7 +46,7 @@ Ce n'est pas un bug. C'est voulu. L'isolation réseau est la moitié de l'intér
 
 Et voilà pourquoi c'est spécifiquement un problème pour les agents IA : **toute la stack agentique suppose une communication locale.**
 
-Les serveurs MCP écoutent sur localhost. Les gateways écoutent sur localhost. Les tool servers écoutent sur localhost. La [spec MCP](https://modelcontextprotocol.io) décrit des transports `stdio` et `SSE` — les deux supposent que le client et le serveur partagent la même machine. Dès qu'on conteneurise *n'importe quelle* partie de cette stack, l'hypothèse casse.
+Les serveurs MCP écoutent sur localhost. Les gateways écoutent sur localhost. Les tool servers écoutent sur localhost. La [spec MCP](https://modelcontextprotocol.io) décrit des transports `stdio` et `SSE` — `stdio` impose la même machine par définition, et si SSE *peut* techniquement fonctionner sur le réseau, en pratique la plupart des serveurs MCP écoutent sur localhost. Dès qu'on conteneurise *n'importe quelle* partie de cette stack, l'hypothèse casse.
 
 ---
 
@@ -108,6 +108,10 @@ socat écoute sur l'IP du bridge Docker — l'adresse gateway du réseau Docker 
 
 **Trois contraintes satisfaites.** Le service hôte reste bindé sur localhost. Le container peut l'atteindre. Le réseau ne voit rien.
 
+Mais socat seul ne suffit pas. Il faut aussi des **règles firewall** — sans elles, les paquets atteignent l'IP du bridge mais sont silencieusement dropés. C'est la partie qui coûte des heures : socat tourne, le service tourne, mais les requêtes depuis le container *pendent* sans réponse. Pas d'erreur, pas de refus, juste un timeout de 30 secondes. La solution : une règle UFW scopée à l'interface bridge Docker (voir ci-dessous). Ce n'est pas optionnel.
+
+> **Attention aux workers multi-réseaux.** Un container Docker peut être attaché à plusieurs réseaux — par exemple `windmill_default` *et* `shared_internal`. Chaque réseau a sa propre IP de bridge. Il faut un socat et une règle firewall pour **chaque réseau** sur lequel le worker est connecté. Vérifiez tous les réseaux : `docker inspect <container> --format '{{json .NetworkSettings.Networks}}'`.
+
 ---
 
 ## Pourquoi c'est important pour l'IA
@@ -124,9 +128,9 @@ Dès qu'on fait tourner les deux, il faut qu'ils se parlent. Et ils ne peuvent p
 
 ---
 
-## En production
+## Le setup complet
 
-Une commande socat brute suffit pour tester. En production, on veut :
+socat sans règles firewall ne marche pas — les paquets sont silencieusement dropés. Voici le setup complet :
 
 **1. Un service systemd par réseau Docker**
 
@@ -145,7 +149,9 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-**2. Des règles firewall scopées aux bridges Docker**
+**2. Des règles firewall scopées aux bridges Docker (obligatoire)**
+
+Sans ça, socat écoute mais les paquets du container sont silencieusement dropés par le firewall de l'hôte. C'est l'étape qui cause des timeouts de 30 secondes sans message d'erreur.
 
 ```bash
 # Trouver le bridge Linux pour le réseau Docker
@@ -155,6 +161,8 @@ BRIDGE_ID=$(docker network inspect windmill_default --format '{{.Id}}' | cut -c1
 ufw allow in on br-${BRIDGE_ID} to any port 18789 proto tcp
 ```
 
+Si le worker est sur plusieurs réseaux Docker, répéter pour chaque bridge.
+
 **3. Des variables, pas des IPs en dur**
 
 Les IPs de bridge Docker peuvent changer si on recrée les réseaux. Stocker l'URL de la gateway dans le système de variables de l'orchestrateur et la mettre à jour à un seul endroit.
@@ -162,18 +170,12 @@ Les IPs de bridge Docker peuvent changer si on recrée les réseaux. Stocker l'U
 **4. Un endpoint de test**
 
 ```typescript
-// Script de health check Windmill
+// Health check Windmill — simple GET qui retourne 200 si le bridge marche
 export async function main() {
-  const res = await fetch("http://172.19.0.1:18789/tools/invoke", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer ${TOKEN}",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ tool: "session_status", args: {} }),
+  const res = await fetch("http://172.19.0.1:18789/", {
     signal: AbortSignal.timeout(5000)
   });
-  return { status: res.status, ok: (await res.json()).ok };
+  return { status: res.status, reachable: res.ok };
 }
 ```
 

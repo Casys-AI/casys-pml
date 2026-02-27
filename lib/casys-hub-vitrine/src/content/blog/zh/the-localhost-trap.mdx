@@ -26,9 +26,9 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 **這個場景每週都在上演。** 有人架了一個 AI Gateway — OpenClaw、LiteLLM，隨便哪個 — 跑得好好的。然後加了一個 Docker 裡的編排器 — Windmill、n8n、Temporal — 接上一個需要回呼 Gateway 的工作流。指向 `http://localhost:18789`。
 
-Connection refused。
+Timeout。三十秒的沉默，然後失敗。
 
-檢查服務。在跑。從主機 curl。有回應。從容器裡面 curl。沒反應。
+檢查服務。在跑。從主機 curl。立刻回應。從容器裡面 curl。請求掛起，然後死掉。連個乾淨的「connection refused」都沒有 — 只有沉默。封包離開容器，撞上防火牆，然後消失。這就是陷阱：它*看起來*像是服務太慢，而不是網路問題。
 
 服務就在那裡。同一台機器上。在 RAM 裡只隔幾個位元組。但在容器內部，`localhost` 指向的是一台*不同的機器*。
 
@@ -46,7 +46,7 @@ Docker 建立容器時，會建立一個**網路命名空間**。容器有自己
 
 而這對 AI Agent 特別重要：**整個 Agent 技術棧都假設本地通訊。**
 
-MCP 伺服器綁定在 localhost。Gateway 綁定在 localhost。Tool Server 綁定在 localhost。[MCP 規範](https://modelcontextprotocol.io)描述的 `stdio` 和 `SSE` 傳輸 — 都假設客戶端和伺服器在同一台主機上。只要把這個技術棧的*任何*部分容器化，假設就崩了。
+MCP 伺服器綁定在 localhost。Gateway 綁定在 localhost。Tool Server 綁定在 localhost。[MCP 規範](https://modelcontextprotocol.io)描述的 `stdio` 和 `SSE` 傳輸 — `stdio` 本質上要求同一台主機，而 SSE *技術上*可以跨網路運作，但實際上大多數 MCP 伺服器都監聽在 localhost。只要把這個技術棧的*任何*部分容器化，假設就崩了。
 
 ---
 
@@ -89,6 +89,10 @@ socat TCP-LISTEN:18789,bind=172.19.0.1,fork,reuseaddr TCP:127.0.0.1:18789
 socat 監聽 Docker Bridge 的 IP — Docker 網路的 Gateway 地址 — 並將每個連線轉發到主機的 loopback。容器能連到 `172.19.0.1` 因為那是它的預設 Gateway。主機服務保持在 `127.0.0.1`。外部什麼都看不到。
 
 **三個限制條件全部滿足。**
+
+但光靠 socat 還不夠。你還需要**防火牆規則** — 沒有的話，封包到達 bridge IP 但會被主機防火牆默默丟棄。這就是讓你浪費好幾個小時的部分：socat 在跑，服務在跑，但容器的請求就是*掛住*。沒有錯誤，沒有拒絕，只有 30 秒的 timeout。解法：一條 UFW 規則限定在 Docker bridge 介面上（見下文）。這不是可選的。
+
+> **注意多網路的 Worker。** 一個 Docker 容器可以連接多個網路 — 例如 `windmill_default` *和* `shared_internal`。每個網路有自己的 bridge IP。你需要為 Worker 連接的**每個網路**都設定 socat 和防火牆規則。檢查所有網路：`docker inspect <container> --format '{{json .NetworkSettings.Networks}}'`。
 
 ---
 
