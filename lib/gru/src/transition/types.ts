@@ -190,6 +190,8 @@ export const DEFAULT_CONFIG: CompactGRUConfig = {
 /** Result of a single next-tool prediction. */
 export interface PredictionResult {
   toolId: string;
+  /** Raw vocab node ID (may be a cap ID for level>0 nodes, unlike toolId which resolves to first child). */
+  nodeId: string;
   shouldTerminate: boolean;
   confidence: number;
 }

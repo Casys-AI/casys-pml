@@ -46,6 +46,7 @@ import type { AlgorithmTracer } from "../telemetry/algorithm-tracer.ts";
 import { getTelemetryAdapter } from "../telemetry/decision-logger.ts";
 import { eventBus } from "../events/mod.ts";
 import { AlgorithmInitializer } from "./algorithm-init/mod.ts";
+import type { IGRUInference } from "../graphrag/algorithms/gru/types.ts";
 import type { EpisodicMemoryStore } from "../dag/episodic/store.ts";
 import type { ICodeAnalyzer } from "../domain/interfaces/code-analyzer.ts";
 import { McpRegistryService } from "./registry/mcp-registry.service.ts";
@@ -166,6 +167,7 @@ export class PMLGatewayServer {
   private capabilityDataService: CapabilityDataService;
   private shgat: SHGAT | null = null;
   private drdsp: DRDSP | null = null;
+  private gru: IGRUInference | null = null;
   private embeddingModel: EmbeddingModelInterface | null = null;
   private capabilityRegistry: CapabilityRegistry | null = null; // Story 13.2
   private mcpRegistry: McpRegistryService | null = null; // FQDN resolution for MCP tools
@@ -324,17 +326,14 @@ export class PMLGatewayServer {
       return;
     }
 
-    // Update adapters with algorithms (setters added in Phase 3.1)
-    if (this.shgat) {
-      this.executeAdapters.dagSuggester.setSHGAT(this.shgat);
-      // Note: Live training removed - PostExecutionService.runPERBatchTraining() handles
-      // proper PER batch training with subprocess (non-blocking, 50+ traces)
-    }
-    if (this.drdsp) {
-      this.executeAdapters.dagSuggester.setDRDSP(this.drdsp);
-    }
+    // Update adapters with algorithms
     if (this.embeddingModel) {
       this.executeAdapters.dagSuggester.setEmbeddingModel(this.embeddingModel);
+    }
+
+    if (this.gru) {
+      this.executeAdapters.dagSuggester.setGRU(this.gru);
+      log.info("[Gateway] GRU wired to DAGSuggester");
     }
 
     log.debug("[Gateway] Execute adapters updated with algorithms");
@@ -384,6 +383,7 @@ export class PMLGatewayServer {
       traceStore: this.capabilityStore?.getTraceStore(),
       db: this.db,
       adaptiveThresholdManager: this.adaptiveThresholdManager,
+      algorithmInitializer: this.algorithmInitializer ?? undefined,
       onSHGATParamsUpdated: async () => {
         await this.algorithmInitializer?.saveSHGATParams();
       },
@@ -1157,6 +1157,7 @@ export class PMLGatewayServer {
     const result = await this.algorithmInitializer.initialize();
     this.shgat = result.shgat;
     this.drdsp = result.drdsp;
+    this.gru = result.gru;
   }
 
   async start(): Promise<void> {

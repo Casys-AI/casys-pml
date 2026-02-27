@@ -2,14 +2,16 @@
 import '../styles.css';
 import Analytics from '@vercel/analytics/astro';
 import SubsiteFooter from './SubsiteFooter.astro';
+import HrefLang from './HrefLang.astro';
 
 export interface Props {
   title: string;
   metaDescription: string;
   ogImage?: string;
+  jsonLd?: Record<string, unknown>;
 }
 
-const { title, metaDescription, ogImage } = Astro.props;
+const { title, metaDescription, ogImage, jsonLd } = Astro.props;
 const locale = (Astro as any).currentLocale ?? 'en';
 const pathname = Astro.url.pathname;
 const siteUrl = import.meta.env.PUBLIC_SITE_URL as string | undefined;
@@ -49,6 +51,7 @@ const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
     </script>
     <title>{title}</title>
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <HrefLang />
     <style is:inline>
       /* Override MD3 primary from purple to warm amber/orange for subsite brand */
       :root {
@@ -73,6 +76,10 @@ const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={metaDescription} />
     {ogImage && <meta name="twitter:image" content={ogImage} />}
+    <meta property="og:site_name" content="Casys AI" />
+    {jsonLd && (
+      <script type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />
+    )}
 
     <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-FR86NHGK8Y"></script>
     <script is:inline>

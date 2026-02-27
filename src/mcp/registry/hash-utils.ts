@@ -42,6 +42,30 @@ export async function computeShortHash(content: string): Promise<string> {
 }
 
 /**
+ * Build content string for tool contract hash (persistent).
+ *
+ * Hashes the tool's contract (server + name + inputSchema), NOT the server config.
+ * inputSchema IS the contract — if it changes, the tool has changed.
+ * Description changes (reformulations) don't change the hash.
+ *
+ * @param serverName - MCP server name (e.g., "std", "filesystem")
+ * @param toolName - Tool name (e.g., "psql_query", "read_file")
+ * @param inputSchema - Tool input JSON schema (the contract)
+ * @returns Normalized string for hashing
+ */
+export function buildToolHashContent(
+  serverName: string,
+  toolName: string,
+  inputSchema: Record<string, unknown> | null,
+): string {
+  return JSON.stringify({
+    server: serverName,
+    name: toolName,
+    inputSchema: inputSchema || {},
+  });
+}
+
+/**
  * Build content string for stdio MCP integrity hash.
  *
  * @param config - Server connection info

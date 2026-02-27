@@ -318,6 +318,93 @@ export class SHGAT {
     return this.graphBuilder.getCapabilityIds();
   }
 
+  /**
+   * Evaluate full-vocab Recall@1 (Hit@1) and MRR on a set of examples.
+   *
+   * Unlike contrastive accuracy (which scores against NUM_NEGATIVES=8),
+   * this scores each positive against ALL caps in the graph (~333).
+   * This is the real Hit@1 metric for overfitting detection.
+   *
+   * Optimized: pre-computes K vectors for all caps (once), then per example
+   * only computes Q + dot products. ~500x faster than naive scoring.
+   *
+   * @returns hit1 = fraction where positive is rank 1, mrr = mean reciprocal rank, total = evaluated examples
+   */
+  evaluateFullVocabRecall(
+    examples: TrainingExample[],
+  ): { hit1: number; mrr: number; total: number } {
+    if (examples.length === 0) return { hit1: 0, mrr: 0, total: 0 };
+
+    // Single forward pass — E_flat depends only on graph structure + params, not on intent
+    // forward() already returns flattened E (number[][]), no need to flatten again
+    const { E: E_flat } = this.forward();
+    const numCaps = E_flat.length;
+    if (numCaps === 0) return { hit1: 0, mrr: 0, total: 0 };
+
+    const numHeads = this.config.numHeads;
+    const headParams = this.params.headParams;
+
+    // Pre-compute K vectors for ALL caps for ALL heads (once)
+    // K[h][i] = W_k[h] @ E_flat[i] — scoringDim vector
+    const allK: number[][][] = []; // [head][capIdx] = K vector
+    for (let h = 0; h < numHeads; h++) {
+      const kVecs: number[][] = [];
+      for (let i = 0; i < numCaps; i++) {
+        kVecs.push(math.matVecBlas(headParams[h].W_k, E_flat[i]));
+      }
+      allK.push(kVecs);
+    }
+
+    const scoringDim = headParams[0].W_q.length;
+    const scale = Math.sqrt(scoringDim);
+
+    let hit1Count = 0;
+    let mrrSum = 0;
+    let total = 0;
+
+    for (const example of examples) {
+      const posCapIdx = this.graphBuilder.getCapabilityIndex(example.candidateId);
+      if (posCapIdx === undefined) continue;
+      total++;
+
+      const intentProjected = this.projectIntent(example.intentEmbedding);
+
+      // Compute Q for each head (once per example)
+      const Qs: number[][] = [];
+      for (let h = 0; h < numHeads; h++) {
+        Qs.push(math.matVecBlas(headParams[h].W_q, intentProjected));
+      }
+
+      // Score ALL caps: logit = avg over heads of (Q·K / sqrt(dim))
+      let posLogit = 0;
+      const allLogits = new Float64Array(numCaps);
+
+      for (let i = 0; i < numCaps; i++) {
+        let sumLogit = 0;
+        for (let h = 0; h < numHeads; h++) {
+          sumLogit += math.dot(Qs[h], allK[h][i]) / scale;
+        }
+        allLogits[i] = sumLogit / numHeads;
+      }
+      posLogit = allLogits[posCapIdx];
+
+      // Count rank of positive
+      let rank = 1;
+      for (let i = 0; i < numCaps; i++) {
+        if (i !== posCapIdx && allLogits[i] > posLogit) rank++;
+      }
+
+      if (rank === 1) hit1Count++;
+      mrrSum += 1 / rank;
+    }
+
+    return {
+      hit1: total > 0 ? hit1Count / total : 0,
+      mrr: total > 0 ? mrrSum / total : 0,
+      total,
+    };
+  }
+
   buildFromData(
     tools: Array<{ id: string; embedding: number[] }>,
     capabilities: Array<{
@@ -405,6 +492,7 @@ export class SHGAT {
     // Build incidence matrices from MultiLevelIncidence
     const toolToCapMatrix = this.buildToolToCapMatrix();
     const capToCapMatrices = this.buildCapToCapMatrices();
+    const nChildrenPerCap = this.computeNChildrenPerCap(toolToCapMatrix);
 
     // Execute multi-level forward pass
     const { result, cache: _multiCache } = this.orchestrator.forwardMultiLevel(
@@ -418,6 +506,9 @@ export class SHGAT {
         numLayers: this.config.numLayers,
         dropout: this.config.dropout,
         leakyReluSlope: this.config.leakyReluSlope,
+        veResidualA: this.params.veResidualA,
+        veResidualB: this.params.veResidualB,
+        nChildrenPerCap,
       },
     );
 
@@ -430,9 +521,12 @@ export class SHGAT {
     // This preserves semantic similarity structure while injecting graph info
     // Benchmark showed residual≥0.2 gives MRR=1.000
     if (this.config.preserveDim) {
+      const residual = this.config.preserveDimResidual ?? 0;
+
+      // r=0 → pure message-passing output, no BGE-M3 dilution (skip mixing)
+      if (residual > 0) {
       const E_original = this.graphBuilder.getCapabilityEmbeddings();
       const H_original = this.graphBuilder.getToolEmbeddings();
-      const residual = this.config.preserveDimResidual ?? 0.3;
 
       // Apply residual to capabilities (E)
       E_flat = E_flat.map((e, idx) => {
@@ -459,6 +553,7 @@ export class SHGAT {
         const norm = Math.sqrt(mixed.reduce((s, x) => s + x * x, 0));
         return norm > 0 ? mixed.map(x => x / norm) : mixed;
       });
+      } // end if (residual > 0)
     }
 
     // Convert cache format for backward compatibility with training
@@ -545,6 +640,22 @@ export class SHGAT {
     }
 
     return matrix;
+  }
+
+  /**
+   * Compute nChildren per L0 cap from toolToCapMatrix (column sums).
+   * Used for V→E residual gamma: γ(n) = sigmoid(a·log(n+1)+b)
+   */
+  private computeNChildrenPerCap(toolToCapMatrix: number[][]): number[] {
+    if (toolToCapMatrix.length === 0) return [];
+    const numCaps = toolToCapMatrix[0]?.length ?? 0;
+    const nChildren: number[] = Array(numCaps).fill(0);
+    for (const row of toolToCapMatrix) {
+      for (let c = 0; c < numCaps; c++) {
+        nChildren[c] += row[c];
+      }
+    }
+    return nChildren;
   }
 
   /**
@@ -1286,6 +1397,7 @@ export class SHGAT {
       // Build matrices
       const toolToCapMatrix = this.buildToolToCapMatrix();
       const capToCapMatrices = this.buildCapToCapMatrices();
+      const nChildrenPerCap = this.computeNChildrenPerCap(toolToCapMatrix);
 
       // Forward with cache (pass v2vParams for trainable V→V)
       const { result, cache } = this.orchestrator.forwardMultiLevelWithCache(
@@ -1299,6 +1411,9 @@ export class SHGAT {
           numLayers: this.config.numLayers,
           dropout: this.config.dropout,
           leakyReluSlope: this.config.leakyReluSlope,
+          veResidualA: this.params.veResidualA,
+          veResidualB: this.params.veResidualB,
+          nChildrenPerCap,
         },
         this.v2vParams, // Trainable V→V parameters
       );
@@ -1479,6 +1594,14 @@ export class SHGAT {
           mpGrads.v2vGrads.dTemperatureLogit ** 2
         );
       }
+
+      // Apply V→E residual gradients if present
+      if (mpGrads.veResidualGrads && this.params.veResidualA !== undefined && this.params.veResidualB !== undefined) {
+        const lr = this.config.learningRate;
+        const batchSize = examples.length;
+        this.params.veResidualA -= lr * mpGrads.veResidualGrads.dA / batchSize;
+        this.params.veResidualB -= lr * mpGrads.veResidualGrads.dB / batchSize;
+      }
     }
 
     // Compute gradient norms (includes V2V)
@@ -1574,6 +1697,7 @@ export class SHGAT {
     // Build matrices
     const toolToCapMatrix = this.buildToolToCapMatrix();
     const capToCapMatrices = this.buildCapToCapMatrices();
+    const nChildrenPerCap = this.computeNChildrenPerCap(toolToCapMatrix);
     const t2 = Date.now();
 
     // Forward with cache (pass v2vParams for trainable V→V)
@@ -1588,6 +1712,9 @@ export class SHGAT {
         numLayers: this.config.numLayers,
         dropout: this.config.dropout,
         leakyReluSlope: this.config.leakyReluSlope,
+        veResidualA: this.params.veResidualA,
+        veResidualB: this.params.veResidualB,
+        nChildrenPerCap,
       },
       this.v2vParams,
     );
@@ -1764,6 +1891,14 @@ export class SHGAT {
         v2vGradNorm = Math.sqrt(
           mpGrads.v2vGrads.dResidualLogit ** 2 + mpGrads.v2vGrads.dTemperatureLogit ** 2
         );
+      }
+
+      // Apply V→E residual gradients if present
+      if (mpGrads.veResidualGrads && !evaluateOnly && this.params.veResidualA !== undefined && this.params.veResidualB !== undefined) {
+        const lr = this.config.learningRate;
+        const batchSize = examples.length;
+        this.params.veResidualA -= lr * mpGrads.veResidualGrads.dA / batchSize;
+        this.params.veResidualB -= lr * mpGrads.veResidualGrads.dB / batchSize;
       }
     }
 
@@ -1965,6 +2100,19 @@ export class SHGAT {
         this.v2vParams.temperatureLogit = v2v.temperatureLogit;
       }
     }
+
+    // Invalidate forward cache — imported params change message-passing output
+    this.invalidateForwardCache();
+  }
+
+  /**
+   * Invalidate the forward pass cache.
+   * Must be called after any parameter change (importParams, PER training)
+   * to ensure next forward() recomputes with fresh params.
+   */
+  invalidateForwardCache(): void {
+    this.lastCache = null;
+    getLogger().debug("[SHGAT] Forward cache invalidated");
   }
 
   getFusionWeights(): { semantic: number; structure: number; temporal: number } {
@@ -2026,6 +2174,41 @@ export class SHGAT {
       if (tool.embedding) {
         result.set(toolId, tool.embedding);
       }
+    }
+    return result;
+  }
+
+  /**
+   * Get capability embeddings — enriched via message passing when available.
+   *
+   * Calls forward() lazily (cached) to run V→E→V message passing,
+   * then returns the enriched E. Falls back to raw BGE-M3 if forward
+   * fails (no params, empty graph, etc.).
+   *
+   * Cap IDs are UUIDs (pattern_id from workflow_pattern).
+   */
+  getCapEmbeddings(): Map<string, number[]> {
+    const log = getLogger();
+
+    try {
+      const { E } = this.forward();
+      const capIds = this.graphBuilder.getCapabilityIds();
+      if (E.length === capIds.length && E.length > 0) {
+        const result = new Map<string, number[]>();
+        for (let i = 0; i < capIds.length; i++) {
+          result.set(capIds[i], E[i]);
+        }
+        log.debug(`[SHGAT] getCapEmbeddings: ${result.size} enriched (message-passing)`);
+        return result;
+      }
+    } catch {
+      // Forward pass failed — fall through to raw
+    }
+
+    log.warn("[SHGAT] getCapEmbeddings: forward() unavailable — returning raw cap embeddings");
+    const result = new Map<string, number[]>();
+    for (const [capId, cap] of this.graphBuilder.getCapabilityNodes()) {
+      if (cap.embedding) result.set(capId, cap.embedding);
     }
     return result;
   }

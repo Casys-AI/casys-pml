@@ -81,6 +81,7 @@ export class SHGATAdapter {
   private graph: GraphStructure | null = null;
   private nodeEmbeddings: Map<string, number[]> = new Map();
   private enrichedEmbs: Map<string, number[]> | null = null;
+  private enrichedCapEmbs: Map<string, number[]> | null = null;
 
   // Pre-computed K projections cache: K_cached[h] = allNodeEmbs @ W_k[h]^T
   // Shape: K_cached[h][l0Idx] = number[headDim]
@@ -106,6 +107,7 @@ export class SHGATAdapter {
       this.params = raw as OBTrainedParams;
     }
     this.enrichedEmbs = null;
+    this.enrichedCapEmbs = null;
     this.kCache = null;
     return this.params.config;
   }
@@ -114,6 +116,7 @@ export class SHGATAdapter {
   setParams(params: OBTrainedParams): void {
     this.params = params;
     this.enrichedEmbs = null;
+    this.enrichedCapEmbs = null;
     this.kCache = null;
   }
 
@@ -210,6 +213,7 @@ export class SHGATAdapter {
 
     this.params = { headParams, W_intent, levelParams, config };
     this.enrichedEmbs = null;
+    this.enrichedCapEmbs = null;
     this.kCache = null;
 
     return config;
@@ -366,6 +370,7 @@ export class SHGATAdapter {
 
     this.graph = { l0Ids, l0IdxMap, nodeIdsByLevel, l0ToL1Matrix, interLevelMatrices, maxLevel };
     this.enrichedEmbs = null;
+    this.enrichedCapEmbs = null;
     this.kCache = null;
     return this.graph;
   }
@@ -547,11 +552,22 @@ export class SHGATAdapter {
       }
     }
 
-    // Build result map
+    // Build result map (L0 tools)
     const result = new Map<string, number[]>();
     for (let i = 0; i < l0Ids.length; i++) {
       result.set(l0Ids[i], H[i]);
     }
+
+    // Store enriched cap embeddings (all higher levels)
+    const capResult = new Map<string, number[]>();
+    for (const [level, embs] of E) {
+      const nodeIds = nodeIdsByLevel.get(level);
+      if (!nodeIds) continue;
+      for (let i = 0; i < nodeIds.length; i++) {
+        capResult.set(nodeIds[i], embs[i]);
+      }
+    }
+    this.enrichedCapEmbs = capResult;
 
     this.enrichedEmbs = result;
     this.kCache = null; // Invalidate K cache — embeddings changed
@@ -721,6 +737,15 @@ export class SHGATAdapter {
   getEnrichedEmbeddings(): Map<string, number[]> {
     if (!this.enrichedEmbs) throw new Error("[SHGATAdapter] No enriched embeddings. Call enrichEmbeddings() first.");
     return this.enrichedEmbs;
+  }
+
+  /**
+   * Get enriched capability embeddings (all higher levels) after enrichEmbeddings().
+   * Keys are cap IDs as passed to buildGraph() (e.g. "namespace:action").
+   */
+  getEnrichedCapEmbeddings(): Map<string, number[]> {
+    if (!this.enrichedCapEmbs) throw new Error("[SHGATAdapter] No enriched cap embeddings. Call enrichEmbeddings() first.");
+    return this.enrichedCapEmbs;
   }
 
   getGraph(): GraphStructure {

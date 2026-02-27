@@ -44,6 +44,12 @@ import type { TaskResultWithLayer } from "./training-utils.ts";
 import { trainGRU } from "./training/train-loop.ts";
 import type { GRUTrainingResult } from "./training/train-loop.ts";
 
+// Data-prep: shared normalization + cleanup logic (aligned with train-gru-with-caps.ts)
+import { normalizeToolId, l2Normalize, l2NormalizeMap } from "./data-prep/normalize.ts";
+import { resolveExecHashRefs, canonicalizeCaps, resolveL2Hierarchy } from "./data-prep/cap-cleanup.ts";
+import type { CapData } from "./data-prep/cap-cleanup.ts";
+import { buildToolNameResolver, buildRenameChain } from "./data-prep/resolve-tool-name.ts";
+
 // SHGAT adapter (pure JS — no TF.js dependency)
 import { SHGATAdapter } from "../../shgat-for-gru/src/index.ts";
 import type { CooccurrenceEntry, GraphNode, OBTrainedParams } from "../../shgat-for-gru/src/types.ts";
@@ -102,6 +108,11 @@ const DATABASE_URL = process.env.DATABASE_URL ||
 // Usage: SHGAT_PARAMS=path/to/shgat-params.json deno run ...
 const SHGAT_PARAMS_PATH = process.env.SHGAT_PARAMS || "";
 
+// PROD_ONLY=true → skip Smithery expanded vocab + n8n augmentation, PML tools only
+const PROD_ONLY = process.env["PROD_ONLY"] === "true";
+// SAVE_VOCAB=true → save toolIds + vocabNodeIds in weights JSON (for inference vocab mapping)
+const SAVE_VOCAB = process.env["SAVE_VOCAB"] !== "false"; // default true
+
 // NO_SHGAT=true → skip all SHGAT processing, use raw BGE-M3 embeddings (pure GRU baseline)
 const NO_SHGAT = process.env["NO_SHGAT"] === "true";
 // SHGAT_RANDOM=true → use random orthogonal projections for MP (no trained params, ADR frozen mode)
@@ -133,6 +144,7 @@ else if (SHGAT_PAPER) console.log(`    Mode: SHGAT_PAPER (paper-style two-phase 
 else if (SHGAT_RANDOM) console.log(`    Mode: SHGAT_RANDOM (frozen MP with random orthogonal projections)`);
 else if (SHGAT_PARAMS_PATH) console.log(`    SHGAT params: ${SHGAT_PARAMS_PATH}`);
 else console.log(`    Mode: SHGAT trained (params from DB)${FULL_GRAPH ? " + FULL_GRAPH" : ""}${PAPER_WF ? " + WF hyperedges" : ""}`);
+if (PROD_ONLY) console.log(`    Data: PROD_ONLY (no Smithery, no n8n — PML tools only)`);
 if (NO_EDGES) console.log(`    Context: NO_EDGES (force linear fallback, ignore static_structure edges)`);
 console.log();
 
@@ -166,7 +178,9 @@ const embeddingDim = firstEmb?.length || 1024;
 console.log(`      ${rawToolEmbeddings.size} PML tools, dim=${embeddingDim}`);
 
 // Load expanded vocab (Smithery MCP tools) — needed for n8n capability tool references
-if (existsSync(EXPANDED_VOCAB_PATH)) {
+if (PROD_ONLY) {
+  console.log("      PROD_ONLY: skipping Smithery expanded vocab");
+} else if (existsSync(EXPANDED_VOCAB_PATH)) {
   const expandedVocab = JSON.parse(readFileSync(EXPANDED_VOCAB_PATH, "utf-8"));
   const smIds: string[] = expandedVocab.smitheryToolIds;
   const smEmbs: number[][] = expandedVocab.smitheryToolEmbeddings;
@@ -193,31 +207,107 @@ for (let i = 0; i < toolIds.length; i++) {
   toolIdToIdx.set(toolIds[i], i);
 }
 
+// --- 2a. Cap data via namespace:action (aligned with train-gru-with-caps.ts) ---
 const capRows = await sql`
-  SELECT pattern_id as cap_id, intent_embedding::text as cap_embedding, hierarchy_level
-  FROM workflow_pattern
-  WHERE intent_embedding IS NOT NULL
-  ORDER BY hierarchy_level, pattern_id
+  SELECT DISTINCT ON (cr.namespace, cr.action)
+    cr.namespace || ':' || cr.action as cap_id,
+    COALESCE(wp.shgat_embedding, wp.intent_embedding)::text as cap_embedding,
+    COALESCE(wp.hierarchy_level, 1) as hierarchy_level,
+    wp.dag_structure->'tools_used' as tools_used,
+    COALESCE(wp.usage_count, 0) as usage_count
+  FROM workflow_pattern wp
+  JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+  WHERE wp.code_snippet IS NOT NULL
+    AND wp.intent_embedding IS NOT NULL
+    AND wp.dag_structure->'tools_used' IS NOT NULL
+  ORDER BY cr.namespace, cr.action, wp.last_used DESC
 `;
 
+// Build CapData[] with normalizeToolId on toolChildren
+const capabilityData: CapData[] = [];
+const capChildrenMap = new Map<string, string[]>();
+for (const row of capRows) {
+  const capEmb = parseEmbedding(row.cap_embedding);
+  if (!capEmb || capEmb.length === 0) continue;
+  const children = ((row.tools_used ?? []) as string[])
+    .map(normalizeToolId)
+    .filter(Boolean) as string[];
+  if (children.length === 0) continue;
+  const capId = row.cap_id as string;
+  capChildrenMap.set(capId, children);
+  capabilityData.push({
+    id: capId,
+    embedding: capEmb,
+    toolChildren: children,
+    level: Number(row.hierarchy_level),
+    usageCount: Number(row.usage_count),
+  });
+}
+
+console.log(`      ${capabilityData.length} capabilities (namespace:action, COALESCE shgat/intent)`);
+
+// --- 2b. Resolve stale exec_hash references ---
+const codeHashRows = await sql`
+  SELECT wp.code_hash, cr.namespace || ':' || cr.action as cap_name
+  FROM workflow_pattern wp
+  JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+  WHERE wp.code_hash IS NOT NULL
+`;
+const execHashToCapName = new Map<string, string>();
+for (const row of codeHashRows) {
+  const shortHash = (row.code_hash as string).substring(0, 8);
+  execHashToCapName.set(shortHash, row.cap_name as string);
+}
+const { resolved: execResolved } = resolveExecHashRefs(capabilityData, execHashToCapName);
+// Also update capChildrenMap
+const execPattern = /^(?:code|std|filesystem):exec_([a-f0-9]{8})/;
+for (const [key, children] of capChildrenMap) {
+  capChildrenMap.set(key, children.map(child => {
+    const m = child.match(execPattern);
+    return m ? (execHashToCapName.get(m[1]) ?? child) : child;
+  }));
+}
+if (execResolved > 0) console.log(`      Resolved ${execResolved} stale exec_hash refs`);
+
+// --- 2c. Cap canonicalization ---
+const NO_CANONICALIZE = process.env["NO_CANONICALIZE"] === "true";
+let capCanonicalMap = new Map<string, string>();
+if (!NO_CANONICALIZE) {
+  const result = canonicalizeCaps(capabilityData);
+  capCanonicalMap = result.canonicalMap;
+  // Also clean capChildrenMap
+  for (const nonCanon of capCanonicalMap.keys()) {
+    capChildrenMap.delete(nonCanon);
+  }
+  for (const [key, children] of capChildrenMap) {
+    capChildrenMap.set(key, children.map(c => capCanonicalMap.get(c) ?? c));
+  }
+  console.log(`      Canonicalize: ${result.groupCount} toolset groups, ${result.remapped} remapped → ${capabilityData.length} canonical`);
+} else {
+  console.log(`      NO_CANONICALIZE=true — all caps kept as separate vocab entries`);
+}
+
+// --- 2d. L2+ hierarchy walk ---
+const toolVocab = new Set(toolIds);
+const { resolved: l2Resolved } = resolveL2Hierarchy(capabilityData, toolVocab);
+if (l2Resolved > 0) console.log(`      Resolved ${l2Resolved} L2+ caps to L0 tools`);
+
+// --- Rebuild capEmbeddings, capIdToLevel, capIdsByLevel, capToToolChildren, toolToCapSet from capabilityData ---
 const capEmbeddings = new Map<string, number[]>();
 const capIdsByLevel = new Map<number, string[]>();
 const capIdToLevel = new Map<string, number>();
 let maxLevel = 0;
+const capToToolChildren = new Map<string, string[]>();
 
-for (const row of capRows) {
-  const capEmb = parseEmbedding(row.cap_embedding);
-  const level = row.hierarchy_level ?? 0;
-  if (capEmb && capEmb.length > 0) {
-    capEmbeddings.set(row.cap_id, capEmb);
-    capIdToLevel.set(row.cap_id, level);
-    if (!capIdsByLevel.has(level)) capIdsByLevel.set(level, []);
-    capIdsByLevel.get(level)!.push(row.cap_id);
-    maxLevel = Math.max(maxLevel, level);
-  }
+for (const cap of capabilityData) {
+  capEmbeddings.set(cap.id, cap.embedding);
+  capIdToLevel.set(cap.id, cap.level);
+  if (!capIdsByLevel.has(cap.level)) capIdsByLevel.set(cap.level, []);
+  capIdsByLevel.get(cap.level)!.push(cap.id);
+  maxLevel = Math.max(maxLevel, cap.level);
+  capToToolChildren.set(cap.id, cap.toolChildren);
 }
 
-console.log(`      ${capEmbeddings.size} capabilities`);
 console.log(
   `      Hierarchy: ${maxLevel + 1} levels - ${
     Array.from(capIdsByLevel.entries())
@@ -226,70 +316,14 @@ console.log(
   }`,
 );
 
-// Cap-to-cap relations
-const capDepRows = await sql`
-  SELECT
-    cd.from_capability_id,
-    cd.to_capability_id,
-    wp1.hierarchy_level as from_level,
-    wp2.hierarchy_level as to_level
-  FROM capability_dependency cd
-  JOIN workflow_pattern wp1 ON cd.from_capability_id = wp1.pattern_id
-  JOIN workflow_pattern wp2 ON cd.to_capability_id = wp2.pattern_id
-  WHERE wp1.intent_embedding IS NOT NULL
-    AND wp2.intent_embedding IS NOT NULL
-`;
-
-const capToCapByLevel = new Map<number, Map<string, string[]>>();
-for (const row of capDepRows) {
-  const fromLevel = row.from_level;
-  const toLevel = row.to_level;
-  if (fromLevel > toLevel) {
-    if (!capToCapByLevel.has(fromLevel)) {
-      capToCapByLevel.set(fromLevel, new Map());
-    }
-    const levelMap = capToCapByLevel.get(fromLevel)!;
-    if (!levelMap.has(row.from_capability_id)) {
-      levelMap.set(row.from_capability_id, []);
-    }
-    levelMap.get(row.from_capability_id)!.push(row.to_capability_id);
-  }
-}
-
-// Tool-to-cap from workflow_pattern.dag_structure.tools_used (L0 only)
-// NOTE: task_results->>'tool' is null for most traces — use dag_structure instead.
+// Invert capToToolChildren → toolToCapSet
 const toolToCapSet: Set<string>[] = toolIds.map(() => new Set());
-const traceToolCaps = await sql`
-  SELECT DISTINCT
-    wp.pattern_id as capability_id,
-    jsonb_array_elements_text(wp.dag_structure->'tools_used') as tool_id
-  FROM workflow_pattern wp
-  WHERE wp.hierarchy_level = 0
-    AND wp.intent_embedding IS NOT NULL
-    AND wp.dag_structure ? 'tools_used'
-    AND jsonb_array_length(wp.dag_structure->'tools_used') > 0
-`;
-
-for (const row of traceToolCaps) {
-  // Normalize FQDN: pml.mcp.std.psql_query.db48 -> std:psql_query
-  const rawToolId: string = row.tool_id ?? "";
-  let toolId = rawToolId;
-  if (rawToolId.startsWith("pml.mcp.") || rawToolId.startsWith("local.")) {
-    const parts = rawToolId.split(".");
-    // pml.mcp.<server>.<action>.<hash> or local.<project>.<server>.<action>.<hash>
-    const serverIdx = rawToolId.startsWith("pml.mcp.") ? 2 : 2;
-    if (parts.length >= serverIdx + 2) {
-      toolId = `${parts[serverIdx]}:${parts[serverIdx + 1]}`;
+for (const [capId, children] of capToToolChildren) {
+  for (const toolId of children) {
+    const toolIdx = toolIdToIdx.get(toolId);
+    if (toolIdx !== undefined) {
+      toolToCapSet[toolIdx].add(capId);
     }
-  }
-
-  const toolIdx = toolIdToIdx.get(toolId);
-  if (
-    toolIdx !== undefined &&
-    capEmbeddings.has(row.capability_id) &&
-    capIdToLevel.get(row.capability_id) === 0
-  ) {
-    toolToCapSet[toolIdx].add(row.capability_id);
   }
 }
 
@@ -298,7 +332,9 @@ for (const row of traceToolCaps) {
 // Cap at MAX_N8N_CAPS to keep incidence matrix manageable (memory: tools×caps×4B)
 const MAX_N8N_CAPS = parseInt(process.env["MAX_N8N_CAPS"] || "99999", 10);
 let n8nCapsAdded = 0;
-if (existsSync(N8N_SHGAT_PAIRS_PATH)) {
+if (PROD_ONLY) {
+  console.log("      PROD_ONLY: skipping n8n workflow injection");
+} else if (existsSync(N8N_SHGAT_PAIRS_PATH)) {
   console.log(
     `      Loading n8n workflows as L1 capabilities / E^0 hyperedges (max=${MAX_N8N_CAPS})...`,
   );
@@ -350,87 +386,62 @@ if (existsSync(N8N_SHGAT_PAIRS_PATH)) {
 const toolToCapIds: string[][] = toolToCapSet.map((set) => Array.from(set));
 const connectedTools = toolToCapIds.filter((arr) => arr.length > 0).length;
 console.log(
-  `      ${connectedTools}/${toolIds.length} tools (L0) connected to L1 caps (PML + n8n)`,
+  `      ${connectedTools}/${toolIds.length} tools connected to caps (all levels, PML + n8n)`,
 );
-console.log(`      ${capDepRows.length} cap-to-cap relations`);
-console.log(
-  `      Total L1 caps (E^0): ${(capIdsByLevel.get(0) || []).length} (${
-    (capIdsByLevel.get(0) || []).length - n8nCapsAdded
-  } PML + ${n8nCapsAdded} n8n workflows)`,
-);
-
-// Build VocabNode[] for higher-level nodes (capabilities L0, L1, L2, ...)
-// L0 caps: children = tool IDs (from toolToCapSet, inverted)
-const capToToolChildren = new Map<string, string[]>();
-for (let t = 0; t < toolIds.length; t++) {
-  for (const capId of toolToCapIds[t]) {
-    if (!capToToolChildren.has(capId)) capToToolChildren.set(capId, []);
-    capToToolChildren.get(capId)!.push(toolIds[t]);
-  }
+for (let lvl = 0; lvl <= maxLevel; lvl++) {
+  const lvlCaps = capIdsByLevel.get(lvl) || [];
+  const withTools = lvlCaps.filter((c) => capEmbeddings.has(c)).length;
+  console.log(`      L${lvl}: ${lvlCaps.length} caps (${withTools} with embedding)`);
 }
 
-// L1+ caps: children = cap IDs of level below (from capToCapByLevel)
-const capToCapChildren = new Map<string, string[]>();
-for (const [_level, levelMap] of capToCapByLevel) {
-  for (const [parentId, childIds] of levelMap) {
-    capToCapChildren.set(parentId, childIds);
-  }
-}
-
-// Build VocabNode[] sorted by level (L0 first, then L1, L2, ...)
+// Build VocabNode[] — ALL caps already have flattened L0 tool children (via resolveL2Hierarchy).
+// Children are filtered to tools in the vocabulary (setToolVocabulary requires allChildrenKnown).
 const higherLevelNodes: VocabNode[] = [];
-for (let level = 0; level <= maxLevel; level++) {
-  const levelCaps = capIdsByLevel.get(level) || [];
-  for (const capId of levelCaps) {
-    const capEmb = capEmbeddings.get(capId);
-    if (!capEmb) continue;
+for (const cap of capabilityData) {
+  const capEmb = capEmbeddings.get(cap.id);
+  if (!capEmb) continue;
 
-    // Determine children based on level
-    let children: string[];
-    if (level === 0) {
-      children = capToToolChildren.get(capId) ?? [];
-    } else {
-      children = capToCapChildren.get(capId) ?? [];
-    }
+  // Filter to only tools in the vocabulary
+  const children = cap.toolChildren.filter((t) => toolIdToIdx.has(t));
+  if (children.length === 0) continue;
 
-    // Skip caps with no children (setToolVocabulary requires known children)
-    if (children.length === 0) continue;
-
-    higherLevelNodes.push({
-      id: capId,
-      level: level + 1, // Shift up: GRU L0 = tools, L1 = L0 caps, L2 = L1 caps, etc.
-      embedding: capEmb,
-      children,
-    });
-  }
+  higherLevelNodes.push({
+    id: cap.id,
+    level: cap.level + 1, // Shift up: GRU L0 = tools, L1+ = caps
+    embedding: capEmb,
+    children,
+  });
 }
 const n8nVocabNodes = higherLevelNodes.filter((n) => n.id.startsWith("n8n:wf:")).length;
+const pmlVocabNodes = higherLevelNodes.length - n8nVocabNodes;
 console.log(
-  `      VocabNodes: ${higherLevelNodes.length} higher-level (${n8nVocabNodes} n8n + ${
-    higherLevelNodes.length - n8nVocabNodes
-  } PML, L2+: ${higherLevelNodes.filter((n) => n.level >= 2).length})`,
+  `      VocabNodes: ${higherLevelNodes.length} higher-level (${pmlVocabNodes} PML + ${n8nVocabNodes} n8n)`,
 );
+for (let lvl = 1; lvl <= maxLevel + 1; lvl++) {
+  const count = higherLevelNodes.filter((n) => n.level === lvl).length;
+  if (count > 0) console.log(`        GRU-L${lvl}: ${count} nodes`);
+}
 
 // --- Step 3: Build graph structure ---
 console.log("\n[3/9] Building graph structure (ALL levels)...");
 
-const level0Caps = capIdsByLevel.get(0) || [];
+// Collect all cap IDs that made it into VocabNodes (have tool children in vocab)
+const vocabCapIds = higherLevelNodes.map((n) => n.id);
+const vocabCapIdToIdx = new Map<string, number>();
+for (let i = 0; i < vocabCapIds.length; i++) {
+  vocabCapIdToIdx.set(vocabCapIds[i], i);
+}
 
 // Build ToolCapabilityMap for CompactInformedGRU (flat binary matrix)
-const toolToCapData: number[][] = [];
-for (let t = 0; t < toolIds.length; t++) {
-  const row: number[] = new Array(level0Caps.length).fill(0);
-  for (const capId of toolToCapIds[t]) {
-    const level0Idx = level0Caps.indexOf(capId);
-    if (level0Idx >= 0) row[level0Idx] = 1;
-  }
-  toolToCapData.push(row);
-}
-const numCaps = level0Caps.length;
+// Uses ALL vocab caps (not just L0) — fix 2026-02-23
+const numCaps = vocabCapIds.length;
 const toolCapFlatData = new Float32Array(toolIds.length * numCaps);
 for (let t = 0; t < toolIds.length; t++) {
-  for (let c = 0; c < numCaps; c++) {
-    toolCapFlatData[t * numCaps + c] = toolToCapData[t][c];
+  for (const capId of toolToCapIds[t]) {
+    const capIdx = vocabCapIdToIdx.get(capId);
+    if (capIdx !== undefined) {
+      toolCapFlatData[t * numCaps + capIdx] = 1;
+    }
   }
 }
 const toolCapMap: ToolCapabilityMap = {
@@ -579,9 +590,8 @@ if (NO_SHGAT) {
     for (const capId of levelCaps) {
       const emb = capEmbeddings.get(capId);
       if (!emb) continue;
-      const children = level === 0
-        ? (capToToolChildren.get(capId) ?? [])
-        : (capToCapChildren.get(capId) ?? []);
+      // All caps have flattened L0 tool children (via resolveL2Hierarchy + canonicalization)
+      const children = capToToolChildren.get(capId) ?? [];
       if (children.length === 0) continue;
       shgatGraphNodes.push({ id: capId, embedding: emb, children, level });
     }
@@ -899,9 +909,8 @@ if (NO_SHGAT) {
     for (const capId of levelCaps) {
       const emb = capEmbeddings.get(capId);
       if (!emb) continue;
-      const children = level === 0
-        ? (capToToolChildren.get(capId) ?? [])
-        : (capToCapChildren.get(capId) ?? []);
+      // All caps have flattened L0 tool children (via resolveL2Hierarchy + canonicalization)
+      const children = capToToolChildren.get(capId) ?? [];
       if (children.length === 0) continue;
       shgatGraphNodes.push({ id: capId, embedding: emb, children, level });
     }
@@ -1068,6 +1077,25 @@ if (!NO_SHGAT) {
   logMemory("      ");
 }
 
+// --- L2 normalization (aligned with train-gru-with-caps.ts step 1c-bis) ---
+{
+  const toolsNormalized = l2NormalizeMap(enrichedToolEmbeddings);
+  let capsNormalized = 0;
+  for (const cap of capabilityData) {
+    let norm = 0;
+    for (const v of cap.embedding) norm += v * v;
+    if (Math.abs(Math.sqrt(norm) - 1.0) > 0.001) {
+      cap.embedding = l2Normalize(cap.embedding);
+      capsNormalized++;
+    }
+  }
+  // Update capEmbeddings map with normalized values
+  for (const cap of capabilityData) {
+    capEmbeddings.set(cap.id, cap.embedding);
+  }
+  console.log(`      L2 norm: ${toolsNormalized} tools, ${capsNormalized} caps re-normalized`);
+}
+
 // 3) SHGAT standalone scoring eval on prod test (quick, before GRU training)
 //    Uses K-head attention scoring to rank tools for each test intent
 //    We need prod test intents — but we haven't loaded traces yet.
@@ -1092,6 +1120,21 @@ const shgatEnrichmentStats = {
   capGroupsSampled: NO_GRAPH ? 0 : intraPairs,
 };
 
+// --- Step 7-pre: Rename history + resolveToolName (aligned with train-gru-with-caps.ts) ---
+console.log("\n[7-pre/11] Loading rename history + building tool name resolver...");
+const renameRows = await sql`
+  SELECT old_name, new_name, old_fqdn FROM capability_name_history ORDER BY renamed_at ASC
+`;
+const renameMap = buildRenameChain(
+  renameRows.map((r) => ({
+    old_name: r.old_name as string,
+    new_name: r.new_name as string,
+    old_fqdn: r.old_fqdn as string | null,
+  })),
+);
+console.log(`      ${renameMap.size} rename mappings loaded`);
+const resolveToolName = buildToolNameResolver(execHashToCapName, renameMap, capCanonicalMap);
+
 // --- Step 7: Load traces & generate transition examples ---
 console.log("\n[7/11] Loading execution traces...");
 const traceRows = await sql`
@@ -1101,9 +1144,11 @@ const traceRows = await sql`
     et.success,
     COALESCE(et.intent_embedding, wp.intent_embedding)::text as intent_embedding,
     wp.pattern_id as capability_id,
-    wp.dag_structure->'static_structure'->'edges' as static_edges
+    wp.dag_structure->'static_structure'->'edges' as static_edges,
+    cr.namespace || ':' || cr.action as cap_name
   FROM execution_trace et
   JOIN workflow_pattern wp ON et.capability_id = wp.pattern_id
+  LEFT JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
   WHERE et.task_results IS NOT NULL
     AND jsonb_array_length(et.task_results) >= 1
     AND wp.intent_embedding IS NOT NULL
@@ -1126,18 +1171,37 @@ function embedHash(emb: number[]): string {
   return emb.slice(0, 8).map((v) => v.toFixed(4)).join(",");
 }
 
-const validToolIdSet = new Set(enrichedToolEmbeddings.keys());
+// Extend validToolIdSet to include cap IDs (for cap-as-terminal)
+const capIdSet = new Set(capabilityData.map((c) => c.id));
+const validToolIdSet = new Set([...enrichedToolEmbeddings.keys(), ...capIdSet]);
 
 // Map traceId → capabilityId for capability-level eval
 const traceIdToCapId = new Map<string, string>();
+
+let capTerminalCount = 0;
+let consecutiveDedupCount = 0;
 
 for (const trace of traceRows) {
   const intentEmbedding = parseEmbedding(trace.intent_embedding);
   if (!intentEmbedding) continue;
 
-  traceIdToCapId.set(trace.id, trace.capability_id);
+  // Resolve capability_id (UUID) → namespace:action for cap-level eval
+  const traceCapName = trace.cap_name ? resolveToolName(trace.cap_name as string) : trace.capability_id;
+  traceIdToCapId.set(trace.id, traceCapName);
 
-  const taskResults = trace.task_results as TaskResultWithLayer[];
+  const rawTaskResults = trace.task_results as TaskResultWithLayer[];
+
+  // Pre-resolve tool names (normalizeToolId + resolveToolName, aligned with train-gru-with-caps.ts)
+  const resolvedTaskResults = rawTaskResults.map((t) => ({
+    ...t,
+    tool: t.tool ? resolveToolName(normalizeToolId(t.tool)) : t.tool,
+  }));
+
+  // Consecutive dedup (prevents loops like 360x embedding_encode from flooding training set)
+  const dedupedTaskResults = resolvedTaskResults.filter((t, i) =>
+    i === 0 || t.tool !== resolvedTaskResults[i - 1]?.tool
+  );
+  consecutiveDedupCount += resolvedTaskResults.length - dedupedTaskResults.length;
 
   // Parse static structure edges if available (P1 DAG causal fix)
   // NO_EDGES=true → force linear fallback for A/B testing
@@ -1148,7 +1212,7 @@ for (const trace of traceRows) {
   const traceResult = buildDAGAwareExamples(
     trace.id,
     intentEmbedding,
-    taskResults,
+    dedupedTaskResults,
     validToolIdSet,
     singleToolSeen,
     embedHash,
@@ -1163,7 +1227,7 @@ for (const trace of traceRows) {
     else linearFallbackCount++;
 
     // Also build the path for E2E eval (linear order for path comparison)
-    const toolSequence = taskResults
+    const toolSequence = dedupedTaskResults
       .map((t: TaskResultWithLayer) => t.tool)
       .filter((t): t is string => !!t && validToolIdSet.has(t));
     tracePathsForEval.push({ intentEmbedding, actualPath: toolSequence, traceId: trace.id });
@@ -1171,7 +1235,29 @@ for (const trace of traceRows) {
 
   // Attach _capId to each example for capability-level eval
   for (const ex of traceResult.examples) {
-    prodExamples.push({ ...ex, _capId: trace.capability_id });
+    prodExamples.push({ ...ex, _capId: traceCapName });
+  }
+
+  // Cap-as-terminal: after the full tool sequence, predict the wrapping capability
+  // Teaches: "after seeing [tool1, tool2, ...], the whole thing = this cap"
+  const rawCapName = trace.cap_name as string | null;
+  const capName = rawCapName ? resolveToolName(rawCapName) : null;
+  if (capName && capIdSet.has(capName) && traceResult.isMultiTool) {
+    const toolSeq = dedupedTaskResults
+      .map((t) => t.tool)
+      .filter((t): t is string => !!t && validToolIdSet.has(t));
+    if (toolSeq.length > 0) {
+      prodExamples.push({
+        intentEmbedding,
+        contextToolIds: toolSeq,
+        targetToolId: capName,
+        isTerminal: 1,
+        isSingleTool: false,
+        _traceId: trace.id,
+        _capId: traceCapName,
+      });
+      capTerminalCount++;
+    }
   }
 }
 
@@ -1181,6 +1267,8 @@ console.log(
 console.log(
   `      Context mode: edges=${edgesCount}, layerIndex=${dagAwareCount}, linear=${linearFallbackCount} traces`,
 );
+if (consecutiveDedupCount > 0) console.log(`      Consecutive dedup: ${consecutiveDedupCount} steps removed`);
+if (capTerminalCount > 0) console.log(`      Cap-as-terminal: ${capTerminalCount} examples added`);
 console.log(`      ${tracePathsForEval.length} multi-tool traces for end-to-end eval`);
 
 // Split prod into train/test BY TRACE (not by example) to avoid contamination
@@ -1270,7 +1358,9 @@ function sparseParquetToProbs(
   return total > 0 ? dense : null;
 }
 
-if (existsSync(N8N_DATA_PATH_PARQUET)) {
+if (PROD_ONLY) {
+  console.log("      PROD_ONLY: skipping n8n augmentation data");
+} else if (existsSync(N8N_DATA_PATH_PARQUET)) {
   // Primary: Parquet format (memory-efficient, avoids ~12GB msgpack decode)
   // FAIL-FAST: if Parquet exists but fails to load, throw — no silent fallback
   console.log(`      Loading Parquet: ${N8N_DATA_PATH_PARQUET}`);
@@ -1436,38 +1526,45 @@ if (existsSync(N8N_DATA_PATH_PARQUET)) {
   console.warn(`      WARNING: n8n data not found (tried parquet, msgpack.gz and json)`);
   console.warn(`      Continuing with production-only training.`);
 }
+// --- n8n loading done ---
 
 // Split n8n into train/eval BY WORKFLOW (group by intentEmbedding hash)
 function intentHash(emb: number[]): string {
   return emb.slice(0, 12).map((v) => v.toFixed(3)).join(",");
 }
 
-const n8nByWorkflow = new Map<string, TransitionExample[]>();
-for (const ex of n8nExamples) {
-  const key = intentHash(ex.intentEmbedding);
-  if (!n8nByWorkflow.has(key)) n8nByWorkflow.set(key, []);
-  n8nByWorkflow.get(key)!.push(ex);
-}
-
-const n8nWorkflowKeys = shuffle([...n8nByWorkflow.keys()]);
-const n8nSplitIdx = Math.floor(n8nWorkflowKeys.length * 0.8);
-const n8nTrainKeys = new Set(n8nWorkflowKeys.slice(0, n8nSplitIdx));
-const n8nEvalKeys = new Set(n8nWorkflowKeys.slice(n8nSplitIdx));
-
+let n8nTrainKeys = new Set<string>();
+let n8nEvalKeys = new Set<string>();
 const n8nTrain: TransitionExample[] = [];
 const n8nEval: TransitionExample[] = [];
-for (const [key, exs] of n8nByWorkflow) {
-  if (n8nTrainKeys.has(key)) n8nTrain.push(...exs);
-  else n8nEval.push(...exs);
-}
+let n8nSplitPct = "0";
 
-const n8nSplitPct = ((n8nTrainKeys.size / n8nByWorkflow.size) * 100).toFixed(0);
-console.log(
-  `      n8n split (by workflow): ${n8nTrainKeys.size} train / ${n8nEvalKeys.size} eval workflows  (${n8nSplitPct}/${
-    100 - +n8nSplitPct
-  } split)`,
-);
-console.log(`      n8n examples:            ${n8nTrain.length} train / ${n8nEval.length} eval`);
+if (!PROD_ONLY && n8nExamples.length > 0) {
+  const n8nByWorkflow = new Map<string, TransitionExample[]>();
+  for (const ex of n8nExamples) {
+    const key = intentHash(ex.intentEmbedding);
+    if (!n8nByWorkflow.has(key)) n8nByWorkflow.set(key, []);
+    n8nByWorkflow.get(key)!.push(ex);
+  }
+
+  const n8nWorkflowKeys = shuffle([...n8nByWorkflow.keys()]);
+  const n8nSplitIdx = Math.floor(n8nWorkflowKeys.length * 0.8);
+  n8nTrainKeys = new Set(n8nWorkflowKeys.slice(0, n8nSplitIdx));
+  n8nEvalKeys = new Set(n8nWorkflowKeys.slice(n8nSplitIdx));
+
+  for (const [key, exs] of n8nByWorkflow) {
+    if (n8nTrainKeys.has(key)) n8nTrain.push(...exs);
+    else n8nEval.push(...exs);
+  }
+
+  n8nSplitPct = ((n8nTrainKeys.size / n8nByWorkflow.size) * 100).toFixed(0);
+  console.log(
+    `      n8n split (by workflow): ${n8nTrainKeys.size} train / ${n8nEvalKeys.size} eval workflows  (${n8nSplitPct}/${
+      100 - +n8nSplitPct
+    } split)`,
+  );
+  console.log(`      n8n examples:            ${n8nTrain.length} train / ${n8nEval.length} eval`);
+}
 
 // Build mixed training set (prod oversampled + n8n TRAIN only)
 const oversampledProd: TransitionExample[] = [];
@@ -1488,9 +1585,9 @@ const jaccardMatrix = computeJaccardMatrix(toolCapMap);
 const allTraces: string[][] = [];
 for (const trace of traceRows) {
   const taskResults = trace.task_results as Array<{ tool?: string }>;
-  const toolSeq = taskResults.map((t) => t.tool).filter((t): t is string =>
-    !!t && enrichedToolEmbeddings.has(t)
-  );
+  const toolSeq = taskResults
+    .map((t) => t.tool ? resolveToolName(normalizeToolId(t.tool)) : null)
+    .filter((t): t is string => !!t && enrichedToolEmbeddings.has(t));
   if (toolSeq.length >= 2) allTraces.push(toolSeq);
 }
 const bigramMatrix = computeBigramMatrix(allTraces, toolIdToIdx, toolIds.length);
@@ -1633,7 +1730,7 @@ if (NO_GRAPH) {
       for (const capId of levelCaps) {
         const emb = capEmbeddings.get(capId);
         if (!emb) continue;
-        const children = level === 0 ? (capToToolChildren.get(capId) ?? []) : (capToCapChildren.get(capId) ?? []);
+        const children = capToToolChildren.get(capId) ?? [];
         if (children.length === 0) continue;
         scoringGraphNodes.push({ id: capId, embedding: emb, children, level });
       }
@@ -1786,11 +1883,18 @@ if (GRU_WEIGHTS_PATH && existsSync(GRU_WEIGHTS_PATH)) {
 
   // Save weights for next run
   try {
-    const saved = {
+    // Build vocab mapping for inference (tool order must match similarity_head columns)
+    // Only save vocabNodes that are ACTUALLY in the model's vocab (filtered by allChildrenKnown)
+    const modelVocab = model.getNodeToIndex();
+    const vocabNodeIds = higherLevelNodes
+      .filter((n) => n.level > 0 && modelVocab.has(n.id))
+      .map((n) => ({ id: n.id, children: n.children }));
+    const saved: Record<string, unknown> = {
       date: new Date().toISOString(),
       weights: model.exportWeights(),
       trainingResult: gruResult,
       config: { epochs: EPOCHS, batchSize: BATCH_SIZE, prodOversample: PROD_OVERSAMPLE },
+      ...(SAVE_VOCAB ? { vocab: { toolIds, vocabNodes: vocabNodeIds } } : {}),
     };
     writeFileSync(GRU_SAVE_PATH, JSON.stringify(saved));
     console.log(
@@ -2286,6 +2390,71 @@ for (const m of modesToShow) {
       (m.firstN / n * 100).toFixed(1).padStart(6)
     }% | ${(m.beam / n * 100).toFixed(1).padStart(5)}%`,
   );
+}
+
+// --- Step 9b-dump: Dump beam candidates + SHGAT scores for NB18 rescoring analysis ---
+if (process.env["DUMP_BEAM"] === "true" && !NO_GRAPH) {
+  console.log(`\n      --- 9b-dump) Dumping beam candidates + SHGAT scores ---`);
+  const dumpBeamWidth = parseInt(process.env["DUMP_BEAM_WIDTH"] || "5", 10);
+  // deno-lint-ignore no-explicit-any
+  const beamDump: any[] = [];
+
+  for (let t = 0; t < sampleTraces.length; t++) {
+    const { intentEmbedding, actualPath } = sampleTraces[t];
+    const traceId = sampleTraces[t].traceId ?? `trace_${t}`;
+
+    // GRU auto-start
+    const gruAutoStart = model.buildPathAutoStart(intentEmbedding);
+    const gruFirst = gruAutoStart.path[0] ?? "";
+    const gruTop3 = gruAutoStart.firstToolRanked.slice(0, 3).map((x) => ({
+      toolId: x.toolId, score: x.score,
+    }));
+
+    // Beam search from GRU first tool
+    const beamResults = gruFirst
+      ? model.buildPathBeam(intentEmbedding, gruFirst, dumpBeamWidth)
+      : [];
+
+    // SHGAT cosine scores per beam (using enriched embeddings)
+    const shgatScoresPerBeam: number[][] = [];
+    const shgatMeanPerBeam: number[] = [];
+    const shgatFirstPerBeam: number[] = [];
+    for (const b of beamResults) {
+      const sc = b.path.map((toolId: string) => {
+        const emb = enrichedToolEmbeddings.get(toolId);
+        if (!emb) return 0;
+        // cosine(intent, enriched)
+        let dot = 0, na = 0, nb = 0;
+        for (let i = 0; i < intentEmbedding.length; i++) {
+          dot += intentEmbedding[i] * emb[i];
+          na += intentEmbedding[i] * intentEmbedding[i];
+          nb += emb[i] * emb[i];
+        }
+        return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-10);
+      });
+      shgatScoresPerBeam.push(sc);
+      shgatMeanPerBeam.push(sc.length ? sc.reduce((a, b) => a + b, 0) / sc.length : 0);
+      shgatFirstPerBeam.push(sc[0] ?? 0);
+    }
+
+    // SHGAT K-head scoring top-5
+    const shgatTop5 = shgatRetrieveTopK(intentEmbedding, 5).map((x) => ({
+      nodeId: x.nodeId, score: x.score,
+    }));
+
+    beamDump.push({
+      traceId, actualPath, gruFirstTool: gruFirst,
+      gruFirstScore: gruAutoStart.firstToolRanked[0]?.score ?? 0,
+      gruTop3,
+      beamCandidates: beamResults.map((b) => ({ path: b.path, gruScore: b.score })),
+      shgatScoresPerBeam, shgatMeanPerBeam, shgatFirstPerBeam,
+      shgatTop5,
+    });
+  }
+
+  const dumpPath = process.env["DUMP_BEAM_PATH"] || "../shgat-for-gru/notebooks/18-beam-rescore-data.json";
+  writeFileSync(dumpPath, JSON.stringify({ results: beamDump, beamWidth: dumpBeamWidth, seed: SPLIT_SEED }, null, 2));
+  console.log(`      Dumped ${beamDump.length} traces to ${dumpPath} (${(readFileSync(dumpPath).length / 1e6).toFixed(1)}MB)`);
 }
 
 // --- Step 9c: n8n EVAL — generalization to unseen workflows ---

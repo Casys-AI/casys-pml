@@ -25,7 +25,7 @@
 
 import { createSHGATFromCapabilities, generateDefaultToolEmbedding, type TrainingExample } from "../shgat.ts";
 import type { SHGATConfig } from "./types.ts";
-import { NUM_NEGATIVES } from "./types.ts";
+import { DEFAULT_SHGAT_CONFIG, NUM_NEGATIVES } from "./types.ts";
 import { initBlasAcceleration } from "./utils/math.ts";
 import { PERBuffer, annealBeta, annealTemperature } from "./training/per-buffer.ts";
 import { getLogger, setupLogger } from "../../../telemetry/logger.ts";
@@ -92,7 +92,8 @@ interface WorkerOutput {
   savedToDb?: boolean;
   /** Health check results per epoch */
   healthCheck?: {
-    baselineAccuracy: number;
+    bestAccuracy: number;
+    bestEpoch: number;
     finalAccuracy: number;
     degradationDetected: boolean;
     earlyStopEpoch?: number;
@@ -268,6 +269,16 @@ async function main() {
       shgat.importParams(input.existingParams);
     }
 
+    // Initialize V→E residual params if not already set (from DB or existing params)
+    // NB14 grid search: a=-1.0, b=0.5 gives γ from 0.45 (1 child) to 0.07 (20 children)
+    {
+      const currentParams = shgat.exportParams();
+      if (currentParams.veResidualA === undefined) {
+        shgat.importParams({ ...currentParams, veResidualA: -1.0, veResidualB: 0.5 });
+        logInfo("[SHGAT Worker] Initialized V→E residual params: a=-1.0, b=0.5");
+      }
+    }
+
     // Extract config with defaults
     const {
       epochs,
@@ -301,6 +312,7 @@ async function main() {
         use_projection_head: String(useProjectionHead),
         num_examples: String(input.examples.length),
         num_capabilities: String(input.capabilities.length),
+        preserveDimResidual: String(DEFAULT_SHGAT_CONFIG.preserveDimResidual),
       });
     }
 
@@ -328,12 +340,20 @@ async function main() {
     let finalAccuracy = 0;
     let lastEpochTdErrors: number[] = [];
 
-    // Health check tracking
-    let baselineTestAccuracy = 0;
-    let lastTestAccuracy = 0;
+    // Health check tracking — uses full-vocab Hit@1 (not contrastive accuracy)
+    let bestHit1 = 0;
+    let bestHit1Epoch = 0;
+    let lastHit1 = 0;
+    let lastMrr = 0;
+    let lastContrastiveAcc = 0; // contrastive accuracy (Rank@1 among 8 negs) for reference
     let degradationDetected = false;
     let earlyStopEpoch: number | undefined;
-    const DEGRADATION_THRESHOLD = 0.15; // 15% drop from baseline = degradation
+    const DEGRADATION_THRESHOLD = 0.10; // 10% drop from BEST Hit@1 = degradation
+    const PATIENCE = 3; // epochs without improvement before early stop
+    let epochsSinceBest = 0;
+
+    // Best checkpoint — serialized params at best Hit@1
+    let bestParams: ReturnType<typeof shgat.exportParams> | null = null;
 
     logDebug(`[SHGAT Worker] Starting ${epochs} epochs training with ${trainSet.length} train / ${testSet.length} test examples...`);
 
@@ -471,35 +491,47 @@ async function main() {
         );
       }
 
-      // Health check: evaluate on held-out test set
+      // Health check: full-vocab Hit@1 + contrastive accuracy on held-out test set
       if (testSet.length > 0) {
-        const testResult = shgat.trainBatchV1KHeadBatched(testSet, testSet.map(() => 1.0), true, temperature); // evaluate only, no gradient
-        const testAccuracy = testResult.accuracy;
+        // Contrastive accuracy (Rank@1 among NUM_NEGATIVES=8) — fast but unreliable
+        const testResult = shgat.trainBatchV1KHeadBatched(testSet, testSet.map(() => 1.0), true, temperature);
+        lastContrastiveAcc = testResult.accuracy;
 
-        if (epoch === 0) {
-          baselineTestAccuracy = testAccuracy;
-          lastTestAccuracy = testAccuracy;
-          logInfo(`[SHGAT Worker] Health check baseline: testAcc=${testAccuracy.toFixed(2)}`);
+        // Full-vocab Recall@1 (Hit@1 against ALL ~333 caps) — the real metric
+        const fullVocab = shgat.evaluateFullVocabRecall(testSet);
+        const hit1 = fullVocab.hit1;
+        const mrr = fullVocab.mrr;
+
+        // Track best checkpoint on Hit@1 (NOT contrastive accuracy)
+        if (hit1 > bestHit1) {
+          bestHit1 = hit1;
+          bestHit1Epoch = epoch;
+          epochsSinceBest = 0;
+          try { bestParams = shgat.exportParams(); } catch { /* non-blocking */ }
+          logInfo(`[SHGAT Worker] New best: hit1=${(hit1 * 100).toFixed(1)}% mrr=${mrr.toFixed(3)} at epoch ${epoch}`);
         } else {
-          const dropFromBaseline = baselineTestAccuracy - testAccuracy;
-          const dropFromLast = lastTestAccuracy - testAccuracy;
-
-          logInfo(
-            `[SHGAT Worker] Health check epoch ${epoch}: testAcc=${testAccuracy.toFixed(2)}, ` +
-            `Δbaseline=${(-dropFromBaseline * 100).toFixed(1)}%, Δlast=${(-dropFromLast * 100).toFixed(1)}%`
-          );
-
-          // Detect degradation: >15% drop from baseline
-          if (dropFromBaseline > DEGRADATION_THRESHOLD) {
-            logWarn(
-              `[SHGAT Worker] DEGRADATION DETECTED: testAcc dropped ${(dropFromBaseline * 100).toFixed(1)}% from baseline. Early stopping.`
-            );
-            degradationDetected = true;
-            earlyStopEpoch = epoch;
-          }
-
-          lastTestAccuracy = testAccuracy;
+          epochsSinceBest++;
         }
+
+        const dropFromBest = bestHit1 - hit1;
+        logInfo(
+          `[SHGAT Worker] Health check epoch ${epoch}: hit1=${(hit1 * 100).toFixed(1)}%, mrr=${mrr.toFixed(3)}, ` +
+          `contrastive=${lastContrastiveAcc.toFixed(2)}, best_hit1=${(bestHit1 * 100).toFixed(1)}% (ep${bestHit1Epoch}), ` +
+          `Δbest=${(-dropFromBest * 100).toFixed(1)}%, patience=${epochsSinceBest}/${PATIENCE} (${fullVocab.total} caps evaluated)`
+        );
+
+        // Early stop: >10% drop from best Hit@1 OR patience exhausted
+        if (dropFromBest > DEGRADATION_THRESHOLD || epochsSinceBest >= PATIENCE) {
+          const reason = dropFromBest > DEGRADATION_THRESHOLD
+            ? `hit1 dropped ${(dropFromBest * 100).toFixed(1)}% from best`
+            : `no improvement for ${PATIENCE} epochs`;
+          logWarn(`[SHGAT Worker] EARLY STOP: ${reason}. Restoring best params (ep${bestHit1Epoch}).`);
+          degradationDetected = true;
+          earlyStopEpoch = epoch;
+        }
+
+        lastHit1 = hit1;
+        lastMrr = mrr;
       }
 
       // MLflow: log epoch metrics
@@ -510,17 +542,30 @@ async function main() {
           temperature,
           epoch_duration_ms: epochDuration,
         };
-        if (lastTestAccuracy > 0) m.test_accuracy = lastTestAccuracy;
+        if (lastHit1 > 0) m.test_hit1 = lastHit1;
+        if (lastMrr > 0) m.test_mrr = lastMrr;
+        if (lastContrastiveAcc > 0) m.test_contrastive_acc = lastContrastiveAcc;
         if (perBuffer) {
           const s = perBuffer.getStats();
           m.per_priority_min = s.min;
           m.per_priority_max = s.max;
           m.beta = beta;
         }
+        // V→E residual params tracking
+        const p = shgat.exportParams();
+        if (typeof p.veResidualA === "number") m.ve_residual_a = p.veResidualA;
+        if (typeof p.veResidualB === "number") m.ve_residual_b = p.veResidualB;
         await mlflow.logMetrics(m, epoch);
       }
 
       if (degradationDetected) break;
+    }
+
+    // Restore best checkpoint if early stopping triggered and we have a snapshot
+    if (degradationDetected && bestParams) {
+      logInfo(`[SHGAT Worker] Restoring best params from epoch ${bestHit1Epoch} (hit1=${(bestHit1 * 100).toFixed(1)}%)`);
+      shgat.importParams(bestParams);
+      lastHit1 = bestHit1;
     }
 
     // Save params directly to DB if URL provided
@@ -529,7 +574,7 @@ async function main() {
     if (input.databaseUrl) {
       try {
         logDebug(`[SHGAT Worker] Exporting params...`);
-        const params = shgat.exportParams();
+        const params = degradationDetected && bestParams ? bestParams : shgat.exportParams();
         logDebug(`[SHGAT Worker] Params exported, keys: ${Object.keys(params).join(", ")}`);
         savedToDb = await saveParamsToDb(input.databaseUrl, params);
         logInfo(`[SHGAT Worker] Params saved to DB`);
@@ -551,21 +596,54 @@ async function main() {
       tdErrors: lastEpochTdErrors,
       savedToDb,
       healthCheck: {
-        baselineAccuracy: baselineTestAccuracy,
-        finalAccuracy: lastTestAccuracy,
+        bestAccuracy: bestHit1,
+        bestEpoch: bestHit1Epoch,
+        finalAccuracy: lastHit1,
         degradationDetected,
         earlyStopEpoch,
       },
     };
 
     if (mlflow) {
+      // Upload SHGAT params as artifact for run comparison
+      try {
+        const params = shgat.exportParams();
+        await mlflow.uploadArtifact("shgat-params.json", JSON.stringify(params));
+      } catch { /* non-blocking */ }
+
+      // Upload model signature (input/output schema)
+      const signature = {
+        inputs: [
+          { name: "context_tools", type: "string[]", description: "FQDN tool IDs in execution context" },
+          { name: "capability_embedding", type: "float64[1024]", description: "BGE-M3 capability intent embedding" },
+        ],
+        outputs: [
+          { name: "enriched_tool_embeddings", type: "float64[N][1024]", description: "SHGAT-enriched tool embeddings" },
+          { name: "enriched_cap_embeddings", type: "float64[M][1024]", description: "SHGAT-enriched capability embeddings" },
+          { name: "attention_scores", type: "float64[N][M]", description: "K-head attention scores (tools × caps)" },
+        ],
+        config: {
+          embeddingDim: 1024,
+          numHeads: DEFAULT_SHGAT_CONFIG.numHeads,
+          numLayers: DEFAULT_SHGAT_CONFIG.numLayers,
+          preserveDim: DEFAULT_SHGAT_CONFIG.preserveDim,
+          preserveDimResidual: DEFAULT_SHGAT_CONFIG.preserveDimResidual,
+        },
+      };
+      await mlflow.uploadArtifact("model-signature.json", JSON.stringify(signature, null, 2));
+
       await mlflow.endRun("FINISHED");
       await mlflow.publishModelVersion("shgat", {
         finalLoss,
         finalAccuracy,
-        testAccuracy: lastTestAccuracy,
+        bestHit1,
+        bestHit1Epoch,
+        finalHit1: lastHit1,
+        finalMrr: lastMrr,
+        finalContrastiveAcc: lastContrastiveAcc,
         degradationDetected,
         earlyStopEpoch,
+        restoredBestCheckpoint: degradationDetected && bestParams !== null,
         epochs,
         batchSize,
         learningRate,
@@ -574,6 +652,7 @@ async function main() {
         trainSize: trainSet.length,
         testSize: testSet.length,
         savedToDb,
+        preserveDimResidual: DEFAULT_SHGAT_CONFIG.preserveDimResidual,
       });
     }
 

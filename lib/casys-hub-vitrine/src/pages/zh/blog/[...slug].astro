@@ -57,7 +57,7 @@ function getPostSlug(post: typeof allPosts[0]) {
 }
 ---
 
-<BlogLayout title={entry.data.title} locale={locale} description={entry.data.description} slug={entry.slug.replace('zh/', '')} ogTitle={ogTitle} ogDescription={ogDescription}>
+<BlogLayout title={entry.data.title} locale={locale} description={entry.data.description} slug={entry.slug.replace('zh/', '')} ogTitle={ogTitle} ogDescription={ogDescription} datePublished={entry.data.date?.toISOString()} dateModified={entry.data.updatedAt?.toISOString()} author={entry.data.author} tags={entry.data.tags} category={entry.data.category}>
   <!-- Navigation retour -->
   <nav class="back-nav">
     <a href="/zh/blog" class="back-link">
@@ -525,7 +525,7 @@ function getPostSlug(post: typeof allPosts[0]) {
     text-decoration-thickness: 2px;
   }
 
-  .prose code {
+  .prose code:not(.ec-line *) {
     font-family: 'JetBrains Mono', monospace;
     background-color: var(--md-sys-color-surface-container, #f3edf7);
     color: var(--md-sys-color-on-surface, #1c1b1f);
@@ -535,25 +535,26 @@ function getPostSlug(post: typeof allPosts[0]) {
     font-weight: 500;
   }
 
-  .prose pre {
-    background-color: #1a1815;
-    color: #f5f0ea;
+  /* Expressive Code block overrides — warm palette */
+  .prose .expressive-code {
+    margin: 2em 0;
+    --ec-codeBg: #faf5f0;
+    --ec-codeFg: #3d332a;
+    --ec-brdCol: rgba(61, 51, 42, 0.12);
+    --ec-frm-edActTabBg: #faf5f0;
+    --ec-frm-edActTabFg: #3d332a;
+    --ec-frm-tooltipSuccessBg: #faf5f0;
+  }
+
+  .prose .expressive-code pre {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.875rem;
     line-height: 1.7;
-    padding: 1.5rem;
     border-radius: 10px;
     overflow-x: auto;
-    margin: 2em 0;
-    border: 1px solid rgba(255, 184, 111, 0.08);
   }
 
-  .prose pre code {
-    background-color: transparent;
-    padding: 0;
-    border-radius: 0;
-    font-size: inherit;
-    color: inherit;
+  .prose .expressive-code pre code {
     font-weight: 400;
   }
 
@@ -701,15 +702,18 @@ function getPostSlug(post: typeof allPosts[0]) {
     text-decoration-color: #FFB86F;
   }
 
-  html[data-theme="dark"] .prose code {
+  html[data-theme="dark"] .prose code:not(.ec-line *) {
     background-color: #1a1815;
     color: #FFB86F;
   }
 
-  html[data-theme="dark"] .prose pre {
-    background-color: #1a1815;
-    color: #f5f0ea;
-    border-color: rgba(255, 184, 111, 0.12);
+  html[data-theme="dark"] .prose .expressive-code {
+    --ec-codeBg: #1a1815;
+    --ec-codeFg: #f5f0ea;
+    --ec-brdCol: rgba(255, 184, 111, 0.12);
+    --ec-frm-edActTabBg: #1a1815;
+    --ec-frm-edActTabFg: #f5f0ea;
+    --ec-frm-tooltipSuccessBg: #1a1815;
   }
 
   html[data-theme="dark"] .prose blockquote {

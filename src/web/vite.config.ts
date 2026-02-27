@@ -29,6 +29,10 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       sourcemap: false, // Suppress sourcemap warnings
+      rollupOptions: {
+        // Externalize AWS SDK (transitive dep, not used at runtime in Fresh)
+        external: [/^@aws-sdk\//, /^@smithy\//],
+      },
     },
   };
 });

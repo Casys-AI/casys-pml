@@ -2,16 +2,18 @@
 import '../styles.css';
 import Analytics from '@vercel/analytics/astro';
 import Footer from '../components/Footer.astro';
+import HrefLang from '../components/HrefLang.astro';
 
 export interface Props {
   title: string;
+  description?: string;
 }
 
-const { title } = Astro.props;
+const { title, description } = Astro.props;
 const locale = (Astro as any).currentLocale ?? 'en';
 const pathname = Astro.url.pathname;
-const siteUrl = 'https://pml.casys.ai';
-const canonicalUrl = new URL(pathname, siteUrl).toString();
+const siteUrl = import.meta.env.PUBLIC_SITE_URL as string | undefined;
+const canonicalUrl = siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
 const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN' } as const;
 const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
 
@@ -20,7 +22,8 @@ const metaDescriptions = {
   fr: 'Couche de Mémoire Procédurale pour Agents AI. Un gateway, tout modèle, observabilité complète. Construisez des workflows AI une fois, exécutez avec Claude, GPT, Gemini ou Ollama.',
   zh: 'AI 代理的程序化记忆层。一个网关，任何模型，完整可观测性。构建一次 AI 工作流，使用 Claude、GPT、Gemini 或 Ollama 运行。',
 } as const;
-const metaDescription = metaDescriptions[locale as keyof typeof metaDescriptions] ?? metaDescriptions.en;
+const metaDescriptionFallback = metaDescriptions[locale as keyof typeof metaDescriptions] ?? metaDescriptions.en;
+const resolvedDescription = description || metaDescriptionFallback;
 
 const navTranslations = {
   en: {
@@ -55,7 +58,7 @@ const nav = navTranslations[locale as keyof typeof navTranslations] ?? navTransl
 <html lang={locale}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="description" content={metaDescription} />
+    <meta name="description" content={resolvedDescription} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/icons/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
@@ -84,15 +87,29 @@ const nav = navTranslations[locale as keyof typeof navTranslations] ?? navTransl
       })();
     </script>
     <title>{title}</title>
-    <link rel="canonical" href={canonicalUrl} />
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <HrefLang />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
-    <meta property="og:description" content={metaDescription} />
-    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:description" content={resolvedDescription} />
+    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
     <meta property="og:locale" content={ogLocale} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={metaDescription} />
+    <meta name="twitter:description" content={resolvedDescription} />
+    <meta property="og:site_name" content="Casys AI" />
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Casys PML",
+      "alternateName": "Procedural Memory Layer",
+      "description": resolvedDescription,
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Cross-platform",
+      "url": "https://pml.casys.ai",
+      "author": { "@type": "Organization", "name": "Casys AI", "url": "https://casys.ai" },
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    }).replace(/</g, '\\u003c')} />
 
     <!-- Google tag (gtag.js) -->
     <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-FR86NHGK8Y"></script>

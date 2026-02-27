@@ -218,8 +218,12 @@ export class GRUInference implements IGRUInference {
     }
     ranked.sort((a, b) => b.score - a.score);
 
+    // Promote top result to canonical cap if it's a 1-child tool
+    const topToolId = ranked[0]?.toolId ?? "";
+    const promoted = this.promoteToolToCap(topToolId);
+
     return {
-      toolId: ranked[0]?.toolId ?? "",
+      toolId: promoted,
       score: ranked[0]?.score ?? 0,
       ranked: ranked.slice(0, 10),
     };
@@ -264,7 +268,7 @@ export class GRUInference implements IGRUInference {
       h = this.processToolStep(nextId, path.slice(0, -1), h, intentEmb);
     }
 
-    return path;
+    return this.promoteTerminal(path);
   }
 
   /**
@@ -391,7 +395,7 @@ export class GRUInference implements IGRUInference {
     }
 
     return deduped.slice(0, beamWidth * 2).map(c => ({
-      path: c.path,
+      path: this.promoteTerminal(c.path),
       score: normalize(c.logScore, c.path.length),
     }));
   }
@@ -696,6 +700,34 @@ export class GRUInference implements IGRUInference {
   // -------------------------------------------------------------------------
   // Capability fingerprint from context tool indices
   // -------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
+  // Tool → Cap promotion (1-child canonical caps)
+  // -------------------------------------------------------------------------
+
+  /**
+   * If toolId maps to a unique canonical cap (1-child, no ambiguity), return the cap.
+   * Otherwise return the toolId unchanged.
+   */
+  private promoteToolToCap(toolId: string): string {
+    return this.vocab?.toolToCanonicalCap?.get(toolId) ?? toolId;
+  }
+
+  /**
+   * Promote the LAST element of a path (the terminal prediction) to its
+   * canonical cap if applicable. Intermediate tools are left as-is.
+   */
+  private promoteTerminal(path: string[]): string[] {
+    if (path.length === 0 || !this.vocab?.toolToCanonicalCap) return path;
+    const last = path[path.length - 1];
+    const promoted = this.vocab.toolToCanonicalCap.get(last);
+    if (promoted) {
+      const result = [...path];
+      result[result.length - 1] = promoted;
+      return result;
+    }
+    return path;
+  }
 
   /**
    * Binary fingerprint: union of capabilities across context tools.

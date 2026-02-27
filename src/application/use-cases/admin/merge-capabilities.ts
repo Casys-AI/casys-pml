@@ -217,8 +217,15 @@ export class MergeCapabilitiesUseCase {
           [targetRecord.id],
         );
 
-        // Redirect capability_dependency edges from source to target
+        // Redirect execution_trace references from source to target
         if (sourceRecord.workflowPatternId && targetRecord.workflowPatternId) {
+          await tx.exec(
+            `UPDATE execution_trace SET capability_id = $1::uuid
+             WHERE capability_id = $2::uuid`,
+            [targetRecord.workflowPatternId, sourceRecord.workflowPatternId],
+          );
+
+          // Redirect capability_dependency edges from source to target
           // Redirect outgoing edges
           await tx.exec(
             `UPDATE capability_dependency SET from_capability_id = $1::uuid

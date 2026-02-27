@@ -116,6 +116,11 @@ export interface SHGATParams {
   fusionMLP: FusionMLPParams;
   W_stats: number[][];
   b_stats: number[];
+
+  // V→E residual params (NB14: prevents intent destruction in V→E phase)
+  // γ(n) = sigmoid(veResidualA · log(n_children + 1) + veResidualB)
+  veResidualA?: number;
+  veResidualB?: number;
 }
 
 /**
@@ -637,7 +642,7 @@ export function exportParams(
   config: SHGATConfig,
   params: SHGATParams,
 ): Record<string, unknown> {
-  return {
+  const result: Record<string, unknown> = {
     config,
     layerParams: params.layerParams,
     headParams: params.headParams,
@@ -650,6 +655,9 @@ export function exportParams(
     W_stats: params.W_stats,
     b_stats: params.b_stats,
   };
+  if (params.veResidualA !== undefined) result.veResidualA = params.veResidualA;
+  if (params.veResidualB !== undefined) result.veResidualB = params.veResidualB;
+  return result;
 }
 
 /**
@@ -694,6 +702,12 @@ export function importParams(
   }
   if (data.b_stats) {
     params.b_stats = data.b_stats as number[];
+  }
+  if (data.veResidualA !== undefined) {
+    params.veResidualA = data.veResidualA as number;
+  }
+  if (data.veResidualB !== undefined) {
+    params.veResidualB = data.veResidualB as number;
   }
 
   return { config, params };

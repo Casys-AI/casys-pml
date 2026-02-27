@@ -1,4 +1,4 @@
-# Spike — PML comme relais unique pour les sync events → glTF Onshape
+O# Spike — PML comme relais unique pour les sync events → glTF Onshape
 
 **Date**: 2026-02-19
 **Contexte**: Pipeline SysON → Onshape 3D. Un composite viewer (model-explorer + 3d-viewer) doit permettre à l'utilisateur de cliquer sur un élément SysON et déclencher l'affichage de sa géométrie Onshape — sans que le browser appelle directement l'API Onshape (credentials).

@@ -85,6 +85,9 @@ export interface GRUVocabulary {
 
   /** Children map for non-leaf nodes: capId → toolId[] */
   children: Map<string, string[]>;
+
+  /** Promotion map: L0 toolId → canonical cap ID (for 1-child caps with no ambiguity) */
+  toolToCanonicalCap?: Map<string, string>;
 }
 
 // ---------------------------------------------------------------------------

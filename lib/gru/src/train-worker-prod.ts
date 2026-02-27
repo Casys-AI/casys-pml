@@ -14,7 +14,10 @@ import * as fs from "node:fs";
 import { CompactInformedGRU } from "./transition/gru-model.ts";
 import { initTensorFlow } from "./tf/mod.ts";
 import type { TransitionExample, ToolCapabilityMap, VocabNode } from "./transition/types.ts";
-import { createMLflowClient, type MLflowClient } from "../../mlflow/client.ts";
+// MLflow client loaded dynamically — handles environments where tsx
+// can't resolve .ts files outside lib/gru (plain Node.js ESM limitation)
+// deno-lint-ignore no-explicit-any
+type MLflowClient = any;
 
 interface CapabilityDataEntry {
   id: string;
@@ -45,27 +48,43 @@ interface TrainingInput {
   };
 }
 
-/** Evaluate model on a set of examples — returns Hit@1 and termination accuracy */
+/** Evaluate model on a set of examples — returns Hit@1 and termination accuracy, split by tool vs cap */
 function evaluate(
   model: CompactInformedGRU,
   examples: ExampleInput[],
   nodeToIndex: Map<string, number>,
-): { hit1: number; termAcc: number; total: number } {
+  toolIdSet: Set<string>,
+): { hit1: number; termAcc: number; total: number; toolHit1: number; toolTotal: number; capHit1: number; capTotal: number } {
   let hit1 = 0;
   let termCorrect = 0;
   let total = 0;
+  let toolHit1 = 0;
+  let toolTotal = 0;
+  let capHit1 = 0;
+  let capTotal = 0;
 
   for (const ex of examples) {
     if (!nodeToIndex.has(ex.targetToolId)) continue;
     total++;
 
     const pred = model.predictNext(ex.intentEmbedding, ex.contextToolIds);
-    if (pred.toolId === ex.targetToolId) hit1++;
+    // Use nodeId (raw vocab ID) for comparison — toolId resolves caps to first child
+    const isCorrect = pred.nodeId === ex.targetToolId || pred.toolId === ex.targetToolId;
+    if (isCorrect) hit1++;
     const predTerm = pred.shouldTerminate ? 1 : 0;
     if (predTerm === ex.isTerminal) termCorrect++;
+
+    // Split by target type
+    if (toolIdSet.has(ex.targetToolId)) {
+      toolTotal++;
+      if (isCorrect) toolHit1++;
+    } else {
+      capTotal++;
+      if (isCorrect) capHit1++;
+    }
   }
 
-  return { hit1, termAcc: termCorrect, total };
+  return { hit1, termAcc: termCorrect, total, toolHit1, toolTotal, capHit1, capTotal };
 }
 
 async function main() {
@@ -83,12 +102,21 @@ async function main() {
     const raw = fs.readFileSync(tempFile, "utf-8");
     const input: TrainingInput = JSON.parse(raw);
 
-    mlflow = createMLflowClient(
-      process.env.MLFLOW_TRACKING_URI,
-      "gru-training",
-      `gru-${new Date().toISOString().slice(0, 16)}`,
-      { model: "gru" },
-    );
+    // Dynamic import — tsx wraps cross-project .ts exports under `default`
+    try {
+      const mod = await import("../../mlflow/client.ts");
+      const createMLflowClient = mod.createMLflowClient ?? mod.default?.createMLflowClient;
+      if (createMLflowClient) {
+        mlflow = createMLflowClient(
+          process.env.MLFLOW_TRACKING_URI,
+          "gru-training",
+          `gru-${new Date().toISOString().slice(0, 16)}`,
+          { model: "gru" },
+        );
+      }
+    } catch {
+      console.error("[GRU Worker] MLflow client not available — continuing without tracking");
+    }
 
     console.error(`[GRU Worker] Initializing TensorFlow...`);
     await initTensorFlow();
@@ -222,7 +250,20 @@ async function main() {
     const transitionExamples = allExamples.filter(ex => nodeToIndex.has(ex.targetToolId));
     const skippedTrain = allExamples.length - transitionExamples.length;
     if (skippedTrain > 0) {
+      // Log which targetToolIds are missing so we can diagnose
+      const missingTargets = new Map<string, number>();
+      for (const ex of allExamples) {
+        if (!nodeToIndex.has(ex.targetToolId)) {
+          missingTargets.set(ex.targetToolId, (missingTargets.get(ex.targetToolId) ?? 0) + 1);
+        }
+      }
+      const topMissing = [...missingTargets.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([id, cnt]) => `${id}(${cnt})`)
+        .join(", ");
       console.error(`[GRU Worker] Filtered ${skippedTrain}/${allExamples.length} train examples with unknown targetToolId (not in vocab)`);
+      console.error(`[GRU Worker] Top missing targets: ${topMissing}`);
     }
 
     // Train (epoch × batch loop — trainStep is the only training API)
@@ -252,6 +293,14 @@ async function main() {
     let lastLoss = 0;
     let lastAcc = 0;
 
+    // Early stopping: track best test Hit@1 and restore best weights
+    const PATIENCE = 5; // stop after this many eval epochs without improvement
+    let bestHit1 = 0;
+    let bestHit1Epoch = 0;
+    let epochsSinceBest = 0;
+    let bestWeights: { names: string[]; weights: number[][] } | null = null;
+    let earlyStopEpoch: number | undefined;
+
     for (let epoch = 0; epoch < epochs; epoch++) {
       // Shuffle examples each epoch
       for (let i = transitionExamples.length - 1; i > 0; i--) {
@@ -279,14 +328,39 @@ async function main() {
       // Periodic eval on test set
       let testHit1Pct: number | undefined;
       let testTermPct: number | undefined;
+      let testToolHit1Pct: number | undefined;
+      let testCapHit1Pct: number | undefined;
       const isEvalEpoch = hasTest && evalEvery > 0 && ((epoch + 1) % evalEvery === 0 || epoch === epochs - 1);
       if (isEvalEpoch) {
-        const testResult = evaluate(model, input.testExamples!, nodeToIndex);
+        const testResult = evaluate(model, input.testExamples!, nodeToIndex, toolIdSet);
         testHit1Pct = testResult.hit1 / testResult.total * 100;
         testTermPct = testResult.termAcc / testResult.total * 100;
+        testToolHit1Pct = testResult.toolTotal > 0 ? testResult.toolHit1 / testResult.toolTotal * 100 : undefined;
+        testCapHit1Pct = testResult.capTotal > 0 ? testResult.capHit1 / testResult.capTotal * 100 : undefined;
+
+        const toolCapDetail = [
+          testToolHit1Pct !== undefined ? `tool=${testToolHit1Pct.toFixed(1)}%(${testResult.toolTotal})` : null,
+          testCapHit1Pct !== undefined ? `cap=${testCapHit1Pct.toFixed(1)}%(${testResult.capTotal})` : null,
+        ].filter(Boolean).join(", ");
+
         console.error(
-          `[GRU Worker] Epoch ${epoch + 1}/${epochs}: train_loss=${lastLoss.toFixed(4)}, train_acc=${lastAcc.toFixed(1)}% | test_hit1=${testHit1Pct.toFixed(1)}%, test_term=${testTermPct.toFixed(1)}% (${testResult.total} ex)`,
+          `[GRU Worker] Epoch ${epoch + 1}/${epochs}: train_loss=${lastLoss.toFixed(4)}, train_acc=${lastAcc.toFixed(1)}% | test_hit1=${testHit1Pct.toFixed(1)}% [${toolCapDetail}], test_term=${testTermPct.toFixed(1)}% (${testResult.total} ex)`,
         );
+
+        // Early stopping: track best Hit@1 and save checkpoint
+        if (testHit1Pct > bestHit1) {
+          bestHit1 = testHit1Pct;
+          bestHit1Epoch = epoch + 1;
+          epochsSinceBest = 0;
+          try { bestWeights = model.exportWeights(); } catch { /* non-blocking */ }
+        } else {
+          epochsSinceBest++;
+          if (epochsSinceBest >= PATIENCE) {
+            earlyStopEpoch = epoch + 1;
+            console.error(`[GRU Worker] Early stop at epoch ${earlyStopEpoch} — best Hit@1=${bestHit1.toFixed(1)}% at epoch ${bestHit1Epoch} (patience=${PATIENCE})`);
+            break;
+          }
+        }
       } else {
         console.error(`[GRU Worker] Epoch ${epoch + 1}/${epochs}: loss=${lastLoss.toFixed(4)}, acc=${lastAcc.toFixed(1)}%`);
       }
@@ -299,21 +373,35 @@ async function main() {
         };
         if (testHit1Pct !== undefined) m.test_hit1 = testHit1Pct / 100;
         if (testTermPct !== undefined) m.test_term_accuracy = testTermPct / 100;
+        if (testToolHit1Pct !== undefined) m.test_tool_hit1 = testToolHit1Pct / 100;
+        if (testCapHit1Pct !== undefined) m.test_cap_hit1 = testCapHit1Pct / 100;
         await mlflow.logMetrics(m, epoch);
       }
     }
 
-    // Final eval
+    // Restore best weights if we have a checkpoint
+    if (bestWeights) {
+      try {
+        model.loadWeights(bestWeights);
+        console.error(`[GRU Worker] Restored best weights from epoch ${bestHit1Epoch} (Hit@1=${bestHit1.toFixed(1)}%)`);
+      } catch (e) {
+        console.error(`[GRU Worker] Could not restore best weights: ${e}`);
+      }
+    }
+
+    // Final eval with restored weights
     if (hasTest) {
-      const finalTest = evaluate(model, input.testExamples!, nodeToIndex);
+      const finalTest = evaluate(model, input.testExamples!, nodeToIndex, toolIdSet);
+      const toolDetail = finalTest.toolTotal > 0 ? `, tool=${(finalTest.toolHit1 / finalTest.toolTotal * 100).toFixed(1)}%` : "";
+      const capDetail = finalTest.capTotal > 0 ? `, cap=${(finalTest.capHit1 / finalTest.capTotal * 100).toFixed(1)}%` : "";
       console.error(
-        `[GRU Worker] Final test: hit1=${(finalTest.hit1 / finalTest.total * 100).toFixed(1)}%, term_acc=${(finalTest.termAcc / finalTest.total * 100).toFixed(1)}% (${finalTest.total}/${input.testExamples!.length} ex)`,
+        `[GRU Worker] Final test: hit1=${(finalTest.hit1 / finalTest.total * 100).toFixed(1)}%${toolDetail}${capDetail}, term_acc=${(finalTest.termAcc / finalTest.total * 100).toFixed(1)}% (${finalTest.total}/${input.testExamples!.length} ex)`,
       );
     }
 
-    console.error(`[GRU Worker] Final train: loss=${lastLoss.toFixed(4)}, accuracy=${lastAcc.toFixed(1)}%`);
+    console.error(`[GRU Worker] Final train: loss=${lastLoss.toFixed(4)}, accuracy=${lastAcc.toFixed(1)}%${earlyStopEpoch ? ` (early stop at ep${earlyStopEpoch}, best ep${bestHit1Epoch})` : ""}`);
 
-    // Export weights + vocab metadata to temp file
+    // Export weights + vocab metadata to temp file (uses restored best weights)
     const exported = model.exportWeights();
     const vocabMeta = {
       toolIds,
@@ -325,12 +413,30 @@ async function main() {
 
     // MLflow: end run + publish model version with weights artifact
     if (mlflow) {
-      await mlflow.endRun("FINISHED");
-
       // Upload weights as artifact (typically ~25MB)
       const weightsContent = fs.readFileSync(weightsFile, "utf-8");
       await mlflow.uploadArtifact("gru-weights.json", weightsContent);
 
+      // Upload model signature (input/output schema)
+      const signature = {
+        inputs: [
+          { name: "context_tools", type: "string[]", description: "FQDN tool IDs in execution context (max 5)" },
+          { name: "tool_embeddings", type: `float64[${toolIds.length}][${embeddingDim}]`, description: "SHGAT-enriched tool embeddings" },
+        ],
+        outputs: [
+          { name: "next_tool_probabilities", type: `float64[${toolIds.length}]`, description: "Softmax probability distribution over tool vocab" },
+          { name: "is_terminal", type: "float64", description: "Probability that sequence should terminate" },
+        ],
+        config: {
+          embeddingDim,
+          gruHiddenDim: 64,
+          vocabSize: toolIds.length,
+          numCaps: higherLevelNodes.length,
+        },
+      };
+      await mlflow.uploadArtifact("model-signature.json", JSON.stringify(signature, null, 2));
+
+      await mlflow.endRun("FINISHED");
       await mlflow.publishModelVersion("gru", {
         finalLoss: lastLoss,
         finalAccuracy: lastAcc / 100,

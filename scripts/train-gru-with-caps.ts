@@ -5,7 +5,8 @@
  * - Caps are in the output vocab alongside tools (hierarchical softmax)
  * - toolCapMap encodes the cap→tool hierarchy as input features
  * - SHGAT enrichment: loads trained SHGAT params from DB, enriches tool
- *   embeddings via message passing before passing to GRU training
+ *   embeddings via V2V co-occurrence + message passing before passing to
+ *   GRU training (aligned with prod pipeline in post-execution.service)
  * - 80/20 split BY TRACE (not by example, to avoid contamination)
  * - Consecutive duplicate dedup (loop protection)
  * - Trains on train set, evaluates on test set
@@ -18,6 +19,7 @@ import * as log from "@std/log";
 import { normalizeToolId } from "../src/capabilities/routing-resolver.ts";
 import { spawnGRUTraining } from "../src/graphrag/algorithms/gru/spawn-training.ts";
 import { SHGATAdapter } from "../lib/shgat-for-gru/src/index.ts";
+import { buildCooccurrenceFromWorkflows, v2vEnrich } from "../lib/shgat-for-gru/src/v2v.ts";
 import type { GraphNode, OBTrainedParams } from "../lib/shgat-for-gru/src/types.ts";
 import postgres from "https://deno.land/x/postgresjs@v3.4.5/mod.js";
 
@@ -61,9 +63,11 @@ console.log(`  ${toolVocab.size} tool embeddings (output vocab)`);
 const capRows = await sql`
   SELECT DISTINCT ON (cr.namespace, cr.action)
     cr.namespace || ':' || cr.action as cap_name,
-    wp.intent_embedding as embedding,
+    COALESCE(wp.shgat_embedding, wp.intent_embedding) as embedding,
+    wp.shgat_embedding IS NOT NULL as has_shgat,
     wp.dag_structure->'tools_used' as tools_used,
-    COALESCE(wp.hierarchy_level, 1) as level
+    COALESCE(wp.hierarchy_level, 1) as level,
+    COALESCE(wp.usage_count, 0) as usage_count
   FROM workflow_pattern wp
   JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
   WHERE wp.code_snippet IS NOT NULL
@@ -72,9 +76,10 @@ const capRows = await sql`
   ORDER BY cr.namespace, cr.action, wp.last_used DESC
 `;
 
-const capabilityData: Array<{ id: string; embedding: number[]; toolChildren: string[]; level: number }> = [];
+const capabilityData: Array<{ id: string; embedding: number[]; toolChildren: string[]; level: number; usageCount: number }> = [];
 // Direct children map (cap → immediate children, may include other caps)
 const capChildrenMap = new Map<string, string[]>();
+let dbShgatCount = 0;
 for (const row of capRows) {
   const rawEmb = row.embedding;
   const emb: number[] = typeof rawEmb === "string" ? JSON.parse(rawEmb) : rawEmb;
@@ -85,9 +90,150 @@ for (const row of capRows) {
   if (children.length === 0) continue;
   const capName = row.cap_name as string;
   capChildrenMap.set(capName, children);
-  capabilityData.push({ id: capName, embedding: emb, toolChildren: children, level: Number(row.level) });
+  capabilityData.push({ id: capName, embedding: emb, toolChildren: children, level: Number(row.level), usageCount: Number(row.usage_count) });
+  if (row.has_shgat) dbShgatCount++;
 }
-console.log(`  ${capabilityData.length} capabilities with tool children`);
+
+// --- 1a-bis. Resolve stale code:exec_HASH references in tools_used ---
+// When a cap calls another cap, tools_used stores the callee's original name (code:exec_HASH).
+// If the callee was later renamed, the caller's tools_used still has the old exec_ reference.
+// Fix: build code_hash→cap_name map and resolve exec_ refs to real names.
+const codeHashRows = await sql`
+  SELECT wp.code_hash, cr.namespace || ':' || cr.action as cap_name
+  FROM workflow_pattern wp
+  JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+  WHERE wp.code_hash IS NOT NULL
+`;
+const execHashToCapName = new Map<string, string>();
+for (const row of codeHashRows) {
+  const shortHash = (row.code_hash as string).substring(0, 8);
+  execHashToCapName.set(shortHash, row.cap_name as string);
+}
+// Resolve exec_ refs in capabilityData toolChildren
+const execPattern = /^(?:code|std|filesystem):exec_([a-f0-9]{8})/;
+let execResolved = 0;
+for (const cap of capabilityData) {
+  cap.toolChildren = cap.toolChildren.map(child => {
+    const m = child.match(execPattern);
+    if (m) {
+      const resolved = execHashToCapName.get(m[1]);
+      if (resolved) {
+        execResolved++;
+        return resolved;
+      }
+    }
+    return child;
+  });
+}
+// Also update capChildrenMap
+for (const [key, children] of capChildrenMap) {
+  capChildrenMap.set(key, children.map(child => {
+    const m = child.match(execPattern);
+    return m ? (execHashToCapName.get(m[1]) ?? child) : child;
+  }));
+}
+if (execResolved > 0) console.log(`  Resolved ${execResolved} stale code:exec_* refs → real cap names`);
+
+// SKIP_CAPS=true → tools-only vocab (no caps in output softmax, no cap-as-terminal)
+const skipCaps = Deno.env.get("SKIP_CAPS") === "true";
+if (skipCaps) console.log("  SKIP_CAPS=true — caps excluded from vocab (tools-only)");
+
+// --- 1b-bis. Canonicalize caps by toolset ---
+// Multiple caps can share the same toolset (cross-org dupes, test artifacts, near-dupes).
+// Instead of adding all as separate vocab entries (softmax dilution), we:
+//   1. Group by sorted toolset
+//   2. Elect the highest-usage cap as canonical
+//   3. Remap non-canonical → canonical (keeps all intents, single vocab entry)
+// NO_CANONICALIZE=true disables this (for A/B comparison).
+const capCanonicalMap = new Map<string, string>(); // non-canonical → canonical
+if (!skipCaps && Deno.env.get("NO_CANONICALIZE") !== "true") {
+  // Group caps by sorted toolset signature
+  const toolsetGroups = new Map<string, Array<{ id: string; usageCount: number; idx: number }>>();
+  for (let i = 0; i < capabilityData.length; i++) {
+    const cap = capabilityData[i];
+    const sig = [...cap.toolChildren].sort().join(",");
+    if (!toolsetGroups.has(sig)) toolsetGroups.set(sig, []);
+    toolsetGroups.get(sig)!.push({ id: cap.id, usageCount: cap.usageCount, idx: i });
+  }
+
+  let ambiguousGroups = 0;
+  let remappedCaps = 0;
+  const capsToRemove = new Set<number>(); // indices to remove from capabilityData
+
+  for (const [_sig, group] of toolsetGroups) {
+    if (group.length <= 1) continue;
+    ambiguousGroups++;
+    // Elect canonical: highest usage, then alphabetical for determinism
+    group.sort((a, b) => b.usageCount - a.usageCount || a.id.localeCompare(b.id));
+    const canonical = group[0];
+    for (let i = 1; i < group.length; i++) {
+      capCanonicalMap.set(group[i].id, canonical.id);
+      capsToRemove.add(group[i].idx);
+      remappedCaps++;
+    }
+  }
+
+  // Remove non-canonical caps from capabilityData (reverse order to preserve indices)
+  if (capsToRemove.size > 0) {
+    const sortedIndices = [...capsToRemove].sort((a, b) => b - a);
+    for (const idx of sortedIndices) {
+      capabilityData.splice(idx, 1);
+    }
+    // Also clean capChildrenMap: remove non-canonical entries
+    for (const nonCanon of capCanonicalMap.keys()) {
+      capChildrenMap.delete(nonCanon);
+    }
+    // Remap toolChildren references in remaining caps (L2 caps may reference non-canonical L1 children)
+    for (const cap of capabilityData) {
+      cap.toolChildren = cap.toolChildren.map(c => capCanonicalMap.get(c) ?? c);
+    }
+    for (const [key, children] of capChildrenMap) {
+      capChildrenMap.set(key, children.map(c => capCanonicalMap.get(c) ?? c));
+    }
+  }
+
+  if (ambiguousGroups > 0) {
+    console.log(`  Canonicalize: ${ambiguousGroups} toolset groups, ${remappedCaps} caps remapped → ${capabilityData.length} canonical caps remaining`);
+  }
+} else if (!skipCaps) {
+  console.log("  NO_CANONICALIZE=true — all caps kept as separate vocab entries");
+}
+
+// --- F2: Resolve L2+ caps transitively to L0 tools ---
+// L2 caps have children = cap names (L1), not tool IDs. Without resolution,
+// they get silently skipped when filtering by toolVocab.has().
+// Fix: walk down the hierarchy until we reach tools in toolVocab.
+let l2Resolved = 0;
+for (const cap of capabilityData) {
+  if (cap.level < 2) continue;
+  const resolvedTools = new Set<string>();
+  const queue = [...cap.toolChildren];
+  const visited = new Set<string>();
+  while (queue.length > 0) {
+    const child = queue.shift()!;
+    if (visited.has(child)) continue;
+    visited.add(child);
+    if (toolVocab.has(child)) {
+      resolvedTools.add(child);
+    } else {
+      const grandChildren = capChildrenMap.get(child);
+      if (grandChildren) {
+        queue.push(...grandChildren);
+      } else {
+        log.warn(`[caps] L${cap.level} cap "${cap.id}" has child "${child}" not in toolVocab and not a known cap — dropped`);
+      }
+    }
+  }
+  if (resolvedTools.size > 0) {
+    cap.toolChildren = [...resolvedTools];
+    l2Resolved++;
+  } else {
+    log.warn(`[caps] L${cap.level} cap "${cap.id}" resolved to 0 tools — will be excluded from SHGAT graph`);
+  }
+}
+if (l2Resolved > 0) console.log(`  Resolved ${l2Resolved} L2+ caps transitively to L0 tools`);
+
+console.log(`  ${capabilityData.length} capabilities with tool children (${dbShgatCount} from shgat_embedding, ${capabilityData.length - dbShgatCount} from intent_embedding fallback)`);
 
 // --- 1c. SHGAT enrichment (message passing on tool embeddings) ---
 const SKIP_SHGAT = Deno.env.get("SKIP_SHGAT") === "true";
@@ -159,6 +305,28 @@ if (!SKIP_SHGAT) {
     const cfg = adapter.getConfig();
     console.log(`    SHGAT config: numHeads=${cfg.numHeads}, headDim=${cfg.headDim}, embDim=${cfg.embeddingDim}`);
 
+    // --- V2V co-occurrence enrichment (BEFORE MP, matching prod pipeline) ---
+    // Prod order: V2V first → then upward/downward MP on V2V-enriched embeddings
+    // (see MultiLevelOrchestrator.forwardMultiLevel:347 → applyV2VEnrichment before upward)
+    const workflowToolLists = capabilityData
+      .map(c => c.toolChildren.filter(t => toolVocab.has(t)))
+      .filter(list => list.length >= 2);
+
+    if (workflowToolLists.length > 0) {
+      const toolIds = Object.keys(toolEmbeddings);
+      const toolIdToIdx = new Map<string, number>();
+      toolIds.forEach((id, i) => toolIdToIdx.set(id, i));
+
+      const cooccurrence = buildCooccurrenceFromWorkflows(workflowToolLists, toolIdToIdx);
+      const H_raw = toolIds.map(id => toolEmbeddings[id]);
+      const H_v2v = v2vEnrich(H_raw, cooccurrence, { residualWeight: 0.3 });
+
+      toolIds.forEach((id, i) => { toolEmbeddings[id] = H_v2v[i]; });
+      console.log(`    V2V co-occurrence: ${cooccurrence.length / 2} bidirectional edges from ${workflowToolLists.length} workflows`);
+    } else {
+      console.log("    V2V co-occurrence: no workflows with ≥2 tools in vocab — skipped");
+    }
+
     // Build graph: tools (L0 leaves) + capabilities (higher nodes)
     // SHGATAdapter level numbering: first higher level = 0, second = 1, etc.
     // Our DB hierarchy_level: tools=0, caps=1, meta-caps=2
@@ -186,7 +354,26 @@ if (!SKIP_SHGAT) {
         replaced++;
       }
     }
-    console.log(`    Enriched ${replaced}/${toolVocab.size} tool embeddings via SHGAT MP (${enrichmentMs}ms)`);
+    console.log(`    Enriched ${replaced}/${toolVocab.size} tool embeddings via SHGAT V2V+MP (${enrichmentMs}ms)`);
+
+    // Override cap embeddings with freshly enriched ones from adapter
+    // Adapter uses cap IDs as passed to buildGraph() = capabilityData[].id = namespace:action
+    if (!skipCaps) {
+      try {
+        const enrichedCaps = adapter.getEnrichedCapEmbeddings();
+        let capReplaced = 0;
+        for (const cap of capabilityData) {
+          const enriched = enrichedCaps.get(cap.id);
+          if (enriched) {
+            cap.embedding = enriched;
+            capReplaced++;
+          }
+        }
+        console.log(`    Enriched ${capReplaced}/${capabilityData.length} cap embeddings via SHGAT MP`);
+      } catch (e) {
+        log.warn(`[caps] Could not override cap embeddings from adapter: ${e}`);
+      }
+    }
 
     try { await Deno.remove(shgatTmpPath); } catch { /* ignore */ }
   } else {
@@ -195,6 +382,56 @@ if (!SKIP_SHGAT) {
   }
 } else {
   console.log("  SKIP_SHGAT=true — using raw BGE-M3 embeddings");
+}
+
+// --- 1c-bis. L2-normalize all embeddings ---
+// SHGAT MP output is NOT L2-normalized (forward() with r=0 skips normalization block).
+// The GRU similarity_head uses these embeddings as weight matrix (dot product → softmax),
+// so non-unit vectors bias predictions toward higher-norm embeddings.
+// Raw BGE-M3 embeddings are already unit-normalized, so this is a no-op for them.
+function l2Normalize(vec: number[]): number[] {
+  let norm = 0;
+  for (let i = 0; i < vec.length; i++) norm += vec[i] * vec[i];
+  norm = Math.sqrt(norm);
+  if (norm < 1e-12) return vec;
+  const inv = 1.0 / norm;
+  const out = new Array(vec.length);
+  for (let i = 0; i < vec.length; i++) out[i] = vec[i] * inv;
+  return out;
+}
+
+{
+  let toolsNormalized = 0;
+  let toolNormSum = 0;
+  for (const toolId of Object.keys(toolEmbeddings)) {
+    const emb = toolEmbeddings[toolId];
+    let norm = 0;
+    for (let i = 0; i < emb.length; i++) norm += emb[i] * emb[i];
+    norm = Math.sqrt(norm);
+    toolNormSum += norm;
+    if (Math.abs(norm - 1.0) > 0.001) {
+      toolEmbeddings[toolId] = l2Normalize(emb);
+      toolsNormalized++;
+    }
+  }
+  const toolCount = Object.keys(toolEmbeddings).length;
+  const avgToolNorm = toolNormSum / toolCount;
+
+  let capsNormalized = 0;
+  let capNormSum = 0;
+  for (const cap of capabilityData) {
+    let norm = 0;
+    for (let i = 0; i < cap.embedding.length; i++) norm += cap.embedding[i] * cap.embedding[i];
+    norm = Math.sqrt(norm);
+    capNormSum += norm;
+    if (Math.abs(norm - 1.0) > 0.001) {
+      cap.embedding = l2Normalize(cap.embedding);
+      capsNormalized++;
+    }
+  }
+  const avgCapNorm = capNormSum / (capabilityData.length || 1);
+
+  console.log(`  L2 norm check: tools avg=${avgToolNorm.toFixed(4)} (${toolsNormalized} re-normalized), caps avg=${avgCapNorm.toFixed(4)} (${capsNormalized} re-normalized)`);
 }
 
 // --- 1d. Rename history ---
@@ -220,7 +457,19 @@ if (renameMap.size > 0) {
   console.log(`  ${renameMap.size} rename mappings loaded`);
 }
 
-const resolveToolName = (name: string): string => renameMap.get(name) ?? name;
+// resolveToolName: exec_hash resolution → rename history → canonicalization
+const resolveToolName = (name: string): string => {
+  // Step 1: resolve stale code:exec_HASH to real cap name
+  let resolved = name;
+  const m = name.match(execPattern);
+  if (m) {
+    resolved = execHashToCapName.get(m[1]) ?? name;
+  }
+  // Step 2: rename chain
+  const renamed = renameMap.get(resolved) ?? resolved;
+  // Step 3: canonical remap
+  return capCanonicalMap.get(renamed) ?? renamed;
+};
 
 // ============================================================================
 // 2. Load and parse traces (caps kept as-is, no expansion)
@@ -228,21 +477,25 @@ const resolveToolName = (name: string): string => renameMap.get(name) ?? name;
 console.log("[2/5] Loading execution traces...");
 const traceRows = await sql`
   SELECT
-    task_results,
-    intent_embedding,
-    success
-  FROM execution_trace
-  WHERE task_results IS NOT NULL
-    AND jsonb_typeof(task_results) = 'array'
-    AND jsonb_array_length(task_results) >= 1
-    AND intent_embedding IS NOT NULL
-  ORDER BY executed_at DESC
+    et.task_results,
+    et.intent_embedding,
+    et.success,
+    cr.namespace || ':' || cr.action as cap_name
+  FROM execution_trace et
+  LEFT JOIN workflow_pattern wp ON wp.pattern_id = et.capability_id
+  LEFT JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+  WHERE et.task_results IS NOT NULL
+    AND jsonb_typeof(et.task_results) = 'array'
+    AND jsonb_array_length(et.task_results) >= 1
+    AND et.intent_embedding IS NOT NULL
+  ORDER BY et.executed_at DESC
 `;
 console.log(`  ${traceRows.length} traces loaded`);
 
 interface ParsedTrace {
   tools: string[];  // may contain both tool IDs and cap IDs
   intentEmb: number[];
+  capName?: string; // capability that wraps this trace (for cap-as-terminal)
 }
 
 let capTargetCount = 0;
@@ -268,9 +521,42 @@ for (const trace of traceRows) {
   const intentEmb: number[] = typeof rawIntent === "string" ? JSON.parse(rawIntent) : rawIntent;
   if (!intentEmb || intentEmb.length === 0) continue;
 
-  allTraces.push({ tools, intentEmb });
+  // Resolve cap name via rename history
+  const rawCapName = trace.cap_name as string | null;
+  const capName = rawCapName ? resolveToolName(rawCapName) : undefined;
+
+  allTraces.push({ tools, intentEmb, capName: capName || undefined });
 }
-console.log(`  ${allTraces.length} usable traces (${capTargetCount} cap targets kept as-is in sequences)`);
+const tracesWithCap = allTraces.filter(t => t.capName).length;
+console.log(`  ${allTraces.length} usable traces (${capTargetCount} cap targets in sequences, ${tracesWithCap} with capability_id for cap-as-terminal)`);
+
+// --- 2b. Dedup identical re-executions ---
+// Many caps have duplicate traces (same intent re-executed N times).
+// e.g. db:postgresQuery: 918 traces but only 423 unique intents.
+// Exact dedup: hash the full intent embedding to remove strict duplicates only.
+// NOT fuzzy — we keep similar-but-different intents (they carry nuance).
+{
+  const beforeCount = allTraces.length;
+  const seen = new Set<string>();
+  const deduped: ParsedTrace[] = [];
+
+  for (const trace of allTraces) {
+    // Group by cap (or tool sequence for cap-less traces)
+    const groupKey = trace.capName ?? trace.tools.join("|");
+    // Hash full intent embedding — only exact re-executions are deduped
+    const intentKey = trace.intentEmb.map(v => v.toFixed(6)).join(",");
+    const dedupKey = `${groupKey}::${intentKey}`;
+
+    if (seen.has(dedupKey)) continue;
+    seen.add(dedupKey);
+    deduped.push(trace);
+  }
+
+  const removed = beforeCount - deduped.length;
+  allTraces.length = 0;
+  allTraces.push(...deduped);
+  console.log(`  Dedup exact re-executions: ${beforeCount} → ${allTraces.length} traces (removed ${removed} duplicates)`);
+}
 
 // ============================================================================
 // 3. Split traces 80/20
@@ -303,8 +589,10 @@ function buildExamples(traces: ParsedTrace[]) {
     isSingleTool: boolean;
   }> = [];
   let skippedConsecutive = 0;
+  let capTerminalAdded = 0;
 
   for (const trace of traces) {
+    // Tool-to-tool examples (existing)
     for (let i = 0; i < trace.tools.length; i++) {
       // Skip if same tool as previous step (consecutive run)
       if (i > 0 && trace.tools[i] === trace.tools[i - 1]) {
@@ -319,9 +607,25 @@ function buildExamples(traces: ParsedTrace[]) {
         isSingleTool: trace.tools.length === 1,
       });
     }
+
+    // Cap-as-terminal: after the full tool sequence, predict the wrapping capability
+    // Teaches: "after seeing [tool1, tool2, ...], the whole thing = this cap"
+    if (trace.capName && !skipCaps) {
+      examples.push({
+        intentEmbedding: trace.intentEmb,
+        contextToolIds: trace.tools,
+        targetToolId: trace.capName,
+        isTerminal: 1,
+        isSingleTool: false,
+      });
+      capTerminalAdded++;
+    }
   }
   if (skippedConsecutive > 0) {
     console.log(`  (skipped ${skippedConsecutive} consecutive duplicate examples)`);
+  }
+  if (capTerminalAdded > 0) {
+    console.log(`  (added ${capTerminalAdded} cap-as-terminal examples)`);
   }
   return examples;
 }
@@ -356,10 +660,6 @@ if (dbWeightsRows.length > 0) {
 } else {
   console.log("  No DB weights — cold start");
 }
-
-// SKIP_CAPS=true → tools-only vocab (no caps in output softmax)
-const skipCaps = Deno.env.get("SKIP_CAPS") === "true";
-if (skipCaps) console.log("  SKIP_CAPS=true — caps excluded from vocab (tools-only)");
 
 const result = await spawnGRUTraining({
   examples: trainExamples,

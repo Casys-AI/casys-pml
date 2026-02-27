@@ -48,6 +48,10 @@ export interface MultiLevelBackwardCache extends MultiLevelForwardCache {
   maxLevel: number;
   /** Config used */
   config: OrchestratorConfig;
+  /** V→E residual gamma per cap (only if veResidualA/B present) */
+  veResidualGamma?: number[];
+  /** Original E (before V→E) for residual backward (only if veResidualA/B present) */
+  veResidualE_original?: number[][];
 }
 
 /**
@@ -62,6 +66,8 @@ export interface MultiLevelGradients {
   dE: Map<number, number[][]>;
   /** V→V gradients (optional, only if V2V enabled) */
   v2vGrads?: V2VGradients;
+  /** V→E residual gradients (optional, only if veResidualA/B present) */
+  veResidualGrads?: { dA: number; dB: number };
 }
 
 /**
@@ -120,6 +126,12 @@ export interface OrchestratorConfig {
   numLayers: number;
   dropout: number;
   leakyReluSlope: number;
+  /** V→E residual param a: γ(n) = sigmoid(a·log(n+1)+b). Undefined = no residual. */
+  veResidualA?: number;
+  /** V→E residual param b */
+  veResidualB?: number;
+  /** Per-cap children count for V→E residual (indexed by cap position in incidence matrix) */
+  nChildrenPerCap?: number[];
 }
 
 /**
@@ -414,7 +426,21 @@ export class MultiLevelOrchestrator {
 
       // Concatenate heads
       if (headsE.length > 0) {
-        const E_new = math.concatHeads(headsE);
+        let E_new = math.concatHeads(headsE);
+
+        // V→E residual: preserve cap intent embedding after concatHeads
+        // E_new[c] = concatHeads(ELU(Σα·H')) + γ(n_c) · E_original[c]
+        // Applied here (not per-head) because embDim = numHeads * headDim
+        if (level === 0 && config.veResidualA !== undefined
+            && config.veResidualB !== undefined && config.nChildrenPerCap) {
+          const capsOriginal = capsAtLevel; // E before V→E message passing
+          const veGamma: number[] = config.nChildrenPerCap.map(n =>
+            math.sigmoid(config.veResidualA! * Math.log(n + 1) + config.veResidualB!));
+
+          E_new = E_new.map((row, c) =>
+            row.map((val, d) => val + veGamma[c] * (capsOriginal[c]?.[d] ?? 0)));
+        }
+
         E.set(level, E_new);
         cache.intermediateUpward.set(level, E_new.map((row) => [...row]));
       }
@@ -616,6 +642,10 @@ export class MultiLevelOrchestrator {
       E.set(level, embs.map((row) => [...row]));
     }
 
+    // V→E residual cache data (populated during upward V→E pass)
+    let veResidualGammaLocal: number[] | undefined;
+    let veResidualE_originalLocal: number[][] | undefined;
+
     // Apply V→V enrichment (with cache if trainable params provided)
     let v2vCache: V2VForwardCache | undefined;
     let H_enriched: number[][];
@@ -710,7 +740,22 @@ export class MultiLevelOrchestrator {
 
       // Concatenate heads
       if (headsE.length > 0) {
-        E.set(level, math.concatHeads(headsE));
+        let E_new = math.concatHeads(headsE);
+
+        // V→E residual: preserve cap intent embedding after concatHeads
+        if (level === 0 && config.veResidualA !== undefined
+            && config.veResidualB !== undefined && config.nChildrenPerCap) {
+          const capsOriginal = capsAtLevel; // E before V→E message passing
+          const veGamma: number[] = config.nChildrenPerCap.map(n =>
+            math.sigmoid(config.veResidualA! * Math.log(n + 1) + config.veResidualB!));
+          veResidualGammaLocal = veGamma;
+          veResidualE_originalLocal = capsOriginal.map(r => [...r]);
+
+          E_new = E_new.map((row, c) =>
+            row.map((val, d) => val + veGamma[c] * (capsOriginal[c]?.[d] ?? 0)));
+        }
+
+        E.set(level, E_new);
       }
       attentionUpward.set(level, levelAttention);
     }
@@ -833,6 +878,8 @@ export class MultiLevelOrchestrator {
       capToCapMatrices,
       maxLevel,
       config,
+      veResidualGamma: veResidualGammaLocal,
+      veResidualE_original: veResidualE_originalLocal,
     };
 
     const result: MultiLevelEmbeddings = { H, E, attentionUpward, attentionDownward };
@@ -883,6 +930,10 @@ export class MultiLevelOrchestrator {
         da_downward: Array.from({ length: numHeads }, () => Array(2 * headDim).fill(0)),
       });
     }
+
+    // V→E residual accumulated gradients (summed across heads)
+    let veResidualDa = 0;
+    let veResidualDb = 0;
 
     // Current gradients flowing backward
     const dE = new Map<number, number[][]>();
@@ -1005,6 +1056,37 @@ export class MultiLevelOrchestrator {
         const dE0 = dE.get(0);
         if (!dE0) continue;
 
+        // V→E residual backward (operates on full embDim BEFORE per-head split)
+        // E_final[c] = E_concat[c] + γ_c · E_original[c]
+        // ∂L/∂E_concat = ∂L/∂E_final (passed through to per-head split below)
+        // ∂L/∂E_original[c][d] += γ_c · ∂L/∂E_final[c][d]
+        // ∂L/∂γ_c = Σ_d ∂L/∂E_final[c][d] · E_original[c][d]
+        if (cache.veResidualGamma && cache.veResidualE_original && cache.config.nChildrenPerCap) {
+          const gamma = cache.veResidualGamma;
+          const E_orig = cache.veResidualE_original;
+          const nChildrenPerCap = cache.config.nChildrenPerCap;
+          const numCaps = dE0.length;
+          const embDim = dE0[0]?.length ?? 0;
+
+          for (let c = 0; c < numCaps; c++) {
+            // Gradient for gamma_c: ∂L/∂γ_c = Σ_d dE0[c][d] · E_orig[c][d]
+            let dGamma = 0;
+            for (let d = 0; d < embDim; d++) {
+              dGamma += dE0[c][d] * (E_orig[c]?.[d] ?? 0);
+            }
+
+            // Chain rule: γ = sigmoid(a·log(n+1) + b)
+            const sigmoidDeriv = gamma[c] * (1 - gamma[c]);
+            const logNPlus1 = Math.log(nChildrenPerCap[c] + 1);
+            veResidualDa += dGamma * sigmoidDeriv * logNPlus1;
+            veResidualDb += dGamma * sigmoidDeriv;
+
+            // Note: ∂L/∂E_original is accumulated but E_original is not a learnable param
+            // (it's the input cap embedding), so we don't need to propagate further.
+            // dE0 (∂L/∂E_concat) passes through unchanged to the per-head V→E backward below.
+          }
+        }
+
         const headDim = veCaches[0]?.H_proj[0]?.length ?? 0;
         const dE_perHead: number[][][] = [];
         for (let head = 0; head < numHeads; head++) {
@@ -1096,7 +1178,12 @@ export class MultiLevelOrchestrator {
       dH = v2vGrads.dH;
     }
 
-    return { levelGrads, dH, dE, v2vGrads };
+    // V→E residual grads (only if feature was enabled)
+    const veResidualGrads = cache.veResidualGamma
+      ? { dA: veResidualDa, dB: veResidualDb }
+      : undefined;
+
+    return { levelGrads, dH, dE, v2vGrads, veResidualGrads };
   }
 
   /**

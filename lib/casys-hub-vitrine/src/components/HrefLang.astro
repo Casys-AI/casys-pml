@@ -6,8 +6,12 @@
  * EN is the default locale (no prefix), FR and ZH use /fr/ and /zh/ prefixes.
  * x-default always points to the EN variant.
  */
+export interface Props {
+  siteUrl?: string;
+}
 
-const SITE_URL = 'https://casys.ai';
+const { siteUrl } = Astro.props;
+const SITE_URL = siteUrl || 'https://casys.ai';
 const LOCALES = ['en', 'fr', 'zh'] as const;
 const LOCALE_PREFIXES: Record<string, string> = {
   en: '',

@@ -17,7 +17,18 @@ const metaDescriptions: Record<string, string> = {
 const metaDescription = metaDescriptions[locale] ?? metaDescriptions.en;
 ---
 
-<SubsiteLayout title={title} metaDescription={metaDescription}>
+<SubsiteLayout title={title} metaDescription={metaDescription} jsonLd={{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "@casys/mcp-std",
+  "description": metaDescription,
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Cross-platform",
+  "url": "https://casys.ai/mcp-std",
+  "author": { "@type": "Organization", "name": "Casys AI", "url": "https://casys.ai" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "license": "https://opensource.org/licenses/MIT"
+}}>
   <McpStdHeader slot="header" />
   <slot />
 </SubsiteLayout>

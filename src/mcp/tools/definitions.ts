@@ -1,8 +1,13 @@
 /**
- * MCP Gateway Tool Definitions
+ * MCP Gateway Tool Definitions (SERVER-SIDE — DEPRECATED FOR DIRECT MCP CONNECTION)
  *
- * Contains the schema definitions for all meta-tools exposed by the gateway.
- * These tools provide the public API for DAG execution, tool search, and code execution.
+ * These schemas are served by the API server (src/mcp/gateway-server.ts).
+ * They are NOT what Claude Code sees — Claude connects via the PML CLI package
+ * which has its own schemas in packages/pml/src/cli/shared/constants.ts.
+ *
+ * When updating tool schemas, update BOTH:
+ * 1. packages/pml/src/cli/shared/constants.ts (PML_TOOLS + PML_TOOLS_FULL) — what Claude sees
+ * 2. This file — used by the API server for direct HTTP MCP connections (to be deprecated)
  *
  * @module mcp/tools/definitions
  */
@@ -352,9 +357,9 @@ export const adminTool: MCPTool = {
   name: "admin",
   description:
     "Manage capabilities: rename, merge.\n" +
-    "RENAME: action='rename', target='current:name', namespace='newNs', action_name='newAction'.\n" +
-    "  Example: {action:'rename', target:'code:exec_abc123', namespace:'syson', action_name:'createProject'}\n" +
-    "MERGE: action='merge', target='keep:this', source='delete:this'.\n" +
+    "RENAME: Provide 'target' (current name) and at least one of 'new_namespace' or 'new_action'.\n" +
+    "  Example: {action:'rename', target:'code:exec_abc123', new_namespace:'syson', new_action:'createProject'}\n" +
+    "MERGE: Provide 'target' (capability to keep) and 'source' (capability to delete).\n" +
     "  Example: {action:'merge', target:'syson:createProject', source:'code:exec_abc123'}",
   inputSchema: {
     type: "object",
@@ -362,45 +367,43 @@ export const adminTool: MCPTool = {
       action: {
         type: "string",
         enum: ["rename", "merge"],
-        description: "The admin action to perform.",
+        description: "Operation type: 'rename' to update a capability, 'merge' to combine two capabilities.",
       },
-      // For rename: target + new metadata
       target: {
         type: "string",
         description:
-          "RENAME: capability to modify (namespace:action or UUID). " +
-          "MERGE: capability to KEEP (the survivor).",
+          "The capability to operate on (namespace:action format or UUID). " +
+          "For RENAME: the capability to modify. For MERGE: the capability to KEEP.",
       },
-      namespace: {
+      new_namespace: {
         type: "string",
-        description: "RENAME only. New namespace (lowercase, no underscore/colon). E.g. 'syson', 'db', 'git'.",
+        description: "RENAME: New namespace (lowercase letters/numbers, must start with letter). E.g. 'syson', 'db', 'git'.",
       },
-      action_name: {
+      new_action: {
         type: "string",
-        description: "RENAME only. New action name (camelCase/snake_case). E.g. 'createProject', 'listTables'.",
+        description: "RENAME: New action name (camelCase or snake_case). E.g. 'createProject', 'list_tables'.",
       },
       description: {
         type: "string",
-        description: "RENAME only. New description for the capability.",
+        description: "RENAME: New description for the capability.",
       },
       tags: {
         type: "array",
         items: { type: "string" },
-        description: "RENAME only. New tags for the capability.",
+        description: "RENAME: New tags for the capability.",
       },
       visibility: {
         type: "string",
         enum: ["private", "project", "org", "public"],
-        description: "RENAME only. New visibility level.",
+        description: "RENAME: New visibility level.",
       },
-      // For merge: source = the one to delete
       source: {
         type: "string",
-        description: "MERGE only. Capability to DELETE after merge (name, UUID, or FQDN). Its usage stats are merged into target.",
+        description: "MERGE: Capability to DELETE and merge into target (namespace:action, UUID, or FQDN).",
       },
       prefer_source_code: {
         type: "boolean",
-        description: "MERGE only. If true, use source's code_snippet even if older. Default: use newest.",
+        description: "MERGE: If true, use source's code even if older. Default: use newest.",
       },
     },
     required: ["action"],

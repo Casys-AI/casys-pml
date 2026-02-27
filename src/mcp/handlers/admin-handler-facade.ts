@@ -37,11 +37,15 @@ export interface AdminArgs {
 
   // For rename
   target?: string;
-  namespace?: string;
-  action_name?: string;
+  new_namespace?: string;
+  new_action?: string;
   description?: string;
   tags?: string[];
   visibility?: "private" | "project" | "org" | "public";
+
+  // Legacy aliases (backwards compat)
+  namespace?: string;
+  action_name?: string;
 
   // For merge
   source?: string;
@@ -142,8 +146,8 @@ export class AdminHandlerFacade {
       target: params.target,
       scope,
       userId,
-      namespace: params.namespace,
-      actionName: params.action_name,
+      namespace: params.new_namespace ?? params.namespace,
+      actionName: params.new_action ?? params.action_name,
       description: params.description,
       tags: params.tags,
       visibility: params.visibility,

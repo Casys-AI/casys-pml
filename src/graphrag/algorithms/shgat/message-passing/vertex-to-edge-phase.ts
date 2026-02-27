@@ -11,6 +11,8 @@
  *      (masked by incidence matrix: only compute for tools in capability)
  *   4. Normalize per capability: α_c = softmax({score(t, c) | t ∈ c})
  *   5. Aggregate: E^new_c = ELU(Σ_t α_tc · H'_t)
+ *      NOTE: The learnable V→E residual (+ γ_c · E_c) is applied in the
+ *      orchestrator after concatHeads where embDim matches (not per-head headDim).
  *
  * @module graphrag/algorithms/shgat/message-passing/vertex-to-edge-phase
  */
@@ -165,6 +167,8 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     }
 
     // Aggregate: E_new = σ(A'^T · H_proj)
+    // NOTE: V→E residual (+ γ·E_original) is applied in the orchestrator AFTER
+    // concatHeads, where dimensions match (embDim=1024, not headDim=64)
     const E_new: number[][] = [];
     const aggregated: number[][] = [];
     const hiddenDim = H_proj[0]?.length ?? 0;
@@ -184,11 +188,14 @@ export class VertexToEdgePhase implements MessagePassingPhase {
       aggregated.push(agg);
       // Apply activation (ELU for OURS, none for Fujita)
       const aggActivation = config.aggregationActivation ?? "elu";
+      let activated: number[];
       if (aggActivation === "none") {
-        E_new.push([...agg]); // No activation
+        activated = [...agg];
       } else {
-        E_new.push(agg.map((x) => math.elu(x))); // ELU activation
+        activated = agg.map((x) => math.elu(x));
       }
+
+      E_new.push(activated);
     }
 
     const cache: VEForwardCache = {
@@ -233,6 +240,9 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     const da_attention: number[] = Array(2 * headDim).fill(0);
     const dH: number[][] = Array.from({ length: numTools }, () => Array(embDim).fill(0));
     const dE: number[][] = Array.from({ length: numCaps }, () => Array(embDim).fill(0));
+
+    // NOTE: V→E residual backward is handled in the orchestrator (after concatHeads)
+    // where dimensions match (embDim=1024, not headDim=64)
 
     // Intermediate gradients
     const dH_proj: number[][] = Array.from({ length: numTools }, () => Array(headDim).fill(0));

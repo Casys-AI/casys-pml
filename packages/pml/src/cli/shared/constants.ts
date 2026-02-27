@@ -32,6 +32,8 @@ export const PML_TOOLS = [
         name: { type: "string" },
         id: { type: "string" },
         limit: { type: "number" },
+        offset: { type: "number" },
+        include_related: { type: "boolean" },
       },
     },
   },
@@ -46,8 +48,8 @@ export const PML_TOOLS = [
         continue_workflow: {
           type: "object",
           properties: {
-            approved: { type: "boolean" },
             workflow_id: { type: "string" },
+            approved: { type: "boolean" },
           },
         },
       },
@@ -62,8 +64,12 @@ export const PML_TOOLS = [
         action: { type: "string", enum: ["rename", "merge"] },
         target: { type: "string" },
         source: { type: "string" },
-        namespace: { type: "string" },
-        action_name: { type: "string" },
+        new_namespace: { type: "string" },
+        new_action: { type: "string" },
+        description: { type: "string" },
+        tags: { type: "array", items: { type: "string" } },
+        visibility: { type: "string", enum: ["private", "project", "org", "public"] },
+        prefer_source_code: { type: "boolean" },
       },
       required: ["action"],
     },
@@ -77,7 +83,8 @@ export const PML_TOOLS_FULL = [
   {
     name: "discover",
     description:
-      "Search, list, lookup, or get details for MCP tools and learned capabilities. Supports semantic search (intent), glob listing (pattern), exact lookup (name), and full metadata (id).",
+      "Search, list, lookup, or get details for MCP tools and learned capabilities. " +
+      "Supports semantic search (intent), glob listing (pattern), exact lookup (name), and full metadata (id).",
     inputSchema: {
       type: "object",
       properties: {
@@ -97,6 +104,10 @@ export const PML_TOOLS_FULL = [
           type: "string",
           description: "Details mode: UUID or FQDN for full metadata.",
         },
+        details: {
+          type: "boolean",
+          description: "Include full metadata (parameters, code, embeddings) in results.",
+        },
         filter: {
           type: "object",
           properties: {
@@ -111,6 +122,10 @@ export const PML_TOOLS_FULL = [
         offset: {
           type: "number",
           description: "Pagination offset (for list mode).",
+        },
+        include_related: {
+          type: "boolean",
+          description: "Include related tools/capabilities in results.",
         },
       },
     },
@@ -156,48 +171,55 @@ export const PML_TOOLS_FULL = [
   },
   {
     name: "admin",
-    description: "Manage capabilities: rename, merge. Administrative operations.",
+    description:
+      "Manage capabilities: rename, merge.\n" +
+      "RENAME: Provide 'target' (current name) and at least one of 'new_namespace' or 'new_action'.\n" +
+      "  Example: {action:'rename', target:'code:exec_abc123', new_namespace:'syson', new_action:'createProject', description:'Create a SysON project'}\n" +
+      "MERGE: Provide 'target' (capability to keep) and 'source' (capability to delete).\n" +
+      "  Example: {action:'merge', target:'syson:createProject', source:'code:exec_abc123'}",
     inputSchema: {
       type: "object",
       properties: {
         action: {
           type: "string",
           enum: ["rename", "merge"],
-          description: "Admin action to perform.",
+          description: "Operation type: 'rename' to update a capability, 'merge' to combine two capabilities.",
         },
         target: {
           type: "string",
-          description: "Capability name (namespace:action) or UUID to modify.",
+          description:
+            "The capability to operate on (namespace:action format or UUID). " +
+            "For RENAME: the capability to modify. For MERGE: the capability to KEEP.",
         },
-        namespace: {
+        new_namespace: {
           type: "string",
-          description: "New namespace (for rename).",
+          description: "RENAME: New namespace (lowercase letters/numbers, must start with letter). E.g. 'syson', 'db', 'git'.",
         },
-        action_name: {
+        new_action: {
           type: "string",
-          description: "New action name (for rename).",
+          description: "RENAME: New action name (camelCase or snake_case). E.g. 'createProject', 'list_tables'.",
         },
         description: {
           type: "string",
-          description: "New description (for rename).",
+          description: "RENAME: New description for the capability.",
         },
         tags: {
           type: "array",
           items: { type: "string" },
-          description: "New tags (for rename).",
+          description: "RENAME: New tags for the capability.",
         },
         visibility: {
           type: "string",
           enum: ["private", "project", "org", "public"],
-          description: "New visibility (for rename).",
+          description: "RENAME: New visibility level.",
         },
         source: {
           type: "string",
-          description: "Source capability to merge from (will be deleted).",
+          description: "MERGE: Capability to DELETE and merge into target (namespace:action, UUID, or FQDN).",
         },
         prefer_source_code: {
           type: "boolean",
-          description: "Use source code even if older (for merge).",
+          description: "MERGE: If true, use source's code even if older. Default: use newest.",
         },
       },
       required: ["action"],

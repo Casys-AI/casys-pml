@@ -19,6 +19,7 @@ import {
 import { ensureUiCacheReady } from "../services/ui-cache-service.ts";
 import { generateEmbeddings } from "../vector/embeddings.ts";
 import { eventBus } from "../events/mod.ts";
+import { buildToolHashContent, computeShortHash } from "../mcp/registry/hash-utils.ts";
 
 /**
  * Normalize userId to valid UUID.
@@ -143,20 +144,41 @@ export async function handleToolsSync(
 
         // F15 Fix: Wrap in transaction for atomicity
         try {
+          // Compute persistent hash from tool contract (server + name + inputSchema)
+          const hashContent = buildToolHashContent(result.serverName, tool.name, tool.inputSchema || null);
+          const newHash = await computeShortHash(hashContent);
+
           await db.transaction(async (tx) => {
-            // Upsert tool_schema (global, not multi-tenant)
+            // Check existing hash for version change detection
+            const existing = await tx.query(
+              `SELECT hash FROM tool_schema WHERE tool_id = $1`,
+              [toolId],
+            );
+            const existingHash = existing.length > 0 ? (existing[0].hash as string | null) : null;
+
+            if (existingHash && existingHash !== newHash) {
+              log.info(`[tools/sync] Tool ${toolId} hash changed: ${existingHash} → ${newHash} (schema update)`);
+            }
+
+            // Upsert tool_schema with persistent hash
             // Story 16.6: Include ui_meta for MCP Apps UI support
             // Note: Pass objects directly - postgres.js handles JSONB serialization
             // Do NOT use JSON.stringify() as it causes double-encoding
             await tx.exec(`
-              INSERT INTO tool_schema (tool_id, server_id, name, description, input_schema, ui_meta)
-              VALUES ($1, $2, $3, $4, $5, $6)
+              INSERT INTO tool_schema (tool_id, server_id, name, description, input_schema, ui_meta, hash)
+              VALUES ($1, $2, $3, $4, $5, $6, $7)
               ON CONFLICT (tool_id) DO UPDATE SET
                 description = EXCLUDED.description,
                 input_schema = EXCLUDED.input_schema,
                 ui_meta = EXCLUDED.ui_meta,
-                cached_at = NOW()
-            `, [toolId, result.serverName, tool.name, tool.description || null, tool.inputSchema || {}, tool.uiMeta ?? null]);
+                cached_at = NOW(),
+                previous_hash = CASE
+                  WHEN tool_schema.hash IS NOT NULL AND tool_schema.hash != EXCLUDED.hash
+                  THEN tool_schema.hash
+                  ELSE tool_schema.previous_hash
+                END,
+                hash = EXCLUDED.hash
+            `, [toolId, result.serverName, tool.name, tool.description || null, tool.inputSchema || {}, tool.uiMeta ?? null, newHash]);
           });
 
           syncedTools++;

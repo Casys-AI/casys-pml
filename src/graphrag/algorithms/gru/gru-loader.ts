@@ -287,6 +287,28 @@ export function buildVocabulary(
     }
   }
 
+  // Build tool→canonical cap promotion map for 1-child caps.
+  // If exactly ONE cap wraps a given tool (no ambiguity), we can promote
+  // tool predictions to the cap at inference time.
+  const toolToCapCandidates = new Map<string, string[]>();
+  for (const [capId, capChildren] of children) {
+    if (capChildren.length === 1) {
+      const tool = capChildren[0];
+      if (!toolToCapCandidates.has(tool)) toolToCapCandidates.set(tool, []);
+      toolToCapCandidates.get(tool)!.push(capId);
+    }
+  }
+  const toolToCanonicalCap = new Map<string, string>();
+  for (const [tool, caps] of toolToCapCandidates) {
+    if (caps.length === 1) {
+      toolToCanonicalCap.set(tool, caps[0]);
+    }
+    // If multiple 1-child caps wrap the same tool → ambiguous, no promotion
+  }
+  if (toolToCanonicalCap.size > 0) {
+    log.info(`[GRU Loader] Tool→cap promotion map: ${toolToCanonicalCap.size} unambiguous 1-child caps`);
+  }
+
   return {
     nodeToIndex,
     indexToNode,
@@ -294,6 +316,7 @@ export function buildVocabulary(
     numTools,
     vocabSize,
     children,
+    toolToCanonicalCap,
   };
 }
 

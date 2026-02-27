@@ -4,10 +4,10 @@ import McpStdContent from '../features/mcp-std/McpStdContent.astro';
 
 const locale = (Astro as any).currentLocale ?? 'en';
 const pageTitle = locale === 'fr'
-  ? '@casys/mcp-std - 508 Outils MCP Standards'
+  ? '508 Outils MCP pour Agents IA — @casys/mcp-std | Casys AI'
   : locale === 'zh'
-    ? '@casys/mcp-std - 508 个 MCP 标准工具'
-    : '@casys/mcp-std - 508 MCP Standard Tools';
+    ? '508 个 AI Agent MCP 工具 — @casys/mcp-std | Casys AI'
+    : '508 MCP Tools for AI Agents — @casys/mcp-std | Casys AI';
 ---
 
 <McpStdLayout title={pageTitle}>

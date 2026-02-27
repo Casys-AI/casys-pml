@@ -7,9 +7,10 @@ import HrefLang from '../components/HrefLang.astro';
 
 export interface Props {
   title: string;
+  description?: string;
 }
 
-const { title } = Astro.props;
+const { title, description } = Astro.props;
 const locale = (Astro as any).currentLocale ?? 'en';
 const pathname = Astro.url.pathname;
 const siteUrl = import.meta.env.PUBLIC_SITE_URL as string | undefined;
@@ -30,14 +31,17 @@ const metaDescriptions = {
   fr: 'Lab de recherche IA appliquée. Outils open-source MCP Gateway & Standard Tools. 15+ ans d\'expertise KM, Graph, Agents. Consulting disponible.',
   zh: '应用 AI 研究实验室。我们探索 AI 架构，构建开源工具（MCP Gateway、MCP 标准工具），并分享所学。10+ 年经验：KM → Graph → Agents。提供咨询服务。',
 } as const;
-const metaDescription = metaDescriptions[locale as keyof typeof metaDescriptions] ?? metaDescriptions.en;
+const metaDescriptionFallback = metaDescriptions[locale as keyof typeof metaDescriptions] ?? metaDescriptions.en;
+
+const resolvedTitle = title || (metaTitles[locale as keyof typeof metaTitles] ?? metaTitles.en);
+const resolvedDescription = description || metaDescriptionFallback;
 ---
 
 <!DOCTYPE html>
 <html lang={locale}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="description" content={metaDescription} />
+    <meta name="description" content={resolvedDescription} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/icons/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
@@ -83,7 +87,7 @@ const metaDescription = metaDescriptions[locale as keyof typeof metaDescriptions
         } catch (_) { /* no-op */ }
       })();
     </script>
-    <title>{metaTitle}</title>
+    <title>{resolvedTitle}</title>
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
     <HrefLang />
     <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
@@ -190,16 +194,17 @@ const metaDescription = metaDescriptions[locale as keyof typeof metaDescriptions
       }
     </style>
     <meta property="og:type" content="website" />
-    <meta property="og:title" content={metaTitle} />
-    <meta property="og:description" content={metaDescription} />
+    <meta property="og:site_name" content="Casys AI" />
+    <meta property="og:title" content={resolvedTitle} />
+    <meta property="og:description" content={resolvedDescription} />
     {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
     <meta property="og:locale" content={ogLocale} />
     <meta property="og:image" content={`${siteUrl || ''}/og/home.png`} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={metaTitle} />
-    <meta name="twitter:description" content={metaDescription} />
+    <meta name="twitter:title" content={resolvedTitle} />
+    <meta name="twitter:description" content={resolvedDescription} />
     <meta name="twitter:image" content={`${siteUrl || ''}/og/home.png`} />
 
     <!-- Google tag (gtag.js) -->

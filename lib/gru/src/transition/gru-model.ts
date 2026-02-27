@@ -1054,10 +1054,12 @@ export class CompactInformedGRU {
 
       // Resolve: could be a leaf tool or higher-level node
       const node = this.resolveVocabIndex(maxIdx);
+      const nodeId = node?.id ?? "";
       const toolId = node ? (node.level === 0 ? node.id : (node.children?.[0] ?? "")) : "";
 
       return {
         toolId,
+        nodeId,
         shouldTerminate: termProb[0] > this.config.terminationThreshold,
         confidence: maxScore,
       };

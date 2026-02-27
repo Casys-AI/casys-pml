@@ -149,6 +149,13 @@ export class CapabilityRegistry {
    * @returns The record or null if not found
    */
   async getById(id: string): Promise<CapabilityRecord | null> {
+    // Validate UUID format to avoid PostgreSQL cast errors (e.g. when caller
+    // passes a namespace:action string that resolveByName couldn't resolve)
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(id)) {
+      return null;
+    }
+
     // JOIN with workflow_pattern to get accurate usage_count/success_count
     // (capability_records columns are never updated - bug found Dec 2024)
     const rows = await this.db.query(

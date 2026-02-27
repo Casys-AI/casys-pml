@@ -283,7 +283,7 @@ export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
   // ADR-055: Keep d=1024 throughout message passing for discriminability
   // (initializeLevelParametersPreserveDim handles this separately)
   preserveDim: true,
-  preserveDimResidual: 0.3, // 30% original + 70% propagated
+  preserveDimResidual: 0, // r=0: pure message-passing output, no BGE-M3 dilution
 
   // Training
   learningRate: 0.05,  // Increased 5x for InfoNCE with fixed τ=0.07 (CLIP-style)

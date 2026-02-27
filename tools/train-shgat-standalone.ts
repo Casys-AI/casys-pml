@@ -248,7 +248,6 @@ try {
            dag_structure->'tools_used' as tools_used, success_rate
     FROM workflow_pattern
     WHERE code_snippet IS NOT NULL AND intent_embedding IS NOT NULL
-    LIMIT 1000
   `;
 
   const capabilities = caps
@@ -458,10 +457,10 @@ try {
       testAccuracies.push(baselineTestAcc);
     }
 
-    // Health check epoch X: testAcc=0.75
-    const testAccMatch = line.match(/Health check epoch \d+: testAcc=([\d.]+)/);
+    // Health check epoch X: hit1=25.1%, mrr=0.419, contrastive=0.84, best_hit1=25.1% (ep1)
+    const testAccMatch = line.match(/Health check epoch \d+: hit1=([\d.]+)%/);
     if (testAccMatch) {
-      testAccuracies.push(parseFloat(testAccMatch[1]));
+      testAccuracies.push(parseFloat(testAccMatch[1]) / 100);
     }
 
     // Debug: print any line with DB, error, fail, save, export
@@ -804,6 +803,43 @@ try {
     ];
     console.log(renderBox(`${sym.cross} Training Failed`, errorContent, 50));
     Deno.exit(1);
+  }
+
+  // =========================================================================
+  // Phase: Persist enriched cap embeddings to workflow_pattern.shgat_embedding
+  // =========================================================================
+  console.log();
+  console.log(`  ${c.bold("Persisting SHGAT cap embeddings...")}`);
+
+  try {
+    const { createSHGATFromCapabilities } = await import("../src/graphrag/algorithms/shgat.ts");
+    const toolEmbMap = new Map(Object.entries(toolEmbeddings));
+    const capsWithEmb = capabilities.filter((cap): cap is typeof cap & { embedding: number[] } => cap.embedding !== null);
+    const shgat = createSHGATFromCapabilities(capsWithEmb, toolEmbMap);
+
+    // Load freshly trained params from DB
+    const paramsRows = await sql`SELECT params FROM shgat_params ORDER BY created_at DESC LIMIT 1`;
+    if (paramsRows.length > 0) {
+      const raw = typeof paramsRows[0].params === "string"
+        ? JSON.parse(paramsRows[0].params) : paramsRows[0].params;
+      shgat.importParams(raw.data ?? raw);
+
+      const capEmbs = shgat.getCapEmbeddings();
+      let persisted = 0;
+      const entries = [...capEmbs.entries()];
+      for (let i = 0; i < entries.length; i += 50) {
+        const batch = entries.slice(i, i + 50);
+        await Promise.all(batch.map(([patternId, emb]) =>
+          sql`UPDATE workflow_pattern SET shgat_embedding = ${`[${emb.join(",")}]`}::vector WHERE pattern_id = ${patternId}::uuid`
+        ));
+        persisted += batch.length;
+      }
+      console.log(`  ${c.green(sym.check)} Persisted ${persisted}/${capabilities.length} cap embeddings to workflow_pattern.shgat_embedding`);
+    } else {
+      console.log(`  ${c.yellow(sym.warning)} No SHGAT params found in DB — skipping cap embedding persistence`);
+    }
+  } catch (e) {
+    console.log(`  ${c.yellow(sym.warning)} Failed to persist cap embeddings: ${e}`);
   }
 
   console.log();

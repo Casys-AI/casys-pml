@@ -298,6 +298,7 @@ export class AlgorithmInitializer {
     examples: SpawnGRUTrainingInput["examples"],
     toolEmbeddings: Record<string, number[]>,
     capabilityData?: SpawnGRUTrainingInput["capabilityData"],
+    testExamples?: SpawnGRUTrainingInput["examples"],
   ): Promise<{ success: boolean; finalLoss?: number; finalAccuracy?: number; error?: string }> {
     if (!this.gru) {
       return { success: false, error: "GRU not initialized" };
@@ -305,10 +306,12 @@ export class AlgorithmInitializer {
 
     const result = await spawnGRUTraining({
       examples,
+      testExamples,
+      evalEvery: 5,
       toolEmbeddings,
       capabilityData,
       existingWeightsPath: "lib/gru/gru-weights-latest.json",
-      epochs: 5,
+      epochs: 20,
       learningRate: 0.001,
     });
 
@@ -751,7 +754,9 @@ export class AlgorithmInitializer {
       // Register/update all tools from graphEngine with real embeddings.
       // Since toolsUsed are normalized to short format (e.g. "std:psql_query"),
       // these will correctly match and update existing nodes from createSHGATFromCapabilities.
-      const graphToolIds = this.deps.graphEngine.getGraph().nodes();
+      const allNodeIds = this.deps.graphEngine.getGraph().nodes();
+      // Filter out capability nodes — only register actual tools in SHGAT
+      const graphToolIds = allNodeIds.filter((id: string) => !id.startsWith("capability:"));
       let registeredCount = 0;
       let updatedCount = 0;
 

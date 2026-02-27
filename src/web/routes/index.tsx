@@ -70,6 +70,37 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
         <meta name="twitter:description" content={meta.description} />
         <meta name="twitter:image" content={meta.ogImage} />
 
+        {/* Canonical */}
+        <link rel="canonical" href="https://pml.casys.ai/" />
+
+        {/* HrefLang — EN on this domain, FR/ZH on Astro site */}
+        <link rel="alternate" hreflang="en" href="https://pml.casys.ai/" />
+        <link rel="alternate" hreflang="fr" href="https://casys.ai/fr/pml/" />
+        <link rel="alternate" hreflang="zh" href="https://casys.ai/zh/pml/" />
+        <link rel="alternate" hreflang="x-default" href="https://pml.casys.ai/" />
+
+        {/* Structured Data */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "Casys PML",
+          "alternateName": "Procedural Memory Layer",
+          "description": meta.description,
+          "applicationCategory": "DeveloperApplication",
+          "operatingSystem": "Cross-platform",
+          "url": "https://pml.casys.ai",
+          "author": {
+            "@type": "Organization",
+            "name": "Casys AI",
+            "url": "https://casys.ai"
+          },
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          }
+        }).replace(/</g, '\\u003c') }} />
+
         {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />

@@ -2,6 +2,7 @@
 import '../styles.css';
 import Analytics from '@vercel/analytics/astro';
 import { getCollection } from 'astro:content';
+import HrefLang from '../components/HrefLang.astro';
 
 export interface Props {
   title: string;
@@ -10,15 +11,24 @@ export interface Props {
   slug?: string;
   ogTitle?: string;
   ogDescription?: string;
+  datePublished?: string;
+  dateModified?: string;
+  author?: string;
+  tags?: string[];
+  category?: string;
 }
 
-const { title, locale = 'en', description, slug, ogTitle, ogDescription } = Astro.props;
+const { title, locale = 'en', description, slug, ogTitle, ogDescription, datePublished, dateModified, author, tags, category } = Astro.props;
 const effectiveOgTitle = ogTitle || title;
 const effectiveOgDescription = ogDescription || description;
 const siteUrl = import.meta.env.PUBLIC_SITE_URL as string | undefined;
 const ogImage = slug
   ? `${siteUrl || ''}/og/blog/${slug}.png`
   : `${siteUrl || ''}/og/home.png`;
+const localePrefix = locale === 'en' ? '' : `/${locale}`;
+const pathname = Astro.url.pathname;
+const canonicalUrl = siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
+const blogBaseUrl = siteUrl ? `${siteUrl}${localePrefix}/blog` : undefined;
 
 const labels = {
   en: {
@@ -110,7 +120,7 @@ function getPostSlug(post: typeof sortedPosts[0]) {
 <html lang={locale === 'zh' ? 'zh-CN' : locale}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="description" content={t.blogSubtitle} />
+    <meta name="description" content={description || t.blogSubtitle} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/icons/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -153,8 +163,11 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     </script>
 
     <title>{title}</title>
-    {description && <meta name="description" content={description} />}
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <HrefLang />
     <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Casys AI" />
+    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
     <meta property="og:title" content={effectiveOgTitle} />
     {effectiveOgDescription && <meta property="og:description" content={effectiveOgDescription} />}
     <meta property="og:image" content={ogImage} />
@@ -165,6 +178,35 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     {effectiveOgDescription && <meta name="twitter:description" content={effectiveOgDescription} />}
     <meta name="twitter:image" content={ogImage} />
     <script defer src="/u/script.js" data-website-id="41fe387f-874e-4c5b-8a69-1364587b77f5"></script>
+    {slug && blogBaseUrl && (
+      <script type="application/ld+json" set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": title,
+        "description": description || t.blogSubtitle,
+        ...(siteUrl && { "image": ogImage }),
+        ...(datePublished && { "datePublished": datePublished }),
+        ...(dateModified && { "dateModified": dateModified }),
+        "author": author
+          ? { "@type": "Person", "name": author }
+          : { "@type": "Organization", "name": "Casys AI", "url": "https://casys.ai" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Casys AI",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://casys.ai/icons/logo.svg"
+          }
+        },
+        "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": `${blogBaseUrl}/${slug}`
+        },
+        ...(tags?.length && { "keywords": tags.join(", ") }),
+        ...(category && { "articleSection": category }),
+        "inLanguage": locale
+      }).replace(/</g, '\\u003c')} />
+    )}
   </head>
 
   <body class="blog-body">

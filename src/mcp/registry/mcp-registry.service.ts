@@ -27,8 +27,6 @@ import type {
   ServerConnectionInfo,
 } from "./types.ts";
 import {
-  buildHttpHashContent,
-  buildStdioHashContent,
   computeIntegrity,
   deriveEnvRequired,
   deriveMcpType,
@@ -73,10 +71,15 @@ export class McpRegistryService {
       return null;
     }
 
-    // Validate hash
+    // Validate hash — accept current OR previous hash
     if (entry.fqdn !== fqdn) {
-      log.debug(`[McpRegistry] Hash mismatch: expected ${entry.fqdn}, got ${fqdn}`);
-      return null;
+      const requestedHash = fqdn.split(".").pop() ?? "";
+      const accepted = await this.matchesPreviousHash(entry, requestedHash);
+      if (!accepted) {
+        log.debug(`[McpRegistry] Hash mismatch: expected ${entry.fqdn}, got ${fqdn}`);
+        return null;
+      }
+      log.info(`[McpRegistry] Resolved via previous_hash: ${fqdn} → ${entry.fqdn}`);
     }
 
     return entry;
@@ -361,28 +364,22 @@ export class McpRegistryService {
       // Derive routing (from row or default based on type)
       const routing: McpRouting = (row.routing as McpRouting) || (type === "http" ? "server" : "client");
 
-      // Compute integrity hash based on type
+      // Use stored hash from DB (persistent since migration 051)
       let integrity: string;
       let shortHash: string;
 
-      // For capabilities, use stored hash from DB (don't recompute!)
-      // This fixes the bug where recomputed hash didn't match stored hash
       if (row.record_type === "capability" && row.hash) {
         shortHash = row.hash;
-        // Build a placeholder integrity - actual integrity comes from codeUrl fetch
         integrity = `capability:${row.hash}`;
-      } else if (type === "stdio" && config) {
-        const hashContent = buildStdioHashContent(config);
-        integrity = await computeIntegrity(type, hashContent);
-        shortHash = extractShortHash(integrity);
-      } else if (type === "http" && config) {
-        const hashContent = buildHttpHashContent(config);
-        integrity = await computeIntegrity(type, hashContent);
-        shortHash = extractShortHash(integrity);
+      } else if (row.hash) {
+        // MCP tools: use stored hash from tool_schema (persisted at sync time)
+        shortHash = row.hash;
+        integrity = `tool:${row.hash}`;
       } else {
-        // Fallback for MCP tools without stored hash
+        // Fallback: tool not yet synced — compute ephemeral hash
+        log.warn(`[McpRegistry] No stored hash for ${row.name} — ephemeral. Sync to persist.`);
         const hashContent = `${row.name}:${row.description || ""}`;
-        integrity = await computeIntegrity(type, hashContent);
+        integrity = await computeIntegrity("stdio", hashContent);
         shortHash = extractShortHash(integrity);
       }
 
@@ -529,6 +526,53 @@ export class McpRegistryService {
     }
 
     return result;
+  }
+
+  /**
+   * Check if a requested hash matches the previous_hash of a tool or capability.
+   *
+   * For MCP tools: checks tool_schema.previous_hash
+   * For capabilities: checks capability_name_history
+   *
+   * This allows old FQDNs (from traces, DAG structures, cached references)
+   * to still resolve after a hash/schema change or capability rename.
+   */
+  private async matchesPreviousHash(
+    entry: McpRegistryEntry,
+    requestedHash: string,
+  ): Promise<boolean> {
+    try {
+      if (entry.recordType === "capability") {
+        // Check capability_name_history for old hashes after rename
+        const rows = await this.db.query(
+          `SELECT 1 FROM capability_name_history
+           WHERE capability_id = (
+             SELECT id FROM capability_records
+             WHERE namespace || ':' || action = $1
+             LIMIT 1
+           )
+           AND old_hash = $2
+           LIMIT 1`,
+          [entry.tools[0] ?? "", requestedHash],
+        );
+        return rows.length > 0;
+      } else {
+        // MCP tool: check tool_schema.previous_hash
+        const toolId = entry.tools[0] ?? "";
+        // tool_id format is "server:name", try matching by server_id + name
+        const rows = await this.db.query(
+          `SELECT 1 FROM tool_schema
+           WHERE previous_hash = $1
+           AND (tool_id = $2 OR name = $3)
+           LIMIT 1`,
+          [requestedHash, toolId, toolId.includes(":") ? toolId.split(":")[1] : toolId],
+        );
+        return rows.length > 0;
+      }
+    } catch (e) {
+      log.debug(`[McpRegistry] Error checking previous_hash: ${e}`);
+      return false;
+    }
   }
 
   /**

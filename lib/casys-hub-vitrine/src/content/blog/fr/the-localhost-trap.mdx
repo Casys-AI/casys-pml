@@ -1,14 +1,16 @@
 ---
-title: "Le piège du localhost — Le mur réseau entre Docker et votre stack IA"
+title: "Le piège du localhost — Mettre OpenClaw en production avec des orchestrateurs Docker"
 description: "Vous avez conteneurisé vos agents. Vous avez conteneurisé votre orchestrateur. Maintenant ils ne se voient plus. Le problème n'est pas Docker. C'est le mur réseau le plus invisible de l'infrastructure conteneurisée."
 author: "Erwan Lee Pesle"
-date: 2026-02-26
+date: 2026-02-27
 tags:
   - agents
   - docker
   - networking
   - infrastructure
   - devops
+  - openclaw
+  - production
 category: "Infrastructure"
 language: fr
 snippet: "127.0.0.1 ne veut pas dire la même chose dedans et dehors d'un container. Ce simple fait casse la plupart des déploiements d'agents IA."
@@ -20,75 +22,213 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 # Le piège du localhost
 
-> L'agent tourne. L'orchestrateur tourne. Ils sont sur la même machine. Ils ne se voient pas. Bienvenue en production.
+> Vous avez déployé l'agent. Vous avez déployé l'orchestrateur. Ils sont sur la même machine. Ils ne se parlent pas. Bienvenue en production.
 
 ---
 
-**Voilà une scène qui se joue chaque semaine.** Quelqu'un installe une gateway IA — OpenClaw, LiteLLM, peu importe — et ça marche nickel. Puis il ajoute un orchestrateur dans Docker — Windmill, n8n, Temporal — et branche un workflow qui doit rappeler la gateway. Il pointe sur `http://localhost:18789`.
+## Pourquoi vous êtes ici
 
-Timeout. Trente secondes de rien, puis échec.
+Dans [l'article précédent](/blog/process-is-the-prompt), on a défendu l'idée que les agents IA ont besoin de processus — que le vrai gain de performance ne vient pas d'un meilleur modèle, mais d'un workflow structuré. On a montré comment des outils comme Windmill, n8n, Kestra et Temporal donnent aux agents ce qui leur manque : le séquencement, la gestion d'erreurs, les retries, les validations humaines. Le diagramme Turtle appliqué aux LLMs.
 
-Il vérifie le service. Il tourne. Il curl depuis l'hôte. Ça répond instantanément. Il curl depuis le container. La requête pend, puis meurt. Même pas un "connection refused" propre — juste du silence. Les paquets quittent le container, tapent le firewall, et disparaissent. C'est ça le piège : ça *ressemble* à un service lent, pas à un problème réseau.
+Super. Alors vous l'avez fait. Vous avez branché vos agents sur un orchestrateur. Vous avez construit des workflows. Vous étiez fier.
 
-Le service est là. Sur la même machine. À quelques octets de distance en RAM. Et pourtant, depuis l'intérieur du container, `localhost` pointe vers une *autre* machine.
+Puis vous avez essayé de déployer. Et tout a cassé.
 
----
+Pas les workflows. Pas les agents. Pas le modèle. **Le réseau.** La couche la plus fondamentale — celle à laquelle on ne pense jamais — s'est avérée être le seul obstacle entre "ça marche sur mon laptop" et "ça marche en production."
 
-<ExcalidrawDiagram src="localhost-trap" alt="Le piège du localhost : 127.0.0.1 signifie 'cette machine' — mais chaque container est sa propre machine" />
+Cet article est ce que j'ai appris en mettant OpenClaw en production avec des orchestrateurs Docker. Ça s'applique à Windmill, n8n, Kestra, Temporal, Prefect — tout ce qui tourne dans un container et a besoin de parler à quelque chose qui tourne sur l'hôte. Ça s'applique aussi aux serveurs MCP, à Ollama, aux bases de données locales, et à peu près tout service bindé sur `localhost`.
 
-## L'hypothèse
-
-`127.0.0.1` est l'adresse la plus surchargée de l'informatique. Elle signifie "cette machine" — sauf quand ce n'est pas le cas.
-
-Quand Docker crée un container, il crée un **namespace réseau**. Le container a sa propre interface loopback, son propre `127.0.0.1`. Quand votre orchestrateur à l'intérieur de Docker appelle `localhost`, il se parle à *lui-même* — pas à l'hôte. Pas à votre gateway. À rien d'utile.
-
-Ce n'est pas un bug. C'est voulu. L'isolation réseau est la moitié de l'intérêt des containers. Mais ça crée un piège invisible jusqu'au moment où on y tombe, parce que la même adresse signifie des choses différentes selon d'où on regarde.
-
-Et voilà pourquoi c'est spécifiquement un problème pour les agents IA : **toute la stack agentique suppose une communication locale.**
-
-Les serveurs MCP écoutent sur localhost. Les gateways écoutent sur localhost. Les tool servers écoutent sur localhost. La [spec MCP](https://modelcontextprotocol.io) décrit des transports `stdio` et `SSE` — `stdio` impose la même machine par définition, et si SSE *peut* techniquement fonctionner sur le réseau, en pratique la plupart des serveurs MCP écoutent sur localhost. Dès qu'on conteneurise *n'importe quelle* partie de cette stack, l'hypothèse casse.
+Si vous déployez des agents IA en production, vous **allez** frapper ce mur. Voici la carte.
 
 ---
 
-## Les solutions évidentes (et pourquoi elles sont mauvaises)
+## Le setup : pourquoi tout finit dans Docker
 
-**"Bind sur 0.0.0.0."**
+Laissez-moi vous raconter comment on arrive là, parce que c'est toujours le même chemin.
 
-Ça expose votre gateway à tout le réseau. Si vous êtes sur un VPS, ça veut dire internet. Votre gateway — le truc qui contrôle vos agents IA, qui a accès à vos outils, vos comptes de messagerie, vos fichiers — est maintenant accessible à quiconque scanne vos ports.
+**Étape 1 :** Vous installez OpenClaw sur un VPS. La gateway tourne sur l'hôte, à l'écoute sur `localhost:18789`. Les agents se connectent à WhatsApp, Telegram, etc. Ça marche.
 
-Vous pouvez ajouter des règles firewall. Vous en oublierez une. Ou Docker [court-circuitera iptables](https://docs.docker.com/engine/network/packet-filtering-firewalls/) pour vous en insérant ses propres règles.
+**Étape 2 :** Vous réalisez que vos agents ont besoin de workflows structurés — pas juste du chat, mais des processus multi-étapes avec gestion d'erreurs, scheduling et approbations humaines. Vous choisissez un orchestrateur : Windmill, n8n, Kestra, Temporal. Tous sont livrés comme images Docker. C'est comme ça qu'ils sont conçus pour être déployés.
 
-**"Utiliser le mode `host`."**
+**Étape 3 :** Les workflows de votre orchestrateur doivent appeler la gateway OpenClaw — pour déclencher des agents, envoyer des messages, vérifier des statuts. Vous configurez l'URL du webhook : `http://localhost:18789`.
 
-`network_mode: host` supprime totalement l'isolation réseau du container. L'orchestrateur peut atteindre `localhost:18789` — mais il peut aussi atteindre tous les autres services de l'hôte. Vous avez échangé un problème contre un plus gros. Et vous avez cassé le réseau Docker Compose entre vos propres services.
+**Étape 4 :** Ça ne marche pas. Le workflow timeout après 30 secondes. Pas d'erreur. Pas de "connection refused." Juste du silence.
 
-**"Utiliser `host.docker.internal`."**
+Vous passez deux heures à débugger l'application avant de réaliser : **le réseau est le problème.**
 
-Docker Desktop sur Mac et Windows fournit ce nom DNS. Linux non — pas par défaut. On peut ajouter `extra_hosts: ["host.docker.internal:host-gateway"]` dans le Compose, mais ça passe par le bridge Docker, et le service hôte doit quand même écouter sur l'IP de ce bridge. Vous avez déplacé le problème, pas résolu.
+---
+
+## Ce qui se passe vraiment
+
+<ExcalidrawDiagram src="localhost-trap" alt="Le piège du localhost : 127.0.0.1 veut dire 'cette machine' — mais chaque container est sa propre machine" />
+
+`127.0.0.1` est l'adresse la plus surchargée en informatique. Elle signifie "cette machine" — sauf quand ce n'est pas le cas.
+
+Quand Docker crée un container, il crée un **namespace réseau**. Le container obtient sa propre interface loopback, son propre `127.0.0.1`. Quand votre orchestrateur dans Docker appelle `localhost`, il se parle à *lui-même* — pas à l'hôte. Pas à votre gateway. À rien d'utile.
+
+Ce n'est pas un bug. C'est voulu. L'isolation réseau, c'est la moitié de l'intérêt des containers. Mais ça crée un piège invisible tant qu'on ne le frappe pas, parce que la même adresse signifie des choses différentes selon où on se trouve.
+
+Et voilà pourquoi c'est spécifiquement important pour l'infrastructure IA : **toute la stack agentique suppose une communication locale.**
+
+- La gateway OpenClaw écoute sur `localhost`.
+- Les serveurs MCP écoutent sur `localhost`.
+- Ollama écoute sur `localhost`.
+- Les serveurs d'outils, les APIs d'embedding, les bases vectorielles locales — tout sur `localhost`.
+
+La [spec MCP](https://modelcontextprotocol.io) décrit les transports `stdio` et `SSE` — `stdio` nécessite le même hôte par définition, et bien que SSE *puisse* techniquement fonctionner via le réseau, en pratique la plupart des serveurs MCP écoutent sur `127.0.0.1`. Dès que vous conteneurisez *n'importe quelle* partie de cette stack, l'hypothèse s'effondre.
+
+---
+
+## Quatre scénarios de production
+
+Voici toutes les combinaisons que vous rencontrerez en pratique, de la plus simple à la plus complexe.
+
+### Scénario 1 : Gateway sur l'hôte + Orchestrateur Docker
+
+Le cas le plus courant. OpenClaw tourne directement sur l'hôte. Windmill / n8n / Kestra / Temporal tourne dans Docker.
+
+```
+┌─────────────────────────────────────────┐
+│  HÔTE                                   │
+│                                         │
+│  OpenClaw Gateway (127.0.0.1:18789)     │
+│         ▲                               │
+│         │ ← bridge socat                │
+│         ▼                               │
+│  ┌──────────────────────────────┐       │
+│  │ Docker: windmill_default     │       │
+│  │  Windmill / n8n / Kestra     │       │
+│  │  → appelle la gateway        │       │
+│  └──────────────────────────────┘       │
+└─────────────────────────────────────────┘
+```
+
+**Problème :** Le container ne peut pas atteindre `localhost:18789` sur l'hôte.
+**Solution :** Un bridge socat sur l'IP gateway du réseau Docker.
+
+### Scénario 2 : Gateway sur l'hôte + Sandboxes agents Docker
+
+Vous faites tourner des agents clients dans des containers Docker isolés — chaque client a sa propre sandbox avec son filesystem, ses outils et son environnement. Les agents doivent rappeler la gateway OpenClaw.
+
+```
+┌─────────────────────────────────────────┐
+│  HÔTE                                   │
+│                                         │
+│  OpenClaw Gateway (127.0.0.1:18789)     │
+│         ▲                               │
+│         │ ← bridge socat                │
+│         ▼                               │
+│  ┌──────────────┐  ┌──────────────┐     │
+│  │ Sandbox :     │  │ Sandbox :     │    │
+│  │ Client A      │  │ Client B      │    │
+│  │ (agent+outils)│  │ (agent+outils)│   │
+│  └──────────────┘  └──────────────┘     │
+└─────────────────────────────────────────┘
+```
+
+**Problème :** Même chose que le Scénario 1, mais avec plusieurs containers — potentiellement sur différents réseaux Docker.
+**Solution :** Un bridge socat **par réseau Docker** qui a besoin d'accès. Si toutes les sandboxes partagent un réseau, un seul bridge suffit.
+
+### Scénario 3 : Gateway Docker + Orchestrateur Docker
+
+OpenClaw et l'orchestrateur tournent tous les deux dans Docker, mais sur des **réseaux Docker différents**. Ça arrive quand on les installe séparément via différents fichiers Compose.
+
+```
+┌──────────────────────────────────────────┐
+│  HÔTE                                    │
+│                                          │
+│  ┌─────────────────────┐                 │
+│  │ Docker: openclaw_net │                 │
+│  │  OpenClaw Gateway    │                 │
+│  └─────────┬───────────┘                 │
+│            │ ← réseau Docker partagé      │
+│  ┌─────────┴───────────┐                 │
+│  │ Docker: windmill_net │                 │
+│  │  Workers Windmill    │                 │
+│  └─────────────────────┘                 │
+└──────────────────────────────────────────┘
+```
+
+**Problème :** Les containers sur différents réseaux Docker ne se voient pas.
+**Solution :** Créer un réseau Docker partagé et y attacher les deux services. Pas besoin de socat — juste la résolution DNS Docker-à-Docker. Ou utilisez socat si vous ne voulez pas modifier les fichiers Compose.
+
+```bash
+docker network create shared_internal
+# Ajoutez aux deux fichiers compose :
+# networks:
+#   shared_internal:
+#     external: true
+```
+
+### Scénario 4 : Full Docker — OpenClaw + Orchestrateur + Serveurs MCP
+
+Tout conteneurisé. OpenClaw, l'orchestrateur, les serveurs MCP, Ollama, toute la stack. C'est l'architecture la plus propre — mais elle demande le plus de planification réseau en amont.
+
+**Solution :** Un seul réseau Docker partagé pour la communication inter-services. Chaque service obtient un nom DNS. Plus de `localhost` nulle part — tout utilise des noms de containers ou de services.
+
+```yaml
+# docker-compose.yml
+services:
+  openclaw:
+    image: openclaw/gateway
+    networks: [internal]
+  windmill:
+    image: windmill/windmill
+    networks: [internal]
+  mcp-server:
+    image: your-mcp-server
+    networks: [internal]
+
+networks:
+  internal:
+    driver: bridge
+```
+
+L'URL de la gateway devient `http://openclaw:18789` au lieu de `http://localhost:18789`. Propre, pas de bridge nécessaire. Mais ça implique de s'engager dans la conteneurisation complète — ce qui n'est pas toujours pratique quand on itère vite.
+
+---
+
+## Les solutions évidentes (et pourquoi elles sont fausses)
+
+Avant de trouver la bonne solution, j'ai tout essayé. Épargnez-vous du temps.
+
+**"Bindez sur 0.0.0.0."**
+
+Ça expose votre gateway à tout le réseau. Si vous êtes sur un VPS, ça veut dire internet. Votre gateway — le truc qui contrôle vos agents IA, a accès à vos outils, vos comptes de messagerie, vos fichiers — est maintenant joignable par quiconque scanne vos ports.
+
+Vous pourriez ajouter des règles firewall. Vous en oublierez une. Ou Docker [contournera iptables](https://docs.docker.com/engine/network/packet-filtering-firewalls/) gentiment pour vous en insérant ses propres règles.
+
+**"Utilisez le réseau `host` de Docker."**
+
+`network_mode: host` supprime complètement l'isolation réseau du container. Le container partage la stack réseau de l'hôte. Votre orchestrateur peut maintenant atteindre `localhost:18789` — mais il peut aussi atteindre tous les autres services de l'hôte. Vous avez échangé un problème contre un plus gros. Et vous avez cassé le networking Docker Compose entre vos propres services.
+
+**"Utilisez `host.docker.internal`."**
+
+Docker Desktop sur Mac et Windows fournit ce nom DNS. Pas Linux — pas par défaut. Vous pouvez ajouter `extra_hosts: ["host.docker.internal:host-gateway"]` à votre fichier Compose, mais ça route via le bridge Docker, et votre service hôte doit toujours écouter sur l'IP de ce bridge. Vous avez déplacé le problème, pas résolu.
 
 ---
 
 ## Le vrai problème
 
-Le problème est architectural. On a :
+Le vrai souci est architectural. Vous avez :
 
-1. Un **service hôte** (la gateway IA) bindé sur `127.0.0.1`
-2. Un **service conteneurisé** (l'orchestrateur) qui doit l'atteindre
-3. L'exigence que le service hôte **ne soit pas exposé** au réseau
+1. Un **service hôte** (votre gateway IA) bindé sur `127.0.0.1`
+2. Un **service conteneurisé** (votre orchestrateur) qui doit l'atteindre
+3. Une exigence que le service hôte **ne soit pas exposé** au réseau
 
-Ces trois contraintes sont mutuellement exclusives avec le réseau Docker standard. On peut en satisfaire deux, pas les trois.
+Ces trois contraintes sont mutuellement exclusives avec le networking Docker standard. Vous pouvez en satisfaire deux, mais pas les trois.
 
-Sauf si on ajoute un pont.
+Sauf si vous ajoutez un bridge.
 
 ---
 
 ## Socat : la solution ennuyeuse qui marche
 
-[socat](http://www.dest-unreach.org/socat/) est un utilitaire Unix de 2004. Il connecte deux flux de données. C'est tout. Il n'est pas intelligent. Il n'est pas sexy. C'est un tuyau avec une adresse à chaque bout.
+[socat](http://www.dest-unreach.org/socat/) est un utilitaire Unix de 2004. Il connecte deux flux de données. C'est tout. Il n'est pas intelligent. Il n'est pas fancy. C'est un tuyau avec des adresses à chaque bout.
 
-Voilà ce qu'il fait pour notre problème :
+Voici ce qu'il fait pour notre problème :
 
-<ExcalidrawDiagram src="socat-bridge" alt="Le bridge socat : Container → Gateway Docker Bridge (172.19.0.1) → socat → Loopback hôte (127.0.0.1)" />
+<ExcalidrawDiagram src="socat-bridge" alt="Le bridge Socat : Container → Gateway Docker Bridge (172.19.0.1) → socat → Loopback hôte (127.0.0.1)" />
 
 Une ligne :
 
@@ -96,39 +236,45 @@ Une ligne :
 socat TCP-LISTEN:18789,bind=172.19.0.1,fork,reuseaddr TCP:127.0.0.1:18789
 ```
 
-socat écoute sur l'IP du bridge Docker — l'adresse gateway du réseau Docker — et forward chaque connexion vers le loopback de l'hôte. Le container peut atteindre `172.19.0.1` parce que c'est sa gateway par défaut. Le service hôte reste sur `127.0.0.1`. Rien n'est exposé à l'extérieur.
+socat écoute sur l'IP du bridge Docker — l'adresse gateway du réseau Docker — et redirige chaque connexion vers le loopback de l'hôte. Le container peut atteindre `172.19.0.1` parce que c'est sa gateway par défaut. Le service hôte reste sur `127.0.0.1`. Rien n'est exposé à l'extérieur.
 
-**Trois contraintes satisfaites.** Le service hôte reste bindé sur localhost. Le container peut l'atteindre. Le réseau ne voit rien.
-
-Mais socat seul ne suffit pas. Il faut aussi des **règles firewall** — sans elles, les paquets atteignent l'IP du bridge mais sont silencieusement dropés. C'est la partie qui coûte des heures : socat tourne, le service tourne, mais les requêtes depuis le container *pendent* sans réponse. Pas d'erreur, pas de refus, juste un timeout de 30 secondes. La solution : une règle UFW scopée à l'interface bridge Docker (voir ci-dessous). Ce n'est pas optionnel.
-
-> **Attention aux workers multi-réseaux.** Un container Docker peut être attaché à plusieurs réseaux — par exemple `windmill_default` *et* `shared_internal`. Chaque réseau a sa propre IP de bridge. Il faut un socat et une règle firewall pour **chaque réseau** sur lequel le worker est connecté. Vérifiez tous les réseaux : `docker inspect <container> --format '{{json .NetworkSettings.Networks}}'`.
+**Trois contraintes satisfaites.** Le service hôte reste sur localhost. Le container peut l'atteindre. Le réseau ne voit rien.
 
 ---
 
-## Pourquoi c'est important pour l'IA
+## Le setup complet — Nommage style ITIL
 
-Ce n'est pas un problème Docker. C'est un problème d'**infrastructure agentique**.
+socat sans règles firewall ne marche pas — les paquets sont droppés silencieusement. Et sans convention de nommage, vous vous retrouvez avec `socat-bridge-1`, `socat-bridge-2`, et aucune idée de quoi est quoi trois mois plus tard.
 
-L'écosystème des agents converge vers un pattern : une gateway qui fait l'intermédiaire entre les agents et le monde extérieur. OpenClaw fait ça. LangGraph Cloud aussi. CrewAI, AutoGen, pareil. La gateway détient l'état des sessions, les politiques d'outils, les canaux de messagerie, la mémoire. Tout passe par elle.
+Voici le setup de production que nous utilisons, avec une convention de nommage empruntée à la gestion de services ITIL : **un bridge par (réseau, port)**, nommé pour être auto-documenté.
 
-En parallèle, les orchestrateurs deviennent la couche processus des agents. [On a argumenté](/blog/process-is-the-prompt) que les agents ont besoin de processus, et que les orchestrateurs les fournissent — Windmill, n8n, Temporal, Prefect.
+### Convention de nommage
 
-Dès qu'on fait tourner les deux, il faut qu'ils se parlent. Et ils ne peuvent pas — parce que l'un est dans un container et l'autre non. Ou les deux sont dans des containers sur des réseaux différents. Ou l'un est derrière un reverse proxy qui ne sert que du HTTPS et l'autre parle en TCP brut.
+```
+socat-bridge-<réseau>-<port>
+```
 
-**Tout déploiement IA en production frappe ce mur.** Les protocoles (MCP, A2A) gèrent la couche applicative. Personne ne gère la couche réseau — la plomberie ennuyeuse qui rend tout le reste possible.
+Exemples :
+- `socat-bridge-windmill_default-18789` — Workers Windmill → Gateway OpenClaw
+- `socat-bridge-sandboxes-18789` — Sandboxes clients → Gateway OpenClaw
+- `socat-bridge-windmill_default-11434` — Workers Windmill → Ollama
 
----
+Un bridge, partagé par tous les containers sur ce réseau. Si un container est sur plusieurs réseaux, il utilise le bridge du réseau par lequel il atteint le service.
 
-## Le setup complet
+### 1. Trouver l'IP gateway du réseau Docker
 
-socat sans règles firewall ne marche pas — les paquets sont silencieusement dropés. Voici le setup complet :
+```bash
+# Lister les réseaux Docker et leurs IPs gateway
+docker network inspect windmill_default --format '{{(index .IPAM.Config 0).Gateway}}'
+# → 172.19.0.1
+```
 
-**1. Un service systemd par réseau Docker**
+### 2. Créer un service systemd
 
 ```ini
+# /etc/systemd/system/socat-bridge-windmill_default-18789.service
 [Unit]
-Description=Socat bridge: windmill_default -> gateway IA
+Description=Socat bridge: windmill_default:18789 -> localhost:18789 (OpenClaw Gateway)
 After=network.target docker.service
 
 [Service]
@@ -141,28 +287,51 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-**2. Des règles firewall scopées aux bridges Docker (obligatoire)**
-
-Sans ça, socat écoute mais les paquets du container sont silencieusement dropés par le firewall de l'hôte. C'est l'étape qui cause des timeouts de 30 secondes sans message d'erreur.
-
 ```bash
-# Trouver le bridge Linux pour le réseau Docker
-BRIDGE_ID=$(docker network inspect windmill_default --format '{{.Id}}' | cut -c1-12)
-
-# Autoriser uniquement sur cette interface bridge
-ufw allow in on br-${BRIDGE_ID} to any port 18789 proto tcp
+systemctl daemon-reload
+systemctl enable --now socat-bridge-windmill_default-18789
 ```
 
-Si le worker est sur plusieurs réseaux Docker, répéter pour chaque bridge.
+### 3. Règles firewall (obligatoire)
 
-**3. Des variables, pas des IPs en dur**
+Sans ça, socat écoute mais les paquets du container sont droppés silencieusement par le firewall hôte. C'est l'étape qui cause les timeouts de 30 secondes sans message d'erreur.
 
-Les IPs de bridge Docker peuvent changer si on recrée les réseaux. Stocker l'URL de la gateway dans le système de variables de l'orchestrateur et la mettre à jour à un seul endroit.
+```bash
+# Trouver l'interface bridge Linux pour le réseau Docker
+BRIDGE_ID=$(docker network inspect windmill_default --format '{{.Id}}' | cut -c1-12)
 
-**4. Un endpoint de test**
+# Autoriser le trafic uniquement sur cette interface bridge — rien n'est exposé à l'extérieur
+ufw allow in on br-${BRIDGE_ID} to any port 18789 proto tcp comment "socat-bridge-windmill_default-18789"
+```
+
+### 4. Tester
+
+```bash
+# Depuis l'hôte — devrait déjà marcher
+curl -s http://127.0.0.1:18789/
+
+# Depuis un container sur ce réseau
+docker run --rm --network windmill_default curlimages/curl \
+  curl -s http://172.19.0.1:18789/
+```
+
+### 5. Variables, pas d'IPs en dur
+
+Les IPs des bridges Docker peuvent changer si vous recréez les réseaux. Stockez l'URL de la gateway dans le système de variables de votre orchestrateur :
+
+```bash
+# Dans Windmill : créer une variable
+# Path: f/openclaw/gateway_url
+# Value: http://172.19.0.1:18789
+
+# Dans n8n : utiliser une variable d'environnement
+# OPENCLAW_GATEWAY_URL=http://172.19.0.1:18789
+```
+
+### 6. Script de health check
 
 ```typescript
-// Health check Windmill — simple GET qui retourne 200 si le bridge marche
+// Windmill / Deno / Bun — marche dans n'importe quel orchestrateur
 export async function main() {
   const res = await fetch("http://172.19.0.1:18789/", {
     signal: AbortSignal.timeout(5000)
@@ -171,49 +340,61 @@ export async function main() {
 }
 ```
 
+> **Workers multi-réseaux.** Un container Docker peut être attaché à plusieurs réseaux — par exemple, `windmill_default` *et* `shared_internal`. Chaque réseau a sa propre IP bridge. Vous avez besoin d'une instance socat et d'une règle firewall pour **chaque réseau** sur lequel le worker se trouve. Vérifiez tous les réseaux : `docker inspect <container> --format '{{json .NetworkSettings.Networks}}'`.
+
 ---
 
-## Le pattern se généralise
+## Les serveurs MCP ont le même problème
 
-Une fois qu'on le voit, le bridge socat s'applique partout :
+Si vous faites tourner des serveurs MCP sur l'hôte et les appelez depuis des agents conteneurisés, c'est exactement le même problème. Un serveur MCP qui écoute sur `localhost:3000` est invisible pour tout container.
+
+Le pattern de bridge socat fonctionne de manière identique :
+
+```bash
+# Bridge pour serveur MCP
+socat TCP-LISTEN:3000,bind=172.19.0.1,fork,reuseaddr TCP:127.0.0.1:3000
+```
+
+En fait, **tout** service bindé sur l'hôte que les containers doivent atteindre suit le même pattern :
 
 | Service hôte | Client conteneurisé | Bridge nécessaire |
 | --- | --- | --- |
-| Gateway IA (OpenClaw, LiteLLM) | Orchestrateur (Windmill, n8n) | ✅ |
-| Serveur MCP | Agent dockerisé | ✅ |
-| LLM local (Ollama) | N'importe quelle app conteneurisée | ✅ |
-| Base de données localhost | API conteneurisée | ✅ |
+| Gateway OpenClaw | Windmill / n8n / Kestra / Temporal | ✅ |
+| Serveur MCP | Sandbox agent dockerisée | ✅ |
+| Ollama (LLM local) | Toute app conteneurisée | ✅ |
+| Base de données locale | API conteneurisée | ✅ |
+| API d'embedding | Pipeline RAG dans Docker | ✅ |
 
-Le dénominateur commun : un service bindé sur l'hôte que des containers doivent atteindre sans l'exposer au réseau. C'est le même problème qu'on connecte une gateway IA à Windmill, une instance Ollama à un pipeline RAG, ou une base Postgres à un serveur API.
+Le fil conducteur : un service bindé sur l'hôte que les containers doivent atteindre sans l'exposer au réseau. Un pattern. Même solution. À chaque fois.
 
 ---
 
 ## Pourquoi personne n'en parle
 
-La conversation sur l'infrastructure IA est dominée par les protocoles, les modèles et les frameworks. MCP, A2A, function calling, tool routing — le truc excitant. Le réseau, c'est de la plomberie.
+La conversation sur l'infrastructure IA est dominée par les protocoles, les modèles et les frameworks. MCP, A2A, function calling, tool routing — les trucs excitants. Le réseau, c'est de la plomberie.
 
-Mais la plomberie est ce qui rend le bâtiment habitable.
+Mais c'est la plomberie qui rend le bâtiment habitable.
 
-Quand Anthropic publie son [expérience à 16 Claude](https://www.anthropic.com/engineering/building-c-compiler), le mécanisme de coordination c'est Git + des lock files. Quand on parle de [routing d'agents](/blog/routing-agents-without-new-protocol), le goulot c'est la couche de décision. Quand on parle de [management par les processus](/blog/process-is-the-prompt), le manque c'est l'orchestration.
+Quand on parle de [gestion de processus pour les agents](/blog/process-is-the-prompt), l'insight est que les agents ont besoin d'orchestrateurs. Quand Anthropic a publié ses [expériences multi-Claude](https://www.anthropic.com/engineering/building-c-compiler), le mécanisme de coordination était Git. Quand on parle de [routing d'agents](/blog/routing-agents-without-new-protocol), le goulot d'étranglement est la couche de décision.
 
-Tout ça suppose que les services se voient. **Personne ne mentionne ce qui se passe quand ils ne se voient pas.** C'est l'étape d'avant l'étape 1 — tellement fondamentale qu'elle en est invisible.
+Tout ça suppose que les services peuvent se joindre. **Personne ne mentionne ce qui se passe quand ils ne peuvent pas.** C'est l'étape avant la première étape — si fondamentale qu'elle est invisible.
 
-Jusqu'à ce que ça casse. Là, c'est la seule chose qui compte.
+Jusqu'à ce que ça casse. Alors c'est la seule chose qui compte.
 
 ---
 
 ## La conclusion inconfortable
 
-La couche la plus importante de votre infrastructure d'agents IA, ce n'est pas le modèle, le protocole ou le framework. **C'est le réseau.** Et spécifiquement, c'est l'hypothèse que `localhost` veut dire ce que vous croyez.
+La couche la plus importante de votre infrastructure d'agents IA n'est pas le modèle, le protocole ou le framework. **C'est le réseau.** Et spécifiquement, c'est l'hypothèse que `localhost` veut dire ce que vous croyez.
 
-Tout déploiement conteneurisé hérite de cette hypothèse. La plupart cassent silencieusement — l'orchestrateur tourne, la gateway tourne, mais le callback n'arrive jamais, la notification ne part jamais, le webhook ne se déclenche jamais. On debug la couche applicative pendant des heures avant de réaliser que les paquets n'ont jamais quitté le container.
+Chaque déploiement conteneurisé hérite de cette hypothèse. La plupart cassent silencieusement — l'orchestrateur tourne, la gateway tourne, mais le callback n'arrive jamais, la notification ne s'envoie jamais, le webhook ne fire jamais. Vous débuggez la couche applicative pendant des heures avant de réaliser que les paquets n'ont jamais quitté le container.
 
-La solution : un utilitaire Unix de 20 ans, un service systemd, et une règle firewall. Temps de setup : cinq minutes. Lignes de configuration : douze.
+La solution est un utilitaire Unix de 20 ans, un seul service systemd, et une règle firewall. Temps total de setup : cinq minutes. Total de lignes de configuration : douze.
 
-**La meilleure infrastructure est celle qu'on installe une fois et qu'on oublie.** socat sur un bridge Docker, c'est exactement ça — ennuyeux, invisible, et porteur.
+**La meilleure infrastructure est celle qu'on installe une fois et à laquelle on ne pense plus.** socat sur un bridge Docker, c'est exactement ça — ennuyeux, invisible, et porteur.
 
 Comme la plomberie devrait l'être.
 
 ---
 
-*Le bridge socat décrit ici est utilisé en production chez CasYs pour connecter des orchestrateurs Windmill aux gateways OpenClaw. Le guide complet — services systemd, règles firewall et health checks — est disponible comme [skill OpenClaw sur ClawHub](https://clawhub.com/skills/localhost-bridge).*
+*Le pattern de bridge socat décrit ici est utilisé en production chez CasYs pour connecter des orchestrateurs aux gateways OpenClaw. Le setup complet — incluant un script d'installation automatisé, les units systemd et les règles firewall — est disponible comme [skill OpenClaw sur ClawHub](https://clawhub.com/skills/localhost-bridge).*

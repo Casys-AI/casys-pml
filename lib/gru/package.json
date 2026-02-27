@@ -18,8 +18,9 @@
     "@tensorflow/tfjs-node": "^4.22.0",
     "apache-arrow": "^17.0.0",
     "dotenv": "^16.4.7",
-    "parquet-wasm": "^0.6.0",
     "pako": "^2.1.0",
+    "parquet-wasm": "^0.6.0",
+    "pg": "^8.18.0",
     "postgres": "^3.4.5"
   },
   "devDependencies": {

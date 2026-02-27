@@ -44,8 +44,9 @@ export class PatternStore {
         );
       }
 
+      const count = data.priorPatterns?.length ?? 0;
       log.info(
-        `[PatternStore] Loaded ${data.priorPatterns.length} patterns from ${this.filePath}`,
+        `[PatternStore] Loaded ${count} patterns from ${this.filePath}`,
       );
       return data;
     } catch (error) {

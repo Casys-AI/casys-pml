@@ -438,8 +438,7 @@ export class PostExecutionService {
           success_rate
         FROM workflow_pattern
         WHERE code_snippet IS NOT NULL
-          AND intent_embedding IS NOT NULL
-        LIMIT 500`,
+          AND intent_embedding IS NOT NULL`,
       ) as unknown as CapabilityRow[];
 
       // Parse embeddings (handle pgvector string format)
@@ -487,6 +486,29 @@ export class PostExecutionService {
         if (onSHGATParamsUpdated) {
           await onSHGATParamsUpdated();
         }
+
+        // Persist SHGAT-enriched cap embeddings to workflow_pattern.shgat_embedding
+        // Must complete BEFORE GRU training starts (GRU reads these via COALESCE)
+        if (shgat && db) {
+          try {
+            const capEmbs = shgat.getCapEmbeddings();
+            if (capEmbs.size > 0) {
+              const entries = [...capEmbs.entries()];
+              for (let i = 0; i < entries.length; i += 50) {
+                const batch = entries.slice(i, i + 50);
+                await Promise.all(batch.map(([patternId, emb]) =>
+                  db.exec(
+                    `UPDATE workflow_pattern SET shgat_embedding = $1::vector WHERE pattern_id = $2`,
+                    [`[${emb.join(",")}]`, patternId]
+                  )
+                ));
+              }
+              log.info(`[PostExecutionService] Persisted ${capEmbs.size} SHGAT cap embeddings to workflow_pattern`);
+            }
+          } catch (e) {
+            log.warn(`[PostExecutionService] Failed to persist cap embeddings: ${e}`);
+          }
+        }
       } else if (result.fallback) {
         log.debug("[PostExecutionService] PER training fallback", {
           reason: result.fallbackReason,
@@ -498,7 +520,7 @@ export class PostExecutionService {
     } finally {
       trainingLock.release("PER");
 
-      // Chain: GRU trains AFTER SHGAT, every trace (background, non-blocking)
+      // Chain: GRU trains AFTER SHGAT + cap persistence, every trace (background, non-blocking)
       this.runGRUBatchTraining().catch((err) => {
         log.warn(`[PostExecutionService] GRU training (post-SHGAT) failed: ${err}`);
       });
@@ -508,9 +530,14 @@ export class PostExecutionService {
   /**
    * Run GRU batch training via Node subprocess.
    *
-   * Collects recent execution traces as GRU TransitionExamples,
-   * loads tool embeddings, and spawns training.
-   * After training, hot-reloads weights into the running GRU.
+   * Aligned with scripts/train-gru-with-caps.ts:
+   * - Cap-as-terminal examples
+   * - Cap canonicalization (toolset dedup)
+   * - exec_hash resolution
+   * - L2+ hierarchy walk
+   * - Consecutive dedup + intent dedup
+   * - Test split 80/20 with early stopping
+   * - L2 normalize embeddings
    */
   async runGRUBatchTraining(): Promise<void> {
     const { algorithmInitializer, db } = this.deps;
@@ -525,23 +552,31 @@ export class PostExecutionService {
     }
 
     try {
-      // 1. Load recent traces with intent embeddings
+      // ================================================================
+      // 1. Load reference data
+      // ================================================================
+
+      // 1a. Load recent traces with intent embeddings + cap_name
       const traces = await db.query(`
         SELECT
           et.task_results,
           et.intent_embedding,
-          et.success
+          et.success,
+          cr.namespace || ':' || cr.action as cap_name
         FROM execution_trace et
+        LEFT JOIN workflow_pattern wp ON wp.pattern_id = et.capability_id
+        LEFT JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
         WHERE et.task_results IS NOT NULL
           AND jsonb_typeof(et.task_results) = 'array'
           AND jsonb_array_length(et.task_results) > 1
           AND et.intent_embedding IS NOT NULL
         ORDER BY et.executed_at DESC
-        LIMIT 200
+        LIMIT 2000
       `) as unknown as Array<{
         task_results: string | Array<{ tool?: string }>;
         intent_embedding: number[] | string;
         success: boolean;
+        cap_name: string | null;
       }>;
 
       if (traces.length < 20) {
@@ -549,11 +584,7 @@ export class PostExecutionService {
         return;
       }
 
-      // 2. Load rename history to resolve old capability names in traces.
-      // Traces contain tools in two formats:
-      //   - short: "namespace:action" (old_name column)
-      //   - FQDN: "org.project.namespace.action.hash" (old_fqdn column)
-      // We index both formats so resolveToolName works regardless of input format.
+      // 1b. Load rename history
       let renameMap = new Map<string, string>();
       try {
         const renameRows = await db.query(
@@ -561,22 +592,261 @@ export class PostExecutionService {
         ) as Array<{ old_name: string; new_name: string; old_fqdn: string; new_fqdn: string }>;
         for (const row of renameRows) {
           renameMap.set(row.old_name, row.new_name);
-          // Also map FQDN → new short name (normalizeToolId will produce short form)
           if (row.old_fqdn) renameMap.set(row.old_fqdn, row.new_name);
         }
-        // Follow chains: A->B, B->C => A->C
         for (const [oldName, newName] of renameMap) {
           let current = newName;
           while (renameMap.has(current)) current = renameMap.get(current)!;
           if (current !== newName) renameMap.set(oldName, current);
         }
       } catch {
-        // Table may not exist yet (migration pending) — proceed without
         renameMap = new Map();
       }
-      const resolveToolName = (name: string): string => renameMap.get(name) ?? name;
 
-      // 3. Build GRU TransitionExamples from traces
+      // 1c. Load all tool embeddings (DB = authoritative vocab, SHGAT override)
+      const toolEmbeddings: Record<string, number[]> = {};
+      const embRows = await db.query(
+        `SELECT tool_id, embedding FROM tool_embedding ORDER BY tool_id`,
+      ) as Array<{ tool_id: string; embedding: number[] | string }>;
+      for (const row of embRows) {
+        const emb = Array.isArray(row.embedding) ? row.embedding
+          : typeof row.embedding === "string" ? (() => { try { return JSON.parse(row.embedding); } catch { return null; } })()
+          : null;
+        if (emb) toolEmbeddings[row.tool_id] = emb;
+      }
+
+      const shgat = this.deps.shgat;
+      if (shgat) {
+        const shgatEmbs = shgat.getToolEmbeddings();
+        let shgatCount = 0;
+        for (const [toolId, emb] of shgatEmbs) {
+          if (toolEmbeddings[toolId]) {
+            toolEmbeddings[toolId] = emb;
+            shgatCount++;
+          }
+        }
+        if (shgatCount > 0) {
+          log.debug(`[PostExecutionService] GRU: ${shgatCount} tools enriched with SHGAT embeddings`);
+        }
+      }
+
+      const allToolIds = new Set(Object.keys(toolEmbeddings));
+
+      // 1d. Load capability data with usage_count
+      const capabilityData: Array<{
+        id: string; embedding: number[]; toolChildren: string[];
+        level: number; usageCount: number;
+      }> = [];
+      const capChildrenMap = new Map<string, string[]>();
+      try {
+        const capRows = await db.query(
+          `SELECT DISTINCT ON (cr.namespace, cr.action)
+            cr.namespace || ':' || cr.action as cap_name,
+            COALESCE(wp.shgat_embedding, wp.intent_embedding) as embedding,
+            wp.shgat_embedding IS NOT NULL as has_shgat,
+            wp.dag_structure->'tools_used' as tools_used,
+            COALESCE(wp.hierarchy_level, 1) as level,
+            COALESCE(wp.usage_count, 0) as usage_count
+          FROM workflow_pattern wp
+          JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+          WHERE wp.code_snippet IS NOT NULL
+            AND wp.intent_embedding IS NOT NULL
+            AND wp.dag_structure->'tools_used' IS NOT NULL
+          ORDER BY cr.namespace, cr.action, wp.last_used DESC`,
+        ) as unknown as Array<{
+          cap_name: string; embedding: number[] | string; has_shgat: boolean;
+          tools_used: string[] | null; level: number; usage_count: number;
+        }>;
+
+        let shgatCapCount = 0;
+        for (const row of capRows) {
+          let emb: number[];
+          if (Array.isArray(row.embedding)) {
+            emb = row.embedding;
+          } else if (typeof row.embedding === "string") {
+            try { emb = JSON.parse(row.embedding); } catch { continue; }
+          } else { continue; }
+          if (!Array.isArray(emb) || emb.length === 0) continue;
+
+          const toolChildren = (row.tools_used ?? [])
+            .map(normalizeToolId)
+            .filter(Boolean) as string[];
+          if (toolChildren.length === 0) continue;
+
+          capabilityData.push({
+            id: row.cap_name, embedding: emb, toolChildren,
+            level: row.level, usageCount: row.usage_count,
+          });
+          capChildrenMap.set(row.cap_name, toolChildren);
+          if (row.has_shgat) shgatCapCount++;
+        }
+
+        if (capabilityData.length > 0) {
+          if (shgatCapCount === 0) {
+            log.warn(`[PostExecutionService] GRU caps: all ${capabilityData.length} using intent_embedding fallback — run SHGAT training first`);
+          } else {
+            log.info(`[PostExecutionService] GRU caps: ${shgatCapCount}/${capabilityData.length} with shgat_embedding`);
+          }
+        }
+      } catch (e) {
+        log.debug(`[PostExecutionService] GRU: could not load capability data: ${e}`);
+      }
+
+      // ================================================================
+      // 2. Preprocessing (exec_hash, canonicalization, L2+, L2 norm)
+      // ================================================================
+
+      // 2a. Resolve stale code:exec_HASH references in cap toolChildren
+      const execHashToCapName = new Map<string, string>();
+      try {
+        const codeHashRows = await db.query(
+          `SELECT wp.code_hash, cr.namespace || ':' || cr.action as cap_name
+           FROM workflow_pattern wp
+           JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+           WHERE wp.code_hash IS NOT NULL`,
+        ) as Array<{ code_hash: string; cap_name: string }>;
+        for (const row of codeHashRows) {
+          execHashToCapName.set(row.code_hash.substring(0, 8), row.cap_name);
+        }
+      } catch { /* table may not exist */ }
+
+      const execPattern = /^(?:code|std|filesystem):exec_([a-f0-9]{8})/;
+      let execResolved = 0;
+      for (const cap of capabilityData) {
+        cap.toolChildren = cap.toolChildren.map(child => {
+          const m = child.match(execPattern);
+          if (m) {
+            const resolved = execHashToCapName.get(m[1]);
+            if (resolved) { execResolved++; return resolved; }
+          }
+          return child;
+        });
+      }
+      for (const [key, children] of capChildrenMap) {
+        capChildrenMap.set(key, children.map(child => {
+          const m = child.match(execPattern);
+          return m ? (execHashToCapName.get(m[1]) ?? child) : child;
+        }));
+      }
+      if (execResolved > 0) {
+        log.info(`[PostExecutionService] GRU: resolved ${execResolved} stale code:exec_* refs`);
+      }
+
+      // 2b. Cap canonicalization by toolset
+      const capCanonicalMap = new Map<string, string>();
+      {
+        const toolsetGroups = new Map<string, Array<{ id: string; usageCount: number; idx: number }>>();
+        for (let i = 0; i < capabilityData.length; i++) {
+          const cap = capabilityData[i];
+          const sig = [...cap.toolChildren].sort().join(",");
+          if (!toolsetGroups.has(sig)) toolsetGroups.set(sig, []);
+          toolsetGroups.get(sig)!.push({ id: cap.id, usageCount: cap.usageCount, idx: i });
+        }
+
+        let ambiguousGroups = 0;
+        let remappedCaps = 0;
+        const capsToRemove = new Set<number>();
+
+        for (const [_sig, group] of toolsetGroups) {
+          if (group.length <= 1) continue;
+          ambiguousGroups++;
+          group.sort((a, b) => b.usageCount - a.usageCount || a.id.localeCompare(b.id));
+          const canonical = group[0];
+          for (let j = 1; j < group.length; j++) {
+            capCanonicalMap.set(group[j].id, canonical.id);
+            capsToRemove.add(group[j].idx);
+            remappedCaps++;
+          }
+        }
+
+        if (capsToRemove.size > 0) {
+          const sortedIndices = [...capsToRemove].sort((a, b) => b - a);
+          for (const idx of sortedIndices) capabilityData.splice(idx, 1);
+          for (const nonCanon of capCanonicalMap.keys()) capChildrenMap.delete(nonCanon);
+          for (const cap of capabilityData) {
+            cap.toolChildren = cap.toolChildren.map(c => capCanonicalMap.get(c) ?? c);
+          }
+          for (const [key, children] of capChildrenMap) {
+            capChildrenMap.set(key, children.map(c => capCanonicalMap.get(c) ?? c));
+          }
+        }
+
+        if (ambiguousGroups > 0) {
+          log.info(`[PostExecutionService] GRU: canonicalize: ${ambiguousGroups} toolset groups, ${remappedCaps} caps remapped → ${capabilityData.length} canonical`);
+        }
+      }
+
+      // 2c. Resolve L2+ caps transitively to L0 tools
+      let l2Resolved = 0;
+      for (const cap of capabilityData) {
+        if (cap.level < 2) continue;
+        const resolvedTools = new Set<string>();
+        const queue = [...cap.toolChildren];
+        const visited = new Set<string>();
+        while (queue.length > 0) {
+          const child = queue.shift()!;
+          if (visited.has(child)) continue;
+          visited.add(child);
+          if (allToolIds.has(child)) {
+            resolvedTools.add(child);
+          } else {
+            const gc = capChildrenMap.get(child);
+            if (gc) queue.push(...gc);
+          }
+        }
+        if (resolvedTools.size > 0) {
+          cap.toolChildren = [...resolvedTools];
+          l2Resolved++;
+        }
+      }
+      if (l2Resolved > 0) {
+        log.info(`[PostExecutionService] GRU: resolved ${l2Resolved} L2+ caps to L0 tools`);
+      }
+
+      // 2d. L2 normalize embeddings (SHGAT MP output is not unit-normalized)
+      {
+        let toolsNormalized = 0;
+        let capsNormalized = 0;
+        for (const toolId of Object.keys(toolEmbeddings)) {
+          const emb = toolEmbeddings[toolId];
+          let norm = 0;
+          for (let j = 0; j < emb.length; j++) norm += emb[j] * emb[j];
+          norm = Math.sqrt(norm);
+          if (Math.abs(norm - 1.0) > 0.001) {
+            const inv = 1.0 / norm;
+            toolEmbeddings[toolId] = emb.map(v => v * inv);
+            toolsNormalized++;
+          }
+        }
+        for (const cap of capabilityData) {
+          let norm = 0;
+          for (let j = 0; j < cap.embedding.length; j++) norm += cap.embedding[j] * cap.embedding[j];
+          norm = Math.sqrt(norm);
+          if (Math.abs(norm - 1.0) > 0.001) {
+            const inv = 1.0 / norm;
+            cap.embedding = cap.embedding.map(v => v * inv);
+            capsNormalized++;
+          }
+        }
+        if (toolsNormalized > 0 || capsNormalized > 0) {
+          log.info(`[PostExecutionService] GRU: L2 norm: ${toolsNormalized} tools, ${capsNormalized} caps re-normalized`);
+        }
+      }
+
+      // 2e. Build resolveToolName (exec_hash → rename → canonical)
+      const resolveToolName = (name: string): string => {
+        let resolved = name;
+        const m = name.match(execPattern);
+        if (m) resolved = execHashToCapName.get(m[1]) ?? name;
+        const renamed = renameMap.get(resolved) ?? resolved;
+        return capCanonicalMap.get(renamed) ?? renamed;
+      };
+
+      // ================================================================
+      // 3. Build examples (tool-to-tool + cap-as-terminal)
+      // ================================================================
+
+      const capIdSet = new Set(capabilityData.map(c => c.id));
       const examples: Array<{
         intentEmbedding: number[];
         contextToolIds: string[];
@@ -584,6 +854,8 @@ export class PostExecutionService {
         isTerminal: number;
         isSingleTool: boolean;
       }> = [];
+      let skippedConsecutive = 0;
+      let capTerminalAdded = 0;
 
       for (const trace of traces) {
         let taskResults: Array<{ tool?: string }> = [];
@@ -609,8 +881,12 @@ export class PostExecutionService {
           try { intentEmb = JSON.parse(trace.intent_embedding); } catch { continue; }
         } else { continue; }
 
-        // One example per transition in the trace
+        // Tool-to-tool examples with consecutive dedup
         for (let i = 0; i < tools.length; i++) {
+          if (i > 0 && tools[i] === tools[i - 1]) {
+            skippedConsecutive++;
+            continue;
+          }
           examples.push({
             intentEmbedding: intentEmb,
             contextToolIds: tools.slice(0, i),
@@ -619,6 +895,45 @@ export class PostExecutionService {
             isSingleTool: tools.length === 1,
           });
         }
+
+        // Cap-as-terminal example
+        const capName = trace.cap_name ? resolveToolName(trace.cap_name) : null;
+        if (capName && capIdSet.has(capName)) {
+          examples.push({
+            intentEmbedding: intentEmb,
+            contextToolIds: tools,
+            targetToolId: capName,
+            isTerminal: 1,
+            isSingleTool: false,
+          });
+          capTerminalAdded++;
+        }
+      }
+
+      if (skippedConsecutive > 0) {
+        log.debug(`[PostExecutionService] GRU: skipped ${skippedConsecutive} consecutive duplicate examples`);
+      }
+      if (capTerminalAdded > 0) {
+        log.info(`[PostExecutionService] GRU: ${capTerminalAdded} cap-as-terminal examples`);
+      }
+
+      // 3b. Intent dedup (exact)
+      const beforeDedup = examples.length;
+      {
+        const seen = new Set<string>();
+        const deduped = examples.filter(ex => {
+          const groupKey = ex.contextToolIds.join("|") + ">>" + ex.targetToolId;
+          const intentKey = ex.intentEmbedding.slice(0, 10).map(v => v.toFixed(4)).join(",");
+          const key = `${groupKey}::${intentKey}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        examples.length = 0;
+        examples.push(...deduped);
+      }
+      if (examples.length < beforeDedup) {
+        log.info(`[PostExecutionService] GRU: dedup ${beforeDedup} → ${examples.length} examples`);
       }
 
       if (examples.length < 50) {
@@ -626,88 +941,22 @@ export class PostExecutionService {
         return;
       }
 
-      // 3. Load tool embeddings (prefer SHGAT-enriched over raw BGE-M3)
-      const allToolIds = new Set<string>();
-      for (const ex of examples) {
-        allToolIds.add(ex.targetToolId);
-        for (const t of ex.contextToolIds) allToolIds.add(t);
-      }
+      // ================================================================
+      // 4. Split train/test 80/20 + train
+      // ================================================================
 
-      const toolEmbeddings: Record<string, number[]> = {};
+      const splitIdx = Math.floor(examples.length * 0.8);
+      const trainExamples = examples.slice(0, splitIdx);
+      const testExamples = examples.slice(splitIdx);
 
-      // Try SHGAT embeddings first (graph-enriched via message passing)
-      const shgat = this.deps.shgat;
-      if (shgat) {
-        const shgatEmbs = shgat.getToolEmbeddings();
-        for (const toolId of allToolIds) {
-          const emb = shgatEmbs.get(toolId);
-          if (emb) toolEmbeddings[toolId] = emb;
-        }
-        log.debug(`[PostExecutionService] GRU: ${Object.keys(toolEmbeddings).length}/${allToolIds.size} tools from SHGAT embeddings`);
-      }
+      log.info(`[PostExecutionService] GRU training: ${trainExamples.length} train, ${testExamples.length} test, ${Object.keys(toolEmbeddings).length} tool embeddings, ${capabilityData.length} caps`);
 
-      // Fallback to DB for missing tools
-      const missingToolIds = [...allToolIds].filter(id => !toolEmbeddings[id]);
-      if (missingToolIds.length > 0) {
-        const rows = await db.query(
-          `SELECT tool_id, embedding FROM tool_embedding WHERE tool_id = ANY($1)`,
-          [missingToolIds],
-        ) as Array<{ tool_id: string; embedding: number[] | string }>;
-        for (const row of rows) {
-          const emb = Array.isArray(row.embedding) ? row.embedding
-            : typeof row.embedding === "string" ? (() => { try { return JSON.parse(row.embedding); } catch { return null; } })()
-            : null;
-          if (emb) toolEmbeddings[row.tool_id] = emb;
-        }
-      }
-
-      // 4. Load capability data (cap→tool hierarchy) with normalized names
-      let capabilityData: Array<{ id: string; embedding: number[]; toolChildren: string[]; level: number }> | undefined;
-      try {
-        const capRows = await db.query(
-          `SELECT DISTINCT ON (cr.namespace, cr.action)
-            cr.namespace || ':' || cr.action as cap_name,
-            wp.intent_embedding as embedding,
-            wp.dag_structure->'tools_used' as tools_used,
-            COALESCE(wp.hierarchy_level, 1) as level
-          FROM workflow_pattern wp
-          JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
-          WHERE wp.code_snippet IS NOT NULL
-            AND wp.intent_embedding IS NOT NULL
-            AND wp.dag_structure->'tools_used' IS NOT NULL
-          ORDER BY cr.namespace, cr.action, wp.last_used DESC
-          LIMIT 500`,
-        ) as unknown as Array<{ cap_name: string; embedding: number[] | string; tools_used: string[] | null; level: number }>;
-
-        const parsed: Array<{ id: string; embedding: number[]; toolChildren: string[]; level: number }> = [];
-        for (const row of capRows) {
-          let emb: number[];
-          if (Array.isArray(row.embedding)) {
-            emb = row.embedding;
-          } else if (typeof row.embedding === "string") {
-            try { emb = JSON.parse(row.embedding); } catch { continue; }
-          } else { continue; }
-          if (!Array.isArray(emb) || emb.length === 0) continue;
-
-          const toolChildren = (row.tools_used ?? [])
-            .map(normalizeToolId)
-            .filter(Boolean) as string[];
-          if (toolChildren.length === 0) continue;
-
-          parsed.push({ id: row.cap_name, embedding: emb, toolChildren, level: row.level });
-        }
-
-        if (parsed.length > 0) {
-          capabilityData = parsed;
-        }
-      } catch (e) {
-        log.debug(`[PostExecutionService] GRU: could not load capability data: ${e}`);
-      }
-
-      log.info(`[PostExecutionService] GRU training: ${examples.length} examples, ${Object.keys(toolEmbeddings).length} tool embeddings, ${capabilityData?.length ?? 0} caps`);
-
-      // 5. Train + hot reload
-      const result = await algorithmInitializer.triggerGRUTraining(examples, toolEmbeddings, capabilityData);
+      const result = await algorithmInitializer.triggerGRUTraining(
+        trainExamples,
+        toolEmbeddings,
+        capabilityData.length > 0 ? capabilityData : undefined,
+        testExamples,
+      );
 
       if (result.success) {
         log.info(`[PostExecutionService] GRU training done: loss=${result.finalLoss?.toFixed(4)}, acc=${result.finalAccuracy?.toFixed(2)}`);

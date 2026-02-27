@@ -100,6 +100,7 @@ import { createRestoreTraceIntentEmbeddingMigration } from "./migrations/047_res
 import { createGRUParamsMigration } from "./migrations/049_gru_params.ts";
 import { createCapabilityNameHistoryMigration } from "./migrations/050_capability_name_history.ts";
 import { createToolSchemaHashMigration } from "./migrations/051_tool_schema_hash.ts";
+import { createWorkflowPatternShgatEmbeddingMigration } from "./migrations/052_workflow_pattern_shgat_embedding.ts";
 
 /**
  * Migration definition
@@ -468,5 +469,6 @@ export function getAllMigrations(): Migration[] {
     createGRUParamsMigration(), // GRU transition model weights persistence
     createCapabilityNameHistoryMigration(), // Track capability renames for training data resolution
     createToolSchemaHashMigration(), // Persistent hash for MCP tools (no more ephemeral recompute)
+    createWorkflowPatternShgatEmbeddingMigration(), // SHGAT-enriched cap embeddings for GRU vocab scoring
   ];
 }

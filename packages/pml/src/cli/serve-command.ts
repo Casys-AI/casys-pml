@@ -68,9 +68,9 @@ export function createServeCommand(): Command<any> {
       }
       console.log();
 
-      // Create PmlServer (HTTP mode with compact descriptions)
+      // Create PmlServer (HTTP mode — full descriptions for Claude Code compatibility)
       const pmlServer = new PmlServer(
-        { useFullDescriptions: false, logger: httpLogger },
+        { useFullDescriptions: true, logger: httpLogger },
         ctx,
       );
 
