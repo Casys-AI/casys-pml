@@ -1,0 +1,365 @@
+---
+title: "Context Engineering : Le Vrai Levier des Agents IA"
+description: "Le context engineering détermine ce que l'IA voit — pas ce qu'on lui dit. Guide : MCP, GraphRAG, gestion du contexte industriel et exemples TypeScript."
+author: "Erwan Lee Pesle"
+date: 2026-02-27
+tags:
+  - context-engineering
+  - mcp
+  - graphrag
+  - agents
+  - knowledge-management
+category: "Industry"
+language: fr
+snippet: "Le prompt engineering optimise la question. Le context engineering optimise tout ce que le modèle voit avant de répondre. C'est le vrai levier."
+featured: true
+draft: false
+---
+
+## Le mot que tout le monde utilise mal
+
+Février 2026. Le terme **context engineering** commence à circuler dans les conférences, les threads Twitter, les docs produit. Comme souvent avec les buzzwords, il risque de finir vidé de son sens avant d'avoir été compris.
+
+Alors posons la définition tout de suite.
+
+Le **prompt engineering**, c'est comment vous formulez votre requête. Le choix des mots. La structure de l'instruction. Le fameux "sois concis" ou "raisonne étape par étape".
+
+Le **context engineering**, c'est ce que vous mettez *dans le contexte* du modèle. Quels documents, quels schémas d'outils, quelles données structurées, quel historique de conversation. C'est le *quoi*, pas le *comment*.
+
+La distinction paraît subtile. Elle est fondamentale. Parce que les modèles actuels — GPT-5, Claude Opus 4, Gemini 3 — sont suffisamment bons pour raisonner sur ce qu'ils voient. Le problème, c'est qu'ils ne voient pas les bonnes choses.
+
+**L'ingénierie de contexte est le vrai goulot d'étranglement des agents IA en 2026.**
+
+---
+
+## Pourquoi le prompt engineering ne suffit plus
+
+Il y a un an, optimiser un prompt suffisait à améliorer les résultats de 30%. Aujourd'hui, la marge est mince. Les modèles comprennent les instructions naturelles. Ils gèrent les formats, les contraintes, les nuances. Le delta entre un bon prompt et un prompt moyen se réduit à chaque génération de modèle.
+
+Ce qui ne se réduit pas, c'est le delta entre un agent qui a le bon contexte et un agent qui ne l'a pas.
+
+Prenez un cas concret. Un opérateur industriel demande à un agent :
+
+> "Quel est le statut de la ligne 3 ?"
+
+Avec du prompt engineering seul, vous optimisez la formulation. Vous ajoutez "réponds en JSON", "inclus les métriques de rendement", etc.
+
+Avec une approche **centrée sur le contexte**, vous vous demandez : est-ce que l'agent *voit* les données du MES (Manufacturing Execution System) ? Est-ce qu'il a accès au planning de maintenance dans la GMAO ? Est-ce qu'il connaît l'historique d'arrêts de cette ligne dans l'ERP ?
+
+Sans ces données dans son contexte, le meilleur prompt du monde ne sert à rien. Le modèle va halluciner, ou répondre "je n'ai pas accès à cette information" — ce qui est pire, parce que c'est vrai.
+
+---
+
+## Le problème industriel : 15 systèmes, 15 silos
+
+Voici la réalité d'un site industriel en 2026 :
+
+| Système | Fonction | Données clés |
+| ------- | -------- | ------------ |
+| **ERP** (SAP, ERPNext) | Gestion financière, achats, stocks | Coûts, disponibilité matière, fournisseurs |
+| **MES** | Suivi de production en temps réel | Rendement, arrêts, cadence |
+| **PLM** (SysON, Teamcenter) | Gestion du cycle de vie produit | Nomenclatures, révisions, BOM |
+| **GMAO** | Maintenance | Historique pannes, plannings préventifs |
+| **CRM** | Relation client | Commandes, réclamations, délais |
+| **SCADA** | Supervision terrain | Capteurs, alarmes, états machine |
+| **QMS** | Qualité | Non-conformités, audits, actions correctives |
+
+Chaque système a son API. Son modèle de données. Ses conventions de nommage. Ses droits d'accès. Ses limitations de requêtage.
+
+Un agent qui doit répondre à "Quel est le statut de la ligne 3 ?" a besoin de croiser au moins trois de ces systèmes. Et aujourd'hui, dans 90% des cas, personne n'a câblé les ponts.
+
+**La gestion du contexte, dans un environnement industriel, c'est le problème de comment agréger ces 15 sources en un ensemble cohérent que le modèle peut consommer.**
+
+Ce n'est pas un problème de modèle. C'est un problème d'infrastructure.
+
+---
+
+## RAG, GraphRAG et ingénierie de contexte : ne pas confondre
+
+Avant d'aller plus loin, clarifions la hiérarchie. Parce que l'ingénierie de contexte n'est pas du RAG avec un nouveau nom.
+
+| Approche | Ce qu'elle fait | Limite |
+| -------- | --------------- | ------ |
+| **RAG classique** | Cherche des documents similaires par embedding vectoriel, injecte les chunks pertinents | Ne capture que la similarité textuelle. Ignore les relations entre concepts. |
+| **GraphRAG** | Construit un graphe de connaissances, traverse les relations pour trouver le contexte pertinent | Meilleur sur le "relié" vs le "similaire" ([détails ici](/blog/graphrag-vs-vectorrag)), mais reste focalisé sur la récupération d'information |
+| **Context Engineering** | Orchestre *tout* ce qui entre dans le contexte : outils disponibles, données récupérées, historique, état de session, contraintes métier | C'est le cadre complet. RAG et GraphRAG en sont des *composants* |
+
+Le [paper de Microsoft sur GraphRAG](https://arxiv.org/abs/2404.16130) a popularisé l'idée qu'un graphe de connaissances améliore la récupération contextuelle. C'est vrai. Mais GraphRAG ne gère pas la question "quels outils montrer au modèle" ou "quel historique de conversation conserver". L'ingénierie de contexte englobe tout cela.
+
+Chez Casys, on utilise un GraphRAG maison avec un mécanisme d'attention sur hypergraphe (SHGAT) qui apprend les relations entre outils à partir de workflows réels. Ce n'est pas "juste du RAG" — c'est une couche qui comprend que `git commit` est *relié* à `git push` même si les deux mots ne se ressemblent pas. Mais c'est une brique parmi d'autres dans la gestion du contexte complète.
+
+---
+
+## Les quatre piliers de la gestion du contexte
+
+Après avoir construit un gateway MCP qui agrège des dizaines de serveurs d'outils, voici la taxonomie qu'on utilise en interne. Quatre dimensions à gérer simultanément.
+
+### 1. Le contexte d'outils — Quoi montrer au modèle ?
+
+C'est le problème le plus immédiat. Un registre comme [Smithery](https://smithery.ai) recense 17 000+ outils MCP. Aucun context window ne peut tous les contenir.
+
+On en parlait dans [l'article sur le routage d'agents](/blog/routing-agents-without-new-protocol) : quand les schémas MCP dépassent 10% du contexte, la performance du modèle se dégrade. Microsoft Research appelle ça le "tool-space interference" — plus d'outils dans le contexte, moins de précision sur chacun.
+
+La solution n'est pas de tout charger. C'est de **sélectionner** les outils pertinents *avant* que le modèle ne raisonne. C'est de l'ingénierie de contexte appliquée aux outils.
+
+Concrètement, avec le protocole [MCP](/blog/why-mcp-protocol) et un gateway, ça ressemble à ceci :
+
+```typescript
+// Découverte contextuelle : ne charge que les outils pertinents
+const tools = await mcp.pml.discover({
+  intent: "statut ligne de production",
+  limit: 8,
+  filter: { type: "tool" }
+});
+
+// Résultat : 8 outils triés par pertinence
+// - mes:get_line_status     (score: 0.94)
+// - gmao:get_maintenance    (score: 0.87)
+// - erp:get_production_order (score: 0.82)
+// ... pas les 17 000 autres
+```
+
+Le modèle ne voit que 8 outils au lieu de 17 000. Son context window est préservé. Sa précision sur ces 8 outils est maximale.
+
+### 2. Le contexte de données — Quelles informations injecter ?
+
+Une fois les bons outils identifiés, il faut aller chercher les données et les structurer. Le RAG classique fait du retrieval par similarité vectorielle. Utile, mais insuffisant.
+
+L'ingénierie de contexte ajoute :
+- **Le traversal de graphe** : suivre les relations entre entités (une commande → ses lignes → leurs composants → leur stock)
+- **L'agrégation cross-système** : croiser le BOM du PLM avec les coûts de l'ERP et la disponibilité du MES
+- **Le filtrage par pertinence temporelle** : les données de hier sont plus pertinentes que celles d'il y a six mois
+
+```typescript
+// Agrégation cross-système via MCP
+const lineStatus = await mcp.mes.get_line_status({ line: 3 });
+const maintenance = await mcp.gmao.get_next_maintenance({
+  equipment: lineStatus.equipmentId
+});
+const productionOrder = await mcp.erp.get_production_order({
+  line: 3,
+  status: "active"
+});
+
+// Le contexte injecté au modèle contient les 3 sources
+// Le modèle peut maintenant croiser :
+// - rendement actuel (MES)
+// - prochaine maintenance préventive (GMAO)
+// - commande en cours et deadline (ERP)
+```
+
+### 3. Le contexte de séquence — Qu'est-ce qui vient ensuite ?
+
+C'est la dimension que presque personne ne traite. Un agent ne fait pas une action isolée — il exécute un workflow. Et dans un workflow, l'ordre compte.
+
+Chez Casys, on utilise un GRU (Gated Recurrent Unit) entraîné sur des milliers de workflows réels pour prédire l'outil suivant. Pas un LLM de 8 milliards de paramètres — un réseau récurrent de moins d'un million de paramètres, qui tourne en millisecondes sur CPU.
+
+```typescript
+// Prédiction séquentielle : qu'est-ce qui suit logiquement ?
+const history = ["erp:get_production_order", "mes:get_line_status"];
+const nextTools = await gru.predictNext(history, { topK: 3 });
+
+// Résultat :
+// 1. gmao:get_maintenance_schedule (0.73)
+// 2. qms:get_nonconformities      (0.18)
+// 3. scada:get_alarms              (0.05)
+
+// Le contexte est enrichi AVANT que le modèle ne décide
+```
+
+Ce contexte séquentiel est invisible pour un système RAG classique. Il ne vient pas d'un document — il vient de l'expérience accumulée. "Quand quelqu'un a vérifié la production puis le statut machine, il vérifie ensuite la maintenance dans 73% des cas." C'est de la mémoire procédurale, pas de la recherche documentaire.
+
+### 4. Le contexte de session — L'état conversationnel
+
+Le quatrième pilier est le plus négligé : la gestion de l'état au fil de la conversation. Après 10 échanges, qu'est-ce qui reste pertinent ? Qu'est-ce qui peut être résumé ? Qu'est-ce qui doit être conservé verbatim ?
+
+Google a introduit le "context caching" dans Gemini — la possibilité de pré-charger un bloc de contexte et de le réutiliser à moindre coût sur plusieurs requêtes. C'est un mécanisme d'optimisation (moins de tokens, moins de latence), mais ça illustre le problème : **gérer le contexte de session est un problème d'ingénierie, pas de modèle.**
+
+Les approches divergent :
+
+- **LangChain/LangGraph** : mémoire conversationnelle avec summarization automatique. Pragmatique, mais perd les détails.
+- **MemGPT/Letta** : pagination de mémoire inspirée des OS. Élégant en théorie, complexe à opérer.
+- **Casys PML** : graphe de connaissances persistant avec invalidation par événement. Les entités et relations sont stockées, pas les messages bruts.
+
+Aucune de ces approches n'est universellement meilleure. Le bon choix dépend du cas d'usage. Ce qui est universel, c'est que **ne pas gérer le contexte de session n'est pas une option** dès qu'on dépasse le prototype.
+
+---
+
+## Le MCP Gateway comme couche d'agrégation de contexte
+
+Revenons au problème industriel concret. 15 systèmes, 15 API, un agent qui doit tous les voir.
+
+Le **Model Context Protocol** (MCP) standardise la connexion entre un agent et ses outils. C'est le [USB-C des outils IA](/blog/why-mcp-protocol). Un seul protocole, tous les systèmes.
+
+Mais un protocole ne suffit pas. Il faut une couche d'orchestration qui :
+1. **Découvre** les outils disponibles sur tous les serveurs MCP connectés
+2. **Sélectionne** les plus pertinents pour la requête courante
+3. **Route** l'exécution vers le bon serveur
+4. **Agrège** les résultats en un contexte cohérent
+5. **Apprend** des patterns d'usage pour améliorer la sélection
+
+C'est ce qu'on appelle un **MCP Gateway**. Et c'est, concrètement, du context engineering en acte.
+
+```typescript
+// Architecture MCP Gateway — orchestration du contexte
+import { MCPGateway } from "@casys/pml";
+
+const gateway = new MCPGateway({
+  servers: {
+    erp:   { transport: "stdio", command: "mcp-erpnext" },
+    mes:   { transport: "sse",   url: "http://mes.local:3010/mcp" },
+    gmao:  { transport: "stdio", command: "mcp-gmao" },
+    plm:   { transport: "sse",   url: "http://syson.local:8180/mcp" },
+    scada: { transport: "stdio", command: "mcp-scada" },
+  },
+  // GraphRAG pour les relations entre outils
+  graphrag: { enabled: true, shgat: true },
+  // GRU pour la prédiction séquentielle
+  sequenceModel: { enabled: true, weightsPath: "gru-weights-prod.json" },
+});
+
+// L'intent de l'utilisateur déclenche le pipeline de contexte
+const context = await gateway.buildContext({
+  intent: "Pourquoi la ligne 3 a un rendement en baisse ?",
+  sessionHistory: conversation.messages,
+  maxTools: 10,
+  maxTokens: 8000,  // Budget de contexte pour les données
+});
+
+// context.tools     → 10 outils pertinents (MES, GMAO, ERP...)
+// context.data      → Données pré-récupérées par le gateway
+// context.sequence  → Prédiction des prochaines étapes probables
+// context.graph     → Sous-graphe de connaissances pertinent
+```
+
+Le modèle reçoit un contexte **curé, structuré et dimensionné**. Pas un dump de 15 API. Pas 17 000 schémas d'outils. Le nécessaire et suffisant.
+
+---
+
+## Ce que les autres font (et ce qui manque)
+
+Le context engineering n'est pas un concept inventé par Casys. C'est un problème que tout le monde rencontre. Mais les approches diffèrent.
+
+### Microsoft : GraphRAG + context protocol
+
+Microsoft a publié [GraphRAG](https://arxiv.org/abs/2404.16130) en 2024 — un framework qui construit un graphe de connaissances à partir de documents non structurés, puis utilise ce graphe pour répondre aux questions. C'est du RAG enrichi par la structure.
+
+Leur limite : GraphRAG est centré sur les *documents*. Il ne gère pas la découverte d'outils, le routage cross-système, ou la prédiction de séquences. C'est une excellente brique dans une stratégie de contexte, pas une solution complète.
+
+### LangChain : le couteau suisse
+
+LangChain et LangGraph offrent des primitives de gestion de contexte : mémoire conversationnelle, retrieval chains, agent executors. L'écosystème est riche, la communauté est massive.
+
+Leur limite : c'est une boîte à outils, pas une architecture. Chaque développeur assemble ses propres briques. Le résultat varie de "propre" à "spaghetti ingérable" selon l'équipe. Et surtout, pas de composant natif pour le routage d'outils à l'échelle industrielle.
+
+### Google : context caching + Gemini
+
+Google a pris un angle pragmatique avec le context caching dans Gemini — réduire le coût et la latence en réutilisant les blocs de contexte. C'est de l'optimisation d'infrastructure, pas de la gestion sémantique du contexte.
+
+### Ce qui manque partout
+
+Aucune de ces approches ne traite le problème complet :
+
+| Dimension | Microsoft GraphRAG | LangChain | Google Gemini | Casys PML |
+| --------- | ------------------ | --------- | ------------- | --------- |
+| Retrieval documentaire | Graphe | Vectoriel | Vectoriel | Graphe (SHGAT) |
+| Découverte d'outils | Non | Basique | Non | GraphRAG + embeddings |
+| Routage cross-système | Non | Manuel | Non | MCP Gateway automatique |
+| Prédiction de séquence | Non | Non | Non | GRU sub-1M params |
+| Context budgeting | Non | Partiel | Context caching | Budget tokens par source |
+| Apprentissage continu | Non | Non | Non | Workflows réels → graph |
+
+La gestion du contexte industriel demande les quatre piliers simultanément. Pas un seul.
+
+---
+
+## Implémenter l'ingénierie de contexte : par où commencer ?
+
+Si vous êtes en train de construire des agents IA pour un environnement avec plusieurs systèmes, voici une feuille de route pragmatique.
+
+### Étape 1 : Inventorier vos sources de contexte
+
+Avant toute implémentation, listez vos systèmes, leurs API, et les données qu'ils exposent. C'est le travail le moins glamour et le plus important. Si vous ne savez pas ce que vos systèmes contiennent, aucun framework ne va le deviner.
+
+### Étape 2 : Standardiser l'accès avec MCP
+
+Encapsulez chaque système dans un serveur MCP. Un schéma standard, un protocole standard. Ça prend du temps, mais c'est un investissement one-shot qui débloque tout le reste.
+
+```typescript
+// Un serveur MCP pour votre ERP — structure standard
+const server = new MCPServer({
+  name: "erp",
+  tools: [
+    {
+      name: "get_production_order",
+      description: "Récupère les ordres de fabrication actifs",
+      inputSchema: {
+        type: "object",
+        properties: {
+          line: { type: "number", description: "Numéro de ligne" },
+          status: { type: "string", enum: ["active", "planned", "completed"] }
+        }
+      }
+    },
+    // ... autres outils
+  ]
+});
+```
+
+### Étape 3 : Ajouter le contexte relationnel
+
+Une fois vos outils standardisés, connectez-les via un graphe de connaissances. Pas nécessairement un GraphRAG complet au début — même un graphe simple de co-occurrences ("ces outils sont souvent utilisés ensemble") améliore significativement la découverte.
+
+### Étape 4 : Budgétiser le contexte
+
+C'est la partie que tout le monde oublie. Votre context window n'est pas infini. Même avec un million de tokens, injecter *tout* est contre-productif (tool-space interference). Définissez un budget par source :
+
+- Schémas d'outils : max 10% du contexte
+- Données récupérées : max 40%
+- Historique de conversation : max 30%
+- Instructions système : max 20%
+
+Ces ratios sont des points de départ, pas des dogmes. Ajustez selon vos mesures.
+
+---
+
+## Le process *est* le contexte
+
+Il y a un lien direct entre le context engineering et la gestion par les processus dont on parlait dans [un article récent](/blog/process-is-the-prompt). Le diagramme Tortue — cet outil de management qualité vieux de 45 ans — pose exactement les bonnes questions pour structurer le contexte d'un agent :
+
+- **Avec quoi ?** → Quels outils (MCP servers) l'agent a-t-il accès ?
+- **Avec qui ?** → Quels agents spécialisés interviennent ?
+- **Comment ?** → Quelles procédures (system prompts, context files) guident l'exécution ?
+- **Combien ?** → Quelles métriques (tokens, latence, taux de succès) mesurent la qualité du contexte ?
+
+Ce n'est pas un problème nouveau. C'est le problème de la gestion de l'information reformulé pour l'ère des agents. Les entreprises industrielles qui savent déjà structurer leurs processus ont un avantage massif — elles connaissent déjà les réponses aux quatre questions. Il leur manque juste l'outillage pour les connecter aux modèles.
+
+---
+
+## Les erreurs à éviter
+
+Après avoir construit et itéré sur ces systèmes pendant des mois, voici les pièges les plus fréquents.
+
+**1. Tout mettre dans le prompt système.** C'est tentant, c'est simple, et ça ne scale pas. Un prompt système de 50 000 tokens, c'est un modèle qui rame sur tout. Le contexte doit être dynamique, pas statique.
+
+**2. Confondre RAG et gestion du contexte.** Le RAG est un composant. L'ingénierie de contexte est l'architecture qui décide *quand* utiliser le RAG, *quoi* récupérer, et *comment* le combiner avec les autres sources.
+
+**3. Ignorer le budget de contexte.** Plus de contexte n'est pas toujours mieux. Au-delà d'un seuil, le modèle se noie. Bien gérer le contexte, c'est aussi savoir *ce qu'on ne montre pas*.
+
+**4. Ne pas mesurer.** Si vous ne mesurez pas la qualité de votre contexte — taux de succès des actions, pertinence des outils sélectionnés, tokens consommés — vous optimisez à l'aveugle.
+
+**5. Construire des fallbacks silencieux.** Quand une source de contexte échoue, ne pas substituer silencieusement des données par défaut. L'agent doit savoir qu'il lui manque quelque chose, et le dire. Un contexte incomplet explicite vaut mieux qu'un contexte complet mais faux.
+
+---
+
+## Conclusion : le contexte est le produit
+
+La course aux modèles plus gros, aux context windows plus larges, aux benchmarks plus hauts — tout cela a de la valeur. Mais dans un environnement de production, ce qui fait la différence entre un agent utile et un agent frustrant, c'est rarement le modèle. C'est le contexte.
+
+Le **context engineering** n'est pas une mode. C'est la discipline qui manquait entre "on a un bon modèle" et "on a un agent qui marche en production". C'est l'infrastructure invisible qui détermine si votre agent voit les bonnes données, les bons outils, au bon moment.
+
+Et c'est, fondamentalement, un problème d'ingénierie. Pas de data science. Pas de prompt crafting. D'ingénierie logicielle, rigoureuse, testable, mesurable.
+
+C'est exactement ce qu'on construit chez [Casys](https://casys.ai) — un gateway MCP qui fait de la gestion du contexte son coeur de métier. Discovery, routing, GraphRAG, prédiction séquentielle, le tout en open source.
+
+Si le sujet vous intéresse, rejoignez la discussion sur [Discord](https://discord.gg/casys). On y parle ingénierie de contexte, MCP, agents industriels — sans complaisance.

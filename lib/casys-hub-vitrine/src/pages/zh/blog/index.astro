@@ -5,7 +5,8 @@ import BlogLayout from '../../../layouts/BlogLayout.astro';
 const locale = 'zh';
 
 const labels = {
-  blogTitle: 'CASYS 博客',
+  blogTitle: '博客 — MCP、GraphRAG 与 Context Engineering | Casys',
+  blogHeading: 'CASYS 博客',
   description: 'CASYS 开发相关的最新文章、技术指南和深度分析。',
   featured: '精选',
   allArticles: '所有文章',
@@ -43,7 +44,7 @@ function getPostSlug(post: typeof sortedPosts[0]) {
 <BlogLayout title={labels.blogTitle} locale={locale}>
   <!-- Blog header -->
   <div class="blog-header">
-    <h1 class="blog-title">{labels.blogTitle}</h1>
+    <h1 class="blog-title">{labels.blogHeading}</h1>
     <p class="blog-description">
       {labels.description}
     </p>

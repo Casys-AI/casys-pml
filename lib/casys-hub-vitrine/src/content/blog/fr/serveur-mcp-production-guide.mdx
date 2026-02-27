@@ -1,0 +1,693 @@
+---
+title: "Serveur MCP en Production : Le Guide Pratique"
+description: "Comment construire et deployer un serveur MCP production-ready en TypeScript. Guide complet avec exemples de code, comparatif SDK, et deploiement Docker/systemd."
+author: "Erwan Lee Pesle"
+date: 2026-02-27
+tags:
+  - mcp
+  - mcp-server
+  - production
+  - typescript
+  - infrastructure
+category: "Product"
+language: fr
+snippet: "Construire un serveur MCP qui tient en production. Code TypeScript, comparatif SDK, deploiement Docker et systemd."
+featured: true
+draft: false
+---
+
+## Le vrai probleme avec les serveurs MCP
+
+Construire un serveur MCP qui repond a `tools/list` et `tools/call`, ca prend une heure. Construire un serveur MCP qui tient en production avec de l'auth, du rate limiting, de l'observabilite et du controle de concurrence -- ca prend trois semaines.
+
+C'est le meme ecart qu'entre un script Express qui repond "hello world" et un service HTTP qui gere 500 requetes par seconde sans tomber. Le [Model Context Protocol](https://modelcontextprotocol.io) definit le *quoi* -- le format des messages, les transports, le lifecycle. Il ne dit rien sur le *comment* de la production.
+
+Cet article est le guide que j'aurais voulu avoir quand on a mis nos premiers serveurs MCP en production. On va partir de zero, construire un serveur MCP complet en TypeScript, et le deployer sur un VPS avec Docker et systemd. Pas de theorie. Du code qui tourne.
+
+Si vous ne connaissez pas encore MCP, commencez par [MCP : Le USB-C des Outils IA](/blog/why-mcp-protocol) -- ca vous donnera le contexte. Si vous etes deja convaincu et que vous voulez coder, restez ici.
+
+---
+
+## Ce qu'un serveur MCP doit gerer
+
+Avant de parler de framework, listons ce qu'un serveur MCP en production doit supporter. Pas la spec minimale -- la realite d'un service qui tourne 24/7 avec des clients qui ne sont pas tous bien eleves.
+
+**Le protocole MCP lui-meme :**
+- Negociation des capacites (`initialize`)
+- Listing et execution des outils (`tools/list`, `tools/call`)
+- Listing et lecture des ressources (`resources/list`, `resources/read`)
+- Deux transports : `stdio` (processus local) et Streamable HTTP (reseau)
+
+**Ce que la spec ne couvre pas :**
+- Authentification et autorisation (OAuth2, JWT, scopes)
+- Rate limiting par IP, par token, par outil
+- Validation des schemas d'entree avant execution
+- Controle de concurrence (pas 200 requetes simultanees sur votre base)
+- Backpressure quand le serveur est sature
+- Metriques Prometheus, traces OpenTelemetry
+- CORS, CSP, taille maximale des requetes
+- Gestion propre des signaux (SIGTERM, graceful shutdown)
+
+Ignorer un seul de ces points, c'est une bombe a retardement. Un serveur MCP sans rate limiting, c'est un DDoS qui attend de se produire. Un serveur MCP sans validation de schema, c'est une injection SQL qui attend son heure.
+
+---
+
+## Option 1 : Le SDK officiel
+
+Le point de depart le plus naturel est le [SDK officiel MCP](https://github.com/modelcontextprotocol/typescript-sdk) (`@modelcontextprotocol/sdk`). C'est la reference. Voici a quoi ressemble un serveur MCP minimal avec :
+
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+
+const server = new McpServer({
+  name: "my-server",
+  version: "1.0.0",
+});
+
+server.tool(
+  "greet",
+  "Greet a user by name",
+  { name: z.string() },
+  async ({ name }) => ({
+    content: [{ type: "text", text: `Hello, ${name}!` }],
+  }),
+);
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+Ca marche. Votre serveur MCP repond a Claude, GPT, ou n'importe quel client MCP. Pour un prototype ou un outil local, c'est suffisant.
+
+Mais des que vous voulez du HTTP, de l'auth, du rate limiting... vous etes seul. Le SDK donne le protocole. Le reste, c'est votre probleme. Vous allez ecrire du middleware Express ou Hono, brancher manuellement le SSE, gerer les sessions, implementer votre propre rate limiter. Chaque serveur MCP que vous construisez recommence a zero.
+
+---
+
+## Option 2 : Le framework @casys/mcp-server
+
+C'est le probleme qu'on a resolu avec [`@casys/mcp-server`](https://jsr.io/@casys/mcp-server). Le pitch est simple : **le Hono pour MCP**. Minimaliste, rapide, production-ready.
+
+Construit avec Deno, compatible Node.js. Publie sur [JSR](https://jsr.io/@casys/mcp-server) et [npm](https://www.npmjs.com/package/@casys/mcp-server). Le meme serveur MCP, les deux runtimes.
+
+### Un serveur MCP en 15 lignes
+
+```typescript
+import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "my-server",
+  version: "1.0.0",
+  maxConcurrent: 10,
+  backpressureStrategy: "queue",
+});
+
+server.registerTool(
+  {
+    name: "greet",
+    description: "Greet a user by name",
+    inputSchema: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    },
+  },
+  ({ name }) => `Hello, ${name}!`,
+);
+
+// STDIO transport — works with Claude Desktop, Cursor, etc.
+await server.start();
+```
+
+C'est un serveur MCP complet. `tools/list` retourne votre outil avec son schema. `tools/call` l'execute avec validation automatique des parametres. Le controle de concurrence est integre -- pas plus de 10 appels simultanes, les suivants sont mis en file d'attente.
+
+### Passer en HTTP en une ligne
+
+Le meme serveur, expose sur le reseau avec les protections de production :
+
+```typescript
+// Au lieu de server.start() pour stdio :
+await server.startHttp({
+  port: 3000,
+  requireAuth: true,
+  corsOrigins: ["https://app.example.com"],
+  maxBodyBytes: 1_048_576,          // 1 MB
+  ipRateLimit: {
+    maxRequests: 60,
+    windowMs: 60_000,
+  },
+});
+```
+
+Voila. Un serveur MCP HTTP avec :
+- Streamable HTTP + SSE integre
+- Authentification requise (OAuth2/JWT)
+- CORS whitelist
+- Limite de taille des requetes (413 si depasse)
+- Rate limiting par IP (429 si depasse)
+
+Pas de middleware a ecrire. Pas de configuration Express. Pas de plomberie SSE maison.
+
+---
+
+## Enregistrer des outils : schemas et types
+
+Le coeur d'un serveur MCP, ce sont ses outils. Chaque outil a un nom, une description, un schema JSON d'entree, et un handler. Voici un exemple plus realiste -- un outil qui interroge une base PostgreSQL :
+
+```typescript
+server.registerTool(
+  {
+    name: "query_database",
+    description: "Execute a read-only SQL query against PostgreSQL",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sql: {
+          type: "string",
+          description: "The SQL SELECT query to execute",
+        },
+        params: {
+          type: "array",
+          items: { type: "string" },
+          description: "Parameterized query values",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  async ({ sql, params }) => {
+    // Le framework valide automatiquement les inputs
+    // contre le schema AVANT d'appeler ce handler.
+    // Si "sql" est manquant ou n'est pas un string, le client
+    // recoit une erreur MCP propre — pas un crash.
+
+    if (!sql.trim().toUpperCase().startsWith("SELECT")) {
+      throw new Error("Only SELECT queries are allowed");
+    }
+
+    const result = await pool.query(sql, params ?? []);
+    return JSON.stringify(result.rows, null, 2);
+  },
+);
+```
+
+Quelques points importants :
+
+1. **La validation est automatique.** Le framework valide chaque appel contre le `inputSchema` avant d'invoquer le handler. Pas besoin de verifier manuellement que `sql` existe et est un string.
+
+2. **Les erreurs sont propres.** Une erreur dans le handler est capturee et renvoyee comme une erreur MCP standard. Le client ne recoit jamais une stack trace brute.
+
+3. **Le schema est la documentation.** Les clients MCP (Claude, GPT, Cursor) utilisent le schema et la description pour decider quand et comment appeler votre outil. Un bon schema = un agent plus efficace.
+
+### Enregistrer des ressources
+
+Les outils ne sont pas tout. MCP definit aussi des [ressources](https://modelcontextprotocol.io/docs/concepts/resources) -- des donnees que le client peut lire. Un serveur MCP peut exposer des fichiers, des configurations, des resultats de requetes comme des ressources.
+
+```typescript
+server.registerResource(
+  {
+    uri: "config://app/settings",
+    name: "Application Settings",
+    description: "Current application configuration",
+    mimeType: "application/json",
+  },
+  async () => ({
+    text: JSON.stringify(await loadConfig(), null, 2),
+  }),
+);
+```
+
+---
+
+## Authentification OAuth2 / JWT
+
+Un serveur MCP expose sur le reseau sans authentification est un trou de securite beant. Le framework integre l'auth OAuth2/JWT avec des presets pour les fournisseurs les plus courants.
+
+### Presets OAuth2 integres
+
+```typescript
+import {
+  ConcurrentMCPServer,
+  createGoogleAuthProvider,
+  createAuth0AuthProvider,
+  createGitHubAuthProvider,
+} from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "secure-server",
+  version: "1.0.0",
+  auth: {
+    provider: createGoogleAuthProvider({
+      audience: "https://my-mcp.example.com",
+      resource: "https://my-mcp.example.com",
+    }),
+  },
+});
+```
+
+Quatre presets disponibles : Google, Auth0, GitHub, et un preset OIDC generique pour n'importe quel fournisseur compatible.
+
+### Scopes par outil
+
+Vous pouvez restreindre l'acces a certains outils par scope OAuth2 :
+
+```typescript
+server.registerTool(
+  {
+    name: "delete_user",
+    description: "Delete a user account",
+    inputSchema: { /* ... */ },
+    requiredScopes: ["admin:write"],
+  },
+  async ({ userId }) => { /* ... */ },
+);
+```
+
+Un token sans le scope `admin:write` recevra un 403 avant meme que le handler ne soit appele.
+
+### Configuration YAML
+
+Pour les equipes qui preferent separer la config du code, le framework charge aussi la configuration auth depuis un fichier YAML :
+
+```yaml
+# mcp-server.yaml
+auth:
+  provider: auth0
+  audience: https://my-mcp.example.com
+  resource: https://my-mcp.example.com
+  domain: my-tenant.auth0.com
+  scopesSupported: [read, write, admin]
+```
+
+Les variables d'environnement prennent le dessus en production :
+
+```bash
+MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
+```
+
+---
+
+## Pipeline de middleware
+
+Comme Hono ou Express, le framework offre un pipeline de middleware composable. Chaque requete MCP traverse la chaine avant d'atteindre le handler de l'outil.
+
+Le pipeline par defaut inclut :
+- **Rate limiting** — par IP, par token, par outil
+- **Validation** — schema JSON automatique
+- **Backpressure** — file d'attente ou rejet quand le serveur est sature
+- **Auth** — verification du token et des scopes
+- **Metriques** — compteurs Prometheus, traces OpenTelemetry
+
+Vous pouvez ajouter vos propres middlewares :
+
+```typescript
+import { ConcurrentMCPServer, createMiddlewareRunner } from "@casys/mcp-server";
+import type { Middleware, MiddlewareContext } from "@casys/mcp-server";
+
+const loggingMiddleware: Middleware = async (
+  context: MiddlewareContext,
+  next,
+) => {
+  const start = Date.now();
+  const result = await next(context);
+  console.log(`${context.toolName} took ${Date.now() - start}ms`);
+  return result;
+};
+
+// Le middleware est injecte dans le pipeline
+```
+
+---
+
+## Observabilite : metriques et traces
+
+Un serveur MCP en production sans observabilite, c'est piloter a l'aveugle. Le framework integre deux couches :
+
+### Metriques Prometheus
+
+```typescript
+import { ServerMetrics } from "@casys/mcp-server";
+
+// Les metriques sont collectees automatiquement :
+// - Nombre d'appels par outil
+// - Latence par outil (p50, p95, p99)
+// - Taux d'erreurs
+// - Requetes en file d'attente
+// - Connexions SSE actives
+```
+
+### Traces OpenTelemetry
+
+Chaque appel d'outil cree un span OpenTelemetry avec les attributs pertinents :
+
+```typescript
+import { startToolCallSpan, endToolCallSpan } from "@casys/mcp-server";
+
+// Le framework cree automatiquement les spans.
+// Exportez-les vers Jaeger, Grafana Tempo, ou Datadog
+// via le SDK OpenTelemetry standard.
+```
+
+---
+
+## Comparatif : SDK officiel vs @casys/mcp-server vs from scratch
+
+Avant de choisir, voici un comparatif objectif. Le SDK officiel est la reference du protocole. `@casys/mcp-server` est construit *par-dessus* ce SDK -- ce n'est pas un fork, c'est une couche de production.
+
+| Fonctionnalite | SDK officiel | @casys/mcp-server | From scratch |
+|---|---|---|---|
+| Protocole MCP | Oui | Oui | A implementer |
+| stdio + HTTP | stdio + SSE manuel | Les deux integres | A implementer |
+| Pipeline middleware | Non | Oui | A implementer |
+| Auth OAuth2 / JWT | Non | 4 presets integres | A implementer |
+| Rate limiting | Non | Par IP, token, outil | A implementer |
+| Validation de schema | Non | Automatique (AJV) | A implementer |
+| Controle de concurrence | Non | Queue + backpressure | A implementer |
+| Metriques Prometheus | Non | Integre | A implementer |
+| Traces OpenTelemetry | Non | Integre | A implementer |
+| CORS allowlist | Non | Integre | A implementer |
+| Limite taille body (413) | Non | Integre | A implementer |
+| Config YAML + Env | Non | Integre | A implementer |
+| Deno + Node.js | Node uniquement | Les deux | Selon votre choix |
+| Communaute | Large | Naissante | Vous seul |
+| Ligne de code pour demarrer | ~15 | ~15 | ~200+ |
+
+Le choix depend de votre contexte :
+
+- **Prototype / outil local** : le SDK officiel suffit. C'est le bon choix si votre serveur MCP tourne en `stdio` sur la machine de l'utilisateur.
+- **Service en production** : `@casys/mcp-server` vous evite trois semaines de plomberie. Auth, rate limiting, observabilite -- c'est la des le premier `startHttp()`.
+- **From scratch** : a eviter sauf si vous avez des contraintes tres specifiques. Vous allez reimplementer ce que les deux options ci-dessus fournissent deja.
+
+---
+
+## Deployer un serveur MCP en production
+
+Un serveur MCP qui tourne en `deno run` dans un terminal, ce n'est pas de la production. Voici deux approches eprouvees : Docker et systemd.
+
+### Deploiement Docker
+
+```dockerfile
+# Dockerfile
+FROM denoland/deno:2.1.4
+
+WORKDIR /app
+
+# Cache les dependances
+COPY deno.json deno.lock ./
+RUN deno install
+
+# Copie le code source
+COPY . .
+
+# Compile pour des demarrages plus rapides
+RUN deno cache mod.ts
+
+# Port HTTP du serveur MCP
+EXPOSE 3000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Demarrage
+CMD ["deno", "run", "--allow-net", "--allow-read", "--allow-env", "mod.ts"]
+```
+
+Avec un `docker-compose.yml` :
+
+```yaml
+version: "3.8"
+services:
+  mcp-server:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - MCP_AUTH_AUDIENCE=https://my-mcp.example.com
+      - MCP_AUTH_PROVIDER=google
+      - DATABASE_URL=postgresql://user:pass@db:5432/mydb
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    networks:
+      - internal
+
+  db:
+    image: postgres:16-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+
+networks:
+  internal:
+```
+
+Si votre serveur MCP tourne dans Docker et doit communiquer avec des services sur l'hote (Ollama, un autre serveur MCP, etc.), lisez [Le piege du localhost](/blog/the-localhost-trap) -- le reseau Docker est le mur invisible qui casse la plupart des deploiements.
+
+### Deploiement systemd
+
+Pour un deploiement direct sur un VPS, systemd est la solution la plus fiable :
+
+```ini
+# /etc/systemd/system/mcp-server.service
+[Unit]
+Description=MCP Server - My Tools
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=mcp
+Group=mcp
+WorkingDirectory=/opt/mcp-server
+ExecStart=/home/mcp/.deno/bin/deno run \
+  --allow-net \
+  --allow-read \
+  --allow-env \
+  mod.ts
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=MCP_AUTH_PROVIDER=google
+Environment=MCP_AUTH_AUDIENCE=https://my-mcp.example.com
+Environment=PORT=3000
+
+# Securite
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mcp-server/data
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now mcp-server
+sudo journalctl -u mcp-server -f
+```
+
+### Reverse proxy avec Caddy
+
+En production, votre serveur MCP devrait etre derriere un reverse proxy qui gere le TLS :
+
+```
+# /etc/caddy/Caddyfile
+mcp.example.com {
+    reverse_proxy localhost:3000
+}
+```
+
+Caddy gere automatiquement les certificats Let's Encrypt. Votre serveur MCP est accessible en HTTPS sans configuration supplementaire.
+
+---
+
+## Connecter un client MCP
+
+Un serveur MCP sans client, ca ne sert a rien. Voici comment connecter les clients les plus courants.
+
+### Claude Desktop / Claude Code
+
+Dans le fichier de configuration Claude (`~/.claude/mcp_servers.json` ou equivalent) :
+
+```json
+{
+  "mcpServers": {
+    "my-tools": {
+      "command": "deno",
+      "args": ["run", "--allow-net", "--allow-read", "--allow-env", "mod.ts"],
+      "cwd": "/path/to/your/server"
+    }
+  }
+}
+```
+
+Pour un serveur MCP HTTP distant :
+
+```json
+{
+  "mcpServers": {
+    "my-tools": {
+      "url": "https://mcp.example.com",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
+    }
+  }
+}
+```
+
+### Cursor / VS Code
+
+Meme principe -- les editeurs qui supportent MCP acceptent la configuration `stdio` ou HTTP. Consultez la documentation de votre editeur pour le format exact du fichier de configuration.
+
+### Clients programmatiques
+
+N'importe quel client qui implemente le protocole MCP peut se connecter. Le SDK officiel fournit un `Client` pour TypeScript :
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const transport = new StreamableHTTPClientTransport(
+  new URL("https://mcp.example.com/mcp"),
+);
+
+const client = new Client({ name: "my-app", version: "1.0.0" });
+await client.connect(transport);
+
+const tools = await client.listTools();
+console.log(`${tools.tools.length} outils disponibles`);
+
+const result = await client.callTool({
+  name: "greet",
+  arguments: { name: "World" },
+});
+console.log(result.content);
+```
+
+---
+
+## Architecture multi-serveurs MCP
+
+En pratique, vous n'allez pas tout mettre dans un seul serveur MCP. Vous aurez un serveur pour la base de donnees, un pour le filesystem, un pour votre API metier. C'est le bon reflexe -- chaque serveur MCP a une responsabilite claire.
+
+Le probleme, c'est le routage. Quand un agent a 50 outils repartis sur 5 serveurs MCP, comment choisit-il le bon ? C'est un probleme fondamental que nous avons explore en profondeur dans [20 000 $ pour router 16 agents](/blog/routing-agents-without-new-protocol). La reponse courte : le routage intelligent ne doit pas etre deleguee au LLM seul.
+
+La bonne architecture pour des serveurs MCP en production :
+
+```
+Client MCP (Claude, GPT, Cursor...)
+    |
+    v
+Reverse proxy (Caddy, nginx)
+    |
+    +-- Serveur MCP : database-tools (port 3001)
+    +-- Serveur MCP : file-tools (port 3002)
+    +-- Serveur MCP : api-tools (port 3003)
+    +-- Serveur MCP : admin-tools (port 3004)
+```
+
+Chaque serveur MCP est un service systemd ou un container Docker independant. Le reverse proxy route par path ou par sous-domaine. Chaque serveur a ses propres credentials, rate limits et scopes.
+
+---
+
+## Erreurs courantes a eviter
+
+Apres avoir deploye une dizaine de serveurs MCP en production, voici les erreurs que je vois le plus souvent :
+
+### 1. Pas de validation d'entree
+
+Le client MCP envoie ce qu'il veut. Si votre handler fait confiance aux parametres sans les valider, vous avez une faille. Le framework `@casys/mcp-server` valide automatiquement contre le schema -- mais si vous utilisez le SDK brut, c'est votre responsabilite.
+
+### 2. Pas de rate limiting
+
+Un agent IA peut boucler et appeler le meme outil 1 000 fois par minute. Sans rate limiting, votre base de donnees tombe, votre API externe vous facture, ou votre serveur sature. Mettez un rate limiter. Toujours.
+
+### 3. Schemas trop vagues
+
+```typescript
+// MAUVAIS — le schema ne dit rien
+inputSchema: { type: "object" }
+
+// BON — le schema est precis et documenté
+inputSchema: {
+  type: "object",
+  properties: {
+    query: { type: "string", description: "SQL SELECT query" },
+    limit: { type: "number", minimum: 1, maximum: 100, default: 10 },
+  },
+  required: ["query"],
+  additionalProperties: false,
+}
+```
+
+Un schema precis aide l'agent a appeler correctement votre outil du premier coup. Un schema vague force l'agent a deviner -- et il devinera souvent mal.
+
+### 4. Pas de graceful shutdown
+
+Votre serveur MCP recoit un SIGTERM (deploiement, restart). S'il coupe les connexions SSE brutalement, les clients perdent leur session. Gerez le signal proprement -- terminez les requetes en cours, fermez les connexions SSE, puis quittez.
+
+### 5. stdout pollue en mode stdio
+
+En transport `stdio`, stdout est le canal de communication MCP. Si votre code fait un `console.log()`, ca corrompt le flux JSON-RPC et le client crashe. Utilisez stderr pour le logging en mode stdio.
+
+---
+
+## Tester un serveur MCP
+
+Le SDK officiel fournit un outil de test en ligne de commande : `mcp-inspector`. C'est le moyen le plus rapide de verifier que votre serveur MCP fonctionne :
+
+```bash
+# Installer l'inspector
+npx @modelcontextprotocol/inspector
+
+# Tester un serveur MCP en stdio
+npx @modelcontextprotocol/inspector deno run --allow-net mod.ts
+
+# Tester un serveur MCP HTTP
+npx @modelcontextprotocol/inspector --url https://mcp.example.com
+```
+
+L'inspector affiche les outils disponibles, permet d'envoyer des appels de test, et montre les reponses JSON-RPC brutes.
+
+Pour les tests automatises, utilisez le client SDK programmatique montre plus haut. Connectez-vous a votre serveur, appelez chaque outil avec des parametres connus, et verifiez les reponses. Integrez ca dans votre CI.
+
+---
+
+## Recapitulatif
+
+Construire un serveur MCP fonctionnel est trivial. Construire un serveur MCP qui tient en production demande de gerer l'auth, le rate limiting, la validation, la concurrence, l'observabilite, le deploiement et le monitoring.
+
+Deux chemins :
+
+1. **Le SDK officiel** + trois semaines de plomberie pour chaque serveur MCP.
+2. **`@casys/mcp-server`** + un `startHttp()` avec les protections de production integrees.
+
+Le framework est open source, publie sur [JSR](https://jsr.io/@casys/mcp-server) et [npm](https://www.npmjs.com/package/@casys/mcp-server), et construit sur le SDK officiel -- pas contre lui. C'est une couche de production, pas un remplacement du protocole.
+
+```bash
+# Deno
+deno add @casys/mcp-server
+
+# Node.js (npm)
+npm install @casys/mcp-server
+```
+
+Le code source est sur [GitHub](https://github.com/Casys-AI/mcp-server). Les issues sont ouvertes. Les PR sont bienvenues.
+
+Si vous deployez des serveurs MCP et que vous frappez des murs -- auth, networking Docker, routage multi-agents -- on a probablement frappe les memes. [Contactez-nous](https://casys.ai).

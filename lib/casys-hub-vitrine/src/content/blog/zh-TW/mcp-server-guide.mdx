@@ -1,0 +1,699 @@
+---
+title: "MCP 伺服器實戰指南：用 TypeScript 打造生產級工具服務"
+description: "從零開始建構生產級 MCP 伺服器的完整 TypeScript 教學指南。涵蓋工具註冊、OAuth2 驗證、中介軟體管線、背壓控制與 OpenTelemetry 可觀測性。附 @casys/mcp-server 與官方 SDK 框架對比表，以及台灣智慧製造的實際應用場景與部署範例。"
+author: "Erwan Lee Pesle"
+date: 2026-02-27
+tags:
+  - mcp
+  - mcp-server
+  - typescript
+  - production
+  - infrastructure
+category: "Product"
+language: zh-TW
+snippet: "手把手教你用 TypeScript 建構 MCP 伺服器：從第一行程式碼到生產部署。涵蓋工具註冊、OAuth2 驗證、OpenTelemetry 可觀測性與 Prometheus 監控，附 @casys/mcp-server 與官方 SDK 對比表及台灣智慧製造應用範例。"
+featured: true
+draft: false
+---
+
+## 為什麼你需要關注 MCP 伺服器
+
+2026 年，MCP 伺服器正在成為 AI 應用程式架構的核心組件。在台灣，從台積電的智慧製造到新創公司的對話式介面，開發者面對一個共同的問題：**如何讓 AI 模型安全、可靠地使用外部工具？**
+
+[Model Context Protocol](https://modelcontextprotocol.io)（MCP）是由 Anthropic 提出、現由 Linux Foundation 託管的開放標準。它定義了 AI 模型與外部工具之間的通訊協定 — 就像 USB-C 統一了充電介面一樣，MCP 伺服器統一了工具的存取方式。無論你的用戶端是 Claude、GPT、Gemini 還是本地模型，同一個 MCP 伺服器都能直接服務。
+
+如果你還不清楚 MCP 為什麼重要，建議先讀[這篇文章](/blog/why-mcp-protocol)。本文的重點是 **怎麼建**：從第一行程式碼到生產部署，手把手帶你完成一個 MCP 伺服器。
+
+---
+
+## MCP 伺服器的核心概念
+
+在動手寫程式碼之前，先搞清楚整體架構。
+
+一個 MCP 伺服器本質上是一個 JSON-RPC 服務，暴露三類資源：
+
+1. **Tools（工具）**— 可被 AI 模型呼叫的函式。例如查詢資料庫、發送郵件、讀取檔案。
+2. **Resources（資源）**— 可被 AI 模型讀取的結構化資料。例如設定檔、使用者資訊。
+3. **Prompts（提示）**— 預定義的提示範本，供 AI 模型參考使用。
+
+通訊方式有兩種：
+
+- **stdio**：標準輸入輸出，適合本地整合（例如 Claude Desktop、VS Code 擴充套件）
+- **HTTP（Streamable HTTP + SSE）**：適合遠端部署、多用戶場景
+
+不限定任何 AI 供應商。你建一次，到處用。
+
+---
+
+## 建構你的第一個 MCP 伺服器
+
+我們使用 [`@casys/mcp-server`](https://jsr.io/@casys/mcp-server) 框架 — 它是建立在官方 [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk) 之上的生產級框架，定位是 **「MCP 的 Hono」**：輕量、快速、型別安全。
+
+### 安裝
+
+```bash
+# Deno（推薦）
+deno add jsr:@casys/mcp-server
+
+# Node.js / npm
+npx jsr add @casys/mcp-server
+```
+
+`@casys/mcp-server` 同時發佈於 [JSR](https://jsr.io/@casys/mcp-server) 和 [npm](https://www.npmjs.com/package/@casys/mcp-server)，Deno 優先但完全相容 Node.js。
+
+### 最小可運作範例（5 行核心程式碼）
+
+```typescript
+import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "my-first-server",
+  version: "1.0.0",
+});
+
+server.registerTool(
+  {
+    name: "greet",
+    description: "用指定語言問候使用者",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "使用者名稱" },
+        lang: { type: "string", enum: ["zh-TW", "en", "ja"], default: "zh-TW" },
+      },
+      required: ["name"],
+    },
+  },
+  ({ name, lang }) => {
+    const greetings: Record<string, string> = {
+      "zh-TW": `你好，${name}！`,
+      en: `Hello, ${name}!`,
+      ja: `こんにちは、${name}！`,
+    };
+    return greetings[lang ?? "zh-TW"];
+  },
+);
+
+await server.start(); // stdio 模式 — 直接接入 Claude Desktop
+```
+
+存成 `server.ts`，然後執行：
+
+```bash
+deno run --allow-all server.ts
+```
+
+這就是一個完整的伺服器。Claude Desktop 或任何 MCP 用戶端都可以直接連線。
+
+---
+
+## 工具註冊：型別安全的 Schema
+
+伺服器的核心價值在於工具註冊。每個工具都有明確的 JSON Schema 定義，讓 AI 模型知道：這個工具做什麼、需要什麼參數、回傳什麼結果。
+
+以下是一個較完整的範例 — 一個查詢 PostgreSQL 資料庫的工具：
+
+```typescript
+import { ConcurrentMCPServer } from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "db-tools",
+  version: "1.0.0",
+  validateSchema: true, // 啟用 JSON Schema 驗證（ajv）
+});
+
+// 工具 1：查詢資料庫
+server.registerTool(
+  {
+    name: "query_database",
+    description: "對 PostgreSQL 資料庫執行唯讀查詢",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sql: {
+          type: "string",
+          description: "SELECT 查詢語句（僅允許唯讀操作）",
+        },
+        params: {
+          type: "array",
+          items: { type: "string" },
+          description: "查詢參數（防止 SQL 注入）",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+  async ({ sql, params }) => {
+    // 安全檢查：僅允許 SELECT
+    if (!/^\s*SELECT\b/i.test(sql)) {
+      throw new Error("僅允許 SELECT 查詢");
+    }
+    const result = await pool.query(sql, params ?? []);
+    return { rows: result.rows, rowCount: result.rowCount };
+  },
+);
+
+// 工具 2：取得資料表結構
+server.registerTool(
+  {
+    name: "describe_table",
+    description: "取得指定資料表的欄位結構",
+    inputSchema: {
+      type: "object",
+      properties: {
+        table: { type: "string", description: "資料表名稱" },
+      },
+      required: ["table"],
+    },
+  },
+  async ({ table }) => {
+    const result = await pool.query(
+      `SELECT column_name, data_type, is_nullable
+       FROM information_schema.columns
+       WHERE table_name = $1
+       ORDER BY ordinal_position`,
+      [table],
+    );
+    return result.rows;
+  },
+);
+
+await server.start();
+```
+
+`validateSchema: true` 啟用後，`@casys/mcp-server` 會在每次呼叫前用 [ajv](https://ajv.js.org/) 驗證參數。不合規的請求直接被拒絕，不會到達你的處理邏輯 — 這在生產環境中至關重要。
+
+---
+
+## 中介軟體：可組合的洋蔥模型
+
+`@casys/mcp-server` 的中介軟體架構和 Hono、Koa 一樣：**洋蔥模型（onion model）**。你可以在請求的前後插入任意邏輯。
+
+```typescript
+import type { Middleware } from "@casys/mcp-server";
+
+// 計時中介軟體
+const timing: Middleware = async (ctx, next) => {
+  const start = performance.now();
+  const result = await next();
+  const duration = (performance.now() - start).toFixed(0);
+  console.log(`[${ctx.toolName}] ${duration}ms`);
+  return result;
+};
+
+// 稽核日誌中介軟體
+const audit: Middleware = async (ctx, next) => {
+  console.log(`[AUDIT] tool=${ctx.toolName} user=${ctx.auth?.sub ?? "anon"}`);
+  return next();
+};
+
+server.use(timing);
+server.use(audit);
+```
+
+內建的管線順序是：
+
+```
+速率限制 → 驗證 → 自訂中介軟體 → 範圍檢查 → Schema 驗證 → 背壓控制 → 處理器
+```
+
+你只需要寫自訂邏輯，安全與效能相關的層由框架處理。
+
+---
+
+## HTTP 模式：遠端部署的 MCP 伺服器
+
+stdio 適合本地開發。但如果你要服務多個用戶端、部署在雲端，就需要 HTTP 模式。
+
+```typescript
+import {
+  ConcurrentMCPServer,
+  createAuth0AuthProvider,
+} from "@casys/mcp-server";
+
+const server = new ConcurrentMCPServer({
+  name: "production-api",
+  version: "1.0.0",
+  maxConcurrent: 20,
+  backpressureStrategy: "queue", // "queue" | "drop" | "error"
+  validateSchema: true,
+  rateLimit: { maxRequests: 100, windowMs: 60_000 },
+  auth: {
+    provider: createAuth0AuthProvider({
+      domain: "my-tenant.auth0.com",
+      audience: "https://mcp.example.com",
+      resource: "https://mcp.example.com",
+      scopesSupported: ["read", "write", "admin"],
+    }),
+  },
+});
+
+// 註冊工具...（同上）
+
+await server.startHttp({
+  port: 3000,
+  requireAuth: true,        // 未設定 auth provider 時直接失敗
+  corsOrigins: ["https://app.example.com"],
+  maxBodyBytes: 1_048_576,   // 1 MB
+  ipRateLimit: { maxRequests: 60, windowMs: 60_000 },
+});
+
+// 路由說明：
+// POST /mcp       → JSON-RPC（tools/call, tools/list 等）
+// GET  /mcp       → SSE 串流（伺服器 → 用戶端通知）
+// GET  /health    → { status: "ok" }
+// GET  /metrics   → Prometheus 格式指標
+```
+
+### 安全預設
+
+`@casys/mcp-server` 在 HTTP 模式下的設計哲學是 **安全優先（secure by default）**：
+
+- `requireAuth: true` — 沒有設定驗證供應商就無法啟動
+- `maxBodyBytes` 預設 1 MB — 防止記憶體耗盡攻擊
+- `corsOrigins` 預設 `"*"` 但會在日誌中印出警告 — 生產環境必須設定白名單
+- `ipRateLimit` — 每個 IP 獨立的速率限制，防止暴力攻擊
+- JWT 權杖快取（SHA-256 雜湊 → AuthInfo，TTL = min(權杖過期時間, 5 分鐘)）— 避免每次呼叫都去 JWKS 端點驗證
+
+---
+
+## OAuth2 / JWT 驗證
+
+生產環境中必須有驗證。`@casys/mcp-server` 內建四種 OIDC 預設：
+
+```typescript
+import {
+  createGoogleAuthProvider,   // Google OIDC
+  createAuth0AuthProvider,    // Auth0
+  createGitHubAuthProvider,   // GitHub Actions OIDC
+  createOIDCAuthProvider,     // 通用 OIDC（Keycloak、Okta 等）
+} from "@casys/mcp-server";
+```
+
+也可以用 `JwtAuthProvider` 自訂：
+
+```typescript
+import { JwtAuthProvider } from "@casys/mcp-server";
+
+const provider = new JwtAuthProvider({
+  issuer: "https://my-idp.example.com",
+  audience: "https://my-mcp.example.com",
+  resource: "https://my-mcp.example.com",
+  authorizationServers: ["https://my-idp.example.com"],
+});
+```
+
+工具可以設定 `requiredScopes` 來限制存取範圍：
+
+```typescript
+server.registerTool(
+  {
+    name: "delete_record",
+    description: "刪除一筆記錄",
+    inputSchema: { /* ... */ },
+    requiredScopes: ["admin", "write"], // 必須同時擁有兩個 scope
+  },
+  async ({ id }) => { /* ... */ },
+);
+```
+
+### YAML 設定檔
+
+對於二進位發行版，使用者不需要改程式碼 — 用 YAML 設定即可：
+
+```yaml
+# mcp-server.yaml
+auth:
+  provider: auth0
+  audience: https://mcp.example.com
+  resource: https://mcp.example.com
+  domain: my-tenant.auth0.com
+  scopesSupported: [read, write, admin]
+```
+
+環境變數覆蓋優先順序：`程式碼 > 環境變數 > YAML`
+
+```bash
+MCP_AUTH_AUDIENCE=https://prod.example.com ./my-server --http --port 3000
+```
+
+---
+
+## 可觀測性：OpenTelemetry 與 Prometheus
+
+生產級部署需要可觀測性。`@casys/mcp-server` 內建兩套機制：
+
+### OpenTelemetry 追蹤
+
+每個工具呼叫自動產生一個 OTel span：
+
+```
+mcp.tool.call {
+  tool.name: "query_database"
+  server.name: "production-api"
+  transport: "http"
+  session.id: "abc123"
+  duration_ms: 42
+  success: true
+}
+```
+
+啟用方式（Deno）：
+
+```bash
+OTEL_DENO=true deno run --unstable-otel --allow-all server.ts
+```
+
+### Prometheus 指標
+
+`GET /metrics` 端點暴露：
+
+- **Counters（計數器）**：工具呼叫次數、驗證事件、速率限制觸發次數
+- **Histogram（直方圖）**：工具呼叫延遲分佈
+- **Gauges（即時值）**：活躍請求數、佇列長度、SSE 用戶端數、伺服器運行時間
+
+```bash
+curl http://localhost:3000/metrics
+# mcp_tool_calls_total{tool="query_database",status="success"} 1247
+# mcp_tool_call_duration_seconds_bucket{tool="query_database",le="0.1"} 1189
+# mcp_active_requests 3
+```
+
+接上 Grafana，你就有完整的監控儀表板。
+
+---
+
+## 連接 AI 用戶端
+
+伺服器建好了，怎麼讓 AI 模型使用它？
+
+### Claude Desktop
+
+在 `claude_desktop_config.json` 中加入：
+
+```json
+{
+  "mcpServers": {
+    "my-db-tools": {
+      "command": "deno",
+      "args": ["run", "--allow-all", "/path/to/server.ts"]
+    }
+  }
+}
+```
+
+Claude Desktop 會自動以 stdio 模式啟動伺服器。
+
+### Claude Code（CLI）
+
+在專案根目錄建立 `.mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "my-db-tools": {
+      "command": "deno",
+      "args": ["run", "--allow-all", "/path/to/server.ts"]
+    }
+  }
+}
+```
+
+### 遠端 HTTP 用戶端
+
+任何支援 MCP HTTP 傳輸的用戶端都可以連線：
+
+```typescript
+// 用戶端範例（使用官方 SDK）
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const transport = new StreamableHTTPClientTransport(
+  new URL("https://mcp.example.com/mcp"),
+);
+
+const client = new Client({ name: "my-client", version: "1.0.0" });
+await client.connect(transport);
+
+// 列出可用工具
+const tools = await client.listTools();
+console.log(tools);
+
+// 呼叫工具
+const result = await client.callTool({
+  name: "query_database",
+  arguments: { sql: "SELECT COUNT(*) FROM users" },
+});
+console.log(result);
+```
+
+### OpenAI / GPT 整合
+
+OpenAI 在 2025 年底[宣佈支援 MCP](https://openai.com/index/mcp-in-chatgpt/)。任何符合 MCP 規範的伺服器都可以透過遠端 HTTP 模式接入 ChatGPT 和 GPT API。
+
+---
+
+## 框架對比：三種方式建構 MCP 伺服器
+
+| 特性 | 從零自建 | @modelcontextprotocol/sdk | @casys/mcp-server |
+| --- | :---: | :---: | :---: |
+| MCP 協定相容性 | 需自行實作 | 完整 | 完整（基於官方 SDK） |
+| 並行控制 | 無 | 無 | 三種背壓策略 |
+| 中介軟體管線 | 無 | 無 | 洋蔥模型（Hono 風格） |
+| OAuth2 / JWT 驗證 | 需自行整合 | 無 | 內建 + 4 種 OIDC 預設 |
+| 速率限制 | 需自行實作 | 無 | 滑動視窗，每 IP 獨立 |
+| Schema 驗證 | 需自行實作 | 無 | JSON Schema（ajv） |
+| Streamable HTTP + SSE | 需自行實作 | 需手動設定 | 內建 Session 管理 |
+| OpenTelemetry 追蹤 | 需自行整合 | 無 | 自動 span |
+| Prometheus 指標 | 需自行實作 | 無 | `/metrics` 端點 |
+| MCP Apps（UI 資源） | 需自行實作 | 需手動處理 | `registerResource()` + `ui://` |
+| Sampling 橋接 | 需自行實作 | 無 | 雙向 LLM 委派 |
+| YAML + 環境變數設定 | 無 | 無 | 內建 |
+| 上手時間 | 數天～數週 | 數小時 | 數分鐘 |
+
+**官方 SDK** 給你協定。**@casys/mcp-server** 給你生產堆疊。
+
+如果你的需求是「快速原型驗證，只要能跑」，官方 SDK 夠用。但如果你要部署到生產環境，面對多租戶、需要驗證與監控，從 SDK 開始你會重新發明輪子。`@casys/mcp-server` 把這些輪子都預製好了。
+
+---
+
+## 生產部署：完整範例
+
+以下是一個生產級部署的完整範例，包含驗證、可觀測性與背壓控制：
+
+```typescript
+import {
+  ConcurrentMCPServer,
+  createOIDCAuthProvider,
+} from "@casys/mcp-server";
+import type { Middleware } from "@casys/mcp-server";
+
+// — 中介軟體 —
+
+const requestLogger: Middleware = async (ctx, next) => {
+  const start = performance.now();
+  try {
+    const result = await next();
+    console.log(
+      JSON.stringify({
+        tool: ctx.toolName,
+        user: ctx.auth?.sub,
+        duration_ms: Math.round(performance.now() - start),
+        status: "ok",
+      }),
+    );
+    return result;
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        tool: ctx.toolName,
+        user: ctx.auth?.sub,
+        duration_ms: Math.round(performance.now() - start),
+        status: "error",
+        error: (err as Error).message,
+      }),
+    );
+    throw err;
+  }
+};
+
+// — 伺服器 —
+
+const server = new ConcurrentMCPServer({
+  name: "tw-manufacturing-api",
+  version: "1.0.0",
+  maxConcurrent: 50,
+  backpressureStrategy: "queue",
+  validateSchema: true,
+  rateLimit: { maxRequests: 200, windowMs: 60_000 },
+  auth: {
+    provider: createOIDCAuthProvider({
+      issuer: "https://keycloak.internal.example.com/realms/mfg",
+      audience: "https://mcp.factory.example.com",
+      resource: "https://mcp.factory.example.com",
+    }),
+  },
+});
+
+server.use(requestLogger);
+
+// — 工具 —
+
+server.registerTool(
+  {
+    name: "get_production_metrics",
+    description: "取得指定產線的即時生產指標",
+    inputSchema: {
+      type: "object",
+      properties: {
+        lineId: { type: "string", description: "產線編號" },
+        metric: {
+          type: "string",
+          enum: ["yield", "throughput", "defect_rate", "oee"],
+          description: "指標類型",
+        },
+        timeRange: {
+          type: "string",
+          enum: ["1h", "8h", "24h", "7d"],
+          default: "8h",
+        },
+      },
+      required: ["lineId", "metric"],
+    },
+    requiredScopes: ["production:read"],
+  },
+  async ({ lineId, metric, timeRange }) => {
+    // 連接工廠 MES 系統...
+    return {
+      lineId,
+      metric,
+      value: 98.7,
+      unit: metric === "defect_rate" ? "ppm" : "%",
+      timestamp: new Date().toISOString(),
+    };
+  },
+);
+
+server.registerTool(
+  {
+    name: "create_quality_alert",
+    description: "建立品質異常警報",
+    inputSchema: {
+      type: "object",
+      properties: {
+        lineId: { type: "string" },
+        severity: { type: "string", enum: ["low", "medium", "high", "critical"] },
+        description: { type: "string" },
+      },
+      required: ["lineId", "severity", "description"],
+    },
+    requiredScopes: ["production:write", "quality:alert"],
+  },
+  async ({ lineId, severity, description }) => {
+    // 發送到品質管理系統...
+    return { alertId: crypto.randomUUID(), status: "created" };
+  },
+);
+
+// — 啟動 —
+
+await server.startHttp({
+  port: Number(Deno.env.get("PORT") ?? 3000),
+  requireAuth: true,
+  corsOrigins: [
+    "https://dashboard.factory.example.com",
+  ],
+  maxBodyBytes: 1_048_576,
+  ipRateLimit: { maxRequests: 120, windowMs: 60_000 },
+});
+
+console.log("MCP 伺服器已啟動，等待連線...");
+```
+
+### 搭配 systemd 部署
+
+```ini
+# /etc/systemd/system/mcp-factory.service
+[Unit]
+Description=Factory MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=mcp
+WorkingDirectory=/opt/mcp-factory
+ExecStart=/usr/bin/deno run --allow-net --allow-env --allow-read server.ts
+Restart=always
+RestartSec=5
+Environment=PORT=3000
+Environment=OTEL_DENO=true
+Environment=DENO_UNSTABLE_OTEL=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 搭配反向代理（Caddy）
+
+```
+mcp.factory.example.com {
+    reverse_proxy localhost:3000
+}
+```
+
+TLS 由 Caddy 自動處理，伺服器只需要監聽 localhost。
+
+---
+
+## 台灣市場的實際應用場景
+
+這項技術在台灣有獨特的應用優勢：
+
+### 智慧製造
+
+台灣是全球半導體和精密製造的重鎮。透過 MCP 協定可以把 MES（製造執行系統）、SCADA、ERP 等既有系統的資料暴露給 AI 模型，讓工程師用自然語言查詢產線狀態、建立異常警報、產生報表。上面的範例就是一個真實場景的簡化版。
+
+### 金融科技
+
+合規要求嚴格的金融業，需要完善的驗證、稽核日誌和速率限制功能。每個工具呼叫都有完整的 trace，配合 OpenTelemetry 可以滿足金管會的稽核需求。
+
+### 跨境電商
+
+台灣作為亞太樞紐，電商平台需要整合多國物流、支付、倉儲系統。透過標準化的工具協定，AI 助手能直接操作這些 API — 而不是每個平台都寫一次整合程式碼。
+
+---
+
+## 路由的下一步：不只是工具呼叫
+
+建好伺服器只是第一步。當你的工具數量成長到數十、數百個時，一個新的問題浮現：**AI 模型怎麼知道該用哪個工具？**
+
+這就是[路由問題](/blog/routing-agents-without-new-protocol) — 當 MCP 生態系統中有超過 17,000 個工具時，沒有任何上下文窗口能裝下所有工具的 schema。你需要一個專用的路由層，在 AI 模型開始推理之前，先決定給它看哪些工具。
+
+`@casys/mcp-server` 的 sampling 橋接功能就是為此設計的：伺服器可以反向請求宿主 LLM 進行推理，實現雙向溝通。這不是一個備用方案 — 這是一個編排原語。
+
+---
+
+## 總結
+
+建構 MCP 伺服器，2026 年已經不是什麼需要從零摸索的事。`@casys/mcp-server` 把生產環境需要的一切 — 驗證、中介軟體、背壓控制、可觀測性 — 都預製好了，你只需要專注在你的業務邏輯。
+
+五個步驟：
+
+1. `deno add jsr:@casys/mcp-server`
+2. 建立 `ConcurrentMCPServer` 實例
+3. 用 `registerTool()` 註冊你的工具
+4. 開發時用 `start()`（stdio），部署時用 `startHttp()`
+5. 配上驗證與監控，上線
+
+MCP 伺服器是 AI 基礎設施的一部分。它不花俏，不酷炫，但它是讓 AI 真正有用的那塊拼圖。
+
+---
+
+**相關資源：**
+
+- [MCP 規範](https://modelcontextprotocol.io) — 官方協定文件
+- [@casys/mcp-server（JSR）](https://jsr.io/@casys/mcp-server) — 套件與 API 文件
+- [@casys/mcp-server（npm）](https://www.npmjs.com/package/@casys/mcp-server) — npm 套件
+- [GitHub 原始碼](https://github.com/Casys-AI/casys-pml) — 開源，MIT 授權
+- [MCP 為什麼重要](/blog/why-mcp-protocol) — MCP 入門
+- [路由問題](/blog/routing-agents-without-new-protocol) — 當工具太多時怎麼辦

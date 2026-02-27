@@ -1,6 +1,6 @@
 ---
-title: "花两万美元路由 16 个 AI 智能体 — 一个无人解决的问题"
-description: "行业在堆叠协议和数十亿参数来协调 AI 智能体。真正的瓶颈不是协议，而是做决策的那个大脑。"
+title: "花兩萬美元路由 16 個 AI 智慧體 — 一個無人解決的問題"
+description: "產業在堆疊協議和數十億參數來協調 AI 智慧體。真正的瓶頸不是協議，而是做決策的那個大腦。"
 author: "Erwan Lee Pesle"
 date: 2026-02-12
 tags:
@@ -9,154 +9,154 @@ tags:
   - routing
   - multi-agent
   - a2a
-category: "行业洞察"
+category: "產業洞察"
 language: zh-TW
-snippet: "8 个协议、80 亿参数、数千美元 GPU 费用。如果问题根本不在这里呢？"
+snippet: "8 個協議、80 億參數、數千美元 GPU 費用。如果問題根本不在這裡呢？"
 featured: true
 draft: false
 ---
 
 import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
-## 没人谈论的大脑
+## 沒人談論的大腦
 
-以下是 2026 年 2 月 AI 智能体行业的一个令人不安的事实：所有人都在修高速公路，没人在造 GPS。
+以下是 2026 年 2 月 AI 智慧體產業的一個令人不安的事實：所有人都在修高速公路，沒人在造 GPS。
 
-一年内出了八个协议来连接智能体。数十亿参数用来微调路由器。两万美元 API 费用，让一名研究员花两周时间监督 16 个 Claude 实例。
+一年內出了八個協議來連接智慧體。數十億參數用來微調路由器。兩萬美元 API 費用，讓一名研究員花兩週時間監督 16 個 Claude 實例。
 
-问题不在智能体之间的通信。问题在于**决策**：当一个智能体面前有 10,000 个工具时，它怎么选对的那个？
+問題不在智慧體之間的通訊。問題在於**決策**：當一個智慧體面前有 10,000 個工具時，它怎麼選對的那個？
 
-## 选择的代价
+## 選擇的代價
 
-| 方案 | 延迟 | 参数量 | 工具使用 |
+| 方案 | 延遲 | 參數量 | 工具使用 |
 | ---- | ---- | ------ | -------- |
-| GPT-5.2 high | ~1-2s GPU | 200B+（估计） | 57.5% Pass@1（[MCPMark](https://mcpmark.ai/leaderboard)） |
-| Gemini 3 Pro high | ~1s GPU | 估计 >100B | 53.9% Pass@1（MCPMark） |
+| GPT-5.2 high | ~1-2s GPU | 200B+（估計） | 57.5% Pass@1（[MCPMark](https://mcpmark.ai/leaderboard)） |
+| Gemini 3 Pro high | ~1s GPU | 估計 >100B | 53.9% Pass@1（MCPMark） |
 | Claude Opus 4.5 high | ~1-2s GPU | 完整模型 | 42.3% Pass@1（MCPMark） |
 | ToolACE-MCP（Qwen3-8B LoRA） | ~0.5-1s GPU | 8B | 53.4%（[MCP-Universe](https://arxiv.org/abs/2601.08276)） |
-| 16 个 Claude 并行 | 数周 | 16 × 完整模型 | $20,000/项目 |
-| 专用路由器（图 + 序列） | sub-10ms CPU | sub-1M | 真实工作流 |
+| 16 個 Claude 並行 | 數週 | 16 × 完整模型 | $20,000/專案 |
+| 專用路由器（圖 + 序列） | sub-10ms CPU | sub-1M | 真實工作流 |
 
-世界上最好的模型 — GPT-5.2 high 模式 — 在 42% 的 MCP 任务上失败。Claude Opus 4.5，表中最贵的（每次运行 466 美元），也止步于 42%。然而，行业仍在大举投资这些方案。
+世界上最好的模型 — GPT-5.2 high 模式 — 在 42% 的 MCP 任務上失敗。Claude Opus 4.5，表中最貴的（每次執行 466 美元），也止步於 42%。然而，產業仍在大舉投資這些方案。
 
-## 公开的承认
+## 公開的承認
 
-基准测试越来越多 — 但结论趋于一致。
+基準測試越來越多 — 但結論趨於一致。
 
-[MCPMark](https://mcpmark.ai/leaderboard)，真实工具使用的参考排行榜（5 个 MCP 服务器，多步骤任务），将 GPT-5.2 排在首位，57.5%。[MCP-Atlas](https://scale.com/leaderboard/mcp_atlas)（Scale AI，36 个服务器，220 个工具，1,000 个任务）最高 62.3%。[ToolACE-MCP 论文](https://arxiv.org/abs/2601.08276)（上海交通大学、浙江大学、华为诺亚方舟实验室）早在 2026 年 1 月就测出 GPT-4o 在 MCP-Universe 上只有 47%。到了 GPT-5.2，提升了 10 个百分点。不是翻倍 — 只有十个点。
+[MCPMark](https://mcpmark.ai/leaderboard)，真實工具使用的參考排行榜（5 個 MCP 伺服器，多步驟任務），將 GPT-5.2 排在首位，57.5%。[MCP-Atlas](https://scale.com/leaderboard/mcp_atlas)（Scale AI，36 個伺服器，220 個工具，1,000 個任務）最高 62.3%。[ToolACE-MCP 論文](https://arxiv.org/abs/2601.08276)（上海交通大學、浙江大學、華為諾亞方舟實驗室）早在 2026 年 1 月就測出 GPT-4o 在 MCP-Universe 上只有 47%。到了 GPT-5.2，提升了 10 個百分點。不是翻倍 — 只有十個點。
 
-ToolACE-MCP 的作者写道："despite their reasoning prowess, [generalist LLMs] struggle with the precise discrimination required for tool selection." 一年过去了，两代模型之后，这个结论依然成立。**市场上最好的通用 LLM 在超过十分之四的 MCP 任务上失败。**
+ToolACE-MCP 的作者寫道："despite their reasoning prowess, [generalist LLMs] struggle with the precise discrimination required for tool selection." 一年過去了，兩代模型之後，這個結論依然成立。**市場上最好的通用 LLM 在超過十分之四的 MCP 任務上失敗。**
 
-ToolACE-MCP 给出了自己的答案：一个 80 亿参数的 LLM，通过 LoRA 在合成轨迹上专门化。比通用模型好。但仍然是一个在每次决策时重读全部文本历史的模型，工具之间没有关系结构，每次调用都需要 GPU 推理。
+ToolACE-MCP 給出了自己的答案：一個 80 億參數的 LLM，透過 LoRA 在合成軌跡上專門化。比通用模型好。但仍然是一個在每次決策時重讀全部文字歷史的模型，工具之間沒有關係結構，每次呼叫都需要 GPU 推理。
 
 ## 上下文天花板
 
-还有一个比性能更根本的问题：**LLM 根本看不到所有工具。**
+還有一個比效能更根本的問題：**LLM 根本看不到所有工具。**
 
-每个 MCP 工具都有一个 schema — 名称、描述、参数、类型。GitHub MCP 服务器暴露约 91 个工具。这就占了 Claude Opus 4.5 [约 22% 的上下文窗口](https://eclipsesource.com/blogs/2026/01/22/mcp-context-overload/) — 用户还一个字都没输入。一位 Reddit 用户[记录了](https://medium.com/@joe.njenga/claude-code-just-cut-mcp-context-bloat-by-46-9-51k-tokens-down-to-8-5k-with-new-tool-search-ddf9e905f734)仅连接四个 MCP 服务器到 Claude Code 就消耗了 67,000 个 token。
+每個 MCP 工具都有一個 schema — 名稱、描述、參數、類型。GitHub MCP 伺服器暴露約 91 個工具。這就佔了 Claude Opus 4.5 [約 22% 的上下文視窗](https://eclipsesource.com/blogs/2026/01/22/mcp-context-overload/) — 使用者還一個字都沒輸入。一位 Reddit 使用者[記錄了](https://medium.com/@joe.njenga/claude-code-just-cut-mcp-context-bloat-by-46-9-51k-tokens-down-to-8-5k-with-new-tool-search-ddf9e905f734)僅連接四個 MCP 伺服器到 Claude Code 就消耗了 67,000 個 token。
 
-Anthropic 在 2026 年 1 月做出了回应：当 MCP schema 超过**上下文的 10%** 时，Claude Code 切换到 [Tool Search](https://www.anthropic.com/engineering/advanced-tool-use) 模式 — 工具按需通过搜索加载，而不是预先加载。结果：51K token 降到 8.5K。Anthropic 还引入了一种模式，让智能体[编写代码来调用工具](https://www.anthropic.com/engineering/code-execution-with-mcp)而不是直接调用，进一步减轻上下文压力。
+Anthropic 在 2026 年 1 月做出了回應：當 MCP schema 超過**上下文的 10%** 時，Claude Code 切換到 [Tool Search](https://www.anthropic.com/engineering/advanced-tool-use) 模式 — 工具按需透過搜尋載入，而不是預先載入。結果：51K token 降到 8.5K。Anthropic 還引入了一種模式，讓智慧體[編寫程式碼來呼叫工具](https://www.anthropic.com/engineering/code-execution-with-mcp)而不是直接呼叫，進一步減輕上下文壓力。
 
-但这些方案只是在推迟问题。[Smithery](https://smithery.ai) 注册表列出了 17,000 多个 MCP 工具。没有任何上下文窗口 — 即使是 Opus 4.6 的百万 token — 能容纳 17,000 个工具的 schema。必须有什么东西在 LLM 开始推理**之前**决定**给它看哪些工具**。这就是路由。而这是 LLM 自己无法解决的问题，因为它还没看到那些工具。
+但這些方案只是在推遲問題。[Smithery](https://smithery.ai) 註冊表列出了 17,000 多個 MCP 工具。沒有任何上下文視窗 — 即使是 Opus 4.6 的百萬 token — 能容納 17,000 個工具的 schema。必須有什麼東西在 LLM 開始推理**之前**決定**給它看哪些工具**。這就是路由。而這是 LLM 自己無法解決的問題，因為它還沒看到那些工具。
 
-[微软研究院](https://www.microsoft.com/en-us/research/blog/tool-space-interference-in-the-mcp-era-designing-for-agent-compatibility-at-scale/)称之为 "tool-space interference" — 上下文中的工具太多时，工具之间会相互干扰，即使是模型熟悉的工具，性能也会下降。工具越多 = 精度越低。这个悖论是结构性的。
+[微軟研究院](https://www.microsoft.com/en-us/research/blog/tool-space-interference-in-the-mcp-era-designing-for-agent-compatibility-at-scale/)稱之為 "tool-space interference" — 上下文中的工具太多時，工具之間會相互干擾，即使是模型熟悉的工具，效能也會下降。工具越多 = 精度越低。這個悖論是結構性的。
 
-## 第三条路
+## 第三條路
 
-很少有人在探索一种替代方案：不到一百万参数的专用路由器，直接编码问题的结构。
+很少有人在探索一種替代方案：不到一百萬參數的專用路由器，直接編碼問題的結構。
 
-推理很简单。工具路由不是一个语言问题 — 它是一个**图**问题（哪些工具相关？）和一个**序列**问题（按什么顺序？）。用 LLM 做这件事，就像雇翻译来读地铁图。
+推理很簡單。工具路由不是一個語言問題 — 它是一個**圖**問題（哪些工具相關？）和一個**序列**問題（按什麼順序？）。用 LLM 做這件事，就像雇翻譯來讀地鐵圖。
 
-在 [CasYs](/), 我们把两者分开：一个超图注意力网络负责语义相关性，一个 GRU 负责序列预测。总共不到一百万参数。CPU 上毫秒级推理。在数千个真实 [n8n](https://n8n.io) 工作流上训练，通过嵌入相似度自动映射到 MCP 生态系统。
+在 [CasYs](/), 我們把兩者分開：一個超圖注意力網路負責語義相關性，一個 GRU 負責序列預測。總共不到一百萬參數。CPU 上毫秒級推理。在數千個真實 [n8n](https://n8n.io) 工作流上訓練，透過嵌入相似度自動對映到 MCP 生態系統。
 
-这不是一个孤立的结果。趋势更广泛：轻量级混合架构 — 图、循环记忆、专用嵌入 — 正在为低延迟决策任务涌现。
+這不是一個孤立的結果。趨勢更廣泛：輕量級混合架構 — 圖、循環記憶、專用嵌入 — 正在為低延遲決策任務湧現。
 
-<ExcalidrawDiagram src="routing-bottleneck" alt="LLM 路由器（8B, GPU, 秒级）vs 专用路由器（图 + 序列, sub-1M, CPU, 毫秒级）配合 MCP Sampling" />
+<ExcalidrawDiagram src="routing-bottleneck" alt="LLM 路由器（8B, GPU, 秒級）vs 專用路由器（圖 + 序列, sub-1M, CPU, 毫秒級）配合 MCP Sampling" />
 
-## 没人用的原语
+## 沒人用的原語
 
-Google 创建了 [A2A](https://google.github.io/A2A/) 让智能体互相对话。IBM 创建了 ACP。Microsoft 创建了 AGORA。
+Google 建立了 [A2A](https://google.github.io/A2A/) 讓智慧體互相對話。IBM 建立了 ACP。Microsoft 建立了 AGORA。
 
-| 协议 | 作者 | 解决的问题 |
+| 協議 | 作者 | 解決的問題 |
 | ---- | ---- | ---------- |
-| **MCP** | Anthropic → Linux Foundation | 智能体 → 工具 |
-| **A2A** | Google → Linux Foundation | 智能体 → 智能体 |
-| **A2UI** | Google | 智能体 → 原生界面 |
-| **MCP Apps** | Anthropic + OpenAI | 智能体 → Web 界面 |
-| **AG-UI** | CopilotKit | 智能体 → 界面（开源） |
-| **ANP** | AGNTCY | 智能体 → 互联网 |
-| **ACP** | IBM | 智能体 → 智能体（企业） |
-| **AGORA** | Microsoft | 智能体即微服务 |
+| **MCP** | Anthropic → Linux Foundation | 智慧體 → 工具 |
+| **A2A** | Google → Linux Foundation | 智慧體 → 智慧體 |
+| **A2UI** | Google | 智慧體 → 原生介面 |
+| **MCP Apps** | Anthropic + OpenAI | 智慧體 → Web 介面 |
+| **AG-UI** | CopilotKit | 智慧體 → 介面（開源） |
+| **ANP** | AGNTCY | 智慧體 → 網際網路 |
+| **ACP** | IBM | 智慧體 → 智慧體（企業） |
+| **AGORA** | Microsoft | 智慧體即微服務 |
 
-不到一年，八个协议。光 UI 就有三个。Subhadip Mitra [称之为](https://subhadipmitra.com/blog/2026/agent-protocol-stack/) "一个真正的协议栈正在形成"。
+不到一年，八個協議。光 UI 就有三個。Subhadip Mitra [稱之為](https://subhadipmitra.com/blog/2026/agent-protocol-stack/) "一個真正的協議棧正在形成"。
 
-但 [MCP 规范](https://modelcontextprotocol.io)中有一个几乎没人在用的原语：`sampling/createMessage`。
+但 [MCP 規範](https://modelcontextprotocol.io)中有一個幾乎沒人在用的原語：`sampling/createMessage`。
 
-一个子 MCP 服务器向网关发送请求。网关转发给宿主 LLM — Claude、ChatGPT 或任何客户端。LLM 进行推理。子服务器继续使用结果。一次 JSON-RPC 调用，5 分钟超时。不需要握手，不需要 Agent Card。
+一個子 MCP 伺服器向閘道器發送請求。閘道器轉發給宿主 LLM — Claude、ChatGPT 或任何用戶端。LLM 進行推理。子伺服器繼續使用結果。一次 JSON-RPC 呼叫，5 分鐘逾時。不需要握手，不需要 Agent Card。
 
-这不是后备方案。这是一个编排原语：重新表述模糊请求、丰富中间结果、在执行前验证计划、综合多个工具的输出。LLM 在自然语言推理能增加价值时介入 — 而不是在每次路由决策时。
+這不是後備方案。這是一個編排原語：重新表述模糊請求、豐富中間結果、在執行前驗證計畫、綜合多個工具的輸出。LLM 在自然語言推理能增加價值時介入 — 而不是在每次路由決策時。
 
-[Harper Reed 等人的 ICLR 2026 论文](https://arxiv.org/abs/2509.13547)证实了这个直觉：给智能体一个**外化机制** — 日志、通信，无论什么载体 — 可以降低 15-40% 的成本，减少 12-27% 的轮次。他们最有趣的发现：智能体更偏好**写**而不是读（比例 2-9 倍）。收益来自结构化表达 — 外化思维 — 而非所用的协议。写 MCP 日志还是写 `plan.md` 文件，认知模式是一样的。MCP 的优势在于标准化：任何智能体都可以发现并使用相同的接口，无需定制集成。
+[Harper Reed 等人的 ICLR 2026 論文](https://arxiv.org/abs/2509.13547)證實了這個直覺：給智慧體一個**外化機制** — 日誌、通訊，無論什麼載體 — 可以降低 15-40% 的成本，減少 12-27% 的輪次。他們最有趣的發現：智慧體更偏好**寫**而不是讀（比例 2-9 倍）。收益來自結構化表達 — 外化思維 — 而非所用的協議。寫 MCP 日誌還是寫 `plan.md` 檔案，認知模式是一樣的。MCP 的優勢在於標準化：任何智慧體都可以發現並使用相同的介面，無需客製化整合。
 
-MCP sampling 已经存在。它在规范中。几乎没人在用。
+MCP sampling 已經存在。它在規範中。幾乎沒人在用。
 
-## 真实数据 vs 合成数据
+## 真實資料 vs 合成資料
 
-ToolACE-MCP 在合成对话上训练 — 一个 LLM 扮演用户，另一个扮演助手，第三个做验证。很巧妙，但这些是从未真正发生过的对话。
+ToolACE-MCP 在合成對話上訓練 — 一個 LLM 扮演使用者，另一個扮演助手，第三個做驗證。很巧妙，但這些是從未真正發生過的對話。
 
-有一个替代方案：自动化平台。[n8n](https://n8n.io) 有 7,654 个公开模板，包含真实用户创建的真实工具序列。Zapier 有数万个。Make 也是。
+有一個替代方案：自動化平台。[n8n](https://n8n.io) 有 7,654 個公開範本，包含真實使用者建立的真實工具序列。Zapier 有數萬個。Make 也是。
 
-这些工作流正是路由器需要学习的："当用户想做 X 时，典型序列是 A → B → C。" 不需要 LLM 来合成示例 — 示例已经存在，由数百万用户创建。
+這些工作流正是路由器需要學習的："當使用者想做 X 時，典型序列是 A → B → C。" 不需要 LLM 來合成範例 — 範例已經存在，由數百萬使用者建立。
 
-[Smithery](https://smithery.ai) 注册表列出了超过 17,000 个 MCP 工具。通过嵌入相似度将自动化工作流映射到这个生态系统，这是一个可扩展的数据管道 — 更重要的是，它扎根于真实使用场景。
+[Smithery](https://smithery.ai) 註冊表列出了超過 17,000 個 MCP 工具。透過嵌入相似度將自動化工作流對映到這個生態系統，這是一個可擴展的資料管道 — 更重要的是，它扎根於真實使用場景。
 
-ToolACE-MCP 有一项值得认可的技术：**自进化突变**，生成工具变体来创建困难负样本。但当替代方案是从人类实际构建和使用的序列中学习时，合成数据就变成了 Plan B。
+ToolACE-MCP 有一項值得認可的技術：**自進化突變**，生成工具變體來建立困難負樣本。但當替代方案是從人類實際構建和使用的序列中學習時，合成資料就變成了 Plan B。
 
-## 16 个 Claude 揭示了什么
+## 16 個 Claude 揭示了什麼
 
-Anthropic 于 2026 年 2 月 5 日[发布了](https://www.anthropic.com/engineering/building-c-compiler)一个案例研究：16 个 Claude Opus 4.6 实例并行构建一个 Rust 编写的 C 编译器。100,000 行代码，20,000 美元 API 费用。
+Anthropic 於 2026 年 2 月 5 日[發布了](https://www.anthropic.com/engineering/building-c-compiler)一個案例研究：16 個 Claude Opus 4.6 實例並行構建一個 Rust 編寫的 C 編譯器。100,000 行程式碼，20,000 美元 API 費用。
 
-实验令人印象深刻。而协调机制比表面看来更有意思：每个智能体在自己的 Docker 容器中运行，通过 **lock files** 领取任务，并将代码推送到**共享的 Git 仓库**。没有编排智能体。智能体确实共享了上下文 — 源代码、协调文件 — 但在文件系统层面，而非结构化图。
+實驗令人印象深刻。而協調機制比表面看來更有意思：每個智慧體在自己的 Docker 容器中執行，透過 **lock files** 領取任務，並將程式碼推送到**共享的 Git 倉庫**。沒有編排智慧體。智慧體確實共享了上下文 — 原始碼、協調檔案 — 但在檔案系統層面，而非結構化圖。
 
-深层含义：
+深層含義：
 
-- **路由器就是 Carlini 本人。** 两周时间监督、重启和纠正智能体。Ars Technica 的标题：["needed deep human management"](https://arstechnica.com/ai/2026/02/sixteen-claude-ai-agents-working-together-created-a-new-c-compiler/)。
-- **一个项目 20,000 美元**，2,000 次 Claude Code 会话。
-- **共享上下文是一个 Git 仓库** — 没有压缩记忆，没有任务间的显式依赖，没有自动化路由。当智能体卡住时，由人类决定下一步。
+- **路由器就是 Carlini 本人。** 兩週時間監督、重啟和糾正智慧體。Ars Technica 的標題：["needed deep human management"](https://arstechnica.com/ai/2026/02/sixteen-claude-ai-agents-working-together-created-a-new-c-compiler/)。
+- **一個專案 20,000 美元**，2,000 次 Claude Code 會話。
+- **共享上下文是一個 Git 倉庫** — 沒有壓縮記憶，沒有任務間的顯式依賴，沒有自動化路由。當智慧體卡住時，由人類決定下一步。
 
-智能体有协调机制（Git + lock files）。缺少的是一个**路由大脑** — 自动决定哪个智能体做什么、按什么顺序、何时重启。这个角色，Carlini 手动担任了两周。
+智慧體有協調機制（Git + lock files）。缺少的是一個**路由大腦** — 自動決定哪個智慧體做什麼、按什麼順序、何時重啟。這個角色，Carlini 手動擔任了兩週。
 
-## 对开发者意味着什么
+## 對開發者意味著什麼
 
-如果你今天在构建 MCP 智能体，路由不是一个可以忽略的问题。你的工具目录越大，每一步的工具选择就越成为瓶颈 — 在延迟、成本和可靠性上。
+如果你今天在構建 MCP 智慧體，路由不是一個可以忽略的問題。你的工具目錄越大，每一步的工具選擇就越成為瓶頸 — 在延遲、成本和可靠性上。
 
-三个具体启示：
+三個具體啟示：
 
-- **不要依赖宿主 LLM 来路由。** GPT-5.2 在 [MCPMark](https://mcpmark.ai/leaderboard) 上只有 57.5%。Claude Opus 4.5 只有 42.3%。你的智能体需要专用决策层 — 即使简单的嵌入评分也比把一切交给上下文窗口要好。
-- **使用 `sampling/createMessage`。** 它在 MCP 规范中，是一个 JSON-RPC 调用，让你在编排循环中获得 LLM 的能力，而不需要构建智能体间协议。重新表述、验证、综合 — 都通过它完成。
-- **你的自动化工作流就是训练数据。** 如果你用 n8n、Zapier 或 Make，你的真实工具序列正是路由器需要学习的。LLM 生成合成轨迹的时代正在结束。
+- **不要依賴宿主 LLM 來路由。** GPT-5.2 在 [MCPMark](https://mcpmark.ai/leaderboard) 上只有 57.5%。Claude Opus 4.5 只有 42.3%。你的智慧體需要專用決策層 — 即使簡單的嵌入評分也比把一切交給上下文視窗要好。
+- **使用 `sampling/createMessage`。** 它在 MCP 規範中，是一個 JSON-RPC 呼叫，讓你在編排迴圈中獲得 LLM 的能力，而不需要構建智慧體間協議。重新表述、驗證、綜合 — 都透過它完成。
+- **你的自動化工作流就是訓練資料。** 如果你用 n8n、Zapier 或 Make，你的真實工具序列正是路由器需要學習的。LLM 生成合成軌跡的時代正在結束。
 
-路由是基础设施问题，不是模型问题。请如此对待。
+路由是基礎設施問題，不是模型問題。請如此對待。
 
-## 预测
+## 預測
 
-未来 12 到 18 个月：
+未來 12 到 18 個月：
 
-- **MCP sampling 将吸收 A2A 80% 的角色。** 常规的智能体间协调不需要专用协议，一个 JSON-RPC 原语就够了。A2A 将在未知智能体发现和复杂企业谈判中存续。
-- **不到一百万参数的路由器将成为常态。** 研究已证明 LLM 在工具选择上次优。基于图和序列的替代方案将接管。
-- **协议栈将整合为 3 层**：MCP（工具 + 通过 sampling 协调），一个 UI 标准（MCP Apps 或 AG-UI），一个发现标准（可能是 A2A Agent Cards）。
-- **自动化平台数据**（n8n、Zapier、Make）将成为路由器的主要训练信号，取代合成轨迹。
+- **MCP sampling 將吸收 A2A 80% 的角色。** 常規的智慧體間協調不需要專用協議，一個 JSON-RPC 原語就夠了。A2A 將在未知智慧體發現和複雜企業談判中存續。
+- **不到一百萬參數的路由器將成為常態。** 研究已證明 LLM 在工具選擇上次優。基於圖和序列的替代方案將接管。
+- **協議棧將整合為 3 層**：MCP（工具 + 透過 sampling 協調），一個 UI 標準（MCP Apps 或 AG-UI），一個發現標準（可能是 A2A Agent Cards）。
+- **自動化平台資料**（n8n、Zapier、Make）將成為路由器的主要訓練訊號，取代合成軌跡。
 
-## 真正的瓶颈
+## 真正的瓶頸
 
-协议问题已基本解决。MCP 已存在，被 Anthropic、OpenAI、Microsoft 和 Google 采纳，由 Linux Foundation 托管。Sampling 在规范中。工具已就位。
+協議問題已基本解決。MCP 已存在，被 Anthropic、OpenAI、Microsoft 和 Google 採納，由 Linux Foundation 託管。Sampling 在規範中。工具已就位。
 
-真正的战场在路由器。而路由器不需要 80 亿参数。
+真正的戰場在路由器。而路由器不需要 80 億參數。
 
-它需要正确的结构 — 一个图来表示关系，一段记忆来跟踪历史，以及一条通往 LLM 的通道，在自然语言推理能增加价值时使用。其余时间，它自己决策。毫秒级。在 CPU 上。在任何设备上。
+它需要正確的結構 — 一個圖來表示關係，一段記憶來追蹤歷史，以及一條通往 LLM 的通道，在自然語言推理能增加價值時使用。其餘時間，它自己決策。毫秒級。在 CPU 上。在任何設備上。
 
-论点与即时通讯一样：摩擦最少的基础设施胜出。
+論點與即時通訊一樣：摩擦最少的基礎設施勝出。
 
 ---
 
-*本文基于 [MCPMark](https://mcpmark.ai/leaderboard)（LobeHub, 2025）、[MCP-Atlas](https://scale.com/leaderboard/mcp_atlas)（Scale AI, 2026）、[ToolACE-MCP](https://arxiv.org/abs/2601.08276)（Yao et al., 2026）、[Anthropic 关于 Agent Teams 的博客](https://www.anthropic.com/engineering/building-c-compiler)（Carlini, 2026）、Subhadip Mitra 的[智能体协议栈分析](https://subhadipmitra.com/blog/2026/agent-protocol-stack/)、["AI Agents with Human-Like Collaborative Tools" 论文](https://arxiv.org/abs/2509.13547)（Reed et al.）、Auth0 的 [MCP vs A2A 对比](https://auth0.com/blog/mcp-vs-a2a/)，以及 CasYs 内部基准测试。*
+*本文基於 [MCPMark](https://mcpmark.ai/leaderboard)（LobeHub, 2025）、[MCP-Atlas](https://scale.com/leaderboard/mcp_atlas)（Scale AI, 2026）、[ToolACE-MCP](https://arxiv.org/abs/2601.08276)（Yao et al., 2026）、[Anthropic 關於 Agent Teams 的部落格](https://www.anthropic.com/engineering/building-c-compiler)（Carlini, 2026）、Subhadip Mitra 的[智慧體協議棧分析](https://subhadipmitra.com/blog/2026/agent-protocol-stack/)、["AI Agents with Human-Like Collaborative Tools" 論文](https://arxiv.org/abs/2509.13547)（Reed et al.）、Auth0 的 [MCP vs A2A 對比](https://auth0.com/blog/mcp-vs-a2a/)，以及 CasYs 內部基準測試。*

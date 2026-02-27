@@ -1,6 +1,6 @@
 ---
-title: "Localhost 陷阱 — 使用 Docker 编排器部署 OpenClaw 到生产环境"
-description: "你容器化了你的 AI 代理。你容器化了你的编排器。现在它们无法互相通信。问题不在 Docker，而是容器化基础设施中最隐蔽的网络壁垒。"
+title: "Localhost 陷阱 — 使用 Docker 編排器部署 OpenClaw 到生產環境"
+description: "你容器化了你的 AI 代理。你容器化了你的編排器。現在它們無法互相通訊。問題不在 Docker，而是容器化基礎設施中最隱蔽的網路壁壘。"
 author: "Erwan Lee Pesle"
 date: 2026-02-27
 tags:
@@ -13,7 +13,7 @@ tags:
   - production
 category: "Infrastructure"
 language: zh-TW
-snippet: "127.0.0.1 在容器内外的含义完全不同。这个简单的事实让大多数 AI 代理部署都出了问题。"
+snippet: "127.0.0.1 在容器內外的含義完全不同。這個簡單的事實讓大多數 AI 代理部署都出了問題。"
 featured: true
 draft: false
 ---
@@ -22,213 +22,213 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 # Localhost 陷阱
 
-> 你部署了代理。你部署了编排器。它们在同一台机器上。它们无法通信。欢迎来到生产环境。
+> 你部署了代理。你部署了編排器。它們在同一台機器上。它們無法通訊。歡迎來到生產環境。
 
 ---
 
-## 你为什么在这里
+## 你為什麼在這裡
 
-在[上一篇文章](/blog/process-is-the-prompt)中，我们论证了 AI 代理需要流程——真正的性能提升不是来自更好的模型，而是来自结构化的工作流。我们展示了 Windmill、n8n、Kestra 和 Temporal 等工具如何给代理提供它们一直缺少的东西：排序、错误处理、重试、人工审批关卡。海龟图应用于大语言模型。
+在[上一篇文章](/blog/process-is-the-prompt)中，我們論證了 AI 代理需要流程——真正的效能提升不是來自更好的模型，而是來自結構化的工作流。我們展示了 Windmill、n8n、Kestra 和 Temporal 等工具如何給代理提供它們一直缺少的東西：排序、錯誤處理、重試、人工審批關卡。海龜圖應用於大語言模型。
 
-很好。于是你照做了。你把代理接入了编排器。你构建了工作流。你觉得自己很聪明。
+很好。於是你照做了。你把代理接入了編排器。你構建了工作流。你覺得自己很聰明。
 
-然后你尝试部署。一切都崩了。
+然後你嘗試部署。一切都崩了。
 
-不是工作流的问题。不是代理的问题。不是模型的问题。**是网络。** 最基础的那一层——你从来不会想到的那一层——结果成了"在我笔记本上能跑"和"在生产环境能跑"之间的唯一障碍。
+不是工作流的問題。不是代理的問題。不是模型的問題。**是網路。** 最基礎的那一層——你從來不會想到的那一層——結果成了「在我筆記本上能跑」和「在生產環境能跑」之間的唯一障礙。
 
-这篇文章是我用 Docker 编排器将 OpenClaw 部署到生产环境时学到的经验。它适用于 Windmill、n8n、Kestra、Temporal、Prefect——任何运行在容器中且需要与主机上的服务通信的东西。它也适用于 MCP 服务器、Ollama、本地数据库，以及基本上任何绑定到 `localhost` 的服务。
+這篇文章是我用 Docker 編排器將 OpenClaw 部署到生產環境時學到的經驗。它適用於 Windmill、n8n、Kestra、Temporal、Prefect——任何執行在容器中且需要與主機上的服務通訊的東西。它也適用於 MCP 伺服器、Ollama、本地資料庫，以及基本上任何繫結到 `localhost` 的服務。
 
-如果你正在部署生产环境的 AI 代理，你**一定会**撞到这堵墙。这是地图。
-
----
-
-## 起因：为什么一切都进了 Docker
-
-让我给你讲讲你是怎么走到这一步的，因为路径总是一样的。
-
-**第一步：** 你在 VPS 上安装 OpenClaw。网关运行在主机上，监听 `localhost:18789`。代理连接到 WhatsApp、Telegram 等。一切正常。
-
-**第二步：** 你意识到你的代理需要结构化的工作流——不只是聊天，而是带有错误处理、调度和人工审批的多步骤流程。你选了一个编排器：Windmill、n8n、Kestra、Temporal。它们都以 Docker 镜像的形式发布。这就是它们被设计的部署方式。
-
-**第三步：** 你的编排器工作流需要调用 OpenClaw 网关——触发代理、发送消息、检查状态。你配置了 webhook URL：`http://localhost:18789`。
-
-**第四步：** 不工作。工作流在 30 秒后超时。没有错误。没有"connection refused"。只有沉默。
-
-你花了两个小时调试应用程序，才意识到：**网络才是问题所在。**
+如果你正在部署生產環境的 AI 代理，你**一定會**撞到這堵牆。這是地圖。
 
 ---
 
-## 到底发生了什么
+## 起因：為什麼一切都進了 Docker
 
-<ExcalidrawDiagram src="localhost-trap" alt="Localhost 陷阱：127.0.0.1 表示'本机'——但每个容器都是自己的机器" />
+讓我給你講講你是怎麼走到這一步的，因為路徑總是一樣的。
 
-`127.0.0.1` 是计算机领域最超载的地址。它表示"本机"——除了它不表示的时候。
+**第一步：** 你在 VPS 上安裝 OpenClaw。閘道器執行在主機上，監聽 `localhost:18789`。代理連接到 WhatsApp、Telegram 等。一切正常。
 
-当 Docker 创建一个容器时，它创建了一个**网络命名空间**。容器获得自己的回环接口，自己的 `127.0.0.1`。当你 Docker 内的编排器调用 `localhost` 时，它是在和*自己*说话——不是和主机。不是和你的网关。和任何有用的东西都无关。
+**第二步：** 你意識到你的代理需要結構化的工作流——不只是聊天，而是帶有錯誤處理、排程和人工審批的多步驟流程。你選了一個編排器：Windmill、n8n、Kestra、Temporal。它們都以 Docker 映像的形式發布。這就是它們被設計的部署方式。
 
-这不是 bug。这是设计如此。网络隔离是容器的一半意义所在。但它制造了一个看不见的陷阱，因为同一个地址根据你所处的位置意味着不同的东西。
+**第三步：** 你的編排器工作流需要呼叫 OpenClaw 閘道器——觸發代理、發送訊息、檢查狀態。你配置了 webhook URL：`http://localhost:18789`。
 
-而这就是为什么它对 AI 基础设施特别重要：**整个代理技术栈都假设本地通信。**
+**第四步：** 不工作。工作流在 30 秒後逾時。沒有錯誤。沒有 "connection refused"。只有沉默。
 
-- OpenClaw 的网关绑定到 `localhost`。
-- MCP 服务器绑定到 `localhost`。
-- Ollama 绑定到 `localhost`。
-- 工具服务器、嵌入 API、本地向量存储——全在 `localhost` 上。
-
-[MCP 规范](https://modelcontextprotocol.io)描述了 `stdio` 和 `SSE` 传输方式——`stdio` 按定义需要同一主机，虽然 SSE *技术上*可以通过网络工作，但实际上大多数 MCP 服务器监听在 `127.0.0.1`。当你容器化这个技术栈的*任何*部分时，这个假设就崩溃了。
+你花了兩個小時除錯應用程式，才意識到：**網路才是問題所在。**
 
 ---
 
-## 四个生产场景
+## 到底發生了什麼
 
-以下是你在实践中会遇到的所有组合，从最简单到最复杂。
+<ExcalidrawDiagram src="localhost-trap" alt="Localhost 陷阱：127.0.0.1 表示『本機』——但每個容器都是自己的機器" />
 
-### 场景 1：主机网关 + Docker 编排器
+`127.0.0.1` 是計算機領域最超載的位址。它表示「本機」——除了它不表示的時候。
 
-最常见的情况。OpenClaw 直接运行在主机上。Windmill / n8n / Kestra / Temporal 运行在 Docker 中。
+當 Docker 建立一個容器時，它建立了一個**網路命名空間**。容器獲得自己的迴環介面，自己的 `127.0.0.1`。當你 Docker 內的編排器呼叫 `localhost` 時，它是在和*自己*說話——不是和主機。不是和你的閘道器。和任何有用的東西都無關。
 
-<ExcalidrawDiagram src="scenario-1-host-orchestrator" alt="场景 1：主机网关通过 socat 桥接转发到 Docker 编排器" />
+這不是 bug。這是設計如此。網路隔離是容器的一半意義所在。但它製造了一個看不見的陷阱，因為同一個位址根據你所處的位置意味著不同的東西。
 
-**问题：** 容器无法访问主机上的 `localhost:18789`。
-**解决方案：** 在 Docker 网络的网关 IP 上放一个 socat 桥接。
+而這就是為什麼它對 AI 基礎設施特別重要：**整個代理技術棧都假設本地通訊。**
 
-### 场景 2：主机网关 + Docker 代理沙箱
+- OpenClaw 的閘道器繫結到 `localhost`。
+- MCP 伺服器繫結到 `localhost`。
+- Ollama 繫結到 `localhost`。
+- 工具伺服器、嵌入 API、本地向量儲存——全在 `localhost` 上。
 
-你在隔离的 Docker 容器中运行客户代理——每个客户有自己的沙箱，有自己的文件系统、工具和环境。代理需要回调 OpenClaw 网关。
+[MCP 規範](https://modelcontextprotocol.io)描述了 `stdio` 和 `SSE` 傳輸方式——`stdio` 按定義需要同一主機，雖然 SSE *技術上*可以透過網路工作，但實際上大多數 MCP 伺服器監聽在 `127.0.0.1`。當你容器化這個技術棧的*任何*部分時，這個假設就崩潰了。
 
-<ExcalidrawDiagram src="scenario-2-host-sandboxes" alt="场景 2：主机网关通过 socat 桥接转发到多个 Docker 代理沙箱" />
+---
 
-**问题：** 与场景 1 相同，但有多个容器——可能在不同的 Docker 网络上。
-**解决方案：** 需要访问的**每个 Docker 网络**一个 socat 桥接。如果所有沙箱共享一个网络，一个桥接就够了。
+## 四個生產場景
 
-### 场景 3：Docker 网关 + Docker 编排器
+以下是你在實踐中會遇到的所有組合，從最簡單到最複雜。
 
-OpenClaw 和编排器都在 Docker 中运行，但在**不同的 Docker 网络**上。当你通过不同的 Compose 文件分别安装它们时就会发生这种情况。
+### 場景 1：主機閘道器 + Docker 編排器
 
-<ExcalidrawDiagram src="scenario-3-docker-docker" alt="场景 3：两个 Docker 容器在共享网络上，直接 DNS 解析" />
+最常見的情況。OpenClaw 直接執行在主機上。Windmill / n8n / Kestra / Temporal 執行在 Docker 中。
 
-**问题：** 不同 Docker 网络上的容器看不到彼此。
-**解决方案：** 创建一个共享的 Docker 网络并将两个服务都连接上去。不需要 socat——只需 Docker 到 Docker 的 DNS 解析。或者如果你不想修改 Compose 文件，也可以用 socat。
+<ExcalidrawDiagram src="scenario-1-host-orchestrator" alt="場景 1：主機閘道器透過 socat 橋接轉發到 Docker 編排器" />
+
+**問題：** 容器無法存取主機上的 `localhost:18789`。
+**解決方案：** 在 Docker 網路的閘道器 IP 上放一個 socat 橋接。
+
+### 場景 2：主機閘道器 + Docker 代理沙箱
+
+你在隔離的 Docker 容器中執行客戶代理——每個客戶有自己的沙箱，有自己的檔案系統、工具和環境。代理需要回呼 OpenClaw 閘道器。
+
+<ExcalidrawDiagram src="scenario-2-host-sandboxes" alt="場景 2：主機閘道器透過 socat 橋接轉發到多個 Docker 代理沙箱" />
+
+**問題：** 與場景 1 相同，但有多個容器——可能在不同的 Docker 網路上。
+**解決方案：** 需要存取的**每個 Docker 網路**一個 socat 橋接。如果所有沙箱共享一個網路，一個橋接就夠了。
+
+### 場景 3：Docker 閘道器 + Docker 編排器
+
+OpenClaw 和編排器都在 Docker 中執行，但在**不同的 Docker 網路**上。當你透過不同的 Compose 檔案分別安裝它們時就會發生這種情況。
+
+<ExcalidrawDiagram src="scenario-3-docker-docker" alt="場景 3：兩個 Docker 容器在共享網路上，直接 DNS 解析" />
+
+**問題：** 不同 Docker 網路上的容器看不到彼此。
+**解決方案：** 建立一個共享的 Docker 網路並將兩個服務都連接上去。不需要 socat——只需 Docker 到 Docker 的 DNS 解析。或者如果你不想修改 Compose 檔案，也可以用 socat。
 
 ```bash
 docker network create shared_internal
-# 添加到两个 compose 文件：
+# 添加到兩個 compose 檔案：
 # networks:
 #   shared_internal:
 #     external: true
 ```
 
-### 场景 4：多租户 — docker0 上隔离的客户实例
+### 場景 4：多租戶 — docker0 上隔離的客戶實例
 
-真正的生产用例。每个客户在独立的 Docker 容器中拥有自己的 OpenClaw 实例。所有容器运行在默认的 `bridge` 网络（docker0）上。它们通过共享的 socat 桥接访问主机服务（主网关、Windmill、Ollama……）。它们**看不到彼此** —— 这是 docker0 的默认隔离。
+真正的生產用例。每個客戶在獨立的 Docker 容器中擁有自己的 OpenClaw 實例。所有容器執行在預設的 `bridge` 網路（docker0）上。它們透過共享的 socat 橋接存取主機服務（主閘道器、Windmill、Ollama……）。它們**看不到彼此** —— 這是 docker0 的預設隔離。
 
-<ExcalidrawDiagram src="scenario-4-multitenant" alt="场景 4：多租户架构，客户容器在 docker0 上隔离，共享 socat 桥接到主机服务" />
+<ExcalidrawDiagram src="scenario-4-multitenant" alt="場景 4：多租戶架構，客戶容器在 docker0 上隔離，共享 socat 橋接到主機服務" />
 
-**为什么不用共享的 Docker 网络？** 如果你把所有客户实例放在同一个自定义 Docker 网络上，它们可以通过容器名互相解析。客户 A 可以访问客户 B 的 API、读取其环境变量，甚至更糟。在多租户环境中，共享网络是一个**安全漏洞**。
+**為什麼不用共享的 Docker 網路？** 如果你把所有客戶實例放在同一個自訂 Docker 網路上，它們可以透過容器名互相解析。客戶 A 可以存取客戶 B 的 API、讀取其環境變數，甚至更糟。在多租戶環境中，共享網路是一個**安全漏洞**。
 
-**为什么用 docker0 + socat 桥接？**
+**為什麼用 docker0 + socat 橋接？**
 
-1. **客户间隔离。** docker0（默认桥接）不提供容器间的 DNS 解析。容器无法发现或访问彼此——这正是多租户所需要的。
-2. **共享桥接。** 每个端口一个 socat 桥接服务*所有*客户。不需要每个客户一个桥接——桥接监听在 docker0 的网关 IP（172.17.0.1）上，docker0 上的每个容器都能访问。
-3. **无需多客户 Compose。** 每个客户是一个独立的 `docker run`。没有共享的 Compose 文件，没有网络纠缠，没有"重启一个客户导致另一个崩溃"的场景。
+1. **客戶間隔離。** docker0（預設橋接）不提供容器間的 DNS 解析。容器無法發現或存取彼此——這正是多租戶所需要的。
+2. **共享橋接。** 每個埠一個 socat 橋接服務*所有*客戶。不需要每個客戶一個橋接——橋接監聽在 docker0 的閘道器 IP（172.17.0.1）上，docker0 上的每個容器都能存取。
+3. **無需多客戶 Compose。** 每個客戶是一個獨立的 `docker run`。沒有共享的 Compose 檔案，沒有網路糾纏，沒有「重啟一個客戶導致另一個崩潰」的場景。
 
 ```bash
-# 启动客户实例——默认落在 docker0 上
+# 啟動客戶實例——預設落在 docker0 上
 docker run -d --name client-acme openclaw/sandbox
 
-# 一个 socat 桥接服务 docker0 上的所有客户
-# socat-bridge-docker0-18789 → 转发到主机网关
-# socat-bridge-docker0-8000  → 转发到主机 Windmill
+# 一個 socat 橋接服務 docker0 上的所有客戶
+# socat-bridge-docker0-18789 → 轉發到主機閘道器
+# socat-bridge-docker0-8000  → 轉發到主機 Windmill
 ```
 
-客户共享基础设施（网关、编排器、LLM），但看不到彼此的数据或流量。隔离而不重复。
+客戶共享基礎設施（閘道器、編排器、LLM），但看不到彼此的資料或流量。隔離而不重複。
 
 ---
 
-## 显而易见的解决方案（以及为什么它们是错的）
+## 顯而易見的解決方案（以及為什麼它們是錯的）
 
-在找到正确的方法之前，我把别的方法都试了。省省你的时间吧。
+在找到正確的方法之前，我把別的方法都試了。省省你的時間吧。
 
-**"绑定到 0.0.0.0。"**
+**「繫結到 0.0.0.0。」**
 
-这会把你的网关暴露给整个网络。如果你在 VPS 上，那就意味着暴露到互联网。你的网关——控制你 AI 代理的东西，能访问你的工具、消息账户、文件——现在任何扫描你端口的人都能访问到。
+這會把你的閘道器暴露給整個網路。如果你在 VPS 上，那就意味著暴露到網際網路。你的閘道器——控制你 AI 代理的東西，能存取你的工具、訊息帳戶、檔案——現在任何掃描你連接埠的人都能存取到。
 
-你可以添加防火墙规则。你会忘掉某一条。或者 Docker 会[好心地绕过 iptables](https://docs.docker.com/engine/network/packet-filtering-firewalls/)，插入自己的规则。
+你可以新增防火牆規則。你會忘掉某一條。或者 Docker 會[好心地繞過 iptables](https://docs.docker.com/engine/network/packet-filtering-firewalls/)，插入自己的規則。
 
-**"用 Docker `host` 网络模式。"**
+**「用 Docker `host` 網路模式。」**
 
-`network_mode: host` 完全移除容器的网络隔离。容器共享主机的网络栈。你的编排器现在可以访问 `localhost:18789` 了——但它也能访问主机上的所有其他服务。你用一个问题换了一个更大的问题。而且你破坏了自己服务间的 Docker Compose 网络。
+`network_mode: host` 完全移除容器的網路隔離。容器共享主機的網路堆疊。你的編排器現在可以存取 `localhost:18789` 了——但它也能存取主機上的所有其他服務。你用一個問題換了一個更大的問題。而且你破壞了自己服務間的 Docker Compose 網路。
 
-**"用 `host.docker.internal`。"**
+**「用 `host.docker.internal`。」**
 
-Mac 和 Windows 上的 Docker Desktop 提供这个 DNS 名称。Linux 不提供——至少不是默认的。你可以在 Compose 文件中添加 `extra_hosts: ["host.docker.internal:host-gateway"]`，但这通过 Docker 桥接路由，你的主机服务仍然需要在那个桥接的 IP 上监听。你移动了问题，没有解决它。
-
----
-
-## 真正的问题
-
-真正的问题是架构性的。你有：
-
-1. 一个绑定到 `127.0.0.1` 的**主机服务**（你的 AI 网关）
-2. 一个需要访问它的**容器化服务**（你的编排器）
-3. 主机服务**不能暴露**到网络的要求
-
-这三个约束在标准 Docker 网络下是互斥的。你可以满足其中任意两个，但不能同时满足三个。
-
-除非你加一个桥接。
+Mac 和 Windows 上的 Docker Desktop 提供這個 DNS 名稱。Linux 不提供——至少不是預設的。你可以在 Compose 檔案中新增 `extra_hosts: ["host.docker.internal:host-gateway"]`，但這透過 Docker 橋接路由，你的主機服務仍然需要在那個橋接的 IP 上監聽。你移動了問題，沒有解決它。
 
 ---
 
-## Socat：无聊但有效的解决方案
+## 真正的問題
 
-[socat](http://www.dest-unreach.org/socat/) 是一个 2004 年的 Unix 工具。它连接两个数据流。就这样。它不智能。它不花哨。它就是一根两端有地址的管道。
+真正的問題是架構性的。你有：
 
-以下是它如何解决我们的问题：
+1. 一個繫結到 `127.0.0.1` 的**主機服務**（你的 AI 閘道器）
+2. 一個需要存取它的**容器化服務**（你的編排器）
+3. 主機服務**不能暴露**到網路的要求
 
-<ExcalidrawDiagram src="socat-bridge" alt="Socat 桥接：容器 → Docker 桥接网关 (172.19.0.1) → socat → 主机回环 (127.0.0.1)" />
+這三個約束在標準 Docker 網路下是互斥的。你可以滿足其中任意兩個，但不能同時滿足三個。
 
-一行代码：
+除非你加一個橋接。
+
+---
+
+## Socat：無聊但有效的解決方案
+
+[socat](http://www.dest-unreach.org/socat/) 是一個 2004 年的 Unix 工具。它連接兩個資料流。就這樣。它不智慧。它不花俏。它就是一根兩端有位址的管道。
+
+以下是它如何解決我們的問題：
+
+<ExcalidrawDiagram src="socat-bridge" alt="Socat 橋接：容器 → Docker 橋接閘道器 (172.19.0.1) → socat → 主機迴環 (127.0.0.1)" />
+
+一行程式碼：
 
 ```bash
 socat TCP-LISTEN:18789,bind=172.19.0.1,fork,reuseaddr TCP:127.0.0.1:18789
 ```
 
-socat 监听 Docker 桥接 IP——Docker 网络的网关地址——并将每个连接转发到主机的回环接口。容器可以访问 `172.19.0.1`，因为那是它的默认网关。主机服务保持在 `127.0.0.1`。没有任何东西暴露到外部。
+socat 監聽 Docker 橋接 IP——Docker 網路的閘道器位址——並將每個連線轉發到主機的迴環介面。容器可以存取 `172.19.0.1`，因為那是它的預設閘道器。主機服務保持在 `127.0.0.1`。沒有任何東西暴露到外部。
 
-**三个约束同时满足。** 主机服务保持在 localhost。容器可以访问它。网络看不到任何东西。
+**三個約束同時滿足。** 主機服務保持在 localhost。容器可以存取它。網路看不到任何東西。
 
 ---
 
-## 完整配置 — 自文档化命名
+## 完整配置 — 自文件化命名
 
-没有防火墙规则的 socat 不工作——数据包会被静默丢弃。没有命名规范，三个月后你会面对 `socat-bridge-1`、`socat-bridge-2`，完全不知道哪个是哪个。
+沒有防火牆規則的 socat 不工作——封包會被靜默丟棄。沒有命名規範，三個月後你會面對 `socat-bridge-1`、`socat-bridge-2`，完全不知道哪個是哪個。
 
-以下是我们使用的生产配置：**每个（网络，端口）一个桥接**，命名为 `socat-<源网络>-<目标服务>-<端口>`，三个月后你还能看懂每个桥接的作用。
+以下是我們使用的生產配置：**每個（網路，連接埠）一個橋接**，命名為 `socat-<來源網路>-<目標服務>-<連接埠>`，三個月後你還能看懂每個橋接的作用。
 
-<ExcalidrawDiagram src="socat-bridge-itil" alt="自文档化 socat 桥接：每个（网络，端口）一个，所有容器共享" />
+<ExcalidrawDiagram src="socat-bridge-itil" alt="自文件化 socat 橋接：每個（網路，連接埠）一個，所有容器共享" />
 
-### 命名规范
+### 命名規範
 
 ```
-socat-bridge-<网络>-<端口>
+socat-bridge-<網路>-<連接埠>
 ```
 
 示例：
-- `socat-bridge-windmill_default-18789` — Windmill workers → OpenClaw 网关
-- `socat-bridge-sandboxes-18789` — 客户沙箱 → OpenClaw 网关
+- `socat-bridge-windmill_default-18789` — Windmill workers → OpenClaw 閘道器
+- `socat-bridge-sandboxes-18789` — 客戶沙箱 → OpenClaw 閘道器
 - `socat-bridge-windmill_default-11434` — Windmill workers → Ollama
 
-一个桥接，该网络上的所有容器共享。如果一个容器在多个网络上，它使用通过哪个网络访问服务就用哪个桥接。
+一個橋接，該網路上的所有容器共享。如果一個容器在多個網路上，它使用透過哪個網路存取服務就用哪個橋接。
 
-### 1. 找到 Docker 网络的网关 IP
+### 1. 找到 Docker 網路的閘道器 IP
 
 ```bash
-# 列出 Docker 网络及其网关 IP
+# 列出 Docker 網路及其閘道器 IP
 docker network inspect windmill_default --format '{{(index .IPAM.Config 0).Gateway}}'
 # → 172.19.0.1
 ```
 
-### 2. 创建 systemd 服务
+### 2. 建立 systemd 服務
 
 ```ini
 # /etc/systemd/system/socat-bridge-windmill_default-18789.service
@@ -251,46 +251,46 @@ systemctl daemon-reload
 systemctl enable --now socat-bridge-windmill_default-18789
 ```
 
-### 3. 防火墙规则（必需）
+### 3. 防火牆規則（必需）
 
-没有这个，socat 在监听但来自容器的数据包会被主机防火墙静默丢弃。这就是导致 30 秒超时但没有错误消息的步骤。
+沒有這個，socat 在監聽但來自容器的封包會被主機防火牆靜默丟棄。這就是導致 30 秒逾時但沒有錯誤訊息的步驟。
 
 ```bash
-# 找到 Docker 网络的 Linux 桥接接口
+# 找到 Docker 網路的 Linux 橋接介面
 BRIDGE_ID=$(docker network inspect windmill_default --format '{{.Id}}' | cut -c1-12)
 
-# 仅在该桥接接口上允许流量——不暴露到外部
+# 僅在該橋接介面上允許流量——不暴露到外部
 ufw allow in on br-${BRIDGE_ID} to any port 18789 proto tcp comment "socat-bridge-windmill_default-18789"
 ```
 
-### 4. 测试
+### 4. 測試
 
 ```bash
-# 从主机——应该已经能工作
+# 從主機——應該已經能工作
 curl -s http://127.0.0.1:18789/
 
-# 从该网络上的容器内部
+# 從該網路上的容器內部
 docker run --rm --network windmill_default curlimages/curl \
   curl -s http://172.19.0.1:18789/
 ```
 
-### 5. 用变量，不要硬编码 IP
+### 5. 用變數，不要寫死 IP
 
-Docker 桥接 IP 在你重建网络时可能会改变。把网关 URL 存储在你编排器的变量系统中：
+Docker 橋接 IP 在你重建網路時可能會改變。把閘道器 URL 儲存在你編排器的變數系統中：
 
 ```bash
-# 在 Windmill 中：创建一个变量
+# 在 Windmill 中：建立一個變數
 # Path: f/openclaw/gateway_url
 # Value: http://172.19.0.1:18789
 
-# 在 n8n 中：使用环境变量
+# 在 n8n 中：使用環境變數
 # OPENCLAW_GATEWAY_URL=http://172.19.0.1:18789
 ```
 
-### 6. 健康检查脚本
+### 6. 健康檢查腳本
 
 ```typescript
-// Windmill / Deno / Bun — 在任何编排器中都能用
+// Windmill / Deno / Bun — 在任何編排器中都能用
 export async function main() {
   const res = await fetch("http://172.19.0.1:18789/", {
     signal: AbortSignal.timeout(5000)
@@ -299,61 +299,61 @@ export async function main() {
 }
 ```
 
-> **多网络 worker。** 一个 Docker 容器可以连接到多个网络——例如 `windmill_default` *和* `shared_internal`。每个网络有自己的桥接 IP。你需要为 worker 所在的**每个网络**创建一个 socat 实例和一条防火墙规则。检查所有网络：`docker inspect <container> --format '{{json .NetworkSettings.Networks}}'`。
+> **多網路 worker。** 一個 Docker 容器可以連接到多個網路——例如 `windmill_default` *和* `shared_internal`。每個網路有自己的橋接 IP。你需要為 worker 所在的**每個網路**建立一個 socat 實例和一條防火牆規則。檢查所有網路：`docker inspect <container> --format '{{json .NetworkSettings.Networks}}'`。
 
 ---
 
-## MCP 服务器有同样的问题
+## MCP 伺服器有同樣的問題
 
-如果你在主机上运行 MCP 服务器并从容器化的代理调用它们，这是完全一样的问题。监听在 `localhost:3000` 的 MCP 服务器对任何容器都是不可见的。
+如果你在主機上執行 MCP 伺服器並從容器化的代理呼叫它們，這是完全一樣的問題。監聽在 `localhost:3000` 的 MCP 伺服器對任何容器都是不可見的。
 
-socat 桥接模式的工作方式完全相同：
+socat 橋接模式的工作方式完全相同：
 
 ```bash
-# MCP 服务器的桥接
+# MCP 伺服器的橋接
 socat TCP-LISTEN:3000,bind=172.19.0.1,fork,reuseaddr TCP:127.0.0.1:3000
 ```
 
-事实上，**任何**容器需要访问的主机绑定服务都遵循同样的模式：
+事實上，**任何**容器需要存取的主機繫結服務都遵循同樣的模式：
 
-| 主机服务 | 容器化客户端 | 需要桥接 |
+| 主機服務 | 容器化用戶端 | 需要橋接 |
 | --- | --- | --- |
-| OpenClaw 网关 | Windmill / n8n / Kestra / Temporal | ✅ |
-| MCP 服务器 | Docker 化的代理沙箱 | ✅ |
-| Ollama（本地 LLM） | 任何容器化应用 | ✅ |
-| 本地数据库 | 容器化 API | ✅ |
+| OpenClaw 閘道器 | Windmill / n8n / Kestra / Temporal | ✅ |
+| MCP 伺服器 | Docker 化的代理沙箱 | ✅ |
+| Ollama（本地 LLM） | 任何容器化應用 | ✅ |
+| 本地資料庫 | 容器化 API | ✅ |
 | 嵌入 API | Docker 中的 RAG 管道 | ✅ |
 
-共同点：一个主机绑定的服务，容器需要访问但不能暴露到网络。一个模式。同样的解决方案。每次都是。
+共同點：一個主機繫結的服務，容器需要存取但不能暴露到網路。一個模式。同樣的解決方案。每次都是。
 
 ---
 
-## 为什么没人谈这个
+## 為什麼沒人談這個
 
-AI 基础设施的讨论被协议、模型和框架所主导。MCP、A2A、function calling、tool routing——那些令人兴奋的东西。网络是管道工程。
+AI 基礎設施的討論被協議、模型和框架所主導。MCP、A2A、function calling、tool routing——那些令人興奮的東西。網路是管道工程。
 
-但管道工程让建筑变得宜居。
+但管道工程讓建築變得宜居。
 
-当我们谈论[代理的流程管理](/blog/process-is-the-prompt)时，核心洞察是代理需要编排器。当 Anthropic 发表了他们的[多 Claude 实验](https://www.anthropic.com/engineering/building-c-compiler)时，协调机制是 Git。当我们讨论[代理路由](/blog/routing-agents-without-new-protocol)时，瓶颈是决策层。
+當我們談論[代理的流程管理](/blog/process-is-the-prompt)時，核心洞察是代理需要編排器。當 Anthropic 發表了他們的[多 Claude 實驗](https://www.anthropic.com/engineering/building-c-compiler)時，協調機制是 Git。當我們討論[代理路由](/blog/routing-agents-without-new-protocol)時，瓶頸是決策層。
 
-所有这些都假设服务之间能够互相通信。**没人提到当它们不能通信时会发生什么。** 这是第一步之前的那一步——如此基础以至于看不见。
+所有這些都假設服務之間能夠互相通訊。**沒人提到當它們不能通訊時會發生什麼。** 這是第一步之前的那一步——如此基礎以至於看不見。
 
-直到它崩溃。然后它成了唯一重要的事情。
-
----
-
-## 令人不安的结论
-
-你的 AI 代理基础设施中最重要的层不是模型、协议或框架。**是网络。** 具体来说，是 `localhost` 意味着你以为它意味着的那个假设。
-
-每个容器化部署都继承了这个假设。大多数都会静默失败——编排器在运行，网关在运行，但回调永远不到达，通知永远发不出，webhook 永远不触发。你花几个小时调试应用层，才意识到数据包根本没有离开容器。
-
-修复方法是一个 20 年历史的 Unix 工具、一个 systemd 服务和一条防火墙规则。总配置时间：五分钟。总配置行数：十二行。
-
-**最好的基础设施是你配置一次就再也不用想的那种。** Docker 桥接上的 socat 正是如此——无聊、不可见、承重。
-
-就像管道工程应该的样子。
+直到它崩潰。然後它成了唯一重要的事情。
 
 ---
 
-*本文描述的 socat 桥接模式在 CasYs 的生产环境中用于连接编排器和 OpenClaw 网关。完整配置——包括自动化安装脚本、systemd 单元和防火墙规则——可作为 [ClawHub 上的 OpenClaw 技能](https://clawhub.ai/skills/localhost-bridge)获取。*
+## 令人不安的結論
+
+你的 AI 代理基礎設施中最重要的層不是模型、協議或框架。**是網路。** 具體來說，是 `localhost` 意味著你以為它意味著的那個假設。
+
+每個容器化部署都繼承了這個假設。大多數都會靜默失敗——編排器在執行，閘道器在執行，但回呼永遠不到達，通知永遠發不出，webhook 永遠不觸發。你花幾個小時除錯應用層，才意識到封包根本沒有離開容器。
+
+修復方法是一個 20 年歷史的 Unix 工具、一個 systemd 服務和一條防火牆規則。總配置時間：五分鐘。總配置行數：十二行。
+
+**最好的基礎設施是你配置一次就再也不用想的那種。** Docker 橋接上的 socat 正是如此——無聊、不可見、承重。
+
+就像管道工程應該的樣子。
+
+---
+
+*本文描述的 socat 橋接模式在 CasYs 的生產環境中用於連接編排器和 OpenClaw 閘道器。完整配置——包括自動化安裝腳本、systemd 單元和防火牆規則——可作為 [ClawHub 上的 OpenClaw 技能](https://clawhub.ai/skills/localhost-bridge)獲取。*
