@@ -21,7 +21,7 @@ export async function getStaticPaths() {
   });
 
   return blogPosts.map(entry => ({
-    params: { slug: entry.slug.replace('zh-TW/', '') },
+    params: { slug: entry.slug.replace(/^zh-tw\//i, '') },
     props: { entry },
   }));
 }
@@ -35,7 +35,7 @@ if (!entry) {
 const { Content } = await entry.render();
 
 // Lookup EN version for OG tags (always show English in social previews)
-const bareSlug = entry.slug.replace('zh-TW/', '');
+const bareSlug = entry.slug.replace(/^zh-tw\//i, '');
 const enPosts = await getCollection('blog', ({ data, id }) => !data.draft && id.startsWith('en/'));
 const enVersion = enPosts.find(p => p.slug.replace('en/', '') === bareSlug);
 const ogTitle = enVersion?.data.title;
@@ -53,11 +53,11 @@ const relatedPosts = allPosts
   .slice(0, 3);
 
 function getPostSlug(post: typeof allPosts[0]) {
-  return post.slug.replace('zh-TW/', '');
+  return post.slug.replace(/^zh-tw\//i, '');
 }
 ---
 
-<BlogLayout title={entry.data.title} locale={locale} description={entry.data.description} slug={entry.slug.replace('zh-TW/', '')} ogTitle={ogTitle} ogDescription={ogDescription} datePublished={entry.data.date?.toISOString()} dateModified={entry.data.updatedAt?.toISOString()} author={entry.data.author} tags={entry.data.tags} category={entry.data.category}>
+<BlogLayout title={entry.data.title} locale={locale} description={entry.data.description} slug={entry.slug.replace(/^zh-tw\//i, '')} ogTitle={ogTitle} ogDescription={ogDescription} datePublished={entry.data.date?.toISOString()} dateModified={entry.data.updatedAt?.toISOString()} author={entry.data.author} tags={entry.data.tags} category={entry.data.category}>
   <!-- Back navigation -->
   <nav class="back-nav">
     <a href="/zh-TW/blog" class="back-link">
