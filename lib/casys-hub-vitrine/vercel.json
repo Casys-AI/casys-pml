@@ -4,6 +4,14 @@
   "outputDirectory": ".vercel/output",
   "rewrites": [
     {
+      "source": "/u/script.js",
+      "destination": "https://analytics.casys.ai/script.js"
+    },
+    {
+      "source": "/u/api/send",
+      "destination": "https://analytics.casys.ai/api/send"
+    },
+    {
       "source": "/:path((?!_astro|_vercel|api|ui|icons|fonts|images|pagefind|docs|fr|zh|mcp-server).*)",
       "has": [{ "type": "host", "value": "mcp-server.casys.ai" }],
       "destination": "/mcp-server/:path"
