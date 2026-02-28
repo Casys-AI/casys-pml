@@ -1,0 +1,11 @@
+{
+  "name": "@casys/hier-seq-bench",
+  "version": "0.1.0",
+  "description": "Synthetic hierarchical sequential benchmark for node prediction",
+  "exports": "./src/index.ts",
+  "tasks": {
+    "gen": "deno run --allow-write scripts/gen-dataset.ts",
+    "gen:small": "deno run --allow-write scripts/gen-dataset.ts --traces 500 --out bench-small.json",
+    "gen:large": "deno run --allow-write scripts/gen-dataset.ts --traces 10000 --out bench-large.json"
+  }
+}
