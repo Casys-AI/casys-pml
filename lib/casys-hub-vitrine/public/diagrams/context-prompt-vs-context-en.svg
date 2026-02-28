@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 530" width="1040" height="530">
+  <!-- svg-source:excalidraw — context-prompt-vs-context-en.excalidraw -->
+  <rect x="0" y="0" width="1040" height="530" fill="#08080a"/>
+  <text x="210" y="48" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="28" fill="#e5e5e5" text-anchor="start">Prompt Engineering vs Context Engineering</text>
+  <rect x="20" y="90" width="450" height="420" rx="52.5" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
+  <text x="120" y="132" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="22" fill="#ef4444" text-anchor="start">Prompt Engineering</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#e5e5e5" text-anchor="start" y="173">
+    <tspan x="50">Optimizing the words</tspan>
+    <tspan x="50" dy="23.4">of the request</tspan>
+  </text>
+  <rect x="70" y="220" width="350" height="50" rx="6.25" fill="#2d2d35" stroke="#666666" stroke-width="1"/>
+  <text x="245" y="249.9" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">&quot;Be concise, respond in JSON...&quot;</text>
+  <rect x="70" y="290" width="350" height="50" rx="6.25" fill="#2d2d35" stroke="#666666" stroke-width="1"/>
+  <text x="245" y="319.9" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">&quot;Think step by step...&quot;</text>
+  <text x="130" y="400" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#ef4444" text-anchor="start">Delta: small</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#666666" text-anchor="start" y="434">
+    <tspan x="70">Shrinking margin with</tspan>
+    <tspan x="70" dy="18.2">each model generation</tspan>
+  </text>
+  <rect x="520" y="90" width="500" height="420" rx="52.5" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
+  <text x="610" y="132" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="22" fill="#22c55e" text-anchor="start">Context Engineering</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#e5e5e5" text-anchor="start" y="173">
+    <tspan x="550">Orchestrating EVERYTHING</tspan>
+    <tspan x="550" dy="23.4">the model sees</tspan>
+  </text>
+  <rect x="550" y="220" width="200" height="35" rx="4.38" fill="#1a4d2e" stroke="#22c55e" stroke-width="1"/>
+  <text x="650" y="242.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">MCP Tools</text>
+  <rect x="770" y="220" width="200" height="35" rx="4.38" fill="#1e3a5f" stroke="#4a9eed" stroke-width="1"/>
+  <text x="870" y="242.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Structured data</text>
+  <rect x="550" y="270" width="200" height="35" rx="4.38" fill="#5c3d1a" stroke="#f59e0b" stroke-width="1"/>
+  <text x="650" y="292.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Session history</text>
+  <rect x="770" y="270" width="200" height="35" rx="4.38" fill="#2d1b69" stroke="#8b5cf6" stroke-width="1"/>
+  <text x="870" y="292.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Knowledge graph</text>
+  <rect x="550" y="320" width="200" height="35" rx="4.38" fill="#1a4d4d" stroke="#06b6d4" stroke-width="1"/>
+  <text x="650" y="342.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Predicted sequences</text>
+  <rect x="770" y="320" width="200" height="35" rx="4.38" fill="#5c1a1a" stroke="#ef4444" stroke-width="1"/>
+  <text x="870" y="342.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Token budget</text>
+  <text x="630" y="400" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#22c55e" text-anchor="start">Delta: massive</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#666666" text-anchor="start" y="434">
+    <tspan x="560">The real performance lever</tspan>
+    <tspan x="560" dy="18.2">in production (2026)</tspan>
+  </text>
+</svg>

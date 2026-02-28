@@ -9,12 +9,14 @@ tags:
   - graphrag
   - agents
   - knowledge-management
-category: "Industry"
+category: "Industrie"
 language: fr
 snippet: "Le prompt engineering optimise la question. Le context engineering optimise tout ce que le modèle voit avant de répondre. C'est le vrai levier."
 featured: true
 draft: false
 ---
+
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 ## Le mot que tout le monde utilise mal
 
@@ -48,6 +50,8 @@ Avec une approche **centrée sur le contexte**, vous vous demandez : est-ce que 
 
 Sans ces données dans son contexte, le meilleur prompt du monde ne sert à rien. Le modèle va halluciner, ou répondre "je n'ai pas accès à cette information" — ce qui est pire, parce que c'est vrai.
 
+<ExcalidrawDiagram src="context-prompt-vs-context" alt="Prompt Engineering vs Context Engineering — le delta de performance" />
+
 ---
 
 ## Le problème industriel : 15 systèmes, 15 silos
@@ -72,6 +76,8 @@ Un agent qui doit répondre à "Quel est le statut de la ligne 3 ?" a besoin de 
 
 Ce n'est pas un problème de modèle. C'est un problème d'infrastructure.
 
+<ExcalidrawDiagram src="context-industrial-silos" alt="15 systèmes industriels → MCP Gateway → Contexte structuré → Agent IA" />
+
 ---
 
 ## RAG, GraphRAG et ingénierie de contexte : ne pas confondre
@@ -93,6 +99,8 @@ Chez Casys, on utilise un GraphRAG maison avec un mécanisme d'attention sur hyp
 ## Les quatre piliers de la gestion du contexte
 
 Après avoir construit un gateway MCP qui agrège des dizaines de serveurs d'outils, voici la taxonomie qu'on utilise en interne. Quatre dimensions à gérer simultanément.
+
+<ExcalidrawDiagram src="context-four-pillars" alt="Les 4 piliers de la gestion du contexte : Outils, Données, Séquences, Session" />
 
 ### 1. Le contexte d'outils — Quoi montrer au modèle ?
 
@@ -233,6 +241,8 @@ const context = await gateway.buildContext({
 ```
 
 Le modèle reçoit un contexte **curé, structuré et dimensionné**. Pas un dump de 15 API. Pas 17 000 schémas d'outils. Le nécessaire et suffisant.
+
+<ExcalidrawDiagram src="context-mcp-gateway-pipeline" alt="Pipeline MCP Gateway : Intent → Discovery → Exécution → Prédiction → Budget → LLM" />
 
 ---
 

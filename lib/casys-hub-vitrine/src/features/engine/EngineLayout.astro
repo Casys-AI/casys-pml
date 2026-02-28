@@ -10,9 +10,10 @@ const { title } = Astro.props;
 const locale = (Astro as any).currentLocale ?? 'en';
 
 const metaDescriptions: Record<string, string> = {
-  fr: 'Couche de calcul ML pour PML. SHGAT-TF score la pertinence des outils par attention multi-niveaux sur hypergraphe. Deterministe, observable, auto-heberge.',
-  zh: 'ML computation layer for PML. SHGAT-TF attention networks score tool relevance across hypergraph hierarchies. Deterministic, observable, self-hosted.',
   en: 'ML computation layer for PML. SHGAT-TF attention networks score tool relevance across hypergraph hierarchies. Deterministic, observable, self-hosted.',
+  fr: 'Couche de calcul ML pour PML. SHGAT-TF score la pertinence des outils par attention multi-niveaux sur hypergraphe. Deterministe, observable, auto-heberge.',
+  zh: 'PML 的 ML 计算层。SHGAT-TF 注意力网络在超图层次结构中评分工具相关性。确定性、可观测、自托管。',
+  'zh-TW': 'PML 的 ML 計算層。SHGAT-TF 注意力網路在超圖層次結構中評分工具相關性。確定性、可觀測、自託管。',
 };
 const metaDescription = metaDescriptions[locale] ?? metaDescriptions.en;
 ---

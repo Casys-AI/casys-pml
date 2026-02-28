@@ -1,5 +1,6 @@
 ---
 import '../styles.css';
+import '../styles/fonts.css';
 import Analytics from '@vercel/analytics/astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
@@ -51,10 +52,12 @@ const resolvedDescription = description || metaDescriptionFallback;
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/icons/site.webmanifest" />
 
-    <!-- Google Fonts - Fraunces (Display) + Inter Variable (Body) + JetBrains Mono + Material Symbols -->
+    <!-- Self-hosted fonts (Vercel CDN) — preload critical display font -->
+    <link rel="preload" href="/fonts/fraunces-latin-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/inter-latin-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- Material Symbols — icon font, kept external (not critical path) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Instrument+Serif:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
 
     <script>

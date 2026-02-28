@@ -10,9 +10,10 @@ const { title } = Astro.props;
 const locale = (Astro as any).currentLocale ?? 'en';
 
 const metaDescriptions: Record<string, string> = {
+  en: 'Production-grade MCP server framework with composable middleware, OAuth2 auth, dual transport. The Hono for MCP.',
   fr: 'Framework MCP production-grade avec middleware composable, auth OAuth2, double transport. Le Hono pour MCP.',
   zh: '生产级 MCP 服务器框架，具有可组合中间件、OAuth2 认证、双传输。MCP 的 Hono。',
-  en: 'Production-grade MCP server framework with composable middleware, OAuth2 auth, dual transport. The Hono for MCP.',
+  'zh-TW': '生產級 MCP 伺服器框架，具有可組合中介軟體、OAuth2 驗證、雙傳輸。MCP 的 Hono。',
 };
 const metaDescription = metaDescriptions[locale] ?? metaDescriptions.en;
 ---

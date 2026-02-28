@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1130 794" width="1130" height="794">
+  <!-- svg-source:excalidraw — context-four-pillars.excalidraw -->
+  <defs>
+    <marker id="ah-22c55e" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#22c55e"/></marker>
+    <marker id="ah-4a9eed" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#4a9eed"/></marker>
+    <marker id="ah-f59e0b" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#f59e0b"/></marker>
+    <marker id="ah-8b5cf6" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#8b5cf6"/></marker>
+    <marker id="ah-e5e5e5" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#e5e5e5"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="1130" height="794" fill="#08080a"/>
+  <text x="220" y="48" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="28" fill="#e5e5e5" text-anchor="start">Les 4 piliers de la gestion du contexte</text>
+  <rect x="20" y="100" width="250" height="340" rx="31.25" fill="rgba(26,77,46,0.35)" stroke="#22c55e" stroke-width="2"/>
+  <text x="58" y="137" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="22" fill="#22c55e" text-anchor="start">1. Outils</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#e5e5e5" text-anchor="start" y="173">
+    <tspan x="40">Quoi montrer</tspan>
+    <tspan x="40" dy="23.4">au modele ?</tspan>
+  </text>
+  <rect x="45" y="220" width="200" height="35" rx="4.38" fill="#1a4d2e" stroke="#22c55e" stroke-width="1"/>
+  <text x="145" y="242.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Discovery MCP</text>
+  <rect x="45" y="270" width="200" height="35" rx="4.38" fill="#1a4d2e" stroke="#22c55e" stroke-width="1"/>
+  <text x="145" y="292.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">GraphRAG ranking</text>
+  <rect x="45" y="320" width="200" height="35" rx="4.38" fill="#1a4d2e" stroke="#22c55e" stroke-width="1"/>
+  <text x="145" y="342.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">8/17000 outils</text>
+  <text x="60" y="394" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#666666" text-anchor="start">= 10% du contexte</text>
+  <rect x="300" y="100" width="250" height="340" rx="31.25" fill="rgba(30,58,95,0.35)" stroke="#4a9eed" stroke-width="2"/>
+  <text x="338" y="137" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="22" fill="#4a9eed" text-anchor="start">2. Donnees</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#e5e5e5" text-anchor="start" y="173">
+    <tspan x="320">Quelles infos</tspan>
+    <tspan x="320" dy="23.4">injecter ?</tspan>
+  </text>
+  <rect x="325" y="220" width="200" height="35" rx="4.38" fill="#1e3a5f" stroke="#4a9eed" stroke-width="1"/>
+  <text x="425" y="242.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">RAG vectoriel</text>
+  <rect x="325" y="270" width="200" height="35" rx="4.38" fill="#1e3a5f" stroke="#4a9eed" stroke-width="1"/>
+  <text x="425" y="292.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Traversal de graphe</text>
+  <rect x="325" y="320" width="200" height="35" rx="4.38" fill="#1e3a5f" stroke="#4a9eed" stroke-width="1"/>
+  <text x="425" y="342.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Cross-systeme</text>
+  <text x="340" y="394" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#666666" text-anchor="start">= 40% du contexte</text>
+  <rect x="580" y="100" width="250" height="340" rx="31.25" fill="rgba(92,61,26,0.35)" stroke="#f59e0b" stroke-width="2"/>
+  <text x="610" y="137" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="22" fill="#f59e0b" text-anchor="start">3. Sequences</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#e5e5e5" text-anchor="start" y="173">
+    <tspan x="600">Qu'est-ce qui</tspan>
+    <tspan x="600" dy="23.4">vient ensuite ?</tspan>
+  </text>
+  <rect x="605" y="220" width="200" height="35" rx="4.38" fill="#5c3d1a" stroke="#f59e0b" stroke-width="1"/>
+  <text x="705" y="242.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">GRU &lt;1M params</text>
+  <rect x="605" y="270" width="200" height="35" rx="4.38" fill="#5c3d1a" stroke="#f59e0b" stroke-width="1"/>
+  <text x="705" y="292.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Workflows reels</text>
+  <rect x="605" y="320" width="200" height="35" rx="4.38" fill="#5c3d1a" stroke="#f59e0b" stroke-width="1"/>
+  <text x="705" y="342.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Prediction CPU</text>
+  <text x="610" y="394" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#666666" text-anchor="start">= memoire procedurale</text>
+  <rect x="860" y="100" width="250" height="340" rx="31.25" fill="rgba(45,27,105,0.35)" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="908" y="137" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="22" fill="#8b5cf6" text-anchor="start">4. Session</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#e5e5e5" text-anchor="start" y="173">
+    <tspan x="880">Etat de la</tspan>
+    <tspan x="880" dy="23.4">conversation</tspan>
+  </text>
+  <rect x="885" y="220" width="200" height="35" rx="4.38" fill="#2d1b69" stroke="#8b5cf6" stroke-width="1"/>
+  <text x="985" y="242.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Summarization</text>
+  <rect x="885" y="270" width="200" height="35" rx="4.38" fill="#2d1b69" stroke="#8b5cf6" stroke-width="1"/>
+  <text x="985" y="292.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Context caching</text>
+  <rect x="885" y="320" width="200" height="35" rx="4.38" fill="#2d1b69" stroke="#8b5cf6" stroke-width="1"/>
+  <text x="985" y="342.4" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#e5e5e5" text-anchor="middle">Graphe persistant</text>
+  <text x="900" y="394" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#666666" text-anchor="start">= 30% du contexte</text>
+  <path d="M145 440 L145 500" fill="none" stroke="#22c55e" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-22c55e)"/>
+  <path d="M425 440 L425 500" fill="none" stroke="#4a9eed" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4a9eed)"/>
+  <path d="M705 440 L705 500" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f59e0b)"/>
+  <path d="M985 440 L985 500" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-8b5cf6)"/>
+  <rect x="70" y="510" width="980" height="70" rx="8.75" fill="rgba(30,58,95,0.5)" stroke="#4a9eed" stroke-width="2"/>
+  <text x="560" y="552.7" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="22" fill="#e5e5e5" text-anchor="middle">Contexte complet, structure, dimensionne</text>
+  <path d="M560 580 L560 640" fill="none" stroke="#e5e5e5" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-e5e5e5)"/>
+  <rect x="400" y="650" width="320" height="70" rx="8.75" fill="#2d1b69" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="560" y="691.3" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#e5e5e5" text-anchor="middle">LLM (GPT-5, Claude, Gemini)</text>
+  <text x="300" y="768" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#666666" text-anchor="start">Le modele est suffisamment bon. Le contexte fait la difference.</text>
+</svg>

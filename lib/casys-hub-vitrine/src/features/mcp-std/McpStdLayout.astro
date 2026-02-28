@@ -10,9 +10,10 @@ const { title } = Astro.props;
 const locale = (Astro as any).currentLocale ?? 'en';
 
 const metaDescriptions: Record<string, string> = {
+  en: '508 MCP standard tools for AI agents. Database, git, docker, crypto, text, network and more — one import, fully typed.',
   fr: '508 outils MCP standards pour agents IA. Base de donnees, git, docker, crypto, texte, reseau et plus — un seul import, entierement type.',
   zh: '508 个 MCP 标准工具。数据库、Git、Docker、加密、文本、网络等——一次导入，完全类型化。',
-  en: '508 MCP standard tools for AI agents. Database, git, docker, crypto, text, network and more — one import, fully typed.',
+  'zh-TW': '508 個 MCP 標準工具。資料庫、Git、Docker、加密、文字、網路等——一次匯入，完全型別化。',
 };
 const metaDescription = metaDescriptions[locale] ?? metaDescriptions.en;
 ---

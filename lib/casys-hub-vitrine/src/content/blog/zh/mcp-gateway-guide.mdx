@@ -1,0 +1,515 @@
+---
+title: "MCP Gateway 完整指南：为什么你的 AI 代理需要一个闸道层"
+description: "Smithery 上已有超过 17,000 个 MCP 工具。没有任何上下文窗口能容纳全部。MCP Gateway 是 AI 用户端与 MCP 伺服器之间缺失的路由层。涵盖架构设计、GraphRAG 路由、效能对比与 PML 实战部署。"
+author: "Erwan Lee Pesle"
+date: 2026-02-27
+tags:
+  - mcp
+  - mcp-gateway
+  - routing
+  - multi-agent
+  - infrastructure
+category: "产品"
+language: zh
+snippet: "Smithery 上有 17,000+ 个 MCP 工具，没有 context window 装得下。MCP Gateway 是缺失的路由层——本文从架构到实作完整解析。"
+featured: true
+draft: false
+---
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+## 一个没人预料到的问题
+
+[Smithery](https://smithery.ai) 上现在有超过 17,000 个 MCP 工具。六个月前是 4,000 个。年底预计会超过 50,000 个。
+
+没有任何上下文窗口装得下这些工具。Claude 的百万 token 不行。GPT 的 128K 不行。Gemini 的 2M 也不行 — 因为就算你硬塞得进去，模型的表现在到达上限之前就已经开始劣化了。MCP Gateway（闸道）就是解决这个问题的那一层。如果你正在用 MCP 建构任何认真的东西，你需要一个。
+
+本文会解释为什么需要、我们怎么建的、以及你有哪些选择。
+
+---
+
+## 什么是 MCP Gateway（MCP 闸道器）？
+
+<ExcalidrawDiagram src="gateway-architecture" alt="PML Gateway 架构：Agent → Router + Search + Memory + Learning → Multiplexer → MCP Servers" />
+
+MCP Gateway 是一个聚合层，坐落在 AI 用户端（Claude、GPT、你的本地模型）与多个 MCP 伺服器之间。不是每个用户端各自连接每个伺服器，而是所有连线都经过闸道。
+
+你可以把它理解成 MCP 的反向代理。Nginx 不负责提供网页内容 — 它把请求路由到实际提供服务的后端。MCP Gateway 不负责执行工具 — 它把工具呼叫路由到实际执行的 MCP 伺服器。
+
+但跟 Nginx 不同的是，一个好的闸道不只是转发封包。它要决定**哪些工具该让 LLM 看到**。这才是难的部分。
+
+基本架构如下：
+
+```
+┌─────────────┐
+│  AI 用户端   │  （Claude、GPT、本地模型）
+│  (MCP Host)  │
+└──────┬───────┘
+       │ MCP 协定（SSE / Streamable HTTP）
+       ▼
+┌──────────────────────┐
+│    MCP Gateway       │  ← 聚合 + 发现 + 路由
+│  （单一端点）          │
+└──┬───────┬───────┬───┘
+   │       │       │
+   ▼       ▼       ▼
+┌──────┐┌──────┐┌──────┐
+│MCP   ││MCP   ││MCP   │  （档案系统、资料库、GitHub 等）
+│Srv 1 ││Srv 2 ││Srv N │
+└──────┘└──────┘└──────┘
+```
+
+用户端看到的是一个 MCP 伺服器。背后有 N 个。闸道负责处理发现、去重、路由，以及 — 如果它够聪明的话 — **工具选择**。
+
+---
+
+## 为什么直连 MCP 在规模化时会崩溃
+
+MCP 的预设架构是点对点的：一个用户端、一个伺服器、一条连线。当你有 3 个伺服器和 20 个工具时运作得很好。当你有 30 个伺服器和 2,000 个工具时就崩溃了。
+
+### 上下文窗口税
+
+每个 MCP 工具都有一个 schema — 名称、描述、参数型别、回传型别。一个典型的 schema 大约 200-500 个 token。光是连接 GitHub MCP 伺服器就有大约 91 个工具。这大约就[占用了 Claude 上下文窗口的 22%](https://eclipsesource.com/blogs/2026/01/22/mcp-context-overload/)，使用者还没打一个字。
+
+有 Reddit 使用者[实测](https://medium.com/@joe.njenga/claude-code-just-cut-mcp-context-bloat-by-46-9-51k-tokens-down-to-8-5k-with-new-tool-search-ddf9e905f734)：只连接四个 MCP 伺服器到 Claude Code，就消耗了 67,000 个 token。四个伺服器。三分之二的上下文。没了。
+
+Anthropic 在 2026 年一月正式承认了这个问题：当 MCP schema 超过**上下文的 10%**时，Claude Code 会切换到 [Tool Search](https://www.anthropic.com/engineering/advanced-tool-use) — 工具按需载入而非预载。他们把 51K token 压缩到 8.5K。
+
+这是 Anthropic 自己承认问题存在。但 Tool Search 是用户端的权宜之计。它只在 Claude Code 里面有用。GPT 使用者、本地模型使用者、或任何自建代理的人都用不到。
+
+闸道在基础设施层解决这个问题 — 对所有用户端都有效。
+
+### 干扰问题
+
+[微软研究院](https://www.microsoft.com/en-us/research/blog/tool-space-interference-in-the-mcp-era-designing-for-agent-compatibility-at-scale/)发表了一项研究，他们称之为「工具空间干扰」（tool-space interference）：当上下文中有太多工具时，工具之间会互相干扰。模型在相似的工具之间混淆，即使是它本来擅长的工具，表现也会下降。
+
+这不是模型的 bug。这是资讯理论。更多选项加上相似的描述 = 更高的熵 = 更差的决策。修正方法不是用更大的模型。修正方法是提供更少、更精准的选项。
+
+### LLM 看不到的工具就无法路由
+
+这是一个悖论。LLM 需要看到工具才能选对的。但把所有工具都亮出来反而让它选错。而且它没办法搜寻它不知道存在的工具。
+
+某个外部机制需要先进行预筛选。这就是闸道的工作。
+
+---
+
+## 10% 法则及其意义
+
+Anthropic 的门槛很明确：当工具 schema 超过上下文的 10%，表现就会劣化。算一下。
+
+Claude Opus 4.6 的有效上下文窗口约为 200K token。10% 就是 20K token。平均每个工具 schema 约 300 token，大概就是 **65 个工具**碰到上限。
+
+65 个工具听起来很多。其实不多。光 GitHub 伺服器就有 91 个。再加一个资料库伺服器（15-20 个工具）、一个档案系统伺服器（10-15 个工具）、和一个 Slack 伺服器（20 个以上） — 四个伺服器就 150 个以上了。远远超过门槛。
+
+替代方案：用一个闸道只暴露跟当前任务相关的 5-10 个工具。大约 1,500-3,000 个 token。不到上下文的 2%。模型得到清晰的讯号，使用者保有完整的上下文窗口，准确率上升。
+
+对台湾的开发团队来说，这个问题可能比想像中更迫切。一个典型的台湾企业场景 — 比如半导体厂要整合 MES、SCADA、ERP、品质管理系统 — 随便就是 10 个以上的 MCP 伺服器。如果再加上跨境电商的物流和金流 API，工具数量轻松突破三位数。
+
+---
+
+## MCP 闸道器教学：怎么用 TypeScript 建构 Gateway
+
+### 最简版本
+
+核心概念：MCP Gateway 本身就是一个 MCP 伺服器，代理到其他 MCP 伺服器。以下是 TypeScript 骨架：
+
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+
+// 闸道本身就是一个 MCP 伺服器
+const gateway = new McpServer({
+  name: "mcp-gateway",
+  version: "1.0.0",
+});
+
+// 下游 MCP 伺服器的注册表
+const servers = new Map<string, McpClient>();
+
+// 注册一个下游伺服器
+async function registerServer(name: string, url: string) {
+  const client = new McpClient({ name: `gateway-to-${name}` });
+  const transport = new SSEClientTransport(new URL(url));
+  await client.connect(transport);
+
+  // 取得该伺服器的所有工具
+  const { tools } = await client.listTools();
+
+  // 用命名空间注册每个工具到闸道上
+  for (const tool of tools) {
+    gateway.tool(
+      `${name}__${tool.name}`,         // 命名空间化："github__create_issue"
+      tool.description ?? "",
+      tool.inputSchema.properties ?? {},
+      async (args) => {
+        // 代理呼叫到下游伺服器
+        const result = await client.callTool(tool.name, args);
+        return result;
+      }
+    );
+  }
+
+  servers.set(name, client);
+}
+
+// 连接你的 MCP 伺服器
+await registerServer("github", "http://localhost:3001/sse");
+await registerServer("postgres", "http://localhost:3002/sse");
+await registerServer("filesystem", "http://localhost:3003/sse");
+```
+
+这给你一个聚合多个 MCP 伺服器的单一端点。AI 用户端连到一个闸道 URL，就能看到所有下游伺服器的工具，透过命名空间避免冲突。
+
+**但这只是聚合。**它没有解决发现或路由的问题。每个工具还是全部暴露给用户端。你合并了 schema，但没有减少它。
+
+### 加上发现机制：让闸道有「脑」
+
+闸道的真正价值在于决定让哪些工具被看到。这里开始变得有趣。
+
+```typescript
+// 闸道暴露一个发现工具
+gateway.tool(
+  "discover",
+  "根据任务意图找出合适的工具",
+  {
+    intent: { type: "string", description: "你要做什么" },
+    limit: { type: "number", description: "最多回传几个工具" },
+  },
+  async ({ intent, limit = 5 }) => {
+    // 用意图对每个工具评分
+    const scored = await Promise.all(
+      getAllTools().map(async (tool) => ({
+        tool,
+        score: await computeRelevance(intent, tool),
+      }))
+    );
+
+    // 回传 Top-K
+    const topK = scored
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(topK.map(t => ({
+          name: t.tool.name,
+          description: t.tool.description,
+          score: t.score,
+        }))),
+      }],
+    };
+  }
+);
+```
+
+现在 LLM 可以问「我需要什么工具来完成这个任务？」，闸道回传一份精选清单。上下文窗口保持干净。
+
+简易版用 embedding cosine similarity 来实作 `computeRelevance`。原型验证够用。生产环境需要更多。
+
+### 用户端连线：一个 URL，所有工具
+
+从用户端的角度来看，闸道就是另一个 MCP 伺服器。Claude Desktop、Cursor、或任何 MCP 相容的用户端，连线方式都一样：
+
+```json
+{
+  "mcpServers": {
+    "gateway": {
+      "url": "http://localhost:4000/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+一条连线。一个 URL。背后闸道管理着 5 个、10 个、或 50 个 MCP 伺服器的连线。用户端不知道也不需要知道。
+
+程式化存取（自订代理、脚本）同样简单：
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+const client = new Client({ name: "my-agent" });
+const transport = new SSEClientTransport(
+  new URL("http://localhost:4000/sse")
+);
+await client.connect(transport);
+
+// 发现相关工具
+const discovery = await client.callTool("discover", {
+  intent: "查询生产资料库的使用者活动记录",
+  limit: 5,
+});
+
+// 使用建议的工具
+const result = await client.callTool("postgres__psql_query", {
+  query: "SELECT * FROM user_activity WHERE date > '2026-02-01'",
+});
+```
+
+---
+
+## 我们建了什么：PML 作为知识图谱驱动的 MCP Gateway
+
+<ExcalidrawDiagram src="routing-bottleneck" alt="LLM 路由器（8B, GPU, 秒级）vs 专用路由器（图 + 序列, sub-1M, CPU, 毫秒级）配合 MCP Sampling" />
+
+在 [CasYs](/) ，我们一直在开发 PML（Procedural Memory Layer）— 一个超越聚合和 embedding 搜寻的 MCP 闸道。
+
+核心洞察是：工具路由不是语言问题。它是一个**图问题**（哪些工具有关联？）和一个**序列问题**（用什么顺序？）。我们在[「花两万美元路由 16 个 AI 代理」](/blog/routing-agents-without-new-protocol)那篇文章中有深入讨论。
+
+PML 结合了三个系统：
+
+### 1. GraphRAG 驱动的发现（SHGAT）
+
+不同于扁平的 embedding 搜寻，PML 建构了一个工具关系的**超图**（hypergraph）。在真实工作流程中一起出现的工具会被连结在一起。能力（capability）— 更高层的抽象概念，例如「部署到 staging」— 把底下的工具串联起来。
+
+SHGAT（Sparse Hypergraph Attention）网路在这个图上学习注意力权重。当你问「部署到 staging」时，它不只是找描述中包含「deploy」的工具 — 它会激活整个子图，也就是真实使用者在部署工作流程中实际组合使用的那些工具。
+
+这是[「相似」与「相关」的差别](/blog/graphrag-vs-vectorrag)。Embedding 搜寻找相似的。GraphRAG 找相关的。在工具路由这个场景，相关性赢。
+
+### 2. 序列预测（GRU）
+
+找到正确的工具之后，顺序很重要。「跑测试」要在「部署」之前 — 不是之后。
+
+PML 使用 GRU（Gated Recurrent Unit），在数千个来自 [n8n](https://n8n.io) 自动化范本的真实工作流程序列上训练。给定目前的工具序列，它预测最可能的下一个工具。
+
+总参数不到一百万。CPU 上推论时间低于 10 毫秒。不需要 GPU。
+
+### 3. 闸道层
+
+PML 把自己暴露为标准的 MCP 伺服器。任何 MCP 用户端 — Claude Desktop、Cursor、自订代理 — 连到 PML 就能得到智慧型的工具发现和路由，完全不需要知道背后的机制。
+
+```typescript
+// PML discover — GraphRAG + GRU 结合
+const tools = await mcp.pml.discover({
+  intent: "为 Deno 专案建立 CI/CD 管线",
+  limit: 8,
+});
+
+// PML execute — 执行多步骤工作流程
+const result = await mcp.pml.execute({
+  intent: "为 Deno CI 建立 GitHub Actions 工作流程",
+  code: `
+    const repo = await mcp.github.get_repository({ owner: "my-org", repo: "my-project" });
+    const workflow = await mcp.filesystem.write_file({
+      path: ".github/workflows/ci.yml",
+      content: generateCIWorkflow(repo),
+    });
+    return workflow;
+  `,
+});
+```
+
+闸道处理伺服器生命周期、连线池、工具命名空间、schema 快取，以及 — 最关键的 — 路由决策。
+
+---
+
+## MCP Gateway 方案对比
+
+不是每个专案都需要同一种闸道。以下是诚实的比较。
+
+| 特性 | 直连 MCP（无闸道） | Anthropic Tool Search | LangChain / LangGraph | 自建闸道 | PML（CasYs） |
+| --- | --- | --- | --- | --- | --- |
+| **建置复杂度** | 无 | 无（仅 Claude Code） | 中 | 高 | 中 |
+| **多伺服器聚合** | 否（N 条连线） | 否 | 是（透过 toolkit） | 是 | 是 |
+| **工具发现** | 全部载入 | Embedding 搜寻 | Embedding 搜寻 | 自行实作 | GraphRAG + GRU |
+| **序列预测** | 否 | 否 | 否 | 自行实作 | 是（真实工作流程训练） |
+| **上下文缩减** | 无 | 约 83% | 部分 | 看实作 | 95% 以上 |
+| **路由延迟** | N/A | 约 50-100ms | 约 100-500ms（LLM 呼叫） | 看实作 | 低于 10ms（CPU） |
+| **支援任何用户端** | 是 | 仅 Claude | 仅 LangChain | 看实作 | 是（标准 MCP） |
+| **开源** | N/A | 否 | 是 | 你的 | 是 |
+| **需要 GPU** | 否 | 否 | 通常需要（LLM 路由） | 看实作 | 否 |
+| **从使用中学习** | 否 | 否 | 否 | 自行实作 | 是（工作流程模式） |
+
+各方案的取舍要直说。
+
+### 直连 MCP
+
+**可行的时候：** 你的伺服器少于 5 个、工具总数少于 50 个。上下文税可以接受。不需要动态发现。
+
+**崩溃的时候：** 你加了第六个伺服器，模型突然开始把 `github__create_issue` 和 `jira__create_issue` 搞混。或者你碰到 10% 的上下文门槛，但不理解为什么模型的回答品质变差了。
+
+**结论：** 原型验证没问题。生产环境有风险。
+
+### Anthropic 内建的 Tool Search
+
+**做得好的地方：** 在 Claude Code 中把上下文从 51K 压到 8.5K token。自动运作，不需要设定。
+
+**但是：** 它只在 Claude Code 里有效。Claude Desktop 不行、API 不行、其他任何用户端都不行。这是一个产品功能，不是基础设施方案。如果你在 Claude API 上面建代理，这东西你用不到。
+
+**结论：** 如果你完全活在 Claude Code 里面很好用。其他地方无用。
+
+### LangChain / LangGraph 工具路由
+
+**做得好的地方：** 成熟的生态系统。良好的工具管理抽象。活跃的社群。
+
+**但是：** 路由决策通常要过 LLM 本身 — 也就是说你要为「决定用哪个工具」付一次 LLM 呼叫的费用，然后再为「实际使用那个工具」付一次。延迟和费用都加倍。而且你被锁在 LangChain 生态系统里面。你的路由逻辑在生态系统外面不能用。
+
+**结论：** 如果你已经在 LangChain 生态系统里、且延迟/成本不是考量，可以接受。
+
+### 自建闸道
+
+**做得好的地方：** 你掌控一切。可以针对你的确切场景最佳化。
+
+**但是：** 你得什么都自己建。发现、路由、连线管理、错误处理、重连逻辑、schema 快取、命名空间去重。我们建 PML 已经超过一年。这不是周末专案。
+
+**结论：** 如果你的场景很窄且定义明确，有道理。不然你会花好几个月重新发明轮子。
+
+---
+
+## 真正重要的数字
+
+以下是影响我们建构 PML 方式的基准数据。
+
+**GPT-5.2 在 42% 的 MCP 任务上失败。** [MCPMark](https://mcpmark.ai/leaderboard) 排行榜 — 真实 MCP 工具使用的标准基准测试，跨 5 个伺服器和多步骤任务 — GPT-5.2 以 57.5% Pass@1 排名第一。Claude Opus 4.5 得 42.3%。这是世界上最好的模型，它们在将近一半的 MCP 任务上失败。
+
+闸道的帮助是收窄搜寻空间。模型不是从 200 个工具里选，而是从 5 个里选。因为选项更干净，准确率上升。
+
+**低于 10ms 的路由。** PML 的 SHGAT + GRU 管线在标准 CPU 上的执行时间低于 10 毫秒。不需要 GPU、不需要云端推论端点、没有冷启动。路由决策在 LLM 读完提示之前就已完成。
+
+跟 LLM 路由方案比较：每次 API 呼叫 500ms-2s，加上 token 成本。而且是每个多步骤工作流程中的**每一次**工具选择。一个 10 步的工作流程用 LLM 路由会增加 5-20 秒的纯路由开销。用 PML，总共增加 100 毫秒。
+
+**95% 以上的上下文缩减。** 不再载入 2,000 个工具 schema（600K+ token），闸道回传 5-10 个相关的 schema（约 2K token）。模型在干净、聚焦的上下文中工作。
+
+---
+
+## 台湾场景：闸道不是理论
+
+在台湾的技术环境中，MCP Gateway 解决的不是假设性的问题。以下是三个具体场景。
+
+### 半导体制造工具整合
+
+一座晶圆厂的 IT 环境通常有 MES（制造执行系统）、SCADA、ERP、品质管理系统、SPC（统计制程控制）、以及各种自研的设备监控工具。每个系统都可以包装成 MCP 伺服器（如果你还不清楚怎么做，参考我们的 [MCP 伺服器建构指南](/blog/mcp-server-guide)）。
+
+问题是：光这些系统的工具加起来就可能超过 300 个。制程工程师问一句「FAB3 的 Lot A1234 良率为什么掉了？」，AI 代理需要同时查 MES 的批次记录、SPC 的管制图、以及设备的 alarm log。没有闸道，这 300 个工具全部塞进上下文，模型反而更容易选错。有了闸道，它只看到跟良率分析相关的 5-8 个工具。
+
+用 [`@casys/mcp-server`](https://jsr.io/@casys/mcp-server) 可以快速把各个系统包装成 MCP 伺服器，再透过 PML 闸道聚合和路由。
+
+### 金融科技合规
+
+台湾金管会对金融业的稽核要求严格。每一笔 AI 代理的工具呼叫都需要完整的追踪记录 — 谁在什么时间用了什么工具、传了什么参数、得到什么结果。
+
+闸道在这里扮演的角色不只是路由，还是稽核的单一交汇点。所有工具呼叫都经过同一个闸道，搭配 OpenTelemetry 追踪，每一笔操作都有完整的 trace。这比让每个 MCP 伺服器各自记录稽核日志要容易管理得多。
+
+### 跨境电商物流
+
+台湾作为亚太物流枢纽，电商平台需要整合多国的物流商（黑猫、7-11 交货便、EMS、DHL）、支付闸道（Line Pay、街口支付、PayPal）、以及各国的仓储管理系统。每个整合都可能是一个 MCP 伺服器。用 [`@casys/mcp-bridge`](https://jsr.io/@casys/mcp-bridge) 可以桥接不同平台之间的通讯，而 [`@casys/mcp-erpnext`](https://www.npmjs.com/package/@casys/mcp-erpnext) 则直接把 ERPNext 的功能暴露为 MCP 工具。
+
+一个客服 AI 代理要处理「我的包裹到哪了？」，背后可能需要查三个不同物流商的 API。闸道的路由层根据订单的物流商自动选择正确的 MCP 伺服器，客服代理不需要知道背后有几个系统。
+
+---
+
+## 部署 PML 作为你的闸道
+
+### 设定
+
+PML 从专案根目录的 `.pml.json` 读取下游 MCP 伺服器设定：
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/projects"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "postgres": {
+      "url": "http://localhost:3002/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+PML 连接到每个伺服器、索引所有工具、建构关系图，然后暴露一个统一的 MCP 端点。
+
+### 启动闸道
+
+```bash
+# 启动 PML 闸道
+pml serve --port 4000
+
+# 启用详细日志
+pml serve --port 4000 --log-level debug
+```
+
+### 连接用户端
+
+任何 MCP 相容的用户端指向闸道 URL 即可。Claude Desktop：
+
+```json
+{
+  "mcpServers": {
+    "pml": {
+      "url": "http://localhost:4000/sse"
+    }
+  }
+}
+```
+
+Cursor、Windsurf、或其他任何 MCP 宿主 — 同样的模式。一个 URL。所有工具。智慧路由。
+
+---
+
+## 什么时候你不需要闸道
+
+不是每个人都需要这个。以下情况你可以不用：
+
+- **你的工具少于 30 个。** 上下文税可以承受。直连更简单。
+- **你只用一个 MCP 伺服器。** 不需要聚合。不会有命名空间冲突。
+- **你的场景是静态的。** 每次都是同样的 5 个工具，不需要动态发现。写死就好。
+- **你在做原型验证。** 先出货，之后再最佳化。等工具数量变成问题时再加闸道。
+
+但如果你在建构生产级的代理系统 — 一个连接多个 MCP 伺服器、需要处理数百个工具、且必须可靠地选择正确工具的系统 — 你需要一个闸道。问题只在于你要自己建还是用现成的。
+
+---
+
+## Localhost 陷阱
+
+如果你在本地跑 MCP 伺服器，而你的闸道或代理跑在 Docker 容器里，你会踩到 [localhost 陷阱](/blog/the-localhost-trap)。容器内的 `127.0.0.1` 不是指向宿主机。你的闸道无法存取宿主机 loopback 介面上的 MCP 伺服器。
+
+这是我们看到最常见的部署问题。修正方法是用 socat bridge — 一个 20 年历史的 Unix 工具，把流量从 Docker bridge IP 转发到 localhost。五分钟就能设定好。但它在坏掉之前是隐形的，而坏掉的时候你得到的是无声的逾时，没有任何错误讯息。
+
+在容器中部署任何 MCP 基础设施之前，先读完 [localhost 陷阱完整文章](/blog/the-localhost-trap)。
+
+---
+
+## MCP Gateway 模式的未来
+
+MCP 生态系统发展很快。[MCP 规范](https://modelcontextprotocol.io)已经包含了让闸道更强大的原语：
+
+![Model Context Protocol 官方规范文件](/images/screenshots/modelcontextprotocol-spec.png)
+
+**Streamable HTTP 传输。** 新的传输层取代 SSE 用于伺服器对伺服器通讯。闸道可以在上游（对用户端）和下游（对伺服器）连线中同时使用。
+
+**`sampling/createMessage`。** 闸道可以把请求反弹回宿主 LLM 进行复杂推理 — 重新表述模糊的意图、验证多步骤计划、或综合输出结果。这把闸道变成一个编排层，不只是代理。我们在[路由代理那篇文章](/blog/routing-agents-without-new-protocol)中有深入探讨。
+
+**工具标注（Tool Annotations）。** 规范现在支援工具上的中继资料 — 分类、成本提示、延迟预期。聪明的闸道可以用这些标注做出更好的路由决策，完全不需要任何机器学习。
+
+趋势很清楚：闸道会成为代理系统的标准基础设施，就像 API 闸道成为微服务的标准一样。工具在那里。规范支援它。问题只是生态系统建构的速度有多快。
+
+---
+
+## 结语
+
+MCP 生态系统解决了协定问题。[一个标准、通用相容](/blog/why-mcp-protocol) — 任何工具都能跟任何模型对话。这是最难的部分。至少我们当时是这么想的。
+
+新的难题是规模。17,000 个工具。装不下的上下文窗口。看到太多选项就失准的模型。协定是通用的，但工具目录在没有路由层的情况下是不可管理的。
+
+闸道就是那个路由层。最低限度，它把多个 MCP 伺服器聚合到单一端点后面。最好的情况，它根据任务、上下文、和过去有效的经验，智慧地选择让 LLM 看到哪些工具。
+
+你可以用一个周末建一个基本版。用一个月建一个好的。或者你可以用一个已经在数千个真实工作流程上训练过、在 CPU 上 10 毫秒内完成路由的现成方案。
+
+摩擦最小的基础设施会赢。对 MCP 来说，那个基础设施就是闸道。
+
+---
+
+*PML 是开源的。浏览[文件](https://pml.casys.ai)、[GitHub 原始码](https://github.com/Casys-AI/casys-pml)、或加入 [Discord](https://discord.gg/casys) 来了解我们如何建构 MCP 的闸道层。*
+
+*本文参考 [MCPMark](https://mcpmark.ai/leaderboard)（LobeHub）、[Smithery](https://smithery.ai)、[MCP 规范](https://modelcontextprotocol.io)、[微软研究院工具空间干扰研究](https://www.microsoft.com/en-us/research/blog/tool-space-interference-in-the-mcp-era-designing-for-agent-compatibility-at-scale/)、以及 [Anthropic 进阶工具使用工程部落格](https://www.anthropic.com/engineering/advanced-tool-use)。*

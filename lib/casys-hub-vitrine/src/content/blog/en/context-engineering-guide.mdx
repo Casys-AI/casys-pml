@@ -53,6 +53,8 @@ Without that data in its context, the best prompt in the world is useless. The m
 
 This is not a hypothetical. On [MCPMark](https://mcpmark.ai/leaderboard), even GPT-5.2 only achieves 57.5% correct tool usage in MCP benchmarks. The bottleneck isn't the model's reasoning. It's the context it reasons over.
 
+<ExcalidrawDiagram src="context-prompt-vs-context-en" alt="Prompt Engineering vs Context Engineering — the performance delta" />
+
 ---
 
 ## The Industrial Problem: 15 Systems, 15 Silos
@@ -76,6 +78,8 @@ An agent answering "What's the status of line 3?" needs to cross at least three 
 **Context engineering in an industrial environment is the problem of aggregating 15 sources into a coherent set the model can consume.**
 
 This is not a model problem. It is an infrastructure problem. No amount of scaling parameters will fix the fact that your ERP runs SAP with a BAPI interface, your MES exposes OPC-UA, and your CMMS has a REST API from 2014 with XML responses. The model needs to see unified, structured data. Getting it there is engineering work.
+
+<ExcalidrawDiagram src="context-industrial-silos-en" alt="15 industrial systems → MCP Gateway → Structured context → AI Agent" />
 
 ---
 

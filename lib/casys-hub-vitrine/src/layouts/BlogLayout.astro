@@ -1,5 +1,6 @@
 ---
 import '../styles.css';
+import '../styles/fonts.css';
 import Analytics from '@vercel/analytics/astro';
 import { getCollection } from 'astro:content';
 import HrefLang from '../components/HrefLang.astro';
@@ -43,6 +44,7 @@ const labels = {
     home: 'Home',
     others: 'others',
     general: 'General',
+    toc: 'On this page',
   },
   fr: {
     blogTitle: 'Blog CASYS',
@@ -56,6 +58,7 @@ const labels = {
     home: 'Accueil',
     others: 'autres',
     general: 'Général',
+    toc: 'Sur cette page',
   },
   zh: {
     blogTitle: 'CASYS 博客',
@@ -69,6 +72,7 @@ const labels = {
     home: '首页',
     others: '更多',
     general: '通用',
+    toc: '本页目录',
   },
   'zh-TW': {
     blogTitle: 'CASYS 部落格',
@@ -82,6 +86,7 @@ const labels = {
     home: '首頁',
     others: '更多',
     general: '通用',
+    toc: '本頁目錄',
   },
 };
 
@@ -142,10 +147,12 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/icons/site.webmanifest" />
 
-    <!-- Google Fonts - Fraunces (Display) + Inter (Body) + JetBrains Mono + Material Symbols -->
+    <!-- Self-hosted fonts (Vercel CDN) — preload critical display font -->
+    <link rel="preload" href="/fonts/fraunces-latin-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/inter-latin-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- Material Symbols — icon font, kept external (not critical path) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Instrument+Serif:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
 
     <script>
@@ -262,20 +269,38 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     </nav>
 
     <!-- Main layout: sidebar + content -->
-    <div class="blog-shell">
+    <div class:list={['blog-shell', { 'blog-shell--collapsed': !!slug }]}>
       <!-- Sidebar overlay (mobile) -->
       <div class="blog-sidebar-overlay" id="sidebarOverlay"></div>
 
       <!-- Sidebar -->
       <aside class="blog-sidebar" id="blogSidebar">
+        <!-- Collapsed strip (40px, shown when sidebar collapsed) -->
+        <div class="blog-sidebar-strip" id="sidebarStrip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </div>
+        <!-- Mobile close -->
         <button class="blog-sidebar-close" id="sidebarClose" aria-label="Close sidebar">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="4" y1="4" x2="14" y2="14" />
             <line x1="14" y1="4" x2="4" y2="14" />
           </svg>
         </button>
+        <!-- Sidebar content (hidden when collapsed) -->
+        <div class="blog-sidebar-content">
         <div class="blog-sidebar-header">
-          <h2 class="blog-sidebar-title">{t.blogTitle}</h2>
+          <div class="blog-sidebar-header-top">
+            <h2 class="blog-sidebar-title">{t.blogTitle}</h2>
+            <button class="blog-sidebar-collapse" id="sidebarCollapse" aria-label="Hide sidebar">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/>
+                <line x1="6" y1="2.5" x2="6" y2="13.5"/>
+                <polyline points="10.5,6.5 8.5,8 10.5,9.5"/>
+              </svg>
+            </button>
+          </div>
           <p class="blog-sidebar-subtitle">{t.blogSubtitle}</p>
         </div>
 
@@ -375,23 +400,38 @@ function getPostSlug(post: typeof sortedPosts[0]) {
             <button class="blog-sidebar-action-btn">{t.subscribe}</button>
           </div>
         </nav>
+        </div><!-- /.blog-sidebar-content -->
       </aside>
 
       <!-- Main content -->
-      <main class="blog-main">
+      <main class="blog-main" id="blogMain">
         <div class="blog-content">
           <slot />
         </div>
       </main>
+
+      <!-- Table of Contents (visible when sidebar collapsed) -->
+      <aside class="blog-toc" id="blogToc">
+        <div class="blog-toc-inner">
+          <div class="blog-toc-header">
+            <span class="blog-toc-label">{t.toc}</span>
+          </div>
+          <nav class="blog-toc-nav" id="blogTocNav"></nav>
+        </div>
+      </aside>
     </div>
     <script>
       document.addEventListener('DOMContentLoaded', () => {
         const toggle = document.getElementById('sidebarToggle');
         const close = document.getElementById('sidebarClose');
+        const collapse = document.getElementById('sidebarCollapse');
+        const strip = document.getElementById('sidebarStrip');
         const sidebar = document.getElementById('blogSidebar');
         const overlay = document.getElementById('sidebarOverlay');
-        if (!toggle || !close || !sidebar || !overlay) return;
+        const shell = document.querySelector('.blog-shell');
+        if (!toggle || !close || !sidebar || !overlay || !collapse || !strip || !shell) return;
 
+        // Mobile drawer
         function open() {
           sidebar.classList.add('blog-sidebar--open');
           overlay.classList.add('blog-sidebar-overlay--visible');
@@ -405,6 +445,83 @@ function getPostSlug(post: typeof sortedPosts[0]) {
         toggle.addEventListener('click', open);
         close.addEventListener('click', shut);
         overlay.addEventListener('click', shut);
+
+        // Desktop collapse/expand (ExplorerSidebar pattern)
+        // Blog index: sidebar open, no TOC, no collapse/strip
+        // Article pages: sidebar collapsed, TOC visible
+        const path = window.location.pathname.replace(/\/$/, '');
+        const isBlogIndex = /^\/(fr|zh|zh-TW)?\/?(blog)?$/.test(path) || path.endsWith('/blog');
+        const tocEl = document.getElementById('blogToc');
+
+        if (isBlogIndex) {
+          // Hide TOC, strip, and collapse button on index
+          if (tocEl) tocEl.style.display = 'none';
+          strip.style.display = 'none';
+          collapse.style.display = 'none';
+        } else {
+          // Article: already collapsed via server-rendered class
+          collapse.addEventListener('click', () => {
+            shell.classList.add('blog-shell--collapsed');
+          });
+
+          strip.addEventListener('click', () => {
+            shell.classList.remove('blog-shell--collapsed');
+          });
+        }
+
+        // Build Table of Contents
+        const tocNav = document.getElementById('blogTocNav');
+        const content = document.querySelector('.blog-content');
+        const mainEl = document.getElementById('blogMain');
+        if (!tocNav || !content || !mainEl) return;
+
+        // Collect headings, stop at "related articles" boundary
+        const stopWords = ['articles similaires', 'related articles', 'see also', '相关文章', '相關文章'];
+        const allHeadings = content.querySelectorAll('h2, h3');
+        const headings = [];
+        for (const h of allHeadings) {
+          const text = h.textContent.trim().toLowerCase();
+          if (stopWords.some(sw => text.includes(sw))) break;
+          headings.push(h);
+        }
+        if (headings.length === 0) return;
+
+        headings.forEach((heading, i) => {
+          if (!heading.id) heading.id = 'toc-' + i;
+          const link = document.createElement('a');
+          link.href = '#' + heading.id;
+          link.textContent = heading.textContent.trim();
+          const isH3 = heading.tagName === 'H3';
+          let cls = 'blog-toc-link';
+          if (isH3) cls += ' blog-toc-link--h3';
+          // Add section separator before h2 (except first)
+          if (!isH3 && i > 0) cls += ' blog-toc-link--section';
+          link.className = cls;
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+          tocNav.appendChild(link);
+        });
+
+        // Scroll spy with IntersectionObserver
+        let currentActive = null;
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              if (currentActive) currentActive.classList.remove('blog-toc-link--active');
+              const link = tocNav.querySelector('a[href="#' + entry.target.id + '"]');
+              if (link) {
+                link.classList.add('blog-toc-link--active');
+                currentActive = link;
+                // Scroll active link into view within TOC
+                link.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+              }
+            }
+          });
+        }, { root: mainEl, rootMargin: '0px 0px -80% 0px', threshold: 0 });
+
+        headings.forEach(h => observer.observe(h));
       });
     </script>
     <Analytics />
@@ -508,18 +625,126 @@ function getPostSlug(post: typeof sortedPosts[0]) {
 
   /* --- Shell (sidebar + content) --- */
   .blog-shell {
+    position: relative;
     display: flex;
     height: calc(100vh - 60px);
   }
 
   /* --- Sidebar --- */
   .blog-sidebar {
+    position: relative;
     width: 300px;
     min-width: 300px;
     display: flex;
     flex-direction: column;
     background-color: var(--md-sys-color-surface, #ffffff);
     border-right: 1px solid var(--md-sys-color-outline-variant, #e7e5e4);
+    transition: width 0.25s ease, min-width 0.25s ease, opacity 0.2s ease;
+    overflow: hidden;
+  }
+
+  /* --- Collapsed strip (hidden by default, shown when collapsed) --- */
+  .blog-sidebar-strip {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    min-height: 100%;
+    cursor: pointer;
+    color: var(--md-sys-color-on-surface-variant, #a8a29e);
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .blog-sidebar-strip:hover {
+    background-color: var(--md-sys-color-surface-variant, #f5f5f4);
+    color: var(--md-sys-color-on-surface, #1c1917);
+  }
+
+  /* --- Desktop Collapse state --- */
+  .blog-shell--collapsed .blog-sidebar {
+    width: 40px;
+    min-width: 40px;
+    transition: width 0.25s ease, min-width 0.25s ease;
+  }
+
+  .blog-shell--collapsed .blog-sidebar-strip {
+    display: flex;
+  }
+
+  .blog-shell--collapsed .blog-sidebar-content,
+  .blog-shell--collapsed .blog-sidebar-close {
+    display: none;
+  }
+
+  /* --- Sidebar content wrapper (everything except strip) --- */
+  .blog-sidebar-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* --- Sidebar Header Row (title + collapse) --- */
+  .blog-sidebar-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  /* --- Desktop Collapse Button (in sidebar header) --- */
+  .blog-sidebar-collapse {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant, #a8a29e);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .blog-sidebar-collapse:hover {
+    background-color: var(--md-sys-color-surface-variant, #f5f5f4);
+    color: var(--md-sys-color-on-surface, #1c1917);
+  }
+
+  /* --- Table of Contents (right side, visible when sidebar collapsed) --- */
+  .blog-toc {
+    display: none;
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    flex-shrink: 0;
+    overflow: hidden;
+    min-height: 0;
+    border-left: 1px solid var(--md-sys-color-outline-variant, #e7e5e4);
+  }
+
+  .blog-shell--collapsed .blog-toc {
+    display: flex;
+  }
+
+  .blog-toc-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    padding: 1.75rem 0.75rem 1.75rem 0;
+    overflow: hidden;
+  }
+
+  /* Hide TOC on narrow screens */
+  @media (max-width: 900px) {
+    .blog-toc {
+      display: none !important;
+    }
   }
 
   .blog-sidebar-header {
@@ -751,7 +976,7 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     padding: 2.5rem 2rem;
   }
 
-  /* --- Mobile Sidebar Toggle Button --- */
+  /* --- Sidebar Toggle Button (mobile drawer + desktop expand) --- */
   .blog-sidebar-toggle {
     display: none;
     align-items: center;
@@ -833,6 +1058,12 @@ function getPostSlug(post: typeof sortedPosts[0]) {
       pointer-events: auto;
     }
 
+    .blog-sidebar-collapse,
+    .blog-sidebar-strip,
+    .blog-toc {
+      display: none !important;
+    }
+
     .blog-sidebar {
       position: fixed;
       top: 0;
@@ -842,6 +1073,14 @@ function getPostSlug(post: typeof sortedPosts[0]) {
       transform: translateX(-100%);
       transition: transform 0.3s ease;
       box-shadow: none;
+      width: 300px !important;
+      min-width: 300px !important;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .blog-sidebar-content {
+      display: flex !important;
     }
 
     .blog-sidebar--open {
@@ -1025,8 +1264,138 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     color: #FFB86F;
   }
 
+  html[data-theme="dark"] .blog-sidebar-collapse {
+    color: #6d6358;
+  }
+
+  html[data-theme="dark"] .blog-sidebar-collapse:hover {
+    background-color: rgba(255, 184, 111, 0.08);
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .blog-sidebar-strip {
+    color: #6d6358;
+  }
+
+  html[data-theme="dark"] .blog-sidebar-strip:hover {
+    background-color: rgba(255, 184, 111, 0.06);
+    color: #FFB86F;
+  }
+
   html[data-theme="dark"] .blog-sidebar-overlay {
     background: rgba(0, 0, 0, 0.6);
+  }
+
+  /* --- TOC - Base styles (global for JS-injected links) --- */
+  .blog-toc-header {
+    padding: 0 0 0.75rem 1.25rem;
+  }
+
+  .blog-toc-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--md-sys-color-on-surface-variant, #a8a29e);
+  }
+
+  .blog-toc-nav {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border-left: 1px solid var(--md-sys-color-outline-variant, #e7e5e4);
+    margin-left: 1.25rem;
+    padding: 0.5rem 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.08) transparent;
+  }
+
+  .blog-toc-nav:hover {
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  }
+
+  .blog-toc-link {
+    display: block;
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0.5rem 0.5rem 0.5rem 0.875rem;
+    margin-left: -1px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--md-sys-color-on-surface-variant, #78716c);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, border-color 0.2s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .blog-toc-link:hover {
+    color: var(--md-sys-color-on-surface, #1c1917);
+  }
+
+  .blog-toc-link--active {
+    color: var(--md-sys-color-primary, #6366f1);
+    border-left-color: var(--md-sys-color-primary, #6366f1);
+    font-weight: 550;
+  }
+
+  .blog-toc-link--h3 {
+    padding: 0.3rem 0.5rem 0.3rem 1.75rem;
+    font-size: 0.7rem;
+    color: var(--md-sys-color-on-surface-variant, #a8a29e);
+  }
+
+  /* Visual separator before each h2 group (except first) */
+  .blog-toc-link--section {
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--md-sys-color-outline-variant, #e7e5e4);
+  }
+
+  /* --- TOC (dark) --- */
+  html[data-theme="dark"] .blog-toc {
+    border-left-color: rgba(255, 184, 111, 0.08);
+  }
+
+  html[data-theme="dark"] .blog-toc-label {
+    color: #6d6358;
+  }
+
+  html[data-theme="dark"] .blog-toc-nav {
+    border-left-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] .blog-toc-nav:hover {
+    scrollbar-color: rgba(255, 184, 111, 0.15) transparent;
+  }
+
+  html[data-theme="dark"] .blog-toc-link {
+    color: #8a7e72;
+  }
+
+  html[data-theme="dark"] .blog-toc-link:hover {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] .blog-toc-link--active {
+    color: #FFB86F;
+    border-left-color: #FFB86F;
+  }
+
+  html[data-theme="dark"] .blog-toc-link--h3 {
+    color: #6d6358;
+  }
+
+  html[data-theme="dark"] .blog-toc-link--section {
+    border-top-color: rgba(255, 184, 111, 0.08);
   }
 
   /* --- Scrollbar (dark) --- */

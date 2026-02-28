@@ -1,11 +1,13 @@
 ---
 /**
- * HrefLang - Generates <link rel="alternate" hreflang="..."> tags for all locales.
+ * HrefLang - Generates <link rel="alternate" hreflang="..."> tags.
  *
- * Placed in <head> to signal search engines about language/region variants.
- * EN is the default locale (no prefix), FR and ZH use /fr/ and /zh/ prefixes.
- * x-default always points to the EN variant.
+ * For blog pages, only emits hreflang for locales where the content actually
+ * exists in the collection (prevents 404 alternates).
+ * For other pages, emits all locales (assumes all static pages exist).
  */
+import { getCollection } from 'astro:content';
+
 export interface Props {
   siteUrl?: string;
 }
@@ -22,15 +24,6 @@ const LOCALE_PREFIXES: Record<string, string> = {
 
 const pathname = Astro.url.pathname;
 
-/**
- * Strip the locale prefix from the current pathname to get the base path.
- * Examples:
- *   /fr/about  -> /about
- *   /zh/about  -> /about
- *   /about     -> /about
- *   /fr/       -> /
- *   /          -> /
- */
 function getBasePath(path: string): string {
   for (const prefix of ['/fr', '/zh-TW', '/zh']) {
     if (path === prefix || path === `${prefix}/`) {
@@ -45,23 +38,33 @@ function getBasePath(path: string): string {
 
 const basePath = getBasePath(pathname);
 
-/**
- * Build the full URL for a given locale.
- * EN has no prefix, FR uses /fr, ZH uses /zh.
- * Ensures no double slashes and proper trailing behavior.
- */
 function buildUrl(locale: string): string {
   const prefix = LOCALE_PREFIXES[locale] ?? '';
   if (basePath === '/') {
-    // Root page: /  or  /fr/  or  /zh/
     return `${SITE_URL}${prefix}/`;
   }
-  // Sub-pages: /about  or  /fr/about  or  /zh/about
   return `${SITE_URL}${prefix}${basePath}`;
+}
+
+// For blog pages: only declare alternates for locales that have this slug
+const blogMatch = basePath.match(/^\/blog\/(.+?)\/?\s*$/);
+let activeLocales: readonly string[] = LOCALES;
+
+if (blogMatch) {
+  const slug = blogMatch[1];
+  const allBlogPosts = await getCollection('blog', ({ data }) => !data.draft);
+  const existingLocales = LOCALES.filter((locale) => {
+    const prefix = locale === 'en' ? 'en' : locale;
+    return allBlogPosts.some((post) => post.id === `${prefix}/${slug}.mdx` || post.id === `${prefix}/${slug}.md`);
+  });
+  activeLocales = existingLocales.length > 0 ? existingLocales : LOCALES;
 }
 ---
 
-{LOCALES.map((locale) => (
+{activeLocales.map((locale) => (
   <link rel="alternate" hreflang={locale} href={buildUrl(locale)} />
 ))}
-<link rel="alternate" hreflang="x-default" href={buildUrl('en')} />
+{activeLocales.includes('en')
+  ? <link rel="alternate" hreflang="x-default" href={buildUrl('en')} />
+  : <link rel="alternate" hreflang="x-default" href={buildUrl(activeLocales[0])} />
+}

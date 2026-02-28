@@ -1,0 +1,310 @@
+---
+title: "Context Engineering 情境工程完整指南：AI 代理的决策核心"
+description: "深入解析 Context Engineering（情境工程）：为什么 AI 代理的效能不在于模型大小，而在于你组装给它看的资讯。涵盖 MCP、GraphRAG 与实务架构。"
+author: "Erwan Lee Pesle"
+date: 2026-02-27
+tags:
+  - context-engineering
+  - mcp
+  - graphrag
+  - agents
+  - knowledge-management
+category: "产业"
+language: zh
+snippet: "Context Engineering（情境工程）正在取代 Prompt Engineering 成为 AI 应用的核心能力。本文从架构层面解析如何为 AI 代理组装正确的情境，涵盖 MCP 协定、GraphRAG 与实务范例。"
+featured: true
+draft: false
+---
+
+## 什么是 Context Engineering？情境工程入门教学
+
+2026 年，AI 领域出现了一个明确的认知转折：**模型的能力天花板不在参数量，而在你喂给它的情境品质**。
+
+Context Engineering——情境工程——指的不是你如何措辞一个提示（那是 Prompt Engineering），而是你**如何组装、筛选、排序**模型在推理时看到的所有资讯。这包括工具描述、历史对话、外部资料库查询结果、使用者偏好，以及工作流程的当前状态。
+
+一个直白的类比：Prompt Engineering 是「你怎么问问题」，Context Engineering 是「你在问问题之前，先把哪些文件摊在桌上」。
+
+同一个模型，看到不同的情境，会做出截然不同的决策。GPT-5.2 在 [MCPMark](https://mcpmark.ai/leaderboard) 上的 MCP 工具使用正确率是 57.5%——这意味着即便是最强的模型，仍有近一半的情况选错工具。问题不在模型笨，而在情境不够好。
+
+**Context Engineering 正在成为建构可靠 AI 应用程式的核心工程学科。**
+
+## 为什么 Prompt Engineering 不够？
+
+Prompt Engineering 解决的是「措辞」问题。你可以告诉模型扮演某个角色、用某种格式输出、一步步推理。这些技巧在 2024 年的 ChatGPT 时代确实有效。
+
+但在企业场景中，问题的复杂度完全不同：
+
+- 一间台湾的制造企业，内部系统平均有 **5 到 15 个**：ERP、MES、PLM、CRM、SCADA、BI 仪表板...
+- 每个系统有自己的 API 格式、认证机制、资料模型
+- AI 代理需要在一次对话中，跨系统串接资料才能回答一个问题
+
+你不可能用一句 prompt 解决这个问题。你需要的是一个**情境组装管线**——在模型开始推理之前，已经准备好它需要的一切。
+
+这就是 Context Engineering（情境工程）的领域。
+
+## 情境工程的三个层次
+
+Context Engineering 并非单一技术，而是一个分层的工程实践：
+
+### 第一层：资料检索（你有什么资料？）
+
+最基本的层次是**找到相关资讯**。传统的 RAG（Retrieval-Augmented Generation）做的就是这件事：把使用者的问题向量化，在嵌入空间中找到最相似的文件片段，塞进 context window。
+
+但 RAG 有一个根本问题：它只看「语意相似度」，不看「结构关联性」。
+
+| 方法 | 原理 | 优势 | 限制 |
+| --- | --- | --- | --- |
+| Vector RAG | 语意相似度匹配 | 简单、通用 | 只看文字表面，忽略结构 |
+| GraphRAG | 图结构中的关联路径 | 捕捉实体间的真实关系 | 需要建构知识图谱 |
+| Context Engineering | 多源情境组装 + 排序 | 端到端最佳化模型所见 | 需要完整的管线架构 |
+
+想深入了解 RAG 与 GraphRAG 的差异，可以参考我们的 [GraphRAG vs VectorRAG 技术比较](/zh/blog/graphrag-vs-vectorrag)。
+
+### 第二层：情境排序（模型应该先看什么？）
+
+找到 30 份相关文件不代表你应该把 30 份都塞进 context window。模型的注意力机制是有限的——越前面的 token 通常影响越大，而 context window 的容量也有上限。
+
+情境工程在这一层需要回答：
+
+- **哪些资讯对当前任务最关键？** 根据任务类型重新排序
+- **哪些资讯可以摘要？** 压缩冗长的资料库查询结果
+- **哪些资讯应该延迟载入？** 只在模型「要求」时才注入
+
+这不是技巧，是工程。需要有明确的管线、可量测的指标、可迭代的系统。
+
+### 第三层：工具与行动的情境（模型可以做什么？）
+
+在代理（Agent）场景中，情境不只是「资料」，还包括**可用的工具清单**。当一个 AI 代理面前有 500 个 MCP 工具时，把 500 个工具描述全塞进 context window 显然不可行——光是工具描述就会占掉大半的 token 预算。
+
+这是 Context Engineering 最前沿的问题：**动态工具选择**。
+
+根据当前对话的意图和历史，只向模型呈现最可能需要的 5-10 个工具。这需要一个独立于大型语言模型的「路由大脑」——而这正是我们在 Casys 解决的问题。
+
+## 台湾产业的情境挑战
+
+台湾是全球半导体与精密制造的核心。台积电、鸿海、广达等企业的生产线上，每天产生 TB 级的感测器资料、品管纪录、供应链异动。
+
+**智慧工厂的 AI 代理需要的不是更大的模型，而是更好的情境工程。**
+
+一个典型场景：
+
+> 产线工程师问 AI 代理：「A23 机台的良率为什么下降？」
+
+要回答这个问题，AI 代理需要：
+1. 从 **MES** 取得 A23 的最近 100 批次生产纪录
+2. 从 **SCADA** 取得同期的温度、压力、振动感测器资料
+3. 从 **PLM** 取得 A23 机台最近的维护与零件更换纪录
+4. 从 **品管系统** 取得良率趋势与异常标记
+5. 将以上资料**交叉比对**，找出时间轴上的相关性
+
+五个系统、五种 API、五种资料格式。没有情境工程的管线，AI 代理根本无从下手。
+
+而在台湾，这个问题又多了一层复杂度：许多企业的核心系统是混合架构——一部分在地端机房、一部分在云端、一部分是二十年前的 legacy 系统只有 SOAP 介面。**Context Engineering 的价值在于抽象掉这些复杂度**，让 AI 代理只看到它需要的、格式统一的情境。
+
+## MCP 协定：情境工程的标准化基础
+
+如果每个外部系统都用不同的方式接入 AI 代理，情境组装就会变成一场噩梦。这就是 [Model Context Protocol（MCP）](/zh/blog/why-mcp-protocol) 存在的原因。
+
+MCP 提供了一个统一的介面标准：任何系统——ERP、MES、PLM、资料库——都可以透过 MCP Server 暴露自己的能力（工具），而 AI 代理透过 MCP Client 统一呼叫。
+
+```typescript
+// 透过 MCP 统一存取不同系统
+// 查询 ERP 库存
+const inventory = await mcp.std.psql_query({
+  query: `SELECT part_number, quantity, warehouse
+          FROM inventory
+          WHERE part_number = 'IC-2N7002'`
+});
+
+// 查询 MES 生产纪录
+const production = await mcp.mes.get_batch_records({
+  machine_id: "A23",
+  last_n_batches: 100
+});
+
+// 查询 PLM 维护纪录
+const maintenance = await mcp.plm.get_maintenance_log({
+  equipment_id: "A23",
+  since: "2026-01-01"
+});
+```
+
+三个不同的系统，同一个呼叫模式。MCP 不是 Context Engineering 本身，但它是情境工程能够规模化的基础——没有标准化的工具介面，就不可能有系统化的情境组装。
+
+## GraphRAG + SHGAT：用知识图谱超越关键字的情境发现
+
+传统 RAG 用向量相似度找文件。但在工具路由的场景中，你需要的是**关联性**而非相似性。
+
+举例：工程师执行完 `git commit` 之后，下一步最可能是 `git push`。这两个工具在语意空间中未必相似，但在使用模式中高度关联。
+
+GraphRAG 将工具之间的共现关系建构成图，然后透过图注意力网路（Graph Attention Network）学习这些关联。Casys 使用的 SHGAT（Structured Heterogeneous Graph Attention）更进一步——它能处理异质节点（工具、能力、工作流程模式），并在不同层次间传递注意力讯号。
+
+这套系统的效果：
+
+| 指标 | 无 SHGAT | 有 SHGAT | 差异 |
+| --- | --- | --- | --- |
+| Beam Search First-N | 64.6% | 70.8% | **+6.2pp** |
+| 工具推荐 Hit@1 | 52.8% | 59.0% | **+6.2pp** |
+| MRR | 0.62 | 0.68 | **+0.06** |
+
+**SHGAT 的工作是情境工程的一部分**——它负责决定哪些工具的嵌入向量应该被注入到推理情境中。不是所有工具都平等，SHGAT 根据当前工作流程的图结构，动态加权每个工具的相关性。
+
+## GRU 序列预测：时间维度的情境工程
+
+Context Engineering 的另一个关键维度是**时间**。使用者不是从零开始——他已经执行了一系列操作，而这些历史操作强烈暗示了下一步需要什么。
+
+GRU（Gated Recurrent Unit）是一种轻量级的循环神经网路，能够从工具使用序列中学习时序模式：
+
+```typescript
+// GRU 推理：根据历史序列预测下一个工具
+const sequence = ["std:git_status", "std:git_add", "std:git_commit"];
+
+// GRU 模型在 CPU 上推理，延迟 < 10ms
+const prediction = gruInference.predictNext(sequence);
+// → "std:git_push" (信心度 0.87)
+```
+
+关键数字：**sub-10ms 延迟，纯 CPU 推理，不到 1M 参数**。对比之下，用 GPT-5.2 做同样的工具选择需要 1-2 秒 GPU 时间和 200B+ 参数。
+
+这就是情境工程的实用面向——你不需要一个巨型模型来做情境决策，你需要一个专门为情境优化的轻量管线。
+
+更多关于路由架构的讨论，参见 [路由 AI 代理不需要新协定](/zh/blog/routing-agents-without-new-protocol)。
+
+## 实作情境工程管线：MCP 闸道器架构与 AI 代理整合
+
+把以上所有组件串在一起，就是 Casys 的 MCP Gateway 架构——一个完整的 Context Engineering 管线：
+
+**第一步：意图理解**
+使用者的输入经过语意分析，产生一个意图向量。
+
+**第二步：情境检索**
+- GraphRAG 根据意图向量和当前图结构，找出相关的工具和能力节点
+- SHGAT 对这些节点重新加权，考虑图的拓扑结构
+
+**第三步：序列预测**
+- GRU 根据使用者的历史操作序列，预测最可能的下一步
+- 将 GRU 的预测与 SHGAT 的排名融合
+
+**第四步：情境组装**
+- 只将排名前 5-10 的工具描述注入 context window
+- 附带压缩过的历史摘要和相关资料
+
+**第五步：执行与回馈**
+- 模型根据精心组装的情境做出决策
+- 执行结果回馈到图结构，强化成功路径
+
+```typescript
+// MCP Gateway 的情境工程管线（概念示意）
+import { discover, execute } from "@casys/pml";
+
+// 步骤 1+2：意图驱动的工具发现
+const tools = await discover({
+  intent: "查询 A23 机台良率下降原因",
+  limit: 8,
+  filter: { type: "tool" }
+});
+// → 回传 MES、SCADA、PLM 相关工具，按关联度排序
+
+// 步骤 3+4+5：带情境的执行
+const result = await execute({
+  intent: "交叉比对感测器资料与维护纪录",
+  code: `
+    const sensors = await mcp.scada.get_readings({
+      machine: "A23", metric: "temperature", hours: 72
+    });
+    const maintenance = await mcp.plm.get_maintenance_log({
+      equipment_id: "A23", since: "2026-02-20"
+    });
+    // 合并时间轴，找出异常相关性
+    return correlateTimelines(sensors, maintenance);
+  `
+});
+```
+
+整条管线的延迟在 **50ms 以内**（不含外部 API 呼叫），因为 SHGAT 和 GRU 都在 CPU 上本地推理。Context Engineering 的核心价值之一就是**速度**——情境组装必须比模型推理快得多，否则就失去意义。
+
+## Context Engineering vs Prompt Engineering vs RAG：完整比较
+
+| 面向 | Prompt Engineering | RAG | Context Engineering |
+| --- | --- | --- | --- |
+| **焦点** | 如何措辞指令 | 如何找到相关文件 | 如何组装完整情境 |
+| **输入** | 使用者的一句话 | 使用者查询 + 向量资料库 | 使用者意图 + 历史 + 图结构 + 工具 |
+| **技术** | 人工调整 prompt | 嵌入 + 相似度搜寻 | GraphRAG + SHGAT + GRU + MCP |
+| **适用规模** | 单一模型互动 | 文件检索场景 | 多系统、多工具代理场景 |
+| **可量测性** | 主观评估 | 检索精度 | Hit@1、MRR、端到端任务成功率 |
+| **台湾企业适用度** | 基础对话 | 文件查询 | 跨系统工厂情境 |
+
+三者不是互斥的——Context Engineering 包含 RAG 作为子系统，也需要好的 prompt 作为最后一环。但情境工程是**工程学科**，不是技巧集合。
+
+## 情境工程的五个设计原则
+
+根据我们在 Casys 建构 MCP Gateway 的经验，整理出情境工程的核心设计原则：
+
+### 原则一：Fail Fast，拒绝静默降级
+
+情境组装管线中，任何一个环节失败（资料库不可达、MCP Server 断线）都必须**立即报错**，而非静默返回一个不完整的情境。不完整的情境比没有情境更危险——它会让模型基于错误前提做出自信的错误判断。
+
+```typescript
+// 错误示范：静默降级
+const context = await buildContext(intent);
+if (!context.mesData) {
+  context.mesData = { status: "unavailable" }; // 模型不知道资料缺失
+}
+
+// 正确做法：明确标记缺失
+const context = await buildContext(intent);
+if (!context.mesData) {
+  throw new ContextAssemblyError(
+    "MES 资料不可用，无法组装完整情境。" +
+    "请确认 MES MCP Server 连线状态。"
+  );
+}
+```
+
+### 原则二：模型驱动，不靠猜测
+
+情境中的每一笔资料都必须有明确来源。不要用启发式规则「猜测」缺失的资料——如果资料不存在，就标记为不存在。隐藏的启发式规则会产生看起来合理但完全虚构的情境。
+
+### 原则三：可观测
+
+情境组装的每一步都应该可被检视。使用者（或开发者）应该能够看到：模型看到了哪些工具、为什么这些工具被选中、SHGAT 的注意力权重分布。
+
+### 原则四：延迟预算
+
+情境组装必须有明确的延迟预算。如果情境组装花了 2 秒，而模型推理只花 1 秒，那你的瓶颈在情境管线，不在模型。我们的目标是**情境组装 < 50ms**。
+
+### 原则五：迭代回馈
+
+每次执行结果（成功或失败）都应该回馈到情境系统。SHGAT 的图结构和 GRU 的序列模型都需要持续从真实使用模式中学习。情境工程不是一次性设定，而是一个持续最佳化的回圈。
+
+## 开始实践情境工程
+
+如果你正在台湾的企业环境中建构 AI 应用程式，以下是可立即行动的步骤：
+
+**第一步：盘点你的资料来源**。列出所有需要被 AI 代理存取的系统——ERP、MES、PLM、资料库、内部 Wiki。这就是你的情境版图。
+
+**第二步：统一工具介面**。为每个系统建立 MCP Server，将异质的 API 统一为标准化的 MCP 工具。这是情境工程能够规模化的基础。
+
+**第三步：建构检索管线**。从 Vector RAG 开始，逐步引入 GraphRAG 来捕捉工具和资料之间的结构关联。
+
+**第四步：加入序列智慧**。分析使用者的历史操作模式，用轻量模型（如 GRU）预测下一步最可能需要的工具或资料。
+
+**第五步：量测与迭代**。定义情境品质的指标（Hit@1、MRR、任务成功率），持续追踪并最佳化。
+
+## 结语：情境工程是 AI 代理的真正瓶颈
+
+2026 年的 AI 产业有一个反直觉的事实：**限制 AI 代理能力的不是模型本身，而是模型看到的情境**。
+
+Context Engineering（情境工程）是解决这个瓶颈的工程学科。它不是一个 prompt 技巧、不是一个框架、不是一个产品——它是一整套从资料检索到工具选择到回馈回圈的系统工程。
+
+对台湾的制造业和科技业而言，这是一个巨大的机会。你们已经有世界级的生产资料、严谨的品管流程、复杂的供应链系统。缺少的不是资料，而是**让 AI 代理正确看到这些资料的管线**。
+
+情境工程就是那条管线。
+
+---
+
+![casys.ai — 生产级 MCP 伺服器与 Context Engineering 工具](/images/screenshots/casys-ai-homepage.png)
+
+*Casys 提供开源的 MCP Gateway 与情境工程工具链。了解更多：[casys.ai](https://casys.ai)*
+
+*加入技术讨论：[Discord](https://discord.gg/casys)*
