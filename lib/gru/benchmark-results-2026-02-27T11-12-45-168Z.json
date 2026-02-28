@@ -1,0 +1,655 @@
+{
+  "date": "2026-02-27T11:12:45.168Z",
+  "config": {
+    "epochs": 30,
+    "batchSize": 32,
+    "seed": 42,
+    "shgatParams": "from DB",
+    "vocabTools": 920,
+    "vocabTotal": 1165,
+    "n8nCaps": 0,
+    "mode": "SHGAT_TRAINED",
+    "v2v": true,
+    "v2vResidualWeight": 0.3,
+    "v2vCooccurrenceEdges": 2420,
+    "n8nWeight": 0.3,
+    "prodOversample": 3,
+    "focalGamma": 2,
+    "embeddingDim": 1024,
+    "maxLevel": 2
+  },
+  "data": {
+    "prodTrainExamples": 1533,
+    "prodTestExamples": 376,
+    "n8nTrainExamples": 0,
+    "n8nEvalExamples": 0,
+    "mixedTrainTotal": 4599
+  },
+  "shgat": {
+    "enrichment": {
+      "hierTools": 156,
+      "orphTools": 764,
+      "hierAvgDelta": 1.9406287662404196,
+      "orphAvgDelta": 0.3337641758361264,
+      "deltaRatio": 5.814371064176886,
+      "rawIntraMean": 0.8037726078948766,
+      "enrichedIntraMean": 0.8804526005458002,
+      "simImprovement": 0.07667999265092362,
+      "intraPairs": 417,
+      "capGroupsSampled": 417
+    },
+    "standalone": {
+      "r1": 0.24202127659574468,
+      "r3": 0.4867021276595745,
+      "r5": 0.5611702127659575,
+      "mrr": 0.36586879432624103,
+      "total": 376,
+      "hierR1": 0.2765957446808511,
+      "hierTotal": 329,
+      "orphR1": 0,
+      "orphTotal": 47
+    },
+    "mpTimeMs": 2,
+    "avgEmbeddingDelta": 0.6062325194264147
+  },
+  "training": {
+    "epochLog": [
+      {
+        "epoch": 1,
+        "loss": 6.933928612205717,
+        "trainNext": 10.37417653379663,
+        "trainTerm": 74.39330464975845,
+        "testNext": 16.176470588235293,
+        "testTerm": 83.24468085106383,
+        "hit1": 16.176470588235293,
+        "hit3": 37.5,
+        "hit5": 48.529411764705884,
+        "mrr": 0.2914128151260504,
+        "time": 14.167738614000001,
+        "rssMB": 1167
+      },
+      {
+        "epoch": 2,
+        "loss": 4.935283212198152,
+        "trainNext": 19.64074457414885,
+        "trainTerm": 85.0618961352657,
+        "testNext": 19.11764705882353,
+        "testTerm": 84.04255319148936,
+        "hit1": 19.11764705882353,
+        "hit3": 50,
+        "hit5": 59.55882352941176,
+        "mrr": 0.3616129785247434,
+        "time": 13.373812425999997,
+        "rssMB": 1220
+      },
+      {
+        "epoch": 3,
+        "loss": 4.35238999956184,
+        "trainNext": 24.19373348302979,
+        "trainTerm": 87.2961956521739,
+        "testNext": 21.323529411764707,
+        "testTerm": 85.37234042553192,
+        "hit1": 21.323529411764707,
+        "hit3": 57.35294117647059,
+        "hit5": 69.11764705882352,
+        "mrr": 0.4194065126050422,
+        "time": 13.221739524999997,
+        "rssMB": 1334
+      },
+      {
+        "epoch": 4,
+        "loss": 3.951181933283806,
+        "trainNext": 27.65186784391504,
+        "trainTerm": 88.5294006642512,
+        "testNext": 28.676470588235293,
+        "testTerm": 84.57446808510637,
+        "hit1": 28.676470588235293,
+        "hit3": 58.08823529411765,
+        "hit5": 71.32352941176471,
+        "mrr": 0.4703985760971057,
+        "time": 13.338780920000005,
+        "rssMB": 1401
+      },
+      {
+        "epoch": 5,
+        "loss": 3.6594673295815787,
+        "trainNext": 30.053204330165112,
+        "trainTerm": 89.64938103864735,
+        "testNext": 28.676470588235293,
+        "testTerm": 85.1063829787234,
+        "hit1": 28.676470588235293,
+        "hit3": 61.029411764705884,
+        "hit5": 77.20588235294117,
+        "mrr": 0.4741800887021476,
+        "time": 13.605370460999998,
+        "rssMB": 1492
+      },
+      {
+        "epoch": 6,
+        "loss": 3.4572922024461956,
+        "trainNext": 33.650545972608015,
+        "trainTerm": 90.55140398550725,
+        "testNext": 25,
+        "testTerm": 87.7659574468085,
+        "hit1": 25,
+        "hit3": 60.29411764705882,
+        "hit5": 72.79411764705883,
+        "mrr": 0.44417600373482735,
+        "time": 13.59786484699999,
+        "rssMB": 1492
+      },
+      {
+        "epoch": 7,
+        "loss": 3.3484914584292307,
+        "trainNext": 35.91242601352895,
+        "trainTerm": 90.94202898550725,
+        "testNext": 30.14705882352941,
+        "testTerm": 86.43617021276596,
+        "hit1": 30.14705882352941,
+        "hit3": 61.76470588235294,
+        "hit5": 77.20588235294117,
+        "mrr": 0.4857813958916901,
+        "time": 13.551370007999997,
+        "rssMB": 1492
+      },
+      {
+        "epoch": 8,
+        "loss": 3.1523820790979595,
+        "trainNext": 35.975840948267425,
+        "trainTerm": 91.24584842995169,
+        "testNext": 28.676470588235293,
+        "testTerm": 84.57446808510637,
+        "hit1": 28.676470588235293,
+        "hit3": 63.970588235294116,
+        "hit5": 72.79411764705883,
+        "mrr": 0.48101073762838487,
+        "time": 13.730204446000018,
+        "rssMB": 1492
+      },
+      {
+        "epoch": 9,
+        "loss": 3.085165950987074,
+        "trainNext": 36.64960589746129,
+        "trainTerm": 91.38549214975846,
+        "testNext": 30.14705882352941,
+        "testTerm": 84.57446808510637,
+        "hit1": 30.14705882352941,
+        "hit3": 66.17647058823529,
+        "hit5": 75,
+        "mrr": 0.4977474323062558,
+        "time": 14.235397782999993,
+        "rssMB": 1630
+      },
+      {
+        "epoch": 10,
+        "loss": 2.9495917136470475,
+        "trainNext": 39.412077233768414,
+        "trainTerm": 91.5930706521739,
+        "testNext": 33.82352941176471,
+        "testTerm": 83.77659574468085,
+        "hit1": 33.82352941176471,
+        "hit3": 66.91176470588235,
+        "hit5": 78.67647058823529,
+        "mrr": 0.5210434173669468,
+        "time": 13.678280673000001,
+        "rssMB": 1630
+      },
+      {
+        "epoch": 11,
+        "loss": 2.837367338438829,
+        "trainNext": 39.82572274682374,
+        "trainTerm": 91.78932669082126,
+        "testNext": 28.676470588235293,
+        "testTerm": 84.04255319148936,
+        "hit1": 28.676470588235293,
+        "hit3": 63.970588235294116,
+        "hit5": 76.47058823529412,
+        "mrr": 0.48683473389355747,
+        "time": 15.952723427999997,
+        "rssMB": 1630
+      },
+      {
+        "epoch": 12,
+        "loss": 2.8346872801582017,
+        "trainNext": 39.98022747579315,
+        "trainTerm": 91.91481733091788,
+        "testNext": 35.294117647058826,
+        "testTerm": 86.43617021276596,
+        "hit1": 35.294117647058826,
+        "hit3": 66.17647058823529,
+        "hit5": 76.47058823529412,
+        "mrr": 0.5292396125116714,
+        "time": 13.998555245999974,
+        "rssMB": 1630
+      },
+      {
+        "epoch": 13,
+        "loss": 2.7300902290476694,
+        "trainNext": 43.15442126410262,
+        "trainTerm": 92.14881491545894,
+        "testNext": 29.411764705882355,
+        "testTerm": 88.29787234042553,
+        "hit1": 29.411764705882355,
+        "hit3": 66.17647058823529,
+        "hit5": 77.94117647058823,
+        "mrr": 0.4970880018674136,
+        "time": 13.559252946000022,
+        "rssMB": 1630
+      },
+      {
+        "epoch": 14,
+        "loss": 2.7211443616284265,
+        "trainNext": 42.22796189651517,
+        "trainTerm": 92.41772342995169,
+        "testNext": 30.88235294117647,
+        "testTerm": 88.29787234042553,
+        "hit1": 30.88235294117647,
+        "hit3": 65.44117647058823,
+        "hit5": 78.67647058823529,
+        "mrr": 0.49991538281979464,
+        "time": 15.012528670000028,
+        "rssMB": 1630
+      },
+      {
+        "epoch": 15,
+        "loss": 2.606046208904849,
+        "trainNext": 43.60557254874849,
+        "trainTerm": 92.28751509661835,
+        "testNext": 33.088235294117645,
+        "testTerm": 88.29787234042553,
+        "hit1": 33.088235294117645,
+        "hit3": 63.23529411764706,
+        "hit5": 76.47058823529412,
+        "mrr": 0.5112015639589169,
+        "time": 13.659946126999973,
+        "rssMB": 1630
+      },
+      {
+        "epoch": 16,
+        "loss": 2.6094364602532654,
+        "trainNext": 43.42514238976443,
+        "trainTerm": 92.53094806763286,
+        "testNext": 33.82352941176471,
+        "testTerm": 88.56382978723404,
+        "hit1": 33.82352941176471,
+        "hit3": 63.970588235294116,
+        "hit5": 79.41176470588235,
+        "mrr": 0.516891339869281,
+        "time": 13.507268532999966,
+        "rssMB": 1630
+      },
+      {
+        "epoch": 17,
+        "loss": 2.556076148731841,
+        "trainNext": 45.135168418111526,
+        "trainTerm": 92.63473731884058,
+        "testNext": 31.61764705882353,
+        "testTerm": 86.70212765957447,
+        "hit1": 31.61764705882353,
+        "hit3": 64.70588235294117,
+        "hit5": 76.47058823529412,
+        "mrr": 0.5092933006535949,
+        "time": 13.630019267000025,
+        "rssMB": 1630
+      },
+      {
+        "epoch": 18,
+        "loss": 2.521333247423172,
+        "trainNext": 45.34009484070759,
+        "trainTerm": 92.70833333333334,
+        "testNext": 34.55882352941176,
+        "testTerm": 88.82978723404256,
+        "hit1": 34.55882352941176,
+        "hit3": 70.58823529411765,
+        "hit5": 78.67647058823529,
+        "mrr": 0.5324025443510737,
+        "time": 15.150819926000025,
+        "rssMB": 1643
+      },
+      {
+        "epoch": 19,
+        "loss": 2.496672973036766,
+        "trainNext": 43.68703599128007,
+        "trainTerm": 92.7734375,
+        "testNext": 38.23529411764706,
+        "testTerm": 86.96808510638297,
+        "hit1": 38.23529411764706,
+        "hit3": 65.44117647058823,
+        "hit5": 78.67647058823529,
+        "mrr": 0.5429884453781513,
+        "time": 14.452179543000005,
+        "rssMB": 1644
+      },
+      {
+        "epoch": 20,
+        "loss": 2.486282947162787,
+        "trainNext": 44.96628360292578,
+        "trainTerm": 92.86496074879227,
+        "testNext": 32.35294117647059,
+        "testTerm": 86.70212765957447,
+        "hit1": 32.35294117647059,
+        "hit3": 66.17647058823529,
+        "hit5": 78.67647058823529,
+        "mrr": 0.5089227357609711,
+        "time": 14.052641869999992,
+        "rssMB": 1761
+      },
+      {
+        "epoch": 21,
+        "loss": 2.4551051457722983,
+        "trainNext": 45.03249063660897,
+        "trainTerm": 92.7998565821256,
+        "testNext": 32.35294117647059,
+        "testTerm": 87.7659574468085,
+        "hit1": 32.35294117647059,
+        "hit3": 63.970588235294116,
+        "hit5": 75,
+        "mrr": 0.5100519374416432,
+        "time": 13.52076228700002,
+        "rssMB": 1829
+      },
+      {
+        "epoch": 22,
+        "loss": 2.458653679738442,
+        "trainNext": 46.62514608439853,
+        "trainTerm": 92.88666213768117,
+        "testNext": 37.5,
+        "testTerm": 87.5,
+        "hit1": 37.5,
+        "hit3": 68.38235294117648,
+        "hit5": 77.94117647058823,
+        "mrr": 0.5474731559290382,
+        "time": 13.514273647000024,
+        "rssMB": 1829
+      },
+      {
+        "epoch": 23,
+        "loss": 2.3539265824688806,
+        "trainNext": 45.16326685750706,
+        "trainTerm": 92.8215579710145,
+        "testNext": 30.88235294117647,
+        "testTerm": 88.03191489361703,
+        "hit1": 30.88235294117647,
+        "hit3": 63.970588235294116,
+        "hit5": 75,
+        "mrr": 0.4989320728291316,
+        "time": 13.497322671000031,
+        "rssMB": 1829
+      },
+      {
+        "epoch": 24,
+        "loss": 2.3905432066983647,
+        "trainNext": 45.331054337842936,
+        "trainTerm": 92.9602581521739,
+        "testNext": 36.029411764705884,
+        "testTerm": 87.2340425531915,
+        "hit1": 36.029411764705884,
+        "hit3": 62.5,
+        "hit5": 75,
+        "mrr": 0.5218516573295986,
+        "time": 13.713493275000015,
+        "rssMB": 1829
+      },
+      {
+        "epoch": 25,
+        "loss": 2.3479453358385296,
+        "trainNext": 46.766158146930856,
+        "trainTerm": 92.87345259661835,
+        "testNext": 33.088235294117645,
+        "testTerm": 87.7659574468085,
+        "hit1": 33.088235294117645,
+        "hit3": 67.64705882352942,
+        "hit5": 76.47058823529412,
+        "mrr": 0.5175945378151261,
+        "time": 13.957793464999995,
+        "rssMB": 1829
+      },
+      {
+        "epoch": 26,
+        "loss": 2.359471189479033,
+        "trainNext": 45.91631295941473,
+        "trainTerm": 92.85646890096619,
+        "testNext": 35.294117647058826,
+        "testTerm": 88.03191489361703,
+        "hit1": 35.294117647058826,
+        "hit3": 61.029411764705884,
+        "hit5": 74.26470588235294,
+        "mrr": 0.5124299719887954,
+        "time": 13.608220130999921,
+        "rssMB": 1829
+      },
+      {
+        "epoch": 27,
+        "loss": 2.3596517774793835,
+        "trainNext": 45.34036344238551,
+        "trainTerm": 92.65643870772948,
+        "testNext": 34.55882352941176,
+        "testTerm": 86.17021276595744,
+        "hit1": 34.55882352941176,
+        "hit3": 65.44117647058823,
+        "hit5": 76.47058823529412,
+        "mrr": 0.5135066526610643,
+        "time": 13.298047677000053,
+        "rssMB": 1829
+      },
+      {
+        "epoch": 28,
+        "loss": 2.336698330110974,
+        "trainNext": 46.4711276491301,
+        "trainTerm": 92.97346769323673,
+        "testNext": 29.411764705882355,
+        "testTerm": 86.96808510638297,
+        "hit1": 29.411764705882355,
+        "hit3": 63.970588235294116,
+        "hit5": 74.26470588235294,
+        "mrr": 0.48307364612511683,
+        "time": 13.532279291999991,
+        "rssMB": 1863
+      },
+      {
+        "epoch": 29,
+        "loss": 2.290683902386162,
+        "trainNext": 47.22121060985224,
+        "trainTerm": 92.96875,
+        "testNext": 31.61764705882353,
+        "testTerm": 87.2340425531915,
+        "hit1": 31.61764705882353,
+        "hit3": 61.76470588235294,
+        "hit5": 79.41176470588235,
+        "mrr": 0.505654761904762,
+        "time": 13.172898404999986,
+        "rssMB": 1863
+      },
+      {
+        "epoch": 30,
+        "loss": 2.2986089628603725,
+        "trainNext": 46.41501234332119,
+        "trainTerm": 92.93855676328504,
+        "testNext": 34.55882352941176,
+        "testTerm": 87.7659574468085,
+        "hit1": 34.55882352941176,
+        "hit3": 66.17647058823529,
+        "hit5": 77.94117647058823,
+        "mrr": 0.5195494864612512,
+        "time": 13.19029243599996,
+        "rssMB": 1868
+      }
+    ],
+    "bestTestNextAcc": 38.23529411764706,
+    "bestEpoch": 19,
+    "finalHit1": 34.55882352941176,
+    "finalHit3": 66.17647058823529,
+    "finalHit5": 77.94117647058823,
+    "finalMRR": 0.5195494864612512,
+    "bestMRR": 0.5474731559290382,
+    "trainTimeSeconds": 591.9
+  },
+  "extendedKpis": {
+    "termination": {
+      "precision": 0.35,
+      "recall": 0.9722222222222222,
+      "f1": 0.5147058823529411,
+      "tp": 35,
+      "fp": 65,
+      "fn": 1,
+      "tn": 37
+    },
+    "hitByPosition": [
+      {
+        "position": 0,
+        "accuracy": 0.3333333333333333,
+        "total": 36
+      },
+      {
+        "position": 1,
+        "accuracy": 0.4444444444444444,
+        "total": 36
+      },
+      {
+        "position": 2,
+        "accuracy": 0.4444444444444444,
+        "total": 18
+      },
+      {
+        "position": 3,
+        "accuracy": 0.16666666666666666,
+        "total": 6
+      },
+      {
+        "position": 4,
+        "accuracy": 0.5,
+        "total": 4
+      },
+      {
+        "position": 5,
+        "accuracy": 0.5,
+        "total": 2
+      }
+    ],
+    "lengthDistribution": {
+      "avgActual": 2.8333333333333335,
+      "avgPredicted": 2.5,
+      "bias": -0.3333333333333335,
+      "actualHist": [
+        0,
+        0,
+        18,
+        12,
+        2,
+        2,
+        2
+      ],
+      "predictedHist": [
+        0,
+        0,
+        27,
+        3,
+        3,
+        3,
+        0
+      ]
+    },
+    "topConfusedPairs": [
+      {
+        "target": "std:crypto_hash",
+        "predicted": "std:crypto_uuid",
+        "count": 3
+      },
+      {
+        "target": "syson:syson_diagram_snapshot",
+        "predicted": "syson:syson_diagram_arrange",
+        "count": 2
+      },
+      {
+        "target": "std:git_log",
+        "predicted": "std:git_status",
+        "count": 2
+      },
+      {
+        "target": "std:git_log",
+        "predicted": "std:psql_query",
+        "count": 2
+      },
+      {
+        "target": "filesystem:list_directory",
+        "predicted": "filesystem:read_file",
+        "count": 2
+      },
+      {
+        "target": "filesystem:read_file",
+        "predicted": "filesystem:get_file_info",
+        "count": 2
+      },
+      {
+        "target": "std:datetime_now",
+        "predicted": "std:crypto_uuid",
+        "count": 2
+      },
+      {
+        "target": "erpnext:erpnext_kpi_outstanding",
+        "predicted": "erpnext:erpnext_kpi_revenue",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_kpi_orders",
+        "predicted": "filesystem:get_file_info",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_kpi_revenue",
+        "predicted": "erpnext:erpnext_kpi_orders",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_sales_order_get",
+        "predicted": "erpnext:erpnext_doc_create",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_doc_submit",
+        "predicted": "erpnext:erpnext_doc_create",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_doc_create",
+        "predicted": "erpnext:erpnext_doc_update",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_stock_chart",
+        "predicted": "erpnext:erpnext_doc_update",
+        "count": 1
+      },
+      {
+        "target": "syson:syson_diagram_drop",
+        "predicted": "syson:syson_diagram_arrange",
+        "count": 1
+      },
+      {
+        "target": "syson:syson_diagram_drop",
+        "predicted": "syson:syson_diagram_snapshot",
+        "count": 1
+      },
+      {
+        "target": "syson:syson_project_list",
+        "predicted": "std:psql_query",
+        "count": 1
+      },
+      {
+        "target": "std:env_list",
+        "predicted": "std:psql_query",
+        "count": 1
+      },
+      {
+        "target": "plm:plm_bom_cost",
+        "predicted": "plm:plm_inspection_plan",
+        "count": 1
+      },
+      {
+        "target": "plm:plm_bom_cost",
+        "predicted": "plm:plm_bom_flatten",
+        "count": 1
+      }
+    ]
+  }
+}

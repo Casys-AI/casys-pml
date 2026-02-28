@@ -1,0 +1,662 @@
+{
+  "date": "2026-02-28T13:23:05.718Z",
+  "config": {
+    "epochs": 30,
+    "batchSize": 32,
+    "seed": 42,
+    "shgatParams": "from DB",
+    "vocabTools": 920,
+    "vocabTotal": 1169,
+    "n8nCaps": 0,
+    "mode": "SHGAT_TRAINED",
+    "v2v": true,
+    "v2vResidualWeight": 0.3,
+    "v2vCooccurrenceEdges": 2424,
+    "n8nWeight": 0.3,
+    "prodOversample": 3,
+    "focalGamma": 2,
+    "embeddingDim": 1024,
+    "maxLevel": 2
+  },
+  "data": {
+    "prodTrainExamples": 1536,
+    "prodTestExamples": 392,
+    "n8nTrainExamples": 0,
+    "n8nEvalExamples": 0,
+    "mixedTrainTotal": 4608
+  },
+  "shgat": {
+    "enrichment": {
+      "hierTools": 156,
+      "orphTools": 764,
+      "hierAvgDelta": 1.9344085108706788,
+      "orphAvgDelta": 0.3337641758361264,
+      "deltaRatio": 5.795734386486244,
+      "rawIntraMean": 0.8051742321234845,
+      "enrichedIntraMean": 0.8806145658975492,
+      "simImprovement": 0.07544033377406467,
+      "intraPairs": 420,
+      "capGroupsSampled": 420
+    },
+    "standalone": {
+      "r1": 0.4413265306122449,
+      "r3": 0.5918367346938775,
+      "r5": 0.6581632653061225,
+      "mrr": 0.5232568027210884,
+      "total": 392,
+      "hierR1": 0.502906976744186,
+      "hierTotal": 344,
+      "orphR1": 0,
+      "orphTotal": 48
+    },
+    "mpTimeMs": 5,
+    "avgEmbeddingDelta": 0.6051777804724149
+  },
+  "training": {
+    "epochLog": [
+      {
+        "epoch": 1,
+        "loss": 6.7823076496521635,
+        "trainNext": 9.757445259896237,
+        "trainTerm": 77.49565972222221,
+        "testNext": 8.843537414965986,
+        "testTerm": 83.6734693877551,
+        "hit1": 8.843537414965986,
+        "hit3": 27.2108843537415,
+        "hit5": 36.054421768707485,
+        "mrr": 0.2031961991145664,
+        "time": 14.896824084,
+        "rssMB": 1115
+      },
+      {
+        "epoch": 2,
+        "loss": 4.752059002717336,
+        "trainNext": 21.031828556338343,
+        "trainTerm": 85.09114583333334,
+        "testNext": 14.285714285714285,
+        "testTerm": 86.98979591836735,
+        "hit1": 14.285714285714285,
+        "hit3": 34.01360544217687,
+        "hit5": 42.857142857142854,
+        "mrr": 0.26215581470683513,
+        "time": 14.228538811999998,
+        "rssMB": 1130
+      },
+      {
+        "epoch": 3,
+        "loss": 4.095862078997824,
+        "trainNext": 28.003648830935347,
+        "trainTerm": 88.21614583333334,
+        "testNext": 16.3265306122449,
+        "testTerm": 84.6938775510204,
+        "hit1": 16.3265306122449,
+        "hit3": 39.455782312925166,
+        "hit5": 46.25850340136054,
+        "mrr": 0.2890265630061549,
+        "time": 14.213959040999995,
+        "rssMB": 1203
+      },
+      {
+        "epoch": 4,
+        "loss": 3.7735882235897913,
+        "trainNext": 32.29850500925707,
+        "trainTerm": 89.12760416666666,
+        "testNext": 16.3265306122449,
+        "testTerm": 85.96938775510205,
+        "hit1": 16.3265306122449,
+        "hit3": 38.775510204081634,
+        "hit5": 45.57823129251701,
+        "mrr": 0.2868210776374043,
+        "time": 14.058462463000003,
+        "rssMB": 1276
+      },
+      {
+        "epoch": 5,
+        "loss": 3.515342252122031,
+        "trainNext": 33.6255630603057,
+        "trainTerm": 90.21267361111111,
+        "testNext": 19.727891156462583,
+        "testTerm": 86.73469387755102,
+        "hit1": 19.727891156462583,
+        "hit3": 38.775510204081634,
+        "hit5": 46.93877551020408,
+        "mrr": 0.3122044055717525,
+        "time": 14.543979806000003,
+        "rssMB": 1280
+      },
+      {
+        "epoch": 6,
+        "loss": 3.3432684714595475,
+        "trainNext": 35.732474225121294,
+        "trainTerm": 90.36458333333334,
+        "testNext": 20.408163265306122,
+        "testTerm": 84.43877551020408,
+        "hit1": 20.408163265306122,
+        "hit3": 42.857142857142854,
+        "hit5": 50.34013605442177,
+        "mrr": 0.3303072022459779,
+        "time": 14.286687556999997,
+        "rssMB": 1390
+      },
+      {
+        "epoch": 7,
+        "loss": 3.2286387557784715,
+        "trainNext": 37.998399340311096,
+        "trainTerm": 90.97222222222221,
+        "testNext": 23.12925170068027,
+        "testTerm": 84.43877551020408,
+        "hit1": 23.12925170068027,
+        "hit3": 40.816326530612244,
+        "hit5": 49.65986394557823,
+        "mrr": 0.34372098045567445,
+        "time": 14.640467995999993,
+        "rssMB": 1405
+      },
+      {
+        "epoch": 8,
+        "loss": 3.0651186373498707,
+        "trainNext": 38.27851472918874,
+        "trainTerm": 91.10243055555556,
+        "testNext": 19.727891156462583,
+        "testTerm": 86.73469387755102,
+        "hit1": 19.727891156462583,
+        "hit3": 42.17687074829932,
+        "hit5": 52.38095238095239,
+        "mrr": 0.3283311737393371,
+        "time": 11.721156819999974,
+        "rssMB": 1445
+      },
+      {
+        "epoch": 9,
+        "loss": 2.967141041325198,
+        "trainNext": 41.669064763185624,
+        "trainTerm": 91.6015625,
+        "testNext": 23.12925170068027,
+        "testTerm": 85.96938775510205,
+        "hit1": 23.12925170068027,
+        "hit3": 43.53741496598639,
+        "hit5": 51.70068027210885,
+        "mrr": 0.3524727351257964,
+        "time": 11.880066064000014,
+        "rssMB": 1474
+      },
+      {
+        "epoch": 10,
+        "loss": 2.8925543849666915,
+        "trainNext": 40.5765713271841,
+        "trainTerm": 91.73177083333334,
+        "testNext": 19.727891156462583,
+        "testTerm": 85.96938775510205,
+        "hit1": 19.727891156462583,
+        "hit3": 40.816326530612244,
+        "hit5": 49.65986394557823,
+        "mrr": 0.3227108303638917,
+        "time": 12.121334443999979,
+        "rssMB": 1494
+      },
+      {
+        "epoch": 11,
+        "loss": 2.7738101482391357,
+        "trainNext": 43.34468070342684,
+        "trainTerm": 91.88368055555556,
+        "testNext": 22.448979591836736,
+        "testTerm": 86.22448979591837,
+        "hit1": 22.448979591836736,
+        "hit3": 45.57823129251701,
+        "hit5": 53.74149659863946,
+        "mrr": 0.35558794946550065,
+        "time": 12.081084754999988,
+        "rssMB": 1495
+      },
+      {
+        "epoch": 12,
+        "loss": 2.6932592632042036,
+        "trainNext": 43.664017649924524,
+        "trainTerm": 91.94878472222221,
+        "testNext": 23.12925170068027,
+        "testTerm": 86.98979591836735,
+        "hit1": 23.12925170068027,
+        "hit3": 43.53741496598639,
+        "hit5": 51.02040816326531,
+        "mrr": 0.3472438181621857,
+        "time": 11.690148950000003,
+        "rssMB": 1507
+      },
+      {
+        "epoch": 13,
+        "loss": 2.7038499092062316,
+        "trainNext": 43.167634777622524,
+        "trainTerm": 91.88368055555556,
+        "testNext": 21.08843537414966,
+        "testTerm": 86.73469387755102,
+        "hit1": 21.08843537414966,
+        "hit3": 42.857142857142854,
+        "hit5": 51.02040816326531,
+        "mrr": 0.33956646150523706,
+        "time": 11.860493470999995,
+        "rssMB": 1532
+      },
+      {
+        "epoch": 14,
+        "loss": 2.606289382610056,
+        "trainNext": 44.11838059816,
+        "trainTerm": 92.23090277777779,
+        "testNext": 22.448979591836736,
+        "testTerm": 86.98979591836735,
+        "hit1": 22.448979591836736,
+        "hit3": 42.857142857142854,
+        "hit5": 51.02040816326531,
+        "mrr": 0.3483479105928087,
+        "time": 11.952275227000005,
+        "rssMB": 1563
+      },
+      {
+        "epoch": 15,
+        "loss": 2.5718044539292655,
+        "trainNext": 45.136176459705865,
+        "trainTerm": 92.16579861111111,
+        "testNext": 25.170068027210885,
+        "testTerm": 85.45918367346938,
+        "hit1": 25.170068027210885,
+        "hit3": 42.857142857142854,
+        "hit5": 53.74149659863946,
+        "mrr": 0.36669906057661167,
+        "time": 12.068203622,
+        "rssMB": 1570
+      },
+      {
+        "epoch": 16,
+        "loss": 2.553152199420664,
+        "trainNext": 44.20387686931802,
+        "trainTerm": 92.46961805555556,
+        "testNext": 20.408163265306122,
+        "testTerm": 86.4795918367347,
+        "hit1": 20.408163265306122,
+        "hit3": 45.57823129251701,
+        "hit5": 54.421768707483,
+        "mrr": 0.3398796026347048,
+        "time": 12.294776820999978,
+        "rssMB": 1726
+      },
+      {
+        "epoch": 17,
+        "loss": 2.510937115384473,
+        "trainNext": 45.480608545865906,
+        "trainTerm": 92.3828125,
+        "testNext": 23.809523809523807,
+        "testTerm": 86.4795918367347,
+        "hit1": 23.809523809523807,
+        "hit3": 40.816326530612244,
+        "hit5": 50.34013605442177,
+        "mrr": 0.3478701004211208,
+        "time": 12.071556929000012,
+        "rssMB": 1720
+      },
+      {
+        "epoch": 18,
+        "loss": 2.468315339750714,
+        "trainNext": 45.03831298464942,
+        "trainTerm": 92.49131944444444,
+        "testNext": 23.12925170068027,
+        "testTerm": 84.94897959183673,
+        "hit1": 23.12925170068027,
+        "hit3": 42.857142857142854,
+        "hit5": 55.10204081632652,
+        "mrr": 0.3564301911240689,
+        "time": 12.091727535000013,
+        "rssMB": 1730
+      },
+      {
+        "epoch": 19,
+        "loss": 2.413235596484608,
+        "trainNext": 46.441465997548306,
+        "trainTerm": 92.46961805555556,
+        "testNext": 22.448979591836736,
+        "testTerm": 87.24489795918367,
+        "hit1": 22.448979591836736,
+        "hit3": 42.857142857142854,
+        "hit5": 50.34013605442177,
+        "mrr": 0.33885649497894405,
+        "time": 12.009593062,
+        "rssMB": 1730
+      },
+      {
+        "epoch": 20,
+        "loss": 2.4327598561843238,
+        "trainNext": 45.11037035087279,
+        "trainTerm": 92.51302083333334,
+        "testNext": 22.448979591836736,
+        "testTerm": 85.71428571428571,
+        "hit1": 22.448979591836736,
+        "hit3": 41.49659863945578,
+        "hit5": 49.65986394557823,
+        "mrr": 0.34172065651657485,
+        "time": 12.109327875999966,
+        "rssMB": 1730
+      },
+      {
+        "epoch": 21,
+        "loss": 2.395991692940394,
+        "trainNext": 46.724088050036194,
+        "trainTerm": 92.59982638888889,
+        "testNext": 21.768707482993197,
+        "testTerm": 87.5,
+        "hit1": 21.768707482993197,
+        "hit3": 43.53741496598639,
+        "hit5": 53.74149659863946,
+        "mrr": 0.34249271137026255,
+        "time": 12.029396750000014,
+        "rssMB": 1730
+      },
+      {
+        "epoch": 22,
+        "loss": 2.4802827495667668,
+        "trainNext": 45.9000013580283,
+        "trainTerm": 92.75173611111111,
+        "testNext": 24.489795918367346,
+        "testTerm": 86.4795918367347,
+        "hit1": 24.489795918367346,
+        "hit3": 47.61904761904761,
+        "hit5": 54.421768707483,
+        "mrr": 0.3680434078393264,
+        "time": 12.166258166000015,
+        "rssMB": 1731
+      },
+      {
+        "epoch": 23,
+        "loss": 2.380791273381975,
+        "trainNext": 44.50272522729632,
+        "trainTerm": 92.66493055555556,
+        "testNext": 19.047619047619047,
+        "testTerm": 86.4795918367347,
+        "hit1": 19.047619047619047,
+        "hit3": 41.49659863945578,
+        "hit5": 51.02040816326531,
+        "mrr": 0.3258854335384949,
+        "time": 11.904232443999964,
+        "rssMB": 1731
+      },
+      {
+        "epoch": 24,
+        "loss": 2.326026537352138,
+        "trainNext": 46.769802342719025,
+        "trainTerm": 92.64322916666666,
+        "testNext": 22.448979591836736,
+        "testTerm": 86.73469387755102,
+        "hit1": 22.448979591836736,
+        "hit3": 41.49659863945578,
+        "hit5": 48.97959183673469,
+        "mrr": 0.33763092538602746,
+        "time": 11.679493208000029,
+        "rssMB": 1730
+      },
+      {
+        "epoch": 25,
+        "loss": 2.3255560961034565,
+        "trainNext": 46.30956100286596,
+        "trainTerm": 92.70833333333334,
+        "testNext": 23.12925170068027,
+        "testTerm": 87.24489795918367,
+        "hit1": 23.12925170068027,
+        "hit3": 44.21768707482993,
+        "hit5": 53.74149659863946,
+        "mrr": 0.35339056257423623,
+        "time": 11.554386439000023,
+        "rssMB": 1730
+      },
+      {
+        "epoch": 26,
+        "loss": 2.2868114469779863,
+        "trainNext": 45.75414877651395,
+        "trainTerm": 92.73003472222221,
+        "testNext": 25.170068027210885,
+        "testTerm": 86.73469387755102,
+        "hit1": 25.170068027210885,
+        "hit3": 43.53741496598639,
+        "hit5": 52.38095238095239,
+        "mrr": 0.36582442500809853,
+        "time": 11.815612846999953,
+        "rssMB": 1731
+      },
+      {
+        "epoch": 27,
+        "loss": 2.2116681900289326,
+        "trainNext": 46.73269977941352,
+        "trainTerm": 92.75173611111111,
+        "testNext": 23.809523809523807,
+        "testTerm": 85.96938775510205,
+        "hit1": 23.809523809523807,
+        "hit3": 42.857142857142854,
+        "hit5": 51.70068027210885,
+        "mrr": 0.35026185077205507,
+        "time": 11.729177911000034,
+        "rssMB": 1730
+      },
+      {
+        "epoch": 28,
+        "loss": 2.2543391957879066,
+        "trainNext": 47.34071022883588,
+        "trainTerm": 92.81684027777779,
+        "testNext": 21.768707482993197,
+        "testTerm": 86.98979591836735,
+        "hit1": 21.768707482993197,
+        "hit3": 44.89795918367347,
+        "hit5": 54.421768707483,
+        "mrr": 0.3549103768491524,
+        "time": 11.776162853999995,
+        "rssMB": 1738
+      },
+      {
+        "epoch": 29,
+        "loss": 2.2128805352581873,
+        "trainNext": 46.43272135000076,
+        "trainTerm": 92.81684027777779,
+        "testNext": 23.12925170068027,
+        "testTerm": 85.96938775510205,
+        "hit1": 23.12925170068027,
+        "hit3": 42.857142857142854,
+        "hit5": 53.74149659863946,
+        "mrr": 0.35141453406759543,
+        "time": 11.767148443000043,
+        "rssMB": 1745
+      },
+      {
+        "epoch": 30,
+        "loss": 2.2513645502428212,
+        "trainNext": 45.54293370494029,
+        "trainTerm": 92.79513888888889,
+        "testNext": 22.448979591836736,
+        "testTerm": 87.5,
+        "hit1": 22.448979591836736,
+        "hit3": 42.857142857142854,
+        "hit5": 53.74149659863946,
+        "mrr": 0.34503833279343493,
+        "time": 12.018976294999943,
+        "rssMB": 1745
+      }
+    ],
+    "bestTestNextAcc": 25.170068027210885,
+    "bestEpoch": 15,
+    "finalHit1": 22.448979591836736,
+    "finalHit3": 42.857142857142854,
+    "finalHit5": 53.74149659863946,
+    "finalMRR": 0.34503833279343493,
+    "bestMRR": 0.3680434078393264,
+    "trainTimeSeconds": 548.3
+  },
+  "extendedKpis": {
+    "termination": {
+      "precision": 0.32710280373831774,
+      "recall": 1,
+      "f1": 0.49295774647887325,
+      "tp": 35,
+      "fp": 72,
+      "fn": 0,
+      "tn": 40
+    },
+    "hitByPosition": [
+      {
+        "position": 0,
+        "accuracy": 0.42857142857142855,
+        "total": 35
+      },
+      {
+        "position": 1,
+        "accuracy": 0.37142857142857144,
+        "total": 35
+      },
+      {
+        "position": 2,
+        "accuracy": 0.05263157894736842,
+        "total": 19
+      },
+      {
+        "position": 3,
+        "accuracy": 0.08333333333333333,
+        "total": 12
+      },
+      {
+        "position": 4,
+        "accuracy": 0.14285714285714285,
+        "total": 7
+      },
+      {
+        "position": 5,
+        "accuracy": 0.3333333333333333,
+        "total": 3
+      },
+      {
+        "position": 6,
+        "accuracy": 0,
+        "total": 1
+      }
+    ],
+    "lengthDistribution": {
+      "avgActual": 3.2,
+      "avgPredicted": 2.6285714285714286,
+      "bias": -0.5714285714285716,
+      "actualHist": [
+        0,
+        0,
+        16,
+        7,
+        5,
+        4,
+        2,
+        1
+      ],
+      "predictedHist": [
+        0,
+        0,
+        20,
+        10,
+        4,
+        0,
+        1,
+        0
+      ]
+    },
+    "topConfusedPairs": [
+      {
+        "target": "std:datetime_now",
+        "predicted": "std:crypto_uuid",
+        "count": 3
+      },
+      {
+        "target": "erpnext:erpnext_doc_submit",
+        "predicted": "erpnext:erpnext_doc_create",
+        "count": 2
+      },
+      {
+        "target": "erpnext:erpnext_doc_submit",
+        "predicted": "erpnext:erpnext_doc_update",
+        "count": 2
+      },
+      {
+        "target": "std:git_log",
+        "predicted": "std:git_status",
+        "count": 2
+      },
+      {
+        "target": "filesystem:read_file",
+        "predicted": "filesystem:get_file_info",
+        "count": 2
+      },
+      {
+        "target": "std:data_person",
+        "predicted": "std:crypto_uuid",
+        "count": 2
+      },
+      {
+        "target": "std:crypto_hash",
+        "predicted": "filesystem:read_file",
+        "count": 2
+      },
+      {
+        "target": "std:crypto_hash",
+        "predicted": "std:crypto_uuid",
+        "count": 2
+      },
+      {
+        "target": "erpnext:erpnext_order_breakdown",
+        "predicted": "erpnext:erpnext_revenue_trend",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_revenue_vs_orders",
+        "predicted": "erpnext:erpnext_revenue_trend",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_order_pipeline",
+        "predicted": "erpnext:erpnext_revenue_trend",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_stock_treemap",
+        "predicted": "erpnext:erpnext_revenue_trend",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_product_radar",
+        "predicted": "erpnext:erpnext_revenue_trend",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_kpi_overdue",
+        "predicted": "erpnext:erpnext_kpi_revenue",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_kpi_outstanding",
+        "predicted": "erpnext:erpnext_kpi_revenue",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_kpi_orders",
+        "predicted": "erpnext:erpnext_kpi_revenue",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_kpi_gross_margin",
+        "predicted": "erpnext:erpnext_kpi_orders",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_doc_get",
+        "predicted": "erpnext:erpnext_doc_create",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_doc_create",
+        "predicted": "erpnext:erpnext_doc_update",
+        "count": 1
+      },
+      {
+        "target": "erpnext:erpnext_stock_chart",
+        "predicted": "erpnext:erpnext_doc_update",
+        "count": 1
+      }
+    ]
+  }
+}
