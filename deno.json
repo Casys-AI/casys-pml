@@ -110,6 +110,7 @@
     "graphology-shortest-path": "npm:graphology-shortest-path@^2.0.2",
     "graphology-communities-louvain": "npm:graphology-communities-louvain@^2.0.1",
     "jose": "npm:jose@^6.0.0",
+    "@casys/pml-types": "./shared/mod.ts",
     "@casys/mcp-server": "./lib/server/mod.ts",
     "@casys/mcp-syson": "./lib/syson/mod.ts",
     "@casys/mcp-plm": "./lib/plm/mod.ts",
