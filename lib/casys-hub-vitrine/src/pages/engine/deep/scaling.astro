@@ -1,0 +1,278 @@
+---
+import DeepDiveLayout from '../../../features/engine/deep/DeepDiveLayout.astro';
+---
+
+<DeepDiveLayout
+  title="Scaling &amp; Retrieval"
+  subtitle="Before the pipeline: what scaling laws taught us."
+  notebooks="NB-01, NB-02"
+  prevSlug="dead-ends"
+  prevTitle="What Didn't Work"
+>
+
+  <section class="deep-section">
+    <h2>Where It Started</h2>
+    <p>
+      Before SHGAT and GRU, there was a simpler question: can node retrieval
+      be solved with embedding similarity alone? NB-01 and NB-02 are the
+      origin story — the experiments that showed why a learned approach
+      was necessary at all.
+    </p>
+  </section>
+
+  <div class="scaling-panels reveal-on-scroll">
+    <div class="scaling-panel">
+      <div class="scaling-panel-header">
+        <span class="scaling-nb">NB-01</span>
+        <span class="scaling-topic">Message Passing Toy Problem</span>
+      </div>
+      <p class="scaling-body">
+        The earliest message passing experiment: a synthetic hypergraph with
+        controlled structure. Validated that SHGAT-style attention could learn
+        to weight neighbors by structural role, not just semantic similarity.
+        Five nodes. Three capability levels. Gradient check passed.
+      </p>
+      <p class="scaling-body">
+        The toy problem was intentionally small to verify the mathematics
+        before investing in a full training pipeline. It served its purpose:
+        message passing works in theory.
+      </p>
+    </div>
+
+    <div class="scaling-panel">
+      <div class="scaling-panel-header">
+        <span class="scaling-nb">NB-02</span>
+        <span class="scaling-topic">Hierarchical Workflow Retrieval</span>
+      </div>
+      <p class="scaling-body">
+        The retrieval baseline: given a user intent, retrieve the most similar
+        workflow using cosine similarity over mean-pooled node embeddings.
+        Tested at three scales: 50 workflows, 200 workflows, 1,000 workflows.
+      </p>
+      <p class="scaling-body">
+        Retrieval accuracy degrades sub-linearly with scale — but it degrades.
+        At 1,000 workflows, cosine similarity over flat embeddings plateaus.
+        The problem is not the retrieval mechanism; it is that flat embeddings
+        cannot encode the sequential structure of node co-execution. This is
+        the gap SHGAT was designed to fill.
+      </p>
+    </div>
+  </div>
+
+  <div class="cinema-grid reveal-on-scroll">
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/scaling/mp-toy-results.png"
+           alt="Message passing toy problem results: 5-node synthetic graph gradient check" loading="lazy" />
+      <figcaption><strong>NB-01 · Toy results.</strong> SHGAT attention learns to weight by structural role. Gradient check passed on a 5-node synthetic hypergraph.</figcaption>
+    </figure>
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/scaling/workflow-retrieval-results.png"
+           alt="Hierarchical workflow retrieval accuracy at 50, 200, 1000 workflows" loading="lazy" />
+      <figcaption><strong>NB-02 · Retrieval scaling.</strong> Cosine similarity over flat embeddings plateaus at 1,000 workflows. The gap that SHGAT was built to fill.</figcaption>
+    </figure>
+  </div>
+
+  <div class="insight-panel reveal-on-scroll">
+    <span class="insight-panel-label">From retrieval to prediction</span>
+    <p class="insight-panel-text">
+      Retrieval finds the most similar past workflow. Prediction produces
+      the next tool directly, conditioned on the current sequence. These are
+      different problems with different failure modes. NB-01 and NB-02 proved
+      that retrieval alone is insufficient; the GRU was built to predict.
+    </p>
+  </div>
+
+  <div class="cinema-grid reveal-on-scroll">
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/scaling/graph-vs-flat-scaling.png"
+           alt="Graph-structured vs flat embedding retrieval accuracy across scales" loading="lazy" />
+      <figcaption><strong>NB-02 · Graph vs flat.</strong> Flat embeddings plateau at scale. Graph structure maintains retrieval quality as the catalog grows.</figcaption>
+    </figure>
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/scaling/mp-toy-contrastive.png"
+           alt="Contrastive message passing: different structural roles produce distinct representations" loading="lazy" />
+      <figcaption><strong>NB-01 · Contrastive MP.</strong> Structurally different nodes separate in representation space even when semantically similar.</figcaption>
+    </figure>
+  </div>
+
+  <section class="deep-section">
+    <h2>The Gap That Motivated Everything</h2>
+    <p>
+      NB-02 showed that at 920 leaf nodes, a pair of nodes can have near-identical
+      embeddings but very different usage contexts — and very different nodes can
+      co-execute reliably in sequence. Pure cosine similarity cannot distinguish
+      either case.
+    </p>
+    <p>
+      The decision to build SHGAT came from this: if you cannot retrieve the right
+      tool by what it looks like, you need a model that knows where it fits — in
+      the graph, in the sequence, in the hierarchy. That is what the full
+      SHGAT + GRU pipeline provides.
+    </p>
+
+    <div class="scaling-stat-row">
+      <div class="scaling-stat">
+        <span class="scaling-stat-value">50</span>
+        <span class="scaling-stat-label">workflows · retrieval works fine</span>
+      </div>
+      <div class="scaling-stat">
+        <span class="scaling-stat-value">920</span>
+        <span class="scaling-stat-label">leaf nodes · retrieval breaks down</span>
+      </div>
+      <div class="scaling-stat scaling-stat-accent">
+        <span class="scaling-stat-value">SHGAT</span>
+        <span class="scaling-stat-label">the response</span>
+      </div>
+    </div>
+  </section>
+
+</DeepDiveLayout>
+
+<style>
+  /* ── Scaling panels ─────────────────────── */
+
+  .scaling-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    max-width: 800px;
+    margin: 0 auto 48px;
+    padding: 0 32px;
+  }
+
+  .scaling-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    border: 1px solid var(--e-border);
+    border-radius: 10px;
+    background: var(--e-surface);
+  }
+
+  .scaling-panel-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .scaling-nb {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--e-accent);
+    opacity: 0.85;
+  }
+
+  .scaling-topic {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--e-text);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  .scaling-body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.78;
+    color: var(--e-text-secondary);
+    margin: 0;
+  }
+
+  /* ── Insight panel ──────────────────────── */
+
+  .insight-panel {
+    max-width: 680px;
+    margin: 0 auto 48px;
+    padding: 24px 28px;
+    background: linear-gradient(135deg, var(--e-accent-glow), var(--e-surface));
+    border: 1px solid var(--e-cinema-border);
+    border-radius: 10px;
+    margin-inline: 32px;
+  }
+
+  @media (min-width: 744px) {
+    .insight-panel {
+      margin-inline: auto;
+    }
+  }
+
+  .insight-panel-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--e-accent);
+    opacity: 0.8;
+    margin-bottom: 12px;
+  }
+
+  .insight-panel-text {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--e-text-secondary);
+    margin: 0;
+  }
+
+  /* ── Stat row ───────────────────────────── */
+
+  .scaling-stat-row {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    margin-top: 40px;
+    padding-top: 32px;
+    border-top: 1px solid var(--e-border);
+  }
+
+  .scaling-stat {
+    text-align: left;
+  }
+
+  .scaling-stat-value {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--e-text-dim);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .scaling-stat-accent .scaling-stat-value {
+    color: var(--e-accent);
+  }
+
+  .scaling-stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--e-text-dim);
+    line-height: 1.4;
+  }
+
+  @media (max-width: 520px) {
+    .scaling-panels,
+    .insight-panel {
+      padding-inline: 20px;
+      margin-inline: 20px;
+    }
+
+    .scaling-panels {
+      grid-template-columns: 1fr;
+    }
+
+    .insight-panel {
+      margin-inline: 20px;
+    }
+  }
+</style>

@@ -1,0 +1,368 @@
+---
+/**
+ * GRU Section - Act 3: GRU Sequencer
+ *
+ * 2-column grid: content left (stats + features), benchmark image right.
+ * Shows the compact GRU model that sequences tool predictions.
+ *
+ * @module features/engine/GruSection
+ */
+
+import { useTranslations } from '../../i18n';
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = useTranslations(locale).engineGru;
+---
+
+<section id="gru" class="gru-section">
+  <div class="gru-container">
+
+    <!-- Left: Content -->
+    <div class="gru-content">
+      <span class="gru-eyebrow">{t.eyebrow}</span>
+
+      <h2 class="gru-title">
+        <span class="gru-title-line1">{t.titleLine1}</span>
+        <span class="gru-title-line2">{t.titleLine2}</span>
+      </h2>
+
+      <p class="gru-description">{t.description}</p>
+
+      <!-- Stat callouts -->
+      <div class="gru-stats">
+        <div class="gru-stat">
+          <span class="gru-stat-value">258K</span>
+          <span class="gru-stat-label">{t.statParams}</span>
+        </div>
+        <div class="gru-stat">
+          <span class="gru-stat-value">70.8%</span>
+          <span class="gru-stat-label">{t.statAccuracy}</span>
+        </div>
+        <div class="gru-stat">
+          <span class="gru-stat-value">+6.2pp</span>
+          <span class="gru-stat-label">{t.statContribution}</span>
+        </div>
+      </div>
+
+      <!-- Feature list -->
+      <div class="gru-features">
+        {t.features.map((f) => (
+          <div class="gru-feature">
+            <div class="gru-feature-icon">
+              <span class="material-symbols-rounded">{f.icon}</span>
+            </div>
+            <div class="gru-feature-body">
+              <h3 class="gru-feature-title">{f.title}</h3>
+              <p class="gru-feature-desc">{f.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- Right: Benchmark E2E image -->
+    <figure class="engine-figure reveal-on-scroll">
+      <img
+        src="/images/engine/benchmark-e2e.png"
+        alt="End-to-end benchmark results showing GRU sequencer accuracy across tool and capability predictions"
+        loading="lazy"
+        width="800"
+        height="500"
+      />
+      <figcaption>{t.benchmarkCaption}</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<!-- Scoped styles (light mode default) -->
+<style>
+  /* ========================================
+     GRU SECTION - Light Mode
+     Fonts: Fraunces (title L1) / Instrument Serif (title L2) / Inter / JetBrains Mono
+     ======================================== */
+
+  .gru-section {
+    position: relative;
+    padding: 80px 32px;
+    background: var(--md-sys-color-surface-container-lowest);
+  }
+
+  .gru-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .gru-content {
+    order: 1;
+    max-width: 100%;
+    text-align: left;
+  }
+
+  /* Eyebrow - pill badge */
+  .gru-eyebrow {
+    display: inline-block;
+    font-family: 'JetBrains Mono', 'Geist Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: #b45309;
+    background: rgba(180, 83, 9, 0.08);
+    border: 1px solid rgba(180, 83, 9, 0.2);
+    border-radius: 100px;
+    padding: 4px 14px;
+    margin: 0 0 20px;
+  }
+
+  /* Title */
+  .gru-title {
+    font-size: clamp(1.5rem, 3.5vw, 2.5rem);
+    font-weight: 400;
+    line-height: 1.15;
+    margin: 0 0 16px;
+  }
+
+  .gru-title-line1 {
+    display: block;
+    font-family: 'Fraunces', Georgia, serif;
+    color: #1a1a1a;
+  }
+
+  .gru-title-line2 {
+    display: block;
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    color: #b45309;
+  }
+
+  /* Description */
+  .gru-description {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #666;
+    margin: 0 0 28px;
+  }
+
+  /* Stat callouts */
+  .gru-stats {
+    display: flex;
+    gap: 24px;
+    margin: 0 0 28px;
+  }
+
+  .gru-stat {
+    flex: 1;
+  }
+
+  .gru-stat-value {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #b45309;
+  }
+
+  .gru-stat-label {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.75rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Feature list */
+  .gru-features {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .gru-feature {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .gru-feature-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(180, 83, 9, 0.1);
+    border-radius: 6px;
+  }
+
+  .gru-feature-icon .material-symbols-rounded {
+    font-size: 14px;
+    color: #b45309;
+  }
+
+  .gru-feature-body {
+    flex: 1;
+    padding-top: 2px;
+  }
+
+  .gru-feature-title {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 2px;
+  }
+
+  .gru-feature-desc {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: #888;
+    margin: 0;
+  }
+
+  /* Engine figure (cinema screen for images) */
+  .engine-figure {
+    order: 2;
+    background: #0d0c0a;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 184, 111, 0.12);
+    overflow: hidden;
+    margin: 0;
+  }
+
+  .engine-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .engine-figure figcaption {
+    padding: 12px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: #a89a8c;
+    line-height: 1.5;
+  }
+
+  /* ========================================
+     RESPONSIVE
+     ======================================== */
+
+  /* Tablet */
+  @media (max-width: 1024px) {
+    .gru-section {
+      padding: 60px 24px;
+    }
+
+    .gru-container {
+      gap: 40px;
+    }
+  }
+
+  /* Mobile - stack vertically */
+  @media (max-width: 768px) {
+    .gru-section {
+      padding: 48px 20px;
+    }
+
+    .gru-container {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+
+    .gru-content {
+      order: 2;
+      text-align: center;
+    }
+
+    .engine-figure {
+      order: 1;
+    }
+
+    .gru-eyebrow {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+    }
+
+    .gru-features {
+      text-align: left;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .gru-stats {
+      justify-content: center;
+    }
+  }
+
+  /* ========================================
+     REDUCED MOTION
+     ======================================== */
+  @media (prefers-reduced-motion: reduce) {
+    .engine-figure {
+      animation: none;
+    }
+  }
+</style>
+
+<!-- Global styles for dark mode -->
+<style is:global>
+  /* ========================================
+     GRU SECTION - Dark Mode
+     ======================================== */
+
+  html[data-theme="dark"] #gru {
+    background: #0c0a08;
+  }
+
+  html[data-theme="dark"] #gru .gru-eyebrow {
+    color: #FFB86F;
+    background: rgba(255, 184, 111, 0.08);
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #gru .gru-title-line1 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #gru .gru-title-line2 {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #gru .gru-description {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #gru .gru-stat-value {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #gru .gru-stat-label {
+    color: #a89a8c;
+  }
+
+  html[data-theme="dark"] #gru .gru-feature-icon {
+    background: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #gru .gru-feature-icon .material-symbols-rounded {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #gru .gru-feature-title {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #gru .gru-feature-desc {
+    color: #a89a8c;
+  }
+
+  html[data-theme="dark"] #gru .engine-figure figcaption {
+    color: #a89a8c;
+  }
+</style>

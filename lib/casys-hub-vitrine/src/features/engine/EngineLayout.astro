@@ -18,6 +18,16 @@ const metaDescriptions: Record<string, string> = {
 const metaDescription = metaDescriptions[locale] ?? metaDescriptions.en;
 ---
 
+<!-- Override SubsiteLayout amber dark bg with engine's purple dark bg -->
+<style is:global>
+  html[data-theme="dark"] body { background: #1e1a1e !important; }
+  :root {
+    --md-sys-color-primary: #83468f;
+    --md-sys-color-on-primary: #ffffff;
+    --md-sys-color-primary-container: rgba(131, 70, 143, 0.1);
+  }
+</style>
+
 <SubsiteLayout title={title} metaDescription={metaDescription} jsonLd={{
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",

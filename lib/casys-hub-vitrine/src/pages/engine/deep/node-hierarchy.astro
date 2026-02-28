@@ -1,0 +1,296 @@
+---
+import DeepDiveLayout from '../../../features/engine/deep/DeepDiveLayout.astro';
+---
+
+<DeepDiveLayout
+  title="Nodes All The Way Down"
+  subtitle="Unified vocabulary — leafs AND parents predicted by the same model."
+  notebooks="NB-11, NB-13, NB-17, NB-21, NB-22"
+  prevSlug="data-quality"
+  prevTitle="Data Quality Odyssey"
+  nextSlug="residual-engineering"
+  nextTitle="Two Parameters, +22.7pp"
+>
+
+  <section class="deep-section">
+    <h2>The Vocabulary Problem</h2>
+    <p>
+      A naive GRU predicts from a flat list of 920 leaf nodes. But execution traces
+      contain more than leaf nodes: they contain <em>parent nodes</em> — named sequences
+      of leaf nodes that recur across workflows. Ignoring parent nodes means the model
+      never learns to predict "I need a database operation" before predicting the
+      specific leaf node.
+    </p>
+    <p>
+      Five notebooks trace the discovery that leaf nodes and parent nodes must share
+      a single vocabulary, and the consequences of that decision.
+    </p>
+  </section>
+
+  <div class="vocab-evolution reveal-on-scroll">
+    <div class="vocab-step">
+      <span class="vocab-label">NB-11</span>
+      <div class="vocab-box">
+        <span class="vocab-name">Parent-as-Terminal</span>
+        <span class="vocab-detail">918 leaf nodes + 326 parent nodes = 1,244 nodes</span>
+        <span class="vocab-result">Parent node Hit@1: 0% (bug in predictNext)</span>
+      </div>
+    </div>
+    <div class="vocab-arrow" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 5v14m0 0l-5-5m5 5l5-5" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="vocab-step">
+      <span class="vocab-label">NB-13</span>
+      <div class="vocab-box">
+        <span class="vocab-name">Canon + FQDN fix</span>
+        <span class="vocab-detail">920 leaf nodes + 245 parent nodes = 1,165 nodes</span>
+        <span class="vocab-result vocab-result-good">Parent node Hit@1: 41.6% (after bug fix)</span>
+      </div>
+    </div>
+    <div class="vocab-arrow" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 5v14m0 0l-5-5m5 5l5-5" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="vocab-step">
+      <span class="vocab-label">NB-21</span>
+      <div class="vocab-box">
+        <span class="vocab-name">Frequency capping (MAX=30, FPS)</span>
+        <span class="vocab-detail">2,584 → 1,769 training examples</span>
+        <span class="vocab-result vocab-result-good">Parent node Hit@1: 82.3%</span>
+      </div>
+    </div>
+  </div>
+
+  <figure class="cinema reveal-on-scroll">
+    <img src="/images/engine/deep/node-hierarchy/11-cap-target-distribution.png"
+         alt="Parent node target distribution: examples per parent node, log-scale with cumulative coverage" loading="lazy" />
+    <figcaption><strong>NB-11 · Parent node distribution.</strong> db:postgresQuery dominates with 952 traces. 47% of parent nodes have exactly 1 example — extreme imbalance that makes direct classification hard.</figcaption>
+  </figure>
+
+  <figure class="cinema reveal-on-scroll">
+    <img src="/images/engine/deep/node-hierarchy/13-argmax-distribution.png"
+         alt="Argmax landing: 40.4% of model predictions land on parent nodes; histogram of correct rank distribution with median=34" loading="lazy" />
+    <figcaption><strong>NB-13 · Argmax landing.</strong> 40.4% of model predictions land on parent nodes. Median correct rank = 34 without unified vocabulary.</figcaption>
+  </figure>
+
+  <section class="deep-section">
+    <h2>The Canonicalization Breakthrough</h2>
+    <p>
+      The softmax had a hidden enemy: 28 duplicate leaf-node groups, each generating
+      a separate parent node entry. A parent node named <code>std:cap_rename</code>
+      and another named <code>code:cap_rename</code> were the same logical operation
+      split across two vocabulary slots.
+    </p>
+    <p>
+      Canonicalization at training time — without touching the database —
+      collapsed 71 duplicate parent nodes to 240 canonical entries. The softmax signal
+      concentrated. Parent node Hit@1 jumped from 40.6% to 66.3%, a +25.7pp gain from
+      deduplication alone.
+    </p>
+  </section>
+
+  <div class="insight-box reveal-on-scroll">
+    <span class="insight-label">Key insight</span>
+    <blockquote class="insight-quote">
+      Do not merge duplicates in the database. Canonicalize at training time.
+      The database stores truth; the model trains on a view.
+    </blockquote>
+  </div>
+
+  <div class="cinema-grid reveal-on-scroll">
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/node-hierarchy/11-embedding-space-tool-vs-cap.png"
+           alt="Embedding space: leaf node vs parent node similarity distributions, per-dim alignment" loading="lazy" />
+      <figcaption><strong>NB-11 · Embedding alignment.</strong> Leaf nodes and parent nodes share embedding space with corr=0.98+. They are geometrically compatible.</figcaption>
+    </figure>
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/node-hierarchy/11-cap-ambiguity.png"
+           alt="Parent node ambiguity: parent nodes per leaf-node set and cosine similarity for ambiguous pairs" loading="lazy" />
+      <figcaption><strong>NB-11 · Parent node ambiguity.</strong> 36 ambiguous leaf-node sets. 100% of pairs sim > 0.95 — true duplicates that confuse the softmax.</figcaption>
+    </figure>
+  </div>
+
+  <section class="deep-section">
+    <h2>Frequency Capping with FPS</h2>
+    <p>
+      Some parent nodes dominate the training set: <code>std:psql_query</code>
+      appears in thousands of traces. Without capping, the model learns to predict
+      the most common leaf nodes regardless of context.
+    </p>
+    <p>
+      NB-21 evaluated two capping strategies: random subsampling versus
+      Farthest Point Sampling (FPS). FPS selects the most diverse subset by
+      maximizing distance in intent embedding space, producing a training set
+      with mean pairwise similarity 0.62 vs 0.68 for random — better coverage
+      of the intent distribution with the same budget.
+    </p>
+    <p>
+      NB-22 revealed the cost: <code>MAX_PER_CAP=30</code> raises parent node Hit@1 to 82.3%
+      but drops leaf node Hit@1 from 49.3% to 37.2%. The capping was too aggressive.
+      The search for the right cap value continues.
+    </p>
+  </section>
+
+  <figure class="cinema reveal-on-scroll">
+    <img src="/images/engine/deep/node-hierarchy/21-frequency-capping.png"
+         alt="Lorenz curve showing Gini coefficient drop from 0.754 to 0.544 after frequency capping; top-10 parent nodes before and after MAX=30 cap" loading="lazy" />
+    <figcaption><strong>NB-21 · Gini coefficient.</strong> Frequency capping reduces imbalance from 0.754 to 0.544. FPS maintains intent coverage.</figcaption>
+  </figure>
+
+  <figure class="cinema reveal-on-scroll">
+    <img src="/images/engine/deep/node-hierarchy/22-vocab-composition.png"
+         alt="Horizontal stacked bar showing vocab composition: 920 leaf nodes, 245 parent nodes, 40 canonical duplicates, 24 genuinely missing, 20 test/fake" loading="lazy" />
+    <figcaption><strong>NB-22 · Vocab composition.</strong> 1,165 active nodes. 84 excluded — 40 canonical duplicates, 24 genuinely missing, 20 test/fake.</figcaption>
+  </figure>
+
+  <div class="cinema-grid reveal-on-scroll">
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/node-hierarchy/17-vocab-sizes.png"
+           alt="Vocabulary sizes across 5 filter scenarios from 920 leaf-nodes-only to 1257 all-parent-nodes" loading="lazy" />
+      <figcaption><strong>NB-17 · Vocab sizes.</strong> Unique+≥2 examples (1,038 nodes) is the recommended configuration — best coverage without noise.</figcaption>
+    </figure>
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/node-hierarchy/tsne-by-capability.png"
+           alt="t-SNE projection colored by parent node after SHGAT enrichment" loading="lazy" />
+      <figcaption><strong>NB-10 · t-SNE by parent node.</strong> SHGAT-enriched embeddings cluster by parent node. Leaf nodes that co-execute share embedding neighborhoods.</figcaption>
+    </figure>
+  </div>
+
+</DeepDiveLayout>
+
+<style>
+  /* ── Vocab evolution diagram ────────────── */
+
+  .vocab-evolution {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 0 32px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .vocab-step {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .vocab-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--e-accent);
+    letter-spacing: 0.08em;
+    text-align: center;
+    background: var(--e-surface);
+    border: 1px solid var(--e-cinema-border);
+    border-radius: 5px;
+    padding: 4px 8px;
+  }
+
+  .vocab-box {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 16px 20px;
+    background: var(--e-surface);
+    border: 1px solid var(--e-border);
+    border-radius: 8px;
+  }
+
+  .vocab-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--e-text);
+    letter-spacing: -0.01em;
+  }
+
+  .vocab-detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--e-text-dim);
+    letter-spacing: 0.02em;
+  }
+
+  .vocab-result {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--e-text-dim);
+    font-weight: 500;
+  }
+
+  .vocab-result-good {
+    color: #16a34a;
+  }
+
+  .vocab-arrow {
+    color: var(--e-border);
+    padding: 4px 0;
+    align-self: center;
+    margin-left: 80px;
+  }
+
+  /* ── Insight box ────────────────────────── */
+
+  .insight-box {
+    max-width: 640px;
+    margin: 0 auto 16px;
+    padding: 0 32px;
+  }
+
+  .insight-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--e-accent);
+    margin-bottom: 12px;
+    opacity: 0.8;
+  }
+
+  .insight-quote {
+    margin: 0;
+    padding: 20px 24px;
+    border-left: 3px solid var(--e-accent);
+    background: var(--e-accent-glow);
+    border-radius: 0 8px 8px 0;
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 1.1rem;
+    font-style: italic;
+    line-height: 1.7;
+    color: var(--e-text-secondary);
+  }
+
+  .deep-section code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88em;
+    background: var(--e-surface);
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: var(--e-accent);
+  }
+
+  @media (max-width: 520px) {
+    .vocab-evolution,
+    .insight-box {
+      padding-inline: 20px;
+    }
+
+    .vocab-step {
+      grid-template-columns: 56px 1fr;
+      gap: 12px;
+    }
+  }
+</style>

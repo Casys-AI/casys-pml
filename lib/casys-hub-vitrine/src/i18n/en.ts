@@ -535,7 +535,9 @@ export const en = {
   // ========================================
   engineHeader: {
     howItWorks: "How It Works",
+    problem: "The Problem",
     shgat: "SHGAT",
+    gru: "GRU",
     benchmarks: "Benchmarks",
     links: "Links",
     docs: "Docs",
@@ -548,11 +550,36 @@ export const en = {
     heroSubtitle:
       "SHGAT attention networks score tool relevance across a hypergraph hierarchy. Multi-level message passing, K-head attention, zero LLM calls. Deterministic. Observable. Runs on your hardware.",
     statTools: "Nodes indexed",
-    statHit: "Hit@3",
-    statLatency: "Score latency",
+    statHit: "E2E accuracy",
+    statLatency: "GRU params",
     ctaPrimary: "How It Works",
     ctaDocs: "Documentation",
     ctaSecondary: "GitHub",
+  },
+  engineProblem: {
+    eyebrow: "THE PROBLEM",
+    titleLine1: "Raw Embeddings",
+    titleLine2: "Are Blind to Structure",
+    description: "LLMs score tool relevance one tool at a time. They can't see that psql_query and csv_parse belong to the same data-pipeline capability. Without structural context, tool selection is noisy, slow, and brittle.",
+    insight: "SHGAT enrichment transforms isolated embeddings into structure-aware representations. Tools that share capabilities cluster together, even if they've never appeared in the same workflow.",
+    tsneBaCaption: "t-SNE visualization: raw BGE-M3 embeddings (left) vs SHGAT-enriched (right). After message passing, tools cluster by capability.",
+    tsneCapCaption: "Same embeddings colored by capability assignment. Enriched embeddings form tighter, more separable clusters.",
+  },
+  engineGru: {
+    eyebrow: "GRU SEQUENCER",
+    titleLine1: "258K Parameters.",
+    titleLine2: "Not an LLM.",
+    description: "A compact GRU predicts the next tool in a workflow from SHGAT-enriched embeddings. It sees the execution history and predicts what comes next — tools, capabilities, or terminal states.",
+    features: [
+      { icon: "memory", title: "Compact Architecture", desc: "GRU(64) with unified VocabNode. 920 tools + 245 capabilities = 1,165 output classes. Trains in minutes on CPU." },
+      { icon: "route", title: "Beam Search Decoding", desc: "Width-4 beam search with length normalization builds full execution paths. First-N accuracy reaches 70.8%." },
+      { icon: "category", title: "Cap-as-Terminal", desc: "Capabilities act as terminal states. The model predicts when to stop expanding, not just what to expand. Cap Hit@1: 82.3%." },
+      { icon: "speed", title: "SHGAT Contribution", desc: "SHGAT-enriched embeddings add +6.2pp to E2E beam accuracy vs raw embeddings. Structure is the signal." },
+    ],
+    benchmarkCaption: "E2E benchmark: beam search First-N accuracy comparison. SHGAT enrichment provides +6.2pp lift.",
+    statParams: "parameters",
+    statAccuracy: "E2E accuracy",
+    statContribution: "SHGAT lift",
   },
 
   // ========================================
@@ -807,18 +834,38 @@ export const en = {
   engineBenchmarks: {
     title: "Numbers,",
     titleAccent: "Not Promises",
-    subtitle:
-      "Benchmarked on 245 nodes (218 leaves + 26 composites + 1 root). All metrics from production traces.",
-    shgatTitle: "SHGAT-TF",
-    shgatRows: [
-      ["Hit@1", "56.2%"],
-      ["Hit@3", "86.3%"],
-      ["MRR", "0.705"],
-      ["Leaves (L0)", "218"],
-      ["Composites (L1)", "26"],
-      ["Attention heads", "16 \u00d7 64D"],
-      ["Hierarchy levels", "3 (L0 \u2192 L1 \u2192 L2)"],
-      ["Score latency", "2.3s"],
+    subtitle: "Benchmarked on 920 nodes across 1,165 vocabulary classes. All metrics from production traces, 24 notebooks of research.",
+    cards: [
+      {
+        icon: "hub",
+        title: "SHGAT-TF",
+        rows: [
+          ["Hit@1", "66.1%"],
+          ["Hierarchy", "L0 (920) \u2192 L1 (26) \u2192 L2"],
+          ["Attention heads", "16 \u00d7 64D"],
+          ["Training", "InfoNCE + PER"],
+        ],
+      },
+      {
+        icon: "psychology",
+        title: "GRU Sequencer",
+        rows: [
+          ["Global Hit@1", "57.6%"],
+          ["Tool Hit@1", "37.2%"],
+          ["Cap Hit@1", "82.3%"],
+          ["Parameters", "258K"],
+        ],
+      },
+      {
+        icon: "stacks",
+        title: "E2E Pipeline",
+        rows: [
+          ["Beam First-N", "70.8%"],
+          ["SHGAT lift", "+6.2pp"],
+          ["Beam width", "4"],
+          ["Vocab size", "1,165"],
+        ],
+      },
     ],
   },
   engineHowItWorks: {
@@ -992,6 +1039,11 @@ export const en = {
           "SHGAT-TF trains from production traces \u2014 no external service, no GPU required. libtensorflow FFI runs natively via Deno.dlopen. Self-contained.",
       },
     ],
+    evidenceTitle: "Research Evidence",
+    evidenceSubtitle: "24 notebooks, 41 visualizations. Real experiments, not marketing.",
+    residualCaption: "Residual weight sweep: Hit@1 across different residual configurations.",
+    pcaCaption: "PCA 3-panel: raw embeddings vs message-passing-only vs full V\u2192E residual.",
+    gammaCaption: "Adaptive \u03B3(n) = \u03C3(a\u00B7log(n+1)+b) learns per-node residual weights based on fan-out. Novel contribution \u2014 no precedent in GNN literature.",
   },
 
   // ========================================

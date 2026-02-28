@@ -12,24 +12,24 @@ const t = useTranslations(locale).engineBenchmarks;
     </div>
 
     <div class="bench-grid">
-      <!-- Card 1: SHGAT-TF -->
-      <div class="bench-card">
-        <div class="bench-card-header">
-          <span class="material-symbols-rounded bench-icon">hub</span>
-          <span class="bench-card-title">{t.shgatTitle}</span>
+      {t.cards.map((card) => (
+        <div class="bench-card">
+          <div class="bench-card-header">
+            <span class="material-symbols-rounded bench-icon">{card.icon}</span>
+            <span class="bench-card-title">{card.title}</span>
+          </div>
+          <table class="bench-table">
+            <tbody>
+              {card.rows.map(([metric, value], i) => (
+                <tr class={i % 2 === 1 ? 'bench-row-alt' : ''}>
+                  <td class="bench-metric">{metric}</td>
+                  <td class="bench-value">{value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <table class="bench-table">
-          <tbody>
-            {t.shgatRows.map(([metric, value], i) => (
-              <tr class={i % 2 === 1 ? 'bench-row-alt' : ''}>
-                <td class="bench-metric">{metric}</td>
-                <td class="bench-value">{value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
+      ))}
     </div>
   </div>
 </section>
@@ -50,9 +50,9 @@ const t = useTranslations(locale).engineBenchmarks;
 
   .bench-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 24px;
-    max-width: 520px;
+    max-width: 100%;
     margin: 0 auto;
   }
 

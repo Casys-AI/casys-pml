@@ -1,0 +1,251 @@
+---
+import DeepDiveLayout from '../../../features/engine/deep/DeepDiveLayout.astro';
+---
+
+<DeepDiveLayout
+  title="What Didn't Work"
+  subtitle="The roads not taken. Five ideas that failed."
+  notebooks="NB-03, NB-04, NB-18, NB-23, NB-24"
+  prevSlug="residual-engineering"
+  prevTitle="Two Parameters, +22.7pp"
+  nextSlug="scaling"
+  nextTitle="Scaling &amp; Retrieval"
+>
+
+  <section class="deep-section">
+    <h2>Negative Results Are Results</h2>
+    <p>
+      Five notebooks document failed approaches. Each one taught something useful —
+      either about the data, about the model, or about what assumptions were wrong.
+      They are not regrets. They are the map of the space.
+    </p>
+  </section>
+
+  <div class="dead-ends reveal-on-scroll">
+
+    <div class="dead-end">
+      <div class="dead-end-header">
+        <span class="dead-end-nb">NB-03</span>
+        <span class="dead-end-x" aria-hidden="true">&#215;</span>
+        <span class="dead-end-name">Graph Toy Problem (Manual MP)</span>
+      </div>
+      <p class="dead-end-desc">
+        Message passing implemented manually on a toy 5-node graph to validate the
+        gradient computation before scaling. The toy problem worked — but the lesson
+        was that 282 training examples are not enough for message passing to generalize.
+        W<sub>up</sub> and W<sub>down</sub> matrices require 1,000+ examples to learn
+        meaningful projections. The manual implementation was abandoned for the
+        attention-based approach.
+      </p>
+      <span class="dead-end-lesson">Lesson: 282 examples is not enough for MP weight matrices.</span>
+      <figure class="cinema reveal-on-scroll" style="margin-top:24px;">
+        <img src="/images/engine/deep/dead-ends/gru-workflow-sequencer.png"
+             alt="GRU workflow sequencer on toy graph — manual message passing validation" loading="lazy" />
+        <figcaption><strong>NB-03 · Toy graph.</strong> Manual gradient check on a 5-node hypergraph. The math worked — but 282 traces weren't enough to train the weight matrices.</figcaption>
+      </figure>
+    </div>
+
+    <div class="dead-end">
+      <div class="dead-end-header">
+        <span class="dead-end-nb">NB-04</span>
+        <span class="dead-end-x" aria-hidden="true">&#215;</span>
+        <span class="dead-end-name">Sequential Graph Scaling</span>
+      </div>
+      <p class="dead-end-desc">
+        Attempted to scale the sequential graph GRU to larger datasets by increasing
+        hidden dimension and adding layers. Training time grew quadratically; accuracy
+        gains were marginal. The scaling law was unfavorable at this data size.
+        Smaller and smarter (attention + residual) outperformed larger and naive.
+      </p>
+      <span class="dead-end-lesson">Lesson: scaling parameters without data is just overfitting.</span>
+      <figure class="cinema reveal-on-scroll" style="margin-top:24px;">
+        <img src="/images/engine/deep/dead-ends/04-sequential-graph-scaling.png"
+             alt="Sequential graph GRU scaling: accuracy vs hidden dimension — marginal gains, quadratic cost" loading="lazy" />
+        <figcaption><strong>NB-04 · Scaling law.</strong> Training cost scales quadratically; accuracy gains are marginal. Smaller and smarter beats larger and naive.</figcaption>
+      </figure>
+    </div>
+
+    <div class="dead-end">
+      <div class="dead-end-header">
+        <span class="dead-end-nb">NB-18</span>
+        <span class="dead-end-x" aria-hidden="true">&#215;</span>
+        <span class="dead-end-name">N8N Data Augmentation</span>
+      </div>
+      <p class="dead-end-desc">
+        N8n workflow data was added to the training pool to compensate for the small
+        production dataset. 12,000 n8n traces vs 4,600 production traces, with a
+        weight of 0.3 and 3x oversampling for production. Result: Hit@1 dropped from
+        38.2% to 35.3%, MRR from 0.547 to 0.508, training time 4x longer.
+        60% of n8n data is Smithery noise; it expanded the vocabulary with 1,240 phantom
+        nodes and diluted the production signal. The augmentation was removed entirely.
+      </p>
+      <span class="dead-end-lesson">Lesson: noisy data at high volume beats clean data at low volume — in the wrong direction.</span>
+      <figure class="cinema reveal-on-scroll" style="margin-top:24px;">
+        <img src="/images/engine/deep/dead-ends/18-shgat-beam-rescoring.png"
+             alt="SHGAT beam rescoring: baseline vs SHGAT-rescored vs oracle — zero gain from rescoring" loading="lazy" />
+        <figcaption><strong>NB-18 · Beam rescoring.</strong> SHGAT rescoring adds 0.0pp over baseline (64.6%). Oracle is 81.3% — the gap is there, the rescorer can't access it.</figcaption>
+      </figure>
+    </div>
+
+    <div class="dead-end">
+      <div class="dead-end-header">
+        <span class="dead-end-nb">NB-23</span>
+        <span class="dead-end-x" aria-hidden="true">&#215;</span>
+        <span class="dead-end-name">Centroid Inference Strategy</span>
+      </div>
+      <p class="dead-end-desc">
+        Instead of predicting the next node directly, the model would predict a centroid
+        in embedding space, then retrieve the nearest vocabulary entry. This would
+        generalize to unseen nodes without retraining. 104 nodes are multi-cap (belonging
+        to multiple parent nodes), and 324 pairs are SHGAT-similar — the centroid idea
+        had surface appeal.
+      </p>
+      <p class="dead-end-desc">
+        In practice: centroid inference produced worse Hit@1 than direct prediction
+        on every test configuration. The retrieval step introduced irreducible error.
+        Not recommended.
+      </p>
+      <span class="dead-end-lesson">Lesson: centroid inference loses to direct classification at this vocabulary size.</span>
+      <div class="cinema-grid reveal-on-scroll" style="margin-top:24px;">
+        <figure class="cinema cinema-compact">
+          <img src="/images/engine/deep/dead-ends/23-centroid-vs-medoid.png"
+               alt="Centroid vs medoid inference strategies: Hit@1 comparison" loading="lazy" />
+          <figcaption><strong>NB-23 · Centroid vs medoid.</strong> Both retrieval strategies underperform direct classification across all configurations.</figcaption>
+        </figure>
+        <figure class="cinema cinema-compact">
+          <img src="/images/engine/deep/dead-ends/23-strategy-comparison.png"
+               alt="Strategy comparison: centroid, medoid, direct classification Hit@1" loading="lazy" />
+          <figcaption><strong>NB-23 · Strategy comparison.</strong> Direct classification wins. Retrieval adds irreducible error at every test.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="dead-end">
+      <div class="dead-end-header">
+        <span class="dead-end-nb">NB-24</span>
+        <span class="dead-end-x" aria-hidden="true">&#215;</span>
+        <span class="dead-end-name">Class-Weighted Cross-Entropy Loss</span>
+      </div>
+      <p class="dead-end-desc">
+        Five variants of class-weighted CE loss were tested: inverse frequency,
+        sqrt-weighted, sqrt + frequency cap, no focal, and source-based weights.
+        All five performed worse than the baseline 38.2%.
+      </p>
+      <p class="dead-end-desc">
+        The root cause: the existing focal loss (γ=2) already handles class rebalancing
+        adaptively. Adding static class weights created double-penalty for rare classes.
+        Cap Hit@1 collapsed from 40.5% to 10–13% across all variants. Tool Hit@1
+        improved by 2pp — but the cap regression was catastrophic.
+      </p>
+      <span class="dead-end-lesson">
+        Lesson: focal loss γ=2 = adaptive rebalancing. Do not stack static weights on top.
+      </span>
+      <div class="cinema-grid reveal-on-scroll" style="margin-top:24px;">
+        <figure class="cinema cinema-compact">
+          <img src="/images/engine/deep/dead-ends/24-weight-distributions.png"
+               alt="Class weight distributions across 5 variants: inverse, sqrt, sqrt+cap, no-focal, source" loading="lazy" />
+          <figcaption><strong>NB-24 · Weight distributions.</strong> All 5 class-weight variants produced worse results than baseline. Static weights fight focal loss.</figcaption>
+        </figure>
+        <figure class="cinema cinema-compact">
+          <img src="/images/engine/deep/dead-ends/24-freq-vs-weight-scatter.png"
+               alt="Frequency vs assigned weight scatter — class weights invert the focal loss signal" loading="lazy" />
+          <figcaption><strong>NB-24 · Freq vs weight.</strong> Static weights create double-penalty for rare classes. Cap Hit@1 collapsed from 40.5% to 10–13%.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+  </div>
+
+</DeepDiveLayout>
+
+<style>
+  /* ── Dead ends list ─────────────────────── */
+
+  .dead-ends {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 32px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .dead-end {
+    padding: 32px 0;
+    border-bottom: 1px solid var(--e-border);
+  }
+
+  .dead-end:last-child {
+    border-bottom: none;
+  }
+
+  .dead-end-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .dead-end-nb {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--e-accent);
+    background: var(--e-surface);
+    border: 1px solid var(--e-cinema-border);
+    border-radius: 4px;
+    padding: 3px 9px;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+
+  .dead-end-x {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: #dc2626;
+    opacity: 0.5;
+    flex-shrink: 0;
+  }
+
+  .dead-end-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--e-text);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  .dead-end-desc {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.8;
+    color: var(--e-text-secondary);
+    margin: 0 0 12px;
+  }
+
+  .dead-end-lesson {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--e-text-dim);
+    border-left: 2px solid var(--e-accent);
+    padding: 6px 12px;
+    background: var(--e-surface);
+    border-radius: 0 4px 4px 0;
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 520px) {
+    .dead-ends {
+      padding-inline: 20px;
+    }
+
+    .dead-end-name {
+      font-size: 0.95rem;
+    }
+  }
+</style>

@@ -539,7 +539,9 @@ export const fr: Translations = {
   // ========================================
   engineHeader: {
     howItWorks: "Fonctionnement",
+    problem: "Le Probleme",
     shgat: "SHGAT",
+    gru: "GRU",
     benchmarks: "Metriques",
     links: "Liens",
     docs: "Docs",
@@ -552,11 +554,36 @@ export const fr: Translations = {
     heroSubtitle:
       "Les reseaux d'attention SHGAT scorent la pertinence des outils sur une hierarchie d'hypergraphe. Message passing multi-niveaux, attention K-head, zero appel LLM. Deterministe. Observable. Tourne sur votre hardware.",
     statTools: "Noeuds indexes",
-    statHit: "Hit@3",
-    statLatency: "Latence scoring",
+    statHit: "Precision E2E",
+    statLatency: "Parametres GRU",
     ctaPrimary: "Comment ca marche",
     ctaDocs: "Documentation",
     ctaSecondary: "GitHub",
+  },
+  engineProblem: {
+    eyebrow: "LE PROBLEME",
+    titleLine1: "Les Embeddings Bruts",
+    titleLine2: "Ignorent la Structure",
+    description: "Les LLM scorent la pertinence des outils un par un. Ils ne voient pas que psql_query et csv_parse appartiennent a la meme capability de data-pipeline. Sans contexte structurel, la selection d'outils est bruitee, lente et fragile.",
+    insight: "L'enrichissement SHGAT transforme des embeddings isoles en representations conscientes de la structure. Les outils partageant des capabilities se regroupent, meme s'ils n'ont jamais apparu dans le meme workflow.",
+    tsneBaCaption: "Visualisation t-SNE : embeddings BGE-M3 bruts (gauche) vs enrichis SHGAT (droite). Apres message passing, les outils se regroupent par capability.",
+    tsneCapCaption: "Memes embeddings colores par assignation de capability. Les embeddings enrichis forment des clusters plus compacts et mieux separes.",
+  },
+  engineGru: {
+    eyebrow: "GRU SEQUENCER",
+    titleLine1: "258K Parametres.",
+    titleLine2: "Pas un LLM.",
+    description: "Un GRU compact predit le prochain outil dans un workflow a partir d'embeddings enrichis par SHGAT. Il voit l'historique d'execution et predit ce qui vient ensuite — outils, capabilities ou etats terminaux.",
+    features: [
+      { icon: "memory", title: "Architecture Compacte", desc: "GRU(64) avec VocabNode unifie. 920 outils + 245 capabilities = 1 165 classes de sortie. S'entraine en minutes sur CPU." },
+      { icon: "route", title: "Decodage Beam Search", desc: "Beam search largeur 4 avec normalisation de longueur construit des chemins d'execution complets. Precision First-N : 70.8%." },
+      { icon: "category", title: "Cap-as-Terminal", desc: "Les capabilities servent d'etats terminaux. Le modele predit quand arreter l'expansion, pas seulement quoi expanser. Cap Hit@1 : 82.3%." },
+      { icon: "speed", title: "Contribution SHGAT", desc: "Les embeddings enrichis SHGAT ajoutent +6.2pp a la precision beam E2E vs embeddings bruts. La structure est le signal." },
+    ],
+    benchmarkCaption: "Benchmark E2E : comparaison de precision First-N en beam search. L'enrichissement SHGAT apporte +6.2pp.",
+    statParams: "parametres",
+    statAccuracy: "precision E2E",
+    statContribution: "gain SHGAT",
   },
 
   // ========================================
@@ -813,18 +840,38 @@ export const fr: Translations = {
   engineBenchmarks: {
     title: "Des Chiffres,",
     titleAccent: "Pas des Promesses",
-    subtitle:
-      "Benchmarke sur 245 noeuds (218 leaves + 26 composites + 1 root). Toutes les metriques proviennent de traces de production.",
-    shgatTitle: "SHGAT-TF",
-    shgatRows: [
-      ["Hit@1", "56.2%"],
-      ["Hit@3", "86.3%"],
-      ["MRR", "0.705"],
-      ["Leaves (L0)", "218"],
-      ["Composites (L1)", "26"],
-      ["Tetes d'attention", "16 \u00d7 64D"],
-      ["Niveaux hierarchie", "3 (L0 \u2192 L1 \u2192 L2)"],
-      ["Latence scoring", "2.3s"],
+    subtitle: "Benchmarke sur 920 noeuds sur 1 165 classes de vocabulaire. Toutes les metriques proviennent de traces de production, 24 notebooks de recherche.",
+    cards: [
+      {
+        icon: "hub",
+        title: "SHGAT-TF",
+        rows: [
+          ["Hit@1", "66.1%"],
+          ["Hierarchie", "L0 (920) \u2192 L1 (26) \u2192 L2"],
+          ["Tetes d'attention", "16 \u00d7 64D"],
+          ["Entrainement", "InfoNCE + PER"],
+        ],
+      },
+      {
+        icon: "psychology",
+        title: "GRU Sequencer",
+        rows: [
+          ["Hit@1 Global", "57.6%"],
+          ["Hit@1 Tool", "37.2%"],
+          ["Hit@1 Cap", "82.3%"],
+          ["Parametres", "258K"],
+        ],
+      },
+      {
+        icon: "stacks",
+        title: "Pipeline E2E",
+        rows: [
+          ["Beam First-N", "70.8%"],
+          ["Gain SHGAT", "+6.2pp"],
+          ["Largeur beam", "4"],
+          ["Taille vocab", "1 165"],
+        ],
+      },
     ],
   },
   engineHowItWorks: {
@@ -1003,6 +1050,11 @@ export const fr: Translations = {
           "SHGAT-TF s'entraine depuis les traces de production \u2014 aucun service externe, aucun GPU requis. libtensorflow FFI tourne nativement via Deno.dlopen. Autonome.",
       },
     ],
+    evidenceTitle: "Preuves Experimentales",
+    evidenceSubtitle: "24 notebooks, 41 visualisations. De vraies experiences, pas du marketing.",
+    residualCaption: "Balayage des poids residuels : Hit@1 sur differentes configurations residuelles.",
+    pcaCaption: "PCA 3 panneaux : embeddings bruts vs message-passing seul vs residuel V\u2192E complet.",
+    gammaCaption: "\u03B3(n) adaptatif = \u03C3(a\u00B7log(n+1)+b) apprend des poids residuels par noeud bases sur le fan-out. Contribution originale \u2014 aucun precedent dans la litterature GNN.",
   },
 
   // ========================================

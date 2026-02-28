@@ -1,0 +1,281 @@
+---
+/**
+ * Problem Section - Act 1: The Problem
+ *
+ * 2-column grid: content left, t-SNE visualization right.
+ * Shows why flat tool lists fail at scale and motivates the SHGAT approach.
+ *
+ * @module features/engine/ProblemSection
+ */
+
+import { useTranslations } from '../../i18n';
+const locale = (Astro as any).currentLocale ?? 'en';
+const t = useTranslations(locale).engineProblem;
+---
+
+<section id="the-problem" class="problem-section">
+  <div class="problem-container">
+
+    <!-- Left: Content -->
+    <div class="problem-content">
+      <span class="problem-eyebrow">{t.eyebrow}</span>
+
+      <h2 class="problem-title">
+        <span class="problem-title-line1">{t.titleLine1}</span>
+        <span class="problem-title-line2">{t.titleLine2}</span>
+      </h2>
+
+      <p class="problem-description">{t.description}</p>
+
+      <blockquote class="problem-insight">
+        {t.insight}
+      </blockquote>
+    </div>
+
+    <!-- Right: t-SNE before/after visualization -->
+    <figure class="engine-figure reveal-on-scroll">
+      <img
+        src="/images/engine/tsne-before-after.png"
+        alt="t-SNE visualization showing tool embeddings before and after SHGAT enrichment"
+        loading="lazy"
+        width="800"
+        height="500"
+      />
+      <figcaption>{t.tsneCaption}</figcaption>
+    </figure>
+
+  </div>
+
+  <!-- Full-width: t-SNE by capability -->
+  <div class="problem-full-width">
+    <figure class="engine-figure reveal-on-scroll">
+      <img
+        src="/images/engine/tsne-by-capability.png"
+        alt="t-SNE projection colored by capability cluster, showing semantic grouping"
+        loading="lazy"
+        width="1000"
+        height="500"
+      />
+      <figcaption>{t.capabilityCaption}</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- Scoped styles (light mode default) -->
+<style>
+  /* ========================================
+     PROBLEM SECTION - Light Mode
+     Fonts: Fraunces (title L1) / Instrument Serif (title L2) / Inter / JetBrains Mono
+     ======================================== */
+
+  .problem-section {
+    position: relative;
+    padding: 80px 32px;
+    background: var(--md-sys-color-surface-container-lowest);
+  }
+
+  .problem-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .problem-content {
+    order: 1;
+    max-width: 100%;
+    text-align: left;
+  }
+
+  /* Eyebrow - pill badge */
+  .problem-eyebrow {
+    display: inline-block;
+    font-family: 'JetBrains Mono', 'Geist Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: #b45309;
+    background: rgba(180, 83, 9, 0.08);
+    border: 1px solid rgba(180, 83, 9, 0.2);
+    border-radius: 100px;
+    padding: 4px 14px;
+    margin: 0 0 20px;
+  }
+
+  /* Title */
+  .problem-title {
+    font-size: clamp(1.5rem, 3.5vw, 2.5rem);
+    font-weight: 400;
+    line-height: 1.15;
+    margin: 0 0 16px;
+  }
+
+  .problem-title-line1 {
+    display: block;
+    font-family: 'Fraunces', Georgia, serif;
+    color: #1a1a1a;
+  }
+
+  .problem-title-line2 {
+    display: block;
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    color: #b45309;
+  }
+
+  /* Description */
+  .problem-description {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #666;
+    margin: 0 0 24px;
+  }
+
+  /* Insight callout */
+  .problem-insight {
+    font-family: 'Inter', 'Geist', system-ui, sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #555;
+    margin: 0;
+    padding: 16px 20px;
+    border-left: 3px solid #b45309;
+    background: rgba(180, 83, 9, 0.04);
+    border-radius: 0 8px 8px 0;
+  }
+
+  /* Engine figure (cinema screen for images) */
+  .engine-figure {
+    order: 2;
+    background: #0d0c0a;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 184, 111, 0.12);
+    overflow: hidden;
+    margin: 0;
+  }
+
+  .engine-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .engine-figure figcaption {
+    padding: 12px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: #a89a8c;
+    line-height: 1.5;
+  }
+
+  /* Full-width secondary figure */
+  .problem-full-width {
+    max-width: 1200px;
+    margin: 48px auto 0;
+  }
+
+  .problem-full-width .engine-figure {
+    order: unset;
+  }
+
+  /* ========================================
+     RESPONSIVE
+     ======================================== */
+
+  /* Tablet */
+  @media (max-width: 1024px) {
+    .problem-section {
+      padding: 60px 24px;
+    }
+
+    .problem-container {
+      gap: 40px;
+    }
+  }
+
+  /* Mobile - stack vertically */
+  @media (max-width: 768px) {
+    .problem-section {
+      padding: 48px 20px;
+    }
+
+    .problem-container {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+
+    .problem-content {
+      order: 1;
+      text-align: center;
+    }
+
+    .engine-figure {
+      order: 2;
+    }
+
+    .problem-eyebrow {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+    }
+
+    .problem-insight {
+      text-align: left;
+    }
+
+    .problem-full-width {
+      margin-top: 32px;
+    }
+  }
+
+  /* ========================================
+     REDUCED MOTION
+     ======================================== */
+  @media (prefers-reduced-motion: reduce) {
+    .engine-figure {
+      animation: none;
+    }
+  }
+</style>
+
+<!-- Global styles for dark mode -->
+<style is:global>
+  /* ========================================
+     PROBLEM SECTION - Dark Mode
+     ======================================== */
+
+  html[data-theme="dark"] #the-problem {
+    background: #0c0a08;
+  }
+
+  html[data-theme="dark"] #the-problem .problem-eyebrow {
+    color: #FFB86F;
+    background: rgba(255, 184, 111, 0.08);
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #the-problem .problem-title-line1 {
+    color: #f5f0ea;
+  }
+
+  html[data-theme="dark"] #the-problem .problem-title-line2 {
+    color: #FFB86F;
+  }
+
+  html[data-theme="dark"] #the-problem .problem-description {
+    color: #d5c3b5;
+  }
+
+  html[data-theme="dark"] #the-problem .problem-insight {
+    color: #d5c3b5;
+    border-color: rgba(255, 184, 111, 0.3);
+    background: rgba(255, 184, 111, 0.04);
+  }
+
+  html[data-theme="dark"] #the-problem .engine-figure figcaption {
+    color: #a89a8c;
+  }
+</style>

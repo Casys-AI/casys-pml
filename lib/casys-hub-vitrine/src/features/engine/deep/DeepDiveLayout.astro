@@ -1,0 +1,657 @@
+---
+/**
+ * DeepDiveLayout — Shared wrapper for all engine deep dive pages.
+ *
+ * Wraps EngineLayout (for the full HTML shell + header + footer).
+ * Provides: breadcrumb, hero, slot, footer nav with prev/next links.
+ *
+ * Design language: identical CSS variable system to EngineContent.astro.
+ * Scientific Cinema aesthetic — editorial, light-mode-first, Fraunces + Inter + JetBrains Mono.
+ *
+ * @module features/engine/deep/DeepDiveLayout
+ */
+
+import EngineLayout from '../EngineLayout.astro';
+
+export interface Props {
+  title: string;
+  subtitle: string;
+  notebooks: string;
+  prevSlug?: string;
+  nextSlug?: string;
+  prevTitle?: string;
+  nextTitle?: string;
+}
+
+const { title, subtitle, notebooks, prevSlug, nextSlug, prevTitle, nextTitle } = Astro.props;
+
+const notebookList = notebooks.split(',').map(s => s.trim());
+const notebookCount = notebookList.length;
+
+const pageTitle = `${title} — Casys Engine`;
+---
+
+<EngineLayout title={pageTitle}>
+  <div class="deep-dive">
+
+    <!-- ═══════════════════════════════════════════
+         BREADCRUMB
+         ═══════════════════════════════════════════ -->
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <ol class="breadcrumb-list">
+        <li class="breadcrumb-item">
+          <a href="/engine" class="breadcrumb-link">engine</a>
+        </li>
+        <li class="breadcrumb-sep" aria-hidden="true">/</li>
+        <li class="breadcrumb-item">
+          <span class="breadcrumb-current">deep dive</span>
+        </li>
+        <li class="breadcrumb-sep" aria-hidden="true">/</li>
+        <li class="breadcrumb-item breadcrumb-page" aria-current="page">
+          {title}
+        </li>
+      </ol>
+    </nav>
+
+    <!-- ═══════════════════════════════════════════
+         HERO
+         ═══════════════════════════════════════════ -->
+    <header class="deep-hero">
+      <div class="deep-hero-grain" aria-hidden="true"></div>
+      <div class="deep-hero-inner">
+
+        <div class="deep-hero-meta">
+          <span class="deep-hero-tag">casys/engine · deep dive</span>
+          <span class="deep-hero-sep" aria-hidden="true">·</span>
+          <span class="deep-hero-notebooks">
+            <span class="deep-hero-nb-count">{notebookCount}</span>
+            <span class="deep-hero-nb-label">
+              {notebookCount === 1 ? 'notebook' : 'notebooks'}
+            </span>
+          </span>
+        </div>
+
+        <h1 class="deep-hero-title">{title}</h1>
+
+        <p class="deep-hero-subtitle">{subtitle}</p>
+
+        <div class="deep-hero-nb-list" aria-label="Referenced notebooks">
+          {notebookList.map(nb => (
+            <span class="deep-hero-nb-chip">{nb}</span>
+          ))}
+        </div>
+
+      </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════
+         PAGE CONTENT (slot)
+         ═══════════════════════════════════════════ -->
+    <div class="deep-content">
+      <slot />
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         FOOTER NAV
+         ═══════════════════════════════════════════ -->
+    <footer class="deep-footer">
+      <div class="deep-footer-inner">
+
+        <a href="/engine" class="deep-back-link">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Back to engine
+        </a>
+
+        <nav class="deep-nav" aria-label="Deep dive pagination">
+
+          {prevSlug && prevTitle && (
+            <a href={`/engine/deep/${prevSlug}/`} class="deep-nav-link deep-nav-prev">
+              <span class="deep-nav-dir">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Previous
+              </span>
+              <span class="deep-nav-title">{prevTitle}</span>
+            </a>
+          )}
+
+          {nextSlug && nextTitle && (
+            <a href={`/engine/deep/${nextSlug}/`} class="deep-nav-link deep-nav-next">
+              <span class="deep-nav-dir">
+                Next
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M5 2l5 5-5 5" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="deep-nav-title">{nextTitle}</span>
+            </a>
+          )}
+
+        </nav>
+      </div>
+    </footer>
+
+  </div>
+</EngineLayout>
+
+<!-- ═══════════════════════════════════════════
+     SCROLL REVEAL
+     ═══════════════════════════════════════════ -->
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('revealed');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
+</script>
+
+<!-- ═══════════════════════════════════════════
+     STYLES
+     ═══════════════════════════════════════════ -->
+<style is:global>
+  /* ── Dark mode overrides ─────────────────── */
+
+  html[data-theme="dark"] .deep-dive {
+    --e-accent: #f5adfe;
+    --e-text: #e9e0e4;
+    --e-text-secondary: #c0b2be;
+    --e-text-dim: #8d7f8c;
+    --e-surface: #221e22;
+    --e-surface-raised: #2a252a;
+    --e-border: #4d444c;
+    --e-cinema-bg: #100d10;
+    --e-cinema-border: rgba(245, 173, 254, 0.1);
+    --e-accent-glow: rgba(245, 173, 254, 0.04);
+    background: #1e1a1e;
+  }
+
+  html[data-theme="dark"] .deep-dive .cinema img {
+    filter: invert(1) hue-rotate(180deg);
+  }
+
+  /* ── Scroll reveal ──────────────────────── */
+
+  .reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .reveal-on-scroll.revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Cinema figures (global — accessible from slot content) ── */
+
+  .cinema {
+    max-width: 960px;
+    margin: 40px auto;
+    background: var(--e-cinema-bg, #ffffff);
+    border-radius: 12px;
+    border: 1px solid var(--e-cinema-border, rgba(131,70,143,0.12));
+    overflow: hidden;
+  }
+
+  .cinema img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .cinema figcaption {
+    padding: 14px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--e-text-dim, #7e747d);
+  }
+
+  .cinema figcaption strong {
+    color: var(--e-text-secondary, #4d444c);
+    font-weight: 600;
+  }
+
+  .cinema-compact {
+    margin: 0;
+  }
+
+  .cinema-glow {
+    box-shadow:
+      0 0 0 1px rgba(131, 70, 143, 0.15),
+      0 0 40px rgba(131, 70, 143, 0.06),
+      0 0 80px rgba(131, 70, 143, 0.03);
+  }
+
+  /* ── Cinema grid (2-column side-by-side) ── */
+
+  .cinema-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    max-width: 960px;
+    margin: 0 auto 48px;
+    padding: 0 32px;
+  }
+
+  .cinema-grid .cinema {
+    margin: 0;
+  }
+
+  @media (max-width: 680px) {
+    .cinema-grid {
+      grid-template-columns: 1fr;
+      padding-inline: 20px;
+    }
+  }
+</style>
+
+<style>
+  /* ── CSS variables (light mode default) ── */
+
+  .deep-dive {
+    --e-accent: #83468f;
+    --e-accent-glow: rgba(131, 70, 143, 0.06);
+    --e-text: #1e1a1e;
+    --e-text-secondary: #4d444c;
+    --e-text-dim: #7e747d;
+    --e-surface: #faf1f6;
+    --e-surface-raised: #f4ecf0;
+    --e-border: #cfc3cd;
+    --e-cinema-bg: #ffffff;
+    --e-cinema-border: rgba(131, 70, 143, 0.12);
+    min-height: 100vh;
+  }
+
+  /* ── Breadcrumb ─────────────────────────── */
+
+  .breadcrumb {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--e-border);
+    background: var(--e-surface);
+  }
+
+  .breadcrumb-list {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-width: 960px;
+    margin-inline: auto;
+  }
+
+  .breadcrumb-item {
+    display: flex;
+    align-items: center;
+  }
+
+  .breadcrumb-link {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--e-accent);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
+  }
+
+  .breadcrumb-link:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+
+  .breadcrumb-sep {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--e-border);
+    user-select: none;
+  }
+
+  .breadcrumb-current {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--e-text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  .breadcrumb-page {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--e-text-secondary);
+    letter-spacing: 0.03em;
+    /* Truncate on small screens */
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ── Hero ───────────────────────────────── */
+
+  .deep-hero {
+    position: relative;
+    padding: 80px 32px 64px;
+    text-align: center;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(131, 70, 143, 0.05) 0%, transparent 55%),
+      radial-gradient(circle at 80% 70%, rgba(131, 70, 143, 0.03) 0%, transparent 55%),
+      var(--md-sys-color-surface-container-lowest, #faf8f5);
+    border-bottom: 1px solid var(--e-border);
+  }
+
+  .deep-hero-grain {
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  .deep-hero-inner {
+    position: relative;
+    max-width: 760px;
+    margin-inline: auto;
+  }
+
+  .deep-hero-meta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .deep-hero-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--e-accent);
+    opacity: 0.75;
+  }
+
+  .deep-hero-sep {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--e-border);
+    user-select: none;
+  }
+
+  .deep-hero-notebooks {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .deep-hero-nb-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--e-accent);
+    opacity: 0.85;
+  }
+
+  .deep-hero-nb-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--e-text-dim);
+  }
+
+  .deep-hero-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(2rem, 5.5vw, 3.25rem);
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: var(--e-text);
+    margin: 0 0 20px;
+    font-optical-sizing: auto;
+  }
+
+  .deep-hero-subtitle {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+    line-height: 1.6;
+    color: var(--e-text-secondary);
+    max-width: 560px;
+    margin: 0 auto 32px;
+  }
+
+  .deep-hero-nb-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .deep-hero-nb-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--e-accent);
+    background: var(--e-surface);
+    border: 1px solid var(--e-cinema-border);
+    border-radius: 4px;
+    padding: 3px 10px;
+  }
+
+  /* ── Main content area ──────────────────── */
+
+  .deep-content {
+    min-height: 40vh;
+  }
+
+  /* ── Content sections (used by page content) */
+
+  .deep-section {
+    max-width: 720px;
+    margin-inline: auto;
+    padding: 64px 32px;
+  }
+
+  .deep-section h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(1.4rem, 3vw, 1.9rem);
+    font-weight: 600;
+    color: var(--e-text);
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .deep-section p {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.85;
+    color: var(--e-text-secondary);
+    margin: 0 0 20px;
+  }
+
+  /* ── Cinema (inherited pattern) ────────── */
+
+  .cinema {
+    max-width: 960px;
+    margin: 40px auto;
+    background: var(--e-cinema-bg);
+    border-radius: 12px;
+    border: 1px solid var(--e-cinema-border);
+    overflow: hidden;
+  }
+
+  .cinema img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .cinema figcaption {
+    padding: 14px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: #a89a8c;
+  }
+
+  .cinema figcaption strong {
+    color: #d5c3b5;
+    font-weight: 600;
+  }
+
+  .cinema-glow {
+    box-shadow:
+      0 0 0 1px rgba(245, 173, 254, 0.15),
+      0 0 40px rgba(245, 173, 254, 0.06),
+      0 0 80px rgba(245, 173, 254, 0.03);
+  }
+
+  .cinema-compact {
+    margin: 0;
+  }
+
+  /* ── Footer ─────────────────────────────── */
+
+  .deep-footer {
+    border-top: 1px solid var(--e-border);
+    padding: 40px 32px;
+    background: var(--e-surface);
+  }
+
+  .deep-footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 24px;
+    max-width: 960px;
+    margin-inline: auto;
+  }
+
+  .deep-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--e-text-dim);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .deep-back-link:hover {
+    color: var(--e-accent);
+  }
+
+  .deep-nav {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .deep-nav-link {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 18px;
+    border: 1px solid var(--e-border);
+    border-radius: 8px;
+    text-decoration: none;
+    background: var(--e-cinema-bg);
+    transition: border-color 0.15s ease, background 0.15s ease;
+    min-width: 160px;
+    max-width: 240px;
+  }
+
+  .deep-nav-link:hover {
+    border-color: var(--e-accent);
+    background: var(--e-accent-glow);
+  }
+
+  .deep-nav-prev {
+    text-align: left;
+  }
+
+  .deep-nav-next {
+    text-align: right;
+  }
+
+  .deep-nav-dir {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--e-accent);
+    opacity: 0.8;
+  }
+
+  .deep-nav-title {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--e-text-secondary);
+    line-height: 1.3;
+  }
+
+  /* ── Responsive ─────────────────────────── */
+
+  @media (max-width: 600px) {
+    .breadcrumb {
+      padding: 16px 20px;
+    }
+
+    .deep-hero {
+      padding: 56px 20px 48px;
+    }
+
+    .deep-section {
+      padding: 48px 20px;
+    }
+
+    .deep-footer {
+      padding: 32px 20px;
+    }
+
+    .deep-footer-inner {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .deep-nav {
+      width: 100%;
+    }
+
+    .deep-nav-link {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .breadcrumb-page {
+      max-width: 140px;
+    }
+  }
+</style>

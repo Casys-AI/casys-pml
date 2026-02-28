@@ -1,0 +1,209 @@
+---
+import DeepDiveLayout from '../../../features/engine/deep/DeepDiveLayout.astro';
+---
+
+<DeepDiveLayout
+  title="Data Quality Odyssey"
+  subtitle="The data is the real problem. Better data beats better models."
+  notebooks="NB-05, NB-09, NB-19, NB-20"
+  nextSlug="node-hierarchy"
+  nextTitle="Nodes All The Way Down"
+>
+
+  <section class="deep-section">
+    <h2>The Data Is the Model</h2>
+    <p>
+      Before SHGAT, before GRU, before any architecture decision — there is the data.
+      Four notebooks document how execution traces go from raw, corrupted, mixed-format
+      records to a clean training set. Each notebook surfaced a different class of problem.
+    </p>
+  </section>
+
+  <div class="nb-timeline reveal-on-scroll">
+    <div class="nb-entry">
+      <span class="nb-chip">NB-05</span>
+      <div class="nb-body">
+        <span class="nb-title">Benchmark Analysis</span>
+        <p class="nb-desc">
+          First systematic look at Hit@1 scores. Result: 38.2% — disappointing.
+          The question shifts from "how do we train better" to "what is the training data hiding."
+          Each data fix is measured independently: FQDN unification, n8n filter, canonicalization.
+          Every step compounds.
+        </p>
+      </div>
+    </div>
+    <div class="nb-entry">
+      <span class="nb-chip">NB-09</span>
+      <div class="nb-body">
+        <span class="nb-title">BPE Tokenization Experiments</span>
+        <p class="nb-desc">
+          Attempted byte-pair encoding on leaf node names to handle vocabulary explosion.
+          Result: BPE hurts more than it helps at this scale — semantic signal in full
+          leaf node names outweighs the compression benefit.
+        </p>
+      </div>
+    </div>
+    <div class="nb-entry">
+      <span class="nb-chip">NB-19</span>
+      <div class="nb-body">
+        <span class="nb-title">N8N / PML Signal Separation</span>
+        <p class="nb-desc">
+          N8n workflow data was added to augment the training set. This notebook reveals
+          the problem: n8n data is 60% Smithery noise, and PML-only traces represent
+          just 40% of the pool. Mixing the two drowns the production signal.
+          Adding <code>SKIP_N8N=true</code> recovers 3–4 Hit@1 points.
+        </p>
+      </div>
+    </div>
+    <div class="nb-entry">
+      <span class="nb-chip">NB-20</span>
+      <div class="nb-body">
+        <span class="nb-title">P2 Cleanup Impact Analysis</span>
+        <p class="nb-desc">
+          Systematic audit of the data pipeline. UUID corruption (18.4% of traces),
+          FQDN format inconsistencies (6.1%), mixed short/long leaf node name formats.
+          Fixing the source — reading from <code>task_results</code> instead of
+          <code>executed_path</code> — eliminated the corruption without losing traces.
+          Canonicalization collapses 1,240 phantom duplicates: 2,160 phantom leaf nodes → 920 clean.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <figure class="cinema reveal-on-scroll">
+    <img src="/images/engine/deep/data-quality/05-benchmark-baseline.png"
+         alt="Bar chart showing cumulative Hit@1 improvement from 32.1% to 40.8% across 4 data fixes" loading="lazy" />
+    <figcaption><strong>NB-05 ·</strong> Each data fix measured in isolation. Raw embed = 32.1%. FQDN fix +3.3 pp, n8n filter +2.8 pp, canonicalization +2.6 pp. The baseline is not the model — it is the data.</figcaption>
+  </figure>
+
+  <figure class="cinema reveal-on-scroll">
+    <img src="/images/engine/deep/data-quality/09-bpe-capability-analysis.png"
+         alt="BPE tokenization impact on parent node prediction accuracy — 3 panels" loading="lazy" />
+    <figcaption><strong>NB-09 · BPE experiment.</strong> Full leaf node names carry more semantic signal than tokenized fragments at this vocabulary scale. BPE hurts.</figcaption>
+  </figure>
+
+  <figure class="cinema reveal-on-scroll">
+    <img src="/images/engine/deep/data-quality/19-n8n-augmentation-impact.png"
+         alt="N8n augmentation impact on GRU training — Hit@1 with vs without n8n data" loading="lazy" />
+    <figcaption><strong>NB-19 ·</strong> N8n augmentation evaluated end-to-end. PML-only traces score 38.2% Hit@1. Adding n8n drops it: 12K n8n / 4.6K production drowns the signal even with weight=0.3 and 3x oversampling. <code>SKIP_N8N=true</code> is now mandatory.</figcaption>
+  </figure>
+
+  <div class="cinema-grid reveal-on-scroll">
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/data-quality/19-smithery-pml-overlap.png"
+           alt="Smithery vs PML leaf node overlap — 60% of n8n data is Smithery noise" loading="lazy" />
+      <figcaption><strong>NB-19 · Smithery overlap.</strong> Only 2% near-duplicates with PML leaf nodes. N8n vocabulary is alien to the production signal.</figcaption>
+    </figure>
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/data-quality/19-transition-overlap.png"
+           alt="Transition pattern overlap: only 2.9% shared between n8n and PML" loading="lazy" />
+      <figcaption><strong>NB-19 · Transition overlap.</strong> 2.9% shared transitions. N8n and PML execute in different universes.</figcaption>
+    </figure>
+  </div>
+
+  <section class="deep-section">
+    <h2>The Key Insight</h2>
+    <p>
+      The same leaf node can appear as <code>std:psql_query</code>, as
+      <code>pml.mcp.std.psql_query.db48</code>, or as <code>pml.mcp.std.psql_query.3cd9</code>
+      — three different strings for the same operation, varying only by instance hash.
+      Without normalization, these count as three distinct vocabulary entries.
+      The softmax over 2,160 "leaf nodes" includes 1,240 phantom duplicates.
+    </p>
+    <p>
+      <code>normalizeToolId()</code> collapses all three to <code>std:psql_query</code>.
+      Vocabulary drops from 2,160 to 920. Softmax concentrates. Hit@1 goes up.
+    </p>
+  </section>
+
+  <figure class="cinema reveal-on-scroll">
+    <img src="/images/engine/deep/data-quality/20-cleanup-impact.png"
+         alt="Two panels: vocabulary reduction from 2160 to 920 leaf nodes, and Hit@1 progression from 32% to 63.4%" loading="lazy" />
+    <figcaption><strong>NB-20 ·</strong> Left: canonicalization removes 1,240 phantom leaf node duplicates (+25.7 pp softmax concentration). Right: cumulative Hit@1 progression through all data quality fixes — from 32% raw to 63.4% production baseline.</figcaption>
+  </figure>
+
+</DeepDiveLayout>
+
+<style>
+  /* ── Notebook timeline ──────────────────── */
+
+  .nb-timeline {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 32px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .nb-entry {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 24px;
+    padding: 28px 0;
+    border-bottom: 1px solid var(--e-border);
+    align-items: start;
+  }
+
+  .nb-entry:last-child {
+    border-bottom: none;
+  }
+
+  .nb-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--e-accent);
+    background: var(--e-surface);
+    border: 1px solid var(--e-cinema-border);
+    border-radius: 5px;
+    padding: 4px 10px;
+    text-align: center;
+    letter-spacing: 0.06em;
+    align-self: start;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  .nb-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .nb-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--e-text);
+    letter-spacing: -0.01em;
+  }
+
+  .nb-desc {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.8;
+    color: var(--e-text-secondary);
+    margin: 0;
+  }
+
+  .nb-desc code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875em;
+    background: var(--e-surface);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--e-accent);
+  }
+
+  @media (max-width: 520px) {
+    .nb-timeline {
+      padding: 0 20px 40px;
+    }
+
+    .nb-entry {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
+</style>

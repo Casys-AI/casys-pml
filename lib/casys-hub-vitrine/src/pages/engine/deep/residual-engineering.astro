@@ -1,0 +1,390 @@
+---
+import DeepDiveLayout from '../../../features/engine/deep/DeepDiveLayout.astro';
+---
+
+<DeepDiveLayout
+  title="Two Parameters, +22.7pp"
+  subtitle="The residual connection changed everything."
+  notebooks="NB-12, NB-14, NB-15, NB-16"
+  prevSlug="node-hierarchy"
+  prevTitle="Nodes All The Way Down"
+  nextSlug="dead-ends"
+  nextTitle="What Didn't Work"
+>
+
+  <section class="deep-section">
+    <h2>The Problem with Message Passing</h2>
+    <p>
+      Standard graph neural networks replace each node's embedding with a weighted
+      average of its neighbors. For dense graphs this works well — nodes have many
+      neighbors to average over, producing stable representations.
+    </p>
+    <p>
+      For sparse graphs — like a node co-execution graph where the average node
+      degree is 4.7 — aggregation destroys information. A node with two neighbors
+      becomes an average of those two neighbors, losing its own identity entirely.
+    </p>
+  </section>
+
+  <div class="formula-display reveal-on-scroll">
+    <div class="formula-header">
+      <span class="formula-label">Before: standard aggregation</span>
+    </div>
+    <div class="formula-eq formula-bad">
+      E<sub>new</sub>[c] = ELU(Σ α·H')
+    </div>
+    <div class="formula-problem">
+      Leaf nodes lose identity. Hub nodes dominate.
+    </div>
+  </div>
+
+  <div class="formula-display formula-display-accent reveal-on-scroll">
+    <div class="formula-header">
+      <span class="formula-label">After: vertex-to-edge residual</span>
+    </div>
+    <div class="formula-eq formula-good">
+      E<sub>new</sub>[c] = ELU(Σ α·H') + γ(n<sub>c</sub>)·E[c]
+    </div>
+    <div class="formula-where">
+      where γ(n) = σ(a·log(n+1) + b) — two learnable parameters
+    </div>
+    <div class="formula-insight">
+      Sparse nodes keep their identity. Dense nodes blend adaptively.
+    </div>
+  </div>
+
+  <div class="cinema-grid reveal-on-scroll">
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/residual-engineering/residual-sweep.png"
+           alt="Residual sweep: Hit@1 vs fixed weight r — r=0 dominates every node" loading="lazy" />
+      <figcaption><strong>NB-12 · Sweep.</strong> r=0 (pure MP) wins at every single one of 280 nodes tested. No static weight generalizes.</figcaption>
+    </figure>
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/residual-engineering/pca-residual.png"
+           alt="PCA of node embeddings: no residual vs fixed residual vs adaptive gamma" loading="lazy" />
+      <figcaption><strong>NB-12 · PCA.</strong> Adaptive γ produces the clearest L0/L1 node separation in PCA space.</figcaption>
+    </figure>
+  </div>
+
+  <section class="deep-section">
+    <h2>The Four Notebooks</h2>
+    <p>
+      The residual was not invented in one step. Four notebooks trace the path
+      from the initial observation (NB-12) to the final parameterization (NB-16).
+    </p>
+  </section>
+
+  <div class="nb-grid reveal-on-scroll">
+    <div class="nb-card">
+      <span class="nb-id">NB-12</span>
+      <span class="nb-topic">Residual Ablation</span>
+      <p class="nb-text">
+        First experiment: add a skip connection with a fixed weight α.
+        Result: α=0.99 is a no-op, α=0.5 collapses representation quality.
+        No static weight works across the full degree distribution.
+      </p>
+    </div>
+    <div class="nb-card">
+      <span class="nb-id">NB-14</span>
+      <span class="nb-topic">Grid Search on (a, b)</span>
+      <p class="nb-text">
+        The weight must be a function of degree, not a constant.
+        Grid search over initialization values for a and b.
+        Optimal init: a=−1.0, b=0.5 — γ starts near 0.5 and learns from there.
+      </p>
+    </div>
+    <div class="nb-card">
+      <span class="nb-id">NB-15</span>
+      <span class="nb-topic">Training Dynamics</span>
+      <p class="nb-text">
+        Hit@1 at epoch 0: 38.3%. At epoch 10: 59.0% (best checkpoint).
+        Early stop at epoch 12. The residual parameters converge in the first
+        5 epochs, after which the rest of SHGAT fine-tunes around them.
+      </p>
+    </div>
+    <div class="nb-card">
+      <span class="nb-id">NB-16</span>
+      <span class="nb-topic">V→E Phase Separation</span>
+      <p class="nb-text">
+        Final architecture: the residual is applied post-concat-heads in the
+        multi-level orchestrator, at embDim=1024 (not per-head).
+        The V→E code path is separate from the standard forward pass.
+      </p>
+    </div>
+  </div>
+
+  <div class="cinema-grid reveal-on-scroll">
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/residual-engineering/14-shgat-residual-analysis.png"
+           alt="V→E propagation alone: Hit@1 collapses to 3.6%" loading="lazy" />
+      <figcaption><strong>NB-14 · V→E analysis.</strong> Pure V→E alone: 3.6% Hit@1. Learnable γ recovers to 38.7%. Edges encode co-occurrence, not semantics.</figcaption>
+    </figure>
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/residual-engineering/15-shgat-full-loop-ev-impact.png"
+           alt="E→V message passing boosts leaf nodes from 4.9% to 17.4%" loading="lazy" />
+      <figcaption><strong>NB-15 · E→V impact.</strong> Leaf Hit@1: 4.9% → 17.4%. Only 17% of leaves have parent nodes — limited structural coverage.</figcaption>
+    </figure>
+  </div>
+
+  <div class="result-banner reveal-on-scroll">
+    <div class="result-before">
+      <span class="result-value">43.4<span class="result-pct">%</span></span>
+      <span class="result-label">SHGAT without residual · 50 epochs</span>
+    </div>
+    <div class="result-arrow" aria-hidden="true">
+      <svg width="48" height="24" viewBox="0 0 48 24" fill="none">
+        <path d="M0 12h40m0 0l-8-7m8 7l-8 7" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="result-after">
+      <span class="result-value result-value-accent">66.1<span class="result-pct">%</span></span>
+      <span class="result-label">SHGAT with residual · 30 epochs</span>
+    </div>
+    <div class="result-badge">+22.7pp</div>
+  </div>
+
+  <figure class="cinema cinema-glow reveal-on-scroll">
+    <img src="/images/engine/deep/residual-engineering/gamma-adaptive.png"
+         alt="Trained adaptive gamma function γ(n) — gate values across node degrees after training" loading="lazy" />
+    <figcaption><strong>NB-16 · Trained γ(n).</strong> After training: a=−1.45, b=3.72 → γ≈0.99 for all degrees. The model learned to preserve identity almost entirely.</figcaption>
+  </figure>
+
+  <section class="deep-section">
+    <h2>What the Model Learned</h2>
+    <p>
+      After training, the learned γ(n) function was inspected. Nodes with 1–3 children
+      (sparse leaf nodes) retain ~80% of their original embedding. Hub parent nodes
+      with 10+ children blend down to ~40%.
+    </p>
+    <p>
+      The model discovered the right tradeoff without being told. The initialization
+      provided a reasonable starting point; the gradient did the rest. Two parameters.
+      Thirty epochs. Twenty-two points.
+    </p>
+  </section>
+
+  <div class="cinema-grid reveal-on-scroll">
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/residual-engineering/12-per-cap-improvement.png"
+           alt="Per-capability improvement: pure MP vs fixed residual, 280 parent nodes" loading="lazy" />
+      <figcaption><strong>NB-12 · Per-cap improvement.</strong> Pure MP (r=0) improves every node over the fixed-residual baseline. No exceptions.</figcaption>
+    </figure>
+    <figure class="cinema cinema-compact">
+      <img src="/images/engine/deep/residual-engineering/12-per-cap-optimal-r.png"
+           alt="Optimal r distribution across 280 parent nodes — all cluster at r=0" loading="lazy" />
+      <figcaption><strong>NB-12 · Optimal r distribution.</strong> 100% of 280 nodes prefer r=0. The data rejected the fixed-residual hypothesis entirely.</figcaption>
+    </figure>
+  </div>
+
+</DeepDiveLayout>
+
+<style>
+  /* ── Formula display ────────────────────── */
+
+  .formula-display {
+    max-width: 600px;
+    margin: 0 auto 16px;
+    padding: 28px 32px;
+    border: 1px solid var(--e-border);
+    border-radius: 10px;
+    background: var(--e-surface);
+    text-align: center;
+  }
+
+  .formula-display-accent {
+    border-color: var(--e-cinema-border);
+    background: linear-gradient(135deg, var(--e-accent-glow), var(--e-surface));
+  }
+
+  .formula-header {
+    margin-bottom: 16px;
+  }
+
+  .formula-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--e-text-dim);
+  }
+
+  .formula-eq {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(1rem, 2.5vw, 1.2rem);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+
+  .formula-eq sub {
+    font-size: 0.7em;
+  }
+
+  .formula-bad {
+    color: var(--e-text-dim);
+  }
+
+  .formula-good {
+    color: var(--e-text);
+  }
+
+  .formula-problem {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.85rem;
+    color: #dc2626;
+    font-style: italic;
+    opacity: 0.8;
+  }
+
+  .formula-where {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--e-text-secondary);
+    margin-bottom: 10px;
+  }
+
+  .formula-insight {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.85rem;
+    color: #16a34a;
+    font-style: italic;
+  }
+
+  /* ── Notebook grid ──────────────────────── */
+
+  .nb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    max-width: 960px;
+    margin: 0 auto 48px;
+    padding: 0 32px;
+  }
+
+  .nb-card {
+    padding: 20px 22px;
+    border: 1px solid var(--e-border);
+    border-radius: 10px;
+    background: var(--e-surface);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .nb-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--e-accent);
+    opacity: 0.85;
+  }
+
+  .nb-topic {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--e-text);
+    letter-spacing: -0.01em;
+  }
+
+  .nb-text {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.75;
+    color: var(--e-text-secondary);
+    margin: 0;
+  }
+
+  /* ── Result banner ──────────────────────── */
+
+  .result-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    max-width: 680px;
+    margin: 16px auto 48px;
+    padding: 40px 32px;
+    background:
+      linear-gradient(135deg, var(--e-accent-glow) 0%, transparent 50%),
+      var(--e-surface);
+    border: 1px solid var(--e-border);
+    border-radius: 12px;
+  }
+
+  .result-before,
+  .result-after {
+    text-align: center;
+  }
+
+  .result-value {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(2.2rem, 5vw, 3rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--e-text-dim);
+  }
+
+  .result-value-accent {
+    color: var(--e-accent);
+  }
+
+  .result-pct {
+    font-size: 0.6em;
+    font-weight: 500;
+    opacity: 0.7;
+  }
+
+  .result-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--e-text-dim);
+    margin-top: 8px;
+    max-width: 140px;
+  }
+
+  .result-arrow {
+    color: var(--e-accent);
+    opacity: 0.5;
+    flex-shrink: 0;
+  }
+
+  .result-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #16a34a;
+    background: rgba(22, 163, 74, 0.08);
+    border: 1px solid rgba(22, 163, 74, 0.2);
+    padding: 6px 14px;
+    border-radius: 999px;
+    align-self: center;
+  }
+
+  @media (max-width: 600px) {
+    .formula-display {
+      padding: 20px;
+      margin-inline: 20px;
+    }
+
+    .nb-grid {
+      padding-inline: 20px;
+      grid-template-columns: 1fr;
+    }
+
+    .result-banner {
+      padding: 28px 20px;
+      margin-inline: 20px;
+    }
+  }
+</style>
