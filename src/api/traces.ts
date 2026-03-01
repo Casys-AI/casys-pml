@@ -148,7 +148,7 @@ async function mapIncomingToSaveInput(
     // Use resolved UUID, or undefined for standalone traces
     capabilityId: resolvedCapabilityId ?? undefined,
     success: incoming.success,
-    errorMessage: incoming.error,
+    errorMessage: incoming.errorMessage ?? incoming.error,
     durationMs: incoming.durationMs,
     taskResults,
     decisions,

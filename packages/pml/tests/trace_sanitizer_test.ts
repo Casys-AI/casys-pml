@@ -213,7 +213,7 @@ Deno.test("sanitizeTrace: sanitizes entire trace", () => {
     traceId: "test-trace-id",
     capabilityId: "test:capability",
     success: true,
-    error: "Token sk-test1234567890test1234567890 expired",
+    errorMessage: "Token sk-test1234567890test1234567890 expired",
     durationMs: 500,
     taskResults: [
       {
@@ -233,8 +233,8 @@ Deno.test("sanitizeTrace: sanitizes entire trace", () => {
   const result = sanitizeTrace(trace);
 
   // Error should be sanitized
-  assertStringIncludes(result.error!, "[REDACTED]");
-  assertEquals(result.error!.includes("sk-test"), false);
+  assertStringIncludes(result.errorMessage!, "[REDACTED]");
+  assertEquals(result.errorMessage!.includes("sk-test"), false);
 
   // Task result args should be sanitized
   assertEquals(result.taskResults[0].args.api_key, "[REDACTED]");

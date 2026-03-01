@@ -434,15 +434,8 @@ export interface ExecutionContext {
 // Approval Flow Types (Story 14.3b, Story 14.6)
 // ============================================================================
 
-/**
- * Approval type discriminant for different HIL flows.
- *
- * - "tool_permission": Tool needs user approval to execute (unified permission model)
- * - "dependency": MCP dependency needs user approval to install (deprecated, use tool_permission)
- * - "api_key_required": API key missing, user needs to configure .env
- * - "integrity": Integrity hash changed, user needs to approve update (Story 14.7)
- */
-export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity" | "oauth_connect";
+// ApprovalType — re-exported from shared types
+export type { ApprovalType } from "@casys/pml-types";
 
 /**
  * Result when a tool requires user permission to execute.

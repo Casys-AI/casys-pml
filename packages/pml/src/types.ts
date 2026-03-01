@@ -223,29 +223,9 @@ export interface PermissionLoadResult {
  */
 export type ApprovalMode = "hil" | "auto";
 
-/**
- * Tool routing destination.
- *
- * Platform-defined (not user-configurable):
- * - "client": Execute on user's machine (filesystem, shell, docker, etc.)
- * - "server": Forward to pml.casys.ai (stateless computation, external APIs)
- */
-export type ToolRouting = "client" | "server";
-
-/**
- * Routing configuration from cloud.
- * Cached locally for fast lookup, synced at startup.
- */
-export interface RoutingConfig {
-  /** Config version for change detection */
-  version: string;
-  /** Client-side tool namespaces (run on user's machine) */
-  clientTools: string[];
-  /** Server-side tool namespaces (run on pml.casys.ai) */
-  serverTools: string[];
-  /** Default routing for unknown tools */
-  defaultRouting: ToolRouting;
-}
+// ToolRouting & RoutingConfig — re-exported from shared types
+export type { RoutingConfig, ToolRouting } from "@casys/pml-types";
+import type { RoutingConfig } from "@casys/pml-types";
 
 /**
  * Cached routing with metadata.

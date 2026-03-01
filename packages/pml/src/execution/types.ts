@@ -18,20 +18,11 @@ import type { SandboxError } from "../sandbox/mod.ts";
 import type { CollectedUiResource } from "../types/ui-orchestration.ts";
 
 /**
- * Record of a single tool call during execution.
+ * @deprecated Use TraceTaskResult from @casys/pml-types instead.
+ * Kept as alias for backward compatibility during migration.
  */
-export interface ToolCallRecord {
-  /** Tool identifier (e.g., "std:echo") */
-  tool: string;
-  /** Arguments passed to the tool */
-  args: unknown;
-  /** Result returned by the tool */
-  result: unknown;
-  /** Whether the call succeeded */
-  success: boolean;
-  /** Call duration in milliseconds */
-  durationMs: number;
-}
+export type { TraceTaskResult as ToolCallRecord } from "@casys/pml-types";
+import type { TraceTaskResult as ToolCallRecord } from "@casys/pml-types";
 
 /**
  * Result from sandbox code execution.
@@ -80,10 +71,8 @@ export interface SandboxExecutorOptions {
   onUiCollected?: (ui: CollectedUiResource, parsedResult: unknown) => void;
 }
 
-/**
- * Routing decision for a tool call.
- */
-export type ToolRouting = "client" | "server";
+// ToolRouting — imported from shared types
+export type { ToolRouting } from "@casys/pml-types";
 
 /**
  * Tool call handler function type.

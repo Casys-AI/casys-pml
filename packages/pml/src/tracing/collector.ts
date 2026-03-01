@@ -176,7 +176,7 @@ export class TraceCollector {
       parentTraceId: this.parentTraceId,
       capabilityId,
       success,
-      error,
+      errorMessage: error,
       durationMs: Date.now() - this.startTime,
       taskResults: this.taskResults,
       decisions: this.decisions,

@@ -197,11 +197,13 @@ export class SandboxExecutor {
     } finally {
       const toolFqdn = ctx.fqdnMap?.get(method) ?? method;
       ctx.toolCallRecords.push({
+        taskId: crypto.randomUUID(),
         tool: toolFqdn,
-        args,
-        result,
+        args: (args ?? {}) as Record<string, import("@casys/pml-types").JsonValue>,
+        result: (result ?? null) as import("@casys/pml-types").JsonValue,
         success,
         durationMs: Date.now() - callStart,
+        timestamp: new Date(callStart).toISOString(),
       });
     }
 

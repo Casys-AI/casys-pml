@@ -10,7 +10,7 @@ export { defaultRegistry, getMetaTools, ToolRegistry } from "./tool-registry.ts"
 
 export {
   createDefaultDiscovery,
-  type DiscoveredTool,
+  type RegisteredMcpTool,
   type DiscoveryOptions,
   MCPServerDiscovery,
 } from "./discovery.ts";

@@ -1521,7 +1521,7 @@ export class CapabilityLoader {
       workflowId, // Server will create capability using stored LearningContext
       // capabilityId omitted - server creates it when workflowId is present
       success,
-      error,
+      errorMessage: error,
       durationMs,
       taskResults: (toolCallRecords ?? []).map((r, i) => {
         // Story 11.4: Look up layerIndex from DAG tasks

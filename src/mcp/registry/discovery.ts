@@ -13,7 +13,7 @@ export { createDefaultDiscovery, MCPServerDiscovery } from "../discovery.ts";
 /**
  * Tool discovery result
  */
-export interface DiscoveredTool {
+export interface RegisteredMcpTool {
   name: string;
   serverId: string;
   description: string;

@@ -21,23 +21,12 @@ import { uuidv7 } from "../utils/uuid.ts";
 // Types
 // =============================================================================
 
-/**
- * Type of approval required.
- */
-export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity" | "oauth_connect";
+// ApprovalType — imported from shared types
+export type { ApprovalType, DAGTask } from "@casys/pml-types";
+import type { ApprovalType, DAGTask } from "@casys/pml-types";
 
-/**
- * DAG task with layerIndex for TraceTimeline visualization.
- * Story 11.4: Stored for HIL continuation flows.
- * Aligned with DAGTask from types.ts.
- */
-export interface PendingDAGTask {
-  id: string;
-  tool: string;
-  arguments?: Record<string, unknown>;
-  dependsOn: string[];
-  layerIndex: number;
-}
+/** @deprecated Use DAGTask from @casys/pml-types directly */
+export type PendingDAGTask = DAGTask;
 
 /**
  * A pending workflow awaiting user approval.

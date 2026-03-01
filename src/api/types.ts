@@ -91,6 +91,9 @@ export interface IncomingTrace {
   workflowId?: string;
   capabilityId: string;
   success: boolean;
+  /** Error message if failed (canonical field name per BaseExecutionTrace) */
+  errorMessage?: string;
+  /** @deprecated Old field name — kept for backward compat with older PML clients */
   error?: string;
   durationMs: number;
   taskResults: IncomingTaskResult[];
@@ -132,13 +135,9 @@ export interface TracesResponse {
 // Tools API Types (from tools.ts)
 // ============================================================================
 
-/** UI metadata from MCP Apps (SEP-1865) */
-export interface ToolUiMeta {
-  resourceUri?: string;
-  visibility?: Array<"model" | "app">;
-  emits?: string[];
-  accepts?: string[];
-}
+// ToolUiMeta — imported from shared types
+export type { ToolUiMeta } from "@casys/pml-types";
+import type { ToolUiMeta } from "@casys/pml-types";
 
 /** Input for a discovered tool from client */
 export interface DiscoveredToolInput {

@@ -74,7 +74,7 @@ Deno.test("TraceCollector: finalizes with success", () => {
 
   assertEquals(trace.capabilityId, "my:capability");
   assertEquals(trace.success, true);
-  assertEquals(trace.error, undefined);
+  assertEquals(trace.errorMessage, undefined);
   assertEquals(trace.taskResults.length, 1);
   assertEquals(trace.taskResults[0].tool, "test:call");
 });
@@ -87,7 +87,7 @@ Deno.test("TraceCollector: finalizes with error", () => {
   const trace = collector.finalize("my:capability", false, "Something went wrong");
 
   assertEquals(trace.success, false);
-  assertEquals(trace.error, "Something went wrong");
+  assertEquals(trace.errorMessage, "Something went wrong");
 });
 
 Deno.test("TraceCollector: calculates duration", async () => {
@@ -209,9 +209,9 @@ Deno.test("TraceCollector: sanitizes error message", () => {
     "Token sk-test1234567890test1234567890 is invalid",
   );
 
-  // Token should be redacted in error
-  assertEquals(trace.error!.includes("[REDACTED]"), true);
-  assertEquals(trace.error!.includes("sk-test"), false);
+  // Token should be redacted in errorMessage
+  assertEquals(trace.errorMessage!.includes("[REDACTED]"), true);
+  assertEquals(trace.errorMessage!.includes("sk-test"), false);
 });
 
 Deno.test("TraceCollector: getSnapshot returns copy", () => {

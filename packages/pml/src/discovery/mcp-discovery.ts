@@ -31,41 +31,17 @@ const ajv07 = new Ajv07Constructor({ strict: false });
 const Ajv2020Constructor = Ajv2020.default || Ajv2020;
 const ajv2020 = new Ajv2020Constructor({ strict: false });
 
-/**
- * UI metadata from MCP Apps (SEP-1865)
- */
-export interface ToolUiMeta {
-  resourceUri?: string;
-  visibility?: Array<"model" | "app">;
-  emits?: string[];
-  accepts?: string[];
-}
+// ToolUiMeta — re-exported from shared types
+export type { ToolUiMeta } from "@casys/pml-types";
 
-/**
- * Tool discovered from an MCP server.
- */
-export interface DiscoveredTool {
-  /** Tool name */
-  name: string;
-  /** Optional description */
-  description?: string;
-  /** JSON Schema for input parameters */
-  inputSchema?: Record<string, unknown>;
-  /** MCP Apps UI metadata (Story 16.6) */
-  uiMeta?: ToolUiMeta;
-}
+export type { McpToolInfo } from "@casys/pml-types";
+import type { McpToolInfo } from "@casys/pml-types";
+/** @deprecated Use McpToolInfo from @casys/pml-types instead */
+export type DiscoveredTool = McpToolInfo;
 
-/**
- * Fetched UI HTML content (Story 16.6)
- */
-export interface FetchedUiHtml {
-  /** Resource URI (e.g., "ui://mcp-std/table-viewer") */
-  resourceUri: string;
-  /** HTML content */
-  content: string;
-  /** MIME type */
-  mimeType: string;
-}
+// FetchedUiHtml — imported from shared types
+export type { FetchedUiHtml } from "@casys/pml-types";
+import type { FetchedUiHtml } from "@casys/pml-types";
 
 /**
  * Result of discovering tools from a single MCP server.

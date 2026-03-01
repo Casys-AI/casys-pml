@@ -45,18 +45,9 @@ export interface ResolvedTool {
   fqdn: string;
 }
 
-/**
- * Task from DAG with layerIndex for TraceTimeline visualization.
- * Story 11.4: Server computes layerIndex, client uses it.
- */
-export interface DAGTask {
-  id: string;
-  tool: string;
-  arguments?: Record<string, unknown>;
-  dependsOn: string[];
-  /** Parallel execution layer (0 = no dependencies) */
-  layerIndex: number;
-}
+// DAGTask — re-exported from shared types
+export type { DAGTask } from "@casys/pml-types";
+import type { DAGTask } from "@casys/pml-types";
 
 /**
  * DAG structure included in execute_locally response.

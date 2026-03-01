@@ -56,14 +56,8 @@ export interface CollectedUiResource {
   slot: number;
 }
 
-/**
- * UI metadata stored in tool_schema.ui_meta
- */
-interface ToolUiMeta {
-  resourceUri?: string;
-  emits?: string[];
-  accepts?: string[];
-}
+// ToolUiMeta — imported from shared types
+import type { ToolUiMeta } from "@casys/pml-types";
 
 /**
  * Options for UI collection

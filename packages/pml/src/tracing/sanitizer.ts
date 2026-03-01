@@ -220,7 +220,7 @@ export function sanitizeTaskResult(result: TraceTaskResult): TraceTaskResult {
 export function sanitizeTrace(trace: LocalExecutionTrace): LocalExecutionTrace {
   return {
     ...trace,
-    error: trace.error ? sanitizeStringValue(trace.error) : undefined,
+    errorMessage: trace.errorMessage ? sanitizeStringValue(trace.errorMessage) : undefined,
     taskResults: trace.taskResults.map(sanitizeTaskResult),
   };
 }
