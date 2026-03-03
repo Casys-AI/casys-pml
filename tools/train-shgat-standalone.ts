@@ -7,7 +7,15 @@
 import "@std/dotenv/load";
 import { parseArgs } from "@std/cli/parse-args";
 import { NUM_NEGATIVES } from "../src/graphrag/algorithms/shgat/types.ts";
-import { normalizeToolId } from "../src/capabilities/routing-resolver.ts";
+import {
+  normalizeToolId,
+  buildRenameChain,
+  buildToolNameResolver,
+  canonicalizeCaps,
+  dedupTracesByIntent,
+  capExamplesPerTarget,
+} from "../lib/gru/src/data-prep/index.ts";
+import type { CapData } from "../lib/gru/src/data-prep/index.ts";
 import postgres from "postgres";
 
 // ============================================================================
@@ -205,6 +213,7 @@ ${c.bold("Examples:")}
 
 const EPOCHS = Number(args.epochs);
 const BATCH_SIZE = Number(args["batch-size"]);
+const QUIET = args.quiet as boolean || Deno.env.get("NO_TUI") === "true";
 const DATABASE_URL = Deno.env.get("DATABASE_URL");
 
 if (!DATABASE_URL) {
@@ -243,24 +252,130 @@ try {
   // =========================================================================
   loadingStatus.phase = "caps";
 
+  // Source of truth: task_results from execution_trace (real execution data)
+  // instead of dag_structure->'tools_used' (static snapshot)
+  // Note: we load ALL caps (not just those with traces) because capability_dependency
+  // edges may reference caps without traces. tools_used will be empty for those.
   const caps = await sql`
     SELECT pattern_id as id, intent_embedding as embedding,
-           dag_structure->'tools_used' as tools_used, success_rate
-    FROM workflow_pattern
+           ARRAY(
+             SELECT DISTINCT tr->>'tool'
+             FROM execution_trace et,
+                  jsonb_array_elements(et.task_results) tr
+             WHERE et.capability_id = wp.pattern_id
+               AND et.task_results IS NOT NULL
+               AND jsonb_typeof(et.task_results) = 'array'
+               AND jsonb_array_length(et.task_results) >= 1
+           ) as tools_used,
+           success_rate,
+           COALESCE(wp.usage_count, 0) as usage_count
+    FROM workflow_pattern wp
     WHERE code_snippet IS NOT NULL AND intent_embedding IS NOT NULL
   `;
 
+  // --- Resolve chain: exec_hash → rename → canonical ---
+  const renameRows = await sql`SELECT old_name, new_name, old_fqdn FROM capability_name_history ORDER BY renamed_at ASC`;
+  // deno-lint-ignore no-explicit-any
+  const renameMap = buildRenameChain(renameRows as any as Array<{ old_name: string; new_name: string; old_fqdn?: string | null }>);
+  console.error(`  Rename chain: ${renameRows.length} rows → ${renameMap.size} mappings`);
+
+  const hashRows = await sql`
+    SELECT wp.code_hash, cr.namespace || ':' || cr.action as cap_name
+    FROM workflow_pattern wp
+    JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+    WHERE wp.code_hash IS NOT NULL
+  `;
+  const execHashToCapName = new Map<string, string>();
+  for (const r of hashRows) execHashToCapName.set((r.code_hash as string).slice(0, 8), r.cap_name as string);
+  console.error(`  Exec hash map: ${execHashToCapName.size} entries`);
+
+  // No canonicalMap here — SHGAT resolves tool names, not cap names via this resolver.
+  // Canonicalization is handled separately below via canonicalizeCaps().
+  const resolveToolName = buildToolNameResolver(execHashToCapName, renameMap, new Map());
+
+  // Load hierarchy edges (parent → child cap relationships)
+  // SKIP_HIERARCHY=true → flat training (no parent-child edges), for A/B ablation
+  const SKIP_HIERARCHY = Deno.env.get("SKIP_HIERARCHY") === "true";
+  const depRows = SKIP_HIERARCHY ? [] : await sql`
+    SELECT from_capability_id, to_capability_id
+    FROM capability_dependency
+    WHERE edge_type = 'contains'
+  `;
+  if (SKIP_HIERARCHY) {
+    console.error(`  SKIP_HIERARCHY=true → 0 hierarchy edges (flat mode)`);
+  }
+
+  const childrenMap = new Map<string, string[]>();
+  const parentsMap = new Map<string, string[]>();
+  for (const row of depRows) {
+    const parentId = row.from_capability_id;
+    const childId = row.to_capability_id;
+    if (!childrenMap.has(parentId)) childrenMap.set(parentId, []);
+    childrenMap.get(parentId)!.push(childId);
+    if (!parentsMap.has(childId)) parentsMap.set(childId, []);
+    parentsMap.get(childId)!.push(parentId);
+  }
+
+  if (depRows.length > 0) {
+    console.error(`  Loaded ${depRows.length} hierarchy edges (${childrenMap.size} parents, ${parentsMap.size} children)`);
+  }
+
   const capabilities = caps
     // deno-lint-ignore no-explicit-any
-    .map((c: any) => ({
-      id: c.id,
-      embedding: parseVector(c.embedding),
-      toolsUsed: (c.tools_used ?? []).map(normalizeToolId).filter(Boolean),
-      successRate: c.success_rate ?? 0.5,
-    }))
-    .filter((c: { embedding: number[] | null }) => c.embedding && c.embedding.length > 0);
+    .map((c: any) => {
+      const toolsUsed = (c.tools_used ?? [])
+        .map(normalizeToolId)
+        .filter(Boolean)
+        .map(resolveToolName) as string[];
+      return {
+        id: c.id,
+        embedding: parseVector(c.embedding),
+        toolsUsed,
+        successRate: c.success_rate ?? 0.5,
+        usageCount: c.usage_count ?? 0,
+        children: childrenMap.get(c.id),
+        parents: parentsMap.get(c.id),
+      };
+    })
+    .filter((c: { embedding: number[] | null }) => {
+      if (!c.embedding || c.embedding.length === 0) return false;
+      return true;
+    });
 
-  loadingStatus.caps = capabilities.length;
+  // --- Canonicalization: merge caps with identical toolsets ---
+  const capDataForCanon: CapData[] = capabilities.map((c) => ({
+    id: c.id,
+    embedding: c.embedding!,
+    toolChildren: c.toolsUsed,
+    level: 1, // all SHGAT caps are L1 (workflow patterns with tools)
+    usageCount: c.usageCount as number,
+  }));
+
+  const { canonicalMap, groupCount, remapped } = canonicalizeCaps(capDataForCanon);
+  const canonicalIds = new Set(capDataForCanon.map((c) => c.id));
+  const preCanonCount = capabilities.length;
+  const capabilities2 = capabilities.filter((c) => canonicalIds.has(c.id));
+
+  // Remap hierarchy edges through canonical map (non-canonical caps were removed)
+  for (const cap of capabilities2) {
+    if (cap.children) {
+      cap.children = cap.children
+        .map((id: string) => canonicalMap.get(id) ?? id)
+        .filter((id: string) => canonicalIds.has(id));
+    }
+    if (cap.parents) {
+      cap.parents = cap.parents
+        .map((id: string) => canonicalMap.get(id) ?? id)
+        .filter((id: string) => canonicalIds.has(id));
+    }
+  }
+  console.error(`  Canonicalized: ${preCanonCount} → ${capabilities2.length} caps (${groupCount} groups, ${remapped} remapped)`);
+
+  // Replace capabilities array
+  // deno-lint-ignore no-explicit-any
+  const capabilitiesFinal = capabilities2 as any[];
+
+  loadingStatus.caps = capabilitiesFinal.length;
   loadingStatus.phase = "traces";
 
   const traces = await sql`
@@ -282,14 +397,47 @@ try {
 
   const capToTools = new Map<string, Set<string>>();
   const allEmbeddings = new Map<string, number[]>();
-  for (const cap of capabilities) {
-    allEmbeddings.set(cap.id, cap.embedding);
+  // Remap trace capability_ids through canonical map
+  for (const trace of traces) {
+    const remappedId = canonicalMap.get(trace.capability_id);
+    if (remappedId) trace.capability_id = remappedId;
+  }
+
+  // Intent dedup: same cap + same intent embedding = duplicate
+  // deno-lint-ignore no-explicit-any
+  const { deduped: dedupedTraces, removedCount: dedupRemoved } = dedupTracesByIntent<any>(
+    [...traces],
+    (t) => t.capability_id,
+    (t) => parseVector(t.intent_embedding) ?? [],
+  );
+  console.error(`  Dedup: ${traces.length} → ${dedupedTraces.length} (-${dedupRemoved})`);
+
+  // Frequency cap: limit traces per cap to avoid dominant caps drowning the loss
+  const MAX_PER_CAP = parseInt(Deno.env.get("MAX_PER_CAP") ?? "50", 10);
+  // Wrap traces to match CappableExample interface (targetToolId + intentEmbedding)
+  // deno-lint-ignore no-explicit-any
+  const wrappedForCap = dedupedTraces.map((t: any) => ({
+    ...t,
+    targetToolId: t.capability_id,
+    intentEmbedding: parseVector(t.intent_embedding) ?? [],
+  }));
+  const { capped: cappedTraces, stats: capStats } = capExamplesPerTarget(wrappedForCap, MAX_PER_CAP);
+  console.error(`  FreqCap(${MAX_PER_CAP}): ${capStats.before} → ${capStats.after} (-${capStats.dropped}, ${capStats.cappedTargets} targets capped)`);
+  for (const d of capStats.topDropped) {
+    console.error(`    ${d.target.slice(0, 8)}: ${d.had} → ${d.kept}`);
+  }
+
+  // Use capped traces for example generation
+  const finalTraces = cappedTraces;
+
+  for (const cap of capabilitiesFinal) {
+    allEmbeddings.set(cap.id, cap.embedding!);
     capToTools.set(cap.id, new Set(cap.toolsUsed));
   }
 
   // deno-lint-ignore no-explicit-any
   const examples: any[] = [];
-  for (const trace of traces) {
+  for (const trace of finalTraces) {
     if (!capToTools.has(trace.capability_id)) continue;
     const intentEmb = parseVector(trace.intent_embedding);
     if (!intentEmb) continue;
@@ -300,7 +448,8 @@ try {
       .map((t: { tool?: string }) => t.tool)
       .filter((t: string | undefined): t is string => !!t)
       .map(normalizeToolId)
-      .filter(Boolean) as string[];
+      .filter(Boolean)
+      .map(resolveToolName) as string[];
 
     const anchorTools = capToTools.get(trace.capability_id)!;
     const candidates: Array<{id: string; sim: number}> = [];
@@ -339,7 +488,7 @@ try {
 
   // Load real tool embeddings for ALL tools (cap + example)
   const allToolIds = new Set<string>();
-  for (const cap of capabilities) cap.toolsUsed.forEach((t: string) => allToolIds.add(t));
+  for (const cap of capabilitiesFinal) cap.toolsUsed.forEach((t: string) => allToolIds.add(t));
   // deno-lint-ignore no-explicit-any
   for (const ex of examples) for (const t of (ex as any).contextTools) allToolIds.add(t);
 
@@ -370,8 +519,21 @@ try {
   // Custom training with log parsing for dashboard
   const workerPath = new URL("../src/graphrag/algorithms/shgat/train-worker.ts", import.meta.url).pathname;
 
+  const SHARE_LEVEL_WEIGHTS = Deno.env.get("SHARE_LEVEL_WEIGHTS") === "true";
+  if (SHARE_LEVEL_WEIGHTS) {
+    console.error(`  ${c.brightYellow("SHARE_LEVEL_WEIGHTS=true")} → levels 1+ reuse level 0 weights (HSG-style)`);
+  }
+
+  const EARLY_STOP_PATIENCE = parseInt(Deno.env.get("PATIENCE") ?? "8", 10);
+  const EARLY_STOP_THRESHOLD = parseFloat(Deno.env.get("DEGRADATION_THRESHOLD") ?? "0.25");
+  const VE_RESIDUAL_LR = Deno.env.get("VE_RESIDUAL_LR") ? parseFloat(Deno.env.get("VE_RESIDUAL_LR")!) : undefined;
+  console.error(`  Early stop: patience=${EARLY_STOP_PATIENCE}, threshold=${(EARLY_STOP_THRESHOLD * 100).toFixed(0)}%`);
+  if (VE_RESIDUAL_LR !== undefined) {
+    console.error(`  ${c.brightYellow(`VE_RESIDUAL_LR=${VE_RESIDUAL_LR}`)} (main LR=0.05)`);
+  }
+
   const inputData = {
-    capabilities,
+    capabilities: capabilitiesFinal,
     examples,
     config: {
       epochs: EPOCHS,
@@ -380,6 +542,10 @@ try {
       useCurriculum: true,
       learningRate: 0.05,
       useProjectionHead: Deno.env.get("SHGAT_USE_PROJECTION_HEAD") === "true",
+      shareLevelWeights: SHARE_LEVEL_WEIGHTS,
+      earlyStopPatience: EARLY_STOP_PATIENCE,
+      earlyStopThreshold: EARLY_STOP_THRESHOLD,
+      ...(VE_RESIDUAL_LR !== undefined ? { veResidualLR: VE_RESIDUAL_LR } : {}),
     },
     databaseUrl: DATABASE_URL,
     toolEmbeddings,
@@ -439,6 +605,9 @@ try {
         epochLosses.push(parseFloat(epochMatch[2]));
         epochAccuracies.push(parseFloat(epochMatch[3]));
         epochTemperatures.push(parseFloat(epochMatch[4]));
+        if (QUIET) {
+          console.error(`  ep${parsedEpoch}/${EPOCHS} loss=${parseFloat(epochMatch[2]).toFixed(4)} train=${(parseFloat(epochMatch[3])*100).toFixed(1)}% τ=${epochMatch[4]}`);
+        }
       }
     }
 
@@ -455,12 +624,18 @@ try {
     if (baselineMatch) {
       baselineTestAcc = parseFloat(baselineMatch[1]);
       testAccuracies.push(baselineTestAcc);
+      if (QUIET) {
+        console.error(`  baseline test: ${(baselineTestAcc*100).toFixed(1)}%`);
+      }
     }
 
     // Health check epoch X: hit1=25.1%, mrr=0.419, contrastive=0.84, best_hit1=25.1% (ep1)
-    const testAccMatch = line.match(/Health check epoch \d+: hit1=([\d.]+)%/);
+    const testAccMatch = line.match(/Health check epoch (\d+): hit1=([\d.]+)%(.*)/);
     if (testAccMatch) {
-      testAccuracies.push(parseFloat(testAccMatch[1]) / 100);
+      testAccuracies.push(parseFloat(testAccMatch[2]) / 100);
+      if (QUIET) {
+        console.error(`  test ep${testAccMatch[1]}: hit1=${testAccMatch[2]}%${testAccMatch[3]}`);
+      }
     }
 
     // Debug: print any line with DB, error, fail, save, export
@@ -472,7 +647,7 @@ try {
   // =========================================================================
   // Dashboard Renderer
   // =========================================================================
-  const embeddingDim = capabilities[0]?.embedding?.length ?? 1024;
+  const embeddingDim = capabilitiesFinal[0]?.embedding?.length ?? 1024;
 
   // deno-lint-ignore no-inner-declarations
   function renderDashboard() {
@@ -600,46 +775,52 @@ try {
         if (done) break;
         const text = decoder.decode(value);
         for (const line of text.split("\n")) {
-          if (line.trim()) parseWorkerLog(line);
+          if (line.trim()) { parseWorkerLog(line); console.error("[WORKER] " + line); }
         }
       }
     } catch { /* ignore */ }
   })();
 
-  // Clear screen and start dashboard
-  term.clear();
-  term.hideCursor();
   let lastDashboardLines = 0;
+  let dashboardInterval: ReturnType<typeof setInterval> | null = null;
 
-  const dashboardInterval = setInterval(() => {
-    // Move cursor up to overwrite previous dashboard
-    if (lastDashboardLines > 0) {
-      Deno.stdout.writeSync(new TextEncoder().encode(`\x1b[${lastDashboardLines}A`));
-    }
+  if (!QUIET) {
+    // Clear screen and start dashboard
+    term.clear();
+    term.hideCursor();
 
-    const dashboardLines = renderDashboard();
-    lastDashboardLines = dashboardLines.length;
+    dashboardInterval = setInterval(() => {
+      // Move cursor up to overwrite previous dashboard
+      if (lastDashboardLines > 0) {
+        Deno.stdout.writeSync(new TextEncoder().encode(`\x1b[${lastDashboardLines}A`));
+      }
 
-    // Clear and print each line
-    for (const line of dashboardLines) {
-      Deno.stdout.writeSync(new TextEncoder().encode(`\x1b[2K${line}\n`));
-    }
-  }, 250);
+      const dashboardLines = renderDashboard();
+      lastDashboardLines = dashboardLines.length;
+
+      // Clear and print each line
+      for (const line of dashboardLines) {
+        Deno.stdout.writeSync(new TextEncoder().encode(`\x1b[2K${line}\n`));
+      }
+    }, 250);
+  }
 
   await Promise.all([stdoutPromise, stderrPromise]);
-  clearInterval(dashboardInterval);
-  term.showCursor();
+  if (dashboardInterval) clearInterval(dashboardInterval);
+  if (!QUIET) term.showCursor();
 
   const status = await process.status;
   const elapsed = Date.now() - startTime;
 
-  // Final dashboard render
-  if (lastDashboardLines > 0) {
-    Deno.stdout.writeSync(new TextEncoder().encode(`\x1b[${lastDashboardLines}A`));
-  }
-  const finalDashboard = renderDashboard();
-  for (const line of finalDashboard) {
-    Deno.stdout.writeSync(new TextEncoder().encode(`\x1b[2K${line}\n`));
+  if (!QUIET) {
+    // Final dashboard render
+    if (lastDashboardLines > 0) {
+      Deno.stdout.writeSync(new TextEncoder().encode(`\x1b[${lastDashboardLines}A`));
+    }
+    const finalDashboard = renderDashboard();
+    for (const line of finalDashboard) {
+      Deno.stdout.writeSync(new TextEncoder().encode(`\x1b[2K${line}\n`));
+    }
   }
   console.log();
 
@@ -647,7 +828,16 @@ try {
   let result: { success: boolean; finalLoss?: number; finalAccuracy?: number; savedToDb?: boolean; error?: string };
 
   if (!status.success) {
-    result = { success: false, error: `Exit code: ${status.code}` };
+    // Still try to parse stdout for the actual error message
+    const failBytes = new Uint8Array(stdoutChunks.reduce((acc, c) => acc + c.length, 0));
+    let failOffset = 0;
+    for (const chunk of stdoutChunks) { failBytes.set(chunk, failOffset); failOffset += chunk.length; }
+    try {
+      result = JSON.parse(decoder.decode(failBytes).trim());
+      console.error(`[WORKER ERROR] ${result.error}`);
+    } catch {
+      result = { success: false, error: `Exit code: ${status.code}` };
+    }
   } else {
     const stdoutBytes = new Uint8Array(stdoutChunks.reduce((acc, c) => acc + c.length, 0));
     let offset = 0;
@@ -814,15 +1004,30 @@ try {
   try {
     const { createSHGATFromCapabilities } = await import("../src/graphrag/algorithms/shgat.ts");
     const toolEmbMap = new Map(Object.entries(toolEmbeddings));
-    const capsWithEmb = capabilities.filter((cap): cap is typeof cap & { embedding: number[] } => cap.embedding !== null);
+    const capsWithEmb = capabilitiesFinal.filter((cap): cap is typeof cap & { embedding: number[] } => cap.embedding !== null);
     const shgat = createSHGATFromCapabilities(capsWithEmb, toolEmbMap);
 
     // Load freshly trained params from DB
-    const paramsRows = await sql`SELECT params FROM shgat_params ORDER BY created_at DESC LIMIT 1`;
+    const paramsRows = await sql`SELECT params FROM shgat_params ORDER BY updated_at DESC LIMIT 1`;
     if (paramsRows.length > 0) {
       const raw = typeof paramsRows[0].params === "string"
         ? JSON.parse(paramsRows[0].params) : paramsRows[0].params;
-      shgat.importParams(raw.data ?? raw);
+
+      // Decode msgpack+gzip+base64 if needed (raw.data is a base64 string, not a decoded object)
+      let decodedParams: Record<string, unknown>;
+      if (raw.format === "msgpack+gzip+base64" && typeof raw.data === "string") {
+        const { decode: msgpackDecode } = await import("npm:@msgpack/msgpack@3.0.0-beta2");
+        const pako = (await import("pako")).default;
+        const binaryStr = atob(raw.data);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+        const decompressed = pako.ungzip(bytes);
+        decodedParams = msgpackDecode(decompressed) as Record<string, unknown>;
+        console.log(`  Decoded params: ${Object.keys(decodedParams).length} keys, veResidualA=${(decodedParams as Record<string, unknown>).veResidualA}`);
+      } else {
+        decodedParams = raw.data ?? raw;
+      }
+      shgat.importParams(decodedParams);
 
       const capEmbs = shgat.getCapEmbeddings();
       let persisted = 0;
@@ -834,7 +1039,22 @@ try {
         ));
         persisted += batch.length;
       }
-      console.log(`  ${c.green(sym.check)} Persisted ${persisted}/${capabilities.length} cap embeddings to workflow_pattern.shgat_embedding`);
+      console.log(`  ${c.green(sym.check)} Persisted ${persisted}/${capabilitiesFinal.length} cap embeddings to workflow_pattern.shgat_embedding`);
+
+      // Also persist enriched TOOL embeddings (L0 after MP with trained weights)
+      const toolEmbs = shgat.getToolEmbeddings();
+      if (toolEmbs.size > 0) {
+        let toolPersisted = 0;
+        const toolEntries = [...toolEmbs.entries()];
+        for (let i = 0; i < toolEntries.length; i += 50) {
+          const batch = toolEntries.slice(i, i + 50);
+          await Promise.all(batch.map(([toolId, emb]) =>
+            sql`UPDATE tool_embedding SET shgat_embedding = ${`[${emb.join(",")}]`}::vector WHERE tool_id = ${toolId}`
+          ));
+          toolPersisted += batch.length;
+        }
+        console.log(`  ${c.green(sym.check)} Persisted ${toolPersisted}/${toolEmbs.size} tool embeddings to tool_embedding.shgat_embedding`);
+      }
     } else {
       console.log(`  ${c.yellow(sym.warning)} No SHGAT params found in DB — skipping cap embedding persistence`);
     }
