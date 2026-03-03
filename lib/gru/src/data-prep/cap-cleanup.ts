@@ -2,7 +2,7 @@
  * Data-prep: capability cleanup functions.
  *
  * Pure functions — no DB, no runtime-specific imports.
- * Handles exec_hash resolution, canonicalization, and L2+ hierarchy walk.
+ * Handles exec_hash resolution and canonicalization.
  *
  * @module gru/data-prep/cap-cleanup
  */
@@ -62,14 +62,15 @@ export function canonicalizeCaps(
 ): { canonicalMap: Map<string, string>; groupCount: number; remapped: number } {
   const canonicalMap = new Map<string, string>();
 
-  // Group caps by sorted toolset signature
+  // Group caps by level + sorted toolset signature
+  // Level in key prevents cross-level merges (L2 wrapping L1 ≠ L1 using L0 directly)
   const toolsetGroups = new Map<
     string,
     Array<{ id: string; usageCount: number; idx: number }>
   >();
   for (let i = 0; i < caps.length; i++) {
     const cap = caps[i];
-    const sig = [...cap.toolChildren].sort().join(",");
+    const sig = `L${cap.level}::` + [...cap.toolChildren].sort().join(",");
     if (!toolsetGroups.has(sig)) toolsetGroups.set(sig, []);
     toolsetGroups.get(sig)!.push({
       id: cap.id,
@@ -115,51 +116,57 @@ export function canonicalizeCaps(
 }
 
 /**
- * Walk L2+ caps down to L0 tools via BFS on their toolChildren.
+ * Flatten all cap children to L0 tools via recursive BFS.
  *
- * L2 caps have children = cap names (L1), not tool IDs. Without resolution,
- * they get silently skipped when filtering by toolVocab.
- * Fix: walk down the hierarchy until we reach tools in toolVocab.
+ * Handles arbitrary hierarchy depth: L2→L1→L0, L5→L4→...→L0, etc.
+ * A child is considered L0 if it exists in `toolVocab`.
+ * A child that is another cap (exists in caps array) is expanded further.
+ * Children that are neither L0 tools nor known caps are dropped (dead refs).
  *
- * Needs a capChildrenMap for looking up sub-caps. Builds it from caps array.
- * Mutates caps in-place: replaces toolChildren of L2+ caps with resolved L0 tools.
- *
- * Returns count of resolved L2+ caps.
+ * Mutates `caps` in-place (replaces toolChildren with resolved L0 tools).
+ * Returns stats.
  */
-export function resolveL2Hierarchy(
+export function flattenToL0(
   caps: CapData[],
   toolVocab: Set<string>,
-): { resolved: number } {
-  // Build capChildrenMap from caps array
-  const capChildrenMap = new Map<string, string[]>();
-  for (const cap of caps) {
-    capChildrenMap.set(cap.id, cap.toolChildren);
-  }
+): { flattened: number; totalL0: number; droppedRefs: number } {
+  const capMap = new Map<string, CapData>();
+  for (const cap of caps) capMap.set(cap.id, cap);
 
-  let resolved = 0;
+  let flattened = 0;
+  let totalL0 = 0;
+  let droppedRefs = 0;
+
   for (const cap of caps) {
-    if (cap.level < 2) continue;
-    const resolvedTools = new Set<string>();
+    const l0Tools: string[] = [];
     const queue = [...cap.toolChildren];
     const visited = new Set<string>();
+
     while (queue.length > 0) {
       const child = queue.shift()!;
       if (visited.has(child)) continue;
       visited.add(child);
+
       if (toolVocab.has(child)) {
-        resolvedTools.add(child);
+        l0Tools.push(child);
       } else {
-        const grandChildren = capChildrenMap.get(child);
-        if (grandChildren) {
-          queue.push(...grandChildren);
+        const childCap = capMap.get(child);
+        if (childCap) {
+          queue.push(...childCap.toolChildren);
+        } else {
+          droppedRefs++;
         }
-        // else: child not in toolVocab and not a known cap — silently dropped
       }
     }
-    if (resolvedTools.size > 0) {
-      cap.toolChildren = [...resolvedTools];
-      resolved++;
-    }
+
+    const wasFlat = cap.toolChildren.length === l0Tools.length &&
+      cap.toolChildren.every((c) => toolVocab.has(c));
+    if (!wasFlat) flattened++;
+
+    cap.toolChildren = l0Tools;
+    totalL0 += l0Tools.length;
   }
-  return { resolved };
+
+  return { flattened, totalL0, droppedRefs };
 }
+

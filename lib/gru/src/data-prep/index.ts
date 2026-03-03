@@ -11,10 +11,14 @@ export { normalizeToolId, l2Normalize, l2NormalizeMap } from "./normalize.ts";
 export {
   resolveExecHashRefs,
   canonicalizeCaps,
-  resolveL2Hierarchy,
+  flattenToL0,
 } from "./cap-cleanup.ts";
 export type { CapData } from "./cap-cleanup.ts";
 export {
   buildToolNameResolver,
   buildRenameChain,
 } from "./resolve-tool-name.ts";
+export { capExamplesPerTarget } from "./cap-frequency-cap.ts";
+export type { CapStats } from "./cap-frequency-cap.ts";
+export { dedupTracesByIntent } from "./intent-dedup.ts";
+export type { DedupResult } from "./intent-dedup.ts";
