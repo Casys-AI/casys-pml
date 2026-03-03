@@ -9,6 +9,8 @@
 
 import { exists } from "@std/fs";
 import { join } from "@std/path";
+import { FileTokenStore } from "../../../../lib/server/src/client-auth/token-store/file-store.ts";
+import { resolveApiKey } from "../auth/resolve-api-key.ts";
 import type { PmlConfig, PmlPermissions } from "../types.ts";
 import {
   isValidWorkspace,
@@ -114,14 +116,24 @@ export async function initializePmlContext(
     logger.debug(`Failed to load .env: ${e instanceof Error ? e.message : e}`);
   }
 
-  // 3. Validate PML_API_KEY
-  const apiKey = Deno.env.get("PML_API_KEY");
+  // 3. Resolve PML_API_KEY: env var > FileTokenStore > fail
+  const credentialsDir = join(
+    Deno.env.get("HOME") ?? "~", ".pml", "credentials",
+  );
+  const tokenStore = new FileTokenStore(credentialsDir);
+  const apiKey = await resolveApiKey(
+    Deno.env.get("PML_CLOUD_URL") ?? "https://pml.casys.ai",
+    tokenStore,
+  );
   if (!apiKey) {
-    console.error("[pml] ERROR: PML_API_KEY environment variable is required");
+    console.error("[pml] ERROR: PML_API_KEY not found");
     console.error("[pml] Set it with: export PML_API_KEY=your_key");
     console.error("[pml] Or add PML_API_KEY=your_key to .env in your project");
+    console.error("[pml] Or run: pml init --api-key <your_key>");
     Deno.exit(1);
   }
+  // Inject into env so all downstream Deno.env.get("PML_API_KEY") calls work
+  Deno.env.set("PML_API_KEY", apiKey);
 
   if (!isValidWorkspace(workspace)) {
     console.error(`[pml] ERROR: Invalid workspace: ${workspace}`);

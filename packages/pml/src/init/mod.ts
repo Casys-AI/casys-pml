@@ -22,6 +22,7 @@ import {
   resolveWorkspaceWithDetails,
 } from "../workspace.ts";
 import { PACKAGE_VERSION } from "../cli/shared/constants.ts";
+import { FileTokenStore } from "../../../../lib/server/src/client-auth/token-store/file-store.ts";
 
 const MCP_CONFIG_FILE = ".mcp.json";
 const PML_CONFIG_FILE = ".pml.json";
@@ -205,6 +206,31 @@ export async function initProject(
 
     // Update .gitignore with PML entries
     await updateGitignore(workspace);
+
+    // Resolve API key: --api-key flag or interactive prompt
+    let apiKeyToStore = options.apiKey;
+    if (!apiKeyToStore && !options.yes) {
+      const response = prompt(
+        `\n  ${colors.cyan("API key")} (paste your PML API key, or press Enter to skip):`,
+      );
+      if (response?.trim()) {
+        apiKeyToStore = response.trim();
+      }
+    }
+
+    // Store API key in FileTokenStore if available
+    if (apiKeyToStore) {
+      const credentialsDir = join(
+        Deno.env.get("HOME") ?? "~", ".pml", "credentials",
+      );
+      const tokenStore = new FileTokenStore(credentialsDir);
+      await tokenStore.set(cloudUrl, {
+        serverUrl: cloudUrl,
+        tokens: { access_token: apiKeyToStore, token_type: "bearer" },
+        obtainedAt: Date.now(),
+      });
+      console.log(`  ${colors.green("✓")} API key stored in ~/.pml/credentials/ (chmod 600)`);
+    }
 
     // Combine backup paths for result
     const backedUp = [backedUpMcp, backedUpPml].filter(Boolean).join(", ") || undefined;

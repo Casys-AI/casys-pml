@@ -69,7 +69,9 @@ export function createInitCommand(): Command<any> {
         console.log();
         console.log(colors.dim("Next steps:"));
         console.log(
-          `  ${colors.cyan("1.")} Copy .env.example to .env and configure your API keys`,
+          options.apiKey
+            ? `  ${colors.cyan("1.")} API key configured — ready to use`
+            : `  ${colors.cyan("1.")} Run: pml init --api-key <your_key>  (or add PML_API_KEY to .env)`,
         );
         console.log(`  ${colors.cyan("2.")} Start your AI agent (Claude Code, Cursor, etc.)`);
         console.log();
