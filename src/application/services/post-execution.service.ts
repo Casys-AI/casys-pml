@@ -847,30 +847,10 @@ export class PostExecutionService {
         }
       }
 
-      // 2c. Flatten ALL caps to L0 tools (BFS through cap hierarchy)
-      let l2Resolved = 0;
+      // 2c. Natural hierarchy: keep L2→L1→L0 relationships intact
+      // Train worker resolves transitively via BFS when needed (capToChildrenSet)
       for (const cap of capabilityData) {
-        const resolvedTools = new Set<string>();
-        const queue = [...cap.toolChildren];
-        const visited = new Set<string>();
-        while (queue.length > 0) {
-          const child = queue.shift()!;
-          if (visited.has(child)) continue;
-          visited.add(child);
-          if (allToolIds.has(child)) {
-            resolvedTools.add(child);
-          } else {
-            const gc = capChildrenMap.get(child);
-            if (gc) queue.push(...gc);
-          }
-        }
-        if (resolvedTools.size > 0) {
-          cap.toolChildren = [...resolvedTools];
-          l2Resolved++;
-        }
-      }
-      if (l2Resolved > 0) {
-        log.info(`[PostExecutionService] GRU: flattened ${l2Resolved} caps to L0 tools`);
+        capChildrenMap.set(cap.id, cap.toolChildren);
       }
 
       // 2d. L2 normalize embeddings (SHGAT MP output is not unit-normalized)
