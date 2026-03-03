@@ -241,9 +241,12 @@ if (!skipCaps && Deno.env.get("NO_CANONICALIZE") !== "true") {
   console.log("  NO_CANONICALIZE=true — all caps kept as separate vocab entries");
 }
 
-// --- F2: Flatten hierarchy to L0 (recursive BFS, handles any depth) ---
-const NATURAL_HIERARCHY = Deno.env.get("NATURAL_HIERARCHY") === "true";
-if (!NATURAL_HIERARCHY) {
+// --- F2: Natural hierarchy (default) — caps keep L2→L1→L0 relationships ---
+// Train worker BFS resolves transitively to L0 when needed (soft labels, metrics).
+// FLATTEN_L0=true reverts to old behavior (deprecated, kept for A/B comparison).
+const FLATTEN_L0 = Deno.env.get("FLATTEN_L0") === "true";
+if (FLATTEN_L0) {
+  console.log(`  ⚠️  FLATTEN_L0=true (deprecated) — flattening all caps to L0 tools`);
   const capMap = new Map<string, typeof capabilityData[0]>();
   for (const cap of capabilityData) capMap.set(cap.id, cap);
   let flatCount = 0;
@@ -268,11 +271,11 @@ if (!NATURAL_HIERARCHY) {
   }
   console.log(`  Flatten to L0: ${flatCount} caps resolved recursively`);
 } else {
-  // Keep L2→L1→L0 hierarchy intact: caps retain cap-children, not flattened to L0
+  // Natural hierarchy: caps retain cap-children, train worker resolves via BFS
   for (const cap of capabilityData) {
     capChildrenMap.set(cap.id, cap.toolChildren);
   }
-  console.log(`  NATURAL_HIERARCHY: caps keep cap-children (L2→L1→L0 preserved), ${capabilityData.length} caps unchanged`);
+  console.log(`  Natural hierarchy: caps keep cap-children (L2→L1→L0 preserved), ${capabilityData.length} caps`);
 }
 
 console.log(`  ${capabilityData.length} capabilities with tool children (${dbShgatCount} from shgat_embedding, ${capabilityData.length - dbShgatCount} from intent_embedding fallback)`);
