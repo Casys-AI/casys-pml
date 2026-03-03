@@ -20,6 +20,7 @@ import { normalizeToolId } from "../src/capabilities/routing-resolver.ts";
 import { spawnGRUTraining } from "../src/graphrag/algorithms/gru/spawn-training.ts";
 import postgres from "https://deno.land/x/postgresjs@v3.4.5/mod.js";
 import { capExamplesPerTarget } from "../lib/gru/src/data-prep/cap-frequency-cap.ts";
+import { canonicalizeCaps, type CapData } from "../lib/gru/src/data-prep/cap-cleanup.ts";
 
 log.setup({ handlers: { console: new log.ConsoleHandler("DEBUG") }, loggers: { default: { level: "DEBUG", handlers: ["console"] } } });
 
@@ -206,55 +207,35 @@ if (skipCaps) console.log("  SKIP_CAPS=true — caps excluded from vocab (tools-
 //   2. Elect the highest-usage cap as canonical
 //   3. Remap non-canonical → canonical (keeps all intents, single vocab entry)
 // NO_CANONICALIZE=true disables this (for A/B comparison).
-const capCanonicalMap = new Map<string, string>(); // non-canonical → canonical
+let capCanonicalMap = new Map<string, string>(); // non-canonical → canonical
 if (!skipCaps && Deno.env.get("NO_CANONICALIZE") !== "true") {
-  // Group caps by sorted toolset signature
-  const toolsetGroups = new Map<string, Array<{ id: string; usageCount: number; idx: number }>>();
-  for (let i = 0; i < capabilityData.length; i++) {
-    const cap = capabilityData[i];
-    const sig = [...cap.toolChildren].sort().join(",");
-    if (!toolsetGroups.has(sig)) toolsetGroups.set(sig, []);
-    toolsetGroups.get(sig)!.push({ id: cap.id, usageCount: cap.usageCount, idx: i });
-  }
+  const capDataForCanon: CapData[] = capabilityData.map(c => ({
+    id: c.id,
+    embedding: c.embedding,
+    toolChildren: c.toolChildren,
+    level: c.level,
+    usageCount: c.usageCount,
+  }));
+  const before = capDataForCanon.length;
+  const { canonicalMap, groupCount, remapped } = canonicalizeCaps(capDataForCanon);
+  capCanonicalMap = canonicalMap;
 
-  let ambiguousGroups = 0;
-  let remappedCaps = 0;
-  const capsToRemove = new Set<number>(); // indices to remove from capabilityData
-
-  for (const [_sig, group] of toolsetGroups) {
-    if (group.length <= 1) continue;
-    ambiguousGroups++;
-    // Elect canonical: highest usage, then alphabetical for determinism
-    group.sort((a, b) => b.usageCount - a.usageCount || a.id.localeCompare(b.id));
-    const canonical = group[0];
-    for (let i = 1; i < group.length; i++) {
-      capCanonicalMap.set(group[i].id, canonical.id);
-      capsToRemove.add(group[i].idx);
-      remappedCaps++;
+  if (remapped > 0) {
+    // canonicalizeCaps mutates in-place — rebuild capabilityData from surviving entries
+    const canonicalIds = new Set(capDataForCanon.map(c => c.id));
+    for (let i = capabilityData.length - 1; i >= 0; i--) {
+      if (!canonicalIds.has(capabilityData[i].id)) {
+        capabilityData.splice(i, 1);
+      }
     }
-  }
-
-  // Remove non-canonical caps from capabilityData (reverse order to preserve indices)
-  if (capsToRemove.size > 0) {
-    const sortedIndices = [...capsToRemove].sort((a, b) => b - a);
-    for (const idx of sortedIndices) {
-      capabilityData.splice(idx, 1);
-    }
-    // Also clean capChildrenMap: remove non-canonical entries
-    for (const nonCanon of capCanonicalMap.keys()) {
-      capChildrenMap.delete(nonCanon);
-    }
-    // Remap toolChildren references in remaining caps (L2 caps may reference non-canonical L1 children)
+    for (const nonCanon of canonicalMap.keys()) capChildrenMap.delete(nonCanon);
     for (const cap of capabilityData) {
-      cap.toolChildren = cap.toolChildren.map(c => capCanonicalMap.get(c) ?? c);
+      cap.toolChildren = cap.toolChildren.map(c => canonicalMap.get(c) ?? c);
     }
     for (const [key, children] of capChildrenMap) {
-      capChildrenMap.set(key, children.map(c => capCanonicalMap.get(c) ?? c));
+      capChildrenMap.set(key, children.map(c => canonicalMap.get(c) ?? c));
     }
-  }
-
-  if (ambiguousGroups > 0) {
-    console.log(`  Canonicalize: ${ambiguousGroups} toolset groups, ${remappedCaps} caps remapped → ${capabilityData.length} canonical caps remaining`);
+    console.log(`  Canonicalize: ${groupCount} toolset groups, ${remapped} caps remapped → ${capabilityData.length} canonical (was ${before})`);
   }
 } else if (!skipCaps) {
   console.log("  NO_CANONICALIZE=true — all caps kept as separate vocab entries");

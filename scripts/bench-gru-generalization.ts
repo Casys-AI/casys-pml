@@ -9,7 +9,7 @@
 import postgres from "https://deno.land/x/postgresjs@v3.4.5/mod.js";
 import { normalizeToolId } from "../src/capabilities/routing-resolver.ts";
 import { spawnGRUTraining } from "../src/graphrag/algorithms/gru/spawn-training.ts";
-import { capExamplesPerTarget } from "../lib/gru/src/data-prep/cap-frequency-cap.ts";
+import { capExamplesPerTarget as _capExamplesPerTarget } from "../lib/gru/src/data-prep/cap-frequency-cap.ts";
 
 const DATABASE_URL = Deno.env.get("DATABASE_URL");
 if (!DATABASE_URL) { console.error("DATABASE_URL required"); Deno.exit(1); }
@@ -28,7 +28,7 @@ for (const [old] of renameMap) {
   while (renameMap.has(current) && !visited.has(current)) { visited.add(current); current = renameMap.get(current)!; }
   renameMap.set(old, current);
 }
-const hashRows = await sql`SELECT wp.code_hash, cr.namespace || ':' || cr.action FROM workflow_pattern wp JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id WHERE wp.code_hash IS NOT NULL`;
+const hashRows = await sql`SELECT wp.code_hash, cr.namespace || ':' || cr.action as cap_name FROM workflow_pattern wp JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id WHERE wp.code_hash IS NOT NULL`;
 const execHashMap = new Map<string, string>();
 for (const r of hashRows) execHashMap.set((r.code_hash as string).slice(0, 8), r.cap_name as string);
 const execPattern = /^(?:code|std|filesystem):exec_([a-f0-9]{8})/;
@@ -173,7 +173,6 @@ console.log(`Test examples (held-out caps): ${testExamples.length}`);
 
 // --- Evaluate: for each test example, check if the target tool can be predicted ---
 // Using cosine similarity with intent embedding as a baseline
-const emb_dim = 1024;
 const toolIds = Object.keys(toolEmbeddings);
 const toolMatrix: number[][] = toolIds.map(t => toolEmbeddings[t]);
 
@@ -193,7 +192,6 @@ const trainSeqSet = new Set<string>();
 for (const t of trainTraces) trainSeqSet.add(t.tools.join("|"));
 
 let novelSeqs = 0;
-let novelHit1 = 0;
 
 for (const ex of testExamples) {
   const target = ex.targetToolId;
