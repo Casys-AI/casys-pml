@@ -112,8 +112,8 @@ export const DEFAULT_GRU_CONFIG: GRUConfig = {
   maxPathLength: 10,
   stickyMaxRepeat: 3,
   temperature: 0.12, // temperatureEnd from training
-  jaccardAlpha: 0.5,
-  bigramBeta: 0.3,
+  jaccardAlpha: 0,
+  bigramBeta: 0,
   lengthAlpha: 0.7,
 };
 

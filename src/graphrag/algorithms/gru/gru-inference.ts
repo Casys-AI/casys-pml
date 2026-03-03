@@ -473,8 +473,9 @@ export class GRUInference implements IGRUInference {
     const { jaccardAlpha, bigramBeta } = this.config;
     if (jaccardAlpha === 0 && bigramBeta === 0) return probs;
 
-    const lastToolIdx = this.vocab.nodeToIndex.get(lastToolId);
-    if (lastToolIdx === undefined || lastToolIdx >= this.structural.numTools) return probs;
+    // Resolve last tool to L0 indices (caps → their L0 children)
+    const lastL0Indices = this.resolveToL0Indices(lastToolId);
+    if (lastL0Indices.length === 0) return probs;
 
     const numTools = this.structural.numTools;
     const vocabSize = probs.length;
@@ -485,19 +486,44 @@ export class GRUInference implements IGRUInference {
       logProbs[i] = Math.log(Math.max(probs[i], 1e-10));
     }
 
-    // Add Jaccard bias (L0 tools only)
+    // Add Jaccard bias — average rows of L0 children if cap
     if (this.structural.jaccardMatrix) {
-      const rowBase = lastToolIdx * numTools;
-      for (let i = 0; i < numTools && i < vocabSize; i++) {
-        logProbs[i] += jaccardAlpha * this.structural.jaccardMatrix[rowBase + i];
+      const scale = jaccardAlpha / lastL0Indices.length;
+      for (const l0Idx of lastL0Indices) {
+        const rowBase = l0Idx * numTools;
+        for (let i = 0; i < numTools && i < vocabSize; i++) {
+          logProbs[i] += scale * this.structural.jaccardMatrix[rowBase + i];
+        }
       }
     }
 
-    // Add bigram bias (L0 tools only)
+    // Add bigram bias — average rows of L0 children if cap
     if (this.structural.bigramMatrix) {
-      const rowBase = lastToolIdx * numTools;
-      for (let i = 0; i < numTools && i < vocabSize; i++) {
-        logProbs[i] += bigramBeta * this.structural.bigramMatrix[rowBase + i];
+      const scale = bigramBeta / lastL0Indices.length;
+      for (const l0Idx of lastL0Indices) {
+        const rowBase = l0Idx * numTools;
+        for (let i = 0; i < numTools && i < vocabSize; i++) {
+          logProbs[i] += scale * this.structural.bigramMatrix[rowBase + i];
+        }
+      }
+    }
+
+    // Propagate structural bias to non-leaf nodes (caps):
+    // A cap's bias = average of its children's logProbs (already biased above).
+    if (this.vocab?.children) {
+      for (const [capId, childIds] of this.vocab.children) {
+        const capIdx = this.vocab.nodeToIndex.get(capId);
+        if (capIdx === undefined || capIdx >= vocabSize) continue;
+        let sum = 0;
+        let count = 0;
+        for (const cid of childIds) {
+          const ci = this.vocab.nodeToIndex.get(cid);
+          if (ci !== undefined && ci < vocabSize) {
+            sum += logProbs[ci];
+            count++;
+          }
+        }
+        if (count > 0) logProbs[capIdx] = sum / count;
       }
     }
 
@@ -578,16 +604,47 @@ export class GRUInference implements IGRUInference {
   }
 
   // -------------------------------------------------------------------------
-  // Helper: path to vocab indices (L0 only)
+  // Helper: resolve tool/cap ID to L0 tool indices (for structural features)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Resolve a tool/cap ID to its L0 tool indices.
+   * L0 → [idx], L1+ cap → BFS to L0 children, unknown → [].
+   */
+  private resolveToL0Indices(toolId: string): number[] {
+    if (!this.vocab) return [];
+    const idx = this.vocab.nodeToIndex.get(toolId);
+    if (idx === undefined) return [];
+    if (idx < this.vocab.numTools) return [idx];
+    // Cap → BFS down to L0
+    const children = this.vocab.children.get(toolId);
+    if (!children) return [];
+    const result: number[] = [];
+    const queue = [...children];
+    while (queue.length > 0) {
+      const childId = queue.shift()!;
+      const childIdx = this.vocab.nodeToIndex.get(childId);
+      if (childIdx === undefined) continue;
+      if (childIdx < this.vocab.numTools) {
+        result.push(childIdx);
+      } else {
+        const grandChildren = this.vocab.children.get(childId);
+        if (grandChildren) queue.push(...grandChildren);
+      }
+    }
+    return result;
+  }
+
+  // -------------------------------------------------------------------------
+  // Helper: path to vocab indices (resolve caps to L0 children)
   // -------------------------------------------------------------------------
 
   private pathToIndices(path: string[]): number[] {
     if (!this.vocab) return [];
     const indices: number[] = [];
     for (const toolId of path) {
-      const idx = this.vocab.nodeToIndex.get(toolId);
-      if (idx !== undefined && idx < this.vocab.numTools) {
-        indices.push(idx);
+      for (const l0Idx of this.resolveToL0Indices(toolId)) {
+        indices.push(l0Idx);
       }
     }
     return indices;
@@ -613,7 +670,6 @@ export class GRUInference implements IGRUInference {
 
     const tcm = this.structural?.toolCapMap;
     const lastToolId = path[path.length - 1];
-    const lastIdx = this.vocab.nodeToIndex.get(lastToolId);
 
     // [2] is_repeat
     if (path.length >= 2) {
@@ -623,15 +679,19 @@ export class GRUInference implements IGRUInference {
     // [4] context_length / 20
     feats[4] = path.length / 20;
 
+    // Resolve last tool to L0 (caps → first L0 child)
+    const lastL0 = this.resolveToL0Indices(lastToolId);
+    const lastIdx = lastL0.length > 0 ? lastL0[0] : -1;
+
     // Features [0], [1], [3] need toolCapMap
-    if (!tcm || lastIdx === undefined || lastIdx >= tcm.numTools) return feats;
+    if (!tcm || lastIdx < 0) return feats;
 
     const { matrix, numTools, numCapabilities } = tcm;
+    // Resolve all context items to L0 indices (caps → their L0 children)
     const contextIdxs: number[] = [];
     for (let i = 0; i < path.length - 1; i++) {
-      const idx = this.vocab.nodeToIndex.get(path[i]);
-      if (idx !== undefined && idx < numTools) {
-        contextIdxs.push(idx);
+      for (const l0Idx of this.resolveToL0Indices(path[i])) {
+        contextIdxs.push(l0Idx);
       }
     }
 
