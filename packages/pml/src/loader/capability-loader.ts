@@ -40,6 +40,7 @@ import {
   checkKeys,
   pauseForMissingKeys,
   reloadEnv,
+  resolveOAuthTokensToEnv,
 } from "../byok/mod.ts";
 import { callHttp } from "./call-http.ts";
 // Note: getRequiredKeys removed - now using metadata.install.envRequired from registry
@@ -870,6 +871,16 @@ export class CapabilityLoader {
     // Story 14.6: ALWAYS check required env vars, even if dependency is installed
     // Keys can become invalid/missing after installation (user removes from .env)
     if (dep.envRequired && dep.envRequired.length > 0) {
+      // Resolve OAuth tokens from FileTokenStore before checking env vars.
+      // If `pml connect` stored a token for this server, inject it into env
+      // so checkKeys() finds it — avoids unnecessary HIL pause.
+      if (dep.type === "http" && dep.authUrl && dep.httpUrl) {
+        const resolved = await resolveOAuthTokensToEnv(dep.httpUrl, dep.envRequired);
+        if (resolved.length > 0) {
+          logDebug(`Resolved ${resolved.join(", ")} from FileTokenStore for ${dep.name}`);
+        }
+      }
+
       const requiredKeys = dep.envRequired.map((name) => ({
         name,
         requiredBy: dep.name,
@@ -887,7 +898,7 @@ export class CapabilityLoader {
             workflowId: uuidv7(),
             toolId: toolId ?? `${dep.name}:*`,
             authUrl: dep.authUrl,
-            description: `Authenticate with ${dep.name}: open the URL below, complete the auth flow, then add the token to your .env file and click Continue.\n\nMissing keys: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`,
+            description: `Authenticate with ${dep.name}: run \`pml connect ${dep.httpUrl ?? dep.authUrl}\` or open the URL below to complete the auth flow, then click Continue.\n\nMissing keys: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`,
           };
         }
 

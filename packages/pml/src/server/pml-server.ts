@@ -333,7 +333,9 @@ export class PmlServer {
         }
         break;
       case "oauth_connect":
-        // User completed OAuth flow externally, reload .env for new tokens
+        // User completed OAuth externally (pml connect → FileTokenStore, or manual .env edit).
+        // Primary resolution: ensureDependency() calls resolveOAuthTokensToEnv() from FileTokenStore.
+        // Fallback: reloadEnv() catches manual .env edits.
         await reloadEnv(workspace);
         break;
       case "dependency":

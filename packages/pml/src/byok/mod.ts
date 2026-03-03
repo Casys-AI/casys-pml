@@ -56,6 +56,9 @@ export { checkKeys, isValidKeyValue } from "./key-checker.ts";
 // See: loader/capability-loader.ts ensureDependency()
 // The hardcoded mapping has been removed.
 
+// OAuth token resolution from FileTokenStore
+export { resolveOAuthTokensToEnv } from "./resolve-oauth-tokens.ts";
+
 // HIL integration
 export {
   formatKeyInstruction,
