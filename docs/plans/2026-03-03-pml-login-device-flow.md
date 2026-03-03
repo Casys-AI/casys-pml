@@ -23,11 +23,22 @@
 - **`pml init --api-key`**: Stores key in FileTokenStore. The login flow replaces manual `--api-key` for new users.
 - **`StoredCredentials`** interface (`lib/server/src/client-auth/types.ts`): `{ serverUrl, tokens: OAuthTokens, obtainedAt, authServerUrl? }`. We store API key as `tokens.access_token`.
 
+### `pml init` vs `pml login` — separation of concerns
+
+- **`pml init`** = scaffolds `.mcp.json` + `.pml.json` config files. Does NOT handle auth.
+  - `--api-key` flag remains for CI/CD (non-interactive, stores in FileTokenStore)
+  - The interactive API key prompt added in the FileTokenStore PR gets **removed** — replaced by `pml login`
+- **`pml login`** = authenticates the user via device flow, stores API key in FileTokenStore
+- **`pml logout`** = removes stored API key (sugar over `pml connections remove`)
+
+Typical new user flow: `pml init` → `pml login` → ready.
+
 ### What needs to be built
 
-1. **Server-side** (`pml.casys.ai`): Two new endpoints for device flow
+1. **Server-side** (`src/api/`): Device flow logic + Fresh thin wrappers
 2. **Client-side** (`packages/pml/src/auth/`): Device flow polling client
-3. **CLI command** (`packages/pml/src/cli/`): `pml login` command
+3. **CLI commands** (`packages/pml/src/cli/`): `pml login` + `pml logout`
+4. **Cleanup**: Remove interactive API key prompt from `pml init`
 
 ### OAuth Device Flow (RFC 8628) — How it works
 
@@ -62,12 +73,16 @@ CLI                          Cloud (pml.casys.ai)              Browser
 
 ---
 
-## Task 1: Server-side — Device code endpoint
+## Task 1: Server-side — Device flow API logic + Fresh thin wrappers
 
 **Files:**
-- Create: `src/web/routes/api/auth/device.ts`
+- Create: `src/api/auth.ts` — core logic (handlers)
+- Create: `src/web/routes/api/auth/device.ts` — Fresh thin wrapper
+- Create: `src/web/routes/api/auth/token.ts` — Fresh thin wrapper
+- Create: `src/web/routes/auth/device.tsx` — user-facing auth page
+- Create: `src/db/migrations/054_device_codes.ts` — migration
 
-**Context:** The web server is Fresh (Deno), routes are file-based. API routes live in `src/web/routes/api/`. The database has a `users` table with API keys. We need a temporary `device_codes` table to track pending authorizations.
+**Context:** API logic lives in `src/api/` (same pattern as `algorithm.ts`, `capabilities.ts`, etc.). Fresh routes in `src/web/routes/api/` are thin wrappers that call the logic. The database has a `users` table with API keys. We need a `device_codes` table for pending authorizations.
 
 **Step 1: Create the migration for device_codes table**
 
@@ -103,22 +118,24 @@ export const migration: Migration = {
 Run: `deno task db:migrate`
 Expected: Migration 054 applied
 
-**Step 3: Write the device code request handler**
+**Step 3: Write the core API logic**
+
+Create: `src/api/auth.ts`
 
 ```typescript
 /**
- * POST /api/v1/auth/device — Initiate device authorization flow (RFC 8628)
+ * Device Authorization Flow — API Logic (RFC 8628)
  *
- * Returns a device_code and user_code for the CLI to display.
- * The user visits verification_uri, logs in, and enters the user_code.
+ * Core handlers for device code issuance and token polling.
+ * Called by Fresh thin wrappers in src/web/routes/api/auth/.
+ *
+ * @module api/auth
  */
 
-import { Handlers } from "$fresh/server.ts";
-import { db } from "../../../../db/mod.ts";
+import { db } from "../db/mod.ts";
 
 const DEVICE_CODE_TTL_SECONDS = 900; // 15 minutes
 const POLL_INTERVAL_SECONDS = 5;
-const CLIENT_ID = "pml-cli"; // hardcoded for now
 
 function generateCode(length: number): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
@@ -127,122 +144,106 @@ function generateCode(length: number): string {
   return Array.from(bytes).map(b => chars[b % chars.length]).join("");
 }
 
-function generateDeviceCode(): string {
-  return crypto.randomUUID();
+/**
+ * POST /api/v1/auth/device — Issue a device code + user code.
+ */
+export async function handleDeviceCodeRequest(req: Request): Promise<Response> {
+  const body = await req.json().catch(() => ({}));
+  const clientId = body.client_id ?? "pml-cli";
+
+  const deviceCode = crypto.randomUUID();
+  const userCode = `${generateCode(4)}-${generateCode(4)}`;
+  const expiresAt = new Date(Date.now() + DEVICE_CODE_TTL_SECONDS * 1000);
+
+  await db.queryObject`
+    INSERT INTO device_codes (device_code, user_code, client_id, expires_at, interval_seconds)
+    VALUES (${deviceCode}, ${userCode}, ${clientId}, ${expiresAt}, ${POLL_INTERVAL_SECONDS})
+  `;
+
+  const cloudUrl = Deno.env.get("PML_CLOUD_URL") ?? "https://pml.casys.ai";
+
+  return Response.json({
+    device_code: deviceCode,
+    user_code: userCode,
+    verification_uri: `${cloudUrl}/auth/device`,
+    verification_uri_complete: `${cloudUrl}/auth/device?code=${userCode}`,
+    expires_in: DEVICE_CODE_TTL_SECONDS,
+    interval: POLL_INTERVAL_SECONDS,
+  });
 }
 
-function generateUserCode(): string {
-  // Format: XXXX-XXXX (easy to type)
-  return `${generateCode(4)}-${generateCode(4)}`;
+/**
+ * POST /api/v1/auth/token — Poll for device authorization result.
+ */
+export async function handleDeviceTokenPoll(req: Request): Promise<Response> {
+  const body = await req.json().catch(() => ({}));
+  const { device_code, grant_type } = body;
+
+  if (grant_type !== "urn:ietf:params:oauth:grant-type:device_code") {
+    return Response.json({ error: "unsupported_grant_type" }, { status: 400 });
+  }
+
+  if (!device_code) {
+    return Response.json(
+      { error: "invalid_request", error_description: "device_code required" },
+      { status: 400 },
+    );
+  }
+
+  const result = await db.queryObject<{
+    expires_at: Date;
+    authorized_user_id: string | null;
+    api_key: string | null;
+  }>`
+    SELECT expires_at, authorized_user_id, api_key
+    FROM device_codes WHERE device_code = ${device_code}
+  `;
+
+  if (result.rows.length === 0) {
+    return Response.json(
+      { error: "invalid_request", error_description: "unknown device_code" },
+      { status: 400 },
+    );
+  }
+
+  const row = result.rows[0];
+
+  if (new Date(row.expires_at) < new Date()) {
+    await db.queryObject`DELETE FROM device_codes WHERE device_code = ${device_code}`;
+    return Response.json({ error: "expired_token" }, { status: 400 });
+  }
+
+  if (!row.authorized_user_id || !row.api_key) {
+    return Response.json({ error: "authorization_pending" }, { status: 400 });
+  }
+
+  // Authorized — return API key and clean up
+  await db.queryObject`DELETE FROM device_codes WHERE device_code = ${device_code}`;
+  return Response.json({ access_token: row.api_key, token_type: "bearer" });
 }
+```
+
+**Step 4: Write Fresh thin wrappers**
+
+Create: `src/web/routes/api/auth/device.ts`
+
+```typescript
+import { handleDeviceCodeRequest } from "../../../../api/auth.ts";
+import type { Handlers } from "$fresh/server.ts";
 
 export const handler: Handlers = {
-  async POST(req) {
-    const body = await req.json().catch(() => ({}));
-    const clientId = body.client_id ?? CLIENT_ID;
-
-    const deviceCode = generateDeviceCode();
-    const userCode = generateUserCode();
-    const expiresAt = new Date(Date.now() + DEVICE_CODE_TTL_SECONDS * 1000);
-
-    await db.queryObject`
-      INSERT INTO device_codes (device_code, user_code, client_id, expires_at, interval_seconds)
-      VALUES (${deviceCode}, ${userCode}, ${clientId}, ${expiresAt}, ${POLL_INTERVAL_SECONDS})
-    `;
-
-    const cloudUrl = Deno.env.get("PML_CLOUD_URL") ?? "https://pml.casys.ai";
-
-    return Response.json({
-      device_code: deviceCode,
-      user_code: userCode,
-      verification_uri: `${cloudUrl}/auth/device`,
-      verification_uri_complete: `${cloudUrl}/auth/device?code=${userCode}`,
-      expires_in: DEVICE_CODE_TTL_SECONDS,
-      interval: POLL_INTERVAL_SECONDS,
-    });
-  },
+  POST: (req) => handleDeviceCodeRequest(req),
 };
 ```
 
-**Step 4: Write the token polling handler**
-
-Create: `src/web/routes/api/auth/token.ts` (or `src/web/routes/api/v1/auth/token.ts` depending on routing)
+Create: `src/web/routes/api/auth/token.ts`
 
 ```typescript
-/**
- * POST /api/v1/auth/token — Poll for device authorization result (RFC 8628)
- *
- * The CLI polls this endpoint with the device_code until the user authorizes.
- * Returns: authorization_pending | expired | access_token
- */
-
-import { Handlers } from "$fresh/server.ts";
-import { db } from "../../../../db/mod.ts";
+import { handleDeviceTokenPoll } from "../../../../api/auth.ts";
+import type { Handlers } from "$fresh/server.ts";
 
 export const handler: Handlers = {
-  async POST(req) {
-    const body = await req.json().catch(() => ({}));
-    const { device_code, grant_type } = body;
-
-    if (grant_type !== "urn:ietf:params:oauth:grant-type:device_code") {
-      return Response.json(
-        { error: "unsupported_grant_type" },
-        { status: 400 },
-      );
-    }
-
-    if (!device_code) {
-      return Response.json(
-        { error: "invalid_request", error_description: "device_code required" },
-        { status: 400 },
-      );
-    }
-
-    // Look up device code
-    const result = await db.queryObject<{
-      device_code: string;
-      user_code: string;
-      expires_at: Date;
-      authorized_user_id: string | null;
-      api_key: string | null;
-    }>`
-      SELECT device_code, user_code, expires_at, authorized_user_id, api_key
-      FROM device_codes
-      WHERE device_code = ${device_code}
-    `;
-
-    if (result.rows.length === 0) {
-      return Response.json(
-        { error: "invalid_request", error_description: "unknown device_code" },
-        { status: 400 },
-      );
-    }
-
-    const row = result.rows[0];
-
-    // Check expiry
-    if (new Date(row.expires_at) < new Date()) {
-      // Clean up expired code
-      await db.queryObject`DELETE FROM device_codes WHERE device_code = ${device_code}`;
-      return Response.json({ error: "expired_token" }, { status: 400 });
-    }
-
-    // Not yet authorized — slow_down or authorization_pending
-    if (!row.authorized_user_id || !row.api_key) {
-      return Response.json(
-        { error: "authorization_pending" },
-        { status: 400 },
-      );
-    }
-
-    // Authorized! Return API key and clean up
-    await db.queryObject`DELETE FROM device_codes WHERE device_code = ${device_code}`;
-
-    return Response.json({
-      access_token: row.api_key,
-      token_type: "bearer",
-    });
-  },
+  POST: (req) => handleDeviceTokenPoll(req),
 };
 ```
 
@@ -250,7 +251,7 @@ export const handler: Handlers = {
 
 Create: `src/web/routes/auth/device.tsx`
 
-This is the page the user visits in their browser to enter the user_code and authorize the device. **This is a full Fresh page, not an API endpoint.** The implementation depends on the existing auth UI patterns (login flow, session management). The page should:
+This is the page the user visits in their browser to enter the user_code and authorize the device. **This is a full Fresh page, not an API endpoint.** The page should:
 
 1. Show a form to enter the user_code (or pre-fill from `?code=` query param)
 2. Require the user to be logged in (redirect to login if not)
@@ -262,7 +263,7 @@ This is the page the user visits in their browser to enter the user_code and aut
 **Step 6: Commit**
 
 ```bash
-git add src/db/migrations/054_device_codes.ts src/web/routes/api/auth/
+git add src/db/migrations/054_device_codes.ts src/api/auth.ts src/web/routes/api/auth/ src/web/routes/auth/device.tsx
 git commit -m "feat(cloud): add device code endpoints for pml login (RFC 8628)"
 ```
 
