@@ -66,11 +66,7 @@ export class PatternStore {
     // Ensure config directory exists
     const dir = this.filePath.split("/").slice(0, -1).join("/");
     if (dir) {
-      try {
-        await Deno.mkdir(dir, { recursive: true });
-      } catch {
-        // Directory might already exist
-      }
+      await Deno.mkdir(dir, { recursive: true });
     }
 
     const content = JSON.stringify(data, null, 2);

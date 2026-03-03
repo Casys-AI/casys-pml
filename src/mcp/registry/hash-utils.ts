@@ -103,6 +103,11 @@ export function deriveMcpType(config: ServerConnectionInfo | null): McpType {
   if (!config) return "deno";
   if (config.url) return "http";
   if (config.command) return "stdio";
+  // No url or command on a non-null config is unexpected — treat as built-in
+  console.warn(
+    `[deriveMcpType] Config has neither url nor command — ` +
+    `defaulting to "deno": ${JSON.stringify(Object.keys(config))}`,
+  );
   return "deno";
 }
 

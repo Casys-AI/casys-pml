@@ -106,8 +106,9 @@ export interface Capability {
   riskCategory?: "safe" | "moderate" | "dangerous";
   /**
    * Hierarchy level for nested compound nodes (Story 10.1)
-   * - 0: Leaf capability (uses only tools, no nested capabilities)
-   * - 1+: Meta-capability (contains other capabilities)
+   * - 0: L0 = tools (MCP, code:*, loop:*) — leaves, not capabilities
+   * - 1: L1 = caps containing only L0 tools
+   * - 2+: L2+ = caps containing other caps
    */
   hierarchyLevel?: number;
   /**

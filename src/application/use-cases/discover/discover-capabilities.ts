@@ -168,6 +168,22 @@ export class DiscoverCapabilitiesUseCase {
       log.info(`[DiscoverCapabilities] Scope filter: ${beforeCount} → ${shgatResults.length} capabilities`);
     }
 
+    // Deduplicate canonical caps (same toolset → keep best score)
+    if (!Deno.env.get("NO_DISCOVER_DEDUP")) {
+      const canonMap = shgat.getCanonicalCapMap();
+      if (canonMap.size > 0) {
+        const seen = new Set<string>();
+        const beforeCount = shgatResults.length;
+        shgatResults = shgatResults.filter((r) => {
+          const canonical = canonMap.get(r.capabilityId) ?? r.capabilityId;
+          if (seen.has(canonical)) return false;
+          seen.add(canonical);
+          return true;
+        });
+        log.info(`[DiscoverCapabilities] Canon dedup: ${beforeCount} → ${shgatResults.length} (${canonMap.size} remapped)`);
+      }
+    }
+
     // Build results
     const capabilities: DiscoveredCapability[] = [];
     for (const shgatResult of shgatResults.slice(0, limit)) {

@@ -594,7 +594,7 @@ export async function trainSHGATOnPathTracesSubprocess(
   if (dbClient && allToolIds.size > 0) {
     try {
       const rows = await dbClient.query(
-        `SELECT tool_id, embedding FROM tool_embedding WHERE tool_id = ANY($1)`,
+        `SELECT tool_id, COALESCE(shgat_embedding, embedding) as embedding FROM tool_embedding WHERE tool_id = ANY($1)`,
         [[...allToolIds]],
       ) as Array<{ tool_id: string; embedding: number[] | string }>;
       for (const row of rows) {

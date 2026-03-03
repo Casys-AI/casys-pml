@@ -424,13 +424,13 @@ export class CapabilityRegistry {
    * TODO: Migration to drop unused columns from capability_records.
    */
   private rowToRecord(row: Record<string, unknown>): CapabilityRecord {
-    // Use workflow_pattern counts if available (from JOIN), else fallback
+    // Use workflow_pattern counts if available (from JOIN), else fallback to stale cr columns
     const usageCount = row.wp_usage_count !== undefined
       ? (row.wp_usage_count as number)
-      : (row.usage_count as number);
+      : (row.usage_count as number ?? 0);
     const successCount = row.wp_success_count !== undefined
       ? (row.wp_success_count as number)
-      : (row.success_count as number);
+      : (row.success_count as number ?? 0);
 
     return {
       id: row.id as string,

@@ -5,10 +5,10 @@
  * capability nesting depth.
  *
  * Level meanings:
- * - 0: Leaf capability (uses only MCP tools, no nested capabilities)
- * - 1: Contains level-0 capabilities
- * - 2: Contains level-1 capabilities
- * - N: Contains level-(N-1) capabilities
+ * - 0: L0 = tools (MCP, code:*, loop:*) — leaves of the graph, NOT capabilities
+ * - 1: L1 = capabilities containing only L0 tools
+ * - 2: L2 = capabilities containing L1 caps
+ * - N: L(N) = capabilities containing L(N-1) caps
  *
  * This enables proper compound node visualization where capabilities
  * can contain other capabilities recursively.

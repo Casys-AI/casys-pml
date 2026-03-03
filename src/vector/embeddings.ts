@@ -256,8 +256,11 @@ export function schemaToText(schema: ToolSchema | MCPTool): string {
     parts.push(schema.description);
   }
 
-  const parameterParts = extractParameterDescriptions(schema);
-  parts.push(...parameterParts);
+  // Schema parameters deliberately excluded (2026-03-02).
+  // Intra-namespace tools (e.g. erpnext_*_list) share identical params (filters, limit, fields)
+  // which drowns out the discriminating signal (name + description) in the embedding.
+  // Ablation NB28: 21 neighbors >0.90 for erpnext tools → softmax dilution.
+  // name + description alone provides better inter-tool discrimination.
 
   const text = parts.filter(Boolean).join(" | ");
 

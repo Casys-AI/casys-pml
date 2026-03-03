@@ -1118,7 +1118,7 @@ export class PMLGatewayServer {
 
     const placeholders = unknownIds.map((_, i) => `$${i + 1}`).join(", ");
     const rows = await this.db.query(
-      `SELECT tool_id, embedding::text FROM tool_embedding WHERE tool_id IN (${placeholders})`,
+      `SELECT tool_id, COALESCE(shgat_embedding, embedding)::text as embedding FROM tool_embedding WHERE tool_id IN (${placeholders})`,
       unknownIds,
     );
 

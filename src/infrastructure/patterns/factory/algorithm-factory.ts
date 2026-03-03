@@ -157,7 +157,7 @@ export class AlgorithmFactory {
 
     try {
       const db = await getDb();
-      const rows = await db.query(`SELECT tool_id, embedding::text FROM tool_embedding`);
+      const rows = await db.query(`SELECT tool_id, COALESCE(shgat_embedding, embedding)::text as embedding FROM tool_embedding`);
 
       for (const row of rows) {
         const parsed = this.parseEmbedding(row.embedding as string);
