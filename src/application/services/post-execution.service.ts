@@ -26,6 +26,10 @@ import type { AlgorithmInitializer } from "../../mcp/algorithm-init/initializer.
 import { type AdaptiveThresholdManager, updateThompsonSampling } from "../../mcp/adaptive-threshold.ts";
 import { enrichToolOutputSchema } from "../../capabilities/output-schema-inferrer.ts";
 import { normalizeToolId } from "../../capabilities/routing-resolver.ts";
+import { dedupTracesByIntent } from "../../../lib/gru/src/data-prep/intent-dedup.ts";
+import { capExamplesPerTarget } from "../../../lib/gru/src/data-prep/cap-frequency-cap.ts";
+import { canonicalizeCaps, type CapData } from "../../../lib/gru/src/data-prep/cap-cleanup.ts";
+import { buildRenameChain } from "../../../lib/gru/src/data-prep/resolve-tool-name.ts";
 
 // ============================================================================
 // Interfaces
@@ -56,6 +60,8 @@ interface ParsedCapability {
   embedding: number[];
   toolsUsed: string[];
   successRate: number;
+  parents?: string[];
+  children?: string[];
 }
 
 /**
@@ -83,7 +89,7 @@ function parseCapabilityWithEmbedding(row: CapabilityRow): ParsedCapability | nu
   return {
     id: row.id,
     embedding,
-    // Normalize FQDN → short format (dag_structure.tools_used stores FQDN)
+    // Normalize FQDN → short format (task_results may store FQDN)
     toolsUsed: (row.tools_used ?? []).map(normalizeToolId).filter(Boolean),
     successRate: row.success_rate,
   };
@@ -401,7 +407,7 @@ export class PostExecutionService {
    * Skips if another training is already in progress.
    */
   async runPERBatchTraining(): Promise<void> {
-    const { shgat, traceStore, embeddingModel, db, onSHGATParamsUpdated } = this.deps;
+    const { shgat, traceStore, embeddingModel, db } = this.deps;
 
     // Skip if training already in progress
     if (!trainingLock.acquire("PER")) {
@@ -426,17 +432,28 @@ export class PostExecutionService {
     try {
       // Create embedding provider wrapper
       const embeddingProvider = {
-        getEmbedding: async (text: string) => embeddingModel.encode(text),
+        getEmbedding: async (text: string) => await embeddingModel.encode(text),
       };
 
       // Fetch capabilities with embeddings for subprocess (negative mining)
+      // Source of truth: task_results from execution_trace (actual runtime data)
+      // aligned with tools/train-shgat-standalone.ts
       const rows = await db.query(
         `SELECT
           pattern_id as id,
-          intent_embedding as embedding,
-          dag_structure->'tools_used' as tools_used,
+          COALESCE(shgat_embedding, intent_embedding) as embedding,
+          ARRAY(
+            SELECT DISTINCT tr->>'tool'
+            FROM execution_trace et,
+                 jsonb_array_elements(et.task_results) tr
+            WHERE et.capability_id = wp.pattern_id
+              AND et.task_results IS NOT NULL
+              AND jsonb_typeof(et.task_results) = 'array'
+              AND jsonb_array_length(et.task_results) >= 1
+              AND tr->>'tool' IS NOT NULL
+          ) as tools_used,
           success_rate
-        FROM workflow_pattern
+        FROM workflow_pattern wp
         WHERE code_snippet IS NOT NULL
           AND intent_embedding IS NOT NULL`,
       ) as unknown as CapabilityRow[];
@@ -449,6 +466,33 @@ export class PostExecutionService {
       if (capabilities.length === 0) {
         log.debug("[PostExecutionService] No capabilities with embeddings for PER training");
         return;
+      }
+
+      // Load hierarchy edges (parent → child cap relationships) for multi-level MP
+      try {
+        const depRows = await db.query(
+          `SELECT from_capability_id, to_capability_id
+           FROM capability_dependency
+           WHERE edge_type = 'contains'`,
+        ) as unknown as Array<{ from_capability_id: string; to_capability_id: string }>;
+
+        if (depRows.length > 0) {
+          const childrenMap = new Map<string, string[]>();
+          const parentsMap = new Map<string, string[]>();
+          for (const row of depRows) {
+            if (!childrenMap.has(row.from_capability_id)) childrenMap.set(row.from_capability_id, []);
+            childrenMap.get(row.from_capability_id)!.push(row.to_capability_id);
+            if (!parentsMap.has(row.to_capability_id)) parentsMap.set(row.to_capability_id, []);
+            parentsMap.get(row.to_capability_id)!.push(row.from_capability_id);
+          }
+          for (const cap of capabilities) {
+            cap.children = childrenMap.get(cap.id);
+            cap.parents = parentsMap.get(cap.id);
+          }
+          log.debug(`[PostExecutionService] Loaded ${depRows.length} hierarchy edges for live SHGAT training`);
+        }
+      } catch (e) {
+        log.warn(`[PostExecutionService] Failed to load hierarchy edges: ${e}`);
       }
 
       // Run path-level training with PER sampling in subprocess
@@ -482,9 +526,13 @@ export class PostExecutionService {
           priorities: result.prioritiesUpdated,
         });
 
-        // Save params after successful PER training
-        if (onSHGATParamsUpdated) {
-          await onSHGATParamsUpdated();
+        // Reload trained params from DB into in-memory SHGAT instance.
+        // The worker saves directly to DB (msgpack+gzip+base64). We must reload
+        // so the in-memory instance has fresh params for inference and embedding persistence.
+        // NOTE: Do NOT call onSHGATParamsUpdated (saveSHGATParams) here — that would
+        // overwrite the worker's fresh DB params with the stale in-memory params.
+        if (this.deps.algorithmInitializer) {
+          await this.deps.algorithmInitializer.loadSHGATParams();
         }
 
         // Persist SHGAT-enriched cap embeddings to workflow_pattern.shgat_embedding
@@ -505,8 +553,24 @@ export class PostExecutionService {
               }
               log.info(`[PostExecutionService] Persisted ${capEmbs.size} SHGAT cap embeddings to workflow_pattern`);
             }
+
+            // Also persist SHGAT-enriched tool embeddings to tool_embedding.shgat_embedding
+            const toolEmbs = shgat.getToolEmbeddings();
+            if (toolEmbs.size > 0) {
+              const toolEntries = [...toolEmbs.entries()];
+              for (let i = 0; i < toolEntries.length; i += 50) {
+                const batch = toolEntries.slice(i, i + 50);
+                await Promise.all(batch.map(([toolId, emb]) =>
+                  db.exec(
+                    `UPDATE tool_embedding SET shgat_embedding = $1::vector WHERE tool_id = $2`,
+                    [`[${emb.join(",")}]`, toolId]
+                  )
+                ));
+              }
+              log.info(`[PostExecutionService] Persisted ${toolEmbs.size} SHGAT tool embeddings to tool_embedding`);
+            }
           } catch (e) {
-            log.warn(`[PostExecutionService] Failed to persist cap embeddings: ${e}`);
+            log.warn(`[PostExecutionService] Failed to persist embeddings: ${e}`);
           }
         }
       } else if (result.fallback) {
@@ -568,7 +632,7 @@ export class PostExecutionService {
         LEFT JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
         WHERE et.task_results IS NOT NULL
           AND jsonb_typeof(et.task_results) = 'array'
-          AND jsonb_array_length(et.task_results) > 1
+          AND jsonb_array_length(et.task_results) >= 1
           AND et.intent_embedding IS NOT NULL
         ORDER BY et.executed_at DESC
         LIMIT 2000
@@ -584,29 +648,21 @@ export class PostExecutionService {
         return;
       }
 
-      // 1b. Load rename history
+      // 1b. Load rename history (centralized)
       let renameMap = new Map<string, string>();
       try {
         const renameRows = await db.query(
-          "SELECT old_name, new_name, old_fqdn, new_fqdn FROM capability_name_history ORDER BY renamed_at ASC",
-        ) as Array<{ old_name: string; new_name: string; old_fqdn: string; new_fqdn: string }>;
-        for (const row of renameRows) {
-          renameMap.set(row.old_name, row.new_name);
-          if (row.old_fqdn) renameMap.set(row.old_fqdn, row.new_name);
-        }
-        for (const [oldName, newName] of renameMap) {
-          let current = newName;
-          while (renameMap.has(current)) current = renameMap.get(current)!;
-          if (current !== newName) renameMap.set(oldName, current);
-        }
+          "SELECT old_name, new_name, old_fqdn FROM capability_name_history ORDER BY renamed_at ASC",
+        ) as Array<{ old_name: string; new_name: string; old_fqdn?: string | null }>;
+        renameMap = buildRenameChain(renameRows);
       } catch {
         renameMap = new Map();
       }
 
-      // 1c. Load all tool embeddings (DB = authoritative vocab, SHGAT override)
+      // 1c. Load all tool embeddings (prefer SHGAT-enriched if available, fallback to raw BGE-M3)
       const toolEmbeddings: Record<string, number[]> = {};
       const embRows = await db.query(
-        `SELECT tool_id, embedding FROM tool_embedding ORDER BY tool_id`,
+        `SELECT tool_id, COALESCE(shgat_embedding, embedding) as embedding FROM tool_embedding ORDER BY tool_id`,
       ) as Array<{ tool_id: string; embedding: number[] | string }>;
       for (const row of embRows) {
         const emb = Array.isArray(row.embedding) ? row.embedding
@@ -644,14 +700,22 @@ export class PostExecutionService {
             cr.namespace || ':' || cr.action as cap_name,
             COALESCE(wp.shgat_embedding, wp.intent_embedding) as embedding,
             wp.shgat_embedding IS NOT NULL as has_shgat,
-            wp.dag_structure->'tools_used' as tools_used,
+            ARRAY(
+              SELECT DISTINCT tr->>'tool'
+              FROM execution_trace et,
+                   jsonb_array_elements(et.task_results) tr
+              WHERE et.capability_id = wp.pattern_id
+                AND et.task_results IS NOT NULL
+                AND jsonb_typeof(et.task_results) = 'array'
+                AND jsonb_array_length(et.task_results) >= 1
+                AND tr->>'tool' IS NOT NULL
+            ) as tools_used,
             COALESCE(wp.hierarchy_level, 1) as level,
             COALESCE(wp.usage_count, 0) as usage_count
           FROM workflow_pattern wp
           JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
           WHERE wp.code_snippet IS NOT NULL
             AND wp.intent_embedding IS NOT NULL
-            AND wp.dag_structure->'tools_used' IS NOT NULL
           ORDER BY cr.namespace, cr.action, wp.last_used DESC`,
         ) as unknown as Array<{
           cap_name: string; embedding: number[] | string; has_shgat: boolean;
@@ -732,47 +796,36 @@ export class PostExecutionService {
         log.info(`[PostExecutionService] GRU: resolved ${execResolved} stale code:exec_* refs`);
       }
 
-      // 2b. Cap canonicalization by toolset
-      const capCanonicalMap = new Map<string, string>();
+      // 2b. Cap canonicalization by toolset (centralized, level-aware)
+      let capCanonicalMap = new Map<string, string>();
       {
-        const toolsetGroups = new Map<string, Array<{ id: string; usageCount: number; idx: number }>>();
-        for (let i = 0; i < capabilityData.length; i++) {
-          const cap = capabilityData[i];
-          const sig = [...cap.toolChildren].sort().join(",");
-          if (!toolsetGroups.has(sig)) toolsetGroups.set(sig, []);
-          toolsetGroups.get(sig)!.push({ id: cap.id, usageCount: cap.usageCount, idx: i });
-        }
+        const capDataForCanon: CapData[] = capabilityData.map(c => ({
+          id: c.id,
+          embedding: c.embedding,
+          toolChildren: c.toolChildren,
+          level: c.level,
+          usageCount: c.usageCount,
+        }));
+        const before = capDataForCanon.length;
+        const { canonicalMap, groupCount, remapped } = canonicalizeCaps(capDataForCanon);
+        capCanonicalMap = canonicalMap;
 
-        let ambiguousGroups = 0;
-        let remappedCaps = 0;
-        const capsToRemove = new Set<number>();
-
-        for (const [_sig, group] of toolsetGroups) {
-          if (group.length <= 1) continue;
-          ambiguousGroups++;
-          group.sort((a, b) => b.usageCount - a.usageCount || a.id.localeCompare(b.id));
-          const canonical = group[0];
-          for (let j = 1; j < group.length; j++) {
-            capCanonicalMap.set(group[j].id, canonical.id);
-            capsToRemove.add(group[j].idx);
-            remappedCaps++;
+        if (remapped > 0) {
+          // canonicalizeCaps mutates in-place — rebuild capabilityData from surviving entries
+          const canonicalIds = new Set(capDataForCanon.map(c => c.id));
+          for (let i = capabilityData.length - 1; i >= 0; i--) {
+            if (!canonicalIds.has(capabilityData[i].id)) {
+              capabilityData.splice(i, 1);
+            }
           }
-        }
-
-        if (capsToRemove.size > 0) {
-          const sortedIndices = [...capsToRemove].sort((a, b) => b - a);
-          for (const idx of sortedIndices) capabilityData.splice(idx, 1);
-          for (const nonCanon of capCanonicalMap.keys()) capChildrenMap.delete(nonCanon);
+          for (const nonCanon of canonicalMap.keys()) capChildrenMap.delete(nonCanon);
           for (const cap of capabilityData) {
-            cap.toolChildren = cap.toolChildren.map(c => capCanonicalMap.get(c) ?? c);
+            cap.toolChildren = cap.toolChildren.map(c => canonicalMap.get(c) ?? c);
           }
           for (const [key, children] of capChildrenMap) {
-            capChildrenMap.set(key, children.map(c => capCanonicalMap.get(c) ?? c));
+            capChildrenMap.set(key, children.map(c => canonicalMap.get(c) ?? c));
           }
-        }
-
-        if (ambiguousGroups > 0) {
-          log.info(`[PostExecutionService] GRU: canonicalize: ${ambiguousGroups} toolset groups, ${remappedCaps} caps remapped → ${capabilityData.length} canonical`);
+          log.info(`[PostExecutionService] GRU: canonicalize: ${groupCount} toolset groups, ${remapped} caps remapped → ${capabilityData.length} canonical (was ${before})`);
         }
       }
 
@@ -917,23 +970,29 @@ export class PostExecutionService {
         log.info(`[PostExecutionService] GRU: ${capTerminalAdded} cap-as-terminal examples`);
       }
 
-      // 3b. Intent dedup (exact)
+      // 3b. Intent dedup (centralized, full embedding, precision=6)
       const beforeDedup = examples.length;
       {
-        const seen = new Set<string>();
-        const deduped = examples.filter(ex => {
-          const groupKey = ex.contextToolIds.join("|") + ">>" + ex.targetToolId;
-          const intentKey = ex.intentEmbedding.slice(0, 10).map(v => v.toFixed(4)).join(",");
-          const key = `${groupKey}::${intentKey}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+        const { deduped } = dedupTracesByIntent(
+          examples,
+          (ex) => ex.contextToolIds.join("|") + ">>" + ex.targetToolId,
+          (ex) => ex.intentEmbedding,
+        );
         examples.length = 0;
         examples.push(...deduped);
       }
       if (examples.length < beforeDedup) {
         log.info(`[PostExecutionService] GRU: dedup ${beforeDedup} → ${examples.length} examples`);
+      }
+
+      // 3c. Frequency cap (FPS, max 50 per target — aligned with offline script)
+      {
+        const { capped, stats } = capExamplesPerTarget(examples, 50);
+        if (stats.cappedTargets > 0) {
+          log.info(`[PostExecutionService] GRU: freq cap ${stats.before} → ${stats.after} (${stats.cappedTargets} targets capped)`);
+          examples.length = 0;
+          examples.push(...capped);
+        }
       }
 
       if (examples.length < 50) {

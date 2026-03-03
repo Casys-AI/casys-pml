@@ -40,12 +40,12 @@ import {
   loadGRUWeightsFile,
   loadGRUWeightsFromDb,
   buildVocabulary,
-  computeStructuralMatrices,
   type GRUWeightsFile,
 } from "../../graphrag/algorithms/gru/gru-loader.ts";
-import type { ToolCapabilityMap, SpawnGRUTrainingInput } from "../../graphrag/algorithms/gru/types.ts";
+import type { SpawnGRUTrainingInput } from "../../graphrag/algorithms/gru/types.ts";
 import { spawnGRUTraining } from "../../graphrag/algorithms/gru/spawn-training.ts";
 import pako from "pako";
+import { canonicalizeCaps, type CapData } from "../../../lib/gru/src/data-prep/cap-cleanup.ts";
 import { decode as msgpackDecode } from "npm:@msgpack/msgpack@3.0.0-beta2";
 
 /**
@@ -63,6 +63,8 @@ interface CapRow {
   embedding: number[] | null;
   tools_used: string[] | null;
   success_rate: number;
+  level: number;
+  usage_count: number;
 }
 
 interface ContainsEdge {
@@ -70,8 +72,11 @@ interface ContainsEdge {
   to_capability_id: string;
 }
 
-// Re-use AlgorithmCapabilityInput from factory
-type CapabilityWithEmbedding = AlgorithmCapabilityInput;
+// Extend AlgorithmCapabilityInput with fields needed for canonicalization
+interface CapabilityWithEmbedding extends AlgorithmCapabilityInput {
+  level: number;
+  usageCount: number;
+}
 
 interface TraceToolRow {
   task_results: string | Array<{ tool?: string }>;
@@ -102,6 +107,8 @@ export interface AlgorithmInitResult {
   gru: IGRUInference | null;
   graphSyncController: GraphSyncController | null;
   capabilitiesLoaded: number;
+  /** Set when initialization failed catastrophically */
+  initError?: string;
 }
 
 // ==========================================================================
@@ -145,6 +152,24 @@ export class AlgorithmInitializer {
       const containsEdges = await this.loadContainsEdges();
       this.capabilities = this.parseCapabilities(rows, containsEdges);
 
+      // 1b. Canonicalize capabilities by toolset (dedup same-toolset caps)
+      // Multiple caps can share the same sorted toolset (cross-org dupes, test artifacts).
+      // Without dedup, they dilute softmax in SHGAT scoring (~50 dupes on prod).
+      // Skip with NO_CANONICALIZE=true for A/B testing.
+      const skipCanon = Deno.env.get("NO_CANONICALIZE") === "true";
+      if (!skipCanon) {
+        const before = this.capabilities.length;
+        this.capabilities = this.canonicalizeCapabilities(this.capabilities);
+        const removed = before - this.capabilities.length;
+        if (removed > 0) {
+          log.info(
+            `[SHGAT Init] Canonicalized: ${before} → ${this.capabilities.length} caps (${removed} dupes removed)`,
+          );
+        }
+      } else {
+        log.info(`[SHGAT Init] Canonicalization skipped (NO_CANONICALIZE=true)`);
+      }
+
       // 2. Load provides edges (tool→tool or cap→cap schema matching)
       let providesEdges: Array<{ from: string; to: string; type: "provides"; weight: number }> | undefined;
       try {
@@ -153,7 +178,7 @@ export class AlgorithmInitializer {
           log.info(`[AlgorithmInitializer] Loaded ${providesEdges.length} provides edges for DR-DSP`);
         }
       } catch (e) {
-        log.debug(`[AlgorithmInitializer] Could not load provides edges: ${e}`);
+        log.warn(`[AlgorithmInitializer] Could not load provides edges: ${e}`);
       }
 
       // 3. Create SHGAT and DR-DSP via AlgorithmFactory (centralized creation)
@@ -203,13 +228,17 @@ export class AlgorithmInitializer {
         capabilitiesLoaded: this.capabilities.length,
       };
     } catch (error) {
-      log.error(`[AlgorithmInitializer] Failed to initialize: ${error}`);
+      log.error(
+        `[AlgorithmInitializer] CRITICAL: initialization failed — ` +
+        `algorithms will be unavailable: ${error}`,
+      );
       return {
         shgat: null,
         drdsp: null,
         gru: null,
         graphSyncController: null,
         capabilitiesLoaded: 0,
+        initError: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -304,16 +333,44 @@ export class AlgorithmInitializer {
       return { success: false, error: "GRU not initialized" };
     }
 
+    // Load warm-start weights from DB (same pattern as offline script)
+    let existingWeightsPath: string | undefined;
+    try {
+      const rows = await this.deps.db.query(
+        "SELECT params FROM gru_params ORDER BY updated_at DESC LIMIT 1",
+      ) as Array<{ params: string | object }>;
+      if (rows.length > 0) {
+        const paramsObj = typeof rows[0].params === "string"
+          ? JSON.parse(rows[0].params)
+          : rows[0].params;
+        const tmpPath = `/tmp/gru-live-warm-${Date.now()}.json`;
+        const { writeFileSync } = await import("node:fs");
+        writeFileSync(tmpPath, JSON.stringify(paramsObj));
+        existingWeightsPath = tmpPath;
+        log.info(`[AlgorithmInitializer] GRU warm start from DB weights`);
+      }
+    } catch (e) {
+      log.warn(`[AlgorithmInitializer] Could not load DB weights for warm start: ${e}`);
+    }
+
     const result = await spawnGRUTraining({
       examples,
       testExamples,
       evalEvery: 5,
       toolEmbeddings,
       capabilityData,
-      existingWeightsPath: "lib/gru/gru-weights-latest.json",
+      existingWeightsPath,
       epochs: 20,
       learningRate: 0.001,
     });
+
+    // Clean up temp file
+    if (existingWeightsPath) {
+      try {
+        const { unlinkSync } = await import("node:fs");
+        unlinkSync(existingWeightsPath);
+      } catch { /* ignore */ }
+    }
 
     if (result.success && result.savedToDb) {
       await this.reloadGRUWeights();
@@ -448,7 +505,7 @@ export class AlgorithmInitializer {
         return { loaded: false };
       }
     } catch (error) {
-      log.debug(`[AlgorithmInitializer] Could not load SHGAT params: ${error}`);
+      log.warn(`[AlgorithmInitializer] Could not load SHGAT params — using untrained: ${error}`);
       return { loaded: false };
     }
   }
@@ -538,123 +595,22 @@ export class AlgorithmInitializer {
         return;
       }
 
-      // 3. Build tool-capability map for structural bias + transition features
-      const toolCapMap = this.buildToolCapabilityMap(toolIds);
-
-      // 4. Load traces for bigram matrix
-      const traces = await this.loadTracesForBigram();
-      const toolToIndex = vocab.nodeToIndex;
-
-      // 5. Compute structural matrices
-      const structural = computeStructuralMatrices(
-        traces,
-        toolToIndex,
-        toolIds.length,
-        toolCapMap,
-      );
-
-      // 6. Wire up GRU
+      // 3. Wire up GRU (structural bias disabled — Jaccard/bigram redundant with SHGAT)
       const gru = new GRUInference();
       gru.setWeights(weights);
       gru.setVocabulary(vocab);
-      gru.setStructuralMatrices(structural);
 
       this.gru = gru;
       log.info(
         `[AlgorithmInitializer] GRU ready: ${vocab.vocabSize} vocab, ` +
-        `${toolIds.length} tools, ${traces.length} traces for bigram, ` +
-        `toolCapMap: ${toolCapMap ? `${toolCapMap.numTools}×${toolCapMap.numCapabilities}` : "none"}`,
+        `${toolIds.length} tools`,
       );
     } catch (error) {
-      log.error(`[AlgorithmInitializer] GRU initialization failed: ${error}`);
+      log.error(
+        `[AlgorithmInitializer] GRU initialization failed — ` +
+        `next-tool prediction will be unavailable: ${error}`,
+      );
       this.gru = null;
-    }
-  }
-
-  /**
-   * Build binary tool×capability matrix from capabilities data.
-   * Returns null if no capability data available.
-   */
-  private buildToolCapabilityMap(toolIds: string[]): ToolCapabilityMap | undefined {
-    if (this.capabilities.length === 0) return undefined;
-
-    // Collect all unique capability IDs that have tools
-    const capsWithTools = this.capabilities.filter(
-      (c) => c.toolsUsed && c.toolsUsed.length > 0,
-    );
-    if (capsWithTools.length === 0) return undefined;
-
-    const capIds = capsWithTools.map((c) => c.id);
-    const capToIdx = new Map<string, number>();
-    for (let i = 0; i < capIds.length; i++) {
-      capToIdx.set(capIds[i], i);
-    }
-
-    const toolToIdx = new Map<string, number>();
-    for (let i = 0; i < toolIds.length; i++) {
-      toolToIdx.set(toolIds[i], i);
-    }
-
-    const numTools = toolIds.length;
-    const numCaps = capIds.length;
-    const matrix = new Float32Array(numTools * numCaps);
-
-    for (const cap of capsWithTools) {
-      const capIdx = capToIdx.get(cap.id);
-      if (capIdx === undefined) continue;
-      for (const tool of cap.toolsUsed!) {
-        const toolIdx = toolToIdx.get(tool);
-        if (toolIdx !== undefined) {
-          matrix[toolIdx * numCaps + capIdx] = 1;
-        }
-      }
-    }
-
-    return { matrix, numTools, numCapabilities: numCaps };
-  }
-
-  /**
-   * Load execution traces as tool ID sequences for bigram matrix computation.
-   */
-  private async loadTracesForBigram(): Promise<string[][]> {
-    try {
-      const rows = (await this.deps.db.query(`
-        SELECT task_results
-        FROM execution_trace
-        WHERE task_results IS NOT NULL
-          AND jsonb_typeof(task_results) = 'array'
-          AND jsonb_array_length(task_results) > 1
-        ORDER BY executed_at DESC
-        LIMIT 1000
-      `)) as unknown as Array<{ task_results: string | Array<{ tool?: string }> }>;
-
-      const traces: string[][] = [];
-      for (const row of rows) {
-        let taskResults: Array<{ tool?: string }> = [];
-        try {
-          taskResults =
-            typeof row.task_results === "string"
-              ? JSON.parse(row.task_results)
-              : row.task_results;
-        } catch {
-          continue;
-        }
-
-        const tools = taskResults
-          .map((t) => t.tool)
-          .filter((t): t is string => !!t)
-          .map(normalizeToolId)
-          .filter(Boolean) as string[];
-
-        if (tools.length > 1) {
-          traces.push(tools);
-        }
-      }
-
-      return traces;
-    } catch (error) {
-      log.warn(`[AlgorithmInitializer] Could not load traces for GRU bigram: ${error}`);
-      return [];
     }
   }
 
@@ -666,12 +622,24 @@ export class AlgorithmInitializer {
     return (await this.deps.db.query(
       `SELECT
         pattern_id as id,
-        intent_embedding as embedding,
-        dag_structure->'tools_used' as tools_used,
-        success_rate
-      FROM workflow_pattern
+        COALESCE(shgat_embedding, intent_embedding) as embedding,
+        ARRAY(
+          SELECT DISTINCT tr->>'tool'
+          FROM execution_trace et,
+               jsonb_array_elements(et.task_results) tr
+          WHERE et.capability_id = wp.pattern_id
+            AND et.task_results IS NOT NULL
+            AND jsonb_typeof(et.task_results) = 'array'
+            AND jsonb_array_length(et.task_results) >= 1
+            AND tr->>'tool' IS NOT NULL
+        ) as tools_used,
+        success_rate,
+        COALESCE(wp.hierarchy_level, 1) as level,
+        COALESCE(wp.usage_count, 0) as usage_count
+      FROM workflow_pattern wp
       WHERE code_snippet IS NOT NULL
-      LIMIT 1000`,
+        AND intent_embedding IS NOT NULL
+      LIMIT 2000`,
     )) as unknown as CapRow[];
   }
 
@@ -732,14 +700,49 @@ export class AlgorithmInitializer {
       .map((c) => ({
         id: c.id,
         embedding: c.embedding,
-        // Normalize FQDN → short format (e.g. "pml.mcp.std.psql_query.db48" → "std:psql_query")
-        // dag_structure.tools_used stores FQDN but tool_embedding.tool_id uses short format.
-        // Without this, createSHGATFromCapabilities registers tools with FQDN IDs that don't
-        // match any real embedding, causing random embeddings to be used for message passing.
+        // Normalize FQDN → short format (task_results stores actual tool IDs)
         toolsUsed: (c.tools_used ?? []).map(normalizeToolId).filter(Boolean),
         successRate: c.success_rate,
         children: childrenMap.get(c.id),
         parents: parentsMap.get(c.id),
+        level: c.level,
+        usageCount: c.usage_count,
+      }));
+  }
+
+  // ==========================================================================
+  // Private: Canonicalization
+  // ==========================================================================
+
+  /**
+   * Deduplicate capabilities sharing the same sorted toolset.
+   * Delegates to centralized canonicalizeCaps (level-aware, usageCount election).
+   * Returns a new array with only canonical caps.
+   */
+  private canonicalizeCapabilities(
+    caps: CapabilityWithEmbedding[],
+  ): CapabilityWithEmbedding[] {
+    // Adapt to CapData interface for centralized function
+    const capData: CapData[] = caps.map(c => ({
+      id: c.id,
+      embedding: c.embedding,
+      toolChildren: c.toolsUsed,
+      level: c.level,
+      usageCount: c.usageCount,
+    }));
+
+    const { canonicalMap, remapped } = canonicalizeCaps(capData);
+    if (remapped === 0) return caps;
+
+    // canonicalizeCaps mutates capData in-place — use surviving IDs
+    const canonicalIds = new Set(capData.map(c => c.id));
+
+    return caps
+      .filter(cap => canonicalIds.has(cap.id))
+      .map(cap => ({
+        ...cap,
+        children: cap.children?.map(c => canonicalMap.get(c) ?? c),
+        parents: cap.parents?.map(p => canonicalMap.get(p) ?? p),
       }));
   }
 
