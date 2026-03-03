@@ -4,9 +4,9 @@
  * - Loads ALL traces (caps appear as-is in sequences, NOT expanded to tools)
  * - Caps are in the output vocab alongside tools (hierarchical softmax)
  * - toolCapMap encodes the cap→tool hierarchy as input features
- * - SHGAT enrichment: loads trained SHGAT params from DB, enriches tool
- *   embeddings via V2V co-occurrence + message passing before passing to
- *   GRU training (aligned with prod pipeline in post-execution.service)
+ * - SHGAT enrichment: loads pre-computed SHGAT embeddings from DB
+ *   (tool_embedding.shgat_embedding + workflow_pattern.shgat_embedding)
+ *   produced by train-shgat-standalone.ts. No inline MP (Option A).
  * - 80/20 split BY TRACE (not by example, to avoid contamination)
  * - Consecutive duplicate dedup (loop protection)
  * - Trains on train set, evaluates on test set
@@ -18,10 +18,8 @@
 import * as log from "@std/log";
 import { normalizeToolId } from "../src/capabilities/routing-resolver.ts";
 import { spawnGRUTraining } from "../src/graphrag/algorithms/gru/spawn-training.ts";
-import { SHGATAdapter } from "../lib/shgat-for-gru/src/index.ts";
-import { buildCooccurrenceFromWorkflows, v2vEnrich } from "../lib/shgat-for-gru/src/v2v.ts";
-import type { GraphNode, OBTrainedParams } from "../lib/shgat-for-gru/src/types.ts";
 import postgres from "https://deno.land/x/postgresjs@v3.4.5/mod.js";
+import { capExamplesPerTarget } from "../lib/gru/src/data-prep/cap-frequency-cap.ts";
 
 log.setup({ handlers: { console: new log.ConsoleHandler("DEBUG") }, loggers: { default: { level: "DEBUG", handlers: ["console"] } } });
 
@@ -49,30 +47,53 @@ const rng = mulberry32(42);
 console.log("[1/5] Loading reference data...");
 
 // --- 1a. Tool embeddings (defines the tool vocab) ---
+// Load SHGAT-enriched embeddings from DB when available (pre-computed by train-shgat-standalone).
+// Fallback to raw BGE-M3 for tools without SHGAT embedding (new tools added after last SHGAT run).
+// This avoids costly inline MP (~3min) and eliminates double-enrichment risk.
 const toolEmbeddings: Record<string, number[]> = {};
-const embRows = await sql`SELECT tool_id, embedding FROM tool_embedding ORDER BY tool_id`;
+let toolShgatCount = 0;
+const embRows = await sql`SELECT tool_id, COALESCE(shgat_embedding, embedding) as embedding, shgat_embedding IS NOT NULL as has_shgat FROM tool_embedding ORDER BY tool_id`;
 for (const row of embRows) {
   const raw = row.embedding;
   const emb: number[] = typeof raw === "string" ? JSON.parse(raw) : raw;
-  if (emb && emb.length > 0) toolEmbeddings[row.tool_id as string] = emb;
+  if (emb && emb.length > 0) {
+    toolEmbeddings[row.tool_id as string] = emb;
+    if (row.has_shgat) toolShgatCount++;
+  }
 }
 const toolVocab = new Set(Object.keys(toolEmbeddings));
-console.log(`  ${toolVocab.size} tool embeddings (output vocab)`);
+console.log(`  ${toolVocab.size} tool embeddings (${toolShgatCount} SHGAT-enriched, ${toolVocab.size - toolShgatCount} raw BGE fallback)`);
 
-// --- 1b. Capability data (cap → tool hierarchy) ---
+// --- 1b. Capability data (cap → tool hierarchy from execution traces) ---
+// Source of truth: task_results from execution_trace (real execution data)
+// instead of dag_structure->'tools_used' (static snapshot)
 const capRows = await sql`
   SELECT DISTINCT ON (cr.namespace, cr.action)
     cr.namespace || ':' || cr.action as cap_name,
     COALESCE(wp.shgat_embedding, wp.intent_embedding) as embedding,
     wp.shgat_embedding IS NOT NULL as has_shgat,
-    wp.dag_structure->'tools_used' as tools_used,
-    COALESCE(wp.hierarchy_level, 1) as level,
+    ARRAY(
+      SELECT DISTINCT tr->>'tool'
+      FROM execution_trace et,
+           jsonb_array_elements(et.task_results) tr
+      WHERE et.capability_id = wp.pattern_id
+        AND et.task_results IS NOT NULL
+        AND jsonb_typeof(et.task_results) = 'array'
+        AND jsonb_array_length(et.task_results) >= 1
+    ) as tools_used,
+    wp.hierarchy_level as level,
     COALESCE(wp.usage_count, 0) as usage_count
   FROM workflow_pattern wp
   JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
   WHERE wp.code_snippet IS NOT NULL
     AND wp.intent_embedding IS NOT NULL
-    AND wp.dag_structure->'tools_used' IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM execution_trace et
+      WHERE et.capability_id = wp.pattern_id
+        AND et.task_results IS NOT NULL
+        AND jsonb_typeof(et.task_results) = 'array'
+        AND jsonb_array_length(et.task_results) >= 1
+    )
   ORDER BY cr.namespace, cr.action, wp.last_used DESC
 `;
 
@@ -94,9 +115,9 @@ for (const row of capRows) {
   if (row.has_shgat) dbShgatCount++;
 }
 
-// --- 1a-bis. Resolve stale code:exec_HASH references in tools_used ---
-// When a cap calls another cap, tools_used stores the callee's original name (code:exec_HASH).
-// If the callee was later renamed, the caller's tools_used still has the old exec_ reference.
+// --- 1a-bis. Resolve stale code:exec_HASH references in task_results tools ---
+// When a cap calls another cap, task_results stores the callee's original tool ID (code:exec_HASH).
+// If the callee was later renamed, the task_results still has the old exec_ reference.
 // Fix: build code_hash→cap_name map and resolve exec_ refs to real names.
 const codeHashRows = await sql`
   SELECT wp.code_hash, cr.namespace || ':' || cr.action as cap_name
@@ -134,8 +155,48 @@ for (const [key, children] of capChildrenMap) {
 }
 if (execResolved > 0) console.log(`  Resolved ${execResolved} stale code:exec_* refs → real cap names`);
 
+// --- 1a-ter. Apply rename chain to toolChildren ---
+// exec_hash resolution (above) only covers hashes with a live code_hash in workflow_pattern.
+// Old exec_hashes that were renamed (code updated) are in capability_name_history but NOT in
+// workflow_pattern.code_hash. Load rename history here so we can resolve them before flatten.
+const renameRows = await sql`
+  SELECT old_name, new_name, old_fqdn FROM capability_name_history ORDER BY renamed_at ASC
+`;
+const renameMap = new Map<string, string>();
+for (const row of renameRows) {
+  renameMap.set(row.old_name as string, row.new_name as string);
+  if (row.old_fqdn) renameMap.set(row.old_fqdn as string, row.new_name as string);
+}
+// Follow chains: if A->B and B->C, resolve A->C (with cycle protection)
+for (const [oldName, newName] of renameMap) {
+  let current = newName;
+  const visited = new Set<string>([oldName]);
+  while (renameMap.has(current) && !visited.has(current)) {
+    visited.add(current);
+    current = renameMap.get(current)!;
+  }
+  if (current !== newName) renameMap.set(oldName, current);
+}
+// Apply rename chain to toolChildren (resolves old exec_hashes missed by step 1a-bis)
+let renameResolved = 0;
+for (const cap of capabilityData) {
+  cap.toolChildren = cap.toolChildren.map(child => {
+    const renamed = renameMap.get(child);
+    if (renamed) { renameResolved++; return renamed; }
+    return child;
+  });
+}
+for (const [key, children] of capChildrenMap) {
+  capChildrenMap.set(key, children.map(c => renameMap.get(c) ?? c));
+}
+if (renameMap.size > 0) {
+  console.log(`  ${renameMap.size} rename mappings loaded, ${renameResolved} stale refs resolved in toolChildren`);
+}
+
 // SKIP_CAPS=true → tools-only vocab (no caps in output softmax, no cap-as-terminal)
 const skipCaps = Deno.env.get("SKIP_CAPS") === "true";
+const noCapTerminal = Deno.env.get("NO_CAP_TERMINAL") === "true";
+if (noCapTerminal) console.log("  # NO_CAP_TERMINAL=true — cap-as-terminal examples removed (caps stay in vocab)");
 if (skipCaps) console.log("  SKIP_CAPS=true — caps excluded from vocab (tools-only)");
 
 // --- 1b-bis. Canonicalize caps by toolset ---
@@ -199,189 +260,67 @@ if (!skipCaps && Deno.env.get("NO_CANONICALIZE") !== "true") {
   console.log("  NO_CANONICALIZE=true — all caps kept as separate vocab entries");
 }
 
-// --- F2: Resolve L2+ caps transitively to L0 tools ---
-// L2 caps have children = cap names (L1), not tool IDs. Without resolution,
-// they get silently skipped when filtering by toolVocab.has().
-// Fix: walk down the hierarchy until we reach tools in toolVocab.
-let l2Resolved = 0;
-for (const cap of capabilityData) {
-  if (cap.level < 2) continue;
-  const resolvedTools = new Set<string>();
-  const queue = [...cap.toolChildren];
-  const visited = new Set<string>();
-  while (queue.length > 0) {
-    const child = queue.shift()!;
-    if (visited.has(child)) continue;
-    visited.add(child);
-    if (toolVocab.has(child)) {
-      resolvedTools.add(child);
-    } else {
-      const grandChildren = capChildrenMap.get(child);
-      if (grandChildren) {
-        queue.push(...grandChildren);
+// --- F2: Flatten hierarchy to L0 (recursive BFS, handles any depth) ---
+const NATURAL_HIERARCHY = Deno.env.get("NATURAL_HIERARCHY") === "true";
+if (!NATURAL_HIERARCHY) {
+  const capMap = new Map<string, typeof capabilityData[0]>();
+  for (const cap of capabilityData) capMap.set(cap.id, cap);
+  let flatCount = 0;
+  for (const cap of capabilityData) {
+    const l0Tools: string[] = [];
+    const queue = [...cap.toolChildren];
+    const visited = new Set<string>();
+    while (queue.length > 0) {
+      const child = queue.shift()!;
+      if (visited.has(child)) continue;
+      visited.add(child);
+      if (toolVocab.has(child)) {
+        l0Tools.push(child);
       } else {
-        log.warn(`[caps] L${cap.level} cap "${cap.id}" has child "${child}" not in toolVocab and not a known cap — dropped`);
+        const childCap = capMap.get(child);
+        if (childCap) queue.push(...childCap.toolChildren);
       }
     }
+    if (!cap.toolChildren.every(c => toolVocab.has(c))) flatCount++;
+    cap.toolChildren = l0Tools;
+    capChildrenMap.set(cap.id, l0Tools);
   }
-  if (resolvedTools.size > 0) {
-    cap.toolChildren = [...resolvedTools];
-    l2Resolved++;
-  } else {
-    log.warn(`[caps] L${cap.level} cap "${cap.id}" resolved to 0 tools — will be excluded from SHGAT graph`);
+  console.log(`  Flatten to L0: ${flatCount} caps resolved recursively`);
+} else {
+  // Keep L2→L1→L0 hierarchy intact: caps retain cap-children, not flattened to L0
+  for (const cap of capabilityData) {
+    capChildrenMap.set(cap.id, cap.toolChildren);
   }
+  console.log(`  NATURAL_HIERARCHY: caps keep cap-children (L2→L1→L0 preserved), ${capabilityData.length} caps unchanged`);
 }
-if (l2Resolved > 0) console.log(`  Resolved ${l2Resolved} L2+ caps transitively to L0 tools`);
 
 console.log(`  ${capabilityData.length} capabilities with tool children (${dbShgatCount} from shgat_embedding, ${capabilityData.length - dbShgatCount} from intent_embedding fallback)`);
 
-// --- 1c. SHGAT enrichment (message passing on tool embeddings) ---
+// --- 1c. SHGAT embeddings (loaded from DB, pre-computed by train-shgat-standalone) ---
+// Option A: No inline MP. Tool embeddings already loaded as COALESCE(shgat_embedding, embedding)
+// in step 1a. Cap embeddings already loaded as COALESCE(shgat_embedding, intent_embedding) in step 1b.
+// This avoids:
+//   - 3min decompression + MP overhead per run
+//   - Double-enrichment bug (COALESCE reads MP'd embedding, then adapter MP'd again)
+// The standalone SHGAT trainer persists both tool and cap embeddings to DB after training.
+// SKIP_SHGAT=true → use raw BGE-M3 embeddings (no shgat_embedding from DB either)
 const SKIP_SHGAT = Deno.env.get("SKIP_SHGAT") === "true";
-if (!SKIP_SHGAT) {
-  console.log("  Loading SHGAT params from DB...");
-  // Use psql to extract base64 data + format (postgres.js OOMs on 160MB+ bytea)
-  const shgatTmpPath = await Deno.makeTempFile({ prefix: "shgat-params-", suffix: ".json" });
-  const dbUrl = Deno.env.get("DATABASE_URL")!;
-  const fmtProc = new Deno.Command("psql", {
-    args: [dbUrl, "-t", "-A", "-c",
-      `SELECT params->>'format' FROM shgat_params ORDER BY created_at DESC LIMIT 1`],
-    stdout: "piped", stderr: "piped",
-  });
-  const shgatFormat = new TextDecoder().decode((await fmtProc.output()).stdout).trim();
-
-  const dataProc = new Deno.Command("psql", {
-    args: [dbUrl, "-t", "-A", "-c",
-      `SELECT params->>'data' FROM shgat_params ORDER BY created_at DESC LIMIT 1`],
-    stdout: "piped", stderr: "piped",
-  });
-  const b64Data = new TextDecoder().decode((await dataProc.output()).stdout).trim();
-
-  if (b64Data.length > 0) {
-    console.log(`    SHGAT params: ${(b64Data.length / 1024 / 1024).toFixed(1)}MB base64, format=${shgatFormat}`);
-
-    // Decode base64 → gzip bytes
-    const binaryStr = atob(b64Data);
-    const compressed = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) compressed[i] = binaryStr.charCodeAt(i);
-
-    // Decompress gzip
-    const ds = new DecompressionStream("gzip");
-    const writer = ds.writable.getWriter();
-    writer.write(compressed);
-    writer.close();
-    const decompressedChunks: Uint8Array[] = [];
-    const reader = ds.readable.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      decompressedChunks.push(value);
-    }
-    const totalLen = decompressedChunks.reduce((s, c) => s + c.length, 0);
-    const decompressed = new Uint8Array(totalLen);
-    let offset = 0;
-    for (const chunk of decompressedChunks) {
-      decompressed.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    // Decode: msgpack or JSON depending on format
-    // deno-lint-ignore no-explicit-any
-    let loadedRaw: Record<string, any>;
-    if (shgatFormat.includes("msgpack")) {
-      const { decode: msgpackDecode } = await import("npm:@msgpack/msgpack");
-      loadedRaw = msgpackDecode(decompressed) as Record<string, unknown>;
-    } else {
-      loadedRaw = JSON.parse(new TextDecoder().decode(decompressed));
-    }
-    console.log(`    Decompressed: ${(totalLen / 1024 / 1024).toFixed(1)}MB, keys: ${Object.keys(loadedRaw).join(", ")}`);
-
-    // Convert autograd format if needed, then set params
-    const adapter = new SHGATAdapter();
-    if ("W_up" in loadedRaw) {
-      adapter.setParams(SHGATAdapter.convertAutogradToOB(loadedRaw));
-    } else {
-      adapter.setParams(loadedRaw as OBTrainedParams);
-    }
-    const cfg = adapter.getConfig();
-    console.log(`    SHGAT config: numHeads=${cfg.numHeads}, headDim=${cfg.headDim}, embDim=${cfg.embeddingDim}`);
-
-    // --- V2V co-occurrence enrichment (BEFORE MP, matching prod pipeline) ---
-    // Prod order: V2V first → then upward/downward MP on V2V-enriched embeddings
-    // (see MultiLevelOrchestrator.forwardMultiLevel:347 → applyV2VEnrichment before upward)
-    const workflowToolLists = capabilityData
-      .map(c => c.toolChildren.filter(t => toolVocab.has(t)))
-      .filter(list => list.length >= 2);
-
-    if (workflowToolLists.length > 0) {
-      const toolIds = Object.keys(toolEmbeddings);
-      const toolIdToIdx = new Map<string, number>();
-      toolIds.forEach((id, i) => toolIdToIdx.set(id, i));
-
-      const cooccurrence = buildCooccurrenceFromWorkflows(workflowToolLists, toolIdToIdx);
-      const H_raw = toolIds.map(id => toolEmbeddings[id]);
-      const H_v2v = v2vEnrich(H_raw, cooccurrence, { residualWeight: 0.3 });
-
-      toolIds.forEach((id, i) => { toolEmbeddings[id] = H_v2v[i]; });
-      console.log(`    V2V co-occurrence: ${cooccurrence.length / 2} bidirectional edges from ${workflowToolLists.length} workflows`);
-    } else {
-      console.log("    V2V co-occurrence: no workflows with ≥2 tools in vocab — skipped");
-    }
-
-    // Build graph: tools (L0 leaves) + capabilities (higher nodes)
-    // SHGATAdapter level numbering: first higher level = 0, second = 1, etc.
-    // Our DB hierarchy_level: tools=0, caps=1, meta-caps=2
-    // So we shift: adapterLevel = dbLevel - 1 (caps become 0, meta-caps become 1)
-    const graphNodes: GraphNode[] = [];
-    for (const [toolId, emb] of Object.entries(toolEmbeddings)) {
-      graphNodes.push({ id: toolId, embedding: emb, children: [], level: 0 });
-    }
-    for (const cap of capabilityData) {
-      const validChildren = cap.toolChildren.filter(c => toolVocab.has(c));
-      if (validChildren.length === 0) continue;
-      const adapterLevel = Math.max(0, cap.level - 1);
-      graphNodes.push({ id: cap.id, embedding: cap.embedding, children: validChildren, level: adapterLevel });
-    }
-
-    const graph = adapter.buildGraph(graphNodes);
-    console.log(`    Graph: ${graph.l0Ids.length} L0, ${Array.from(graph.nodeIdsByLevel.entries()).map(([l, ids]) => `L${l}:${ids.length}`).join(", ")} higher`);
-
-    // Enrich and replace tool embeddings
-    const { l0Embeddings, enrichmentMs } = adapter.enrichEmbeddings();
-    let replaced = 0;
-    for (const [toolId, enrichedEmb] of l0Embeddings) {
-      if (toolEmbeddings[toolId]) {
-        toolEmbeddings[toolId] = enrichedEmb;
-        replaced++;
-      }
-    }
-    console.log(`    Enriched ${replaced}/${toolVocab.size} tool embeddings via SHGAT V2V+MP (${enrichmentMs}ms)`);
-
-    // Override cap embeddings with freshly enriched ones from adapter
-    // Adapter uses cap IDs as passed to buildGraph() = capabilityData[].id = namespace:action
-    if (!skipCaps) {
-      try {
-        const enrichedCaps = adapter.getEnrichedCapEmbeddings();
-        let capReplaced = 0;
-        for (const cap of capabilityData) {
-          const enriched = enrichedCaps.get(cap.id);
-          if (enriched) {
-            cap.embedding = enriched;
-            capReplaced++;
-          }
-        }
-        console.log(`    Enriched ${capReplaced}/${capabilityData.length} cap embeddings via SHGAT MP`);
-      } catch (e) {
-        log.warn(`[caps] Could not override cap embeddings from adapter: ${e}`);
-      }
-    }
-
-    try { await Deno.remove(shgatTmpPath); } catch { /* ignore */ }
-  } else {
-    console.log("  No SHGAT params in DB — using raw BGE-M3 embeddings");
-    try { await Deno.remove(shgatTmpPath); } catch { /* ignore */ }
+if (SKIP_SHGAT) {
+  console.log("  SKIP_SHGAT=true — using raw BGE-M3 embeddings (reloading without SHGAT)");
+  // Reload tool embeddings WITHOUT shgat_embedding
+  const rawEmbRows = await sql`SELECT tool_id, embedding FROM tool_embedding ORDER BY tool_id`;
+  for (const row of rawEmbRows) {
+    const raw = row.embedding;
+    const emb: number[] = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (emb && emb.length > 0) toolEmbeddings[row.tool_id as string] = emb;
   }
+  // Note: cap embeddings were loaded via COALESCE(shgat_embedding, intent_embedding).
+  // In SKIP_SHGAT mode, ideally we'd reload with intent_embedding only, but this is
+  // an ablation-only mode and the difference is marginal (caps without shgat_embedding
+  // already got intent_embedding via the COALESCE fallback).
+  console.log(`  ${toolVocab.size} tool embeddings (raw BGE-M3, SKIP_SHGAT mode)`);
 } else {
-  console.log("  SKIP_SHGAT=true — using raw BGE-M3 embeddings");
+  console.log(`  SHGAT embeddings from DB: ${toolShgatCount}/${toolVocab.size} tools, ${dbShgatCount}/${capabilityData.length} caps pre-enriched`);
 }
 
 // --- 1c-bis. L2-normalize all embeddings ---
@@ -434,30 +373,8 @@ function l2Normalize(vec: number[]): number[] {
   console.log(`  L2 norm check: tools avg=${avgToolNorm.toFixed(4)} (${toolsNormalized} re-normalized), caps avg=${avgCapNorm.toFixed(4)} (${capsNormalized} re-normalized)`);
 }
 
-// --- 1d. Rename history ---
-const renameRows = await sql`
-  SELECT old_name, new_name, old_fqdn FROM capability_name_history ORDER BY renamed_at ASC
-`;
-const renameMap = new Map<string, string>();
-for (const row of renameRows) {
-  renameMap.set(row.old_name as string, row.new_name as string);
-  if (row.old_fqdn) renameMap.set(row.old_fqdn as string, row.new_name as string);
-}
-// Follow chains: if A->B and B->C, resolve A->C (with cycle protection)
-for (const [oldName, newName] of renameMap) {
-  let current = newName;
-  const visited = new Set<string>([oldName]);
-  while (renameMap.has(current) && !visited.has(current)) {
-    visited.add(current);
-    current = renameMap.get(current)!;
-  }
-  if (current !== newName) renameMap.set(oldName, current);
-}
-if (renameMap.size > 0) {
-  console.log(`  ${renameMap.size} rename mappings loaded`);
-}
-
 // resolveToolName: exec_hash resolution → rename history → canonicalization
+// (renameMap already loaded in step 1a-ter above)
 const resolveToolName = (name: string): string => {
   // Step 1: resolve stale code:exec_HASH to real cap name
   let resolved = name;
@@ -610,7 +527,7 @@ function buildExamples(traces: ParsedTrace[]) {
 
     // Cap-as-terminal: after the full tool sequence, predict the wrapping capability
     // Teaches: "after seeing [tool1, tool2, ...], the whole thing = this cap"
-    if (trace.capName && !skipCaps) {
+    if (trace.capName && !skipCaps && !noCapTerminal) {
       examples.push({
         intentEmbedding: trace.intentEmb,
         contextToolIds: trace.tools,
@@ -630,9 +547,20 @@ function buildExamples(traces: ParsedTrace[]) {
   return examples;
 }
 
-const trainExamples = buildExamples(trainTraces);
+let trainExamples = buildExamples(trainTraces);
 const testExamples = buildExamples(testTraces);
 console.log(`  Train: ${trainExamples.length} examples, Test: ${testExamples.length} examples`);
+
+// Per-cap frequency capping
+const MAX_PER_CAP = parseInt(Deno.env.get("MAX_PER_CAP") ?? "50", 10);
+if (MAX_PER_CAP > 0 && MAX_PER_CAP < 99999) {
+  const { capped, stats } = capExamplesPerTarget(trainExamples, MAX_PER_CAP);
+  console.log(`  Cap frequency cap: ${stats.before} → ${stats.after} (max ${MAX_PER_CAP}/target, ${stats.cappedTargets} capped)`);
+  for (const d of stats.topDropped.slice(0, 3)) {
+    console.log(`    ${d.target}: ${d.had} → ${d.kept}`);
+  }
+  trainExamples = capped;
+}
 
 if (trainExamples.length < 50) {
   console.error("Not enough train examples (<50), aborting");
@@ -648,17 +576,22 @@ console.log(`  ${trainExamples.length} train, ${testExamples.length} test, ${Obj
 
 // --- Export DB weights to temp file for warm start ---
 let existingWeightsPath: string | undefined;
-const dbWeightsRows = await sql`SELECT params FROM gru_params ORDER BY updated_at DESC LIMIT 1`;
-if (dbWeightsRows.length > 0) {
-  const paramsObj = typeof dbWeightsRows[0].params === "string"
-    ? JSON.parse(dbWeightsRows[0].params)
-    : dbWeightsRows[0].params;
-  const tmpPath = await Deno.makeTempFile({ prefix: "gru-warm-", suffix: ".json" });
-  await Deno.writeTextFile(tmpPath, JSON.stringify(paramsObj));
-  existingWeightsPath = tmpPath;
-  console.log(`  Warm start from DB weights: ${tmpPath}`);
+const coldStart = !!Deno.env.get("COLD_START");
+if (coldStart) {
+  console.log("  COLD_START=true — skipping warm start");
 } else {
-  console.log("  No DB weights — cold start");
+  const dbWeightsRows = await sql`SELECT params FROM gru_params ORDER BY updated_at DESC LIMIT 1`;
+  if (dbWeightsRows.length > 0) {
+    const paramsObj = typeof dbWeightsRows[0].params === "string"
+      ? JSON.parse(dbWeightsRows[0].params)
+      : dbWeightsRows[0].params;
+    const tmpPath = await Deno.makeTempFile({ prefix: "gru-warm-", suffix: ".json" });
+    await Deno.writeTextFile(tmpPath, JSON.stringify(paramsObj));
+    existingWeightsPath = tmpPath;
+    console.log(`  Warm start from DB weights: ${tmpPath}`);
+  } else {
+    console.log("  No DB weights — cold start");
+  }
 }
 
 const result = await spawnGRUTraining({
@@ -668,8 +601,8 @@ const result = await spawnGRUTraining({
   toolEmbeddings,
   capabilityData: skipCaps ? [] : capabilityData,
   existingWeightsPath,
-  epochs: 50,
-  learningRate: 0.001,
+  epochs: parseInt(process.env.GRU_EPOCHS ?? "100"),
+  learningRate: parseFloat(Deno.env.get("GRU_LR") ?? "0.001"),
 });
 
 if (result.success) {
