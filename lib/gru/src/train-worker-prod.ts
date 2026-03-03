@@ -231,18 +231,33 @@ async function main() {
       console.error(`[GRU Worker] toolCapMap: ${numTools}×${numCaps}`);
     }
 
-    // Build toolToCapLookup for same-cluster confusion metric
+    // Build toolToCapLookup (same-cluster metric) + capToChildrenSet (cap-child metric)
+    // Uses BFS to resolve L2+ caps transitively to L0 tools
+    const capIdToChildren = new Map<string, string[]>();
+    for (const node of higherLevelNodes) {
+      capIdToChildren.set(node.id, node.children ?? []);
+    }
     const toolToCapLookup = new Map<string, Set<string>>();
-    // Build capToChildrenSet: cap → all L0 children (for cap confusion metric)
     const capToChildrenSet = new Map<string, Set<string>>();
     for (const node of higherLevelNodes) {
       const childSet = new Set<string>();
-      for (const child of (node.children ?? [])) {
+      // BFS to resolve all transitive L0 children
+      const queue = [...(node.children ?? [])];
+      const visited = new Set<string>();
+      while (queue.length > 0) {
+        const child = queue.shift()!;
+        if (visited.has(child)) continue;
+        visited.add(child);
         if (toolIdSet.has(child)) {
-          if (!toolToCapLookup.has(child)) toolToCapLookup.set(child, new Set());
-          toolToCapLookup.get(child)!.add(node.id);
           childSet.add(child);
+        } else {
+          const grandchildren = capIdToChildren.get(child);
+          if (grandchildren) queue.push(...grandchildren);
         }
+      }
+      for (const tool of childSet) {
+        if (!toolToCapLookup.has(tool)) toolToCapLookup.set(tool, new Set());
+        toolToCapLookup.get(tool)!.add(node.id);
       }
       if (childSet.size > 0) capToChildrenSet.set(node.id, childSet);
     }

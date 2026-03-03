@@ -796,6 +796,24 @@ export class PostExecutionService {
         log.info(`[PostExecutionService] GRU: resolved ${execResolved} stale code:exec_* refs`);
       }
 
+      // 2a-bis. Apply rename chain to toolChildren (before canonicalization)
+      {
+        let renameResolved = 0;
+        for (const cap of capabilityData) {
+          cap.toolChildren = cap.toolChildren.map(child => {
+            const renamed = renameMap.get(child);
+            if (renamed) { renameResolved++; return renamed; }
+            return child;
+          });
+        }
+        for (const [key, children] of capChildrenMap) {
+          capChildrenMap.set(key, children.map(c => renameMap.get(c) ?? c));
+        }
+        if (renameResolved > 0) {
+          log.info(`[PostExecutionService] GRU: ${renameResolved} stale refs resolved via rename chain`);
+        }
+      }
+
       // 2b. Cap canonicalization by toolset (centralized, level-aware)
       let capCanonicalMap = new Map<string, string>();
       {
@@ -829,10 +847,9 @@ export class PostExecutionService {
         }
       }
 
-      // 2c. Resolve L2+ caps transitively to L0 tools
+      // 2c. Flatten ALL caps to L0 tools (BFS through cap hierarchy)
       let l2Resolved = 0;
       for (const cap of capabilityData) {
-        if (cap.level < 2) continue;
         const resolvedTools = new Set<string>();
         const queue = [...cap.toolChildren];
         const visited = new Set<string>();
@@ -853,7 +870,7 @@ export class PostExecutionService {
         }
       }
       if (l2Resolved > 0) {
-        log.info(`[PostExecutionService] GRU: resolved ${l2Resolved} L2+ caps to L0 tools`);
+        log.info(`[PostExecutionService] GRU: flattened ${l2Resolved} caps to L0 tools`);
       }
 
       // 2d. L2 normalize embeddings (SHGAT MP output is not unit-normalized)
@@ -985,28 +1002,44 @@ export class PostExecutionService {
         log.info(`[PostExecutionService] GRU: dedup ${beforeDedup} → ${examples.length} examples`);
       }
 
-      // 3c. Frequency cap (FPS, max 50 per target — aligned with offline script)
-      {
-        const { capped, stats } = capExamplesPerTarget(examples, 50);
-        if (stats.cappedTargets > 0) {
-          log.info(`[PostExecutionService] GRU: freq cap ${stats.before} → ${stats.after} (${stats.cappedTargets} targets capped)`);
-          examples.length = 0;
-          examples.push(...capped);
-        }
-      }
-
       if (examples.length < 50) {
         log.debug(`[PostExecutionService] GRU: not enough examples (${examples.length} < 50)`);
         return;
       }
 
       // ================================================================
-      // 4. Split train/test 80/20 + train
+      // 4. Shuffle + split train/test 80/20 + freq cap train only
       // ================================================================
 
+      // 4a. Seeded shuffle (mulberry32, seed=42 — matches offline script)
+      {
+        const seed = 42;
+        let s = seed | 0;
+        const rand = () => {
+          s = s + 0x6D2B79F5 | 0;
+          let t = Math.imul(s ^ s >>> 15, 1 | s);
+          t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+          return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+        for (let i = examples.length - 1; i > 0; i--) {
+          const j = Math.floor(rand() * (i + 1));
+          [examples[i], examples[j]] = [examples[j], examples[i]];
+        }
+      }
+
+      // 4b. Split 80/20
       const splitIdx = Math.floor(examples.length * 0.8);
-      const trainExamples = examples.slice(0, splitIdx);
+      let trainExamples = examples.slice(0, splitIdx);
       const testExamples = examples.slice(splitIdx);
+
+      // 4c. Frequency cap TRAIN ONLY (FPS, max 50 per target)
+      {
+        const { capped, stats } = capExamplesPerTarget(trainExamples, 50);
+        if (stats.cappedTargets > 0) {
+          log.info(`[PostExecutionService] GRU: freq cap train ${stats.before} → ${stats.after} (${stats.cappedTargets} targets capped)`);
+          trainExamples = capped;
+        }
+      }
 
       log.info(`[PostExecutionService] GRU training: ${trainExamples.length} train, ${testExamples.length} test, ${Object.keys(toolEmbeddings).length} tool embeddings, ${capabilityData.length} caps`);
 
