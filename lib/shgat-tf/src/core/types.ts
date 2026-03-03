@@ -861,9 +861,10 @@ export interface AttentionResult {
   /**
    * Hierarchy level of this capability (n-SuperHyperGraph)
    *
-   * - Level 0: Leaf capabilities (contain only tools)
-   * - Level 1: Meta-capabilities (contain level-0 caps)
-   * - Level k: Meta^k capabilities (contain level-(k-1) caps)
+   * SHGAT array index (0-indexed). DB level = index + 1.
+   * - Index 0 → DB L1: caps containing only L0 tools
+   * - Index 1 → DB L2: caps containing L1 caps
+   * - Index k → DB L(k+1): caps containing L(k) caps
    *
    * @since v1 refactor
    */

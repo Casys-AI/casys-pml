@@ -430,9 +430,9 @@ export function initializeLevelParameters(
   const levelParams = new Map<number, LevelParams>();
 
   for (let level = 0; level <= maxLevel; level++) {
-    // Input dimension depends on level
-    // Level 0: tools have embeddingDim
-    // Level k > 0: capabilities have numHeads * headDim after concat
+    // Input dimension depends on SHGAT-internal level (0-indexed)
+    // Level 0 (DB L1): V→E pass, tools have embeddingDim
+    // Level k > 0 (DB L(k+1)): E→E pass, caps have numHeads * headDim after concat
     const inputDim = level === 0 ? embeddingDim : numHeads * headDim;
 
     levelParams.set(level, {
@@ -476,19 +476,30 @@ export function initializeLevelParametersPreserveDim(
   const headDim = Math.floor(embeddingDim / numHeads);
   const levelParams = new Map<number, LevelParams>();
 
-  for (let level = 0; level <= maxLevel; level++) {
-    // All levels use embeddingDim input (preserved throughout)
-    const inputDim = embeddingDim;
+  // Level 0: always initialize fresh
+  const level0Params: LevelParams = {
+    W_child: initTensor3DIdentityLike(numHeads, headDim, embeddingDim),
+    W_parent: initTensor3DIdentityLike(numHeads, headDim, embeddingDim),
+    a_upward: initMatrix(numHeads, 2 * headDim),
+    a_downward: initMatrix(numHeads, 2 * headDim),
+  };
+  levelParams.set(0, level0Params);
 
-    levelParams.set(level, {
-      // Each head: [headDim][inputDim] = [256][1024]
-      // Use identity-like init to preserve semantic structure from BGE
-      W_child: initTensor3DIdentityLike(numHeads, headDim, inputDim),
-      W_parent: initTensor3DIdentityLike(numHeads, headDim, inputDim),
-      // Attention vectors: [numHeads][2*headDim]
-      a_upward: initMatrix(numHeads, 2 * headDim),
-      a_downward: initMatrix(numHeads, 2 * headDim),
-    });
+  for (let level = 1; level <= maxLevel; level++) {
+    if (config.shareLevelWeights) {
+      // HSG-style weight sharing: levels 1+ point to the SAME objects as level 0.
+      // E→E phases reuse V→E trained weights (abundant signal from 1876 tool↔cap pairs)
+      // instead of learning separate params on only 54 hierarchy edges.
+      levelParams.set(level, level0Params);
+    } else {
+      // Default: separate params per level (original behavior)
+      levelParams.set(level, {
+        W_child: initTensor3DIdentityLike(numHeads, headDim, embeddingDim),
+        W_parent: initTensor3DIdentityLike(numHeads, headDim, embeddingDim),
+        a_upward: initMatrix(numHeads, 2 * headDim),
+        a_downward: initMatrix(numHeads, 2 * headDim),
+      });
+    }
   }
 
   return levelParams;
@@ -586,7 +597,10 @@ export function importLevelParams(
 
   for (const key of Object.keys(data)) {
     const level = parseInt(key.replace("level_", ""));
-    if (isNaN(level)) continue;
+    if (isNaN(level)) {
+      console.warn(`[importLevelParams] Skipping invalid key "${key}" — expected "level_N" format`);
+      continue;
+    }
 
     const params = data[key];
     levelParams.set(level, {

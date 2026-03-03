@@ -60,16 +60,12 @@ function leakyRelu(x: number, slope = 0.2): number {
   return x >= 0 ? x : slope * x;
 }
 
-function vecAdd(a: number[], b: number[], alpha = 1): number[] {
-  const result = new Array<number>(a.length);
-  for (let i = 0; i < a.length; i++) result[i] = a[i] + alpha * b[i];
-  return result;
+function elu(x: number): number {
+  return x >= 0 ? x : Math.exp(x) - 1;
 }
 
-function vecScale(a: number[], s: number): number[] {
-  const result = new Array<number>(a.length);
-  for (let i = 0; i < a.length; i++) result[i] = a[i] * s;
-  return result;
+function sigmoid(x: number): number {
+  return 1 / (1 + Math.exp(-x));
 }
 
 // ==========================================================================
@@ -175,7 +171,7 @@ export class SHGATAdapter {
     const randomAttention = (dim: number): number[] =>
       Array.from({ length: dim }, () => randn() * 0.01);
 
-    // Build level params
+    // Build level params (0-indexed transition ranks: 0 = L0→L1, 1 = L1→L2)
     const levelParams: Record<string, LevelParams> = {};
     for (let level = 0; level < levels; level++) {
       const W_child: number[][][] = [];
@@ -209,6 +205,8 @@ export class SHGATAdapter {
       numHeads,
       headDim,
       embeddingDim: embDim,
+      preserveDim: true,
+      maxLevel: levels - 1,
     };
 
     this.params = { headParams, W_intent, levelParams, config };
@@ -279,6 +277,8 @@ export class SHGATAdapter {
       W_intent: wiData ?? [],
       levelParams,
       config,
+      veResidualA: raw.veResidualA as number | undefined,
+      veResidualB: raw.veResidualB as number | undefined,
     };
   }
 
@@ -320,8 +320,12 @@ export class SHGATAdapter {
     }
 
     // Build connectivity matrices
-    // L0→L1: l0ToL1Matrix[l1Idx][l0Idx] = 1
-    const l1Nodes = nodeIdsByLevel.get(0) ?? [];
+    const levels = [...nodeIdsByLevel.keys()].sort((a, b) => a - b);
+
+    // L0→first-higher-level: l0ToL1Matrix[parentIdx][l0Idx] = 1
+    // Use levels[0] (not hardcoded 0) — first higher level may be 1 when caps start at hierarchy_level=1
+    const firstHigherLevel = levels[0];
+    const l1Nodes = firstHigherLevel !== undefined ? (nodeIdsByLevel.get(firstHigherLevel) ?? []) : [];
     const l1IdxMap = new Map<string, number>();
     for (let i = 0; i < l1Nodes.length; i++) l1IdxMap.set(l1Nodes[i], i);
 
@@ -343,7 +347,6 @@ export class SHGATAdapter {
 
     // Higher-level inter-level matrices
     const interLevelMatrices = new Map<number, number[][]>();
-    const levels = [...nodeIdsByLevel.keys()].sort((a, b) => a - b);
     for (let li = 1; li < levels.length; li++) {
       const parentLevel = levels[li];
       const childLevel = levels[li - 1];
@@ -390,7 +393,7 @@ export class SHGATAdapter {
     if (!this.graph) throw new Error("[SHGATAdapter] No graph built.");
 
     const t0 = Date.now();
-    const { headParams, levelParams: levelParamsObj, config } = this.params;
+    const { levelParams: levelParamsObj, config } = this.params;
     const { l0Ids, nodeIdsByLevel, l0ToL1Matrix, interLevelMatrices } = this.graph;
     const { numHeads, headDim, embeddingDim } = config;
 
@@ -411,10 +414,16 @@ export class SHGATAdapter {
 
     // --- Upward phase: L0 → level-0 nodes → level-1 nodes → ... ---
     const levels = [...nodeIdsByLevel.keys()].sort((a, b) => a - b);
+    const warnedLevels = new Set<number>();
 
     for (const level of levels) {
       const lp = lpMap.get(level);
-      if (!lp) continue;
+      if (!lp) {
+        const nodeCount = nodeIdsByLevel.get(level)?.length ?? 0;
+        console.warn(`[SHGATAdapter] No levelParams for level ${level} — skipping upward MP for ${nodeCount} nodes. Consider retraining SHGAT.`);
+        warnedLevels.add(level);
+        continue;
+      }
 
       const parentEmbs = E.get(level)!;
       const childEmbs = level === levels[0] ? H : (E.get(levels[levels.indexOf(level) - 1]) ?? []);
@@ -460,12 +469,14 @@ export class SHGATAdapter {
           const expLogits = attentionLogits.map((l) => Math.exp(l - maxLogit));
           const sumExp = expLogits.reduce((a, b) => a + b, 0);
 
-          // Weighted sum of child projections
+          // Weighted sum of child projections → ELU activation (matches prod V→E phase)
           const aggr = new Array<number>(headDim).fill(0);
           for (let i = 0; i < childIndices.length; i++) {
             const w = expLogits[i] / sumExp;
             for (let d = 0; d < headDim; d++) aggr[d] += w * childProjs[i][d];
           }
+          // ELU activation on aggregated message (prod: aggregationActivation="elu")
+          for (let d = 0; d < headDim; d++) aggr[d] = elu(aggr[d]);
           headOutputs.push(aggr);
         }
 
@@ -477,9 +488,22 @@ export class SHGATAdapter {
           }
         }
 
-        // Residual: parent += concat (with optional scaling)
-        for (let d = 0; d < embeddingDim; d++) {
-          parentEmbs[pi][d] = parentEmbs[pi][d] + concat[d];
+        // V→E residual: E_new = (1-γ)·E_MP + γ·E_original (convex gate)
+        // γ(n) = sigmoid(a * log(n+1) + b) — learned params, preserves cap identity
+        // Applied at ALL levels (not just L0), matching prod multi-level-orchestrator
+        const veA = this.params!.veResidualA;
+        const veB = this.params!.veResidualB;
+        if (veA !== undefined && veB !== undefined) {
+          const nChildren = childIndices.length;
+          const gamma = sigmoid(veA * Math.log(nChildren + 1) + veB);
+          for (let d = 0; d < embeddingDim; d++) {
+            parentEmbs[pi][d] = (1 - gamma) * concat[d] + gamma * parentEmbs[pi][d];
+          }
+        } else {
+          // No V→E residual (params not available): raw MP output
+          for (let d = 0; d < embeddingDim; d++) {
+            parentEmbs[pi][d] = concat[d];
+          }
         }
       }
     }
@@ -488,7 +512,12 @@ export class SHGATAdapter {
     for (let li = levels.length - 1; li >= 0; li--) {
       const level = levels[li];
       const lp = lpMap.get(level);
-      if (!lp) continue;
+      if (!lp) {
+        if (!warnedLevels.has(level)) {
+          console.warn(`[SHGATAdapter] No levelParams for level ${level} — skipping downward MP.`);
+        }
+        continue;
+      }
 
       const parentEmbs = E.get(level)!;
       const childEmbs = level === levels[0] ? H : (E.get(levels[li - 1]) ?? []);
@@ -536,6 +565,8 @@ export class SHGATAdapter {
             const w = expLogits[i] / sumExp;
             for (let d = 0; d < headDim; d++) aggr[d] += w * parentProjs[i][d];
           }
+          // ELU activation on aggregated message (matching prod E→V/E→E downward phases)
+          for (let d = 0; d < headDim; d++) aggr[d] = elu(aggr[d]);
           headOutputs.push(aggr);
         }
 
@@ -546,6 +577,7 @@ export class SHGATAdapter {
           }
         }
 
+        // Downward: simple additive (no convex gate — only upward has V→E residual)
         for (let d = 0; d < embeddingDim; d++) {
           childEmbs[ci][d] = childEmbs[ci][d] + concat[d];
         }

@@ -27,6 +27,7 @@ import {
   GraphBuilder,
   type HierarchyResult,
   type MultiLevelIncidence,
+  toDbHierarchyLevel,
 } from "./shgat/graph/mod.ts";
 import {
   countParameters,
@@ -120,6 +121,7 @@ import {
   DEFAULT_SHGAT_CONFIG,
   type ForwardCache,
   type FusionWeights,
+  getDirectTools,
   type HypergraphFeatures,
   type LevelParams,
   type SHGATConfig,
@@ -156,6 +158,7 @@ export class SHGAT {
   private multiLevelIncidence: MultiLevelIncidence | null = null;
   private levelParams: Map<number, LevelParams> = new Map();
   private hierarchyDirty = true; // Flag to rebuild hierarchy when graph changes
+  private canonicalCapMapCache: Map<string, string> | null = null;
 
   // V→V trainable parameters (co-occurrence enrichment)
   private v2vParams: V2VParams = { ...DEFAULT_V2V_PARAMS };
@@ -179,11 +182,13 @@ export class SHGAT {
   registerTool(node: ToolNode): void {
     this.graphBuilder.registerTool(node);
     this.hierarchyDirty = true;
+    this.canonicalCapMapCache = null;
   }
 
   registerCapability(node: CapabilityNode): void {
     this.graphBuilder.registerCapability(node);
     this.hierarchyDirty = true;
+    this.canonicalCapMapCache = null;
   }
 
   /**
@@ -239,8 +244,17 @@ export class SHGAT {
       return;
     }
 
-    // 1. Compute hierarchy levels
+    // 1. Compute hierarchy levels (SHGAT-internal: 0-indexed, DB: +1 offset)
+    //    DB: L0=tools (leaves), L1+=caps. SHGAT array index = DB level - 1.
+    //    L0 = tools/code:/loop: operations (not in SHGAT graph)
     this.hierarchy = computeHierarchyLevels(capabilityNodes);
+
+    // Log hierarchy structure for diagnostics
+    const levelSummary = Array.from(this.hierarchy.hierarchyLevels.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([lvl, ids]) => `DB-L${toDbHierarchyLevel(lvl)}=${ids.size}`)
+      .join(", ");
+    getLog().info(`[SHGAT] Hierarchy: ${levelSummary} (${capabilityNodes.size} caps, maxLevel=DB-L${toDbHierarchyLevel(this.hierarchy.maxHierarchyLevel)})`);
 
     // 2. Update hierarchyLevel on each capability
     for (const [level, capIds] of this.hierarchy.hierarchyLevels) {
@@ -254,8 +268,22 @@ export class SHGAT {
     this.multiLevelIncidence = buildMultiLevelIncidence(capabilityNodes, this.hierarchy);
 
     // 4. Initialize level parameters if needed
-    if (this.levelParams.size === 0 || this.levelParams.size <= this.hierarchy.maxHierarchyLevel) {
+    if (this.levelParams.size === 0) {
+      // Cold start: initialize all levels from scratch
       this.levelParams = initializeLevelParameters(this.config, this.hierarchy.maxHierarchyLevel);
+    } else {
+      // Warm: only add params for new levels, preserve trained weights
+      for (let level = 0; level <= this.hierarchy.maxHierarchyLevel; level++) {
+        if (!this.levelParams.has(level)) {
+          const newParams = initializeLevelParameters(this.config, level);
+          this.levelParams.set(level, newParams.get(level)!);
+          getLog().warn(
+            `[SHGAT] New hierarchy level ${level} detected — initialized with Xavier weights. ` +
+            `Trained params for existing levels preserved. ` +
+            `Consider retraining SHGAT to cover level ${level}.`,
+          );
+        }
+      }
     }
 
     this.hierarchyDirty = false;
@@ -1116,6 +1144,47 @@ export class SHGAT {
   }
 
   /**
+   * Build a canonical capability map: non-canonical capId → canonical capId.
+   *
+   * Caps sharing the same sorted tool set are grouped. The canonical is the
+   * one with the highest successRate (tiebreak: shortest id). Lazy-cached,
+   * invalidated on registerTool/registerCapability.
+   */
+  getCanonicalCapMap(): Map<string, string> {
+    if (this.canonicalCapMapCache) return this.canonicalCapMapCache;
+
+    const capabilityNodes = this.graphBuilder.getCapabilityNodes();
+    const toolsetToGroup = new Map<string, string[]>();
+
+    for (const [capId, cap] of capabilityNodes) {
+      const tools = getDirectTools(cap);
+      const key = [...tools].sort().join("|");
+      const group = toolsetToGroup.get(key);
+      if (group) group.push(capId);
+      else toolsetToGroup.set(key, [capId]);
+    }
+
+    const canonMap = new Map<string, string>();
+    for (const group of toolsetToGroup.values()) {
+      if (group.length <= 1) continue;
+      // Elect canonical: highest successRate, then shortest id
+      group.sort((a, b) => {
+        const capA = capabilityNodes.get(a)!;
+        const capB = capabilityNodes.get(b)!;
+        if (capB.successRate !== capA.successRate) return capB.successRate - capA.successRate;
+        return a.length - b.length;
+      });
+      const canonical = group[0];
+      for (let i = 1; i < group.length; i++) {
+        canonMap.set(group[i], canonical);
+      }
+    }
+
+    this.canonicalCapMapCache = canonMap;
+    return canonMap;
+  }
+
+  /**
    * Score all tools using multi-head n-SuperHyperGraph attention
    *
    * v1 Architecture: K-head attention on propagated tool embeddings
@@ -1595,12 +1664,15 @@ export class SHGAT {
         );
       }
 
-      // Apply V→E residual gradients if present
+      // Apply V→E residual gradients if present (separate LR + gradient clipping to prevent drift)
       if (mpGrads.veResidualGrads && this.params.veResidualA !== undefined && this.params.veResidualB !== undefined) {
-        const lr = this.config.learningRate;
+        const lr = (this.config as unknown as Record<string, unknown>).veResidualLR as number ?? this.config.learningRate;
         const batchSize = examples.length;
-        this.params.veResidualA -= lr * mpGrads.veResidualGrads.dA / batchSize;
-        this.params.veResidualB -= lr * mpGrads.veResidualGrads.dB / batchSize;
+        const maxGrad = 1.0;
+        const clippedDA = Math.max(-maxGrad, Math.min(maxGrad, mpGrads.veResidualGrads.dA / batchSize));
+        const clippedDB = Math.max(-maxGrad, Math.min(maxGrad, mpGrads.veResidualGrads.dB / batchSize));
+        this.params.veResidualA -= lr * clippedDA;
+        this.params.veResidualB -= lr * clippedDB;
       }
     }
 
@@ -1893,12 +1965,15 @@ export class SHGAT {
         );
       }
 
-      // Apply V→E residual gradients if present
+      // Apply V→E residual gradients if present (separate LR + gradient clipping to prevent drift)
       if (mpGrads.veResidualGrads && !evaluateOnly && this.params.veResidualA !== undefined && this.params.veResidualB !== undefined) {
-        const lr = this.config.learningRate;
+        const lr = (this.config as unknown as Record<string, unknown>).veResidualLR as number ?? this.config.learningRate;
         const batchSize = examples.length;
-        this.params.veResidualA -= lr * mpGrads.veResidualGrads.dA / batchSize;
-        this.params.veResidualB -= lr * mpGrads.veResidualGrads.dB / batchSize;
+        const maxGrad = 1.0;
+        const clippedDA = Math.max(-maxGrad, Math.min(maxGrad, mpGrads.veResidualGrads.dA / batchSize));
+        const clippedDB = Math.max(-maxGrad, Math.min(maxGrad, mpGrads.veResidualGrads.dB / batchSize));
+        this.params.veResidualA -= lr * clippedDA;
+        this.params.veResidualB -= lr * clippedDB;
       }
     }
 
@@ -2293,9 +2368,10 @@ export function createSHGATFromCapabilities(
   const allTools = new Set<string>();
   for (const cap of capabilities) for (const toolId of cap.toolsUsed) allTools.add(toolId);
 
-  // Compute max hierarchy level from children relationships
+  // Compute max hierarchy level from children relationships (SHGAT-internal, 0-indexed)
+  // Actual levels recomputed in rebuildHierarchy() via computeHierarchyLevels()
   const hasChildren = capabilities.some((c) => c.children && c.children.length > 0);
-  const maxLevel = hasChildren ? 1 : 0; // Simple heuristic, actual level computed in rebuildHierarchy
+  const maxLevel = hasChildren ? 1 : 0;
 
   // Get embeddingDim and preserveDim from config
   // ADR-055: preserveDim=true keeps d=1024 throughout message passing for discriminability

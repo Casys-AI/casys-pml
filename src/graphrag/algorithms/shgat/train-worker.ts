@@ -71,6 +71,10 @@ interface WorkerInput {
     useCurriculum?: boolean; // Use curriculum learning (default: true)
     learningRate?: number;   // Learning rate (default: 0.05)
     useProjectionHead?: boolean; // Enable projection head (default: false)
+    shareLevelWeights?: boolean;  // Share level 0 weights across all levels (HSG-style)
+    earlyStopPatience?: number;   // Epochs without improvement before early stop (default: 8)
+    earlyStopThreshold?: number;  // Max drop from best Hit@1 before early stop (default: 0.10)
+    veResidualLR?: number;        // Separate LR for veResidualA/B (default: same as learningRate)
   };
   /** Optional: import existing params before training (for live updates) */
   existingParams?: Record<string, unknown>;
@@ -241,12 +245,24 @@ async function main() {
       shgatPartialConfig.projectionBlendAlpha = 0.5;
       shgatPartialConfig.projectionTemperature = 0.07;
     }
+    if (input.config.shareLevelWeights) {
+      shgatPartialConfig.shareLevelWeights = true;
+    }
+    if (input.config.veResidualLR !== undefined) {
+      (shgatPartialConfig as Record<string, unknown>).veResidualLR = input.config.veResidualLR;
+    }
     // Pass toolEmbeddingsMap so createSHGATFromCapabilities uses real BGE-M3 embeddings
     // instead of generateDefaultToolEmbedding() for tools referenced by capabilities
     const shgat = toolEmbeddingsMap.size > 0
       ? createSHGATFromCapabilities(input.capabilities, toolEmbeddingsMap, shgatPartialConfig)
       : createSHGATFromCapabilities(input.capabilities, shgatPartialConfig);
     logDebug(`[SHGAT Worker] SHGAT created in ${Date.now() - startCreate}ms`);
+    if (input.config.shareLevelWeights) {
+      console.error(`[SHGAT Worker] shareLevelWeights=true → levels 1+ reuse level 0 weights`);
+    }
+    if (input.config.veResidualLR !== undefined) {
+      console.error(`[SHGAT Worker] veResidualLR=${input.config.veResidualLR} (main LR=${input.config.learningRate ?? 0.05})`);
+    }
 
     // Register any remaining tools from examples that aren't yet in the graph
     {
@@ -310,6 +326,7 @@ async function main() {
         use_curriculum: String(useCurriculum),
         learning_rate: String(learningRate),
         use_projection_head: String(useProjectionHead),
+        share_level_weights: String(!!input.config.shareLevelWeights),
         num_examples: String(input.examples.length),
         num_capabilities: String(input.capabilities.length),
         preserveDimResidual: String(DEFAULT_SHGAT_CONFIG.preserveDimResidual),
@@ -348,8 +365,8 @@ async function main() {
     let lastContrastiveAcc = 0; // contrastive accuracy (Rank@1 among 8 negs) for reference
     let degradationDetected = false;
     let earlyStopEpoch: number | undefined;
-    const DEGRADATION_THRESHOLD = 0.10; // 10% drop from BEST Hit@1 = degradation
-    const PATIENCE = 3; // epochs without improvement before early stop
+    const DEGRADATION_THRESHOLD = input.config.earlyStopThreshold ?? 0.10; // drop from BEST Hit@1 = degradation
+    const PATIENCE = input.config.earlyStopPatience ?? 8; // epochs without improvement before early stop
     let epochsSinceBest = 0;
 
     // Best checkpoint — serialized params at best Hit@1
@@ -514,10 +531,15 @@ async function main() {
         }
 
         const dropFromBest = bestHit1 - hit1;
+        // Log veResidual params to track drift
+        const currentParams = shgat.exportParams();
+        const veInfo = typeof currentParams.veResidualA === "number"
+          ? ` veRes(a=${currentParams.veResidualA.toFixed(3)},b=${currentParams.veResidualB?.toFixed(3)})`
+          : "";
         logInfo(
           `[SHGAT Worker] Health check epoch ${epoch}: hit1=${(hit1 * 100).toFixed(1)}%, mrr=${mrr.toFixed(3)}, ` +
           `contrastive=${lastContrastiveAcc.toFixed(2)}, best_hit1=${(bestHit1 * 100).toFixed(1)}% (ep${bestHit1Epoch}), ` +
-          `Δbest=${(-dropFromBest * 100).toFixed(1)}%, patience=${epochsSinceBest}/${PATIENCE} (${fullVocab.total} caps evaluated)`
+          `Δbest=${(-dropFromBest * 100).toFixed(1)}%, patience=${epochsSinceBest}/${PATIENCE}${veInfo} (${fullVocab.total} caps evaluated)`
         );
 
         // Early stop: >10% drop from best Hit@1 OR patience exhausted

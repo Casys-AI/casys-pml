@@ -3,9 +3,19 @@
  *
  * Computes hierarchy levels for n-SuperHyperGraph capabilities via topological sort.
  *
+ * ## Level Convention (DB = source of truth)
+ *
+ * - **L0** = tools (MCP tools, code:*, loop:*) — the leaves. Never in SHGAT graph.
+ * - **L1** = capabilities containing only L0 tools
+ * - **L2** = capabilities containing L1 caps
+ * - **L3** = capabilities containing L2 caps
+ *
+ * SHGAT arrays are 0-indexed internally (array index = DB level - 1).
+ * Use `toDbHierarchyLevel()` / `toShgatLevel()` to convert.
+ *
  * For capability c ∈ P^k(V₀):
- * - level(c) = 0 if c contains only tools (c ⊆ V₀)
- * - level(c) = 1 + max{level(c') | c' ∈ c} otherwise
+ * - DB level 1 if c contains only tools (c ⊆ V₀)
+ * - DB level 1 + max{level(c') | c' ∈ c} otherwise
  *
  * @module graphrag/algorithms/shgat/graph/hierarchy
  * @see 02-hierarchy-computation.md
@@ -13,6 +23,23 @@
 
 import type { CapabilityNode } from "../types.ts";
 import { getDirectCapabilities } from "../types.ts";
+
+/**
+ * Offset between SHGAT array index and DB hierarchy_level.
+ * DB L0 = tools (code:*, loop:*, MCP tools) — the leaves, never in SHGAT graph.
+ * SHGAT array[0] = DB L1 caps, array[1] = DB L2 caps, etc.
+ */
+export const SHGAT_LEVEL_OFFSET = 1;
+
+/** Convert SHGAT-internal level (0-indexed) → DB hierarchy_level (L0=tools, L1+=caps) */
+export function toDbHierarchyLevel(shgatLevel: number): number {
+  return shgatLevel + SHGAT_LEVEL_OFFSET;
+}
+
+/** Convert DB hierarchy_level → SHGAT-internal level (0-indexed) */
+export function toShgatLevel(dbLevel: number): number {
+  return dbLevel - SHGAT_LEVEL_OFFSET;
+}
 
 /**
  * Result of hierarchy computation
@@ -106,9 +133,11 @@ export function computeHierarchyLevels(
       // Get child capabilities (not tools)
       const childCapIds = getDirectCapabilities(cap);
 
+      // DB levels: L0 = tools (leaves, not in SHGAT), L1+ = caps.
+      // SHGAT array index = DB level - 1 (see SHGAT_LEVEL_OFFSET).
       let level: number;
       if (childCapIds.length === 0) {
-        // Leaf: contains only tools (or nothing)
+        // Cap contains only L0 tools → DB L1
         level = 0;
       } else {
         // level(c) = 1 + max{level(c') | c' ∈ c}

@@ -49,6 +49,10 @@ export interface OBTrainedParams {
   W_intent: number[][];
   levelParams: Record<string, LevelParams>;
   config: SHGATExportConfig;
+  /** V→E residual: γ = sigmoid(a * log(n+1) + b) — learned param */
+  veResidualA?: number;
+  /** V→E residual: γ = sigmoid(a * log(n+1) + b) — learned param */
+  veResidualB?: number;
 }
 
 // ==========================================================================

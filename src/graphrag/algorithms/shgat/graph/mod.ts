@@ -19,6 +19,9 @@ export {
   getSortedLevels,
   HierarchyCycleError,
   type HierarchyResult,
+  SHGAT_LEVEL_OFFSET,
+  toDbHierarchyLevel,
+  toShgatLevel,
   validateAcyclic,
 } from "./hierarchy.ts";
 

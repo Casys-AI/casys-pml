@@ -55,7 +55,7 @@ Deno.test("SHGAT forward - hierarchical capabilities produce different embedding
     shgat.registerTool({ id: `tool-${i}`, embedding: randomEmbedding(1024) });
   }
 
-  // Leaf capabilities (level 0)
+  // L1 caps (contain only L0 tools) → SHGAT index 0
   shgat.registerCapability({
     id: "leaf-1",
     embedding: randomEmbedding(1024),

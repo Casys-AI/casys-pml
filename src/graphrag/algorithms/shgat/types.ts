@@ -255,6 +255,16 @@ export interface SHGATConfig {
   /** Temperature for projection scoring. @default 0.07 */
   projectionTemperature?: number;
 
+  // === Weight Sharing (HSG-style, reduces overfitting on sparse hierarchy) ===
+  /**
+   * Share level parameters across all hierarchy levels.
+   * Levels 1+ reuse level 0's W_child, W_parent, a_upward, a_downward.
+   * Reduces params ~3x (12.6M → 4.2M for 3 levels) and gives E→E phases
+   * access to well-trained V→E weights instead of sparse hierarchy-only signal.
+   * @default false
+   */
+  shareLevelWeights?: boolean;
+
   // === Legacy (kept for backward compatibility) ===
   /** @deprecated Which heads are active - all heads active in v2 */
   activeHeads?: number[];
@@ -348,9 +358,9 @@ export interface TrainingExample {
   /**
    * ALL negatives sorted by similarity (descending: hard → easy)
    * Excludes only the anchor capability itself.
-   * Used for curriculum learning with dynamic tiers:
-   * - accuracy < 0.35: sample from last third (easy negatives)
-   * - accuracy > 0.55: sample from first third (hard negatives)
+   * Used for curriculum learning with dynamic tiers (see train-worker.ts):
+   * - accuracy < 0.60: sample from last third (easy negatives)
+   * - accuracy > 0.75: sample from first third (hard negatives)
    * - else: sample from middle third (medium negatives)
    */
   allNegativesSorted?: string[];
@@ -553,9 +563,10 @@ export interface AttentionResult {
   /**
    * Hierarchy level of this capability (n-SuperHyperGraph)
    *
-   * - Level 0: Leaf capabilities (contain only tools)
-   * - Level 1: Meta-capabilities (contain level-0 caps)
-   * - Level k: Meta^k capabilities (contain level-(k-1) caps)
+   * SHGAT array index (0-indexed). DB level = index + 1.
+   * - Index 0 → DB L1: caps containing only L0 tools
+   * - Index 1 → DB L2: caps containing L1 caps
+   * - Index k → DB L(k+1): caps containing L(k) caps
    *
    * @since v1 refactor
    */

@@ -222,12 +222,10 @@ export class MultiLevelScorer {
   }
 
   /**
-   * Score only leaf capabilities (level 0)
-   *
-   * Convenience method for scoring only the most specific capabilities.
+   * Score only L1 capabilities (contain only L0 tools, no sub-caps).
    *
    * @param intentEmbedding User intent embedding
-   * @returns Leaf capability scores sorted descending
+   * @returns L1 capability scores sorted descending
    */
   scoreLeafCapabilities(intentEmbedding: number[]): AttentionResult[] {
     return this.scoreAllCapabilities(intentEmbedding, 0);

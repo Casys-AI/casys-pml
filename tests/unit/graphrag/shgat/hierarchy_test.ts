@@ -35,7 +35,7 @@ function createCap(
   };
 }
 
-Deno.test("computeHierarchyLevels - leaf capabilities (tools only) are level 0", () => {
+Deno.test("computeHierarchyLevels - L1 caps (tools only) are SHGAT index 0", () => {
   const caps = new Map<string, CapabilityNode>();
   caps.set("cap-a", createCap("cap-a", ["tool-1", "tool-2"]));
   caps.set("cap-b", createCap("cap-b", ["tool-3"]));
@@ -66,13 +66,13 @@ Deno.test("computeHierarchyLevels - parent is level 1, children are level 0", ()
 
 Deno.test("computeHierarchyLevels - 3-level hierarchy", () => {
   const caps = new Map<string, CapabilityNode>();
-  // Level 0: leaf capabilities
+  // DB L1 caps (contain only tools) → SHGAT index 0
   caps.set("leaf-1", createCap("leaf-1", ["tool-1"]));
   caps.set("leaf-2", createCap("leaf-2", ["tool-2"]));
-  // Level 1: contains leaf capabilities
+  // DB L2 caps (contain L1 caps) → SHGAT index 1
   caps.set("mid-1", createCap("mid-1", [], ["leaf-1"]));
   caps.set("mid-2", createCap("mid-2", [], ["leaf-2"]));
-  // Level 2: contains level 1 capabilities
+  // DB L3 cap (contains L2 caps) → SHGAT index 2
   caps.set("root", createCap("root", [], ["mid-1", "mid-2"]));
 
   const result = computeHierarchyLevels(caps);
