@@ -54,7 +54,9 @@ function evaluate(
   examples: ExampleInput[],
   nodeToIndex: Map<string, number>,
   toolIdSet: Set<string>,
-): { hit1: number; termAcc: number; total: number; toolHit1: number; toolTotal: number; capHit1: number; capTotal: number } {
+  toolToCapLookup?: Map<string, Set<string>>,
+  capToChildrenLookup?: Map<string, Set<string>>,
+): { hit1: number; termAcc: number; total: number; toolHit1: number; toolTotal: number; capHit1: number; capTotal: number; sameCluster: number; diffCluster: number; bothOrphan: number; wrongTotal: number; capPredChild: number; capWrongTotal: number } {
   let hit1 = 0;
   let termCorrect = 0;
   let total = 0;
@@ -62,6 +64,12 @@ function evaluate(
   let toolTotal = 0;
   let capHit1 = 0;
   let capTotal = 0;
+  let sameCluster = 0;
+  let diffCluster = 0;
+  let bothOrphan = 0;
+  let wrongTotal = 0;
+  let capPredChild = 0;  // target=cap, predicted=child of that cap
+  let capWrongTotal = 0; // total wrong cap predictions
 
   for (const ex of examples) {
     if (!nodeToIndex.has(ex.targetToolId)) continue;
@@ -82,9 +90,35 @@ function evaluate(
       capTotal++;
       if (isCorrect) capHit1++;
     }
+
+    // Same-cluster confusion (only for wrong tool predictions)
+    if (!isCorrect && toolIdSet.has(ex.targetToolId) && toolToCapLookup) {
+      wrongTotal++;
+      const targetCaps = toolToCapLookup.get(ex.targetToolId);
+      const predId = pred.nodeId ?? pred.toolId;
+      const predCaps = toolToCapLookup.get(predId);
+
+      if (!targetCaps?.size && !predCaps?.size) {
+        bothOrphan++;
+      } else if (targetCaps && predCaps) {
+        const shared = [...targetCaps].some(c => predCaps.has(c));
+        if (shared) sameCluster++;
+        else diffCluster++;
+      } else {
+        diffCluster++;
+      }
+    }
+
+    // Cap confusion: target=cap, predicted=child of that cap
+    if (!isCorrect && !toolIdSet.has(ex.targetToolId) && capToChildrenLookup) {
+      capWrongTotal++;
+      const predId = pred.nodeId ?? pred.toolId;
+      const children = capToChildrenLookup.get(ex.targetToolId);
+      if (children?.has(predId)) capPredChild++;
+    }
   }
 
-  return { hit1, termAcc: termCorrect, total, toolHit1, toolTotal, capHit1, capTotal };
+  return { hit1, termAcc: termCorrect, total, toolHit1, toolTotal, capHit1, capTotal, sameCluster, diffCluster, bothOrphan, wrongTotal, capPredChild, capWrongTotal };
 }
 
 async function main() {
@@ -140,9 +174,11 @@ async function main() {
     const caps = [...(input.capabilityData ?? [])].sort((a, b) => a.level - b.level);
 
     if (caps.length > 0) {
+      // Build cap name set for accepting cap-children (natural hierarchy: L2→L1→L0)
+      const capNameSet = new Set(caps.map(c => c.id));
       for (const cap of caps) {
-        // Filter children to only those in our tool vocabulary
-        const validChildren = cap.toolChildren.filter(t => toolIdSet.has(t));
+        // Accept L0 tools AND known cap names as children (setToolVocabulary handles bottom-up)
+        const validChildren = cap.toolChildren.filter(t => toolIdSet.has(t) || capNameSet.has(t));
         if (validChildren.length === 0) continue;
 
         higherLevelNodes.push({
@@ -167,19 +203,51 @@ async function main() {
         toolToIdx.set(toolIds[i], i);
       }
 
+      // Build cap children lookup for transitive walk (L2→L1→L0)
+      const capChildrenLookup = new Map<string, string[]>();
+      for (const node of higherLevelNodes) {
+        capChildrenLookup.set(node.id, node.children ?? []);
+      }
       for (let capIdx = 0; capIdx < higherLevelNodes.length; capIdx++) {
         const node = higherLevelNodes[capIdx];
-        for (const child of node.children ?? []) {
+        // BFS to reach L0 tools through cap-children
+        const queue = [...(node.children ?? [])];
+        const visited = new Set<string>();
+        while (queue.length > 0) {
+          const child = queue.shift()!;
+          if (visited.has(child)) continue;
+          visited.add(child);
           const toolIdx = toolToIdx.get(child);
           if (toolIdx !== undefined) {
             matrix[toolIdx * numCaps + capIdx] = 1;
+          } else {
+            const grandChildren = capChildrenLookup.get(child);
+            if (grandChildren) queue.push(...grandChildren);
           }
         }
       }
 
       toolCapMap = { matrix, numTools, numCapabilities: numCaps };
       console.error(`[GRU Worker] toolCapMap: ${numTools}×${numCaps}`);
-    } else {
+    }
+
+    // Build toolToCapLookup for same-cluster confusion metric
+    const toolToCapLookup = new Map<string, Set<string>>();
+    // Build capToChildrenSet: cap → all L0 children (for cap confusion metric)
+    const capToChildrenSet = new Map<string, Set<string>>();
+    for (const node of higherLevelNodes) {
+      const childSet = new Set<string>();
+      for (const child of (node.children ?? [])) {
+        if (toolIdSet.has(child)) {
+          if (!toolToCapLookup.has(child)) toolToCapLookup.set(child, new Set());
+          toolToCapLookup.get(child)!.add(node.id);
+          childSet.add(child);
+        }
+      }
+      if (childSet.size > 0) capToChildrenSet.set(node.id, childSet);
+    }
+
+    if (higherLevelNodes.length === 0) {
       // Fallback: minimal (no caps available)
       toolCapMap = {
         matrix: new Float32Array(toolIds.length * 1),
@@ -188,11 +256,20 @@ async function main() {
       };
     }
 
-    // Create model
+    // Create model — hierarchy alphas use DEFAULT_CONFIG unless env vars override
+    const alphaOverrides: Record<string, number> = {};
+    if (process.env["HIERARCHY_ALPHA_UP"]) {
+      alphaOverrides.hierarchyAlphaUp = parseFloat(process.env["HIERARCHY_ALPHA_UP"]);
+    }
+    if (process.env["HIERARCHY_ALPHA_DOWN"]) {
+      alphaOverrides.hierarchyAlphaDown = parseFloat(process.env["HIERARCHY_ALPHA_DOWN"]);
+    }
     const model = new CompactInformedGRU({
       embeddingDim,
       learningRate: input.config.learningRate,
-    });
+      ...alphaOverrides,
+    } as any);
+    console.error(`[GRU Worker] Hierarchy soft labels: alphaUp=${model.config.hierarchyAlphaUp}, alphaDown=${model.config.hierarchyAlphaDown}`);
     model.setToolVocabulary(toolsMap, toolCapMap, higherLevelNodes);
 
     // Build nodeToIndex for eval — full vocab (tools + registered caps)
@@ -272,6 +349,9 @@ async function main() {
     const evalEvery = input.evalEvery ?? 0;
     const hasTest = input.testExamples && input.testExamples.length > 0;
 
+    // Class weights removed: focal loss (gamma=2) already provides adaptive rebalancing.
+    // All 5 CW variants degraded cap Hit@1 from 40.5% → 10-13% (NB23/NB24 analysis).
+
     console.error(`[GRU Worker] Training for ${epochs} epochs, batch=${batchSize}${hasTest ? `, eval every ${evalEvery} epochs` : ""}...`);
 
     // MLflow: log hyperparameters
@@ -287,6 +367,8 @@ async function main() {
         test_examples: String(input.testExamples?.length ?? 0),
         eval_every: String(evalEvery),
         warm_start: String(!!input.existingWeightsPath),
+        max_per_cap: process.env.MAX_PER_CAP ?? "none",
+        class_weights: "none",
       });
     }
 
@@ -294,7 +376,7 @@ async function main() {
     let lastAcc = 0;
 
     // Early stopping: track best test Hit@1 and restore best weights
-    const PATIENCE = 5; // stop after this many eval epochs without improvement
+    const PATIENCE = parseInt(process.env["GRU_PATIENCE"] || "5");
     let bestHit1 = 0;
     let bestHit1Epoch = 0;
     let epochsSinceBest = 0;
@@ -330,9 +412,10 @@ async function main() {
       let testTermPct: number | undefined;
       let testToolHit1Pct: number | undefined;
       let testCapHit1Pct: number | undefined;
+      let testSameClusterPct: number | undefined;
       const isEvalEpoch = hasTest && evalEvery > 0 && ((epoch + 1) % evalEvery === 0 || epoch === epochs - 1);
       if (isEvalEpoch) {
-        const testResult = evaluate(model, input.testExamples!, nodeToIndex, toolIdSet);
+        const testResult = evaluate(model, input.testExamples!, nodeToIndex, toolIdSet, toolToCapLookup, capToChildrenSet);
         testHit1Pct = testResult.hit1 / testResult.total * 100;
         testTermPct = testResult.termAcc / testResult.total * 100;
         testToolHit1Pct = testResult.toolTotal > 0 ? testResult.toolHit1 / testResult.toolTotal * 100 : undefined;
@@ -343,8 +426,20 @@ async function main() {
           testCapHit1Pct !== undefined ? `cap=${testCapHit1Pct.toFixed(1)}%(${testResult.capTotal})` : null,
         ].filter(Boolean).join(", ");
 
+        // Same-cluster confusion detail
+        testSameClusterPct = testResult.wrongTotal > 0
+          ? testResult.sameCluster / testResult.wrongTotal * 100
+          : undefined;
+        const scDetail = testSameClusterPct !== undefined
+          ? `, sc=${testSameClusterPct.toFixed(0)}%(${testResult.sameCluster}/${testResult.wrongTotal})`
+          : "";
+        // Cap→child confusion: target=cap, predicted=L0 child of that cap
+        const ccDetail = testResult.capWrongTotal > 0
+          ? `, cc=${(testResult.capPredChild / testResult.capWrongTotal * 100).toFixed(0)}%(${testResult.capPredChild}/${testResult.capWrongTotal})`
+          : "";
+
         console.error(
-          `[GRU Worker] Epoch ${epoch + 1}/${epochs}: train_loss=${lastLoss.toFixed(4)}, train_acc=${lastAcc.toFixed(1)}% | test_hit1=${testHit1Pct.toFixed(1)}% [${toolCapDetail}], test_term=${testTermPct.toFixed(1)}% (${testResult.total} ex)`,
+          `[GRU Worker] Epoch ${epoch + 1}/${epochs}: train_loss=${lastLoss.toFixed(4)}, train_acc=${lastAcc.toFixed(1)}% | test_hit1=${testHit1Pct.toFixed(1)}% [${toolCapDetail}${scDetail}${ccDetail}], test_term=${testTermPct.toFixed(1)}% (${testResult.total} ex)`,
         );
 
         // Early stopping: track best Hit@1 and save checkpoint
@@ -375,6 +470,7 @@ async function main() {
         if (testTermPct !== undefined) m.test_term_accuracy = testTermPct / 100;
         if (testToolHit1Pct !== undefined) m.test_tool_hit1 = testToolHit1Pct / 100;
         if (testCapHit1Pct !== undefined) m.test_cap_hit1 = testCapHit1Pct / 100;
+        if (testSameClusterPct !== undefined) m.test_same_cluster_pct = testSameClusterPct / 100;
         await mlflow.logMetrics(m, epoch);
       }
     }
@@ -391,11 +487,17 @@ async function main() {
 
     // Final eval with restored weights
     if (hasTest) {
-      const finalTest = evaluate(model, input.testExamples!, nodeToIndex, toolIdSet);
+      const finalTest = evaluate(model, input.testExamples!, nodeToIndex, toolIdSet, toolToCapLookup);
       const toolDetail = finalTest.toolTotal > 0 ? `, tool=${(finalTest.toolHit1 / finalTest.toolTotal * 100).toFixed(1)}%` : "";
       const capDetail = finalTest.capTotal > 0 ? `, cap=${(finalTest.capHit1 / finalTest.capTotal * 100).toFixed(1)}%` : "";
+      const scFinal = finalTest.wrongTotal > 0
+        ? `, same_cluster=${(finalTest.sameCluster / finalTest.wrongTotal * 100).toFixed(1)}% (${finalTest.sameCluster}/${finalTest.wrongTotal} wrong)`
+        : "";
+      const ccFinal = finalTest.capWrongTotal > 0
+        ? `, cap→child=${(finalTest.capPredChild / finalTest.capWrongTotal * 100).toFixed(1)}% (${finalTest.capPredChild}/${finalTest.capWrongTotal} cap wrong)`
+        : "";
       console.error(
-        `[GRU Worker] Final test: hit1=${(finalTest.hit1 / finalTest.total * 100).toFixed(1)}%${toolDetail}${capDetail}, term_acc=${(finalTest.termAcc / finalTest.total * 100).toFixed(1)}% (${finalTest.total}/${input.testExamples!.length} ex)`,
+        `[GRU Worker] Final test: hit1=${(finalTest.hit1 / finalTest.total * 100).toFixed(1)}%${toolDetail}${capDetail}${scFinal}${ccFinal}, term_acc=${(finalTest.termAcc / finalTest.total * 100).toFixed(1)}% (${finalTest.total}/${input.testExamples!.length} ex)`,
       );
     }
 

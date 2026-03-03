@@ -374,6 +374,7 @@ export class CompactInformedGRU {
     // Build hierarchy maps for soft labels
     this.toolIdxToCapIndices.clear();
     this.capIdxToChildIndices.clear();
+    // Pass 1: direct parent→child edges
     for (const [nodeIdx, node] of this.indexToNode) {
       if (node.level > 0 && node.children && node.children.length > 0) {
         const childIndices: number[] = [];
@@ -381,7 +382,6 @@ export class CompactInformedGRU {
           const childIdx = this.nodeToIndex.get(childId);
           if (childIdx === undefined) continue;
           childIndices.push(childIdx);
-          // Register reverse mapping: child → parent caps
           const existing = this.toolIdxToCapIndices.get(childIdx) ?? [];
           existing.push(nodeIdx);
           this.toolIdxToCapIndices.set(childIdx, existing);
@@ -391,6 +391,8 @@ export class CompactInformedGRU {
         }
       }
     }
+    // Pass 2 transitive propagation DISABLED — champion used direct parents only.
+    // Transitive walk dilutes soft labels across too many ancestors.
 
     // Rebuild model with correct dimensions
     if (this.model) {
@@ -495,6 +497,12 @@ export class CompactInformedGRU {
   private getToolEmbedding(toolId: string): number[] {
     const emb = this.toolEmbeddings.get(toolId);
     if (emb) return emb;
+    // Check higher-level nodes (caps L1+) registered via setToolVocabulary
+    const idx = this.nodeToIndex.get(toolId);
+    if (idx !== undefined) {
+      const node = this.indexToNode.get(idx);
+      if (node?.embedding) return node.embedding;
+    }
     return new Array(this.config.embeddingDim).fill(0);
   }
 
@@ -512,6 +520,39 @@ export class CompactInformedGRU {
    */
   private resolveVocabIndex(idx: number): VocabNode | null {
     return this.indexToNode.get(idx) ?? null;
+  }
+
+  /**
+   * Resolve a tool/cap ID to its L0 tool indices (for structural features).
+   *
+   * - L0 tool → [idx]
+   * - L1 cap → indices of its L0 children
+   * - L2 cap → BFS down to L0 children (through L1 intermediaries)
+   * - Unknown → []
+   *
+   * Used by prepareBatchInputs (cap fingerprint, transition features)
+   * and applyStructuralBias (Jaccard/bigram row resolution).
+   */
+  private resolveToL0Indices(toolId: string): number[] {
+    const idx = this.nodeToIndex.get(toolId);
+    if (idx === undefined) return [];
+    if (idx < this.config.numTools) return [idx];
+    const node = this.indexToNode.get(idx);
+    if (!node?.children) return [];
+    const result: number[] = [];
+    const queue = [...node.children];
+    while (queue.length > 0) {
+      const childId = queue.shift()!;
+      const childIdx = this.nodeToIndex.get(childId);
+      if (childIdx === undefined) continue;
+      if (childIdx < this.config.numTools) {
+        result.push(childIdx);
+      } else {
+        const childNode = this.indexToNode.get(childIdx);
+        if (childNode?.children) queue.push(...childNode.children);
+      }
+    }
+    return result;
   }
 
   /**
@@ -569,15 +610,17 @@ export class CompactInformedGRU {
         intentData[intentBase + d] = ex.intentEmbedding[d] ?? 0;
       }
 
-      // --- Context tool indices ---
+      // --- Context tool indices (resolve caps to their L0 children) ---
+      // toolCapMap is numTools × numCaps, so we need L0 indices.
+      // Caps in context are resolved to their L0 children via BFS.
       const contextIdxs: number[] = [];
       for (const tid of ex.contextToolIds) {
-        const idx = this.getToolIndex(tid);
-        if (idx >= 0) contextIdxs.push(idx);
+        const l0 = this.resolveToL0Indices(tid);
+        for (const i of l0) contextIdxs.push(i);
       }
 
-      // --- Cap fingerprint ---
-      if (this.toolCapMap) {
+      // --- Cap fingerprint (skip if noCapFingerprint) ---
+      if (this.toolCapMap && !this.config.noCapFingerprint) {
         const fingerprint = computeCapFingerprint(
           contextIdxs,
           this.toolCapMap,
@@ -609,24 +652,29 @@ export class CompactInformedGRU {
           contextData[embBase + d] = emb[d];
         }
 
-        // Transition features at this timestep
-        if (this.toolCapMap) {
-          const toolIdx = this.getToolIndex(toolId);
-          // Context up to and including this timestep
+        // Transition features at this timestep (skip if noTransitionFeatures)
+        if (this.toolCapMap && !this.config.noTransitionFeatures) {
+          // Resolve current tool to L0 (caps → first L0 child, not arbitrary index 0)
+          const l0Indices = this.resolveToL0Indices(toolId);
+          const toolIdx = l0Indices.length > 0 ? l0Indices[0] : -1;
+          // Context up to and including this timestep (resolve caps to L0 children)
           const ctxUpToT: number[] = [];
           for (let tt = 0; tt <= t; tt++) {
-            const idx = this.getToolIndex(seqToolIds[tt]);
-            if (idx >= 0) ctxUpToT.push(idx);
+            const l0 = this.resolveToL0Indices(seqToolIds[tt]);
+            for (const i of l0) ctxUpToT.push(i);
           }
-          const feats = computeTransitionFeatures(
-            toolIdx >= 0 ? toolIdx : 0,
-            ctxUpToT,
-            this.toolCapMap,
-          );
-          const featBase = (b * maxSeqLen + (padOffset + t)) * numTransitionFeatures;
-          for (let f = 0; f < numTransitionFeatures; f++) {
-            transFeatsData[featBase + f] = feats[f];
+          if (toolIdx >= 0) {
+            const feats = computeTransitionFeatures(
+              toolIdx,
+              ctxUpToT,
+              this.toolCapMap,
+            );
+            const featBase = (b * maxSeqLen + (padOffset + t)) * numTransitionFeatures;
+            for (let f = 0; f < numTransitionFeatures; f++) {
+              transFeatsData[featBase + f] = feats[f];
+            }
           }
+          // If toolIdx === -1, features stay zero (no fake index 0 noise)
         }
       }
       // Padded positions remain zero (Float32Array default)
@@ -779,12 +827,13 @@ export class CompactInformedGRU {
       (w: any) => w.val as tf.Variable,
     );
 
-    // --- Build hierarchy soft targets ---
-    // Instead of one-hot, spread alpha probability to parent caps (tool target)
-    // or child tools (cap target). This teaches the model the tree structure.
-    const alpha = this.config.hierarchyAlpha;
+    // --- Build hierarchy soft targets (asymmetric alpha) ---
+    // Tool target → spread alphaUp to parent caps (teaches caps from L0 data)
+    // Cap target → spread alphaDown to child tools (mild, L0 already has signal)
+    const alphaUp = this.config.hierarchyAlphaUp;
+    const alphaDown = this.config.hierarchyAlphaDown;
     let hierarchyTargetTensor: tf.Tensor2D | null = null;
-    if (alpha > 0 && (this.toolIdxToCapIndices.size > 0 || this.capIdxToChildIndices.size > 0)) {
+    if ((alphaUp > 0 || alphaDown > 0) && (this.toolIdxToCapIndices.size > 0 || this.capIdxToChildIndices.size > 0)) {
       const hierArr = new Float32Array(batchSize * vs);
       for (let b = 0; b < batchSize; b++) {
         const tIdx = targetIndices[b];
@@ -794,17 +843,17 @@ export class CompactInformedGRU {
         const parentCaps = this.toolIdxToCapIndices.get(tIdx);
         const childTools = this.capIdxToChildIndices.get(tIdx);
 
-        if (parentCaps && parentCaps.length > 0) {
-          // Target is a tool with parent caps: spread alpha to parents
-          hierArr[offset + tIdx] = 1 - alpha;
-          const share = alpha / parentCaps.length;
+        if (parentCaps && parentCaps.length > 0 && alphaUp > 0) {
+          // Target is a tool with parent caps: spread alphaUp to parents
+          hierArr[offset + tIdx] = 1 - alphaUp;
+          const share = alphaUp / parentCaps.length;
           for (const capIdx of parentCaps) {
             hierArr[offset + capIdx] += share;
           }
-        } else if (childTools && childTools.length > 0) {
-          // Target is a cap with child tools: spread alpha to children
-          hierArr[offset + tIdx] = 1 - alpha;
-          const share = alpha / childTools.length;
+        } else if (childTools && childTools.length > 0 && alphaDown > 0) {
+          // Target is a cap with child tools: spread alphaDown to children
+          hierArr[offset + tIdx] = 1 - alphaDown;
+          const share = alphaDown / childTools.length;
           for (const childIdx of childTools) {
             hierArr[offset + childIdx] += share;
           }
@@ -854,10 +903,11 @@ export class CompactInformedGRU {
       const perExampleCE = tf.neg(
         tf.sum(tf.mul(smoothedLabels, logProbs), -1),
       );
-      const focalCE = tf.mul(focalWeight, perExampleCE);
+
+      const weightedCE = tf.mul(focalWeight, perExampleCE);
 
       const prodFocalMask = tf.mul(singleToolMaskTensor, prodMaskTensor);
-      const maskedFocalCE = tf.mul(focalCE, prodFocalMask);
+      const maskedFocalCE = tf.mul(weightedCE, prodFocalMask);
       const prodActiveSamples = tf.sum(prodFocalMask);
       const nextToolLoss = tf.div(
         tf.sum(maskedFocalCE),
@@ -1109,14 +1159,14 @@ export class CompactInformedGRU {
       );
 
       // Build ranked list from full vocabulary (all levels)
-      const ranked: Array<{ toolId: string; score: number }> = [];
+      // nodeId = original vocab node ID (cap name for non-leaf)
+      // toolId = resolved first child for non-leaf (backward compat with prod inference)
+      const ranked: Array<{ toolId: string; nodeId: string; score: number }> = [];
       for (let i = 0; i < adjustedScores.length; i++) {
         const node = this.resolveVocabIndex(i);
         if (!node) continue;
-        // For non-leaf nodes, use the first child for backward compat
-        // with eval code that checks toolId against ground truth
-        const id = node.level === 0 ? node.id : (node.children?.[0] ?? node.id);
-        ranked.push({ toolId: id, score: adjustedScores[i] });
+        const resolvedId = node.level === 0 ? node.id : (node.children?.[0] ?? node.id);
+        ranked.push({ toolId: resolvedId, nodeId: node.id, score: adjustedScores[i] });
       }
       ranked.sort((a, b) => b.score - a.score);
 
@@ -1159,8 +1209,9 @@ export class CompactInformedGRU {
     }
 
     const lastToolId = contextToolIds[contextToolIds.length - 1];
-    const lastToolIdx = this.nodeToIndex.get(lastToolId);
-    if (lastToolIdx === undefined) return probs;
+    // Resolve last context item to L0 indices (caps → their L0 children)
+    const lastL0Indices = this.resolveToL0Indices(lastToolId);
+    if (lastL0Indices.length === 0) return probs;
 
     const { jaccardAlpha, bigramBeta } = this.config;
 
@@ -1170,19 +1221,25 @@ export class CompactInformedGRU {
       logProbs[i] = Math.log(Math.max(probs[i], 1e-10));
     }
 
-    // Add Jaccard bias (tool indices only)
+    // Add Jaccard bias — average rows of L0 children if cap
     if (this.jaccardMatrix) {
-      const rowBase = lastToolIdx * numTools;
-      for (let i = 0; i < numTools; i++) {
-        logProbs[i] += jaccardAlpha * this.jaccardMatrix[rowBase + i];
+      const scale = jaccardAlpha / lastL0Indices.length;
+      for (const l0Idx of lastL0Indices) {
+        const rowBase = l0Idx * numTools;
+        for (let i = 0; i < numTools; i++) {
+          logProbs[i] += scale * this.jaccardMatrix[rowBase + i];
+        }
       }
     }
 
-    // Add bigram bias (tool indices only)
+    // Add bigram bias — average rows of L0 children if cap
     if (this.bigramMatrix) {
-      const rowBase = lastToolIdx * numTools;
-      for (let i = 0; i < numTools; i++) {
-        logProbs[i] += bigramBeta * this.bigramMatrix[rowBase + i];
+      const scale = bigramBeta / lastL0Indices.length;
+      for (const l0Idx of lastL0Indices) {
+        const rowBase = l0Idx * numTools;
+        for (let i = 0; i < numTools; i++) {
+          logProbs[i] += scale * this.bigramMatrix[rowBase + i];
+        }
       }
     }
 

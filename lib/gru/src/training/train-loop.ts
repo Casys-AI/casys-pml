@@ -24,6 +24,8 @@ export interface GRUTrainingConfig {
   epochs: number;
   batchSize: number;
   prodOversample: number;
+  /** If provided, enables split tool/cap Hit@1 metrics in eval logs. */
+  toolIdSet?: Set<string>;
 }
 
 export interface GRUTrainingData {
@@ -70,20 +72,29 @@ export interface TestEvalResult {
   hit3: number;
   hit5: number;
   mrr: number;
+  toolHit1?: number;
+  toolTotal?: number;
+  capHit1?: number;
+  capTotal?: number;
 }
 
 /**
  * Evaluate a trained GRU model on a test set.
  * Returns Hit@1/3/5, MRR, nextAcc, termAcc (all as percentages except MRR).
+ *
+ * @param toolIdSet - If provided, enables split tool/cap metrics.
+ *   Targets in this set count as "tool", others as "cap".
  */
 export function evaluateGRU(
   model: CompactInformedGRU,
   testSet: TransitionExample[],
+  toolIdSet?: Set<string>,
 ): TestEvalResult {
   let correctNext = 0;
   let correctTerm = 0;
   let h1 = 0, h3 = 0, h5 = 0, mrrSum = 0;
   let nextTotal = 0;
+  let toolH1 = 0, toolTotal = 0, capH1 = 0, capTotal = 0;
 
   for (const ex of testSet) {
     const { ranked, shouldTerminate } = model.predictNextTopK(
@@ -93,16 +104,28 @@ export function evaluateGRU(
     );
     if (!ex.isSingleTool) {
       nextTotal++;
-      const rank = ranked.findIndex((r) => r.toolId === ex.targetToolId);
+      // Check both nodeId (cap name) and toolId (resolved child) for cap-as-terminal support
+      const rank = ranked.findIndex((r) => r.nodeId === ex.targetToolId || r.toolId === ex.targetToolId);
       if (rank === 0) { h1++; correctNext++; }
       if (rank >= 0 && rank < 3) h3++;
       if (rank >= 0 && rank < 5) h5++;
       if (rank >= 0) mrrSum += 1 / (rank + 1);
+
+      // Split metrics
+      if (toolIdSet) {
+        if (toolIdSet.has(ex.targetToolId)) {
+          toolTotal++;
+          if (rank === 0) toolH1++;
+        } else {
+          capTotal++;
+          if (rank === 0) capH1++;
+        }
+      }
     }
     if ((shouldTerminate ? 1 : 0) === ex.isTerminal) correctTerm++;
   }
 
-  return {
+  const result: TestEvalResult = {
     testNextAcc: nextTotal > 0 ? (correctNext / nextTotal) * 100 : 0,
     testTermAcc: (correctTerm / testSet.length) * 100,
     hit1: nextTotal > 0 ? (h1 / nextTotal) * 100 : 0,
@@ -110,6 +133,15 @@ export function evaluateGRU(
     hit5: nextTotal > 0 ? (h5 / nextTotal) * 100 : 0,
     mrr: nextTotal > 0 ? mrrSum / nextTotal : 0,
   };
+
+  if (toolIdSet) {
+    result.toolHit1 = toolTotal > 0 ? (toolH1 / toolTotal) * 100 : 0;
+    result.toolTotal = toolTotal;
+    result.capHit1 = capTotal > 0 ? (capH1 / capTotal) * 100 : 0;
+    result.capTotal = capTotal;
+  }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +225,7 @@ export function trainGRU(
     const epochTime = (performance.now() - epochStart) / 1000;
 
     // Evaluate on prod test set
-    const ev = evaluateGRU(model, data.prodTest);
+    const ev = evaluateGRU(model, data.prodTest, config.toolIdSet);
 
     if (ev.hit1 > bestTestHit1) {
       bestTestHit1 = ev.hit1;
@@ -227,6 +259,10 @@ export function trainGRU(
         ? (((performance.now() - trainStart) / (epoch + 1)) * (epochs - epoch - 1) / 1000 / 60).toFixed(1)
         : "?";
 
+      const splitInfo = ev.toolTotal !== undefined
+        ? `  tool=${ev.toolHit1!.toFixed(1)}%(${ev.toolTotal}) cap=${ev.capHit1!.toFixed(1)}%(${ev.capTotal})`
+        : "";
+
       console.log(
         `  ┌─ Epoch ${String(epoch + 1).padStart(2)}/${epochs}  (${epochTime.toFixed(1)}s, total ${totalElapsed}s, ETA ~${eta}min)  ${rssMB}MB`,
       );
@@ -234,7 +270,7 @@ export function trainGRU(
         `  │ Train    loss=${avgLoss.toFixed(4)}  nextAcc=${avgNextAcc.toFixed(1)}%  termAcc=${avgTermAcc.toFixed(1)}%  (${batchCount} batches)`,
       );
       console.log(
-        `  │ Test     Hit@1=${ev.hit1.toFixed(1)}%  Hit@3=${ev.hit3.toFixed(1)}%  Hit@5=${ev.hit5.toFixed(1)}%  MRR=${ev.mrr.toFixed(3)}  nextAcc=${ev.testNextAcc.toFixed(1)}%  termAcc=${ev.testTermAcc.toFixed(1)}%`,
+        `  │ Test     Hit@1=${ev.hit1.toFixed(1)}%${splitInfo}  Hit@3=${ev.hit3.toFixed(1)}%  Hit@5=${ev.hit5.toFixed(1)}%  MRR=${ev.mrr.toFixed(3)}  termAcc=${ev.testTermAcc.toFixed(1)}%`,
       );
       console.log(
         `  └─ Best    Hit@1=${bestTestHit1.toFixed(1)}%  MRR=${bestMRR.toFixed(3)}  (epoch ${bestEpoch})`,

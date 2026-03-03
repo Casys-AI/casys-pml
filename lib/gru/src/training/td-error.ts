@@ -70,7 +70,7 @@ export function calculateTDError(
   // Get model's ranked predictions
   // The "predicted" value is the confidence the model assigns to the actual target
   const result = model.predictNextTopK(intentEmb, contextToolIds, 10, compositeFeatures);
-  const targetRank = result.ranked.find((r) => r.toolId === targetToolId);
+  const targetRank = result.ranked.find((r) => r.nodeId === targetToolId || r.toolId === targetToolId);
   const predicted = targetRank?.score ?? 0;
 
   // Actual outcome: 1.0 (the target IS the correct next tool)

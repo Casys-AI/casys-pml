@@ -121,17 +121,32 @@ export interface CompactGRUConfig {
   n8nLossWeight: number;
 
   /**
-   * Hierarchy soft label alpha: fraction of target probability spread to
-   * parent caps (if target is a tool) or child tools (if target is a cap).
-   * 0 = disabled (standard one-hot), 0.2 = 20% to hierarchy neighbors.
+   * Hierarchy soft label alpha (upward): fraction of target probability spread
+   * to parent caps when the target is a tool.
+   * 0 = disabled, 0.3 = 30% to parent caps. Higher helps caps learn from
+   * the dominant L0 tool examples (97% of data).
    */
-  hierarchyAlpha: number;
+  hierarchyAlphaUp: number;
+
+  /**
+   * Hierarchy soft label alpha (downward): fraction of target probability spread
+   * to child tools when the target is a cap.
+   * 0 = disabled, 0.1 = 10% to child tools. Lower is better since L0 tools
+   * already get massive direct signal from tool-target examples.
+   */
+  hierarchyAlphaDown: number;
 
   /**
    * Set automatically by setToolVocabulary when higher-level nodes are provided.
    * vocabSize = numTools + numVocabNodes.
    */
   numVocabNodes: number;
+
+  /** Skip cap fingerprint input (zero out). For ablation studies. */
+  noCapFingerprint: boolean;
+
+  /** Skip transition features input (zero out). For ablation studies. */
+  noTransitionFeatures: boolean;
 }
 
 /**
@@ -169,18 +184,28 @@ export const DEFAULT_CONFIG: CompactGRUConfig = {
   temperatureEnd: 0.12,
   annealingStopRatio: 0.7,
 
-  // Logit bias
-  jaccardAlpha: 0.5,
-  bigramBeta: 0.3,
+  // Logit bias — disabled: ablation (2026-02-28) showed post-hoc Jaccard/bigram
+  // hurts when SHGAT already encodes hierarchy. Set >0 to opt-in.
+  jaccardAlpha: 0,
+  bigramBeta: 0,
 
-  // n8n augmentation
+  // n8n augmentation (legacy, unused)
   n8nLossWeight: 0.3,
 
-  // Hierarchy soft labels
-  hierarchyAlpha: 0.2,
+  // Hierarchy soft labels — propagate loss signal from tool targets (97% of data)
+  // to parent caps. Critical for cap Hit@1 with only ~230 unique cap examples.
+  // NOT a structural feature — this is a loss mechanism. Confirmed champion at 82.3% cap Hit@1.
+  hierarchyAlphaUp: 0.2,
+  hierarchyAlphaDown: 0.2,
 
   // Non-leaf vocabulary nodes (caps, meta-caps)
   numVocabNodes: 0,
+
+  // Structural features disabled: SHGAT embeddings encode hierarchy,
+  // GRU handles sequences. Ablation (2026-02-28) showed no global loss
+  // and +2.7pp cap Hit@1 without these features.
+  noCapFingerprint: true,
+  noTransitionFeatures: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -256,6 +281,13 @@ export interface TransitionExample {
    * When absent, defaults to zeros (backward compatible).
    */
   compositeFeatures?: number[];
+
+  /**
+   * Per-example loss weight derived from source capability frequency.
+   * Examples from overrepresented caps get lower weight; rare caps get higher.
+   * When absent, weight = 1.0 (uniform).
+   */
+  sampleWeight?: number;
 }
 
 /** Per-epoch training metrics. */
