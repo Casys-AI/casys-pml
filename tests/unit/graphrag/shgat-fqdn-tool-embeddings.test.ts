@@ -149,7 +149,7 @@ Deno.test("createSHGATFromCapabilities: empty Map → all tools use defaults", (
 
 Deno.test("E2E: FQDN toolsUsed normalized before Map lookup", () => {
   // Simulate the full pipeline:
-  // 1. dag_structure.tools_used has FQDNs
+  // 1. task_results (or dag_structure) tools_used has FQDNs
   // 2. parseCapabilities applies normalizeToolId
   // 3. createSHGATFromCapabilities uses the Map keyed by short format
 

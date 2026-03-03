@@ -1,12 +1,12 @@
 /**
  * Tests for FQDN Tool ID Normalization Fix
  *
- * Bug: dag_structure.tools_used stores FQDN format (e.g. "pml.mcp.std.psql_query.db48")
+ * Bug: tool IDs from dag_structure/task_results may be in FQDN format (e.g. "pml.mcp.std.psql_query.db48")
  * but tool_embedding.tool_id uses short format ("std:psql_query").
  * createSHGATFromCapabilities registered tools with FQDN IDs that didn't match
  * any real embedding, causing random embeddings (generateDefaultToolEmbedding) to be used.
  *
- * Fix: normalizeToolId() applied on toolsUsed wherever dag_structure.tools_used is read.
+ * Fix: normalizeToolId() applied on toolsUsed wherever tool IDs are read (task_results or dag_structure).
  *
  * @module tests/unit/capabilities/normalize-tool-id-fqdn
  */
@@ -19,7 +19,7 @@ import { normalizeToolId } from "../../../src/capabilities/routing-resolver.ts";
 // =============================================================================
 
 Deno.test("normalizeToolId: FQDN 5-part format → namespace:action", () => {
-  // This is the core of the bug: dag_structure.tools_used stores these FQDNs
+  // This is the core of the bug: task_results and dag_structure store these FQDNs
   assertEquals(normalizeToolId("pml.mcp.std.psql_query.db48"), "std:psql_query");
   assertEquals(normalizeToolId("pml.mcp.std.pglite_query.3cd9"), "std:pglite_query");
   assertEquals(normalizeToolId("pml.mcp.filesystem.read_file.a1b2"), "filesystem:read_file");
