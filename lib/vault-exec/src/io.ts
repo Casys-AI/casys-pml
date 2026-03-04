@@ -1,5 +1,15 @@
 import type { VaultReader } from "./types.ts";
 
+export interface VaultWriter {
+  writeNote(path: string, content: string): Promise<void>;
+}
+
+export class DenoVaultWriter implements VaultWriter {
+  async writeNote(path: string, content: string): Promise<void> {
+    await Deno.writeTextFile(path, content);
+  }
+}
+
 export class DenoVaultReader implements VaultReader {
   async listNotes(dir: string): Promise<string[]> {
     const files: string[] = [];

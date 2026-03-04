@@ -10,6 +10,7 @@ Usage:
   vault-exec validate <vault-path>   Check for cycles, missing inputs, orphans
   vault-exec graph <vault-path>      Print dependency graph
   vault-exec run <vault-path>        Execute the compiled DAG
+  vault-exec compile <vault-path>    Compile uncompiled notes using LLM (requires OPENAI_API_KEY)
 `;
 
 async function main() {
@@ -75,6 +76,40 @@ async function main() {
       for (const [name, output] of results) {
         console.log(`${name}: ${JSON.stringify(output)}`);
       }
+      break;
+    }
+
+    case "compile": {
+      const apiKey = Deno.env.get("OPENAI_API_KEY");
+      if (!apiKey) {
+        console.error("OPENAI_API_KEY environment variable is required for compilation");
+        Deno.exit(1);
+      }
+
+      const { OpenAIClient, compileVault } = await import("./compiler.ts");
+      const { DenoVaultWriter } = await import("./io.ts");
+      const llm = new OpenAIClient(apiKey);
+      const writer = new DenoVaultWriter();
+
+      const uncompiled = notes.filter((n) => !n.frontmatter.compiled_at);
+      if (uncompiled.length === 0) {
+        console.log("All notes already compiled. Nothing to do.");
+        break;
+      }
+
+      console.log(`Compiling ${uncompiled.length} note(s)...\n`);
+
+      const results = await compileVault(notes, llm, (name, i, total) => {
+        console.log(`[${i}/${total}] Compiling: ${name}`);
+      });
+
+      for (const [name, { fullContent }] of results) {
+        const note = notes.find((n) => n.name === name)!;
+        await writer.writeNote(note.path, fullContent);
+        console.log(`  -> written: ${name}`);
+      }
+
+      console.log(`\nDone. ${results.size} note(s) compiled.`);
       break;
     }
 
