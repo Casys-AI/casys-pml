@@ -1,13 +1,8 @@
 import type { VaultGraph, ValidationError } from "./types.ts";
 import { detectCycles } from "./graph.ts";
+import { parseRef } from "./template.ts";
 
 const TEMPLATE_RE = /\{\{([^}]+)\}\}/g;
-
-function parseRef(ref: string): { note: string; output: string } {
-  const parts = ref.trim().split(".");
-  if (parts.length === 1) return { note: parts[0], output: "output" };
-  return { note: parts[0], output: parts.slice(1).join(".") };
-}
 
 /** Validate the graph for common errors */
 export function validate(graph: VaultGraph): ValidationError[] {
@@ -45,6 +40,9 @@ export function validate(graph: VaultGraph): ValidationError[] {
       let match: RegExpExecArray | null;
       while ((match = re.exec(template)) !== null) {
         const ref = parseRef(match[1]);
+        // Runtime refs are resolved from CLI-provided input payload.
+        if (ref.note === "input" || ref.note === "inputs") continue;
+
         // Skip unresolved_input for notes already flagged as missing_dependency
         if (missingDeps.has(ref.note)) continue;
         const targetNode = graph.nodes.get(ref.note);

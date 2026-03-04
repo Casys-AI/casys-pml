@@ -1,4 +1,5 @@
 import type { VaultNote, VaultGraph, CompiledNode, NodeType } from "./types.ts";
+import type { VirtualEdgeRow } from "./links/types.ts";
 
 /** Determine node type from frontmatter */
 function resolveNodeType(fm: Record<string, unknown>): NodeType {
@@ -22,6 +23,7 @@ export function buildGraph(notes: VaultNote[]): VaultGraph {
       tool: note.frontmatter.tool as string | undefined,
       inputs: (note.frontmatter.inputs as Record<string, string>) ?? {},
       outputs: (note.frontmatter.outputs as string[]) ?? [],
+      inputSchema: note.frontmatter.input_schema as Record<string, unknown> | undefined,
     };
     nodes.set(note.name, node);
     edges.set(note.name, note.wikilinks);
@@ -99,11 +101,22 @@ export function topologicalSort(graph: VaultGraph): string[] {
     throw new Error(`Graph contains cycle(s):\n${cycles.join("\n")}`);
   }
 
+  // Build reverse adjacency: dep -> nodes that depend on it
+  const dependents = new Map<string, string[]>();
   const inDegree = new Map<string, number>();
+
   for (const [node, deps] of graph.edges) {
     if (!graph.nodes.has(node)) continue;
-    const validDeps = deps.filter(d => graph.nodes.has(d));
+    const validDeps = deps.filter((d) => graph.nodes.has(d));
     inDegree.set(node, validDeps.length);
+    for (const dep of validDeps) {
+      const list = dependents.get(dep);
+      if (list) {
+        list.push(node);
+      } else {
+        dependents.set(dep, [node]);
+      }
+    }
   }
 
   const queue: string[] = [];
@@ -113,18 +126,49 @@ export function topologicalSort(graph: VaultGraph): string[] {
 
   const order: string[] = [];
   while (queue.length > 0) {
-    queue.sort();
+    queue.sort(); // deterministic order for ties
     const current = queue.shift()!;
     order.push(current);
 
-    for (const [node, deps] of graph.edges) {
-      if (deps.includes(current) && graph.nodes.has(node)) {
-        const newDegree = inDegree.get(node)! - 1;
-        inDegree.set(node, newDegree);
-        if (newDegree === 0) queue.push(node);
-      }
+    for (const dependent of dependents.get(current) ?? []) {
+      const newDegree = inDegree.get(dependent)! - 1;
+      inDegree.set(dependent, newDegree);
+      if (newDegree === 0) queue.push(dependent);
     }
   }
 
   return order;
+}
+
+/**
+ * Overlay promoted virtual relations (source -> target) onto graph dependencies.
+ * Graph edge convention is: target -> dependencies, so we add source as a dependency of target.
+ * Any virtual edge that would introduce a cycle is ignored.
+ */
+export function withVirtualEdges(
+  graph: VaultGraph,
+  virtualEdges: Array<Pick<VirtualEdgeRow, "source" | "target">>,
+): VaultGraph {
+  const next: VaultGraph = {
+    nodes: new Map(graph.nodes),
+    edges: new Map([...graph.edges.entries()].map(([k, v]) => [k, [...v]])),
+  };
+
+  for (const e of virtualEdges) {
+    if (!next.nodes.has(e.source) || !next.nodes.has(e.target)) continue;
+    if (e.source === e.target) continue;
+
+    const deps = next.edges.get(e.target) ?? [];
+    if (deps.includes(e.source)) continue;
+
+    deps.push(e.source);
+    next.edges.set(e.target, deps);
+
+    // Keep execution safety: rollback virtual edge if it creates a cycle.
+    if (detectCycles(next).length > 0) {
+      next.edges.set(e.target, deps.filter((d) => d !== e.source));
+    }
+  }
+
+  return next;
 }

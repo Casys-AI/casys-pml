@@ -29,6 +29,8 @@ export interface CompiledNode {
   inputs: Record<string, string>;
   /** Named outputs this node produces */
   outputs: string[];
+  /** Optional JSON Schema fragment for runtime inputs (frontmatter: input_schema) */
+  inputSchema?: Record<string, unknown>;
 }
 
 /** The executable graph */

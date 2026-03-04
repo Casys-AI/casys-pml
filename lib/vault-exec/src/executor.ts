@@ -1,20 +1,41 @@
 import type { CompiledNode, ResultMap, VaultGraph } from "./types.ts";
 import { topologicalSort } from "./graph.ts";
+import { parseRef } from "./template.ts";
 
 const TEMPLATE_RE = /\{\{([^}]+)\}\}/;
 
-function parseRef(ref: string): { note: string; output: string } {
-  const parts = ref.trim().split(".");
-  if (parts.length === 1) return { note: parts[0], output: "output" };
-  return { note: parts[0], output: parts.slice(1).join(".") };
+function getByPath(obj: unknown, path: string): unknown {
+  if (!path) return obj;
+  const parts = path.split(".").filter(Boolean);
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current == null || typeof current !== "object" || !(part in (current as Record<string, unknown>))) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
 }
 
-/** Resolve a template string like "{{NoteName.output}}" against results */
-export function resolveTemplate(template: string, results: ResultMap): unknown {
+/** Resolve a template string like "{{NoteName.output}}" against results or runtime inputs */
+export function resolveTemplate(
+  template: string,
+  results: ResultMap,
+  runtimeInputs: Record<string, unknown> = {},
+): unknown {
   const match = template.match(TEMPLATE_RE);
   if (!match) return template;
 
   const ref = parseRef(match[1]);
+
+  if (ref.note === "input" || ref.note === "inputs") {
+    const val = getByPath(runtimeInputs, ref.output);
+    if (val === undefined) {
+      throw new Error(`Cannot resolve "{{${match[1]}}}": runtime input "${ref.output}" is missing`);
+    }
+    return val;
+  }
+
   const noteResults = results.get(ref.note);
   if (!noteResults) {
     throw new Error(`Cannot resolve "{{${match[1]}}}": note "${ref.note}" has no results yet`);
@@ -29,6 +50,7 @@ export function resolveTemplate(template: string, results: ResultMap): unknown {
 export async function executeNode(
   node: CompiledNode,
   results: ResultMap,
+  runtimeInputs: Record<string, unknown> = {},
 ): Promise<Record<string, unknown>> {
   if (node.type === "value") {
     const outputName = node.outputs[0] ?? "output";
@@ -38,7 +60,7 @@ export async function executeNode(
   if (node.type === "code") {
     const resolvedInputs: Record<string, unknown> = {};
     for (const [param, template] of Object.entries(node.inputs)) {
-      resolvedInputs[param] = resolveTemplate(template, results);
+      resolvedInputs[param] = resolveTemplate(template, results, runtimeInputs);
     }
 
     const paramNames = Object.keys(resolvedInputs);
@@ -65,7 +87,10 @@ export interface ExecutionResult {
 }
 
 /** Execute the full graph in topological order */
-export async function executeGraph(graph: VaultGraph): Promise<ExecutionResult> {
+export async function executeGraph(
+  graph: VaultGraph,
+  runtimeInputs: Record<string, unknown> = {},
+): Promise<ExecutionResult> {
   const order = topologicalSort(graph);
   const results: ResultMap = new Map();
 
@@ -74,7 +99,7 @@ export async function executeGraph(graph: VaultGraph): Promise<ExecutionResult> 
     if (!node) throw new Error(`Node "${name}" not found in graph`);
 
     console.log(`▶ ${name} (${node.type})`);
-    const output = await executeNode(node, results);
+    const output = await executeNode(node, results, runtimeInputs);
     results.set(name, output);
     console.log(`  → ${JSON.stringify(output)}`);
   }
