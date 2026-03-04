@@ -11,6 +11,7 @@ Usage:
   vault-exec graph <vault-path>      Print dependency graph
   vault-exec run <vault-path>        Execute the compiled DAG
   vault-exec compile <vault-path>    Compile uncompiled notes using LLM (requires OPENAI_API_KEY)
+  vault-exec init <vault-path>       Initialize GNN+GRU pipeline (embed, GNN, synthetic traces)
 `;
 
 async function main() {
@@ -110,6 +111,24 @@ async function main() {
       }
 
       console.log(`\nDone. ${results.size} note(s) compiled.`);
+      break;
+    }
+
+    case "init": {
+      const { BGEEmbedder } = await import("./embeddings/model.ts");
+      const { initVault } = await import("./init.ts");
+
+      const dbPath = `${vaultPath}/.vault-exec/vault.duckdb`;
+      await Deno.mkdir(`${vaultPath}/.vault-exec`, { recursive: true });
+
+      console.log(`Initializing vault: ${vaultPath}\n`);
+      const embedder = new BGEEmbedder();
+      const result = await initVault(notes, dbPath, embedder);
+
+      console.log(`\nDone:`);
+      console.log(`  ${result.notesIndexed} notes indexed`);
+      console.log(`  ${result.syntheticTraces} synthetic traces generated`);
+      console.log(`  GNN: ${result.gnnForwardDone ? "done" : "skipped"}`);
       break;
     }
 
