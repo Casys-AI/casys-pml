@@ -8,8 +8,10 @@ export async function recordTrace(
 ): Promise<void> {
   await db.insertTrace({
     intent: trace.intent,
+    intentEmbedding: trace.intentEmbedding,
     targetNote: trace.targetNote,
     path: trace.path,
+    success: trace.success,
     synthetic: trace.synthetic,
   });
 }
