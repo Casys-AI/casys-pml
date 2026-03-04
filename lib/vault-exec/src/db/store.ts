@@ -258,6 +258,25 @@ export class VaultDB {
     );
   }
 
+  async getGnnParams(): Promise<{
+    params: Uint8Array;
+    epoch: number;
+    accuracy: number;
+  } | null> {
+    const result = await this.conn.runAndReadAll(
+      "SELECT params, epoch, accuracy FROM gnn_params WHERE id = 1",
+    );
+    const rows = result.getRows();
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (row[0] == null) return null;
+    return {
+      params: row[0] as Uint8Array,
+      epoch: row[1] as number,
+      accuracy: row[2] as number,
+    };
+  }
+
   async saveGruWeights(
     weights: Uint8Array,
     vocabSize: number,
