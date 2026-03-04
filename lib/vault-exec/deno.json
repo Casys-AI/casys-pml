@@ -1,0 +1,17 @@
+{
+  "name": "@pml/vault-exec",
+  "version": "0.1.0",
+  "exports": "./src/mod.ts",
+  "imports": {
+    "@duckdb/node-api": "npm:@duckdb/node-api"
+  },
+  "tasks": {
+    "test": "deno test --allow-read --allow-write --allow-ffi --allow-env --allow-net --node-modules-dir=manual src/",
+    "check": "deno check src/mod.ts"
+  },
+  "nodeModulesDir": "manual",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true
+  }
+}
