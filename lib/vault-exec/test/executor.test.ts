@@ -55,8 +55,9 @@ Deno.test("executeGraph - executes full DAG in order", async () => {
   ]);
   const edges = new Map<string, string[]>([["A", []], ["B", ["A"]], ["C", ["B"]]]);
   const graph: VaultGraph = { nodes, edges };
-  const results = await executeGraph(graph);
+  const { results, path } = await executeGraph(graph);
   assertEquals(results.get("A"), { output: [1, 2, 3, 4, 5] });
   assertEquals(results.get("B"), { result: [4, 5] });
   assertEquals(results.get("C"), { count: 2 });
+  assertEquals(path, ["A", "B", "C"]);
 });

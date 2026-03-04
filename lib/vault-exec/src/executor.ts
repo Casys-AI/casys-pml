@@ -58,8 +58,14 @@ export async function executeNode(
   throw new Error(`Unknown node type "${(node as CompiledNode).type}" for node "${node.name}"`);
 }
 
+/** Result of executeGraph: the outputs map + the execution path (node names in order) */
+export interface ExecutionResult {
+  results: ResultMap;
+  path: string[];
+}
+
 /** Execute the full graph in topological order */
-export async function executeGraph(graph: VaultGraph): Promise<ResultMap> {
+export async function executeGraph(graph: VaultGraph): Promise<ExecutionResult> {
   const order = topologicalSort(graph);
   const results: ResultMap = new Map();
 
@@ -73,5 +79,5 @@ export async function executeGraph(graph: VaultGraph): Promise<ResultMap> {
     console.log(`  → ${JSON.stringify(output)}`);
   }
 
-  return results;
+  return { results, path: order };
 }

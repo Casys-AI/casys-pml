@@ -71,11 +71,29 @@ async function main() {
       }
 
       console.log(`Running vault: ${vaultPath} (${notes.length} notes)\n`);
-      const results = await executeGraph(graph);
+      const { results, path } = await executeGraph(graph);
 
       console.log("\n── Results ──");
       for (const [name, output] of results) {
         console.log(`${name}: ${JSON.stringify(output)}`);
+      }
+
+      // Record execution trace to DuckDB (non-blocking: warn if DB missing)
+      const dbPath = `${vaultPath}/.vault-exec/vault.duckdb`;
+      try {
+        const { VaultDB } = await import("./db/store.ts");
+        const { recordTrace } = await import("./traces/recorder.ts");
+        const db = await VaultDB.open(dbPath);
+        await recordTrace(db, {
+          targetNote: path[path.length - 1],
+          path,
+          success: true,
+          synthetic: false,
+        });
+        db.close();
+        console.log("\nTrace recorded.");
+      } catch {
+        console.log("\nNo vault DB found. Run 'vault-exec init' to enable learning.");
       }
       break;
     }
@@ -118,12 +136,12 @@ async function main() {
       const { BGEEmbedder } = await import("./embeddings/model.ts");
       const { initVault } = await import("./init.ts");
 
-      const dbPath = `${vaultPath}/.vault-exec/vault.duckdb`;
+      const initDbPath = `${vaultPath}/.vault-exec/vault.duckdb`;
       await Deno.mkdir(`${vaultPath}/.vault-exec`, { recursive: true });
 
       console.log(`Initializing vault: ${vaultPath}\n`);
       const embedder = new BGEEmbedder();
-      const result = await initVault(notes, dbPath, embedder);
+      const result = await initVault(notes, initDbPath, embedder);
 
       console.log(`\nDone:`);
       console.log(`  ${result.notesIndexed} notes indexed`);
