@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS edges (
 );
 
 CREATE TABLE IF NOT EXISTS traces (
-  id               INTEGER DEFAULT nextval('traces_seq'),
+  id               INTEGER PRIMARY KEY DEFAULT nextval('traces_seq'),
   intent           TEXT,
   intent_embedding DOUBLE[],
   target_note      TEXT NOT NULL,
@@ -294,5 +294,26 @@ export class VaultDB {
          trained_at = now()`,
       [blobValue(weights), vocabSize, epoch, accuracy],
     );
+  }
+
+  async getLatestWeights(): Promise<{
+    blob: Uint8Array;
+    vocabSize: number;
+    epoch: number;
+    accuracy: number;
+  } | null> {
+    const result = await this.conn.runAndReadAll(
+      "SELECT weights, vocab_size, epoch, accuracy FROM gru_weights ORDER BY trained_at DESC LIMIT 1",
+    );
+    const rows = result.getRows();
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (row[0] == null) return null;
+    return {
+      blob: row[0] as Uint8Array,
+      vocabSize: row[1] as number,
+      epoch: row[2] as number,
+      accuracy: row[3] as number,
+    };
   }
 }
