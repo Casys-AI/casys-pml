@@ -113,16 +113,10 @@ export function needsCompilation(note: VaultNote): boolean {
   return !note.frontmatter.compiled_at;
 }
 
-/** Compile a single note using the LLM */
-export async function compileNote(
-  note: VaultNote,
-  allNotes: VaultNote[],
-  llm: LLMClient,
-): Promise<Record<string, unknown>> {
-  const userPrompt = buildUserPrompt(note, allNotes);
-  const response = await llm.chat(SYSTEM_PROMPT, userPrompt);
+const MAX_COMPILE_RETRIES = 3;
 
-  // Clean up response — remove markdown fences if LLM added them
+/** Parse raw LLM YAML response into frontmatter object */
+function parseLLMResponse(response: string, noteName: string): Record<string, unknown> {
   const cleaned = response
     .replace(/^```ya?ml\s*/i, "")
     .replace(/^```\s*/i, "")
@@ -133,22 +127,108 @@ export async function compileNote(
   try {
     const raw = parseYaml(cleaned);
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-      throw new Error(`LLM returned non-object YAML for note "${note.name}": ${cleaned}`);
+      throw new Error(`LLM returned non-object YAML for note "${noteName}": ${cleaned}`);
     }
     parsed = raw as Record<string, unknown>;
   } catch (err) {
-    if (err instanceof Error && err.message.includes(`note "${note.name}"`)) {
+    if (err instanceof Error && err.message.includes(`note "${noteName}"`)) {
       throw err;
     }
-    throw new Error(`LLM returned invalid YAML for note "${note.name}": ${cleaned}`);
+    throw new Error(`LLM returned invalid YAML for note "${noteName}": ${cleaned}`);
   }
 
-  // Ensure compiled_at is set
   if (!parsed.compiled_at) {
     parsed.compiled_at = new Date().toISOString();
   }
 
   return parsed;
+}
+
+/** Validate a single compiled note's frontmatter against its dependencies */
+export function validateFrontmatter(
+  fm: Record<string, unknown>,
+  note: VaultNote,
+  allNotes: VaultNote[],
+): string[] {
+  const errors: string[] = [];
+
+  const hasValue = "value" in fm;
+  const hasCode = "code" in fm;
+  const outputs = fm.outputs as string[] | undefined;
+
+  if (!outputs || outputs.length === 0) {
+    errors.push(`Missing "outputs" field — every node must declare at least one output.`);
+  }
+  if (!hasValue && !hasCode) {
+    errors.push(`Must have either "value" or "code" field.`);
+  }
+  if (hasValue && hasCode) {
+    errors.push(`Cannot have both "value" and "code" — pick one.`);
+  }
+
+  // Check input references resolve to existing notes and outputs
+  const inputs = (fm.inputs ?? {}) as Record<string, string>;
+  const TMPL = /\{\{([^}]+)\}\}/g;
+  for (const [param, template] of Object.entries(inputs)) {
+    let match: RegExpExecArray | null;
+    const re = new RegExp(TMPL.source, "g");
+    while ((match = re.exec(template)) !== null) {
+      const parts = match[1].trim().split(".");
+      const refNote = parts[0];
+      const refOutput = parts.length > 1 ? parts.slice(1).join(".") : "output";
+      const target = allNotes.find((n) => n.name === refNote);
+      if (!target) {
+        errors.push(`Input "${param}" references "{{${match[1]}}}" but note "${refNote}" does not exist.`);
+      } else {
+        const targetOutputs = (target.frontmatter.outputs as string[]) ?? [];
+        if (targetOutputs.length > 0 && !targetOutputs.includes(refOutput)) {
+          errors.push(
+            `Input "${param}" references "{{${match[1]}}}" but "${refNote}" outputs are [${targetOutputs.join(", ")}], not "${refOutput}".`,
+          );
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
+/** Compile a single note using the LLM (no validation — see compileVault for retry loop) */
+export async function compileNote(
+  note: VaultNote,
+  allNotes: VaultNote[],
+  llm: LLMClient,
+): Promise<Record<string, unknown>> {
+  const userPrompt = buildUserPrompt(note, allNotes);
+  const response = await llm.chat(SYSTEM_PROMPT, userPrompt);
+  return parseLLMResponse(response, note.name);
+}
+
+/** Re-compile a note with validation errors fed back to the LLM */
+async function recompileNote(
+  note: VaultNote,
+  allNotes: VaultNote[],
+  llm: LLMClient,
+  prevFrontmatter: Record<string, unknown>,
+  errors: string[],
+): Promise<Record<string, unknown>> {
+  const retryPrompt = `Your previous YAML frontmatter for "${note.name}" had ${errors.length} validation error(s):
+
+${errors.map((e, i) => `${i + 1}. ${e}`).join("\n")}
+
+Previous output:
+${stringifyYaml(prevFrontmatter).trim()}
+
+Context — other notes in the vault:
+${allNotes.filter((n) => n.name !== note.name).map((n) => {
+  const outs = (n.frontmatter.outputs as string[]) ?? [];
+  return `- ${n.name}: outputs=[${outs.join(", ")}]`;
+}).join("\n")}
+
+Fix these errors and regenerate the YAML frontmatter. ONLY valid YAML, no fences, no explanation.`;
+
+  const response = await llm.chat(SYSTEM_PROMPT, retryPrompt);
+  return parseLLMResponse(response, note.name);
 }
 
 /** Reconstruct a .md file with new frontmatter prepended to the existing body */
@@ -160,7 +240,7 @@ export function reconstructNote(
   return `---\n${yaml}\n---\n\n${body.trim()}\n`;
 }
 
-/** Compile all uncompiled notes in the vault */
+/** Compile all uncompiled notes in the vault, with validate → re-compile loop */
 export async function compileVault(
   notes: VaultNote[],
   llm: LLMClient,
@@ -172,18 +252,47 @@ export async function compileVault(
     { frontmatter: Record<string, unknown>; fullContent: string }
   >();
 
-  // Compile in order — the LLM receives partial context for already-compiled notes
+  // Pass 1: compile all notes (LLM gets partial context incrementally)
   for (let i = 0; i < uncompiled.length; i++) {
     const note = uncompiled[i];
     onProgress?.(note.name, i + 1, uncompiled.length);
 
     const frontmatter = await compileNote(note, notes, llm);
-    const fullContent = reconstructNote(note.body, frontmatter);
-
-    // Update the note's frontmatter so subsequent compilations have richer context
     note.frontmatter = frontmatter;
+    results.set(note.name, { frontmatter, fullContent: reconstructNote(note.body, frontmatter) });
+  }
 
-    results.set(note.name, { frontmatter, fullContent });
+  // Pass 2+: validate all, re-compile broken notes (max 3 rounds)
+  for (let round = 1; round <= MAX_COMPILE_RETRIES; round++) {
+    const broken: Array<{ note: VaultNote; errors: string[] }> = [];
+    for (const note of uncompiled) {
+      const errors = validateFrontmatter(note.frontmatter, note, notes);
+      if (errors.length > 0) broken.push({ note, errors });
+    }
+
+    if (broken.length === 0) break;
+
+    console.log(`\n  Validation round ${round}: ${broken.length} note(s) with errors, re-compiling...`);
+    for (const { note, errors } of broken) {
+      console.log(`    ✗ ${note.name}: ${errors[0]}`);
+      const fixed = await recompileNote(note, notes, llm, note.frontmatter, errors);
+      note.frontmatter = fixed;
+      results.set(note.name, { frontmatter: fixed, fullContent: reconstructNote(note.body, fixed) });
+    }
+  }
+
+  // Final check — fail-fast if still broken
+  const remaining: string[] = [];
+  for (const note of uncompiled) {
+    const errors = validateFrontmatter(note.frontmatter, note, notes);
+    if (errors.length > 0) {
+      remaining.push(`${note.name}: ${errors.join("; ")}`);
+    }
+  }
+  if (remaining.length > 0) {
+    throw new Error(
+      `Compilation failed after ${MAX_COMPILE_RETRIES} retry rounds:\n${remaining.join("\n")}`,
+    );
   }
 
   return results;

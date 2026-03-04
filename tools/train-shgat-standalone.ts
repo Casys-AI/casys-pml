@@ -540,7 +540,7 @@ try {
       batchSize: BATCH_SIZE,
       usePER: true,
       useCurriculum: true,
-      learningRate: 0.05,
+      learningRate: 0.02,
       useProjectionHead: Deno.env.get("SHGAT_USE_PROJECTION_HEAD") === "true",
       shareLevelWeights: SHARE_LEVEL_WEIGHTS,
       earlyStopPatience: EARLY_STOP_PATIENCE,

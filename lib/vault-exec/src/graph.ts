@@ -65,6 +65,33 @@ export function detectCycles(graph: VaultGraph): string[] {
   return cycles;
 }
 
+/** Extract the subgraph needed to compute a target node (BFS up dependencies) */
+export function extractSubgraph(graph: VaultGraph, target: string): VaultGraph {
+  if (!graph.nodes.has(target)) {
+    throw new Error(`Target note "${target}" not found in graph`);
+  }
+
+  const needed = new Set<string>();
+  const queue = [target];
+  while (queue.length > 0) {
+    const name = queue.shift()!;
+    if (needed.has(name)) continue;
+    needed.add(name);
+    for (const dep of graph.edges.get(name) ?? []) {
+      if (graph.nodes.has(dep)) queue.push(dep);
+    }
+  }
+
+  const nodes = new Map<string, CompiledNode>();
+  const edges = new Map<string, string[]>();
+  for (const name of needed) {
+    nodes.set(name, graph.nodes.get(name)!);
+    edges.set(name, (graph.edges.get(name) ?? []).filter((d) => needed.has(d)));
+  }
+
+  return { nodes, edges };
+}
+
 /** Topological sort using Kahn's algorithm. Throws on cycle. */
 export function topologicalSort(graph: VaultGraph): string[] {
   const cycles = detectCycles(graph);

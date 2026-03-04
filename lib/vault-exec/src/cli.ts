@@ -66,13 +66,13 @@ const runCmd = new Command()
   .action(async (opts: { target?: string; intent?: string }, vaultPath: string) => {
     const notes = await loadVault(vaultPath);
     const fullGraph = buildGraph(notes);
-    const dbPath = `${vaultPath}/.vault-exec/vault.duckdb`;
 
     // Resolve target note
     let targetNote: string | undefined = opts.target;
 
     if (opts.intent) {
       // GRU intent routing
+      const dbPath = `${vaultPath}/.vault-exec/vault.duckdb`;
       try {
         const { VaultDB } = await import("./db/store.ts");
         const { GRUInference } = await import("./gru/inference.ts");
@@ -125,6 +125,7 @@ const runCmd = new Command()
     }
 
     // Record execution trace to DuckDB
+    const dbPath = `${vaultPath}/.vault-exec/vault.duckdb`;
     try {
       const { VaultDB } = await import("./db/store.ts");
       const { recordTrace } = await import("./traces/recorder.ts");
@@ -203,7 +204,6 @@ const initCmd = new Command()
     console.log(`  ${result.notesIndexed} notes indexed`);
     console.log(`  ${result.syntheticTraces} synthetic traces generated`);
     console.log(`  GNN: ${result.gnnForwardDone ? "done" : "skipped"}`);
-    console.log(`  GRU: ${result.gruTrained ? `trained (accuracy: ${((result.gruAccuracy ?? 0) * 100).toFixed(1)}%)` : "skipped"}`);
   });
 
 // ── Main ────────────────────────────────────────────────────────────────────
