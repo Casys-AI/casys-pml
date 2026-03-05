@@ -66,6 +66,11 @@ Deno.test("intent candidate formatter includes payload compatibility status", ()
   assertEquals(candidates[1].payloadOk, false);
   assertEquals(candidates[0].targetId, "candidate-a");
   assertEquals(candidates[0].targetAlias, "c-a");
+  assertEquals(candidates[0].candidateId, "cand_candidate-a");
+  assertEquals(candidates[0].validation.status, "OK");
+  assertEquals(candidates[1].validation.status, "MISSING");
+  assertEquals(candidates[1].validation.missing, ["days"]);
+  assertEquals(candidates[1].validation.extra, ["account_id"]);
 
   const line1 = formatIntentCandidateLine(1, candidates[0]);
   const line2 = formatIntentCandidateLine(2, candidates[1]);

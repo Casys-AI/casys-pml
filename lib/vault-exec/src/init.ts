@@ -1,18 +1,20 @@
 import type { VaultNote } from "./types.ts";
-import { VaultDB } from "./db/store.ts";
+import { openVaultStore } from "./db/index.ts";
 import { EmbeddingModel, type Embedder } from "./embeddings/model.ts";
 import { indexVault } from "./embeddings/indexer.ts";
 import { gnnForward } from "./gnn/forward.ts";
-import { initParams } from "./gnn/params.ts";
 import { DEFAULT_GNN_CONFIG } from "./gnn/types.ts";
 import type { GNNNode } from "./gnn/types.ts";
+import { loadOrInitGnnParams, persistGnnParams } from "./gnn/runtime.ts";
+import { getBlasStatus, initBlasAcceleration } from "./gnn/blas-ffi.ts";
 import { generateStructuralTraces } from "./traces/synthetic.ts";
 import { recordTrace } from "./traces/recorder.ts";
 import { initWeights } from "./gru/cell.ts";
 import { trainEpoch } from "./gru/trainer.ts";
 import type { TrainingExample } from "./gru/trainer.ts";
+import { serializeWeights } from "./gru/weights.ts";
 import { DEFAULT_GRU_CONFIG } from "./gru/types.ts";
-import type { GRUConfig, GRUWeights, GRUVocabulary, VocabNode } from "./gru/types.ts";
+import type { GRUVocabulary, VocabNode } from "./gru/types.ts";
 
 export interface InitResult {
   notesIndexed: number;
@@ -23,27 +25,12 @@ export interface InitResult {
   gruAccuracy?: number;
 }
 
-/** Serialize GRU weights + vocab + config as gzip-compressed JSON. */
-async function serializeWeights(
-  weights: GRUWeights,
-  vocab: GRUVocabulary,
-  config: GRUConfig,
-): Promise<Uint8Array> {
-  const json = JSON.stringify({
-    weights,
-    config,
-    vocab: { nodes: vocab.nodes, indexToName: vocab.indexToName },
-  });
-  const stream = new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-
 export async function initVault(
   notes: VaultNote[],
   dbPath: string,
   embedder: Embedder,
 ): Promise<InitResult> {
-  const db = await VaultDB.open(dbPath);
+  const db = await openVaultStore(dbPath);
   const model = new EmbeddingModel(embedder);
 
   try {
@@ -57,54 +44,71 @@ export async function initVault(
 
     let gnnDone = false;
     if (maxLevel > 0) {
+      const blasReady = initBlasAcceleration();
+      const blas = getBlasStatus();
+      console.log(
+        `  BLAS: ${blasReady ? `enabled${blas.path ? ` (${blas.path})` : ""}` : "disabled (JS fallback)"}`,
+      );
+
       const gnnNodes: GNNNode[] = allNotes.map((row) => {
+        if (!row.embedding) {
+          throw new Error(
+            `Note "${row.name}" has no embedding after indexing. This should not happen.`,
+          );
+        }
         const note = notes.find((n) => n.name === row.name);
         return {
           name: row.name,
           level: row.level,
-          embedding: (() => {
-            if (!row.embedding) {
-              throw new Error(
-                `Note "${row.name}" has no embedding after indexing. This should not happen.`,
-              );
-            }
-            return row.embedding;
-          })(),
+          embedding: row.embedding,
           children: note?.wikilinks ?? [],
         };
       });
 
       const config = DEFAULT_GNN_CONFIG;
-      const params = initParams(config, maxLevel + 1);
+      const { params, source } = await loadOrInitGnnParams(db, config, maxLevel);
       const gnnEmbeddings = gnnForward(gnnNodes, params, config);
 
       for (const [name, emb] of gnnEmbeddings) {
         await db.updateNoteGnnEmbedding(name, emb);
       }
+      await persistGnnParams(db, params);
       gnnDone = true;
-      console.log(`  ${gnnEmbeddings.size} GNN embeddings computed`);
+      console.log(`  ${gnnEmbeddings.size} GNN embeddings computed (${source} params)`);
     } else {
       console.log("  Skipped (all notes are leaves)");
     }
 
     console.log("3/4 Generating synthetic traces...");
     const syntheticTraces = generateStructuralTraces(notes);
+
+    // Deduplicate: only insert synthetic traces not already in DB
+    const existingTraces = await db.getAllTraces();
+    const existingPaths = new Set(
+      existingTraces
+        .filter((t) => t.synthetic)
+        .map((t) => t.path.join("||")),
+    );
+
+    let newTraces = 0;
     for (const trace of syntheticTraces) {
-      await recordTrace(db, trace);
+      const pathKey = trace.path.join("||");
+      if (!existingPaths.has(pathKey)) {
+        await recordTrace(db, trace);
+        newTraces++;
+      }
     }
-    console.log(`  ${syntheticTraces.length} synthetic traces`);
+    console.log(`  ${newTraces} new synthetic traces (${existingPaths.size} already existed)`);
 
     console.log("4/4 GRU training...");
 
     // Build GRU vocabulary from the notes' embeddings (prefer GNN-enriched)
     const refreshedNotes = await db.getAllNotes();
-    const levels = new Map(notes.map((n) => [n.name, n.wikilinks.length > 0 ? 1 : 0]));
-
     const vocabNodes: VocabNode[] = refreshedNotes
       .filter((row) => row.gnnEmbedding || row.embedding)
       .map((row) => ({
         name: row.name,
-        level: levels.get(row.name) ?? 0,
+        level: row.level,
         embedding: row.gnnEmbedding ?? row.embedding!,
       }));
 
@@ -133,27 +137,34 @@ export async function initVault(
       }
     }
 
-    // Build training examples from synthetic traces
+    // Build training examples from ALL traces in DB (synthetic + real)
     const config = DEFAULT_GRU_CONFIG;
-    const examples: TrainingExample[] = syntheticTraces
+    const allTraces = await db.getAllTraces();
+    const examples: TrainingExample[] = allTraces
       .filter((t) => t.path.length >= 2)
+      .filter((t) => vocab.nameToIndex.has(t.targetNote))
       .map((t) => {
-        const targetName = t.path[t.path.length - 1];
-        const targetIdx = vocab.nameToIndex.get(targetName) ?? 0;
+        const targetName = t.targetNote;
+        const targetIdx = vocab.nameToIndex.get(targetName)!;
         const parent = parentOf.get(targetName);
         const parentIdx = parent !== undefined ? (vocab.nameToIndex.get(parent) ?? null) : null;
 
-        // First child of the target in the vocab (if it has wikilinks)
         const targetNote = notes.find((n) => n.name === targetName);
         const firstChild = targetNote?.wikilinks.find((c) => vocab.nameToIndex.has(c));
         const childIdx = firstChild !== undefined ? vocab.nameToIndex.get(firstChild)! : null;
 
+        // Use intent embedding if available (real traces), else zero vector (synthetic)
+        const intentEmb = (t.intentEmbedding && t.intentEmbedding.length > 0)
+          ? t.intentEmbedding
+          : new Array(config.inputDim).fill(0);
+
         return {
-          intentEmb: new Array(config.inputDim).fill(0), // synthetic traces have no intent
+          intentEmb,
           path: t.path,
           targetIdx,
           parentIdx,
           childIdx,
+          negative: t.success === false,
         };
       });
 

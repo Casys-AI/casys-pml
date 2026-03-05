@@ -1,5 +1,5 @@
 import type { VaultNote } from "../types.ts";
-import type { VaultDB } from "../db/store.ts";
+import type { IVaultStore } from "../db/types.ts";
 import type { EmbeddingModel } from "./model.ts";
 
 /** FNV-1a 32-bit hash — fast content fingerprint for change detection */
@@ -52,7 +52,7 @@ export interface IndexStats {
 }
 
 /**
- * Index all vault notes into DuckDB with embeddings and hierarchy levels.
+ * Index all vault notes with embeddings and hierarchy levels.
  *
  * For each note:
  * 1. Upsert the note row (name, path, hash, level) and its edges — always
@@ -61,7 +61,7 @@ export interface IndexStats {
  */
 export async function indexVault(
   notes: VaultNote[],
-  db: VaultDB,
+  db: IVaultStore,
   model: EmbeddingModel,
 ): Promise<IndexStats> {
   const levels = computeLevels(notes);

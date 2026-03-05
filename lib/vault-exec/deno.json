@@ -3,11 +3,15 @@
   "version": "0.1.0",
   "exports": "./src/mod.ts",
   "imports": {
-    "@duckdb/node-api": "npm:@duckdb/node-api"
+    "@kitsonk/kv-toolbox": "jsr:@kitsonk/kv-toolbox@^0.30.0",
+    "@kitsonk/kv-toolbox/blob": "jsr:@kitsonk/kv-toolbox@0.30/blob",
+    "@tensorflow/tfjs": "npm:@tensorflow/tfjs"
   },
   "tasks": {
-    "test": "deno test --allow-read --allow-write --allow-ffi --allow-env --allow-net --node-modules-dir=manual src/",
-    "cli": "deno run --allow-read --allow-write --allow-net --allow-env --allow-ffi --node-modules-dir=manual src/cli.ts"
+    "test": "deno test --allow-read --allow-write --allow-ffi --allow-env --allow-net --allow-run --unstable-kv --node-modules-dir=manual src/",
+    "cli": "deno run --allow-read --allow-write --allow-net --allow-env --allow-ffi --allow-run --unstable-kv --node-modules-dir=manual src/cli.ts",
+    "ablation": "deno run --allow-read --allow-write --allow-env --allow-net --allow-ffi --unstable-kv --node-modules-dir=manual scripts/ablation-routing.ts",
+    "bench:gnn": "deno run --allow-ffi --node-modules-dir=manual scripts/bench-gnn-backend.ts"
   },
   "nodeModulesDir": "manual",
   "compilerOptions": {

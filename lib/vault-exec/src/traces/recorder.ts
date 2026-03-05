@@ -1,9 +1,9 @@
-import type { VaultDB } from "../db/store.ts";
+import type { IVaultStore } from "../db/types.ts";
 import type { ExecutionTrace } from "./types.ts";
 
-/** Record an execution trace to DuckDB */
+/** Record an execution trace to the vault store. */
 export async function recordTrace(
-  db: VaultDB,
+  db: IVaultStore,
   trace: ExecutionTrace,
 ): Promise<void> {
   await db.insertTrace({

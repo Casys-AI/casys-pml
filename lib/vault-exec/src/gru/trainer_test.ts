@@ -88,26 +88,30 @@ function makeTinyExamples(vocab: GRUVocabulary): TrainingExample[] {
 
 // --- Backprop tests ---
 
-Deno.test("trainEpoch reduces loss over 3 epochs", () => {
+Deno.test("trainEpoch reduces loss over multiple epochs", () => {
   const vocab = makeTinyVocab(["A", "B", "C"]);
   const weights = initWeights(TINY_CONFIG);
   const examples = makeTinyExamples(vocab);
-  const lr = 0.1;
+  const lr = 0.01;
 
+  const numEpochs = 10;
   const losses: number[] = [];
-  for (let epoch = 0; epoch < 3; epoch++) {
+  for (let epoch = 0; epoch < numEpochs; epoch++) {
     const { avgLoss } = trainEpoch(
       examples, weights, vocab, TINY_CONFIG, lr, 2.0,
     );
     losses.push(avgLoss);
   }
 
-  // Loss should decrease from epoch 0 to epoch 2.
-  // With numerical gradients and lr=0.1, the signal is clear on 3 nodes.
+  // Check that the minimum loss in the last 5 epochs is lower than the first.
+  // This is more robust than comparing epoch 0 vs last epoch, because
+  // Adam with random init can have non-monotonic loss trajectories.
+  const lastHalf = losses.slice(numEpochs / 2);
+  const minLastHalf = Math.min(...lastHalf);
   assertEquals(
-    losses[2] < losses[0],
+    minLastHalf < losses[0],
     true,
-    `Expected loss to decrease: epoch0=${losses[0].toFixed(4)}, epoch2=${losses[2].toFixed(4)}`,
+    `Expected loss to decrease: epoch0=${losses[0].toFixed(4)}, minLast5=${minLastHalf.toFixed(4)}, all=[${losses.map(l => l.toFixed(4)).join(", ")}]`,
   );
 });
 

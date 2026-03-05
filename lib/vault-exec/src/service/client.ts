@@ -1,0 +1,170 @@
+import {
+  DEFAULT_IDLE_SECS,
+  MIN_IDLE_SECS,
+  STARTUP_POLL_MS,
+  STARTUP_WAIT_MS,
+} from "./constants.ts";
+import {
+  cleanupStaleArtifacts,
+  ensureVaultStateDir,
+  getServicePaths,
+  readServiceMeta,
+  removeIfExists,
+} from "./lifecycle.ts";
+import {
+  encodeJsonLine,
+  isServiceStatus,
+  readJsonLine,
+  type ServiceRequest,
+  type ServiceResponse,
+  type ServiceStatus,
+  type SyncResponse,
+} from "./protocol.ts";
+
+export interface WatchArgs {
+  vaultPath: string;
+  idleSecs?: number;
+}
+
+function requestId(): string {
+  return crypto.randomUUID();
+}
+
+async function sendRequest(vaultPath: string, req: ServiceRequest): Promise<ServiceResponse> {
+  const paths = await getServicePaths(vaultPath);
+  const conn = await Deno.connect({ transport: "unix", path: paths.socketPath });
+
+  try {
+    await conn.write(encodeJsonLine(req));
+    return await readJsonLine(conn) as ServiceResponse;
+  } finally {
+    conn.close();
+  }
+}
+
+async function spawnDaemon(vaultPath: string, idleSecs: number): Promise<void> {
+  const daemonPath = new URL("./daemon.ts", import.meta.url).pathname;
+  const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+  const shellCmd = [
+    "nohup",
+    quote(Deno.execPath()),
+    "run",
+    "--allow-read",
+    "--allow-write",
+    "--allow-net",
+    "--allow-env",
+    "--allow-ffi",
+    "--unstable-kv",
+    "--node-modules-dir=manual",
+    quote(daemonPath),
+    "--vault",
+    quote(vaultPath),
+    "--idle",
+    String(idleSecs),
+    ">/dev/null",
+    "2>&1",
+    "&",
+  ].join(" ");
+
+  const spawned = await new Deno.Command("bash", {
+    args: ["-lc", shellCmd],
+    stdin: "null",
+    stdout: "null",
+    stderr: "piped",
+  }).output();
+
+  if (!spawned.success) {
+    const stderr = new TextDecoder().decode(spawned.stderr).trim();
+    throw new Error(stderr || "Failed to spawn watch daemon");
+  }
+}
+
+async function waitForReady(vaultPath: string): Promise<void> {
+  const started = Date.now();
+
+  while (Date.now() - started < STARTUP_WAIT_MS) {
+    try {
+      const status = await watchStatus({ vaultPath });
+      if (status?.running) return;
+    } catch {
+      // Poll until daemon is listening.
+    }
+    await new Promise((resolve) => setTimeout(resolve, STARTUP_POLL_MS));
+  }
+
+  throw new Error(`Service startup timed out after ${STARTUP_WAIT_MS}ms`);
+}
+
+export async function watchStatus(args: { vaultPath: string }): Promise<ServiceStatus> {
+  let res: ServiceResponse;
+  const paths = await getServicePaths(args.vaultPath);
+  try {
+    res = await sendRequest(paths.vaultPath, { id: requestId(), method: "status" });
+  } catch {
+    const meta = await readServiceMeta(paths.metaPath);
+    return {
+      running: false,
+      pid: 0,
+      vaultPath: paths.vaultPath,
+      socketPath: paths.socketPath,
+      idleSecs: Math.max(DEFAULT_IDLE_SECS, MIN_IDLE_SECS),
+      startedAt: meta.lastStartedAt ?? "",
+      lastActivityAt: meta.lastRunningAt ?? "",
+      lastRunningAt: meta.lastRunningAt,
+      syncInProgress: false,
+      lastSyncAt: null,
+      lastSyncError: null,
+    };
+  }
+
+  if (!res.ok) {
+    throw new Error(res.error);
+  }
+
+  if (!isServiceStatus(res.result)) {
+    throw new Error("Malformed status response from watch service");
+  }
+
+  return res.result;
+}
+
+export async function startWatch(args: WatchArgs): Promise<ServiceStatus> {
+  const idleSecs = Math.max(args.idleSecs ?? DEFAULT_IDLE_SECS, MIN_IDLE_SECS);
+
+  await ensureVaultStateDir(args.vaultPath);
+  const paths = await getServicePaths(args.vaultPath);
+  const cleanup = await cleanupStaleArtifacts(paths);
+
+  if (!cleanup.active) {
+    await removeIfExists(paths.socketPath);
+    await spawnDaemon(paths.vaultPath, idleSecs);
+    await waitForReady(paths.vaultPath);
+  }
+
+  return await watchStatus({ vaultPath: paths.vaultPath });
+}
+
+export async function syncOnce(args: { vaultPath: string }): Promise<SyncResponse> {
+  const paths = await getServicePaths(args.vaultPath);
+  await startWatch({ vaultPath: paths.vaultPath });
+
+  const res = await sendRequest(paths.vaultPath, { id: requestId(), method: "sync" });
+  if (!res.ok) {
+    throw new Error(res.error);
+  }
+
+  return res.result as SyncResponse;
+}
+
+export async function stopWatch(args: { vaultPath: string }): Promise<boolean> {
+  const paths = await getServicePaths(args.vaultPath);
+
+  try {
+    const res = await sendRequest(args.vaultPath, { id: requestId(), method: "stop" });
+    return res.ok;
+  } catch {
+    await removeIfExists(paths.socketPath);
+    await removeIfExists(paths.pidPath);
+    return false;
+  }
+}

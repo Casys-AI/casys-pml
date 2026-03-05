@@ -2,11 +2,18 @@
 import { assertEquals } from "jsr:@std/assert";
 import { gnnForward } from "./forward.ts";
 import { initParams } from "./params.ts";
-import type { GNNNode, GNNConfig } from "./types.ts";
+import type { GNNConfig, GNNNode } from "./types.ts";
 import { DEFAULT_GNN_CONFIG } from "./types.ts";
 
-function makeNode(name: string, level: number, children: string[] = []): GNNNode {
-  const emb = Array.from({ length: 1024 }, (_, i) => Math.sin(name.charCodeAt(0) + i) * 0.1);
+function makeNode(
+  name: string,
+  level: number,
+  children: string[] = [],
+): GNNNode {
+  const emb = Array.from(
+    { length: 1024 },
+    (_, i) => Math.sin(name.charCodeAt(0) + i) * 0.1,
+  );
   return { name, level, embedding: emb, children };
 }
 
@@ -28,7 +35,11 @@ Deno.test("gnnForward - produces embeddings for all nodes", () => {
     const orig = nodes.find((n) => n.name === name)!.embedding;
     const changed = emb.some((v, i) => Math.abs(v - orig[i]) > 1e-10);
     // Leaf nodes change via E->V, non-leaves via V->E
-    assertEquals(changed, true, `Expected ${name} embedding to change after MP`);
+    assertEquals(
+      changed,
+      true,
+      `Expected ${name} embedding to change after MP`,
+    );
   }
 });
 
@@ -60,8 +71,41 @@ Deno.test("gnnForward - all same level returns original embeddings", () => {
   }
 });
 
+Deno.test("gnnForward - deterministic for fixed params and inputs", () => {
+  const nodes: GNNNode[] = [
+    makeNode("A", 0),
+    makeNode("B", 0),
+    makeNode("C", 1, ["A", "B"]),
+    makeNode("D", 2, ["C"]),
+  ];
+  const originalEmbeddings = new Map(
+    nodes.map((node) => [node.name, [...node.embedding]]),
+  );
+
+  const config = { ...DEFAULT_GNN_CONFIG, numHeads: 2, headDim: 4 };
+  const params = initParams(config, 3);
+
+  const first = gnnForward(nodes, params, config);
+  const second = gnnForward(nodes, params, config);
+
+  assertEquals(first.size, nodes.length);
+  assertEquals(
+    Array.from(first.entries()),
+    Array.from(second.entries()),
+  );
+
+  for (const node of nodes) {
+    assertEquals(node.embedding, originalEmbeddings.get(node.name)!);
+  }
+});
+
 Deno.test("initParams - shared weights reuse same object", () => {
-  const config: GNNConfig = { ...DEFAULT_GNN_CONFIG, shareLevelWeights: true, numHeads: 2, headDim: 4 };
+  const config: GNNConfig = {
+    ...DEFAULT_GNN_CONFIG,
+    shareLevelWeights: true,
+    numHeads: 2,
+    headDim: 4,
+  };
   const params = initParams(config, 3);
 
   // All levels should share the same LevelParams reference
@@ -73,7 +117,12 @@ Deno.test("initParams - shared weights reuse same object", () => {
 });
 
 Deno.test("initParams - unshared weights are independent", () => {
-  const config: GNNConfig = { ...DEFAULT_GNN_CONFIG, shareLevelWeights: false, numHeads: 2, headDim: 4 };
+  const config: GNNConfig = {
+    ...DEFAULT_GNN_CONFIG,
+    shareLevelWeights: false,
+    numHeads: 2,
+    headDim: 4,
+  };
   const params = initParams(config, 3);
 
   const l0 = params.levels.get(0);

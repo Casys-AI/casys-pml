@@ -2,7 +2,7 @@ import { assertEquals } from "jsr:@std/assert";
 import type { VaultNote } from "./types.ts";
 import { indexVault, computeLevels } from "./embeddings/indexer.ts";
 import { EmbeddingModel, type Embedder } from "./embeddings/model.ts";
-import { VaultDB } from "./db/store.ts";
+import { VaultKV } from "./db/store-kv.ts";
 import { gnnForward } from "./gnn/forward.ts";
 import { initParams } from "./gnn/params.ts";
 import { DEFAULT_GNN_CONFIG } from "./gnn/types.ts";
@@ -39,7 +39,7 @@ Deno.test("integration: full pipeline parse -> embed -> GNN -> traces -> GRU pre
   assertEquals(levels.get("Senior Filter"), 1);
   assertEquals(levels.get("Summary"), 2);
 
-  const db = await VaultDB.open(":memory:");
+  const db = await VaultKV.open(":memory:");
   const model = new EmbeddingModel(new MockEmbedder());
   try {
     const stats = await indexVault(notes, db, model);

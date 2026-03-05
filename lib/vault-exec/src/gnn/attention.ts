@@ -1,3 +1,5 @@
+import { matVec } from "./math/backend.ts";
+
 /** Leaky ReLU activation */
 export function leakyRelu(x: number, alpha = 0.2): number {
   return x >= 0 ? x : alpha * x;
@@ -14,7 +16,8 @@ export function softmax(logits: number[]): number[] {
 /** Dot product of two vectors */
 export function dotProduct(a: number[], b: number[]): number {
   let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) sum += a[i] * b[i];
   return sum;
 }
 
@@ -25,7 +28,7 @@ export function elu(x: number, alpha = 1.0): number {
 
 /** Matrix-vector multiply: result[i] = sum_j(matrix[i][j] * vec[j]) */
 export function matVecMul(matrix: number[][], vec: number[]): number[] {
-  return matrix.map((row) => dotProduct(row, vec));
+  return matVec(matrix, vec);
 }
 
 /**
@@ -38,7 +41,15 @@ export function attentionScore(
   a: number[],
   leakyAlpha = 0.2,
 ): number {
-  const concat = [...childProj, ...parentProj];
-  const activated = concat.map((x) => leakyRelu(x, leakyAlpha));
-  return dotProduct(a, activated);
+  const childLen = childProj.length;
+  const parentLen = parentProj.length;
+  const total = childLen + parentLen;
+  const n = Math.min(total, a.length);
+
+  let score = 0;
+  for (let i = 0; i < n; i++) {
+    const x = i < childLen ? childProj[i] : parentProj[i - childLen];
+    score += a[i] * leakyRelu(x, leakyAlpha);
+  }
+  return score;
 }

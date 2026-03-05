@@ -347,10 +347,12 @@ const runCmd = new Command()
             "intent_candidate",
             {
               index: i + 1,
+              candidate_id: candidate.candidateId,
               confidence: candidate.confidence,
               target: candidate.target,
               target_alias: candidate.targetAlias,
               target_id: candidate.targetId,
+              validation: candidate.validation,
               payload_ok: candidate.payloadOk,
               payload_status: candidate.payloadStatus,
               path: candidate.path,

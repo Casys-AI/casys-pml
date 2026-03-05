@@ -10,6 +10,7 @@
  */
 
 import type { GRUWeights, GRUVocabulary, GRUConfig, VocabNode } from "./types.ts";
+import { gzipCompress, gzipDecompress } from "../compress.ts";
 
 // ---------------------------------------------------------------------------
 // Internal wire format (JSON-safe)
@@ -23,60 +24,6 @@ interface SerializedPayload {
     indexToName: string[];
   };
   config: GRUConfig;
-}
-
-// ---------------------------------------------------------------------------
-// Compression helpers (Web Streams API — zero deps)
-// ---------------------------------------------------------------------------
-
-async function gzipCompress(data: Uint8Array): Promise<Uint8Array> {
-  const cs = new CompressionStream("gzip");
-  const writer = cs.writable.getWriter();
-  writer.write(data as unknown as BufferSource);
-  writer.close();
-
-  const chunks: Uint8Array[] = [];
-  const reader = cs.readable.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
-
-  let totalLen = 0;
-  for (const c of chunks) totalLen += c.length;
-  const result = new Uint8Array(totalLen);
-  let offset = 0;
-  for (const c of chunks) {
-    result.set(c, offset);
-    offset += c.length;
-  }
-  return result;
-}
-
-async function gzipDecompress(data: Uint8Array): Promise<Uint8Array> {
-  const ds = new DecompressionStream("gzip");
-  const writer = ds.writable.getWriter();
-  writer.write(data as unknown as BufferSource);
-  writer.close();
-
-  const chunks: Uint8Array[] = [];
-  const reader = ds.readable.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
-
-  let totalLen = 0;
-  for (const c of chunks) totalLen += c.length;
-  const result = new Uint8Array(totalLen);
-  let offset = 0;
-  for (const c of chunks) {
-    result.set(c, offset);
-    offset += c.length;
-  }
-  return result;
 }
 
 // ---------------------------------------------------------------------------

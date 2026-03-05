@@ -1,6 +1,7 @@
 // gnn/backward.ts — Numerical gradient training + parameter serialization
 import type { GNNNode, GNNParams, GNNConfig, LevelParams } from "./types.ts";
 import { gnnForward } from "./forward.ts";
+import { gzipCompress, gzipDecompress } from "../compress.ts";
 
 // ── Loss ───────────────────────────────────────────────────────────────
 
@@ -206,59 +207,13 @@ export async function serializeGnnParams(params: GNNParams): Promise<Uint8Array>
     shareLevelWeights: params.shareLevelWeights,
   };
 
-  const json = JSON.stringify(serialized);
-  const encoded = new TextEncoder().encode(json);
-
-  // Gzip compress
-  const cs = new CompressionStream("gzip");
-  const writer = cs.writable.getWriter();
-  writer.write(encoded);
-  writer.close();
-
-  const chunks: Uint8Array[] = [];
-  const reader = cs.readable.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
-
-  // Concatenate chunks
-  const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return result;
+  const encoded = new TextEncoder().encode(JSON.stringify(serialized));
+  return gzipCompress(encoded);
 }
 
 /** Deserialize gzipped JSON back to GNNParams */
 export async function deserializeGnnParams(blob: Uint8Array): Promise<GNNParams> {
-  // Gzip decompress
-  const ds = new DecompressionStream("gzip");
-  const writer = ds.writable.getWriter();
-  writer.write(blob as unknown as BufferSource);
-  writer.close();
-
-  const chunks: Uint8Array[] = [];
-  const reader = ds.readable.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
-
-  const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-  const decompressed = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    decompressed.set(chunk, offset);
-    offset += chunk.length;
-  }
-
+  const decompressed = await gzipDecompress(blob);
   const json = new TextDecoder().decode(decompressed);
   const serialized: SerializedGNNParams = JSON.parse(json);
 

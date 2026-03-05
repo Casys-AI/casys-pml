@@ -44,7 +44,9 @@ export async function parseVault(reader: VaultReader, dir: string): Promise<Vaul
   const notes: VaultNote[] = [];
   for (const file of files) {
     const raw = await reader.readNote(file);
-    notes.push(parseNote(file.split("/").pop()!, raw));
+    const note = parseNote(file.split("/").pop()!, raw);
+    note.path = file; // preserve full path for in-place writes
+    notes.push(note);
   }
   return notes;
 }

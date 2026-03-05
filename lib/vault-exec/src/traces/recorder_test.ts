@@ -1,9 +1,9 @@
 import { assertEquals } from "jsr:@std/assert";
 import { recordTrace } from "./recorder.ts";
-import { VaultDB } from "../db/store.ts";
+import { VaultKV } from "../db/store-kv.ts";
 
-Deno.test("recordTrace - stores execution trace in DuckDB", async () => {
-  const db = await VaultDB.open(":memory:");
+Deno.test("recordTrace - stores execution trace", async () => {
+  const db = await VaultKV.open(":memory:");
   try {
     await recordTrace(db, {
       intent: "find seniors",
@@ -23,7 +23,7 @@ Deno.test("recordTrace - stores execution trace in DuckDB", async () => {
 });
 
 Deno.test("recordTrace - multiple traces accumulate", async () => {
-  const db = await VaultDB.open(":memory:");
+  const db = await VaultKV.open(":memory:");
   try {
     await recordTrace(db, {
       targetNote: "A", path: ["A"], success: true, synthetic: true,

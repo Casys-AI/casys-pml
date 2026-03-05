@@ -65,9 +65,17 @@ export class GRUInference {
     });
 
     const probs = softmax(scores.map((s) => s / 0.05)); // temperature
+
+    // DAG constraint: exclude nodes already in context (acyclicity)
+    const visited = new Set(context);
     const ranked = this.vocab.indexToName
       .map((name, i) => ({ name, score: probs[i] }))
+      .filter(({ name }) => !visited.has(name))
       .sort((a, b) => b.score - a.score);
+
+    if (ranked.length === 0) {
+      return { name: "", score: 0, ranked: [] };
+    }
 
     return { name: ranked[0].name, score: ranked[0].score, ranked };
   }
@@ -104,9 +112,8 @@ export class GRUInference {
 
       const bestName = this.vocab.indexToName[bestIdx];
 
-      // Avoid infinite loops: break if same node predicted 2+ times
-      const recentCount = path.filter((p) => p === bestName).length;
-      if (recentCount >= 2) break;
+      // DAG constraint: no revisiting nodes (acyclicity)
+      if (path.includes(bestName)) break;
 
       path.push(bestName);
       input = this.vocab.nodes[bestIdx].embedding;
@@ -173,6 +180,10 @@ export class GRUInference {
 
         for (const { idx, prob } of topK) {
           const name = this.vocab.indexToName[idx];
+
+          // DAG constraint: no revisiting nodes (acyclicity)
+          if (beam.path.includes(name)) continue;
+
           const newPath = [...beam.path, name];
           const logProb = beam.score + Math.log(prob + 1e-10);
 

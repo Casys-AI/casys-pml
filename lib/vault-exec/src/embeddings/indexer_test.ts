@@ -1,6 +1,6 @@
 import { assertEquals } from "jsr:@std/assert";
 import { indexVault, computeLevels } from "./indexer.ts";
-import { VaultDB } from "../db/store.ts";
+import { VaultKV } from "../db/store-kv.ts";
 import { EmbeddingModel, type Embedder } from "./model.ts";
 import type { VaultNote } from "../types.ts";
 
@@ -20,7 +20,7 @@ function makeNote(name: string, body: string, wikilinks: string[] = []): VaultNo
 }
 
 Deno.test("indexVault - inserts notes with embeddings and levels", async () => {
-  const db = await VaultDB.open(":memory:");
+  const db = await VaultKV.open(":memory:");
   const embedder = new MockEmbedder();
   const model = new EmbeddingModel(embedder);
   try {
@@ -43,13 +43,12 @@ Deno.test("indexVault - inserts notes with embeddings and levels", async () => {
 });
 
 Deno.test("indexVault - skips unchanged notes (same hash)", async () => {
-  const db = await VaultDB.open(":memory:");
+  const db = await VaultKV.open(":memory:");
   const embedder = new MockEmbedder();
   const model = new EmbeddingModel(embedder);
   try {
     const notes = [makeNote("A", "Same body")];
     await indexVault(notes, db, model);
-    const firstCalls = embedder.calls.length;
 
     embedder.calls = [];
     const stats = await indexVault(notes, db, model);

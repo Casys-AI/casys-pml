@@ -1,38 +1,6 @@
-import type { VaultNote, VaultGraph } from "../types.ts";
+import type { VaultNote } from "../types.ts";
 import type { ExecutionTrace } from "./types.ts";
-import { buildGraph, topologicalSort } from "../graph.ts";
-
-/**
- * Extract the subgraph reachable from `target` by following edges (dependencies).
- * Returns a new VaultGraph containing only the target and its transitive deps.
- */
-function extractSubgraph(graph: VaultGraph, target: string): VaultGraph {
-  const visited = new Set<string>();
-  const stack = [target];
-
-  while (stack.length > 0) {
-    const name = stack.pop()!;
-    if (visited.has(name)) continue;
-    if (!graph.nodes.has(name)) continue;
-    visited.add(name);
-    const deps = graph.edges.get(name) ?? [];
-    for (const dep of deps) {
-      if (!visited.has(dep)) stack.push(dep);
-    }
-  }
-
-  const nodes = new Map<string, import("../types.ts").CompiledNode>();
-  const edges = new Map<string, string[]>();
-
-  for (const name of visited) {
-    const node = graph.nodes.get(name);
-    if (node) nodes.set(name, node);
-    const nodeDeps = (graph.edges.get(name) ?? []).filter((d) => visited.has(d));
-    edges.set(name, nodeDeps);
-  }
-
-  return { nodes, edges };
-}
+import { buildGraph, extractSubgraph, topologicalSort } from "../graph.ts";
 
 /**
  * Generate synthetic execution traces from vault DAG structure.
