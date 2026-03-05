@@ -404,6 +404,26 @@ const syncCmd = new Command()
     console.log(`sync complete: ${vaultPath}`);
   });
 
+const ingestCmd = new Command()
+  .alias("i")
+  .description("Ingest OpenClaw JSONL sessions into markdown trace notes")
+  .arguments("<source-path:string> <output-path:string>")
+  .action(async (_opts: void, sourcePath: string, outputPath: string) => {
+    try {
+      const { ingestOpenClawSessions } = await import("./ingest/ingest.ts");
+      const result = await ingestOpenClawSessions({ sourcePath, outputPath });
+      console.log(
+        `ingest complete: ${result.sessionsProcessed} sessions, ${result.toolsProcessed} tools`,
+      );
+      console.log(`sessions: ${outputPath}/sessions`);
+      console.log(`tools: ${outputPath}/tools`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`ingest failed: ${message}`);
+      Deno.exit(1);
+    }
+  });
+
 // ── Main ────────────────────────────────────────────────────────────────────
 
 await new Command()
@@ -417,4 +437,5 @@ await new Command()
   .command("init", initCmd)
   .command("watch", watchCmd)
   .command("sync", syncCmd)
+  .command("ingest", ingestCmd)
   .parse(Deno.args);
