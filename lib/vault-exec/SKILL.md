@@ -28,6 +28,36 @@ Le binaire `vx` n’est pas garanti dans le PATH. Utiliser Deno explicitement :
 ~/.deno/bin/deno task cli run <vault-path> --target "<Target Note>" --inputs '{"days_threshold":7}'
 ```
 
+## Architecture du vault (standard)
+
+Organisation cible en feature slices :
+
+- `modules/revenue/`
+- `modules/crm/`
+- `shared/`
+- `_drafts/`
+
+Sous-structure recommandée par module :
+
+- `00-Schema/`
+- `01-Entities/`
+- `02-Relations/` (optionnel selon module)
+- `10-Primitives/`
+- `20-Composites/` (optionnel selon module)
+- `30-Outputs/`
+
+Conventions de nommage (important car les notes sont globales dans le graph) :
+
+- Notes revenue : préfixe `REV - ...`
+- Notes CRM : préfixe `CRM - ...`
+- Notes partagées : préfixe `SHARED - ...`
+
+Notes :
+
+- `vault-exec` lit les notes récursivement.
+- Dossiers ignorés automatiquement : `.obsidian`, `.vault-exec`, `.vault-exec-backup`, `_drafts`, etc.
+- Les dépendances wikilinks `[[...]]` sont globales (pas limitées au dossier), d’où l’usage des préfixes.
+
 ## Commandes utiles
 
 - Validation
