@@ -1,4 +1,4 @@
-import { matVec } from "./math/backend.ts";
+import { matVec } from "./infrastructure/math/backend.ts";
 
 /** Leaky ReLU activation */
 export function leakyRelu(x: number, alpha = 0.2): number {

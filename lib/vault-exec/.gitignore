@@ -1,0 +1,11 @@
+# Generated vault runtime data
+demo-vault/.vault-exec/
+demo-vault/.vault-exec-backup/
+demo-vault-crm/.vault-exec/
+demo-vault-backups/
+
+# Executed notebook artifacts
+notebooks/executed/
+notebooks/executed-after-intents/
+notebooks/topological-map.html
+

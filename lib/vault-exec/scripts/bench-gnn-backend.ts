@@ -1,4 +1,9 @@
-import { blasMatVec, getBlasStatus, initBlasAcceleration, isBlasAvailable } from "../src/gnn/blas-ffi.ts";
+import {
+  blasMatVec,
+  getBlasStatus,
+  initBlasAcceleration,
+  isBlasAvailable,
+} from "../src/gnn/infrastructure/blas-ffi.ts";
 
 interface BenchCase {
   name: string;

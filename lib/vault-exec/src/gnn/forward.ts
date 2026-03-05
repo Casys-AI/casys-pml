@@ -1,5 +1,5 @@
 import type { GNNConfig, GNNNode, GNNParams } from "./types.ts";
-import { runGnnOrchestrator } from "./orchestrator.ts";
+import { runGnnOrchestrator } from "./application/orchestrator.ts";
 
 /**
  * Multi-level GNN forward pass.
