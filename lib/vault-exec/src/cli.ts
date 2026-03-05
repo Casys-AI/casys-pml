@@ -15,6 +15,12 @@ import {
   evaluateIntentCandidates,
   formatIntentCandidateLine,
 } from "./intent-candidates.ts";
+import {
+  buildTargetIdentifierIndex,
+  resolveTargetIdentifier,
+} from "./target-identifiers.ts";
+import { errorJson, eventJson } from "./output.ts";
+import { EXIT_CODE_RUNTIME, EXIT_CODE_VALIDATION } from "./exit-codes.ts";
 
 // Load .env.local (gitignored) then .env as fallback
 try { loadSync({ envPath: ".env.local", export: true }); } catch { /* ok */ }
@@ -53,9 +59,43 @@ async function parseInputsArg(raw?: string): Promise<Record<string, unknown>> {
   return JSON.parse(raw) as Record<string, unknown>;
 }
 
-function printInputSchema(schema: Record<string, unknown>): void {
-  console.log("[input_schema]");
-  console.log(JSON.stringify(schema, null, 2));
+function emitEvent(
+  human: boolean,
+  type: string,
+  payload: Record<string, unknown>,
+  humanText?: string,
+): void {
+  if (human) {
+    if (humanText) console.log(humanText);
+    return;
+  }
+  console.log(eventJson(type, payload));
+}
+
+function emitError(
+  human: boolean,
+  args: {
+    code: string;
+    category: "validation" | "runtime" | "internal";
+    message: string;
+    details?: Record<string, unknown>;
+    humanText?: string;
+  },
+): void {
+  if (human) {
+    console.error(args.humanText ?? `✗ ${args.message}`);
+    return;
+  }
+  console.log(errorJson(args));
+}
+
+function printInputSchema(human: boolean, schema: Record<string, unknown>): void {
+  if (human) {
+    console.log("[input_schema]");
+    console.log(JSON.stringify(schema, null, 2));
+    return;
+  }
+  emitEvent(false, "input_schema", { schema });
 }
 
 type ServiceClient = {
@@ -74,41 +114,80 @@ async function loadServiceClient(): Promise<ServiceClient> {
 // ── Commands ────────────────────────────────────────────────────────────────
 
 const validateCmd = new Command()
+  .alias("v")
   .description("Check for cycles, missing inputs, orphans")
   .arguments("<vault-path:string>")
-  .action(async (_opts: void, vaultPath: string) => {
+  .option("-H, --human", "Human-readable output (default: JSONL)")
+  .action(async (opts: { human?: boolean }, vaultPath: string) => {
+    const human = opts.human === true;
     const notes = await loadNotes(vaultPath);
     const graph = buildGraph(notes);
     const errors = validate(graph);
     if (errors.length === 0) {
-      console.log(`✓ ${notes.length} notes, no errors`);
-    } else {
-      console.error(`✗ ${errors.length} error(s):`);
+      emitEvent(human, "validate_ok", { note_count: notes.length }, `✓ ${notes.length} notes, no errors`);
+      return;
+    }
+
+    emitError(human, {
+      code: "GRAPH_VALIDATION_ERROR",
+      category: "validation",
+      message: `${errors.length} validation error(s)`,
+      details: {
+        error_count: errors.length,
+        errors: errors.map((err) => ({ node: err.node, type: err.type, message: err.message })),
+      },
+      humanText: `✗ ${errors.length} error(s):`,
+    });
+    if (human) {
       for (const err of errors) {
         console.error(`  [${err.type}] ${err.message}`);
       }
-      Deno.exit(1);
     }
+    Deno.exit(EXIT_CODE_VALIDATION);
   });
 
 const graphCmd = new Command()
+  .alias("g")
   .description("Print dependency graph and execution order")
   .arguments("<vault-path:string>")
-  .action(async (_opts: void, vaultPath: string) => {
+  .option("-H, --human", "Human-readable output (default: JSONL)")
+  .action(async (opts: { human?: boolean }, vaultPath: string) => {
+    const human = opts.human === true;
     const notes = await loadNotes(vaultPath);
     const graph = buildGraph(notes);
     const order = topologicalSort(graph);
-    console.log("Execution order:");
-    for (let i = 0; i < order.length; i++) {
-      const name = order[i];
-      const node = graph.nodes.get(name)!;
-      const deps = graph.edges.get(name) ?? [];
-      const depStr = deps.length > 0 ? ` <- [${deps.join(", ")}]` : "";
-      console.log(`  ${i + 1}. ${name} (${node.type})${depStr}`);
+
+    if (human) {
+      console.log("Execution order:");
+      for (let i = 0; i < order.length; i++) {
+        const name = order[i];
+        const node = graph.nodes.get(name)!;
+        const deps = graph.edges.get(name) ?? [];
+        const depStr = deps.length > 0 ? ` <- [${deps.join(", ")}]` : "";
+        console.log(`  ${i + 1}. ${name} (${node.type})${depStr}`);
+      }
+      return;
     }
+
+    emitEvent(false, "graph", {
+      execution_order: order,
+      nodes: order.map((name, i) => {
+        const node = graph.nodes.get(name)!;
+        const deps = graph.edges.get(name) ?? [];
+        return {
+          index: i + 1,
+          name,
+          node_type: node.type,
+          dependencies: deps,
+        };
+      }),
+      note_count: notes.length,
+      vault_path: vaultPath,
+    });
   });
 
 const runCmd = new Command()
+  .alias("r")
   .description("Execute the compiled DAG (full, by target, or by intent)")
   .arguments("<vault-path:string>")
   .option("-t, --target <target:string>", "Execute only the subgraph needed for this note")
@@ -116,15 +195,46 @@ const runCmd = new Command()
   .option("--no-confirm", "Auto-select best candidate instead of asking for a numbered choice")
   .option("--no-train", "Skip live retraining after execution")
   .option("--dry", "Preview target execution and required runtime input schema without executing")
-  .option("--inputs <inputs:string>", "Runtime input payload (JSON string or @path/to/inputs.json)")
-  .action(async (opts: { target?: string; intent?: string; confirm?: boolean; train?: boolean; dry?: boolean; inputs?: string }, vaultPath: string) => {
+  .option("-I, --inputs <inputs:string>", "Runtime input payload (JSON string or @path/to/inputs.json)")
+  .option("-H, --human", "Human-readable output (default: JSONL)")
+  .action(async (opts: { target?: string; intent?: string; confirm?: boolean; train?: boolean; dry?: boolean; inputs?: string; human?: boolean }, vaultPath: string) => {
+    const human = opts.human === true;
     const skipTrain = opts.train === false;
     const notes = await loadNotes(vaultPath);
     const fullGraph = buildGraph(notes);
     const vaultDbPath = resolveDbPath(vaultPath);
+    const targetIndex = buildTargetIdentifierIndex([...fullGraph.nodes.keys()]);
 
-    // Resolve target note
-    let targetNote: string | undefined = opts.target;
+    // Resolve target note (exact name, normalized id, or shorthand alias)
+    let targetNote: string | undefined;
+    if (opts.target) {
+      const resolved = resolveTargetIdentifier(opts.target, targetIndex);
+      if (!resolved) {
+        emitError(human, {
+          code: "TARGET_NOT_FOUND",
+          category: "validation",
+          message: `Unknown target reference: ${opts.target}`,
+          details: {
+            input: opts.target,
+            available: targetIndex.entries.map((entry) => ({
+              name: entry.name,
+              target_id: entry.id,
+              target_alias: entry.alias,
+            })),
+          },
+        });
+        Deno.exit(EXIT_CODE_VALIDATION);
+      }
+      targetNote = resolved.name;
+      if (!human) {
+        emitEvent(false, "target_resolved", {
+          input: opts.target,
+          target: resolved.name,
+          target_alias: resolved.alias,
+          target_id: resolved.id,
+        });
+      }
+    }
     // Store intent embedding early (reuse for trace recording)
     let intentEmbedding: number[] | undefined;
     // Rejected beam candidates (negative examples for contrastive learning)
@@ -136,13 +246,20 @@ const runCmd = new Command()
       try {
         parsedRuntimeInputs = await parseInputsArg(opts.inputs);
       } catch (err) {
-        console.error(`✗ Failed to parse --inputs: ${(err as Error).message}`);
-        Deno.exit(1);
+        emitError(human, {
+          code: "INPUT_PARSE_ERROR",
+          category: "validation",
+          message: `Failed to parse --inputs: ${(err as Error).message}`,
+          details: { inputs: opts.inputs },
+        });
+        Deno.exit(EXIT_CODE_VALIDATION);
       }
     }
 
     if (opts.intent) {
       // GRU intent routing with beam search
+      const originalWarn = console.warn;
+      if (!human) console.warn = () => {};
       try {
         const { openVaultStore } = await import("./db/index.ts");
         const { GRUInference } = await import("./gru/inference.ts");
@@ -152,8 +269,12 @@ const runCmd = new Command()
         const db = await openVaultStore(vaultDbPath);
         const weightsRow = await db.getLatestWeights();
         if (!weightsRow) {
-          console.error("✗ No GRU weights found. Run 'vault-exec init' first, then accumulate traces.");
-          Deno.exit(1);
+          emitError(human, {
+            code: "INTENT_ROUTER_NOT_INITIALIZED",
+            category: "validation",
+            message: "No GRU weights found. Run 'vault-exec init' first, then accumulate traces.",
+          });
+          Deno.exit(EXIT_CODE_VALIDATION);
         }
 
         const { weights, vocab, config } = await deserializeWeights(weightsRow.blob);
@@ -167,8 +288,13 @@ const runCmd = new Command()
         const beams = gru.buildPathBeam(intentEmbedding, beamWidth, maxLen);
 
         if (beams.length === 0) {
-          console.error("✗ Beam search returned no candidates.");
-          Deno.exit(1);
+          emitError(human, {
+            code: "INTENT_NO_CANDIDATES",
+            category: "validation",
+            message: "Beam search returned no candidates.",
+            details: { intent: opts.intent },
+          });
+          Deno.exit(EXIT_CODE_VALIDATION);
         }
 
         // Deduplicate by target (last node in path) — keep best score per target
@@ -197,8 +323,13 @@ const runCmd = new Command()
         const displaySum = displayScores.reduce((a, b) => a + b, 0);
         const renormalized = displayScores.map((s) => s / displaySum);
 
-        console.log(`[intent] ${opts.intent}`);
-        console.log(`[candidates] ${displayBeams.length + 1}`);
+        emitEvent(human, "intent", { intent: opts.intent! }, `[intent] ${opts.intent}`);
+        emitEvent(
+          human,
+          "candidate_count",
+          { count: displayBeams.length + 1 },
+          `[candidates] ${displayBeams.length + 1}`,
+        );
         const candidateCompatibility = evaluateIntentCandidates(
           fullGraph,
           displayBeams.map((b, i) => ({
@@ -207,26 +338,60 @@ const runCmd = new Command()
             path: b.path,
           })),
           parsedRuntimeInputs,
+          targetIndex,
         );
         for (let i = 0; i < candidateCompatibility.length; i++) {
-          console.log(formatIntentCandidateLine(i + 1, candidateCompatibility[i]));
+          const candidate = candidateCompatibility[i];
+          emitEvent(
+            human,
+            "intent_candidate",
+            {
+              index: i + 1,
+              confidence: candidate.confidence,
+              target: candidate.target,
+              target_alias: candidate.targetAlias,
+              target_id: candidate.targetId,
+              payload_ok: candidate.payloadOk,
+              payload_status: candidate.payloadStatus,
+              path: candidate.path,
+            },
+            formatIntentCandidateLine(i + 1, candidate),
+          );
         }
         if (candidateCompatibility.length > 0 && candidateCompatibility.every((c) => !c.payloadOk)) {
-          const compactReasons = candidateCompatibility.map((c) => `${c.target}:${c.payloadStatus}`).join(" | ");
-          console.log(`[compatibility] No candidate is schema-compatible with the provided payload (${compactReasons})`);
+          const compactReasons = candidateCompatibility.map((c) => `${c.targetId}:${c.payloadStatus}`).join(" | ");
+          emitEvent(
+            human,
+            "candidate_compatibility_summary",
+            {
+              all_invalid: true,
+              reasons: candidateCompatibility.map((c) => ({
+                target: c.target,
+                target_alias: c.targetAlias,
+                target_id: c.targetId,
+                payload_status: c.payloadStatus,
+              })),
+            },
+            `[compatibility] No candidate is schema-compatible with the provided payload (${compactReasons})`,
+          );
         }
-        console.log(`[${displayBeams.length + 1}] none`);
+        emitEvent(
+          human,
+          "intent_candidate_none",
+          { index: displayBeams.length + 1 },
+          `[${displayBeams.length + 1}] none`,
+        );
 
         if (opts.confirm !== false) {
           const noneIdx = displayBeams.length + 1;
-          console.log(`[confirm] Select (1-${noneIdx}):`);
+          emitEvent(human, "confirm_prompt", { max_choice: noneIdx }, `[confirm] Select (1-${noneIdx}):`);
           const buf = new Uint8Array(64);
           const n = await Deno.stdin.read(buf);
           const input = new TextDecoder().decode(buf.subarray(0, n ?? 0)).trim();
           const choice = parseInt(input);
 
           if (isNaN(choice) || choice < 1 || choice > noneIdx) {
-            console.log("[skip] Invalid input. No trace recorded.");
+            emitEvent(human, "confirm_skipped", { reason: "invalid_choice", raw_input: input }, "[skip] Invalid input. No trace recorded.");
             db.close();
             await embedder.dispose();
             return;
@@ -234,13 +399,18 @@ const runCmd = new Command()
 
           if (choice === noneIdx) {
             // "none" selected — ALL candidates are negative
-            console.log("[none] All candidates rejected.");
+            emitEvent(human, "intent_none_selected", { choice }, "[none] All candidates rejected.");
             rejectedTargets = displayBeams.map((b) => ({
               target: b.path[b.path.length - 1],
               path: b.path,
               score: b.score,
             }));
-            console.log(`[negatives] ${rejectedTargets.length} rejected candidates stored`);
+            emitEvent(
+              human,
+              "intent_rejected_candidates",
+              { count: rejectedTargets.length },
+              `[negatives] ${rejectedTargets.length} rejected candidates stored`,
+            );
             // No execution — just record negatives
             try {
               const { recordTrace } = await import("./traces/recorder.ts");
@@ -267,7 +437,12 @@ const runCmd = new Command()
                 }
               }
               await db.applyVirtualEdgeDecay(PROMOTION_POLICY.decayFactor);
-              console.log(`[trace] ${rejectedTargets.length} negative recorded.`);
+              emitEvent(
+                human,
+                "trace_recorded",
+                { negative_count: rejectedTargets.length, positive_count: 0 },
+                `[trace] ${rejectedTargets.length} negative recorded.`,
+              );
             } catch {
               // DB not available
             }
@@ -279,7 +454,18 @@ const runCmd = new Command()
           const selected = displayBeams[choice - 1];
           targetNote = selected.path[selected.path.length - 1];
           selectedBeamPath = selected.path;
-          console.log(`[selected] ${choice} → target=${targetNote}`);
+          const selectedInfo = targetIndex.byName.get(targetNote);
+          emitEvent(
+            human,
+            "intent_selected",
+            {
+              choice,
+              target: targetNote,
+              target_alias: selectedInfo?.alias ?? targetNote,
+              target_id: selectedInfo?.id ?? targetNote,
+            },
+            `[selected] ${choice} → target=${targetNote}`,
+          );
 
           // Store rejected candidates as negative examples
           rejectedTargets = displayBeams
@@ -290,13 +476,28 @@ const runCmd = new Command()
               score: b.score,
             }));
           if (rejectedTargets.length > 0) {
-            console.log(`[negatives] ${rejectedTargets.length} rejected candidates stored`);
+            emitEvent(
+              human,
+              "intent_rejected_candidates",
+              { count: rejectedTargets.length },
+              `[negatives] ${rejectedTargets.length} rejected candidates stored`,
+            );
           }
         } else {
           // Auto-select best candidate
           selectedBeamPath = displayBeams[0].path;
           targetNote = selectedBeamPath[selectedBeamPath.length - 1];
-          console.log(`[auto] target=${targetNote}`);
+          const selectedInfo = targetIndex.byName.get(targetNote);
+          emitEvent(
+            human,
+            "intent_auto_selected",
+            {
+              target: targetNote,
+              target_alias: selectedInfo?.alias ?? targetNote,
+              target_id: selectedInfo?.id ?? targetNote,
+            },
+            `[auto] target=${targetNote}`,
+          );
         }
 
         // Update virtual edge candidates from feedback.
@@ -321,8 +522,18 @@ const runCmd = new Command()
         db.close();
         await embedder.dispose();
       } catch (err) {
-        console.error(`[error] GRU routing failed: ${(err as Error).message}`);
-        console.error("Falling back to full DAG execution.");
+        const message = `GRU routing failed: ${(err as Error).message}`;
+        if (human) {
+          console.error(`[error] ${message}`);
+          console.error("Falling back to full DAG execution.");
+        } else {
+          emitEvent(false, "intent_routing_fallback", {
+            error: message,
+            fallback: "full_dag_execution",
+          });
+        }
+      } finally {
+        console.warn = originalWarn;
       }
     }
 
@@ -346,49 +557,112 @@ const runCmd = new Command()
     if (runtimeSchema) {
       // For target runs: if payload missing, return schema instead of executing.
       if (targetNote && Object.keys(runtimeInputs).length === 0) {
-        printInputSchema(runtimeSchema as unknown as Record<string, unknown>);
+        printInputSchema(human, runtimeSchema as unknown as Record<string, unknown>);
         return;
       }
 
       const inputValidation = validateRuntimeInputsForGraph(graph, runtimeInputs);
       if (!inputValidation.ok) {
-        console.error("✗ Runtime input validation failed:");
-        for (const issue of inputValidation.issues) {
-          console.error(`  - ${issue.path || "/"}: ${issue.message}`);
+        emitError(human, {
+          code: "INPUT_VALIDATION_ERROR",
+          category: "validation",
+          message: "Runtime input validation failed",
+          details: {
+            expected_schema: runtimeSchema,
+            issues: inputValidation.issues.map((issue) => ({
+              path: issue.path || "/",
+              kind: issue.kind,
+              message: issue.message,
+            })),
+            status: inputValidation.status,
+          },
+          humanText: "✗ Runtime input validation failed:",
+        });
+        if (human) {
+          for (const issue of inputValidation.issues) {
+            console.error(`  - ${issue.path || "/"}: ${issue.message}`);
+          }
         }
-        printInputSchema(runtimeSchema as unknown as Record<string, unknown>);
-        Deno.exit(1);
+        printInputSchema(human, runtimeSchema as unknown as Record<string, unknown>);
+        Deno.exit(EXIT_CODE_VALIDATION);
       }
     }
 
     const errors = validate(graph);
     if (errors.length > 0) {
-      console.error(`✗ Cannot run: ${errors.length} validation error(s)`);
-      for (const err of errors) {
-        console.error(`  [${err.type}] ${err.message}`);
+      emitError(human, {
+        code: "GRAPH_VALIDATION_ERROR",
+        category: "validation",
+        message: `Cannot run: ${errors.length} validation error(s)`,
+        details: {
+          error_count: errors.length,
+          errors: errors.map((err) => ({ node: err.node, type: err.type, message: err.message })),
+        },
+        humanText: `✗ Cannot run: ${errors.length} validation error(s)`,
+      });
+      if (human) {
+        for (const err of errors) {
+          console.error(`  [${err.type}] ${err.message}`);
+        }
       }
-      Deno.exit(1);
+      Deno.exit(EXIT_CODE_VALIDATION);
     }
 
     const nodeCount = graph.nodes.size;
     const label = targetNote ? `subgraph for "${targetNote}"` : "full DAG";
     if (opts.dry) {
       const order = topologicalSort(graph);
-      console.log(`[dry] ${label}: ${vaultPath} (${nodeCount} notes)`);
-      console.log("[dry] execution_order");
-      for (let i = 0; i < order.length; i++) {
-        console.log(`  ${i + 1}. ${order[i]}`);
+      const targetInfo = targetNote ? targetIndex.byName.get(targetNote) : undefined;
+      emitEvent(
+        human,
+        "dry_run",
+        {
+          execution_order: order,
+          label,
+          node_count: nodeCount,
+          target: targetNote,
+          target_alias: targetInfo?.alias,
+          target_id: targetInfo?.id,
+          vault_path: vaultPath,
+        },
+        `[dry] ${label}: ${vaultPath} (${nodeCount} notes)`,
+      );
+      if (human) {
+        console.log("[dry] execution_order");
+        for (let i = 0; i < order.length; i++) {
+          console.log(`  ${i + 1}. ${order[i]}`);
+        }
       }
-      if (runtimeSchema) printInputSchema(runtimeSchema as unknown as Record<string, unknown>);
+      if (runtimeSchema) printInputSchema(human, runtimeSchema as unknown as Record<string, unknown>);
       return;
     }
 
-    console.log(`Running ${label}: ${vaultPath} (${nodeCount} notes)\n`);
-    const { results, path } = await executeGraph(graph, runtimeInputs);
+    emitEvent(human, "run_start", { label, node_count: nodeCount, vault_path: vaultPath }, `Running ${label}: ${vaultPath} (${nodeCount} notes)\n`);
 
-    console.log("\n── Results ──");
-    for (const [name, output] of results) {
-      console.log(`${name}: ${JSON.stringify(output)}`);
+    let execution;
+    try {
+      execution = await executeGraph(graph, runtimeInputs, { verbose: human });
+    } catch (err) {
+      emitError(human, {
+        code: "EXECUTION_FAILED",
+        category: "runtime",
+        message: `Execution failed: ${(err as Error).message}`,
+      });
+      Deno.exit(EXIT_CODE_RUNTIME);
+    }
+    const { results, path } = execution;
+
+    if (human) {
+      console.log("\n── Results ──");
+      for (const [name, output] of results) {
+        console.log(`${name}: ${JSON.stringify(output)}`);
+      }
+    } else {
+      const outputEntries = [...results.entries()].map(([name, output]) => ({ node: name, output }));
+      emitEvent(false, "run_result", {
+        outputs: outputEntries,
+        path,
+      });
     }
 
     // Record execution trace to the vault store.
@@ -432,31 +706,52 @@ const runCmd = new Command()
 
       db.close();
       const negMsg = rejectedTargets.length > 0 ? ` + ${rejectedTargets.length} negative` : "";
-      console.log(`\n[trace] 1 positive${negMsg} recorded.`);
+      emitEvent(
+        human,
+        "trace_recorded",
+        { positive_count: 1, negative_count: rejectedTargets.length },
+        `\n[trace] 1 positive${negMsg} recorded.`,
+      );
     } catch {
-      console.log("\n[trace] No vault DB found. Run 'vault-exec init' to enable learning.");
+      emitEvent(
+        human,
+        "trace_unavailable",
+        { hint: "Run 'vault-exec init' to enable learning." },
+        "\n[trace] No vault DB found. Run 'vault-exec init' to enable learning.",
+      );
     }
 
     // Live retraining (unless --no-train)
     if (!skipTrain) {
       try {
         const { retrain } = await import("./retrain.ts");
-        console.log("Retraining...");
+        emitEvent(human, "retraining_start", {}, "Retraining...");
         const result = await retrain(notes, vaultDbPath, null, {
           skipReindex: true, // notes haven't changed during this run
           maxEpochs: 5,
           verbose: false,
         });
         if (result.gruTrained) {
-          console.log(`✓ Retrained: ${result.tracesUsed} traces, accuracy=${(result.gruAccuracy * 100).toFixed(1)}%`);
+          emitEvent(
+            human,
+            "retraining_done",
+            { traces_used: result.tracesUsed, accuracy: result.gruAccuracy },
+            `✓ Retrained: ${result.tracesUsed} traces, accuracy=${(result.gruAccuracy * 100).toFixed(1)}%`,
+          );
         }
       } catch (err) {
-        console.error(`⚠ Retraining failed: ${(err as Error).message}`);
+        const message = `Retraining failed: ${(err as Error).message}`;
+        if (human) {
+          console.error(`⚠ ${message}`);
+        } else {
+          emitEvent(false, "retraining_failed", { error: message });
+        }
       }
     }
   });
 
 const compileCmd = new Command()
+  .alias("c")
   .description("Compile uncompiled notes using LLM")
   .arguments("<vault-path:string>")
   .option("-m, --model <model:string>", "OpenAI model to use", { default: "gpt-4o-mini" })
@@ -497,6 +792,7 @@ const compileCmd = new Command()
   });
 
 const initCmd = new Command()
+  .alias("n")
   .description("Initialize GNN+GRU pipeline (embed, GNN, synthetic traces)")
   .arguments("<vault-path:string>")
   .action(async (_opts: void, vaultPath: string) => {
@@ -519,6 +815,7 @@ const initCmd = new Command()
   });
 
 const watchStartCmd = new Command()
+  .alias("st")
   .description("Start background watch loop for a vault path")
   .arguments("<vault-path:string>")
   .option("--idle-secs <idleSecs:number>", "Idle window in seconds before batching sync")
@@ -529,6 +826,7 @@ const watchStartCmd = new Command()
   });
 
 const watchStopCmd = new Command()
+  .alias("sp")
   .description("Stop background watch loop for a vault path")
   .arguments("<vault-path:string>")
   .action(async (_opts: void, vaultPath: string) => {
@@ -538,6 +836,7 @@ const watchStopCmd = new Command()
   });
 
 const watchStatusCmd = new Command()
+  .alias("ss")
   .description("Show background watch status for a vault path")
   .arguments("<vault-path:string>")
   .action(async (_opts: void, vaultPath: string) => {
@@ -547,12 +846,14 @@ const watchStatusCmd = new Command()
   });
 
 const watchCmd = new Command()
+  .alias("w")
   .description("Manage background watch loop")
   .command("start", watchStartCmd)
   .command("stop", watchStopCmd)
   .command("status", watchStatusCmd);
 
 const syncCmd = new Command()
+  .alias("s")
   .description("Run one sync cycle for a vault path")
   .arguments("<vault-path:string>")
   .action(async (_opts: void, vaultPath: string) => {
