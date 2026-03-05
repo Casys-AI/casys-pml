@@ -1,12 +1,24 @@
 import { assertEquals, assertGreater } from "jsr:@std/assert";
-import { serializeWeights, deserializeWeights } from "./weights.ts";
-import type { GRUWeights, GRUVocabulary, GRUConfig, VocabNode } from "./types.ts";
+import { deserializeWeights, serializeWeights } from "./weights.ts";
+import type {
+  GRUConfig,
+  GRUVocabulary,
+  GRUWeights,
+  VocabNode,
+} from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeWeights(projDim: number, hiddenDim: number, intentDim: number, fusionDim: number, inputDim: number, outputDim: number): GRUWeights {
+function makeWeights(
+  projDim: number,
+  hiddenDim: number,
+  intentDim: number,
+  fusionDim: number,
+  inputDim: number,
+  outputDim: number,
+): GRUWeights {
   const zeros2d = (r: number, c: number) =>
     Array.from({ length: r }, () => new Array(c).fill(0));
   const zeros1d = (n: number) => new Array(n).fill(0);
@@ -70,7 +82,12 @@ Deno.test("weights round-trip: serialize then deserialize preserves data", async
   const nodes: VocabNode[] = [
     { name: "std:psql_query", level: 0, embedding: [0.1, 0.2, 0.3] },
     { name: "std:git_status", level: 0, embedding: [0.4, 0.5, 0.6] },
-    { name: "cap:database", level: 1, embedding: [0.7, 0.8, 0.9], children: ["std:psql_query"] },
+    {
+      name: "cap:database",
+      level: 1,
+      embedding: [0.7, 0.8, 0.9],
+      children: ["std:psql_query"],
+    },
   ];
   const vocab = makeVocab(nodes);
 
@@ -93,7 +110,11 @@ Deno.test("weights round-trip: serialize then deserialize preserves data", async
   assertEquals(result.vocab.nodes[2].children, ["std:psql_query"]);
 
   // Vocab indexToName
-  assertEquals(result.vocab.indexToName, ["std:psql_query", "std:git_status", "cap:database"]);
+  assertEquals(result.vocab.indexToName, [
+    "std:psql_query",
+    "std:git_status",
+    "cap:database",
+  ]);
 
   // Vocab nameToIndex (reconstructed Map)
   assertEquals(result.vocab.nameToIndex.size, 3);
@@ -132,7 +153,9 @@ Deno.test("compressed output is smaller than JSON", async () => {
   const nodes: VocabNode[] = Array.from({ length: 50 }, (_, i) => ({
     name: `tool:action_${i}`,
     level: 0,
-    embedding: new Array(64).fill(0).map((_, j) => Math.cos(i * 0.1 + j * 0.01)),
+    embedding: new Array(64).fill(0).map((_, j) =>
+      Math.cos(i * 0.1 + j * 0.01)
+    ),
   }));
   const vocab = makeVocab(nodes);
 
@@ -147,5 +170,9 @@ Deno.test("compressed output is smaller than JSON", async () => {
   });
   const rawSize = new TextEncoder().encode(rawJson).length;
 
-  assertGreater(rawSize, blob.length, "gzipped blob should be smaller than raw JSON");
+  assertGreater(
+    rawSize,
+    blob.length,
+    "gzipped blob should be smaller than raw JSON",
+  );
 });

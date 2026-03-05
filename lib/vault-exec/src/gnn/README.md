@@ -1,19 +1,24 @@
 # GNN Structure
 
-This folder now follows a lightweight hexagonal split:
+GNN now uses a strict feature-slice split with no legacy facades:
 
-- `domain/`: pure message-passing kernels (`vertexToEdge`, `edgeToVertex`, `edgeToEdge`)
-- `application/`: orchestration flow and phase sequencing
-: `application/orchestrator.ts`, `application/phases/*`
-- `infrastructure/`: runtime adapters (BLAS/JS math, params persistence)
-: `infrastructure/blas-ffi.ts`, `infrastructure/math/*`, `infrastructure/runtime-store.ts`
-- `forward.ts`: stable public facade for callers
+- `domain/`: graph message-passing and canonical GNN types :
+  `domain/message-passing.ts`, `domain/attention.ts`, `domain/residual.ts`,
+  `domain/types.ts`
+- `application/`: orchestration and phase sequencing :
+  `application/orchestrator.ts`, `application/phases/*`, `application/types.ts`
+- `infrastructure/`: runtime adapters (BLAS/JS backend, parameter persistence) :
+  `infrastructure/blas-ffi.ts`, `infrastructure/math/*`,
+  `infrastructure/runtime-store.ts`
 
-Compatibility note:
-- Legacy paths are kept as facades for compatibility:
-- `message-passing.ts`
-- `orchestrator.ts`
-- `phases/*`
-- `math/*`
-- `blas-ffi.ts`
-- `runtime.ts`
+Public entrypoints:
+
+- forward pass: `application/forward.ts`
+- training/serialization: `application/training.ts`
+- param init: `domain/params.ts`
+
+Layer rule:
+
+- `domain` must stay pure (no storage/runtime side effects)
+- `application` may orchestrate `domain` + `infrastructure`
+- `infrastructure` contains FFI/persistence/runtime-specific concerns only

@@ -1,6 +1,10 @@
-import type { GNNNode, LevelParams } from "../types.ts";
-import { attentionScore, softmax, elu, matVecMul } from "../attention.ts";
-import { convexGatedResidual, additiveSkipResidual, residualGamma } from "../residual.ts";
+import type { GNNNode, LevelParams } from "./types.ts";
+import { attentionScore, elu, matVecMul, softmax } from "./attention.ts";
+import {
+  additiveSkipResidual,
+  convexGatedResidual,
+  residualGamma,
+} from "./residual.ts";
 
 /**
  * Domain kernel: V->E upward message passing.
@@ -27,7 +31,9 @@ export function vertexToEdge(
     for (const child of children) {
       const childProj = matVecMul(params.W_child[h], child.embedding);
       childProjs.push(childProj);
-      scores.push(attentionScore(childProj, parentProj, params.a_upward[h], leakyAlpha));
+      scores.push(
+        attentionScore(childProj, parentProj, params.a_upward[h], leakyAlpha),
+      );
     }
 
     const weights = softmax(scores);
@@ -74,7 +80,9 @@ export function edgeToVertex(
     for (const parent of parents) {
       const parentProj = matVecMul(params.W_parent[h], parent.embedding);
       parentProjs.push(parentProj);
-      scores.push(attentionScore(parentProj, childProj, params.a_downward[h], leakyAlpha));
+      scores.push(
+        attentionScore(parentProj, childProj, params.a_downward[h], leakyAlpha),
+      );
     }
 
     const weights = softmax(scores);
@@ -99,4 +107,3 @@ export function edgeToVertex(
 
 /** Domain kernel: E->E uses same transform as V->E. */
 export { vertexToEdge as edgeToEdge };
-

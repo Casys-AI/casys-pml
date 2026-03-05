@@ -1,14 +1,6 @@
 import { vertexToEdge } from "../../domain/message-passing.ts";
-import type { GNNConfig, GNNNode, GNNParams } from "../../types.ts";
-
-interface VertexToEdgePhaseArgs {
-  byLevel: Map<number, GNNNode[]>;
-  config: GNNConfig;
-  embeddings: Map<string, number[]>;
-  maxLevel: number;
-  nodeMap: Map<string, GNNNode>;
-  params: GNNParams;
-}
+import type { GNNNode } from "../../domain/types.ts";
+import type { VertexToEdgePhaseArgs } from "../types.ts";
 
 /**
  * V->E upward: updates L1..Lmax from child embeddings.
@@ -51,4 +43,3 @@ export function runVertexToEdgePhase(args: VertexToEdgePhaseArgs): void {
     }
   }
 }
-

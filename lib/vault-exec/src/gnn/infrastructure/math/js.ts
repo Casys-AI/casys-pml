@@ -16,4 +16,3 @@ export const jsBackend: MathBackend = {
   available: true,
   matVec: jsMatVec,
 };
-

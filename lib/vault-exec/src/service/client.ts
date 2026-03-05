@@ -30,9 +30,15 @@ function requestId(): string {
   return crypto.randomUUID();
 }
 
-async function sendRequest(vaultPath: string, req: ServiceRequest): Promise<ServiceResponse> {
+async function sendRequest(
+  vaultPath: string,
+  req: ServiceRequest,
+): Promise<ServiceResponse> {
   const paths = await getServicePaths(vaultPath);
-  const conn = await Deno.connect({ transport: "unix", path: paths.socketPath });
+  const conn = await Deno.connect({
+    transport: "unix",
+    path: paths.socketPath,
+  });
 
   try {
     await conn.write(encodeJsonLine(req));
@@ -44,10 +50,8 @@ async function sendRequest(vaultPath: string, req: ServiceRequest): Promise<Serv
 
 async function spawnDaemon(vaultPath: string, idleSecs: number): Promise<void> {
   const daemonPath = new URL("./daemon.ts", import.meta.url).pathname;
-  const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
-  const shellCmd = [
-    "nohup",
-    quote(Deno.execPath()),
+  const daemonArgs = [
+    Deno.execPath(),
     "run",
     "--allow-read",
     "--allow-write",
@@ -56,26 +60,45 @@ async function spawnDaemon(vaultPath: string, idleSecs: number): Promise<void> {
     "--allow-ffi",
     "--unstable-kv",
     "--node-modules-dir=manual",
-    quote(daemonPath),
+    daemonPath,
     "--vault",
-    quote(vaultPath),
+    vaultPath,
     "--idle",
     String(idleSecs),
-    ">/dev/null",
-    "2>&1",
-    "&",
-  ].join(" ");
+  ];
 
-  const spawned = await new Deno.Command("bash", {
-    args: ["-lc", shellCmd],
-    stdin: "null",
-    stdout: "null",
-    stderr: "piped",
-  }).output();
+  try {
+    const spawned = await new Deno.Command("setsid", {
+      args: ["-f", ...daemonArgs],
+      stdin: "null",
+      stdout: "null",
+      stderr: "piped",
+    }).output();
+    if (spawned.success) return;
 
-  if (!spawned.success) {
     const stderr = new TextDecoder().decode(spawned.stderr).trim();
     throw new Error(stderr || "Failed to spawn watch daemon");
+  } catch {
+    // Fallback for environments without setsid.
+    const shellCmd = [
+      "nohup",
+      daemonArgs.map((arg) => `'${arg.replaceAll("'", "'\\''")}'`).join(" "),
+      ">/dev/null",
+      "2>&1",
+      "&",
+    ].join(" ");
+
+    const spawned = await new Deno.Command("bash", {
+      args: ["-lc", shellCmd],
+      stdin: "null",
+      stdout: "null",
+      stderr: "piped",
+    }).output();
+
+    if (!spawned.success) {
+      const stderr = new TextDecoder().decode(spawned.stderr).trim();
+      throw new Error(stderr || "Failed to spawn watch daemon");
+    }
   }
 }
 
@@ -95,11 +118,16 @@ async function waitForReady(vaultPath: string): Promise<void> {
   throw new Error(`Service startup timed out after ${STARTUP_WAIT_MS}ms`);
 }
 
-export async function watchStatus(args: { vaultPath: string }): Promise<ServiceStatus> {
+export async function watchStatus(
+  args: { vaultPath: string },
+): Promise<ServiceStatus> {
   let res: ServiceResponse;
   const paths = await getServicePaths(args.vaultPath);
   try {
-    res = await sendRequest(paths.vaultPath, { id: requestId(), method: "status" });
+    res = await sendRequest(paths.vaultPath, {
+      id: requestId(),
+      method: "status",
+    });
   } catch {
     const meta = await readServiceMeta(paths.metaPath);
     return {
@@ -144,11 +172,16 @@ export async function startWatch(args: WatchArgs): Promise<ServiceStatus> {
   return await watchStatus({ vaultPath: paths.vaultPath });
 }
 
-export async function syncOnce(args: { vaultPath: string }): Promise<SyncResponse> {
+export async function syncOnce(
+  args: { vaultPath: string },
+): Promise<SyncResponse> {
   const paths = await getServicePaths(args.vaultPath);
   await startWatch({ vaultPath: paths.vaultPath });
 
-  const res = await sendRequest(paths.vaultPath, { id: requestId(), method: "sync" });
+  const res = await sendRequest(paths.vaultPath, {
+    id: requestId(),
+    method: "sync",
+  });
   if (!res.ok) {
     throw new Error(res.error);
   }
@@ -160,7 +193,10 @@ export async function stopWatch(args: { vaultPath: string }): Promise<boolean> {
   const paths = await getServicePaths(args.vaultPath);
 
   try {
-    const res = await sendRequest(args.vaultPath, { id: requestId(), method: "stop" });
+    const res = await sendRequest(args.vaultPath, {
+      id: requestId(),
+      method: "stop",
+    });
     return res.ok;
   } catch {
     await removeIfExists(paths.socketPath);

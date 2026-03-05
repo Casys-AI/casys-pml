@@ -27,7 +27,9 @@ export class BGEEmbedder implements Embedder {
     return Array.from(output.data as Float32Array).slice(0, 1024);
   }
 
-  isLoaded(): boolean { return this.model !== null; }
+  isLoaded(): boolean {
+    return this.model !== null;
+  }
 
   async dispose(): Promise<void> {
     this.model = null;
@@ -46,7 +48,13 @@ export class EmbeddingModel {
     return this.embedder.encode(`# ${name}\n\n${body.trim()}`);
   }
 
-  isLoaded(): boolean { return this.embedder.isLoaded(); }
-  async load(): Promise<void> { await this.embedder.load(); }
-  async dispose(): Promise<void> { await this.embedder.dispose(); }
+  isLoaded(): boolean {
+    return this.embedder.isLoaded();
+  }
+  async load(): Promise<void> {
+    await this.embedder.load();
+  }
+  async dispose(): Promise<void> {
+    await this.embedder.dispose();
+  }
 }

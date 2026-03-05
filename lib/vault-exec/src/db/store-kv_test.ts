@@ -178,9 +178,21 @@ Deno.test("VaultKV - traces are ordered chronologically", async () => {
   const store = await VaultKV.open(":memory:");
   try {
     // Insert three traces in order; getAllTraces must return them sorted by insertion time.
-    await store.insertTrace({ targetNote: "first", path: ["a"], synthetic: false });
-    await store.insertTrace({ targetNote: "second", path: ["b"], synthetic: false });
-    await store.insertTrace({ targetNote: "third", path: ["c"], synthetic: false });
+    await store.insertTrace({
+      targetNote: "first",
+      path: ["a"],
+      synthetic: false,
+    });
+    await store.insertTrace({
+      targetNote: "second",
+      path: ["b"],
+      synthetic: false,
+    });
+    await store.insertTrace({
+      targetNote: "third",
+      path: ["c"],
+      synthetic: false,
+    });
 
     const traces = await store.getAllTraces();
     assertEquals(traces.length, 3);
@@ -204,7 +216,10 @@ Deno.test("VaultKV - trace without intent", async () => {
     const traces = await store.getAllTraces();
     assertEquals(traces.length, 1);
     // intent is optional — must not be required
-    assertEquals(traces[0].intent == null || traces[0].intent === undefined, true);
+    assertEquals(
+      traces[0].intent == null || traces[0].intent === undefined,
+      true,
+    );
     assertEquals(traces[0].synthetic, true);
   } finally {
     store.close();
@@ -232,29 +247,24 @@ Deno.test("VaultKV - multiple traces accumulate", async () => {
 
 // ── Virtual Edges ────────────────────────────────────────────────────────────
 
-Deno.test("VaultKV - upsertVirtualEdge creates and accumulates stats", async () => {
+Deno.test("VaultKV - saveVirtualEdge + getVirtualEdge roundtrip", async () => {
   const store = await VaultKV.open(":memory:");
   try {
-    const first = await store.upsertVirtualEdge({
+    await store.saveVirtualEdge({
       source: "A",
       target: "B",
-      scoreDelta: 1,
-      reason: "selected_path",
+      score: 1,
+      support: 1,
+      rejects: 0,
+      status: "candidate",
+      updatedAt: "2026-03-05T00:00:00.000Z",
     });
-    assertEquals(first.score, 1);
-    assertEquals(first.support, 1);
-    assertEquals(first.rejects, 0);
-    assertEquals(first.status, "candidate");
-
-    const second = await store.upsertVirtualEdge({
-      source: "A",
-      target: "B",
-      scoreDelta: -0.7,
-      reason: "rejected_candidate",
-    });
-    assertEquals(Math.abs(second.score - 0.3) < 1e-9, true);
-    assertEquals(second.support, 1);
-    assertEquals(second.rejects, 1);
+    const row = await store.getVirtualEdge("A", "B");
+    assertNotEquals(row, null);
+    assertEquals(row!.score, 1);
+    assertEquals(row!.support, 1);
+    assertEquals(row!.rejects, 0);
+    assertEquals(row!.status, "candidate");
   } finally {
     store.close();
   }
@@ -263,17 +273,23 @@ Deno.test("VaultKV - upsertVirtualEdge creates and accumulates stats", async () 
 Deno.test("VaultKV - listVirtualEdges filters by status", async () => {
   const store = await VaultKV.open(":memory:");
   try {
-    await store.upsertVirtualEdge({
+    await store.saveVirtualEdge({
       source: "A",
       target: "B",
-      scoreDelta: 1,
-      reason: "selected_path",
+      score: 1,
+      support: 1,
+      rejects: 0,
+      status: "candidate",
+      updatedAt: "2026-03-05T00:00:00.000Z",
     });
-    await store.upsertVirtualEdge({
+    await store.saveVirtualEdge({
       source: "C",
       target: "D",
-      scoreDelta: 1,
-      reason: "selected_path",
+      score: 2,
+      support: 2,
+      rejects: 0,
+      status: "candidate",
+      updatedAt: "2026-03-05T00:00:01.000Z",
     });
     await store.setVirtualEdgeStatus("C", "D", "promoted");
 
@@ -286,21 +302,32 @@ Deno.test("VaultKV - listVirtualEdges filters by status", async () => {
   }
 });
 
-Deno.test("VaultKV - applyVirtualEdgeDecay reduces score", async () => {
+Deno.test("VaultKV - listVirtualEdges sorted by score desc", async () => {
   const store = await VaultKV.open(":memory:");
   try {
-    await store.upsertVirtualEdge({
+    await store.saveVirtualEdge({
       source: "A",
       target: "B",
-      scoreDelta: 10,
-      reason: "selected_path",
+      score: 10,
+      support: 1,
+      rejects: 0,
+      status: "candidate",
+      updatedAt: "2026-03-05T00:00:00.000Z",
     });
-    const count = await store.applyVirtualEdgeDecay(0.5);
-    assertEquals(count, 1);
+    await store.saveVirtualEdge({
+      source: "X",
+      target: "Y",
+      score: 2,
+      support: 1,
+      rejects: 0,
+      status: "candidate",
+      updatedAt: "2026-03-05T00:00:01.000Z",
+    });
 
     const edges = await store.listVirtualEdges();
-    assertEquals(edges.length, 1);
-    assertEquals(edges[0].score, 5);
+    assertEquals(edges.length, 2);
+    assertEquals(edges[0].source, "A");
+    assertEquals(edges[1].source, "X");
   } finally {
     store.close();
   }

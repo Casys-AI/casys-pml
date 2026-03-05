@@ -1,8 +1,8 @@
 // gru/trainer.ts — TF.js autograd trainer
 import * as tf from "@tensorflow/tfjs";
-import type { GRUConfig, GRUWeights, GRUVocabulary } from "./types.ts";
+import type { GRUConfig, GRUVocabulary, GRUWeights } from "./types.ts";
 import { gruStep } from "./cell.ts";
-import { dotProduct, softmax } from "../gnn/attention.ts";
+import { dotProduct, softmax } from "../gnn/domain/attention.ts";
 
 /**
  * Focal loss: FL(p) = -(1-p)^gamma * log(p)
@@ -30,7 +30,8 @@ export function softLabelLoss(
     loss += (1 / (1 + Math.exp(-alphaUp))) * focalLoss(probs[parentIdx], gamma);
   }
   if (childIdx !== null) {
-    loss += (1 / (1 + Math.exp(-alphaDown))) * focalLoss(probs[childIdx], gamma);
+    loss += (1 / (1 + Math.exp(-alphaDown))) *
+      focalLoss(probs[childIdx], gamma);
   }
   return loss;
 }
@@ -141,7 +142,10 @@ function focalLossTF(prob: tf.Scalar, gamma: number): tf.Scalar {
   const clipped = tf.maximum(prob, 1e-10) as tf.Scalar;
   return tf.mul(
     tf.scalar(-1),
-    tf.mul(tf.pow(tf.sub(tf.scalar(1), clipped), tf.scalar(gamma)), tf.log(clipped)),
+    tf.mul(
+      tf.pow(tf.sub(tf.scalar(1), clipped), tf.scalar(gamma)),
+      tf.log(clipped),
+    ),
   ) as tf.Scalar;
 }
 
@@ -162,7 +166,7 @@ const MAX_GRAD_NORM = 1.0;
 function computeExampleLoss(
   ex: TrainingExample,
   tfW: TFWeights,
-  vocabEmbeddings: number[][],  // [vocabSize, inputDim] — frozen JS arrays
+  vocabEmbeddings: number[][], // [vocabSize, inputDim] — frozen JS arrays
   vocab: GRUVocabulary,
   config: GRUConfig,
   gamma: number,
@@ -227,7 +231,10 @@ function computeExampleLoss(
 
   // Cosine similarity against vocab (frozen)
   const vocabTensor = tf.tensor2d(vocabEmbeddings);
-  const vocabNorms = tf.add(tf.norm(vocabTensor, 2, 1), tf.scalar(1e-8)) as tf.Tensor1D;
+  const vocabNorms = tf.add(
+    tf.norm(vocabTensor, 2, 1),
+    tf.scalar(1e-8),
+  ) as tf.Tensor1D;
   const logitNorm = tf.add(tf.norm(logits), tf.scalar(1e-8));
   const normalizedLogits = tf.div(logits, logitNorm) as tf.Tensor1D;
   const normalizedVocab = tf.div(vocabTensor, vocabNorms.reshape([-1, 1]));
@@ -236,19 +243,36 @@ function computeExampleLoss(
   const scores = tf.dot(normalizedVocab, normalizedLogits) as tf.Tensor1D;
 
   // Temperature-scaled softmax
-  const probs = tf.softmax(tf.div(scores, tf.scalar(TRAIN_SOFTMAX_TEMPERATURE))) as tf.Tensor1D;
+  const probs = tf.softmax(
+    tf.div(scores, tf.scalar(TRAIN_SOFTMAX_TEMPERATURE)),
+  ) as tf.Tensor1D;
 
   // Focal loss on target
-  let loss = focalLossTF(tf.gather(probs, ex.targetIdx).reshape([]) as tf.Scalar, gamma);
+  let loss = focalLossTF(
+    tf.gather(probs, ex.targetIdx).reshape([]) as tf.Scalar,
+    gamma,
+  );
 
   // Soft labels
   if (ex.parentIdx !== null) {
-    const parentLoss = focalLossTF(tf.gather(probs, ex.parentIdx!).reshape([]) as tf.Scalar, gamma);
-    loss = tf.add(loss, tf.mul(tf.sigmoid(tfW.alpha_up), parentLoss)) as tf.Scalar;
+    const parentLoss = focalLossTF(
+      tf.gather(probs, ex.parentIdx!).reshape([]) as tf.Scalar,
+      gamma,
+    );
+    loss = tf.add(
+      loss,
+      tf.mul(tf.sigmoid(tfW.alpha_up), parentLoss),
+    ) as tf.Scalar;
   }
   if (ex.childIdx !== null) {
-    const childLoss = focalLossTF(tf.gather(probs, ex.childIdx!).reshape([]) as tf.Scalar, gamma);
-    loss = tf.add(loss, tf.mul(tf.sigmoid(tfW.alpha_down), childLoss)) as tf.Scalar;
+    const childLoss = focalLossTF(
+      tf.gather(probs, ex.childIdx!).reshape([]) as tf.Scalar,
+      gamma,
+    );
+    loss = tf.add(
+      loss,
+      tf.mul(tf.sigmoid(tfW.alpha_down), childLoss),
+    ) as tf.Scalar;
   }
 
   // Negative examples: flip the loss (push away from target)
@@ -315,8 +339,13 @@ export function trainEpoch(
     const probs = softmax(scores.map((s) => s / TRAIN_SOFTMAX_TEMPERATURE));
 
     const exLoss = softLabelLoss(
-      probs, ex.targetIdx, ex.parentIdx, ex.childIdx,
-      weights.alpha_up, weights.alpha_down, gamma,
+      probs,
+      ex.targetIdx,
+      ex.parentIdx,
+      ex.childIdx,
+      weights.alpha_up,
+      weights.alpha_down,
+      gamma,
     );
     totalLoss += ex.negative ? -exLoss * NEGATIVE_WEIGHT : exLoss;
 
@@ -343,7 +372,14 @@ export function trainEpoch(
   const { grads } = tf.variableGrads(() => {
     let batchLoss: tf.Scalar = tf.scalar(0);
     for (const ex of examples) {
-      const exLoss = computeExampleLoss(ex, tfW, vocabEmbs, vocab, config, gamma);
+      const exLoss = computeExampleLoss(
+        ex,
+        tfW,
+        vocabEmbs,
+        vocab,
+        config,
+        gamma,
+      );
       batchLoss = tf.add(batchLoss, exLoss) as tf.Scalar;
     }
     return tf.div(batchLoss, tf.scalar(examples.length)) as tf.Scalar;
@@ -363,7 +399,9 @@ export function trainEpoch(
     safeGrad.dispose();
   }
 
-  optimizer.applyGradients(gradPairs.map(({ name, tensor }) => ({ name, tensor })));
+  optimizer.applyGradients(
+    gradPairs.map(({ name, tensor }) => ({ name, tensor })),
+  );
 
   // Guard against occasional non-finite updates with random initialization.
   for (const variable of Object.values(tfW)) {

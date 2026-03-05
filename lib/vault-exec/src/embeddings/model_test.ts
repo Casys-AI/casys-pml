@@ -1,12 +1,14 @@
 import { assertEquals } from "jsr:@std/assert";
-import { EmbeddingModel, type Embedder } from "./model.ts";
+import { type Embedder, EmbeddingModel } from "./model.ts";
 
 class MockEmbedder implements Embedder {
   async encode(text: string): Promise<number[]> {
     const seed = text.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
     return Array.from({ length: 1024 }, (_, i) => Math.sin(seed + i) * 0.1);
   }
-  isLoaded(): boolean { return true; }
+  isLoaded(): boolean {
+    return true;
+  }
   async load(): Promise<void> {}
   async dispose(): Promise<void> {}
 }

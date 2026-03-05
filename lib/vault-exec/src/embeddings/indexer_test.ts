@@ -1,8 +1,8 @@
 import { assertEquals } from "jsr:@std/assert";
-import { indexVault, computeLevels } from "./indexer.ts";
+import { computeLevels, indexVault } from "./indexer.ts";
 import { VaultKV } from "../db/store-kv.ts";
-import { EmbeddingModel, type Embedder } from "./model.ts";
-import type { VaultNote } from "../types.ts";
+import { type Embedder, EmbeddingModel } from "./model.ts";
+import type { VaultNote } from "../core/types.ts";
 
 class MockEmbedder implements Embedder {
   calls: string[] = [];
@@ -10,12 +10,18 @@ class MockEmbedder implements Embedder {
     this.calls.push(text);
     return Array.from({ length: 1024 }, (_, i) => Math.sin(i) * 0.1);
   }
-  isLoaded() { return true; }
+  isLoaded() {
+    return true;
+  }
   async load() {}
   async dispose() {}
 }
 
-function makeNote(name: string, body: string, wikilinks: string[] = []): VaultNote {
+function makeNote(
+  name: string,
+  body: string,
+  wikilinks: string[] = [],
+): VaultNote {
   return { path: `${name}.md`, name, body, frontmatter: {}, wikilinks };
 }
 
@@ -33,8 +39,8 @@ Deno.test("indexVault - inserts notes with embeddings and levels", async () => {
 
     const rows = await db.getAllNotes();
     assertEquals(rows.length, 2);
-    const a = rows.find(r => r.name === "A")!;
-    const b = rows.find(r => r.name === "B")!;
+    const a = rows.find((r) => r.name === "A")!;
+    const b = rows.find((r) => r.name === "B")!;
     assertEquals(a.level, 0);
     assertEquals(b.level, 1);
   } finally {

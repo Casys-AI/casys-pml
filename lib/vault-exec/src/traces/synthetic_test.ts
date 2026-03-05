@@ -1,9 +1,15 @@
 import { assertEquals } from "jsr:@std/assert";
 import { generateStructuralTraces } from "./synthetic.ts";
-import type { VaultNote } from "../types.ts";
+import type { VaultNote } from "../core/types.ts";
 
 function makeNote(name: string, wikilinks: string[] = []): VaultNote {
-  return { path: `${name}.md`, name, body: `About ${name}`, frontmatter: {}, wikilinks };
+  return {
+    path: `${name}.md`,
+    name,
+    body: `About ${name}`,
+    frontmatter: {},
+    wikilinks,
+  };
 }
 
 Deno.test("generateStructuralTraces - generates one trace per non-leaf note", () => {

@@ -57,7 +57,9 @@ export async function readJsonLine(conn: Deno.Conn): Promise<unknown> {
   while (true) {
     const n = await conn.read(buffer);
     if (n === null) {
-      throw new Error("Connection closed before newline-delimited JSON message");
+      throw new Error(
+        "Connection closed before newline-delimited JSON message",
+      );
     }
 
     acc += decoder.decode(buffer.subarray(0, n), { stream: true });

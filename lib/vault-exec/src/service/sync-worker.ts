@@ -1,12 +1,14 @@
-import { parseVault } from "../parser.ts";
-import { DenoVaultReader } from "../io.ts";
-import { retrain } from "../retrain.ts";
+import { parseVault } from "../core/parser.ts";
+import { DenoVaultReader } from "../infrastructure/fs/deno-vault-fs.ts";
+import { retrain } from "../workflows/retrain.ts";
 import { BGEEmbedder } from "../embeddings/model.ts";
 import { SYNC_MAX_EPOCHS_SHORT } from "./constants.ts";
 import { ensureVaultStateDir, getServicePaths } from "./lifecycle.ts";
 import type { SyncResponse } from "./protocol.ts";
 
-export async function runIncrementalSync(vaultPath: string): Promise<SyncResponse> {
+export async function runIncrementalSync(
+  vaultPath: string,
+): Promise<SyncResponse> {
   const reader = new DenoVaultReader();
   const embedder = new BGEEmbedder();
 

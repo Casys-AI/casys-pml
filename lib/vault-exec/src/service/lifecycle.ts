@@ -22,7 +22,10 @@ function toHex(bytes: Uint8Array): string {
 
 export async function stableVaultHash(vaultPath: string): Promise<string> {
   const normalized = normalizeVaultPath(vaultPath);
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(normalized),
+  );
   return toHex(new Uint8Array(digest)).slice(0, 16);
 }
 
@@ -30,26 +33,36 @@ export function normalizeVaultPath(vaultPath: string): string {
   return vaultPath.trim().replace(/\/+$/, "") || "/";
 }
 
-export async function getServicePaths(vaultPath: string): Promise<ServicePaths> {
+export async function getServicePaths(
+  vaultPath: string,
+): Promise<ServicePaths> {
   const normalizedInput = normalizeVaultPath(vaultPath);
-  const resolved = await Deno.realPath(normalizedInput).catch(() => normalizedInput);
+  const resolved = await Deno.realPath(normalizedInput).catch(() =>
+    normalizedInput
+  );
   const normalized = normalizeVaultPath(resolved);
   const hash = await stableVaultHash(normalized);
   return {
     vaultPath: normalized,
     vaultDbPath: `${normalized}/.vault-exec/vault.kv`,
     hash,
-    socketPath: `${SERVICE_SOCKET_DIR}/${SERVICE_NAME}-${hash}${SERVICE_SOCKET_EXT}`,
+    socketPath:
+      `${SERVICE_SOCKET_DIR}/${SERVICE_NAME}-${hash}${SERVICE_SOCKET_EXT}`,
     pidPath: `${SERVICE_PID_DIR}/${SERVICE_NAME}-${hash}${SERVICE_PID_EXT}`,
     metaPath: `${SERVICE_PID_DIR}/${SERVICE_NAME}-${hash}${SERVICE_META_EXT}`,
   };
 }
 
 export async function ensureVaultStateDir(vaultPath: string): Promise<void> {
-  await Deno.mkdir(`${normalizeVaultPath(vaultPath)}/.vault-exec`, { recursive: true });
+  await Deno.mkdir(`${normalizeVaultPath(vaultPath)}/.vault-exec`, {
+    recursive: true,
+  });
 }
 
-export async function writePidFile(pidPath: string, pid: number): Promise<void> {
+export async function writePidFile(
+  pidPath: string,
+  pid: number,
+): Promise<void> {
   await Deno.writeTextFile(pidPath, `${pid}\n`);
 }
 
@@ -73,15 +86,22 @@ export async function readServiceMeta(metaPath: string): Promise<ServiceMeta> {
     const raw = await Deno.readTextFile(metaPath);
     const parsed = JSON.parse(raw) as Partial<ServiceMeta>;
     return {
-      lastStartedAt: typeof parsed.lastStartedAt === "string" ? parsed.lastStartedAt : null,
-      lastRunningAt: typeof parsed.lastRunningAt === "string" ? parsed.lastRunningAt : null,
+      lastStartedAt: typeof parsed.lastStartedAt === "string"
+        ? parsed.lastStartedAt
+        : null,
+      lastRunningAt: typeof parsed.lastRunningAt === "string"
+        ? parsed.lastRunningAt
+        : null,
     };
   } catch {
     return { lastStartedAt: null, lastRunningAt: null };
   }
 }
 
-export async function writeServiceMeta(metaPath: string, meta: ServiceMeta): Promise<void> {
+export async function writeServiceMeta(
+  metaPath: string,
+  meta: ServiceMeta,
+): Promise<void> {
   await Deno.writeTextFile(metaPath, `${JSON.stringify(meta)}\n`);
 }
 
@@ -107,7 +127,9 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-export async function tryConnectUnixSocket(socketPath: string): Promise<boolean> {
+export async function tryConnectUnixSocket(
+  socketPath: string,
+): Promise<boolean> {
   try {
     const conn = await Deno.connect({ transport: "unix", path: socketPath });
     conn.close();
@@ -131,7 +153,9 @@ export interface StaleCleanupResult {
   removedSocket: boolean;
 }
 
-export async function cleanupStaleArtifacts(paths: ServicePaths): Promise<StaleCleanupResult> {
+export async function cleanupStaleArtifacts(
+  paths: ServicePaths,
+): Promise<StaleCleanupResult> {
   let removedPid = false;
   let removedSocket = false;
 

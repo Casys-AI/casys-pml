@@ -1,6 +1,6 @@
 // Factory for vault storage (Deno KV backend).
 
-export type { NoteRow, TraceRow, IVaultStore } from "./types.ts";
+export type { IVaultStore, NoteRow, TraceRow } from "../core/types.ts";
 
 /**
  * Open a vault KV store at the given path.
@@ -8,7 +8,7 @@ export type { NoteRow, TraceRow, IVaultStore } from "./types.ts";
  */
 export async function openVaultStore(
   path: string,
-): Promise<import("./types.ts").IVaultStore> {
+): Promise<import("../core/types.ts").IVaultStore> {
   const { VaultKV } = await import("./store-kv.ts");
   return VaultKV.open(path);
 }

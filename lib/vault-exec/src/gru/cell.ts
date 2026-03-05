@@ -1,5 +1,5 @@
 import type { GRUConfig, GRUWeights } from "./types.ts";
-import { matVecMul } from "../gnn/attention.ts";
+import { matVecMul } from "../gnn/domain/attention.ts";
 
 function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x));
@@ -15,14 +15,21 @@ function addBias(vec: number[], bias: number[]): number[] {
 
 function xavier(rows: number, cols: number): number[][] {
   const scale = Math.sqrt(2 / (rows + cols));
-  return Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => (Math.random() * 2 - 1) * scale)
+  return Array.from(
+    { length: rows },
+    () => Array.from({ length: cols }, () => (Math.random() * 2 - 1) * scale),
   );
 }
 
 export function initWeights(config: GRUConfig): GRUWeights {
-  const { inputDim, hiddenDim, projectionDim, intentDim, fusionDim, outputDim } =
-    config;
+  const {
+    inputDim,
+    hiddenDim,
+    projectionDim,
+    intentDim,
+    fusionDim,
+    outputDim,
+  } = config;
   return {
     W_input: xavier(projectionDim, inputDim),
     b_input: new Array(projectionDim).fill(0),

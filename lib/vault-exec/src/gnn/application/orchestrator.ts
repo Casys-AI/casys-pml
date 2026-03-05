@@ -1,4 +1,4 @@
-import type { GNNConfig, GNNNode, GNNParams } from "../types.ts";
+import type { GNNConfig, GNNNode, GNNParams } from "../domain/types.ts";
 import { runEdgeToEdgePhase } from "./phases/edge-to-edge.ts";
 import { runEdgeToVertexPhase } from "./phases/edge-to-vertex.ts";
 import { runVertexToEdgePhase } from "./phases/vertex-to-edge.ts";
@@ -27,10 +27,16 @@ export function runGnnOrchestrator(
   const maxLevel = Math.max(...nodes.map((node) => node.level));
   if (maxLevel === 0) return embeddings;
 
-  runVertexToEdgePhase({ byLevel, config, embeddings, maxLevel, nodeMap, params });
+  runVertexToEdgePhase({
+    byLevel,
+    config,
+    embeddings,
+    maxLevel,
+    nodeMap,
+    params,
+  });
   runEdgeToEdgePhase({ byLevel, config, embeddings, maxLevel, nodes, params });
   runEdgeToVertexPhase({ byLevel, config, embeddings, nodes, params });
 
   return embeddings;
 }
-

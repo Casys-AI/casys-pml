@@ -1,14 +1,5 @@
 import { edgeToEdge } from "../../domain/message-passing.ts";
-import type { GNNConfig, GNNNode, GNNParams } from "../../types.ts";
-
-interface EdgeToEdgePhaseArgs {
-  byLevel: Map<number, GNNNode[]>;
-  config: GNNConfig;
-  embeddings: Map<string, number[]>;
-  maxLevel: number;
-  nodes: GNNNode[];
-  params: GNNParams;
-}
+import type { EdgeToEdgePhaseArgs } from "../types.ts";
 
 /**
  * E->E downward: updates intermediate levels from higher-level parent edges.
@@ -49,4 +40,3 @@ export function runEdgeToEdgePhase(args: EdgeToEdgePhaseArgs): void {
     }
   }
 }
-

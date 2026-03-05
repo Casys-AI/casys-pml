@@ -1,13 +1,5 @@
 import { edgeToVertex } from "../../domain/message-passing.ts";
-import type { GNNConfig, GNNNode, GNNParams } from "../../types.ts";
-
-interface EdgeToVertexPhaseArgs {
-  byLevel: Map<number, GNNNode[]>;
-  config: GNNConfig;
-  embeddings: Map<string, number[]>;
-  nodes: GNNNode[];
-  params: GNNParams;
-}
+import type { EdgeToVertexPhaseArgs } from "../types.ts";
 
 /**
  * E->V downward: updates leaves from parent edge embeddings.
@@ -37,4 +29,3 @@ export function runEdgeToVertexPhase(args: EdgeToVertexPhaseArgs): void {
     embeddings.set(leaf.name, updatedEmbedding);
   }
 }
-

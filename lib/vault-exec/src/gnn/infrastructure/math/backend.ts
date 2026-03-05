@@ -25,7 +25,10 @@ export function selectMatVecBackend(
   cols: number,
   policy: MatVecSelectionPolicy = DEFAULT_MATVEC_POLICY,
 ): MathBackend {
-  if (rows >= policy.blasMinRows && cols >= policy.blasMinCols && blasBackend.available) {
+  if (
+    rows >= policy.blasMinRows && cols >= policy.blasMinCols &&
+    blasBackend.available
+  ) {
     return blasBackend;
   }
   return jsBackend;
@@ -36,4 +39,3 @@ export function matVec(matrix: number[][], vector: number[]): number[] {
   const cols = matrix[0]?.length ?? 0;
   return selectMatVecBackend(rows, cols).matVec(matrix, vector);
 }
-

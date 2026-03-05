@@ -3,10 +3,10 @@ import { parse as parseCsv, stringify as stringifyCsv } from "jsr:@std/csv";
 import { openVaultStore } from "../src/db/index.ts";
 import { deserializeWeights } from "../src/gru/weights.ts";
 import { GRUInference } from "../src/gru/inference.ts";
-import { EmbeddingModel, BGEEmbedder } from "../src/embeddings/model.ts";
-import { parseVault } from "../src/parser.ts";
-import { DenoVaultReader } from "../src/io.ts";
-import { buildGraph, topologicalSort } from "../src/graph.ts";
+import { BGEEmbedder, EmbeddingModel } from "../src/embeddings/model.ts";
+import { parseVault } from "../src/core/parser.ts";
+import { DenoVaultReader } from "../src/infrastructure/fs/deno-vault-fs.ts";
+import { buildGraph, topologicalSort } from "../src/core/graph.ts";
 import type { GRUVocabulary } from "../src/gru/types.ts";
 
 interface EvalRow {
@@ -62,7 +62,10 @@ function blend(raw: number[], gnn: number[]): number[] {
   return normalize(out);
 }
 
-function cloneVocabWithEmbeddings(vocab: GRUVocabulary, byName: Map<string, number[]>): GRUVocabulary {
+function cloneVocabWithEmbeddings(
+  vocab: GRUVocabulary,
+  byName: Map<string, number[]>,
+): GRUVocabulary {
   const nodes = vocab.nodes.map((node) => ({
     ...node,
     embedding: byName.get(node.name) ?? node.embedding,
@@ -73,7 +76,10 @@ function cloneVocabWithEmbeddings(vocab: GRUVocabulary, byName: Map<string, numb
   return { nodes, indexToName, nameToIndex };
 }
 
-function computeLevels(vaultPath: string, noteNames: Set<string>): Promise<Map<string, number>> {
+function computeLevels(
+  vaultPath: string,
+  noteNames: Set<string>,
+): Promise<Map<string, number>> {
   return (async () => {
     const reader = new DenoVaultReader();
     const notes = await parseVault(reader, vaultPath);
@@ -118,7 +124,9 @@ async function readEvalRows(csvPath: string): Promise<EvalRow[]> {
   }
 
   if (evalRows.length === 0) {
-    throw new Error(`No valid rows found in ${csvPath}. Expected columns: intent,target`);
+    throw new Error(
+      `No valid rows found in ${csvPath}. Expected columns: intent,target`,
+    );
   }
   return evalRows;
 }
@@ -139,7 +147,12 @@ function summarize(results: EvalResult[], totalNotes: number): Summary[] {
     const mrr = arr.reduce((s, r) => s + r.mrr, 0) / n;
 
     const predCounts = new Map<string, number>();
-    for (const r of arr) predCounts.set(r.predictedTop1, (predCounts.get(r.predictedTop1) ?? 0) + 1);
+    for (const r of arr) {
+      predCounts.set(
+        r.predictedTop1,
+        (predCounts.get(r.predictedTop1) ?? 0) + 1,
+      );
+    }
     let attractorNode = "";
     let attractorCount = 0;
     for (const [name, count] of predCounts) {
@@ -162,7 +175,10 @@ function summarize(results: EvalResult[], totalNotes: number): Summary[] {
     });
   }
 
-  out.sort((a, b) => b.top1Accuracy - a.top1Accuracy || b.top3Recall - a.top3Recall || b.mrr - a.mrr);
+  out.sort((a, b) =>
+    b.top1Accuracy - a.top1Accuracy || b.top3Recall - a.top3Recall ||
+    b.mrr - a.mrr
+  );
   return out;
 }
 
@@ -187,10 +203,14 @@ async function main(): Promise<void> {
   try {
     const weightsRow = await store.getLatestWeights();
     if (!weightsRow) {
-      throw new Error(`No GRU weights found in ${dbPath}. Run: deno task cli init ${vaultPath}`);
+      throw new Error(
+        `No GRU weights found in ${dbPath}. Run: deno task cli init ${vaultPath}`,
+      );
     }
 
-    const { weights, vocab, config } = await deserializeWeights(weightsRow.blob);
+    const { weights, vocab, config } = await deserializeWeights(
+      weightsRow.blob,
+    );
     const notes = await store.getAllNotes();
     const noteNames = new Set(notes.map((n) => n.name));
     const levels = await computeLevels(vaultPath, noteNames);
@@ -219,10 +239,17 @@ async function main(): Promise<void> {
 
     const evalRows = await readEvalRows(csvPath);
     console.log(`Loaded ${evalRows.length} eval intents from ${csvPath}`);
-    console.log(`Loaded ${notes.length} notes and GRU weights epoch=${weightsRow.epoch} acc=${(weightsRow.accuracy * 100).toFixed(1)}%`);
+    console.log(
+      `Loaded ${notes.length} notes and GRU weights epoch=${weightsRow.epoch} acc=${
+        (weightsRow.accuracy * 100).toFixed(1)
+      }%`,
+    );
 
     const intents = await Promise.all(
-      evalRows.map(async (r) => ({ ...r, embedding: await embedder.encode(r.intent) })),
+      evalRows.map(async (r) => ({
+        ...r,
+        embedding: await embedder.encode(r.intent),
+      })),
     );
 
     const results: EvalResult[] = [];
@@ -263,12 +290,16 @@ async function main(): Promise<void> {
       top3: pct(s.top3Recall),
       mrr: s.mrr.toFixed(3),
       attractor: `${s.attractorNode} (${pct(s.attractorRate)})`,
-      coverage: `${s.predictedUnique}/${notes.length} (${pct(s.predictedCoverage)})`,
+      coverage: `${s.predictedUnique}/${notes.length} (${
+        pct(s.predictedCoverage)
+      })`,
     })));
 
     const outPath = args.out
       ? String(args.out)
-      : `${vaultPath.replace(/\/+$/, "")}/.vault-exec/ablation-routing-${new Date().toISOString().replace(/[.:]/g, "-")}.csv`;
+      : `${vaultPath.replace(/\/+$/, "")}/.vault-exec/ablation-routing-${
+        new Date().toISOString().replace(/[.:]/g, "-")
+      }.csv`;
 
     const summaryRows = summary.map((s) => ({
       rowType: "summary",
@@ -281,7 +312,8 @@ async function main(): Promise<void> {
       top3Hit: String(s.top3Recall),
       mrr: String(s.mrr),
       targetRank: "",
-      top3: `attractor=${s.attractorNode};attractorRate=${s.attractorRate};coverage=${s.predictedUnique}/${notes.length}`,
+      top3:
+        `attractor=${s.attractorNode};attractorRate=${s.attractorRate};coverage=${s.predictedUnique}/${notes.length}`,
     }));
 
     const detailRows = results.map((r) => ({

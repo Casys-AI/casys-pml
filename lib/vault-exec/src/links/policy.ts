@@ -1,4 +1,4 @@
-import type { VirtualEdgeRow, VirtualEdgeStatus } from "./types.ts";
+import type { VirtualEdgeRow, VirtualEdgeStatus } from "../core/types.ts";
 
 export const PROMOTION_POLICY = {
   minScore: 5,

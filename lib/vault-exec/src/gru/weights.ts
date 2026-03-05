@@ -9,8 +9,13 @@
  * @module vault-exec/gru/weights
  */
 
-import type { GRUWeights, GRUVocabulary, GRUConfig, VocabNode } from "./types.ts";
-import { gzipCompress, gzipDecompress } from "../compress.ts";
+import type {
+  GRUConfig,
+  GRUVocabulary,
+  GRUWeights,
+  VocabNode,
+} from "./types.ts";
+import { gzipCompress, gzipDecompress } from "../utils/compress.ts";
 
 // ---------------------------------------------------------------------------
 // Internal wire format (JSON-safe)

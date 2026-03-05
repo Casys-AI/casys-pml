@@ -1,6 +1,6 @@
-import type { GRUConfig, GRUWeights, GRUVocabulary } from "./types.ts";
+import type { GRUConfig, GRUVocabulary, GRUWeights } from "./types.ts";
 import { gruStep } from "./cell.ts";
-import { dotProduct, softmax } from "../gnn/attention.ts";
+import { dotProduct, softmax } from "../gnn/domain/attention.ts";
 
 interface PredictResult {
   name: string;
@@ -43,8 +43,8 @@ export class GRUInference {
     // Get logits for next step
     const startEmb = context.length > 0
       ? this.vocab.nodes[
-          this.vocab.nameToIndex.get(context[context.length - 1])!
-        ].embedding
+        this.vocab.nameToIndex.get(context[context.length - 1])!
+      ].embedding
       : new Array(this.config.inputDim).fill(0);
 
     const { logits } = gruStep(
@@ -58,8 +58,7 @@ export class GRUInference {
     // Score each vocab node by cosine similarity with logits
     const logitsNorm = norm(logits);
     const scores = this.vocab.nodes.map((node) => {
-      const sim =
-        dotProduct(logits, node.embedding) /
+      const sim = dotProduct(logits, node.embedding) /
         (logitsNorm * norm(node.embedding) + 1e-8);
       return sim;
     });
@@ -98,8 +97,7 @@ export class GRUInference {
 
       const logitsNorm = norm(logits);
       const scores = this.vocab.nodes.map((node) => {
-        const sim =
-          dotProduct(logits, node.embedding) /
+        const sim = dotProduct(logits, node.embedding) /
           (logitsNorm * norm(node.embedding) + 1e-8);
         return sim;
       });
@@ -145,14 +143,13 @@ export class GRUInference {
       const candidates: BeamCandidate[] = [];
 
       for (const beam of beams) {
-        const input =
-          beam.path.length > 0
-            ? this.vocab.nodes[
-                this.vocab.nameToIndex.get(
-                  beam.path[beam.path.length - 1],
-                )!
-              ].embedding
-            : new Array(this.config.inputDim).fill(0);
+        const input = beam.path.length > 0
+          ? this.vocab.nodes[
+            this.vocab.nameToIndex.get(
+              beam.path[beam.path.length - 1],
+            )!
+          ].embedding
+          : new Array(this.config.inputDim).fill(0);
 
         const { hNew, logits } = gruStep(
           input,
@@ -164,8 +161,7 @@ export class GRUInference {
 
         const logitsNorm = norm(logits);
         const scores = this.vocab.nodes.map((node) => {
-          const sim =
-            dotProduct(logits, node.embedding) /
+          const sim = dotProduct(logits, node.embedding) /
             (logitsNorm * norm(node.embedding) + 1e-8);
           return sim;
         });

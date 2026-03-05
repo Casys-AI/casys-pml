@@ -1,14 +1,11 @@
-import {
-  DEFAULT_IDLE_SECS,
-  MIN_IDLE_SECS,
-} from "./constants.ts";
+import { DEFAULT_IDLE_SECS, MIN_IDLE_SECS } from "./constants.ts";
 import {
   cleanupStaleArtifacts,
   getServicePaths,
   readPidFile,
   removeIfExists,
-  writeServiceMeta,
   writePidFile,
+  writeServiceMeta,
 } from "./lifecycle.ts";
 import {
   encodeJsonLine,
@@ -74,7 +71,10 @@ function buildStatus(
   };
 }
 
-async function writeResponse(conn: Deno.Conn, response: ServiceResponse): Promise<void> {
+async function writeResponse(
+  conn: Deno.Conn,
+  response: ServiceResponse,
+): Promise<void> {
   await conn.write(encodeJsonLine(response));
 }
 
@@ -85,7 +85,11 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
   const cleanup = await cleanupStaleArtifacts(paths);
   if (cleanup.active) {
     const pid = await readPidFile(paths.pidPath);
-    throw new Error(`Service already running for vault ${opts.vaultPath} (pid=${pid ?? "unknown"})`);
+    throw new Error(
+      `Service already running for vault ${opts.vaultPath} (pid=${
+        pid ?? "unknown"
+      })`,
+    );
   }
 
   await removeIfExists(paths.socketPath);
@@ -165,7 +169,11 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
         armIdleTimer();
 
         if (!req?.id || !req?.method) {
-          await writeResponse(conn!, { id: "unknown", ok: false, error: "Invalid request" });
+          await writeResponse(conn!, {
+            id: "unknown",
+            ok: false,
+            error: "Invalid request",
+          });
           return;
         }
 
@@ -173,7 +181,12 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
           await writeResponse(conn!, {
             id: req.id,
             ok: true,
-            result: buildStatus(state, paths.vaultPath, paths.socketPath, idleSecs),
+            result: buildStatus(
+              state,
+              paths.vaultPath,
+              paths.socketPath,
+              idleSecs,
+            ),
           });
           return;
         }
@@ -200,7 +213,9 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
           const result = await runIncrementalSync(paths.vaultPath);
           state.syncInProgress = false;
           state.lastSyncAt = new Date().toISOString();
-          state.lastSyncError = result.ok ? null : result.error ?? "Unknown sync error";
+          state.lastSyncError = result.ok
+            ? null
+            : result.error ?? "Unknown sync error";
           state.lastActivityAt = new Date().toISOString();
           armIdleTimer();
 
@@ -209,12 +224,20 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
         }
 
         if (req.method === "stop") {
-          await writeResponse(conn!, { id: req.id, ok: true, result: { stopped: true } });
+          await writeResponse(conn!, {
+            id: req.id,
+            ok: true,
+            result: { stopped: true },
+          });
           await shutdown();
           return;
         }
 
-        await writeResponse(conn!, { id: req.id, ok: false, error: `Unknown method: ${req.method}` });
+        await writeResponse(conn!, {
+          id: req.id,
+          ok: false,
+          error: `Unknown method: ${req.method}`,
+        });
       } catch (err) {
         try {
           await writeResponse(conn!, {

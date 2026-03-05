@@ -103,7 +103,11 @@ export function closeBlasAcceleration(): void {
   loadedPath = null;
 }
 
-function jsMatVecFallback(matrix: number[][], vector: number[], cols: number): number[] {
+function jsMatVecFallback(
+  matrix: number[][],
+  vector: number[],
+  cols: number,
+): number[] {
   return matrix.map((row) => {
     let sum = 0;
     const n = Math.min(cols, row.length, vector.length);
@@ -116,7 +120,9 @@ export function blasMatVec(matrix: number[][], vector: number[]): number[] {
   const m = matrix.length;
   const n = matrix[0]?.length ?? 0;
   if (m === 0 || n === 0) return new Array(m).fill(0);
-  if (!isBlasAvailable() || !blasLib) return jsMatVecFallback(matrix, vector, n);
+  if (!isBlasAvailable() || !blasLib) {
+    return jsMatVecFallback(matrix, vector, n);
+  }
 
   const flatA = new Float32Array(m * n);
   const flatX = new Float32Array(n);
@@ -147,4 +153,3 @@ export function blasMatVec(matrix: number[][], vector: number[]): number[] {
   );
   return Array.from(flatY);
 }
-

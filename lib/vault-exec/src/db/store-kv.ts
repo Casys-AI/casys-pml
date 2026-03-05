@@ -3,11 +3,16 @@
 // Large blobs (GNN params, GRU weights) are chunked via @kitsonk/kv-toolbox/blob.
 
 import {
-  set as setBlob,
   get as getBlob,
+  set as setBlob,
 } from "jsr:@kitsonk/kv-toolbox@0.30/blob";
-import type { NoteRow, TraceRow, IVaultStore } from "./types.ts";
-import type { VirtualEdgeRow, VirtualEdgeStatus, VirtualEdgeUpdate } from "../links/types.ts";
+import type {
+  IVaultStore,
+  NoteRow,
+  TraceRow,
+  VirtualEdgeRow,
+  VirtualEdgeStatus,
+} from "../core/types.ts";
 
 // Maximum CAS retry attempts for upsertNote.
 const MAX_CAS_RETRIES = 5;
@@ -198,42 +203,33 @@ export class VaultKV implements IVaultStore {
 
   // ── Virtual Edges ─────────────────────────────────────────────────────────
 
-  async upsertVirtualEdge(update: VirtualEdgeUpdate): Promise<VirtualEdgeRow> {
-    const key: Deno.KvKey = ["vault", "virtual_edges", update.source, update.target];
-    const now = new Date().toISOString();
-
-    for (let attempt = 0; attempt < MAX_CAS_RETRIES; attempt++) {
-      const entry = await this.kv.get<VirtualEdgeRow>(key);
-      const existing = entry.value;
-
-      const supportInc = update.scoreDelta > 0 ? 1 : 0;
-      const rejectInc = update.scoreDelta < 0 ? 1 : 0;
-      const updated: VirtualEdgeRow = {
-        source: update.source,
-        target: update.target,
-        score: (existing?.score ?? 0) + update.scoreDelta,
-        support: (existing?.support ?? 0) + supportInc,
-        rejects: (existing?.rejects ?? 0) + rejectInc,
-        status: existing?.status ?? "candidate",
-        promotedAt: existing?.promotedAt,
-        updatedAt: now,
-      };
-
-      const res = await this.kv.atomic()
-        .check(entry)
-        .set(key, updated)
-        .commit();
-      if (res.ok) return updated;
-    }
-
-    throw new Error(
-      `[VaultKV] upsertVirtualEdge: CAS failed after ${MAX_CAS_RETRIES} retries for "${update.source}" -> "${update.target}".`,
-    );
+  async getVirtualEdge(
+    source: string,
+    target: string,
+  ): Promise<VirtualEdgeRow | null> {
+    const entry = await this.kv.get<VirtualEdgeRow>([
+      "vault",
+      "virtual_edges",
+      source,
+      target,
+    ]);
+    return entry.value ?? null;
   }
 
-  async listVirtualEdges(status?: VirtualEdgeStatus): Promise<VirtualEdgeRow[]> {
+  async saveVirtualEdge(row: VirtualEdgeRow): Promise<void> {
+    const key: Deno.KvKey = ["vault", "virtual_edges", row.source, row.target];
+    await this.kv.set(key, row);
+  }
+
+  async listVirtualEdges(
+    status?: VirtualEdgeStatus,
+  ): Promise<VirtualEdgeRow[]> {
     const rows: VirtualEdgeRow[] = [];
-    for await (const entry of this.kv.list<VirtualEdgeRow>({ prefix: ["vault", "virtual_edges"] })) {
+    for await (
+      const entry of this.kv.list<VirtualEdgeRow>({
+        prefix: ["vault", "virtual_edges"],
+      })
+    ) {
       if (!status || entry.value.status === status) rows.push(entry.value);
     }
     rows.sort((a, b) => b.score - a.score);
@@ -254,31 +250,18 @@ export class VaultKV implements IVaultStore {
       const updated: VirtualEdgeRow = {
         ...entry.value,
         status,
-        promotedAt: status === "promoted" ? (entry.value.promotedAt ?? now) : entry.value.promotedAt,
+        promotedAt: status === "promoted"
+          ? (entry.value.promotedAt ?? now)
+          : entry.value.promotedAt,
         updatedAt: now,
       };
-      const res = await this.kv.atomic().check(entry).set(key, updated).commit();
+      const res = await this.kv.atomic().check(entry).set(key, updated)
+        .commit();
       if (res.ok) return;
     }
     throw new Error(
       `[VaultKV] setVirtualEdgeStatus: CAS failed after ${MAX_CAS_RETRIES} retries for "${source}" -> "${target}".`,
     );
-  }
-
-  async applyVirtualEdgeDecay(factor: number): Promise<number> {
-    let updatedRows = 0;
-    if (!(factor > 0 && factor <= 1)) return 0;
-    for await (const entry of this.kv.list<VirtualEdgeRow>({ prefix: ["vault", "virtual_edges"] })) {
-      const row = entry.value;
-      const next: VirtualEdgeRow = {
-        ...row,
-        score: row.score * factor,
-        updatedAt: new Date().toISOString(),
-      };
-      await this.kv.set(entry.key, next);
-      updatedRows++;
-    }
-    return updatedRows;
   }
 
   // ── GNN params ────────────────────────────────────────────────────────────
@@ -296,11 +279,13 @@ export class VaultKV implements IVaultStore {
     await this.kv.set(["vault", "gnn_params_meta"], { epoch, accuracy });
   }
 
-  async getGnnParams(): Promise<{
-    params: Uint8Array;
-    epoch: number;
-    accuracy: number;
-  } | null> {
+  async getGnnParams(): Promise<
+    {
+      params: Uint8Array;
+      epoch: number;
+      accuracy: number;
+    } | null
+  > {
     const meta = await this.kv.get<{ epoch: number; accuracy: number }>(
       ["vault", "gnn_params_meta"],
     );
@@ -332,12 +317,14 @@ export class VaultKV implements IVaultStore {
     });
   }
 
-  async getLatestWeights(): Promise<{
-    blob: Uint8Array;
-    vocabSize: number;
-    epoch: number;
-    accuracy: number;
-  } | null> {
+  async getLatestWeights(): Promise<
+    {
+      blob: Uint8Array;
+      vocabSize: number;
+      epoch: number;
+      accuracy: number;
+    } | null
+  > {
     const meta = await this.kv.get<{
       vocabSize: number;
       epoch: number;

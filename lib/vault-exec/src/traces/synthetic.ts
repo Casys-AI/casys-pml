@@ -1,6 +1,6 @@
-import type { VaultNote } from "../types.ts";
-import type { ExecutionTrace } from "./types.ts";
-import { buildGraph, extractSubgraph, topologicalSort } from "../graph.ts";
+import type { VaultNote } from "../core/types.ts";
+import type { ExecutionTrace } from "../core/types.ts";
+import { buildGraph, extractSubgraph, topologicalSort } from "../core/graph.ts";
 
 /**
  * Generate synthetic execution traces from vault DAG structure.

@@ -1,5 +1,5 @@
-import type { VaultGraph } from "../types.ts";
-import type { VirtualEdgeUpdate } from "./types.ts";
+import type { VaultGraph } from "../core/types.ts";
+import type { VirtualEdgeUpdate } from "../core/types.ts";
 
 function buildRealRelationSet(graph: VaultGraph): Set<string> {
   const relations = new Set<string>();

@@ -1,5 +1,5 @@
-import type { IVaultStore } from "../db/types.ts";
-import type { ExecutionTrace } from "./types.ts";
+import type { IVaultStore } from "../core/types.ts";
+import type { ExecutionTrace } from "../core/types.ts";
 
 /** Record an execution trace to the vault store. */
 export async function recordTrace(

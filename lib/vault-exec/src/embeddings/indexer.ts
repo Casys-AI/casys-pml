@@ -1,5 +1,5 @@
-import type { VaultNote } from "../types.ts";
-import type { IVaultStore } from "../db/types.ts";
+import type { VaultNote } from "../core/types.ts";
+import type { IVaultStore } from "../core/types.ts";
 import type { EmbeddingModel } from "./model.ts";
 
 /** FNV-1a 32-bit hash — fast content fingerprint for change detection */
@@ -75,7 +75,12 @@ export async function indexVault(
     const level = levels.get(note.name) ?? 0;
 
     // Always upsert metadata + edges (level may change even if body didn't)
-    await db.upsertNote({ name: note.name, path: note.path, bodyHash: hash, level });
+    await db.upsertNote({
+      name: note.name,
+      path: note.path,
+      bodyHash: hash,
+      level,
+    });
     await db.setEdges(note.name, note.wikilinks);
 
     // Skip expensive embedding if body unchanged

@@ -1,6 +1,11 @@
 // gru/trainer_test.ts
 import { assertEquals } from "jsr:@std/assert";
-import { focalLoss, softLabelLoss, trainEpoch, clipGradients } from "./trainer.ts";
+import {
+  clipGradients,
+  focalLoss,
+  softLabelLoss,
+  trainEpoch,
+} from "./trainer.ts";
 import type { TrainingExample } from "./trainer.ts";
 import { initWeights } from "./cell.ts";
 import type { GRUConfig, GRUVocabulary, VocabNode } from "./types.ts";
@@ -26,7 +31,14 @@ Deno.test("softLabelLoss - adds parent/children credit", () => {
   const alphaUp = 0.2;
   const alphaDown = 0.1;
 
-  const loss = softLabelLoss(probs, targetIdx, parentIdx, childIdx, alphaUp, alphaDown);
+  const loss = softLabelLoss(
+    probs,
+    targetIdx,
+    parentIdx,
+    childIdx,
+    alphaUp,
+    alphaDown,
+  );
   assertEquals(typeof loss, "number");
   assertEquals(loss > 0, true);
 });
@@ -63,21 +75,30 @@ function makeTinyExamples(vocab: GRUVocabulary): TrainingExample[] {
   const names = vocab.indexToName;
   return [
     {
-      intentEmb: Array.from({ length: TINY_CONFIG.inputDim }, (_, i) => Math.cos(i) * 0.3),
+      intentEmb: Array.from(
+        { length: TINY_CONFIG.inputDim },
+        (_, i) => Math.cos(i) * 0.3,
+      ),
       path: [names[0], names[1]],
       targetIdx: 1,
       parentIdx: null,
       childIdx: null,
     },
     {
-      intentEmb: Array.from({ length: TINY_CONFIG.inputDim }, (_, i) => Math.sin(i) * 0.3),
+      intentEmb: Array.from(
+        { length: TINY_CONFIG.inputDim },
+        (_, i) => Math.sin(i) * 0.3,
+      ),
       path: [names[1], names[2]],
       targetIdx: 2,
       parentIdx: null,
       childIdx: null,
     },
     {
-      intentEmb: Array.from({ length: TINY_CONFIG.inputDim }, (_, i) => Math.cos(i + 1) * 0.3),
+      intentEmb: Array.from(
+        { length: TINY_CONFIG.inputDim },
+        (_, i) => Math.cos(i + 1) * 0.3,
+      ),
       path: [names[0], names[2]],
       targetIdx: 2,
       parentIdx: null,
@@ -98,7 +119,12 @@ Deno.test("trainEpoch reduces loss over multiple epochs", () => {
   const losses: number[] = [];
   for (let epoch = 0; epoch < numEpochs; epoch++) {
     const { avgLoss } = trainEpoch(
-      examples, weights, vocab, TINY_CONFIG, lr, 2.0,
+      examples,
+      weights,
+      vocab,
+      TINY_CONFIG,
+      lr,
+      2.0,
     );
     losses.push(avgLoss);
   }
@@ -111,7 +137,9 @@ Deno.test("trainEpoch reduces loss over multiple epochs", () => {
   assertEquals(
     minLastHalf < losses[0],
     true,
-    `Expected loss to decrease: epoch0=${losses[0].toFixed(4)}, minLast5=${minLastHalf.toFixed(4)}, all=[${losses.map(l => l.toFixed(4)).join(", ")}]`,
+    `Expected loss to decrease: epoch0=${losses[0].toFixed(4)}, minLast5=${
+      minLastHalf.toFixed(4)
+    }, all=[${losses.map((l) => l.toFixed(4)).join(", ")}]`,
   );
 });
 
@@ -122,12 +150,18 @@ Deno.test("gradient clipping limits update magnitude", () => {
 
   // After clipping, norm should be exactly 1.0
   const clippedNorm = Math.sqrt(clipped[0] ** 2 + clipped[1] ** 2);
-  assertEquals(Math.abs(clippedNorm - 1.0) < 1e-6, true,
-    `Expected clipped norm ~1.0, got ${clippedNorm}`);
+  assertEquals(
+    Math.abs(clippedNorm - 1.0) < 1e-6,
+    true,
+    `Expected clipped norm ~1.0, got ${clippedNorm}`,
+  );
 
   // Direction should be preserved (ratio stays the same)
-  assertEquals(Math.abs(clipped[0] / clipped[1] - 3.0 / 4.0) < 1e-6, true,
-    "Gradient direction should be preserved after clipping");
+  assertEquals(
+    Math.abs(clipped[0] / clipped[1] - 3.0 / 4.0) < 1e-6,
+    true,
+    "Gradient direction should be preserved after clipping",
+  );
 });
 
 Deno.test("gradient clipping is no-op for small gradients", () => {
@@ -136,8 +170,11 @@ Deno.test("gradient clipping is no-op for small gradients", () => {
 
   // Should be unchanged
   for (let i = 0; i < grads.length; i++) {
-    assertEquals(clipped[i], grads[i],
-      `Gradient ${i} should be unchanged when norm < maxNorm`);
+    assertEquals(
+      clipped[i],
+      grads[i],
+      `Gradient ${i} should be unchanged when norm < maxNorm`,
+    );
   }
 });
 
@@ -145,7 +182,11 @@ Deno.test("trainEpoch with empty examples returns zeros", () => {
   const vocab = makeTinyVocab(["X"]);
   const weights = initWeights(TINY_CONFIG);
   const { avgLoss, accuracy } = trainEpoch(
-    [], weights, vocab, TINY_CONFIG, 0.1,
+    [],
+    weights,
+    vocab,
+    TINY_CONFIG,
+    0.1,
   );
   assertEquals(avgLoss, 0);
   assertEquals(accuracy, 0);

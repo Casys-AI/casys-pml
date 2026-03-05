@@ -1,7 +1,7 @@
-import type { IVaultStore } from "../../db/types.ts";
-import { initParams } from "../params.ts";
-import type { GNNConfig, GNNParams } from "../types.ts";
-import { deserializeGnnParams, serializeGnnParams } from "../backward.ts";
+import type { IVaultStore } from "../../core/types.ts";
+import { initParams } from "../domain/params.ts";
+import type { GNNConfig, GNNParams } from "../domain/types.ts";
+import { deserializeGnnParams, serializeGnnParams } from "./params-codec.ts";
 
 function isCompatible(params: GNNParams, config: GNNConfig): boolean {
   return params.numHeads === config.numHeads &&
@@ -45,4 +45,3 @@ export async function persistGnnParams(
   const blob = await serializeGnnParams(params);
   await db.saveGnnParams(blob, 0, 0);
 }
-

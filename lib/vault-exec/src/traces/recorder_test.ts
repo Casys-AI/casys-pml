@@ -26,10 +26,16 @@ Deno.test("recordTrace - multiple traces accumulate", async () => {
   const db = await VaultKV.open(":memory:");
   try {
     await recordTrace(db, {
-      targetNote: "A", path: ["A"], success: true, synthetic: true,
+      targetNote: "A",
+      path: ["A"],
+      success: true,
+      synthetic: true,
     });
     await recordTrace(db, {
-      targetNote: "B", path: ["A", "B"], success: true, synthetic: false,
+      targetNote: "B",
+      path: ["A", "B"],
+      success: true,
+      synthetic: false,
     });
     const traces = await db.getAllTraces();
     assertEquals(traces.length, 2);
