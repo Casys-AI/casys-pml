@@ -29,11 +29,8 @@ export function resolveTemplate(
   const ref = parseRef(match[1]);
 
   if (ref.note === "input" || ref.note === "inputs") {
-    const val = getByPath(runtimeInputs, ref.output);
-    if (val === undefined) {
-      throw new Error(`Cannot resolve "{{${match[1]}}}": runtime input "${ref.output}" is missing`);
-    }
-    return val;
+    // Optional runtime fields may be absent; AJV enforces required fields upstream.
+    return getByPath(runtimeInputs, ref.output);
   }
 
   const noteResults = results.get(ref.note);
@@ -90,18 +87,20 @@ export interface ExecutionResult {
 export async function executeGraph(
   graph: VaultGraph,
   runtimeInputs: Record<string, unknown> = {},
+  options: { verbose?: boolean } = {},
 ): Promise<ExecutionResult> {
   const order = topologicalSort(graph);
   const results: ResultMap = new Map();
+  const verbose = options.verbose ?? true;
 
   for (const name of order) {
     const node = graph.nodes.get(name);
     if (!node) throw new Error(`Node "${name}" not found in graph`);
 
-    console.log(`▶ ${name} (${node.type})`);
+    if (verbose) console.log(`▶ ${name} (${node.type})`);
     const output = await executeNode(node, results, runtimeInputs);
     results.set(name, output);
-    console.log(`  → ${JSON.stringify(output)}`);
+    if (verbose) console.log(`  → ${JSON.stringify(output)}`);
   }
 
   return { results, path: order };
