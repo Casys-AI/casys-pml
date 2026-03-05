@@ -1,21 +1,4 @@
-export type ExecCommandFamily =
-  | "git"
-  | "openclaw"
-  | "python"
-  | "docker"
-  | "deno"
-  | "gh"
-  | "shell-utils"
-  | "other";
-
-export type WriteContentFamily =
-  | "json"
-  | "yaml"
-  | "markdown"
-  | "script"
-  | "other";
-
-export type ToolFamily = ExecCommandFamily | WriteContentFamily;
+export type ToolFamily = string;
 
 export type JsonObject = Record<string, unknown>;
 
@@ -25,6 +8,9 @@ export interface ParsedToolCall {
   args: JsonObject;
   timestamp?: string;
   family: ToolFamily | null;
+  l2Hit: boolean;
+  l2FallbackReason?: string;
+  l2Context?: JsonObject;
 }
 
 export interface ParsedToolResult {
@@ -66,6 +52,9 @@ export interface ToolInvocation {
   timestamp?: string;
   args: JsonObject;
   family: ToolFamily | null;
+  l2Hit: boolean;
+  l2FallbackReason?: string;
+  l2Context?: JsonObject;
   parentPlanHint?: string;
   result?: ParsedToolResult;
 }
@@ -73,7 +62,27 @@ export interface ToolInvocation {
 export interface ToolAggregate {
   toolName: string;
   invocationCount: number;
+  l2HitCount: number;
+  l2FallbackCount: number;
   familyCounts: Map<string, number>;
+  fallbackReasons: Map<string, number>;
   invocations: ToolInvocation[];
   tags: string[];
+}
+
+export interface ToolCoverage {
+  toolName: string;
+  supported: boolean;
+  total: number;
+  hits: number;
+  fallbacks: number;
+  hitRate: number;
+}
+
+export interface L2CoverageReport {
+  totalCalls: number;
+  totalHits: number;
+  totalFallbacks: number;
+  hitRate: number;
+  tools: ToolCoverage[];
 }

@@ -1,6 +1,10 @@
 import { assertStringIncludes } from "jsr:@std/assert";
 import { buildToolAggregates } from "./aggregate.ts";
-import { generateSessionMarkdown, generateToolMarkdown } from "./markdown.ts";
+import {
+  generateCoverageMarkdown,
+  generateSessionMarkdown,
+  generateToolMarkdown,
+} from "./markdown.ts";
 import type { ParsedOpenClawSession } from "./types.ts";
 
 const session: ParsedOpenClawSession = {
@@ -22,7 +26,13 @@ const session: ParsedOpenClawSession = {
           toolCallId: "call_1",
           args: { command: "git status" },
           timestamp: "2026-03-04T12:00:02.000Z",
-          family: "git",
+          family: "git_vcs",
+          l2Hit: true,
+          l2Context: {
+            normalizedCommand: "git status",
+            wrappers: [],
+            primaryBinary: "git",
+          },
         },
       ],
       toolResults: [
@@ -48,9 +58,10 @@ Deno.test("generateSessionMarkdown - includes core turn sections", () => {
   assertStringIncludes(out, "`exec`");
   assertStringIncludes(out, "### Tool Results");
   assertStringIncludes(out, "## Assistant Final Text");
+  assertStringIncludes(out, "L2 context");
 });
 
-Deno.test("generateToolMarkdown - includes L2 families counts and iterations", () => {
+Deno.test("generateToolMarkdown - includes L2 families, coverage and iterations", () => {
   const aggregates = buildToolAggregates([session]);
   const execNode = aggregates.get("exec");
   if (!execNode) {
@@ -60,9 +71,50 @@ Deno.test("generateToolMarkdown - includes L2 families counts and iterations", (
   const out = generateToolMarkdown(execNode);
   assertStringIncludes(out, "# Tool exec");
   assertStringIncludes(out, "## L2 Families");
-  assertStringIncludes(out, "- git: 1");
+  assertStringIncludes(out, "- git_vcs: 1");
+  assertStringIncludes(out, "- L2 hit: 1");
+  assertStringIncludes(out, "- L2 fallback: 0");
+  assertStringIncludes(out, "## L2 Fallbacks");
   assertStringIncludes(out, "## Iterations");
   assertStringIncludes(out, "```json");
   assertStringIncludes(out, "git status");
   assertStringIncludes(out, "Plan: inspect and report");
+});
+
+Deno.test("generateCoverageMarkdown - emits summary and per-tool lines", () => {
+  const out = generateCoverageMarkdown({
+    totalCalls: 3,
+    totalHits: 2,
+    totalFallbacks: 1,
+    hitRate: 2 / 3,
+    tools: [
+      {
+        toolName: "exec",
+        supported: true,
+        total: 2,
+        hits: 2,
+        fallbacks: 0,
+        hitRate: 1,
+      },
+      {
+        toolName: "unknown_tool",
+        supported: false,
+        total: 1,
+        hits: 0,
+        fallbacks: 1,
+        hitRate: 0,
+      },
+    ],
+  });
+
+  assertStringIncludes(out, "# L2 Coverage Report");
+  assertStringIncludes(out, "- Total tool calls: 3");
+  assertStringIncludes(
+    out,
+    "- exec: total=2, hit=2, fallback=0, hit_rate=100.0%",
+  );
+  assertStringIncludes(
+    out,
+    "- unknown_tool: total=1, hit=0, fallback=1, hit_rate=0.0% (unsupported)",
+  );
 });

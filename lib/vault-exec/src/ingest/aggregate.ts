@@ -78,6 +78,9 @@ export function buildToolAggregates(
           timestamp: call.timestamp ?? turn.timestamp,
           args: call.args,
           family: call.family,
+          l2Hit: call.l2Hit,
+          l2FallbackReason: call.l2FallbackReason,
+          l2Context: call.l2Context,
           parentPlanHint: turn.parentPlanHint,
           result,
         };
@@ -87,7 +90,10 @@ export function buildToolAggregates(
           aggregate = {
             toolName: call.toolName,
             invocationCount: 0,
+            l2HitCount: 0,
+            l2FallbackCount: 0,
             familyCounts: new Map<string, number>(),
+            fallbackReasons: new Map<string, number>(),
             invocations: [],
             tags: [],
           };
@@ -96,6 +102,16 @@ export function buildToolAggregates(
 
         aggregate.invocations.push(invocation);
         aggregate.invocationCount += 1;
+        if (call.l2Hit) {
+          aggregate.l2HitCount += 1;
+        } else {
+          aggregate.l2FallbackCount += 1;
+          const reason = call.l2FallbackReason ?? "unknown";
+          aggregate.fallbackReasons.set(
+            reason,
+            (aggregate.fallbackReasons.get(reason) ?? 0) + 1,
+          );
+        }
         if (call.family) {
           aggregate.familyCounts.set(
             call.family,

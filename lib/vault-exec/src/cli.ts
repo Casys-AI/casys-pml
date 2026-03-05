@@ -417,6 +417,12 @@ const ingestCmd = new Command()
       );
       console.log(`sessions: ${outputPath}/sessions`);
       console.log(`tools: ${outputPath}/tools`);
+      console.log(`coverage: ${result.coverageReportPath}`);
+      console.log(
+        `l2 summary: hits=${result.l2Coverage.totalHits} fallback=${result.l2Coverage.totalFallbacks} hit_rate=${
+          (result.l2Coverage.hitRate * 100).toFixed(1)
+        }%`,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`ingest failed: ${message}`);

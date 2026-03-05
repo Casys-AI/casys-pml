@@ -1,4 +1,4 @@
-import { classifyToolFamily } from "./families.ts";
+import { classifyToolCallL2 } from "./policy.ts";
 import type {
   JsonObject,
   ParsedOpenClawSession,
@@ -95,11 +95,15 @@ function extractToolCalls(message: Record<string, unknown>): ParsedToolCall[] {
     const key = `${id ?? ""}|${toolName}|${JSON.stringify(args)}`;
     if (seen.has(key)) return;
     seen.add(key);
+    const decision = classifyToolCallL2(toolName, args);
     calls.push({
       toolName,
       toolCallId: id,
       args,
-      family: classifyToolFamily(toolName, args),
+      family: decision.family,
+      l2Hit: decision.hit,
+      l2FallbackReason: decision.fallbackReason,
+      l2Context: decision.context,
     });
   };
 

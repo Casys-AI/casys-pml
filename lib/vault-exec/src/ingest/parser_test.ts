@@ -72,7 +72,13 @@ Deno.test("parseOpenClawSessionLines - extracts turn with tool chain and final a
   assertEquals(turn.toolCalls.length, 1);
   assertEquals(turn.toolCalls[0].toolName, "exec");
   assertEquals(turn.toolCalls[0].args, { command: "git status --short" });
-  assertEquals(turn.toolCalls[0].family, "git");
+  assertEquals(turn.toolCalls[0].family, "git_vcs");
+  assertEquals(turn.toolCalls[0].l2Hit, true);
+  assertEquals(turn.toolCalls[0].l2Context, {
+    normalizedCommand: "git status --short",
+    wrappers: [],
+    primaryBinary: "git",
+  });
   assertEquals(turn.toolResults.length, 1);
   assertEquals(turn.toolResults[0].toolName, "exec");
   assertEquals(turn.toolResults[0].isError, false);
@@ -118,5 +124,6 @@ Deno.test("parseOpenClawSessionLines - supports OpenAI-style tool_calls payload"
   assertEquals(parsed.turns.length, 1);
   assertEquals(parsed.turns[0].toolCalls.length, 1);
   assertEquals(parsed.turns[0].toolCalls[0].toolName, "write");
-  assertEquals(parsed.turns[0].toolCalls[0].family, "json");
+  assertEquals(parsed.turns[0].toolCalls[0].family, "relative:file_path");
+  assertEquals(parsed.turns[0].toolCalls[0].l2Hit, true);
 });

@@ -1,11 +1,14 @@
 import { buildToolAggregates } from "./aggregate.ts";
+import { buildL2CoverageReport } from "./coverage.ts";
 import {
+  generateCoverageMarkdown,
   generateSessionMarkdown,
   generateToolMarkdown,
   toolFileName,
 } from "./markdown.ts";
 import { parseOpenClawSessionFile } from "./parser.ts";
-import type { ParsedOpenClawSession } from "./types.ts";
+import { SUPPORTED_TOOL_POLICIES } from "./policy.ts";
+import type { L2CoverageReport, ParsedOpenClawSession } from "./types.ts";
 
 export interface IngestOpenClawOptions {
   sourcePath: string;
@@ -17,6 +20,9 @@ export interface IngestOpenClawResult {
   toolsProcessed: number;
   sessionFiles: string[];
   toolFiles: string[];
+  coverageReportPath: string;
+  l2Coverage: L2CoverageReport;
+  supportedTools: string[];
 }
 
 function joinPath(...parts: string[]): string {
@@ -95,11 +101,15 @@ export async function ingestOpenClawSessions(
   });
 
   const aggregates = buildToolAggregates(sessions);
+  const l2Coverage = buildL2CoverageReport(sessions);
   const toolsDir = joinPath(options.outputPath, "tools");
   const sessionsDir = joinPath(options.outputPath, "sessions");
+  const reportsDir = joinPath(options.outputPath, "reports");
+  const coverageReportPath = joinPath(reportsDir, "l2-coverage.md");
 
   await Deno.mkdir(toolsDir, { recursive: true });
   await Deno.mkdir(sessionsDir, { recursive: true });
+  await Deno.mkdir(reportsDir, { recursive: true });
 
   const writtenSessionFiles: string[] = [];
   for (const session of sessions) {
@@ -118,10 +128,20 @@ export async function ingestOpenClawSessions(
     writtenToolFiles.push(path);
   }
 
+  await Deno.writeTextFile(
+    coverageReportPath,
+    generateCoverageMarkdown(l2Coverage),
+  );
+
   return {
     sessionsProcessed: sessions.length,
     toolsProcessed: aggregates.size,
     sessionFiles: writtenSessionFiles,
     toolFiles: writtenToolFiles,
+    coverageReportPath,
+    l2Coverage,
+    supportedTools: [...SUPPORTED_TOOL_POLICIES].sort((a, b) =>
+      a.localeCompare(b)
+    ),
   };
 }

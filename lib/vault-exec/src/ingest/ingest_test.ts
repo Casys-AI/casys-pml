@@ -1,7 +1,7 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
 import { ingestOpenClawSessions } from "./ingest.ts";
 
-Deno.test("ingestOpenClawSessions - writes sessions and deduped tool notes", async () => {
+Deno.test("ingestOpenClawSessions - writes sessions, tools and L2 coverage report", async () => {
   const root = await Deno.makeTempDir();
   try {
     const sourceDir = `${root}/input`;
@@ -107,20 +107,27 @@ Deno.test("ingestOpenClawSessions - writes sessions and deduped tool notes", asy
 
     assertEquals(result.sessionsProcessed, 1);
     assertEquals(result.toolsProcessed, 1);
+    assertEquals(result.l2Coverage.totalCalls, 2);
+    assertEquals(result.l2Coverage.totalHits, 2);
+    assertEquals(result.l2Coverage.totalFallbacks, 0);
 
     const sessionNotePath = `${outputDir}/sessions/2026-03-04-abcd1234.md`;
     const toolNotePath = `${outputDir}/tools/exec.md`;
+    const coveragePath = `${outputDir}/reports/l2-coverage.md`;
 
     const sessionNote = await Deno.readTextFile(sessionNotePath);
     const toolNote = await Deno.readTextFile(toolNotePath);
+    const coverage = await Deno.readTextFile(coveragePath);
 
     assertStringIncludes(sessionNote, "# Session abcd1234");
     assertStringIncludes(sessionNote, "## Turn 2");
     assertStringIncludes(toolNote, "# Tool exec");
     assertStringIncludes(toolNote, "- Total invocations: 2");
-    assertStringIncludes(toolNote, "- git: 2");
+    assertStringIncludes(toolNote, "- git_vcs: 2");
     assertStringIncludes(toolNote, "git status");
     assertStringIncludes(toolNote, "git branch --show-current");
+    assertStringIncludes(coverage, "# L2 Coverage Report");
+    assertStringIncludes(coverage, "- exec: total=2, hit=2, fallback=0");
   } finally {
     await Deno.remove(root, { recursive: true });
   }

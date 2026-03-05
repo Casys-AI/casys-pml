@@ -25,6 +25,9 @@ export class VaultKV implements IVaultStore {
   // Temporary file path used when opened with ":memory:" — tracked for cleanup on close().
   private tempPath?: string;
 
+  // Monotonic sequence to preserve insertion order for same-timestamp trace keys.
+  private traceSeq = 0;
+
   /**
    * Open a Deno KV store at the given path.
    * path === ":memory:" → creates a unique temp file so each open() gets an isolated store.
@@ -176,18 +179,20 @@ export class VaultKV implements IVaultStore {
   // ── Traces ────────────────────────────────────────────────────────────────
 
   /**
-   * Insert a trace. Key = ["vault", "traces", isoTimestamp, uuidv4].
-   * ISO timestamp gives lexicographic chronological ordering.
-   * UUID suffix avoids collisions within the same millisecond.
+   * Insert a trace. Key = ["vault", "traces", isoTimestamp, seq, uuidv4].
+   * ISO timestamp gives coarse chronological ordering.
+   * seq preserves deterministic in-process insertion order for same-timestamp writes.
+   * UUID suffix avoids collisions across processes.
    */
   async insertTrace(trace: TraceRow): Promise<void> {
     const ts = new Date().toISOString();
+    const seq = String(this.traceSeq++).padStart(8, "0");
     const id = crypto.randomUUID();
     const row: TraceRow = {
       ...trace,
       executedAt: ts,
     };
-    await this.kv.set(["vault", "traces", ts, id], row);
+    await this.kv.set(["vault", "traces", ts, seq, id], row);
   }
 
   async getAllTraces(): Promise<TraceRow[]> {

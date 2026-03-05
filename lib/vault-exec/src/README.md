@@ -37,3 +37,14 @@ Tests for this slice are co-located in `routing/*_test.ts`.
 - `service/*` (watch/sync daemon)
 - `cli-runtime/*` (CLI output + exit codes)
 - `utils/compress.ts` (shared gzip helpers)
+
+## CLI behavior contract (AX)
+
+- Default output mode is machine-readable JSONL events.
+- `--human` switches to human-readable output.
+- `run --intent` is confirmation-first by default.
+- `run --intent --no-confirm` enables auto-select mode.
+- Missing GRU weights for intent routing is a validation error with `init`
+  guidance.
+- Ingest trace-session dates use deterministic fallback (`1970-01-01`) when
+  source timestamps are unavailable.
