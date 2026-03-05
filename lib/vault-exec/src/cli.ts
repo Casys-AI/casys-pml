@@ -7,8 +7,14 @@ import { executeGraph } from "./executor.ts";
 import { DenoVaultReader } from "./io.ts";
 import { feedbackToVirtualEdgeUpdates } from "./links/feedback.ts";
 import { nextVirtualEdgeStatus, PROMOTION_POLICY } from "./links/policy.ts";
-import { buildRuntimeInputSchema } from "./runtime-inputs.ts";
-import Ajv from "npm:ajv";
+import {
+  buildRuntimeInputSchema,
+  validateRuntimeInputsForGraph,
+} from "./runtime-inputs.ts";
+import {
+  evaluateIntentCandidates,
+  formatIntentCandidateLine,
+} from "./intent-candidates.ts";
 
 // Load .env.local (gitignored) then .env as fallback
 try { loadSync({ envPath: ".env.local", export: true }); } catch { /* ok */ }
@@ -125,6 +131,16 @@ const runCmd = new Command()
     let rejectedTargets: Array<{ target: string; path: string[]; score: number }> = [];
     let selectedBeamPath: string[] | null = null;
 
+    let parsedRuntimeInputs: Record<string, unknown> = {};
+    if (opts.inputs) {
+      try {
+        parsedRuntimeInputs = await parseInputsArg(opts.inputs);
+      } catch (err) {
+        console.error(`✗ Failed to parse --inputs: ${(err as Error).message}`);
+        Deno.exit(1);
+      }
+    }
+
     if (opts.intent) {
       // GRU intent routing with beam search
       try {
@@ -183,10 +199,21 @@ const runCmd = new Command()
 
         console.log(`[intent] ${opts.intent}`);
         console.log(`[candidates] ${displayBeams.length + 1}`);
-        for (let i = 0; i < displayBeams.length; i++) {
-          const b = displayBeams[i];
-          const target = b.path[b.path.length - 1];
-          console.log(`[${i + 1}] target=${target} confidence=${renormalized[i].toFixed(2)} path=${b.path.join(" → ")}`);
+        const candidateCompatibility = evaluateIntentCandidates(
+          fullGraph,
+          displayBeams.map((b, i) => ({
+            target: b.path[b.path.length - 1],
+            confidence: renormalized[i],
+            path: b.path,
+          })),
+          parsedRuntimeInputs,
+        );
+        for (let i = 0; i < candidateCompatibility.length; i++) {
+          console.log(formatIntentCandidateLine(i + 1, candidateCompatibility[i]));
+        }
+        if (candidateCompatibility.length > 0 && candidateCompatibility.every((c) => !c.payloadOk)) {
+          const compactReasons = candidateCompatibility.map((c) => `${c.target}:${c.payloadStatus}`).join(" | ");
+          console.log(`[compatibility] No candidate is schema-compatible with the provided payload (${compactReasons})`);
         }
         console.log(`[${displayBeams.length + 1}] none`);
 
@@ -314,29 +341,20 @@ const runCmd = new Command()
     }
 
     const runtimeSchema = buildRuntimeInputSchema(graph);
-    let runtimeInputs: Record<string, unknown> = {};
+    const runtimeInputs = parsedRuntimeInputs;
 
     if (runtimeSchema) {
-      try {
-        runtimeInputs = await parseInputsArg(opts.inputs);
-      } catch (err) {
-        console.error(`✗ Failed to parse --inputs: ${(err as Error).message}`);
-        Deno.exit(1);
-      }
-
       // For target runs: if payload missing, return schema instead of executing.
       if (targetNote && Object.keys(runtimeInputs).length === 0) {
         printInputSchema(runtimeSchema as unknown as Record<string, unknown>);
         return;
       }
 
-      const ajv = new Ajv({ allErrors: true, strict: false });
-      const validateInputs = ajv.compile(runtimeSchema as unknown as Record<string, unknown>);
-      const ok = validateInputs(runtimeInputs);
-      if (!ok) {
+      const inputValidation = validateRuntimeInputsForGraph(graph, runtimeInputs);
+      if (!inputValidation.ok) {
         console.error("✗ Runtime input validation failed:");
-        for (const err of validateInputs.errors ?? []) {
-          console.error(`  - ${err.instancePath || "/"}: ${err.message}`);
+        for (const issue of inputValidation.issues) {
+          console.error(`  - ${issue.path || "/"}: ${issue.message}`);
         }
         printInputSchema(runtimeSchema as unknown as Record<string, unknown>);
         Deno.exit(1);
