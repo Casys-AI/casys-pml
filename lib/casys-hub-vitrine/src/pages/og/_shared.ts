@@ -6,21 +6,47 @@
 
 import satori from 'satori';
 import { initWasm, Resvg } from '@resvg/resvg-wasm';
+import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 
 let wasmInitialized = false;
 let fontData: ArrayBuffer | null = null;
 let fontDataBold: ArrayBuffer | null = null;
+const require = createRequire(import.meta.url);
+
+async function fetchArrayBuffer(url: string): Promise<ArrayBuffer> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}: ${response.status}`);
+  }
+  return response.arrayBuffer();
+}
+
+async function readLocalFileAsArrayBuffer(filePath: string): Promise<ArrayBuffer> {
+  const buf = await fs.readFile(filePath);
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+}
 
 async function loadFonts() {
   if (!fontData) {
-    fontData = await fetch(
-      'https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-600-normal.woff'
-    ).then((res) => res.arrayBuffer());
+    try {
+      fontData = await fetchArrayBuffer(
+        'https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-600-normal.woff'
+      );
+    } catch {
+      const localRegular = require.resolve('katex/dist/fonts/KaTeX_SansSerif-Regular.ttf');
+      fontData = await readLocalFileAsArrayBuffer(localRegular);
+    }
   }
   if (!fontDataBold) {
-    fontDataBold = await fetch(
-      'https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-700-normal.woff'
-    ).then((res) => res.arrayBuffer());
+    try {
+      fontDataBold = await fetchArrayBuffer(
+        'https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-700-normal.woff'
+      );
+    } catch {
+      const localBold = require.resolve('katex/dist/fonts/KaTeX_SansSerif-Bold.ttf');
+      fontDataBold = await readLocalFileAsArrayBuffer(localBold);
+    }
   }
   return { fontData: fontData!, fontDataBold: fontDataBold! };
 }
@@ -28,11 +54,17 @@ async function loadFonts() {
 async function ensureWasm() {
   if (!wasmInitialized) {
     try {
-      await initWasm(
-        fetch('https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm')
-      );
-    } catch (_e) {
-      // Already initialized
+      try {
+        await initWasm(
+          fetch('https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm')
+        );
+      } catch {
+        const wasmPath = require.resolve('@resvg/resvg-wasm/index_bg.wasm');
+        const wasmBytes = await fs.readFile(wasmPath);
+        await initWasm(wasmBytes);
+      }
+    } catch {
+      // Already initialized, or initialized by another callsite.
     }
     wasmInitialized = true;
   }

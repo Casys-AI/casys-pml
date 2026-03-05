@@ -1,0 +1,141 @@
+---
+title: "从 DX 到 AX：当 Agent 成为操作者后，哪些地方会先坏掉"
+description: "我们花了很多年优化开发者体验。然后一个 Agent 把 publish 当成 deploy，错误地把包发到了 npm。这里是我们从 DX 转向 AX 的方法论。"
+author: "Erwan Lee Pesle"
+date: 2026-03-05
+tags:
+  - agents
+  - ax
+  - dx
+  - cli
+  - mcp
+  - tooling
+category: "产品"
+language: zh
+snippet: "人类会吸收歧义，Agent 会放大歧义。AX 从 DX 结束的地方开始。"
+featured: true
+draft: false
+---
+
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+> 可靠性不是靠更好的提示词得到的，而是靠更好的执行界面得到的。
+
+---
+
+我们曾经有三条可能触发发布的命令：`deploy`、`publish`、`release`。
+
+对开发者来说，这很顺手：看一眼帮助文档，结合上下文，就能选对。对 Agent 来说，这三条命令几乎等价：名字不同，参数形状接近，副作用却不同。
+
+一次事故里，Agent 选择了 `publish`，但真实意图是 `deploy`。命令执行成功，参数合法，退出码为 0，包被推上了 npm。报告写着成功，但结果是错误的成功。
+
+这就是拐点：我们开始把重点从 **DX（Developer Experience）** 转向 **AX（Agent Experience）**。
+
+---
+
+## 复合错误税
+
+工具中的歧义不会停留在第一步，它会累积。
+
+第 1 步选错动词，第 2 步就会进入错误模式；如果默认值还是 DX 友好的 `execute`，第 3 步就可能变成真实写操作；第 4 步你就要写事故复盘。
+
+<ExcalidrawDiagram src="ax-ambiguity-cascade" alt="复合错误税：第 1 步的小歧义会在第 4 步变成高成本错误" />
+
+**人类吸收歧义，Agent 放大歧义。** 而且这种放大是乘法，不是加法。
+
+---
+
+## 同一套工具，两类操作者
+
+开发者读到 "target environment" 这种描述，会自动补全上下文。
+
+Agent 不会。它需要严格结构：
+- `target: enum["staging", "prod"]`
+- 结构化状态
+- 可解析错误码
+- 明确的恢复动作
+
+<ExcalidrawDiagram src="ax-dx-contrast" alt="同一界面，不同操作者：开发者读取语义，Agent 解析结构" />
+
+| | 开发者 | Agent |
+| --- | --- | --- |
+| 发现 | 帮助文档和描述文本 | JSON Schema 和枚举 |
+| 决策 | 经验和模式识别 | 约束匹配 |
+| 错误处理 | 读日志、临场判断 | 解析 code、执行 recovery |
+| 对歧义的容忍 | 高 | **零** |
+
+DX 很强并不代表 AX 自动成立。这是同一能力上的两层不同接口。
+
+---
+
+## 四个高频断裂点
+
+### 1) 动词重叠
+
+`deploy`、`publish`、`release` 对人类是灵活，对 Agent 是歧义。修复方式：收敛为单一命令 + 显式枚举。
+
+<ExcalidrawDiagram src="ax-fix-verbs" alt="修复：收敛重叠动词，改为单命令 + 显式枚举" />
+
+### 2) 乐观写入默认值
+
+`execute` 作为默认对人类省事，对 Agent 风险过高。修复方式：默认 `dry_run`，写操作必须显式确认。
+
+<ExcalidrawDiagram src="ax-fix-defaults" alt="修复：将默认从 execute 改为 dry_run" />
+
+### 3) 控制台式进度
+
+spinner 对人类有安抚作用，但对 Agent 没有可执行信息。修复方式：返回 `taskId`、`status`、`progress`。
+
+<ExcalidrawDiagram src="ax-fix-progress" alt="修复：把 spinner 替换为结构化任务状态" />
+
+### 4) 非结构化失败
+
+"去看日志" 是给人的操作建议，不是给机器的协议。修复方式：错误返回必须包含 `code`、`context`、`recovery`。
+
+<ExcalidrawDiagram src="ax-fix-failure" alt="修复：把自然语言报错改为结构化恢复负载" />
+
+---
+
+## AX 执行闭环
+
+我们最终收敛到一个五步闭环：
+
+1. **Plan**：目标和约束必须写明，不能靠猜
+2. **Scope**：只暴露相关工具，减少动词混淆
+3. **Act**：最小安全动作，默认 `dry_run`
+4. **Verify**：用显式标准验证结果
+5. **Recover**：结构化重试、回滚或升级
+
+<ExcalidrawDiagram src="dx-to-ax-loop" alt="AX 执行闭环：Plan、Scope、Act、Verify、Recover" />
+
+这套闭环的核心，是把不该由模型临场判断的决定，提前编码进接口契约里。
+
+---
+
+## AX 不是什么
+
+AX 不是 API 设计的换名。
+
+API 传统上假设操作者会读文档、写集成代码；AX 假设操作者在运行时第一次看到工具描述，并且要在单次决策中做对。
+
+AX 也不替代 DX。理想状态是两者并存：
+- 面向 Agent：严格 schema、可执行错误恢复
+- 面向人类：可读文案、清晰帮助文本
+
+---
+
+## 结论
+
+如果 Agent 将成为真实操作者，那么你过去为人类设计的每个模糊接口，都会变成可靠性债务。
+
+好消息是修复手段非常工程化：
+- 用枚举替换模糊字符串
+- 用必填字段替换隐式约定
+- 默认 `dry_run`
+- 错误返回结构化恢复动作
+
+**模型负责智能，接口负责清晰。AX 的本质，就是不再指望操作者替接口兜底。**
+
+---
+
+*相关协议与实践参考： [MCP 规范](https://modelcontextprotocol.io/specification/2025-06-18)、[Anthropic tool use](https://www.anthropic.com/engineering/advanced-tool-use)、[OpenAI function calling](https://platform.openai.com/docs/guides/function-calling)。*

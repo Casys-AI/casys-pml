@@ -1,0 +1,141 @@
+---
+title: "De la DX a l'AX : ce qui casse quand les agents deviennent operateurs"
+description: "On a optimise des annees pour le confort developpeur. Puis un agent a choisi publish au lieu de deploy et a pousse un package npm en production. Voici ce que change le passage de DX a AX."
+author: "Erwan Lee Pesle"
+date: 2026-03-05
+tags:
+  - agents
+  - ax
+  - dx
+  - cli
+  - mcp
+  - tooling
+category: "Produit"
+language: fr
+snippet: "Les humains absorbent l'ambiguite. Les agents l'amplifient. AX commence la ou DX s'arrete."
+featured: true
+draft: false
+---
+
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+> La fiabilite n'est pas venue de meilleurs prompts. Elle est venue d'une meilleure surface d'execution.
+
+---
+
+Nous avions trois commandes qui pouvaient publier du code : `deploy`, `publish`, `release`.
+
+Pour un developpeur, c'est confortable. On lit l'aide, on comprend le contexte, on choisit la bonne porte. Pour un agent, ces trois verbes sont presque identiques : meme forme, memes arguments, effets differents.
+
+Un agent a choisi `publish` alors que l'intention etait `deploy`. La commande a reussi. Le package est parti sur npm. Rapport final : succes. Techniquement vrai, operationnellement faux.
+
+C'est le point de bascule : nous avons cesse d'optimiser uniquement pour la **DX** et commence a concevoir pour la **AX**.
+
+---
+
+## La taxe d'erreur composee
+
+L'ambiguite ne reste jamais locale. Elle se propage.
+
+Une ambiguite au step 1 devient une mauvaise selection au step 2. Le default DX-friendly (`execute`) amplifie ensuite le risque. Au step 3, l'agent effectue une action destructive valide. Au step 4, vous ecrivez le postmortem.
+
+<ExcalidrawDiagram src="ax-ambiguity-cascade" alt="Taxe d'erreur composee : une ambiguite mineure au step 1 devient une erreur majeure au step 4" />
+
+**Les humains absorbent l'ambiguite. Les agents l'amplifient.** Et cette amplification est multiplicative, pas lineaire.
+
+---
+
+## Meme outil, deux operateurs
+
+Un humain lit une phrase comme "target environment" et complete les trous avec son experience.
+
+Un agent a besoin d'un contrat strict :
+- `target: enum["staging", "prod"]`
+- statuts structures
+- erreurs parseables
+- actions de recovery explicites
+
+<ExcalidrawDiagram src="ax-dx-contrast" alt="Meme interface, operateurs differents : ce que lit un developpeur vs ce que parse un agent" />
+
+| | Developpeur | Agent |
+| --- | --- | --- |
+| Discovery | Aide en prose | Schema JSON |
+| Decision | Intuition + contexte | Contraintes explicites |
+| Erreurs | Lire puis improviser | Parser puis appliquer |
+| Tolerance ambiguite | Elevée | Zero |
+
+Une DX excellente n'implique pas une AX correcte. Ce sont deux surfaces distinctes.
+
+---
+
+## Les quatre fractures recurrentes
+
+### 1) Verbes qui se chevauchent
+
+`deploy`, `publish`, `release` donnent de la souplesse humaine et de la confusion machine. Nous avons reduit a un verbe unique + enum explicite.
+
+<ExcalidrawDiagram src="ax-fix-verbs" alt="Correction : un seul verbe avec enum explicite" />
+
+### 2) Defaults optimistes
+
+Le default `execute` est pratique pour un humain et dangereux pour un agent. Le default est devenu `dry_run`; la mutation est toujours explicite.
+
+<ExcalidrawDiagram src="ax-fix-defaults" alt="Correction : basculer le default de execute vers dry_run" />
+
+### 3) Progression en mode console
+
+Spinner et texte libre sont lisibles pour un humain, inutilisables pour une boucle autonome. Les operations longues retournent maintenant `taskId`, `status`, `progress`.
+
+<ExcalidrawDiagram src="ax-fix-progress" alt="Correction : remplacer le spinner par un statut structure" />
+
+### 4) Echecs non structures
+
+"Check logs" est une instruction humaine, pas une API. Les erreurs doivent inclure code, contexte et recovery actionnables.
+
+<ExcalidrawDiagram src="ax-fix-failure" alt="Correction : remplacer l'erreur prose par un payload de recovery structure" />
+
+---
+
+## La boucle AX
+
+Apres plusieurs incidents, nous avons converge vers une boucle simple :
+
+1. **Plan** : objectif + contraintes explicites
+2. **Scope** : seuls les outils necessaires sont visibles
+3. **Act** : plus petite action sure, `dry_run` par default
+4. **Verify** : succes valide contre des criteres explicites
+5. **Recover** : retry, rollback ou escalation structures
+
+<ExcalidrawDiagram src="dx-to-ax-loop" alt="Boucle d'execution AX : Plan, Scope, Act, Verify, Recover" />
+
+Cette boucle retire au modele les decisions qu'il ne devrait jamais prendre sans garde-fous.
+
+---
+
+## Ce que l'AX n'est pas
+
+AX n'est pas un simple renommage de l'API design.
+
+Une API classique suppose un developpeur qui lit la doc. AX suppose un operateur qui decouvre l'outil au runtime et doit prendre une decision correcte en un seul passage.
+
+AX ne remplace pas DX. On peut avoir les deux :
+- schema strict pour les agents
+- aide claire pour les humains
+
+---
+
+## Conclusion
+
+Chaque outil concu pour l'humain devient fragile quand l'agent en devient l'operateur principal.
+
+Les corrections sont mecaniques :
+- enums a la place des strings floues
+- champs obligatoires a la place des implicites
+- `dry_run` par default
+- erreurs structurees avec recovery explicite
+
+**Le modele apporte l'intelligence. L'interface doit apporter la clarte.**
+
+---
+
+*Ces patterns sont deployes dans notre stack MCP sur [pml.casys.ai](https://pml.casys.ai). Pour les bases protocole : [spec MCP](https://modelcontextprotocol.io/specification/2025-06-18), [tool use Anthropic](https://www.anthropic.com/engineering/advanced-tool-use), [function calling OpenAI](https://platform.openai.com/docs/guides/function-calling).* 
