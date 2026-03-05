@@ -4,6 +4,7 @@ import {
   evaluateIntentCandidates,
   formatIntentCandidateLine,
 } from "./intent-candidates.ts";
+import { buildTargetIdentifierIndex } from "./target-identifiers.ts";
 
 function makeNode(name: string, overrides: Partial<CompiledNode> = {}): CompiledNode {
   return {
@@ -58,10 +59,13 @@ Deno.test("intent candidate formatter includes payload compatibility status", ()
       { target: "Candidate B", confidence: 0.13, path: ["Candidate B"] },
     ],
     { account_id: "acct-42" },
+    buildTargetIdentifierIndex(["Candidate A", "Candidate B"]),
   );
 
   assertEquals(candidates[0].payloadOk, true);
   assertEquals(candidates[1].payloadOk, false);
+  assertEquals(candidates[0].targetId, "candidate-a");
+  assertEquals(candidates[0].targetAlias, "c-a");
 
   const line1 = formatIntentCandidateLine(1, candidates[0]);
   const line2 = formatIntentCandidateLine(2, candidates[1]);
