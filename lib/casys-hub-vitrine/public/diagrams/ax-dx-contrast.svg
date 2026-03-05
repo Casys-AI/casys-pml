@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 550" width="1050" height="550">
+  <!-- svg-source:excalidraw — ax-dx-contrast.excalidraw -->
+  <rect x="0" y="0" width="1050" height="550" fill="#08080a"/>
+  <text x="540" y="56" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="36" fill="#f0ede8" text-anchor="middle">Same Tool, Different Operator</text>
+  <text x="540" y="86" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#9ca3af" text-anchor="middle">What the interface looks like from each side</text>
+  <text x="190" y="130" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#60a5fa" text-anchor="middle">DEVELOPER EXPERIENCE</text>
+  <rect x="20" y="145" width="460" height="80" rx="10" fill="#1a2744" stroke="#60a5fa" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle" y="169.8">
+    <tspan x="250">$ deploy --help</tspan>
+    <tspan x="250" dy="20.8">&quot;Deploy your project to the</tspan>
+    <tspan x="250" dy="20.8">target environment&quot;</tspan>
+  </text>
+  <rect x="20" y="240" width="460" height="70" rx="10" fill="#1a2744" stroke="#60a5fa" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle" y="270.2">
+    <tspan x="250">Deploying to staging...</tspan>
+    <tspan x="250" dy="20.8">████████████████ Done!</tspan>
+  </text>
+  <rect x="20" y="325" width="460" height="70" rx="10" fill="#1a2744" stroke="#60a5fa" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle" y="355.2">
+    <tspan x="250">Error: deploy failed.</tspan>
+    <tspan x="250" dy="20.8">Check logs for details.</tspan>
+  </text>
+  <text x="40" y="159" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#60a5fa" text-anchor="start">DISCOVERY</text>
+  <text x="40" y="254" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#60a5fa" text-anchor="start">PROGRESS</text>
+  <text x="40" y="339" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#60a5fa" text-anchor="start">FAILURE</text>
+  <path d="M520 110 L520 420" fill="none" stroke="#666666" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="535" y="453" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#666666" text-anchor="middle">same tool</text>
+  <text x="760" y="130" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#fbbf24" text-anchor="middle">AGENT EXPERIENCE</text>
+  <rect x="570" y="145" width="460" height="80" rx="10" fill="#1a1a1e" stroke="#fbbf24" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#f0ede8" text-anchor="middle" y="170.75">
+    <tspan x="800">target: enum[&quot;staging&quot;,&quot;prod&quot;]</tspan>
+    <tspan x="800" dy="19.5">mode: enum[&quot;dry_run&quot;,&quot;execute&quot;]</tspan>
+    <tspan x="800" dy="19.5">required: [&quot;target&quot;, &quot;mode&quot;]</tspan>
+  </text>
+  <rect x="570" y="240" width="460" height="70" rx="10" fill="#1a1a1e" stroke="#fbbf24" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#f0ede8" text-anchor="middle" y="270.5">
+    <tspan x="800">taskId: &quot;abc-123&quot;</tspan>
+    <tspan x="800" dy="19.5">status: &quot;running&quot; | progress: 0.73</tspan>
+  </text>
+  <rect x="570" y="325" width="460" height="70" rx="10" fill="#1a1a1e" stroke="#fbbf24" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#f0ede8" text-anchor="middle" y="355.5">
+    <tspan x="800">code: &quot;CONFLICT&quot;</tspan>
+    <tspan x="800" dy="19.5">recovery: { action: &quot;retry&quot;, delay: 5000 }</tspan>
+  </text>
+  <text x="590" y="159" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#fbbf24" text-anchor="start">SCHEMA</text>
+  <text x="590" y="254" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#fbbf24" text-anchor="start">STATE</text>
+  <text x="590" y="339" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#fbbf24" text-anchor="start">STRUCTURED</text>
+  <rect x="20" y="480" width="1010" height="50" rx="10" fill="#1a1a1e" stroke="#666666" stroke-width="2"/>
+  <text x="525" y="510.95" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="17" fill="#f0ede8" text-anchor="middle">DX optimizes the left column.  AX optimizes the right.  You can have both.</text>
+</svg>

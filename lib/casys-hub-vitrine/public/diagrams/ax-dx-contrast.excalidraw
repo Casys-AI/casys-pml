@@ -1,0 +1,342 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys Hub Vitrine",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 200,
+      "y": 20,
+      "width": 700,
+      "height": 44,
+      "text": "Same Tool, Different Operator",
+      "fontSize": 36,
+      "fontFamily": 5,
+      "textAlign": "center",
+      "verticalAlign": "top",
+      "strokeColor": "#f0ede8"
+    },
+    {
+      "id": "subtitle",
+      "type": "text",
+      "x": 220,
+      "y": 68,
+      "width": 660,
+      "height": 22,
+      "text": "What the interface looks like from each side",
+      "fontSize": 18,
+      "fontFamily": 5,
+      "textAlign": "center",
+      "verticalAlign": "top",
+      "strokeColor": "#9ca3af"
+    },
+
+    {
+      "id": "dx-header",
+      "type": "text",
+      "x": 50,
+      "y": 110,
+      "width": 300,
+      "height": 24,
+      "text": "DEVELOPER EXPERIENCE",
+      "fontSize": 20,
+      "fontFamily": 5,
+      "textAlign": "center",
+      "verticalAlign": "top",
+      "strokeColor": "#60a5fa"
+    },
+
+    {
+      "id": "dx-box1",
+      "type": "rectangle",
+      "x": 30,
+      "y": 145,
+      "width": 460,
+      "height": 80,
+      "strokeColor": "#60a5fa",
+      "backgroundColor": "#1a2744",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 10 },
+      "label": {
+        "text": "$ deploy --help\n\"Deploy your project to the\ntarget environment\"",
+        "fontSize": 16,
+        "fontFamily": 5,
+        "strokeColor": "#f0ede8",
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      }
+    },
+    {
+      "id": "dx-box2",
+      "type": "rectangle",
+      "x": 30,
+      "y": 240,
+      "width": 460,
+      "height": 70,
+      "strokeColor": "#60a5fa",
+      "backgroundColor": "#1a2744",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 10 },
+      "label": {
+        "text": "Deploying to staging...\n████████████████ Done!",
+        "fontSize": 16,
+        "fontFamily": 5,
+        "strokeColor": "#f0ede8",
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      }
+    },
+    {
+      "id": "dx-box3",
+      "type": "rectangle",
+      "x": 30,
+      "y": 325,
+      "width": 460,
+      "height": 70,
+      "strokeColor": "#60a5fa",
+      "backgroundColor": "#1a2744",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 10 },
+      "label": {
+        "text": "Error: deploy failed.\nCheck logs for details.",
+        "fontSize": 16,
+        "fontFamily": 5,
+        "strokeColor": "#f0ede8",
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      }
+    },
+
+    {
+      "id": "dx-label1",
+      "type": "text",
+      "x": 50,
+      "y": 148,
+      "width": 80,
+      "height": 14,
+      "text": "DISCOVERY",
+      "fontSize": 11,
+      "fontFamily": 5,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "strokeColor": "#60a5fa"
+    },
+    {
+      "id": "dx-label2",
+      "type": "text",
+      "x": 50,
+      "y": 243,
+      "width": 80,
+      "height": 14,
+      "text": "PROGRESS",
+      "fontSize": 11,
+      "fontFamily": 5,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "strokeColor": "#60a5fa"
+    },
+    {
+      "id": "dx-label3",
+      "type": "text",
+      "x": 50,
+      "y": 328,
+      "width": 80,
+      "height": 14,
+      "text": "FAILURE",
+      "fontSize": 11,
+      "fontFamily": 5,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "strokeColor": "#60a5fa"
+    },
+
+    {
+      "id": "divider",
+      "type": "line",
+      "x": 530,
+      "y": 110,
+      "width": 0,
+      "height": 310,
+      "strokeColor": "#666666",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roughness": 0,
+      "points": [[0, 0], [0, 310]],
+      "startArrowhead": null,
+      "endArrowhead": null
+    },
+    {
+      "id": "divider-label",
+      "type": "text",
+      "x": 505,
+      "y": 440,
+      "width": 80,
+      "height": 16,
+      "text": "same tool",
+      "fontSize": 13,
+      "fontFamily": 5,
+      "textAlign": "center",
+      "verticalAlign": "top",
+      "strokeColor": "#666666"
+    },
+
+    {
+      "id": "ax-header",
+      "type": "text",
+      "x": 620,
+      "y": 110,
+      "width": 300,
+      "height": 24,
+      "text": "AGENT EXPERIENCE",
+      "fontSize": 20,
+      "fontFamily": 5,
+      "textAlign": "center",
+      "verticalAlign": "top",
+      "strokeColor": "#fbbf24"
+    },
+
+    {
+      "id": "ax-box1",
+      "type": "rectangle",
+      "x": 580,
+      "y": 145,
+      "width": 460,
+      "height": 80,
+      "strokeColor": "#fbbf24",
+      "backgroundColor": "#1a1a1e",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 10 },
+      "label": {
+        "text": "target: enum[\"staging\",\"prod\"]\nmode: enum[\"dry_run\",\"execute\"]\nrequired: [\"target\", \"mode\"]",
+        "fontSize": 15,
+        "fontFamily": 5,
+        "strokeColor": "#f0ede8",
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      }
+    },
+    {
+      "id": "ax-box2",
+      "type": "rectangle",
+      "x": 580,
+      "y": 240,
+      "width": 460,
+      "height": 70,
+      "strokeColor": "#fbbf24",
+      "backgroundColor": "#1a1a1e",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 10 },
+      "label": {
+        "text": "taskId: \"abc-123\"\nstatus: \"running\" | progress: 0.73",
+        "fontSize": 15,
+        "fontFamily": 5,
+        "strokeColor": "#f0ede8",
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      }
+    },
+    {
+      "id": "ax-box3",
+      "type": "rectangle",
+      "x": 580,
+      "y": 325,
+      "width": 460,
+      "height": 70,
+      "strokeColor": "#fbbf24",
+      "backgroundColor": "#1a1a1e",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 10 },
+      "label": {
+        "text": "code: \"CONFLICT\"\nrecovery: { action: \"retry\", delay: 5000 }",
+        "fontSize": 15,
+        "fontFamily": 5,
+        "strokeColor": "#f0ede8",
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      }
+    },
+
+    {
+      "id": "ax-label1",
+      "type": "text",
+      "x": 600,
+      "y": 148,
+      "width": 80,
+      "height": 14,
+      "text": "SCHEMA",
+      "fontSize": 11,
+      "fontFamily": 5,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "strokeColor": "#fbbf24"
+    },
+    {
+      "id": "ax-label2",
+      "type": "text",
+      "x": 600,
+      "y": 243,
+      "width": 80,
+      "height": 14,
+      "text": "STATE",
+      "fontSize": 11,
+      "fontFamily": 5,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "strokeColor": "#fbbf24"
+    },
+    {
+      "id": "ax-label3",
+      "type": "text",
+      "x": 600,
+      "y": 328,
+      "width": 100,
+      "height": 14,
+      "text": "STRUCTURED",
+      "fontSize": 11,
+      "fontFamily": 5,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "strokeColor": "#fbbf24"
+    },
+
+    {
+      "id": "bottom-box",
+      "type": "rectangle",
+      "x": 30,
+      "y": 480,
+      "width": 1010,
+      "height": 50,
+      "strokeColor": "#666666",
+      "backgroundColor": "#1a1a1e",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 10 },
+      "label": {
+        "text": "DX optimizes the left column.  AX optimizes the right.  You can have both.",
+        "fontSize": 17,
+        "fontFamily": 5,
+        "strokeColor": "#f0ede8",
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      }
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#08080a",
+    "gridSize": 20
+  }
+}

@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 380" font-family="'Inter','Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="a-gold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L8,5 L0,9Z" fill="#fbbf24"/></marker>
+    <marker id="a-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L8,5 L0,9Z" fill="#60a5fa"/></marker>
+    <marker id="a-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L8,5 L0,9Z" fill="#4ade80"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="780" height="380" fill="#08080a" rx="8"/>
+
+  <!-- Title -->
+  <text x="390" y="28" text-anchor="middle" fill="#9ca3af" font-size="13" font-weight="600" letter-spacing="0.5">THE AX EXECUTION LOOP</text>
+
+  <!-- ── Happy path: 4 step cards ── -->
+
+  <!-- Step 1: Plan -->
+  <rect x="20" y="55" width="160" height="100" rx="10" fill="#1a1a1e" stroke="#fbbf24" stroke-width="1.5"/>
+  <circle cx="44" cy="76" r="12" fill="#fbbf24" opacity="0.15"/>
+  <text x="44" y="81" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="700">1</text>
+  <text x="62" y="81" fill="#f0ede8" font-size="14" font-weight="600">Plan</text>
+  <text x="100" y="108" text-anchor="middle" fill="#9ca3af" font-size="11">Goal + constraints</text>
+  <text x="100" y="124" text-anchor="middle" fill="#6b7280" font-size="10">stated, not inferred</text>
+
+  <!-- Step 2: Scope -->
+  <rect x="210" y="55" width="160" height="100" rx="10" fill="#1a1a1e" stroke="#fbbf24" stroke-width="1.5"/>
+  <circle cx="234" cy="76" r="12" fill="#fbbf24" opacity="0.15"/>
+  <text x="234" y="81" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="700">2</text>
+  <text x="256" y="81" fill="#f0ede8" font-size="14" font-weight="600">Scope</text>
+  <text x="290" y="108" text-anchor="middle" fill="#9ca3af" font-size="11">Relevant tools only</text>
+  <text x="290" y="124" text-anchor="middle" fill="#6b7280" font-size="10">no verb confusion</text>
+
+  <!-- Step 3: Act -->
+  <rect x="400" y="55" width="160" height="100" rx="10" fill="#1a1a1e" stroke="#fbbf24" stroke-width="1.5"/>
+  <circle cx="424" cy="76" r="12" fill="#fbbf24" opacity="0.15"/>
+  <text x="424" y="81" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="700">3</text>
+  <text x="444" y="81" fill="#f0ede8" font-size="14" font-weight="600">Act</text>
+  <text x="480" y="108" text-anchor="middle" fill="#9ca3af" font-size="11">Smallest safe step</text>
+  <text x="480" y="124" text-anchor="middle" fill="#6b7280" font-size="10">dry_run by default</text>
+
+  <!-- Step 4: Verify -->
+  <rect x="590" y="55" width="160" height="100" rx="10" fill="#1a1a1e" stroke="#fbbf24" stroke-width="1.5"/>
+  <circle cx="614" cy="76" r="12" fill="#fbbf24" opacity="0.15"/>
+  <text x="614" y="81" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="700">4</text>
+  <text x="642" y="81" fill="#f0ede8" font-size="14" font-weight="600">Verify</text>
+  <text x="670" y="108" text-anchor="middle" fill="#9ca3af" font-size="11">Explicit criteria</text>
+  <text x="670" y="124" text-anchor="middle" fill="#6b7280" font-size="10">not silent success</text>
+
+  <!-- ── Happy path arrows ── -->
+  <path d="M180,105 L210,105" fill="none" stroke="#fbbf24" stroke-width="2" marker-end="url(#a-gold)"/>
+  <path d="M370,105 L400,105" fill="none" stroke="#fbbf24" stroke-width="2" marker-end="url(#a-gold)"/>
+  <path d="M560,105 L590,105" fill="none" stroke="#fbbf24" stroke-width="2" marker-end="url(#a-gold)"/>
+
+  <!-- Happy path label -->
+  <text x="390" y="50" text-anchor="middle" fill="#fbbf24" font-size="10" opacity="0.7">happy path</text>
+
+  <!-- ── Step 5: Recover (centered below) ── -->
+  <rect x="285" y="220" width="210" height="100" rx="10" fill="#1a1a1e" stroke="#60a5fa" stroke-width="1.5"/>
+  <circle cx="314" cy="244" r="12" fill="#60a5fa" opacity="0.15"/>
+  <text x="314" y="249" text-anchor="middle" fill="#60a5fa" font-size="13" font-weight="700">5</text>
+  <text x="342" y="249" fill="#f0ede8" font-size="14" font-weight="600">Recover</text>
+  <text x="390" y="278" text-anchor="middle" fill="#9ca3af" font-size="11">Retry, rollback, or escalate</text>
+  <text x="390" y="294" text-anchor="middle" fill="#6b7280" font-size="10">structured error → decision</text>
+
+  <!-- ── Failure path: Verify bottom → Recover top ── -->
+  <path d="M670,155 C670,180 670,200 620,210 C560,220 440,220 390,220"
+        fill="none" stroke="#60a5fa" stroke-width="2" stroke-dasharray="6,3"
+        marker-end="url(#a-blue)"/>
+  <text x="640" y="198" fill="#60a5fa" font-size="10" opacity="0.8">fail</text>
+
+  <!-- ── Recovery loop: Recover left → Plan left ── -->
+  <path d="M285,270 C200,270 30,260 20,200 C12,150 12,115 20,105"
+        fill="none" stroke="#4ade80" stroke-width="2" stroke-dasharray="6,3"
+        marker-end="url(#a-green)" opacity="0.8"/>
+  <text x="32" y="200" fill="#4ade80" font-size="10" opacity="0.8">retry</text>
+
+  <!-- ── Bottom bar ── -->
+  <rect x="20" y="340" width="740" height="30" rx="8" fill="#1a1a1e" stroke="#666666" stroke-width="1"/>
+  <text x="390" y="360" text-anchor="middle" fill="#9ca3af" font-size="12">Guardrails + structured errors + resumable state → fewer retries, lower escalation cost</text>
+</svg>

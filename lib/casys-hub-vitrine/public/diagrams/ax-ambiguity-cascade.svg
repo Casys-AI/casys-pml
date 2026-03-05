@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 420" width="1080" height="420">
+  <!-- svg-source:excalidraw — ax-ambiguity-cascade.excalidraw -->
+  <defs>
+    <marker id="ah-4ade80" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#4ade80"/></marker>
+    <marker id="ah-ef4444" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#ef4444"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="1080" height="420" fill="#08080a"/>
+  <text x="540" y="56" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="36" fill="#f0ede8" text-anchor="middle">The Compound Error Tax</text>
+  <text x="540" y="86" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#9ca3af" text-anchor="middle">Same intent, two operators, very different outcomes</text>
+  <rect x="20" y="130" width="160" height="120" rx="12" fill="#1a1a1e" stroke="#fbbf24" stroke-width="3"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#fbbf24" text-anchor="middle" y="172.9">
+    <tspan x="100">Intent</tspan>
+    <tspan x="100" dy="23.4">&quot;deploy</tspan>
+    <tspan x="100" dy="23.4">to staging&quot;</tspan>
+  </text>
+  <text x="220" y="128" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#4ade80" text-anchor="start">HUMAN OPERATOR</text>
+  <rect x="220" y="135" width="170" height="50" rx="8" fill="#1a3a1a" stroke="#4ade80" stroke-width="2"/>
+  <text x="305" y="165.6" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle">Reads help text</text>
+  <rect x="430" y="135" width="170" height="50" rx="8" fill="#1a3a1a" stroke="#4ade80" stroke-width="2"/>
+  <text x="515" y="165.6" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle">Picks deploy</text>
+  <rect x="640" y="135" width="170" height="50" rx="8" fill="#1a3a1a" stroke="#4ade80" stroke-width="2"/>
+  <text x="725" y="165.6" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle">Runs --dry-run</text>
+  <rect x="850" y="125" width="200" height="70" rx="10" fill="#1a3a1a" stroke="#4ade80" stroke-width="3"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#4ade80" text-anchor="middle" y="155.2">
+    <tspan x="950">Staging deployed</tspan>
+    <tspan x="950" dy="20.8">Cost: 5 seconds</tspan>
+  </text>
+  <text x="220" y="238" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#ef4444" text-anchor="start">AGENT OPERATOR</text>
+  <rect x="220" y="245" width="170" height="50" rx="8" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text x="305" y="275.6" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle">No enum values</text>
+  <rect x="430" y="245" width="170" height="50" rx="8" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text x="515" y="275.6" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle">Picks publish</text>
+  <rect x="640" y="245" width="170" height="50" rx="8" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text x="725" y="275.6" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle">Default: execute</text>
+  <rect x="850" y="235" width="200" height="70" rx="10" fill="#3a1a2e" stroke="#ef4444" stroke-width="3"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#ef4444" text-anchor="middle" y="265.2">
+    <tspan x="950">Published to npm</tspan>
+    <tspan x="950" dy="20.8">Cost: rollback</tspan>
+  </text>
+  <path d="M180 160 L220 160" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <path d="M180 270 L220 270" fill="none" stroke="#ef4444" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ef4444)"/>
+  <path d="M390 160 L430 160" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <path d="M600 160 L640 160" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <path d="M810 160 L850 160" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
+  <path d="M390 270 L430 270" fill="none" stroke="#ef4444" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ef4444)"/>
+  <path d="M600 270 L640 270" fill="none" stroke="#ef4444" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ef4444)"/>
+  <path d="M810 270 L850 270" fill="none" stroke="#ef4444" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ef4444)"/>
+  <text x="290" y="204" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#4ade80" text-anchor="start">Ambiguity absorbed at step 2</text>
+  <text x="290" y="314" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#ef4444" text-anchor="start">Ambiguity compounded through step 4</text>
+  <rect x="20" y="350" width="1040" height="50" rx="10" fill="#1a1a1e" stroke="#666666" stroke-width="2"/>
+  <text x="540" y="381.3" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#f0ede8" text-anchor="middle">Human operators absorb ambiguity. Agent operators amplify it.</text>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 690 120" width="690" height="120">
+  <!-- svg-source:excalidraw — ax-fix-verbs.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="690" height="120" fill="#08080a"/>
+  <rect x="20" y="20" width="260" height="80" rx="10" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#f0ede8" text-anchor="middle" y="55.5">
+    <tspan x="150">deploy | publish | release</tspan>
+    <tspan x="150" dy="19.5">3 verbs, overlapping intent</tspan>
+  </text>
+  <path d="M290 60 L360 60" fill="none" stroke="#666666" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="370" y="20" width="300" height="80" rx="10" fill="#1a3a1a" stroke="#4ade80" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="15" fill="#f0ede8" text-anchor="middle" y="55.5">
+    <tspan x="520">deploy target: enum[&quot;staging&quot;,&quot;prod&quot;]</tspan>
+    <tspan x="520" dy="19.5">1 verb, zero ambiguity</tspan>
+  </text>
+</svg>

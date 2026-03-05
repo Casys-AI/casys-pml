@@ -36,6 +36,6 @@
   <path d="M445 70 L445 105" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-a78bfa)"/>
   <path d="M325 131 L325 165" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-4ade80)"/>
   <path d="M445 131 L460 165" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ef4444)"/>
-  <rect x="268" y="158" width="244" height="38" rx="8" fill="transparent" stroke="#ef4444" stroke-width="1.5"/>
+  <rect x="335" y="158" width="175" height="38" rx="8" fill="transparent" stroke="#ef4444" stroke-width="1.5"/>
   <text x="425" y="209" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="9" fill="#ef4444" text-anchor="middle">Conflict visible!</text>
 </svg>

@@ -1,0 +1,172 @@
+---
+title: "From DX to AX: What Broke When Agents Became the Operators"
+description: "We spent years making tools pleasant for developers. Then an LLM picked publish instead of deploy and shipped a package to npm while trying to update staging. Here is what we learned about designing for operators that cannot read between the lines."
+author: "Erwan Lee Pesle"
+date: 2026-03-05
+tags:
+  - agents
+  - ax
+  - dx
+  - cli
+  - mcp
+  - tooling
+category: "Product"
+language: en
+snippet: "Human operators absorb ambiguity. Agent operators amplify it. AX starts where DX stops."
+featured: true
+draft: false
+---
+
+import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
+
+# From DX to AX: What Broke When Agents Became the Operators
+
+> We did not get reliability by writing better prompts. We got reliability by giving agents a better operating surface.
+
+---
+
+We had three commands that could ship code: `deploy`, `publish`, and `release`.
+
+For a developer, the overlap was ergonomic — three doors to the same room. You read the help text, you know which door you want. If you pick wrong, you catch it before anything leaves the building. That intuition is the invisible substrate DX was built on: the assumption that the person holding the keyboard can *feel* when something is off.
+
+Then an agent picked `publish` when the intent was `deploy`. The tool accepted the input, executed cleanly, and pushed a package to the npm registry. The agent reported success — because the command *did* succeed. Correct invocation, valid arguments, exit code zero. It had done exactly what it was told. It just was not what anyone meant.
+
+Nobody caught it because there was nothing to catch. No error. No warning. No red text. Just a package that should not exist on a public registry, discovered three hours later by a human who happened to notice.
+
+Don Norman — the man who gave us *The Design of Everyday Things* — would have recognized the pattern instantly. A door that looks like it should be pushed but needs to be pulled is not a user error. **It is a design error.** The three commands looked different to humans and identical to an agent: three tool names, same parameter shapes, no enum distinguishing their effects. The door had no affordance for a non-human operator.
+
+That was the moment we stopped optimizing for developer pleasure and started optimizing for agent correctness. That is the shift from **DX** to **AX**.
+
+---
+
+## The Compound Error Tax
+
+Here is the thing nobody tells you about ambient ambiguity in tooling: it compounds.
+
+A developer encounters a fuzzy verb at step 1. They squint, they read the docs, they pick the right one. Ambiguity absorbed. This is the invisible superpower that DX was designed around — the capacity of human operators to resolve uncertainty from context, habit, and gut feeling.
+
+An agent encounters the same fuzzy verb and has none of those tools. A wrong pick at step 1 flows into a wrong mode at step 2 — because the DX-friendly default was `execute`, not `dry_run`. By step 3, the agent is faithfully running a destructive operation it should never have started. By step 4, you are writing an incident postmortem.
+
+<ExcalidrawDiagram src="ax-ambiguity-cascade" alt="The Compound Error Tax: how a small ambiguity at step 1 becomes an expensive mistake by step 4" />
+
+Charles Perrow studied this pattern in nuclear plants and chemical refineries. He called it "normal accidents" — system failures that emerge not from broken parts, but from the unexpected interaction between parts that each work correctly in isolation. Your `publish` command works fine. Your agent works fine. Connect them without strict contracts and the system produces outcomes nobody intended. Perrow's insight was that **these failures are not bugs. They are structural properties of tightly coupled systems with ambiguous interfaces.**
+
+The parallel to agent-operated tooling is exact. Every fuzzy default, every overlapping verb, every "the developer will figure it out" — it works for DX because human operators decouple the system at every step with judgment. Remove the judgment layer, and the coupling goes tight. Tight coupling plus ambiguity equals compound errors.
+
+**Human operators absorb ambiguity. Agent operators amplify it.** And the amplification is not linear — it is multiplicative, because each wrong step narrows the corridor of valid next steps until the only remaining path is the wrong one.
+
+---
+
+## Same Tool, Two Operators
+
+The disconnect becomes obvious when you look at the same interface from both sides.
+
+A developer runs `deploy --help` and reads a sentence: "Deploy your project to the target environment." They know what "target environment" means from context. They know `staging` because they deployed there yesterday. The progress bar says "Deploying..." and they wait. When it fails, they read "Error: deploy failed — check logs" and they open the logs. Every step relies on inference, memory, and judgment.
+
+An agent reads the JSON Schema. It does not infer "target environment" — it needs `target: enum["staging", "prod"]`. It does not watch progress bars — it needs `{ taskId: "abc-123", status: "running", progress: 0.73 }`. When it fails, "check logs" is meaningless — it needs `{ code: "CONFLICT", recovery: { action: "retry", delay_ms: 5000 } }`.
+
+<ExcalidrawDiagram src="ax-dx-contrast" alt="Same interface, different operators: what developers read versus what agents parse" />
+
+| | Developer | Agent |
+| --- | --- | --- |
+| Discovery | Help text, prose | JSON Schema, enums |
+| Decision | Pattern recognition | Constraint satisfaction |
+| Error handling | Read message, search docs | Parse code, match recovery action |
+| Tolerance for ambiguity | High | **Zero** |
+
+**DX optimizes the left column. AX optimizes the right.** And the uncomfortable finding is that you can have world-class DX and catastrophic AX on the exact same tool — because nobody stress-tested the interface against an operator that processes everything literally and infers nothing.
+
+This is not a hypothetical tradeoff. The [MCP specification](https://modelcontextprotocol.io/specification/2025-06-18) was designed from the start for the right column — strict JSON Schema, structured tool results, explicit error categories. Function-calling specs from [OpenAI](https://platform.openai.com/docs/guides/function-calling) and [Anthropic](https://www.anthropic.com/engineering/advanced-tool-use) converge on the same principle: the tighter the contract, the less the model hallucinates about what a tool does.
+
+---
+
+## The Four Fractures
+
+The same four failure modes showed up in every production incident we investigated. Not occasionally — **every time.** They are structural, not incidental.
+
+### Overlapping verbs
+
+`deploy`, `publish`, `release` — three verbs that a developer distinguishes instantly and an agent disambiguates by coin flip. We collapsed them into one command with an explicit `target` enum. One verb, zero ambiguity. The variety that felt ergonomic for DX was a combinatorial trap for AX.
+
+<ExcalidrawDiagram src="ax-fix-verbs" alt="Fix: collapse overlapping verbs into one command with an explicit enum" />
+
+Suchman's *Plans and Situated Actions* (1987) predicted this forty years ago: human action is not plan-driven but context-driven. The plan is a resource, not a specification. DX was designed for situated actors. Agents are plan executors. **The affordance that helps a situated actor actively misleads a plan executor.**
+
+### Optimistic write defaults
+
+The default mode was `execute` — because developers find `--dry-run` tedious. For agents, the default is now `dry_run`. You must explicitly opt into mutation.
+
+<ExcalidrawDiagram src="ax-fix-defaults" alt="Fix: flip the default from execute to dry_run" />
+
+Aviation's Crew Resource Management arrived at the same principle: checklists exist not because pilots are incompetent, but because the cost of an uncaught error exceeds the cost of an extra confirmation step by orders of magnitude. **The question is never "is the extra step annoying?" It is "what happens when you skip it?"** For a human, skipping `dry_run` costs a quick rollback. For an agent in an autonomous loop at 3 AM, skipping it costs whatever the blast radius of the mutation is, times however many iterations ran before someone noticed.
+
+### Console-shaped progress
+
+Spinners and progress bars are excellent DX. They are also pure decoration — a stream of characters that say "something is happening" without saying what, how long, or what to do if it takes too long.
+
+<ExcalidrawDiagram src="ax-fix-progress" alt="Fix: replace spinner with structured task status" />
+
+Long-running operations now return a stable task ID and a machine-readable status. The agent polls, pauses, resumes, and makes bounded decisions. The spinner was a lie we told humans because humans are patient and can alt-tab. An agent waiting on a spinner is an agent burning tokens doing nothing.
+
+### Unstructured failure
+
+"Error: something went wrong, check the logs" is not an error message. It is a *human instruction* disguised as an error message. It assumes an operator who can open a terminal, grep logs, form hypotheses, and improvise. An agent cannot do any of those things.
+
+<ExcalidrawDiagram src="ax-fix-failure" alt="Fix: replace prose errors with structured recovery payloads" />
+
+Errors now return structured payloads:
+
+```json
+{
+  "code": "CONFLICT",
+  "message": "Resource locked by task-abc-123",
+  "recovery": { "action": "retry", "delay_ms": 5000 },
+  "context": { "locked_by": "task-abc-123", "lock_ttl_ms": 30000 }
+}
+```
+
+Can the agent retry? How long should it wait? Must it escalate? If the error does not answer these questions in machine-readable form, it is a DX error — written for a human operator who will read the sentence and decide. **An agent does not read sentences. It matches patterns. If the pattern is not in the payload, the decision does not happen.**
+
+---
+
+## The Loop
+
+After iterating through enough failures, we converged on a five-step cycle. Not because it is novel — it is deliberately boring — but because each step eliminates a specific failure mode from the list above.
+
+1. **Plan** — objective and constraints are stated, not inferred
+2. **Scope** — only relevant tools are visible (prevents verb confusion)
+3. **Act** — smallest safe step, `dry_run` by default (prevents optimistic writes)
+4. **Verify** — outcome checked against explicit criteria (prevents silent success)
+5. **Recover** — structured retry, rollback, or escalation (prevents unstructured failure)
+
+<ExcalidrawDiagram src="dx-to-ax-loop" alt="The AX Execution Loop: Plan, Scope, Act, Verify, Recover" />
+
+There is nothing exotic here.
+
+The entire point is that there should not be. **Reliability in agent systems does not come from smarter models. It comes from removing the decisions that models should never have been making in the first place.** Every enum, every `dry_run` default, every structured error code is a decision extracted from the model's judgment and encoded into the interface. What remains for the model is the part it is actually good at: understanding intent and selecting the right tool for the job.
+
+---
+
+## What AX Is Not
+
+AX is not a rebrand of API design. APIs were designed for developers who write integration code and read documentation. AX is designed for operators that receive tool descriptions at runtime, have never seen the tool before, and must make correct decisions from the schema alone — in a single pass, with no ability to ask for clarification.
+
+AX is not about dumbing down interfaces. The MCP tools we ship today expose more parameters than they did a year ago, not fewer. But every parameter has a strict type, every enum is exhaustive, and every error carries enough structure for a state machine to act on. **The interface is richer. The ambiguity is gone.**
+
+And AX does not replace DX. The same tool can have excellent DX *and* excellent AX — if the schema is strict enough for agents and the help text is clear enough for humans. These are not competing goals. They are orthogonal surfaces on the same capability.
+
+---
+
+## The Uncomfortable Conclusion
+
+Here is the part that is hard to accept.
+
+Every developer tool you have ever built — if agents are going to operate it — is a liability until you have audited it for compound ambiguity. Not because your tool is bad. Because your tool was designed for an operator that no longer exists as the sole consumer.
+
+The good news is that the fixes are mechanical. Enums where strings were. Required fields where optionals were. `dry_run` where `execute` was default. Structured errors where sentences were. You do not need to rearchitect. You need to tighten.
+
+**The model brings the intelligence. The interface must bring the clarity. AX is what happens when you stop expecting the operator to compensate for the interface — and start expecting the interface to compensate for the operator.**
+
+---
+
+*The design patterns described here are implemented in our MCP tooling at [pml.casys.ai](https://pml.casys.ai). The [MCP specification](https://modelcontextprotocol.io/specification/2025-06-18), [Anthropic's tool use documentation](https://www.anthropic.com/engineering/advanced-tool-use), and [OpenAI's function calling guides](https://platform.openai.com/docs/guides/function-calling) provide the protocol foundations. Perrow's Normal Accidents (1984), Suchman's Plans and Situated Actions (1987), and Norman's The Design of Everyday Things (1988) supply the theoretical framework. The [CLIG guidelines](https://clig.dev/) informed the DX baseline.*

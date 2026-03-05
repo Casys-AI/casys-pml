@@ -1,0 +1,69 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys Hub Vitrine",
+  "elements": [
+    {
+      "id": "dx-box",
+      "type": "rectangle",
+      "x": 20,
+      "y": 20,
+      "width": 260,
+      "height": 80,
+      "strokeColor": "#ef4444",
+      "backgroundColor": "#3a1a2e",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 10 },
+      "label": {
+        "text": "Deploying... ████ Done!\nno task ID, no query endpoint",
+        "fontSize": 15,
+        "fontFamily": 5,
+        "strokeColor": "#f0ede8",
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      }
+    },
+    {
+      "id": "arrow",
+      "type": "arrow",
+      "x": 290,
+      "y": 60,
+      "width": 70,
+      "height": 0,
+      "strokeColor": "#666666",
+      "strokeWidth": 3,
+      "roughness": 0,
+      "points": [[0, 0], [70, 0]],
+      "startArrowhead": null,
+      "endArrowhead": "arrow"
+    },
+    {
+      "id": "ax-box",
+      "type": "rectangle",
+      "x": 370,
+      "y": 20,
+      "width": 300,
+      "height": 80,
+      "strokeColor": "#4ade80",
+      "backgroundColor": "#1a3a1a",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 10 },
+      "label": {
+        "text": "taskId: \"abc-123\"\nstatus: \"running\" | progress: 0.73",
+        "fontSize": 15,
+        "fontFamily": 5,
+        "strokeColor": "#f0ede8",
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      }
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#08080a",
+    "gridSize": 20
+  }
+}

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 505" width="940" height="505">
+  <!-- svg-source:excalidraw — ax-four-fractures.excalidraw -->
+  <defs>
+    <marker id="ah-666666" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#666666"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="940" height="505" fill="#08080a"/>
+  <text x="520" y="52" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="32" fill="#f0ede8" text-anchor="middle">The Four Fractures: Before &amp; After</text>
+  <text x="520" y="78" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#9ca3af" text-anchor="middle">Same capability, two operating surfaces</text>
+  <text x="330" y="116" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#ef4444" text-anchor="middle">DX DEFAULT</text>
+  <text x="710" y="116" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#4ade80" text-anchor="middle">AX FIX</text>
+  <text x="20" y="153" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start">VERBS</text>
+  <rect x="150" y="130" width="270" height="55" rx="8" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle" y="153.3">
+    <tspan x="285">deploy | publish | release</tspan>
+    <tspan x="285" dy="18.2">3 verbs, overlapping intent</tspan>
+  </text>
+  <path d="M425 157 L515 157" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="520" y="130" width="270" height="55" rx="8" fill="#1a3a1a" stroke="#4ade80" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle" y="153.3">
+    <tspan x="655">deploy target: enum</tspan>
+    <tspan x="655" dy="18.2">1 verb, explicit target</tspan>
+  </text>
+  <text x="20" y="228" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start">DEFAULTS</text>
+  <rect x="150" y="205" width="270" height="55" rx="8" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle" y="228.3">
+    <tspan x="285">mode: execute (default)</tspan>
+    <tspan x="285" dy="18.2">--dry-run if you remember</tspan>
+  </text>
+  <path d="M425 232 L515 232" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="520" y="205" width="270" height="55" rx="8" fill="#1a3a1a" stroke="#4ade80" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle" y="228.3">
+    <tspan x="655">mode: dry_run (default)</tspan>
+    <tspan x="655" dy="18.2">explicit opt-in to mutate</tspan>
+  </text>
+  <text x="20" y="303" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start">PROGRESS</text>
+  <rect x="150" y="280" width="270" height="55" rx="8" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle" y="303.3">
+    <tspan x="285">Deploying... ████ Done!</tspan>
+    <tspan x="285" dy="18.2">no taskId, no query</tspan>
+  </text>
+  <path d="M425 307 L515 307" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="520" y="280" width="270" height="55" rx="8" fill="#1a3a1a" stroke="#4ade80" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle" y="303.3">
+    <tspan x="655">taskId: &quot;abc-123&quot;</tspan>
+    <tspan x="655" dy="18.2">status: running | progress: 0.73</tspan>
+  </text>
+  <text x="20" y="378" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#fbbf24" text-anchor="start">FAILURE</text>
+  <rect x="150" y="355" width="270" height="55" rx="8" fill="#3a1a2e" stroke="#ef4444" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle" y="378.3">
+    <tspan x="285">&quot;Error: deploy failed.</tspan>
+    <tspan x="285" dy="18.2">Check logs for details.&quot;</tspan>
+  </text>
+  <path d="M425 382 L515 382" fill="none" stroke="#666666" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-666666)"/>
+  <rect x="520" y="355" width="270" height="55" rx="8" fill="#1a3a1a" stroke="#4ade80" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle" y="378.3">
+    <tspan x="655">code: &quot;CONFLICT&quot;</tspan>
+    <tspan x="655" dy="18.2">recovery: { retry, delay: 5s }</tspan>
+  </text>
+  <rect x="20" y="440" width="900" height="45" rx="10" fill="#1a1a1e" stroke="#666666" stroke-width="2"/>
+  <text x="470" y="468.1" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#f0ede8" text-anchor="middle">Each fix is mechanical — the hard part is admitting the DX default was wrong for agents</text>
+</svg>

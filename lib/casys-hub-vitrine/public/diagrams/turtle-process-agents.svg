@@ -12,11 +12,11 @@
   <rect x="30" y="75" width="350" height="180" rx="8" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
   <text x="55" y="110" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#60a5fa" text-anchor="start">WITH WHAT — Tools</text>
   <text x="55" y="151" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">Machines, Software, Equipment</text>
-  <text x="55" y="191" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#fbbf24" text-anchor="start">→ MCP Tools, APIs, Functions</text>
-  <rect x="720" y="75" width="350" height="180" rx="8" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
+  <text x="299.48" y="194" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#fbbf24" text-anchor="end">→ MCP Tools, APIs, Functions</text>
+  <rect x="589" y="76" width="481" height="222" rx="8" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
   <text x="745" y="110" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#60a5fa" text-anchor="start">WITH WHOM — People</text>
   <text x="745" y="151" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">Trained Staff, Defined Roles</text>
-  <text x="745" y="191" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#fbbf24" text-anchor="start">→ Specialized Agents, Task Force</text>
+  <text x="747" y="218" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#fbbf24" text-anchor="start">→ Specialized Agents, Task Force</text>
   <rect x="30" y="460" width="350" height="180" rx="8" fill="#1f1f23" stroke="#666666" stroke-width="1"/>
   <text x="55" y="495" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#60a5fa" text-anchor="start">HOW — Documentation</text>
   <text x="55" y="536" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#888888" text-anchor="start">Procedures, Work Instructions</text>
