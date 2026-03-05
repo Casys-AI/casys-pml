@@ -1,4 +1,4 @@
-import { edgeToEdge } from "../message-passing.ts";
+import { edgeToEdge } from "../domain/message-passing.ts";
 import type { GNNConfig, GNNNode, GNNParams } from "../types.ts";
 
 interface EdgeToEdgePhaseArgs {

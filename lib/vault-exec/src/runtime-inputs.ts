@@ -1,5 +1,10 @@
+import AjvModule from "npm:ajv";
+import type { ErrorObject } from "npm:ajv";
 import type { VaultGraph } from "./types.ts";
 import { parseRef } from "./template.ts";
+
+// deno-lint-ignore no-explicit-any
+const Ajv = (AjvModule as any).default ?? AjvModule;
 
 const TEMPLATE_RE = /\{\{([^}]+)\}\}/g;
 
@@ -99,37 +104,30 @@ export function buildRuntimeInputSchema(graph: VaultGraph): RuntimeInputSchema |
   return merged;
 }
 
-function matchesType(value: unknown, schemaType: string): boolean {
-  switch (schemaType) {
-    case "string":
-      return typeof value === "string";
-    case "number":
-      return typeof value === "number" && Number.isFinite(value);
-    case "integer":
-      return typeof value === "number" && Number.isInteger(value);
-    case "boolean":
-      return typeof value === "boolean";
-    case "object":
-      return value !== null && typeof value === "object" && !Array.isArray(value);
-    case "array":
-      return Array.isArray(value);
-    case "null":
-      return value === null;
-    default:
-      // Unknown types are ignored for compatibility with partial schemas.
-      return true;
+function issueFromAjvError(err: ErrorObject): RuntimeInputValidationIssue {
+  if (err.keyword === "required") {
+    const missing = String((err.params as { missingProperty?: string }).missingProperty ?? "unknown");
+    return {
+      kind: "missing",
+      path: `${err.instancePath || ""}/${missing}`,
+      message: `missing required input "${missing}"`,
+    };
   }
-}
 
-function propertyTypeIsValid(value: unknown, propertySchema: Record<string, unknown>): boolean {
-  const declaredType = propertySchema.type;
-  if (typeof declaredType === "string") {
-    return matchesType(value, declaredType);
+  if (err.keyword === "additionalProperties") {
+    const extra = String((err.params as { additionalProperty?: string }).additionalProperty ?? "unknown");
+    return {
+      kind: "extra",
+      path: `${err.instancePath || ""}/${extra}`,
+      message: `unexpected input "${extra}"`,
+    };
   }
-  if (Array.isArray(declaredType)) {
-    return declaredType.some((candidate) => typeof candidate === "string" && matchesType(value, candidate));
-  }
-  return true;
+
+  return {
+    kind: "invalid",
+    path: err.instancePath || "/",
+    message: err.message ?? "invalid runtime input",
+  };
 }
 
 function deriveStatus(issues: RuntimeInputValidationIssue[]): RuntimeValidationStatus {
@@ -157,47 +155,14 @@ export function validateRuntimeInputsForGraph(
     return { ok: true, status: "OK", schema: null, issues: [] };
   }
 
-  const issues: RuntimeInputValidationIssue[] = [];
-
-  for (const requiredKey of schema.required) {
-    if (!Object.hasOwn(payload, requiredKey)) {
-      issues.push({
-        kind: "missing",
-        path: `/${requiredKey}`,
-        message: `missing required input "${requiredKey}"`,
-      });
-    }
-  }
-
-  for (const [key, value] of Object.entries(payload)) {
-    const propertySchema = schema.properties[key];
-    if (!propertySchema) {
-      if (schema.additionalProperties === false) {
-        issues.push({
-          kind: "extra",
-          path: `/${key}`,
-          message: `unexpected input "${key}"`,
-        });
-      }
-      continue;
-    }
-
-    if (!propertyTypeIsValid(value, propertySchema)) {
-      const declaredType = Array.isArray(propertySchema.type)
-        ? propertySchema.type.join("|")
-        : String(propertySchema.type ?? "unknown");
-      issues.push({
-        kind: "invalid",
-        path: `/${key}`,
-        message: `expected type ${declaredType}`,
-      });
-    }
-  }
-
-  if (issues.length === 0) {
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  const validate = ajv.compile(schema as unknown as Record<string, unknown>);
+  const ok = validate(payload);
+  if (ok) {
     return { ok: true, status: "OK", schema, issues: [] };
   }
 
+  const issues = (validate.errors ?? []).map(issueFromAjvError);
   return {
     ok: false,
     status: deriveStatus(issues),

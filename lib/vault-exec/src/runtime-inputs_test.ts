@@ -108,3 +108,28 @@ Deno.test("strict target schema behavior remains unchanged for extra fields", ()
     "expected additionalProperties violation for /unexpected",
   );
 });
+
+Deno.test("runtime validation enforces enum constraints from input_schema", () => {
+  const nodes = new Map<string, CompiledNode>([
+    [
+      "Mode Gate",
+      makeNode("Mode Gate", {
+        inputs: { mode: "{{inputs.mode}}" },
+        inputSchema: {
+          type: "object",
+          properties: {
+            mode: { type: "string", enum: ["fast", "safe"] },
+          },
+          required: ["mode"],
+          additionalProperties: false,
+        },
+      }),
+    ],
+  ]);
+  const edges = new Map<string, string[]>([["Mode Gate", []]]);
+  const graph: VaultGraph = { nodes, edges };
+
+  const result = validateRuntimeInputsForGraph(graph, { mode: "turbo" });
+  assertEquals(result.ok, false);
+  assertEquals(result.status, "INVALID");
+});

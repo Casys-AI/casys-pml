@@ -1,4 +1,4 @@
-import { edgeToVertex } from "../message-passing.ts";
+import { edgeToVertex } from "../domain/message-passing.ts";
 import type { GNNConfig, GNNNode, GNNParams } from "../types.ts";
 
 interface EdgeToVertexPhaseArgs {
