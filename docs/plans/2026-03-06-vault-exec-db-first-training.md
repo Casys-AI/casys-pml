@@ -269,9 +269,10 @@ git commit -m "chore(vault-exec): mark legacy retrain flow inactive"
 ### Task 6: Add notebook-first inspection and training entrypoints
 
 **Files:**
-- Create: `lib/vault-exec/notebooks/05-openclaw-db-inspection.ipynb`
-- Create: `lib/vault-exec/notebooks/06-openclaw-next-graph.ipynb`
-- Create: `lib/vault-exec/notebooks/07-openclaw-gru-sequences.ipynb`
+- Modify: `lib/vault-exec/notebooks/05-topological-map.ipynb`
+- Modify: `lib/vault-exec/notebooks/06-gnn-backprop-experiment.ipynb`
+- Verify/Modify if needed: `lib/vault-exec/notebooks/07-openclaw-args-categorization.ipynb`
+- Create: `lib/vault-exec/notebooks/08-openclaw-gru-sequences.ipynb`
 - Modify: `lib/vault-exec/notebooks/readme.md` if present
 - Modify: `lib/vault-exec/src/ingest/readme.md`
 
@@ -281,9 +282,11 @@ Each notebook should start with deterministic data loading from `vault.kv`.
 
 Scope note:
 
-- `05` = inspection notebook
-- `06` = next-graph analysis notebook
-- `07` = sequence-analysis notebook
+- `05` = DB-first topology / graph inspection
+- `06` = DB-first GNN experiment on leaf `next` graph
+- `07` = existing args categorization notebook; keep or lightly align, do not
+  repurpose unless needed
+- `08` = GRU sequence notebook
 
 They are not expected to introduce a brand-new training stack in this task.
 Prefer reusing existing GNN/GRU code where helpful, and otherwise focus on
@@ -309,7 +312,7 @@ Expected: notebooks execute successfully against a local demo vault.
 **Step 4: Commit**
 
 ```bash
-git add lib/vault-exec/notebooks/05-openclaw-db-inspection.ipynb lib/vault-exec/notebooks/06-openclaw-next-graph.ipynb lib/vault-exec/notebooks/07-openclaw-gru-sequences.ipynb lib/vault-exec/src/ingest/readme.md
+git add lib/vault-exec/notebooks/05-topological-map.ipynb lib/vault-exec/notebooks/06-gnn-backprop-experiment.ipynb lib/vault-exec/notebooks/07-openclaw-args-categorization.ipynb lib/vault-exec/notebooks/08-openclaw-gru-sequences.ipynb lib/vault-exec/src/ingest/readme.md
 git commit -m "feat(vault-exec): add db-first training notebooks"
 ```
 
