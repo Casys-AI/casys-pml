@@ -9,6 +9,7 @@ import {
 import { parseOpenClawSessionFile } from "./parser.ts";
 import { SUPPORTED_TOOL_POLICIES } from "./policy.ts";
 import type { L2CoverageReport, ParsedOpenClawSession } from "./types.ts";
+import { resolveSessionDate } from "./session-date.ts";
 
 export interface IngestOpenClawOptions {
   sourcePath: string;
@@ -69,13 +70,8 @@ async function collectJsonlFiles(sourcePath: string): Promise<string[]> {
   return files;
 }
 
-function sessionDate(iso?: string): string {
-  if (iso && iso.length >= 10) return iso.slice(0, 10);
-  return new Date().toISOString().slice(0, 10);
-}
-
 function sessionFileName(session: ParsedOpenClawSession): string {
-  return `${sessionDate(session.startedAt)}-${session.shortId}.md`;
+  return `${resolveSessionDate(session.startedAt)}-${session.shortId}.md`;
 }
 
 export async function ingestOpenClawSessions(

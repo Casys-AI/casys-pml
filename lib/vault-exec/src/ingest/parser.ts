@@ -208,6 +208,9 @@ export function parseOpenClawSessionLines(
   for (const line of lines) {
     const event = parseJsonLine(line);
     if (!event) continue;
+    if (!startedAt && typeof event.timestamp === "string") {
+      startedAt = event.timestamp;
+    }
 
     if (event.type === "session") {
       if (typeof event.id === "string" && event.id.length > 0) {

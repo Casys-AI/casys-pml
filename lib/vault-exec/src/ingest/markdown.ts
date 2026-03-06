@@ -1,8 +1,10 @@
+<<<<<<< HEAD
 import type {
   L2CoverageReport,
   ParsedOpenClawSession,
   ToolAggregate,
 } from "./types.ts";
+import { resolveSessionDate } from "./session-date.ts";
 
 function toJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
@@ -11,11 +13,6 @@ function toJson(value: unknown): string {
 function yamlList(values: string[], indent = 0): string {
   const pad = " ".repeat(indent);
   return values.map((value) => `${pad}- ${value}`).join("\n");
-}
-
-function sessionDate(iso?: string): string {
-  if (iso && iso.length >= 10) return iso.slice(0, 10);
-  return new Date().toISOString().slice(0, 10);
 }
 
 function normalizeText(text?: string): string {
@@ -30,7 +27,7 @@ function percent(value: number): string {
 export function generateSessionMarkdown(
   session: ParsedOpenClawSession,
 ): string {
-  const date = sessionDate(session.startedAt);
+  const date = resolveSessionDate(session.startedAt);
 
   const frontmatter = [
     "---",

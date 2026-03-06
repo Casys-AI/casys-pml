@@ -127,3 +127,27 @@ Deno.test("parseOpenClawSessionLines - supports OpenAI-style tool_calls payload"
   assertEquals(parsed.turns[0].toolCalls[0].family, "relative:file_path");
   assertEquals(parsed.turns[0].toolCalls[0].l2Hit, true);
 });
+
+Deno.test("parseOpenClawSessionLines - infers startedAt from first timestamped event", () => {
+  const lines = [
+    JSON.stringify({
+      type: "session",
+      id: "sess-without-session-timestamp",
+    }),
+    JSON.stringify({
+      type: "message",
+      timestamp: "2026-03-04T12:34:56.000Z",
+      message: {
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      },
+    }),
+  ];
+
+  const parsed = parseOpenClawSessionLines(
+    lines,
+    "/tmp/sess-without-session-timestamp.jsonl",
+  );
+
+  assertEquals(parsed.startedAt, "2026-03-04T12:34:56.000Z");
+});
