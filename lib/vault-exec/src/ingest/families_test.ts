@@ -13,5 +13,5 @@ Deno.test("classifyToolFamily wrapper - exec and write", () => {
 });
 
 Deno.test("classifyToolFamily wrapper - unknown tool", () => {
-  assertEquals(classifyToolFamily("unknown_tool", { path: "x" }), null);
+  assertEquals(classifyToolFamily("memory_get", { path: "x" }), null);
 });

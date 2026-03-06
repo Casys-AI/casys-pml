@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import type {
   L2CoverageReport,
   ParsedOpenClawSession,
