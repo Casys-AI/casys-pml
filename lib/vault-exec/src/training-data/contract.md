@@ -11,6 +11,8 @@
 - `tool_leaf_edges_next`
 - `session_sequences`
 - `active_build`
+- GNN node inputs derived from leaf rows and edges
+- GRU vocabulary/examples derived from imported tool calls and GNN embeddings
 
 ## Invariants
 
@@ -20,3 +22,4 @@
 - subagent and top-level counts must remain distinguishable in derived rows
 - active readers must resolve rows only from the currently promoted build
 - failed rebuilds must not replace the previous active build
+- notebook-driven training must reuse `src/gnn` and `src/gru`, not shadow them

@@ -120,7 +120,9 @@ function sessionIdentity(sourceRoot: string, sessionId: string): string {
 }
 
 function normalizeSessionKind(
-  value: ImportedOpenClawSessionRow["sessionKind"] | ImportedOpenClawToolCallRow["sessionKind"],
+  value:
+    | ImportedOpenClawSessionRow["sessionKind"]
+    | ImportedOpenClawToolCallRow["sessionKind"],
 ): "top_level" | "subagent" {
   return value === "subagent" ? "subagent" : "top_level";
 }
@@ -141,7 +143,9 @@ function isFallbackLeaf(leafKey: string): boolean {
 
 function assertNonEmptyString(label: string, value: string | undefined): void {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`[training-data] Invalid ${label}: expected non-empty string`);
+    throw new Error(
+      `[training-data] Invalid ${label}: expected non-empty string`,
+    );
   }
 }
 
@@ -264,7 +268,11 @@ function deriveTables(
     });
 
     for (let index = 1; index < leafKeys.length; index++) {
-      const edge = ensureToolLeafEdge(edges, leafKeys[index - 1], leafKeys[index]);
+      const edge = ensureToolLeafEdge(
+        edges,
+        leafKeys[index - 1],
+        leafKeys[index],
+      );
       edge.weight += 1;
       if (sessionKind === "subagent") {
         edge.subagentWeight += 1;
@@ -358,7 +366,9 @@ export async function listActiveToolLeafNodes(
     kv,
     "tool_leaf_nodes",
   );
-  return rows.sort((left, right) => compareStrings(left.leafKey, right.leafKey));
+  return rows.sort((left, right) =>
+    compareStrings(left.leafKey, right.leafKey)
+  );
 }
 
 export async function listActiveToolLeafEdgesNext(
