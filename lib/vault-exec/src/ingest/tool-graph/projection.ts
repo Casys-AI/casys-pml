@@ -31,6 +31,21 @@ async function collectProjectedNotePaths(
   }
 }
 
+function relativeToolNotePath(key: string): string {
+  const parts = key.split(".");
+  const toolSegments = parts.slice(1);
+  if (toolSegments.length === 0) {
+    return "tools/unknown/unknown";
+  }
+  const noteName = toolSegments[toolSegments.length - 1] ?? "unknown";
+  return `tools/${toolSegments.join("/")}/${noteName}`;
+}
+
+function toolLinkLabel(key: string): string {
+  const parts = key.split(".");
+  return parts[parts.length - 1] ?? key;
+}
+
 function renderFrontmatter(entity: ToolGraphEntity): string {
   return [
     "---",
@@ -55,11 +70,26 @@ function renderMetaJson(entity: ToolGraphEntity): string {
   }, null, 2);
 }
 
+function renderTransitionLines(
+  transitions: Record<string, number>,
+): string[] {
+  const entries = Object.entries(transitions).sort((left, right) =>
+    right[1] - left[1] || left[0].localeCompare(right[0])
+  );
+  if (entries.length === 0) {
+    return ["none"];
+  }
+
+  return entries.map(([key, count]) =>
+    `- [[${relativeToolNotePath(key)}|${toolLinkLabel(key)}]] (${count})`
+  );
+}
+
 export function resolveToolGraphNotePath(
   vaultPath: string,
   entity: ToolGraphEntity,
 ): string {
-  return `${normalizePath(vaultPath)}/tool-graph/l${entity.level}/${entity.key}.md`;
+  return `${normalizePath(vaultPath)}/${relativeToolNotePath(entity.key)}.md`;
 }
 
 export function renderToolGraphNote(entity: ToolGraphEntity): string {
@@ -75,13 +105,8 @@ export function renderToolGraphNote(entity: ToolGraphEntity): string {
     `- L2 hits: ${entity.l2Hits}`,
     `- L2 fallbacks: ${entity.l2Fallbacks}`,
     "",
-    "## Graph",
-    `- Parent: ${entity.parentKey ? `[[${entity.parentKey}]]` : "none"}`,
-    `- Children: ${
-      entity.childKeys.length > 0
-        ? entity.childKeys.map((key) => `[[${key}]]`).join(", ")
-        : "none"
-    }`,
+    "## Next",
+    ...renderTransitionLines(entity.nextTransitions),
     "",
     "## Tool Graph Meta",
     "```json",
@@ -98,7 +123,9 @@ export async function projectToolGraph(
   entities: ToolGraphEntity[],
 ): Promise<string[]> {
   const writer = new DenoVaultWriter();
-  const projectionRoot = `${normalizePath(vaultPath)}/tool-graph`;
+  const normalizedVaultPath = normalizePath(vaultPath);
+  const projectionRoot = `${normalizedVaultPath}/tools`;
+  const legacyProjectionRoot = `${normalizedVaultPath}/tool-graph`;
   const writtenPaths: string[] = [];
   const nextPaths = new Set<string>();
 
@@ -114,6 +141,14 @@ export async function projectToolGraph(
   for (const existingPath of existingPaths) {
     if (!nextPaths.has(existingPath)) {
       await Deno.remove(existingPath);
+    }
+  }
+
+  try {
+    await Deno.remove(legacyProjectionRoot, { recursive: true });
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) {
+      throw error;
     }
   }
 

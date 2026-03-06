@@ -57,9 +57,19 @@ Deno.test("deriveToolGraphKeysForCall produces stable dotted keys", () => {
   );
 });
 
-Deno.test("deriveToolGraphEntities aggregates stable nodes and parent-child relations", () => {
+Deno.test("deriveToolGraphEntities aggregates stable nodes and sequential transitions", () => {
   const rows = [
     buildRow(),
+    buildRow({
+      turnIndex: 2,
+      callIndex: 0,
+      toolName: "read",
+      family: "relative:file_path",
+      sourcePath: "/tmp/.openclaw/agents/alpha/sessions/sess-a.jsonl",
+      sessionId: "sess-a",
+      sessionShortId: "sessa",
+      agentId: "alpha",
+    }),
     buildRow({
       sourceRoot: "/tmp/.openclaw/agents/beta/sessions",
       sourcePath: "/tmp/.openclaw/agents/beta/sessions/sess-b.jsonl",
@@ -69,16 +79,28 @@ Deno.test("deriveToolGraphEntities aggregates stable nodes and parent-child rela
       contentHash: "hash-b",
     }),
     buildRow({
+      sourceRoot: "/tmp/.openclaw/agents/beta/sessions",
+      sourcePath: "/tmp/.openclaw/agents/beta/sessions/sess-b.jsonl",
+      sessionId: "sess-b",
+      sessionShortId: "sessb",
+      agentId: "beta",
+      contentHash: "hash-b",
+      turnIndex: 2,
+      callIndex: 0,
       toolName: "read",
       family: "relative:file_path",
-      sourcePath: "/tmp/.openclaw/agents/alpha/sessions/sess-a.jsonl",
-      sessionId: "sess-a",
     }),
     buildRow({
       toolName: "browser",
       family: null,
       l2Hit: false,
       l2FallbackReason: "unsupported_shape",
+      sourceRoot: "/tmp/.openclaw/agents/gamma/sessions",
+      sourcePath: "/tmp/.openclaw/agents/gamma/sessions/sess-c.jsonl",
+      sessionId: "sess-c",
+      sessionShortId: "sessc",
+      agentId: "gamma",
+      contentHash: "hash-c",
     }),
   ];
 
@@ -97,19 +119,42 @@ Deno.test("deriveToolGraphEntities aggregates stable nodes and parent-child rela
   assertEquals(exec.totalOccurrences, 2);
   assertEquals(exec.uniqueSessions, 2);
   assertEquals(exec.uniqueAgents, 2);
-  assertEquals(exec.childKeys, ["tool.exec.git_vcs"]);
+  assertEquals(exec.previousTransitions, {});
+  assertEquals(exec.nextTransitions, {
+    "tool.read": 2,
+  });
 
   const execGit = entities.find((entity) => entity.key === "tool.exec.git_vcs");
   if (!execGit) throw new Error("missing tool.exec.git_vcs");
   assertEquals(execGit.level, 2);
-  assertEquals(execGit.parentKey, "tool.exec");
   assertEquals(execGit.totalOccurrences, 2);
   assertEquals(execGit.uniqueSessions, 2);
   assertEquals(execGit.uniqueAgents, 2);
+  assertEquals(execGit.previousTransitions, {});
+  assertEquals(execGit.nextTransitions, {
+    "tool.read.relative_file_path": 2,
+  });
+
+  const read = entities.find((entity) => entity.key === "tool.read");
+  if (!read) throw new Error("missing tool.read");
+  assertEquals(read.previousTransitions, {
+    "tool.exec": 2,
+  });
+  assertEquals(read.nextTransitions, {});
+
+  const readRelative = entities.find((entity) =>
+    entity.key === "tool.read.relative_file_path"
+  );
+  if (!readRelative) throw new Error("missing tool.read.relative_file_path");
+  assertEquals(readRelative.previousTransitions, {
+    "tool.exec.git_vcs": 2,
+  });
+  assertEquals(readRelative.nextTransitions, {});
 
   const browser = entities.find((entity) => entity.key === "tool.browser");
   if (!browser) throw new Error("missing tool.browser");
   assertEquals(browser.totalOccurrences, 1);
-  assertEquals(browser.childKeys, []);
   assertEquals(browser.l2Fallbacks, 1);
+  assertEquals(browser.previousTransitions, {});
+  assertEquals(browser.nextTransitions, {});
 });

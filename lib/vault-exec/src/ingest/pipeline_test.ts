@@ -127,10 +127,10 @@ Deno.test("runIncrementalOpenClawImport imports multiple configured sources and 
     }
 
     const execNode = await Deno.readTextFile(
-      `${vaultPath}/tool-graph/l1/tool.exec.md`,
+      `${vaultPath}/tools/exec/exec.md`,
     );
     const execL2Node = await Deno.readTextFile(
-      `${vaultPath}/tool-graph/l2/tool.exec.git_vcs.md`,
+      `${vaultPath}/tools/exec/git_vcs/git_vcs.md`,
     );
     assertStringIncludes(execNode, "tool_graph_key: tool.exec");
     assertStringIncludes(execL2Node, "tool_graph_key: tool.exec.git_vcs");
@@ -273,7 +273,7 @@ Deno.test("runIncrementalOpenClawImport removes previously imported rows when a 
     }
 
     await assertRejects(
-      () => Deno.readTextFile(`${vaultPath}/tool-graph/l1/tool.exec.md`),
+      () => Deno.readTextFile(`${vaultPath}/tools/exec/exec.md`),
       Deno.errors.NotFound,
     );
   } finally {
@@ -329,7 +329,7 @@ Deno.test("runIncrementalOpenClawImport prunes rows for sources removed from con
     }
 
     await assertRejects(
-      () => Deno.readTextFile(`${vaultPath}/tool-graph/l1/tool.read.md`),
+      () => Deno.readTextFile(`${vaultPath}/tools/read/read.md`),
       Deno.errors.NotFound,
     );
   } finally {

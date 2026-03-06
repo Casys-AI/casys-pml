@@ -74,7 +74,7 @@ function buildTraceFixture(): string {
   ].join("\n");
 }
 
-Deno.test("initVaultWithTraceImport imports traces and keeps tool-graph notes out of parsed vault notes", async () => {
+Deno.test("initVaultWithTraceImport imports traces and keeps generated tools notes out of parsed vault notes", async () => {
   const vaultPath = await Deno.makeTempDir();
   const sourcePath = `${vaultPath}/sources/agents/alpha/sessions`;
   const dbPath = `${vaultPath}/.vault-exec/vault.kv`;
@@ -106,7 +106,7 @@ Deno.test("initVaultWithTraceImport imports traces and keeps tool-graph notes ou
     assertEquals(result.traceImport.toolCallsStored, 1);
 
     const projected = await Deno.stat(
-      `${vaultPath}/tool-graph/l1/tool.exec.md`,
+      `${vaultPath}/tools/exec/exec.md`,
     );
     assertEquals(projected.isFile, true);
 

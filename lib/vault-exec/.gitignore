@@ -1,7 +1,7 @@
 # Generated vault runtime data
 demo-vault/.vault-exec/
 demo-vault/.vault-exec-backup/
-demo-vault/tool-graph/
+demo-vault/tools/
 demo-vault-crm/.vault-exec/
 demo-vault-backups/
 

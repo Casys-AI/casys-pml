@@ -7,6 +7,8 @@ export interface ToolGraphEntity {
   kind: "tool";
   parentKey?: string;
   childKeys: string[];
+  previousTransitions: Record<string, number>;
+  nextTransitions: Record<string, number>;
   totalOccurrences: number;
   uniqueSessions: number;
   uniqueAgents: number;
@@ -23,6 +25,8 @@ interface MutableToolGraphEntity {
   kind: "tool";
   parentKey?: string;
   childKeys: Set<string>;
+  previousTransitions: Map<string, number>;
+  nextTransitions: Map<string, number>;
   totalOccurrences: number;
   l2Hits: number;
   l2Fallbacks: number;
@@ -57,6 +61,8 @@ function ensureEntity(
     kind: "tool",
     parentKey,
     childKeys: new Set<string>(),
+    previousTransitions: new Map(),
+    nextTransitions: new Map(),
     totalOccurrences: 0,
     l2Hits: 0,
     l2Fallbacks: 0,
@@ -70,6 +76,20 @@ function ensureEntity(
 
 function sessionCountKey(row: ImportedOpenClawToolCallRow): string {
   return `${row.agentId ?? "unknown"}:${row.sessionId}`;
+}
+
+function sessionIdentity(row: ImportedOpenClawToolCallRow): string {
+  return `${row.sourceRoot}::${row.sessionId}`;
+}
+
+function compareRows(
+  left: ImportedOpenClawToolCallRow,
+  right: ImportedOpenClawToolCallRow,
+): number {
+  return left.sourceRoot.localeCompare(right.sourceRoot) ||
+    left.sessionId.localeCompare(right.sessionId) ||
+    left.turnIndex - right.turnIndex ||
+    left.callIndex - right.callIndex;
 }
 
 function applyRow(
@@ -93,12 +113,26 @@ function mapToRecord(map: Map<string, number>): Record<string, number> {
   );
 }
 
+function connectTransition(
+  entities: Map<string, MutableToolGraphEntity>,
+  previousKey: string | undefined,
+  nextKey: string | undefined,
+): void {
+  if (!previousKey || !nextKey) return;
+  const previous = entities.get(previousKey);
+  const next = entities.get(nextKey);
+  if (!previous || !next) return;
+  incrementCount(previous.nextTransitions, nextKey);
+  incrementCount(next.previousTransitions, previousKey);
+}
+
 export function deriveToolGraphEntities(
   rows: ImportedOpenClawToolCallRow[],
 ): ToolGraphEntity[] {
   const entities = new Map<string, MutableToolGraphEntity>();
+  const sortedRows = [...rows].sort(compareRows);
 
-  for (const row of rows) {
+  for (const row of sortedRows) {
     const keys = deriveToolGraphKeysForCall(row);
     const l1 = ensureEntity(entities, keys.l1Key, 1);
     applyRow(l1, row);
@@ -110,6 +144,19 @@ export function deriveToolGraphEntities(
     }
   }
 
+  for (let index = 1; index < sortedRows.length; index++) {
+    const previous = sortedRows[index - 1];
+    const next = sortedRows[index];
+    if (sessionIdentity(previous) !== sessionIdentity(next)) {
+      continue;
+    }
+
+    const previousKeys = deriveToolGraphKeysForCall(previous);
+    const nextKeys = deriveToolGraphKeysForCall(next);
+    connectTransition(entities, previousKeys.l1Key, nextKeys.l1Key);
+    connectTransition(entities, previousKeys.l2Key, nextKeys.l2Key);
+  }
+
   return [...entities.values()]
     .sort((left, right) => compareStable(left.key, right.key))
     .map((entity) => ({
@@ -118,6 +165,8 @@ export function deriveToolGraphEntities(
       kind: entity.kind,
       parentKey: entity.parentKey,
       childKeys: [...entity.childKeys].sort(compareStable),
+      previousTransitions: mapToRecord(entity.previousTransitions),
+      nextTransitions: mapToRecord(entity.nextTransitions),
       totalOccurrences: entity.totalOccurrences,
       uniqueSessions: entity.sessionCounts.size,
       uniqueAgents: entity.agentCounts.size,

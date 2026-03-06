@@ -13,8 +13,8 @@
 ## Invariants
 
 - `listNotes()` returns deterministic path ordering.
-- Technical/hidden folders are ignored by default, including `tool-graph/`
-  projection output.
+- Technical/hidden folders are ignored by default, including generated
+  `tool-graph/` and `tools/` projection output.
 - `writeNote()` must create parent directories for projected note paths.
 - Adapter depends on core I/O contracts; core does not depend on this adapter.
 - No business-policy logic in this slice.

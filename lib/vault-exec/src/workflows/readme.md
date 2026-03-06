@@ -12,7 +12,8 @@ Application orchestration for CLI-facing flows.
 
 - `run.ts`: target resolution, validation, execution, trace learning, optional
   retrain.
-- `init.ts`: initial indexing, synthetic traces, first GRU training.
+- `init.ts`: configured trace import, initial indexing, synthetic traces, first
+  GRU training.
 - `retrain.ts`: incremental retraining from persisted traces.
 - `pipeline.ts`: reusable graph/GNN/GRU data preparation helpers.
 - No low-level storage implementation.
@@ -26,3 +27,7 @@ Application orchestration for CLI-facing flows.
 - Runtime fallbacks must emit explicit machine-readable events/errors.
 - Runtime payload handling must be explicit (`strict` default, `project`
   opt-in).
+- Projection notes under `tools/` are readable artifacts, not executable vault
+  program inputs.
+- Projection stays tool-only; agent/session metadata remains aggregated inside
+  those notes instead of creating more graph node types in Obsidian.

@@ -1,4 +1,5 @@
 import {
+  assert,
   assertEquals,
   assertRejects,
   assertStringIncludes,
@@ -32,7 +33,7 @@ function buildRow(
   };
 }
 
-Deno.test("projectToolGraph writes stable markdown notes into tool-graph/l1 and tool-graph/l2", async () => {
+Deno.test("projectToolGraph writes stable markdown notes into hierarchical tools paths with sequence links", async () => {
   const vaultPath = await Deno.makeTempDir();
 
   try {
@@ -49,6 +50,8 @@ Deno.test("projectToolGraph writes stable markdown notes into tool-graph/l1 and 
       buildRow({
         toolName: "read",
         family: "relative:file_path",
+        turnIndex: 2,
+        callIndex: 0,
       }),
     ]);
 
@@ -61,17 +64,24 @@ Deno.test("projectToolGraph writes stable markdown notes into tool-graph/l1 and 
       entity.key === "tool.exec.git_vcs"
     )!);
 
-    assertEquals(l1Path, `${vaultPath}/tool-graph/l1/tool.exec.md`);
-    assertEquals(l2Path, `${vaultPath}/tool-graph/l2/tool.exec.git_vcs.md`);
+    assertEquals(l1Path, `${vaultPath}/tools/exec/exec.md`);
+    assertEquals(l2Path, `${vaultPath}/tools/exec/git_vcs/git_vcs.md`);
 
     const l1 = await Deno.readTextFile(l1Path);
     const l2 = await Deno.readTextFile(l2Path);
 
     assertStringIncludes(l1, "tool_graph_key: tool.exec");
-    assertStringIncludes(l1, "[[tool.exec.git_vcs]]");
+    assert(l1.includes("## Previous") === false);
+    assertStringIncludes(l1, "## Next");
+    assertStringIncludes(l1, "[[tools/read/read|read]] (1)");
     assertStringIncludes(l1, "## Tool Graph Meta");
     assertStringIncludes(l2, "tool_graph_key: tool.exec.git_vcs");
-    assertStringIncludes(l2, "[[tool.exec]]");
+    assert(l2.includes("## Previous") === false);
+    assertStringIncludes(l2, "## Next");
+    assertStringIncludes(
+      l2,
+      "[[tools/read/relative_file_path/relative_file_path|relative_file_path]] (1)",
+    );
     assertStringIncludes(l2, "\"uniqueAgents\": 2");
   } finally {
     await Deno.remove(vaultPath, { recursive: true });
@@ -85,7 +95,7 @@ Deno.test("projectToolGraph is idempotent for the same entity set", async () => 
     const entities = deriveToolGraphEntities([buildRow()]);
 
     await projectToolGraph(vaultPath, entities);
-    const notePath = `${vaultPath}/tool-graph/l1/tool.exec.md`;
+    const notePath = `${vaultPath}/tools/exec/exec.md`;
     const first = await Deno.readTextFile(notePath);
 
     await projectToolGraph(vaultPath, entities);
@@ -109,8 +119,8 @@ Deno.test("projectToolGraph removes stale markdown notes missing from the next e
       }),
     ]));
 
-    const stalePath = `${vaultPath}/tool-graph/l1/tool.read.md`;
-    const keptPath = `${vaultPath}/tool-graph/l1/tool.exec.md`;
+    const stalePath = `${vaultPath}/tools/read/read.md`;
+    const keptPath = `${vaultPath}/tools/exec/exec.md`;
     assertEquals(await Deno.readTextFile(stalePath).then(() => true), true);
 
     await projectToolGraph(vaultPath, deriveToolGraphEntities([buildRow()]));

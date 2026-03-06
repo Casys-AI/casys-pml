@@ -16,5 +16,6 @@
 - projection must be idempotent for the same entity set
 - projection must remove stale Markdown notes that no longer exist in the
   current entity set
-- parent/child relationships derive only from stable key hierarchy
+- folder hierarchy derives only from stable key hierarchy
+- visible note links must prioritize sequential execution transitions
 - tool-graph projection must not create session or agent note entities

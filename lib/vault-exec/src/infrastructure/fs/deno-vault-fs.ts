@@ -17,6 +17,7 @@ export class DenoVaultReader implements VaultReader {
     ".vault-exec-backup",
     ".obsidian",
     "tool-graph",
+    "tools",
     "node_modules",
     ".git",
     "_drafts",

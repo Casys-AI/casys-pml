@@ -34,7 +34,8 @@ Inputs:
 
 Outputs:
 - Local KV rows under the OpenClaw namespace inside `vault.kv`
-- Tool-graph projection notes under `tool-graph/l1/` and `tool-graph/l2/`
+- Tool projection notes under `tools/` with hierarchical paths such as
+  `tools/exec/exec.md` and `tools/exec/git_vcs/git_vcs.md`
 - Standalone helper output: `sessions/`, `tools/`, `reports/l2-coverage.md`
 
 ## Invariants for this slice
@@ -46,6 +47,10 @@ Outputs:
 - removing a configured source or invalidating a previously imported file must
   prune stale OpenClaw rows from local KV state
 - tool-graph keys must be stable dotted paths derived by explicit naming rules
-- tool-graph projections are derived from typed/local ingest data only
+- tool projections are derived from typed/local ingest data only
 - tool-graph projections must converge to the current imported row set, not
   accumulate stale notes
+- note links should prioritize sequential execution transitions over taxonomy
+  links already implied by the folder hierarchy
+- agents stay as aggregated metadata inside tool notes, never as projected
+  nodes/directories
