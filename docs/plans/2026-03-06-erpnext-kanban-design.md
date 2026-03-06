@@ -65,7 +65,7 @@ Use a generic kanban engine inside `lib/erpnext`, backed by explicit per-DocType
 This means:
 
 - a canonical generic viewer is introduced for kanban behavior
-- the current `order-pipeline-viewer` is refactored only as needed for migration/compatibility
+- the current `order-pipeline-viewer` is not treated as the canonical path and is not part of V1 migration work
 - the internal implementation is shared, not duplicated
 - the server side exposes a single kanban-oriented domain model with per-DocType business adapters
 
@@ -106,7 +106,7 @@ Owns the kanban feature:
 
 - Canonical viewer: `lib/erpnext/src/ui/kanban-viewer/`
 - Shared UI engine: `lib/erpnext/src/ui/shared/kanban/`
-- Transitional compatibility: existing `order-pipeline-viewer` may temporarily wrap or delegate to shared kanban internals until fully removed
+- `order-pipeline-viewer` remains an existing legacy viewer and is allowed to die by obsolescence later, without a dedicated compatibility refactor in V1
 
 #### Server/domain
 
@@ -130,10 +130,13 @@ At minimum:
 - `title`
 - `doctype`
 - `generatedAt`
+- `moveToolName`
 - `columns[]`
+- `allowedTransitions[]`
 - `cards[]` or cards nested under columns
 - `capabilities`
 - `selection/filter context`
+- `pagination`
 
 ### Column payload
 
@@ -142,7 +145,6 @@ At minimum:
 - `color`
 - `count`
 - `totals` when relevant
-- `dropPolicy`
 
 ### Card payload
 
@@ -162,7 +164,17 @@ At minimum:
 - `toColumn`
 - `allowed`
 - `reason` when blocked
-- `tool` or action strategy to execute
+- `label` when useful for UI affordance
+- optional parameter template or adapter-owned action strategy
+
+### Move result payload
+
+- `ok`
+- `cardId`
+- `fromColumn`
+- `toColumn`
+- `errorMessage`
+- `serverCard` or enough server data to reconcile the local optimistic state
 
 ## Mutation Model
 
@@ -184,15 +196,19 @@ For a move:
 1. user starts drag or keyboard move
 2. viewer checks host `serverTools` capability
 3. viewer checks local transition allowlist for UX
-4. viewer marks the card as pending
-5. viewer calls the mapped server tool
-6. on success, viewer refreshes the board payload
-7. on failure, viewer rolls back and surfaces an inline error
+4. viewer applies a local optimistic move
+5. viewer queues the mutation in a local FIFO queue
+6. the queue sends one `app.callServerTool(...)` mutation at a time
+7. on success, viewer reconciles local state silently from the server response
+8. on failure, viewer rolls back and surfaces the server error inline
+
+This means V1 should not do a brute full-board refetch after every move unless reconciliation proves insufficient in practice.
 
 ### Error handling
 
 - hard failure if host does not expose proxied server tool calls
 - inline error toast/banner per failed move
+- `aria-live="polite"` feedback for move success/failure
 - no silent swallow
 - card unlocked after failure
 
@@ -212,6 +228,9 @@ AX requirements are first-class:
 ### Generic kanban V1
 
 - `Task`
+
+### Generic kanban next
+
 - `Opportunity`
 - `Issue`
 
@@ -226,19 +245,20 @@ These should reuse the same UI engine, but with stricter business adapters becau
 
 ### Phase 1
 
-- extract shared kanban UI logic from current patterns
 - introduce canonical `kanban-viewer`
-- keep existing ERPNext viewer registry functional
+- ship one end-to-end generic board on `Task`
+- validate the read-write MCP App pattern
 
 ### Phase 2
 
-- adapt `order-pipeline-viewer` to reuse shared internals where helpful
-- preserve behavior only as long as needed for transition
+- add `Opportunity`
+- add `Issue`
 
 ### Phase 3
 
-- migrate call sites and tools to canonical kanban viewer
-- remove `order-pipeline-viewer` once obsolete
+- add transactional boards such as `Sales Order` and `Purchase Order` with stricter business adapters
+
+There is intentionally no dedicated refactor phase for `order-pipeline-viewer` in this plan.
 
 ## Testing Strategy
 
@@ -263,6 +283,19 @@ These should reuse the same UI engine, but with stricter business adapters becau
 - verify MCP Apps initialization still works in host
 - verify `app.callServerTool(...)` path works when server tools are exposed
 
+## Why Not Native ERPNext Kanban?
+
+The value here is not "another kanban". The value is a read-write MCP App inside the existing PML conversation flow.
+
+That matters because:
+
+- the user is already inside an agent conversation context
+- they should not have to context-switch into ERPNext to complete simple workflow moves
+- the kanban can be rendered from agent-selected data and filters
+- the same MCP App pattern can later support other read-write business viewers, not just kanban
+
+This feature should therefore be positioned as the first production-grade read-write ERPNext MCP App viewer, with kanban as the first interaction surface.
+
 ## Decision Summary
 
 - Keep MCP Apps architecture.
@@ -270,6 +303,9 @@ These should reuse the same UI engine, but with stricter business adapters becau
 - Avoid side-by-side duplicate stacks.
 - Introduce a canonical generic kanban viewer.
 - Use explicit per-DocType adapters.
-- Start generic support with `Task`, `Opportunity`, and `Issue`.
+- Start V1 with `Task` only.
+- Add `Opportunity` and `Issue` in follow-up increments.
 - Treat `Sales Order` and `Purchase Order` as stricter transactional boards later.
 - Build accessibility in from the start.
+- Use explicit `allowedTransitions`, not viewer-inferred drop policy.
+- Use optimistic local state plus FIFO mutation serialization and server reconciliation.
