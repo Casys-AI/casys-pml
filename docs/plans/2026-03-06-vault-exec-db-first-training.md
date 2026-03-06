@@ -124,6 +124,7 @@ Cover:
 - rebuild from canonical imported rows produces `session_sequences`
 - rebuild clears and replaces prior derived state
 - only leaf nodes participate in sequences and `next` edges
+- failed rebuild does not destroy the previously valid derived tables
 
 **Step 2: Run test to verify it fails**
 
@@ -141,6 +142,8 @@ Expected: fail because the rebuild layer does not exist.
 
 Implement a full rebuild strategy from canonical imported rows. Do not attempt
 incremental edge deltas.
+
+Rebuild into a temporary namespace and promote only on success.
 
 **Step 4: Run test to verify it passes**
 
@@ -276,6 +279,16 @@ git commit -m "chore(vault-exec): mark legacy retrain flow inactive"
 
 Each notebook should start with deterministic data loading from `vault.kv`.
 
+Scope note:
+
+- `05` = inspection notebook
+- `06` = next-graph analysis notebook
+- `07` = sequence-analysis notebook
+
+They are not expected to introduce a brand-new training stack in this task.
+Prefer reusing existing GNN/GRU code where helpful, and otherwise focus on
+data loading, filtering, distributions, and lightweight experiments.
+
 **Step 2: Make the notebooks prove useful**
 
 Cover:
@@ -285,6 +298,7 @@ Cover:
 - fallback distribution
 - `next` edge distribution
 - sequence-length filtering (`min_calls >= 3`)
+- optional thin calls into existing GNN/GRU code, but no rewrite of model math
 
 **Step 3: Run notebook execution smoke tests**
 

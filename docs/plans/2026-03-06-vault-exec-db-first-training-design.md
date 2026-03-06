@@ -226,6 +226,10 @@ Store separately for notebook analysis, not for GNN V1:
 - `same_turn`
 - `same_parent`
 
+These auxiliary relation tables are intentionally deferred beyond the first
+implementation pass in this plan. V1 requires only the canonical imported
+tables plus the three rebuilt training tables.
+
 ## Rebuild strategy
 
 V1 intentionally avoids incremental delta logic for derived tables.
@@ -238,6 +242,12 @@ Strategy:
   - `tool_leaf_nodes`
   - `tool_leaf_edges_next`
   - `session_sequences`
+
+Safety rule:
+
+- rebuild into a temporary derived namespace first
+- only promote/swap the rebuilt tables after the full rebuild succeeds
+- on rebuild failure, keep the previously valid derived tables intact
 
 Reason:
 
