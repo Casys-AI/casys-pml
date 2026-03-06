@@ -171,7 +171,8 @@ Deno.test("parseOpenClawSessionLines - preserves user provenance and tool result
         }],
         provenance: {
           kind: "inter_session",
-          sourceSessionKey: "agent:david:cron:9b1a45a8-92bb-495f-bef7-25b76fcdda39",
+          sourceSessionKey:
+            "agent:david:cron:9b1a45a8-92bb-495f-bef7-25b76fcdda39",
           sourceTool: "sessions_send",
         },
       },
@@ -182,7 +183,10 @@ Deno.test("parseOpenClawSessionLines - preserves user provenance and tool result
       message: {
         role: "assistant",
         content: [
-          { type: "thinking", thinking: "I should inspect prior status first." },
+          {
+            type: "thinking",
+            thinking: "I should inspect prior status first.",
+          },
           {
             type: "toolCall",
             id: "toolu_1",

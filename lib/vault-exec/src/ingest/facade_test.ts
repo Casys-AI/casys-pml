@@ -32,7 +32,10 @@ const session: ParsedOpenClawSession = {
 };
 
 Deno.test("ingest facades keep classification and filename behavior", () => {
-  assertEquals(classifyToolFamily("exec", { command: "git status" }), "git_vcs");
+  assertEquals(
+    classifyToolFamily("exec", { command: "git status" }),
+    "git_vcs",
+  );
   assertEquals(toolFileName("Exec Tool"), "exec-tool.md");
 });
 

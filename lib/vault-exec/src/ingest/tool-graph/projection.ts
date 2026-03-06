@@ -58,16 +58,20 @@ function renderFrontmatter(entity: ToolGraphEntity): string {
 }
 
 function renderMetaJson(entity: ToolGraphEntity): string {
-  return JSON.stringify({
-    totalOccurrences: entity.totalOccurrences,
-    uniqueSessions: entity.uniqueSessions,
-    uniqueAgents: entity.uniqueAgents,
-    l2Hits: entity.l2Hits,
-    l2Fallbacks: entity.l2Fallbacks,
-    sourceCounts: entity.sourceCounts,
-    agentCounts: entity.agentCounts,
-    sessionCounts: entity.sessionCounts,
-  }, null, 2);
+  return JSON.stringify(
+    {
+      totalOccurrences: entity.totalOccurrences,
+      uniqueSessions: entity.uniqueSessions,
+      uniqueAgents: entity.uniqueAgents,
+      l2Hits: entity.l2Hits,
+      l2Fallbacks: entity.l2Fallbacks,
+      sourceCounts: entity.sourceCounts,
+      agentCounts: entity.agentCounts,
+      sessionCounts: entity.sessionCounts,
+    },
+    null,
+    2,
+  );
 }
 
 function renderTransitionLines(

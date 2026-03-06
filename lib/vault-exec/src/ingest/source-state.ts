@@ -68,9 +68,13 @@ async function collectJsonlFiles(sourcePath: string): Promise<string[]> {
   const info = await Deno.stat(sourcePath);
   if (info.isFile) {
     if (sourcePath.toLowerCase().endsWith(".jsonl")) {
-      return [normalizePath(await Deno.realPath(sourcePath).catch(() => sourcePath))];
+      return [
+        normalizePath(await Deno.realPath(sourcePath).catch(() => sourcePath)),
+      ];
     }
-    throw new Error(`[source-state] Source file is not a .jsonl file: ${sourcePath}`);
+    throw new Error(
+      `[source-state] Source file is not a .jsonl file: ${sourcePath}`,
+    );
   }
 
   const files: string[] = [];
@@ -81,7 +85,9 @@ async function collectJsonlFiles(sourcePath: string): Promise<string[]> {
       continue;
     }
     if (entry.isFile && entry.name.toLowerCase().endsWith(".jsonl")) {
-      files.push(normalizePath(await Deno.realPath(fullPath).catch(() => fullPath)));
+      files.push(
+        normalizePath(await Deno.realPath(fullPath).catch(() => fullPath)),
+      );
     }
   }
   files.sort((left, right) => left.localeCompare(right));
@@ -125,7 +131,9 @@ export async function loadSourceScanState(
 
   const raw = await Deno.readTextFile(path);
   const parsed = JSON.parse(raw) as Partial<SourceScanState>;
-  if (parsed.version !== 1 || typeof parsed.files !== "object" || !parsed.files) {
+  if (
+    parsed.version !== 1 || typeof parsed.files !== "object" || !parsed.files
+  ) {
     throw new Error(`[source-state] Invalid state file: ${path}`);
   }
 

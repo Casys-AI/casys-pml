@@ -107,11 +107,29 @@ function makeTinyExamples(vocab: GRUVocabulary): TrainingExample[] {
   ];
 }
 
+function createSeededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (1664525 * state + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+function withDeterministicRandom<T>(seed: number, fn: () => T): T {
+  const previousRandom = Math.random;
+  Math.random = createSeededRandom(seed);
+  try {
+    return fn();
+  } finally {
+    Math.random = previousRandom;
+  }
+}
+
 // --- Backprop tests ---
 
 Deno.test("trainEpoch reduces loss over multiple epochs", () => {
   const vocab = makeTinyVocab(["A", "B", "C"]);
-  const weights = initWeights(TINY_CONFIG);
+  const weights = withDeterministicRandom(1, () => initWeights(TINY_CONFIG));
   const examples = makeTinyExamples(vocab);
   const lr = 0.01;
 

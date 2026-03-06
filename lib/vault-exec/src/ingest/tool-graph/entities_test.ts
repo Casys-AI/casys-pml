@@ -19,8 +19,10 @@ function buildRow(
     callIndex: 0,
     timestamp: "2026-03-06T12:00:01.000Z",
     toolName: "exec",
+    args: { command: "git status" },
     family: "git_vcs",
     l2Hit: true,
+    userIntent: "Inspect repository state",
     ...overrides,
   };
 }

@@ -1,11 +1,19 @@
 import type {
   ImportedOpenClawSessionRow,
   ImportedOpenClawToolCallRow,
+  JsonObject,
   ParsedOpenClawSession,
   ParsedOpenClawTurn,
   ParsedToolCall,
   ParsedToolResult,
 } from "./types.ts";
+
+const encoder = new TextEncoder();
+const MAX_TOOL_CALL_ROW_BYTES = 60_000;
+const STANDARD_JSON_FIELD_BYTES = 8_000;
+const STANDARD_TEXT_FIELD_BYTES = 4_000;
+const EMERGENCY_JSON_FIELD_BYTES = 2_000;
+const EMERGENCY_TEXT_FIELD_BYTES = 1_000;
 
 function normalizePath(path: string): string {
   return path.trim().replace(/\/+$/g, "") || "/";
@@ -55,6 +63,126 @@ function findToolResultForCall(
   return undefined;
 }
 
+function jsonByteLength(value: unknown): number {
+  return encoder.encode(JSON.stringify(value ?? null)).length;
+}
+
+function truncateString(value: string, maxBytes: number): string {
+  if (jsonByteLength(value) <= maxBytes) {
+    return value;
+  }
+
+  const suffix = " ...[truncated]";
+  let end = Math.max(0, value.length - suffix.length);
+  let out = `${value.slice(0, end)}${suffix}`;
+  while (end > 0 && jsonByteLength(out) > maxBytes) {
+    end = Math.max(0, end - 128);
+    out = `${value.slice(0, end)}${suffix}`;
+  }
+  return out;
+}
+
+function summarizeUnknown(value: unknown, maxBytes: number): JsonObject {
+  const serialized = JSON.stringify(value ?? null);
+  const previewBudget = Math.max(128, maxBytes - 128);
+  return {
+    truncated: true,
+    originalType: Array.isArray(value) ? "array" : typeof value,
+    originalBytes: encoder.encode(serialized).length,
+    preview: truncateString(serialized, previewBudget),
+  };
+}
+
+function compactJsonLike(
+  value: JsonObject | undefined,
+  maxBytes: number,
+): JsonObject | undefined {
+  if (value === undefined) return undefined;
+  if (jsonByteLength(value) <= maxBytes) {
+    return value;
+  }
+  return summarizeUnknown(value, maxBytes);
+}
+
+function compactUnknown(value: unknown, maxBytes: number): unknown {
+  if (value === undefined) return undefined;
+  if (jsonByteLength(value) <= maxBytes) {
+    return value;
+  }
+  return summarizeUnknown(value, maxBytes);
+}
+
+function compactThinking(
+  value: string[] | undefined,
+  maxBytes: number,
+): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (jsonByteLength(value) <= maxBytes) {
+    return value;
+  }
+
+  const out: string[] = [];
+  for (const item of value) {
+    out.push(truncateString(item, Math.max(256, Math.floor(maxBytes / 2))));
+    if (jsonByteLength(out) > maxBytes) {
+      out.pop();
+      break;
+    }
+  }
+
+  if (out.length < value.length) {
+    out.push(`...[truncated ${value.length - out.length} item(s)]`);
+  }
+
+  while (out.length > 1 && jsonByteLength(out) > maxBytes) {
+    out.splice(Math.max(0, out.length - 2), 1);
+    out[out.length - 1] = "...[truncated]";
+  }
+
+  return out;
+}
+
+function compactToolCallRow(
+  row: ImportedOpenClawToolCallRow,
+): ImportedOpenClawToolCallRow {
+  const applyCaps = (
+    textBytes: number,
+    jsonBytes: number,
+  ): ImportedOpenClawToolCallRow => ({
+    ...row,
+    args: compactJsonLike(row.args, jsonBytes) ?? {},
+    l2Context: compactJsonLike(row.l2Context, jsonBytes),
+    userIntent: truncateString(row.userIntent, textBytes),
+    userProvenance: compactJsonLike(row.userProvenance, jsonBytes),
+    assistantFinalText: row.assistantFinalText
+      ? truncateString(row.assistantFinalText, textBytes)
+      : undefined,
+    assistantThinking: compactThinking(row.assistantThinking, textBytes),
+    parentPlanHint: row.parentPlanHint
+      ? truncateString(row.parentPlanHint, textBytes)
+      : undefined,
+    toolResultContent: compactUnknown(row.toolResultContent, jsonBytes),
+    toolResultDetails: compactUnknown(row.toolResultDetails, jsonBytes),
+  });
+
+  let compacted = applyCaps(
+    STANDARD_TEXT_FIELD_BYTES,
+    STANDARD_JSON_FIELD_BYTES,
+  );
+  if (jsonByteLength(compacted) > MAX_TOOL_CALL_ROW_BYTES) {
+    compacted = applyCaps(
+      EMERGENCY_TEXT_FIELD_BYTES,
+      EMERGENCY_JSON_FIELD_BYTES,
+    );
+  }
+  if (jsonByteLength(compacted) > MAX_TOOL_CALL_ROW_BYTES) {
+    throw new Error(
+      `[ingest/local-store] Tool call row still exceeds KV budget for ${row.toolName} (${row.sessionId})`,
+    );
+  }
+  return compacted;
+}
+
 async function ensureParentDir(path: string): Promise<void> {
   const normalized = normalizePath(path);
   const lastSlash = normalized.lastIndexOf("/");
@@ -102,7 +230,7 @@ export class OpenClawLocalStore {
       for (let callIndex = 0; callIndex < turn.toolCalls.length; callIndex++) {
         const call = turn.toolCalls[callIndex];
         const toolResult = findToolResultForCall(turn, call);
-        const row: ImportedOpenClawToolCallRow = {
+        const row = compactToolCallRow({
           sourceRoot: normalizedSourceRoot,
           sourcePath: session.sourcePath,
           contentHash,
@@ -130,7 +258,7 @@ export class OpenClawLocalStore {
           toolResultContent: toolResult?.content,
           toolResultDetails: toolResult?.details,
           toolResultIsError: toolResult?.isError,
-        };
+        });
         await this.kv.set([
           ...prefix,
           padIndex(turn.index),

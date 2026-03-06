@@ -109,7 +109,8 @@ Deno.test("scanSourceFilesForChanges - marks modified files as changed", async (
     assertEquals(second.changed[0].status, "pending");
     assertEquals(second.changed[0].importedAt, null);
     assertEquals(
-      second.changed[0].contentHash === previousState.files[filePath].contentHash,
+      second.changed[0].contentHash ===
+        previousState.files[filePath].contentHash,
       false,
     );
   } finally {

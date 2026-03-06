@@ -6,10 +6,7 @@ import {
 } from "jsr:@std/assert";
 
 import { deriveToolGraphEntities } from "./entities.ts";
-import {
-  projectToolGraph,
-  resolveToolGraphNotePath,
-} from "./projection.ts";
+import { projectToolGraph, resolveToolGraphNotePath } from "./projection.ts";
 import type { ImportedOpenClawToolCallRow } from "../types.ts";
 
 function buildRow(
@@ -27,8 +24,10 @@ function buildRow(
     callIndex: 0,
     timestamp: "2026-03-06T12:00:01.000Z",
     toolName: "exec",
+    args: { command: "git status" },
     family: "git_vcs",
     l2Hit: true,
+    userIntent: "Inspect repository state",
     ...overrides,
   };
 }
@@ -57,12 +56,14 @@ Deno.test("projectToolGraph writes stable markdown notes into hierarchical tools
 
     await projectToolGraph(vaultPath, entities);
 
-    const l1Path = resolveToolGraphNotePath(vaultPath, entities.find((entity) =>
-      entity.key === "tool.exec"
-    )!);
-    const l2Path = resolveToolGraphNotePath(vaultPath, entities.find((entity) =>
-      entity.key === "tool.exec.git_vcs"
-    )!);
+    const l1Path = resolveToolGraphNotePath(
+      vaultPath,
+      entities.find((entity) => entity.key === "tool.exec")!,
+    );
+    const l2Path = resolveToolGraphNotePath(
+      vaultPath,
+      entities.find((entity) => entity.key === "tool.exec.git_vcs")!,
+    );
 
     assertEquals(l1Path, `${vaultPath}/tools/exec/exec.md`);
     assertEquals(l2Path, `${vaultPath}/tools/exec/git_vcs/git_vcs.md`);
@@ -82,7 +83,7 @@ Deno.test("projectToolGraph writes stable markdown notes into hierarchical tools
       l2,
       "[[tools/read/relative_file_path/relative_file_path|relative_file_path]] (1)",
     );
-    assertStringIncludes(l2, "\"uniqueAgents\": 2");
+    assertStringIncludes(l2, '"uniqueAgents": 2');
   } finally {
     await Deno.remove(vaultPath, { recursive: true });
   }
@@ -111,13 +112,16 @@ Deno.test("projectToolGraph removes stale markdown notes missing from the next e
   const vaultPath = await Deno.makeTempDir();
 
   try {
-    await projectToolGraph(vaultPath, deriveToolGraphEntities([
-      buildRow(),
-      buildRow({
-        toolName: "read",
-        family: "relative:file_path",
-      }),
-    ]));
+    await projectToolGraph(
+      vaultPath,
+      deriveToolGraphEntities([
+        buildRow(),
+        buildRow({
+          toolName: "read",
+          family: "relative:file_path",
+        }),
+      ]),
+    );
 
     const stalePath = `${vaultPath}/tools/read/read.md`;
     const keptPath = `${vaultPath}/tools/exec/exec.md`;

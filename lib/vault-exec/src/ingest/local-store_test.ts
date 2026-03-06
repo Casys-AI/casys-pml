@@ -93,9 +93,15 @@ Deno.test("OpenClawLocalStore stores imported tool calls without touching traini
       sourceSessionKey: "agent:agent-a:main",
     });
     assertEquals(calls[0].assistantFinalText, "repo has local changes");
-    assertEquals(calls[0].assistantThinking, ["Inspect repo", "Then read docs"]);
+    assertEquals(calls[0].assistantThinking, [
+      "Inspect repo",
+      "Then read docs",
+    ]);
     assertEquals(calls[0].modelId, "gpt-5");
-    assertEquals(calls[0].toolResultContent, [{ type: "text", text: "M src/cli.ts" }]);
+    assertEquals(calls[0].toolResultContent, [{
+      type: "text",
+      text: "M src/cli.ts",
+    }]);
     assertEquals(calls[0].toolResultDetails, {
       status: "completed",
       exitCode: 0,
@@ -166,6 +172,79 @@ Deno.test("OpenClawLocalStore replaces prior rows for the same source session", 
     assertEquals(calls[0].toolName, "exec");
     assertEquals(calls[0].turnIndex, 1);
     assertEquals(calls[0].callIndex, 0);
+  } finally {
+    store.close();
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("OpenClawLocalStore compacts oversized tool result payloads before writing to KV", async () => {
+  const root = await Deno.makeTempDir();
+  const dbPath = `${root}/vault.kv`;
+  const store = await OpenClawLocalStore.open(dbPath);
+
+  try {
+    const hugeContent = "x".repeat(50_000);
+    const hugeDetails = {
+      raw: "y".repeat(30_000),
+      nested: { summary: "z".repeat(10_000) },
+    };
+
+    const stored = await store.replaceSession(
+      "/tmp/.openclaw/agents/agent-a/sessions",
+      "hash-huge",
+      buildSession({
+        turns: [{
+          index: 1,
+          timestamp: "2026-03-06T12:00:01.000Z",
+          userIntent: "inspect huge gateway result",
+          toolCalls: [{
+            toolName: "gateway",
+            toolCallId: "toolu_huge",
+            args: { action: "config.get" },
+            family: "config_get",
+            l2Hit: true,
+          }],
+          toolResults: [{
+            toolName: "gateway",
+            toolCallId: "toolu_huge",
+            content: hugeContent,
+            details: hugeDetails,
+            isError: false,
+          }],
+        }],
+      }),
+    );
+
+    assertEquals(stored, 1);
+
+    const calls = await store.listToolCalls();
+    assertEquals(calls.length, 1);
+    assertEquals(JSON.stringify(calls[0]).length < 65_536, true);
+
+    const compactedContent = calls[0].toolResultContent as Record<
+      string,
+      unknown
+    >;
+    const compactedDetails = calls[0].toolResultDetails as Record<
+      string,
+      unknown
+    >;
+
+    assertEquals(compactedContent.truncated, true);
+    assertEquals(compactedDetails.truncated, true);
+    assertEquals(typeof compactedContent.preview, "string");
+    assertEquals(typeof compactedDetails.preview, "string");
+    assertEquals(
+      typeof compactedContent.originalBytes === "number" &&
+        (compactedContent.originalBytes as number) > 50_000,
+      true,
+    );
+    assertEquals(
+      typeof compactedDetails.originalBytes === "number" &&
+        (compactedDetails.originalBytes as number) > 40_000,
+      true,
+    );
   } finally {
     store.close();
     await Deno.remove(root, { recursive: true });
