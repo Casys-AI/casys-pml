@@ -3,7 +3,7 @@ import type {
   ParsedOpenClawSession,
 } from "./types.ts";
 
-interface ImportedOpenClawSessionRow {
+export interface ImportedOpenClawSessionRow {
   sourceRoot: string;
   sourcePath: string;
   contentHash: string;
@@ -32,6 +32,15 @@ function compareRows(
     left.sessionId.localeCompare(right.sessionId) ||
     left.turnIndex - right.turnIndex ||
     left.callIndex - right.callIndex;
+}
+
+function compareSessionRows(
+  left: ImportedOpenClawSessionRow,
+  right: ImportedOpenClawSessionRow,
+): number {
+  return left.sourceRoot.localeCompare(right.sourceRoot) ||
+    left.sourcePath.localeCompare(right.sourcePath) ||
+    left.sessionId.localeCompare(right.sessionId);
 }
 
 async function ensureParentDir(path: string): Promise<void> {
@@ -127,6 +136,46 @@ export class OpenClawLocalStore {
     ], sessionRow);
 
     return stored;
+  }
+
+  async deleteSession(sourceRoot: string, sessionId: string): Promise<void> {
+    const normalizedSourceRoot = normalizePath(sourceRoot);
+    const toolCallPrefix: Deno.KvKey = [
+      "vault",
+      "openclaw",
+      "tool_calls",
+      normalizedSourceRoot,
+      sessionId,
+    ];
+
+    for await (
+      const entry of this.kv.list<ImportedOpenClawToolCallRow>({
+        prefix: toolCallPrefix,
+      })
+    ) {
+      await this.kv.delete(entry.key);
+    }
+
+    await this.kv.delete([
+      "vault",
+      "openclaw",
+      "sessions",
+      normalizedSourceRoot,
+      sessionId,
+    ]);
+  }
+
+  async listSessions(): Promise<ImportedOpenClawSessionRow[]> {
+    const rows: ImportedOpenClawSessionRow[] = [];
+    for await (
+      const entry of this.kv.list<ImportedOpenClawSessionRow>({
+        prefix: ["vault", "openclaw", "sessions"],
+      })
+    ) {
+      rows.push(entry.value);
+    }
+    rows.sort(compareSessionRows);
+    return rows;
   }
 
   async listToolCalls(): Promise<ImportedOpenClawToolCallRow[]> {

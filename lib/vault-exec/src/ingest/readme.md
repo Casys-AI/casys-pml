@@ -43,5 +43,9 @@ Outputs:
 - explicit fallback reason when classification is uncertain
 - policy decisions must be test-covered
 - imported OpenClaw rows must not pollute GRU training traces
+- removing a configured source or invalidating a previously imported file must
+  prune stale OpenClaw rows from local KV state
 - tool-graph keys must be stable dotted paths derived by explicit naming rules
 - tool-graph projections are derived from typed/local ingest data only
+- tool-graph projections must converge to the current imported row set, not
+  accumulate stale notes

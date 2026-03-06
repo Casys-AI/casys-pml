@@ -1,4 +1,8 @@
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
+import {
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+} from "jsr:@std/assert";
 
 import { deriveToolGraphEntities } from "./entities.ts";
 import {
@@ -88,6 +92,34 @@ Deno.test("projectToolGraph is idempotent for the same entity set", async () => 
     const second = await Deno.readTextFile(notePath);
 
     assertEquals(second, first);
+  } finally {
+    await Deno.remove(vaultPath, { recursive: true });
+  }
+});
+
+Deno.test("projectToolGraph removes stale markdown notes missing from the next entity set", async () => {
+  const vaultPath = await Deno.makeTempDir();
+
+  try {
+    await projectToolGraph(vaultPath, deriveToolGraphEntities([
+      buildRow(),
+      buildRow({
+        toolName: "read",
+        family: "relative:file_path",
+      }),
+    ]));
+
+    const stalePath = `${vaultPath}/tool-graph/l1/tool.read.md`;
+    const keptPath = `${vaultPath}/tool-graph/l1/tool.exec.md`;
+    assertEquals(await Deno.readTextFile(stalePath).then(() => true), true);
+
+    await projectToolGraph(vaultPath, deriveToolGraphEntities([buildRow()]));
+
+    assertEquals(await Deno.readTextFile(keptPath).then(() => true), true);
+    await assertRejects(
+      () => Deno.readTextFile(stalePath),
+      Deno.errors.NotFound,
+    );
   } finally {
     await Deno.remove(vaultPath, { recursive: true });
   }

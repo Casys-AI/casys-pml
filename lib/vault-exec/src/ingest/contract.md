@@ -42,3 +42,5 @@ For each tool call:
 - Unknown tools must fallback cleanly (`unsupported_tool`) instead of forced classification.
 - Imported OpenClaw rows must live in a KV namespace separate from GRU training
   traces.
+- Incremental re-import must remove stale local rows when a source file is
+  deleted, removed from config, or no longer yields importable turns.

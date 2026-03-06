@@ -69,6 +69,44 @@ function replaceSourceState(
   return merged;
 }
 
+function keepConfiguredSourceState(
+  allFiles: Record<string, SourceFileState>,
+  configuredRoots: ReadonlySet<string>,
+): Record<string, SourceFileState> {
+  if (configuredRoots.size === 0) {
+    return {};
+  }
+
+  const kept: Record<string, SourceFileState> = {};
+  for (const [path, state] of Object.entries(allFiles)) {
+    for (const sourceRoot of configuredRoots) {
+      if (isFileUnderSource(path, sourceRoot)) {
+        kept[path] = state;
+        break;
+      }
+    }
+  }
+  return kept;
+}
+
+async function pruneStaleSessions(
+  store: OpenClawLocalStore,
+  files: Record<string, SourceFileState>,
+): Promise<void> {
+  const importedSourcePaths = new Set(
+    Object.values(files)
+      .filter((state) => state.status === "imported")
+      .map((state) => normalizePath(state.path)),
+  );
+
+  const sessions = await store.listSessions();
+  for (const session of sessions) {
+    if (!importedSourcePaths.has(normalizePath(session.sourcePath))) {
+      await store.deleteSession(session.sourceRoot, session.sessionId);
+    }
+  }
+}
+
 function warnForEmptySession(filePath: string): string {
   return `[ingest/pipeline] Skipping ${filePath}: no importable turns found`;
 }
@@ -88,6 +126,7 @@ export async function runIncrementalOpenClawImport(
   const dbPath = options.dbPath ?? servicePaths.vaultDbPath;
   const warnings: string[] = [];
   let files = { ...previousState.files };
+  const configuredRoots = new Set<string>();
 
   const result: IncrementalOpenClawImportResult = {
     configuredSources: config.traceSources.length,
@@ -106,11 +145,13 @@ export async function runIncrementalOpenClawImport(
       let scan;
       try {
         sourceRoot = await resolveSourceRoot(source.path);
+        configuredRoots.add(sourceRoot);
         scan = await scanSourceFilesForChanges(
           sourceRoot,
           stateForSource(files, sourceRoot),
         );
       } catch (error) {
+        configuredRoots.add(normalizePath(source.path));
         warnings.push(warnForSource(source.path, error));
         continue;
       }
@@ -146,6 +187,9 @@ export async function runIncrementalOpenClawImport(
         result.toolCallsStored += stored;
       }
     }
+
+    files = keepConfiguredSourceState(files, configuredRoots);
+    await pruneStaleSessions(store, files);
 
     const rows = await store.listToolCalls();
     const entities = deriveToolGraphEntities(rows);

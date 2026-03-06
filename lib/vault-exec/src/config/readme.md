@@ -7,6 +7,8 @@ Technical configuration loading for `vault-exec`.
 - load persisted local configuration for vault-scoped features
 - normalize and validate configuration payloads before workflows consume them
 - keep missing-config behavior explicit and deterministic
+- provide stable parsing for trace source declarations in
+  `<vault>/.vault-exec/config.json`
 
 ## Boundaries
 
@@ -19,3 +21,5 @@ Technical configuration loading for `vault-exec`.
 
 - config is local to a vault unless a feature explicitly states otherwise
 - config parsing must fail fast on malformed content
+- trace source config is declarative; removing a source from config must let
+  downstream workflows prune stale imported state

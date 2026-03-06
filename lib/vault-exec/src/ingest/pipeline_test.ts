@@ -1,4 +1,8 @@
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
+import {
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+} from "jsr:@std/assert";
 
 import { resolveVaultExecConfigPath } from "../config/trace-config.ts";
 import { openVaultStore } from "../db/index.ts";
@@ -228,6 +232,106 @@ Deno.test("runIncrementalOpenClawImport warns and skips malformed sessions", asy
     assertEquals(result.toolCallsStored, 1);
     assertEquals(result.warnings.length, 1);
     assertStringIncludes(result.warnings[0], "broken.jsonl");
+  } finally {
+    await Deno.remove(vaultPath, { recursive: true });
+  }
+});
+
+Deno.test("runIncrementalOpenClawImport removes previously imported rows when a source file becomes malformed", async () => {
+  const vaultPath = await Deno.makeTempDir();
+  const sourcePath = `${vaultPath}/sources/agents/alpha/sessions`;
+
+  try {
+    await Deno.mkdir(sourcePath, { recursive: true });
+    await writeTraceConfig(vaultPath, [sourcePath]);
+
+    const sessionPath = `${sourcePath}/sess-a.jsonl`;
+    await Deno.writeTextFile(
+      sessionPath,
+      buildToolCallFixture({
+        sessionId: "sess-a",
+        toolName: "exec",
+        args: { command: "git status --short" },
+      }),
+    );
+
+    await runIncrementalOpenClawImport({ vaultPath });
+
+    await Deno.writeTextFile(sessionPath, "{not-json\n");
+    const result = await runIncrementalOpenClawImport({ vaultPath });
+
+    assertEquals(result.sessionsImported, 0);
+    assertEquals(result.toolCallsStored, 0);
+    assertEquals(result.warnings.length, 1);
+
+    const paths = await getServicePaths(vaultPath);
+    const imported = await OpenClawLocalStore.open(paths.vaultDbPath);
+    try {
+      assertEquals(await imported.listToolCalls(), []);
+    } finally {
+      imported.close();
+    }
+
+    await assertRejects(
+      () => Deno.readTextFile(`${vaultPath}/tool-graph/l1/tool.exec.md`),
+      Deno.errors.NotFound,
+    );
+  } finally {
+    await Deno.remove(vaultPath, { recursive: true });
+  }
+});
+
+Deno.test("runIncrementalOpenClawImport prunes rows for sources removed from config", async () => {
+  const vaultPath = await Deno.makeTempDir();
+  const sourceA = `${vaultPath}/sources/agents/alpha/sessions`;
+  const sourceB = `${vaultPath}/sources/agents/beta/sessions`;
+
+  try {
+    await Deno.mkdir(sourceA, { recursive: true });
+    await Deno.mkdir(sourceB, { recursive: true });
+
+    await Deno.writeTextFile(
+      `${sourceA}/sess-a.jsonl`,
+      buildToolCallFixture({
+        sessionId: "sess-a",
+        toolName: "exec",
+        args: { command: "git status --short" },
+      }),
+    );
+    await Deno.writeTextFile(
+      `${sourceB}/sess-b.jsonl`,
+      buildToolCallFixture({
+        sessionId: "sess-b",
+        toolName: "read",
+        args: { file_path: "notes.md" },
+      }),
+    );
+
+    await writeTraceConfig(vaultPath, [sourceA, sourceB]);
+    await runIncrementalOpenClawImport({ vaultPath });
+
+    await writeTraceConfig(vaultPath, [sourceA]);
+    const result = await runIncrementalOpenClawImport({ vaultPath });
+
+    assertEquals(result.configuredSources, 1);
+    assertEquals(result.changedFiles, 0);
+    assertEquals(result.sessionsImported, 0);
+
+    const paths = await getServicePaths(vaultPath);
+    const imported = await OpenClawLocalStore.open(paths.vaultDbPath);
+    try {
+      const rows = await imported.listToolCalls();
+      assertEquals(rows.length, 1);
+      assertEquals(rows[0].sessionId, "sess-a");
+      assertEquals(rows[0].agentId, "alpha");
+    } finally {
+      imported.close();
+    }
+
+    await assertRejects(
+      () => Deno.readTextFile(`${vaultPath}/tool-graph/l1/tool.read.md`),
+      Deno.errors.NotFound,
+    );
   } finally {
     await Deno.remove(vaultPath, { recursive: true });
   }

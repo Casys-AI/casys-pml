@@ -5,6 +5,32 @@ function normalizePath(path: string): string {
   return path.trim().replace(/\/+$/g, "") || "/";
 }
 
+async function collectProjectedNotePaths(
+  path: string,
+  out: string[],
+): Promise<void> {
+  let entries: AsyncIterable<Deno.DirEntry>;
+  try {
+    entries = Deno.readDir(path);
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      return;
+    }
+    throw error;
+  }
+
+  for await (const entry of entries) {
+    const entryPath = `${path}/${entry.name}`;
+    if (entry.isDirectory) {
+      await collectProjectedNotePaths(entryPath, out);
+      continue;
+    }
+    if (entry.isFile && entry.name.toLowerCase().endsWith(".md")) {
+      out.push(entryPath);
+    }
+  }
+}
+
 function renderFrontmatter(entity: ToolGraphEntity): string {
   return [
     "---",
@@ -72,12 +98,23 @@ export async function projectToolGraph(
   entities: ToolGraphEntity[],
 ): Promise<string[]> {
   const writer = new DenoVaultWriter();
+  const projectionRoot = `${normalizePath(vaultPath)}/tool-graph`;
   const writtenPaths: string[] = [];
+  const nextPaths = new Set<string>();
 
   for (const entity of entities) {
     const notePath = resolveToolGraphNotePath(vaultPath, entity);
     await writer.writeNote(notePath, renderToolGraphNote(entity));
     writtenPaths.push(notePath);
+    nextPaths.add(notePath);
+  }
+
+  const existingPaths: string[] = [];
+  await collectProjectedNotePaths(projectionRoot, existingPaths);
+  for (const existingPath of existingPaths) {
+    if (!nextPaths.has(existingPath)) {
+      await Deno.remove(existingPath);
+    }
   }
 
   return writtenPaths;
