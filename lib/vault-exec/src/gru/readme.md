@@ -13,3 +13,10 @@ Intent-sequence modeling and inference utilities.
 - No CLI prompts or output formatting.
 - No direct filesystem or DB concerns.
 - Runtime orchestration belongs to workflows.
+
+## AX Notes
+
+- Vector and tensor dimensions must match `GRUConfig`.
+- Inference enforces acyclic paths with no revisits.
+- `gruStep` is deterministic for fixed inputs and weights.
+- Training with empty examples is a defined no-op.

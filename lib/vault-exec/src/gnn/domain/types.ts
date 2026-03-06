@@ -25,19 +25,6 @@ export interface GNNParams {
   shareLevelWeights: boolean;
 }
 
-/** Forward pass cache for backward computation. */
-export interface ForwardCache {
-  veAttentionWeights: Map<string, Map<string, number>>;
-  veProjectedChildren: Map<string, number[][]>;
-  veProjectedParents: Map<string, number[][]>;
-  veOriginal: Map<string, number[]>;
-  veMP: Map<string, number[]>;
-  evAttentionWeights: Map<string, Map<string, number>>;
-  evOriginal: Map<string, number[]>;
-  eeUpCaches: Map<number, ForwardCache>;
-  eeDownCaches: Map<number, ForwardCache>;
-}
-
 /** GNN configuration. */
 export interface GNNConfig {
   numHeads: number;
