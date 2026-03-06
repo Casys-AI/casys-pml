@@ -39,44 +39,6 @@ jobs:
       - name: Build Node.js bundle
         run: |
           bash scripts/build-node.sh
-          cd dist-node
-          npm install
-          npx esbuild server.ts \
-            --bundle \
-            --platform=node \
-            --target=node20 \
-            --format=esm \
-            --outfile=bin/mcp-erpnext.mjs \
-            --external:'node:*' \
-            --banner:js='import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
-          sed -i '1s/^/#!\/usr\/bin\/env node\n/' bin/mcp-erpnext.mjs
-          chmod +x bin/mcp-erpnext.mjs
-          cp -r src/ui/dist bin/ui-dist
-          cp README.md bin/README.md 2>/dev/null || cp ../README.md bin/README.md 2>/dev/null || true
-
-      - name: Set version in package.json
-        run: |
-          VERSION=$(grep '"version"' deno.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
-          cd dist-node/bin
-          cat > package.json << EOF
-          {
-            "name": "@casys/mcp-erpnext",
-            "version": "$VERSION",
-            "description": "MCP server for ERPNext — 120 tools for sales, inventory, accounting, HR, projects, analytics with interactive UI viewers",
-            "type": "module",
-            "bin": {
-              "mcp-erpnext": "mcp-erpnext.mjs"
-            },
-            "files": [
-              "mcp-erpnext.mjs",
-              "ui-dist/**/*"
-            ],
-            "keywords": ["mcp", "erpnext", "frappe", "erp", "model-context-protocol", "claude", "ai", "tools"],
-            "engines": { "node": ">=20.0.0" },
-            "repository": { "type": "git", "url": "https://github.com/Casys-AI/mcp-erpnext" },
-            "license": "MIT"
-          }
-          EOF
 
       - name: Publish to npm
         run: |

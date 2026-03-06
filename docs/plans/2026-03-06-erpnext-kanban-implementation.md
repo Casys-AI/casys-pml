@@ -2,13 +2,49 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build a production-grade generic kanban MCP App in `lib/erpnext`, validated on `Task` first, backed by explicit per-DocType adapters, and positioned as the first read-write ERPNext MCP App viewer.
+**Goal:** Build a production-grade generic kanban MCP App in `lib/erpnext`, validated on `Task` first, then extended to additional DocTypes, and positioned as the first read-write ERPNext MCP App viewer rather than as a replacement for ERPNext native kanban.
 
-**Architecture:** Keep MCP protocol and resource serving in `lib/server` and `lib/erpnext/server.ts`, but move kanban business logic into new `lib/erpnext/src/kanban/` modules plus a canonical `kanban-viewer`. V1 supports `Task` only, with explicit allowed transition matrices, optimistic local state, FIFO mutation serialization, and server-side reconciliation through MCP Apps tool calls.
+**Architecture:** Keep MCP protocol and resource serving in `lib/server` and `lib/erpnext/server.ts`, but move kanban business logic into `lib/erpnext/src/kanban/` modules plus a canonical `kanban-viewer`. The delivered implementation now supports `Task`, `Opportunity`, and `Issue`, with explicit allowed transition matrices, optimistic local state, FIFO mutation serialization, refresh/revalidation infrastructure, and server-side reconciliation through MCP Apps tool calls.
 
 **Tech Stack:** Deno, TypeScript, `@casys/mcp-server`, `@modelcontextprotocol/ext-apps`, React 18, Vite, ERPNext REST/Frappe APIs
 
 ---
+
+## Execution Status
+
+This document started as the original 8-task execution plan. The sequence below is still useful as the historical delivery path, but the implementation has now moved beyond the original `Task`-only scope.
+
+### Completed from the original plan
+
+- Task 1: shared kanban contracts
+- Task 2: board definition registry
+- Task 3: `Task` adapter
+- Task 4: kanban read/move tools
+- Task 5: canonical `kanban-viewer`
+- Task 6: interactive move flow with AX
+- Task 7: server/resource registration
+- Task 8: scope and product-positioning docs
+
+### Completed beyond the original plan
+
+- `Opportunity` adapter and live kanban support
+- `Issue` adapter and live kanban support
+- shared `refreshRequest` injection for MCP App payloads
+- shared viewer refresh helpers used across passive and interactive viewers
+- refresh-enabled `doclist-viewer`, `stock-viewer`, `invoice-viewer`, `kpi-viewer`, `chart-viewer`, and `funnel-viewer`
+- removal of `order-pipeline-viewer`
+- removal of `erpnext_order_pipeline` and `erpnext_purchase_pipeline`
+- packaged Node bundle validation and live HTTP serving on `3012`
+
+### Remaining work
+
+- transactional kanban adapters for `Sales Order` / `Purchase Order`
+- additional interactive viewers beyond kanban
+- host-level end-to-end validation for richer MCP App mutation flows
+
+## Historical Task Sequence
+
+The tasks below describe the original execution order. They should be read as a record of how the work was sequenced, not as the current surface area of the feature.
 
 ### Task 1: Define shared kanban contracts
 
@@ -335,3 +371,14 @@ Expected: PASS with all expected references present
 git add lib/erpnext/README.md lib/erpnext/docs/ROADMAP.md docs/plans/2026-03-06-erpnext-kanban-design.md
 git commit -m "docs(lib/erpnext): document generic kanban migration"
 ```
+
+## Next Backlog
+
+The next implementation batch should not revisit the generic kanban foundation. That part is already in place.
+
+Priority backlog:
+
+1. Transaction-safe kanban adapters for `Sales Order` and `Purchase Order`
+2. Actionable non-kanban viewers using the same `app.callServerTool(...)` mutation pattern
+3. Shared React-level helpers only where duplication is proven, not pre-emptively
+4. Host-level revalidation/push strategies beyond viewer-side focus/poll refresh

@@ -6,7 +6,23 @@
 
 ## Goal
 
-Design a production-grade generic kanban system for ERPNext MCP Apps without creating a parallel UI/tool stack, while keeping MCP Apps protocol compliance, strong business-transition validation, and a clean migration path away from the current `order-pipeline-viewer`.
+Design a production-grade generic kanban system for ERPNext MCP Apps without creating a parallel UI/tool stack, while keeping MCP Apps protocol compliance, strong business-transition validation, and a clean removal path away from `order-pipeline-viewer`.
+
+This is not justified as "a better kanban than ERPNext native kanban." The product value is proving the first read-write ERPNext MCP App viewer, using kanban as the lowest-risk mutation surface for validating `app.callServerTool(...)`, optimistic reconciliation, rollback, and human-in-the-loop actions inside the MCP host.
+
+## Implementation Status Update
+
+As of the current implementation in `lib/erpnext`, this design has moved past the original `Task`-only validation scope:
+
+- `kanban-viewer` is live as the canonical read-write kanban MCP App
+- `Task`, `Opportunity`, and `Issue` adapters are implemented
+- `erpnext_kanban_get_board` and `erpnext_kanban_move_card` are live and server-authoritative
+- optimistic local state, FIFO mutation serialization, AX feedback, and silent reconciliation are implemented
+- `refreshRequest` has been generalized as shared MCP App refresh infrastructure
+- that refresh pattern is now used by `kanban-viewer`, `doclist-viewer`, `stock-viewer`, `invoice-viewer`, `kpi-viewer`, `chart-viewer`, and `funnel-viewer`
+- `order-pipeline-viewer` and the legacy `erpnext_order_pipeline` / `erpnext_purchase_pipeline` tools have been removed from the live surface
+
+What remains is not the generic kanban foundation. What remains is the next layer of interactive ERPNext MCP Apps built on the same read-write pattern.
 
 ## Validated Constraints
 
@@ -106,7 +122,8 @@ Owns the kanban feature:
 
 - Canonical viewer: `lib/erpnext/src/ui/kanban-viewer/`
 - Shared UI engine: `lib/erpnext/src/ui/shared/kanban/`
-- `order-pipeline-viewer` remains an existing legacy viewer and is allowed to die by obsolescence later, without a dedicated compatibility refactor in V1
+- Shared MCP App refresh infrastructure: `lib/erpnext/src/ui/shared/refresh.ts`
+- `order-pipeline-viewer` has been removed after the canonical kanban viewer took over
 
 #### Server/domain
 
@@ -225,12 +242,9 @@ AX requirements are first-class:
 
 ## Scope
 
-### Generic kanban V1
+### Implemented generic kanban scope
 
 - `Task`
-
-### Generic kanban next
-
 - `Opportunity`
 - `Issue`
 
@@ -249,16 +263,27 @@ These should reuse the same UI engine, but with stricter business adapters becau
 - ship one end-to-end generic board on `Task`
 - validate the read-write MCP App pattern
 
+Status: completed
+
 ### Phase 2
 
 - add `Opportunity`
 - add `Issue`
 
+Status: completed
+
 ### Phase 3
 
-- add transactional boards such as `Sales Order` and `Purchase Order` with stricter business adapters
+- remove `order-pipeline-viewer`
+- remove legacy order/purchase pipeline tools
+- keep `kanban-viewer` as the single kanban surface
 
-There is intentionally no dedicated refactor phase for `order-pipeline-viewer` in this plan.
+Status: completed
+
+### Phase 4
+
+- add transactional boards such as `Sales Order` and `Purchase Order` with stricter business adapters
+- extend the same read-write MCP App pattern to non-kanban interactive viewers
 
 ## Testing Strategy
 
@@ -303,8 +328,8 @@ This feature should therefore be positioned as the first production-grade read-w
 - Avoid side-by-side duplicate stacks.
 - Introduce a canonical generic kanban viewer.
 - Use explicit per-DocType adapters.
-- Start V1 with `Task` only.
-- Add `Opportunity` and `Issue` in follow-up increments.
+- Validate first on `Task`, then extend to `Opportunity` and `Issue`.
+- Remove `order-pipeline-viewer` once the canonical kanban path is live.
 - Treat `Sales Order` and `Purchase Order` as stricter transactional boards later.
 - Build accessibility in from the start.
 - Use explicit `allowedTransitions`, not viewer-inferred drop policy.
