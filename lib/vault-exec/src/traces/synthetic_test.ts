@@ -98,3 +98,15 @@ Deno.test("generateStructuralTraces - dangling wikilink ignored", () => {
   assertEquals(traces[0].path.length, 2);
   assertEquals(traces[0].path, ["A", "B"]);
 });
+
+Deno.test("generateStructuralTraces - deterministic trace ordering by target name", () => {
+  const notes = [
+    makeNote("B", ["Leaf"]),
+    makeNote("Leaf"),
+    makeNote("A", ["Leaf"]),
+  ];
+
+  const traces = generateStructuralTraces(notes);
+  assertEquals(traces.length, 2);
+  assertEquals(traces.map((t) => t.targetNote), ["A", "B"]);
+});

@@ -13,3 +13,11 @@ Operational persistence adapters and store factory.
 - No business-policy decisions.
 - No CLI formatting.
 - Keep storage details isolated behind `IVaultStore`.
+
+## AX Notes
+
+- Notes are returned sorted by `name`.
+- Edge targets are canonicalized on write.
+- Traces preserve caller-provided `executedAt`, otherwise timestamp is assigned at insert.
+- Virtual-edge listing is deterministic: score desc, then source asc, then target asc.
+- Repeated writes with the same canonical payload are idempotent at the state level.
