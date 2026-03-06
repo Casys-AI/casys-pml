@@ -39,6 +39,42 @@ export interface RuntimeInputSchemaBuildResult {
   source: RuntimeInputSchemaSource;
 }
 
+export const RUNTIME_PAYLOAD_MODES = ["strict", "project"] as const;
+export type RuntimePayloadMode = (typeof RUNTIME_PAYLOAD_MODES)[number];
+
+export interface RuntimePayloadModeParseResult {
+  ok: boolean;
+  mode?: RuntimePayloadMode;
+  received: string;
+  allowedModes: RuntimePayloadMode[];
+}
+
+export interface RuntimeInputPreparationResult {
+  mode: RuntimePayloadMode;
+  payload: Record<string, unknown>;
+  projected: boolean;
+  droppedKeys: string[];
+  validation: RuntimeInputValidationResult;
+}
+
+export function parseRuntimePayloadMode(
+  rawMode?: string,
+): RuntimePayloadModeParseResult {
+  const received = (rawMode ?? "strict").trim().toLowerCase();
+  const allowedModes: RuntimePayloadMode[] = [...RUNTIME_PAYLOAD_MODES];
+  if (
+    (RUNTIME_PAYLOAD_MODES as readonly string[]).includes(received)
+  ) {
+    return {
+      ok: true,
+      mode: received as RuntimePayloadMode,
+      received,
+      allowedModes,
+    };
+  }
+  return { ok: false, received, allowedModes };
+}
+
 function isRuntimeRefNote(note: string): boolean {
   return note === "input" || note === "inputs";
 }
@@ -107,13 +143,10 @@ export function buildRuntimeInputSchemaWithSource(
     hasDeclaredSchema = true;
   }
 
-  // Fallback infer from runtime refs when no explicit input_schema exists.
-  if (!hasDeclaredSchema) {
-    const inferred = extractRuntimeInputKeys(graph);
-    for (const key of inferred) {
-      if (!merged.properties[key]) merged.properties[key] = { type: "string" };
-      requiredSet.add(key);
-    }
+  const inferred = extractRuntimeInputKeys(graph);
+  for (const key of inferred) {
+    if (!merged.properties[key]) merged.properties[key] = { type: "string" };
+    requiredSet.add(key);
   }
 
   merged.required = [...requiredSet].sort();
@@ -165,12 +198,34 @@ function deriveStatus(
   if (issues.length === 0) return "OK";
 
   const kinds = new Set(issues.map((i) => i.kind));
-  // Keep status labels simple and aligned with AX plan intent.
+  // Keep status labels simple and aligned with the runtime input contract.
   if (kinds.size === 1 && kinds.has("missing")) return "MISSING";
   if (kinds.size === 1 && kinds.has("extra")) return "EXTRA";
   if (!kinds.has("invalid") && kinds.has("missing")) return "MISSING";
   if (!kinds.has("invalid") && kinds.has("extra")) return "EXTRA";
   return "INVALID";
+}
+
+function validatePayloadAgainstSchema(
+  schema: RuntimeInputSchema,
+  source: RuntimeInputSchemaSource,
+  payload: Record<string, unknown>,
+): RuntimeInputValidationResult {
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  const validate = ajv.compile(schema as unknown as Record<string, unknown>);
+  const ok = validate(payload);
+  if (ok) {
+    return { ok: true, status: "OK", schema, schemaSource: source, issues: [] };
+  }
+
+  const issues = (validate.errors ?? []).map(issueFromAjvError);
+  return {
+    ok: false,
+    status: deriveStatus(issues),
+    schema,
+    schemaSource: source,
+    issues,
+  };
 }
 
 /**
@@ -192,20 +247,89 @@ export function validateRuntimeInputsForGraph(
     };
   }
 
-  const ajv = new Ajv({ allErrors: true, strict: false });
-  const validate = ajv.compile(schema as unknown as Record<string, unknown>);
-  const ok = validate(payload);
-  if (ok) {
-    return { ok: true, status: "OK", schema, schemaSource: source, issues: [] };
+  return validatePayloadAgainstSchema(schema, source, payload);
+}
+
+function projectPayloadToSchema(
+  payload: Record<string, unknown>,
+  schema: RuntimeInputSchema,
+): { projectedPayload: Record<string, unknown>; droppedKeys: string[] } {
+  if (schema.additionalProperties) {
+    return { projectedPayload: payload, droppedKeys: [] };
   }
 
-  const issues = (validate.errors ?? []).map(issueFromAjvError);
-  return {
-    ok: false,
-    status: deriveStatus(issues),
+  const allowed = new Set(Object.keys(schema.properties));
+  const droppedKeys = Object.keys(payload)
+    .filter((key) => !allowed.has(key))
+    .sort();
+
+  if (droppedKeys.length === 0) {
+    return { projectedPayload: payload, droppedKeys: [] };
+  }
+
+  const projectedPayload = Object.fromEntries(
+    Object.entries(payload).filter(([key]) => allowed.has(key)),
+  );
+  return { projectedPayload, droppedKeys };
+}
+
+export function prepareRuntimeInputsForGraph(
+  graph: VaultGraph,
+  payload: Record<string, unknown>,
+  mode: RuntimePayloadMode,
+): RuntimeInputPreparationResult {
+  const { schema, source } = buildRuntimeInputSchemaWithSource(graph);
+  if (!schema) {
+    return {
+      mode,
+      payload,
+      projected: false,
+      droppedKeys: [],
+      validation: {
+        ok: true,
+        status: "OK",
+        schema: null,
+        schemaSource: source,
+        issues: [],
+      },
+    };
+  }
+
+  const initialValidation = validatePayloadAgainstSchema(
     schema,
-    schemaSource: source,
-    issues,
+    source,
+    payload,
+  );
+  if (mode === "strict") {
+    return {
+      mode,
+      payload,
+      projected: false,
+      droppedKeys: [],
+      validation: initialValidation,
+    };
+  }
+
+  const { projectedPayload, droppedKeys } = projectPayloadToSchema(
+    payload,
+    schema,
+  );
+  if (droppedKeys.length === 0) {
+    return {
+      mode,
+      payload,
+      projected: false,
+      droppedKeys: [],
+      validation: initialValidation,
+    };
+  }
+
+  return {
+    mode,
+    payload: projectedPayload,
+    projected: true,
+    droppedKeys,
+    validation: validatePayloadAgainstSchema(schema, source, projectedPayload),
   };
 }
 

@@ -23,6 +23,8 @@ export interface EvaluatedIntentCandidate extends IntentCandidate {
   targetResolution: "index" | "fallback";
   payloadStatus: string;
   payloadOk: boolean;
+  payloadProjected: boolean;
+  payloadDroppedKeys: string[];
   validation: {
     ok: boolean;
     status: RuntimeValidationStatus;
@@ -94,7 +96,8 @@ export function evaluateIntentCandidates(
 ): EvaluatedIntentCandidate[] {
   return candidates.map((candidate) => {
     const candidateGraph = extractSubgraph(fullGraph, candidate.target);
-    const validation = validator.validate(candidateGraph, payload);
+    const preparation = validator.prepare(candidateGraph, payload);
+    const validation = preparation.validation;
     const resolvedTarget = resolveCandidateTarget(
       candidate.target,
       targetIndex,
@@ -106,8 +109,10 @@ export function evaluateIntentCandidates(
       targetId: resolvedTarget.targetId,
       targetAlias: resolvedTarget.targetAlias,
       targetResolution: resolvedTarget.targetResolution,
-      payloadStatus: validator.summarize(validation),
+      payloadStatus: validator.summarize(validation, preparation),
       payloadOk: validation.ok,
+      payloadProjected: preparation.projected,
+      payloadDroppedKeys: preparation.droppedKeys,
       validation: {
         ok: validation.ok,
         status: validation.status,
