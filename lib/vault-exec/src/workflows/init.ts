@@ -1,5 +1,5 @@
 import type { VaultNote } from "../core/types.ts";
-import { type Embedder } from "../embeddings/model.ts";
+import type { Embedder } from "../embeddings/model.ts";
 import {
   type IncrementalOpenClawImportResult,
   runIncrementalOpenClawImport,
@@ -39,12 +39,4 @@ export async function initVaultWithTraceImport(
     ...emptyInitResult(),
     traceImport,
   };
-}
-
-export async function initVault(
-  _notes: VaultNote[],
-  _dbPath: string,
-  _embedder: Embedder,
-): Promise<InitResult> {
-  return emptyInitResult();
 }

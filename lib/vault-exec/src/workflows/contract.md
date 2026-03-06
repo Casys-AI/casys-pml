@@ -16,8 +16,8 @@
 - `runVaultCommand(opts, vaultPath)` is the runtime entrypoint.
 - `initVaultWithTraceImport(vaultPath, notes, dbPath, embedder)` imports
   configured traces before rebuilding DB-first training tables and projection.
-- `initVault()` is no longer responsible for notes-first indexing/GNN/GRU
-  training in the DB-first phase.
+- Legacy `initVault()` notes-first indexing path is removed in the DB-first
+  phase.
 - Runtime input parsing uses explicit source + error code contract.
 - Runtime payload mode parsing is explicit; unknown mode is a validation error.
 - Validation failures exit with `EXIT_CODE_VALIDATION`.

@@ -33,7 +33,9 @@ function parseTraceSource(
   const kind = value.kind;
   if (kind !== "openclaw") {
     throw new Error(
-      `[trace-config] Invalid trace source at index ${index}: unsupported kind "${String(kind)}"`,
+      `[trace-config] Invalid trace source at index ${index}: unsupported kind "${
+        String(kind)
+      }"`,
     );
   }
 

@@ -201,6 +201,11 @@ const runCmd = new Command()
     "-I, --inputs <inputs:string>",
     "Runtime input payload (JSON string or @path/to/inputs.json)",
   )
+  .option(
+    "--payload-mode <mode:string>",
+    "Runtime payload mode: strict (default) or project",
+    { default: "strict" },
+  )
   .option("-H, --human", "Human-readable output (default: JSONL)")
   .action(
     async (opts: Parameters<typeof runVaultCommand>[0], vaultPath: string) => {
@@ -260,7 +265,7 @@ const compileCmd = new Command()
 
 const initCmd = new Command()
   .alias("n")
-  .description("Initialize GNN+GRU pipeline (embed, GNN, synthetic traces)")
+  .description("Initialize DB-first trace import, rebuild, and projection")
   .arguments("<vault-path:string>")
   .action(async (_opts: void, vaultPath: string) => {
     const notes = await loadNotes(vaultPath);
@@ -344,8 +349,6 @@ const initCmd = new Command()
     );
 
     console.log(`\nDone:`);
-    console.log(`  ${result.notesIndexed} notes indexed`);
-    console.log(`  ${result.syntheticTraces} synthetic traces generated`);
     console.log(
       `  Trace import: ${result.traceImport.sessionsImported} session(s), ${result.traceImport.toolCallsStored} tool call(s), ${result.traceImport.changedFiles} changed file(s)`,
     );
@@ -354,15 +357,11 @@ const initCmd = new Command()
         `  Trace warnings: ${result.traceImport.warnings.length}`,
       );
     }
-    console.log(`  GNN: ${result.gnnForwardDone ? "done" : "skipped"}`);
     console.log(
-      `  GRU: ${
-        result.gruTrained
-          ? `trained (accuracy=${
-            ((result.gruAccuracy ?? 0) * 100).toFixed(1)
-          }%)`
-          : "skipped"
-      }`,
+      "  Derived tables: rebuilt in .vault-exec/vault.kv",
+    );
+    console.log(
+      "  Training: notebook-first in this phase (05, 06, 08 under notebooks/)",
     );
   });
 

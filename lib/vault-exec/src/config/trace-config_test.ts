@@ -1,9 +1,6 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert";
 
-import {
-  loadTraceConfig,
-  resolveVaultExecConfigPath,
-} from "./trace-config.ts";
+import { loadTraceConfig, resolveVaultExecConfigPath } from "./trace-config.ts";
 
 Deno.test("resolveVaultExecConfigPath - points to .vault-exec/config.json", () => {
   assertEquals(
@@ -78,7 +75,7 @@ Deno.test("loadTraceConfig - unsupported source kind throws validation error", a
     await assertRejects(
       () => loadTraceConfig(vaultPath),
       Error,
-      "[trace-config] Invalid trace source at index 0: unsupported kind \"unknown\"",
+      '[trace-config] Invalid trace source at index 0: unsupported kind "unknown"',
     );
   } finally {
     await Deno.remove(vaultPath, { recursive: true });
