@@ -11,6 +11,8 @@ state, and human-readable tool-graph projections.
 - Persist imported tool-call rows into the local vault KV namespace
   (`local-store.ts`)
 - Run the unified local import pipeline (`pipeline.ts`)
+- Rebuild DB-first training tables from imported rows before projection
+  (`../training-data/rebuild.ts`)
 - Derive stable tool-graph entities from imported traces
   (`tool-graph/naming.ts`, `tool-graph/entities.ts`)
 - Project tool-graph entities into Markdown notes for Obsidian
@@ -34,6 +36,8 @@ Inputs:
 
 Outputs:
 - Local KV rows under the OpenClaw namespace inside `vault.kv`
+- Local derived training tables under the active `training_data` build inside
+  `vault.kv`
 - Tool projection notes under `tools/` with hierarchical paths such as
   `tools/exec/exec.md` and `tools/exec/git_vcs/git_vcs.md`
 - Standalone helper output: `sessions/`, `tools/`, `reports/l2-coverage.md`

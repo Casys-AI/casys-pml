@@ -29,6 +29,7 @@ Tests for this slice are co-located in `routing/*_test.ts`.
 - `embeddings/*`
 - `gnn/domain/*` / `gnn/application/*` / `gnn/infrastructure/*`
 - `gru/*`
+- `training-data/*`
 - `traces/*`
 
 ## Runtime entrypoints

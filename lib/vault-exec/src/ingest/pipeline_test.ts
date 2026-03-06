@@ -7,6 +7,12 @@ import {
 import { resolveVaultExecConfigPath } from "../config/trace-config.ts";
 import { openVaultStore } from "../db/index.ts";
 import { getServicePaths } from "../service/lifecycle.ts";
+import {
+  getActiveTrainingBuildId,
+  listActiveSessionSequences,
+  listActiveToolLeafEdgesNext,
+  listActiveToolLeafNodes,
+} from "../training-data/rebuild.ts";
 import { OpenClawLocalStore } from "./local-store.ts";
 import { runIncrementalOpenClawImport } from "./pipeline.ts";
 
@@ -67,6 +73,46 @@ function buildToolCallFixture(options: ToolCallFixtureOptions): string {
   ].join("\n");
 }
 
+function buildSequentialFixture(sessionId: string): string {
+  return [
+    JSON.stringify({
+      type: "session",
+      id: sessionId,
+      timestamp: "2026-03-06T12:00:00.000Z",
+    }),
+    JSON.stringify({
+      type: "message",
+      timestamp: "2026-03-06T12:00:01.000Z",
+      message: {
+        role: "user",
+        content: [{ type: "text", text: "inspect then read" }],
+      },
+    }),
+    JSON.stringify({
+      type: "message",
+      timestamp: "2026-03-06T12:00:02.000Z",
+      message: {
+        role: "assistant",
+        content: [
+          {
+            type: "toolCall",
+            id: "toolu_1",
+            name: "exec",
+            arguments: { command: "git status --short" },
+          },
+          {
+            type: "toolCall",
+            id: "toolu_2",
+            name: "read",
+            arguments: { file_path: "notes.md" },
+          },
+        ],
+      },
+    }),
+    "",
+  ].join("\n");
+}
+
 async function writeTraceConfig(
   vaultPath: string,
   traceSources: string[],
@@ -74,9 +120,18 @@ async function writeTraceConfig(
   await Deno.mkdir(`${vaultPath}/.vault-exec`, { recursive: true });
   await Deno.writeTextFile(
     resolveVaultExecConfigPath(vaultPath),
-    `${JSON.stringify({
-      traceSources: traceSources.map((path) => ({ kind: "openclaw", path })),
-    }, null, 2)}\n`,
+    `${
+      JSON.stringify(
+        {
+          traceSources: traceSources.map((path) => ({
+            kind: "openclaw",
+            path,
+          })),
+        },
+        null,
+        2,
+      )
+    }\n`,
   );
 }
 
@@ -142,6 +197,31 @@ Deno.test("runIncrementalOpenClawImport imports multiple configured sources and 
       vaultStore.close();
     }
 
+    const trainingKv = await Deno.openKv(paths.vaultDbPath);
+    try {
+      assertEquals(
+        (await listActiveToolLeafNodes(trainingKv)).map((
+          node: { leafKey: string },
+        ) => node.leafKey),
+        [
+          "tool.exec.git_vcs",
+          "tool.read.relative_file_path",
+        ],
+      );
+      assertEquals(await listActiveToolLeafEdgesNext(trainingKv), []);
+      assertEquals(
+        (await listActiveSessionSequences(trainingKv)).map((
+          row: { leafKeys: string[] },
+        ) => row.leafKeys),
+        [
+          ["tool.exec.git_vcs"],
+          ["tool.read.relative_file_path"],
+        ],
+      );
+    } finally {
+      trainingKv.close();
+    }
+
     const second = await runIncrementalOpenClawImport({ vaultPath });
     assertEquals(second.configuredSources, 2);
     assertEquals(second.changedFiles, 0);
@@ -201,6 +281,78 @@ Deno.test("runIncrementalOpenClawImport reimports only changed files and replace
       assertEquals(rows[0].sessionId, "sess-a");
     } finally {
       imported.close();
+    }
+
+    const trainingKv = await Deno.openKv(paths.vaultDbPath);
+    try {
+      assertEquals(
+        (await listActiveToolLeafNodes(trainingKv)).map((
+          node: { leafKey: string },
+        ) => node.leafKey),
+        ["tool.write.relative_file_path"],
+      );
+      assertEquals(await listActiveToolLeafEdgesNext(trainingKv), []);
+      assertEquals(
+        (await listActiveSessionSequences(trainingKv)).map((
+          row: { leafKeys: string[] },
+        ) => row.leafKeys),
+        [["tool.write.relative_file_path"]],
+      );
+    } finally {
+      trainingKv.close();
+    }
+  } finally {
+    await Deno.remove(vaultPath, { recursive: true });
+  }
+});
+
+Deno.test("runIncrementalOpenClawImport rebuilds active training tables from imported rows", async () => {
+  const vaultPath = await Deno.makeTempDir();
+  const sourcePath = `${vaultPath}/sources/agents/alpha/sessions`;
+
+  try {
+    await Deno.mkdir(sourcePath, { recursive: true });
+    await writeTraceConfig(vaultPath, [sourcePath]);
+    await Deno.writeTextFile(
+      `${sourcePath}/sess-a.jsonl`,
+      buildSequentialFixture("sess-a"),
+    );
+
+    const result = await runIncrementalOpenClawImport({ vaultPath });
+    assertEquals(result.sessionsImported, 1);
+    assertEquals(result.toolCallsStored, 2);
+
+    const paths = await getServicePaths(vaultPath);
+    const kv = await Deno.openKv(paths.vaultDbPath);
+    try {
+      assertEquals(typeof await getActiveTrainingBuildId(kv), "string");
+      assertEquals(
+        (await listActiveToolLeafNodes(kv)).map((row) => row.leafKey),
+        ["tool.exec.git_vcs", "tool.read.relative_file_path"],
+      );
+      assertEquals(await listActiveToolLeafEdgesNext(kv), [
+        {
+          fromLeaf: "tool.exec.git_vcs",
+          toLeaf: "tool.read.relative_file_path",
+          weight: 1,
+          topLevelWeight: 1,
+          subagentWeight: 0,
+        },
+      ]);
+      assertEquals(await listActiveSessionSequences(kv), [
+        {
+          sourceRoot: sourcePath,
+          sessionId: "sess-a",
+          sessionShortId: "sess",
+          sourcePath: `${sourcePath}/sess-a.jsonl`,
+          sessionKind: "top_level",
+          agentId: "alpha",
+          leafKeys: ["tool.exec.git_vcs", "tool.read.relative_file_path"],
+          callCount: 2,
+        },
+      ]);
+    } finally {
+      kv.close();
     }
   } finally {
     await Deno.remove(vaultPath, { recursive: true });
@@ -270,6 +422,15 @@ Deno.test("runIncrementalOpenClawImport removes previously imported rows when a 
       assertEquals(await imported.listToolCalls(), []);
     } finally {
       imported.close();
+    }
+
+    const kv = await Deno.openKv(paths.vaultDbPath);
+    try {
+      assertEquals(await listActiveToolLeafNodes(kv), []);
+      assertEquals(await listActiveToolLeafEdgesNext(kv), []);
+      assertEquals(await listActiveSessionSequences(kv), []);
+    } finally {
+      kv.close();
     }
 
     await assertRejects(

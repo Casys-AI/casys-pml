@@ -9,8 +9,13 @@ import {
   type SourceScanState,
 } from "./source-state.ts";
 import { parseOpenClawSessionFile } from "./parser.ts";
+import { rebuildDerivedTrainingData } from "../training-data/rebuild.ts";
 import { deriveToolGraphEntities } from "./tool-graph/entities.ts";
 import { projectToolGraph } from "./tool-graph/projection.ts";
+import type {
+  ImportedOpenClawSessionRow,
+  ImportedOpenClawToolCallRow,
+} from "./types.ts";
 
 export interface IncrementalOpenClawImportOptions {
   vaultPath: string;
@@ -138,6 +143,8 @@ export async function runIncrementalOpenClawImport(
   };
 
   const store = await OpenClawLocalStore.open(dbPath);
+  let sessions: ImportedOpenClawSessionRow[] = [];
+  let rows: ImportedOpenClawToolCallRow[] = [];
 
   try {
     for (const source of config.traceSources) {
@@ -191,12 +198,25 @@ export async function runIncrementalOpenClawImport(
     files = keepConfiguredSourceState(files, configuredRoots);
     await pruneStaleSessions(store, files);
 
-    const rows = await store.listToolCalls();
-    const entities = deriveToolGraphEntities(rows);
-    await projectToolGraph(options.vaultPath, entities);
+    sessions = await store.listSessions();
+    rows = await store.listToolCalls();
   } finally {
     store.close();
   }
+
+  const trainingKv = await Deno.openKv(dbPath);
+  try {
+    await rebuildDerivedTrainingData({
+      kv: trainingKv,
+      sessions,
+      toolCalls: rows,
+    });
+  } finally {
+    trainingKv.close();
+  }
+
+  const entities = deriveToolGraphEntities(rows);
+  await projectToolGraph(options.vaultPath, entities);
 
   await saveSourceScanState(options.vaultPath, {
     version: 1,
