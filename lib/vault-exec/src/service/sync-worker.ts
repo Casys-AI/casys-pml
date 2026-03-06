@@ -1,10 +1,6 @@
-import { parseVault } from "../core/parser.ts";
 import type { VaultReader } from "../core/contracts.ts";
-import { DenoVaultReader } from "../infrastructure/fs/deno-vault-fs.ts";
-import { retrain } from "../workflows/retrain.ts";
-import { BGEEmbedder, type Embedder } from "../embeddings/model.ts";
+import type { Embedder } from "../embeddings/model.ts";
 import { runIncrementalOpenClawImport } from "../ingest/pipeline.ts";
-import { SYNC_MAX_EPOCHS_SHORT } from "./constants.ts";
 import { ensureVaultStateDir, getServicePaths } from "./lifecycle.ts";
 import type { SyncResponse } from "./protocol.ts";
 
@@ -19,8 +15,7 @@ export async function runIncrementalSync(
     embedder?: Embedder;
   } = {},
 ): Promise<SyncResponse> {
-  const reader = deps.reader ?? new DenoVaultReader();
-  const embedder = deps.embedder ?? new BGEEmbedder();
+  const embedder = deps.embedder ?? null;
 
   try {
     await ensureVaultStateDir(vaultPath);
@@ -29,21 +24,14 @@ export async function runIncrementalSync(
       vaultPath,
       dbPath: paths.vaultDbPath,
     });
-    const notes = await parseVault(reader, vaultPath);
-
-    const result = await retrain(notes, paths.vaultDbPath, embedder, {
-      skipReindex: false,
-      maxEpochs: SYNC_MAX_EPOCHS_SHORT,
-      verbose: false,
-    });
 
     return {
       ok: true,
-      tracesUsed: result.tracesUsed,
-      notesReindexed: result.notesReindexed,
-      gruTrained: result.gruTrained,
-      gruAccuracy: result.gruAccuracy,
-      gnnUpdated: result.gnnUpdated,
+      tracesUsed: 0,
+      notesReindexed: 0,
+      gruTrained: false,
+      gruAccuracy: 0,
+      gnnUpdated: false,
       traceSourcesConfigured: traceImport.configuredSources,
       traceFilesChanged: traceImport.changedFiles,
       traceFilesUnchanged: traceImport.unchangedFiles,
@@ -68,6 +56,6 @@ export async function runIncrementalSync(
       error: toErrorMessage(err),
     };
   } finally {
-    await embedder.dispose();
+    await embedder?.dispose();
   }
 }

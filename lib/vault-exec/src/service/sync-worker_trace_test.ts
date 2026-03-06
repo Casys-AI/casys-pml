@@ -2,6 +2,11 @@ import { assertEquals } from "jsr:@std/assert";
 
 import type { Embedder } from "../embeddings/model.ts";
 import { resolveVaultExecConfigPath } from "../config/trace-config.ts";
+import {
+  listActiveSessionSequences,
+  listActiveToolLeafEdgesNext,
+  listActiveToolLeafNodes,
+} from "../training-data/rebuild.ts";
 import { runIncrementalSync } from "./sync-worker.ts";
 
 class MockEmbedder implements Embedder {
@@ -67,12 +72,18 @@ hello world
     );
     await Deno.writeTextFile(
       resolveVaultExecConfigPath(vaultPath),
-      `${JSON.stringify({
-        traceSources: [
-          { kind: "openclaw", path: sourcePath },
-          { kind: "openclaw", path: `${vaultPath}/missing-source` },
-        ],
-      }, null, 2)}\n`,
+      `${
+        JSON.stringify(
+          {
+            traceSources: [
+              { kind: "openclaw", path: sourcePath },
+              { kind: "openclaw", path: `${vaultPath}/missing-source` },
+            ],
+          },
+          null,
+          2,
+        )
+      }\n`,
     );
     await Deno.writeTextFile(`${sourcePath}/sess-a.jsonl`, buildTraceFixture());
 
@@ -87,6 +98,26 @@ hello world
     assertEquals(result.traceSessionsImported, 1);
     assertEquals(result.traceToolCallsStored, 1);
     assertEquals(result.traceWarnings.length, 1);
+    assertEquals(result.tracesUsed, 0);
+    assertEquals(result.notesReindexed, 0);
+    assertEquals(result.gruTrained, false);
+    assertEquals(result.gruAccuracy, 0);
+    assertEquals(result.gnnUpdated, false);
+
+    const kv = await Deno.openKv(`${vaultPath}/.vault-exec/vault.kv`);
+    try {
+      assertEquals(
+        (await listActiveToolLeafNodes(kv)).map((node) => node.leafKey),
+        ["tool.exec.git_vcs"],
+      );
+      assertEquals(await listActiveToolLeafEdgesNext(kv), []);
+      assertEquals(
+        (await listActiveSessionSequences(kv)).map((row) => row.leafKeys),
+        [["tool.exec.git_vcs"]],
+      );
+    } finally {
+      kv.close();
+    }
   } finally {
     await Deno.remove(vaultPath, { recursive: true });
   }

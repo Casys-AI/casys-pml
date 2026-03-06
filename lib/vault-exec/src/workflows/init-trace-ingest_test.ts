@@ -2,9 +2,14 @@ import { assertEquals } from "jsr:@std/assert";
 
 import { parseVault } from "../core/parser.ts";
 import type { VaultNote } from "../core/types.ts";
-import { type Embedder } from "../embeddings/model.ts";
+import type { Embedder } from "../embeddings/model.ts";
 import { DenoVaultReader } from "../infrastructure/fs/deno-vault-fs.ts";
 import { resolveVaultExecConfigPath } from "../config/trace-config.ts";
+import {
+  listActiveSessionSequences,
+  listActiveToolLeafEdgesNext,
+  listActiveToolLeafNodes,
+} from "../training-data/rebuild.ts";
 import { initVaultWithTraceImport } from "./init.ts";
 
 class MockEmbedder implements Embedder {
@@ -84,9 +89,15 @@ Deno.test("initVaultWithTraceImport imports traces and keeps generated tools not
     await Deno.mkdir(`${vaultPath}/.vault-exec`, { recursive: true });
     await Deno.writeTextFile(
       resolveVaultExecConfigPath(vaultPath),
-      `${JSON.stringify({
-        traceSources: [{ kind: "openclaw", path: sourcePath }],
-      }, null, 2)}\n`,
+      `${
+        JSON.stringify(
+          {
+            traceSources: [{ kind: "openclaw", path: sourcePath }],
+          },
+          null,
+          2,
+        )
+      }\n`,
     );
     await Deno.writeTextFile(
       `${vaultPath}/Root.md`,
@@ -104,11 +115,31 @@ Deno.test("initVaultWithTraceImport imports traces and keeps generated tools not
 
     assertEquals(result.traceImport.sessionsImported, 1);
     assertEquals(result.traceImport.toolCallsStored, 1);
+    assertEquals(result.notesIndexed, 0);
+    assertEquals(result.embeddingsGenerated, 0);
+    assertEquals(result.gnnForwardDone, false);
+    assertEquals(result.syntheticTraces, 0);
+    assertEquals(result.gruTrained, false);
 
     const projected = await Deno.stat(
       `${vaultPath}/tools/exec/exec.md`,
     );
     assertEquals(projected.isFile, true);
+
+    const kv = await Deno.openKv(dbPath);
+    try {
+      assertEquals(
+        (await listActiveToolLeafNodes(kv)).map((node) => node.leafKey),
+        ["tool.exec.git_vcs"],
+      );
+      assertEquals(await listActiveToolLeafEdgesNext(kv), []);
+      assertEquals(
+        (await listActiveSessionSequences(kv)).map((row) => row.leafKeys),
+        [["tool.exec.git_vcs"]],
+      );
+    } finally {
+      kv.close();
+    }
 
     const parsed = await parseVault(new DenoVaultReader(), vaultPath);
     assertEquals(parsed.map((note) => note.name), ["Root"]);
