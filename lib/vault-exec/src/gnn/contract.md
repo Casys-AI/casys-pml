@@ -24,5 +24,6 @@
 - When `maxLevel=0`, output equals input embeddings.
 - Layer boundaries are enforced by architecture tests.
 - BLAS acceleration is optional; JS fallback remains valid.
-- Persisted params are used only when deserialization succeeds and config is compatible.
+- Persisted params are used only when deserialization succeeds and config is
+  compatible.
 - No direct dependency on CLI/service modules.

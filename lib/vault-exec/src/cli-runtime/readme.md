@@ -15,5 +15,6 @@ Machine-first CLI output primitives.
 
 ## Notes
 
-- Output is contract-first for agents with stable keys, explicit `type`, and explicit `version`.
+- Output is contract-first for agents with stable keys, explicit `type`, and
+  explicit `version`.
 - Human-mode rendering belongs in callers, not this module.

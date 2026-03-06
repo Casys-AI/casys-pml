@@ -13,8 +13,10 @@
 
 ## Invariants
 
-- `eventJson(type, payload)` emits `version: "ax.v1"` and recursively sorted payload keys.
-- `errorJson({ code, category, message, details? })` emits `type: "error"` with machine-readable fields.
+- `eventJson(type, payload)` emits `version: "ax.v1"` and recursively sorted
+  payload keys.
+- `errorJson({ code, category, message, details? })` emits `type: "error"` with
+  machine-readable fields.
 - `category` is one of `validation`, `runtime`, `internal`.
 - JSON output is deterministic for identical payloads.
 - Human formatting is handled by callers, not this module.

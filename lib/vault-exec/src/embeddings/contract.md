@@ -18,7 +18,8 @@
 
 ## Invariants
 
-- `EmbeddingModel.encodeNote(name, body)` encodes canonical payload `# ${name}\n\n${body.trim()}`.
+- `EmbeddingModel.encodeNote(name, body)` encodes canonical payload
+  `# ${name}\n\n${body.trim()}`.
 - `indexVault(notes, db, model)` always upserts note metadata + edges.
 - Unchanged body hash skips re-embedding.
 - `computeLevels(notes)` ignores unknown links and handles cycles defensively.

@@ -29,5 +29,6 @@
 - Decay is bounded and explicit.
 - `applyVirtualEdgeDecay()` is a no-op for invalid factors.
 - Rejection happens when `score <= rejectScore`.
-- Promotion requires `score >= minScore`, `support >= minSupport`, and `successRatio >= minSuccessRatio`.
+- Promotion requires `score >= minScore`, `support >= minSupport`, and
+  `successRatio >= minSuccessRatio`.
 - No hidden mutation outside store calls.

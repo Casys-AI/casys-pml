@@ -19,7 +19,8 @@
 
 ## Invariants
 
-- `gruStep(input, hPrev, intent, weights, config)` is deterministic for fixed arguments.
+- `gruStep(input, hPrev, intent, weights, config)` is deterministic for fixed
+  arguments.
 - `hNew.length === config.hiddenDim` and `logits.length === config.outputDim`.
 - Inference is deterministic given identical weights and inputs.
 - Unknown context nodes are ignored instead of throwing.

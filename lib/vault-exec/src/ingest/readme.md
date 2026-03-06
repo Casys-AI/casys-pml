@@ -30,11 +30,13 @@ state, and human-readable tool-graph projections.
 ## Inputs / outputs
 
 Inputs:
+
 - OpenClaw JSONL session files
 - `<vault>/.vault-exec/config.json`
 - `<vault>/.vault-exec/trace-source-state.json`
 
 Outputs:
+
 - Local KV rows under the OpenClaw namespace inside `vault.kv`
 - Local derived training tables under the active `training_data` build inside
   `vault.kv`

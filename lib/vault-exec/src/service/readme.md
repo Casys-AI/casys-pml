@@ -14,9 +14,9 @@ Long-running daemon/watch lifecycle around vault sync operations.
 - `daemon.ts`: unix socket RPC server.
 - `protocol.ts`: JSONL request/response contracts and runtime guards.
 - `lifecycle.ts`: pid/socket/meta lifecycle helpers.
-- `sync-worker.ts`: single sync worker invoked by the daemon; imports
-  configured traces, rebuilds DB-first training tables, refreshes projection,
-  and returns trace import counters.
+- `sync-worker.ts`: single sync worker invoked by the daemon; imports configured
+  traces, rebuilds DB-first training tables, refreshes projection, and returns
+  trace import counters.
 - No core DAG execution logic.
 - No model internals.
 

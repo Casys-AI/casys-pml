@@ -19,4 +19,5 @@ Virtual-edge learning policy and update mechanics.
 - Real graph edges are excluded from virtual-edge updates.
 - Update aggregation is deterministic and sorted by `(source, target)`.
 - Policy thresholds are explicit constants, not implicit heuristics.
-- Repeated identical inputs are deterministic in next-state math, while score updates and decay remain cumulative.
+- Repeated identical inputs are deterministic in next-state math, while score
+  updates and decay remain cumulative.

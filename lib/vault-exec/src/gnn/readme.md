@@ -6,7 +6,8 @@ Structure-aware embedding enrichment via feature-sliced GNN layers.
 
 - Domain math primitives (`domain/*.ts`).
 - Application orchestration (`application/*.ts`).
-- Infrastructure adapters for BLAS selection and param persistence (`infrastructure/*.ts`).
+- Infrastructure adapters for BLAS selection and param persistence
+  (`infrastructure/*.ts`).
 
 ## Boundaries
 
