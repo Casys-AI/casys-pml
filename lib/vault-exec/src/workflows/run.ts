@@ -31,6 +31,10 @@ import {
   EXIT_CODE_RUNTIME,
   EXIT_CODE_VALIDATION,
 } from "../cli-runtime/exit-codes.ts";
+import {
+  parseRuntimeInputsArg,
+  toInputParseErrorDetails,
+} from "./input-contract.ts";
 
 function resolveDbPath(vaultPath: string): string {
   return `${vaultPath}/.vault-exec/vault.kv`;
@@ -40,23 +44,6 @@ function noGruWeightsMessage(vaultPath: string): string {
   return `Intent routing requires trained GRU weights, but none were found for this vault (${
     resolveDbPath(vaultPath)
   }). Run 'vault-exec init ${vaultPath}' first, then run intent commands.`;
-}
-
-async function parseInputsArg(raw?: string): Promise<Record<string, unknown>> {
-  if (!raw) return {};
-
-  const fromFile = raw.startsWith("@") ? raw.slice(1) : raw;
-  try {
-    const stat = await Deno.stat(fromFile);
-    if (stat.isFile) {
-      const content = await Deno.readTextFile(fromFile);
-      return JSON.parse(content) as Record<string, unknown>;
-    }
-  } catch {
-    // not a file path, fall through to raw JSON
-  }
-
-  return JSON.parse(raw) as Record<string, unknown>;
 }
 
 function emitEvent(
@@ -210,17 +197,17 @@ export async function runVaultCommand(
 
   let parsedRuntimeInputs: Record<string, unknown> = {};
   if (opts.inputs) {
-    try {
-      parsedRuntimeInputs = await parseInputsArg(opts.inputs);
-    } catch (err) {
+    const parsed = await parseRuntimeInputsArg(opts.inputs);
+    if (!parsed.ok) {
       emitError(human, {
         code: "INPUT_PARSE_ERROR",
         category: "validation",
-        message: `Failed to parse --inputs: ${(err as Error).message}`,
-        details: { inputs: opts.inputs },
+        message: `Failed to parse --inputs: ${parsed.message}`,
+        details: toInputParseErrorDetails(opts.inputs, parsed),
       });
       Deno.exit(EXIT_CODE_VALIDATION);
     }
+    parsedRuntimeInputs = parsed.payload;
   }
 
   if (opts.intent) {

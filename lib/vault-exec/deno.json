@@ -13,6 +13,24 @@
     "ablation": "deno run --allow-read --allow-write --allow-env --allow-net --allow-ffi --unstable-kv --node-modules-dir=manual scripts/ablation-routing.ts",
     "bench:gnn": "deno run --allow-ffi --node-modules-dir=manual scripts/bench-gnn-backend.ts"
   },
+  "fmt": {
+    "include": [
+      "src/**/*.ts",
+      "deno.json"
+    ]
+  },
+  "lint": {
+    "include": [
+      "src/"
+    ],
+    "rules": {
+      "exclude": [
+        "no-import-prefix",
+        "no-unversioned-import",
+        "require-await"
+      ]
+    }
+  },
   "nodeModulesDir": "manual",
   "compilerOptions": {
     "strict": true

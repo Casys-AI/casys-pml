@@ -5,7 +5,6 @@ import type {
   TraceRow,
   VirtualEdgeRow,
   VirtualEdgeStatus,
-  VirtualEdgeUpdate,
 } from "../core/types.ts";
 import {
   applyVirtualEdgeDecay,

@@ -71,7 +71,7 @@ export async function executeNode(
 
     const paramNames = Object.keys(resolvedInputs);
     const paramValues = Object.values(resolvedInputs);
-    // deno-lint-ignore no-new-func
+    // deno-lint-ignore no-eval
     const fn = new Function(...paramNames, `return (${node.code});`);
     const result = await fn(...paramValues);
 
