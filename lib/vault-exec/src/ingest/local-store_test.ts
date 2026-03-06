@@ -17,6 +17,13 @@ function buildSession(
       index: 1,
       timestamp: "2026-03-06T12:00:01.000Z",
       userIntent: "check git status",
+      userProvenance: {
+        kind: "inter_session",
+        sourceSessionKey: "agent:agent-a:main",
+      },
+      assistantFinalText: "repo has local changes",
+      assistantThinking: ["Inspect repo", "Then read docs"],
+      modelId: "gpt-5",
       parentPlanHint: "Inspect repo",
       toolCalls: [
         {
@@ -35,8 +42,24 @@ function buildSession(
           l2Hit: true,
         },
       ],
-      toolResults: [],
+      toolResults: [{
+        toolName: "exec",
+        toolCallId: "toolu_1",
+        content: [{ type: "text", text: "M src/cli.ts" }],
+        details: {
+          status: "completed",
+          exitCode: 0,
+          aggregated: "M src/cli.ts",
+        },
+        isError: false,
+      }],
     }],
+    sessionKind: "top_level",
+    sessionProvenance: {
+      kind: "inter_session",
+      sourceSessionKey: "agent:agent-a:main",
+    },
+    sessionCwd: "/home/ubuntu/.openclaw/workspace",
     ...overrides,
   };
 }
@@ -61,6 +84,33 @@ Deno.test("OpenClawLocalStore stores imported tool calls without touching traini
     assertEquals(calls[0].agentId, "agent-a");
     assertEquals(calls[0].sourceRoot, "/tmp/.openclaw/agents/agent-a/sessions");
     assertEquals(calls[0].contentHash, "hash-a");
+    assertEquals(calls[0].toolCallId, "toolu_1");
+    assertEquals(calls[0].args, { command: "git status --short" });
+    assertEquals(calls[0].l2Context, { primaryBinary: "git" });
+    assertEquals(calls[0].userIntent, "check git status");
+    assertEquals(calls[0].userProvenance, {
+      kind: "inter_session",
+      sourceSessionKey: "agent:agent-a:main",
+    });
+    assertEquals(calls[0].assistantFinalText, "repo has local changes");
+    assertEquals(calls[0].assistantThinking, ["Inspect repo", "Then read docs"]);
+    assertEquals(calls[0].modelId, "gpt-5");
+    assertEquals(calls[0].toolResultContent, [{ type: "text", text: "M src/cli.ts" }]);
+    assertEquals(calls[0].toolResultDetails, {
+      status: "completed",
+      exitCode: 0,
+      aggregated: "M src/cli.ts",
+    });
+    assertEquals(calls[0].toolResultIsError, false);
+
+    const sessions = await store.listSessions();
+    assertEquals(sessions.length, 1);
+    assertEquals(sessions[0].sessionKind, "top_level");
+    assertEquals(sessions[0].sessionCwd, "/home/ubuntu/.openclaw/workspace");
+    assertEquals(sessions[0].sessionProvenance, {
+      kind: "inter_session",
+      sourceSessionKey: "agent:agent-a:main",
+    });
 
     const vaultStore = await openVaultStore(dbPath);
     try {

@@ -151,3 +151,77 @@ Deno.test("parseOpenClawSessionLines - infers startedAt from first timestamped e
 
   assertEquals(parsed.startedAt, "2026-03-04T12:34:56.000Z");
 });
+
+Deno.test("parseOpenClawSessionLines - preserves user provenance and tool result details", () => {
+  const lines = [
+    JSON.stringify({
+      type: "session",
+      id: "sess-provenance",
+      timestamp: "2026-03-06T03:06:00.732Z",
+      cwd: "/home/ubuntu/.openclaw/workspace",
+    }),
+    JSON.stringify({
+      type: "message",
+      timestamp: "2026-03-06T03:06:00.743Z",
+      message: {
+        role: "user",
+        content: [{
+          type: "text",
+          text: "Continue where you left off.",
+        }],
+        provenance: {
+          kind: "inter_session",
+          sourceSessionKey: "agent:david:cron:9b1a45a8-92bb-495f-bef7-25b76fcdda39",
+          sourceTool: "sessions_send",
+        },
+      },
+    }),
+    JSON.stringify({
+      type: "message",
+      timestamp: "2026-03-06T03:06:02.340Z",
+      message: {
+        role: "assistant",
+        content: [
+          { type: "thinking", thinking: "I should inspect prior status first." },
+          {
+            type: "toolCall",
+            id: "toolu_1",
+            name: "exec",
+            arguments: { command: "git status --short" },
+          },
+        ],
+      },
+    }),
+    JSON.stringify({
+      type: "message",
+      timestamp: "2026-03-06T03:06:03.000Z",
+      message: {
+        role: "toolResult",
+        toolCallId: "toolu_1",
+        toolName: "exec",
+        content: [{ type: "text", text: "M src/cli.ts" }],
+        details: {
+          status: "completed",
+          exitCode: 0,
+          aggregated: "M src/cli.ts",
+        },
+        isError: false,
+      },
+    }),
+  ];
+
+  const parsed = parseOpenClawSessionLines(lines, "/tmp/sess-provenance.jsonl");
+  const turn = parsed.turns[0];
+
+  assertEquals(parsed.sessionCwd, "/home/ubuntu/.openclaw/workspace");
+  assertEquals(turn.userProvenance, {
+    kind: "inter_session",
+    sourceSessionKey: "agent:david:cron:9b1a45a8-92bb-495f-bef7-25b76fcdda39",
+    sourceTool: "sessions_send",
+  });
+  assertEquals(turn.toolResults[0].details, {
+    status: "completed",
+    exitCode: 0,
+    aggregated: "M src/cli.ts",
+  });
+});

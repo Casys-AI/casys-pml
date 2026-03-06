@@ -1,20 +1,11 @@
 import type {
+  ImportedOpenClawSessionRow,
   ImportedOpenClawToolCallRow,
   ParsedOpenClawSession,
+  ParsedOpenClawTurn,
+  ParsedToolCall,
+  ParsedToolResult,
 } from "./types.ts";
-
-export interface ImportedOpenClawSessionRow {
-  sourceRoot: string;
-  sourcePath: string;
-  contentHash: string;
-  sessionId: string;
-  sessionShortId: string;
-  sessionStartedAt?: string;
-  agentId?: string;
-  importedAt: string;
-  turnCount: number;
-  toolCallCount: number;
-}
 
 function normalizePath(path: string): string {
   return path.trim().replace(/\/+$/g, "") || "/";
@@ -41,6 +32,27 @@ function compareSessionRows(
   return left.sourceRoot.localeCompare(right.sourceRoot) ||
     left.sourcePath.localeCompare(right.sourcePath) ||
     left.sessionId.localeCompare(right.sessionId);
+}
+
+function findToolResultForCall(
+  turn: ParsedOpenClawTurn,
+  call: ParsedToolCall,
+): ParsedToolResult | undefined {
+  if (call.toolCallId) {
+    const byId = turn.toolResults.find((result) =>
+      result.toolCallId === call.toolCallId
+    );
+    if (byId) return byId;
+  }
+
+  const byName = turn.toolResults.filter((result) =>
+    result.toolName === call.toolName
+  );
+  if (byName.length === 1) {
+    return byName[0];
+  }
+
+  return undefined;
 }
 
 async function ensureParentDir(path: string): Promise<void> {
@@ -89,6 +101,7 @@ export class OpenClawLocalStore {
     for (const turn of session.turns) {
       for (let callIndex = 0; callIndex < turn.toolCalls.length; callIndex++) {
         const call = turn.toolCalls[callIndex];
+        const toolResult = findToolResultForCall(turn, call);
         const row: ImportedOpenClawToolCallRow = {
           sourceRoot: normalizedSourceRoot,
           sourcePath: session.sourcePath,
@@ -97,14 +110,26 @@ export class OpenClawLocalStore {
           sessionShortId: session.shortId,
           sessionStartedAt: session.startedAt,
           agentId: session.agentId,
+          sessionKind: session.sessionKind,
           turnIndex: turn.index,
           callIndex,
           timestamp: call.timestamp ?? turn.timestamp,
+          modelId: turn.modelId ?? session.modelId,
           toolName: call.toolName,
+          toolCallId: call.toolCallId,
+          args: call.args,
           family: call.family,
           l2Hit: call.l2Hit,
           l2FallbackReason: call.l2FallbackReason,
+          l2Context: call.l2Context,
+          userIntent: turn.userIntent,
+          userProvenance: turn.userProvenance,
+          assistantFinalText: turn.assistantFinalText,
+          assistantThinking: turn.assistantThinking,
           parentPlanHint: turn.parentPlanHint,
+          toolResultContent: toolResult?.content,
+          toolResultDetails: toolResult?.details,
+          toolResultIsError: toolResult?.isError,
         };
         await this.kv.set([
           ...prefix,
@@ -123,6 +148,10 @@ export class OpenClawLocalStore {
       sessionShortId: session.shortId,
       sessionStartedAt: session.startedAt,
       agentId: session.agentId,
+      modelId: session.modelId,
+      sessionKind: session.sessionKind,
+      sessionProvenance: session.sessionProvenance,
+      sessionCwd: session.sessionCwd,
       importedAt,
       turnCount: session.turns.length,
       toolCallCount: stored,
