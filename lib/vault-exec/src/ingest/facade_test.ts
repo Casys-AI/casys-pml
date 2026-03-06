@@ -19,7 +19,8 @@ const session: ParsedOpenClawSession = {
     toolCalls: [{
       toolName: "exec",
       args: { command: "git status" },
-      family: "git",
+      family: "git_vcs",
+      l2Hit: true,
     }],
     toolResults: [{
       toolName: "exec",
@@ -31,7 +32,7 @@ const session: ParsedOpenClawSession = {
 };
 
 Deno.test("ingest facades keep classification and filename behavior", () => {
-  assertEquals(classifyToolFamily("exec", { command: "git status" }), "git");
+  assertEquals(classifyToolFamily("exec", { command: "git status" }), "git_vcs");
   assertEquals(toolFileName("Exec Tool"), "exec-tool.md");
 });
 
@@ -45,5 +46,5 @@ Deno.test("ingest facades keep markdown/aggregate behavior", () => {
 
   const toolOut = generateToolMarkdown(execAggregate);
   assertStringIncludes(toolOut, "# Tool exec");
-  assertStringIncludes(toolOut, "- git: 1");
+  assertStringIncludes(toolOut, "- git_vcs: 1");
 });

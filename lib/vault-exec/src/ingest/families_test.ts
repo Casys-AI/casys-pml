@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert";
-import { classifyToolFamily } from "./policy/tool-family.ts";
+import { classifyToolFamily } from "./families.ts";
 
 Deno.test("classifyToolFamily wrapper - exec and write", () => {
   assertEquals(
@@ -13,5 +13,5 @@ Deno.test("classifyToolFamily wrapper - exec and write", () => {
 });
 
 Deno.test("classifyToolFamily wrapper - unknown tool", () => {
-  assertEquals(classifyToolFamily("memory_get", { path: "x" }), null);
+  assertEquals(classifyToolFamily("unknown_tool", { path: "x" }), null);
 });
