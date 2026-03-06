@@ -7,8 +7,8 @@
 ## Goal
 
 Unify OpenClaw trace import with the default `vault-exec init` / `vault-exec sync`
-flow so that traces are imported incrementally and projected into stable AX
-Markdown nodes inside the demo vault.
+flow so that traces are imported incrementally and projected into stable
+tool-graph Markdown nodes inside the demo vault.
 
 ## Why this V1
 
@@ -17,7 +17,7 @@ The immediate user value is simple:
 - configure trace sources once
 - stop rescanning everything on every sync
 - run a single default flow instead of `init` and `ingest` being disconnected
-- materialize stable AX entities as notes in Obsidian
+- materialize stable tool-graph entities as notes in Obsidian
 
 Everything else is secondary for now.
 
@@ -92,7 +92,7 @@ V1 keeps one operational store:
 
 - `<vault>/.vault-exec/vault.kv`
 
-Imported traces, AX aggregates, and existing model/index data stay local to that
+Imported traces, tool-graph aggregates, and existing model/index data stay local to that
 vault. This is intentionally simpler than introducing `private` / `canonical`
 split stores before there is any export consumer.
 
@@ -105,13 +105,13 @@ Future export/federation can split or derive another representation later.
 1. parse vault
 2. run existing preflight
 3. import configured OpenClaw traces incrementally
-4. update AX projection notes
+4. update tool-graph projection notes
 5. continue current `initVault()` flow
 
 `sync <vault>` becomes:
 
 1. import changed OpenClaw traces incrementally
-2. update AX projection notes
+2. update tool-graph projection notes
 3. continue current retrain/sync flow
 
 The import phase is inserted only after `init` preflight passes.
@@ -129,9 +129,9 @@ For V1:
 The point is to keep the sync path robust without introducing speculative
 privacy/export constraints yet.
 
-### 6. AX identity model
+### 6. Tool-graph identity model
 
-AX entities are the stable units projected into Obsidian.
+Tool-graph entities are the stable units projected into Obsidian.
 
 Canonical key format:
 
@@ -146,26 +146,27 @@ separate from any per-session occurrence.
 
 For V1, Obsidian is only a readable graph projection.
 
-Project only stable AX entities:
+Project only stable tool-graph entities:
 
-- one note per stable AX node
+- one note per stable tool-graph node
 - no note per agent
 - no note per session
 
 Directory layout:
 
-- `ax/l1/`
-- `ax/l2/`
-- `ax/l3/` later if needed
+- `tool-graph/l1/`
+- `tool-graph/l2/`
+- `tool-graph/l3/` later if needed
 
 Each note contains:
 
-- minimal frontmatter (`ax_key`, `ax_level`, `ax_kind`, `version`)
+- minimal frontmatter (`tool_graph_key`, `tool_graph_level`, `tool_graph_kind`, `version`)
 - readable summary
-- links to related AX entities
+- links to related tool-graph entities
 - bounded machine-readable metadata block
 
-Agent/session/source information stays as aggregated metadata inside the AX node
+Agent/session/source information stays as aggregated metadata inside the
+tool-graph node
 note, not as separate notes.
 
 ### 8. Standalone `ingest`
@@ -182,7 +183,7 @@ pipeline is integrated into `init` / `sync`.
 - source scan state
 - unified import pipeline
 - single local store
-- AX Markdown projection
+- tool-graph Markdown projection
 - `init` / `sync` integration
 
 ### V2
@@ -200,5 +201,5 @@ The implementation should now optimize for the shortest path to usable value:
 - keep `Task 1` and `Task 2`
 - remove speculative dual-store work
 - build a unified local ingest pipeline next
-- project stable AX nodes into the demo vault
+- project stable tool-graph nodes into the demo vault
 - wire that into `init` and `sync`

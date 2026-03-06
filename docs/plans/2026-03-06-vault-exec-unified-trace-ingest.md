@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Make `vault-exec init` and `vault-exec sync` import configured OpenClaw traces incrementally and project stable AX nodes into the demo vault, using one local operational store.
+**Goal:** Make `vault-exec init` and `vault-exec sync` import configured OpenClaw traces incrementally and project stable tool-graph nodes into the demo vault, using one local operational store.
 
 **Architecture:** Keep the already landed config/state foundation, then connect a single local ingest pipeline to the current `init` / `sync` flow. Defer dual-store privacy/export architecture until there is a real remote consumer.
 
@@ -96,7 +96,7 @@ Compose:
 - incremental source scan
 - OpenClaw parse
 - local trace persistence/update
-- AX aggregation inputs for projection
+- tool-graph aggregation inputs for projection
 
 Do not introduce separate `private` / `canonical` store layers in V1.
 
@@ -119,24 +119,24 @@ git add lib/vault-exec/src/ingest/pipeline.ts lib/vault-exec/src/ingest/pipeline
 git commit -m "feat(vault-exec): unify incremental local trace import"
 ```
 
-### Task 3: Add AX node projection for Obsidian
+### Task 3: Add tool-graph projection for Obsidian
 
 **Files:**
-- Create: `lib/vault-exec/src/ingest/ax-entities.ts`
-- Create: `lib/vault-exec/src/ingest/ax-naming.ts`
-- Create: `lib/vault-exec/src/ingest/ax-entities_test.ts`
-- Create: `lib/vault-exec/src/ingest/ax-projection.ts`
-- Create: `lib/vault-exec/src/ingest/ax-projection_test.ts`
+- Create: `lib/vault-exec/src/ingest/tool-graph/entities.ts`
+- Create: `lib/vault-exec/src/ingest/tool-graph/naming.ts`
+- Create: `lib/vault-exec/src/ingest/tool-graph/entities_test.ts`
+- Create: `lib/vault-exec/src/ingest/tool-graph/projection.ts`
+- Create: `lib/vault-exec/src/ingest/tool-graph/projection_test.ts`
 - Modify: `lib/vault-exec/src/infrastructure/fs/deno-vault-fs.ts`
 
 **Step 1: Write the failing tests**
 
 Cover:
 
-- explicit `toolName` / family -> AX key mapping
-- dotted canonical AX key generation (`tool.exec.git_vcs`)
+- explicit `toolName` / family -> tool-graph key mapping
+- dotted canonical tool-graph key generation (`tool.exec.git_vcs`)
 - parent/child derivation
-- note path placement under `ax/l1/`, `ax/l2/`, `ax/l3/`
+- note path placement under `tool-graph/l1/`, `tool-graph/l2/`, `tool-graph/l3/`
 - deterministic overwrite and idempotent reprojection
 - metadata aggregation by source/session occurrence inside the node note
 
@@ -144,11 +144,11 @@ Cover:
 
 Run:
 
-```bash
-deno test --allow-read --allow-write=/tmp \
-  lib/vault-exec/src/ingest/ax-entities_test.ts \
-  lib/vault-exec/src/ingest/ax-projection_test.ts
-```
+  ```bash
+  deno test --allow-read --allow-write=/tmp \
+  lib/vault-exec/src/ingest/tool-graph/entities_test.ts \
+  lib/vault-exec/src/ingest/tool-graph/projection_test.ts
+  ```
 
 Expected: fail because the derivation/projection modules do not exist.
 
@@ -156,11 +156,11 @@ Expected: fail because the derivation/projection modules do not exist.
 
 Implement:
 
-- explicit AX naming map
-- AX entity derivation from locally imported traces
+- explicit tool-graph naming map
+- tool-graph entity derivation from locally imported traces
 - Markdown note renderer/writer for the demo vault projection
 
-Keep projection focused on stable AX nodes only. No session notes.
+Keep projection focused on stable tool-graph nodes only. No session notes.
 
 **Step 4: Run tests to verify they pass**
 
@@ -177,8 +177,8 @@ Expected: pass.
 **Step 6: Commit**
 
 ```bash
-git add lib/vault-exec/src/ingest/ax-entities.ts lib/vault-exec/src/ingest/ax-naming.ts lib/vault-exec/src/ingest/ax-entities_test.ts lib/vault-exec/src/ingest/ax-projection.ts lib/vault-exec/src/ingest/ax-projection_test.ts lib/vault-exec/src/infrastructure/fs/deno-vault-fs.ts
-git commit -m "feat(vault-exec): project stable AX nodes into markdown"
+git add lib/vault-exec/src/ingest/tool-graph/entities.ts lib/vault-exec/src/ingest/tool-graph/naming.ts lib/vault-exec/src/ingest/tool-graph/entities_test.ts lib/vault-exec/src/ingest/tool-graph/projection.ts lib/vault-exec/src/ingest/tool-graph/projection_test.ts lib/vault-exec/src/infrastructure/fs/deno-vault-fs.ts
+git commit -m "feat(vault-exec): project stable tool-graph nodes into markdown"
 ```
 
 ### Task 4: Integrate the unified import/projection pipeline into `init` and `sync`
@@ -254,7 +254,7 @@ git commit -m "feat(vault-exec): ingest traces during init and sync"
 - Modify: `lib/vault-exec/src/ingest/contract.md`
 - Modify: `lib/vault-exec/src/service/readme.md`
 - Modify: `lib/vault-exec/src/workflows/readme.md`
-- Modify: `lib/vault-exec/docs/2026-03-05-ax-coding-refactor-plan.md`
+- Modify: `docs/plans/2026-03-06-vault-exec-unified-trace-ingest-design.md`
 
 **Step 1: Add any final regression tests if docs expose missing behavior**
 
@@ -273,13 +273,13 @@ Document:
 - config format
 - source scan state
 - single local store semantics for V1
-- AX projection model
+- tool-graph projection model
 - `init` / `sync` semantics after unification
 - `ingest` standalone semantics after refactor
 
 **Step 4: Commit**
 
 ```bash
-git add lib/vault-exec/src/ingest/readme.md lib/vault-exec/src/ingest/contract.md lib/vault-exec/src/service/readme.md lib/vault-exec/src/workflows/readme.md lib/vault-exec/docs/2026-03-05-ax-coding-refactor-plan.md
+git add lib/vault-exec/src/ingest/readme.md lib/vault-exec/src/ingest/contract.md lib/vault-exec/src/service/readme.md lib/vault-exec/src/workflows/readme.md docs/plans/2026-03-06-vault-exec-unified-trace-ingest-design.md
 git commit -m "docs(vault-exec): document unified local trace ingest"
 ```
