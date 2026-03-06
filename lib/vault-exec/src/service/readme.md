@@ -10,6 +10,17 @@ Long-running daemon/watch lifecycle around vault sync operations.
 
 ## Boundaries
 
+- `client.ts`: client-side start/status/sync/stop orchestration.
+- `daemon.ts`: unix socket RPC server.
+- `protocol.ts`: JSONL request/response contracts and runtime guards.
+- `lifecycle.ts`: pid/socket/meta lifecycle helpers.
+- `sync-worker.ts`: single sync worker invoked by the daemon.
 - No core DAG execution logic.
 - No model internals.
+
+## AX Notes
+
 - Keep transport/protocol concerns local to this module.
+- Keep request/response contracts explicit and machine-validated.
+- Keep fallback behavior deterministic when the daemon is unreachable.
+- Keep lifecycle helpers pure or side-effect isolated.

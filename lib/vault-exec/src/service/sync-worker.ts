@@ -6,6 +6,10 @@ import { SYNC_MAX_EPOCHS_SHORT } from "./constants.ts";
 import { ensureVaultStateDir, getServicePaths } from "./lifecycle.ts";
 import type { SyncResponse } from "./protocol.ts";
 
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export async function runIncrementalSync(
   vaultPath: string,
 ): Promise<SyncResponse> {
@@ -39,7 +43,7 @@ export async function runIncrementalSync(
       gruTrained: false,
       gruAccuracy: 0,
       gnnUpdated: false,
-      error: (err as Error).message,
+      error: toErrorMessage(err),
     };
   } finally {
     await embedder.dispose();
