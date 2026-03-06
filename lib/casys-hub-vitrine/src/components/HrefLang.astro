@@ -7,20 +7,14 @@
  * For other pages, emits all locales (assumes all static pages exist).
  */
 import { getCollection } from 'astro:content';
+import { buildPublicUrl } from '../lib/public-url';
 
 export interface Props {
   siteUrl?: string;
 }
 
 const { siteUrl } = Astro.props;
-const SITE_URL = siteUrl || 'https://casys.ai';
 const LOCALES = ['en', 'fr', 'zh', 'zh-TW'] as const;
-const LOCALE_PREFIXES: Record<string, string> = {
-  en: '',
-  fr: '/fr',
-  zh: '/zh',
-  'zh-TW': '/zh-TW',
-};
 
 const pathname = Astro.url.pathname;
 
@@ -38,14 +32,6 @@ function getBasePath(path: string): string {
 
 const basePath = getBasePath(pathname);
 
-function buildUrl(locale: string): string {
-  const prefix = LOCALE_PREFIXES[locale] ?? '';
-  if (basePath === '/') {
-    return `${SITE_URL}${prefix}/`;
-  }
-  return `${SITE_URL}${prefix}${basePath}`;
-}
-
 // For blog pages: only declare alternates for locales that have this slug
 const blogMatch = basePath.match(/^\/blog\/(.+?)\/?\s*$/);
 let activeLocales: readonly string[] = LOCALES;
@@ -62,9 +48,9 @@ if (blogMatch) {
 ---
 
 {activeLocales.map((locale) => (
-  <link rel="alternate" hreflang={locale} href={buildUrl(locale)} />
+  <link rel="alternate" hreflang={locale} href={buildPublicUrl(pathname, locale, siteUrl)} />
 ))}
 {activeLocales.includes('en')
-  ? <link rel="alternate" hreflang="x-default" href={buildUrl('en')} />
-  : <link rel="alternate" hreflang="x-default" href={buildUrl(activeLocales[0])} />
+  ? <link rel="alternate" hreflang="x-default" href={buildPublicUrl(pathname, 'en', siteUrl)} />
+  : <link rel="alternate" hreflang="x-default" href={buildPublicUrl(pathname, activeLocales[0], siteUrl)} />
 }

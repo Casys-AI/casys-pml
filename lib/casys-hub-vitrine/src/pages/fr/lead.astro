@@ -5,6 +5,7 @@ import LandingLayout from '../../layouts/LandingLayout.astro';
 export const prerender = false;
 
 const title = 'Analyse Lead';
+const description = 'Analysez un domaine et ouvrez le tableau de bord d’analyse lead.';
 const presetDomain = Astro.url.searchParams.get('domain')?.toString().toLowerCase() ?? '';
 const lang = 'fr';
 
@@ -14,12 +15,12 @@ if (presetDomain) {
 }
 ---
 
-<LandingLayout title={title}>
+<LandingLayout title={title} description={description}>
   <section class="minHeight-screen display-flex alignItems-center justifyContent-center paddingBlock-16">
     <div class="textAlign-center">
       <h1 class="fontSize-3xl fontWeight-bold marginBottom-4">Analyse Lead</h1>
       <p class="fontSize-lg color-gray.600 marginBottom-8">Veuillez spécifier un domaine à analyser.</p>
-      <a href="/" class="display-inline-block paddingInline-6 paddingBlock-3 backgroundColor-brand.600 color-white borderRadius-lg textDecoration-none _hover:backgroundColor-brand.700 transition-colors">
+      <a href="/fr/" class="display-inline-block paddingInline-6 paddingBlock-3 backgroundColor-brand.600 color-white borderRadius-lg textDecoration-none _hover:backgroundColor-brand.700 transition-colors">
         Retour à l'accueil
       </a>
     </div>

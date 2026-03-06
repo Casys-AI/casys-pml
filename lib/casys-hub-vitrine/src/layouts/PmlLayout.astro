@@ -4,6 +4,7 @@ import '../styles/fonts.css';
 import Analytics from '@vercel/analytics/astro';
 import Footer from '../components/Footer.astro';
 import HrefLang from '../components/HrefLang.astro';
+import { DEFAULT_SITE_URL, resolvePublicUrl } from '../lib/public-url';
 
 export interface Props {
   title: string;
@@ -14,7 +15,8 @@ const { title, description } = Astro.props;
 const locale = (Astro as any).currentLocale ?? 'en';
 const pathname = Astro.url.pathname;
 const siteUrl = (import.meta.env.PUBLIC_SITE_URL as string | undefined)?.trim();
-const canonicalUrl = siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
+const rootSiteUrl = (siteUrl || DEFAULT_SITE_URL).replace(/\/+$/, '');
+const canonicalUrl = resolvePublicUrl(pathname, siteUrl).canonicalUrl;
 const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN', 'zh-TW': 'zh_TW' } as const;
 const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
 
@@ -99,12 +101,12 @@ const nav = navTranslations[locale as keyof typeof navTranslations] ?? navTransl
       })();
     </script>
     <title>{title}</title>
-    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
-    <HrefLang />
+    <link rel="canonical" href={canonicalUrl} />
+    <HrefLang siteUrl={siteUrl} />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={resolvedDescription} />
-    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+    <meta property="og:url" content={canonicalUrl} />
     <meta property="og:locale" content={ogLocale} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
@@ -118,8 +120,8 @@ const nav = navTranslations[locale as keyof typeof navTranslations] ?? navTransl
       "description": resolvedDescription,
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Cross-platform",
-      "url": "https://pml.casys.ai",
-      "author": { "@type": "Organization", "name": "Casys AI", "url": "https://casys.ai" },
+      "url": canonicalUrl,
+      "author": { "@type": "Organization", "name": "Casys AI", "url": rootSiteUrl },
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
     }).replace(/</g, '\\u003c')} />
 

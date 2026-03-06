@@ -51,7 +51,7 @@ services:
     image: grafana/loki:3.4.1
     container_name: pml-loki
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
       - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml
@@ -65,7 +65,7 @@ services:
     image: grafana/alloy:latest
     container_name: pml-alloy
     ports:
-      - "12345:12345"  # Alloy UI
+      - "127.0.0.1:12345:12345"  # Alloy UI
     volumes:
       - ./monitoring/alloy-config.alloy:/etc/alloy/config.alloy
       - /home/ubuntu/.pml/logs:/var/log/pml:ro
@@ -81,7 +81,7 @@ services:
     image: prom/prometheus:v3.1.0
     container_name: pml-prometheus
     ports:
-      - "9091:9090" # 9091 external (Cockpit uses 9090)
+      - "127.0.0.1:9091:9090" # 9091 external (Cockpit uses 9090)
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -105,7 +105,7 @@ services:
     image: grafana/grafana:12.3.0
     container_name: pml-grafana
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
@@ -145,10 +145,10 @@ services:
     image: jaegertracing/jaeger:2.2.0
     container_name: pml-jaeger
     ports:
-      - "16686:16686" # Jaeger UI
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP (Deno default)
-      - "8889:8889"   # Prometheus metrics (SPM)
+      - "127.0.0.1:16686:16686" # Jaeger UI
+      - "127.0.0.1:4317:4317"   # OTLP gRPC
+      - "127.0.0.1:4318:4318"   # OTLP HTTP (Deno default)
+      - "127.0.0.1:8889:8889"   # Prometheus metrics (SPM)
     volumes:
       - ./monitoring/jaeger-config.yaml:/etc/jaeger/config.yaml
       - ./monitoring/jaeger-ui-config.json:/etc/jaeger/ui-config.json

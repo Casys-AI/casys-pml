@@ -1,0 +1,251 @@
+---
+import { useTranslations } from '../../i18n';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const content = useTranslations(locale).mcpErpnextPage;
+const localePrefix = locale === 'en' ? '' : `/${locale}`;
+---
+
+<section id="mcp-erpnext-page">
+  <div class="hero">
+    <div class="hero-inner">
+      <span class="eyebrow">{content.eyebrow}</span>
+      <h1>{content.title}</h1>
+      <p class="subtitle">{content.subtitle}</p>
+      <p class="intro">{content.intro}</p>
+      <div class="cta-group">
+        <a href={`${localePrefix}/#projects`} class="cta-primary">
+          <span class="material-symbols-rounded">deployed_code</span>
+          <span>{content.ctaPrimary.text}</span>
+        </a>
+        <a href={`${localePrefix}/#contact`} class="cta-secondary">
+          <span class="material-symbols-rounded">mail</span>
+          <span>{content.ctaSecondary.text}</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="video-section">
+    <div class="container">
+      <div class="video-card">
+        <video controls playsinline preload="metadata">
+          <source src={content.video.src} type="video/mp4" />
+        </video>
+        <p class="video-caption">{content.video.caption}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="proof-section">
+    <div class="container">
+      <div class="proof-grid">
+        {content.proofs.map((proof) => (
+          <div class="proof-card">
+            <h2>{proof.title}</h2>
+            <p>{proof.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <div class="details-section">
+    <div class="container details-grid">
+      <div class="details-card">
+        <h2>{content.whatItShowsTitle}</h2>
+        <div class="details-list">
+          {content.whatItShows.map((item) => (
+            <div class="detail-item">
+              <span class="material-symbols-rounded">check_circle</span>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div class="details-card">
+        <h2>{content.stackTitle}</h2>
+        <div class="details-list">
+          {content.stackItems.map((item) => (
+            <div class="detail-item">
+              <span class="material-symbols-rounded">layers</span>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  section {
+    background: var(--md-sys-color-surface);
+  }
+
+  .container,
+  .hero-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .hero {
+    padding: 56px 0 40px;
+    background: var(--md-sys-color-surface);
+  }
+
+  .hero-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 860px;
+  }
+
+  .eyebrow {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--md-sys-color-primary);
+  }
+
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(2.6rem, 6vw, 4.4rem);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin: 0;
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .subtitle {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.25rem;
+    font-style: italic;
+    color: var(--md-sys-color-primary);
+    margin: 0;
+  }
+
+  .intro {
+    font-size: 1.02rem;
+    line-height: 1.7;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+  }
+
+  .cta-group {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .cta-primary,
+  .cta-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .cta-primary {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+  }
+
+  .cta-secondary {
+    border: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .video-section,
+  .proof-section,
+  .details-section {
+    padding: 24px 0 56px;
+  }
+
+  .video-card {
+    padding: 18px;
+    border-radius: 18px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  video {
+    width: 100%;
+    display: block;
+    border-radius: 12px;
+    background: #000;
+  }
+
+  .video-caption {
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 14px 4px 0;
+  }
+
+  .proof-grid,
+  .details-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .details-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .proof-card,
+  .details-card {
+    padding: 28px;
+    border-radius: 16px;
+    background: var(--md-sys-color-surface-container-lowest);
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .proof-card h2,
+  .details-card h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.35rem;
+    margin: 0 0 12px;
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.02em;
+  }
+
+  .proof-card p {
+    margin: 0;
+    line-height: 1.7;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .details-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .detail-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    line-height: 1.6;
+    color: var(--md-sys-color-on-surface-variant);
+  }
+
+  .detail-item .material-symbols-rounded {
+    color: var(--md-sys-color-primary);
+    font-size: 18px;
+    margin-top: 2px;
+  }
+
+  @media (max-width: 900px) {
+    .proof-grid,
+    .details-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,372 @@
+---
+import { useTranslations } from '../../i18n';
+
+const locale = (Astro as any).currentLocale ?? 'en';
+const content = useTranslations(locale).featuredDemo;
+
+function isExternalUrl(url: string): boolean {
+  return /^https?:\/\//.test(url);
+}
+---
+
+<section id="featured-demo">
+  <div class="container">
+    <div class="section-header">
+      <h2>{content.title}</h2>
+      <p class="section-subtitle">{content.subtitle}</p>
+    </div>
+
+    <div class="demo-grid">
+      <div class="video-card">
+        <video controls playsinline preload="metadata">
+          <source src={content.video.src} type="video/mp4" />
+        </video>
+        <p class="video-caption">{content.video.caption}</p>
+      </div>
+
+      <div class="demo-copy">
+        <span class="eyebrow">{content.eyebrow}</span>
+        <h3>{content.name}</h3>
+        <p class="tagline">{content.tagline}</p>
+        <p class="description">{content.description}</p>
+
+        <div class="bullet-list">
+          {content.bullets.map((bullet) => (
+            <div class="bullet-item">
+              <span class="material-symbols-rounded">check_circle</span>
+              <span>{bullet}</span>
+            </div>
+          ))}
+        </div>
+
+        <div class="stats-grid">
+          {content.stats.map((stat) => (
+            <div class="stat-card">
+              <div class="stat-value">{stat.value}</div>
+              <div class="stat-label">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <p class="note">{content.note}</p>
+
+        <div class="cta-group">
+          <a
+            href={content.cta.primary.url}
+            class="cta-primary"
+            target={isExternalUrl(content.cta.primary.url) ? '_blank' : undefined}
+            rel={isExternalUrl(content.cta.primary.url) ? 'noopener noreferrer' : undefined}
+          >
+            <span class="material-symbols-rounded">{content.cta.primary.icon}</span>
+            <span>{content.cta.primary.text}</span>
+          </a>
+          <a
+            href={content.cta.secondary.url}
+            class="cta-secondary"
+            target={isExternalUrl(content.cta.secondary.url) ? '_blank' : undefined}
+            rel={isExternalUrl(content.cta.secondary.url) ? 'noopener noreferrer' : undefined}
+          >
+            <span class="material-symbols-rounded">{content.cta.secondary.icon}</span>
+            <span>{content.cta.secondary.text}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  section {
+    padding: 56px 0;
+    background: var(--md-sys-color-surface-container-lowest);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .section-header {
+    text-align: left;
+    margin-bottom: 40px;
+    max-width: 680px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  .video-card,
+  .demo-copy {
+    background: var(--md-sys-color-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 18px;
+  }
+
+  .video-card {
+    padding: 18px;
+    overflow: hidden;
+  }
+
+  video {
+    width: 100%;
+    display: block;
+    border-radius: 12px;
+    background: #000;
+  }
+
+  .video-caption {
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 14px 4px 0;
+    line-height: 1.5;
+  }
+
+  .demo-copy {
+    padding: 28px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    border-left: 4px solid var(--md-sys-color-primary);
+  }
+
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--md-sys-color-primary);
+  }
+
+  h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.02em;
+  }
+
+  .tagline {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--md-sys-color-primary);
+    margin: -6px 0 0;
+  }
+
+  .description,
+  .note {
+    font-size: 0.98rem;
+    line-height: 1.7;
+    color: var(--md-sys-color-on-surface-variant);
+    margin: 0;
+  }
+
+  .bullet-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bullet-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    color: var(--md-sys-color-on-surface);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .bullet-item .material-symbols-rounded {
+    font-size: 18px;
+    color: var(--md-sys-color-primary);
+    margin-top: 2px;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 16px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 12px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .stat-value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 0.78rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.4;
+  }
+
+  .cta-group {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .cta-primary,
+  .cta-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-weight: 600;
+    transition: border-color 200ms ease-out, background 200ms ease-out, color 200ms ease-out;
+  }
+
+  .cta-primary {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+  }
+
+  .cta-secondary {
+    border: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+  }
+
+  .cta-primary:hover {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .cta-secondary:hover {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-container);
+  }
+
+  @media (max-width: 900px) {
+    .demo-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Featured Demo — Dark Mode (warm orange palette) */
+  html[data-theme="dark"] #featured-demo {
+    background: var(--casys-warm-background);
+  }
+
+  html[data-theme="dark"] #featured-demo h2 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #featured-demo .section-subtitle {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  /* Cards */
+  html[data-theme="dark"] #featured-demo .video-card,
+  html[data-theme="dark"] #featured-demo .demo-copy {
+    background: var(--casys-warm-surface);
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #featured-demo .demo-copy {
+    border-left-color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #featured-demo .video-caption {
+    color: var(--casys-warm-text-muted);
+  }
+
+  /* Text */
+  html[data-theme="dark"] #featured-demo .eyebrow {
+    color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #featured-demo h3 {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #featured-demo .tagline {
+    color: var(--casys-warm-accent);
+  }
+
+  html[data-theme="dark"] #featured-demo .description,
+  html[data-theme="dark"] #featured-demo .note {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  /* Bullets */
+  html[data-theme="dark"] #featured-demo .bullet-item {
+    color: var(--casys-warm-text-secondary);
+  }
+
+  html[data-theme="dark"] #featured-demo .bullet-item .material-symbols-rounded {
+    color: var(--casys-warm-accent);
+  }
+
+  /* Stats */
+  html[data-theme="dark"] #featured-demo .stat-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 184, 111, 0.1);
+  }
+
+  html[data-theme="dark"] #featured-demo .stat-value {
+    color: var(--casys-warm-text-primary);
+  }
+
+  html[data-theme="dark"] #featured-demo .stat-label {
+    color: var(--casys-warm-text-muted);
+  }
+
+  /* CTAs */
+  html[data-theme="dark"] #featured-demo .cta-primary {
+    background: var(--casys-warm-accent);
+    color: var(--casys-warm-surface);
+  }
+
+  html[data-theme="dark"] #featured-demo .cta-primary:hover {
+    background: var(--casys-warm-accent-hover);
+  }
+
+  html[data-theme="dark"] #featured-demo .cta-secondary {
+    color: var(--casys-warm-accent);
+    border-color: rgba(255, 184, 111, 0.2);
+  }
+
+  html[data-theme="dark"] #featured-demo .cta-secondary:hover {
+    border-color: var(--casys-warm-accent);
+    background: rgba(255, 184, 111, 0.1);
+  }
+</style>
