@@ -9,9 +9,6 @@ import type { VaultNote } from "../core/types.ts";
 import { openVaultStore } from "../db/index.ts";
 import { type Embedder, EmbeddingModel } from "../embeddings/model.ts";
 import { indexVault } from "../embeddings/indexer.ts";
-import { initWeights } from "../gru/cell.ts";
-import { trainEpoch } from "../gru/trainer.ts";
-import { deserializeWeights, serializeWeights } from "../gru/weights.ts";
 import { DEFAULT_GRU_CONFIG } from "../gru/types.ts";
 import type { GRUWeights } from "../gru/types.ts";
 import {
@@ -118,14 +115,17 @@ export async function retrain(
     const existingWeights = await db.getLatestWeights();
     if (existingWeights) {
       try {
+        const { deserializeWeights } = await import("../gru/weights.ts");
         const deserialized = await deserializeWeights(existingWeights.blob);
         weights = deserialized.weights;
         log("  Warm-starting from existing GRU weights");
       } catch {
+        const { initWeights } = await import("../gru/cell.ts");
         weights = initWeights(config);
         log("  Failed to load existing weights, starting fresh");
       }
     } else {
+      const { initWeights } = await import("../gru/cell.ts");
       weights = initWeights(config);
       log("  No existing weights, starting fresh");
     }
@@ -134,6 +134,9 @@ export async function retrain(
     const gamma = 2.0;
     let bestAccuracy = 0;
     let bestEpoch = 0;
+    const trainerModulePath = new URL("../gru/trainer.ts", import.meta.url)
+      .href;
+    const { trainEpoch } = await import(trainerModulePath);
 
     for (let epoch = 1; epoch <= maxEpochs; epoch++) {
       const result = trainEpoch(examples, weights, vocab, config, lr, gamma);
@@ -149,6 +152,7 @@ export async function retrain(
     }
 
     // 6) Save updated weights
+    const { serializeWeights } = await import("../gru/weights.ts");
     const serialized = await serializeWeights(weights, vocab, config);
     await db.saveGruWeights(
       serialized,

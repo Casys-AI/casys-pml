@@ -21,6 +21,12 @@ export interface SyncResponse {
   gruTrained: boolean;
   gruAccuracy: number;
   gnnUpdated: boolean;
+  traceSourcesConfigured: number;
+  traceFilesChanged: number;
+  traceFilesUnchanged: number;
+  traceSessionsImported: number;
+  traceToolCallsStored: number;
+  traceWarnings: string[];
   error?: string;
 }
 
@@ -112,7 +118,14 @@ export function isSyncResponse(value: unknown): value is SyncResponse {
     typeof value.notesReindexed !== "number" ||
     typeof value.gruTrained !== "boolean" ||
     typeof value.gruAccuracy !== "number" ||
-    typeof value.gnnUpdated !== "boolean"
+    typeof value.gnnUpdated !== "boolean" ||
+    typeof value.traceSourcesConfigured !== "number" ||
+    typeof value.traceFilesChanged !== "number" ||
+    typeof value.traceFilesUnchanged !== "number" ||
+    typeof value.traceSessionsImported !== "number" ||
+    typeof value.traceToolCallsStored !== "number" ||
+    !Array.isArray(value.traceWarnings) ||
+    value.traceWarnings.some((warning) => typeof warning !== "string")
   ) {
     return false;
   }

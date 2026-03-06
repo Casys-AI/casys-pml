@@ -329,18 +329,31 @@ const initCmd = new Command()
     }
 
     const { BGEEmbedder } = await import("./embeddings/model.ts");
-    const { initVault } = await import("./workflows/init.ts");
+    const { initVaultWithTraceImport } = await import("./workflows/init.ts");
 
     const dbPath = resolveDbPath(vaultPath);
     await Deno.mkdir(`${vaultPath}/.vault-exec`, { recursive: true });
 
     console.log(`Initializing vault: ${vaultPath}\n`);
     const embedder = new BGEEmbedder();
-    const result = await initVault(notes, dbPath, embedder);
+    const result = await initVaultWithTraceImport(
+      vaultPath,
+      notes,
+      dbPath,
+      embedder,
+    );
 
     console.log(`\nDone:`);
     console.log(`  ${result.notesIndexed} notes indexed`);
     console.log(`  ${result.syntheticTraces} synthetic traces generated`);
+    console.log(
+      `  Trace import: ${result.traceImport.sessionsImported} session(s), ${result.traceImport.toolCallsStored} tool call(s), ${result.traceImport.changedFiles} changed file(s)`,
+    );
+    if (result.traceImport.warnings.length > 0) {
+      console.log(
+        `  Trace warnings: ${result.traceImport.warnings.length}`,
+      );
+    }
     console.log(`  GNN: ${result.gnnForwardDone ? "done" : "skipped"}`);
     console.log(
       `  GRU: ${

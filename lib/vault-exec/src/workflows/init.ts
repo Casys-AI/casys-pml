@@ -2,11 +2,12 @@ import type { VaultNote } from "../core/types.ts";
 import { openVaultStore } from "../db/index.ts";
 import { type Embedder, EmbeddingModel } from "../embeddings/model.ts";
 import { indexVault } from "../embeddings/indexer.ts";
+import {
+  runIncrementalOpenClawImport,
+  type IncrementalOpenClawImportResult,
+} from "../ingest/pipeline.ts";
 import { generateStructuralTraces } from "../traces/synthetic.ts";
 import { recordTrace } from "../traces/recorder.ts";
-import { initWeights } from "../gru/cell.ts";
-import { trainEpoch } from "../gru/trainer.ts";
-import { serializeWeights } from "../gru/weights.ts";
 import { DEFAULT_GRU_CONFIG } from "../gru/types.ts";
 import {
   buildGruVocabulary,
@@ -21,6 +22,24 @@ export interface InitResult {
   syntheticTraces: number;
   gruTrained: boolean;
   gruAccuracy?: number;
+}
+
+export interface InitWithTraceImportResult extends InitResult {
+  traceImport: IncrementalOpenClawImportResult;
+}
+
+export async function initVaultWithTraceImport(
+  vaultPath: string,
+  notes: VaultNote[],
+  dbPath: string,
+  embedder: Embedder,
+): Promise<InitWithTraceImportResult> {
+  const traceImport = await runIncrementalOpenClawImport({ vaultPath, dbPath });
+  const result = await initVault(notes, dbPath, embedder);
+  return {
+    ...result,
+    traceImport,
+  };
 }
 
 export async function initVault(
@@ -114,6 +133,11 @@ export async function initVault(
     const lr = 0.001;
     const gamma = 2.0;
     const numEpochs = 10;
+    const { initWeights } = await import("../gru/cell.ts");
+    const { serializeWeights } = await import("../gru/weights.ts");
+    const trainerModulePath = new URL("../gru/trainer.ts", import.meta.url)
+      .href;
+    const { trainEpoch } = await import(trainerModulePath);
     const weights = initWeights(config);
 
     let bestAccuracy = 0;
