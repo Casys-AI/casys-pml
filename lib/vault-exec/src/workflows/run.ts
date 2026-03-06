@@ -448,7 +448,9 @@ export async function runVaultCommand(
               human,
               "trace_recording_failed",
               { reason: "negative_feedback", error: (err as Error).message },
-              `[trace] Failed to record negative feedback: ${(err as Error).message}`,
+              `[trace] Failed to record negative feedback: ${
+                (err as Error).message
+              }`,
             );
           }
           db.close();

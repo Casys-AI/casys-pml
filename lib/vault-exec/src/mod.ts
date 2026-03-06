@@ -7,8 +7,8 @@
 
 // ── Core primitives ─────────────────────────────────────────────────────────
 
-export { parseVault, parseNote } from "./core/parser.ts";
-export { buildGraph, topologicalSort, detectCycles } from "./core/graph.ts";
+export { parseNote, parseVault } from "./core/parser.ts";
+export { buildGraph, detectCycles, topologicalSort } from "./core/graph.ts";
 export { validate } from "./core/validator.ts";
 export { executeGraph } from "./core/executor.ts";
 
@@ -38,7 +38,10 @@ export { runVaultCommand } from "./workflows/run.ts";
 export type { RunCommandOptions } from "./workflows/run.ts";
 
 export { initVaultWithTraceImport } from "./workflows/init.ts";
-export type { InitResult, InitWithTraceImportResult } from "./workflows/init.ts";
+export type {
+  InitResult,
+  InitWithTraceImportResult,
+} from "./workflows/init.ts";
 
 // ── DB / Store ──────────────────────────────────────────────────────────────
 
@@ -46,7 +49,7 @@ export { openVaultStore } from "./db/index.ts";
 
 // ── CLI runtime ─────────────────────────────────────────────────────────────
 
-export { eventJson, errorJson } from "./cli-runtime/output.ts";
+export { errorJson, eventJson } from "./cli-runtime/output.ts";
 export type { ErrorCategory } from "./cli-runtime/output.ts";
 export {
   EXIT_CODE_RUNTIME,
