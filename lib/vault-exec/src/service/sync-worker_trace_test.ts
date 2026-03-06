@@ -53,7 +53,7 @@ function buildTraceFixture(): string {
   ].join("\n");
 }
 
-Deno.test("runIncrementalSync imports traces before retrain and reports counters", async () => {
+Deno.test("runIncrementalSync imports traces, rebuilds derived tables, and reports counters", async () => {
   const vaultPath = await Deno.makeTempDir();
   const sourcePath = `${vaultPath}/sources/agents/alpha/sessions`;
 

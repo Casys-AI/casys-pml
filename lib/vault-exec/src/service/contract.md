@@ -10,8 +10,8 @@
 - Service state transitions and sync execution lifecycle.
 - Stable daemon metadata keyed by vault identity.
 - `status` => `ServiceStatus`
-- `sync` => `SyncResponse` including trace import counts/warnings plus retrain
-  outcome
+- `sync` => `SyncResponse` including trace import counts/warnings plus explicit
+  zeroed legacy-training fields in the DB-first phase
 - `stop` => `{ stopped: true }`
 - Error envelopes shaped as `{ id, ok: false, error }`
 
