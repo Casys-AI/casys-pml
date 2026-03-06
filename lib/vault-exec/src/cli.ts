@@ -5,7 +5,10 @@ import { buildGraph, topologicalSort } from "./core/graph.ts";
 import { validate } from "./core/validator.ts";
 import { DenoVaultReader } from "./infrastructure/fs/deno-vault-fs.ts";
 import { errorJson, eventJson } from "./cli-runtime/output.ts";
-import { EXIT_CODE_VALIDATION } from "./cli-runtime/exit-codes.ts";
+import {
+  EXIT_CODE_RUNTIME,
+  EXIT_CODE_VALIDATION,
+} from "./cli-runtime/exit-codes.ts";
 import { runVaultCommand } from "./workflows/run.ts";
 
 // Load .env.local (gitignored) then .env as fallback
@@ -22,7 +25,7 @@ async function loadNotes(dir: string) {
   const notes = await parseVault(reader, dir);
   if (notes.length === 0) {
     console.error(`No .md files found in ${dir}`);
-    Deno.exit(1);
+    Deno.exit(EXIT_CODE_VALIDATION);
   }
   return notes;
 }
@@ -226,7 +229,7 @@ const compileCmd = new Command()
       console.error(
         "OPENAI_API_KEY environment variable is required for compilation",
       );
-      Deno.exit(1);
+      Deno.exit(EXIT_CODE_VALIDATION);
     }
 
     const notes = await loadNotes(vaultPath);
@@ -438,7 +441,7 @@ const ingestCmd = new Command()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`ingest failed: ${message}`);
-      Deno.exit(1);
+      Deno.exit(EXIT_CODE_RUNTIME);
     }
   });
 

@@ -112,7 +112,7 @@ async function loadNotes(dir: string) {
   const notes = await parseVault(reader, dir);
   if (notes.length === 0) {
     console.error(`No .md files found in ${dir}`);
-    Deno.exit(1);
+    Deno.exit(EXIT_CODE_VALIDATION);
   }
   return notes;
 }
@@ -443,8 +443,13 @@ export async function runVaultCommand(
               { negative_count: rejectedTargets.length, positive_count: 0 },
               `[trace] ${rejectedTargets.length} negative recorded.`,
             );
-          } catch {
-            // DB not available
+          } catch (err) {
+            emitEvent(
+              human,
+              "trace_recording_failed",
+              { reason: "negative_feedback", error: (err as Error).message },
+              `[trace] Failed to record negative feedback: ${(err as Error).message}`,
+            );
           }
           db.close();
           await embedder.dispose();
@@ -512,8 +517,13 @@ export async function runVaultCommand(
           }
         }
         await applyVirtualEdgeDecay(db, PROMOTION_POLICY.decayFactor);
-      } catch {
-        // Non-fatal: run should proceed even if edge-learning persistence fails.
+      } catch (err) {
+        emitEvent(
+          human,
+          "edge_learning_failed",
+          { error: (err as Error).message },
+          `[edges] Edge-learning persistence failed: ${(err as Error).message}`,
+        );
       }
 
       db.close();
@@ -551,8 +561,13 @@ export async function runVaultCommand(
     if (promoted.length > 0) {
       graph = withVirtualEdges(graph, promoted);
     }
-  } catch {
-    // non-fatal
+  } catch (err) {
+    emitEvent(
+      human,
+      "virtual_edges_unavailable",
+      { error: (err as Error).message },
+      `[edges] Could not load virtual edges: ${(err as Error).message}`,
+    );
   }
 
   const runtimeSchema = buildRuntimeInputSchema(graph);
