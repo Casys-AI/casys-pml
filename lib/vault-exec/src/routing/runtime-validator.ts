@@ -1,4 +1,4 @@
-import type { VaultGraph } from "../core/types.ts";
+import type { VaultGraph } from "../core/contracts.ts";
 import {
   type RuntimeInputValidationResult,
   summarizeRuntimeInputCompatibility,

@@ -3,6 +3,7 @@ import {
   buildTargetIdentifierIndex,
   normalizeTargetIdentifier,
   resolveTargetIdentifier,
+  resolveTargetIdentifierDetailed,
   shorthandTargetIdentifier,
 } from "./target-identifiers.ts";
 
@@ -45,6 +46,28 @@ Deno.test("buildTargetIdentifierIndex resolves by exact name, id and shorthand",
     resolveTargetIdentifier("b-t-t", index)?.name,
     "Bench Tier Target",
   );
+});
+
+Deno.test("resolveTargetIdentifierDetailed reports exact vs fallback resolution source", () => {
+  const index = buildTargetIdentifierIndex([
+    "Bench Tier Target",
+    "CRM Pipeline",
+  ]);
+
+  const byName = resolveTargetIdentifierDetailed("Bench Tier Target", index);
+  assertEquals(byName.source, "name");
+  assertEquals(byName.usedFallback, false);
+  assertEquals(byName.target?.name, "Bench Tier Target");
+
+  const byId = resolveTargetIdentifierDetailed("bench-tier-target", index);
+  assertEquals(byId.source, "id");
+  assertEquals(byId.usedFallback, true);
+  assertEquals(byId.target?.name, "Bench Tier Target");
+
+  const byAlias = resolveTargetIdentifierDetailed("b-t-t", index);
+  assertEquals(byAlias.source, "alias");
+  assertEquals(byAlias.usedFallback, true);
+  assertEquals(byAlias.target?.name, "Bench Tier Target");
 });
 
 Deno.test("collision handling for ids and aliases is deterministic", () => {

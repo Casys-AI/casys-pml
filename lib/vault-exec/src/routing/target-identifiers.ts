@@ -11,6 +11,15 @@ export interface TargetIdentifierIndex {
   byAlias: Map<string, TargetIdentifier>;
 }
 
+export type TargetResolutionSource = "name" | "id" | "alias" | "none";
+
+export interface TargetIdentifierResolution {
+  target?: TargetIdentifier;
+  source: TargetResolutionSource;
+  /** Indicates id/alias compatibility fallback instead of exact-name match. */
+  usedFallback: boolean;
+}
+
 function sanitizeBaseId(input: string): string {
   return input
     .normalize("NFD")
@@ -83,6 +92,21 @@ export function resolveTargetIdentifier(
   reference: string,
   index: TargetIdentifierIndex,
 ): TargetIdentifier | undefined {
-  return index.byName.get(reference) ?? index.byId.get(reference) ??
-    index.byAlias.get(reference);
+  return resolveTargetIdentifierDetailed(reference, index).target;
+}
+
+export function resolveTargetIdentifierDetailed(
+  reference: string,
+  index: TargetIdentifierIndex,
+): TargetIdentifierResolution {
+  const byName = index.byName.get(reference);
+  if (byName) return { target: byName, source: "name", usedFallback: false };
+
+  const byId = index.byId.get(reference);
+  if (byId) return { target: byId, source: "id", usedFallback: true };
+
+  const byAlias = index.byAlias.get(reference);
+  if (byAlias) return { target: byAlias, source: "alias", usedFallback: true };
+
+  return { target: undefined, source: "none", usedFallback: false };
 }

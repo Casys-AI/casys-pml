@@ -1,7 +1,10 @@
 import { extractSubgraph } from "../core/graph.ts";
-import type { VaultGraph } from "../core/types.ts";
+import type { VaultGraph } from "../core/contracts.ts";
 import type { RuntimeValidationStatus } from "./runtime-inputs.ts";
-import type { TargetIdentifierIndex } from "./target-identifiers.ts";
+import {
+  resolveTargetIdentifierDetailed,
+  type TargetIdentifierIndex,
+} from "./target-identifiers.ts";
 import {
   defaultRuntimeInputValidator,
   type RuntimeInputValidator,
@@ -17,6 +20,7 @@ export interface EvaluatedIntentCandidate extends IntentCandidate {
   candidateId: string;
   targetId: string;
   targetAlias: string;
+  targetResolution: "index" | "fallback";
   payloadStatus: string;
   payloadOk: boolean;
   validation: {
@@ -49,6 +53,38 @@ function issueKeys(
   ].sort();
 }
 
+function resolveCandidateTarget(
+  targetName: string,
+  targetIndex?: TargetIdentifierIndex,
+): {
+  targetId: string;
+  targetAlias: string;
+  targetResolution: "index" | "fallback";
+} {
+  if (!targetIndex) {
+    return {
+      targetId: targetName,
+      targetAlias: targetName,
+      targetResolution: "fallback",
+    };
+  }
+
+  const resolved = resolveTargetIdentifierDetailed(targetName, targetIndex);
+  if (!resolved.target) {
+    return {
+      targetId: targetName,
+      targetAlias: targetName,
+      targetResolution: "fallback",
+    };
+  }
+
+  return {
+    targetId: resolved.target.id,
+    targetAlias: resolved.target.alias,
+    targetResolution: "index",
+  };
+}
+
 export function evaluateIntentCandidates(
   fullGraph: VaultGraph,
   candidates: IntentCandidate[],
@@ -59,16 +95,17 @@ export function evaluateIntentCandidates(
   return candidates.map((candidate) => {
     const candidateGraph = extractSubgraph(fullGraph, candidate.target);
     const validation = validator.validate(candidateGraph, payload);
-    const targetId = targetIndex?.byName.get(candidate.target)?.id ??
-      candidate.target;
-    const targetAlias = targetIndex?.byName.get(candidate.target)?.alias ??
-      candidate.target;
+    const resolvedTarget = resolveCandidateTarget(
+      candidate.target,
+      targetIndex,
+    );
 
     return {
       ...candidate,
-      candidateId: makeCandidateId(targetId),
-      targetId,
-      targetAlias,
+      candidateId: makeCandidateId(resolvedTarget.targetId),
+      targetId: resolvedTarget.targetId,
+      targetAlias: resolvedTarget.targetAlias,
+      targetResolution: resolvedTarget.targetResolution,
       payloadStatus: validator.summarize(validation),
       payloadOk: validation.ok,
       validation: {

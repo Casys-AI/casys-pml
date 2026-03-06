@@ -1,5 +1,4 @@
-import type { VaultReader } from "../../core/types.ts";
-import type { VaultWriter } from "../../core/io.ts";
+import type { VaultReader, VaultWriter } from "../../core/contracts.ts";
 
 export class DenoVaultWriter implements VaultWriter {
   async writeNote(path: string, content: string): Promise<void> {

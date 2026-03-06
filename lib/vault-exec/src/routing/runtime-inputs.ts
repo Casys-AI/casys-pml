@@ -1,6 +1,6 @@
 import AjvModule from "npm:ajv";
 import type { ErrorObject } from "npm:ajv";
-import type { VaultGraph } from "../core/types.ts";
+import type { VaultGraph } from "../core/contracts.ts";
 import { parseRef } from "../core/template.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -28,7 +28,15 @@ export interface RuntimeInputValidationResult {
   ok: boolean;
   status: RuntimeValidationStatus;
   schema: RuntimeInputSchema | null;
+  schemaSource: RuntimeInputSchemaSource;
   issues: RuntimeInputValidationIssue[];
+}
+
+export type RuntimeInputSchemaSource = "none" | "declared" | "inferred";
+
+export interface RuntimeInputSchemaBuildResult {
+  schema: RuntimeInputSchema | null;
+  source: RuntimeInputSchemaSource;
 }
 
 function isRuntimeRefNote(note: string): boolean {
@@ -62,6 +70,12 @@ export function extractRuntimeInputKeys(graph: VaultGraph): string[] {
 export function buildRuntimeInputSchema(
   graph: VaultGraph,
 ): RuntimeInputSchema | null {
+  return buildRuntimeInputSchemaWithSource(graph).schema;
+}
+
+export function buildRuntimeInputSchemaWithSource(
+  graph: VaultGraph,
+): RuntimeInputSchemaBuildResult {
   const merged: RuntimeInputSchema = {
     type: "object",
     properties: {},
@@ -104,8 +118,14 @@ export function buildRuntimeInputSchema(
 
   merged.required = [...requiredSet].sort();
 
-  if (Object.keys(merged.properties).length === 0) return null;
-  return merged;
+  if (Object.keys(merged.properties).length === 0) {
+    return { schema: null, source: "none" };
+  }
+
+  return {
+    schema: merged,
+    source: hasDeclaredSchema ? "declared" : "inferred",
+  };
 }
 
 function issueFromAjvError(err: ErrorObject): RuntimeInputValidationIssue {
@@ -161,16 +181,22 @@ export function validateRuntimeInputsForGraph(
   graph: VaultGraph,
   payload: Record<string, unknown>,
 ): RuntimeInputValidationResult {
-  const schema = buildRuntimeInputSchema(graph);
+  const { schema, source } = buildRuntimeInputSchemaWithSource(graph);
   if (!schema) {
-    return { ok: true, status: "OK", schema: null, issues: [] };
+    return {
+      ok: true,
+      status: "OK",
+      schema: null,
+      schemaSource: source,
+      issues: [],
+    };
   }
 
   const ajv = new Ajv({ allErrors: true, strict: false });
   const validate = ajv.compile(schema as unknown as Record<string, unknown>);
   const ok = validate(payload);
   if (ok) {
-    return { ok: true, status: "OK", schema, issues: [] };
+    return { ok: true, status: "OK", schema, schemaSource: source, issues: [] };
   }
 
   const issues = (validate.errors ?? []).map(issueFromAjvError);
@@ -178,6 +204,7 @@ export function validateRuntimeInputsForGraph(
     ok: false,
     status: deriveStatus(issues),
     schema,
+    schemaSource: source,
     issues,
   };
 }

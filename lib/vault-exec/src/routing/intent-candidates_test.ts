@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
-import type { CompiledNode, VaultGraph } from "../core/types.ts";
+import type { CompiledNode, VaultGraph } from "../core/contracts.ts";
 import {
   evaluateIntentCandidates,
   formatIntentCandidateLine,
@@ -70,6 +70,7 @@ Deno.test("intent candidate formatter includes payload compatibility status", ()
   assertEquals(candidates[0].targetId, "candidate-a");
   assertEquals(candidates[0].targetAlias, "c-a");
   assertEquals(candidates[0].candidateId, "cand_candidate-a");
+  assertEquals(candidates[0].targetResolution, "index");
   assertEquals(candidates[0].validation.status, "OK");
   assertEquals(candidates[1].validation.status, "MISSING");
   assertEquals(candidates[1].validation.missing, ["days"]);

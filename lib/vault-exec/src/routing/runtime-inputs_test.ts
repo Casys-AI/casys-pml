@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert";
 import { extractSubgraph } from "../core/graph.ts";
-import type { CompiledNode, VaultGraph } from "../core/types.ts";
+import type { CompiledNode, VaultGraph } from "../core/contracts.ts";
 import {
   summarizeRuntimeInputCompatibility,
   validateRuntimeInputsForGraph,
@@ -74,7 +74,9 @@ Deno.test("intent candidates expose compatibility status (payload visible before
   const report = validateRuntimeInputsForGraph(reportGraph, payload);
 
   assertEquals(followUp.status, "OK");
+  assertEquals(followUp.schemaSource, "declared");
   assertEquals(report.status, "MISSING");
+  assertEquals(report.schemaSource, "declared");
 
   const followUpSummary = summarizeRuntimeInputCompatibility(followUp);
   const reportSummary = summarizeRuntimeInputCompatibility(report);
@@ -143,4 +145,24 @@ Deno.test("runtime validation enforces enum constraints from input_schema", () =
   const result = validateRuntimeInputsForGraph(graph, { mode: "turbo" });
   assertEquals(result.ok, false);
   assertEquals(result.status, "INVALID");
+  assertEquals(result.schemaSource, "declared");
+});
+
+Deno.test("runtime validation exposes inferred schema source when using runtime refs only", () => {
+  const nodes = new Map<string, CompiledNode>([
+    [
+      "Inferred Input Node",
+      makeNode("Inferred Input Node", {
+        inputs: { accountId: "{{inputs.account_id}}" },
+        inputSchema: undefined,
+      }),
+    ],
+  ]);
+  const edges = new Map<string, string[]>([["Inferred Input Node", []]]);
+  const graph: VaultGraph = { nodes, edges };
+
+  const result = validateRuntimeInputsForGraph(graph, {});
+  assertEquals(result.ok, false);
+  assertEquals(result.status, "MISSING");
+  assertEquals(result.schemaSource, "inferred");
 });
