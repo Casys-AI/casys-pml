@@ -126,6 +126,13 @@ function connectTransition(
   incrementCount(next.previousTransitions, previousKey);
 }
 
+function resolveLeafTransitionKey(
+  row: ImportedOpenClawToolCallRow,
+): string | undefined {
+  const keys = deriveToolGraphKeysForCall(row);
+  return keys.l2Key ?? keys.l1Key;
+}
+
 export function deriveToolGraphEntities(
   rows: ImportedOpenClawToolCallRow[],
 ): ToolGraphEntity[] {
@@ -151,10 +158,11 @@ export function deriveToolGraphEntities(
       continue;
     }
 
-    const previousKeys = deriveToolGraphKeysForCall(previous);
-    const nextKeys = deriveToolGraphKeysForCall(next);
-    connectTransition(entities, previousKeys.l1Key, nextKeys.l1Key);
-    connectTransition(entities, previousKeys.l2Key, nextKeys.l2Key);
+    connectTransition(
+      entities,
+      resolveLeafTransitionKey(previous),
+      resolveLeafTransitionKey(next),
+    );
   }
 
   return [...entities.values()]

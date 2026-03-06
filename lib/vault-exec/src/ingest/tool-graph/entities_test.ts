@@ -50,9 +50,11 @@ Deno.test("deriveToolGraphKeysForCall produces stable dotted keys", () => {
       toolName: "browser",
       family: null,
       l2Hit: false,
+      l2FallbackReason: "unsupported_shape",
     })),
     {
       l1Key: "tool.browser",
+      l2Key: "tool.browser.fallback",
     },
   );
 });
@@ -102,11 +104,25 @@ Deno.test("deriveToolGraphEntities aggregates stable nodes and sequential transi
       agentId: "gamma",
       contentHash: "hash-c",
     }),
+    buildRow({
+      toolName: "read",
+      family: "relative:file_path",
+      l2Hit: true,
+      sourceRoot: "/tmp/.openclaw/agents/gamma/sessions",
+      sourcePath: "/tmp/.openclaw/agents/gamma/sessions/sess-c.jsonl",
+      sessionId: "sess-c",
+      sessionShortId: "sessc",
+      agentId: "gamma",
+      contentHash: "hash-c",
+      turnIndex: 2,
+      callIndex: 0,
+    }),
   ];
 
   const entities = deriveToolGraphEntities(rows);
   assertEquals(entities.map((entity) => entity.key), [
     "tool.browser",
+    "tool.browser.fallback",
     "tool.exec",
     "tool.exec.git_vcs",
     "tool.read",
@@ -120,9 +136,7 @@ Deno.test("deriveToolGraphEntities aggregates stable nodes and sequential transi
   assertEquals(exec.uniqueSessions, 2);
   assertEquals(exec.uniqueAgents, 2);
   assertEquals(exec.previousTransitions, {});
-  assertEquals(exec.nextTransitions, {
-    "tool.read": 2,
-  });
+  assertEquals(exec.nextTransitions, {});
 
   const execGit = entities.find((entity) => entity.key === "tool.exec.git_vcs");
   if (!execGit) throw new Error("missing tool.exec.git_vcs");
@@ -137,9 +151,7 @@ Deno.test("deriveToolGraphEntities aggregates stable nodes and sequential transi
 
   const read = entities.find((entity) => entity.key === "tool.read");
   if (!read) throw new Error("missing tool.read");
-  assertEquals(read.previousTransitions, {
-    "tool.exec": 2,
-  });
+  assertEquals(read.previousTransitions, {});
   assertEquals(read.nextTransitions, {});
 
   const readRelative = entities.find((entity) =>
@@ -147,6 +159,7 @@ Deno.test("deriveToolGraphEntities aggregates stable nodes and sequential transi
   );
   if (!readRelative) throw new Error("missing tool.read.relative_file_path");
   assertEquals(readRelative.previousTransitions, {
+    "tool.browser.fallback": 1,
     "tool.exec.git_vcs": 2,
   });
   assertEquals(readRelative.nextTransitions, {});
@@ -157,4 +170,15 @@ Deno.test("deriveToolGraphEntities aggregates stable nodes and sequential transi
   assertEquals(browser.l2Fallbacks, 1);
   assertEquals(browser.previousTransitions, {});
   assertEquals(browser.nextTransitions, {});
+
+  const browserFallback = entities.find((entity) =>
+    entity.key === "tool.browser.fallback"
+  );
+  if (!browserFallback) throw new Error("missing tool.browser.fallback");
+  assertEquals(browserFallback.level, 2);
+  assertEquals(browserFallback.totalOccurrences, 1);
+  assertEquals(browserFallback.previousTransitions, {});
+  assertEquals(browserFallback.nextTransitions, {
+    "tool.read.relative_file_path": 1,
+  });
 });

@@ -73,7 +73,7 @@ Deno.test("projectToolGraph writes stable markdown notes into hierarchical tools
     assertStringIncludes(l1, "tool_graph_key: tool.exec");
     assert(l1.includes("## Previous") === false);
     assertStringIncludes(l1, "## Next");
-    assertStringIncludes(l1, "[[tools/read/read|read]] (1)");
+    assertStringIncludes(l1, "none");
     assertStringIncludes(l1, "## Tool Graph Meta");
     assertStringIncludes(l2, "tool_graph_key: tool.exec.git_vcs");
     assert(l2.includes("## Previous") === false);

@@ -18,4 +18,9 @@
   current entity set
 - folder hierarchy derives only from stable key hierarchy
 - visible note links must prioritize sequential execution transitions
+- visible transitions are attached only to the deepest key available for each
+  imported tool call; category nodes must not emit category-level sequence
+  links
+- when L2 classification falls back, a dedicated leaf such as
+  `tool.exec.fallback` is used so the parent category remains taxonomy-only
 - tool-graph projection must not create session or agent note entities

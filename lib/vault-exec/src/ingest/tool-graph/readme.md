@@ -25,3 +25,7 @@ traces.
 - projection is a readable graph view, not the source of truth
 - folder hierarchy carries taxonomy; note links should emphasize execution
   transitions
+- `Next` links are emitted only on the deepest key available for a call; pure
+  category nodes stay unlinked at the sequence level
+- L2 fallback rows get a dedicated leaf (for example `tool.exec.fallback`) so
+  categories like `tool.exec` stay taxonomy-only

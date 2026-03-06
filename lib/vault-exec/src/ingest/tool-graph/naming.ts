@@ -20,6 +20,13 @@ export function deriveToolGraphKeysForCall(
     : null;
 
   if (!family) {
+    if (row.l2Hit === false || row.l2FallbackReason) {
+      return {
+        l1Key,
+        l2Key: `${l1Key}.fallback`,
+      };
+    }
+
     return { l1Key };
   }
 

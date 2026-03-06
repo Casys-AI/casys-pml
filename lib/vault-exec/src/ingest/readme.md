@@ -52,5 +52,7 @@ Outputs:
   accumulate stale notes
 - note links should prioritize sequential execution transitions over taxonomy
   links already implied by the folder hierarchy
+- sequence links attach only to deepest available tool nodes, never to
+  category-only parents
 - agents stay as aggregated metadata inside tool notes, never as projected
   nodes/directories
