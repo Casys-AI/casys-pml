@@ -14,7 +14,7 @@ Virtual-edge learning policy and update mechanics.
 - No CLI rendering.
 - Persistence routed via `IVaultStore`.
 
-## AX Notes
+## Notes
 
 - Real graph edges are excluded from virtual-edge updates.
 - Update aggregation is deterministic and sorted by `(source, target)`.

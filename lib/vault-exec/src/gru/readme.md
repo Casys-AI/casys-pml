@@ -14,7 +14,7 @@ Intent-sequence modeling and inference utilities.
 - No direct filesystem or DB concerns.
 - Runtime orchestration belongs to workflows.
 
-## AX Notes
+## Notes
 
 - Vector and tensor dimensions must match `GRUConfig`.
 - Inference enforces acyclic paths with no revisits.

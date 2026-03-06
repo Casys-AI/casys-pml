@@ -6,7 +6,7 @@ Operational persistence adapters and store factory.
 
 - Open vault store instances.
 - Persist notes, edges, traces, model artifacts, and virtual edges.
-- Preserve deterministic read ordering where required by AX flows.
+- Preserve deterministic read ordering where required by workflow/training flows.
 
 ## Boundaries
 
@@ -14,7 +14,7 @@ Operational persistence adapters and store factory.
 - No CLI formatting.
 - Keep storage details isolated behind `IVaultStore`.
 
-## AX Notes
+## Notes
 
 - Notes are returned sorted by `name`.
 - Edge targets are canonicalized on write.

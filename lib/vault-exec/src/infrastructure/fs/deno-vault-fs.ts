@@ -2,6 +2,11 @@ import type { VaultReader, VaultWriter } from "../../core/contracts.ts";
 
 export class DenoVaultWriter implements VaultWriter {
   async writeNote(path: string, content: string): Promise<void> {
+    const normalized = path.replace(/\\/g, "/");
+    const slash = normalized.lastIndexOf("/");
+    if (slash > 0) {
+      await Deno.mkdir(normalized.slice(0, slash), { recursive: true });
+    }
     await Deno.writeTextFile(path, content);
   }
 }

@@ -13,7 +13,7 @@ Execution trace recording and synthetic trace generation.
 - No routing-policy selection logic.
 - No DB backend implementation details.
 
-## AX Notes
+## Notes
 
 - Synthetic traces are generated in deterministic target order by note name.
 - Synthetic paths come from topological order with dependencies before target.

@@ -14,7 +14,7 @@ Text embedding model integration and vault indexing pipeline.
 - No trace/projection logic.
 - Store I/O only through `IVaultStore`.
 
-## AX Notes
+## Notes
 
 - Embedding vectors are expected to be 1024-D.
 - Note and edge metadata are always upserted even when embedding is skipped.

@@ -1,5 +1,8 @@
 # vault-exec src layout
 
+Machine-first feature slices with explicit contracts and deterministic
+fallbacks.
+
 ## Core graph pipeline
 
 - `core/parser.ts` / `core/graph.ts` / `core/validator.ts`
@@ -38,12 +41,13 @@ Tests for this slice are co-located in `routing/*_test.ts`.
 - `cli-runtime/*` (CLI output + exit codes)
 - `utils/compress.ts` (shared gzip helpers)
 
-## CLI behavior contract (AX)
+## CLI behavior contract
 
 - Default output mode is machine-readable JSONL events.
 - `--human` switches to human-readable output.
 - `run --intent` is confirmation-first by default.
 - `run --intent --no-confirm` enables auto-select mode.
+- `run --payload-mode strict|project` makes payload policy explicit.
 - Missing GRU weights for intent routing is a validation error with `init`
   guidance.
 - Ingest trace-session dates use deterministic fallback (`1970-01-01`) when

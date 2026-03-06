@@ -18,7 +18,7 @@ Long-running daemon/watch lifecycle around vault sync operations.
 - No core DAG execution logic.
 - No model internals.
 
-## AX Notes
+## Notes
 
 - Keep transport/protocol concerns local to this module.
 - Keep request/response contracts explicit and machine-validated.

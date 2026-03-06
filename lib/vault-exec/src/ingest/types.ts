@@ -86,3 +86,21 @@ export interface L2CoverageReport {
   hitRate: number;
   tools: ToolCoverage[];
 }
+
+export interface ImportedOpenClawToolCallRow {
+  sourceRoot: string;
+  sourcePath: string;
+  contentHash: string;
+  sessionId: string;
+  sessionShortId: string;
+  sessionStartedAt?: string;
+  agentId?: string;
+  turnIndex: number;
+  callIndex: number;
+  timestamp?: string;
+  toolName: string;
+  family: ToolFamily | null;
+  l2Hit: boolean;
+  l2FallbackReason?: string;
+  parentPlanHint?: string;
+}

@@ -5,10 +5,12 @@
 - `ParsedOpenClawSession`
 - `ParsedTurn`
 - `ParsedToolCall`
+- `ImportedOpenClawToolCallRow`
 - `ToolPolicyDecision`
 - `L2CoverageReport`
+- `ToolGraphEntity`
 
-(see `types.ts` and `policy.ts`)
+(see `types.ts`, `policy.ts`, `tool-graph/entities.ts`)
 
 ## Policy contract
 
@@ -30,7 +32,13 @@ For each tool call:
 
 - Parser output must not depend on wall-clock time.
 - Coverage/order must derive from parsed sequence and stable sorting.
+- Tool-graph keys must be stable dotted paths derived from explicit
+  tool/family naming rules.
+- Tool-graph projection content must be deterministic for the same imported row
+  set.
 
 ## Safety
 
 - Unknown tools must fallback cleanly (`unsupported_tool`) instead of forced classification.
+- Imported OpenClaw rows must live in a KV namespace separate from GRU training
+  traces.

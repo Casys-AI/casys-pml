@@ -14,7 +14,7 @@ Structure-aware embedding enrichment via feature-sliced GNN layers.
 - Infrastructure must not import application.
 - Keep CLI/runtime orchestration outside `gnn`.
 
-## AX Notes
+## Notes
 
 - Phase order is fixed: V->E upward, E->E downward, E->V downward.
 - Forward pass is deterministic for fixed nodes, params, and config.
