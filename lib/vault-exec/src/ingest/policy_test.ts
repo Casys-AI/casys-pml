@@ -6,6 +6,10 @@ import {
   SUPPORTED_TOOL_POLICIES,
 } from "./policy.ts";
 
+const CURRENT_PROJECT_README = new URL("../../README.md", import.meta.url)
+  .pathname;
+const LEGACY_WORKTREE_README = "/tmp/vx-ax-policy/lib/vault-exec/README.md";
+
 Deno.test("classifyToolCallL2 - hits for each supported major tool", () => {
   const cases: Array<{
     toolName: string;
@@ -190,6 +194,20 @@ Deno.test("classifyToolCallL2 - fallback for uncertainty per supported tool", ()
       `${testCase.toolName} fallback reason`,
     );
   }
+});
+
+Deno.test("classifyToolCallL2 - project paths stay checkout-agnostic", () => {
+  const current = classifyToolCallL2("read", {
+    file_path: CURRENT_PROJECT_README,
+  });
+  const legacy = classifyToolCallL2("read", {
+    file_path: LEGACY_WORKTREE_README,
+  });
+
+  assertEquals(current.family, "project_abs:file_path");
+  assertEquals(current.hit, true);
+  assertEquals(legacy.family, "project_abs:file_path");
+  assertEquals(legacy.hit, true);
 });
 
 Deno.test("classifyToolCallL2 - exec normalization captures wrappers and primary binary", () => {

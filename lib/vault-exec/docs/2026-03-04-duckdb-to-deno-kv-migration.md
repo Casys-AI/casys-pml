@@ -1,6 +1,6 @@
 # Migration DuckDB → Deno KV pour vault-exec
 
-**Statut :** Approuvé — prêt à implémenter
+**Statut :** Implémenté avec convergence KV-only
 **Date :** 2026-03-04
 **Scope :** `lib/vault-exec/src/db/store.ts` (classe `VaultDB` → `VaultKV`)
 
@@ -11,6 +11,31 @@
 Migration complète de DuckDB vers Deno KV. La limite de 64 KiB par valeur est contournée par [`@kitsonk/kv-toolbox`](https://jsr.io/@kitsonk/kv-toolbox) (v0.30.0) — librairie de référence dans l'écosystème Deno, maintenue par un core contributor. Son module `blob` gère le chunking transparent : `blob.set(kv, key, data)` découpe, `blob.get(kv, key)` réassemble. Zéro code de chunking maison.
 
 **Décision** : migration complète — notes, edges, traces en KV natif, blobs GNN/GRU via kv-toolbox blob. Suppression de `@duckdb/node-api`.
+
+---
+
+## 0. Mise à jour d'implémentation (2026-03-06)
+
+L'état réel du repo a convergé plus vite que le plan transitoire ci-dessous :
+
+- `lib/vault-exec/src/db/store-kv.ts` est l'implémentation active du store.
+- `lib/vault-exec/src/db/index.ts` expose `openVaultStore(path)` en mode KV-only.
+- Les workflows principaux (`init`, `retrain`, `run`) passent déjà par `openVaultStore()`.
+- Les blobs GNN/GRU sont persistés via `@kitsonk/kv-toolbox/blob`.
+- La suite `src/db/store-kv_test.ts` couvre notes, edges, traces, virtual edges,
+  GNN params, GRU weights et la factory.
+
+Conséquence :
+
+- Les étapes de coexistence DuckDB/KV de ce document sont désormais
+  **superseded**.
+- `store-parity_test.ts` n'a pas été ajouté : la migration a été validée par la
+  suite KV ciblée et l'usage direct des workflows/tests runtime.
+- Le feature flag `VAULT_BACKEND` n'existe pas dans l'état final : le repo a
+  convergé vers une factory KV-only au lieu d'un mode dual-backend.
+
+Ce document reste utile comme justification d'architecture et d'implémentation
+du schéma KV, mais pas comme checklist littérale de migration restante.
 
 ---
 
@@ -337,6 +362,10 @@ Durée estimée : 1 session.
 
 Écrire un test de parité `store-parity_test.ts` qui exécute les mêmes opérations sur `VaultDB` et `VaultKV` et compare les résultats. Focus sur les cas edge : upsert avec embedding null, setEdges vide, trace sans intent.
 
+**Statut final : superseded.** La branche a convergé directement vers KV-only, donc
+il n'y a plus de dual-run DuckDB/KV à maintenir. La confiance est portée par
+`src/db/store-kv_test.ts` et les tests/workflows qui consomment `openVaultStore()`.
+
 Durée estimée : 0.5 session.
 
 ### Étape 3 — Feature flag dans `VaultDB.open()` / factory
@@ -363,6 +392,10 @@ export async function openVaultStore(
 
 Durée estimée : 0.5 session.
 
+**Statut final : implémenté partiellement puis simplifié.** La factory
+`openVaultStore(path)` existe bien, mais en mode KV-only. Le backend DuckDB et
+le flag `VAULT_BACKEND` n'ont pas été conservés dans l'état final.
+
 ### Étape 4 — Mise à jour des consommateurs
 
 Remplacer tous les `VaultDB.open()` directs par `openVaultStore()`. Fichiers impactés :
@@ -375,15 +408,24 @@ Remplacer tous les `VaultDB.open()` directs par `openVaultStore()`. Fichiers imp
 
 Durée estimée : 0.5 session.
 
+**Statut final : réalisé pour les workflows actifs.** `init`, `retrain` et
+`run` passent par `openVaultStore()`. Les tests ciblés du store utilisent
+encore `VaultKV.open(":memory:")` directement quand cela simplifie
+l'initialisation isolée.
+
 ### Étape 5 — Tests en conditions réelles
 
 Lancer `initVault()` avec `VAULT_BACKEND=kv` sur le demo-vault (`lib/vault-exec/demo-vault/`). Vérifier que les blobs GRU et GNN se lisent correctement après un cycle complet init → serialize → chunk → unchunk → deserialize.
+
+**Statut final : adapté.** Le repo n'expose plus `VAULT_BACKEND`; la validation
+réelle passe donc par les workflows/tests KV-only et non par un mode flaggé.
 
 ### Étape 6 — Suppression de DuckDB (optionnelle, différée)
 
 Une fois la confiance établie sur KV, supprimer `@duckdb/node-api` de `deno.json` et `package.json`. Supprimer `VaultDB`. Renommer `VaultKV` en `VaultDB` pour minimiser le diff dans le reste du code.
 
-**Ne pas faire cette étape avant que tous les tests d'intégration passent en mode KV.**
+**Statut final : absorbé par la convergence KV-only.** L'objectif de cette étape
+est déjà reflété par l'API publique actuelle (`openVaultStore()` ouvre KV).
 
 ### Backward compatibility
 

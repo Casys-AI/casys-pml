@@ -8,8 +8,7 @@ export interface ToolPolicyDecision {
 }
 
 type ToolClassifier = (args: JsonObject) => ToolPolicyDecision;
-
-const PROJECT_ROOT = "/tmp/vx-ax-policy/lib/vault-exec";
+const PROJECT_PATH_MARKER = "/lib/vault-exec";
 
 const EXEC_INSPECT_BINARIES = new Set([
   "ls",
@@ -228,7 +227,9 @@ function hasKey(args: JsonObject, key: string): boolean {
 function normalizePathNamespace(path: string): string {
   const normalized = path.replace(/\\/g, "/");
   if (
-    normalized.startsWith(`${PROJECT_ROOT}/`) || normalized === PROJECT_ROOT
+    normalized === PROJECT_PATH_MARKER ||
+    normalized.endsWith(PROJECT_PATH_MARKER) ||
+    normalized.includes(`${PROJECT_PATH_MARKER}/`)
   ) {
     return "project_abs";
   }
