@@ -33,7 +33,7 @@ Updated consumers to use `core/*`:
 
 - `src/cli.ts` (including dynamic imports)
 - `src/workflows/init.ts`, `src/workflows/retrain.ts`,
-  `src/workflows/integration_test.ts`, `src/routing/intent-llm.ts`
+  `src/workflows/integration_test.ts`
 - `src/service/sync-worker.ts`
 - `src/routing/*`
 - `src/embeddings/*`
@@ -53,7 +53,8 @@ Updated consumers to use `core/*`:
 - moved `init.ts` / `retrain.ts` into `src/workflows/`
 - moved `output.ts` / `exit-codes.ts` into `src/cli-runtime/`
 - moved `compress.ts` into `src/utils/`
-- moved LLM intent resolver into `src/routing/intent-llm.ts`
+- removed legacy LLM-only intent resolver (`src/routing/intent-llm.ts`) in
+  favor of GRU + candidate policy routing (`src/routing/intent-candidates.ts`)
 
 ## Cross-feature contracts moved to core
 
