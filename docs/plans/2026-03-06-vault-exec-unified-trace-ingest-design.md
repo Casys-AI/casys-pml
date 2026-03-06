@@ -64,13 +64,16 @@ Per-vault local private store:
 
 - `<vault>/.vault-exec/private-traces.kv`
 
-Machine-global canonical store:
+Per-vault canonical store:
 
-- `~/.vault-exec/canonical-traces.kv`
+- `<vault>/.vault-exec/canonical-traces.kv`
 
 The existing vault model/index store remains:
 
 - `<vault>/.vault-exec/vault.kv`
+
+Federation later happens through export/merge of canonical snapshots, not by
+having multiple processes write to one machine-global KV file.
 
 ### 4. Default command behavior
 
@@ -87,6 +90,16 @@ The existing vault model/index store remains:
 
 `sync <vault>` runs the same pipeline incrementally, but only for changed
 trace inputs before the existing retrain flow.
+
+In both commands, the trace import phase is inserted only after vault preflight
+passes. For `init`, the insertion point is:
+
+1. vault parse + preflight
+2. trace import/canonicalization/projection
+3. existing `initVault()` flow
+
+Source access errors are warn+skip by default. Canonicalization errors are
+fail-fast.
 
 The current standalone `ingest` command may remain as a projection/debug tool,
 but it is no longer the primary ingestion path.
@@ -110,30 +123,60 @@ This allows:
 - modified file -> re-import
 - unchanged file -> skip
 
-### 6. Anonymization policy
+### 6. Canonicalization and anonymization policy
 
-Anonymization happens before any canonical write.
+Canonicalization happens before any canonical write.
 
 `lib/vault-exec` must remain autonomous, so privacy logic lives under a local
-ingest/privacy slice instead of depending on the repo-wide sandbox module.
+ingest/canonical slice instead of depending on the repo-wide sandbox module.
 
-Canonical trace data should keep:
+V1 does **not** try to detect and redact arbitrary PII from raw JSON. That
+creates a false sense of safety. Instead, V1 uses a strict allowlist:
 
-- stable AX identifiers (`L1`, `L2`, optional bounded `L3`)
-- normalized feature buckets
-- fallback reason / confidence / source metadata
-- canonical fingerprints for deduplication
+- if a field is explicitly allowed into the canonical schema, keep it
+- otherwise drop it
+- if canonicalization fails, do not write to canonical storage
 
-Canonical trace data should drop:
+Canonical trace data keeps only bounded fields such as:
+
+- source id
+- session id (canonicalized)
+- session date (date-only)
+- turn index
+- tool name
+- `L1`
+- `L2`
+- optional bounded `L3`
+- hit/fallback status
+- bounded confidence/fallback reason
+- canonical fingerprint for deduplication
+
+Canonical trace data never stores:
 
 - raw path strings
 - usernames, emails, hosts
 - raw user text
 - raw tool results
 - full argument payloads
-- session-specific opaque ids not needed for learning
+- arbitrary nested JSON copied from tool args/results
 
-Private traces may retain richer payloads for local replay/debug only.
+Private traces may retain richer payloads for local replay/debug only, but they
+never leave the machine.
+
+### 6.1 Error policy
+
+Pipeline stage behavior:
+
+- config load: fail-fast on malformed config
+- source scan: warn+skip inaccessible sources
+- parse: warn+skip malformed files/sessions
+- private write: fail-fast
+- canonicalization: fail-fast
+- canonical write: fail-fast
+- projection: warn+continue
+
+Canonicalization failure must be a hard stop for canonical writes. No silent
+partial “best effort” anonymization.
 
 ### 7. AX identity model
 
@@ -145,6 +188,35 @@ AX entities are real graph entities. Their canonical identity is a dotted key:
 
 The dotted string is the primary identity. Structured parts can be derived
 later without changing the canonical key.
+
+To avoid collisions with raw MCP tool names that already contain dots, the key
+is **not** built by splitting raw `toolName`. It is built from an explicit AX
+naming map:
+
+- `L1` and `L2` come from the existing policy/family mapping
+- optional `L3` is allowed only for bounded explicit enums
+- raw tool names stay as metadata, not as canonical key parts
+
+That mapping must live in explicit code (`ax-naming.ts`), not hidden
+heuristics.
+
+### 7.1 Canonical store key schema
+
+Canonical KV keys are documented before implementation:
+
+- `["canonical", "traces", <fingerprint>]` -> canonical trace row
+- `["canonical", "entities", <ax_key>]` -> aggregated AX entity row
+- `["canonical", "entity-occurrences", <ax_key>, <source_id>]` -> bounded
+  source stats
+- `["canonical", "imports", <source_id>, <file_hash>]` -> import bookkeeping
+
+Private KV keys remain separate:
+
+- `["private", "traces", <session_id>, <turn_index>, <tool_call_id>]`
+
+Projection bookkeeping may use:
+
+- `["projection", "entity", <ax_key>]` -> last projected version/hash
 
 ### 8. Obsidian projection model
 
@@ -209,10 +281,13 @@ The implementation should introduce:
 - config loading for trace sources
 - source scan state persistence
 - private/canonical trace writers
-- autonomous PII anonymization in `lib/vault-exec`
+- strict allowlist canonicalization in `lib/vault-exec`
+- explicit AX naming map
 - AX canonical entity derivation
 - Markdown projection writer for stable AX nodes
 - `init`/`sync` integration using the new pipeline
+- standalone `ingest` regression coverage so the existing command keeps working
+- co-located `readme.md` / `contract.md` for new ingest sub-slices
 
 The existing `init`/`sync` training flow should be preserved after the new
 trace import phase rather than rewritten from scratch.

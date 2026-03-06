@@ -10,6 +10,24 @@
 
 ---
 
+## Review-driven constraints
+
+- Canonical store is per-vault, not machine-global.
+- V1 canonicalization is strict allowlist, not regex/PII-detection-driven
+  redaction.
+- Canonicalization failure is always fail-fast and must prevent canonical
+  writes.
+- Parse failures are warn+skip. Projection failures are warn+continue.
+- `init` must import traces only after vault preflight succeeds and before
+  `initVault()`.
+- The existing standalone `ingest` command must keep passing regression tests.
+- New ingest sub-slices must include co-located `readme.md` / `contract.md` if
+  architecture checks require them.
+- After every task, run both the targeted test and the high-signal
+  `lib/vault-exec` regression suite before committing.
+
+---
+
 ### Task 1: Add config contracts and loader
 
 **Files:**
@@ -61,6 +79,7 @@ git commit -m "feat(vault-exec): add trace source config loader"
 **Files:**
 - Create: `lib/vault-exec/src/ingest/source-state.ts`
 - Create: `lib/vault-exec/src/ingest/source-state_test.ts`
+- Create: `lib/vault-exec/src/ingest/test-fixtures.ts`
 
 **Step 1: Write the failing test**
 
@@ -85,6 +104,8 @@ Implement:
 - `loadSourceScanState()`
 - `saveSourceScanState()`
 - `scanSourceFilesForChanges()`
+- `buildOpenClawFixture(overrides)` helper for deterministic JSONL fixtures
+  (including BOM, CRLF, empty/truncated cases)
 
 Persist state under `<vault>/.vault-exec/`.
 
@@ -101,51 +122,49 @@ git add lib/vault-exec/src/ingest/source-state.ts lib/vault-exec/src/ingest/sour
 git commit -m "feat(vault-exec): track incremental source scan state"
 ```
 
-### Task 3: Add autonomous privacy/anonymization slice
+### Task 3: Add strict canonicalization slice
 
 **Files:**
-- Create: `lib/vault-exec/src/ingest/privacy/pii-detector.ts`
-- Create: `lib/vault-exec/src/ingest/privacy/anonymize.ts`
-- Create: `lib/vault-exec/src/ingest/privacy/anonymize_test.ts`
-- Modify: `lib/vault-exec/deno.json`
+- Create: `lib/vault-exec/src/ingest/canonical/canonicalize.ts`
+- Create: `lib/vault-exec/src/ingest/canonical/canonicalize_test.ts`
+- Create: `lib/vault-exec/src/ingest/canonical/readme.md`
+- Create: `lib/vault-exec/src/ingest/canonical/contract.md`
 
 **Step 1: Write the failing test**
 
 Cover:
 
-- email redaction
-- username/path redaction
-- host/url tokenization
-- command/text normalization keeps useful AX structure while removing identifiers
+- allowlist schema keeps only canonical fields
+- raw text/args/results are dropped
+- bounded date-only/session metadata is preserved
+- canonicalization failure prevents canonical writes
 
 **Step 2: Run test to verify it fails**
 
-Run: `deno test --allow-read lib/vault-exec/src/ingest/privacy/anonymize_test.ts`
+Run: `deno test --allow-read lib/vault-exec/src/ingest/canonical/canonicalize_test.ts`
 
-Expected: fail because privacy modules do not exist yet.
+Expected: fail because canonicalization modules do not exist yet.
 
 **Step 3: Write minimal implementation**
 
-Implement an autonomous privacy layer in `lib/vault-exec`:
+Implement an autonomous canonicalization layer in `lib/vault-exec`:
 
-- local detector utilities
-- anonymizer for raw tool args / text fragments
-- normalized canonical payload builder
-
-If `validator.js` is needed, add it directly in `lib/vault-exec` imports instead
-of depending on the repo-level sandbox module.
+- strict allowlist canonical row builder
+- bounded date/session/source normalization
+- no generic regex redaction pass in V1
+- deterministic error on unsupported/unbounded payloads
 
 **Step 4: Run test to verify it passes**
 
-Run: `deno test --allow-read lib/vault-exec/src/ingest/privacy/anonymize_test.ts`
+Run: `deno test --allow-read lib/vault-exec/src/ingest/canonical/canonicalize_test.ts`
 
 Expected: pass.
 
 **Step 5: Commit**
 
 ```bash
-git add lib/vault-exec/deno.json lib/vault-exec/src/ingest/privacy/pii-detector.ts lib/vault-exec/src/ingest/privacy/anonymize.ts lib/vault-exec/src/ingest/privacy/anonymize_test.ts
-git commit -m "feat(vault-exec): add autonomous trace anonymization"
+git add lib/vault-exec/src/ingest/canonical/canonicalize.ts lib/vault-exec/src/ingest/canonical/canonicalize_test.ts lib/vault-exec/src/ingest/canonical/readme.md lib/vault-exec/src/ingest/canonical/contract.md
+git commit -m "feat(vault-exec): add strict canonical trace allowlist"
 ```
 
 ### Task 4: Add private and canonical trace stores
@@ -154,6 +173,8 @@ git commit -m "feat(vault-exec): add autonomous trace anonymization"
 - Create: `lib/vault-exec/src/ingest/store/private-trace-store.ts`
 - Create: `lib/vault-exec/src/ingest/store/canonical-trace-store.ts`
 - Create: `lib/vault-exec/src/ingest/store/trace-store_test.ts`
+- Create: `lib/vault-exec/src/ingest/store/readme.md`
+- Create: `lib/vault-exec/src/ingest/store/contract.md`
 - Modify: `lib/vault-exec/src/service/lifecycle.ts`
 
 **Step 1: Write the failing test**
@@ -163,7 +184,10 @@ Cover:
 - private store writes/reloads replay records
 - canonical store writes/reloads normalized records
 - stores are physically separate
+- canonical store path is per-vault
 - canonical dedup by canonical fingerprint
+- private vs canonical path separation is explicit
+- `createTestStores()` helper closes all in-memory stores deterministically
 
 **Step 2: Run test to verify it fails**
 
@@ -176,9 +200,10 @@ Expected: fail because stores do not exist.
 Implement:
 
 - private trace store path resolution
-- global canonical store path resolution
+- per-vault canonical store path resolution
 - basic read/write APIs
 - canonical fingerprint dedup
+- explicit KV key schema matching the design doc
 
 Keep schema narrow; do not build replay UI abstractions yet.
 
@@ -199,6 +224,7 @@ git commit -m "feat(vault-exec): add private and canonical trace stores"
 
 **Files:**
 - Create: `lib/vault-exec/src/ingest/ax-entities.ts`
+- Create: `lib/vault-exec/src/ingest/ax-naming.ts`
 - Create: `lib/vault-exec/src/ingest/ax-entities_test.ts`
 - Modify: `lib/vault-exec/src/ingest/types.ts`
 
@@ -206,9 +232,11 @@ git commit -m "feat(vault-exec): add private and canonical trace stores"
 
 Cover:
 
+- explicit `toolName`/family -> AX key mapping
 - dotted canonical key generation for `L1`, `L2`, optional bounded `L3`
 - parent/child derivation
 - aggregation of occurrence counts and source metadata
+- no collision from raw MCP tool names containing dots
 
 **Step 2: Run test to verify it fails**
 
@@ -220,9 +248,10 @@ Expected: fail because the derivation module does not exist.
 
 Implement canonical AX node derivation:
 
+- `ax-naming.ts` with explicit mapping, no hidden heuristics
 - `tool.exec`
 - `tool.exec.git_vcs`
-- optional `tool.exec.git_vcs.status`
+- optional bounded `tool.exec.git_vcs.status`
 
 Store agent/source/session stats as aggregated metadata only.
 
@@ -255,6 +284,7 @@ Cover:
 - linked parent/child sections
 - bounded JSON metadata block
 - deterministic overwrite of existing projection
+- projection idempotence for unchanged entity input
 
 **Step 2: Run test to verify it fails**
 
@@ -302,6 +332,10 @@ Cover:
 - import of changed files only
 - private + canonical writes
 - affected AX node projection only
+- standalone `ingest` regression through shared logic
+- e2e smoke path: config -> JSONL -> stores -> projection -> second run no-op
+- parse warn+skip behavior
+- canonicalization failure means canonical store not written
 
 **Step 2: Run test to verify it fails**
 
@@ -316,10 +350,11 @@ Compose:
 - config loading
 - incremental source scan
 - OpenClaw parse
-- anonymization
+- canonicalization
 - private/canonical storage
 - AX entity recomputation for touched traces
 - Markdown projection
+- stage-specific error handling matrix from the design doc
 
 Keep the old standalone `ingest` command working by delegating to shared logic
 where possible.
@@ -349,8 +384,9 @@ git commit -m "feat(vault-exec): unify incremental trace import pipeline"
 Cover:
 
 - `init` loads configured sources
-- `init` imports traces before the existing indexing flow
+- `init` imports traces after preflight and before `initVault()`
 - `init` still runs notes/GNN/GRU bootstrap after successful import
+- inaccessible source warns and continues
 
 **Step 2: Run test to verify it fails**
 
@@ -360,8 +396,8 @@ Expected: fail because `init` does not call the new pipeline yet.
 
 **Step 3: Write minimal implementation**
 
-Integrate the unified trace import pipeline ahead of current `initVault()`
-steps. Preserve existing preflight behavior.
+Integrate the unified trace import pipeline between successful preflight and
+current `initVault()` steps. Preserve existing preflight behavior.
 
 **Step 4: Run test to verify it passes**
 
@@ -380,6 +416,8 @@ git commit -m "feat(vault-exec): ingest configured traces during init"
 
 **Files:**
 - Modify: `lib/vault-exec/src/service/sync-worker.ts`
+- Modify: `lib/vault-exec/src/service/protocol.ts`
+- Modify: `lib/vault-exec/src/service/protocol_test.ts`
 - Create: `lib/vault-exec/src/service/sync-worker_trace_test.ts`
 
 **Step 1: Write the failing test**
@@ -389,6 +427,7 @@ Cover:
 - `sync` imports changed files only
 - `sync` skips unchanged sources
 - retrain still runs after incremental import
+- import counters are reflected in `SyncResponse`
 
 **Step 2: Run test to verify it fails**
 
@@ -410,7 +449,7 @@ Expected: pass.
 **Step 5: Commit**
 
 ```bash
-git add lib/vault-exec/src/service/sync-worker.ts lib/vault-exec/src/service/sync-worker_trace_test.ts
+git add lib/vault-exec/src/service/sync-worker.ts lib/vault-exec/src/service/sync-worker_trace_test.ts lib/vault-exec/src/service/protocol.ts lib/vault-exec/src/service/protocol_test.ts
 git commit -m "feat(vault-exec): ingest changed traces during sync"
 ```
 
@@ -421,6 +460,7 @@ git commit -m "feat(vault-exec): ingest changed traces during sync"
 - Modify: `lib/vault-exec/src/service/readme.md`
 - Modify: `lib/vault-exec/src/workflows/readme.md`
 - Modify: `lib/vault-exec/docs/2026-03-05-ax-coding-refactor-plan.md`
+- Modify: `lib/vault-exec/src/ingest/contract.md`
 
 **Step 1: Write/update tests first if behavior surfaced in docs is still missing**
 
@@ -434,7 +474,7 @@ Run:
 deno test --unstable-kv --allow-read --allow-write=/tmp \
   lib/vault-exec/src/config/trace-config_test.ts \
   lib/vault-exec/src/ingest/source-state_test.ts \
-  lib/vault-exec/src/ingest/privacy/anonymize_test.ts \
+  lib/vault-exec/src/ingest/canonical/canonicalize_test.ts \
   lib/vault-exec/src/ingest/store/trace-store_test.ts \
   lib/vault-exec/src/ingest/ax-entities_test.ts \
   lib/vault-exec/src/ingest/ax-projection_test.ts \
@@ -460,6 +500,8 @@ Document:
 - private vs canonical stores
 - `init`/`sync` semantics
 - canonical AX projection model
+- standalone `ingest` semantics after refactor
+- error handling policy
 
 **Step 5: Commit**
 
