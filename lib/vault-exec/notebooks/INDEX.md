@@ -1,6 +1,7 @@
 # vault-exec Notebooks
 
-Deno Jupyter notebooks for analyzing the vault-exec GNN+GRU pipeline.
+Deno Jupyter notebooks for analyzing the DB-first `vault-exec` training data
+and experiments.
 
 **Runtime:** Deno Jupyter kernel (`deno jupyter`) **Visualization:** Vega-Lite
 (native MIME type support in Deno Jupyter) **Data source:** Deno KV
@@ -8,27 +9,20 @@ Deno Jupyter notebooks for analyzing the vault-exec GNN+GRU pipeline.
 
 ## Notebooks
 
-| NB | Title                   | Focus                                                                                       |
-| -- | ----------------------- | ------------------------------------------------------------------------------------------- |
-| 01 | Graph Structure         | DAG visualization, levels, dependencies, execution order                                    |
-| 02 | Embedding Space         | Raw vs GNN embeddings, cosine heatmap, parent-child similarity, GNN movement                |
-| 03 | GRU Diagnostics         | Weight analysis, self-prediction accuracy, confusion matrix, softmax behavior               |
-| 04 | Trace Analysis          | Synthetic vs real traces, coverage, path analysis, intent diversity, data quality           |
-| 05 | Topological Map         | DAG hierarchy, elevation score, attractor vs topological peak, gravity analysis             |
-| 06 | GNN Backprop Experiment | Message passing vs trained params, parent-child similarity, small-scale gradient experiment |
+| NB | Title                   | Focus                                                                                        |
+| -- | ----------------------- | -------------------------------------------------------------------------------------------- |
+| 05 | Topological Map         | DB-first leaf-node/edge inspection from `training_data`                                      |
+| 06 | GNN Forward on DB-First Leaf Graph | Real `src/gnn` forward pass on weighted leaf `next` transitions, with persisted params |
+| 07 | OpenClaw Args Categorization | OpenClaw ingest-side args analysis, separate from DB-first training tables              |
+| 08 | OpenClaw GRU Training   | Real `src/gru` training on DB-first sequences, using GNN embeddings and persisting weights   |
 
-Also: `topological-map.html` — interactive HTML visualization (open in browser)
+Also: `topological-map.html` — legacy interactive HTML visualization (open in browser)
 
 ## Prerequisites
 
 ```bash
-# Initialize a vault first
+# Initialize / refresh DB-first training data first
 deno task cli init ./demo-vault
-
-# Run some intent queries to accumulate real traces
-deno task cli run ./demo-vault --intent "which projects are over budget"
-deno task cli run ./demo-vault --intent "total payroll costs"
-deno task cli run ./demo-vault --target "Engineering Team"
 
 # Start Jupyter
 deno jupyter
@@ -59,8 +53,11 @@ EOF
 
 ## Notes
 
-- All notebooks import directly from `../src/` (`core`, `gnn`, etc.) — same
-  TypeScript classes as the CLI
+- DB-first notebooks (`05`, `06`, `08`) read the active build from
+  `training_data` inside `.vault-exec/vault.kv`
 - Vega-Lite charts render natively in Jupyter (no extra deps)
-- KV connection via `openVaultStore(...)` — same as production code
-- NB03 confusion matrix only works with real traces that have intent embeddings
+- `07` stays ingest-oriented and does not depend on rebuilt training tables
+- Notebook `06` now runs the real GNN forward path and persists params in KV
+- Notebook `08` now runs the real GRU training path and persists weights in KV
+- Runtime training is notebook-first in this phase; `init` / `sync` rebuild KV
+  tables and projection only
