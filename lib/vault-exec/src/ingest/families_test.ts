@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert";
-import { classifyToolFamily } from "./families.ts";
+import { classifyToolFamily } from "./policy/tool-family.ts";
 
 Deno.test("classifyToolFamily wrapper - exec and write", () => {
   assertEquals(
