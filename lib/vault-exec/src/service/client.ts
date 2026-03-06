@@ -1,5 +1,6 @@
 import {
   DEFAULT_IDLE_SECS,
+  MIN_IDLE_SECS,
   STARTUP_POLL_MS,
   STARTUP_WAIT_MS,
 } from "./constants.ts";
