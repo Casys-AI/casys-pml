@@ -6,31 +6,49 @@
 
 ## Goal
 
-Unify OpenClaw trace import, anonymized canonical storage, Obsidian graph
-projection, and model bootstrap/incremental refresh into the default
-`vault-exec init` / `vault-exec sync` flow.
+Unify OpenClaw trace import with the default `vault-exec init` / `vault-exec sync`
+flow so that traces are imported incrementally and projected into stable AX
+Markdown nodes inside the demo vault.
+
+## Why this V1
+
+The immediate user value is simple:
+
+- configure trace sources once
+- stop rescanning everything on every sync
+- run a single default flow instead of `init` and `ingest` being disconnected
+- materialize stable AX entities as notes in Obsidian
+
+Everything else is secondary for now.
+
+In particular, V1 does **not** need:
+
+- separate `private` and `canonical` stores
+- export-ready anonymization
+- a dedicated server/federation path
+- replay UI
+
+Those are valid later concerns, but they do not justify additional architecture
+before the single-flow ingest/projection path works end-to-end.
 
 ## Context
 
-Today, `lib/vault-exec` has two disconnected pipelines:
+Today `lib/vault-exec` has two disconnected pipelines:
 
-- `init` / `sync` index vault notes, maintain the KV store, and retrain models.
-- `ingest` parses OpenClaw JSONL and writes Markdown projections only.
+- `init` / `sync` maintain the local vault state and retrain models
+- `ingest` parses OpenClaw JSONL into Markdown reports only
 
-That split is not acceptable for the intended AX workflow. The default system
-must be able to ingest all configured agent traces, keep an incremental state,
-update canonical AX entities, and then continue with the existing
-index/retrain path.
+That split is the real product problem. The fix is to connect them.
 
 ## Decisions
 
 ### 1. Source configuration
 
-Store configured trace sources in:
+Configured trace sources live in:
 
-- `lib/vault-exec/<vault>/.vault-exec/config.json`
+- `<vault>/.vault-exec/config.json`
 
-Initial schema:
+Schema V1:
 
 ```json
 {
@@ -43,71 +61,12 @@ Initial schema:
 }
 ```
 
-The config is technical, machine-first, and local to the vault. Agents should
-not need to rediscover source paths every run.
+The config is technical and local to the target vault. Agents should not have to
+rediscover session directories every time.
 
-### 2. Two trace stores
+### 2. Incrementality is mandatory
 
-Use two distinct stores:
-
-- `private` store: local-only replay/debug data, raw or near-raw, never
-  exportable
-- `canonical` store: anonymized, normalized, deduplicated, shareable later for
-  server/federated learning
-
-The two stores are intentionally separate to reduce accidental data mixing and
-to prepare future remote/canonical synchronization.
-
-### 3. Storage locations
-
-Per-vault local private store:
-
-- `<vault>/.vault-exec/private-traces.kv`
-
-Per-vault canonical store:
-
-- `<vault>/.vault-exec/canonical-traces.kv`
-
-The existing vault model/index store remains:
-
-- `<vault>/.vault-exec/vault.kv`
-
-Federation later happens through export/merge of canonical snapshots, not by
-having multiple processes write to one machine-global KV file.
-
-### 4. Default command behavior
-
-`init <vault>` becomes bootstrap + catch-up:
-
-1. Load `.vault-exec/config.json`
-2. Incrementally scan configured OpenClaw sources
-3. Parse sessions
-4. Write private traces
-5. Anonymize and normalize into canonical traces
-6. Update AX entity projections
-7. Reproject the Obsidian graph in `demo-vault`
-8. Continue with existing vault indexing / GNN / GRU initialization
-
-`sync <vault>` runs the same pipeline incrementally, but only for changed
-trace inputs before the existing retrain flow.
-
-In both commands, the trace import phase is inserted only after vault preflight
-passes. For `init`, the insertion point is:
-
-1. vault parse + preflight
-2. trace import/canonicalization/projection
-3. existing `initVault()` flow
-
-Source access errors are warn+skip by default. Canonicalization errors are
-fail-fast.
-
-The current standalone `ingest` command may remain as a projection/debug tool,
-but it is no longer the primary ingestion path.
-
-### 5. Incremental state
-
-Incremental import must not rely on “already seen file” only. Track per source
-file:
+The importer tracks source files using:
 
 - canonical path
 - file size
@@ -117,119 +76,83 @@ file:
 - last imported timestamp
 - import status
 
-This allows:
+This is enough for V1:
 
 - new file -> import
 - modified file -> re-import
 - unchanged file -> skip
 
-### 6. Canonicalization and anonymization policy
+The persisted state lives under:
 
-Canonicalization happens before any canonical write.
+- `<vault>/.vault-exec/trace-source-state.json`
 
-`lib/vault-exec` must remain autonomous, so privacy logic lives under a local
-ingest/canonical slice instead of depending on the repo-wide sandbox module.
+### 3. Single local operational store in V1
 
-V1 does **not** try to detect and redact arbitrary PII from raw JSON. That
-creates a false sense of safety. Instead, V1 uses a strict allowlist:
+V1 keeps one operational store:
 
-- if a field is explicitly allowed into the canonical schema, keep it
-- otherwise drop it
-- if canonicalization fails, do not write to canonical storage
+- `<vault>/.vault-exec/vault.kv`
 
-Canonical trace data keeps only bounded fields such as:
+Imported traces, AX aggregates, and existing model/index data stay local to that
+vault. This is intentionally simpler than introducing `private` / `canonical`
+split stores before there is any export consumer.
 
-- source id
-- session id (canonicalized)
-- session date (date-only)
-- turn index
-- tool name
-- `L1`
-- `L2`
-- optional bounded `L3`
-- hit/fallback status
-- bounded confidence/fallback reason
-- canonical fingerprint for deduplication
+Future export/federation can split or derive another representation later.
 
-Canonical trace data never stores:
+### 4. Default command behavior
 
-- raw path strings
-- usernames, emails, hosts
-- raw user text
-- raw tool results
-- full argument payloads
-- arbitrary nested JSON copied from tool args/results
+`init <vault>` becomes:
 
-Private traces may retain richer payloads for local replay/debug only, but they
-never leave the machine.
+1. parse vault
+2. run existing preflight
+3. import configured OpenClaw traces incrementally
+4. update AX projection notes
+5. continue current `initVault()` flow
 
-### 6.1 Error policy
+`sync <vault>` becomes:
 
-Pipeline stage behavior:
+1. import changed OpenClaw traces incrementally
+2. update AX projection notes
+3. continue current retrain/sync flow
 
-- config load: fail-fast on malformed config
-- source scan: warn+skip inaccessible sources
-- parse: warn+skip malformed files/sessions
-- private write: fail-fast
-- canonicalization: fail-fast
-- canonical write: fail-fast
-- projection: warn+continue
+The import phase is inserted only after `init` preflight passes.
 
-Canonicalization failure must be a hard stop for canonical writes. No silent
-partial “best effort” anonymization.
+### 5. Error behavior
 
-### 7. AX identity model
+For V1:
 
-AX entities are real graph entities. Their canonical identity is a dotted key:
+- malformed config -> fail-fast
+- inaccessible source path -> warn+skip
+- malformed JSONL file/session -> warn+skip
+- local store write failure -> fail-fast
+- projection failure -> warn+continue
+
+The point is to keep the sync path robust without introducing speculative
+privacy/export constraints yet.
+
+### 6. AX identity model
+
+AX entities are the stable units projected into Obsidian.
+
+Canonical key format:
 
 - `tool.exec`
 - `tool.exec.git_vcs`
 - `tool.exec.git_vcs.status`
 
-The dotted string is the primary identity. Structured parts can be derived
-later without changing the canonical key.
+The key is the stable entity identity. It is explicit, deterministic, and
+separate from any per-session occurrence.
 
-To avoid collisions with raw MCP tool names that already contain dots, the key
-is **not** built by splitting raw `toolName`. It is built from an explicit AX
-naming map:
+### 7. Obsidian projection model
 
-- `L1` and `L2` come from the existing policy/family mapping
-- optional `L3` is allowed only for bounded explicit enums
-- raw tool names stay as metadata, not as canonical key parts
-
-That mapping must live in explicit code (`ax-naming.ts`), not hidden
-heuristics.
-
-### 7.1 Canonical store key schema
-
-Canonical KV keys are documented before implementation:
-
-- `["canonical", "traces", <fingerprint>]` -> canonical trace row
-- `["canonical", "entities", <ax_key>]` -> aggregated AX entity row
-- `["canonical", "entity-occurrences", <ax_key>, <source_id>]` -> bounded
-  source stats
-- `["canonical", "imports", <source_id>, <file_hash>]` -> import bookkeeping
-
-Private KV keys remain separate:
-
-- `["private", "traces", <session_id>, <turn_index>, <tool_call_id>]`
-
-Projection bookkeeping may use:
-
-- `["projection", "entity", <ax_key>]` -> last projected version/hash
-
-### 8. Obsidian projection model
-
-For now, Obsidian is only a readable graph projection.
+For V1, Obsidian is only a readable graph projection.
 
 Project only stable AX entities:
 
 - one note per stable AX node
 - no note per agent
 - no note per session
-- no replay/timeline UI in Obsidian for V1
 
-Directory layout in the target vault:
+Directory layout:
 
 - `ax/l1/`
 - `ax/l2/`
@@ -238,56 +161,44 @@ Directory layout in the target vault:
 Each note contains:
 
 - minimal frontmatter (`ax_key`, `ax_level`, `ax_kind`, `version`)
-- human-readable summary
+- readable summary
 - links to related AX entities
-- bounded machine-readable JSON block for aggregated metadata
+- bounded machine-readable metadata block
 
-Agent/session/source data lives inside aggregated metadata, not as separate
-Obsidian entities.
+Agent/session/source information stays as aggregated metadata inside the AX node
+note, not as separate notes.
 
-### 9. Deduplication model
+### 8. Standalone `ingest`
 
-Dedup works at multiple layers:
+The existing standalone `ingest` command stays as a regression-safe helper in
+V1. It is no longer the primary path, but it should keep working while the new
+pipeline is integrated into `init` / `sync`.
 
-- file/session import incrementality
-- canonical trace fingerprinting
-- stable AX node identities
-- projection updates only for affected nodes
+## V1 / V2 split
 
-The Markdown graph is not a replay log. It is a stable, deduplicated entity
-projection derived from canonical traces.
+### V1
 
-## Consequences
+- config loader
+- source scan state
+- unified import pipeline
+- single local store
+- AX Markdown projection
+- `init` / `sync` integration
 
-### Benefits
+### V2
 
-- one default workflow for agents
-- incremental ingest instead of full rebuild-only projections
-- privacy model aligned with future federated learning
-- stable AX graph projection in Obsidian
-- clear separation between local replay data and shareable learning data
-
-### Non-goals for V1
-
-- remote sync/server export
-- replay UI
-- session timeline UI in Obsidian
-- full graph database replacement for Markdown
+- split `private` / `canonical`
+- strict export-ready allowlist/anonymization
+- dedicated canonical fingerprints for server export
+- federation / remote sync
+- replay-oriented data and UI
 
 ## Implementation direction
 
-The implementation should introduce:
+The implementation should now optimize for the shortest path to usable value:
 
-- config loading for trace sources
-- source scan state persistence
-- private/canonical trace writers
-- strict allowlist canonicalization in `lib/vault-exec`
-- explicit AX naming map
-- AX canonical entity derivation
-- Markdown projection writer for stable AX nodes
-- `init`/`sync` integration using the new pipeline
-- standalone `ingest` regression coverage so the existing command keeps working
-- co-located `readme.md` / `contract.md` for new ingest sub-slices
-
-The existing `init`/`sync` training flow should be preserved after the new
-trace import phase rather than rewritten from scratch.
+- keep `Task 1` and `Task 2`
+- remove speculative dual-store work
+- build a unified local ingest pipeline next
+- project stable AX nodes into the demo vault
+- wire that into `init` and `sync`
