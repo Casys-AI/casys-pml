@@ -110,18 +110,19 @@ The workspace `/path/to/workspace-sandbox` has its own `SOUL.md` and `TOOLS.md`.
 
 <ExcalidrawDiagram src="multi-agent-tailscale-mesh" alt="Tailscale Mesh VPN between 3 machines" />
 
-### Why Tailscale Instead of Raw WireGuard
+### What is Tailscale
 
-WireGuard is excellent. It's the underlying protocol that Tailscale uses. But deploying it manually across three machines means:
-- Generating key pairs on each machine
-- Distributing public keys between all machines
-- Writing `wg0.conf` config files with the correct endpoints
-- Handling NAT traversal manually (STUN, relays)
-- Maintaining all of this when an IP changes
+Tailscale is a **mesh VPN** built on WireGuard. It creates a private network between machines scattered across the Internet — each machine gets a stable private IP address (in the `100.x.x.x` range) and can communicate directly with others, regardless of physical location, NAT configuration, or datacenter.
 
-Tailscale eliminates all that friction. One command, one authentication, and the machines find each other.
+In practice, Tailscale handles:
+- **Private networking** — each machine in the mesh gets a stable IP, no need to open ports on the Internet
+- **NAT traversal** — machines behind NATs find each other automatically (via DERP, encrypted relays)
+- **Built-in SSH authentication** — `tailscale up --ssh` enables an SSH server that authenticates via Tailscale identity, not public keys
+- **Encryption** — all traffic goes through WireGuard (point-to-point encryption)
 
-### Installation and Setup
+The free tier supports up to 100 machines and 3 users — more than enough for our use case. For a fully self-hosted, free alternative, raw WireGuard does the same job for encryption and tunneling, but you'll need to manage keys, configs, and NAT traversal yourself.
+
+### Installation
 
 ```bash
 # On each machine (Server A, the VPS, the colleague's server)
