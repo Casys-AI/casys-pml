@@ -51,9 +51,9 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 1. **隔离** — 沙箱智能体看不到主智能体的工作空间。不存在数据泄露的可能。
 2. **仅 @提及响应** — 智能体只在被 @ 提及时才回复。两个机器人在同一频道且没有这条规则 = 无限循环和天文数字的 token 账单。
 3. **共享 VPS** — 一个月费约 4 欧元的公共实验场。两个智能体都可以在上面写代码、装软件、随便折腾然后重来。
-4. **非对称通信** — 主智能体可以向沙箱发送指令。反向则被刻意阻断。
+4. **受控通信** — 智能体通过 `sessions_send` 通信，使用明确的双向权限。每个链接都是一个有意识的决定。
 
-整个架构建立在三个技术支柱之上，下面我会逐一详解：网络层（Tailscale）、容器连通性（socat 桥接）、以及智能体间通信（Discord + sessions_send）。
+整个架构建立在三个技术支柱之上，下面我会逐一详解：容器连通性（socat 桥接——我们在[之前的文章](/blog/the-localhost-trap)中已经介绍过这个模式）、私有网络（Tailscale）、以及智能体间通信（Discord + sessions_send）。
 
 ---
 
@@ -104,76 +104,32 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 工作空间 `/path/to/workspace-sandbox` 有自己的 `SOUL.md` 和 `TOOLS.md`。沙箱智能体不知道我的客户、项目和 token。它只知道 VPS 的 SSH 地址和 Discord 频道。仅此而已。
 
----
-
-## 支柱一 — Tailscale Mesh VPN
-
-<ExcalidrawDiagram src="multi-agent-tailscale-mesh" alt="三台机器之间的 Tailscale Mesh VPN" />
-
-### 什么是 Tailscale
-
-Tailscale 是一个基于 WireGuard 的 **mesh VPN**。它在分散于互联网的机器之间建立私有网络——每台机器获得一个稳定的私有 IP 地址（在 `100.x.x.x` 范围内），无论实际位置、NAT 配置或数据中心在哪，都能直接与其他机器通信。
-
-具体来说，Tailscale 处理：
-- **私有网络** — mesh 中的每台机器都有稳定的 IP，不需要在互联网上开放端口
-- **NAT 穿透** — NAT 后面的机器自动互相发现（通过 DERP，加密中继服务器）
-- **内置 SSH 认证** — `tailscale up --ssh` 启用 SSH 服务器，通过 Tailscale 身份认证，不需要公钥
-- **加密** — 所有流量经过 WireGuard（点对点加密）
-
-免费套餐支持最多 100 台机器和 3 个用户——对我们的场景绰绰有余。如果想要完全自建的免费方案，原生 WireGuard 在加密和隧道方面效果一样好，但需要自己管理密钥、配置和 NAT 穿透。
-
-### 安装
-
-```bash
-# 在每台机器上执行（服务器 A、VPS、朋友的服务器）
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up --ssh
-```
-
-`--ssh` 参数是关键。它启用 **Tailscale SSH**：认证基于 Tailscale 身份而非 SSH 公钥。不再需要管理 `authorized_keys`、不用跑 `ssh-keygen`、不会出现"复制错密钥到面板"的问题。
-
-五分钟内，三台机器就在同一个私有网络上了：
-
-- 我的服务器 → `100.x.x.x`
-- VPS → `100.y.y.y`
-- 朋友的服务器 → `100.z.z.z`
-
-从 mesh 中的任意机器：`ssh root@100.y.y.y`。无需密钥，无需复杂配置。
-
-### 自动 NAT 穿透
-
-Tailscale 通过 DERP（Designated Encrypted Relay for Packets）实现 NAT 穿透。具体来说：
-- 如果两台机器可以直连（无 NAT），它们直接进行点对点 WireGuard 通信。
-- 如果其中一台在对称型 NAT 之后，Tailscale 使用 DERP 中继完成初始握手，然后尝试打洞建立直连。
-- 最坏情况下，流量通过最近的 DERP 中继转发。
-
-在实际使用中，我们完全不需要考虑这些。开箱即用。
-
-### 问题：Docker 看不到 Tailscale
-
-到这里，这个漂亮的架构开始出问题了。
-
-Tailscale 运行在**宿主机**上。守护进程 `tailscaled` 在宿主机的网络命名空间中管理 `tailscale0` 接口。但我们的智能体运行在 **Docker 容器**中。使用默认 `bridge` 模式的容器拥有自己独立的网络命名空间。它只能看到 `eth0`（docker0 bridge，`172.17.0.x`），仅此而已。
-
-容器看不到 `tailscale0`。无法解析 `100.y.y.y`。沙箱智能体无法执行 `ssh root@100.y.y.y`——路由在它的网络命名空间中根本不存在。
-
-一种方案是在容器内运行 Tailscale。但这需要 `NET_ADMIN` capability 和 `--device /dev/net/tun`。给沙箱智能体赋予 `NET_ADMIN` 权限完全违背了沙箱的初衷——这等于在网络层进行权限提升。
-
-解决方案：在宿主机上建立一个桥接，监听 `docker0` 接口并将流量转发到 Tailscale 网络。这就是支柱二。
+> **注意：** `bookworm-slim` Docker 镜像是最小化的。如果沙箱智能体需要 SSH，需要在 Dockerfile 中添加 `openssh-client`：
+> ```dockerfile
+> RUN apt-get update && apt-get install -y openssh-client && rm -rf /var/lib/apt/lists/*
+> ```
 
 ---
 
-## 支柱二 — Socat 桥接
+## 支柱一 — Socat 桥接
 
 <ExcalidrawDiagram src="multi-agent-socat-bridges" alt="两个 socat 桥接：容器 → 宿主机 → VPS" />
 
-这里的问题本质上和 [The Localhost Trap](/blog/the-localhost-trap) 中描述的一样——只是扩展到了远程 VPS。模式相同：Docker 容器需要访问一个不在其网络命名空间中的服务。解决方案：在宿主机上用 `socat` 建立桥接。
+如果你读过 [The Localhost Trap](/blog/the-localhost-trap)，这个问题会很熟悉：Docker 容器需要访问一个不在其网络命名空间中的服务。解决方案是在宿主机上建立 `socat` 桥接。这里，我们将这个模式扩展到远程 VPS。
 
-### 两个 socket
+### 问题：Docker 看不到私有网络
+
+我们的智能体运行在 **Docker 容器**中。使用默认 `bridge` 模式的容器拥有自己独立的网络命名空间。它只能看到 `eth0`（docker0 bridge，`172.17.0.x`），仅此而已。
+
+共享 VPS 通过 Tailscale 私有网络连接（详见支柱二）。它的地址是 `100.y.y.y`——mesh VPN 中的私有 IP。容器无法解析这个地址。路由在它的命名空间中根本不存在。
+
+一种方案是在容器内安装 Tailscale——但这需要网络权限（`NET_ADMIN`），完全违背沙箱的初衷。解决方案：在宿主机上建立 `socat` 桥接来转发流量。
+
+### 两跳
 
 完整的 SSH 连接链需要**两跳**：
 
-**Socket 1：容器 → 宿主机（docker0 网关）**
+**第一跳：容器 → 宿主机（docker0 网关）**
 
 Docker 容器将 `172.17.0.1` 视为网关——这是宿主机上 `docker0` 接口的地址。我们在这个接口上暴露一个端口：
 
@@ -189,25 +145,11 @@ socat TCP-LISTEN:2222,bind=172.17.0.1,fork,reuseaddr \
 3. `100.y.y.y` 是 VPS 的 Tailscale 地址——宿主机通过 `tailscale0` 可以解析它
 4. 端到端的 SSH 连接建立
 
-**Socket 2：宿主机 → 通过 Tailscale 连接远程 VPS**
+**第二跳：宿主机 → 通过 Tailscale 连接远程 VPS**
 
-从 socat 的视角看，第二跳是透明的——只是向 `100.y.y.y:22` 发起一个 TCP 连接。但底层是 Tailscale 在做实际的工作：
-- 宿主机通过 Tailscale 接口解析 `100.y.y.y`
-- 数据包被封装为 WireGuard 协议
-- 穿越 NAT，可能经由 DERP 中继
-- 到达 VPS 后解封装，抵达端口 22 上的 `sshd`
+从 socat 的视角看，第二跳是透明的——只是向 `100.y.y.y:22` 发起一个 TCP 连接。但底层是 Tailscale 在做实际的工作：数据包被封装为 WireGuard 协议、穿越 NAT、到达 VPS。详细机制会在支柱二中说明。
 
-对于 Spoke 来说，就是一个简单的 `ssh -p 2222 root@172.17.0.1`。所有的复杂性都被 socat + Tailscale 吸收了。
-
-### 为什么不在容器内运行 Tailscale
-
-三个原因：
-
-1. **`NET_ADMIN` capability** — Tailscale 需要创建 TUN 网络接口，这要求 `NET_ADMIN` 权限。该权限赋予容器修改宿主机整个网络栈的能力（在与其他 capability 或宽松配置组合时）。对沙箱而言完全不可接受。
-2. **`/dev/net/tun`** — 需要将 TUN 设备挂载到容器中。又多了一个暴露的设备。
-3. **Tailscale 登录** — 容器需要使用 authkey 向 Tailscale 认证。这意味着在容器中存储 Tailscale token——又增加了一个泄露向量。
-
-socat 桥接避免了所有这些问题。容器不需要任何特殊权限。它只是向本地地址发起基础 TCP 连接。网络复杂性由宿主机处理。
+对于 Spoke 来说，就是一个简单的 `ssh -p 2222 root@172.17.0.1`。所有的网络复杂性都被 socat + Tailscale 吸收了。
 
 ### systemd 服务
 
@@ -248,6 +190,63 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 ```
 
 没有这条规则，从容器执行 `ssh -p 2222 root@172.17.0.1` 会得到一个静默超时。没有 `Connection refused`，没有 `Permission denied`——只有一片寂静。这种问题如果没提前想到，足以浪费一个小时来排查。
+
+---
+
+## 支柱二 — Tailscale Mesh VPN
+
+<ExcalidrawDiagram src="multi-agent-tailscale-mesh" alt="三台机器之间的 Tailscale Mesh VPN" />
+
+socat 桥接将流量转发到 `100.y.y.y`。但这个地址从哪来，三台机器又是如何互相发现的？这就是 Tailscale 的角色。
+
+### 什么是 Tailscale
+
+Tailscale 是一个基于 WireGuard 的 **mesh VPN**。它在分散于互联网的机器之间建立私有网络——每台机器获得一个稳定的私有 IP 地址（在 `100.x.x.x` 范围内），无论实际位置、NAT 配置或数据中心在哪，都能直接与其他机器通信。
+
+具体来说，Tailscale 处理：
+- **私有网络** — mesh 中的每台机器都有稳定的 IP，不需要在互联网上开放端口
+- **NAT 穿透** — NAT 后面的机器自动互相发现（通过 DERP，加密中继服务器）
+- **内置 SSH 认证** — `tailscale up --ssh` 启用 SSH 服务器，通过 Tailscale 身份认证，不需要公钥
+- **加密** — 所有流量经过 WireGuard（点对点加密）
+
+免费套餐支持最多 100 台机器和 3 个用户——对我们的场景绰绰有余。如果想要完全自建的免费方案，原生 WireGuard 在加密和隧道方面效果一样好，但需要自己管理密钥、配置和 NAT 穿透。
+
+### 安装
+
+```bash
+# 在每台机器上执行（服务器 A、VPS、朋友的服务器）
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up --ssh
+```
+
+`--ssh` 参数是关键。它启用 **Tailscale SSH**：认证基于 Tailscale 身份而非 SSH 公钥。不再需要管理 `authorized_keys`、不用跑 `ssh-keygen`、不会出现"复制错密钥到面板"的问题。
+
+五分钟内，三台机器就在同一个私有网络上了：
+
+- 我的服务器 → `100.x.x.x`
+- VPS → `100.y.y.y`
+- 朋友的服务器 → `100.z.z.z`
+
+从 mesh 中的任意机器：`ssh root@100.y.y.y`。无需密钥，无需复杂配置。
+
+### 自动 NAT 穿透
+
+Tailscale 通过 DERP（Designated Encrypted Relay for Packets）实现 NAT 穿透。具体来说：
+- 如果两台机器可以直连（无 NAT），它们直接进行点对点 WireGuard 通信。
+- 如果其中一台在对称型 NAT 之后，Tailscale 使用 DERP 中继完成初始握手，然后尝试打洞建立直连。
+- 最坏情况下，流量通过最近的 DERP 中继转发。
+
+在实际使用中，我们完全不需要考虑这些。开箱即用。
+
+### 为什么 Tailscale 装在宿主机上，而非容器中
+
+这是经常被问到的问题。三个原因不要在沙箱容器中安装 Tailscale：
+
+1. **`NET_ADMIN` capability** — Tailscale 需要创建 TUN 网络接口，这要求 `NET_ADMIN` 权限。该权限赋予容器修改宿主机整个网络栈的能力（在与其他 capability 或宽松配置组合时）。对沙箱而言完全不可接受。
+2. **`/dev/net/tun`** — 需要将 TUN 设备挂载到容器中。又多了一个暴露的设备。
+3. **Tailscale 登录** — 容器需要使用 authkey 向 Tailscale 认证。这意味着在容器中存储 Tailscale token——又增加了一个泄露向量。
+
+所以 socat 桥接才是正确的抽象：容器不需要任何特殊权限。它只对 `172.17.0.1:2222` 发起基础 TCP 连接。复杂的网络处理由宿主机承担——Tailscale、WireGuard、NAT 穿透。
 
 ---
 
@@ -328,13 +327,7 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 - **缓存化名称解析** — Discord 用户名被解析后缓存，避免每条消息都重复调用 API。
 - **`ignoreOtherMentions`** — 新增标志，允许智能体忽略提及了*其他*机器人的消息。在此 PR 之前，如果有人写 `@Bot1 和 @Bot2`，两个机器人都会响应（只要各自的 `requireMention` 条件满足）。现在，每个机器人可以选择只在自己是*唯一*被提及者或*首个*被提及者时才响应。
 
-### Discord 角色 vs 机器人的陷阱
-
-我朋友在消息中提及了 `@Spoke`——但 Discord 实际匹配到的是一个名为"Spoke"的**角色**，而不是机器人。在界面上两者看起来几乎一样。区别在于：在自动补全建议中，机器人会标注 **APP**，而角色不会。
-
-务必选择标有 APP 的条目。否则，消息提及的是 Discord 角色（通知拥有该角色的人类），而非机器人（触发智能体）。智能体不会响应，你会浪费时间去寻找一个代码中根本不存在的 bug。
-
-### sessions_send() — 设计上的单向通信
+### sessions_send() — 智能体间通信
 
 主智能体如何给 Spoke 分配任务？
 
@@ -342,9 +335,9 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 主智能体: sessions_send(agent="spoke", message="检查 VPS 状态")
 ```
 
-主智能体可以向 Spoke 的会话注入指令。这**在设计上是单向的**——这是一个基本的安全决策。
+主智能体可以向 Spoke 的会话注入指令。反过来也可以——前提是双方的权限都已配置。
 
-要让 `sessions_send` 工作，需要在两侧都进行配置：
+要让 `sessions_send` 工作，需要配置两个智能体：
 
 ```json
 // 主智能体
@@ -354,15 +347,9 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 "subagents": { "allowAgents": ["your-main-agent-id"] }
 ```
 
-### 非对称隔离
+通信是**双向但受控的**：每个智能体明确声明它允许哪些其他智能体发送消息。没有通配符，没有"所有人都可以和所有人对话"。每个链接都是一个有意识的决定。
 
-**主智能体 → 沙箱：允许。** 主智能体可以通过 `sessions_send` 向沙箱智能体委派任务。
-
-**沙箱 → 主智能体：阻断。** 我们不希望沙箱智能体能够向特权智能体注入指令——这是一个权限提升向量。如果 Spoke 被攻破（通过网站的提示注入、VPS 上的恶意文件），它无法向上渗透到主智能体。
-
-如果 Spoke 需要向主智能体传递结果，它会写入一个主智能体监控的 Discord 频道。这虽然是间接的，但很干净：主智能体**主动选择**读取频道，而非**被动接受**注入。
-
-未来，类似 `allowSendTo`（独立于入站白名单的出站白名单）的功能将有助于细化这些权限——将"谁可以写入该智能体"与"该智能体可以写入谁"分离。这是我们希望在 OpenClaw 中看到的改进。
+这是相较于 OpenClaw 初始行为的重大改进——原本 sandbox → 主智能体的通信被设计为封锁的。[PR #33224](https://github.com/openclaw/openclaw/pull/33224) 解除了这个限制并优化了路由系统：基于 Discord 原生 ID 的 mention（不再因显示名称产生误判）、缓存用户名解析，以及新增 `ignoreOtherMentions` flag 避免同一消息提及多个 bot 时产生重复响应。结果：精细可靠的跨智能体通信，同时不牺牲隔离性。
 
 ### 跨上下文消息传递
 
@@ -374,55 +361,23 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 
 ---
 
-## 踩过的坑
+## 实际运作流程
 
-### fail2ban 把我们封了
+日常使用是什么样子？以下是典型的流程：
 
-在测试 SSH 连接 VPS 的过程中，几次连接失败（错误的端口、错误的配置）。fail2ban 封禁了我服务器的 Tailscale IP。socat 桥接静默超时——没有错误信息，没有明确的日志，只有一片寂静。
+1. 主智能体在 WhatsApp 上收到一个请求
+2. 它通过 `sessions_send` 将任务委派给 Spoke
+3. Spoke 在共享的 Discord 中自主工作——SSH 到 VPS、执行代码、测试
+4. Spoke 提及主智能体或将结果转发到主 session
+5. 主智能体整合并在 WhatsApp 上回复——完全不需要人工介入
 
-```bash
-# 检查被封禁的 IP
-sudo fail2ban-client status sshd
+{/* TODO: 待添加截图
+- WhatsApp 截图：未主动询问就收到结果
+- Discord 截图：Spoke 自主工作中
+- 两者并排展示频道之间的桥接
+*/}
 
-# 解除封禁
-sudo fail2ban-client set sshd unbanip <ip>
-```
-
-但这还不够。iptables 在 fail2ban 解封后仍保留了 `REJECT` 规则：
-
-```bash
-# 查看规则
-sudo iptables -L INPUT -n --line-numbers
-
-# 删除残留规则
-sudo iptables -D INPUT <编号>
-```
-
-**教训：** 安装后第一时间在 fail2ban 中将 Tailscale IP 加入白名单。
-
-```ini
-# /etc/fail2ban/jail.local
-[DEFAULT]
-ignoreip = 127.0.0.1/8 ::1 100.0.0.0/8
-```
-
-`100.0.0.0/8` 覆盖了 Tailscale 的整个 IP 范围（CGNAT 段）。由于只有你的 tailnet 中的机器才会拥有该范围的地址，这是安全的。
-
-### 缺少 openssh-client
-
-Spoke 执行 `ssh root@172.17.0.1 -p 2222`。返回：`ssh: command not found`。沙箱 Docker 镜像默认不包含 SSH 客户端。需要在 Dockerfile 中添加：
-
-```dockerfile
-RUN apt-get update && \
-    apt-get install -y openssh-client && \
-    rm -rf /var/lib/apt/lists/*
-```
-
-事后看很明显。事前完全想不到。容器基于 `bookworm-slim`——设计上就是最小化的。每个工具都需要显式添加。
-
-### 贴了私钥而不是公钥
-
-我朋友把他的**私钥**粘贴到了 VPS 面板上，而不是**公钥**。这种事会发生。而这恰恰是 Tailscale SSH 所消除的人为错误：不需要复制密钥、不需要在网页面板中粘贴密钥、根本不需要密钥。认证通过 Tailscale 身份完成。
+关键在于：人类不需要介入流程。你只需发送初始请求，多智能体系统就会处理剩下的一切——委派、执行、结果回报。每个智能体在自己的范围内、自己的频道上、以自己的权限运作。
 
 ---
 
@@ -435,11 +390,9 @@ RUN apt-get update && \
 3. **Discord 多账号**（如果使用独立机器人）——每个智能体一个 token
 4. **Binding 智能体路由** — 匹配 `channel` + `accountId` + `guildId`
 5. **`requireMention: true`** 在共享服务器上——不可妥协
-6. **`openssh-client`** 包含在沙箱 Docker 镜像中
-7. **Socat 桥接**（如果需要 SSH 到外部网络如 Tailscale、WireGuard）
-8. **沙箱的 `TOOLS.md`** 包含 SSH 信息（IP、端口、用户名）
-9. **fail2ban 白名单** Tailscale IP（`100.0.0.0/8`）——在开始测试之前配置
-10. **跨上下文** — 首次触发必须来自正确的通道
+6. **Socat 桥接**（如果需要 SSH 到外部网络如 Tailscale、WireGuard）
+7. **沙箱的 `TOOLS.md`** 包含 SSH 信息（IP、端口、用户名）
+8. **跨上下文** — 首次触发必须来自正确的通道
 
 ---
 
@@ -447,22 +400,12 @@ RUN apt-get update && \
 
 多智能体架构在理论上并不复杂。但在实践中，它是一连串静默的细节问题——一个不响应的端口、Discord 角色被误认为机器人、Docker 镜像中缺少一个软件包。
 
-运行良好的部分：
+需要提前规划的：
 
-- **Tailscale SSH** 消除了密钥管理。在机器数量增加时，这是真正的时间节省。安装、`tailscale up --ssh`，三台机器无需任何手动密钥配置即可互相 SSH。
-- **socat 模式**仍然是解决容器 → 宿主机 → 远程网络连通性问题的最简方案。我们之前已经在 [Docker 编排器](/blog/the-localhost-trap)中使用过这个方案，这次将其扩展到远程 VPS。两行 socat 命令、一个 systemd 服务，容器就能像访问本地一样访问远程 VPS。
-- **`requireMention`** 是核心安全护栏。没有它，无限循环是必然的。随着 [PR #33224](https://github.com/openclaw/openclaw/pull/33224) 的改进（基于 ID 的提及匹配、`ignoreOtherMentions`），即使多个机器人在同一频道中，系统也保持稳健。
-- **非对称隔离**（主 → 沙箱允许，沙箱 → 主阻断）是正确的模型。沙箱智能体永远不应该能够向特权智能体注入指令。
+- Cross-context messaging 是一个真正的约束——哪个频道触发哪个智能体，需要提前想清楚。
+- WhatsApp 配置中还缺少 `allowFrom` / `allowSendTo` 的分离。这会强制澄清每个权限的方向。
 
-仍待改进的部分：
-
-- 沙箱 → 主智能体的通信通过 Discord 中转，而非直连。间接但干净——主智能体主动选择读取，而非被动接受注入。
-- 跨上下文消息传递是一个需要在每次部署中提前考虑的真实约束。哪个通道触发哪个智能体，在什么上下文中。
-- 配置中尚缺 `allowFrom` / `allowSendTo` 的分离。这将有助于明确每个权限的方向。
-
-最终，我们得到了想要的结果：两个智能体在共享空间中协作，无法访问对方的私有数据，通信通过 @提及控制。VPS 月费约 4 欧元，两个智能体通过 Tailscale mesh 以 SSH 连接，数据保持隔离。
-
-下一步：在共享 VPS 上运行自动化工作流，由两个智能体根据项目上下文触发。
+最终，我们得到了想要的结果：两个智能体在共享空间中协作，无法访问对方的私有数据，通信通过 @提及控制。数据保持隔离，每个智能体在自己的权限范围内运作。
 
 ---
 

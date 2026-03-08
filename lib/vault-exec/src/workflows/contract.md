@@ -15,7 +15,8 @@
 
 - `runVaultCommand(opts, vaultPath)` is the runtime entrypoint.
 - `initVaultWithTraceImport(vaultPath, notes, dbPath, embedder)` imports
-  configured traces before rebuilding DB-first training tables and projection.
+  configured traces before rebuilding DB-first training tables and projection,
+  then requests background live training for the active build.
 - Legacy `initVault()` notes-first indexing path is removed in the DB-first
   phase.
 - Runtime input parsing uses explicit source + error code contract.
@@ -32,5 +33,5 @@
 - Trace recording and virtual-edge updates are best-effort and non-fatal.
 - Tool-graph projection notes must not be parsed back into the executable vault
   DAG.
-- `sync` must keep returning machine-readable trace import counters even when
-  runtime retraining is disabled.
+- `sync` must keep returning machine-readable trace import counters while
+  delegating live training to the service-owned async worker path.

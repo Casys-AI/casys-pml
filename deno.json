@@ -76,6 +76,7 @@
     ]
   },
   "imports": {
+    "@tensorflow/tfjs": "npm:@tensorflow/tfjs",
     "@std/cli": "jsr:@std/cli@^1.0.25",
     "echarts": "npm:echarts@^6.0.0",
     "fresh": "jsr:@fresh/core@^2.0.0",

@@ -12,9 +12,9 @@ and experiments.
 | NB | Title                   | Focus                                                                                        |
 | -- | ----------------------- | -------------------------------------------------------------------------------------------- |
 | 05 | Topological Map         | DB-first leaf-node/edge inspection from `training_data`                                      |
-| 06 | GNN Forward on DB-First Leaf Graph | Real `src/gnn` forward pass on weighted leaf `next` transitions, with persisted params |
+| 06 | GNN Graph Diagnostics | Persisted GNN-state inspection over the active leaf `next` graph, without retraining |
 | 07 | OpenClaw Args Categorization | OpenClaw ingest-side args analysis, separate from DB-first training tables              |
-| 08 | OpenClaw GRU Training   | Real `src/gru` training on DB-first sequences, using GNN embeddings and persisting weights   |
+| 08 | GRU Metrics on DB-First Sequences | Persisted-GRU evaluation on the active DB-first build, with baseline comparisons |
 
 Also: `topological-map.html` — legacy interactive HTML visualization (open in browser)
 
@@ -57,7 +57,9 @@ EOF
   `training_data` inside `.vault-exec/vault.kv`
 - Vega-Lite charts render natively in Jupyter (no extra deps)
 - `07` stays ingest-oriented and does not depend on rebuilt training tables
-- Notebook `06` now runs the real GNN forward path and persists params in KV
-- Notebook `08` now runs the real GRU training path and persists weights in KV
-- Runtime training is notebook-first in this phase; `init` / `sync` rebuild KV
-  tables and projection only
+- Notebook `06` reads persisted GNN state and recomputes embeddings in-memory
+  for diagnostics only
+- Notebook `08` reads persisted GRU weights and evaluates them against the
+  active DB-first build
+- Runtime training runs in background from `init` / `sync`; notebooks are for
+  stats, diagnostics, and evaluation

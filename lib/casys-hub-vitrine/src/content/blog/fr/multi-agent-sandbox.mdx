@@ -51,9 +51,9 @@ Les règles du jeu :
 1. **Isolation** — L'agent sandboxé ne voit pas le workspace de l'agent principal. Pas de fuite de données.
 2. **@mention only** — Les agents ne répondent que quand on les tag. Deux bots dans le même canal sans cette règle = boucle infinie et facture de tokens astronomique.
 3. **VPS partagé** — Un terrain de jeu commun. Les deux agents peuvent y coder, y installer des trucs, tout casser et recommencer.
-4. **Communication asymétrique** — L'agent principal peut envoyer des instructions au sandbox. L'inverse est bloqué intentionnellement.
+4. **Communication contrôlée** — Les agents communiquent via `sessions_send`, avec des permissions déclarées des deux côtés. Chaque lien est une décision consciente.
 
-L'architecture repose sur trois piliers techniques que je vais détailler un par un : le réseau (Tailscale), la connectivité container (socat bridges), et la communication inter-agents (Discord + sessions_send).
+L'architecture repose sur trois piliers techniques que je vais détailler un par un : la connectivité container (socat bridges — un pattern qu'on a déjà couvert dans un [précédent article](/blog/the-localhost-trap)), le réseau privé (Tailscale), et la communication inter-agents (Discord + sessions_send).
 
 ---
 
@@ -104,76 +104,32 @@ Points importants :
 
 Le workspace `/path/to/workspace-sandbox` a son propre `SOUL.md` et `TOOLS.md`. L'agent sandboxé ne connaît pas mes clients, mes projets, mes tokens. Il connaît l'IP SSH du VPS et les canaux Discord. C'est tout.
 
----
-
-## Pilier 1 — Tailscale Mesh VPN
-
-<ExcalidrawDiagram src="multi-agent-tailscale-mesh" alt="Tailscale Mesh VPN entre 3 machines" />
-
-### Qu'est-ce que Tailscale
-
-Tailscale est un **mesh VPN** basé sur WireGuard. Il crée un réseau privé entre des machines dispersées sur Internet — chaque machine reçoit une adresse IP privée stable (dans le range `100.x.x.x`) et peut communiquer directement avec les autres, peu importe où elles se trouvent physiquement, derrière quel NAT, ou dans quel datacenter.
-
-Concrètement, Tailscale prend en charge :
-- **Le réseau privé** — chaque machine du mesh a une IP stable, pas besoin d'ouvrir des ports sur Internet
-- **Le NAT traversal** — les machines derrière des NAT se trouvent automatiquement (via DERP, des relais chiffrés)
-- **L'authentification SSH intégrée** — `tailscale up --ssh` active un serveur SSH dont l'auth repose sur l'identité Tailscale, pas sur des clés publiques
-- **Le chiffrement** — tout le trafic passe par WireGuard (chiffrement point-à-point)
-
-Le tier gratuit permet jusqu'à 100 machines et 3 utilisateurs — largement suffisant pour notre cas. Pour une solution entièrement self-hosted et gratuite, WireGuard pur fait le même travail côté chiffrement et tunnel, mais il faut gérer les clés, les configs et le NAT traversal à la main.
-
-### Installation
-
-```bash
-# Sur chaque machine (Serveur A, le VPS, serveur du collègue)
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up --ssh
-```
-
-Le flag `--ssh` est la partie intéressante. Il active **Tailscale SSH** : l'authentification se fait par identité Tailscale, pas par clé publique. Plus de `authorized_keys` à gérer, plus de `ssh-keygen`, plus de "j'ai collé la mauvaise clé dans le panel".
-
-En 5 minutes, les trois machines sont sur le même réseau privé :
-
-- Mon serveur → `100.x.x.x`
-- Le VPS → `100.y.y.y`
-- Serveur de mon collègue → `100.z.z.z`
-
-Depuis n'importe quelle machine du mesh : `ssh root@100.y.y.y`. Pas de clé, pas de config compliquée.
-
-### NAT traversal automatique
-
-Tailscale gère le NAT traversal via DERP (Designated Encrypted Relay for Packets). Concrètement :
-- Si les deux machines peuvent se joindre directement (pas de NAT), elles font du WireGuard point-à-point.
-- Si l'une est derrière un NAT symétrique, Tailscale utilise un relay DERP pour le handshake initial, puis tente un hole punching pour établir une connexion directe.
-- En dernier recours, le trafic passe par le relay DERP le plus proche.
-
-En pratique, on n'a jamais eu à y penser. Ça marche, c'est tout.
-
-### Le problème : Docker ne voit pas Tailscale
-
-Et c'est là que le beau setup commence à coincer.
-
-Tailscale tourne sur le **host**. Le daemon `tailscaled` gère l'interface `tailscale0` dans le namespace réseau du host. Mais nos agents tournent dans des **containers Docker**. Un container en mode `bridge` (le défaut) a son propre namespace réseau. Il voit `eth0` (le bridge docker0, `172.17.0.x`) et c'est tout.
-
-Le container ne voit pas `tailscale0`. Il ne peut pas résoudre `100.y.y.y`. L'agent sandboxé ne peut pas faire `ssh root@100.y.y.y` — la route n'existe tout simplement pas dans son namespace.
-
-On pourrait lancer Tailscale dans le container. Mais ça nécessite `NET_ADMIN` capability et `--device /dev/net/tun`. Donner `NET_ADMIN` à un agent sandboxé défait tout l'intérêt de la sandbox — c'est une escalade de privilèges sur la couche réseau.
-
-La solution : un bridge sur le host qui écoute sur l'interface `docker0` et forward le trafic vers le réseau Tailscale. C'est le pilier 2.
+> **Note :** l'image Docker `bookworm-slim` est minimale. Si l'agent sandboxé doit faire du SSH, il faut ajouter `openssh-client` dans le Dockerfile :
+> ```dockerfile
+> RUN apt-get update && apt-get install -y openssh-client && rm -rf /var/lib/apt/lists/*
+> ```
 
 ---
 
-## Pilier 2 — Socat Bridges
+## Pilier 1 — Socat Bridges
 
 <ExcalidrawDiagram src="multi-agent-socat-bridges" alt="Les deux socat bridges : Container → Host → VPS" />
 
-On retrouve ici le problème décrit dans [The Localhost Trap](/blog/the-localhost-trap) — mais étendu à un VPS distant. Le pattern est le même : un container Docker a besoin d'accéder à un service qui n'existe pas dans son namespace réseau. La solution : un bridge `socat` sur le host.
+Si vous avez lu [The Localhost Trap](/blog/the-localhost-trap), le problème est familier : un container Docker a besoin d'accéder à un service qui n'existe pas dans son namespace réseau. La solution était un bridge `socat` sur le host. Ici, on étend ce pattern à un VPS distant.
 
-### Les deux sockets
+### Le problème : Docker ne voit pas le réseau privé
+
+Nos agents tournent dans des **containers Docker**. Un container en mode `bridge` (le défaut) a son propre namespace réseau. Il voit `eth0` (le bridge docker0, `172.17.0.x`) et c'est tout.
+
+Le VPS partagé, lui, est accessible via un réseau privé Tailscale (qu'on détaille dans le pilier 2). Son adresse est `100.y.y.y` — une IP privée dans le mesh VPN. Le container ne peut pas résoudre cette adresse. La route n'existe pas dans son namespace.
+
+On pourrait installer Tailscale dans le container — mais ça nécessiterait des privilèges réseau (`NET_ADMIN`) qui défont tout l'intérêt de la sandbox. La solution : un bridge `socat` sur le host qui relaie le trafic.
+
+### Les deux bonds
 
 La chaîne de connexion SSH complète implique **deux bonds** :
 
-**Socket 1 : Container → Host (docker0 gateway)**
+**Bond 1 : Container → Host (docker0 gateway)**
 
 Le container Docker voit `172.17.0.1` comme gateway — c'est l'adresse de l'interface `docker0` sur le host. On expose un port sur cette interface :
 
@@ -186,28 +142,14 @@ socat TCP-LISTEN:2222,bind=172.17.0.1,fork,reuseaddr \
 Quand Spoke fait `ssh -p 2222 root@172.17.0.1` depuis son container :
 1. Le paquet arrive sur `172.17.0.1:2222` (l'interface docker0 du host)
 2. socat le reçoit et ouvre une connexion vers `100.y.y.y:22`
-3. `100.y.y.y` est l'adresse Tailscale du VPS — le host sait la résoudre via `tailscale0`
+3. `100.y.y.y` est l'adresse Tailscale du VPS — le host sait la résoudre via son interface `tailscale0`
 4. La connexion SSH est établie de bout en bout
 
-**Socket 2 : Host → VPS distant via Tailscale**
+**Bond 2 : Host → VPS distant via Tailscale**
 
-Le deuxième bond est transparent du point de vue de socat — c'est juste une connexion TCP vers `100.y.y.y:22`. Mais c'est Tailscale qui fait le travail sous le capot :
-- Le host résout `100.y.y.y` via son interface Tailscale
-- Le paquet est encapsulé en WireGuard
-- Il traverse le NAT, éventuellement via un relay DERP
-- Il arrive sur le VPS, est décapsulé, et atteint `sshd` sur le port 22
+Le deuxième bond est transparent du point de vue de socat — c'est juste une connexion TCP vers `100.y.y.y:22`. Mais c'est Tailscale qui fait le travail sous le capot : le paquet est encapsulé en WireGuard, traverse le NAT, et arrive sur le VPS. On verra les détails dans le pilier 2.
 
-Du point de vue de Spoke, c'est un simple `ssh -p 2222 root@172.17.0.1`. Toute la complexité est absorbée par socat + Tailscale.
-
-### Pourquoi pas Tailscale dans le container
-
-Trois raisons :
-
-1. **`NET_ADMIN` capability** — Tailscale a besoin de créer une interface réseau TUN. Ça nécessite `NET_ADMIN`, qui donne au container le droit de modifier toute la stack réseau du host (si combiné avec d'autres capabilities ou configurations laxistes). Inacceptable pour une sandbox.
-2. **`/dev/net/tun`** — Il faut monter le device TUN dans le container. Un device de plus à exposer.
-3. **Login Tailscale** — Le container devrait s'authentifier auprès de Tailscale avec un authkey. Ça veut dire stocker un token Tailscale dans le container — un vecteur de fuite supplémentaire.
-
-Le bridge socat évite tout ça. Le container n'a besoin d'aucun privilège spécial. Il fait du TCP basique vers une adresse locale. C'est le host qui gère la complexité réseau.
+Du point de vue de Spoke, c'est un simple `ssh -p 2222 root@172.17.0.1`. Toute la complexité réseau est absorbée par socat + Tailscale.
 
 ### Service systemd
 
@@ -248,6 +190,63 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 ```
 
 Sans cette règle, `ssh -p 2222 root@172.17.0.1` depuis le container donne un timeout silencieux. Pas de `Connection refused`, pas de `Permission denied` — juste du vide. C'est le genre de problème qui peut coûter une heure de debug si on n'y pense pas.
+
+---
+
+## Pilier 2 — Tailscale Mesh VPN
+
+<ExcalidrawDiagram src="multi-agent-tailscale-mesh" alt="Tailscale Mesh VPN entre 3 machines" />
+
+Le bridge socat relaie le trafic vers `100.y.y.y`. Mais d'où vient cette adresse, et comment les trois machines se trouvent-elles ? C'est le rôle de Tailscale.
+
+### Qu'est-ce que Tailscale
+
+Tailscale est un **mesh VPN** basé sur WireGuard. Il crée un réseau privé entre des machines dispersées sur Internet — chaque machine reçoit une adresse IP privée stable (dans le range `100.x.x.x`) et peut communiquer directement avec les autres, peu importe où elles se trouvent physiquement, derrière quel NAT, ou dans quel datacenter.
+
+Concrètement, Tailscale prend en charge :
+- **Le réseau privé** — chaque machine du mesh a une IP stable, pas besoin d'ouvrir des ports sur Internet
+- **Le NAT traversal** — les machines derrière des NAT se trouvent automatiquement (via DERP, des relais chiffrés)
+- **L'authentification SSH intégrée** — `tailscale up --ssh` active un serveur SSH dont l'auth repose sur l'identité Tailscale, pas sur des clés publiques
+- **Le chiffrement** — tout le trafic passe par WireGuard (chiffrement point-à-point)
+
+Le tier gratuit permet jusqu'à 100 machines et 3 utilisateurs — largement suffisant pour notre cas. Pour une solution entièrement self-hosted et gratuite, WireGuard pur fait le même travail côté chiffrement et tunnel, mais il faut gérer les clés, les configs et le NAT traversal à la main.
+
+### Installation
+
+```bash
+# Sur chaque machine (Serveur A, le VPS, serveur du collègue)
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up --ssh
+```
+
+Le flag `--ssh` est la partie intéressante. Il active **Tailscale SSH** : l'authentification se fait par identité Tailscale, pas par clé publique. Plus de `authorized_keys` à gérer, plus de `ssh-keygen`, plus de "j'ai collé la mauvaise clé dans le panel".
+
+En 5 minutes, les trois machines sont sur le même réseau privé :
+
+- Mon serveur → `100.x.x.x`
+- Le VPS → `100.y.y.y`
+- Serveur de mon collègue → `100.z.z.z`
+
+Depuis n'importe quelle machine du mesh : `ssh root@100.y.y.y`. Pas de clé, pas de config compliquée.
+
+### NAT traversal automatique
+
+Tailscale gère le NAT traversal via DERP (Designated Encrypted Relay for Packets). Concrètement :
+- Si les deux machines peuvent se joindre directement (pas de NAT), elles font du WireGuard point-à-point.
+- Si l'une est derrière un NAT symétrique, Tailscale utilise un relay DERP pour le handshake initial, puis tente un hole punching pour établir une connexion directe.
+- En dernier recours, le trafic passe par le relay DERP le plus proche.
+
+En pratique, on n'a jamais eu à y penser. Ça marche, c'est tout.
+
+### Pourquoi Tailscale sur le host, pas dans le container
+
+C'est une question qui revient souvent. Trois raisons de ne pas installer Tailscale dans le container sandbox :
+
+1. **`NET_ADMIN` capability** — Tailscale a besoin de créer une interface réseau TUN. Ça nécessite `NET_ADMIN`, qui donne au container le droit de modifier toute la stack réseau du host (si combiné avec d'autres capabilities ou configurations laxistes). Inacceptable pour une sandbox.
+2. **`/dev/net/tun`** — Il faut monter le device TUN dans le container. Un device de plus à exposer.
+3. **Login Tailscale** — Le container devrait s'authentifier auprès de Tailscale avec un authkey. Ça veut dire stocker un token Tailscale dans le container — un vecteur de fuite supplémentaire.
+
+C'est pour ça que le bridge socat est la bonne abstraction : le container n'a besoin d'aucun privilège spécial. Il fait du TCP basique vers `172.17.0.1:2222`. C'est le host qui gère la complexité réseau — Tailscale, WireGuard, NAT traversal.
 
 ---
 
@@ -328,13 +327,7 @@ En pratique, le mention handling est plus subtil qu'il n'y paraît. La [PR #3322
 - **Cached rewrites** — Les noms d'utilisateurs Discord sont résolus et cachés pour éviter des appels API répétés à chaque message.
 - **`ignoreOtherMentions`** — Nouveau flag qui permet à un agent d'ignorer les messages qui mentionnent un *autre* bot. Avant cette PR, si quelqu'un écrivait `@Bot1 et @Bot2`, les deux bots répondaient (si `requireMention` était satisfait pour chacun). Maintenant, chaque bot peut choisir de ne répondre que quand il est le *seul* mentionné, ou le *premier* mentionné.
 
-### Le piège du rôle Discord vs le bot
-
-Mon collègue avait mentionné `@Spoke` dans un message — mais Discord avait matché un **rôle** nommé "Spoke", pas le bot. Visuellement, les deux se ressemblent dans l'interface. La différence : dans les suggestions d'autocomplete, le bot est marqué **APP**. Le rôle ne l'est pas.
-
-Toujours choisir l'entrée marquée APP. Sinon, le message mentionne un rôle Discord (qui notifie les humains qui ont ce rôle) au lieu du bot (qui déclenche l'agent). L'agent ne répond pas, et on perd du temps à chercher un bug qui n'existe pas dans le code.
-
-### sessions_send() — unidirectionnel par design
+### sessions_send() — communication inter-agents
 
 Comment l'agent principal donne-t-il une tâche à Spoke ?
 
@@ -342,9 +335,9 @@ Comment l'agent principal donne-t-il une tâche à Spoke ?
 Agent principal: sessions_send(agent="spoke", message="Vérifie l'état du VPS")
 ```
 
-L'agent principal peut injecter des instructions dans la session de Spoke. C'est **unidirectionnel par design** — et c'est un choix de sécurité fondamental.
+L'agent principal peut injecter des instructions dans la session de Spoke. Et vice versa — à condition que les permissions soient configurées des deux côtés.
 
-Pour que `sessions_send` fonctionne, il faut configurer les deux côtés :
+Pour que `sessions_send` fonctionne, il faut configurer les deux agents :
 
 ```json
 // Agent principal
@@ -354,15 +347,9 @@ Pour que `sessions_send` fonctionne, il faut configurer les deux côtés :
 "subagents": { "allowAgents": ["your-main-agent-id"] }
 ```
 
-### Isolation asymétrique
+La communication est **bidirectionnelle mais contrôlée** : chaque agent déclare explicitement à quels autres agents il autorise l'envoi de messages. Pas de wildcard, pas de "tout le monde peut parler à tout le monde". Chaque lien est une décision consciente.
 
-**Principal → Sandbox : autorisé.** L'agent principal peut déléguer des tâches à l'agent sandboxé via `sessions_send`.
-
-**Sandbox → Principal : bloqué.** On ne veut pas qu'un agent sandboxé puisse injecter des instructions dans un agent privilégié — c'est un vecteur d'escalade de privilèges. Si Spoke est compromis (prompt injection via un site web, un fichier malveillant sur le VPS), il ne peut pas remonter vers l'agent principal.
-
-Si Spoke doit communiquer un résultat à l'agent principal, il écrit dans un canal Discord que l'agent principal surveille. C'est indirect, mais c'est propre : l'agent principal **choisit** de lire le canal, il ne **subit** pas une injection.
-
-À terme, une fonctionnalité de type `allowSendTo` (une allowlist sortante indépendante de l'allowlist entrante) serait utile pour affiner ces permissions — séparer "qui peut écrire à l'agent" de "à qui l'agent peut écrire". C'est une amélioration qu'on aimerait voir dans OpenClaw.
+C'est une amélioration significative par rapport au comportement initial d'OpenClaw, où la communication sandbox → principal était bloquée par design. La [PR #33224](https://github.com/openclaw/openclaw/pull/33224) a levé cette limitation et affiné le système de routing : mentions par ID Discord natif (plus de faux positifs sur les noms), résolution cachée des usernames, et nouveau flag `ignoreOtherMentions` pour éviter les doubles réponses quand plusieurs bots sont mentionnés dans le même message. Résultat : une communication inter-agents granulaire et fiable, sans sacrifier l'isolation.
 
 ### Cross-context messaging
 
@@ -374,55 +361,23 @@ En pratique, ça veut dire qu'il faut penser le flow en amont : quel canal décl
 
 ---
 
-## Ce qu'on a cassé
+## Le flow en action
 
-### fail2ban nous a bannis
+À quoi ça ressemble au quotidien ? Voici le flux typique :
 
-Pendant les tests SSH vers le VPS, quelques connexions ont échoué (mauvais port, mauvaise config). fail2ban a banni l'IP Tailscale de mon serveur. Le bridge socat timeout silencieusement — pas d'erreur, pas de log explicite, juste du vide.
+1. L'agent principal reçoit une demande sur WhatsApp
+2. Il délègue une tâche à Spoke via `sessions_send`
+3. Spoke travaille en autonomie dans le Discord partagé — SSH vers le VPS, exécution de code, tests
+4. Spoke mentionne l'agent principal ou forward les résultats dans la session principale
+5. L'agent principal synthétise et répond sur WhatsApp — sans qu'on ait touché à quoi que ce soit
 
-```bash
-# Vérifier les IPs bannies
-sudo fail2ban-client status sshd
+{/* TODO: Screenshots à ajouter
+- Screenshot WhatsApp : réception d'un résultat sans avoir rien demandé
+- Screenshot Discord : Spoke qui travaille en autonomie
+- Les deux côte à côte pour montrer le pont entre les canaux
+*/}
 
-# Débannir
-sudo fail2ban-client set sshd unbanip <ip>
-```
-
-Mais ça ne suffisait pas. iptables gardait la règle `REJECT` même après le unban fail2ban :
-
-```bash
-# Voir les règles
-sudo iptables -L INPUT -n --line-numbers
-
-# Supprimer la règle résiduelle
-sudo iptables -D INPUT <numéro>
-```
-
-**Leçon :** whitelist les IPs Tailscale dans fail2ban dès l'installation.
-
-```ini
-# /etc/fail2ban/jail.local
-[DEFAULT]
-ignoreip = 127.0.0.1/8 ::1 100.0.0.0/8
-```
-
-Le `100.0.0.0/8` couvre tout le range d'IPs Tailscale (CGNAT range). Comme seules les machines de ton tailnet ont des adresses dans ce range, c'est sûr.
-
-### openssh-client manquant
-
-Spoke essaie `ssh root@172.17.0.1 -p 2222`. Réponse : `ssh: command not found`. L'image Docker sandbox n'inclut pas le client SSH par défaut. Il faut l'ajouter dans le Dockerfile :
-
-```dockerfile
-RUN apt-get update && \
-    apt-get install -y openssh-client && \
-    rm -rf /var/lib/apt/lists/*
-```
-
-Évident après coup. Invisible avant. Le container est `bookworm-slim` — minimal par design. Chaque outil doit être ajouté explicitement.
-
-### La clé privée au lieu de la publique
-
-Mon collègue a collé sa clé **privée** dans le panel du VPS au lieu de la clé **publique**. Ça arrive. Et c'est exactement le genre d'erreur humaine que Tailscale SSH élimine : pas de clés à copier, pas de clés à coller dans un panel web, pas de clés du tout. L'authentification passe par l'identité Tailscale.
+Le point clé : l'humain n'intervient pas dans le flow. Il envoie une demande initiale, et le système multi-agent s'occupe du reste — délégation, exécution, remontée de résultat. Chaque agent opère dans son périmètre, sur son canal, avec ses permissions.
 
 ---
 
@@ -435,11 +390,9 @@ Après cette soirée, voici la checklist qu'on aurait aimé avoir au départ :
 3. **Discord multi-compte** si bots séparés — un token par agent
 4. **Binding agent routing** — match `channel` + `accountId` + `guildId`
 5. **`requireMention: true`** sur les guilds partagées — non-négociable
-6. **`openssh-client`** dans l'image Docker sandbox
-7. **Socat bridge** si SSH vers un réseau externe (Tailscale, WireGuard)
-8. **`TOOLS.md` du sandbox** avec les infos SSH (IP, port, user)
-9. **fail2ban whitelist** des IPs Tailscale (`100.0.0.0/8`) — avant de commencer les tests
-10. **Cross-context** — le premier trigger doit venir du bon canal
+6. **Socat bridge** si SSH vers un réseau externe (Tailscale, WireGuard)
+7. **`TOOLS.md` du sandbox** avec les infos SSH (IP, port, user)
+8. **Cross-context** — le premier trigger doit venir du bon canal
 
 ---
 
@@ -447,10 +400,9 @@ Après cette soirée, voici la checklist qu'on aurait aimé avoir au départ :
 
 L'architecture multi-agent n'est pas compliquée en théorie. En pratique, c'est une succession de détails silencieux — un port qui ne répond pas, un rôle Discord confondu avec un bot, un package manquant dans une image Docker.
 
-Ce qui reste imparfait :
+Ce qui reste à anticiper :
 
-- La communication sandbox → principal passe par Discord, pas directement. C'est indirect mais propre — l'agent principal choisit de lire, il ne subit pas une injection.
-- Le cross-context messaging est une vraie contrainte qu'il faut anticiper pour chaque setup. Quel canal déclenche quel agent, et dans quel contexte.
+- Le cross-context messaging est une vraie contrainte — quel canal déclenche quel agent, et dans quel contexte. Ça se pense en amont.
 - La séparation `allowFrom` / `allowSendTo` manque encore dans la config WhatsApp. Ça forcerait à clarifier la direction de chaque permission.
 
 Au final, on a exactement ce qu'on voulait : deux agents qui collaborent dans un espace partagé, sans accès aux données privées de l'autre, avec une communication contrôlée par @mention. Les données restent cloisonnées, et chaque agent opère dans son propre périmètre de permissions.

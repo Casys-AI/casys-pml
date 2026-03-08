@@ -6,7 +6,7 @@ Intent-sequence modeling and inference utilities.
 
 - GRU cell math + weight initialization.
 - Path inference (greedy + beam).
-- Training loop and weight serialization.
+- Shared training session loop, evaluation metrics, and weight serialization.
 
 ## Boundaries
 
@@ -20,3 +20,5 @@ Intent-sequence modeling and inference utilities.
 - Inference enforces acyclic paths with no revisits.
 - `gruStep` is deterministic for fixed inputs and weights.
 - Training with empty examples is a defined no-op.
+- Background orchestration belongs outside this slice; this module only owns
+  GRU math, metrics, and reusable training primitives.

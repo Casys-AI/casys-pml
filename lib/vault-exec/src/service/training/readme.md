@@ -19,3 +19,8 @@ Does not own:
 
 This slice exists to let `init` / `sync` / daemon-style workflows trigger
 background training without adding new model implementations.
+
+## Runtime knobs
+
+- `VAULT_EXEC_NODE_MAX_OLD_SPACE_MB` (optional): Node heap size used for the GRU
+  worker process. Defaults to `8192`.

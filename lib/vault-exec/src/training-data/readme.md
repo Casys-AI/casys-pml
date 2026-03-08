@@ -8,6 +8,7 @@ Purpose: rebuild DB-first training tables from canonical imported OpenClaw rows.
 - derive `next` transition edges between leaf nodes
 - derive one leaf sequence per imported session
 - adapt rebuilt leaf rows into real `src/gnn` and `src/gru` model inputs
+- expose GRU dataset builders reusable by both Deno and Node workers
 - publish rebuilt tables under a versioned KV build namespace
 - expose read helpers that always follow the active build
 
@@ -16,7 +17,7 @@ Purpose: rebuild DB-first training tables from canonical imported OpenClaw rows.
 - no Markdown projection logic
 - no ingest parsing or classification
 - no notebook orchestration
-- no automatic runtime GNN/GRU training in V1
+- no direct background-worker orchestration
 
 ## Inputs / outputs
 
@@ -30,8 +31,9 @@ Outputs:
 - active leaf node rows
 - active leaf transition rows
 - active session sequence rows
-- active build pointer for DB-first notebook consumers
-- model-input adapters for notebook-driven GNN/GRU runs
+- active build pointer for DB-first readers and live-training workers
+- model-input adapters reused by the live-training worker and notebook eval
+  views
 
 ## Invariants for this slice
 
@@ -40,5 +42,5 @@ Outputs:
 - rebuild must publish a new active build only after the new tables are fully
   written
 - previous active derived tables must remain readable if rebuild fails
-- DB-first notebooks may train and persist model state, but training is not
-  triggered automatically by `init` or `sync`
+- background training must reuse these rebuilt tables instead of re-parsing
+  Markdown or raw OpenClaw files again

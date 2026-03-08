@@ -4,6 +4,7 @@ import {
   type IncrementalOpenClawImportResult,
   runIncrementalOpenClawImport,
 } from "../ingest/pipeline.ts";
+import { requestLiveTrainingForActiveBuild } from "../service/training/orchestrator.ts";
 
 export interface InitResult {
   notesIndexed: number;
@@ -35,6 +36,13 @@ export async function initVaultWithTraceImport(
   _embedder: Embedder,
 ): Promise<InitWithTraceImportResult> {
   const traceImport = await runIncrementalOpenClawImport({ vaultPath, dbPath });
+  if (traceImport.changedFiles > 0) {
+    await requestLiveTrainingForActiveBuild({
+      vaultPath,
+      dbPath,
+      requestedBy: "workflow-init",
+    });
+  }
   return {
     ...emptyInitResult(),
     traceImport,
