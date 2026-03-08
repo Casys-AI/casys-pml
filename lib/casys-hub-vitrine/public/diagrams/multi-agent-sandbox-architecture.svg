@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 670" width="950" height="670">
+  <!-- svg-source:excalidraw — multi-agent-sandbox-architecture.excalidraw -->
+  <defs>
+    <marker id="ah-818cf8" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#818cf8"/></marker>
+    <marker id="ah-f97316" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#f97316"/></marker>
+    <marker id="ah-22c55e" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#22c55e"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="950" height="670" fill="#0d1117"/>
+  <text x="470" y="44" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="24" fill="#f0ede8" text-anchor="middle">Multi-Agent Sandbox Architecture</text>
+  <rect x="20" y="70" width="380" height="340" rx="12" fill="#1a2744" stroke="#60a5fa" stroke-width="2"/>
+  <text x="40" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#60a5fa" text-anchor="start">Erwan's OpenClaw (OVH)</text>
+  <rect x="50" y="120" width="160" height="80" rx="8" fill="#14352a" stroke="#22c55e" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#22c55e" text-anchor="middle" y="149">
+    <tspan x="130">David</tspan>
+    <tspan x="130" dy="18.2">(Main Agent)</tspan>
+  </text>
+  <text x="130" y="216" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#94a3b8" text-anchor="middle">WhatsApp, Calendar...</text>
+  <rect x="50" y="240" width="330" height="150" rx="8" fill="#332a14" stroke="#f59e0b" stroke-width="2"/>
+  <text x="70" y="264" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f59e0b" text-anchor="start">Spoke (Sandboxed Agent)</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#94a3b8" text-anchor="start" y="292">
+    <tspan x="70">Docker container</tspan>
+    <tspan x="70" dy="15.6">readOnlyRoot: true</tspan>
+    <tspan x="70" dy="15.6">Discord (@mention only)</tspan>
+    <tspan x="70" dy="15.6">SSH → VPS via socat + Tailscale</tspan>
+  </text>
+  <rect x="550" y="70" width="380" height="340" rx="12" fill="#1f1a3d" stroke="#a78bfa" stroke-width="2"/>
+  <text x="570" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#a78bfa" text-anchor="start">Simon's OpenClaw</text>
+  <rect x="740" y="120" width="160" height="80" rx="8" fill="#2a1f44" stroke="#a78bfa" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#a78bfa" text-anchor="middle" y="149">
+    <tspan x="820">MasterBot</tspan>
+    <tspan x="820" dy="18.2">(Main Agent)</tspan>
+  </text>
+  <rect x="570" y="240" width="330" height="150" rx="8" fill="#332a14" stroke="#f59e0b" stroke-width="2"/>
+  <text x="590" y="264" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f59e0b" text-anchor="start">Sandboxed Agent</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#94a3b8" text-anchor="start" y="292">
+    <tspan x="590">Docker container</tspan>
+    <tspan x="590" dy="15.6">Discord (@mention only)</tspan>
+    <tspan x="590" dy="15.6">SSH → VPS</tspan>
+  </text>
+  <rect x="290" y="440" width="370" height="80" rx="8" fill="#1e1b4b" stroke="#818cf8" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#818cf8" text-anchor="middle" y="469">
+    <tspan x="475">Discord (Shared Server)</tspan>
+    <tspan x="475" dy="18.2">requireMention: true</tspan>
+  </text>
+  <rect x="290" y="560" width="370" height="90" rx="8" fill="#2a1a0a" stroke="#f97316" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#f97316" text-anchor="middle" y="583">
+    <tspan x="475">Shared VPS (Hostinger €4/mo)</tspan>
+    <tspan x="475" dy="16.9">Ubuntu 24.04 • Tailscale mesh</tspan>
+    <tspan x="475" dy="16.9">SSH access for both agents</tspan>
+  </text>
+  <path d="M215 390 L415 450" fill="none" stroke="#818cf8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-818cf8)"/>
+  <path d="M735 390 L535 450" fill="none" stroke="#818cf8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-818cf8)"/>
+  <path d="M215 390 L415 590" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f97316)"/>
+  <path d="M735 390 L535 590" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-f97316)"/>
+  <path d="M130 205 L130 235" fill="none" stroke="#22c55e" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-22c55e)"/>
+  <text x="145" y="220" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="10" fill="#22c55e" text-anchor="start">sessions_send</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#f97316" text-anchor="middle" y="511">
+    <tspan x="215">socat bridge</tspan>
+    <tspan x="215" dy="14.3">172.17.0.1:2222 → Tailscale:22</tspan>
+  </text>
+</svg>
