@@ -30,7 +30,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 一位開發者朋友和我，想讓我們的 Agent 一起工作。不只是把它們丟進同一個 Discord——而是給它們一個真正的共用場地：一台共用 VPS、SSH 存取權限、能一起寫程式和測試。
 
-問題在於：我們各自有自己的 OpenClaw。我的 Agent David 管理我的 WhatsApp、行事曆、客戶專案。對方的 Agent 也是。這些 Agent 有完整的存取權限。我們當然不想直接把它們連在一起——一個 bug、一次幻覺，一邊的資料就可能洩漏到另一邊。
+問題在於：我們各自有自己的 OpenClaw。我的主要 Agent 管理我的 WhatsApp、行事曆、客戶專案。對方的 Agent 也是。這些 Agent 有完整的存取權限。我們當然不想直接把它們連在一起——一個 bug、一次幻覺，一邊的資料就可能洩漏到另一邊。
 
 解決方案：專門用於協作的**沙箱化 Agent**。與主要 Agent 隔離、權限受限，但能透過 Discord 和 SSH 進行協作。
 
@@ -68,8 +68,8 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
   "id": "spoke",
   "workspace": "/path/to/workspace-sandbox",
   "model": {
-    "primary": "anthropic/claude-sonnet-4-6",
-    "fallbacks": ["openai/gpt-4o"]
+    "primary": "your-preferred-model",
+    "fallbacks": ["your-fallback-model"]
   },
   "identity": {
     "name": "Spoke",
@@ -89,7 +89,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
   "tools": {
     "deny": ["gateway", "process", "whatsapp_login", "cron"],
     "agentToAgent": {
-      "allow": ["david"]
+      "allow": ["your-main-agent-id"]
     }
   }
 }
@@ -100,7 +100,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 - **`sandbox.mode: "all"`** — 所有 exec 指令都在 Docker 容器中執行。Spoke 永遠不會碰到 host。
 - **`readOnlyRoot: true`** — 容器的檔案系統是唯讀的，除了工作空間。這能防止 Agent 修改系統二進位檔或安裝後門。
 - **`tools.deny`** — 沒有 `gateway`（不能修改 OpenClaw 設定）、沒有 `cron`（不能在 host 上排程任務）、沒有 `whatsapp_login`（不能竊取 WhatsApp session）。
-- **`agentToAgent.allow: ["david"]`** — Spoke 可以和 David 通訊，但不能和其他人通訊。
+- **`agentToAgent.allow: ["your-main-agent-id"]`** — Spoke 可以和主要 Agent 通訊，但不能和其他人通訊。
 
 工作空間 `/path/to/workspace-sandbox` 有自己的 `SOUL.md` 和 `TOOLS.md`。沙箱 Agent 不知道我的客戶、專案、token。它只知道 VPS 的 SSH IP 和 Discord 頻道。就這樣。
 
@@ -347,10 +347,10 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 
 ```json
 // 主要 Agent
-"subagents": { "allowAgents": ["spoke"] }
+"subagents": { "allowAgents": ["your-sandbox-agent-id"] }
 
 // Agent Spoke
-"subagents": { "allowAgents": ["david"] }
+"subagents": { "allowAgents": ["your-main-agent-id"] }
 ```
 
 ### 非對稱隔離
