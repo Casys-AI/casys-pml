@@ -9,7 +9,7 @@
   <rect x="0" y="0" width="950" height="670" fill="#0d1117"/>
   <text x="470" y="44" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="24" fill="#f0ede8" text-anchor="middle">Multi-Agent Sandbox Architecture</text>
   <rect x="20" y="70" width="380" height="340" rx="12" fill="#1a2744" stroke="#60a5fa" stroke-width="2"/>
-  <text x="40" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#60a5fa" text-anchor="start">Erwan's OpenClaw (OVH)</text>
+  <text x="40" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#60a5fa" text-anchor="start">Gateway OpenClaw A</text>
   <rect x="50" y="120" width="160" height="80" rx="8" fill="#14352a" stroke="#22c55e" stroke-width="2"/>
   <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#22c55e" text-anchor="middle" y="149">
     <tspan x="130">David</tspan>
@@ -25,7 +25,7 @@
     <tspan x="70" dy="15.6">SSH → VPS via socat + Tailscale</tspan>
   </text>
   <rect x="550" y="70" width="380" height="340" rx="12" fill="#1f1a3d" stroke="#a78bfa" stroke-width="2"/>
-  <text x="570" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#a78bfa" text-anchor="start">Simon's OpenClaw</text>
+  <text x="570" y="96" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="16" fill="#a78bfa" text-anchor="start">Gateway OpenClaw B</text>
   <rect x="740" y="120" width="160" height="80" rx="8" fill="#2a1f44" stroke="#a78bfa" stroke-width="2"/>
   <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#a78bfa" text-anchor="middle" y="149">
     <tspan x="820">MasterBot</tspan>
@@ -45,7 +45,7 @@
   </text>
   <rect x="290" y="560" width="370" height="90" rx="8" fill="#2a1a0a" stroke="#f97316" stroke-width="2"/>
   <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#f97316" text-anchor="middle" y="583">
-    <tspan x="475">Shared VPS (Hostinger €4/mo)</tspan>
+    <tspan x="475">VPS partagé</tspan>
     <tspan x="475" dy="16.9">Ubuntu 24.04 • Tailscale mesh</tspan>
     <tspan x="475" dy="16.9">SSH access for both agents</tspan>
   </text>
