@@ -1,6 +1,18 @@
-import type { VaultNote } from "../core/types.ts";
-import type { ExecutionTrace } from "../core/types.ts";
+import type { ExecutionTrace, VaultNote } from "../core/types.ts";
 import { buildGraph, extractSubgraph, topologicalSort } from "../core/graph.ts";
+
+function compareStable(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
+function traceIntent(note: VaultNote): string {
+  const firstLine = note.body.trim().split("\n")[0]?.trim();
+  return firstLine && firstLine.length > 0
+    ? `Execute ${note.name}: ${firstLine}`
+    : `Execute ${note.name}`;
+}
 
 /**
  * Generate synthetic execution traces from vault DAG structure.
@@ -12,8 +24,9 @@ import { buildGraph, extractSubgraph, topologicalSort } from "../core/graph.ts";
 export function generateStructuralTraces(notes: VaultNote[]): ExecutionTrace[] {
   const graph = buildGraph(notes);
   const traces: ExecutionTrace[] = [];
+  const notesByName = [...notes].sort((a, b) => compareStable(a.name, b.name));
 
-  for (const note of notes) {
+  for (const note of notesByName) {
     if (note.wikilinks.length === 0) continue;
 
     try {
@@ -25,10 +38,9 @@ export function generateStructuralTraces(notes: VaultNote[]): ExecutionTrace[] {
         path,
         success: true,
         synthetic: true,
-        intent: `Execute ${note.name}: ${note.body.trim().split("\n")[0]}`,
+        intent: traceIntent(note),
       });
     } catch {
-      // Cycle in subgraph -- skip this note
       continue;
     }
   }

@@ -177,6 +177,8 @@ export function parseOpenClawSessionLines(
   let startedAt: string | undefined;
   let modelId: string | undefined;
   let currentModel: string | undefined;
+  let sessionCwd: string | undefined;
+  let sessionProvenance: JsonObject | undefined;
 
   const turns: ParsedOpenClawTurn[] = [];
   let currentTurn: ParsedOpenClawTurn | null = null;
@@ -208,6 +210,9 @@ export function parseOpenClawSessionLines(
   for (const line of lines) {
     const event = parseJsonLine(line);
     if (!event) continue;
+    if (!startedAt && typeof event.timestamp === "string") {
+      startedAt = event.timestamp;
+    }
 
     if (event.type === "session") {
       if (typeof event.id === "string" && event.id.length > 0) {
@@ -215,6 +220,9 @@ export function parseOpenClawSessionLines(
       }
       if (typeof event.timestamp === "string") {
         startedAt = event.timestamp;
+      }
+      if (typeof event.cwd === "string" && event.cwd.trim().length > 0) {
+        sessionCwd = event.cwd;
       }
       continue;
     }
@@ -237,16 +245,23 @@ export function parseOpenClawSessionLines(
       : undefined;
 
     if (role === "user") {
+      const provenance = isObject(message.provenance)
+        ? message.provenance as JsonObject
+        : undefined;
       if (currentTurn) pushCurrentTurn();
       currentTurn = {
         index: turns.length + 1,
         timestamp: eventTimestamp,
         userIntent: textFromContent(message.content),
+        userProvenance: provenance,
         toolCalls: [],
         toolResults: [],
         assistantThinking: [],
         modelId: currentModel,
       };
+      if (!sessionProvenance && provenance) {
+        sessionProvenance = provenance;
+      }
       continue;
     }
 
@@ -293,6 +308,7 @@ export function parseOpenClawSessionLines(
         toolName,
         toolCallId,
         content: message.content,
+        details: message.details,
         isError: message.isError === true,
         timestamp: eventTimestamp,
       });
@@ -308,6 +324,8 @@ export function parseOpenClawSessionLines(
     startedAt,
     modelId,
     agentId: deriveAgentId(sourcePath),
+    sessionProvenance,
+    sessionCwd,
     turns,
   };
 }

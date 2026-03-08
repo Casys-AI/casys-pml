@@ -118,3 +118,9 @@ Deno.test("generateCoverageMarkdown - emits summary and per-tool lines", () => {
     "- unknown_tool: total=1, hit=0, fallback=1, hit_rate=0.0% (unsupported)",
   );
 });
+
+Deno.test("generateSessionMarkdown - uses deterministic fallback date when startedAt is missing", () => {
+  const withoutStart = { ...session, startedAt: undefined };
+  const out = generateSessionMarkdown(withoutStart);
+  assertStringIncludes(out, "  date: 1970-01-01");
+});

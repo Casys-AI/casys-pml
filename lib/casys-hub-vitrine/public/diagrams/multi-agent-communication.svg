@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 400" width="1400" height="400">
+  <!-- svg-source:excalidraw — multi-agent-communication.excalidraw -->
+  <defs>
+    <marker id="ah-74c0fc" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#74c0fc"/></marker>
+    <marker id="ah-ff6b6b" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#ff6b6b"/></marker>
+    <marker id="ah-7950f2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#7950f2"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="1400" height="400" fill="#08080a"/>
+  <rect x="20" y="60" width="200" height="120" rx="15" fill="#3d3520" stroke="#ffd43b" stroke-width="2"/>
+  <text x="120" y="117" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="22" fill="#f0ede8" text-anchor="middle">👤 Humain</text>
+  <path d="M225 120 L340 120" fill="none" stroke="#74c0fc" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-74c0fc)"/>
+  <text x="285" y="104" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#74c0fc" text-anchor="middle">WhatsApp / Telegram</text>
+  <rect x="350" y="20" width="260" height="200" rx="25" fill="#1e3d2e" stroke="#69db7c" stroke-width="2"/>
+  <text x="480" y="55" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="20" fill="#69db7c" text-anchor="middle">🟢 Agent Principal</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="start" y="89">
+    <tspan x="365">Accès complet :</tspan>
+    <tspan x="365" dy="18.2">• WhatsApp</tspan>
+    <tspan x="365" dy="18.2">• Calendar / Email</tspan>
+    <tspan x="365" dy="18.2">• Workspace privé</tspan>
+    <tspan x="365" dy="18.2">• Cron / Gateway</tspan>
+  </text>
+  <text x="480" y="206" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#69db7c" text-anchor="middle">— zone de confiance —</text>
+  <path d="M615 100 L735 100" fill="none" stroke="#74c0fc" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-74c0fc)"/>
+  <text x="675" y="85" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#74c0fc" text-anchor="middle">sessions_send()</text>
+  <path d="M732 145 L612 145" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-ff6b6b)"/>
+  <text x="680" y="164" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="12" fill="#ff6b6b" text-anchor="middle">❌ bloqué</text>
+  <rect x="745" y="20" width="260" height="200" rx="25" fill="#3d1f1f" stroke="#ff6b6b" stroke-width="2"/>
+  <text x="875" y="53" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#ff6b6b" text-anchor="middle">🔴 Agent Sandboxé</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#f0ede8" text-anchor="start" y="88">
+    <tspan x="760">🐳 Container Docker</tspan>
+    <tspan x="760" dy="16.9">• exec sandbox only</tspan>
+    <tspan x="760" dy="16.9">• Pas de gateway</tspan>
+    <tspan x="760" dy="16.9">• Pas de cron</tspan>
+    <tspan x="760" dy="16.9">• Discord bot dédié</tspan>
+  </text>
+  <text x="880" y="206" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="11" fill="#ff6b6b" text-anchor="middle">— zone restreinte —</text>
+  <path d="M1010 100 L1130 100" fill="none" stroke="#7950f2" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-7950f2)"/>
+  <text x="1070" y="88" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#7950f2" text-anchor="middle">@mention</text>
+  <rect x="1140" y="30" width="240" height="140" rx="17.5" fill="#2d1e5e" stroke="#7950f2" stroke-width="2"/>
+  <text x="1260" y="63" font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="18" fill="#7950f2" text-anchor="middle">🟣 Serveur Discord</text>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#f0ede8" text-anchor="middle" y="98">
+    <tspan x="1260">Zone partagée</tspan>
+    <tspan x="1260" dy="16.9">requireMention: true</tspan>
+    <tspan x="1260" dy="16.9">Anti-boucle infinie</tspan>
+  </text>
+  <rect x="1140" y="240" width="240" height="100" rx="12.5" fill="#3d1f1f" stroke="#ff6b6b" stroke-width="2"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="14" fill="#f0ede8" text-anchor="middle" y="274">
+    <tspan x="1260">🔴 Autre Agent Sandboxé</tspan>
+    <tspan x="1260" dy="18.2">(autre développeur)</tspan>
+  </text>
+  <path d="M1260 175 L1260 235" fill="none" stroke="#7950f2" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ah-7950f2)" marker-start="url(#ah-7950f2)"/>
+  <rect x="220" y="300" width="850" height="80" rx="10" fill="rgba(20,20,23,0.8)" stroke="#868e96" stroke-width="1"/>
+  <text font-family='"Inter", "Segoe UI", system-ui, -apple-system, sans-serif' font-size="13" fill="#868e96" text-anchor="middle" y="323">
+    <tspan x="645">🛡️ Garde-fous : requireMention: true → anti-boucle infinie  |  Cross-context : spawn WhatsApp ≠ accès Discord</tspan>
+    <tspan x="645" dy="16.9">Isolation asymétrique : le sandbox ne peut pas injecter dans le principal  |  Unidirectionnel : principal → sandbox ✅ / sandbox → principal ❌</tspan>
+  </text>
+</svg>

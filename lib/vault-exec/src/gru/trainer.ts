@@ -1,5 +1,5 @@
 // gru/trainer.ts — TF.js autograd trainer
-import * as tf from "@tensorflow/tfjs";
+import * as tf from "npm:@tensorflow/tfjs";
 import type { GRUConfig, GRUVocabulary, GRUWeights } from "./types.ts";
 import { gruStep } from "./cell.ts";
 import { dotProduct, softmax } from "../gnn/domain/attention.ts";
@@ -418,7 +418,7 @@ export function trainEpoch(
   tfToWeights(tfW, weights);
 
   // Cleanup
-  for (const g of Object.values(grads)) g.dispose();
+  for (const g of Object.values(grads) as tf.Tensor[]) g.dispose();
   for (const { tensor } of gradPairs) tensor.dispose();
   disposeTFWeights(tfW);
   optimizer.dispose();

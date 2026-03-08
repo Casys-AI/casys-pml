@@ -12,3 +12,9 @@ Machine-first CLI output primitives.
 
 - Pure serialization + constants only.
 - No vault parsing, graph execution, DB, or model logic.
+
+## Notes
+
+- Output is contract-first for agents with stable keys, explicit `type`, and
+  explicit `version`.
+- Human-mode rendering belongs in callers, not this module.

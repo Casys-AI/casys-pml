@@ -21,6 +21,12 @@ export interface SyncResponse {
   gruTrained: boolean;
   gruAccuracy: number;
   gnnUpdated: boolean;
+  traceSourcesConfigured: number;
+  traceFilesChanged: number;
+  traceFilesUnchanged: number;
+  traceSessionsImported: number;
+  traceToolCallsStored: number;
+  traceWarnings: string[];
   error?: string;
 }
 
@@ -44,6 +50,15 @@ export interface ServiceErrorResponse {
 export type ServiceResponse = ServiceSuccessResponse | ServiceErrorResponse;
 
 const encoder = new TextEncoder();
+const SERVICE_METHOD_SET: ReadonlySet<ServiceMethod> = new Set([
+  "status",
+  "sync",
+  "stop",
+]);
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object";
+}
 
 export function encodeJsonLine(payload: unknown): Uint8Array {
   return encoder.encode(`${JSON.stringify(payload)}\n`);
@@ -75,10 +90,58 @@ export async function readJsonLine(conn: Deno.Conn): Promise<unknown> {
 }
 
 export function isServiceStatus(value: unknown): value is ServiceStatus {
-  if (!value || typeof value !== "object") return false;
-  const v = value as Record<string, unknown>;
+  if (!isObjectRecord(value)) return false;
+  const v = value;
   return typeof v.running === "boolean" &&
     typeof v.pid === "number" &&
     typeof v.vaultPath === "string" &&
     typeof v.socketPath === "string";
+}
+
+export function isServiceMethod(value: unknown): value is ServiceMethod {
+  return typeof value === "string" &&
+    SERVICE_METHOD_SET.has(value as ServiceMethod);
+}
+
+export function isServiceRequest(value: unknown): value is ServiceRequest {
+  if (!isObjectRecord(value)) return false;
+  return typeof value.id === "string" &&
+    value.id.length > 0 &&
+    isServiceMethod(value.method);
+}
+
+export function isSyncResponse(value: unknown): value is SyncResponse {
+  if (!isObjectRecord(value)) return false;
+  if (
+    typeof value.ok !== "boolean" ||
+    typeof value.tracesUsed !== "number" ||
+    typeof value.notesReindexed !== "number" ||
+    typeof value.gruTrained !== "boolean" ||
+    typeof value.gruAccuracy !== "number" ||
+    typeof value.gnnUpdated !== "boolean" ||
+    typeof value.traceSourcesConfigured !== "number" ||
+    typeof value.traceFilesChanged !== "number" ||
+    typeof value.traceFilesUnchanged !== "number" ||
+    typeof value.traceSessionsImported !== "number" ||
+    typeof value.traceToolCallsStored !== "number" ||
+    !Array.isArray(value.traceWarnings) ||
+    value.traceWarnings.some((warning) => typeof warning !== "string")
+  ) {
+    return false;
+  }
+  if (!value.ok && typeof value.error !== "string") {
+    return false;
+  }
+  return true;
+}
+
+export function isServiceResponse(value: unknown): value is ServiceResponse {
+  if (!isObjectRecord(value)) return false;
+  if (typeof value.id !== "string" || typeof value.ok !== "boolean") {
+    return false;
+  }
+  if (value.ok) {
+    return "result" in value;
+  }
+  return typeof value.error === "string";
 }

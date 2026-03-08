@@ -113,6 +113,35 @@ Deno.test("VaultKV - getAllNotes returns empty array for empty store", async () 
   }
 });
 
+Deno.test("VaultKV - getAllNotes deterministic code-point ordering", async () => {
+  const store = await VaultKV.open(":memory:");
+  try {
+    await store.upsertNote({
+      name: "b",
+      path: "b.md",
+      bodyHash: "1",
+      level: 0,
+    });
+    await store.upsertNote({
+      name: "A",
+      path: "A.md",
+      bodyHash: "2",
+      level: 0,
+    });
+    await store.upsertNote({
+      name: "a",
+      path: "a.md",
+      bodyHash: "3",
+      level: 0,
+    });
+
+    const notes = await store.getAllNotes();
+    assertEquals(notes.map((n) => n.name), ["A", "a", "b"]);
+  } finally {
+    store.close();
+  }
+});
+
 // ── Edges ────────────────────────────────────────────────────────────────────
 
 Deno.test("VaultKV - setEdges + getEdges", async () => {
@@ -134,6 +163,17 @@ Deno.test("VaultKV - setEdges overwrites previous edges", async () => {
     await store.setEdges("A", ["E"]); // overwrite
     const edges = await store.getEdges("A");
     assertEquals(edges, ["E"]);
+  } finally {
+    store.close();
+  }
+});
+
+Deno.test("VaultKV - setEdges canonicalizes order and removes duplicates", async () => {
+  const store = await VaultKV.open(":memory:");
+  try {
+    await store.setEdges("A", ["C", "B", "A", "B", "A"]);
+    const edges = await store.getEdges("A");
+    assertEquals(edges, ["A", "B", "C"]);
   } finally {
     store.close();
   }
@@ -221,6 +261,55 @@ Deno.test("VaultKV - trace without intent", async () => {
       true,
     );
     assertEquals(traces[0].synthetic, true);
+  } finally {
+    store.close();
+  }
+});
+
+Deno.test("VaultKV - insertTrace preserves caller-provided executedAt", async () => {
+  const store = await VaultKV.open(":memory:");
+  try {
+    const ts = "2026-01-01T00:00:00.000Z";
+    await store.insertTrace({
+      targetNote: "fixed",
+      path: ["fixed"],
+      synthetic: true,
+      executedAt: ts,
+    });
+
+    const traces = await store.getAllTraces();
+    assertEquals(traces.length, 1);
+    assertEquals(traces[0].executedAt, ts);
+  } finally {
+    store.close();
+  }
+});
+
+Deno.test("VaultKV - traces with same executedAt preserve insertion order", async () => {
+  const store = await VaultKV.open(":memory:");
+  try {
+    const ts = "2026-01-01T00:00:00.000Z";
+    await store.insertTrace({
+      targetNote: "first",
+      path: ["first"],
+      synthetic: true,
+      executedAt: ts,
+    });
+    await store.insertTrace({
+      targetNote: "second",
+      path: ["second"],
+      synthetic: true,
+      executedAt: ts,
+    });
+    await store.insertTrace({
+      targetNote: "third",
+      path: ["third"],
+      synthetic: true,
+      executedAt: ts,
+    });
+
+    const traces = await store.getAllTraces();
+    assertEquals(traces.map((t) => t.targetNote), ["first", "second", "third"]);
   } finally {
     store.close();
   }
@@ -333,6 +422,49 @@ Deno.test("VaultKV - listVirtualEdges sorted by score desc", async () => {
   }
 });
 
+Deno.test("VaultKV - listVirtualEdges tie-breaks by source then target", async () => {
+  const store = await VaultKV.open(":memory:");
+  try {
+    await store.saveVirtualEdge({
+      source: "B",
+      target: "A",
+      score: 1,
+      support: 1,
+      rejects: 0,
+      status: "candidate",
+      updatedAt: "2026-03-05T00:00:00.000Z",
+    });
+    await store.saveVirtualEdge({
+      source: "A",
+      target: "Z",
+      score: 1,
+      support: 1,
+      rejects: 0,
+      status: "candidate",
+      updatedAt: "2026-03-05T00:00:00.000Z",
+    });
+    await store.saveVirtualEdge({
+      source: "A",
+      target: "A",
+      score: 1,
+      support: 1,
+      rejects: 0,
+      status: "candidate",
+      updatedAt: "2026-03-05T00:00:00.000Z",
+    });
+
+    const edges = await store.listVirtualEdges();
+    assertEquals(edges.length, 3);
+    assertEquals(edges.map((e) => `${e.source}->${e.target}`), [
+      "A->A",
+      "A->Z",
+      "B->A",
+    ]);
+  } finally {
+    store.close();
+  }
+});
+
 // ── GNN Params ───────────────────────────────────────────────────────────────
 
 Deno.test("VaultKV - saveGnnParams + getGnnParams roundtrip", async () => {
@@ -414,30 +546,19 @@ Deno.test("VaultKV - saveGruWeights overwrites previous (singleton)", async () =
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 Deno.test("openVaultStore returns a working store (KV backend)", async () => {
-  // Force KV backend regardless of any env var that might be set.
-  const originalBackend = Deno.env.get("VAULT_BACKEND");
-  Deno.env.set("VAULT_BACKEND", "kv");
+  const { openVaultStore } = await import("./index.ts");
+  const store = await openVaultStore(":memory:");
   try {
-    const { openVaultStore } = await import("./index.ts");
-    const store = await openVaultStore(":memory:");
-    try {
-      await store.upsertNote({
-        name: "factory-test",
-        path: "factory-test.md",
-        bodyHash: "deadbeef",
-        level: 0,
-      });
-      const notes = await store.getAllNotes();
-      assertEquals(notes.length, 1);
-      assertEquals(notes[0].name, "factory-test");
-    } finally {
-      store.close();
-    }
+    await store.upsertNote({
+      name: "factory-test",
+      path: "factory-test.md",
+      bodyHash: "deadbeef",
+      level: 0,
+    });
+    const notes = await store.getAllNotes();
+    assertEquals(notes.length, 1);
+    assertEquals(notes[0].name, "factory-test");
   } finally {
-    if (originalBackend !== undefined) {
-      Deno.env.set("VAULT_BACKEND", originalBackend);
-    } else {
-      Deno.env.delete("VAULT_BACKEND");
-    }
+    store.close();
   }
 });

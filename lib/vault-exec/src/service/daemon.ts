@@ -9,6 +9,7 @@ import {
 } from "./lifecycle.ts";
 import {
   encodeJsonLine,
+  isServiceRequest,
   readJsonLine,
   type ServiceRequest,
   type ServiceResponse,
@@ -27,6 +28,10 @@ interface DaemonState {
   lastSyncAt: string | null;
   lastSyncError: string | null;
   syncInProgress: boolean;
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 function parseDaemonOptions(args: string[]): DaemonOptions {
@@ -164,11 +169,7 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
     (async () => {
       try {
         const raw = await readJsonLine(conn!);
-        const req = raw as ServiceRequest;
-        state.lastActivityAt = new Date().toISOString();
-        armIdleTimer();
-
-        if (!req?.id || !req?.method) {
+        if (!isServiceRequest(raw)) {
           await writeResponse(conn!, {
             id: "unknown",
             ok: false,
@@ -176,6 +177,9 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
           });
           return;
         }
+        const req: ServiceRequest = raw;
+        state.lastActivityAt = new Date().toISOString();
+        armIdleTimer();
 
         if (req.method === "status") {
           await writeResponse(conn!, {
@@ -210,8 +214,12 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
           }
 
           state.syncInProgress = true;
-          const result = await runIncrementalSync(paths.vaultPath);
-          state.syncInProgress = false;
+          let result: Awaited<ReturnType<typeof runIncrementalSync>>;
+          try {
+            result = await runIncrementalSync(paths.vaultPath);
+          } finally {
+            state.syncInProgress = false;
+          }
           state.lastSyncAt = new Date().toISOString();
           state.lastSyncError = result.ok
             ? null
@@ -243,7 +251,7 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
           await writeResponse(conn!, {
             id: "unknown",
             ok: false,
-            error: (err as Error).message,
+            error: toErrorMessage(err),
           });
         } catch {
           // ignore

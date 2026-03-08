@@ -75,3 +75,18 @@ Deno.test("computeLevels - handles cycles gracefully", () => {
   assertEquals(typeof levels.get("X"), "number");
   assertEquals(typeof levels.get("Y"), "number");
 });
+
+Deno.test("computeLevels - deterministic for stable input order", () => {
+  const notes = [
+    makeNote("A", "leaf"),
+    makeNote("B", "mid", ["A"]),
+    makeNote("C", "top", ["A", "B"]),
+  ];
+
+  const first = Array.from(computeLevels(notes).entries())
+    .sort(([a], [b]) => a.localeCompare(b));
+  const second = Array.from(computeLevels(notes).entries())
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  assertEquals(second, first);
+});

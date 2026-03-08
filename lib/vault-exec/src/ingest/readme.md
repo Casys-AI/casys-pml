@@ -1,29 +1,64 @@
-# ingest (AX slice)
+# ingest
 
-Purpose: transform OpenClaw session traces into machine-readable + human-auditable artifacts.
+Purpose: transform OpenClaw session traces into typed ingest data, local vault
+state, and human-readable tool-graph projections.
 
 ## Responsibilities
 
 - Parse raw session events into typed turns/tool calls (`parser.ts`)
 - Apply L2 policy classification with conservative fallback (`policy.ts`)
-- Aggregate deduped tool usage (`aggregate.ts`)
-- Generate projections (session/tool markdown + coverage report) (`markdown.ts`, `coverage.ts`)
-- Orchestrate end-to-end ingestion (`ingest.ts`)
+- Track incremental source scan state (`source-state.ts`)
+- Persist imported tool-call rows into the local vault KV namespace
+  (`local-store.ts`)
+- Run the unified local import pipeline (`pipeline.ts`)
+- Rebuild DB-first training tables from imported rows before projection
+  (`../training-data/rebuild.ts`)
+- Derive stable tool-graph entities from imported traces
+  (`tool-graph/naming.ts`, `tool-graph/entities.ts`)
+- Project tool-graph entities into Markdown notes for Obsidian
+  (`tool-graph/projection.ts`)
+- Keep the standalone Markdown ingest helper for sessions/tools/coverage
+  (`ingest.ts`, `markdown.ts`, `coverage.ts`, `aggregate.ts`)
 
 ## Non-responsibilities
 
 - No external runtime execution logic
 - No global routing logic outside ingest policy scope
-- No hidden heuristics outside `policy.ts`
+- No remote export/federation logic in V1
+- No hidden heuristics outside `policy.ts` and explicit tool-graph naming rules
 
 ## Inputs / outputs
 
-Input: OpenClaw JSONL session files directory
-Output: `sessions/`, `tools/`, `reports/l2-coverage.md`
+Inputs:
 
-## AX invariants for this slice
+- OpenClaw JSONL session files
+- `<vault>/.vault-exec/config.json`
+- `<vault>/.vault-exec/trace-source-state.json`
+
+Outputs:
+
+- Local KV rows under the OpenClaw namespace inside `vault.kv`
+- Local derived training tables under the active `training_data` build inside
+  `vault.kv`
+- Tool projection notes under `tools/` with hierarchical paths such as
+  `tools/exec/exec.md` and `tools/exec/git_vcs/git_vcs.md`
+- Standalone helper output: `sessions/`, `tools/`, `reports/l2-coverage.md`
+
+## Invariants for this slice
 
 - deterministic parsing and ordering
 - explicit fallback reason when classification is uncertain
 - policy decisions must be test-covered
-- projections derived from typed ingest data only
+- imported OpenClaw rows must not pollute GRU training traces
+- removing a configured source or invalidating a previously imported file must
+  prune stale OpenClaw rows from local KV state
+- tool-graph keys must be stable dotted paths derived by explicit naming rules
+- tool projections are derived from typed/local ingest data only
+- tool-graph projections must converge to the current imported row set, not
+  accumulate stale notes
+- note links should prioritize sequential execution transitions over taxonomy
+  links already implied by the folder hierarchy
+- sequence links attach only to deepest available tool nodes, never to
+  category-only parents
+- agents stay as aggregated metadata inside tool notes, never as projected
+  nodes/directories

@@ -3,6 +3,10 @@ import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
 const content = useTranslations(locale).whyCasys;
 const social = useTranslations(locale).socialProof;
+
+function isExternalUrl(url: string): boolean {
+  return /^https?:\/\//.test(url);
+}
 ---
 
 <section id="why-casys">
@@ -117,11 +121,21 @@ const social = useTranslations(locale).socialProof;
     <div class="bottom-line">
       <p class="bottom-line-text">{content.bottomLine.text}</p>
       <div class="bottom-line-ctas">
-        <a href={content.bottomLine.cta.primary.url} class="bottom-line-cta primary" target="_blank" rel="noopener noreferrer">
+        <a
+          href={content.bottomLine.cta.primary.url}
+          class="bottom-line-cta primary"
+          target={isExternalUrl(content.bottomLine.cta.primary.url) ? '_blank' : undefined}
+          rel={isExternalUrl(content.bottomLine.cta.primary.url) ? 'noopener noreferrer' : undefined}
+        >
           <span class="material-symbols-rounded">{content.bottomLine.cta.primary.icon}</span>
           <span>{content.bottomLine.cta.primary.text}</span>
         </a>
-        <a href={content.bottomLine.cta.secondary.url} class="bottom-line-cta secondary">
+        <a
+          href={content.bottomLine.cta.secondary.url}
+          class="bottom-line-cta secondary"
+          target={isExternalUrl(content.bottomLine.cta.secondary.url) ? '_blank' : undefined}
+          rel={isExternalUrl(content.bottomLine.cta.secondary.url) ? 'noopener noreferrer' : undefined}
+        >
           <span class="material-symbols-rounded">{content.bottomLine.cta.secondary.icon}</span>
           <span>{content.bottomLine.cta.secondary.text}</span>
         </a>

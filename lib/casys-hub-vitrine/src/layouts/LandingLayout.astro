@@ -5,6 +5,7 @@ import Analytics from '@vercel/analytics/astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import HrefLang from '../components/HrefLang.astro';
+import { DEFAULT_SITE_URL, resolvePublicUrl } from '../lib/public-url';
 
 export interface Props {
   title: string;
@@ -15,24 +16,27 @@ const { title, description } = Astro.props;
 const locale = (Astro as any).currentLocale ?? 'en';
 const pathname = Astro.url.pathname;
 const siteUrl = (import.meta.env.PUBLIC_SITE_URL as string | undefined)?.trim();
-const canonicalUrl = siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
+const rootSiteUrl = (siteUrl || DEFAULT_SITE_URL).replace(/\/+$/, '');
+const publicUrl = resolvePublicUrl(pathname, siteUrl);
+const canonicalUrl = publicUrl.canonicalUrl;
+const ogImageUrl = new URL('/og/home.png', publicUrl.origin).toString();
 const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN', 'zh-TW': 'zh_TW' } as const;
 const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
 
 // Meta tags based on business positioning
 const metaTitles = {
-  en: 'Casys - Applied AI Research | Open Source Tools & Consulting',
-  fr: 'Casys - Applied AI Research | Outils Open Source & Consulting',
-  zh: 'Casys - 应用 AI 研究 | 开源工具与咨询',
-  'zh-TW': 'Casys - 應用 AI 研究 | 開源工具與諮詢',
+  en: 'Casys - Reliable AI Workflow Infrastructure | Open Source & Consulting',
+  fr: 'Casys - Infrastructure IA Fiable | Open Source & Consulting',
+  zh: 'Casys - 可靠的 AI 工作流基础设施 | 开源与咨询',
+  'zh-TW': 'Casys - 可靠的 AI 工作流基礎設施 | 開源與諮詢',
 } as const;
 const metaTitle = metaTitles[locale as keyof typeof metaTitles] ?? metaTitles.en;
 
 const metaDescriptions = {
-  en: 'Applied AI research lab. We explore AI architectures, build open-source tools (MCP Gateway, MCP Standard Tools), and share what we learn. 10+ years expertise: KM → Graph → Agents. Consulting available.',
-  fr: 'Lab de recherche IA appliquée. Outils open-source MCP Gateway & Standard Tools. 15+ ans d\'expertise KM, Graph, Agents. Consulting disponible.',
-  zh: '应用 AI 研究实验室。我们探索 AI 架构，构建开源工具（MCP Gateway、MCP 标准工具），并分享所学。10+ 年经验：KM → Graph → Agents。提供咨询服务。',
-  'zh-TW': '應用 AI 研究實驗室。我們探索 AI 架構，建構開源工具（MCP Gateway、MCP 標準工具），並分享所學。10+ 年經驗：KM → Graph → Agents。提供諮詢服務。',
+  en: 'Observable infrastructure for AI workflows. See concrete proof on real systems, inspect the open-source stack, and understand the learning layer under the hood.',
+  fr: 'Infrastructure observable pour workflows IA. Voyez des preuves concrètes sur de vrais systèmes, explorez la stack open source, et comprenez la couche d\'apprentissage sous le capot.',
+  zh: '面向 AI 工作流的可观测基础设施。查看真实系统上的具体证明，探索开源技术栈，并理解底层学习层。',
+  'zh-TW': '面向 AI 工作流的可觀測基礎設施。查看真實系統上的具體證明，探索開源技術棧，並理解底層學習層。',
 } as const;
 const metaDescriptionFallback = metaDescriptions[locale as keyof typeof metaDescriptions] ?? metaDescriptions.en;
 
@@ -94,16 +98,16 @@ const resolvedDescription = description || metaDescriptionFallback;
       })();
     </script>
     <title>{resolvedTitle}</title>
-    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
-    <HrefLang />
+    <link rel="canonical" href={canonicalUrl} />
+    <HrefLang siteUrl={siteUrl} />
     <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
       "@type": "Organization",
       "name": "Casys",
       "alternateName": "Casys AI",
-      "url": siteUrl || "https://casys.ai",
-      "logo": `${siteUrl || "https://casys.ai"}/icons/logo.svg`,
+      "url": rootSiteUrl,
+      "logo": `${rootSiteUrl}/icons/logo.svg`,
       "description": resolvedDescription,
       "founder": {
         "@type": "Person",
@@ -128,7 +132,7 @@ const resolvedDescription = description || metaDescriptionFallback;
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "Casys",
-      "url": siteUrl || "https://casys.ai",
+      "url": rootSiteUrl,
       "inLanguage": ["en", "fr", "zh", "zh-TW"]
     })} />
     <style is:inline>
@@ -211,15 +215,15 @@ const resolvedDescription = description || metaDescriptionFallback;
     <meta property="og:site_name" content="Casys AI" />
     <meta property="og:title" content={resolvedTitle} />
     <meta property="og:description" content={resolvedDescription} />
-    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+    <meta property="og:url" content={canonicalUrl} />
     <meta property="og:locale" content={ogLocale} />
-    <meta property="og:image" content={`${siteUrl || ''}/og/home.png`} />
+    <meta property="og:image" content={ogImageUrl} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={resolvedTitle} />
     <meta name="twitter:description" content={resolvedDescription} />
-    <meta name="twitter:image" content={`${siteUrl || ''}/og/home.png`} />
+    <meta name="twitter:image" content={ogImageUrl} />
 
     <!-- Google tag (gtag.js) -->
     <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-FR86NHGK8Y"></script>

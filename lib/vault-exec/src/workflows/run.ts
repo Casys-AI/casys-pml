@@ -16,7 +16,8 @@ import {
 import { nextVirtualEdgeStatus, PROMOTION_POLICY } from "../links/policy.ts";
 import {
   buildRuntimeInputSchema,
-  validateRuntimeInputsForGraph,
+  prepareRuntimeInputsForGraph,
+  type RuntimePayloadMode,
 } from "../routing/runtime-inputs.ts";
 import {
   evaluateIntentCandidates,
@@ -26,6 +27,10 @@ import {
   buildTargetIdentifierIndex,
   resolveTargetIdentifier,
 } from "../routing/target-identifiers.ts";
+import {
+  buildRuntimeInputValidator,
+  parseRuntimePayloadMode,
+} from "../routing/runtime-validator.ts";
 import { errorJson, eventJson } from "../cli-runtime/output.ts";
 import {
   EXIT_CODE_RUNTIME,
@@ -107,7 +112,7 @@ async function loadNotes(dir: string) {
   const notes = await parseVault(reader, dir);
   if (notes.length === 0) {
     console.error(`No .md files found in ${dir}`);
-    Deno.exit(1);
+    Deno.exit(EXIT_CODE_VALIDATION);
   }
   return notes;
 }
@@ -119,6 +124,7 @@ export interface RunCommandOptions {
   train?: boolean;
   dry?: boolean;
   inputs?: string;
+  payloadMode?: string;
   human?: boolean;
 }
 
@@ -129,6 +135,26 @@ export async function runVaultCommand(
   const human = opts.human === true;
   const skipTrain = opts.train === false;
   const vaultDbPath = resolveDbPath(vaultPath);
+  const payloadModeResult = parseRuntimePayloadMode(opts.payloadMode);
+  if (!payloadModeResult.ok || !payloadModeResult.mode) {
+    emitError(human, {
+      code: "INPUT_PAYLOAD_MODE_INVALID",
+      category: "validation",
+      message: `Unknown --payload-mode: ${
+        payloadModeResult.received || "<empty>"
+      }`,
+      details: {
+        received: payloadModeResult.received,
+        allowed_modes: payloadModeResult.allowedModes,
+      },
+      humanText:
+        `✗ Unknown --payload-mode '${payloadModeResult.received}'. Allowed: ${
+          payloadModeResult.allowedModes.join(", ")
+        }.`,
+    });
+    Deno.exit(EXIT_CODE_VALIDATION);
+  }
+  const payloadMode: RuntimePayloadMode = payloadModeResult.mode;
 
   let preloadedIntentWeightsBlob: Uint8Array | undefined;
   if (opts.intent) {
@@ -290,6 +316,7 @@ export async function runVaultCommand(
         })),
         parsedRuntimeInputs,
         targetIndex,
+        buildRuntimeInputValidator(payloadMode),
       );
       for (let i = 0; i < candidateCompatibility.length; i++) {
         const candidate = candidateCompatibility[i];
@@ -306,6 +333,8 @@ export async function runVaultCommand(
             validation: candidate.validation,
             payload_ok: candidate.payloadOk,
             payload_status: candidate.payloadStatus,
+            payload_projected: candidate.payloadProjected,
+            payload_dropped_keys: candidate.payloadDroppedKeys,
             path: candidate.path,
           },
           formatIntentCandidateLine(i + 1, candidate),
@@ -328,6 +357,8 @@ export async function runVaultCommand(
               target_alias: c.targetAlias,
               target_id: c.targetId,
               payload_status: c.payloadStatus,
+              payload_projected: c.payloadProjected,
+              payload_dropped_keys: c.payloadDroppedKeys,
             })),
           },
           `[compatibility] No candidate is schema-compatible with the provided payload (${compactReasons})`,
@@ -412,8 +443,15 @@ export async function runVaultCommand(
               { negative_count: rejectedTargets.length, positive_count: 0 },
               `[trace] ${rejectedTargets.length} negative recorded.`,
             );
-          } catch {
-            // DB not available
+          } catch (err) {
+            emitEvent(
+              human,
+              "trace_recording_failed",
+              { reason: "negative_feedback", error: (err as Error).message },
+              `[trace] Failed to record negative feedback: ${
+                (err as Error).message
+              }`,
+            );
           }
           db.close();
           await embedder.dispose();
@@ -481,8 +519,13 @@ export async function runVaultCommand(
           }
         }
         await applyVirtualEdgeDecay(db, PROMOTION_POLICY.decayFactor);
-      } catch {
-        // Non-fatal: run should proceed even if edge-learning persistence fails.
+      } catch (err) {
+        emitEvent(
+          human,
+          "edge_learning_failed",
+          { error: (err as Error).message },
+          `[edges] Edge-learning persistence failed: ${(err as Error).message}`,
+        );
       }
 
       db.close();
@@ -520,12 +563,17 @@ export async function runVaultCommand(
     if (promoted.length > 0) {
       graph = withVirtualEdges(graph, promoted);
     }
-  } catch {
-    // non-fatal
+  } catch (err) {
+    emitEvent(
+      human,
+      "virtual_edges_unavailable",
+      { error: (err as Error).message },
+      `[edges] Could not load virtual edges: ${(err as Error).message}`,
+    );
   }
 
   const runtimeSchema = buildRuntimeInputSchema(graph);
-  const runtimeInputs = parsedRuntimeInputs;
+  let runtimeInputs = parsedRuntimeInputs;
 
   if (runtimeSchema) {
     if (targetNote && Object.keys(runtimeInputs).length === 0) {
@@ -536,7 +584,28 @@ export async function runVaultCommand(
       return;
     }
 
-    const inputValidation = validateRuntimeInputsForGraph(graph, runtimeInputs);
+    const preparedInputs = prepareRuntimeInputsForGraph(
+      graph,
+      runtimeInputs,
+      payloadMode,
+    );
+    runtimeInputs = preparedInputs.payload;
+    if (preparedInputs.projected) {
+      emitEvent(
+        human,
+        "runtime_inputs_projected",
+        {
+          mode: payloadMode,
+          dropped_keys: preparedInputs.droppedKeys,
+          projected_inputs: runtimeInputs,
+        },
+        `[inputs] projected mode dropped keys: ${
+          preparedInputs.droppedKeys.join(", ")
+        }`,
+      );
+    }
+
+    const inputValidation = preparedInputs.validation;
     if (!inputValidation.ok) {
       emitError(human, {
         code: "INPUT_VALIDATION_ERROR",
@@ -550,6 +619,9 @@ export async function runVaultCommand(
             message: issue.message,
           })),
           status: inputValidation.status,
+          payload_mode: payloadMode,
+          projected: preparedInputs.projected,
+          dropped_keys: preparedInputs.droppedKeys,
         },
         humanText: "✗ Runtime input validation failed:",
       });
@@ -629,6 +701,7 @@ export async function runVaultCommand(
   emitEvent(human, "run_start", {
     label,
     node_count: nodeCount,
+    payload_mode: payloadMode,
     vault_path: vaultPath,
   }, `Running ${label}: ${vaultPath} (${nodeCount} notes)\n`);
 
@@ -730,7 +803,14 @@ export async function runVaultCommand(
         maxEpochs: 5,
         verbose: false,
       });
-      if (result.gruTrained) {
+      if (result.legacy) {
+        emitEvent(
+          human,
+          "retraining_legacy",
+          { message: result.message },
+          result.message,
+        );
+      } else if (result.gruTrained) {
         emitEvent(
           human,
           "retraining_done",

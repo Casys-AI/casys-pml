@@ -2,6 +2,10 @@
 import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
 const content = useTranslations(locale).projects;
+
+function isExternalUrl(url: string): boolean {
+  return /^https?:\/\//.test(url);
+}
 ---
 
 <section id="projects">
@@ -51,21 +55,26 @@ const content = useTranslations(locale).projects;
       <!-- Links -->
       <div class="featured-links">
         {content.featured.links.website && (
-          <a href={content.featured.links.website} class="project-link primary" target="_blank" rel="noopener noreferrer">
+          <a
+            href={content.featured.links.website}
+            class="project-link primary"
+            target={isExternalUrl(content.featured.links.website) ? '_blank' : undefined}
+            rel={isExternalUrl(content.featured.links.website) ? 'noopener noreferrer' : undefined}
+          >
             <span class="material-symbols-rounded">public</span>
-            <span>Website</span>
+            <span>{content.linkLabels.proof}</span>
           </a>
         )}
         {content.featured.links.github && (
           <a href={content.featured.links.github} class="project-link" target="_blank" rel="noopener noreferrer">
             <span class="material-symbols-rounded">code</span>
-            <span>GitHub</span>
+            <span>{content.linkLabels.github}</span>
           </a>
         )}
         {content.featured.links.docs && content.featured.links.docs !== '#' && (
           <a href={content.featured.links.docs} class="project-link" target="_blank" rel="noopener noreferrer">
             <span class="material-symbols-rounded">description</span>
-            <span>Docs</span>
+            <span>{content.linkLabels.docs}</span>
           </a>
         )}
       </div>
@@ -91,7 +100,12 @@ const content = useTranslations(locale).projects;
               <div class={`project-row ${idx < category.items.length - 1 ? 'has-border' : ''}`}>
                 <div class="row-info">
                   {item.links.website ? (
-                    <a href={item.links.website} class="row-name" target="_blank" rel="noopener noreferrer">
+                    <a
+                      href={item.links.website}
+                      class="row-name"
+                      target={isExternalUrl(item.links.website) ? '_blank' : undefined}
+                      rel={isExternalUrl(item.links.website) ? 'noopener noreferrer' : undefined}
+                    >
                       {item.name}
                     </a>
                   ) : (
@@ -114,7 +128,13 @@ const content = useTranslations(locale).projects;
                       </a>
                     )}
                     {item.links.website && (
-                      <a href={item.links.website} class="icon-link" target="_blank" rel="noopener noreferrer" aria-label={`${item.name} website`}>
+                      <a
+                        href={item.links.website}
+                        class="icon-link"
+                        target={isExternalUrl(item.links.website) ? '_blank' : undefined}
+                        rel={isExternalUrl(item.links.website) ? 'noopener noreferrer' : undefined}
+                        aria-label={`${item.name} website`}
+                      >
                         <span class="material-symbols-rounded">open_in_new</span>
                       </a>
                     )}

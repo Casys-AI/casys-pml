@@ -6,13 +6,13 @@
 
 ## Overview
 
-The `--confirm` flag enables supervised trace collection: the CLI proposes beam
+Confirm mode enables supervised trace collection: the CLI proposes beam
 candidates, the user (or an AI agent) selects the correct one, and rejected
 candidates are stored as negative traces for contrastive learning.
 
 ## CLI Interface
 
-### `run --intent <text> --confirm`
+### `run --intent <text>` (default confirm mode)
 
 ```
 [intent] total payroll
@@ -34,19 +34,19 @@ candidates are stored as negative traces for contrastive learning.
 
 Structured `[tag] key=value` format, parseable by LLM:
 
-| Tag                                         | Meaning                           |
-| ------------------------------------------- | --------------------------------- |
-| `[intent]`                                  | The input intent text             |
-| `[candidates] N`                            | Number of options (3 + none = 4)  |
-| `[N] target=X confidence=Y path=A → B`      | Candidate with score              |
-| `[N] none`                                  | "None of these" option            |
-| `[confirm] Select (1-N):`                   | Awaiting stdin input              |
-| `[selected] N → target=X`                   | Chosen candidate                  |
-| `[none]`                                    | All rejected                      |
-| `[negatives] N rejected`                    | Count of negative traces          |
-| `[trace] 1 positive + N negative recorded.` | Trace summary                     |
-| `[auto] target=X`                           | Auto-selected (without --confirm) |
-| `[skip]`                                    | Invalid input, nothing recorded   |
+| Tag                                         | Meaning                          |
+| ------------------------------------------- | -------------------------------- |
+| `[intent]`                                  | The input intent text            |
+| `[candidates] N`                            | Number of options (3 + none = 4) |
+| `[N] target=X confidence=Y path=A → B`      | Candidate with score             |
+| `[N] none`                                  | "None of these" option           |
+| `[confirm] Select (1-N):`                   | Awaiting stdin input             |
+| `[selected] N → target=X`                   | Chosen candidate                 |
+| `[none]`                                    | All rejected                     |
+| `[negatives] N rejected`                    | Count of negative traces         |
+| `[trace] 1 positive + N negative recorded.` | Trace summary                    |
+| `[auto] target=X`                           | Auto-selected (`--no-confirm`)   |
+| `[skip]`                                    | Invalid input, nothing recorded  |
 
 ### Behavior
 
@@ -56,7 +56,7 @@ Structured `[tag] key=value` format, parseable by LLM:
 | 4 (none)    | ❌                 | ✅ all 3 candidates   | ❌ no        |
 | 0 / invalid | ❌                 | ❌                    | ❌ no        |
 
-### Without `--confirm` (auto mode)
+### With `--no-confirm` (auto mode)
 
 Best candidate auto-selected, no negatives recorded. Same as before.
 
@@ -95,16 +95,16 @@ loss/gradients but not to the accuracy %.
 
 ## Files modified
 
-| File                       | Change                                                                                    |
-| -------------------------- | ----------------------------------------------------------------------------------------- |
-| `src/cli.ts`               | `--confirm` flag, 3+none candidates, AI-friendly output, negative trace recording         |
-| `src/gru/trainer.ts`       | `negative` field on TrainingExample, contrastive loss (×−0.5), accuracy on positives only |
-| `src/workflows/retrain.ts` | Maps `success: false` → `negative: true`                                                  |
-| `src/workflows/init.ts`    | Same mapping                                                                              |
+| File                       | Change                                                                                                    |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `src/cli.ts`               | confirm-by-default + `--no-confirm` mode, 3+none candidates, AI-friendly output, negative trace recording |
+| `src/gru/trainer.ts`       | `negative` field on TrainingExample, contrastive loss (×−0.5), accuracy on positives only                 |
+| `src/workflows/retrain.ts` | Maps `success: false` → `negative: true`                                                                  |
+| `src/workflows/init.ts`    | Same mapping                                                                                              |
 
 ## Why this matters
 
-Without `--confirm`, the GRU creates a **self-confirmation loop**: it predicts a
+With `--no-confirm`, the GRU creates a **self-confirmation loop**: it predicts a
 target, executes it, records that as truth, and retrains on its own prediction.
-With `--confirm` + negatives, an external oracle (human or AI) breaks the loop
+With confirm mode + negatives, an external oracle (human or AI) breaks the loop
 by providing ground truth and explicitly marking incorrect predictions.

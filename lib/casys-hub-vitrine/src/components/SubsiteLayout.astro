@@ -3,6 +3,7 @@ import '../styles.css';
 import Analytics from '@vercel/analytics/astro';
 import SubsiteFooter from './SubsiteFooter.astro';
 import HrefLang from './HrefLang.astro';
+import { resolvePublicUrl } from '../lib/public-url';
 
 export interface Props {
   title: string;
@@ -15,7 +16,13 @@ const { title, metaDescription, ogImage, jsonLd } = Astro.props;
 const locale = (Astro as any).currentLocale ?? 'en';
 const pathname = Astro.url.pathname;
 const siteUrl = (import.meta.env.PUBLIC_SITE_URL as string | undefined)?.trim();
-const canonicalUrl = siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
+const publicUrl = resolvePublicUrl(pathname, siteUrl);
+const canonicalUrl = publicUrl.canonicalUrl;
+const resolvedOgImage = ogImage
+  ? /^https?:\/\//.test(ogImage)
+    ? ogImage
+    : new URL(ogImage, publicUrl.origin).toString()
+  : undefined;
 const ogLocaleMap = { en: 'en_US', fr: 'fr_FR', zh: 'zh_CN', 'zh-TW': 'zh_TW' } as const;
 const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
 ---
@@ -50,8 +57,8 @@ const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
       })();
     </script>
     <title>{title}</title>
-    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
-    <HrefLang />
+    <link rel="canonical" href={canonicalUrl} />
+    <HrefLang siteUrl={siteUrl} />
     <style is:inline>
       /* Override MD3 primary from purple to warm amber/orange for subsite brand */
       :root {
@@ -69,13 +76,13 @@ const ogLocale = ogLocaleMap[locale as keyof typeof ogLocaleMap] ?? 'en_US';
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={metaDescription} />
-    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+    <meta property="og:url" content={canonicalUrl} />
     <meta property="og:locale" content={ogLocale} />
-    {ogImage && <meta property="og:image" content={ogImage} />}
+    {resolvedOgImage && <meta property="og:image" content={resolvedOgImage} />}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={metaDescription} />
-    {ogImage && <meta name="twitter:image" content={ogImage} />}
+    {resolvedOgImage && <meta name="twitter:image" content={resolvedOgImage} />}
     <meta property="og:site_name" content="Casys AI" />
     {jsonLd && (
       <script type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />

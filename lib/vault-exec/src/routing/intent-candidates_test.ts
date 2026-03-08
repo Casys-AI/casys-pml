@@ -1,9 +1,10 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
-import type { CompiledNode, VaultGraph } from "../core/types.ts";
+import type { CompiledNode, VaultGraph } from "../core/contracts.ts";
 import {
   evaluateIntentCandidates,
   formatIntentCandidateLine,
 } from "./intent-candidates.ts";
+import { buildRuntimeInputValidator } from "./runtime-validator.ts";
 import { buildTargetIdentifierIndex } from "./target-identifiers.ts";
 
 function makeNode(
@@ -70,6 +71,7 @@ Deno.test("intent candidate formatter includes payload compatibility status", ()
   assertEquals(candidates[0].targetId, "candidate-a");
   assertEquals(candidates[0].targetAlias, "c-a");
   assertEquals(candidates[0].candidateId, "cand_candidate-a");
+  assertEquals(candidates[0].targetResolution, "index");
   assertEquals(candidates[0].validation.status, "OK");
   assertEquals(candidates[1].validation.status, "MISSING");
   assertEquals(candidates[1].validation.missing, ["days"]);
@@ -81,4 +83,34 @@ Deno.test("intent candidate formatter includes payload compatibility status", ()
   assertStringIncludes(line1, "payload=OK");
   assertStringIncludes(line2, "payload=MISSING");
   assertStringIncludes(line2, "missing=[days]");
+});
+
+Deno.test("intent candidate evaluation honors project payload policy", () => {
+  const graph = makeGraph();
+  const candidates = evaluateIntentCandidates(
+    graph,
+    [
+      { target: "Candidate A", confidence: 0.95, path: ["Candidate A"] },
+      { target: "Candidate B", confidence: 0.05, path: ["Candidate B"] },
+    ],
+    { account_id: "acct-9", extra_field: true },
+    buildTargetIdentifierIndex(["Candidate A", "Candidate B"]),
+    buildRuntimeInputValidator("project"),
+  );
+
+  assertEquals(candidates[0].payloadOk, true);
+  assertEquals(candidates[0].payloadProjected, true);
+  assertEquals(candidates[0].payloadDroppedKeys, ["extra_field"]);
+  assertEquals(
+    candidates[0].payloadStatus,
+    "OK PROJECTED dropped=[extra_field]",
+  );
+  assertEquals(candidates[1].payloadOk, false);
+  assertEquals(candidates[1].payloadProjected, true);
+  assertEquals(candidates[1].payloadDroppedKeys, ["account_id", "extra_field"]);
+  assertStringIncludes(candidates[1].payloadStatus, "MISSING missing=[days]");
+  assertStringIncludes(
+    candidates[1].payloadStatus,
+    "PROJECTED dropped=[account_id,extra_field]",
+  );
 });

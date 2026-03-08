@@ -6,6 +6,11 @@ import {
   SUPPORTED_TOOL_POLICIES,
 } from "./policy.ts";
 
+const CURRENT_PROJECT_README = new URL("../../README.md", import.meta.url)
+  .pathname;
+const ALTERNATE_CHECKOUT_README =
+  "/tmp/openclaw-fixture/lib/vault-exec/README.md";
+
 Deno.test("classifyToolCallL2 - hits for each supported major tool", () => {
   const cases: Array<{
     toolName: string;
@@ -20,13 +25,13 @@ Deno.test("classifyToolCallL2 - hits for each supported major tool", () => {
     { toolName: "process", args: { action: "poll" }, expectedFamily: "poll" },
     {
       toolName: "read",
-      args: { file_path: "/tmp/vx-ax-policy/lib/vault-exec/README.md" },
+      args: { file_path: "/tmp/openclaw-fixture/lib/vault-exec/README.md" },
       expectedFamily: "project_abs:file_path",
     },
     {
       toolName: "edit",
       args: {
-        file_path: "/tmp/vx-ax-policy/lib/vault-exec/src/cli.ts",
+        file_path: "/tmp/openclaw-fixture/lib/vault-exec/src/cli.ts",
         old_string: "old",
         new_string: "new",
       },
@@ -35,7 +40,7 @@ Deno.test("classifyToolCallL2 - hits for each supported major tool", () => {
     {
       toolName: "write",
       args: {
-        file_path: "/tmp/vx-ax-policy/lib/vault-exec/docs/note.md",
+        file_path: "/tmp/openclaw-fixture/lib/vault-exec/docs/note.md",
         content: "x",
       },
       expectedFamily: "project_abs:file_path",
@@ -190,6 +195,20 @@ Deno.test("classifyToolCallL2 - fallback for uncertainty per supported tool", ()
       `${testCase.toolName} fallback reason`,
     );
   }
+});
+
+Deno.test("classifyToolCallL2 - project paths stay checkout-agnostic", () => {
+  const current = classifyToolCallL2("read", {
+    file_path: CURRENT_PROJECT_README,
+  });
+  const legacy = classifyToolCallL2("read", {
+    file_path: ALTERNATE_CHECKOUT_README,
+  });
+
+  assertEquals(current.family, "project_abs:file_path");
+  assertEquals(current.hit, true);
+  assertEquals(legacy.family, "project_abs:file_path");
+  assertEquals(legacy.hit, true);
 });
 
 Deno.test("classifyToolCallL2 - exec normalization captures wrappers and primary binary", () => {

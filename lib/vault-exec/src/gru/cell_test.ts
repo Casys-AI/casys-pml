@@ -19,6 +19,27 @@ Deno.test("gruStep - produces hidden state of correct dimension", () => {
   assertEquals(logits.length, config.outputDim);
 });
 
+Deno.test("gruStep - deterministic for fixed weights and inputs", () => {
+  const config = DEFAULT_GRU_CONFIG;
+  const weights = initWeights(config);
+  const input = Array.from(
+    { length: config.inputDim },
+    (_, i) => Math.sin(i * 0.37) * 0.1,
+  );
+  const hPrev = Array.from(
+    { length: config.hiddenDim },
+    (_, i) => Math.cos(i * 0.23) * 0.1,
+  );
+  const intent = Array.from(
+    { length: config.inputDim },
+    (_, i) => Math.sin(i * 0.13) * 0.1,
+  );
+
+  const first = gruStep(input, hPrev, intent, weights, config);
+  const second = gruStep(input, hPrev, intent, weights, config);
+  assertEquals(second, first);
+});
+
 Deno.test("gruStep - different inputs produce different outputs", () => {
   const config = DEFAULT_GRU_CONFIG;
   const weights = initWeights(config);

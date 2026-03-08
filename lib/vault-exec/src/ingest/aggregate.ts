@@ -5,11 +5,7 @@ import type {
   ToolInvocation,
 } from "./types.ts";
 import type { ParsedOpenClawSession } from "./types.ts";
-
-function sessionDate(iso?: string): string {
-  if (iso && iso.length >= 10) return iso.slice(0, 10);
-  return new Date().toISOString().slice(0, 10);
-}
+import { resolveSessionDate } from "./session-date.ts";
 
 function pairResult(
   callId: string | undefined,
@@ -57,7 +53,7 @@ export function buildToolAggregates(
   const aggregates = new Map<string, ToolAggregate>();
 
   for (const session of sessions) {
-    const date = sessionDate(session.startedAt);
+    const date = resolveSessionDate(session.startedAt);
 
     for (const turn of session.turns) {
       const consumed = new Set<number>();

@@ -3,6 +3,9 @@ import { useTranslations } from '../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
 const currentYear = new Date().getFullYear();
 const t = useTranslations(locale).footer;
+const homeHref = locale === 'en' ? '/' : `/${locale}/`;
+const projectsHref = `${homeHref}#projects`;
+const contactHref = `${homeHref}#contact`;
 ---
 
 <footer id="footer">
@@ -11,7 +14,7 @@ const t = useTranslations(locale).footer;
     <div class="footer-grid">
       <!-- Brand Column -->
       <div class="footer-brand">
-        <a href="/" class="brand-link">
+        <a href={homeHref} class="brand-link">
           <img src="/icons/logo.svg" alt="Casys" class="brand-logo" />
           <span class="brand-name">Casys</span>
         </a>
@@ -24,9 +27,9 @@ const t = useTranslations(locale).footer;
         <div class="nav-column">
           <h3 class="nav-title">{t.product}</h3>
           <nav class="nav-links">
-            <a href="#projects">{t.projects}</a>
-            <a href="#contact">{t.consulting}</a>
-            <a href="#contact">{t.training}</a>
+            <a href={projectsHref}>{t.projects}</a>
+            <a href={contactHref}>{t.consulting}</a>
+            <a href={contactHref}>{t.training}</a>
           </nav>
         </div>
 
@@ -54,7 +57,7 @@ const t = useTranslations(locale).footer;
         <div class="nav-column">
           <h3 class="nav-title">{t.connect}</h3>
           <nav class="nav-links">
-            <a href="#contact">{t.contact}</a>
+            <a href={contactHref}>{t.contact}</a>
             <a href="https://discord.gg/fuPg8drR" target="_blank" rel="noopener">{t.discord}</a>
             <a href="https://github.com/Casys-AI" target="_blank" rel="noopener">GitHub</a>
             <a href="https://www.linkedin.com/company/casys-ai" target="_blank" rel="noopener">LinkedIn</a>

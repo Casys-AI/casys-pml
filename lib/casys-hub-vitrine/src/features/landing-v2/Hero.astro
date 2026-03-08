@@ -2,6 +2,10 @@
 import { useTranslations } from '../../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
 const t = useTranslations(locale).hero;
+
+function isExternalUrl(url: string): boolean {
+  return /^https?:\/\//.test(url);
+}
 ---
 
 <section id="hero">
@@ -32,7 +36,12 @@ const t = useTranslations(locale).hero;
       {t.proofs.map((proof, i) => (
         <>
           {i > 0 && <span class="proof-separator" aria-hidden="true"></span>}
-          <a href={proof.url} class="proof-badge" target="_blank" rel="noopener noreferrer">
+          <a
+            href={proof.url}
+            class="proof-badge"
+            target={isExternalUrl(proof.url) ? '_blank' : undefined}
+            rel={isExternalUrl(proof.url) ? 'noopener noreferrer' : undefined}
+          >
             <span class="badge-name">{proof.name}</span>
             <span class="badge-stat">{proof.stat}</span>
           </a>

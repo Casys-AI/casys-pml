@@ -132,3 +132,50 @@ Deno.test("ingestOpenClawSessions - writes sessions, tools and L2 coverage repor
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("ingestOpenClawSessions - deterministic filename fallback when timestamps are absent", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const sourceDir = `${root}/input`;
+    const outputDir = `${root}/out`;
+    await Deno.mkdir(sourceDir, { recursive: true });
+
+    const sessionPath = `${sourceDir}/session-no-time.jsonl`;
+    const lines = [
+      JSON.stringify({
+        type: "session",
+        id: "session-no-time",
+      }),
+      JSON.stringify({
+        type: "message",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+        },
+      }),
+      JSON.stringify({
+        type: "message",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "done" }],
+        },
+      }),
+    ];
+
+    await Deno.writeTextFile(sessionPath, `${lines.join("\n")}\n`);
+
+    const result = await ingestOpenClawSessions({
+      sourcePath: sourceDir,
+      outputPath: outputDir,
+    });
+
+    assertEquals(result.sessionsProcessed, 1);
+    assertEquals(result.toolsProcessed, 0);
+    assertEquals(
+      result.sessionFiles[0],
+      `${outputDir}/sessions/1970-01-01-session.md`,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

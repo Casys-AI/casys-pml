@@ -33,6 +33,14 @@ export function normalizeVaultPath(vaultPath: string): string {
   return vaultPath.trim().replace(/\/+$/, "") || "/";
 }
 
+export function resolveVaultStateDir(vaultPath: string): string {
+  return `${normalizeVaultPath(vaultPath)}/.vault-exec`;
+}
+
+export function resolveVaultConfigPath(vaultPath: string): string {
+  return `${resolveVaultStateDir(vaultPath)}/config.json`;
+}
+
 export async function getServicePaths(
   vaultPath: string,
 ): Promise<ServicePaths> {
@@ -44,7 +52,7 @@ export async function getServicePaths(
   const hash = await stableVaultHash(normalized);
   return {
     vaultPath: normalized,
-    vaultDbPath: `${normalized}/.vault-exec/vault.kv`,
+    vaultDbPath: `${resolveVaultStateDir(normalized)}/vault.kv`,
     hash,
     socketPath:
       `${SERVICE_SOCKET_DIR}/${SERVICE_NAME}-${hash}${SERVICE_SOCKET_EXT}`,
@@ -54,7 +62,7 @@ export async function getServicePaths(
 }
 
 export async function ensureVaultStateDir(vaultPath: string): Promise<void> {
-  await Deno.mkdir(`${normalizeVaultPath(vaultPath)}/.vault-exec`, {
+  await Deno.mkdir(resolveVaultStateDir(vaultPath), {
     recursive: true,
   });
 }

@@ -1,8 +1,12 @@
-import type { VaultReader } from "../../core/types.ts";
-import type { VaultWriter } from "../../core/io.ts";
+import type { VaultReader, VaultWriter } from "../../core/contracts.ts";
 
 export class DenoVaultWriter implements VaultWriter {
   async writeNote(path: string, content: string): Promise<void> {
+    const normalized = path.replace(/\\/g, "/");
+    const slash = normalized.lastIndexOf("/");
+    if (slash > 0) {
+      await Deno.mkdir(normalized.slice(0, slash), { recursive: true });
+    }
     await Deno.writeTextFile(path, content);
   }
 }
@@ -12,6 +16,8 @@ export class DenoVaultReader implements VaultReader {
     ".vault-exec",
     ".vault-exec-backup",
     ".obsidian",
+    "tool-graph",
+    "tools",
     "node_modules",
     ".git",
     "_drafts",

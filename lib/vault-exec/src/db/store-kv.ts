@@ -17,6 +17,12 @@ import type {
 // Maximum CAS retry attempts for upsertNote.
 const MAX_CAS_RETRIES = 5;
 
+function compareStable(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 // ── VaultKV ──────────────────────────────────────────────────────────────────
 
 export class VaultKV implements IVaultStore {
@@ -104,7 +110,7 @@ export class VaultKV implements IVaultStore {
       result.push(entry.value);
     }
     // Sort by name for deterministic ordering (mirrors VaultDB ORDER BY name).
-    result.sort((a, b) => a.name.localeCompare(b.name));
+    result.sort((a, b) => compareStable(a.name, b.name));
     return result;
   }
 
@@ -168,7 +174,8 @@ export class VaultKV implements IVaultStore {
 
   /** Replace all edges for a source node (denormalized: one key → string[]). */
   async setEdges(source: string, targets: string[]): Promise<void> {
-    await this.kv.set(["vault", "edges", source], targets);
+    const canonicalTargets = [...new Set(targets)].sort();
+    await this.kv.set(["vault", "edges", source], canonicalTargets);
   }
 
   async getEdges(source: string): Promise<string[]> {
@@ -185,7 +192,7 @@ export class VaultKV implements IVaultStore {
    * UUID suffix avoids collisions across processes.
    */
   async insertTrace(trace: TraceRow): Promise<void> {
-    const ts = new Date().toISOString();
+    const ts = trace.executedAt ?? new Date().toISOString();
     const seq = String(this.traceSeq++).padStart(8, "0");
     const id = crypto.randomUUID();
     const row: TraceRow = {
@@ -237,7 +244,12 @@ export class VaultKV implements IVaultStore {
     ) {
       if (!status || entry.value.status === status) rows.push(entry.value);
     }
-    rows.sort((a, b) => b.score - a.score);
+    rows.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const sourceCmp = compareStable(a.source, b.source);
+      if (sourceCmp !== 0) return sourceCmp;
+      return compareStable(a.target, b.target);
+    });
     return rows;
   }
 

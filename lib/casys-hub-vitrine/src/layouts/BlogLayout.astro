@@ -4,6 +4,7 @@ import '../styles/fonts.css';
 import Analytics from '@vercel/analytics/astro';
 import { getCollection } from 'astro:content';
 import HrefLang from '../components/HrefLang.astro';
+import { DEFAULT_SITE_URL, resolvePublicUrl } from '../lib/public-url';
 
 export interface Props {
   title: string;
@@ -23,13 +24,15 @@ const { title, locale = 'en', description, slug, ogTitle, ogDescription, datePub
 const effectiveOgTitle = ogTitle || title;
 const effectiveOgDescription = ogDescription || description;
 const siteUrl = (import.meta.env.PUBLIC_SITE_URL as string | undefined)?.trim();
-const ogImage = slug
-  ? `${siteUrl || ''}/og/blog/${slug}.png`
-  : `${siteUrl || ''}/og/home.png`;
-const localePrefix = locale === 'en' ? '' : `/${locale}`;
+const rootSiteUrl = (siteUrl || DEFAULT_SITE_URL).replace(/\/+$/, '');
 const pathname = Astro.url.pathname;
-const canonicalUrl = siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
-const blogBaseUrl = siteUrl ? `${siteUrl}${localePrefix}/blog` : undefined;
+const publicUrl = resolvePublicUrl(pathname, siteUrl);
+const ogImage = slug
+  ? new URL(`/og/blog/${slug}.png`, publicUrl.origin).toString()
+  : new URL('/og/home.png', publicUrl.origin).toString();
+const localePrefix = locale === 'en' ? '' : `/${locale}`;
+const canonicalUrl = publicUrl.canonicalUrl;
+const blogBaseUrl = `${rootSiteUrl}${localePrefix}/blog`;
 
 const labels = {
   en: {
@@ -183,11 +186,11 @@ function getPostSlug(post: typeof sortedPosts[0]) {
     </script>
 
     <title>{title}</title>
-    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
-    <HrefLang />
+    <link rel="canonical" href={canonicalUrl} />
+    <HrefLang siteUrl={siteUrl} />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Casys AI" />
-    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+    <meta property="og:url" content={canonicalUrl} />
     <meta property="og:title" content={effectiveOgTitle} />
     {effectiveOgDescription && <meta property="og:description" content={effectiveOgDescription} />}
     <meta property="og:image" content={ogImage} />
@@ -208,15 +211,15 @@ function getPostSlug(post: typeof sortedPosts[0]) {
         ...(datePublished && { "datePublished": datePublished }),
         ...(dateModified && { "dateModified": dateModified }),
         "author": author
-          ? { "@type": "Person", "name": author, "url": "https://casys.ai/about" }
-          : { "@type": "Organization", "name": "Casys AI", "url": "https://casys.ai" },
+          ? { "@type": "Person", "name": author, "url": `${rootSiteUrl}/about` }
+          : { "@type": "Organization", "name": "Casys AI", "url": rootSiteUrl },
         "publisher": {
           "@type": "Organization",
           "name": "Casys AI",
-          "url": "https://casys.ai",
+          "url": rootSiteUrl,
           "logo": {
             "@type": "ImageObject",
-            "url": "https://casys.ai/icons/logo.svg"
+            "url": `${rootSiteUrl}/icons/logo.svg`
           }
         },
         "mainEntityOfPage": {
@@ -228,13 +231,13 @@ function getPostSlug(post: typeof sortedPosts[0]) {
         "inLanguage": locale === 'zh' ? 'zh-CN' : locale
       }).replace(/</g, '\\u003c')} />
     )}
-    {slug && siteUrl && (
+    {slug && (
       <script type="application/ld+json" set:html={JSON.stringify({
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
         "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": t.home, "item": `${siteUrl}${localePrefix || '/'}` },
-          { "@type": "ListItem", "position": 2, "name": "Blog", "item": `${siteUrl}${localePrefix}/blog` },
+          { "@type": "ListItem", "position": 1, "name": t.home, "item": `${rootSiteUrl}${localePrefix || '/'}` },
+          { "@type": "ListItem", "position": 2, "name": "Blog", "item": `${rootSiteUrl}${localePrefix}/blog` },
           { "@type": "ListItem", "position": 3, "name": title }
         ]
       }).replace(/</g, '\\u003c')} />

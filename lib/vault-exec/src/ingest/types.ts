@@ -17,6 +17,7 @@ export interface ParsedToolResult {
   toolCallId?: string;
   toolName: string;
   content: unknown;
+  details?: unknown;
   isError: boolean;
   timestamp?: string;
 }
@@ -25,6 +26,7 @@ export interface ParsedOpenClawTurn {
   index: number;
   timestamp?: string;
   userIntent: string;
+  userProvenance?: JsonObject;
   assistantFinalText?: string;
   assistantThinking?: string[];
   parentPlanHint?: string;
@@ -40,6 +42,9 @@ export interface ParsedOpenClawSession {
   startedAt?: string;
   modelId?: string;
   agentId?: string;
+  sessionKind?: "top_level" | "subagent";
+  sessionProvenance?: JsonObject;
+  sessionCwd?: string;
   turns: ParsedOpenClawTurn[];
 }
 
@@ -85,4 +90,51 @@ export interface L2CoverageReport {
   totalFallbacks: number;
   hitRate: number;
   tools: ToolCoverage[];
+}
+
+export interface ImportedOpenClawToolCallRow {
+  sourceRoot: string;
+  sourcePath: string;
+  contentHash: string;
+  sessionId: string;
+  sessionShortId: string;
+  sessionStartedAt?: string;
+  agentId?: string;
+  sessionKind?: "top_level" | "subagent";
+  turnIndex: number;
+  callIndex: number;
+  timestamp?: string;
+  modelId?: string;
+  toolName: string;
+  toolCallId?: string;
+  args: JsonObject;
+  family: ToolFamily | null;
+  l2Hit: boolean;
+  l2FallbackReason?: string;
+  l2Context?: JsonObject;
+  userIntent: string;
+  userProvenance?: JsonObject;
+  assistantFinalText?: string;
+  assistantThinking?: string[];
+  parentPlanHint?: string;
+  toolResultContent?: unknown;
+  toolResultDetails?: unknown;
+  toolResultIsError?: boolean;
+}
+
+export interface ImportedOpenClawSessionRow {
+  sourceRoot: string;
+  sourcePath: string;
+  contentHash: string;
+  sessionId: string;
+  sessionShortId: string;
+  sessionStartedAt?: string;
+  agentId?: string;
+  modelId?: string;
+  sessionKind?: "top_level" | "subagent";
+  sessionProvenance?: JsonObject;
+  sessionCwd?: string;
+  importedAt: string;
+  turnCount: number;
+  toolCallCount: number;
 }

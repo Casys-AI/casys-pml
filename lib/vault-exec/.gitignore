@@ -1,6 +1,7 @@
 # Generated vault runtime data
 demo-vault/.vault-exec/
 demo-vault/.vault-exec-backup/
+demo-vault/tools/
 demo-vault-crm/.vault-exec/
 demo-vault-backups/
 
@@ -8,4 +9,3 @@ demo-vault-backups/
 notebooks/executed/
 notebooks/executed-after-intents/
 notebooks/topological-map.html
-

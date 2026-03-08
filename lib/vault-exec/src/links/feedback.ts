@@ -1,6 +1,12 @@
 import type { VaultGraph } from "../core/types.ts";
 import type { VirtualEdgeUpdate } from "../core/types.ts";
 
+function compareStable(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 function buildRealRelationSet(graph: VaultGraph): Set<string> {
   const relations = new Set<string>();
   // graph.edges is target -> dependencies. For path relations, we use dep -> target.
@@ -61,5 +67,9 @@ export function feedbackToVirtualEdgeUpdates(
     }
   }
 
-  return [...merged.values()];
+  return [...merged.values()].sort((a, b) => {
+    const sourceCmp = compareStable(a.source, b.source);
+    if (sourceCmp !== 0) return sourceCmp;
+    return compareStable(a.target, b.target);
+  });
 }

@@ -2,41 +2,55 @@
 import { useTranslations } from '../i18n';
 const locale = (Astro as any).currentLocale ?? 'en';
 const t = useTranslations(locale).header;
+const localePrefix = locale === 'en' ? '' : `/${locale}`;
+const homeHref = locale === 'en' ? '/' : `/${locale}/`;
+const whyCasysHref = `${homeHref}#why-casys`;
+const contactHref = `${homeHref}#contact`;
 
 const blogHref = locale === 'en' ? '/blog' : `/${locale}/blog`;
 
 const projects = [
   {
-    name: 'PML Gateway',
+    name: 'MCP ERPNext',
+    href: `${localePrefix}/mcp-erpnext`,
+    description: t.projectDescriptions.erpnext,
+    icon: 'dashboard',
+  },
+  {
+    name: 'PML',
     href: 'https://pml.casys.ai',
-    description: 'MCP Gateway with full observability',
+    description: t.projectDescriptions.pml,
     icon: 'hub',
   },
   {
     name: '@casys/mcp-std',
     href: 'https://mcp-std.casys.ai',
-    description: '508 MCP standard tools',
+    description: t.projectDescriptions.std,
     icon: 'handyman',
   },
   {
     name: '@casys/mcp-server',
     href: 'https://mcp-server.casys.ai',
-    description: 'Production MCP server framework',
+    description: t.projectDescriptions.server,
     icon: 'dns',
   },
   {
     name: '@casys/mcp-bridge',
     href: 'https://mcp-bridge.casys.ai',
-    description: 'MCP Apps to Telegram',
+    description: t.projectDescriptions.bridge,
     icon: 'cable',
   },
 ];
+
+function isExternalUrl(url: string): boolean {
+  return /^https?:\/\//.test(url);
+}
 ---
 
 <header class="header">
   <div class="container">
     <!-- Logo -->
-    <a href={locale === 'fr' ? '/fr' : locale === 'zh' ? '/zh' : locale === 'zh-TW' ? '/zh-TW' : '/'} class="logo">
+    <a href={homeHref} class="logo">
       <img src="/icons/logo.svg" alt="CASYS Logo" class="logo-img" />
       <span class="logo-text">Casys</span>
     </a>
@@ -57,7 +71,13 @@ const projects = [
           </button>
           <div class="dropdown-panel" role="menu" aria-label={t.projects}>
             {projects.map((project) => (
-              <a href={project.href} class="dropdown-item" role="menuitem" target="_blank" rel="noopener">
+              <a
+                href={project.href}
+                class="dropdown-item"
+                role="menuitem"
+                target={isExternalUrl(project.href) ? '_blank' : undefined}
+                rel={isExternalUrl(project.href) ? 'noopener' : undefined}
+              >
                 <span class="material-symbols-rounded dropdown-item-icon" aria-hidden="true">{project.icon}</span>
                 <div class="dropdown-item-text">
                   <span class="dropdown-item-name">{project.name}</span>
@@ -67,12 +87,12 @@ const projects = [
             ))}
           </div>
         </div>
-        <a href="#why-casys" class="nav-link">{t.whyCasys}</a>
-        <a href="#contact" class="nav-link">{t.consulting}</a>
+        <a href={whyCasysHref} class="nav-link">{t.whyCasys}</a>
+        <a href={contactHref} class="nav-link">{t.consulting}</a>
         <a href={blogHref} class="nav-link">{t.blog}</a>
         <a href={locale === 'en' ? '/use-cases' : `/${locale}/use-cases`} class="nav-link">{t.useCases}</a>
         <a href={locale === 'en' ? '/about' : `/${locale}/about`} class="nav-link">{t.about}</a>
-        <a href="#contact" class="nav-link">{t.contact}</a>
+        <a href={contactHref} class="nav-link">{t.contact}</a>
       </div>
       <div class="nav-icons">
         <a href="https://discord.gg/fuPg8drR" target="_blank" rel="noopener" aria-label="Discord" class="icon-link">
@@ -109,7 +129,12 @@ const projects = [
       <span class="mobile-projects-heading">{t.projects}</span>
       <div class="mobile-projects-list">
         {projects.map((project) => (
-          <a href={project.href} class="mobile-project-item" target="_blank" rel="noopener">
+          <a
+            href={project.href}
+            class="mobile-project-item"
+            target={isExternalUrl(project.href) ? '_blank' : undefined}
+            rel={isExternalUrl(project.href) ? 'noopener' : undefined}
+          >
             <span class="material-symbols-rounded mobile-project-icon" aria-hidden="true">{project.icon}</span>
             <div class="mobile-project-text">
               <span class="mobile-project-name">{project.name}</span>
@@ -119,12 +144,12 @@ const projects = [
         ))}
       </div>
     </div>
-    <a href="#why-casys" class="nav-link">{t.whyCasys}</a>
-    <a href="#contact" class="nav-link">{t.consulting}</a>
+    <a href={whyCasysHref} class="nav-link">{t.whyCasys}</a>
+    <a href={contactHref} class="nav-link">{t.consulting}</a>
     <a href={blogHref} class="nav-link">{t.blog}</a>
     <a href={locale === 'en' ? '/use-cases' : `/${locale}/use-cases`} class="nav-link">{t.useCases}</a>
     <a href={locale === 'en' ? '/about' : `/${locale}/about`} class="nav-link">{t.about}</a>
-    <a href="#contact" class="nav-link">{t.contact}</a>
+    <a href={contactHref} class="nav-link">{t.contact}</a>
     <div class="mobile-social">
       <a href="https://discord.gg/fuPg8drR" target="_blank" rel="noopener" class="mobile-social-link">
         <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">

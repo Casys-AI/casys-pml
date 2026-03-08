@@ -13,7 +13,9 @@ import {
 } from "./lifecycle.ts";
 import {
   encodeJsonLine,
+  isServiceResponse,
   isServiceStatus,
+  isSyncResponse,
   readJsonLine,
   type ServiceRequest,
   type ServiceResponse,
@@ -30,6 +32,27 @@ function requestId(): string {
   return crypto.randomUUID();
 }
 
+function fallbackServiceStatus(args: {
+  vaultPath: string;
+  socketPath: string;
+  lastStartedAt: string | null;
+  lastRunningAt: string | null;
+}): ServiceStatus {
+  return {
+    running: false,
+    pid: 0,
+    vaultPath: args.vaultPath,
+    socketPath: args.socketPath,
+    idleSecs: DEFAULT_IDLE_SECS,
+    startedAt: args.lastStartedAt ?? "",
+    lastActivityAt: args.lastRunningAt ?? "",
+    lastRunningAt: args.lastRunningAt,
+    syncInProgress: false,
+    lastSyncAt: null,
+    lastSyncError: null,
+  };
+}
+
 async function sendRequest(
   vaultPath: string,
   req: ServiceRequest,
@@ -42,7 +65,11 @@ async function sendRequest(
 
   try {
     await conn.write(encodeJsonLine(req));
-    return await readJsonLine(conn) as ServiceResponse;
+    const rawResponse = await readJsonLine(conn);
+    if (!isServiceResponse(rawResponse)) {
+      throw new Error("Malformed response from watch service");
+    }
+    return rawResponse;
   } finally {
     conn.close();
   }
@@ -130,19 +157,12 @@ export async function watchStatus(
     });
   } catch {
     const meta = await readServiceMeta(paths.metaPath);
-    return {
-      running: false,
-      pid: 0,
+    return fallbackServiceStatus({
       vaultPath: paths.vaultPath,
       socketPath: paths.socketPath,
-      idleSecs: Math.max(DEFAULT_IDLE_SECS, MIN_IDLE_SECS),
-      startedAt: meta.lastStartedAt ?? "",
-      lastActivityAt: meta.lastRunningAt ?? "",
+      lastStartedAt: meta.lastStartedAt,
       lastRunningAt: meta.lastRunningAt,
-      syncInProgress: false,
-      lastSyncAt: null,
-      lastSyncError: null,
-    };
+    });
   }
 
   if (!res.ok) {
@@ -186,14 +206,18 @@ export async function syncOnce(
     throw new Error(res.error);
   }
 
-  return res.result as SyncResponse;
+  if (!isSyncResponse(res.result)) {
+    throw new Error("Malformed sync response from watch service");
+  }
+
+  return res.result;
 }
 
 export async function stopWatch(args: { vaultPath: string }): Promise<boolean> {
   const paths = await getServicePaths(args.vaultPath);
 
   try {
-    const res = await sendRequest(args.vaultPath, {
+    const res = await sendRequest(paths.vaultPath, {
       id: requestId(),
       method: "stop",
     });

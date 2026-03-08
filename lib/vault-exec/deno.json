@@ -31,6 +31,19 @@
       ]
     }
   },
+  "publish": {
+    "include": [
+      "src/**/*.ts",
+      "README.md",
+      "deno.json"
+    ],
+    "exclude": [
+      "src/**/*_test.ts",
+      "src/**/test-fixtures.ts",
+      "src/fixtures/",
+      "src/cli.ts"
+    ]
+  },
   "nodeModulesDir": "manual",
   "compilerOptions": {
     "strict": true

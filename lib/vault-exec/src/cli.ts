@@ -5,7 +5,10 @@ import { buildGraph, topologicalSort } from "./core/graph.ts";
 import { validate } from "./core/validator.ts";
 import { DenoVaultReader } from "./infrastructure/fs/deno-vault-fs.ts";
 import { errorJson, eventJson } from "./cli-runtime/output.ts";
-import { EXIT_CODE_VALIDATION } from "./cli-runtime/exit-codes.ts";
+import {
+  EXIT_CODE_RUNTIME,
+  EXIT_CODE_VALIDATION,
+} from "./cli-runtime/exit-codes.ts";
 import { runVaultCommand } from "./workflows/run.ts";
 
 // Load .env.local (gitignored) then .env as fallback
@@ -22,7 +25,7 @@ async function loadNotes(dir: string) {
   const notes = await parseVault(reader, dir);
   if (notes.length === 0) {
     console.error(`No .md files found in ${dir}`);
-    Deno.exit(1);
+    Deno.exit(EXIT_CODE_VALIDATION);
   }
   return notes;
 }
@@ -201,6 +204,11 @@ const runCmd = new Command()
     "-I, --inputs <inputs:string>",
     "Runtime input payload (JSON string or @path/to/inputs.json)",
   )
+  .option(
+    "--payload-mode <mode:string>",
+    "Runtime payload mode: strict (default) or project",
+    { default: "strict" },
+  )
   .option("-H, --human", "Human-readable output (default: JSONL)")
   .action(
     async (opts: Parameters<typeof runVaultCommand>[0], vaultPath: string) => {
@@ -221,7 +229,7 @@ const compileCmd = new Command()
       console.error(
         "OPENAI_API_KEY environment variable is required for compilation",
       );
-      Deno.exit(1);
+      Deno.exit(EXIT_CODE_VALIDATION);
     }
 
     const notes = await loadNotes(vaultPath);
@@ -260,7 +268,7 @@ const compileCmd = new Command()
 
 const initCmd = new Command()
   .alias("n")
-  .description("Initialize GNN+GRU pipeline (embed, GNN, synthetic traces)")
+  .description("Initialize DB-first trace import, rebuild, and projection")
   .arguments("<vault-path:string>")
   .action(async (_opts: void, vaultPath: string) => {
     const notes = await loadNotes(vaultPath);
@@ -329,27 +337,34 @@ const initCmd = new Command()
     }
 
     const { BGEEmbedder } = await import("./embeddings/model.ts");
-    const { initVault } = await import("./workflows/init.ts");
+    const { initVaultWithTraceImport } = await import("./workflows/init.ts");
 
     const dbPath = resolveDbPath(vaultPath);
     await Deno.mkdir(`${vaultPath}/.vault-exec`, { recursive: true });
 
     console.log(`Initializing vault: ${vaultPath}\n`);
     const embedder = new BGEEmbedder();
-    const result = await initVault(notes, dbPath, embedder);
+    const result = await initVaultWithTraceImport(
+      vaultPath,
+      notes,
+      dbPath,
+      embedder,
+    );
 
     console.log(`\nDone:`);
-    console.log(`  ${result.notesIndexed} notes indexed`);
-    console.log(`  ${result.syntheticTraces} synthetic traces generated`);
-    console.log(`  GNN: ${result.gnnForwardDone ? "done" : "skipped"}`);
     console.log(
-      `  GRU: ${
-        result.gruTrained
-          ? `trained (accuracy=${
-            ((result.gruAccuracy ?? 0) * 100).toFixed(1)
-          }%)`
-          : "skipped"
-      }`,
+      `  Trace import: ${result.traceImport.sessionsImported} session(s), ${result.traceImport.toolCallsStored} tool call(s), ${result.traceImport.changedFiles} changed file(s)`,
+    );
+    if (result.traceImport.warnings.length > 0) {
+      console.log(
+        `  Trace warnings: ${result.traceImport.warnings.length}`,
+      );
+    }
+    console.log(
+      "  Derived tables: rebuilt in .vault-exec/vault.kv",
+    );
+    console.log(
+      "  Training: notebook-first in this phase (05, 06, 08 under notebooks/)",
     );
   });
 
@@ -426,7 +441,7 @@ const ingestCmd = new Command()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`ingest failed: ${message}`);
-      Deno.exit(1);
+      Deno.exit(EXIT_CODE_RUNTIME);
     }
   });
 
