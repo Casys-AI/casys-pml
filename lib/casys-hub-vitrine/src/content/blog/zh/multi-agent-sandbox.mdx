@@ -30,7 +30,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 一个开发者朋友和我，想让各自的智能体协同工作。不只是把它们拉进同一个 Discord——而是给它们一个真正的共享实验场地：一台公共 VPS、SSH 访问权限、能够一起写代码和做测试。
 
-问题在于：我们各自运行着自己的 OpenClaw 实例。我的智能体 David 管理着我的 WhatsApp、日历、客户项目。朋友那边的智能体也一样。这些智能体对各自宿主的数据有完全访问权限。显然，我们不想把它们直接互联——一个 bug、一次幻觉，一方的数据就可能泄露到另一方。
+问题在于：我们各自运行着自己的 OpenClaw 实例。我的主智能体管理着我的 WhatsApp、日历、客户项目。朋友那边的智能体也一样。这些智能体对各自宿主的数据有完全访问权限。显然，我们不想把它们直接互联——一个 bug、一次幻觉，一方的数据就可能泄露到另一方。
 
 解决方案：创建专门用于协作的**沙箱智能体**。与主智能体隔离。权限受限。但能够通过 Discord 和 SSH 进行协作。
 
@@ -68,8 +68,8 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
   "id": "spoke",
   "workspace": "/path/to/workspace-sandbox",
   "model": {
-    "primary": "anthropic/claude-sonnet-4-6",
-    "fallbacks": ["openai/gpt-4o"]
+    "primary": "your-preferred-model",
+    "fallbacks": ["your-fallback-model"]
   },
   "identity": {
     "name": "Spoke",
@@ -89,7 +89,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
   "tools": {
     "deny": ["gateway", "process", "whatsapp_login", "cron"],
     "agentToAgent": {
-      "allow": ["david"]
+      "allow": ["your-main-agent-id"]
     }
   }
 }
@@ -100,7 +100,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 - **`sandbox.mode: "all"`** — 所有 exec 命令都在 Docker 容器中执行。Spoke 永远不会接触宿主机。
 - **`readOnlyRoot: true`** — 容器文件系统为只读（工作空间除外）。这防止智能体修改系统二进制文件或植入后门。
 - **`tools.deny`** — 禁用 `gateway`（不能修改 OpenClaw 配置）、`cron`（不能在宿主机上调度任务）、`whatsapp_login`（不能窃取 WhatsApp 会话）。
-- **`agentToAgent.allow: ["david"]`** — Spoke 可以与 David 通信，但不能与其他任何智能体通信。
+- **`agentToAgent.allow: ["your-main-agent-id"]`** — Spoke 可以与主智能体通信，但不能与其他任何智能体通信。
 
 工作空间 `/path/to/workspace-sandbox` 有自己的 `SOUL.md` 和 `TOOLS.md`。沙箱智能体不知道我的客户、项目和 token。它只知道 VPS 的 SSH 地址和 Discord 频道。仅此而已。
 
@@ -347,10 +347,10 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 
 ```json
 // 主智能体
-"subagents": { "allowAgents": ["spoke"] }
+"subagents": { "allowAgents": ["your-sandbox-agent-id"] }
 
 // 智能体 Spoke
-"subagents": { "allowAgents": ["david"] }
+"subagents": { "allowAgents": ["your-main-agent-id"] }
 ```
 
 ### 非对称隔离

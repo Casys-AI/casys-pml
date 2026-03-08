@@ -140,7 +140,7 @@
       "y": 125,
       "width": 120,
       "height": 50,
-      "text": "David\n(Main Agent)",
+      "text": "Agent principal\n(Main Agent)",
       "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
@@ -166,7 +166,7 @@
       "isDeleted": false,
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "David\n(Main Agent)",
+      "originalText": "Agent principal\n(Main Agent)",
       "autoResize": true,
       "lineHeight": 1.75
     },

@@ -30,7 +30,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 Un ami développeur et moi, on voulait faire bosser nos agents ensemble. Pas juste les mettre dans un Discord — leur donner un vrai terrain de jeu partagé : un VPS commun, du SSH, la possibilité de coder et tester des trucs à deux.
 
-Le hic : chacun a son propre OpenClaw. Mon agent David gère mon WhatsApp, mon calendrier, mes projets clients. Celui de l'autre développeur, pareil. Ces agents ont accès à tout. On ne voulait évidemment pas les connecter directement — un bug, une hallucination, et les données d'un côté fuitent de l'autre.
+Le hic : chacun a son propre OpenClaw. Mon agent principal gère mon WhatsApp, mon calendrier, mes projets clients. Celui de l'autre développeur, pareil. Ces agents ont accès à tout. On ne voulait évidemment pas les connecter directement — un bug, une hallucination, et les données d'un côté fuitent de l'autre.
 
 La solution : des **agents sandboxés** dédiés à la collaboration. Isolés de nos agents principaux. Limités dans leurs permissions. Mais capables de collaborer via Discord et SSH.
 
@@ -68,8 +68,8 @@ La config dans `openclaw.json` :
   "id": "spoke",
   "workspace": "/path/to/workspace-sandbox",
   "model": {
-    "primary": "anthropic/claude-sonnet-4-6",
-    "fallbacks": ["openai/gpt-4o"]
+    "primary": "your-preferred-model",
+    "fallbacks": ["your-fallback-model"]
   },
   "identity": {
     "name": "Spoke",
@@ -89,7 +89,7 @@ La config dans `openclaw.json` :
   "tools": {
     "deny": ["gateway", "process", "whatsapp_login", "cron"],
     "agentToAgent": {
-      "allow": ["david"]
+      "allow": ["your-main-agent-id"]
     }
   }
 }
@@ -100,7 +100,7 @@ Points importants :
 - **`sandbox.mode: "all"`** — toutes les commandes exec passent par le container Docker. Spoke ne touche jamais le host.
 - **`readOnlyRoot: true`** — le filesystem du container est en lecture seule, sauf le workspace. Ça empêche l'agent de modifier des binaires système ou d'installer des backdoors.
 - **`tools.deny`** — pas de `gateway` (il ne peut pas modifier la config OpenClaw), pas de `cron` (il ne peut pas scheduler des tâches sur le host), pas de `whatsapp_login` (il ne peut pas voler des sessions WhatsApp).
-- **`agentToAgent.allow: ["david"]`** — Spoke peut communiquer avec David, mais avec personne d'autre.
+- **`agentToAgent.allow: ["your-main-agent-id"]`** — Spoke peut communiquer avec l'agent principal, mais avec personne d'autre.
 
 Le workspace `/path/to/workspace-sandbox` a son propre `SOUL.md` et `TOOLS.md`. L'agent sandboxé ne connaît pas mes clients, mes projets, mes tokens. Il connaît l'IP SSH du VPS et les canaux Discord. C'est tout.
 
@@ -347,10 +347,10 @@ Pour que `sessions_send` fonctionne, il faut configurer les deux côtés :
 
 ```json
 // Agent principal
-"subagents": { "allowAgents": ["spoke"] }
+"subagents": { "allowAgents": ["your-sandbox-agent-id"] }
 
 // Agent Spoke
-"subagents": { "allowAgents": ["david"] }
+"subagents": { "allowAgents": ["your-main-agent-id"] }
 ```
 
 ### Isolation asymétrique

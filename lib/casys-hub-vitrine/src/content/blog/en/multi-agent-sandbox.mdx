@@ -30,7 +30,7 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 A developer friend and I wanted our agents to work together. Not just drop them into a Discord — give them a real shared playground: a common VPS, SSH access, the ability to code and test things together.
 
-The catch: we each run our own OpenClaw. My agent David manages my WhatsApp, my calendar, my client projects. His agent does the same. These agents have access to everything. Obviously, we didn't want to connect them directly — one bug, one hallucination, and data from one side leaks to the other.
+The catch: we each run our own OpenClaw. My main agent manages my WhatsApp, my calendar, my client projects. His agent does the same. These agents have access to everything. Obviously, we didn't want to connect them directly — one bug, one hallucination, and data from one side leaks to the other.
 
 The solution: dedicated **sandboxed agents** for collaboration. Isolated from our main agents. Limited in their permissions. But able to collaborate via Discord and SSH.
 
@@ -42,7 +42,7 @@ Here's what we built in one evening, and everything we broke along the way.
 
 <ExcalidrawDiagram src="multi-agent-sandbox-architecture" alt="Multi-Agent Sandbox Architecture: Two OpenClaw instances with sandboxed agents communicating via Discord and a shared VPS through Tailscale" />
 
-Three machines. Two OpenClaw instances. One shared Discord. One VPS at ~$4/month as a common playground.
+Three machines. Two OpenClaw instances. One shared Discord. One cheap VPS as a common playground.
 
 Each OpenClaw runs on its own server. Each instance has a main agent (with full access: WhatsApp, calendar, client data) and a sandboxed agent (isolated, restricted permissions). The sandboxed agents communicate with each other via a shared Discord server and access the common VPS via SSH — all connected through a Tailscale mesh VPN.
 
@@ -50,7 +50,7 @@ The ground rules:
 
 1. **Isolation** — The sandboxed agent can't see the main agent's workspace. No data leaks.
 2. **@mention only** — Agents only respond when tagged. Two bots in the same channel without this rule = infinite loop and an astronomical token bill.
-3. **Shared VPS** — A common playground at ~$4/month. Both agents can code on it, install things, break everything and start over.
+3. **Shared VPS** — A common playground. Both agents can code on it, install things, break everything and start over.
 4. **Asymmetric communication** — The main agent can send instructions to the sandbox. The reverse is intentionally blocked.
 
 The architecture rests on three technical pillars that I'll detail one by one: networking (Tailscale), container connectivity (socat bridges), and inter-agent communication (Discord + sessions_send).
@@ -68,8 +68,8 @@ The config in `openclaw.json`:
   "id": "spoke",
   "workspace": "/path/to/workspace-sandbox",
   "model": {
-    "primary": "anthropic/claude-sonnet-4-6",
-    "fallbacks": ["openai/gpt-4o"]
+    "primary": "your-preferred-model",
+    "fallbacks": ["your-fallback-model"]
   },
   "identity": {
     "name": "Spoke",
@@ -89,7 +89,7 @@ The config in `openclaw.json`:
   "tools": {
     "deny": ["gateway", "process", "whatsapp_login", "cron"],
     "agentToAgent": {
-      "allow": ["david"]
+      "allow": ["your-main-agent-id"]
     }
   }
 }
@@ -100,7 +100,7 @@ Key points:
 - **`sandbox.mode: "all"`** — all exec commands run through the Docker container. Spoke never touches the host.
 - **`readOnlyRoot: true`** — the container's filesystem is read-only, except for the workspace. This prevents the agent from modifying system binaries or installing backdoors.
 - **`tools.deny`** — no `gateway` (it can't modify the OpenClaw config), no `cron` (it can't schedule tasks on the host), no `whatsapp_login` (it can't hijack WhatsApp sessions).
-- **`agentToAgent.allow: ["david"]`** — Spoke can communicate with David, but no one else.
+- **`agentToAgent.allow: ["your-main-agent-id"]`** — Spoke can communicate with the main agent, but no one else.
 
 The workspace `/path/to/workspace-sandbox` has its own `SOUL.md` and `TOOLS.md`. The sandboxed agent knows nothing about my clients, my projects, my tokens. It knows the VPS SSH IP and the Discord channels. That's it.
 
@@ -347,10 +347,10 @@ For `sessions_send` to work, both sides need to be configured:
 
 ```json
 // Main agent
-"subagents": { "allowAgents": ["spoke"] }
+"subagents": { "allowAgents": ["your-sandbox-agent-id"] }
 
 // Agent Spoke
-"subagents": { "allowAgents": ["david"] }
+"subagents": { "allowAgents": ["your-main-agent-id"] }
 ```
 
 ### Asymmetric Isolation
@@ -459,7 +459,7 @@ What remains imperfect:
 - Cross-context messaging is a real constraint that needs to be planned for in every setup. Which channel triggers which agent, and in what context.
 - The `allowFrom` / `allowSendTo` separation is still missing from the config. Having it would force you to clarify the direction of each permission.
 
-In the end, we got exactly what we wanted: two agents collaborating in a shared space, with no access to each other's private data, and communication controlled by @mention. The VPS runs at ~$4/month, both agents connect to it via SSH through the Tailscale mesh, and data stays compartmentalized.
+In the end, we got exactly what we wanted: two agents collaborating in a shared space, with no access to each other's private data, and communication controlled by @mention. Both agents connect to it via SSH through the Tailscale mesh, and data stays compartmentalized.
 
 Next step: automated workflows on the shared VPS, triggered by either agent depending on the project context.
 
