@@ -84,6 +84,7 @@ async function spawnDaemon(vaultPath: string, idleSecs: number): Promise<void> {
     "--allow-write",
     "--allow-net",
     "--allow-env",
+    "--allow-run",
     "--allow-ffi",
     "--unstable-kv",
     "--node-modules-dir=manual",

@@ -1,6 +1,4 @@
 import type { IVaultStore } from "../core/types.ts";
-import { deriveToolGraphKeysForCall } from "../ingest/tool-graph/naming.ts";
-import type { ImportedOpenClawToolCallRow } from "../ingest/types.ts";
 import { gnnForward } from "../gnn/application/forward.ts";
 import {
   DEFAULT_GNN_CONFIG,
@@ -11,13 +9,15 @@ import {
   loadOrInitGnnParams,
   persistGnnParams,
 } from "../gnn/infrastructure/runtime-store.ts";
-import type { TrainingExample } from "../gru/trainer.ts";
-import {
-  DEFAULT_GRU_CONFIG,
-  type GRUConfig,
-  type GRUVocabulary,
-  type VocabNode,
-} from "../gru/types.ts";
+import { DEFAULT_GRU_CONFIG } from "../gru/types.ts";
+export {
+  buildGruTrainingExamplesFromToolCalls,
+  renderToolCallTrainingContext,
+  toolCallTrainingKey,
+  type BuildGruTrainingExamplesOptions,
+  type GruTrainingLeafEmbeddingRow,
+} from "./gru-dataset.ts";
+import { buildGruVocabularyFromLeafEmbeddings } from "./gru-dataset.ts";
 import type { ToolLeafEdgeNextRow, ToolLeafNodeRow } from "./rebuild.ts";
 
 const HASH_MODULUS = 2_147_483_647;
@@ -30,25 +30,8 @@ export interface RunLeafGnnForwardResult {
   graphNodes: GNNNode[];
 }
 
-export interface BuildGruTrainingExamplesOptions {
-  minCalls?: number;
-  includeSubagents?: boolean;
-  config?: GRUConfig;
-  intentEmbeddingsByCallKey?: ReadonlyMap<string, number[]>;
-}
-
 function compareStrings(left: string, right: string): number {
   return left.localeCompare(right);
-}
-
-function compareToolCalls(
-  left: ImportedOpenClawToolCallRow,
-  right: ImportedOpenClawToolCallRow,
-): number {
-  return left.sourceRoot.localeCompare(right.sourceRoot) ||
-    left.sessionId.localeCompare(right.sessionId) ||
-    left.turnIndex - right.turnIndex ||
-    left.callIndex - right.callIndex;
 }
 
 function hashString(value: string): number {
@@ -121,38 +104,6 @@ function expandLeafFeatures(
     expanded[index] = base * (0.55 + signal) + bias;
   }
   return normalizeVector(expanded);
-}
-
-function zeroIntentEmbedding(config: GRUConfig): number[] {
-  return new Array(config.inputDim).fill(0);
-}
-
-function sessionKeyForCall(row: ImportedOpenClawToolCallRow): string {
-  return `${row.sourceRoot}::${row.sessionId}`;
-}
-
-export function toolCallTrainingKey(row: ImportedOpenClawToolCallRow): string {
-  return `${sessionKeyForCall(row)}::${row.turnIndex}::${row.callIndex}`;
-}
-
-export function renderToolCallTrainingContext(
-  row: ImportedOpenClawToolCallRow,
-): string {
-  const parts = [
-    `tool: ${row.toolName}`,
-    `leaf: ${
-      deriveToolGraphKeysForCall(row).l2Key ??
-        deriveToolGraphKeysForCall(row).l1Key
-    }`,
-    row.userIntent ? `user_intent: ${row.userIntent}` : "",
-    row.parentPlanHint ? `parent_plan: ${row.parentPlanHint}` : "",
-    row.assistantFinalText ? `assistant_final: ${row.assistantFinalText}` : "",
-    row.assistantThinking && row.assistantThinking.length > 0
-      ? `assistant_thinking: ${row.assistantThinking.join("\n")}`
-      : "",
-  ].filter((part) => part.length > 0);
-
-  return parts.join("\n");
 }
 
 export function buildToolLeafSeedEmbeddings(
@@ -240,102 +191,23 @@ export async function runLeafGnnForward(
 export function buildGruVocabularyFromEmbeddings(
   nodeRows: ToolLeafNodeRow[],
   embeddings: ReadonlyMap<string, number[]>,
-): GRUVocabulary {
-  const nodes: VocabNode[] = nodeRows
-    .slice()
-    .sort((left, right) => compareStrings(left.leafKey, right.leafKey))
-    .map((row) => {
-      const embedding = embeddings.get(row.leafKey);
-      if (!embedding) {
-        throw new Error(
-          `[training-data/model-inputs] Missing vocab embedding for leaf "${row.leafKey}"`,
-        );
-      }
-      return {
-        name: row.leafKey,
-        level: row.level,
-        embedding,
-      };
-    });
-
-  return {
-    nodes,
-    nameToIndex: new Map(nodes.map((node, index) => [node.name, index])),
-    indexToName: nodes.map((node) => node.name),
-  };
-}
-
-export function buildGruTrainingExamplesFromToolCalls(
-  rows: ImportedOpenClawToolCallRow[],
-  vocab: GRUVocabulary,
-  options: BuildGruTrainingExamplesOptions = {},
-): TrainingExample[] {
-  const minCalls = options.minCalls ?? 3;
-  const includeSubagents = options.includeSubagents ?? true;
-  const config = options.config ?? DEFAULT_GRU_CONFIG;
-  const intentEmbeddings = options.intentEmbeddingsByCallKey ?? new Map();
-  const sessions = new Map<string, ImportedOpenClawToolCallRow[]>();
-
-  for (const row of rows.slice().sort(compareToolCalls)) {
-    const bucket = sessions.get(sessionKeyForCall(row)) ?? [];
-    bucket.push(row);
-    sessions.set(sessionKeyForCall(row), bucket);
-  }
-
-  const examples: TrainingExample[] = [];
-  for (const sessionRows of sessions.values()) {
-    if (
-      !includeSubagents &&
-      (sessionRows[0].sessionKind ?? "top_level") === "subagent"
-    ) {
-      continue;
-    }
-
-    if (sessionRows.length < minCalls) {
-      continue;
-    }
-
-    const leafKeys = sessionRows.map((row) => {
-      const keys = deriveToolGraphKeysForCall(row);
-      return keys.l2Key ?? keys.l1Key;
-    });
-
-    for (
-      let targetPosition = 1;
-      targetPosition < leafKeys.length;
-      targetPosition++
-    ) {
-      const targetLeaf = leafKeys[targetPosition];
-      const targetIdx = vocab.nameToIndex.get(targetLeaf);
-      if (targetIdx === undefined) {
-        continue;
-      }
-
-      const path = leafKeys.slice(0, targetPosition + 1);
-      if (path.length < 2) {
-        continue;
-      }
-
-      const intentEmb = intentEmbeddings.get(
-        toolCallTrainingKey(sessionRows[targetPosition]),
-      ) ?? zeroIntentEmbedding(config);
-
-      if (intentEmb.length !== config.inputDim) {
-        throw new Error(
-          `[training-data/model-inputs] Expected intent embedding length ${config.inputDim}, got ${intentEmb.length}`,
-        );
-      }
-
-      examples.push({
-        intentEmb,
-        path,
-        targetIdx,
-        parentIdx: null,
-        childIdx: null,
-        negative: false,
-      });
-    }
-  }
-
-  return examples;
+) {
+  return buildGruVocabularyFromLeafEmbeddings(
+    nodeRows
+      .slice()
+      .sort((left, right) => compareStrings(left.leafKey, right.leafKey))
+      .map((row) => {
+        const embedding = embeddings.get(row.leafKey);
+        if (!embedding) {
+          throw new Error(
+            `[training-data/model-inputs] Missing vocab embedding for leaf "${row.leafKey}"`,
+          );
+        }
+        return {
+          leafKey: row.leafKey,
+          level: row.level,
+          embedding,
+        };
+      }),
+  );
 }

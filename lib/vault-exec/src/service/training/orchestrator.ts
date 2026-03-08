@@ -37,6 +37,8 @@ export interface RequestLiveTrainingOptions
   requestedBy: string;
 }
 
+const DEFAULT_NODE_MAX_OLD_SPACE_MB = 8192;
+
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -53,6 +55,18 @@ function orchestratorPath(): string {
   return new URL("./orchestrator.ts", import.meta.url).pathname;
 }
 
+function resolveNodeMaxOldSpaceMb(): number {
+  const raw = Deno.env.get("VAULT_EXEC_NODE_MAX_OLD_SPACE_MB");
+  if (!raw) {
+    return DEFAULT_NODE_MAX_OLD_SPACE_MB;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isFinite(parsed) && parsed >= 1024) {
+    return parsed;
+  }
+  return DEFAULT_NODE_MAX_OLD_SPACE_MB;
+}
+
 async function runNodeGruWorker(args: {
   snapshotDir: string;
   resultDir: string;
@@ -65,6 +79,7 @@ async function runNodeGruWorker(args: {
 }): Promise<void> {
   const command = new Deno.Command("node", {
     args: [
+      `--max-old-space-size=${resolveNodeMaxOldSpaceMb()}`,
       "--experimental-transform-types",
       nodeWorkerPath(),
       "--snapshot",

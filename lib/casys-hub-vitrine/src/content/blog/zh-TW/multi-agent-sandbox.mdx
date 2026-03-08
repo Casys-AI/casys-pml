@@ -51,9 +51,9 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 1. **隔離** — 沙箱化 Agent 看不到主要 Agent 的工作空間。不會有資料洩漏。
 2. **僅限 @mention** — Agent 只在被 tag 時才回應。同一個頻道裡兩個 bot 沒有這條規則 = 無限迴圈和天價 token 帳單。
 3. **共用 VPS** — 月費約 4 歐元的共用場地。兩個 Agent 都能在上面寫程式、裝東西、搞壞一切然後重來。
-4. **非對稱通訊** — 主要 Agent 可以對沙箱發送指令。反向則被刻意阻擋。
+4. **受控通訊** — Agent 透過 `sessions_send` 通訊，使用明確的雙向權限。每個連結都是有意識的決定。
 
-這個架構建立在三個技術支柱上，我會逐一說明：網路（Tailscale）、容器連線（socat 橋接）、以及 Agent 間通訊（Discord + sessions_send）。
+這個架構建立在三個技術支柱上，我會逐一說明：容器連線（socat 橋接——我們在[之前的文章](/blog/the-localhost-trap)已經介紹過這個模式）、私有網路（Tailscale）、以及 Agent 間通訊（Discord + sessions_send）。
 
 ---
 
@@ -104,76 +104,32 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 工作空間 `/path/to/workspace-sandbox` 有自己的 `SOUL.md` 和 `TOOLS.md`。沙箱 Agent 不知道我的客戶、專案、token。它只知道 VPS 的 SSH IP 和 Discord 頻道。就這樣。
 
----
-
-## 支柱一 — Tailscale Mesh VPN
-
-<ExcalidrawDiagram src="multi-agent-tailscale-mesh" alt="三台機器之間的 Tailscale Mesh VPN" />
-
-### 什麼是 Tailscale
-
-Tailscale 是一個基於 WireGuard 的 **mesh VPN**。它在分散於網際網路的機器之間建立私有網路——每台機器獲得一個穩定的私有 IP 位址（在 `100.x.x.x` 範圍內），無論實際位置、NAT 設定或資料中心在哪，都能直接與其他機器通訊。
-
-具體來說，Tailscale 處理：
-- **私有網路** — mesh 中的每台機器都有穩定的 IP，不需要在網際網路上開放連接埠
-- **NAT traversal** — NAT 後面的機器自動互相發現（透過 DERP，加密中繼伺服器）
-- **內建 SSH 認證** — `tailscale up --ssh` 啟用 SSH 伺服器，透過 Tailscale 身份認證，不需要公鑰
-- **加密** — 所有流量經過 WireGuard（點對點加密）
-
-免費方案支援最多 100 台機器和 3 位使用者——對我們的場景綽綽有餘。如果想要完全自建的免費方案，純 WireGuard 在加密和隧道方面做的一樣好，但需要自己管理金鑰、設定和 NAT traversal。
-
-### 安裝
-
-```bash
-# 在每台機器上（伺服器 A、VPS、同事的伺服器）
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up --ssh
-```
-
-`--ssh` 這個 flag 是有趣的部分。它啟用了 **Tailscale SSH**：認證透過 Tailscale 身分進行，而非公鑰。不用再管 `authorized_keys`、不用再跑 `ssh-keygen`、不會再發生「在面板上貼錯金鑰」的窘境。
-
-五分鐘內，三台機器就在同一個私有網路上了：
-
-- 我的伺服器 → `100.x.x.x`
-- VPS → `100.y.y.y`
-- 同事的伺服器 → `100.z.z.z`
-
-從 mesh 中的任何一台機器：`ssh root@100.y.y.y`。不需要金鑰，不需要複雜設定。
-
-### 自動 NAT traversal
-
-Tailscale 透過 DERP（Designated Encrypted Relay for Packets）處理 NAT traversal。具體來說：
-- 如果兩台機器可以直接連線（沒有 NAT），就走點對點 WireGuard。
-- 如果其中一台在 symmetric NAT 後面，Tailscale 會用 DERP relay 做初始 handshake，然後嘗試 hole punching 建立直接連線。
-- 最後的手段是讓流量通過最近的 DERP relay。
-
-實際上，我們從來不需要操心這件事。就是能用，沒別的。
-
-### 問題：Docker 看不到 Tailscale
-
-而這就是漂亮的設定開始卡住的地方。
-
-Tailscale 跑在 **host** 上。`tailscaled` daemon 在 host 的網路 namespace 中管理 `tailscale0` 介面。但我們的 Agent 跑在 **Docker 容器**中。Bridge 模式（預設）的容器有自己的網路 namespace。它只看得到 `eth0`（docker0 bridge，`172.17.0.x`），就這樣。
-
-容器看不到 `tailscale0`。它無法解析 `100.y.y.y`。沙箱 Agent 沒辦法執行 `ssh root@100.y.y.y`——這條路由在它的 namespace 中根本不存在。
-
-我們可以在容器裡跑 Tailscale。但這需要 `NET_ADMIN` capability 和 `--device /dev/net/tun`。把 `NET_ADMIN` 給沙箱 Agent 就等於毀掉沙箱的意義——這是網路層的權限提升。
-
-解決方案：在 host 上建立一個橋接，監聽 `docker0` 介面並將流量轉送到 Tailscale 網路。這就是支柱二。
+> **注意：** `bookworm-slim` Docker 映像檔是最小化的。如果沙箱 Agent 需要 SSH，要在 Dockerfile 中加入 `openssh-client`：
+> ```dockerfile
+> RUN apt-get update && apt-get install -y openssh-client && rm -rf /var/lib/apt/lists/*
+> ```
 
 ---
 
-## 支柱二 — Socat 橋接
+## 支柱一 — Socat 橋接
 
 <ExcalidrawDiagram src="multi-agent-socat-bridges" alt="兩個 socat 橋接：Container → Host → VPS" />
 
-這裡我們再次遇到 [The Localhost Trap](/blog/the-localhost-trap) 中描述的問題——但延伸到了遠端 VPS。模式是一樣的：Docker 容器需要存取不在其網路 namespace 中的服務。解決方案：在 host 上建立 `socat` 橋接。
+如果你讀過 [The Localhost Trap](/blog/the-localhost-trap)，這個問題會很熟悉：Docker 容器需要存取不在其網路 namespace 中的服務。解決方案是在 host 上建立 `socat` 橋接。這裡，我們把這個模式延伸到遠端 VPS。
 
-### 兩個 socket
+### 問題：Docker 看不到私有網路
+
+我們的 Agent 運行在 **Docker 容器**中。Bridge 模式（預設）的容器有自己的網路 namespace。它只看得到 `eth0`（docker0 bridge，`172.17.0.x`），就這樣。
+
+共用 VPS 則透過 Tailscale 私有網路連線（詳見支柱二）。它的位址是 `100.y.y.y`——mesh VPN 中的私有 IP。容器無法解析這個位址。這條路由在它的 namespace 中根本不存在。
+
+我們可以在容器裡安裝 Tailscale——但這需要網路權限（`NET_ADMIN`），完全違背沙箱的意義。解決方案：在 host 上建立 `socat` 橋接來轉發流量。
+
+### 兩次跳轉
 
 完整的 SSH 連線鏈涉及**兩次跳轉**：
 
-**Socket 1：Container → Host（docker0 gateway）**
+**跳轉 1：Container → Host（docker0 gateway）**
 
 Docker 容器看到 `172.17.0.1` 作為 gateway——這是 host 上 `docker0` 介面的位址。我們在這個介面上開放一個 port：
 
@@ -189,25 +145,11 @@ socat TCP-LISTEN:2222,bind=172.17.0.1,fork,reuseaddr \
 3. `100.y.y.y` 是 VPS 的 Tailscale 位址——host 可以透過 `tailscale0` 解析它
 4. SSH 連線端對端建立完成
 
-**Socket 2：Host → 遠端 VPS（經由 Tailscale）**
+**跳轉 2：Host → 遠端 VPS（經由 Tailscale）**
 
-從 socat 的角度來看，第二次跳轉很透明——就是一條到 `100.y.y.y:22` 的 TCP 連線。但底層是 Tailscale 在做事：
-- Host 透過 Tailscale 介面解析 `100.y.y.y`
-- 封包被封裝為 WireGuard
-- 穿越 NAT，可能經過 DERP relay
-- 到達 VPS 後解封裝，抵達 port 22 上的 `sshd`
+從 socat 的角度來看，第二次跳轉很透明——就是一條到 `100.y.y.y:22` 的 TCP 連線。但底層是 Tailscale 在做事：封包被封裝為 WireGuard、穿越 NAT、到達 VPS。詳細機制會在支柱二中說明。
 
-從 Spoke 的角度來看，就是一個簡單的 `ssh -p 2222 root@172.17.0.1`。所有複雜度都被 socat + Tailscale 吸收了。
-
-### 為什麼不在容器裡跑 Tailscale
-
-三個原因：
-
-1. **`NET_ADMIN` capability** — Tailscale 需要建立 TUN 網路介面。這需要 `NET_ADMIN`，它讓容器有權修改 host 的整個網路堆疊（如果搭配其他 capability 或寬鬆設定）。對沙箱來說不可接受。
-2. **`/dev/net/tun`** — 需要把 TUN 裝置掛載進容器。多一個暴露的裝置。
-3. **Tailscale 登入** — 容器需要用 authkey 向 Tailscale 認證。這意味著在容器中儲存 Tailscale token——多一個洩漏途徑。
-
-socat 橋接避免了這一切。容器不需要任何特殊權限。它只是對本地位址發出基本的 TCP 連線。複雜的網路處理全交給 host。
+從 Spoke 的角度來看，就是一個簡單的 `ssh -p 2222 root@172.17.0.1`。所有網路複雜度都被 socat + Tailscale 吸收了。
 
 ### systemd 服務
 
@@ -248,6 +190,63 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 ```
 
 沒有這條規則，從容器執行 `ssh -p 2222 root@172.17.0.1` 會得到靜默 timeout。不是 `Connection refused`，不是 `Permission denied`——只有一片空白。這種問題如果沒想到，可以浪費一個小時在 debug 上。
+
+---
+
+## 支柱二 — Tailscale Mesh VPN
+
+<ExcalidrawDiagram src="multi-agent-tailscale-mesh" alt="三台機器之間的 Tailscale Mesh VPN" />
+
+socat 橋接將流量轉發到 `100.y.y.y`。但這個位址從哪來，三台機器又是如何互相發現的？這就是 Tailscale 的角色。
+
+### 什麼是 Tailscale
+
+Tailscale 是一個基於 WireGuard 的 **mesh VPN**。它在分散於網際網路的機器之間建立私有網路——每台機器獲得一個穩定的私有 IP 位址（在 `100.x.x.x` 範圍內），無論實際位置、NAT 設定或資料中心在哪，都能直接與其他機器通訊。
+
+具體來說，Tailscale 處理：
+- **私有網路** — mesh 中的每台機器都有穩定的 IP，不需要在網際網路上開放連接埠
+- **NAT traversal** — NAT 後面的機器自動互相發現（透過 DERP，加密中繼伺服器）
+- **內建 SSH 認證** — `tailscale up --ssh` 啟用 SSH 伺服器，透過 Tailscale 身份認證，不需要公鑰
+- **加密** — 所有流量經過 WireGuard（點對點加密）
+
+免費方案支援最多 100 台機器和 3 位使用者——對我們的場景綽綽有餘。如果想要完全自建的免費方案，純 WireGuard 在加密和隧道方面做的一樣好，但需要自己管理金鑰、設定和 NAT traversal。
+
+### 安裝
+
+```bash
+# 在每台機器上（伺服器 A、VPS、同事的伺服器）
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up --ssh
+```
+
+`--ssh` 這個 flag 是有趣的部分。它啟用了 **Tailscale SSH**：認證透過 Tailscale 身分進行，而非公鑰。不用再管 `authorized_keys`、不用再跑 `ssh-keygen`、不會再發生「在面板上貼錯金鑰」的窘境。
+
+五分鐘內，三台機器就在同一個私有網路上了：
+
+- 我的伺服器 → `100.x.x.x`
+- VPS → `100.y.y.y`
+- 同事的伺服器 → `100.z.z.z`
+
+從 mesh 中的任何一台機器：`ssh root@100.y.y.y`。不需要金鑰，不需要複雜設定。
+
+### 自動 NAT traversal
+
+Tailscale 透過 DERP（Designated Encrypted Relay for Packets）處理 NAT traversal。具體來說：
+- 如果兩台機器可以直接連線（沒有 NAT），就走點對點 WireGuard。
+- 如果其中一台在 symmetric NAT 後面，Tailscale 會用 DERP relay 做初始 handshake，然後嘗試 hole punching 建立直接連線。
+- 最後的手段是讓流量通過最近的 DERP relay。
+
+實際上，我們從來不需要操心這件事。就是能用，沒別的。
+
+### 為什麼 Tailscale 裝在 host 上，而非容器中
+
+這是經常被問到的問題。三個原因不要在沙箱容器中安裝 Tailscale：
+
+1. **`NET_ADMIN` capability** — Tailscale 需要建立 TUN 網路介面。這需要 `NET_ADMIN`，它讓容器有權修改 host 的整個網路堆疊（如果搭配其他 capability 或寬鬆設定）。對沙箱來說不可接受。
+2. **`/dev/net/tun`** — 需要把 TUN 裝置掛載進容器。多一個暴露的裝置。
+3. **Tailscale 登入** — 容器需要用 authkey 向 Tailscale 認證。這意味著在容器中儲存 Tailscale token——多一個洩漏途徑。
+
+所以 socat 橋接才是正確的抽象：容器不需要任何特殊權限。它只對 `172.17.0.1:2222` 發出基本的 TCP 連線。複雜的網路處理全交給 host——Tailscale、WireGuard、NAT traversal。
 
 ---
 
@@ -328,13 +327,7 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 - **快取重寫** — Discord 使用者名稱會被解析並快取，避免每條訊息都重複呼叫 API。
 - **`ignoreOtherMentions`** — 新的 flag，讓 Agent 可以忽略 mention 了*其他* bot 的訊息。在這個 PR 之前，如果有人寫 `@Bot1 和 @Bot2`，兩個 bot 都會回應（因為各自的 `requireMention` 條件都滿足了）。現在，每個 bot 可以選擇只在自己是*唯一*被 mention 或*第一個*被 mention 時才回應。
 
-### Discord 角色 vs bot 的陷阱
-
-我同事在訊息中 mention 了 `@Spoke`——但 Discord 配對到的是一個名為「Spoke」的**角色**，而不是 bot。在介面上，兩者看起來一模一樣。差異在於：在自動完成的建議列表中，bot 會標示 **APP**，角色不會。
-
-永遠選擇標示 APP 的那個。否則，訊息 mention 的是 Discord 角色（通知擁有該角色的人類）而不是 bot（觸發 Agent）。Agent 不會回應，然後你會花時間去找一個程式碼裡根本不存在的 bug。
-
-### sessions_send() — 設計上就是單向的
+### sessions_send() — Agent 間通訊
 
 主要 Agent 如何指派任務給 Spoke？
 
@@ -342,9 +335,9 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 主要 Agent: sessions_send(agent="spoke", message="檢查 VPS 狀態")
 ```
 
-主要 Agent 可以將指令注入 Spoke 的 session。這在**設計上就是單向的**——而且是基於安全考量的刻意選擇。
+主要 Agent 可以將指令注入 Spoke 的 session。反過來也可以——只要雙方的權限都有設定。
 
-要讓 `sessions_send` 運作，需要在兩邊都設定：
+要讓 `sessions_send` 運作，需要設定兩個 Agent：
 
 ```json
 // 主要 Agent
@@ -354,15 +347,9 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 "subagents": { "allowAgents": ["your-main-agent-id"] }
 ```
 
-### 非對稱隔離
+通訊是**雙向但受控的**：每個 Agent 明確宣告它允許哪些其他 Agent 傳送訊息。沒有萬用字元，沒有「所有人都可以跟所有人對話」。每個連結都是一個有意識的決定。
 
-**主要 → 沙箱：允許。** 主要 Agent 可以透過 `sessions_send` 將任務委派給沙箱 Agent。
-
-**沙箱 → 主要：阻擋。** 我們不希望沙箱 Agent 能將指令注入具有特權的 Agent——這是權限提升的途徑。如果 Spoke 被入侵（透過網站的 prompt injection、VPS 上的惡意檔案），它無法向上滲透到主要 Agent。
-
-如果 Spoke 需要把結果傳達給主要 Agent，它會寫入主要 Agent 監控的 Discord 頻道。這是間接的，但乾淨：主要 Agent **選擇**去讀頻道，而不是**被動接受**注入。
-
-未來，一個類似 `allowSendTo` 的功能（獨立於入站 allowlist 的出站 allowlist）會很有用，可以更精細地控制權限——區分「誰可以寫給這個 Agent」和「這個 Agent 可以寫給誰」。這是我們希望在 OpenClaw 中看到的改進。
+這是相較於 OpenClaw 初始行為的重大改進——原本 sandbox → 主 Agent 的通訊是被設計為封鎖的。[PR #33224](https://github.com/openclaw/openclaw/pull/33224) 解除了這個限制並優化了路由系統：基於 Discord 原生 ID 的 mention（不再因顯示名稱產生誤判）、快取使用者名稱解析，以及新增 `ignoreOtherMentions` flag 避免同一訊息提及多個 bot 時產生重複回應。結果：精細可靠的跨 Agent 通訊，同時不犧牲隔離性。
 
 ### 跨上下文訊息
 
@@ -374,55 +361,23 @@ ufw allow in on docker0 to any port 2222 proto tcp \
 
 ---
 
-## 踩過的坑
+## 實際運作流程
 
-### fail2ban 把我們封鎖了
+日常使用起來是什麼樣子？以下是典型的流程：
 
-在測試 SSH 連線到 VPS 的過程中，幾次連線失敗了（錯誤的 port、錯誤的設定）。fail2ban 封鎖了我伺服器的 Tailscale IP。socat 橋接靜默 timeout——沒有錯誤、沒有明確的 log，只有一片空白。
+1. 主 Agent 在 WhatsApp 上收到一個請求
+2. 它透過 `sessions_send` 將任務委派給 Spoke
+3. Spoke 在共享的 Discord 中自主工作——SSH 到 VPS、執行程式碼、測試
+4. Spoke 提及主 Agent 或將結果轉發到主 session
+5. 主 Agent 整合並在 WhatsApp 上回覆——完全不需要人工介入
 
-```bash
-# 檢查被封鎖的 IP
-sudo fail2ban-client status sshd
+{/* TODO: 待新增截圖
+- WhatsApp 截圖：未主動詢問就收到結果
+- Discord 截圖：Spoke 自主工作中
+- 兩者並排展示頻道之間的橋接
+*/}
 
-# 解封
-sudo fail2ban-client set sshd unbanip <ip>
-```
-
-但這還不夠。即使 fail2ban 解封後，iptables 仍保留著 `REJECT` 規則：
-
-```bash
-# 查看規則
-sudo iptables -L INPUT -n --line-numbers
-
-# 刪除殘留規則
-sudo iptables -D INPUT <號碼>
-```
-
-**教訓：** 安裝時就立刻把 Tailscale IP 加入 fail2ban 白名單。
-
-```ini
-# /etc/fail2ban/jail.local
-[DEFAULT]
-ignoreip = 127.0.0.1/8 ::1 100.0.0.0/8
-```
-
-`100.0.0.0/8` 涵蓋所有 Tailscale IP 範圍（CGNAT range）。因為只有你 tailnet 中的機器才會有這個範圍的位址，所以是安全的。
-
-### openssh-client 不見了
-
-Spoke 嘗試 `ssh root@172.17.0.1 -p 2222`。回應：`ssh: command not found`。Docker 沙箱映像檔預設不包含 SSH 客戶端。需要在 Dockerfile 中加入：
-
-```dockerfile
-RUN apt-get update && \
-    apt-get install -y openssh-client && \
-    rm -rf /var/lib/apt/lists/*
-```
-
-事後看來很明顯。事前看不到。容器是 `bookworm-slim`——設計上就是極簡的。每個工具都必須明確加入。
-
-### 貼了私鑰而不是公鑰
-
-我同事在 VPS 面板上貼了他的**私鑰**而不是**公鑰**。這種事就是會發生。而這正是 Tailscale SSH 能消除的人為失誤：不需要複製金鑰、不需要在網頁面板上貼金鑰、根本不需要金鑰。認證透過 Tailscale 身分進行。
+關鍵在於：人類不需要介入流程。你只需發送初始請求，多 Agent 系統就會處理剩下的一切——委派、執行、結果回報。每個 Agent 在自己的範圍內、自己的頻道上、以自己的權限運作。
 
 ---
 
@@ -435,11 +390,9 @@ RUN apt-get update && \
 3. **Discord 多帳號**（如果使用獨立 bot）——每個 Agent 一個 token
 4. **Binding agent 路由** — 配對 `channel` + `accountId` + `guildId`
 5. **`requireMention: true`** 設定在共用 guild 上——不可妥協
-6. **`openssh-client`** 安裝在 Docker 沙箱映像檔中
-7. **Socat 橋接**（如果需要 SSH 到外部網路如 Tailscale、WireGuard）
-8. **沙箱的 `TOOLS.md`** 包含 SSH 資訊（IP、port、user）
-9. **fail2ban 白名單** Tailscale IP（`100.0.0.0/8`）——在開始測試之前
-10. **跨上下文** — 第一個觸發必須來自正確的頻道
+6. **Socat 橋接**（如果需要 SSH 到外部網路如 Tailscale、WireGuard）
+7. **沙箱的 `TOOLS.md`** 包含 SSH 資訊（IP、port、user）
+8. **跨上下文** — 第一個觸發必須來自正確的頻道
 
 ---
 
@@ -447,22 +400,12 @@ RUN apt-get update && \
 
 多 Agent 架構在理論上不複雜。實務上，它是一連串靜默的細節——一個不回應的 port、一個被誤認為 bot 的 Discord 角色、Docker 映像檔中缺少的套件。
 
-運作良好的部分：
+需要提前規劃的：
 
-- **Tailscale SSH** 消除了金鑰管理。當機器數量增加時，這是真正的時間節省。安裝、`tailscale up --ssh`，三台機器就能透過 SSH 互通，不需要任何手動金鑰設定。
-- **socat 模式** 仍然是解決容器 → host → 遠端網路問題最簡單的方案。我們已經在 [Docker 編排器](/blog/the-localhost-trap)中用過，這裡把它延伸到遠端 VPS。兩行 socat、一個 systemd 服務，容器就能存取遠端 VPS，彷彿它就在本地。
-- **`requireMention`** 是最重要的防護機制。沒有它，無限迴圈是保證的。加上 [PR #33224](https://github.com/openclaw/openclaw/pull/33224) 的改善（基於 ID 的 mention、`ignoreOtherMentions`），即使同一個頻道有多個 bot，系統也變得穩健。
-- **非對稱隔離**（主要 → 沙箱允許，沙箱 → 主要阻擋）是正確的模式。沙箱 Agent 永遠不應該能向具有特權的 Agent 注入指令。
+- Cross-context messaging 是一個真正的限制——哪個頻道觸發哪個 Agent，需要提前想清楚。
+- WhatsApp 設定中還缺少 `allowFrom` / `allowSendTo` 的分離。這會強制釐清每個權限的方向。
 
-仍不完美的部分：
-
-- 沙箱 → 主要的通訊透過 Discord 進行，而非直接。這是間接的，但乾淨——主要 Agent 選擇去讀，而不是被動接受注入。
-- 跨上下文訊息是一個真正的限制，每次設定都需要預先規劃。哪個頻道觸發哪個 Agent，以及在什麼上下文中。
-- `allowFrom` / `allowSendTo` 的分離在設定中仍然缺少。這能強制釐清每個權限的方向性。
-
-最終，我們得到了想要的：兩個 Agent 在共用空間中協作，無法存取對方的私有資料，通訊透過 @mention 控制。VPS 月費約 4 歐元，兩個 Agent 透過 Tailscale mesh 以 SSH 連線，資料保持隔離。
-
-下一步：在共用 VPS 上建立自動化工作流程，根據專案上下文由兩個 Agent 觸發。
+最終，我們得到了想要的：兩個 Agent 在共用空間中協作，無法存取對方的私有資料，通訊透過 @mention 控制。資料保持隔離，每個 Agent 在自己的權限範圍內運作。
 
 ---
 

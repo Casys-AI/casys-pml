@@ -11,10 +11,11 @@ Application orchestration for CLI-facing flows.
 ## Boundaries
 
 - `run.ts`: target resolution, validation, execution, trace learning, optional
-  retrain.
+  live-training request.
 - `init.ts`: configured trace import, derived DB-first table rebuild, and
-  projection bootstrap.
-- `retrain.ts`: legacy incremental retraining from persisted notes/traces.
+  projection bootstrap plus background-training request.
+- `retrain.ts`: legacy/manual entrypoint kept separate from the service-owned
+  async training loop.
 - `pipeline.ts`: reusable graph/GNN/GRU data preparation helpers.
 - No low-level storage implementation.
 - No model primitive math.
@@ -31,5 +32,6 @@ Application orchestration for CLI-facing flows.
   program inputs.
 - Projection stays tool-only; agent/session metadata remains aggregated inside
   those notes instead of creating more graph node types in Obsidian.
-- `init` and `sync` stop after import + derived-table rebuild + projection in
-  the DB-first phase; notebook experimentation owns early training work.
+- `init` and `sync` request background live training after import/rebuild when
+  the active DB-first build changed.
+- notebooks are for stats/eval and debugging, not the primary runtime trigger.

@@ -1,5 +1,5 @@
 // gru/trainer.ts — TF.js autograd trainer
-import * as tf from "npm:@tensorflow/tfjs";
+import * as tf from "@tensorflow/tfjs";
 import type { GRUConfig, GRUVocabulary, GRUWeights } from "./types.ts";
 import { gruStep } from "./cell.ts";
 import { dotProduct, softmax } from "../gnn/domain/attention.ts";

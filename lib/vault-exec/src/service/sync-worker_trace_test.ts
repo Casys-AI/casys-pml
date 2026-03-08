@@ -3,6 +3,7 @@ import { assertEquals } from "jsr:@std/assert";
 import type { Embedder } from "../embeddings/model.ts";
 import { resolveVaultExecConfigPath } from "../config/trace-config.ts";
 import {
+  getActiveTrainingBuildId,
   listActiveSessionSequences,
   listActiveToolLeafEdgesNext,
   listActiveToolLeafNodes,
@@ -118,6 +119,57 @@ hello world
     } finally {
       kv.close();
     }
+  } finally {
+    await Deno.remove(vaultPath, { recursive: true });
+  }
+});
+
+Deno.test("runIncrementalSync keeps the active build stable when no trace files changed", async () => {
+  const vaultPath = await Deno.makeTempDir();
+  const sourcePath = `${vaultPath}/sources/agents/alpha/sessions`;
+  const dbPath = `${vaultPath}/.vault-exec/vault.kv`;
+
+  try {
+    await Deno.mkdir(sourcePath, { recursive: true });
+    await Deno.mkdir(`${vaultPath}/.vault-exec`, { recursive: true });
+    await Deno.writeTextFile(
+      `${vaultPath}/Root.md`,
+      `---
+compiled_at: 2026-03-06T12:00:00.000Z
+value: true
+---
+
+hello world
+`,
+    );
+    await Deno.writeTextFile(
+      resolveVaultExecConfigPath(vaultPath),
+      `${JSON.stringify({ traceSources: [{ kind: "openclaw", path: sourcePath }] }, null, 2)}\n`,
+    );
+    await Deno.writeTextFile(`${sourcePath}/sess-a.jsonl`, buildTraceFixture());
+
+    const first = await runIncrementalSync(vaultPath, {
+      embedder: new MockEmbedder(),
+    });
+    assertEquals(first.ok, true);
+    assertEquals(first.traceFilesChanged, 1);
+
+    const kv = await Deno.openKv(dbPath);
+    const firstBuildId = await getActiveTrainingBuildId(kv);
+    kv.close();
+    assertEquals(typeof firstBuildId, "string");
+
+    const second = await runIncrementalSync(vaultPath, {
+      embedder: new MockEmbedder(),
+    });
+    assertEquals(second.ok, true);
+    assertEquals(second.traceFilesChanged, 0);
+    assertEquals(second.traceFilesUnchanged, 1);
+
+    const kvAgain = await Deno.openKv(dbPath);
+    const secondBuildId = await getActiveTrainingBuildId(kvAgain);
+    kvAgain.close();
+    assertEquals(secondBuildId, firstBuildId);
   } finally {
     await Deno.remove(vaultPath, { recursive: true });
   }

@@ -10,6 +10,10 @@ import {
   listActiveToolLeafEdgesNext,
   listActiveToolLeafNodes,
 } from "../training-data/rebuild.ts";
+import {
+  readRequestedBuild,
+  resolveLiveTrainingPaths,
+} from "../service/training/state.ts";
 import { initVaultWithTraceImport } from "./init.ts";
 
 class MockEmbedder implements Embedder {
@@ -140,6 +144,12 @@ Deno.test("initVaultWithTraceImport imports traces and keeps generated tools not
     } finally {
       kv.close();
     }
+
+    const requested = await readRequestedBuild(
+      resolveLiveTrainingPaths(vaultPath).requestedBuildPath,
+    );
+    assertEquals(requested?.requestedBy, "workflow-init");
+    assertEquals(typeof requested?.buildId, "string");
 
     const parsed = await parseVault(new DenoVaultReader(), vaultPath);
     assertEquals(parsed.map((note) => note.name), ["Root"]);

@@ -1,5 +1,6 @@
 import { loadTraceConfig } from "../config/trace-config.ts";
 import { getServicePaths } from "../service/lifecycle.ts";
+import { getActiveTrainingBuildId, rebuildDerivedTrainingData } from "../training-data/rebuild.ts";
 import { OpenClawLocalStore } from "./local-store.ts";
 import {
   loadSourceScanState,
@@ -9,7 +10,6 @@ import {
   type SourceScanState,
 } from "./source-state.ts";
 import { parseOpenClawSessionFile } from "./parser.ts";
-import { rebuildDerivedTrainingData } from "../training-data/rebuild.ts";
 import { deriveToolGraphEntities } from "./tool-graph/entities.ts";
 import { projectToolGraph } from "./tool-graph/projection.ts";
 import type {
@@ -97,7 +97,7 @@ function keepConfiguredSourceState(
 async function pruneStaleSessions(
   store: OpenClawLocalStore,
   files: Record<string, SourceFileState>,
-): Promise<void> {
+): Promise<number> {
   const importedSourcePaths = new Set(
     Object.values(files)
       .filter((state) => state.status === "imported")
@@ -105,11 +105,22 @@ async function pruneStaleSessions(
   );
 
   const sessions = await store.listSessions();
+  let deleted = 0;
   for (const session of sessions) {
     if (!importedSourcePaths.has(normalizePath(session.sourcePath))) {
       await store.deleteSession(session.sourceRoot, session.sessionId);
+      deleted += 1;
     }
   }
+  return deleted;
+}
+
+function stableStateSignature(files: Record<string, SourceFileState>): string {
+  return JSON.stringify(
+    Object.entries(files)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([path, state]) => [path, state]),
+  );
 }
 
 function warnForEmptySession(filePath: string): string {
@@ -145,6 +156,7 @@ export async function runIncrementalOpenClawImport(
   const store = await OpenClawLocalStore.open(dbPath);
   let sessions: ImportedOpenClawSessionRow[] = [];
   let rows: ImportedOpenClawToolCallRow[] = [];
+  let staleSessionsDeleted = 0;
 
   try {
     for (const source of config.traceSources) {
@@ -196,7 +208,7 @@ export async function runIncrementalOpenClawImport(
     }
 
     files = keepConfiguredSourceState(files, configuredRoots);
-    await pruneStaleSessions(store, files);
+    staleSessionsDeleted = await pruneStaleSessions(store, files);
 
     sessions = await store.listSessions();
     rows = await store.listToolCalls();
@@ -204,19 +216,29 @@ export async function runIncrementalOpenClawImport(
     store.close();
   }
 
+  const rebuildRequiredByState = staleSessionsDeleted > 0 ||
+    stableStateSignature(previousState.files) !== stableStateSignature(files);
+
   const trainingKv = await Deno.openKv(dbPath);
   try {
-    await rebuildDerivedTrainingData({
-      kv: trainingKv,
-      sessions,
-      toolCalls: rows,
-    });
+    const activeBuildId = await getActiveTrainingBuildId(trainingKv);
+    const rebuildRequired = !activeBuildId || rebuildRequiredByState;
+
+    if (rebuildRequired) {
+      await rebuildDerivedTrainingData({
+        kv: trainingKv,
+        sessions,
+        toolCalls: rows,
+      });
+    }
   } finally {
     trainingKv.close();
   }
 
-  const entities = deriveToolGraphEntities(rows);
-  await projectToolGraph(options.vaultPath, entities);
+  if (rebuildRequiredByState) {
+    const entities = deriveToolGraphEntities(rows);
+    await projectToolGraph(options.vaultPath, entities);
+  }
 
   await saveSourceScanState(options.vaultPath, {
     version: 1,

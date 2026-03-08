@@ -3,6 +3,7 @@ import type { Embedder } from "../embeddings/model.ts";
 import { runIncrementalOpenClawImport } from "../ingest/pipeline.ts";
 import { ensureVaultStateDir, getServicePaths } from "./lifecycle.ts";
 import type { SyncResponse } from "./protocol.ts";
+import { requestLiveTrainingForActiveBuild } from "./training/orchestrator.ts";
 
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -24,6 +25,13 @@ export async function runIncrementalSync(
       vaultPath,
       dbPath: paths.vaultDbPath,
     });
+    if (traceImport.changedFiles > 0) {
+      await requestLiveTrainingForActiveBuild({
+        vaultPath,
+        dbPath: paths.vaultDbPath,
+        requestedBy: "service-sync",
+      });
+    }
 
     return {
       ok: true,

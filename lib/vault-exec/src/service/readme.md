@@ -26,4 +26,5 @@ Long-running daemon/watch lifecycle around vault sync operations.
 - Keep request/response contracts explicit and machine-validated.
 - Keep fallback behavior deterministic when the daemon is unreachable.
 - Keep lifecycle helpers pure or side-effect isolated.
-- `sync` is notebook-first in V1: it must not launch legacy runtime training.
+- `sync` owns the async live-training trigger for the active DB-first build; it
+  must not reimplement model internals locally.

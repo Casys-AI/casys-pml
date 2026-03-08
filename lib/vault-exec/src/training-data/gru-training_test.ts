@@ -77,6 +77,7 @@ Deno.test("trainGruFromOpenClawData persists GRU weights built from GNN leaf emb
   const db = await VaultKV.open(":memory:");
 
   try {
+    const events: string[] = [];
     const gnnConfig: GNNConfig = {
       numHeads: 1,
       headDim: 4,
@@ -134,6 +135,11 @@ Deno.test("trainGruFromOpenClawData persists GRU weights built from GNN leaf emb
       gruConfig,
       maxEpochs: 1,
       minCalls: 3,
+      onProgress: (event) => {
+        events.push(
+          `${event.kind}:${event.phase}:${event.current}/${event.total}`,
+        );
+      },
     });
 
     assertEquals(result.paramsSource, "initialized");
@@ -153,6 +159,16 @@ Deno.test("trainGruFromOpenClawData persists GRU weights built from GNN leaf emb
       "tool.exec.git_vcs",
       "tool.read.relative_path",
       "tool.write.relative_path",
+    ]);
+    assertEquals(events, [
+      "stage:gnn:1/6",
+      "stage:vocab:2/6",
+      "stage:examples:3/6",
+      "stage:train:4/6",
+      "epoch:train:1/1",
+      "stage:serialize:5/6",
+      "stage:persist:6/6",
+      "stage:done:6/6",
     ]);
   } finally {
     db.close();

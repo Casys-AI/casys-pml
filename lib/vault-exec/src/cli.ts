@@ -364,7 +364,7 @@ const initCmd = new Command()
       "  Derived tables: rebuilt in .vault-exec/vault.kv",
     );
     console.log(
-      "  Training: notebook-first in this phase (05, 06, 08 under notebooks/)",
+      "  Training: background live training requested; notebooks 05, 06, 08 are for stats/eval",
     );
   });
 

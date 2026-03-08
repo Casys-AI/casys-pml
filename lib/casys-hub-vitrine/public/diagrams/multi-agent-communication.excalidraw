@@ -21,7 +21,9 @@
       "seed": 101,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3 },
+      "roundness": {
+        "type": 3
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
@@ -78,12 +80,23 @@
       "seed": 201,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 2 },
+      "roundness": {
+        "type": 2
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
       "locked": false,
-      "points": [[0, 0], [115, 0]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          115,
+          0
+        ]
+      ],
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
@@ -140,7 +153,9 @@
       "seed": 103,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3 },
+      "roundness": {
+        "type": 3
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
@@ -263,12 +278,23 @@
       "seed": 203,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 2 },
+      "roundness": {
+        "type": 2
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
       "locked": false,
-      "points": [[0, 0], [120, 0]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          120,
+          0
+        ]
+      ],
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
@@ -314,23 +340,34 @@
       "y": 245,
       "width": 120,
       "height": 0,
-      "strokeColor": "#ff6b6b",
+      "strokeColor": "#74c0fc",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 2,
-      "strokeStyle": "dashed",
+      "strokeStyle": "solid",
       "opacity": 100,
       "angle": 0,
       "roughness": 1,
       "seed": 205,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 2 },
+      "roundness": {
+        "type": 2
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
       "locked": false,
-      "points": [[0, 0], [-120, 0]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -120,
+          0
+        ]
+      ],
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
@@ -343,7 +380,7 @@
       "y": 252,
       "width": 80,
       "height": 18,
-      "strokeColor": "#ff6b6b",
+      "strokeColor": "#74c0fc",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 1,
@@ -359,13 +396,13 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "❌ bloqué",
+      "text": "✅ sessions_send()",
       "fontSize": 12,
       "fontFamily": 5,
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "❌ bloqué",
+      "originalText": "✅ sessions_send()",
       "autoResize": true,
       "lineHeight": 1.25
     },
@@ -387,7 +424,9 @@
       "seed": 107,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3 },
+      "roundness": {
+        "type": 3
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
@@ -510,12 +549,23 @@
       "seed": 207,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 2 },
+      "roundness": {
+        "type": 2
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
       "locked": false,
-      "points": [[0, 0], [120, 0]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          120,
+          0
+        ]
+      ],
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
@@ -572,7 +622,9 @@
       "seed": 111,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3 },
+      "roundness": {
+        "type": 3
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
@@ -662,7 +714,9 @@
       "seed": 114,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3 },
+      "roundness": {
+        "type": 3
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
@@ -719,12 +773,23 @@
       "seed": 209,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 2 },
+      "roundness": {
+        "type": 2
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
       "locked": false,
-      "points": [[0, 0], [0, 60]],
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          60
+        ]
+      ],
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": "arrow",
@@ -748,7 +813,9 @@
       "seed": 116,
       "groupIds": [],
       "frameId": null,
-      "roundness": { "type": 3 },
+      "roundness": {
+        "type": 3
+      },
       "boundElements": [],
       "updated": 1,
       "link": null,
@@ -777,13 +844,13 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "🛡️ Garde-fous : requireMention: true → anti-boucle infinie  |  Cross-context : spawn WhatsApp ≠ accès Discord\nIsolation asymétrique : le sandbox ne peut pas injecter dans le principal  |  Unidirectionnel : principal → sandbox ✅ / sandbox → principal ❌",
+      "text": "🛡️ Garde-fous : requireMention: true → anti-boucle infinie  |  Cross-context : spawn WhatsApp ≠ accès Discord\nCommunication bidirectionnelle contrôlée : chaque agent déclare ses permissions  |  principal ↔ sandbox via allowAgents",
       "fontSize": 13,
       "fontFamily": 5,
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "🛡️ Garde-fous : requireMention: true → anti-boucle infinie  |  Cross-context : spawn WhatsApp ≠ accès Discord\nIsolation asymétrique : le sandbox ne peut pas injecter dans le principal  |  Unidirectionnel : principal → sandbox ✅ / sandbox → principal ❌",
+      "originalText": "🛡️ Garde-fous : requireMention: true → anti-boucle infinie  |  Cross-context : spawn WhatsApp ≠ accès Discord\nCommunication bidirectionnelle contrôlée : chaque agent déclare ses permissions  |  principal ↔ sandbox via allowAgents",
       "autoResize": true,
       "lineHeight": 1.25
     }

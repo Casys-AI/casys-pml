@@ -19,7 +19,7 @@ export interface RetrainOptions {
 }
 
 export const LEGACY_RETRAIN_MESSAGE =
-  "Legacy notes-first retraining is disabled. Use notebooks 05-topological-map.ipynb, 06-gnn-backprop-experiment.ipynb, and 08-openclaw-gru-sequences.ipynb against the DB-first training tables.";
+  "Legacy notes-first retraining is disabled. Use init/sync/watch to request background live training for the DB-first build; use notebooks 05-topological-map.ipynb, 06-gnn-backprop-experiment.ipynb, and 08-openclaw-gru-sequences.ipynb for stats and evaluation.";
 
 export function getLegacyRetrainMessage(): string {
   return LEGACY_RETRAIN_MESSAGE;
