@@ -42,7 +42,7 @@ Voici ce qu'on a construit en une soirée, et tout ce qu'on a cassé en chemin.
 
 <ExcalidrawDiagram src="multi-agent-sandbox-architecture" alt="Architecture Multi-Agent Sandbox : Deux instances OpenClaw avec agents sandboxés communiquant via Discord et un VPS partagé via Tailscale" />
 
-Trois machines. Deux instances OpenClaw. Un Discord partagé. Un VPS à ~4€/mois comme terrain de jeu commun.
+Trois machines. Deux instances OpenClaw. Un Discord partagé. Un VPS bon marché comme terrain de jeu commun.
 
 Chaque OpenClaw tourne sur son propre serveur. Chaque instance a un agent principal (avec accès à tout : WhatsApp, calendrier, données clients) et un agent sandboxé (isolé, permissions restreintes). Les agents sandboxés communiquent entre eux via un serveur Discord partagé, et accèdent au VPS commun via SSH — le tout connecté par un mesh VPN Tailscale.
 
@@ -50,7 +50,7 @@ Les règles du jeu :
 
 1. **Isolation** — L'agent sandboxé ne voit pas le workspace de l'agent principal. Pas de fuite de données.
 2. **@mention only** — Les agents ne répondent que quand on les tag. Deux bots dans le même canal sans cette règle = boucle infinie et facture de tokens astronomique.
-3. **VPS partagé** — Un terrain de jeu commun à ~4€/mois. Les deux agents peuvent y coder, y installer des trucs, tout casser et recommencer.
+3. **VPS partagé** — Un terrain de jeu commun. Les deux agents peuvent y coder, y installer des trucs, tout casser et recommencer.
 4. **Communication asymétrique** — L'agent principal peut envoyer des instructions au sandbox. L'inverse est bloqué intentionnellement.
 
 L'architecture repose sur trois piliers techniques que je vais détailler un par un : le réseau (Tailscale), la connectivité container (socat bridges), et la communication inter-agents (Discord + sessions_send).
@@ -446,22 +446,13 @@ Après cette soirée, voici la checklist qu'on aurait aimé avoir au départ :
 
 L'architecture multi-agent n'est pas compliquée en théorie. En pratique, c'est une succession de détails silencieux — un port qui ne répond pas, un rôle Discord confondu avec un bot, un package manquant dans une image Docker.
 
-Ce qui fonctionne bien :
-
-- **Tailscale SSH** élimine la gestion de clés. Un vrai gain de temps quand on multiplie les machines. On installe, on `tailscale up --ssh`, et les trois machines se parlent en SSH sans aucune configuration manuelle de clés.
-- **Le pattern socat** reste la solution la plus simple pour les problèmes réseau container → host → réseau distant. On l'a déjà utilisé pour [les orchestrateurs Docker](/blog/the-localhost-trap), ici on l'étend à un VPS distant. Deux lignes de socat, un service systemd, et le container accède à un VPS distant comme s'il était local.
-- **`requireMention`** est le garde-fou essentiel. Sans ça, c'est la boucle infinie garantie. Avec les améliorations de la [PR #33224](https://github.com/openclaw/openclaw/pull/33224) (id-based mentions, `ignoreOtherMentions`), le système est devenu robuste même avec plusieurs bots dans le même canal.
-- **L'isolation asymétrique** (principal → sandbox OK, sandbox → principal bloqué) est le bon modèle. Un agent sandboxé ne devrait jamais pouvoir injecter des instructions dans un agent privilégié.
-
 Ce qui reste imparfait :
 
 - La communication sandbox → principal passe par Discord, pas directement. C'est indirect mais propre — l'agent principal choisit de lire, il ne subit pas une injection.
 - Le cross-context messaging est une vraie contrainte qu'il faut anticiper pour chaque setup. Quel canal déclenche quel agent, et dans quel contexte.
 - La séparation `allowFrom` / `allowSendTo` manque encore dans la config WhatsApp. Ça forcerait à clarifier la direction de chaque permission.
 
-Au final, on a exactement ce qu'on voulait : deux agents qui collaborent dans un espace partagé, sans accès aux données privées de l'autre, avec une communication contrôlée par @mention. Le VPS tourne à ~4€/mois, les deux agents s'y connectent en SSH via le mesh Tailscale, et les données restent cloisonnées.
-
-La prochaine étape : des workflows automatisés sur le VPS partagé, déclenchés par les deux agents selon le contexte du projet.
+Au final, on a exactement ce qu'on voulait : deux agents qui collaborent dans un espace partagé, sans accès aux données privées de l'autre, avec une communication contrôlée par @mention. Les données restent cloisonnées, et chaque agent opère dans son propre périmètre de permissions.
 
 ---
 
