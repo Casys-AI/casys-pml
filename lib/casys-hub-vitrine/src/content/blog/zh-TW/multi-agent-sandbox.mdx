@@ -110,18 +110,19 @@ import ExcalidrawDiagram from '../../../components/ExcalidrawDiagram.astro';
 
 <ExcalidrawDiagram src="multi-agent-tailscale-mesh" alt="三台機器之間的 Tailscale Mesh VPN" />
 
-### 為什麼用 Tailscale 而不是純 WireGuard
+### 什麼是 Tailscale
 
-WireGuard 很優秀。它是 Tailscale 底層的協定。但手動在三台機器上部署意味著：
-- 在每台機器上產生金鑰對
-- 在所有機器之間分發公鑰
-- 寫好 `wg0.conf` 設定檔並填入正確的 endpoint
-- 手動處理 NAT traversal（STUN、relay）
-- 當 IP 變動時維護這一切
+Tailscale 是一個基於 WireGuard 的 **mesh VPN**。它在分散於網際網路的機器之間建立私有網路——每台機器獲得一個穩定的私有 IP 位址（在 `100.x.x.x` 範圍內），無論實際位置、NAT 設定或資料中心在哪，都能直接與其他機器通訊。
 
-Tailscale 消除了這些麻煩。一條指令、一次認證，機器就能互相找到。
+具體來說，Tailscale 處理：
+- **私有網路** — mesh 中的每台機器都有穩定的 IP，不需要在網際網路上開放連接埠
+- **NAT traversal** — NAT 後面的機器自動互相發現（透過 DERP，加密中繼伺服器）
+- **內建 SSH 認證** — `tailscale up --ssh` 啟用 SSH 伺服器，透過 Tailscale 身份認證，不需要公鑰
+- **加密** — 所有流量經過 WireGuard（點對點加密）
 
-### 安裝與啟用
+免費方案支援最多 100 台機器和 3 位使用者——對我們的場景綽綽有餘。如果想要完全自建的免費方案，純 WireGuard 在加密和隧道方面做的一樣好，但需要自己管理金鑰、設定和 NAT traversal。
+
+### 安裝
 
 ```bash
 # 在每台機器上（伺服器 A、VPS、同事的伺服器）

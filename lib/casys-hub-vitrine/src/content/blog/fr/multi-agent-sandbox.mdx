@@ -110,18 +110,19 @@ Le workspace `/path/to/workspace-sandbox` a son propre `SOUL.md` et `TOOLS.md`. 
 
 <ExcalidrawDiagram src="multi-agent-tailscale-mesh" alt="Tailscale Mesh VPN entre 3 machines" />
 
-### Pourquoi Tailscale et pas WireGuard pur
+### Qu'est-ce que Tailscale
 
-WireGuard est excellent. C'est le protocole sous-jacent de Tailscale. Mais le déployer manuellement sur trois machines, c'est :
-- Générer des paires de clés sur chaque machine
-- Distribuer les clés publiques entre toutes les machines
-- Écrire les fichiers de config `wg0.conf` avec les bons endpoints
-- Gérer le NAT traversal à la main (STUN, relais)
-- Maintenir tout ça quand une IP change
+Tailscale est un **mesh VPN** basé sur WireGuard. Il crée un réseau privé entre des machines dispersées sur Internet — chaque machine reçoit une adresse IP privée stable (dans le range `100.x.x.x`) et peut communiquer directement avec les autres, peu importe où elles se trouvent physiquement, derrière quel NAT, ou dans quel datacenter.
 
-Tailscale élimine toute cette friction. Une commande, une authentification, les machines se trouvent.
+Concrètement, Tailscale prend en charge :
+- **Le réseau privé** — chaque machine du mesh a une IP stable, pas besoin d'ouvrir des ports sur Internet
+- **Le NAT traversal** — les machines derrière des NAT se trouvent automatiquement (via DERP, des relais chiffrés)
+- **L'authentification SSH intégrée** — `tailscale up --ssh` active un serveur SSH dont l'auth repose sur l'identité Tailscale, pas sur des clés publiques
+- **Le chiffrement** — tout le trafic passe par WireGuard (chiffrement point-à-point)
 
-### Installation et activation
+Le tier gratuit permet jusqu'à 100 machines et 3 utilisateurs — largement suffisant pour notre cas. Pour une solution entièrement self-hosted et gratuite, WireGuard pur fait le même travail côté chiffrement et tunnel, mais il faut gérer les clés, les configs et le NAT traversal à la main.
+
+### Installation
 
 ```bash
 # Sur chaque machine (Serveur A, le VPS, serveur du collègue)
